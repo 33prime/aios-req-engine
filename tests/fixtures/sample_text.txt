@@ -1,0 +1,2 @@
+This is a sample text for testing the chunking functionality. It contains multiple sentences that will be split into chunks based on character count. The chunking algorithm should handle this text properly and create overlapping chunks to preserve context across boundaries. This ensures that important information at chunk boundaries is not lost during processing. The text continues with more content to ensure we have enough data to create multiple chunks for comprehensive testing of the chunking logic.
+
