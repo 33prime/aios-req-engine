@@ -147,10 +147,15 @@ export default function PrdPage() {
               Back to Dashboard
             </Link>
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">PRD Sections</h1>
+              <h1 className="text-3xl font-bold text-gray-900">Product Requirements Document</h1>
               <p className="text-gray-600 mt-1">
                 {sections.length} sections • {enrichedSections.length} enriched
               </p>
+              <div className="mt-3 text-sm text-gray-500 max-w-2xl">
+                Comprehensive product documentation including user personas, key features,
+                and user journey mapping. AI-enriched sections provide detailed insights
+                and evidence-based recommendations.
+              </div>
             </div>
           </div>
 
@@ -180,6 +185,36 @@ export default function PrdPage() {
           </div>
         </div>
       </div>
+
+      {/* PRD Summary */}
+      {enrichedSections.length > 0 && (
+        <div className="mb-8 bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-lg border border-blue-200">
+          <h2 className="text-lg font-semibold text-gray-900 mb-3">AI-Enhanced Insights</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+            <div className="flex items-center space-x-2">
+              <Users className="h-5 w-5 text-blue-600" />
+              <span className="text-gray-700">
+                <strong>{enrichedSections.filter(s => s.slug === 'personas').length}</strong> User personas defined
+              </span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Target className="h-5 w-5 text-green-600" />
+              <span className="text-gray-700">
+                <strong>{enrichedSections.filter(s => s.slug === 'key_features').length}</strong> Feature sets analyzed
+              </span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Zap className="h-5 w-5 text-purple-600" />
+              <span className="text-gray-700">
+                <strong>{enrichedSections.filter(s => s.slug === 'happy_path').length}</strong> User journeys mapped
+              </span>
+            </div>
+          </div>
+          <div className="mt-3 text-xs text-gray-600">
+            AI enrichment provides detailed analysis, evidence-based recommendations, and contextual insights for each section.
+          </div>
+        </div>
+      )}
 
       {/* Sections List */}
       <div className="space-y-6">
