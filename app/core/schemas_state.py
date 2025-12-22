@@ -31,6 +31,11 @@ class PrdSectionOut(BaseModel):
     evidence: list[dict[str, Any]] = Field(..., description="Evidence references")
     created_at: str = Field(..., description="Creation timestamp")
     updated_at: str = Field(..., description="Last update timestamp")
+    enrichment: dict[str, Any] = Field(default_factory=dict, description="Enrichment data")
+    enrichment_model: str | None = Field(None, description="Model used for enrichment")
+    enrichment_prompt_version: str | None = Field(None, description="Prompt version used")
+    enrichment_schema_version: str | None = Field(None, description="Schema version used")
+    enrichment_updated_at: str | None = Field(None, description="Enrichment timestamp")
 
 
 class VpStepOut(BaseModel):
