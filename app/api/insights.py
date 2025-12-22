@@ -4,7 +4,6 @@ import uuid
 from typing import Dict, Any, List
 
 from fastapi import APIRouter, HTTPException
-from supabase import Client as SupabaseClient
 
 from app.core.logging import get_logger
 from app.db.supabase_client import get_supabase
@@ -18,8 +17,7 @@ router = APIRouter()
 
 @router.patch("/v1/insights/{insight_id}/apply")
 async def apply_insight(
-    insight_id: str,
-    supabase: SupabaseClient = get_supabase()
+    insight_id: str
 ):
     """
     Apply an insight's proposed changes to project state.
@@ -30,6 +28,7 @@ async def apply_insight(
     4. Mark insight as 'applied'
     5. Create state revision for audit
     """
+    supabase = get_supabase()
     # Load insight
     insight_response = supabase.table("insights").select("*").eq("id", insight_id).single().execute()
     insight = insight_response.data
@@ -102,14 +101,14 @@ async def apply_insight(
 
 @router.post("/v1/insights/{insight_id}/confirm")
 async def create_confirmation_from_insight(
-    insight_id: str,
-    supabase: SupabaseClient = get_supabase()
+    insight_id: str
 ):
     """
     Create a confirmation item from an insight.
 
     For insights that need client/consultant approval.
     """
+    supabase = get_supabase()
     # Load insight
     insight_response = supabase.table("insights").select("*").eq("id", insight_id).single().execute()
     insight = insight_response.data
