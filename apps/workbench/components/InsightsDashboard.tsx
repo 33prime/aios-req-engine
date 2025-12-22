@@ -17,27 +17,34 @@ export function InsightsDashboard({ projectId }: { projectId: string }) {
   const [insights, setInsights] = useState<Insight[]>([]);
 
   useEffect(() => {
-    fetch(`/v1/insights?project_id=${projectId}`)
+    fetch(`${process.env.NEXT_PUBLIC_API_BASE}/v1/insights?project_id=${projectId}`)
       .then(res => res.json())
       .then(data => setInsights(data));
   }, [projectId]);
 
   const handleApply = async (insightId: string) => {
-    const response = await fetch(`/v1/insights/${insightId}/apply`, {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE}/v1/insights/${insightId}/apply`, {
       method: 'PATCH'
     });
     if (response.ok) {
       alert('Insight applied!');
       // Refresh insights
+      window.location.reload();
+    } else {
+      alert('Failed to apply insight');
     }
   };
 
   const handleConfirm = async (insightId: string) => {
-    const response = await fetch(`/v1/insights/${insightId}/confirm`, {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE}/v1/insights/${insightId}/confirm`, {
       method: 'POST'
     });
     if (response.ok) {
       alert('Confirmation item created!');
+      // Refresh insights
+      window.location.reload();
+    } else {
+      alert('Failed to create confirmation');
     }
   };
 

@@ -303,7 +303,7 @@ export default function ProjectPage() {
       </div>
 
       {/* Navigation Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <Link href={`/projects/${projectId}/features`} className="card hover:shadow-md transition-shadow">
           <div className="flex items-center justify-between">
             <div>
@@ -331,6 +331,16 @@ export default function ProjectPage() {
               <p className="text-gray-600 mt-1">Customer journey and value delivery</p>
             </div>
             <Zap className="h-8 w-8 text-purple-600" />
+          </div>
+        </Link>
+
+        <Link href={`/projects/${projectId}/insights`} className="card hover:shadow-md transition-shadow">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900">Insights</h3>
+              <p className="text-gray-600 mt-1">Red team analysis and recommendations</p>
+            </div>
+            <AlertCircle className="h-8 w-8 text-red-600" />
           </div>
         </Link>
       </div>
