@@ -13,6 +13,14 @@ export default function PrdDetailCard({ section, onViewEvidence }: PrdDetailCard
   const [showDetails, setShowDetails] = useState(false)
   const [showEvidence, setShowEvidence] = useState(false)
 
+  // Debug logging
+  console.log(`🎯 PRD Section ${section.slug}:`, {
+    hasEnrichment: !!section.enrichment,
+    enrichmentKeys: section.enrichment ? Object.keys(section.enrichment) : [],
+    evidenceCount: section.enrichment?.evidence?.length || 0,
+    clientNeedsCount: section.enrichment?.proposed_client_needs?.length || 0
+  })
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'confirmed_client':
@@ -44,6 +52,11 @@ export default function PrdDetailCard({ section, onViewEvidence }: PrdDetailCard
             <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(section.status)}`}>
               {section.status}
             </span>
+            {section.enrichment && (
+              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 ml-2">
+                🤖 Enriched
+              </span>
+            )}
           </div>
           <div className="text-xs text-gray-500">
             Created: {new Date(section.created_at).toLocaleDateString()}

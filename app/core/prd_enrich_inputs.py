@@ -32,8 +32,10 @@ def select_chunks_for_prd_enrich(
 
     # Truncate chunk content to max_chars_per_chunk
     for chunk in selected:
-        if "snippet" in chunk and len(chunk["snippet"]) > max_chars_per_chunk:
-            chunk["snippet"] = chunk["snippet"][:max_chars_per_chunk] + "..."
+        if "content" in chunk and len(chunk["content"]) > max_chars_per_chunk:
+            chunk["content"] = chunk["content"][:max_chars_per_chunk] + "..."
+        # Also add snippet field for compatibility
+        chunk["snippet"] = chunk.get("content", "")
 
     return selected
 
@@ -101,12 +103,25 @@ def retrieve_supporting_chunks(
         extra={"project_id": str(project_id), "query_count": len(queries)},
     )
 
-    # Debug: Log chunk metadata structure
+    # Debug: Log chunk metadata structure and content
     if unique_chunks:
         sample_chunk = unique_chunks[0]
         logger.info(
             f"Sample chunk metadata: signal_metadata keys: {list(sample_chunk.get('signal_metadata', {}).keys())}",
             extra={"project_id": str(project_id)},
+        )
+        logger.info(
+            f"Sample chunk signal_metadata: {sample_chunk.get('signal_metadata')}",
+            extra={"project_id": str(project_id)},
+        )
+        logger.info(
+            f"Sample chunk content preview: {sample_chunk.get('content', '')[:100]}...",
+            extra={"project_id": str(project_id)},
+        )
+    else:
+        logger.warning(
+            f"No chunks retrieved for PRD enrichment - checking why",
+            extra={"project_id": str(project_id), "include_research": include_research},
         )
 
     return unique_chunks
@@ -194,12 +209,16 @@ def build_prd_enrich_prompt(
             f"Relevant excerpts from project signals{' (including research)' if include_research else ''}:",
         ])
         for i, chunk in enumerate(chunks[:15], 1):  # Limit to 15 chunks
-            snippet = chunk.get("snippet", "")
-            source_type = chunk.get("signal_type", "unknown")
-            authority = chunk.get("authority", "unknown")
-            created_at = chunk.get("created_at", "")[:10]  # Date only
+            snippet = chunk.get("content", "")
+            chunk_id = chunk.get("chunk_id", "unknown")
 
-            prompt_parts.append(f"{i}. [{source_type}/{authority}/{created_at}] {snippet}")
+            # Extract metadata from signal_metadata
+            signal_metadata = chunk.get("signal_metadata", {})
+            source_type = signal_metadata.get("signal_type", "unknown")
+            authority = signal_metadata.get("authority", "unknown")
+            created_at = signal_metadata.get("created_at", "")[:10]  # Date only
+
+            prompt_parts.append(f"{i}. [ID:{chunk_id}] [{source_type}/{authority}/{created_at}] {snippet}")
         prompt_parts.append("")
 
     # Add section-specific instructions based on slug

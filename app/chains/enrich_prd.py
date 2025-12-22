@@ -51,10 +51,12 @@ CRITICAL RULES:
 1. Output ONLY the JSON object, no markdown, no explanation, no preamble.
 2. enhanced_fields should improve and expand the section's text content with more detail and clarity.
 3. proposed_client_needs should only be added if there are genuine gaps in understanding that need client clarification.
-4. Every piece of evidence must have chunk_id, excerpt (<=280 chars), rationale.
-5. Excerpts must be verbatim from provided chunks.
-6. Do NOT change section status or any canonical fields.
-7. If no improvements are needed, return minimal enhancements with appropriate summary."""
+4. Every piece of evidence MUST reference real chunk_ids from the provided context using the [ID:uuid] format.
+5. chunk_id values must be valid UUIDs extracted from the [ID:uuid] prefixes in the context - DO NOT make up fake IDs.
+6. Excerpts must be verbatim quotes from the provided context chunks.
+7. Rationale must explain why this evidence supports your enrichment.
+8. Do NOT change section status or any canonical fields.
+9. If no improvements are needed, return minimal enhancements with appropriate summary."""
 
 FIX_SCHEMA_PROMPT = """The previous output was invalid. Here is the error:
 
@@ -135,6 +137,9 @@ def enrich_prd_section(
     try:
         result = _parse_and_validate(raw_output, project_id, section_id, section_slug)
         logger.info(f"Successfully parsed PRD enrichment output for section {section_slug}")
+        logger.info(f"Evidence items: {len(result.evidence)}")
+        for i, evidence in enumerate(result.evidence):
+            logger.info(f"Evidence {i}: chunk_id={evidence.chunk_id}, excerpt='{evidence.excerpt[:50]}...'")
         return result
     except (json.JSONDecodeError, ValidationError) as e:
         error_msg = str(e)
