@@ -53,11 +53,13 @@ CRITICAL RULES:
 1. Output ONLY the JSON object, no markdown, no explanation, no preamble.
 2. enhanced_fields should improve and expand the step's text content with more detail, implementation specifics, and clarity.
 3. proposed_needs should only be added if there are genuine gaps in understanding that need clarification.
-4. Every piece of evidence must have chunk_id, excerpt (<=280 chars), rationale.
-5. Excerpts must be verbatim from provided chunks.
-6. Do NOT change step status or any canonical fields.
-7. Focus on user experience, implementation details, and success metrics.
-8. If no improvements are needed, return minimal enhancements with appropriate summary."""
+4. Every piece of evidence MUST reference real chunk_ids from the provided context using the [ID:uuid] format.
+5. chunk_id values must be valid UUIDs extracted from the [ID:uuid] prefixes in the context - DO NOT make up fake IDs.
+6. Excerpts must be verbatim quotes from the provided context chunks.
+7. Rationale must explain why this evidence supports your enrichment.
+8. Do NOT change step status or any canonical fields.
+9. Focus on user experience, implementation details, and success metrics.
+10. If no improvements are needed, return minimal enhancements with appropriate summary."""
 
 FIX_SCHEMA_PROMPT = """The previous output was invalid. Here is the error:
 
@@ -136,7 +138,12 @@ def enrich_vp_step(
 
     # Try to parse and validate
     try:
-        return _parse_and_validate(raw_output, project_id, step_id, step_index)
+        result = _parse_and_validate(raw_output, project_id, step_id, step_index)
+        logger.info(f"Successfully parsed VP enrichment output for step {step_index}")
+        logger.info(f"Evidence items: {len(result.evidence)}")
+        for i, evidence in enumerate(result.evidence):
+            logger.info(f"Evidence {i}: chunk_id={evidence.chunk_id}, excerpt='{evidence.excerpt[:50]}...'")
+        return result
     except (json.JSONDecodeError, ValidationError) as e:
         error_msg = str(e)
         logger.warning(
