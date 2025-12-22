@@ -2,8 +2,9 @@
 
 import uuid
 from typing import Dict, Any, List
+from uuid import UUID
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 
 from app.core.logging import get_logger
 from app.db.supabase_client import get_supabase
@@ -15,7 +16,43 @@ logger = get_logger(__name__)
 router = APIRouter()
 
 
-@router.patch("/v1/insights/{insight_id}/apply")
+@router.get("/insights")
+async def list_insights(
+    project_id: UUID = Query(..., description="Project UUID"),
+    status: str | None = Query(None, description="Filter by status (open, queued, applied, dismissed)"),
+    limit: int = Query(50, description="Maximum number of insights to return")
+) -> List[Dict[str, Any]]:
+    """
+    List insights for a project.
+
+    Args:
+        project_id: Project UUID
+        status: Optional status filter
+        limit: Maximum results to return
+
+    Returns:
+        List of insight records
+    """
+    supabase = get_supabase()
+
+    try:
+        query = supabase.table("insights").select("*").eq("project_id", str(project_id))
+
+        if status:
+            query = query.eq("status", status)
+
+        query = query.order("created_at", desc=True).limit(limit)
+
+        response = query.execute()
+
+        return response.data or []
+
+    except Exception as e:
+        logger.error(f"Failed to list insights for project {project_id}: {e}")
+        raise HTTPException(status_code=500, detail="Failed to fetch insights") from e
+
+
+@router.patch("/insights/{insight_id}/apply")
 async def apply_insight(
     insight_id: str
 ):
@@ -99,7 +136,7 @@ async def apply_insight(
     }
 
 
-@router.post("/v1/insights/{insight_id}/confirm")
+@router.post("/insights/{insight_id}/confirm")
 async def create_confirmation_from_insight(
     insight_id: str
 ):

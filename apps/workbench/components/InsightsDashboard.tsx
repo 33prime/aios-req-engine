@@ -37,7 +37,8 @@ export function InsightsDashboard({ projectId }: { projectId: string }) {
       // Refresh insights
       window.location.reload();
     } else {
-      alert('Failed to apply insight');
+      const error = await response.text();
+      alert(`Failed to apply insight: ${error}`);
     }
   };
 
@@ -50,7 +51,8 @@ export function InsightsDashboard({ projectId }: { projectId: string }) {
       // Refresh insights
       window.location.reload();
     } else {
-      alert('Failed to create confirmation');
+      const error = await response.text();
+      alert(`Failed to create confirmation: ${error}`);
     }
   };
 
