@@ -1,274 +1,204 @@
-"""Red-team LangGraph agent for requirements analysis."""
+"""Research-enhanced red team analysis LangGraph agent."""
 
 from dataclasses import dataclass, field
-from typing import Any
+from typing import List, Dict, Any, Optional
 from uuid import UUID
 
 from langgraph.graph import END, StateGraph
 
-from app.chains.red_team import run_redteam_chain
-from app.core.config import get_settings
-from app.core.embeddings import embed_texts
+from app.chains.red_team_research import run_research_gap_analysis
 from app.core.logging import get_logger
-from app.core.redteam_inputs import compact_facts_for_prompt
-from app.core.schemas_redteam import RedTeamOutput
-from app.db.facts import list_latest_extracted_facts
-from app.db.insights import insert_insights
-from app.db.phase0 import search_signal_chunks
+from app.core.redteam_queries import RESEARCH_QUERIES, CURRENT_STATE_QUERIES
+from app.db.phase0 import vector_search
+from app.db.redteam import store_insights
+from app.db.state import get_enriched_state
+from app.db.supabase_client import get_supabase
 
 logger = get_logger(__name__)
 
 MAX_STEPS = 8
 
-# Fixed query list for deterministic retrieval
-RED_TEAM_QUERIES = [
-    "What are the main business requirements and constraints?",
-    "What security and authentication requirements exist?",
-    "What are the data handling and storage requirements?",
-    "What user experience and interface expectations are there?",
-    "What integration and API requirements are specified?",
-]
-
 
 @dataclass
 class RedTeamState:
-    """State for the red-team graph."""
+    """State for research-enhanced red team analysis"""
+    project_id: str
+    run_id: str
+    job_id: Optional[str]
 
-    # Input fields
-    project_id: UUID
-    run_id: UUID
-    job_id: UUID
-    include_research: bool = False
-    model_override: str | None = None
+    # Research data
+    research_chunks: List[Dict[str, Any]] = field(default_factory=list)
+    research_summary: str = ""
 
-    # Processing state
-    step_count: int = 0
-    facts_rows: list[dict[str, Any]] = field(default_factory=list)
-    facts_digest: str = ""
-    chunks: list[dict[str, Any]] = field(default_factory=list)
-    llm_output: RedTeamOutput | None = None
+    # Current enriched state
+    current_features: List[Dict] = field(default_factory=list)
+    current_prd_sections: List[Dict] = field(default_factory=list)
+    current_vp_steps: List[Dict] = field(default_factory=list)
 
-    # Output
-    insights_count: int = 0
+    # Context chunks (optional)
+    context_chunks: List[Dict[str, Any]] = field(default_factory=list)
+
+    # LLM output
+    llm_output: Optional[Any] = None
+
+    # Persistence
+    insight_ids: List[str] = field(default_factory=list)
 
 
-def _check_max_steps(state: RedTeamState) -> RedTeamState:
-    """Check and increment step count, raise if exceeded."""
-    state.step_count += 1
-    if state.step_count > MAX_STEPS:
-        raise RuntimeError(f"Graph exceeded max steps ({MAX_STEPS})")
+def load_research_and_state(state: RedTeamState) -> RedTeamState:
+    """
+    Load research chunks and current enriched state.
+    """
+    supabase = get_supabase()
+
+    # 1. Retrieve research chunks via vector search
+    research_results = []
+    for query in RESEARCH_QUERIES:
+        results = vector_search(
+            supabase,
+            project_id=state.project_id,
+            query_text=query,
+            top_k=5,
+            filter_metadata={"authority": "research"}  # Only research signals
+        )
+        research_results.extend(results)
+
+    # Deduplicate by chunk_id
+    seen = set()
+    unique_research = []
+    for chunk in research_results:
+        if chunk["id"] not in seen:
+            unique_research.append(chunk)
+            seen.add(chunk["id"])
+
+    state.research_chunks = unique_research[:50]  # Cap at 50 chunks
+
+    # 2. Load current enriched state from database
+    enriched_state = get_enriched_state(state.project_id)
+    state.current_features = enriched_state["features"]
+    state.current_prd_sections = enriched_state["prd_sections"]
+    state.current_vp_steps = enriched_state["vp_steps"]
+
+    # 3. Optional: retrieve additional context chunks
+    # (facts, client signals) for broader context
+    context_results = []
+    for query in CURRENT_STATE_QUERIES:
+        results = vector_search(
+            supabase,
+            project_id=state.project_id,
+            query_text=query,
+            top_k=3,
+            filter_metadata={"authority": "client"}  # Only client signals
+        )
+        context_results.extend(results)
+
+    seen_context = set()
+    unique_context = []
+    for chunk in context_results:
+        if chunk["id"] not in seen_context:
+            unique_context.append(chunk)
+            seen_context.add(chunk["id"])
+
+    state.context_chunks = unique_context[:20]
+
     return state
 
 
-def load_inputs(state: RedTeamState) -> dict[str, Any]:
-    """Load extracted facts for the project."""
-    state = _check_max_steps(state)
+def call_research_gap_llm(state: RedTeamState) -> RedTeamState:
+    """
+    Call LLM to perform gap analysis.
 
-    logger.info(
-        f"Loading facts for project {state.project_id}",
-        extra={"run_id": str(state.run_id)},
+    Compares current enriched state against research insights
+    and identifies gaps, missing features, unaddressed pain points, etc.
+    """
+    state.llm_output = run_research_gap_analysis(
+        research_chunks=state.research_chunks,
+        current_features=state.current_features,
+        current_prd_sections=state.current_prd_sections,
+        current_vp_steps=state.current_vp_steps,
+        context_chunks=state.context_chunks,
+        run_id=state.run_id
     )
-
-    facts_rows = list_latest_extracted_facts(state.project_id, limit=5)
-    facts_digest = compact_facts_for_prompt(facts_rows)
-
-    logger.info(
-        f"Loaded {len(facts_rows)} fact extraction runs",
-        extra={"run_id": str(state.run_id)},
-    )
-
-    return {
-        "facts_rows": facts_rows,
-        "facts_digest": facts_digest,
-        "step_count": state.step_count,
-    }
+    return state
 
 
-def retrieve_chunks(state: RedTeamState) -> dict[str, Any]:
-    """Retrieve chunks using fixed queries and deduplicate."""
-    state = _check_max_steps(state)
-    settings = get_settings()
-
-    logger.info(
-        "Retrieving chunks with fixed queries",
-        extra={"run_id": str(state.run_id), "query_count": len(RED_TEAM_QUERIES)},
-    )
-
-    seen_chunk_ids: set[str] = set()
-    all_chunks: list[dict[str, Any]] = []
-
-    for query in RED_TEAM_QUERIES:
-        # Embed the query text
-        query_embeddings = embed_texts([query])
-        query_embedding = query_embeddings[0]
-
-        results = search_signal_chunks(
-            query_embedding=query_embedding,
-            match_count=settings.REDTEAM_TOP_K_PER_QUERY,
-            project_id=state.project_id,
-        )
-
-        # Filter results based on include_research flag
-        filtered_results = []
-        for chunk in results:
-            signal_type = chunk.get("signal_type", "")
-            # If research is disabled, only include client signals
-            if not state.include_research:
-                if signal_type not in ["client_email", "transcripts", "file_text", "notes"]:
-                    continue
-            # Always include results regardless of type if research is enabled
-            filtered_results.append(chunk)
-
-        for chunk in filtered_results:
-            chunk_id = chunk.get("chunk_id", "")
-            if chunk_id and chunk_id not in seen_chunk_ids:
-                seen_chunk_ids.add(chunk_id)
-                all_chunks.append(chunk)
-
-        # Early exit if we have enough chunks
-        if len(all_chunks) >= settings.REDTEAM_MAX_TOTAL_CHUNKS:
-            break
-
-    # Cap at max total
-    all_chunks = all_chunks[: settings.REDTEAM_MAX_TOTAL_CHUNKS]
-
-    logger.info(
-        f"Retrieved {len(all_chunks)} unique chunks",
-        extra={"run_id": str(state.run_id)},
-    )
-
-    return {"chunks": all_chunks, "step_count": state.step_count}
-
-
-def call_llm(state: RedTeamState) -> dict[str, Any]:
-    """Call the red-team LLM chain."""
-    state = _check_max_steps(state)
-    settings = get_settings()
-
-    logger.info(
-        "Calling LLM for red-team analysis",
-        extra={"run_id": str(state.run_id), "chunk_count": len(state.chunks)},
-    )
-
-    llm_output = run_redteam_chain(
-        facts_digest=state.facts_digest,
-        chunks=state.chunks,
-        settings=settings,
-        model_override=state.model_override,
-    )
-
-    logger.info(
-        f"Generated {len(llm_output.insights)} insights",
-        extra={"run_id": str(state.run_id)},
-    )
-
-    return {"llm_output": llm_output, "step_count": state.step_count}
-
-
-def persist(state: RedTeamState) -> dict[str, Any]:
-    """Persist insights to the database."""
-    state = _check_max_steps(state)
-
+def persist_insights(state: RedTeamState) -> RedTeamState:
+    """
+    Store insights in database.
+    """
     if not state.llm_output:
-        raise ValueError("LLM output not available for persistence")
+        raise ValueError("LLM output not available")
 
-    settings = get_settings()
-
-    # Prepare source metadata
-    source = {
-        "agent": "red_team",
-        "model": state.model_override or settings.REDTEAM_MODEL,
-        "prompt_version": settings.REDTEAM_PROMPT_VERSION,
-        "schema_version": settings.REDTEAM_SCHEMA_VERSION,
-    }
-
-    # Convert insights to dicts for storage
-    insights_dicts = [insight.model_dump(mode="json") for insight in state.llm_output.insights]
-
-    # Insert insights
-    insights_count = insert_insights(
+    insight_ids = store_insights(
         project_id=state.project_id,
         run_id=state.run_id,
         job_id=state.job_id,
-        insights=insights_dicts,
-        source=source,
+        insights=state.llm_output.insights,
+        source_metadata={
+            "agent": "red_team_research",
+            "model": state.llm_output.model,
+            "prompt_version": state.llm_output.prompt_version,
+            "schema_version": state.llm_output.schema_version
+        }
     )
 
-    logger.info(
-        f"Persisted {insights_count} insights",
-        extra={"run_id": str(state.run_id)},
-    )
-
-    return {"insights_count": insights_count, "step_count": state.step_count}
+    state.insight_ids = insight_ids
+    return state
 
 
 def _build_graph() -> StateGraph:
-    """Build the LangGraph for red-team analysis."""
+    """Build the research-enhanced red team graph."""
     graph = StateGraph(RedTeamState)
 
-    graph.add_node("load_inputs", load_inputs)
-    graph.add_node("retrieve_chunks", retrieve_chunks)
-    graph.add_node("call_llm", call_llm)
-    graph.add_node("persist", persist)
+    graph.add_node("load_research_and_state", load_research_and_state)
+    graph.add_node("call_llm", call_research_gap_llm)
+    graph.add_node("persist", persist_insights)
 
-    # Linear flow (no cycles)
-    graph.set_entry_point("load_inputs")
-    graph.add_edge("load_inputs", "retrieve_chunks")
-    graph.add_edge("retrieve_chunks", "call_llm")
+    graph.set_entry_point("load_research_and_state")
+    graph.add_edge("load_research_and_state", "call_llm")
     graph.add_edge("call_llm", "persist")
     graph.add_edge("persist", END)
 
     return graph
 
 
-# Compile the graph once at module load
-_compiled_graph = _build_graph().compile()
+# Graph instance
+research_red_team_graph = _build_graph().compile()
 
 
 def run_redteam_agent(
-    project_id: UUID,
-    job_id: UUID,
-    run_id: UUID,
-    include_research: bool = False,
-    model_override: str | None = None,
-) -> tuple[RedTeamOutput, int]:
+    project_id: str,
+    run_id: str,
+    job_id: Optional[str] = None,
+) -> tuple[Any, int]:
     """
-    Run the red-team graph.
+    Run the research-enhanced red team analysis.
 
     Args:
         project_id: Project to analyze
-        job_id: Job tracking UUID
         run_id: Run tracking UUID
-        include_research: Whether to include research signals
-        model_override: Optional model name override
+        job_id: Optional job tracking UUID
 
     Returns:
-        Tuple of (RedTeamOutput, insights_count)
-
-    Raises:
-        ValueError: If analysis fails
-        RuntimeError: If graph exceeds max steps
+        Tuple of (RedTeamOutput, insight_count)
     """
     initial_state = RedTeamState(
         project_id=project_id,
         run_id=run_id,
-        job_id=job_id,
-        include_research=include_research,
-        model_override=model_override,
+        job_id=job_id
     )
 
-    final_state = _compiled_graph.invoke(initial_state)
+    final_state = research_red_team_graph.invoke(initial_state)
 
-    # Extract results from final state (LangGraph returns dict)
     llm_output = final_state["llm_output"]
-    insights_count = final_state["insights_count"]
+    insight_count = len(final_state["insight_ids"])
 
     if not llm_output:
-        raise ValueError("Red-team graph did not produce expected output")
+        raise ValueError("Red team analysis did not produce expected output")
 
     logger.info(
-        "Completed red-team graph",
-        extra={"run_id": str(run_id), "insights_count": insights_count},
+        "Completed research-enhanced red team analysis",
+        extra={"run_id": run_id, "insight_count": insight_count},
     )
 
-    return llm_output, insights_count
+    return llm_output, insight_count

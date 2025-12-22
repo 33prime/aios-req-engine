@@ -9,7 +9,7 @@ from pydantic import BaseModel, Field
 class InsightTarget(BaseModel):
     """Target entity for an insight."""
 
-    kind: Literal["requirement", "fact", "signal", "chunk", "general"] = Field(
+    kind: Literal["feature", "prd_section", "vp_step"] = Field(
         ..., description="Type of target entity"
     )
     id: str | None = Field(default=None, description="Entity ID if applicable")
@@ -22,6 +22,18 @@ class EvidenceRef(BaseModel):
     chunk_id: UUID = Field(..., description="UUID of the signal chunk")
     excerpt: str = Field(..., max_length=280, description="Excerpt from chunk (max 280 chars)")
     rationale: str = Field(..., description="Why this supports the insight")
+
+
+class ProposedChange(BaseModel):
+    """Suggested change to apply to project state"""
+
+    action: Literal["add", "modify", "deprecate"] = Field(
+        ..., description="Type of change to make"
+    )
+    field: str = Field(..., description="Which field to change")
+    current_value: str | None = Field(default=None, description="Current value (if modifying)")
+    proposed_value: str = Field(..., description="New value to set")
+    rationale: str = Field(..., description="Why this change")
 
 
 class RedTeamInsight(BaseModel):
@@ -44,6 +56,9 @@ class RedTeamInsight(BaseModel):
     )
     evidence: list[EvidenceRef] = Field(
         ..., min_length=1, description="Evidence references (at least 1)"
+    )
+    proposed_changes: list[ProposedChange] = Field(
+        default_factory=list, description="Suggested changes to apply"
     )
 
 

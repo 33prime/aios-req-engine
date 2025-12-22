@@ -3,7 +3,7 @@
 import uuid
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, BackgroundTasks
 
 from app.core.baseline_gate import require_baseline_ready
 from app.core.logging import get_logger
@@ -17,7 +17,7 @@ router = APIRouter()
 
 
 @router.post("/agents/enrich-vp", response_model=EnrichVPResponse)
-async def enrich_vp(request: EnrichVPRequest) -> EnrichVPResponse:
+async def enrich_vp(request: EnrichVPRequest, background_tasks: BackgroundTasks) -> EnrichVPResponse:
     """
     Enrich VP steps with structured details from project context.
 
@@ -89,6 +89,14 @@ async def enrich_vp(request: EnrichVPRequest) -> EnrichVPResponse:
         }
         complete_job(job_id, output)
 
+        # Check if all enrichment phases complete and auto-trigger red team
+        enrichment_status = check_enrichment_status(request.project_id)
+        if enrichment_status["all_complete"]:
+            background_tasks.add_task(
+                trigger_red_team_analysis,
+                project_id=request.project_id,
+            )
+
         logger.info(
             f"Completed VP enrichment: {steps_processed} processed, {steps_updated} updated",
             extra={
@@ -96,6 +104,7 @@ async def enrich_vp(request: EnrichVPRequest) -> EnrichVPResponse:
                 "job_id": str(job_id),
                 "steps_processed": steps_processed,
                 "steps_updated": steps_updated,
+                "auto_triggered_red_team": enrichment_status["all_complete"],
             },
         )
 
@@ -115,3 +124,66 @@ async def enrich_vp(request: EnrichVPRequest) -> EnrichVPResponse:
             fail_job(job_id, error_msg)
 
         raise HTTPException(status_code=500, detail=error_msg) from e
+
+
+def check_enrichment_status(project_id: UUID) -> dict[str, bool]:
+    """
+    Check if all enrichment phases are complete.
+
+    Returns:
+        {
+            "features_enriched": bool,
+            "prd_enriched": bool,
+            "vp_enriched": bool,
+            "all_complete": bool
+        }
+    """
+    from app.db.supabase_client import get_supabase
+    supabase = get_supabase()
+
+    # Query enrichment flags (you may need to add a tracking table)
+    # For simplicity, assume we check if enrichment field is populated
+
+    features = supabase.table("features").select("details").eq("project_id", str(project_id)).execute().data
+    prd = supabase.table("prd_sections").select("enrichment").eq("project_id", str(project_id)).execute().data
+    vp = supabase.table("vp_steps").select("enrichment").eq("project_id", str(project_id)).execute().data
+
+    features_enriched = all(f.get("details") is not None for f in features) if features else False
+    prd_enriched = all(p.get("enrichment") is not None for p in prd) if prd else False
+    vp_enriched = all(v.get("enrichment") is not None for v in vp) if vp else False
+
+    return {
+        "features_enriched": features_enriched,
+        "prd_enriched": prd_enriched,
+        "vp_enriched": vp_enriched,
+        "all_complete": features_enriched and prd_enriched and vp_enriched
+    }
+
+
+async def trigger_red_team_analysis(project_id: UUID):
+    """
+    Trigger red team analysis in background.
+    """
+    from app.core.baseline_gate import check_baseline_gate
+    from app.graphs.red_team_graph import run_redteam_agent
+    import uuid
+
+    # Check baseline gate
+    gate_status = check_baseline_gate(project_id)
+    if not gate_status["baseline_ready"]:
+        logger.warning(f"Red team skipped for {project_id}: baseline not ready")
+        return
+
+    run_id = str(uuid.uuid4())
+
+    # Execute graph
+    try:
+        llm_output, insights_count = run_redteam_agent(
+            project_id=str(project_id),
+            run_id=run_id,
+            job_id=None
+        )
+
+        logger.info(f"Red team completed for {project_id}: {insights_count} insights")
+    except Exception as e:
+        logger.error(f"Red team auto-trigger failed for {project_id}: {e}")

@@ -70,10 +70,9 @@ async def run_red_team(request: RedTeamRequest) -> RedTeamResponse:
 
         # Run the red-team agent
         llm_output, insights_count = run_redteam_agent(
-            project_id=request.project_id,
-            job_id=job_id,
-            run_id=run_id,
-            include_research=request.include_research,
+            project_id=str(request.project_id),
+            run_id=str(run_id),
+            job_id=str(job_id),
         )
 
         # Compute counts by severity and category

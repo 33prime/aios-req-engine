@@ -1,64 +1,106 @@
-"""Pydantic schemas for research ingestion (n8n deep research format)."""
-
-from typing import Any
-from uuid import UUID
+"""Research document schemas for external research ingestion."""
 
 from pydantic import BaseModel, Field
+from typing import List, Optional, Dict, Any
+from datetime import datetime
 
 
-class ResearchReport(BaseModel):
-    """
-    A single deep research report from n8n.
+class ResearchMacroPressure(BaseModel):
+    """Individual macro pressure point"""
+    pressure: str
 
-    Fields are flexible to handle both parsed JSON and string values.
-    Use parse_json_maybe() to extract nested JSON from string fields.
-    """
 
-    id: str | None = Field(default=None, description="Report ID")
-    deal_id: str | None = Field(default=None, description="Deal ID")
-    version: str | int | None = Field(default=None, description="Report version")
-    organization_id: str | None = Field(default=None, description="Organization ID")
-    title: str | None = Field(default=None, description="Report title")
-    summary: str | None = Field(default=None, description="Executive summary")
-    verdict: str | None = Field(default=None, description="Overall verdict")
-    created_at: str | None = Field(default=None, description="Creation timestamp")
-    updated_at: str | None = Field(default=None, description="Update timestamp")
+class ResearchCompanyFriction(BaseModel):
+    """Company-specific friction point"""
+    friction: str
 
-    # Core sections - can be strings (JSON) or parsed dicts/lists
-    idea_analysis: Any = Field(default=None)
-    market_pain_points: Any = Field(default=None)
-    feature_matrix: Any = Field(default=None)
-    goals_and_benefits: Any = Field(default=None)
-    unique_selling_propositions: Any = Field(default=None)
-    user_personas: Any = Field(default=None)
-    risks_and_mitigations: Any = Field(default=None)
-    additional_insights: Any = Field(default=None)
-    market_data: Any = Field(default=None)
-    next_steps: Any = Field(default=None)
 
-    model_config = {"extra": "allow"}
+class MarketPainPoints(BaseModel):
+    """Market pain points analysis"""
+    title: str
+    macro_pressures: List[str]
+    company_specific: List[str]
+
+
+class FeatureCategory(BaseModel):
+    """Feature categorization"""
+    must_have: List[str]
+    unique_advanced: List[str]
+
+
+class USP(BaseModel):
+    """Unique selling proposition"""
+    title: str
+    novelty: str
+    description: str
+
+
+class UserPersona(BaseModel):
+    """User persona definition"""
+    title: str
+    details: str
+
+
+class RiskMitigation(BaseModel):
+    """Risk and mitigation pair"""
+    risk: str
+    mitigation: str
+
+
+class ResearchInsight(BaseModel):
+    """Additional insight"""
+    insight: str  # Flexible structure
+
+
+class MarketData(BaseModel):
+    """Market data analysis"""
+    title: str
+    content: str
+
+
+class GoalsAndBenefits(BaseModel):
+    """Organizational goals and stakeholder benefits"""
+    title: str
+    organizational_goals: List[str]
+    stakeholder_benefits: List[str]
+
+
+class IdeaAnalysis(BaseModel):
+    """Core idea analysis"""
+    title: str
+    content: str
+
+
+class ResearchDocument(BaseModel):
+    """Complete research document"""
+    idx: int
+    id: str
+    title: str
+    summary: str
+    verdict: str
+    created_at: str
+    updated_at: str
+
+    # Parsed JSON fields
+    idea_analysis: IdeaAnalysis
+    market_pain_points: MarketPainPoints
+    feature_matrix: FeatureCategory
+    goals_and_benefits: GoalsAndBenefits
+    unique_selling_propositions: List[USP]
+    user_personas: List[UserPersona]
+    risks_and_mitigations: List[RiskMitigation]
+    market_data: MarketData
+    additional_insights: List[Any]  # Flexible
+
+    # Metadata
+    deal_id: Optional[str] = None
+    created_by_user_id: Optional[str] = None
+    version: Optional[int] = None
+    organization_id: Optional[str] = None
 
 
 class ResearchIngestRequest(BaseModel):
-    """Request body for research ingestion endpoint."""
-
-    project_id: UUID = Field(..., description="Project UUID")
-    source: str = Field(default="n8n", description="Source identifier")
-    reports: list[ResearchReport] = Field(..., min_length=1, description="Research reports")
-
-
-class IngestedReport(BaseModel):
-    """Result for a single ingested report."""
-
-    report_id: str | None = Field(default=None, description="Original report ID")
-    title: str | None = Field(default=None, description="Report title")
-    signal_id: UUID = Field(..., description="Created signal UUID")
-    chunks_inserted: int = Field(..., description="Number of chunks created")
-
-
-class ResearchIngestResponse(BaseModel):
-    """Response body for research ingestion endpoint."""
-
-    run_id: UUID = Field(..., description="Run tracking UUID")
-    job_id: UUID = Field(..., description="Job tracking UUID")
-    ingested: list[IngestedReport] = Field(..., description="Ingested report results")
+    """Request to ingest research document"""
+    project_id: str
+    research_data: ResearchDocument
+    metadata: Optional[Dict[str, Any]] = Field(default_factory=dict)

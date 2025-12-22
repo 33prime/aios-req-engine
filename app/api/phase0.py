@@ -19,6 +19,8 @@ from app.core.schemas_phase0 import (
     SearchResponse,
     SearchResult,
 )
+from app.core.schemas_research import ResearchIngestRequest
+from app.core.research_chunking import chunk_research_document
 from app.db.jobs import complete_job, create_job, fail_job, start_job
 from app.db.phase0 import insert_signal, insert_signal_chunks, search_signal_chunks
 
@@ -440,3 +442,130 @@ async def ingest_file(
             except Exception:
                 logger.exception("Failed to mark job as failed")
         raise HTTPException(status_code=500, detail="File ingestion failed") from e
+
+
+@router.post("/v1/research/ingest")
+async def ingest_research(request: ResearchIngestRequest) -> dict[str, Any]:
+    """
+    Ingest external research document as a signal.
+
+    1. Parse research document
+    2. Chunk by semantic sections
+    3. Embed chunks
+    4. Store with authority=research metadata
+    """
+    run_id = str(uuid.uuid4())
+    job_id = None
+
+    try:
+        # Create job
+        job_id = create_job(
+            project_id=request.project_id,
+            job_type="research_ingestion",
+            run_id=run_id,
+        )
+
+        # Start job
+        start_job(job_id)
+
+        logger.info(
+            "Starting research ingestion",
+            extra={
+                "run_id": str(run_id),
+                "job_id": str(job_id),
+                "research_doc_id": request.research_data.id,
+                "research_title": request.research_data.title,
+            },
+        )
+
+        # 1. Store research as signal
+        signal_id = str(uuid.uuid4())
+
+        # Serialize research document
+        full_text = json.dumps(request.research_data.model_dump(), indent=2)
+
+        signal_metadata = {
+            "authority": "research",  # KEY: marks as research
+            "research_doc_id": request.research_data.id,
+            "research_title": request.research_data.title,
+            "deal_id": request.research_data.deal_id,
+            **request.metadata
+        }
+
+        signal_record = {
+            "id": signal_id,
+            "project_id": request.project_id,
+            "signal_type": "research",
+            "source": "external_research_agent",
+            "text": full_text,  # Full JSON as text
+            "metadata": signal_metadata,
+            "run_id": run_id,
+        }
+
+        await insert_signal(signal_record)
+
+        # 2. Chunk by sections
+        chunks = chunk_research_document(
+            request.research_data,
+            include_context=True
+        )
+
+        # 3. Embed chunks
+        chunk_texts = [c["content"] for c in chunks]
+        embeddings = await embed_texts(chunk_texts)
+
+        # 4. Store chunks
+        chunk_records = []
+        for chunk, embedding in zip(chunks, embeddings):
+            chunk_record = {
+                "id": str(uuid.uuid4()),
+                "signal_id": signal_id,
+                "project_id": request.project_id,
+                "chunk_index": chunk["chunk_index"],
+                "content": chunk["content"],
+                "embedding": embedding,
+                "metadata": chunk["metadata"],
+                "run_id": run_id,
+            }
+            chunk_records.append(chunk_record)
+
+        chunks_inserted = await insert_signal_chunks(chunk_records)
+
+        # Complete job
+        complete_job(
+            job_id=job_id,
+            output_json={
+                "signal_id": str(signal_id),
+                "chunks_created": len(chunk_records),
+                "chunks_inserted": chunks_inserted,
+            },
+        )
+
+        logger.info(
+            "Research ingestion completed successfully",
+            extra={
+                "run_id": str(run_id),
+                "job_id": str(job_id),
+                "signal_id": str(signal_id),
+                "chunks_created": len(chunk_records),
+                "chunks_inserted": chunks_inserted,
+            },
+        )
+
+        return {
+            "job_id": job_id,
+            "signal_id": signal_id,
+            "status": "completed",
+            "chunks_created": len(chunk_records),
+            "chunks_inserted": chunks_inserted,
+            "message": "Research document ingested successfully"
+        }
+
+    except Exception as e:
+        logger.exception("Research ingestion failed", extra={"run_id": str(run_id)})
+        if job_id:
+            try:
+                fail_job(job_id, str(e))
+            except Exception:
+                logger.exception("Failed to mark job as failed")
+        raise HTTPException(status_code=500, detail="Research ingestion failed") from e
