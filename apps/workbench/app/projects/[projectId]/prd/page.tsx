@@ -10,7 +10,10 @@ import {
   CheckCircle,
   AlertCircle,
   Info,
-  ExternalLink
+  ExternalLink,
+  Users,
+  Target,
+  Zap
 } from 'lucide-react'
 import { getPrdSections, getBaselineStatus, enrichPrd, getSignal, getSignalChunks } from '@/lib/api'
 import { PrdSection, BaselineStatus, Signal, SignalChunk } from '@/types/api'
