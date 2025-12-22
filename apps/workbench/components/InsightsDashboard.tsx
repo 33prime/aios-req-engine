@@ -18,7 +18,14 @@ export function InsightsDashboard({ projectId }: { projectId: string }) {
   useEffect(() => {
     fetch(`${process.env.NEXT_PUBLIC_API_BASE}/v1/insights?project_id=${projectId}`)
       .then(res => res.json())
-      .then(data => setInsights(data));
+      .then(data => {
+        console.log('Insights API response:', data);
+        setInsights(Array.isArray(data) ? data : []);
+      })
+      .catch(error => {
+        console.error('Failed to fetch insights:', error);
+        setInsights([]);
+      });
   }, [projectId]);
 
   const handleApply = async (insightId: string) => {
