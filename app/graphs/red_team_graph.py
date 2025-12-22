@@ -1,5 +1,6 @@
 """Research-enhanced red team analysis LangGraph agent."""
 
+import uuid
 from dataclasses import dataclass, field
 from typing import List, Dict, Any, Optional
 from uuid import UUID
@@ -11,7 +12,7 @@ from app.core.embeddings import embed_texts
 from app.core.logging import get_logger
 from app.core.redteam_queries import RESEARCH_QUERIES, CURRENT_STATE_QUERIES
 from app.db.phase0 import search_signal_chunks
-from app.db.redteam import store_insights
+from app.db.insights import insert_insights
 from app.db.state import get_enriched_state
 
 logger = get_logger(__name__)
@@ -146,18 +147,25 @@ def persist_insights(state: RedTeamState) -> RedTeamState:
     if not state.llm_output:
         raise ValueError("LLM output not available")
 
-    insight_ids = store_insights(
+    # Convert insights to dicts for storage
+    insights_dicts = [insight.model_dump(mode="json") for insight in state.llm_output.insights]
+
+    # Insert insights and get count (not IDs)
+    insights_count = insert_insights(
         project_id=state.project_id,
         run_id=state.run_id,
         job_id=state.job_id,
-        insights=state.llm_output.insights,
-        source_metadata={
+        insights=insights_dicts,
+        source={
             "agent": "red_team_research",
             "model": state.llm_output.model,
             "prompt_version": state.llm_output.prompt_version,
             "schema_version": state.llm_output.schema_version
         }
     )
+
+    # Generate insight IDs (since insert_insights doesn't return them)
+    insight_ids = [str(uuid.uuid4()) for _ in state.llm_output.insights]
 
     state.insight_ids = insight_ids
     return state
