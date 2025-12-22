@@ -113,19 +113,26 @@ def call_llm(state: ExtractFactsState) -> dict[str, Any]:
         extra={"run_id": str(state.run_id), "chunk_count": len(state.selected_chunks)},
     )
 
-    llm_output = extract_facts_from_chunks(
-        signal=state.signal,
-        chunks=state.selected_chunks,
-        settings=settings,
-        model_override=state.model_override,
-    )
+    try:
+        llm_output = extract_facts_from_chunks(
+            signal=state.signal,
+            chunks=state.selected_chunks,
+            settings=settings,
+            model_override=state.model_override,
+        )
 
-    logger.info(
-        f"Extracted {len(llm_output.facts)} facts, "
-        f"{len(llm_output.open_questions)} questions, "
-        f"{len(llm_output.contradictions)} contradictions",
-        extra={"run_id": str(state.run_id)},
-    )
+        logger.info(
+            f"Extracted {len(llm_output.facts)} facts, "
+            f"{len(llm_output.open_questions)} questions, "
+            f"{len(llm_output.contradictions)} contradictions",
+            extra={"run_id": str(state.run_id)},
+        )
+    except Exception as e:
+        logger.error(
+            f"Failed to extract facts from chunks: {e}",
+            extra={"run_id": str(state.run_id), "chunk_count": len(state.selected_chunks)},
+        )
+        raise
 
     return {
         "llm_output": llm_output,
@@ -145,17 +152,29 @@ def persist(state: ExtractFactsState) -> dict[str, Any]:
     # Use signal's project_id for storage
     project_id = UUID(state.signal["project_id"])
 
-    extracted_facts_id = insert_extracted_facts(
-        project_id=project_id,
-        signal_id=state.signal_id,
-        run_id=state.run_id,
-        job_id=state.job_id,
-        model=settings.FACTS_MODEL,
-        prompt_version=settings.FACTS_PROMPT_VERSION,
-        schema_version=settings.FACTS_SCHEMA_VERSION,
-        facts=state.llm_output.model_dump(mode="json"),
-        summary=state.llm_output.summary,
-    )
+    try:
+        extracted_facts_id = insert_extracted_facts(
+            project_id=project_id,
+            signal_id=UUID(state.signal["id"]),
+            run_id=state.run_id,
+            job_id=state.job_id,
+            model=settings.FACTS_MODEL,
+            prompt_version=settings.FACTS_PROMPT_VERSION,
+            schema_version=settings.FACTS_SCHEMA_VERSION,
+            facts=state.llm_output.model_dump(mode="json"),
+            summary=state.llm_output.summary,
+        )
+    except Exception as e:
+        logger.error(
+            f"Failed to persist extracted facts: {e}",
+            extra={
+                "run_id": str(state.run_id),
+                "signal_id": str(state.signal["id"]),
+                "facts_count": len(state.llm_output.facts) if state.llm_output else 0,
+                "error_type": type(e).__name__,
+            },
+        )
+        raise
 
     logger.info(
         f"Persisted extracted facts {extracted_facts_id}",

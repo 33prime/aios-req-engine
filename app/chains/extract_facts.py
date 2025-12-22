@@ -192,5 +192,24 @@ def _parse_and_validate(raw_output: str) -> ExtractFactsOutput:
         cleaned = cleaned[:-3]
     cleaned = cleaned.strip()
 
-    parsed = json.loads(cleaned)
-    return ExtractFactsOutput.model_validate(parsed)
+    logger.debug(
+        f"Parsing LLM output (length: {len(cleaned)})",
+        extra={"output_preview": cleaned[:500] + "..." if len(cleaned) > 500 else cleaned},
+    )
+
+    try:
+        parsed = json.loads(cleaned)
+        logger.debug("JSON parsing succeeded")
+        return ExtractFactsOutput.model_validate(parsed)
+    except json.JSONDecodeError as e:
+        logger.warning(
+            f"JSON parsing failed: {e}",
+            extra={"raw_output": raw_output, "cleaned_output": cleaned},
+        )
+        raise
+    except ValidationError as e:
+        logger.warning(
+            f"Pydantic validation failed: {e}",
+            extra={"parsed_json": json.loads(cleaned) if cleaned else None},
+        )
+        raise

@@ -1,6 +1,7 @@
 """State builder LangGraph agent for canonical PRD/VP/Features generation."""
 
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from typing import Any
 from uuid import UUID
 
@@ -17,6 +18,8 @@ from app.core.state_inputs import (
 )
 from app.db.features import bulk_replace_features
 from app.db.prd import upsert_prd_section
+from app.db.project_state import update_project_state
+from app.db.revisions import insert_state_revision
 from app.db.vp import upsert_vp_step
 
 logger = get_logger(__name__)
@@ -188,8 +191,37 @@ def persist(state: BuildStateState) -> dict[str, Any]:
         features=state.llm_output.features,
     )
 
+    # Create state revision for audit trail
+    input_summary = {
+        "facts_count": len(state.facts_digest.split('\n')) if state.facts_digest else 0,
+        "chunks_count": len(state.chunks),
+        "build_type": "initial_state_build"
+    }
+
+    diff = {
+        "prd_sections_created": prd_count,
+        "vp_steps_created": vp_count,
+        "features_created": features_count,
+        "total_changes": prd_count + vp_count + features_count
+    }
+
+    insert_state_revision(
+        project_id=state.project_id,
+        run_id=state.run_id,
+        job_id=state.job_id,
+        input_summary=input_summary,
+        diff=diff,
+    )
+
+    # Update project state checkpoint
+    checkpoint_patch = {
+        "last_reconciled_at": datetime.now(timezone.utc).isoformat(),
+    }
+
+    update_project_state(state.project_id, checkpoint_patch)
+
     logger.info(
-        f"Persisted {prd_count} PRD sections, {vp_count} VP steps, {features_count} features",
+        f"Persisted {prd_count} PRD sections, {vp_count} VP steps, {features_count} features. Created revision and updated checkpoint.",
         extra={"run_id": str(state.run_id)},
     )
 
