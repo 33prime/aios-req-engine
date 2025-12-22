@@ -7,12 +7,12 @@ from uuid import UUID
 from langgraph.graph import END, StateGraph
 
 from app.chains.red_team_research import run_research_gap_analysis
+from app.core.embeddings import embed_texts
 from app.core.logging import get_logger
 from app.core.redteam_queries import RESEARCH_QUERIES, CURRENT_STATE_QUERIES
-from app.db.phase0 import vector_search
+from app.db.phase0 import search_signal_chunks
 from app.db.redteam import store_insights
 from app.db.state import get_enriched_state
-from app.db.supabase_client import get_supabase
 
 logger = get_logger(__name__)
 
@@ -49,27 +49,35 @@ def load_research_and_state(state: RedTeamState) -> RedTeamState:
     """
     Load research chunks and current enriched state.
     """
-    supabase = get_supabase()
 
     # 1. Retrieve research chunks via vector search
     research_results = []
     for query in RESEARCH_QUERIES:
-        results = vector_search(
-            supabase,
+        # Create embedding for the query
+        query_embeddings = embed_texts([query])
+        query_embedding = query_embeddings[0]
+
+        # Search for chunks
+        results = search_signal_chunks(
+            query_embedding=query_embedding,
+            match_count=5,
             project_id=state.project_id,
-            query_text=query,
-            top_k=5,
-            filter_metadata={"authority": "research"}  # Only research signals
         )
-        research_results.extend(results)
+
+        # Filter for research signals only
+        research_chunks = [
+            chunk for chunk in results
+            if chunk.get("metadata", {}).get("authority") == "research"
+        ]
+        research_results.extend(research_chunks)
 
     # Deduplicate by chunk_id
     seen = set()
     unique_research = []
     for chunk in research_results:
-        if chunk["id"] not in seen:
+        if chunk["chunk_id"] not in seen:
             unique_research.append(chunk)
-            seen.add(chunk["id"])
+            seen.add(chunk["chunk_id"])
 
     state.research_chunks = unique_research[:50]  # Cap at 50 chunks
 
@@ -83,21 +91,30 @@ def load_research_and_state(state: RedTeamState) -> RedTeamState:
     # (facts, client signals) for broader context
     context_results = []
     for query in CURRENT_STATE_QUERIES:
-        results = vector_search(
-            supabase,
+        # Create embedding for the query
+        query_embeddings = embed_texts([query])
+        query_embedding = query_embeddings[0]
+
+        # Search for chunks
+        results = search_signal_chunks(
+            query_embedding=query_embedding,
+            match_count=3,
             project_id=state.project_id,
-            query_text=query,
-            top_k=3,
-            filter_metadata={"authority": "client"}  # Only client signals
         )
-        context_results.extend(results)
+
+        # Filter for client signals only
+        client_chunks = [
+            chunk for chunk in results
+            if chunk.get("metadata", {}).get("authority") == "client"
+        ]
+        context_results.extend(client_chunks)
 
     seen_context = set()
     unique_context = []
     for chunk in context_results:
-        if chunk["id"] not in seen_context:
+        if chunk["chunk_id"] not in seen_context:
             unique_context.append(chunk)
-            seen_context.add(chunk["id"])
+            seen_context.add(chunk["chunk_id"])
 
     state.context_chunks = unique_context[:20]
 
