@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import { Badge, Button, Card } from '@/components/ui';
 
 interface Insight {
   id: string;
@@ -48,50 +47,72 @@ export function InsightsDashboard({ projectId }: { projectId: string }) {
     }
   };
 
+  const getSeverityBadgeClasses = (severity: string) => {
+    switch (severity) {
+      case 'critical':
+        return 'bg-red-100 text-red-800';
+      case 'important':
+        return 'bg-yellow-100 text-yellow-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
+    }
+  };
+
   return (
     <div className="space-y-4">
       <h2 className="text-2xl font-bold">Research Insights</h2>
-      {insights.map(insight => (
-        <Card key={insight.id} className="p-4">
-          <div className="flex justify-between items-start mb-2">
-            <h3 className="font-bold text-lg">{insight.title}</h3>
-            <Badge variant={
-              insight.severity === 'critical' ? 'destructive' :
-              insight.severity === 'important' ? 'warning' : 'default'
-            }>
-              {insight.severity}
-            </Badge>
-          </div>
+      {insights.length === 0 ? (
+        <div className="text-center py-8 text-gray-500">
+          <p>No insights found. Run the Red Team analysis to generate insights.</p>
+        </div>
+      ) : (
+        insights.map(insight => (
+          <div key={insight.id} className="card">
+            <div className="flex justify-between items-start mb-2">
+              <h3 className="font-bold text-lg">{insight.title}</h3>
+              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getSeverityBadgeClasses(insight.severity)}`}>
+                {insight.severity}
+              </span>
+            </div>
 
-          <p className="text-sm text-gray-600 mb-2"><strong>Finding:</strong> {insight.finding}</p>
-          <p className="text-sm text-gray-600 mb-2"><strong>Why:</strong> {insight.why}</p>
+            <p className="text-sm text-gray-600 mb-2"><strong>Finding:</strong> {insight.finding}</p>
+            <p className="text-sm text-gray-600 mb-2"><strong>Why:</strong> {insight.why}</p>
 
-          <div className="mb-2">
-            <strong className="text-sm">Targets:</strong>
-            <div className="flex gap-2 mt-1">
-              {insight.targets.map((t, i) => (
-                <Badge key={i} variant="outline">{t.kind}: {t.label}</Badge>
+            <div className="mb-2">
+              <strong className="text-sm">Targets:</strong>
+              <div className="flex gap-2 mt-1 flex-wrap">
+                {insight.targets.map((t, i) => (
+                  <span key={i} className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                    {t.kind}: {t.label}
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            <div className="mb-4">
+              <strong className="text-sm">Evidence:</strong>
+              {insight.evidence.slice(0, 2).map((e, i) => (
+                <p key={i} className="text-xs italic text-gray-500 mt-1">"{e.excerpt}"</p>
               ))}
             </div>
-          </div>
 
-          <div className="mb-4">
-            <strong className="text-sm">Evidence:</strong>
-            {insight.evidence.slice(0, 2).map((e, i) => (
-              <p key={i} className="text-xs italic text-gray-500 mt-1">"{e.excerpt}"</p>
-            ))}
+            <div className="flex gap-2">
+              <button
+                onClick={() => handleApply(insight.id)}
+                className="btn btn-primary"
+              >
+                Apply
+              </button>
+              <button
+                onClick={() => handleConfirm(insight.id)}
+                className="btn btn-secondary"
+              >
+                Create Confirmation
+              </button>
+            </div>
           </div>
-
-          <div className="flex gap-2">
-            <Button size="sm" onClick={() => handleApply(insight.id)}>
-              Apply
-            </Button>
-            <Button size="sm" variant="outline" onClick={() => handleConfirm(insight.id)}>
-              Create Confirmation
-            </Button>
-          </div>
-        </Card>
-      ))}
+        ))
+      )}
     </div>
   );
 }
