@@ -87,7 +87,7 @@ def _ingest_text(
     signal_id = uuid.UUID(signal["id"])
 
     # Step 2: Chunk text
-    chunks = chunk_text(raw_text)
+    chunks = chunk_text(raw_text, metadata=metadata)
     logger.info(
         f"Created {len(chunks)} chunks",
         extra={"run_id": str(run_id), "signal_id": str(signal_id)},

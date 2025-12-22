@@ -133,7 +133,9 @@ def enrich_prd_section(
 
     # Try to parse and validate
     try:
-        return _parse_and_validate(raw_output, project_id, section_id, section_slug)
+        result = _parse_and_validate(raw_output, project_id, section_id, section_slug)
+        logger.info(f"Successfully parsed PRD enrichment output for section {section_slug}")
+        return result
     except (json.JSONDecodeError, ValidationError) as e:
         error_msg = str(e)
         logger.warning(

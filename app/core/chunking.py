@@ -7,6 +7,7 @@ def chunk_text(
     text: str,
     max_chars: int = 1200,
     overlap: int = 120,
+    metadata: dict[str, Any] | None = None,
 ) -> list[dict[str, Any]]:
     """
     Split text into overlapping chunks.
@@ -18,6 +19,7 @@ def chunk_text(
         text: Text to chunk
         max_chars: Maximum characters per chunk
         overlap: Number of characters to overlap between chunks
+        metadata: Optional metadata to include in each chunk
 
     Returns:
         List of chunk dicts with:
@@ -25,6 +27,7 @@ def chunk_text(
             - content: str
             - start_char: int
             - end_char: int
+            - metadata: dict (if provided)
 
     Raises:
         ValueError: If max_chars <= overlap
@@ -53,6 +56,7 @@ def chunk_text(
                 "content": content,
                 "start_char": start,
                 "end_char": end,
+                "metadata": metadata or {},
             }
         )
 

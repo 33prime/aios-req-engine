@@ -16,6 +16,7 @@ import {
 } from 'lucide-react'
 import { getBaselineStatus, listConfirmations, getFeatures, getPrdSections, getVpSteps } from '@/lib/api'
 import { BaselineStatus, Confirmation, Feature, PrdSection, VpStep } from '@/types/api'
+import SignalInput from '@/components/SignalInput'
 
 export default function ProjectPage() {
   const params = useParams()
@@ -28,12 +29,16 @@ export default function ProjectPage() {
   const [prdSections, setPrdSections] = useState<PrdSection[]>([])
   const [vpSteps, setVpSteps] = useState<VpStep[]>([])
   const [loading, setLoading] = useState(true)
+  const [debugInfo, setDebugInfo] = useState<any>({})
 
   useEffect(() => {
     loadProjectData()
   }, [projectId])
 
   const loadProjectData = async () => {
+    console.log('🔄 Loading project data for:', projectId)
+    const startTime = Date.now()
+
     try {
       setLoading(true)
       const [
@@ -50,13 +55,35 @@ export default function ProjectPage() {
         getVpSteps(projectId),
       ])
 
+      const loadTime = Date.now() - startTime
+      console.log(`✅ Project data loaded in ${loadTime}ms:`, {
+        baseline: baselineData,
+        confirmations: confirmationsData.confirmations?.length || 0,
+        features: featuresData?.length || 0,
+        prdSections: prdData?.length || 0,
+        vpSteps: vpData?.length || 0,
+      })
+
       setBaseline(baselineData)
       setConfirmations(confirmationsData.confirmations)
       setFeatures(featuresData)
       setPrdSections(prdData)
       setVpSteps(vpData)
+
+      setDebugInfo({
+        loadTime,
+        dataCounts: {
+          confirmations: confirmationsData.confirmations?.length || 0,
+          features: featuresData?.length || 0,
+          prdSections: prdData?.length || 0,
+          vpSteps: vpData?.length || 0,
+        },
+        baseline: baselineData,
+        lastUpdated: new Date().toISOString(),
+      })
     } catch (error) {
-      console.error('Failed to load project data:', error)
+      console.error('❌ Failed to load project data:', error)
+      setDebugInfo((prev: any) => ({ ...prev, error: String(error), lastError: new Date().toISOString() }))
       alert('Failed to load project data')
     } finally {
       setLoading(false)
@@ -126,24 +153,48 @@ export default function ProjectPage() {
   }
 
   const pollJobStatus = async (jobId: string) => {
-    // Simple polling - in production you'd want more sophisticated handling
+    console.log('🔍 Starting job polling for:', jobId)
+    let pollCount = 0
+    const maxPolls = 30 // 1 minute max
+
     const checkStatus = async () => {
+      pollCount++
+      console.log(`📡 Poll #${pollCount} for job ${jobId}`)
+
       try {
         const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE}/v1/jobs/${jobId}`)
         if (response.ok) {
           const job = await response.json()
+          console.log(`📊 Job status update:`, {
+            status: job.status,
+            started_at: job.started_at,
+            completed_at: job.completed_at,
+            error: job.error,
+            output: job.output,
+          })
+
           if (job.status === 'completed') {
-            alert('Agent run completed!')
+            console.log('✅ Job completed successfully!')
+            alert(`Agent run completed! Output: ${JSON.stringify(job.output, null, 2)}`)
             loadProjectData() // Refresh data
           } else if (job.status === 'failed') {
+            console.log('❌ Job failed:', job.error)
             alert(`Agent run failed: ${job.error}`)
+          } else if (pollCount >= maxPolls) {
+            console.log('⏰ Job polling timeout')
+            alert('Job is taking too long. Check server logs.')
           } else {
+            console.log('⏳ Job still running, checking again in 2s...')
             // Still running, check again in 2 seconds
             setTimeout(checkStatus, 2000)
           }
+        } else {
+          console.error(`❌ Job status check failed: ${response.status}`)
+          alert(`Failed to check job status: ${response.status}`)
         }
       } catch (error) {
-        console.error('Failed to check job status:', error)
+        console.error('❌ Failed to check job status:', error)
+        alert(`Job status check failed: ${error}`)
       }
     }
     checkStatus()
@@ -200,6 +251,9 @@ export default function ProjectPage() {
           </div>
         </div>
       </div>
+
+      {/* Signal Input */}
+      <SignalInput projectId={projectId} onSignalAdded={loadProjectData} />
 
       {/* Stats Overview */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
@@ -306,6 +360,45 @@ export default function ProjectPage() {
             <AlertCircle className="h-4 w-4 mr-2" />
             Red Team
           </button>
+        </div>
+      </div>
+
+      {/* Debug Panel */}
+      <div className="card mb-8">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold text-gray-900">Debug Info</h3>
+          <button
+            onClick={() => console.log('🔍 Debug Info:', debugInfo)}
+            className="text-sm text-blue-600 hover:text-blue-800"
+          >
+            Log to Console
+          </button>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+          <div>
+            <span className="font-medium text-gray-600">Load Time:</span>
+            <div className="text-gray-900">{debugInfo.loadTime || 0}ms</div>
+          </div>
+          <div>
+            <span className="font-medium text-gray-600">Features:</span>
+            <div className="text-gray-900">{debugInfo.dataCounts?.features || 0}</div>
+          </div>
+          <div>
+            <span className="font-medium text-gray-600">PRD Sections:</span>
+            <div className="text-gray-900">{debugInfo.dataCounts?.prdSections || 0}</div>
+          </div>
+          <div>
+            <span className="font-medium text-gray-600">VP Steps:</span>
+            <div className="text-gray-900">{debugInfo.dataCounts?.vpSteps || 0}</div>
+          </div>
+        </div>
+        <div className="mt-4 text-xs text-gray-500">
+          Last updated: {debugInfo.lastUpdated || 'Never'}
+          {debugInfo.error && (
+            <div className="text-red-600 mt-1">
+              Error: {debugInfo.error}
+            </div>
+          )}
         </div>
       </div>
 

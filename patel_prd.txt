@@ -1,0 +1,188 @@
+Product Requirements Document: The Patel Advisory "Digital Facilitator" Platform
+
+1. Executive Summary and Strategic Vision
+Patel Advisory is transitioning its "Strategic Assessment & Recommendations" service from a manual, document-heavy process to a streamlined digital workflow. The goal is to build a "Digital Facilitator" platform that standardizes data collection, organizes client information, and facilitates report assembly through structured templates and logic-based workflows.
+
+This platform will serve as the operational backbone for the firm, functioning as:
+1. A Lead Magnet: A public-facing "Business Health Pulse" diagnostic tool to capture prospect data using conditional logic.
+2. A Data Collection Hub: A centralized system for gathering structured data (via surveys) and unstructured data (via transcripts and file uploads).
+3. A Workflow Manager: A project management dashboard to track assessment progress across the 8 specific assessment stages.
+4. A Report Assembler: A builder that compiles collected data, manual consultant notes, and tagged transcript snippets into stage summaries and a final master report.
+
+The core philosophy is "Digitization before Automation." The platform will facilitate the consultant's work by organizing data and removing administrative friction, but it relies entirely on the consultant's expertise for analysis, interpretation, and recommendation writing.
+
+2. The Assessment Framework (The 8 Sections)
+The platform is architected specifically to facilitate the following 8 linear stages of the Patel Advisory Assessment. The software must create a dedicated workspace/folder for each section to house relevant data, notes, and tasks.
+
+Section 1: Situation Analysis (Lead Magnet & Intake)
+  1.1 Company Snapshot
+  1.2 Evolution & Inflection Point
+  1.3 Key Observations - Current Reality
+
+Section 2: Top-Down Alignment (Vision/Mission Workshop)
+  2.1 Vision
+  2.2 Mission
+  2.3 Strategic Themes
+
+Section 3: Core Values - Culture & Rules of Engagement (Employee Surveys)
+  3.1 Recommended Core Values
+
+Section 4: Operating Model - Plans, Processes & Cadence (Operational Audit)
+  4.1 Planning Rhythm
+  4.2 Core Processes to Strengthen
+  4.3 Management & Meeting Cadence
+  4.4 From Functional Silos to Value Streams
+
+Section 5: People Power - Org, Roles & Succession (Org Chart Review & Interviews)
+  5.1 Organizational Structure & Decision Rights
+  5.2 Key Roles & Tribal Knowledge
+  5.3 Leadership & Management Capability
+  5.4 Succession & Transition Planning
+
+Section 6: Recommended Key Strategies (Strategy Synthesis)
+
+Section 7: Tactical Recommendations by Function (Departmental Deep Dives)
+  7.1 Leadership & Governance
+  7.2 Operations / Branches / Logistics
+  7.3 Human Resources / People
+  7.4 Product / Merchandising / Marketing
+  7.5 Sales & Customer Experience
+
+Section 8: Reporting & Path Forward (Implementation Plan)
+  8.1 Reporting Framework
+  8.2 Next 90 Days - Implementation Focus
+  8.3 Check-In Cadence
+
+3. User Persona Analysis
+
+3.1 The Principal Consultant (Patel - Admin)
+Role: The expert analyst and primary user.
+Needs: A structured environment to store notes, interview findings, and client documents. Needs a "single source of truth" for each client engagement so he doesn't have to hunt through emails and folders.
+Key Tasks: Reviewing incoming leads, manually entering observations, highlighting/tagging transcript text, configuring surveys, and assembling the final report.
+
+3.2 The Client Champion (CEO/Founder)
+Role: The primary point of contact and buyer.
+Needs: Visibility into the project status and a secure place to share sensitive data.
+Key Tasks: Completing the initial diagnostic, uploading documents (P&L, Org Chart), tracking progress, and viewing final reports.
+
+3.3 The Client Stakeholder (Employee)
+Role: An interviewee or survey respondent.
+Needs: A frictionless, mobile-friendly interface to answer questions without needing to create a complex account.
+Key Tasks: Completing assigned surveys (e.g., "Core Values Assessment") and participating in live polls.
+
+4. Platform Architecture & Functional Modules
+The platform is built on a "Stage-Gate" architecture. Data collected is stored in a relational database and tagged by Section ID (1.1 through 8.3).
+
+Module 1: The Lead Magnet (Public Facing)
+Target Section: Section 1 (Situation Analysis).
+Feature: Conditional Logic Form: A multi-step wizard where prospects enter Company Snapshot (1.1) and Pain Points (1.2).
+  Logic: If "Industry" = "Manufacturing", show specific questions about "Inventory" (mapping to 4.2).
+  Logic: If "Revenue" > $50M, tag lead as "Enterprise" in the CRM.
+Feature: Automated Teaser Report: Upon completion, the system generates a PDF using a pre-set template. It merges the user's answers into the document (e.g., "You identified [Problem X] as a key constraint...").
+Feature: Lead Conversion: If the prospect books a meeting, their Section 1 data is automatically migrated to a new "Client Project" entity, pre-filling the Situation Analysis for the consultant.
+
+Module 2: The Data Room & Ingestion Engine
+Target Sections: All (supporting evidence).
+Feature: Secure File Request List: Consultant allows the selection of a "Standard Document List" (P&L, Org Chart, Strategy Deck). The Client Champion receives a secure upload link with a checklist of required items.
+Feature: Document Viewer: A built-in PDF/Doc viewer that allows the Consultant to view uploaded files side-by-side with the Report Builder.
+
+Module 3: Consultant Workspace (Data Gathering)
+Target Sections: 1.3 (Observations), 2.1 (Vision), 5.3 (Leadership).
+Feature: Manual Interview Logger: A structured form for the Consultant to type notes during meetings. Fields are mapped to specific sections (e.g., a text box labeled "Observation for Section 5.3").
+Feature: Transcript Tagging (Manual):
+  - Consultant uploads an interview transcript (text or PDF).
+  - Action: Consultant highlights a sentence (e.g., "Nobody knows who is in charge of pricing").
+  - Action: A popup menu appears listing the 8 Sections.
+  - Action: Consultant selects "Section 5.1: Decision Rights."
+  - Result: This quote is saved to the "Findings Tray" for Section 5.1 to be used later in the report.
+
+Module 4: The Survey & Polling Engine
+Target Sections: 3 (Core Values), 4 (Operating Model), 7 (Tactics).
+Feature: Survey Builder: Consultant creates question sets.
+  Logic: "Skip Logic" ensures Operations questions are only sent to Operations staff.
+Feature: Deployment Options:
+  - Asynchronous: Unique links emailed to staff. Status dashboard shows who has completed it.
+  - Synchronous (Live Mode): Used for Section 2 (Vision) or Section 6 (Strategy) workshops. Consultant projects a QR code. Attendees vote on their phones. Results appear as a Bar Chart on the Consultant's screen in real-time.
+
+Module 5: The Project Dashboard
+Target Sections: Global Project Management.
+Feature: Stage Tracker: A visual progress bar showing the 8 sections.
+  States: "Not Started," "Data Collection," "Drafting," "Review," "Complete."
+Feature: Task Flags:
+  - Late Flag: If a Client Stakeholder has not uploaded the Org Chart by the due date, the task turns Red.
+  - Incomplete Flag: If Survey completion is < 50%, a Yellow warning icon appears.
+
+Module 6: The Report Builder (The "Assembler")
+Target Sections: All (Summary & Final Report).
+Feature: Modular Assembly: The report is not one giant text file. It is a collection of "Blocks" corresponding to the 8 sections.
+Feature: The "Findings Tray": When the Consultant clicks into "Section 3: Core Values," a sidebar opens displaying:
+  - All manual notes tagged to Section 3.
+  - All transcript highlights tagged to Section 3.
+  - All charts generated from the Core Values Survey.
+Feature: Drag-and-Drop Synthesis: Consultant drags specific charts and quotes from the Tray into the document body, then writes the analysis around them.
+Feature: Cumulative Compilation:
+  - Stage Reports: Generate a PDF for just "Section 1-3" to send as an interim deliverable.
+  - Master Report: One-click compilation of all 8 completed blocks into a final branded PDF with Table of Contents.
+
+5. User Flows (Happy Path)
+
+5.1 Phase 1: Acquisition (Lead Magnet)
+1. Prospect visits website and takes "Business Health Pulse" (Section 1 Diagnostic).
+2. Platform saves answers to "Prospect DB" and displays a "Teaser Scorecard" with conditional recommendations (e.g., If 'Growth' = Stagnant, insert 'Growth Plateau' snippet).
+3. Prospect requests full assessment. Patel converts Prospect to Client. Section 1 data is moved to the active project.
+
+5.2 Phase 2: Data Gathering (Hybrid)
+1. Patel sends "Upload Request" for Org Chart/Financials via the platform.
+2. Client uploads files to Data Room.
+3. Patel conducts interviews. He uploads the transcript. He highlights a quote about "toxic culture" and tags it to Section 3 (Values).
+4. Patel configures the "Operational Maturity Survey" and sends it to the client's Ops team.
+5. Platform tracks survey completion and flags overdue respondents.
+
+5.3 Phase 3: Analysis & Drafting
+1. Patel opens Section 4 (Operating Model) in the Report Builder.
+2. He sees the Survey results (Bar Chart: 20% Process Maturity) in the "Findings Tray."
+3. He drags the chart into the report.
+4. He types his observation: "As seen in the chart, process maturity is low."
+5. He repeats this for all sections.
+
+5.4 Phase 4: Delivery
+1. Patel clicks "Generate Master Report."
+2. Platform compiles all 8 sections, generates a Table of Contents, and applies the Patel Advisory styling.
+3. Client receives a notification and logs into the Portal to view the PDF and the "Next 90 Days" Kanban board (Section 8.2).
+
+6. Recommendations for Efficiency (Non-AI)
+To achieve scalability and profitability without AI, the platform must leverage standardization, templating, and logic.
+
+1. "Snippet Library" (The Mad Libs Approach):
+  - Create a library of pre-written text blocks for common recommendations (e.g., "Implement Weekly Level 10 Meetings").
+  - When Patel identifies a need for better meetings in Section 4.3, he can search his library and insert this pre-written block, then tweak details. This reduces writing time by ~60%.
+
+2. Historical Benchmarking:
+  - The platform should calculate simple averages from previous clients.
+  - Feature: "Compare to Database." When viewing Section 3 Survey results, Patel can see that the current client's "Trust Score" of 4/10 is lower than the firm's average of 7/10.
+
+3. Automated "Nudges":
+  - The system should automatically email reminders to stakeholders who haven't completed surveys 24 hours before the deadline.
+
+4. Variable Injection:
+  - Ensure the Report Builder uses variables like {{Client Name}}, {{CEO Name}}, and {{Date}} to avoid template contamination.
+
+5. Cloning & Templates:
+  - Allow Patel to create "Industry Templates" (e.g., "Healthcare Assessment Template") and clone for new clients.
+
+7. Technical Requirements Summary
+Database: Relational DB (SQL) to link Clients, Projects, Sections, and Data Snippets.
+Frontend: React or Angular for a responsive Client Portal and Drag-and-Drop Report Builder.
+Security: SOC 2 compliance features (encryption at rest/transit, RBAC) for the Data Room.
+Output: PDF Generation engine (e.g., wkhtmltopdf) that supports high-fidelity print layouts.
+
+Works cited
+1. Best Practices for Creating Lead Generation Quizzes - Interact Help Center, accessed December 1, 2025.
+2. Progressive Profiling 101 - Descope, accessed December 1, 2025.
+3. 10 Best Adaptive Learning Platforms in 2025 - Cloud Assess, accessed December 1, 2025.
+4. Agency Management & Professional Services Automation Software - Productive.io, accessed December 1, 2025.
+5. Adaptive Surveys - QPoint blog, accessed December 1, 2025.
+6. Advanced conditional logic for surveys - LogRocket Blog, accessed December 1, 2025.
+7. A Practical Guide to Generative AI for B2B Marketing - Demandbase, accessed December 1, 2025.
+8. ReportGorilla - Automated survey reporting, accessed December 1, 2025.
+9. The top 10 strategic analysis tools for businesses - Mural, accessed December 1, 2025.

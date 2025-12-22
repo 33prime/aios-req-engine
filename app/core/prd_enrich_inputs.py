@@ -64,21 +64,24 @@ def retrieve_supporting_chunks(
         # Embed the query
         query_embedding = embed_texts([query])[0]
 
-        # Search chunks with project filter and signal type filters
-        filter_conditions = {
-            "project_id": {"eq": str(project_id)},
-            "signal_type": {"in": ["client_email", "transcripts", "file_text", "notes"]},
-        }
-
-        # Add research only if explicitly requested
-        if include_research:
-            filter_conditions["signal_type"]["in"].append("research")
-
+        # Search chunks with project filter
         chunks = search_signal_chunks(
             query_embedding=query_embedding,
             match_count=top_k_per_query,
-            filter_conditions=filter_conditions,
+            project_id=project_id,
         )
+
+        # Filter by signal type based on research inclusion
+        if not include_research:
+            # Only include client signals when research is disabled
+            filtered_chunks = []
+            for chunk in chunks:
+                # Get signal_type from signal_metadata (returned by match_signal_chunks RPC)
+                signal_metadata = chunk.get("signal_metadata", {})
+                signal_type = signal_metadata.get("signal_type", "")
+                if signal_type in ["client_email", "transcripts", "file_text", "notes"]:
+                    filtered_chunks.append(chunk)
+            chunks = filtered_chunks
 
         all_chunks.extend(chunks)
 
@@ -94,9 +97,17 @@ def retrieve_supporting_chunks(
                 break
 
     logger.info(
-        f"Retrieved {len(unique_chunks)} unique chunks for PRD enrichment",
+        f"Retrieved {len(unique_chunks)} unique chunks for PRD enrichment (from {len(all_chunks)} total)",
         extra={"project_id": str(project_id), "query_count": len(queries)},
     )
+
+    # Debug: Log chunk metadata structure
+    if unique_chunks:
+        sample_chunk = unique_chunks[0]
+        logger.info(
+            f"Sample chunk metadata: signal_metadata keys: {list(sample_chunk.get('signal_metadata', {}).keys())}",
+            extra={"project_id": str(project_id)},
+        )
 
     return unique_chunks
 
@@ -285,7 +296,7 @@ def get_prd_enrich_context(
     """
     logger.info(
         f"Gathering PRD enrichment context for project {project_id}",
-        extra={"project_id": str(project_id)},
+        extra={"project_id": str(project_id), "section_slugs": section_slugs, "include_research": include_research},
     )
 
     # Get PRD sections to enrich

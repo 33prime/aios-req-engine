@@ -273,13 +273,19 @@ def run_build_state_agent(
         extra={"run_id": str(run_id)},
     )
 
-    if not final_state.llm_output:
+    # Extract results from final state (LangGraph returns dict)
+    llm_output = final_state.get("llm_output")
+    prd_sections_count = final_state.get("prd_sections_count", 0)
+    vp_steps_count = final_state.get("vp_steps_count", 0)
+    features_count = final_state.get("features_count", 0)
+
+    if not llm_output:
         raise ValueError("Graph completed without LLM output")
 
     return (
-        final_state.llm_output,
-        final_state.prd_sections_count,
-        final_state.vp_steps_count,
-        final_state.features_count,
+        llm_output,
+        prd_sections_count,
+        vp_steps_count,
+        features_count,
     )
 

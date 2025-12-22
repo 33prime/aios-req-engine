@@ -125,10 +125,21 @@ def process_section(state: EnrichPRDState) -> dict[str, Any]:
             extra={"run_id": str(state.run_id), "section_id": str(section_id)},
         )
 
+        logger.info(
+            f"Successfully enriched PRD section {section_slug}",
+            extra={"run_id": str(state.run_id), "section_id": str(section_id)},
+        )
+
     except Exception as e:
         logger.error(
             f"Failed to enrich PRD section {section_slug}: {e}",
             extra={"run_id": str(state.run_id), "section_id": str(section_id)},
+        )
+
+        # Log more details about the failure
+        logger.error(
+            f"PRD section enrichment failure details - section: {section}, context_chunks: {len(state.context.get('chunks', []))}",
+            extra={"run_id": str(state.run_id), "section_id": str(section_id), "error_type": type(e).__name__},
         )
 
         result_record = {

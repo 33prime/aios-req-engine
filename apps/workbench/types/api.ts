@@ -39,6 +39,7 @@ export interface PrdSection {
   status: string
   fields: any
   enrichment?: any
+  evidence?: any[]
   created_at: string
   updated_at: string
 }

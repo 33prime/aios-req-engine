@@ -5,22 +5,22 @@ import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import {
   ArrowLeft,
-  Target,
+  Zap,
   Play,
   CheckCircle,
   AlertCircle,
   Info,
   ExternalLink
 } from 'lucide-react'
-import { getFeatures, getBaselineStatus, enrichFeatures, getSignal, getSignalChunks } from '@/lib/api'
-import { Feature, BaselineStatus, Signal, SignalChunk } from '@/types/api'
-import FeatureDetailCard from '@/components/FeatureDetailCard'
+import { getVpSteps, getBaselineStatus, enrichVp, getSignal, getSignalChunks } from '@/lib/api'
+import { VpStep, BaselineStatus, Signal, SignalChunk } from '@/types/api'
+import VpDetailCard from '@/components/VpDetailCard'
 
-export default function FeaturesPage() {
+export default function VpPage() {
   const params = useParams()
   const projectId = params.projectId as string
 
-  const [features, setFeatures] = useState<Feature[]>([])
+  const [steps, setSteps] = useState<VpStep[]>([])
   const [baseline, setBaseline] = useState<BaselineStatus | null>(null)
   const [loading, setLoading] = useState(true)
   const [running, setRunning] = useState(false)
@@ -34,80 +34,78 @@ export default function FeaturesPage() {
   const loadData = async () => {
     try {
       setLoading(true)
-      const [featuresData, baselineData] = await Promise.all([
-        getFeatures(projectId),
+      console.log('🔄 Loading VP steps...')
+      const [stepsData, baselineData] = await Promise.all([
+        getVpSteps(projectId),
         getBaselineStatus(projectId),
       ])
-      setFeatures(featuresData)
+      console.log('✅ Loaded VP steps:', stepsData.length)
+      console.log('✅ Baseline status:', baselineData)
+      setSteps(stepsData)
       setBaseline(baselineData)
     } catch (error) {
-      console.error('Failed to load features:', error)
-      alert('Failed to load features')
+      console.error('❌ Failed to load VP steps:', error)
+      alert('Failed to load VP steps')
     } finally {
       setLoading(false)
     }
   }
 
-  const handleEnrichFeatures = async (onlyMvp = false) => {
+  const handleEnrichVp = async () => {
     try {
+      console.log('🚀 Starting VP enrichment...')
       setRunning(true)
-      const result = await enrichFeatures(projectId, {
-        onlyMvp,
-        includeResearch: baseline?.baseline_ready,
-      })
+      const result = await enrichVp(projectId, baseline?.baseline_ready)
+      console.log('✅ VP enrichment started:', result)
 
       // Poll job status
       pollJobStatus(result.job_id)
     } catch (error) {
-      console.error('Failed to enrich features:', error)
-      alert('Failed to enrich features')
+      console.error('❌ Failed to enrich VP:', error)
+      alert('Failed to enrich VP')
       setRunning(false)
     }
   }
 
   const pollJobStatus = async (jobId: string) => {
+    console.log('🔍 Starting job polling for:', jobId)
     const checkStatus = async () => {
       try {
+        console.log('📡 Checking job status...')
         const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE}/v1/jobs/${jobId}`)
         if (response.ok) {
           const job = await response.json()
+          console.log('📊 Job status:', job.status, job)
+
           if (job.status === 'completed') {
-            alert('Feature enrichment completed!')
+            console.log('✅ Job completed!')
+            alert('VP enrichment completed!')
             loadData() // Refresh data
             setRunning(false)
           } else if (job.status === 'failed') {
-            alert(`Feature enrichment failed: ${job.error}`)
+            console.log('❌ Job failed:', job.error)
+            alert(`VP enrichment failed: ${job.error}`)
             setRunning(false)
           } else {
+            console.log('⏳ Job still running, checking again in 2s...')
             // Still running, check again in 2 seconds
             setTimeout(checkStatus, 2000)
           }
+        } else {
+          console.error('❌ Failed to check job status, response:', response.status)
+          setRunning(false)
         }
       } catch (error) {
-        console.error('Failed to check job status:', error)
+        console.error('❌ Failed to check job status:', error)
         setRunning(false)
       }
     }
     checkStatus()
   }
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'confirmed_client':
-        return 'bg-green-100 text-green-800'
-      case 'confirmed_consultant':
-        return 'bg-blue-100 text-blue-800'
-      case 'needs_confirmation':
-        return 'bg-yellow-100 text-yellow-800'
-      default:
-        return 'bg-gray-100 text-gray-800'
-    }
-  }
-
   const viewEvidence = async (chunkId: string) => {
     try {
       console.log('🔍 Viewing evidence for chunk:', chunkId)
-      // Extract signal ID from chunk ID (assuming format: signalId-chunkIndex)
       const signalId = chunkId.split('-')[0]
 
       const [signal, chunks] = await Promise.all([
@@ -129,13 +127,13 @@ export default function FeaturesPage() {
       <div className="max-w-7xl mx-auto px-4 py-8">
         <div className="flex justify-center items-center h-64">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+          <span className="ml-4 text-gray-600">Loading VP steps...</span>
         </div>
       </div>
     )
   }
 
-  const mvpFeatures = features.filter(f => f.is_mvp)
-  const enrichedFeatures = features.filter(f => f.details)
+  const enrichedSteps = steps.filter(s => s.enrichment)
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
@@ -148,58 +146,44 @@ export default function FeaturesPage() {
               Back to Dashboard
             </Link>
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">Features</h1>
+              <h1 className="text-3xl font-bold text-gray-900">Value Path Steps</h1>
               <p className="text-gray-600 mt-1">
-                {features.length} features • {mvpFeatures.length} MVP • {enrichedFeatures.length} enriched
+                {steps.length} steps • {enrichedSteps.length} enriched
               </p>
             </div>
           </div>
 
-          <div className="flex space-x-4">
-            <button
-              onClick={() => handleEnrichFeatures(true)}
-              disabled={running}
-              className="btn btn-primary"
-            >
-              {running ? (
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-              ) : (
-                <Play className="h-4 w-4 mr-2" />
-              )}
-              Enrich MVP Features
-            </button>
-            <button
-              onClick={() => handleEnrichFeatures(false)}
-              disabled={running}
-              className="btn btn-secondary"
-            >
-              {running ? (
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600 mr-2"></div>
-              ) : (
-                <Play className="h-4 w-4 mr-2" />
-              )}
-              Enrich All Features
-            </button>
-          </div>
+          <button
+            onClick={handleEnrichVp}
+            disabled={running}
+            className="btn btn-primary"
+          >
+            {running ? (
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+            ) : (
+              <Play className="h-4 w-4 mr-2" />
+            )}
+            Enrich VP Steps
+          </button>
         </div>
       </div>
 
-      {/* Features List */}
+      {/* Steps List */}
       <div className="space-y-6">
-        {features.map((feature) => (
-          <FeatureDetailCard
-            key={feature.id}
-            feature={feature}
+        {steps.map((step) => (
+          <VpDetailCard
+            key={step.id}
+            step={step}
             onViewEvidence={viewEvidence}
           />
         ))}
       </div>
 
-      {features.length === 0 && (
+      {steps.length === 0 && (
         <div className="text-center py-12">
-          <Target className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">No features found</h3>
-          <p className="text-gray-600">Run the build state agent to extract features from your signals.</p>
+          <Zap className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-gray-900 mb-2">No VP steps found</h3>
+          <p className="text-gray-600">Run the build state agent to extract value path steps from your signals.</p>
         </div>
       )}
 

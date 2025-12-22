@@ -101,20 +101,25 @@ def retrieve_chunks(state: RedTeamState) -> dict[str, Any]:
         # Embed the query text
         query_embeddings = embed_texts([query])
         query_embedding = query_embeddings[0]
-        
-        # Filter by authority based on include_research flag
-        filter_conditions = {"project_id": {"eq": str(state.project_id)}}
-        if not state.include_research:
-            # Only include client signals when research is disabled
-            filter_conditions["signal_type"] = {"in": ["client_email", "transcripts", "file_text", "notes"]}
 
         results = search_signal_chunks(
             query_embedding=query_embedding,
             match_count=settings.REDTEAM_TOP_K_PER_QUERY,
-            filter_conditions=filter_conditions,
+            project_id=state.project_id,
         )
 
+        # Filter results based on include_research flag
+        filtered_results = []
         for chunk in results:
+            signal_type = chunk.get("signal_type", "")
+            # If research is disabled, only include client signals
+            if not state.include_research:
+                if signal_type not in ["client_email", "transcripts", "file_text", "notes"]:
+                    continue
+            # Always include results regardless of type if research is enabled
+            filtered_results.append(chunk)
+
+        for chunk in filtered_results:
             chunk_id = chunk.get("chunk_id", "")
             if chunk_id and chunk_id not in seen_chunk_ids:
                 seen_chunk_ids.add(chunk_id)

@@ -12,21 +12,41 @@ async function apiRequest<T>(
   options?: RequestInit
 ): Promise<T> {
   const url = `${API_BASE}/v1${endpoint}`
+  console.log(`🌐 API Request: ${options?.method || 'GET'} ${url}`)
 
-  const response = await fetch(url, {
-    headers: {
-      'Content-Type': 'application/json',
-      ...options?.headers,
-    },
-    ...options,
-  })
+  const startTime = Date.now()
 
-  if (!response.ok) {
-    const error = await response.text()
-    throw new ApiError(response.status, error)
+  try {
+    const response = await fetch(url, {
+      headers: {
+        'Content-Type': 'application/json',
+        ...options?.headers,
+      },
+      ...options,
+    })
+
+    const duration = Date.now() - startTime
+    console.log(`📡 API Response: ${response.status} ${response.statusText} (${duration}ms)`)
+
+    if (!response.ok) {
+      let errorText = 'Unknown error'
+      try {
+        errorText = await response.text()
+      } catch (e) {
+        console.warn('Could not read error response body:', e)
+      }
+      console.error(`❌ API Error: ${response.status} - ${errorText}`)
+      throw new ApiError(response.status, errorText)
+    }
+
+    const data = await response.json()
+    console.log(`✅ API Success:`, data)
+    return data
+  } catch (error) {
+    const duration = Date.now() - startTime
+    console.error(`💥 API Request Failed (${duration}ms):`, error)
+    throw error
   }
-
-  return response.json()
 }
 
 // Project APIs
