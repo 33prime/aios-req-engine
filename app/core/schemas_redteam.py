@@ -42,6 +42,9 @@ class RedTeamInsight(BaseModel):
     severity: Literal["minor", "important", "critical"] = Field(
         ..., description="Severity of the issue"
     )
+    gate: Literal["completeness", "validation", "assumption", "scope", "wow"] = Field(
+        ..., description="Which validation gate this insight applies to"
+    )
     category: Literal["logic", "ux", "security", "data", "reporting", "scope", "ops"] = Field(
         ..., description="Category of the issue"
     )

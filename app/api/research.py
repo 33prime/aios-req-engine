@@ -9,6 +9,11 @@ from app.core.baseline_gate import require_baseline_ready
 from app.core.embeddings import embed_texts
 from app.core.logging import get_logger
 from app.core.research_render import render_research_report
+from app.core.research_validation import (
+    validate_research_report,
+    get_completeness_score,
+    get_content_statistics,
+)
 from app.core.schemas_research import (
     IngestedReport,
     ResearchIngestRequest,
@@ -30,7 +35,7 @@ def _ingest_research_report(
     run_id: UUID,
 ) -> tuple[UUID, int]:
     """
-    Ingest a single research report.
+    Ingest a single research report with validation.
 
     Args:
         report: Research report to ingest
@@ -40,7 +45,54 @@ def _ingest_research_report(
 
     Returns:
         Tuple of (signal_id, chunks_inserted)
+
+    Raises:
+        ValueError: If report fails critical validation
     """
+    # Validate report
+    is_valid, warnings = validate_research_report(report)
+
+    if not is_valid:
+        critical_errors = [w for w in warnings if w.severity == "error"]
+        error_msg = "; ".join(str(w) for w in critical_errors)
+        logger.error(
+            f"Research report failed validation: {error_msg}",
+            extra={
+                "run_id": str(run_id),
+                "report_id": report.id,
+                "errors": [str(w) for w in critical_errors],
+            },
+        )
+        raise ValueError(f"Research report validation failed: {error_msg}")
+
+    # Log warnings
+    if warnings:
+        for warning in warnings:
+            logger.warning(
+                f"Research validation: {warning}",
+                extra={
+                    "run_id": str(run_id),
+                    "report_id": report.id,
+                    "field": warning.field,
+                    "severity": warning.severity,
+                },
+            )
+
+    # Get completeness score and statistics
+    completeness = get_completeness_score(report)
+    stats = get_content_statistics(report)
+
+    logger.info(
+        f"Research report quality metrics",
+        extra={
+            "run_id": str(run_id),
+            "report_id": report.id,
+            "completeness_score": completeness["score"],
+            "missing_sections": completeness["missing_sections"],
+            "content_stats": stats,
+        },
+    )
+
     # Render report to full text and section chunks
     full_text, section_chunks = render_research_report(report)
 
@@ -54,6 +106,8 @@ def _ingest_research_report(
         "title": report.title,
         "deal_id": report.deal_id,
         "version": str(report.version) if report.version else None,
+        "completeness_score": completeness["score"],
+        "section_count": len(section_chunks),
     }
 
     # Insert signal
@@ -173,21 +227,29 @@ async def ingest_research(request: ResearchIngestRequest) -> ResearchIngestRespo
                 },
             )
 
+        # Calculate summary statistics
+        total_chunks = sum(r.chunks_inserted for r in ingested)
+        avg_chunks_per_report = total_chunks / len(ingested) if ingested else 0
+
         # Complete job
         complete_job(
             job_id=job_id,
             output_json={
                 "reports_ingested": len(ingested),
-                "total_chunks": sum(r.chunks_inserted for r in ingested),
+                "total_chunks": total_chunks,
+                "avg_chunks_per_report": round(avg_chunks_per_report, 1),
             },
         )
 
         logger.info(
-            "Research ingestion completed",
+            "Research ingestion completed successfully",
             extra={
                 "run_id": str(run_id),
                 "job_id": str(job_id),
                 "reports_ingested": len(ingested),
+                "total_chunks": total_chunks,
+                "avg_chunks_per_report": round(avg_chunks_per_report, 1),
+                "report_titles": [r.title for r in request.reports],
             },
         )
 

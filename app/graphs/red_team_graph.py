@@ -8,10 +8,11 @@ from uuid import UUID
 from langgraph.graph import END, StateGraph
 
 from app.chains.red_team_research import run_research_gap_analysis
+from app.core.chunk_deduplication import deduplicate_chunks, rerank_for_diversity
 from app.core.embeddings import embed_texts
 from app.core.logging import get_logger
 from app.core.redteam_queries import RESEARCH_QUERIES, CURRENT_STATE_QUERIES
-from app.db.phase0 import search_signal_chunks
+from app.db.phase0 import search_signal_chunks, vector_search_with_priority
 from app.db.insights import insert_insights
 from app.db.state import get_enriched_state
 
@@ -49,7 +50,7 @@ class RedTeamState:
 
 def load_research_and_state(state: RedTeamState) -> RedTeamState:
     """
-    Load research chunks and current enriched state.
+    Load research chunks and current enriched state with deduplication and priority boosting.
     """
 
     # 1. Retrieve research chunks via vector search (if include_research is True)
@@ -60,30 +61,36 @@ def load_research_and_state(state: RedTeamState) -> RedTeamState:
             query_embeddings = embed_texts([query])
             query_embedding = query_embeddings[0]
 
-            # Search for chunks
-            results = search_signal_chunks(
+            # Use priority-aware search (confirmed chunks ranked higher)
+            results = vector_search_with_priority(
                 query_embedding=query_embedding,
                 match_count=5,
-                project_id=state.project_id,
+                project_id=UUID(state.project_id),
+                filter_metadata={"authority": "research"},
+                priority_boost=True,  # Enable status boosting
             )
 
-            # Filter for research signals only
-            research_chunks = [
-                chunk for chunk in results
-                if chunk.get("metadata", {}).get("authority") == "research"
-            ]
-            research_results.extend(research_chunks)
+            research_results.extend(results)
 
-        # Deduplicate by chunk_id
-        seen = set()
-        unique_research = []
-        for chunk in research_results:
-            if chunk["chunk_id"] not in seen:
-                unique_research.append(chunk)
-                seen.add(chunk["chunk_id"])
+        logger.info(f"Retrieved {len(research_results)} research chunks before deduplication")
 
-        state.research_chunks = unique_research[:50]  # Cap at 50 chunks
-        logger.info(f"Loaded {len(state.research_chunks)} research chunks")
+        # Deduplicate using semantic similarity
+        unique_research = deduplicate_chunks(
+            research_results,
+            similarity_threshold=0.85,  # Merge chunks >85% similar
+            max_per_section=3,  # Max 3 chunks per section type
+        )
+
+        logger.info(f"After deduplication: {len(unique_research)} research chunks")
+
+        # Rerank for diversity (balance relevance vs diversity)
+        diverse_research = rerank_for_diversity(
+            unique_research,
+            alpha=0.7,  # 70% relevance, 30% diversity
+        )
+
+        state.research_chunks = diverse_research[:50]  # Cap at 50 chunks
+        logger.info(f"Final research chunks (after reranking): {len(state.research_chunks)}")
     else:
         state.research_chunks = []
         logger.info("Research inclusion disabled, using empty research chunks")
@@ -94,36 +101,35 @@ def load_research_and_state(state: RedTeamState) -> RedTeamState:
     state.current_prd_sections = enriched_state["prd_sections"]
     state.current_vp_steps = enriched_state["vp_steps"]
 
-    # 3. Optional: retrieve additional context chunks
-    # (facts, client signals) for broader context
+    # 3. Retrieve additional context chunks (client signals) with priority boosting
     context_results = []
     for query in CURRENT_STATE_QUERIES:
         # Create embedding for the query
         query_embeddings = embed_texts([query])
         query_embedding = query_embeddings[0]
 
-        # Search for chunks
-        results = search_signal_chunks(
+        # Use priority-aware search for client signals
+        results = vector_search_with_priority(
             query_embedding=query_embedding,
             match_count=3,
-            project_id=state.project_id,
+            project_id=UUID(state.project_id),
+            filter_metadata={"authority": "client"},
+            priority_boost=True,  # Prioritize confirmed client chunks
         )
 
-        # Filter for client signals only
-        client_chunks = [
-            chunk for chunk in results
-            if chunk.get("metadata", {}).get("authority") == "client"
-        ]
-        context_results.extend(client_chunks)
+        context_results.extend(results)
 
-    seen_context = set()
-    unique_context = []
-    for chunk in context_results:
-        if chunk["chunk_id"] not in seen_context:
-            unique_context.append(chunk)
-            seen_context.add(chunk["chunk_id"])
+    logger.info(f"Retrieved {len(context_results)} context chunks before deduplication")
+
+    # Deduplicate context chunks
+    unique_context = deduplicate_chunks(
+        context_results,
+        similarity_threshold=0.85,
+        max_per_section=2,
+    )
 
     state.context_chunks = unique_context[:20]
+    logger.info(f"Final context chunks: {len(state.context_chunks)}")
 
     return state
 

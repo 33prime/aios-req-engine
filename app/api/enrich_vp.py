@@ -162,28 +162,93 @@ def check_enrichment_status(project_id: UUID) -> dict[str, bool]:
 
 async def trigger_red_team_analysis(project_id: UUID):
     """
-    Trigger red team analysis in background.
+    Trigger red team analysis in background with research context.
+
+    Automatically includes research signals if available.
     """
     from app.core.baseline_gate import check_baseline_gate
     from app.graphs.red_team_graph import run_redteam_agent
+    from app.db.jobs import create_job, start_job, complete_job, fail_job
+    from app.db.supabase_client import get_supabase
     import uuid
 
     # Check baseline gate
     gate_status = check_baseline_gate(project_id)
     if not gate_status["baseline_ready"]:
-        logger.warning(f"Red team skipped for {project_id}: baseline not ready")
+        logger.warning(
+            f"Red team auto-trigger skipped for {project_id}: baseline not ready",
+            extra={"project_id": str(project_id), "gate_status": gate_status}
+        )
         return
 
-    run_id = str(uuid.uuid4())
+    # Check if research signals exist
+    supabase = get_supabase()
+    research_signals = supabase.table("signals").select("id").eq("project_id", str(project_id)).eq("signal_type", "market_research").limit(1).execute()
+    include_research = len(research_signals.data) > 0
 
-    # Execute graph
+    run_id = str(uuid.uuid4())
+    job_id = None
+
     try:
+        # Create job for tracking
+        job_id = create_job(
+            project_id=project_id,
+            job_type="red_team_auto",
+            input_json={
+                "include_research": include_research,
+                "trigger": "enrichment_complete"
+            },
+            run_id=uuid.UUID(run_id)
+        )
+        start_job(job_id)
+
+        logger.info(
+            f"Red team auto-trigger starting for {project_id}",
+            extra={
+                "project_id": str(project_id),
+                "run_id": run_id,
+                "job_id": str(job_id),
+                "include_research": include_research
+            }
+        )
+
+        # Execute red team with research context
         llm_output, insights_count = run_redteam_agent(
             project_id=str(project_id),
             run_id=run_id,
-            job_id=None
+            job_id=str(job_id),
+            include_research=include_research
         )
 
-        logger.info(f"Red team completed for {project_id}: {insights_count} insights")
+        # Complete job
+        complete_job(
+            job_id=job_id,
+            output_json={
+                "insights_count": insights_count,
+                "include_research": include_research
+            }
+        )
+
+        logger.info(
+            f"Red team auto-trigger completed for {project_id}: {insights_count} insights",
+            extra={
+                "project_id": str(project_id),
+                "run_id": run_id,
+                "insights_count": insights_count,
+                "research_enabled": include_research
+            }
+        )
     except Exception as e:
-        logger.error(f"Red team auto-trigger failed for {project_id}: {e}")
+        logger.error(
+            f"Red team auto-trigger failed for {project_id}: {e}",
+            extra={
+                "project_id": str(project_id),
+                "run_id": run_id,
+                "error": str(e)
+            }
+        )
+        if job_id:
+            try:
+                fail_job(job_id, str(e))
+            except Exception:
+                logger.exception("Failed to mark red team job as failed")
