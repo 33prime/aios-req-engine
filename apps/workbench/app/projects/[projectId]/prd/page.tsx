@@ -68,15 +68,6 @@ export default function PrdPage() {
     }
   }
 
-      // Poll job status
-      pollJobStatus(result.job_id)
-    } catch (error) {
-      console.error('❌ Failed to enrich PRD:', error)
-      alert('Failed to enrich PRD')
-      setRunning(false)
-    }
-  }
-
   const pollJobStatus = async (jobId: string) => {
     console.log('🔍 Starting job polling for:', jobId)
     const checkStatus = async () => {
