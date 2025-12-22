@@ -147,13 +147,13 @@ async def create_confirmation_from_insight(
     }
 
 
-def update_feature_field(supabase: SupabaseClient, feature_id: str, field: str, value: str):
+def update_feature_field(supabase, feature_id: str, field: str, value: str):
     """Update a specific field on a feature."""
     update_data = {field: value}
     supabase.table("features").update(update_data).eq("id", feature_id).execute()
 
 
-def create_feature_from_insight(supabase: SupabaseClient, insight: Dict, target: Dict):
+def create_feature_from_insight(supabase, insight: Dict, target: Dict):
     """Create a new feature based on insight target."""
     feature_data = {
         "id": str(uuid.uuid4()),
@@ -167,19 +167,19 @@ def create_feature_from_insight(supabase: SupabaseClient, insight: Dict, target:
     supabase.table("features").insert(feature_data).execute()
 
 
-def update_prd_section_from_insight(supabase: SupabaseClient, insight: Dict, target: Dict):
+def update_prd_section_from_insight(supabase, insight: Dict, target: Dict):
     """Update PRD section based on insight."""
     # This would need to be implemented based on the specific field changes
     pass
 
 
-def update_vp_step_from_insight(supabase: SupabaseClient, insight: Dict, target: Dict):
+def update_vp_step_from_insight(supabase, insight: Dict, target: Dict):
     """Update VP step based on insight."""
     # This would need to be implemented based on the specific field changes
     pass
 
 
-def create_state_revision(supabase: SupabaseClient, project_id: str, run_id: str, input_summary: str, diff: Dict):
+def create_state_revision(supabase, project_id: str, run_id: str, input_summary: str, diff: Dict):
     """Create a state revision for audit trail."""
     revision_data = {
         "id": str(uuid.uuid4()),
