@@ -68,7 +68,7 @@ async def run_red_team(request: RedTeamRequest) -> RedTeamResponse:
             },
         )
 
-        # Check if we have research data when include_research is True
+        # Check if we have research data when include_research is True (just for logging)
         if request.include_research:
             # Quick check for research signals
             from app.db.phase0 import search_signal_chunks
@@ -87,11 +87,7 @@ async def run_red_team(request: RedTeamRequest) -> RedTeamResponse:
             ]
 
             if not research_signals:
-                logger.warning("No research signals found for red-team analysis")
-                raise HTTPException(
-                    status_code=400,
-                    detail="No research signals found. Red-team analysis requires research data when include_research is true."
-                )
+                logger.warning("No research signals found - red team analysis will proceed without research context")
 
         # Run the red-team agent
         llm_output, insights_count = run_redteam_agent(
