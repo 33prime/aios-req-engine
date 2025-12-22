@@ -153,18 +153,30 @@ export default function VpPage() {
             </div>
           </div>
 
-          <button
-            onClick={handleEnrichVp}
-            disabled={running}
-            className="btn btn-primary"
-          >
-            {running ? (
-              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-            ) : (
-              <Play className="h-4 w-4 mr-2" />
-            )}
-            Enrich VP Steps
-          </button>
+          <div className="flex space-x-3">
+            <button
+              onClick={() => {
+                console.log('🔄 Manual refresh triggered')
+                loadData()
+              }}
+              className="btn btn-secondary"
+            >
+              <Info className="h-4 w-4 mr-2" />
+              Refresh Data
+            </button>
+            <button
+              onClick={handleEnrichVp}
+              disabled={running}
+              className="btn btn-primary"
+            >
+              {running ? (
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+              ) : (
+                <Play className="h-4 w-4 mr-2" />
+              )}
+              Enrich VP Steps
+            </button>
+          </div>
         </div>
       </div>
 

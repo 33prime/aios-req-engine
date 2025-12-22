@@ -13,6 +13,16 @@ export default function VpDetailCard({ step, onViewEvidence }: VpDetailCardProps
   const [showDetails, setShowDetails] = useState(false)
   const [showEvidence, setShowEvidence] = useState(false)
 
+  // Debug logging
+  console.log(`🎯 VP Step ${step.step_index}:`, {
+    hasEnrichment: !!step.enrichment,
+    enrichmentKeys: step.enrichment ? Object.keys(step.enrichment) : [],
+    evidenceCount: step.enrichment?.evidence?.length || 0,
+    evidenceItems: step.enrichment?.evidence,
+    combinedEvidence: (step.evidence || step.enrichment?.evidence || []),
+    combinedLength: (step.evidence || step.enrichment?.evidence || []).length
+  })
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'confirmed_client':
