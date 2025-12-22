@@ -59,6 +59,15 @@ export default function PrdPage() {
       const result = await enrichPrd(projectId, baseline?.baseline_ready)
       console.log('✅ PRD enrichment started:', result)
 
+      // Poll job status and refresh data when complete
+      pollJobStatus(result.job_id)
+    } catch (error) {
+      console.error('❌ Failed to enrich PRD:', error)
+      alert('Failed to enrich PRD')
+      setRunning(false)
+    }
+  }
+
       // Poll job status
       pollJobStatus(result.job_id)
     } catch (error) {

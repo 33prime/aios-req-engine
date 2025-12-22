@@ -18,7 +18,11 @@ export default function PrdDetailCard({ section, onViewEvidence }: PrdDetailCard
     hasEnrichment: !!section.enrichment,
     enrichmentKeys: section.enrichment ? Object.keys(section.enrichment) : [],
     evidenceCount: section.enrichment?.evidence?.length || 0,
-    clientNeedsCount: section.enrichment?.proposed_client_needs?.length || 0
+    evidenceItems: section.enrichment?.evidence,
+    clientNeedsCount: section.enrichment?.proposed_client_needs?.length || 0,
+    sectionEvidence: section.evidence,
+    combinedEvidence: (section.evidence || section.enrichment?.evidence || []),
+    combinedLength: (section.evidence || section.enrichment?.evidence || []).length
   })
 
   const getStatusColor = (status: string) => {
