@@ -19,7 +19,7 @@ class InsightTarget(BaseModel):
 class EvidenceRef(BaseModel):
     """Reference to a chunk as evidence for an insight."""
 
-    chunk_id: UUID = Field(..., description="UUID of the signal chunk")
+    chunk_id: str = Field(..., description="ID of the signal chunk (UUID or placeholder)")
     excerpt: str = Field(..., max_length=280, description="Excerpt from chunk (max 280 chars)")
     rationale: str = Field(..., description="Why this supports the insight")
 
@@ -66,12 +66,16 @@ class RedTeamOutput(BaseModel):
     """Full structured output from red-team LLM."""
 
     insights: list[RedTeamInsight] = Field(default_factory=list, description="List of insights")
+    model: str = Field(..., description="Model used for generation")
+    prompt_version: str = Field(..., description="Prompt version used")
+    schema_version: str = Field(..., description="Schema version used")
 
 
 class RedTeamRequest(BaseModel):
     """Request body for red-team endpoint."""
 
     project_id: UUID = Field(..., description="Project UUID to analyze")
+    include_research: bool = Field(default=False, description="Include research context")
 
 
 class RedTeamResponse(BaseModel):

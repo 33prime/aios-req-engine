@@ -68,11 +68,37 @@ async def run_red_team(request: RedTeamRequest) -> RedTeamResponse:
             },
         )
 
+        # Check if we have research data when include_research is True
+        if request.include_research:
+            # Quick check for research signals
+            from app.db.phase0 import search_signal_chunks
+            from app.core.embeddings import embed_texts
+
+            # Use a simple query to check for research
+            query_embedding = embed_texts(["research analysis"])[0]
+            research_check = search_signal_chunks(
+                query_embedding=query_embedding,
+                match_count=1,
+                project_id=str(request.project_id)
+            )
+            research_signals = [
+                chunk for chunk in research_check
+                if chunk.get("metadata", {}).get("authority") == "research"
+            ]
+
+            if not research_signals:
+                logger.warning("No research signals found for red-team analysis")
+                raise HTTPException(
+                    status_code=400,
+                    detail="No research signals found. Red-team analysis requires research data when include_research is true."
+                )
+
         # Run the red-team agent
         llm_output, insights_count = run_redteam_agent(
             project_id=str(request.project_id),
             run_id=str(run_id),
             job_id=str(job_id),
+            include_research=request.include_research,
         )
 
         # Compute counts by severity and category
@@ -124,13 +150,14 @@ async def run_red_team(request: RedTeamRequest) -> RedTeamResponse:
         raise
 
     except Exception as e:
-        logger.exception("Red-team analysis failed", extra={"run_id": str(run_id)})
+        error_msg = f"Red-team analysis failed: {str(e)}"
+        logger.exception(error_msg, extra={"run_id": str(run_id)})
         if job_id:
             try:
-                fail_job(job_id, str(e))
+                fail_job(job_id, error_msg)
             except Exception:
                 logger.exception("Failed to mark job as failed")
-        raise HTTPException(status_code=500, detail="Red-team analysis failed") from e
+        raise HTTPException(status_code=500, detail=error_msg) from e
 
 
 @router.patch("/insights/{insight_id}/status")

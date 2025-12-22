@@ -11,7 +11,11 @@ from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
+def _get_client() -> OpenAI:
+    """Get OpenAI client lazily."""
+    settings = get_settings()
+    return OpenAI(api_key=settings.OPENAI_API_KEY)
 
 # Tool definition for web search
 WEB_SEARCH_TOOL = {
@@ -160,6 +164,11 @@ def run_research_gap_analysis(
     """
     Execute research gap analysis with LLM + web search tool.
     """
+    logger.info(
+        f"Starting research gap analysis with {len(research_chunks)} research chunks, "
+        f"{len(current_features)} features, {len(current_prd_sections)} PRD sections, "
+        f"{len(current_vp_steps)} VP steps, {len(context_chunks)} context chunks"
+    )
 
     prompt = build_research_gap_prompt(
         research_chunks,
@@ -174,40 +183,56 @@ def run_research_gap_analysis(
         {"role": "user", "content": prompt}
     ]
 
-    # First call (with tools)
-    response = client.chat.completions.create(
-        model=get_settings().REDTEAM_MODEL,
-        messages=messages,
-        tools=[WEB_SEARCH_TOOL],
-        tool_choice="auto",
-        temperature=0
-    )
-
-    # Handle tool calls
-    while response.choices[0].finish_reason == "tool_calls":
-        tool_calls = response.choices[0].message.tool_calls
-        messages.append(response.choices[0].message)
-
-        for tool_call in tool_calls:
-            function_name = tool_call.function.name
-            arguments = json.loads(tool_call.function.arguments)
-
-            if function_name == "web_search":
-                result = web_search(arguments["query"], arguments["purpose"])
-                messages.append({
-                    "role": "tool",
-                    "tool_call_id": tool_call.id,
-                    "content": json.dumps(result)
-                })
-
-        # Continue conversation
+    # Get client
+    try:
+        client = _get_client()
+        logger.info("OpenAI client initialized successfully")
+    except Exception as e:
+        logger.error(f"Failed to initialize OpenAI client: {e}")
+        raise
+    
+    try:
+        # First call (with tools)
+        logger.info(f"Calling OpenAI API with model {get_settings().REDTEAM_MODEL}")
         response = client.chat.completions.create(
             model=get_settings().REDTEAM_MODEL,
             messages=messages,
             tools=[WEB_SEARCH_TOOL],
             tool_choice="auto",
-            temperature=0
+            temperature=0,
+            timeout=30  # 30 second timeout
         )
+        logger.info("OpenAI API call completed successfully")
+
+        # Handle tool calls
+        while response.choices[0].finish_reason == "tool_calls":
+            tool_calls = response.choices[0].message.tool_calls
+            messages.append(response.choices[0].message)
+
+            for tool_call in tool_calls:
+                function_name = tool_call.function.name
+                arguments = json.loads(tool_call.function.arguments)
+
+                if function_name == "web_search":
+                    result = web_search(arguments["query"], arguments["purpose"])
+                    messages.append({
+                        "role": "tool",
+                        "tool_call_id": tool_call.id,
+                        "content": json.dumps(result)
+                    })
+
+            # Continue conversation
+            response = client.chat.completions.create(
+                model=get_settings().REDTEAM_MODEL,
+                messages=messages,
+                tools=[WEB_SEARCH_TOOL],
+                tool_choice="auto",
+                temperature=0,
+                timeout=30
+            )
+    except Exception as e:
+        logger.error(f"OpenAI API call failed: {e}")
+        raise
 
     # Parse final response
     content = response.choices[0].message.content
@@ -223,8 +248,8 @@ def run_research_gap_analysis(
         output = RedTeamOutput(
             insights=[RedTeamInsight(**insight) for insight in data["insights"]],
             model=get_settings().REDTEAM_MODEL,
-            prompt_version=get_settings().REDTEAM_PROMPT_VERSION,
-            schema_version=get_settings().REDTEAM_SCHEMA_VERSION
+            prompt_version="red_team_research_v1",
+            schema_version="red_team_v1"
         )
         return output
     except Exception as e:
@@ -257,7 +282,8 @@ Fix and return valid JSON:"""
         retry_response = client.chat.completions.create(
             model=get_settings().REDTEAM_MODEL,
             messages=messages,
-            temperature=0
+            temperature=0,
+            timeout=30
         )
 
         retry_content = retry_response.choices[0].message.content
@@ -268,7 +294,7 @@ Fix and return valid JSON:"""
         output = RedTeamOutput(
             insights=[RedTeamInsight(**insight) for insight in data["insights"]],
             model=get_settings().REDTEAM_MODEL,
-            prompt_version=get_settings().REDTEAM_PROMPT_VERSION,
-            schema_version=get_settings().REDTEAM_SCHEMA_VERSION
+            prompt_version="red_team_research_v1",
+            schema_version="red_team_v1"
         )
         return output

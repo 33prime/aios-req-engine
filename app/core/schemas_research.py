@@ -2,6 +2,7 @@
 
 from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
+from uuid import UUID
 from datetime import datetime
 
 
@@ -99,8 +100,49 @@ class ResearchDocument(BaseModel):
     organization_id: Optional[str] = None
 
 
+class ResearchReport(BaseModel):
+    """Research report for rendering and ingestion"""
+    id: str
+    title: str
+    summary: str
+    verdict: str
+    
+    # Parsed JSON fields
+    idea_analysis: IdeaAnalysis
+    market_pain_points: MarketPainPoints
+    feature_matrix: FeatureCategory
+    goals_and_benefits: GoalsAndBenefits
+    unique_selling_propositions: List[USP]
+    user_personas: List[UserPersona]
+    risks_and_mitigations: List[RiskMitigation]
+    market_data: MarketData
+    additional_insights: List[Any]  # Flexible
+    next_steps: Optional[str] = None
+    
+    # Metadata
+    deal_id: Optional[str] = None
+    created_by_user_id: Optional[str] = None
+    version: Optional[int] = None
+    organization_id: Optional[str] = None
+
+
+class IngestedReport(BaseModel):
+    """Result of ingesting a single research report"""
+    report_id: str = Field(..., description="Original report ID")
+    title: str = Field(..., description="Report title")
+    signal_id: UUID = Field(..., description="Created signal UUID")
+    chunks_inserted: int = Field(..., description="Number of chunks inserted")
+
+
 class ResearchIngestRequest(BaseModel):
-    """Request to ingest research document"""
-    project_id: str
-    research_data: ResearchDocument
-    metadata: Optional[Dict[str, Any]] = Field(default_factory=dict)
+    """Request to ingest research reports"""
+    project_id: UUID = Field(..., description="Project UUID")
+    reports: List[ResearchReport] = Field(..., description="Research reports to ingest")
+    source: str = Field(default="n8n_research", description="Source identifier")
+
+
+class ResearchIngestResponse(BaseModel):
+    """Response from research ingestion"""
+    run_id: UUID = Field(..., description="Run tracking UUID")
+    job_id: UUID = Field(..., description="Job tracking UUID")
+    ingested: List[IngestedReport] = Field(..., description="Ingested report details")

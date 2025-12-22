@@ -26,6 +26,7 @@ class RedTeamState:
     project_id: str
     run_id: str
     job_id: Optional[str]
+    include_research: bool = False
 
     # Research data
     research_chunks: List[Dict[str, Any]] = field(default_factory=list)
@@ -51,36 +52,41 @@ def load_research_and_state(state: RedTeamState) -> RedTeamState:
     Load research chunks and current enriched state.
     """
 
-    # 1. Retrieve research chunks via vector search
-    research_results = []
-    for query in RESEARCH_QUERIES:
-        # Create embedding for the query
-        query_embeddings = embed_texts([query])
-        query_embedding = query_embeddings[0]
+    # 1. Retrieve research chunks via vector search (if include_research is True)
+    if state.include_research:
+        research_results = []
+        for query in RESEARCH_QUERIES:
+            # Create embedding for the query
+            query_embeddings = embed_texts([query])
+            query_embedding = query_embeddings[0]
 
-        # Search for chunks
-        results = search_signal_chunks(
-            query_embedding=query_embedding,
-            match_count=5,
-            project_id=state.project_id,
-        )
+            # Search for chunks
+            results = search_signal_chunks(
+                query_embedding=query_embedding,
+                match_count=5,
+                project_id=state.project_id,
+            )
 
-        # Filter for research signals only
-        research_chunks = [
-            chunk for chunk in results
-            if chunk.get("metadata", {}).get("authority") == "research"
-        ]
-        research_results.extend(research_chunks)
+            # Filter for research signals only
+            research_chunks = [
+                chunk for chunk in results
+                if chunk.get("metadata", {}).get("authority") == "research"
+            ]
+            research_results.extend(research_chunks)
 
-    # Deduplicate by chunk_id
-    seen = set()
-    unique_research = []
-    for chunk in research_results:
-        if chunk["chunk_id"] not in seen:
-            unique_research.append(chunk)
-            seen.add(chunk["chunk_id"])
+        # Deduplicate by chunk_id
+        seen = set()
+        unique_research = []
+        for chunk in research_results:
+            if chunk["chunk_id"] not in seen:
+                unique_research.append(chunk)
+                seen.add(chunk["chunk_id"])
 
-    state.research_chunks = unique_research[:50]  # Cap at 50 chunks
+        state.research_chunks = unique_research[:50]  # Cap at 50 chunks
+        logger.info(f"Loaded {len(state.research_chunks)} research chunks")
+    else:
+        state.research_chunks = []
+        logger.info("Research inclusion disabled, using empty research chunks")
 
     # 2. Load current enriched state from database
     enriched_state = get_enriched_state(state.project_id)
@@ -195,6 +201,7 @@ def run_redteam_agent(
     project_id: str,
     run_id: str,
     job_id: Optional[str] = None,
+    include_research: bool = False,
 ) -> tuple[Any, int]:
     """
     Run the research-enhanced red team analysis.
@@ -203,6 +210,7 @@ def run_redteam_agent(
         project_id: Project to analyze
         run_id: Run tracking UUID
         job_id: Optional job tracking UUID
+        include_research: Whether to include research signals in analysis
 
     Returns:
         Tuple of (RedTeamOutput, insight_count)
@@ -210,7 +218,8 @@ def run_redteam_agent(
     initial_state = RedTeamState(
         project_id=project_id,
         run_id=run_id,
-        job_id=job_id
+        job_id=job_id,
+        include_research=include_research
     )
 
     final_state = research_red_team_graph.invoke(initial_state)
