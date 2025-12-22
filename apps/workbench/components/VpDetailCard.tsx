@@ -68,6 +68,36 @@ export default function VpDetailCard({ step, onViewEvidence }: VpDetailCardProps
         </div>
       )}
 
+      {/* Core Fields */}
+      {(step.user_benefit_pain || step.ui_overview || step.value_created || step.kpi_impact) && (
+        <div className="mb-4 space-y-3">
+          {step.user_benefit_pain && (
+            <div>
+              <h4 className="text-sm font-medium text-gray-700 mb-1">User Benefit/Pain</h4>
+              <p className="text-sm text-gray-700">{step.user_benefit_pain}</p>
+            </div>
+          )}
+          {step.ui_overview && (
+            <div>
+              <h4 className="text-sm font-medium text-gray-700 mb-1">UI Overview</h4>
+              <p className="text-sm text-gray-700">{step.ui_overview}</p>
+            </div>
+          )}
+          {step.value_created && (
+            <div>
+              <h4 className="text-sm font-medium text-gray-700 mb-1">Value Created</h4>
+              <p className="text-sm text-gray-700">{step.value_created}</p>
+            </div>
+          )}
+          {step.kpi_impact && (
+            <div>
+              <h4 className="text-sm font-medium text-gray-700 mb-1">KPI Impact</h4>
+              <p className="text-sm text-gray-700">{step.kpi_impact}</p>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Enrichment Toggle */}
       {step.enrichment && Object.keys(step.enrichment).length > 0 && (
         <div className="mb-4">
@@ -95,11 +125,11 @@ export default function VpDetailCard({ step, onViewEvidence }: VpDetailCardProps
           {step.enrichment.enhanced_fields && Object.keys(step.enrichment.enhanced_fields).length > 0 && (
             <div>
               <h4 className="text-sm font-medium text-gray-700 mb-2">Enhanced Fields</h4>
-              <div className="space-y-2">
+              <div className="space-y-3">
                 {Object.entries(step.enrichment.enhanced_fields).map(([field, value]) => (
                   <div key={field} className="text-sm border border-gray-200 rounded p-3">
                     <div className="font-medium text-gray-900 capitalize">{field.replace(/_/g, ' ')}</div>
-                    <div className="text-gray-600 mt-1">{String(value)}</div>
+                    <div className="text-gray-600 mt-1 whitespace-pre-wrap">{String(value)}</div>
                   </div>
                 ))}
               </div>
