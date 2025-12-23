@@ -69,6 +69,18 @@ export const getPrdSections = (projectId: string) =>
 export const getVpSteps = (projectId: string) =>
   apiRequest<any[]>(`/state/vp?project_id=${projectId}`)
 
+export const updatePrdSectionStatus = (sectionId: string, status: string) =>
+  apiRequest<any>(`/state/prd/${sectionId}/status`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status }),
+  })
+
+export const updateVpStepStatus = (stepId: string, status: string) =>
+  apiRequest<any>(`/state/vp/${stepId}/status`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status }),
+  })
+
 // Agent APIs
 export const buildState = (projectId: string) =>
   apiRequest<{ run_id: string; job_id: string; changed_counts: any; summary: string }>(
@@ -188,6 +200,25 @@ export const updateConfirmationStatus = (
       status,
       resolution_evidence: resolutionEvidence,
     }),
+  })
+
+// Insights APIs
+export const getInsights = (projectId: string) =>
+  apiRequest<any[]>(`/insights?project_id=${projectId}`)
+
+export const applyInsight = (insightId: string) =>
+  apiRequest<any>(`/insights/${insightId}/apply`, {
+    method: 'PATCH',
+  })
+
+export const confirmInsight = (insightId: string) =>
+  apiRequest<any>(`/insights/${insightId}/confirm`, {
+    method: 'POST',
+  })
+
+export const dismissInsight = (insightId: string) =>
+  apiRequest<any>(`/insights/${insightId}/dismiss`, {
+    method: 'PATCH',
   })
 
 // Evidence APIs

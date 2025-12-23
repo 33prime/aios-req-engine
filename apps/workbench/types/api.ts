@@ -91,6 +91,31 @@ export interface SignalChunk {
   metadata?: any
 }
 
+export interface Insight {
+  id: string
+  project_id: string
+  title: string
+  severity: 'minor' | 'important' | 'critical'
+  gate: 'completeness' | 'validation' | 'assumption' | 'scope' | 'wow'
+  finding: string
+  why: string
+  ask: string
+  targets: Array<{
+    kind: string
+    entity_id: string
+    label: string
+  }>
+  evidence: Array<{
+    chunk_id: string
+    excerpt: string
+    rationale: string
+  }>
+  status: string
+  decision?: string
+  created_at: string
+  updated_at: string
+}
+
 export interface AgentRunResponse {
   run_id: string
   job_id: string

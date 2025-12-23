@@ -1,15 +1,46 @@
 # Consultant Workbench
 
-A Next.js frontend for the AIOS Requirements Engine, providing consultants with a complete workbench to manage requirements, run AI agents, and review confirmations.
+A Next.js frontend for the AIOS Requirements Engine, providing consultants with a unified 4-tab workspace to manage requirements, run AI agents, and review confirmations.
 
 ## Features
 
-- **Project Dashboard**: Overview of features, PRD sections, VP steps, and confirmations
-- **Agent Execution**: Run build state, reconcile, enrich features, red-team analysis
-- **Baseline Management**: Toggle research access for projects
-- **Confirmation Review**: Review and resolve confirmation items with evidence
-- **Evidence Drilldown**: View source signals and chunks supporting AI decisions
-- **Job Monitoring**: Real-time status updates for long-running AI operations
+### Unified Workspace
+- **4-Tab Interface**: Product Requirements, Value Path, Insights, Next Steps
+- **Tab Navigation**: Instant switching between tabs with live counts
+- **Consistent UX**: All tabs follow the same two-column pattern (list + detail)
+- **Mobile Responsive**: Adaptive layout for all screen sizes
+
+### Tab 1: Product Requirements (PRD)
+- Review and confirm PRD sections (personas, key features, happy path, constraints)
+- View AI-enriched content with supporting evidence
+- Update status: Draft → Confirmed → Needs Confirmation → Confirmed (Client)
+- Filter by status and section type
+
+### Tab 2: Value Path (VP)
+- Sequential VP steps with enrichment details
+- Data schema, business logic, and transition logic views
+- Status tracking and confirmation workflow
+- Evidence-based step validation
+
+### Tab 3: Insights (Red Team)
+- Gap analysis with 5-gate validation (Completeness, Validation, Assumption, Scope, Wow)
+- Filter by severity (critical, important, minor) and gate
+- Decision workflow: Apply Internally, Needs Confirmation, or Dismiss
+- Targeted entity tracking (which PRD/VP/features are affected)
+
+### Tab 4: Next Steps (Confirmations)
+- Batched client confirmations from all sources
+- Complexity scoring with meeting recommendations
+- Status workflow: Resolve, Queue for Meeting, or Dismiss
+- Evidence tracking for all confirmation items
+
+### Core Capabilities
+- **Agent Execution**: Build state, reconcile, enrich PRD/VP, red-team analysis
+- **Research Mode**: Toggle research access with baseline management
+- **Signal Management**: Add client signals and research documents
+- **Evidence Drilldown**: View source signals and chunks for all AI decisions
+- **Job Monitoring**: Real-time async operation tracking with polling
+- **Toast Notifications**: Professional feedback for all actions
 
 ## Setup
 
@@ -46,22 +77,48 @@ Open [http://localhost:3000](http://localhost:3000)
 
 ```
 apps/workbench/
-├── app/                    # Next.js app router
-│   ├── layout.tsx         # Root layout
-│   ├── page.tsx           # Landing page (project ID entry)
+├── app/
+│   ├── layout.tsx                  # Root layout with ToastProvider
+│   ├── globals.css                 # Global styles
+│   ├── page.tsx                    # Landing page (project ID entry)
 │   └── projects/[projectId]/
-│       ├── page.tsx       # Project dashboard
-│       ├── features/      # Features management
-│       └── confirmations/ # Confirmation review
-├── components/            # Reusable components
-├── lib/                   # API client and utilities
-├── types/                 # TypeScript definitions
-└── README.md
+│       ├── page.tsx                # ✅ Unified 4-tab workspace
+│       └── components/
+│           ├── TabNavigation.tsx   # Tab navigation bar
+│           ├── WorkspaceHeader.tsx # Header with actions
+│           ├── AddSignalModal.tsx  # Add client signal
+│           ├── AddResearchModal.tsx # Upload research
+│           └── tabs/
+│               ├── ProductRequirementsTab.tsx  # Tab 1
+│               ├── ValuePathTab.tsx            # Tab 2
+│               ├── InsightsTab.tsx             # Tab 3
+│               ├── NextStepsTab.tsx            # Tab 4
+│               ├── prd/                        # PRD components
+│               ├── vp/                         # VP components
+│               ├── insights/                   # Insights components
+│               └── confirmations/              # Confirmations components
+├── components/ui/              # Design system components
+│   ├── StatusBadge.tsx        # Status, severity, gate, complexity badges
+│   ├── Button.tsx             # Button components
+│   ├── Card.tsx               # Card components
+│   ├── TwoColumnLayout.tsx    # Two-column layout pattern
+│   ├── Modal.tsx              # Modal dialog
+│   └── Toast.tsx              # Toast notifications
+├── lib/
+│   ├── api.ts                 # API client
+│   ├── design-tokens.ts       # Design system tokens
+│   └── status-utils.ts        # Status utilities
+├── styles/
+│   └── design-system.css      # Custom CSS utilities
+├── types/
+│   └── api.ts                 # TypeScript definitions
+├── MIGRATION_GUIDE.md         # Migration documentation
+└── README.md                  # This file
 ```
 
 ## Backend API Dependencies
 
-The workbench requires these backend endpoints:
+The workbench requires these backend endpoints (no changes from previous version):
 
 ### Jobs API
 - `GET /v1/jobs/{job_id}` - Job status and results
@@ -75,6 +132,8 @@ The workbench requires these backend endpoints:
 - `GET /v1/state/features?project_id=...` - Features
 - `GET /v1/state/prd?project_id=...` - PRD sections
 - `GET /v1/state/vp?project_id=...` - VP steps
+- `PATCH /v1/state/prd/{id}/status` - Update PRD section status
+- `PATCH /v1/state/vp/{id}/status` - Update VP step status
 
 ### Agent APIs
 - `POST /v1/state/build` - Build state
@@ -84,13 +143,23 @@ The workbench requires these backend endpoints:
 - `POST /v1/agents/enrich-vp` - VP enrichment
 - `POST /v1/agents/red-team` - Red-team analysis
 
+### Insights APIs
+- `GET /v1/insights?project_id=...` - List insights
+- `PATCH /v1/insights/{id}/apply` - Apply insight internally
+- `POST /v1/insights/{id}/confirm` - Create confirmation from insight
+- `PATCH /v1/insights/{id}/dismiss` - Dismiss insight
+
 ### Confirmation APIs
 - `GET /v1/confirmations?project_id=...&status=...` - List confirmations
-- `PATCH /v1/confirmations/{id}/status` - Update confirmation
+- `PATCH /v1/confirmations/{id}/status` - Update confirmation status
 
-### Evidence APIs
+### Signal APIs
+- `POST /v1/signals` - Create new signal
 - `GET /v1/signals/{id}` - Signal details
 - `GET /v1/signals/{id}/chunks` - Signal chunks
+
+### Research APIs
+- `POST /v1/research/ingest` - Upload research document
 
 ## Usage Guide
 

@@ -1,0 +1,343 @@
+/**
+ * Design System Custom Styles
+ *
+ * Typography classes, custom utilities, and component base styles
+ * that aren't easily expressed in Tailwind classes alone.
+ */
+
+/* ============================================================================
+   TYPOGRAPHY CLASSES
+   ============================================================================ */
+
+.heading-1 {
+  font-size: 26px;
+  font-weight: 600;
+  color: #1D1D1F;
+  line-height: 1.3;
+}
+
+.heading-2 {
+  font-size: 20px;
+  font-weight: 500;
+  color: #044159;
+  line-height: 1.4;
+}
+
+.heading-section {
+  font-size: 18px;
+  font-weight: 600;
+  color: #1D1D1F;
+  line-height: 1.4;
+}
+
+.text-body {
+  font-size: 16px;
+  font-weight: 400;
+  color: #4B4B4B;
+  line-height: 1.5;
+}
+
+.text-support {
+  font-size: 13px;
+  font-weight: 400;
+  color: #7B7B7B;
+  line-height: 1.5;
+}
+
+.text-badge {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+}
+
+/* ============================================================================
+   CUSTOM UTILITIES
+   ============================================================================ */
+
+/* Clean scrollbar for list views */
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: #E5E5E5 #FAFAFA;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: #FAFAFA;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #E5E5E5;
+  border-radius: 3px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #D4D4D4;
+}
+
+/* Smooth focus rings (accessibility) */
+.focus-ring {
+  @apply focus:outline-none focus:ring-2 focus:ring-offset-2;
+  --tw-ring-color: rgba(4, 65, 89, 0.3); /* primary with 30% opacity */
+}
+
+/* Hover lift effect for cards */
+.hover-lift {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.hover-lift:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.08);
+}
+
+/* Subtle pulse animation for loading states */
+@keyframes subtle-pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.6;
+  }
+}
+
+.loading-pulse {
+  animation: subtle-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* ============================================================================
+   COMPONENT BASE STYLES
+   ============================================================================ */
+
+/* Card base */
+.card-base {
+  background: white;
+  border: 1px solid #E5E5E5;
+  border-radius: 8px;
+  padding: 16px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+/* List item base (left column items) */
+.list-item-base {
+  @apply card-base cursor-pointer transition-all duration-200;
+}
+
+.list-item-base:hover {
+  border-color: #044159;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+}
+
+.list-item-base.active {
+  border-color: #044159;
+  background: rgba(4, 65, 89, 0.02);
+}
+
+/* Input base */
+.input-base {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #E5E5E5;
+  border-radius: 8px;
+  font-size: 16px;
+  color: #4B4B4B;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.input-base:focus {
+  outline: none;
+  border-color: #044159;
+  box-shadow: 0 0 0 3px rgba(4, 65, 89, 0.1);
+}
+
+.input-base::placeholder {
+  color: #7B7B7B;
+}
+
+/* Textarea base */
+.textarea-base {
+  @apply input-base;
+  min-height: 100px;
+  resize: vertical;
+}
+
+/* Select base */
+.select-base {
+  @apply input-base;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg width='12' height='8' viewBox='0 0 12 8' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1.5L6 6.5L11 1.5' stroke='%234B4B4B' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 36px;
+}
+
+/* ============================================================================
+   LAYOUT UTILITIES
+   ============================================================================ */
+
+/* Two-column workspace grid */
+.workspace-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 24px;
+}
+
+@media (min-width: 1024px) {
+  .workspace-grid {
+    grid-template-columns: 400px 1fr;
+  }
+}
+
+@media (min-width: 1280px) {
+  .workspace-grid {
+    grid-template-columns: 450px 1fr;
+  }
+}
+
+/* Sticky sidebar (for list column) */
+.sticky-sidebar {
+  position: sticky;
+  top: 24px;
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+}
+
+/* ============================================================================
+   STATUS & BADGE STYLES
+   ============================================================================ */
+
+/* Badge base (extended by components) */
+.badge-base {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 9999px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+  white-space: nowrap;
+}
+
+/* ============================================================================
+   ANIMATION UTILITIES
+   ============================================================================ */
+
+/* Fade in */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.fade-in {
+  animation: fadeIn 0.3s ease-in;
+}
+
+/* Slide up */
+@keyframes slideUp {
+  from {
+    transform: translateY(10px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.slide-up {
+  animation: slideUp 0.3s ease-out;
+}
+
+/* Scale in */
+@keyframes scaleIn {
+  from {
+    transform: scale(0.95);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.scale-in {
+  animation: scaleIn 0.2s ease-out;
+}
+
+/* ============================================================================
+   PRINT STYLES (for outreach generation)
+   ============================================================================ */
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+
+  .print-full-width {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  /* Ensure cards don't break across pages */
+  .card-base {
+    page-break-inside: avoid;
+  }
+
+  /* Remove shadows and borders for cleaner print */
+  * {
+    box-shadow: none !important;
+  }
+}
+
+/* ============================================================================
+   ACCESSIBILITY
+   ============================================================================ */
+
+/* Skip to main content link (for keyboard navigation) */
+.skip-to-main {
+  position: absolute;
+  top: -40px;
+  left: 0;
+  background: #044159;
+  color: white;
+  padding: 8px 16px;
+  border-radius: 0 0 8px 0;
+  z-index: 100;
+  transition: top 0.2s ease;
+}
+
+.skip-to-main:focus {
+  top: 0;
+}
+
+/* Visually hidden but accessible to screen readers */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+/* Focus visible (only show focus ring for keyboard navigation) */
+.focus-visible-only {
+  outline: none;
+}
+
+.focus-visible-only:focus-visible {
+  outline: 2px solid #044159;
+  outline-offset: 2px;
+}

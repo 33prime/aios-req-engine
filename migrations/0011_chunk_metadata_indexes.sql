@@ -14,14 +14,6 @@ ON signal_chunks ((metadata->>'authority'));
 CREATE INDEX IF NOT EXISTS idx_signal_chunks_section_type
 ON signal_chunks ((metadata->>'section_type'));
 
--- Composite index for common query pattern (project + authority)
-CREATE INDEX IF NOT EXISTS idx_signal_chunks_project_authority
-ON signal_chunks (project_id, (metadata->>'authority'));
-
--- Composite index for project + confirmation_status
-CREATE INDEX IF NOT EXISTS idx_signal_chunks_project_status
-ON signal_chunks (project_id, (metadata->>'confirmation_status'));
-
 -- Comment explaining the indexes
 COMMENT ON INDEX idx_signal_chunks_confirmation_status IS
 'Speeds up filtering by chunk confirmation status (confirmed_client, confirmed_consultant, draft)';
@@ -31,9 +23,3 @@ COMMENT ON INDEX idx_signal_chunks_authority IS
 
 COMMENT ON INDEX idx_signal_chunks_section_type IS
 'Speeds up filtering by research document section type (features_must_have, personas, risks, etc)';
-
-COMMENT ON INDEX idx_signal_chunks_project_authority IS
-'Composite index for project + authority queries (common in research-enhanced analysis)';
-
-COMMENT ON INDEX idx_signal_chunks_project_status IS
-'Composite index for project + status queries (common in status-aware search)';

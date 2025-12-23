@@ -379,12 +379,12 @@ PATCH /v1/insights/{insight_id}/apply
 
 ### Indexes Created
 ```sql
-CREATE INDEX idx_chunks_confirmation_status ON signal_chunks USING gin ((metadata->'confirmation_status'));
-CREATE INDEX idx_chunks_authority ON signal_chunks USING gin ((metadata->'authority'));
-CREATE INDEX idx_chunks_section_type ON signal_chunks USING gin ((metadata->'section_type'));
-CREATE INDEX idx_chunks_project_authority ON signal_chunks USING gin ((metadata->'project_id'), (metadata->'authority'));
-CREATE INDEX idx_chunks_project_status ON signal_chunks USING gin ((metadata->'project_id'), (metadata->'confirmation_status'));
+CREATE INDEX idx_signal_chunks_confirmation_status ON signal_chunks ((metadata->>'confirmation_status'));
+CREATE INDEX idx_signal_chunks_authority ON signal_chunks ((metadata->>'authority'));
+CREATE INDEX idx_signal_chunks_section_type ON signal_chunks ((metadata->>'section_type'));
 ```
+
+Note: Project filtering happens via JOIN with signals table in the vector search function.
 
 ## Testing
 
