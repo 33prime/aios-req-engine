@@ -94,6 +94,49 @@ def list_vp_steps(project_id: UUID) -> list[dict[str, Any]]:
         raise
 
 
+def update_vp_step_status(
+    step_id: UUID,
+    status: str,
+) -> dict[str, Any]:
+    """
+    Update the status of a VP step.
+
+    Args:
+        step_id: VP step UUID
+        status: New status value
+
+    Returns:
+        Updated VP step dict
+
+    Raises:
+        ValueError: If step not found
+        Exception: If database operation fails
+    """
+    supabase = get_supabase()
+
+    try:
+        response = (
+            supabase.table("vp_steps")
+            .update({"status": status})
+            .eq("id", str(step_id))
+            .execute()
+        )
+
+        if not response.data:
+            raise ValueError(f"VP step not found: {step_id}")
+
+        updated_step = response.data[0]
+        logger.info(f"Updated status for VP step {step_id} to {status}")
+
+        return updated_step
+
+    except ValueError:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to update status for VP step {step_id}: {e}")
+        raise
+
+
 def patch_vp_step_enrichment(
     step_id: UUID,
     enrichment: dict[str, Any],

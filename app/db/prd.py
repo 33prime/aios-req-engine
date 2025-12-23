@@ -149,3 +149,101 @@ def patch_prd_section_enrichment(
         logger.error(f"Failed to patch enrichment for PRD section {section_id}: {e}")
         raise
 
+
+def upsert_prd_summary_section(
+    project_id: UUID,
+    summary_fields: dict[str, Any],
+    attribution: dict[str, Any] | None = None,
+    run_id: UUID | None = None,
+) -> dict[str, Any]:
+    """
+    Create or update the executive summary PRD section.
+
+    Args:
+        project_id: Project UUID
+        summary_fields: Summary content (tldr, what_needed_for_prototype, key_risks, estimated_complexity)
+        attribution: Attribution metadata (created_by, confirmed_by, run_id, generated_at)
+        run_id: Associated agent run ID
+
+    Returns:
+        Upserted summary section record
+
+    Raises:
+        Exception: If database operation fails
+    """
+    supabase = get_supabase()
+
+    try:
+        # Build attribution metadata
+        summary_attribution = attribution or {}
+        if run_id:
+            summary_attribution["run_id"] = str(run_id)
+        if "generated_at" not in summary_attribution:
+            from datetime import datetime
+            summary_attribution["generated_at"] = datetime.utcnow().isoformat()
+
+        # Create payload for summary section
+        payload = {
+            "label": "Executive Summary",
+            "required": True,
+            "status": "draft",
+            "fields": summary_fields,
+            "is_summary": True,
+            "summary_attribution": summary_attribution,
+        }
+
+        # Upsert with slug 'executive_summary'
+        section = upsert_prd_section(
+            project_id=project_id,
+            slug="executive_summary",
+            payload=payload,
+        )
+
+        logger.info(
+            f"Upserted executive summary for project {project_id}",
+            extra={"project_id": str(project_id), "run_id": str(run_id) if run_id else None},
+        )
+
+        return section
+
+    except Exception as e:
+        logger.error(
+            f"Failed to upsert PRD summary section for project {project_id}: {e}",
+            extra={"project_id": str(project_id)},
+        )
+        raise
+
+
+def get_prd_summary_section(project_id: UUID) -> dict[str, Any] | None:
+    """
+    Get the executive summary section for a project.
+
+    Args:
+        project_id: Project UUID
+
+    Returns:
+        Summary section record or None if not found
+
+    Raises:
+        Exception: If database operation fails
+    """
+    supabase = get_supabase()
+
+    try:
+        response = (
+            supabase.table("prd_sections")
+            .select("*")
+            .eq("project_id", str(project_id))
+            .eq("is_summary", True)
+            .execute()
+        )
+
+        return response.data[0] if response.data else None
+
+    except Exception as e:
+        logger.error(
+            f"Failed to get PRD summary section for project {project_id}: {e}",
+            extra={"project_id": str(project_id)},
+        )
+        raise
+

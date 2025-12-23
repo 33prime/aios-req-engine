@@ -204,3 +204,114 @@ def list_features_needing_enrichment(
         logger.error(f"Failed to list features needing enrichment for project {project_id}: {e}")
         raise
 
+
+def update_feature_lifecycle(
+    feature_id: UUID,
+    lifecycle_stage: str,
+    confirmed_evidence: list[dict[str, Any]] | None = None,
+) -> dict[str, Any]:
+    """
+    Update the lifecycle stage of a feature.
+
+    Args:
+        feature_id: Feature UUID
+        lifecycle_stage: New lifecycle stage (discovered, refined, confirmed)
+        confirmed_evidence: Optional evidence when confirming feature
+
+    Returns:
+        Updated feature dict
+
+    Raises:
+        ValueError: If feature not found or invalid stage
+        Exception: If database operation fails
+    """
+    supabase = get_supabase()
+
+    # Validate lifecycle stage
+    valid_stages = ["discovered", "refined", "confirmed"]
+    if lifecycle_stage not in valid_stages:
+        raise ValueError(f"Invalid lifecycle stage: {lifecycle_stage}. Must be one of {valid_stages}")
+
+    try:
+        update_data = {"lifecycle_stage": lifecycle_stage}
+
+        # If confirming, add evidence and timestamp
+        if lifecycle_stage == "confirmed":
+            update_data["confirmed_evidence"] = confirmed_evidence or []
+            update_data["confirmation_date"] = "now()"
+
+        response = (
+            supabase.table("features")
+            .update(update_data)
+            .eq("id", str(feature_id))
+            .execute()
+        )
+
+        if not response.data:
+            raise ValueError(f"Feature not found: {feature_id}")
+
+        updated_feature = response.data[0]
+        logger.info(
+            f"Updated feature {feature_id} to lifecycle stage {lifecycle_stage}",
+            extra={"feature_id": str(feature_id), "lifecycle_stage": lifecycle_stage},
+        )
+
+        return updated_feature
+
+    except ValueError:
+        raise
+    except Exception as e:
+        logger.error(
+            f"Failed to update lifecycle for feature {feature_id}: {e}",
+            extra={"feature_id": str(feature_id)},
+        )
+        raise
+
+
+def list_features_by_lifecycle(
+    project_id: UUID,
+    lifecycle_stage: str | None = None,
+) -> list[dict[str, Any]]:
+    """
+    List features filtered by lifecycle stage.
+
+    Args:
+        project_id: Project UUID
+        lifecycle_stage: Optional stage filter (discovered, refined, confirmed)
+
+    Returns:
+        List of features ordered by created_at desc
+
+    Raises:
+        Exception: If database operation fails
+    """
+    supabase = get_supabase()
+
+    try:
+        query = (
+            supabase.table("features")
+            .select("*")
+            .eq("project_id", str(project_id))
+            .order("created_at", desc=True)
+        )
+
+        if lifecycle_stage:
+            query = query.eq("lifecycle_stage", lifecycle_stage)
+
+        response = query.execute()
+
+        features = response.data or []
+        logger.info(
+            f"Found {len(features)} features with lifecycle stage {lifecycle_stage or 'all'}",
+            extra={"project_id": str(project_id), "lifecycle_stage": lifecycle_stage},
+        )
+
+        return features
+
+    except Exception as e:
+        logger.error(
+            f"Failed to list features by lifecycle for project {project_id}: {e}",
+            extra={"project_id": str(project_id)},
+        )
+        raise
+

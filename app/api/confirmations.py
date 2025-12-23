@@ -47,8 +47,17 @@ async def list_confirmations(
 
         items = list_confirmation_items(project_id, status=status)
 
-        # Convert to Pydantic models
-        confirmations = [ConfirmationItemOut(**item) for item in items]
+        # Convert to Pydantic models, skipping invalid items
+        confirmations = []
+        for item in items:
+            try:
+                confirmations.append(ConfirmationItemOut(**item))
+            except Exception as validation_error:
+                logger.warning(
+                    f"Skipping invalid confirmation {item.get('id')}: {validation_error}",
+                    extra={"project_id": str(project_id), "confirmation_id": item.get("id")},
+                )
+                continue
 
         return ListConfirmationsResponse(
             confirmations=confirmations,

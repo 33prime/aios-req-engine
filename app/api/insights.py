@@ -282,29 +282,63 @@ async def create_confirmation_from_insight(
     channel_info = determine_confirmation_channel(insight)
 
     # Format in client-friendly language
-    prompt, detail = format_client_friendly_confirmation(insight)
+    title, detail = format_client_friendly_confirmation(insight)
 
-    # Create confirmation item
+    # Map severity to priority
+    severity = insight.get("severity", "minor")
+    priority_map = {
+        "critical": "high",
+        "important": "medium",
+        "minor": "low"
+    }
+    priority = priority_map.get(severity, "low")
+
+    # Build evidence list from insight targets
+    # Note: Confirmations evidence schema requires chunk_id (UUID), excerpt, rationale
+    # Since insights reference state entities (not chunks), we generate placeholder UUIDs
+    evidence = []
+    targets = insight.get("targets", [])
+    for target in targets:
+        # Get excerpt from target
+        excerpt = target.get("current_value", "")
+        if not excerpt or len(str(excerpt)) > 280:
+            excerpt = str(excerpt)[:277] + "..." if excerpt else "No excerpt available"
+
+        evidence.append({
+            "chunk_id": str(uuid.uuid4()),  # Generate UUID for schema compliance
+            "excerpt": excerpt,
+            "rationale": f"Referenced in insight: {insight.get('finding', '')[:100]}"
+        })
+
+    # Create confirmation item with correct schema
+    from datetime import datetime
+    now = datetime.utcnow().isoformat()
+
     confirmation_id = str(uuid.uuid4())
     confirmation = {
         "id": confirmation_id,
         "project_id": insight["project_id"],
+        "kind": "insight",
+        "target_table": "insights",
+        "target_id": insight_id,
         "key": f"insight_{insight_id}",
-        "prompt": prompt,
-        "detail": detail,
-        "options": ["Approve", "Reject", "Modify"],
+        "title": title,
+        "why": insight.get("why", "This needs your input to proceed"),
+        "ask": insight.get("finding", "Please review and confirm"),
         "status": "open",
-        "metadata": {
+        "suggested_method": channel_info["recommended_channel"],
+        "priority": priority,
+        "evidence": evidence,
+        "created_from": {
             "insight_id": insight_id,
-            "targets": insight["targets"],
-            "proposed_changes": insight.get("proposed_changes", []),
-            "recommended_channel": channel_info["recommended_channel"],
-            "channel_rationale": channel_info["rationale"],
-            "complexity_score": channel_info["complexity_score"],
-            "severity": insight.get("severity"),
+            "severity": severity,
             "gate": insight.get("gate"),
-            "category": insight.get("category")
-        }
+            "category": insight.get("category"),
+            "complexity_score": channel_info["complexity_score"],
+            "channel_rationale": channel_info["rationale"]
+        },
+        "created_at": now,
+        "updated_at": now
     }
 
     supabase.table("confirmation_items").insert(confirmation).execute()

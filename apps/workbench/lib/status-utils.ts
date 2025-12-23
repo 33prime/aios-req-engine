@@ -186,6 +186,42 @@ export function filterByGate<T extends { gate?: GateType }>(
 // ============================================================================
 
 /**
+ * Calculate complexity score for a confirmation
+ *
+ * Score breakdown:
+ * - Priority: low = 1, medium = 2, high = 3
+ * - Evidence count: +1 per item (max +3)
+ * - Suggested method: meeting = +2, email = +0
+ *
+ * Range: 1-8
+ * - Low (1-3): Email sufficient
+ * - Medium (4-5): Meeting recommended
+ * - High (6+): Meeting strongly recommended
+ */
+export function getComplexityScore(confirmation: {
+  priority: 'low' | 'medium' | 'high'
+  evidence: unknown[]
+  suggested_method: 'email' | 'meeting'
+}): number {
+  let score = 0
+
+  // Priority score (1-3)
+  const priorityScores = { low: 1, medium: 2, high: 3 }
+  score += priorityScores[confirmation.priority]
+
+  // Evidence count (0-3)
+  const evidenceScore = Math.min(confirmation.evidence?.length || 0, 3)
+  score += evidenceScore
+
+  // Suggested method bonus
+  if (confirmation.suggested_method === 'meeting') {
+    score += 2
+  }
+
+  return score
+}
+
+/**
  * Get complexity badge info based on score
  */
 export function getComplexityBadge(score: number) {
@@ -238,21 +274,21 @@ export function formatSeverity(severity: SeverityType): string {
  * Format gate for display
  */
 export function formatGate(gate: GateType): string {
-  return gateColors[gate].label
+  return (gateColors[gate] || gateColors.completeness).label
 }
 
 /**
  * Get icon for gate
  */
 export function getGateIcon(gate: GateType): string {
-  return gateColors[gate].icon
+  return (gateColors[gate] || gateColors.completeness).icon
 }
 
 /**
  * Get description for gate
  */
 export function getGateDescription(gate: GateType): string {
-  return gateColors[gate].description
+  return (gateColors[gate] || gateColors.completeness).description
 }
 
 // ============================================================================

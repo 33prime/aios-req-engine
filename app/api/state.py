@@ -4,6 +4,7 @@ import uuid
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Query
+from pydantic import BaseModel
 
 from app.core.logging import get_logger
 from app.core.schemas_state import (
@@ -16,12 +17,17 @@ from app.core.schemas_state import (
 from app.db.features import list_features
 from app.db.jobs import complete_job, create_job, fail_job, start_job
 from app.db.prd import list_prd_sections
-from app.db.vp import list_vp_steps
+from app.db.vp import list_vp_steps, update_vp_step_status
 from app.graphs.build_state_graph import run_build_state_agent
 
 logger = get_logger(__name__)
 
 router = APIRouter()
+
+
+class UpdateStatusRequest(BaseModel):
+    """Request body for updating status."""
+    status: str
 
 
 @router.post("/state/build", response_model=BuildStateResponse)
@@ -170,6 +176,38 @@ async def get_vp_steps(
     except Exception as e:
         logger.exception(f"Failed to get VP steps: {e}")
         raise HTTPException(status_code=500, detail="Failed to get VP steps") from e
+
+
+@router.patch("/state/vp/{step_id}/status", response_model=VpStepOut)
+async def update_vp_status(
+    step_id: UUID,
+    request: UpdateStatusRequest,
+) -> VpStepOut:
+    """
+    Update the status of a VP step.
+
+    Args:
+        step_id: VP step UUID
+        request: Request body containing new status
+
+    Returns:
+        Updated VP step
+
+    Raises:
+        HTTPException 404: If step not found
+        HTTPException 500: If update fails
+    """
+    try:
+        updated_step = update_vp_step_status(step_id, request.status)
+        return VpStepOut(**updated_step)
+
+    except ValueError as e:
+        logger.warning(f"VP step not found: {step_id}")
+        raise HTTPException(status_code=404, detail=str(e)) from e
+
+    except Exception as e:
+        logger.exception(f"Failed to update VP step status: {e}")
+        raise HTTPException(status_code=500, detail="Failed to update VP step status") from e
 
 
 @router.get("/state/features", response_model=list[FeatureOut])
