@@ -4,7 +4,7 @@
 
 CREATE TABLE IF NOT EXISTS enrichment_revisions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  project_id UUID NOT NULL,
   entity_type TEXT NOT NULL CHECK (entity_type IN ('prd_section', 'vp_step', 'feature')),
   entity_id UUID NOT NULL,
   entity_label TEXT NOT NULL,
