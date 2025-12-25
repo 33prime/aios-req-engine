@@ -22,7 +22,7 @@ interface AddSignalModalProps {
 
 export function AddSignalModal({ isOpen, onClose, projectId, onSuccess }: AddSignalModalProps) {
   const [source, setSource] = useState('')
-  const [signalType, setSignalType] = useState('client_communication')
+  const [signalType, setSignalType] = useState('note')
   const [rawText, setRawText] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
@@ -37,7 +37,7 @@ export function AddSignalModal({ isOpen, onClose, projectId, onSuccess }: AddSig
     try {
       setSubmitting(true)
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE}/v1/signals`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE}/v1/ingest`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -54,7 +54,7 @@ export function AddSignalModal({ isOpen, onClose, projectId, onSuccess }: AddSig
 
       // Reset form
       setSource('')
-      setSignalType('client_communication')
+      setSignalType('note')
       setRawText('')
 
       // Close modal and refresh
@@ -114,11 +114,10 @@ export function AddSignalModal({ isOpen, onClose, projectId, onSuccess }: AddSig
             onChange={(e) => setSignalType(e.target.value)}
             className="w-full px-3 py-2 border border-ui-cardBorder rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-primary focus:border-transparent"
           >
-            <option value="client_communication">Client Communication</option>
-            <option value="meeting_notes">Meeting Notes</option>
-            <option value="requirements_doc">Requirements Document</option>
-            <option value="user_feedback">User Feedback</option>
-            <option value="other">Other</option>
+            <option value="note">Note / Meeting Notes</option>
+            <option value="email">Email</option>
+            <option value="transcript">Call Transcript</option>
+            <option value="file_text">Document / Requirements</option>
           </select>
         </div>
 

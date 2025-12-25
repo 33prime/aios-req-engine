@@ -55,6 +55,215 @@ def _ensure_authority(metadata: dict[str, Any] | None, authority: str = "client"
     return metadata
 
 
+def _trigger_selective_enrichment(
+    project_id: UUID,
+    surgical_result: Any,
+    run_id: UUID,
+) -> None:
+    """
+    Trigger enrichment only for entities that were modified by surgical updates.
+
+    Phase 3: Enrichment Integration
+
+    Args:
+        project_id: Project UUID
+        surgical_result: SurgicalUpdateResult with patches that were applied
+        run_id: Run tracking UUID
+    """
+    logger.info(
+        f"Triggering selective enrichment for changed entities",
+        extra={"run_id": str(run_id), "project_id": str(project_id)},
+    )
+
+    # Group changed entities by type
+    changed_entities: dict[str, list[str]] = {
+        "features": [],
+        "personas": [],
+        "prd_sections": [],
+        "vp_steps": [],
+    }
+
+    # Extract entity IDs from applied patches
+    for patch in surgical_result.applied_patches:
+        entity_type = patch.entity_type
+        entity_id_str = str(patch.entity_id)
+
+        if entity_type in changed_entities:
+            # Avoid duplicates
+            if entity_id_str not in changed_entities[entity_type]:
+                changed_entities[entity_type].append(entity_id_str)
+
+    # Log what we're enriching
+    total_entities = sum(len(ids) for ids in changed_entities.values())
+    if total_entities == 0:
+        logger.info(
+            "No entities to enrich (no patches were applied)",
+            extra={"run_id": str(run_id)},
+        )
+        return
+
+    logger.info(
+        f"Enriching {total_entities} changed entities: "
+        f"{len(changed_entities['features'])} features, "
+        f"{len(changed_entities['personas'])} personas, "
+        f"{len(changed_entities['prd_sections'])} PRD sections, "
+        f"{len(changed_entities['vp_steps'])} VP steps",
+        extra={"run_id": str(run_id)},
+    )
+
+    # Trigger selective enrichment for changed entities
+    try:
+        # Enrich features
+        if changed_entities["features"]:
+            from app.core.schemas_feature_enrich import EnrichFeaturesRequest
+            from app.graphs.enrich_features_graph import run_enrich_features_agent
+
+            feature_uuids = [UUID(fid) for fid in changed_entities["features"]]
+            logger.info(
+                f"Enriching {len(feature_uuids)} features",
+                extra={"run_id": str(run_id), "feature_ids": changed_entities["features"]},
+            )
+
+            run_enrich_features_agent(
+                project_id=project_id,
+                run_id=run_id,
+                job_id=None,  # No job tracking for auto-triggered enrichment
+                feature_ids=feature_uuids,
+                only_mvp=False,
+                include_research=False,  # Don't include research for surgical updates
+                top_k_context=10,
+            )
+
+        # Enrich PRD sections
+        if changed_entities["prd_sections"]:
+            from app.db.prd import get_prd_section
+            from app.graphs.enrich_prd_graph import run_enrich_prd_agent
+
+            # Convert section IDs to slugs (PRD enrichment uses slugs)
+            section_slugs = []
+            for section_id in changed_entities["prd_sections"]:
+                section = get_prd_section(UUID(section_id))
+                if section and section.get("slug"):
+                    section_slugs.append(section["slug"])
+
+            if section_slugs:
+                logger.info(
+                    f"Enriching {len(section_slugs)} PRD sections",
+                    extra={"run_id": str(run_id), "section_slugs": section_slugs},
+                )
+
+                run_enrich_prd_agent(
+                    project_id=project_id,
+                    run_id=run_id,
+                    job_id=None,
+                    section_slugs=section_slugs,
+                    include_research=False,
+                    top_k_context=10,
+                )
+
+        # Note: Personas and VP steps don't have enrichment endpoints yet
+        # They would be added here when implemented
+
+        logger.info(
+            "Selective enrichment completed",
+            extra={"run_id": str(run_id)},
+        )
+
+    except Exception as e:
+        logger.error(
+            f"Selective enrichment failed: {e}",
+            extra={"run_id": str(run_id)},
+        )
+        # Don't raise - enrichment failure shouldn't block surgical updates
+
+
+def _auto_trigger_processing(
+    project_id: UUID,
+    signal_id: UUID,
+    run_id: UUID,
+) -> None:
+    """
+    Auto-trigger processing pipeline based on project mode.
+
+    - Initial mode: Run extract_facts (and optionally build_state)
+    - Maintenance mode: Run surgical_update + selective enrichment
+
+    Args:
+        project_id: Project UUID
+        signal_id: Signal UUID that was just ingested
+        run_id: Run tracking UUID
+    """
+    from app.db.supabase_client import get_supabase
+
+    logger.info(
+        f"Auto-triggering processing for signal {signal_id}",
+        extra={"run_id": str(run_id), "project_id": str(project_id)},
+    )
+
+    # Get project mode
+    supabase = get_supabase()
+    project_response = supabase.table("projects").select("prd_mode").eq("id", str(project_id)).single().execute()
+
+    if not project_response.data:
+        logger.warning(f"Project {project_id} not found, skipping auto-trigger")
+        return
+
+    prd_mode = project_response.data.get("prd_mode", "initial")
+
+    if prd_mode == "maintenance":
+        # Maintenance mode: Run surgical update
+        logger.info(
+            f"Project in maintenance mode, triggering surgical update",
+            extra={"run_id": str(run_id), "project_id": str(project_id)},
+        )
+        try:
+            from app.graphs.surgical_update_graph import run_surgical_update
+
+            result = run_surgical_update(
+                signal_id=signal_id,
+                project_id=project_id,
+                run_id=run_id,
+            )
+            logger.info(
+                f"Surgical update completed: {result.patches_applied} applied, {result.patches_escalated} escalated",
+                extra={"run_id": str(run_id), "result": result.model_dump()},
+            )
+
+            # Phase 3: Trigger selective enrichment for changed entities
+            if result.patches_applied > 0:
+                _trigger_selective_enrichment(project_id, result, run_id)
+
+        except Exception as e:
+            logger.error(f"Surgical update failed: {e}", extra={"run_id": str(run_id)})
+            # Don't raise - ingestion already succeeded
+
+    else:
+        # Initial mode: Run extract_facts
+        logger.info(
+            f"Project in initial mode, triggering extract_facts",
+            extra={"run_id": str(run_id), "project_id": str(project_id)},
+        )
+        try:
+            from app.graphs.extract_facts_graph import run_extract_facts
+
+            result = run_extract_facts(
+                signal_id=signal_id,
+                project_id=project_id,
+                run_id=run_id,
+            )
+            logger.info(
+                f"Extract facts completed: {result.get('total_facts', 0)} facts extracted",
+                extra={"run_id": str(run_id)},
+            )
+
+            # TODO: Optionally trigger build_state or check baseline completeness
+            # For now, extract_facts is sufficient
+
+        except Exception as e:
+            logger.error(f"Extract facts failed: {e}", extra={"run_id": str(run_id)})
+            # Don't raise - ingestion already succeeded
+
+
 def _ingest_text(
     project_id: UUID,
     signal_type: str,
@@ -180,6 +389,13 @@ async def ingest_signal(request: IngestRequest) -> IngestResponse:
                 "signal_id": str(signal_id),
                 "chunks_inserted": chunks_inserted,
             },
+        )
+
+        # Auto-trigger processing based on project mode
+        _auto_trigger_processing(
+            project_id=request.project_id,
+            signal_id=signal_id,
+            run_id=run_id,
         )
 
         return IngestResponse(

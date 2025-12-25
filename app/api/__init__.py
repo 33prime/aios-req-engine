@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter
 
-from app.api import agents, confirmations, enrich_features, enrich_prd, enrich_vp, insights, jobs, outreach, phase0, projects, reconcile, redteam, research, signals, state
+from app.api import agents, baseline, confirmations, enrich_features, enrich_prd, enrich_vp, insights, jobs, outreach, phase0, projects, reconcile, redteam, research, signals, state
 
 router = APIRouter()
 
@@ -50,3 +50,6 @@ router.include_router(confirmations.router, tags=["confirmations"])
 
 # Include Phase 2B: Outreach draft routes
 router.include_router(outreach.router, tags=["outreach"])
+
+# Include Phase 3: Baseline management routes
+router.include_router(baseline.router, tags=["baseline"])

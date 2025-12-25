@@ -59,6 +59,8 @@ async def apply_insight(
     """
     Apply an insight's proposed changes to project state.
 
+    Can be applied from 'open' (consultant applies internally) or 'queued' (after confirmation).
+
     1. Load insight
     2. Validate targets exist
     3. Apply proposed changes to features/PRD/VP
@@ -73,8 +75,12 @@ async def apply_insight(
     if not insight:
         raise HTTPException(status_code=404, detail="Insight not found")
 
-    if insight["status"] != "queued":
-        raise HTTPException(status_code=400, detail=f"Insight status is {insight['status']}, expected 'queued'")
+    # Allow applying from 'open' (internal) or 'queued' (confirmed) status
+    if insight["status"] not in ["open", "queued"]:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Insight status is '{insight['status']}', can only apply insights with status 'open' or 'queued'"
+        )
 
     # Apply changes
     applied_changes = []
@@ -254,6 +260,41 @@ def format_client_friendly_confirmation(insight: Dict) -> tuple[str, str]:
     detail = "\n".join(detail_parts)
 
     return prompt, detail
+
+
+@router.patch("/insights/{insight_id}/dismiss")
+async def dismiss_insight(
+    insight_id: str
+):
+    """
+    Dismiss an insight without applying it.
+
+    Marks the insight as 'dismissed' so it won't show in the active queue.
+    """
+    supabase = get_supabase()
+
+    try:
+        # Update insight status to dismissed
+        response = supabase.table("insights").update({
+            "status": "dismissed",
+            "updated_at": "now()"
+        }).eq("id", insight_id).execute()
+
+        if not response.data:
+            raise HTTPException(status_code=404, detail="Insight not found")
+
+        logger.info(f"Dismissed insight {insight_id}")
+
+        return {
+            "insight_id": insight_id,
+            "status": "dismissed"
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to dismiss insight {insight_id}: {e}")
+        raise HTTPException(status_code=500, detail="Failed to dismiss insight") from e
 
 
 @router.post("/insights/{insight_id}/confirm")

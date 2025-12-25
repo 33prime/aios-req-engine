@@ -26,8 +26,10 @@ import { InsightsTab } from './components/tabs/InsightsTab'
 import { NextStepsTab } from './components/tabs/NextStepsTab'
 import { AddSignalModal } from './components/AddSignalModal'
 import { AddResearchModal } from './components/AddResearchModal'
-import { getBaselineStatus, listConfirmations, getFeatures, getPrdSections, getVpSteps, getInsights } from '@/lib/api'
-import type { BaselineStatus } from '@/types/api'
+import BaselineStatus from './components/BaselineStatus'
+import PatchFeed from './components/PatchFeed'
+import { getBaselineStatus, getBaselineCompleteness, finalizeBaseline, listConfirmations, getFeatures, getPrdSections, getVpSteps, getInsights } from '@/lib/api'
+import type { BaselineStatus as BaselineStatusType } from '@/types/api'
 
 export default function WorkspacePage() {
   const params = useParams()
@@ -38,6 +40,8 @@ export default function WorkspacePage() {
 
   // Data state
   const [baseline, setBaseline] = useState<BaselineStatus | null>(null)
+  const [baselineCompleteness, setBaselineCompleteness] = useState<any>(null)
+  const [prdMode, setPrdMode] = useState<'initial' | 'maintenance'>('initial')
   const [counts, setCounts] = useState({
     requirements: 0,
     valuePath: 0,
@@ -45,6 +49,7 @@ export default function WorkspacePage() {
     nextSteps: 0
   })
   const [loading, setLoading] = useState(true)
+  const [loadingCompleteness, setLoadingCompleteness] = useState(true)
 
   // Modal state
   const [showAddSignal, setShowAddSignal] = useState(false)
@@ -54,6 +59,40 @@ export default function WorkspacePage() {
   useEffect(() => {
     loadProjectData()
   }, [projectId])
+
+  // Load baseline completeness
+  useEffect(() => {
+    loadBaselineCompleteness()
+  }, [projectId])
+
+  const loadBaselineCompleteness = async () => {
+    try {
+      setLoadingCompleteness(true)
+      const data = await getBaselineCompleteness(projectId)
+      // Extract prd_mode from response
+      const { prd_mode, ...completeness } = data
+      setBaselineCompleteness(completeness)
+      setPrdMode(prd_mode)
+      console.log('✅ Baseline completeness loaded:', data)
+    } catch (error) {
+      console.error('❌ Failed to load baseline completeness:', error)
+    } finally {
+      setLoadingCompleteness(false)
+    }
+  }
+
+  const handleFinalizeBaseline = async () => {
+    try {
+      await finalizeBaseline(projectId)
+      console.log('✅ Baseline finalized')
+      // Reload completeness data
+      await loadBaselineCompleteness()
+      await loadProjectData()
+    } catch (error) {
+      console.error('❌ Failed to finalize baseline:', error)
+      throw error
+    }
+  }
 
   const loadProjectData = async () => {
     try {
@@ -240,15 +279,33 @@ export default function WorkspacePage() {
     <div className="min-h-screen bg-ui-background">
       {/* Desktop Header */}
       <div className="hidden lg:block">
-        <WorkspaceHeader
-          projectId={projectId}
-          baseline={baseline}
-          onBaselineToggle={handleBaselineToggle}
-          onRefresh={loadProjectData}
-          onRunAgent={handleRunAgent}
-          onAddSignal={() => setShowAddSignal(true)}
-          onAddResearch={() => setShowAddResearch(true)}
-        />
+        <div className="bg-white border-b border-gray-200">
+          {/* PRD Mode Badge */}
+          <div className="px-6 py-2 bg-gray-50 border-b border-gray-200">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-medium text-gray-600">Project Mode:</span>
+              <span
+                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${
+                  prdMode === 'maintenance'
+                    ? 'bg-blue-100 text-blue-800'
+                    : 'bg-gray-100 text-gray-800'
+                }`}
+              >
+                {prdMode === 'maintenance' ? '🔧 Maintenance (Surgical Updates)' : '🌱 Initial (Generative)'}
+              </span>
+            </div>
+          </div>
+
+          <WorkspaceHeader
+            projectId={projectId}
+            baseline={baseline}
+            onBaselineToggle={handleBaselineToggle}
+            onRefresh={loadProjectData}
+            onRunAgent={handleRunAgent}
+            onAddSignal={() => setShowAddSignal(true)}
+            onAddResearch={() => setShowAddResearch(true)}
+          />
+        </div>
       </div>
 
       {/* Mobile Header */}
@@ -276,9 +333,36 @@ export default function WorkspacePage() {
         />
       </div>
 
-      {/* Tab Content */}
-      <main className="max-w-[1600px] mx-auto">
-        {renderTabContent()}
+      {/* Tab Content with Sidebar */}
+      <main className="max-w-[1600px] mx-auto px-4 lg:px-6 py-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Main Content (2/3 width) */}
+          <div className="lg:col-span-2">
+            {renderTabContent()}
+          </div>
+
+          {/* Right Sidebar (1/3 width) - Baseline Status & Patch Feed */}
+          <div className="lg:col-span-1 space-y-6">
+            <div className="sticky top-6 space-y-6">
+              <BaselineStatus
+                projectId={projectId}
+                completeness={baselineCompleteness}
+                prdMode={prdMode}
+                onFinalize={handleFinalizeBaseline}
+                onRefresh={loadBaselineCompleteness}
+                loading={loadingCompleteness}
+              />
+
+              {/* Patch Feed - only show in maintenance mode */}
+              {prdMode === 'maintenance' && (
+                <PatchFeed
+                  projectId={projectId}
+                  limit={10}
+                />
+              )}
+            </div>
+          </div>
+        </div>
       </main>
 
       {/* Modals */}

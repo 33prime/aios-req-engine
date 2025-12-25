@@ -7,11 +7,13 @@ import { Feature } from '@/types/api'
 interface FeatureDetailCardProps {
   feature: Feature
   onViewEvidence?: (chunkId: string) => void
+  onConfirmationChange?: (featureId: string, newStatus: string) => Promise<void>
 }
 
-export default function FeatureDetailCard({ feature, onViewEvidence }: FeatureDetailCardProps) {
+export default function FeatureDetailCard({ feature, onViewEvidence, onConfirmationChange }: FeatureDetailCardProps) {
   const [showDetails, setShowDetails] = useState(false)
   const [showEvidence, setShowEvidence] = useState(false)
+  const [updating, setUpdating] = useState(false)
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -36,6 +38,19 @@ export default function FeatureDetailCard({ feature, onViewEvidence }: FeatureDe
         return 'text-red-600'
       default:
         return 'text-gray-600'
+    }
+  }
+
+  const handleConfirmationChange = async (newStatus: string) => {
+    if (!onConfirmationChange) return
+
+    try {
+      setUpdating(true)
+      await onConfirmationChange(feature.id, newStatus)
+    } catch (error) {
+      console.error('Failed to update confirmation status:', error)
+    } finally {
+      setUpdating(false)
     }
   }
 
@@ -68,6 +83,42 @@ export default function FeatureDetailCard({ feature, onViewEvidence }: FeatureDe
         </div>
         <Target className="h-6 w-6 text-blue-600 flex-shrink-0" />
       </div>
+
+      {/* Confirmation Actions */}
+      {onConfirmationChange && (
+        <div className="mb-4 pb-4 border-b border-gray-200">
+          <h4 className="text-sm font-medium text-gray-700 mb-3">Confirmation Status</h4>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              onClick={() => handleConfirmationChange('confirmed_consultant')}
+              disabled={updating || feature.confirmation_status === 'confirmed_consultant'}
+              className={`flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+                feature.confirmation_status === 'confirmed_consultant'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50'
+              }`}
+            >
+              <CheckCircle className="h-4 w-4" />
+              Confirm
+            </button>
+            <button
+              onClick={() => handleConfirmationChange('needs_client')}
+              disabled={updating || feature.confirmation_status === 'needs_client'}
+              className={`flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+                feature.confirmation_status === 'needs_client'
+                  ? 'bg-amber-600 text-white'
+                  : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50'
+              }`}
+            >
+              <AlertCircle className="h-4 w-4" />
+              Needs Client Review
+            </button>
+          </div>
+          <p className="text-xs text-gray-500 mt-2">
+            Confirm if the feature is accurate. Mark for client review if clarification is needed.
+          </p>
+        </div>
+      )}
 
       {/* Enrichment Toggle */}
       {feature.details && Object.keys(feature.details).length > 0 && (

@@ -59,6 +59,34 @@ export const updateBaselineStatus = (projectId: string, baselineReady: boolean) 
     body: JSON.stringify({ baseline_ready: baselineReady }),
   })
 
+// Baseline Completeness APIs (Phase 0 - Surgical Updates)
+export const getBaselineCompleteness = (projectId: string) =>
+  apiRequest<{
+    prd_mode: 'initial' | 'maintenance'
+    score: number
+    breakdown: {
+      prd_sections: number
+      features: number
+      personas: number
+      vp_steps: number
+      constraints: number
+    }
+    counts: {
+      prd_sections: number
+      features: number
+      personas: number
+      vp_steps: number
+    }
+    ready: boolean
+    missing: string[]
+  }>(`/projects/${projectId}/baseline/completeness`)
+
+export const finalizeBaseline = (projectId: string) =>
+  apiRequest<{ success: boolean; message: string }>(`/projects/${projectId}/baseline/finalize`, {
+    method: 'POST',
+    body: JSON.stringify({ confirmed_by: null }),
+  })
+
 // State APIs
 export const getFeatures = (projectId: string) =>
   apiRequest<any[]>(`/state/features?project_id=${projectId}`)

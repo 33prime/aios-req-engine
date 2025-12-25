@@ -16,7 +16,7 @@ from app.core.schemas_state import (
 )
 from app.db.features import list_features
 from app.db.jobs import complete_job, create_job, fail_job, start_job
-from app.db.prd import list_prd_sections
+from app.db.prd import list_prd_sections, update_prd_section_status
 from app.db.vp import list_vp_steps, update_vp_step_status
 from app.graphs.build_state_graph import run_build_state_agent
 
@@ -151,6 +151,38 @@ async def get_prd_sections(
     except Exception as e:
         logger.exception(f"Failed to get PRD sections: {e}")
         raise HTTPException(status_code=500, detail="Failed to get PRD sections") from e
+
+
+@router.patch("/state/prd/{section_id}/status", response_model=PrdSectionOut)
+async def update_prd_status(
+    section_id: UUID,
+    request: UpdateStatusRequest,
+) -> PrdSectionOut:
+    """
+    Update the confirmation status of a PRD section.
+
+    Args:
+        section_id: PRD section UUID
+        request: Request body containing new confirmation status
+
+    Returns:
+        Updated PRD section
+
+    Raises:
+        HTTPException 404: If section not found
+        HTTPException 500: If update fails
+    """
+    try:
+        updated_section = update_prd_section_status(section_id, request.status)
+        return PrdSectionOut(**updated_section)
+
+    except ValueError as e:
+        logger.warning(f"PRD section not found: {section_id}")
+        raise HTTPException(status_code=404, detail=str(e)) from e
+
+    except Exception as e:
+        logger.exception(f"Failed to update PRD section status: {e}")
+        raise HTTPException(status_code=500, detail="Failed to update PRD section status") from e
 
 
 @router.get("/state/vp", response_model=list[VpStepOut])

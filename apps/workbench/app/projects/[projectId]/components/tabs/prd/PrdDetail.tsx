@@ -13,8 +13,9 @@
 import React, { useState } from 'react'
 import { Card, CardHeader, CardSection, EmptyState, Button, ButtonGroup } from '@/components/ui'
 import { StatusBadge } from '@/components/ui/StatusBadge'
-import { FileText, Users, Target, Zap, Info, AlertCircle, ExternalLink, CheckCircle, AlertTriangle } from 'lucide-react'
+import { FileText, Users, Target, Zap, Info, AlertCircle, ExternalLink, CheckCircle, AlertTriangle, History, Clock } from 'lucide-react'
 import type { PrdSection } from '@/types/api'
+import { EvidenceGroup } from '@/components/evidence/EvidenceChip'
 
 interface PrdDetailProps {
   section: PrdSection | null
@@ -277,6 +278,54 @@ export function PrdDetail({ section, onStatusUpdate, onViewEvidence, updating = 
           )}
         </Card>
       )}
+
+      {/* Recent Changes (Patch History) */}
+      <Card>
+        <CardHeader
+          title={
+            <div className="flex items-center gap-2">
+              <History className="h-5 w-5 text-brand-accent" />
+              <span>Recent Changes</span>
+            </div>
+          }
+          subtitle="Surgical updates applied to this section"
+        />
+
+        {/* TODO: Load patch history from API */}
+        {/* For now, show empty state */}
+        <div className="text-center py-8 bg-ui-background rounded-lg border border-ui-cardBorder">
+          <Clock className="h-12 w-12 text-ui-supportText mx-auto mb-3" />
+          <p className="text-sm font-medium text-ui-bodyText mb-1">No recent changes</p>
+          <p className="text-xs text-ui-supportText">
+            Surgical updates will appear here in maintenance mode
+          </p>
+        </div>
+
+        {/* Example of what patch history will look like when implemented:
+        <div className="space-y-3">
+          <div className="bg-ui-background border border-ui-cardBorder rounded-lg p-3">
+            <div className="flex items-start gap-2 mb-2">
+              <CheckCircle className="h-4 w-4 text-green-600 flex-shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-sm font-medium text-ui-bodyText">
+                    Added constraint about data privacy
+                  </span>
+                  <span className="text-xs text-ui-supportText">2h ago</span>
+                </div>
+                <p className="text-xs text-ui-supportText mb-2">
+                  Auto-applied • Minor severity
+                </p>
+                <EvidenceGroup
+                  evidence={[...]}
+                  maxDisplay={2}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+        */}
+      </Card>
 
       {/* Metadata */}
       <Card>

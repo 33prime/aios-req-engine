@@ -247,3 +247,116 @@ def get_prd_summary_section(project_id: UUID) -> dict[str, Any] | None:
         )
         raise
 
+
+def get_prd_section(section_id: UUID) -> dict[str, Any] | None:
+    """
+    Get a PRD section by ID.
+
+    Args:
+        section_id: PRD section UUID
+
+    Returns:
+        PRD section record or None if not found
+
+    Raises:
+        Exception: If database operation fails
+    """
+    supabase = get_supabase()
+
+    try:
+        response = (
+            supabase.table("prd_sections")
+            .select("*")
+            .eq("id", str(section_id))
+            .execute()
+        )
+
+        return response.data[0] if response.data else None
+
+    except Exception as e:
+        logger.error(f"Failed to get PRD section {section_id}: {e}")
+        raise
+
+
+def update_prd_section(section_id: UUID, updates: dict[str, Any]) -> dict[str, Any]:
+    """
+    Update a PRD section with arbitrary field updates.
+
+    Args:
+        section_id: PRD section UUID
+        updates: Dictionary of fields to update
+
+    Returns:
+        Updated PRD section dict
+
+    Raises:
+        ValueError: If section not found
+        Exception: If database operation fails
+    """
+    supabase = get_supabase()
+
+    try:
+        response = (
+            supabase.table("prd_sections")
+            .update(updates)
+            .eq("id", str(section_id))
+            .execute()
+        )
+
+        if not response.data:
+            raise ValueError(f"PRD section not found: {section_id}")
+
+        updated_section = response.data[0]
+        logger.info(f"Updated PRD section {section_id}")
+
+        return updated_section
+
+    except ValueError:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to update PRD section {section_id}: {e}")
+        raise
+
+
+def update_prd_section_status(
+    section_id: UUID,
+    status: str,
+) -> dict[str, Any]:
+    """
+    Update the confirmation status of a PRD section.
+
+    Args:
+        section_id: PRD section UUID
+        status: New confirmation status value
+
+    Returns:
+        Updated PRD section dict
+
+    Raises:
+        ValueError: If section not found
+        Exception: If database operation fails
+    """
+    supabase = get_supabase()
+
+    try:
+        response = (
+            supabase.table("prd_sections")
+            .update({"confirmation_status": status})
+            .eq("id", str(section_id))
+            .execute()
+        )
+
+        if not response.data:
+            raise ValueError(f"PRD section not found: {section_id}")
+
+        updated_section = response.data[0]
+        logger.info(f"Updated confirmation status for PRD section {section_id} to {status}")
+
+        return updated_section
+
+    except ValueError:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to update confirmation status for PRD section {section_id}: {e}")
+        raise
+
