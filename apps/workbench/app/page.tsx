@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowRight, Briefcase } from 'lucide-react'
+import { ArrowRight, Briefcase, FolderOpen, Hash } from 'lucide-react'
 
 export default function HomePage() {
   const [projectId, setProjectId] = useState('')
@@ -45,14 +45,51 @@ export default function HomePage() {
         </p>
       </div>
 
-      <div className="max-w-md mx-auto">
+      <div className="max-w-2xl mx-auto space-y-6">
+        {/* Primary: Browse Projects */}
         <div className="card">
-          <h2 className="text-2xl font-semibold text-gray-900 mb-6">
-            Enter Project ID
-          </h2>
+          <div className="flex items-center gap-4 mb-4">
+            <div className="p-3 bg-brand-primary/10 rounded-lg">
+              <FolderOpen className="h-6 w-6 text-brand-primary" />
+            </div>
+            <div className="flex-1">
+              <h2 className="text-xl font-semibold text-gray-900">
+                Browse Projects
+              </h2>
+              <p className="text-sm text-gray-600">
+                View and manage all your projects
+              </p>
+            </div>
+          </div>
+
+          <button
+            onClick={() => router.push('/projects')}
+            className="btn btn-primary w-full flex items-center justify-center"
+          >
+            <FolderOpen className="h-5 w-5 mr-2" />
+            Go to Projects
+            <ArrowRight className="h-5 w-5 ml-2" />
+          </button>
+        </div>
+
+        {/* Secondary: Quick Access by ID */}
+        <div className="card border-2 border-dashed border-gray-300">
+          <div className="flex items-center gap-4 mb-4">
+            <div className="p-3 bg-gray-100 rounded-lg">
+              <Hash className="h-6 w-6 text-gray-600" />
+            </div>
+            <div className="flex-1">
+              <h2 className="text-xl font-semibold text-gray-900">
+                Quick Access by ID
+              </h2>
+              <p className="text-sm text-gray-600">
+                Jump directly to a project using its UUID
+              </p>
+            </div>
+          </div>
 
           <form onSubmit={handleSubmit}>
-            <div className="mb-6">
+            <div className="mb-4">
               <label htmlFor="projectId" className="block text-sm font-medium text-gray-700 mb-2">
                 Project UUID
               </label>
@@ -65,29 +102,21 @@ export default function HomePage() {
                 className="input"
                 required
               />
-              <p className="text-sm text-gray-500 mt-2">
-                Enter the UUID of the project you want to work with
-              </p>
             </div>
 
             <button
               type="submit"
               disabled={isLoading || !projectId.trim()}
-              className="btn btn-primary w-full flex items-center justify-center"
+              className="btn btn-secondary w-full flex items-center justify-center"
             >
               {isLoading ? (
-                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-current mr-2"></div>
               ) : (
                 <ArrowRight className="h-5 w-5 mr-2" />
               )}
               Open Project
             </button>
           </form>
-        </div>
-
-        <div className="mt-8 text-center text-sm text-gray-500">
-          <p>Need help finding your project ID?</p>
-          <p>Contact your system administrator</p>
         </div>
       </div>
     </div>

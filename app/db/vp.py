@@ -53,6 +53,27 @@ def upsert_vp_step(
             f"Upserted VP step {step_index} for project {project_id}",
             extra={"project_id": str(project_id), "step_index": step_index},
         )
+
+        # Record impact tracking if evidence is present
+        if "evidence" in payload and payload["evidence"]:
+            try:
+                from app.db.signals import record_chunk_impacts
+
+                chunk_ids = [e.get("chunk_id") for e in payload["evidence"] if e.get("chunk_id")]
+                if chunk_ids:
+                    record_chunk_impacts(
+                        chunk_ids=chunk_ids,
+                        entity_type="vp_step",
+                        entity_id=UUID(step["id"]),
+                        usage_context="evidence",
+                    )
+            except Exception as e:
+                logger.warning(
+                    f"Failed to record impact for VP step {step['id']}: {e}",
+                    extra={"step_id": step["id"]},
+                )
+                # Don't fail the upsert if impact tracking fails
+
         return step
 
     except Exception as e:

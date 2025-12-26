@@ -62,6 +62,33 @@ def insert_insights(
             f"Inserted {inserted_count} insights for project {project_id}",
             extra={"run_id": str(run_id), "project_id": str(project_id)},
         )
+
+        # Record impact tracking for inserted insights with evidence
+        if response.data:
+            try:
+                from app.db.signals import record_chunk_impacts
+
+                for insight_data in response.data:
+                    if "evidence" in insight_data and insight_data["evidence"]:
+                        chunk_ids = [
+                            e.get("chunk_id")
+                            for e in insight_data["evidence"]
+                            if e.get("chunk_id")
+                        ]
+                        if chunk_ids:
+                            record_chunk_impacts(
+                                chunk_ids=chunk_ids,
+                                entity_type="insight",
+                                entity_id=UUID(insight_data["id"]),
+                                usage_context="evidence",
+                            )
+            except Exception as e:
+                logger.warning(
+                    f"Failed to record impact for insights: {e}",
+                    extra={"project_id": str(project_id)},
+                )
+                # Don't fail the insert if impact tracking fails
+
         return inserted_count
 
     except Exception as e:

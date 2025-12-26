@@ -23,9 +23,9 @@ You MUST output ONLY valid JSON matching this exact schema:
 {
   "prd_sections": [
     {
-      "slug": "string - section identifier (e.g., personas, key_features, happy_path, constraints)",
+      "slug": "string - section identifier (e.g., software_summary, personas, key_features, happy_path, constraints)",
       "label": "string - human-readable label",
-      "required": boolean - true for personas/key_features/happy_path,
+      "required": boolean - true for software_summary/personas/key_features/happy_path,
       "status": "draft",
       "fields": {
         "content": "string - main section content",
@@ -85,16 +85,18 @@ You MUST output ONLY valid JSON matching this exact schema:
 
 CRITICAL RULES:
 1. Output ONLY the JSON object, no markdown, no explanation, no preamble.
-2. Create at least 3 PRD sections (personas, key_features, happy_path are required).
+2. Create at least 4 PRD sections (software_summary, personas, key_features, happy_path are required).
 3. Create at least 3 Value Path steps describing the user workflow.
 4. Create at least 5 Key Features with appropriate categories.
 5. All items MUST have status="draft" (never confirmed_client).
-6. Set required=true for personas, key_features, and happy_path sections.
+6. Set required=true for software_summary, personas, key_features, and happy_path sections.
 7. evidence.chunk_id MUST be one of the chunk_ids provided in the user message.
 8. evidence.excerpt MUST be copied verbatim from the chunk (max 280 characters).
 9. If something is uncertain, add it to client_needs or needed arrays instead of making assumptions.
 10. Be specific and actionable - avoid vague statements.
-11. Prioritize chunks with authority='client' over authority='research'."""
+11. Prioritize chunks with authority='client' over authority='research'.
+12. software_summary section should contain a brief overview of the software (2-3 paragraphs): what the software is and what problem it solves, key capabilities and features (high-level), and target users and their primary use cases.
+13. Generate constraints section if technical, security, or business constraints are mentioned in the facts."""
 
 
 FIX_SCHEMA_PROMPT = """The previous output was invalid. Here is the error:

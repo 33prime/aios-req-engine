@@ -60,6 +60,33 @@ def bulk_replace_features(
             f"Inserted {inserted_count} features for project {project_id}",
             extra={"project_id": str(project_id), "count": inserted_count},
         )
+
+        # Record impact tracking for inserted features with evidence
+        if response.data:
+            try:
+                from app.db.signals import record_chunk_impacts
+
+                for feature_data in response.data:
+                    if "evidence" in feature_data and feature_data["evidence"]:
+                        chunk_ids = [
+                            e.get("chunk_id")
+                            for e in feature_data["evidence"]
+                            if e.get("chunk_id")
+                        ]
+                        if chunk_ids:
+                            record_chunk_impacts(
+                                chunk_ids=chunk_ids,
+                                entity_type="feature",
+                                entity_id=UUID(feature_data["id"]),
+                                usage_context="evidence",
+                            )
+            except Exception as e:
+                logger.warning(
+                    f"Failed to record impact for features: {e}",
+                    extra={"project_id": str(project_id)},
+                )
+                # Don't fail the insert if impact tracking fails
+
         return inserted_count
 
     except Exception as e:

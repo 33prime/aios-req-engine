@@ -33,7 +33,7 @@ class PRDSectionPatch(BaseModel):
 
     slug: str = Field(
         ...,
-        description="Section slug (personas|key_features|happy_path|constraints|...)",
+        description="Section slug (software_summary|personas|key_features|happy_path|constraints|...)",
     )
     set_fields: dict[str, Any] | None = Field(
         default=None, description="Partial update to fields JSON"

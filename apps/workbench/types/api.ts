@@ -130,3 +130,74 @@ export interface EnrichmentResponse extends AgentRunResponse {
   steps_processed?: number
   steps_updated?: number
 }
+
+// Projects
+export interface Project {
+  id: string
+  name: string
+  description?: string
+  prd_mode: 'initial' | 'maintenance'
+  status: 'active' | 'archived' | 'completed'
+  created_at: string
+  updated_at?: string
+  signal_id?: string // ID of auto-ingested description signal
+}
+
+export interface ProjectDetail extends Project {
+  counts: {
+    signals: number
+    prd_sections: number
+    vp_steps: number
+    features: number
+    insights: number
+    personas: number
+  }
+}
+
+// Signals with counts
+export interface SignalWithCounts extends Signal {
+  chunk_count: number
+  impact_count: number
+  source_label?: string
+  source_type?: string
+  source_timestamp?: string
+}
+
+// Signal impact
+export interface EntityImpactDetail {
+  id: string
+  label: string
+  slug: string
+}
+
+export interface SignalImpactResponse {
+  signal_id: string
+  total_impacts: number
+  by_entity_type: Record<string, number>
+  details: Record<string, EntityImpactDetail[]>
+}
+
+// Timeline
+export interface TimelineEvent {
+  id: string
+  type: 'signal_ingested' | 'prd_section_created' | 'vp_step_created' | 'feature_created' | 'insight_created' | 'baseline_finalized'
+  timestamp: string
+  description: string
+  metadata: any
+}
+
+// Analytics
+export interface ChunkUsageAnalytics {
+  project_id: string
+  top_chunks: Array<{
+    chunk_id: string
+    signal_id: string
+    chunk_index: number
+    content_preview: string
+    citation_count: number
+  }>
+  total_citations: number
+  citations_by_entity_type: Record<string, number>
+  unused_signals: SignalWithCounts[]
+  unused_signals_count: number
+}

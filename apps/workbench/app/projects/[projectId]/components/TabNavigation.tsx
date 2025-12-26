@@ -14,9 +14,9 @@
 'use client'
 
 import React from 'react'
-import { FileText, Zap, AlertCircle, CheckSquare } from 'lucide-react'
+import { FileText, Zap, AlertCircle, CheckSquare, Database } from 'lucide-react'
 
-export type TabType = 'requirements' | 'value-path' | 'insights' | 'next-steps'
+export type TabType = 'requirements' | 'value-path' | 'insights' | 'next-steps' | 'sources'
 
 interface Tab {
   id: TabType
@@ -49,6 +49,12 @@ const tabs: Tab[] = [
     label: 'Next Steps',
     icon: CheckSquare,
     description: 'Batch client confirmations'
+  },
+  {
+    id: 'sources',
+    label: 'Sources',
+    icon: Database,
+    description: 'Track signal provenance and impact'
   }
 ]
 
@@ -60,6 +66,7 @@ interface TabNavigationProps {
     valuePath?: number
     insights?: number
     nextSteps?: number
+    sources?: number
   }
 }
 
@@ -77,6 +84,7 @@ export function TabNavigation({ activeTab, onTabChange, counts }: TabNavigationP
           if (tab.id === 'value-path') count = counts?.valuePath
           if (tab.id === 'insights') count = counts?.insights
           if (tab.id === 'next-steps') count = counts?.nextSteps
+          if (tab.id === 'sources') count = counts?.sources
 
           return (
             <button

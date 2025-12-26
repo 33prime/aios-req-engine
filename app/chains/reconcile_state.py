@@ -24,7 +24,7 @@ You MUST output ONLY valid JSON matching this exact schema:
   "summary": "string - brief summary of reconciliation changes",
   "prd_section_patches": [
     {
-      "slug": "string - section slug (personas|key_features|happy_path|constraints|...)",
+      "slug": "string - section slug (software_summary|personas|key_features|happy_path|constraints|...)",
       "set_fields": {"field_name": "value", ...} or null,
       "set_status": "draft|needs_confirmation|confirmed_consultant|confirmed_client" or null,
       "add_client_needs": [

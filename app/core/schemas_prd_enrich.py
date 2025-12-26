@@ -12,7 +12,7 @@ class EnrichPRDSectionOutput(BaseModel):
     """Complete output from PRD section enrichment LLM."""
 
     section_id: UUID = Field(..., description="PRD section UUID")
-    slug: str = Field(..., description="Section slug (personas|key_features|happy_path|constraints|...)")
+    slug: str = Field(..., description="Section slug (software_summary|personas|key_features|happy_path|constraints|...)")
     enhanced_fields: dict[str, str] = Field(
         default_factory=dict,
         description="Updated longform text fields (content, description, etc.)"

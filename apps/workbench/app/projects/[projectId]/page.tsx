@@ -1,11 +1,12 @@
 /**
  * Main Workspace Page
  *
- * Unified 4-tab workspace for consultant workflow:
+ * Unified 5-tab workspace for consultant workflow:
  * 1. Product Requirements - PRD sections with status tracking
  * 2. Value Path - VP steps with enrichment details
  * 3. Insights - Red team analysis with decision workflow
  * 4. Next Steps - Batched client confirmations
+ * 5. Sources - Signal provenance and impact tracking
  *
  * Features:
  * - Tab navigation with counts
@@ -24,11 +25,12 @@ import { ProductRequirementsTab } from './components/tabs/ProductRequirementsTab
 import { ValuePathTab } from './components/tabs/ValuePathTab'
 import { InsightsTab } from './components/tabs/InsightsTab'
 import { NextStepsTab } from './components/tabs/NextStepsTab'
+import { SourcesTab } from './components/tabs/SourcesTab'
 import { AddSignalModal } from './components/AddSignalModal'
 import { AddResearchModal } from './components/AddResearchModal'
 import BaselineStatus from './components/BaselineStatus'
 import PatchFeed from './components/PatchFeed'
-import { getBaselineStatus, getBaselineCompleteness, finalizeBaseline, listConfirmations, getFeatures, getPrdSections, getVpSteps, getInsights } from '@/lib/api'
+import { getBaselineStatus, getBaselineCompleteness, finalizeBaseline, listConfirmations, getFeatures, getPrdSections, getVpSteps, getInsights, listProjectSignals } from '@/lib/api'
 import type { BaselineStatus as BaselineStatusType } from '@/types/api'
 
 export default function WorkspacePage() {
@@ -46,7 +48,8 @@ export default function WorkspacePage() {
     requirements: 0,
     valuePath: 0,
     insights: 0,
-    nextSteps: 0
+    nextSteps: 0,
+    sources: 0
   })
   const [loading, setLoading] = useState(true)
   const [loadingCompleteness, setLoadingCompleteness] = useState(true)
@@ -105,12 +108,14 @@ export default function WorkspacePage() {
         vpData,
         insightsData,
         confirmationsData,
+        signalsData,
       ] = await Promise.all([
         getBaselineStatus(projectId),
         getPrdSections(projectId),
         getVpSteps(projectId),
         getInsights(projectId),
         listConfirmations(projectId, 'open'),
+        listProjectSignals(projectId),
       ])
 
       setBaseline(baselineData)
@@ -120,14 +125,16 @@ export default function WorkspacePage() {
         requirements: prdData.length,
         valuePath: vpData.length,
         insights: insightsData.length,
-        nextSteps: confirmationsData.confirmations?.length || 0
+        nextSteps: confirmationsData.confirmations?.length || 0,
+        sources: signalsData.total || 0
       })
 
       console.log('✅ Workspace data loaded:', {
         prd: prdData.length,
         vp: vpData.length,
         insights: insightsData.length,
-        confirmations: confirmationsData.confirmations?.length || 0
+        confirmations: confirmationsData.confirmations?.length || 0,
+        sources: signalsData.total || 0
       })
     } catch (error) {
       console.error('❌ Failed to load workspace data:', error)
@@ -259,6 +266,8 @@ export default function WorkspacePage() {
         return <InsightsTab projectId={projectId} />
       case 'next-steps':
         return <NextStepsTab projectId={projectId} />
+      case 'sources':
+        return <SourcesTab projectId={projectId} />
       default:
         return null
     }

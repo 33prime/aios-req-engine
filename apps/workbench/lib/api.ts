@@ -255,3 +255,49 @@ export const getSignal = (signalId: string) =>
 
 export const getSignalChunks = (signalId: string) =>
   apiRequest<{ signal_id: string; chunks: any[]; count: number }>(`/signals/${signalId}/chunks`)
+
+// Projects CRUD APIs
+export const listProjects = (status = 'active', search?: string) => {
+  const params = new URLSearchParams({ status })
+  if (search) params.append('search', search)
+  return apiRequest<{ projects: any[]; total: number }>(`/projects?${params}`)
+}
+
+export const createProject = (data: { name: string; description?: string; auto_ingest_description?: boolean }) =>
+  apiRequest<any>(`/projects`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+
+export const getProjectDetails = (projectId: string) =>
+  apiRequest<any>(`/projects/${projectId}`)
+
+export const updateProject = (projectId: string, updates: { name?: string; description?: string; status?: string; tags?: string[] }) =>
+  apiRequest<any>(`/projects/${projectId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(updates),
+  })
+
+export const archiveProject = (projectId: string) =>
+  apiRequest<any>(`/projects/${projectId}`, {
+    method: 'DELETE',
+  })
+
+// Signals APIs (extended)
+export const listProjectSignals = (projectId: string, filters?: { signal_type?: string; source_type?: string }) => {
+  const params = new URLSearchParams()
+  if (filters?.signal_type) params.append('signal_type', filters.signal_type)
+  if (filters?.source_type) params.append('source_type', filters.source_type)
+  const queryString = params.toString()
+  return apiRequest<{ signals: any[]; total: number }>(`/projects/${projectId}/signals${queryString ? `?${queryString}` : ''}`)
+}
+
+export const getSignalImpact = (signalId: string) =>
+  apiRequest<any>(`/signals/${signalId}/impact`)
+
+// Analytics APIs
+export const getProjectTimeline = (projectId: string, limit = 500) =>
+  apiRequest<{ project_id: string; events: any[]; total: number }>(`/projects/${projectId}/analytics/timeline?limit=${limit}`)
+
+export const getChunkUsageAnalytics = (projectId: string, topK = 20) =>
+  apiRequest<any>(`/projects/${projectId}/analytics/chunk-usage?top_k=${topK}`)

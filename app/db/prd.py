@@ -52,6 +52,27 @@ def upsert_prd_section(
             f"Upserted PRD section {slug} for project {project_id}",
             extra={"project_id": str(project_id), "slug": slug},
         )
+
+        # Record impact tracking if evidence is present
+        if "evidence" in payload and payload["evidence"]:
+            try:
+                from app.db.signals import record_chunk_impacts
+
+                chunk_ids = [e.get("chunk_id") for e in payload["evidence"] if e.get("chunk_id")]
+                if chunk_ids:
+                    record_chunk_impacts(
+                        chunk_ids=chunk_ids,
+                        entity_type="prd_section",
+                        entity_id=UUID(section["id"]),
+                        usage_context="evidence",
+                    )
+            except Exception as e:
+                logger.warning(
+                    f"Failed to record impact for PRD section {section['id']}: {e}",
+                    extra={"section_id": section["id"]},
+                )
+                # Don't fail the upsert if impact tracking fails
+
         return section
 
     except Exception as e:
