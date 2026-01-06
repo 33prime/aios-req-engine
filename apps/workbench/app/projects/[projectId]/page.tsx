@@ -17,39 +17,53 @@
 
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useParams } from 'next/navigation'
 import { TabNavigation, MobileTabNavigation, type TabType } from './components/TabNavigation'
 import { WorkspaceHeader, CompactHeader } from './components/WorkspaceHeader'
-import { ProductRequirementsTab } from './components/tabs/ProductRequirementsTab'
+import { OverviewTab } from './components/tabs/OverviewTab'
+import { StrategicContextTab } from './components/tabs/StrategicContextTab'
 import { ValuePathTab } from './components/tabs/ValuePathTab'
-import { InsightsTab } from './components/tabs/InsightsTab'
+import { EnhancedResearchTab } from './components/tabs/research/EnhancedResearchTab'
 import { NextStepsTab } from './components/tabs/NextStepsTab'
-import { SourcesTab } from './components/tabs/SourcesTab'
+import { PersonasFeaturesTab } from './components/tabs/PersonasFeaturesTab'
 import { AddSignalModal } from './components/AddSignalModal'
 import { AddResearchModal } from './components/AddResearchModal'
-import BaselineStatus from './components/BaselineStatus'
+import { ResearchAgentModal } from './components/ResearchAgentModal'
+import { ChatBubble } from './components/ChatBubble'
+import { ChatPanel } from './components/ChatPanel'
+import { ActivityDrawer } from './components/ActivityDrawer'
+import { CreativeBriefModal } from './components/CreativeBriefModal'
 import PatchFeed from './components/PatchFeed'
-import { getBaselineStatus, getBaselineCompleteness, finalizeBaseline, listConfirmations, getFeatures, getPrdSections, getVpSteps, getInsights, listProjectSignals } from '@/lib/api'
-import type { BaselineStatus as BaselineStatusType } from '@/types/api'
+import CascadeSidebar from '@/components/cascades/CascadeSidebar'
+import { AssistantProvider } from '@/lib/assistant'
+import { getBaselineStatus, getBaselineCompleteness, finalizeBaseline, listConfirmations, getFeatures, getPrdSections, getVpSteps, getInsights, listProjectSignals, listPendingCascades, applyCascade, dismissCascade } from '@/lib/api'
+import { useChat } from '@/lib/useChat'
+import type { BaselineStatus } from '@/types/api'
 
 export default function WorkspacePage() {
   const params = useParams()
   const projectId = params.projectId as string
 
   // Tab state
-  const [activeTab, setActiveTab] = useState<TabType>('requirements')
+  const [activeTab, setActiveTab] = useState<TabType>('overview')
 
   // Data state
   const [baseline, setBaseline] = useState<BaselineStatus | null>(null)
   const [baselineCompleteness, setBaselineCompleteness] = useState<any>(null)
   const [prdMode, setPrdMode] = useState<'initial' | 'maintenance'>('initial')
   const [counts, setCounts] = useState({
-    requirements: 0,
+    strategicContext: 0,
     valuePath: 0,
-    insights: 0,
+    improvements: 0,
     nextSteps: 0,
-    sources: 0
+    sources: 0,
+    research: 0
+  })
+  const [recentChanges, setRecentChanges] = useState({
+    strategicContext: 0,
+    valuePath: 0,
+    improvements: 0
   })
   const [loading, setLoading] = useState(true)
   const [loadingCompleteness, setLoadingCompleteness] = useState(true)
@@ -57,6 +71,33 @@ export default function WorkspacePage() {
   // Modal state
   const [showAddSignal, setShowAddSignal] = useState(false)
   const [showAddResearch, setShowAddResearch] = useState(false)
+  const [showResearchModal, setShowResearchModal] = useState(false)
+  const [researchSeedContext, setResearchSeedContext] = useState({
+    client_name: '',
+    industry: '',
+    competitors: [] as string[],
+    focus_areas: [] as string[],
+    custom_questions: [] as string[],
+  })
+
+  // Chat state
+  const [isChatOpen, setIsChatOpen] = useState(false)
+  const [isChatMinimized, setIsChatMinimized] = useState(false)
+  const { messages, isLoading: isChatLoading, sendMessage, sendSignal } = useChat({
+    projectId,
+    onError: (error) => {
+      console.error('Chat error:', error)
+      alert('Failed to send message. Please try again.')
+    },
+  })
+
+  // Modal/drawer state
+  const [isActivityDrawerOpen, setIsActivityDrawerOpen] = useState(false)
+  const [isCreativeBriefModalOpen, setIsCreativeBriefModalOpen] = useState(false)
+
+  // Cascade state
+  const [cascades, setCascades] = useState<any[]>([])
+  const [isCascadeSidebarOpen, setIsCascadeSidebarOpen] = useState(false)
 
   // Load project data
   useEffect(() => {
@@ -107,32 +148,55 @@ export default function WorkspacePage() {
         prdData,
         vpData,
         insightsData,
+        patchesResponse,
         confirmationsData,
         signalsData,
+        researchJobsResponse,
       ] = await Promise.all([
         getBaselineStatus(projectId),
         getPrdSections(projectId),
         getVpSteps(projectId),
         getInsights(projectId),
+        fetch(`${process.env.NEXT_PUBLIC_API_BASE}/v1/insights?project_id=${projectId}&insight_type=patch`).then(r => r.json()),
         listConfirmations(projectId, 'open'),
         listProjectSignals(projectId),
+        fetch(`${process.env.NEXT_PUBLIC_API_BASE}/v1/jobs?project_id=${projectId}&job_type=research_query&limit=50`).then(r => r.json()),
       ])
 
       setBaseline(baselineData)
 
-      // Update counts
+      // Handle patches response (could be array or object with patches property)
+      const patchesData = Array.isArray(patchesResponse) ? patchesResponse : patchesResponse.patches || []
+
+      // Calculate combined improvements count (insights + patches)
+      const totalImprovements = insightsData.length + patchesData.length
+
+      // Update counts (strategicContext count stays at 0 for now - will be updated when we add strategic context API)
+      const researchJobs = Array.isArray(researchJobsResponse) ? researchJobsResponse : researchJobsResponse.jobs || []
       setCounts({
-        requirements: prdData.length,
+        strategicContext: 0, // TODO: Update when strategic context API is connected
         valuePath: vpData.length,
-        insights: insightsData.length,
+        improvements: totalImprovements,
         nextSteps: confirmationsData.confirmations?.length || 0,
-        sources: signalsData.total || 0
+        sources: signalsData.total || 0,
+        research: researchJobs.length
+      })
+
+      // Calculate recent changes (entities updated in last 24 hours)
+      const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
+      const recentInsights = insightsData.filter((i: any) => i.updated_at > cutoff).length
+      const recentPatches = patchesData.filter((p: any) => p.updated_at > cutoff).length
+
+      setRecentChanges({
+        strategicContext: 0, // TODO: Update when strategic context API is connected
+        valuePath: vpData.filter((v: any) => v.updated_at > cutoff).length,
+        improvements: recentInsights + recentPatches
       })
 
       console.log('✅ Workspace data loaded:', {
         prd: prdData.length,
         vp: vpData.length,
-        insights: insightsData.length,
+        improvements: totalImprovements,
         confirmations: confirmationsData.confirmations?.length || 0,
         sources: signalsData.total || 0
       })
@@ -165,10 +229,52 @@ export default function WorkspacePage() {
     }
   }
 
+  // Load cascades
+  const loadCascades = async () => {
+    try {
+      const data = await listPendingCascades(projectId)
+      setCascades(data.cascades || [])
+    } catch (error) {
+      console.error('Failed to load cascades:', error)
+    }
+  }
+
+  // Load cascades on mount
+  useEffect(() => {
+    loadCascades()
+  }, [projectId])
+
+  // Cascade handlers
+  const handleApplyCascade = async (cascadeId: string) => {
+    try {
+      await applyCascade(cascadeId)
+      setCascades(prev => prev.filter(c => c.id !== cascadeId))
+      loadProjectData() // Refresh data after applying cascade
+      loadCascades() // Refresh cascades in case more were created
+    } catch (error) {
+      console.error('Failed to apply cascade:', error)
+    }
+  }
+
+  const handleDismissCascade = async (cascadeId: string) => {
+    try {
+      await dismissCascade(cascadeId)
+      setCascades(prev => prev.filter(c => c.id !== cascadeId))
+    } catch (error) {
+      console.error('Failed to dismiss cascade:', error)
+    }
+  }
+
   // Handle agent runs
-  const handleRunAgent = async (agentType: 'build' | 'reconcile' | 'redteam' | 'enrich-prd' | 'enrich-vp') => {
+  const handleRunAgent = async (agentType: 'build' | 'reconcile' | 'redteam' | 'enrich-prd' | 'enrich-vp' | 'research') => {
     try {
       console.log('🚀 Running agent:', agentType)
+
+      // Research agent shows modal first
+      if (agentType === 'research') {
+        setShowResearchModal(true)
+        return
+      }
 
       let endpoint = ''
       let body: any = { project_id: projectId }
@@ -218,6 +324,38 @@ export default function WorkspacePage() {
     }
   }
 
+  // Handle research agent submission
+  const handleSubmitResearch = async () => {
+    try {
+      console.log('🚀 Running Research Agent:', researchSeedContext)
+      setShowResearchModal(false)
+
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE}/v1/agents/research`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          project_id: projectId,
+          seed_context: researchSeedContext,
+          max_queries: 15,
+        }),
+      })
+
+      if (response.ok) {
+        const result = await response.json()
+        console.log('✅ Research Agent started:', result)
+
+        if (result.job_id) {
+          pollJobStatus(result.job_id, 'research')
+        }
+      } else {
+        throw new Error(await response.text())
+      }
+    } catch (error) {
+      console.error('❌ Failed to run research agent:', error)
+      alert('Failed to start research agent')
+    }
+  }
+
   // Poll job status
   const pollJobStatus = async (jobId: string, agentType: string) => {
     console.log('🔍 Polling job:', jobId)
@@ -234,8 +372,18 @@ export default function WorkspacePage() {
 
           if (job.status === 'completed') {
             console.log('✅ Job completed:', job)
-            alert(`${agentType} completed successfully!`)
+
+            // Show agent-specific success message
+            if (agentType === 'research') {
+              const findings = job.output?.findings_summary || {}
+              const total = Object.values(findings).reduce((sum: number, val: any) => sum + (val || 0), 0)
+              alert(`Research completed! Generated ${total} findings across ${job.output?.queries_executed || 0} queries.`)
+            } else {
+              alert(`${agentType} completed successfully!`)
+            }
+
             loadProjectData() // Refresh data
+            loadCascades() // Refresh cascades (may have new conflicts/suggestions)
           } else if (job.status === 'failed') {
             console.log('❌ Job failed:', job.error)
             alert(`${agentType} failed: ${job.error}`)
@@ -258,20 +406,45 @@ export default function WorkspacePage() {
   // Render active tab content
   const renderTabContent = () => {
     switch (activeTab) {
-      case 'requirements':
-        return <ProductRequirementsTab projectId={projectId} />
+      case 'overview':
+        return <OverviewTab projectId={projectId} isActive={activeTab === 'overview'} />
+      case 'strategic-context':
+        return <StrategicContextTab projectId={projectId} />
+      case 'personas-features':
+        return <PersonasFeaturesTab projectId={projectId} isActive={activeTab === 'personas-features'} />
       case 'value-path':
         return <ValuePathTab projectId={projectId} />
-      case 'insights':
-        return <InsightsTab projectId={projectId} />
+      case 'research':
+        return <EnhancedResearchTab projectId={projectId} />
       case 'next-steps':
         return <NextStepsTab projectId={projectId} />
-      case 'sources':
-        return <SourcesTab projectId={projectId} />
       default:
         return null
     }
   }
+
+  // Build project data for assistant context - memoized to prevent infinite loops
+  const assistantProjectData = useMemo(() => ({
+    readinessScore: baselineCompleteness?.overall_score ?? 0,
+    blockers: baselineCompleteness?.blockers ?? [],
+    warnings: baselineCompleteness?.warnings ?? [],
+    pendingConfirmations: counts.nextSteps,
+    stats: {
+      features: baselineCompleteness?.features_count ?? 0,
+      personas: baselineCompleteness?.personas_count ?? 0,
+      vpSteps: counts.valuePath,
+      signals: counts.sources,
+    },
+  }), [
+    baselineCompleteness?.overall_score,
+    baselineCompleteness?.blockers,
+    baselineCompleteness?.warnings,
+    baselineCompleteness?.features_count,
+    baselineCompleteness?.personas_count,
+    counts.nextSteps,
+    counts.valuePath,
+    counts.sources,
+  ])
 
   if (loading) {
     return (
@@ -285,6 +458,7 @@ export default function WorkspacePage() {
   }
 
   return (
+    <AssistantProvider projectId={projectId} initialProjectData={assistantProjectData}>
     <div className="min-h-screen bg-ui-background">
       {/* Desktop Header */}
       <div className="hidden lg:block">
@@ -308,11 +482,15 @@ export default function WorkspacePage() {
           <WorkspaceHeader
             projectId={projectId}
             baseline={baseline}
+            baselineCompleteness={baselineCompleteness}
+            prdMode={prdMode}
             onBaselineToggle={handleBaselineToggle}
+            onFinalizeBaseline={handleFinalizeBaseline}
             onRefresh={loadProjectData}
-            onRunAgent={handleRunAgent}
             onAddSignal={() => setShowAddSignal(true)}
             onAddResearch={() => setShowAddResearch(true)}
+            onShowActivity={() => setIsActivityDrawerOpen(true)}
+            onShowCreativeBrief={() => setIsCreativeBriefModalOpen(true)}
           />
         </div>
       </div>
@@ -331,6 +509,7 @@ export default function WorkspacePage() {
           activeTab={activeTab}
           onTabChange={setActiveTab}
           counts={counts}
+          recentChanges={recentChanges}
         />
       </div>
 
@@ -342,36 +521,9 @@ export default function WorkspacePage() {
         />
       </div>
 
-      {/* Tab Content with Sidebar */}
+      {/* Tab Content - Full Width */}
       <main className="max-w-[1600px] mx-auto px-4 lg:px-6 py-6">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Main Content (2/3 width) */}
-          <div className="lg:col-span-2">
-            {renderTabContent()}
-          </div>
-
-          {/* Right Sidebar (1/3 width) - Baseline Status & Patch Feed */}
-          <div className="lg:col-span-1 space-y-6">
-            <div className="sticky top-6 space-y-6">
-              <BaselineStatus
-                projectId={projectId}
-                completeness={baselineCompleteness}
-                prdMode={prdMode}
-                onFinalize={handleFinalizeBaseline}
-                onRefresh={loadBaselineCompleteness}
-                loading={loadingCompleteness}
-              />
-
-              {/* Patch Feed - only show in maintenance mode */}
-              {prdMode === 'maintenance' && (
-                <PatchFeed
-                  projectId={projectId}
-                  limit={10}
-                />
-              )}
-            </div>
-          </div>
-        </div>
+        {renderTabContent()}
       </main>
 
       {/* Modals */}
@@ -387,6 +539,65 @@ export default function WorkspacePage() {
         projectId={projectId}
         onSuccess={loadProjectData}
       />
+      {showResearchModal && (
+        <ResearchAgentModal
+          projectId={projectId}
+          seedContext={researchSeedContext}
+          onUpdate={setResearchSeedContext}
+          onSubmit={handleSubmitResearch}
+          onClose={() => setShowResearchModal(false)}
+        />
+      )}
+
+      {/* Chat Assistant - Floating */}
+      {!isChatOpen && (
+        <ChatBubble
+          isOpen={isChatOpen}
+          onToggle={() => {
+            setIsChatOpen(true)
+            setIsChatMinimized(false)
+          }}
+        />
+      )}
+      <ChatPanel
+        isOpen={isChatOpen}
+        onClose={() => {
+          setIsChatOpen(false)
+          setIsChatMinimized(false)
+        }}
+        projectId={projectId}
+        messages={messages}
+        isLoading={isChatLoading}
+        onSendMessage={sendMessage}
+        onSendSignal={sendSignal}
+        activeTab={activeTab}
+        isMinimized={isChatMinimized}
+        onToggleMinimize={() => setIsChatMinimized(!isChatMinimized)}
+      />
+
+      {/* Activity Drawer */}
+      <ActivityDrawer
+        projectId={projectId}
+        isOpen={isActivityDrawerOpen}
+        onClose={() => setIsActivityDrawerOpen(false)}
+      />
+
+      {/* Creative Brief Modal */}
+      <CreativeBriefModal
+        projectId={projectId}
+        isOpen={isCreativeBriefModalOpen}
+        onClose={() => setIsCreativeBriefModalOpen(false)}
+      />
+
+      {/* Cascade Sidebar */}
+      <CascadeSidebar
+        cascades={cascades}
+        isOpen={isCascadeSidebarOpen}
+        onToggle={() => setIsCascadeSidebarOpen(!isCascadeSidebarOpen)}
+        onApply={handleApplyCascade}
+        onDismiss={handleDismissCascade}
+      />
     </div>
+    </AssistantProvider>
   )
 }

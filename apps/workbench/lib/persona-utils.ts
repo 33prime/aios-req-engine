@@ -7,16 +7,46 @@
  * - fields.content (text that needs parsing)
  */
 
+// V2 workflow structure from persona enrichment
+export interface PersonaWorkflow {
+  name: string
+  description: string
+  steps: string[]
+  features_used: string[]
+}
+
 export interface Persona {
+  id?: string
   name: string
   role: string
-  demographics?: string
-  psychographics?: string
+  demographics?: string | Record<string, any>
+  psychographics?: string | Record<string, any>
   goals?: string[]
   pain_points?: string[]
   related_features?: string[]
-  related_vp_steps?: number[]
+  related_vp_steps?: string[] | number[]
   description?: string
+  confirmation_status?: 'ai_generated' | 'confirmed_consultant' | 'confirmed_client' | 'needs_client'
+  // Score fields for health and coverage tracking
+  coverage_score?: number  // 0-100, % of goals addressed by features
+  health_score?: number    // 0-100, degrades over time without updates
+  // V2 enrichment fields
+  overview?: string | null
+  key_workflows?: PersonaWorkflow[]
+  enrichment_status?: 'none' | 'enriched' | 'stale' | null
+  enriched_at?: string | null
+}
+
+/**
+ * Convert dict-based demographics/psychographics to display string
+ */
+export function formatDemographicsOrPsychographics(value: string | Record<string, any> | undefined): string {
+  if (!value) return ''
+  if (typeof value === 'string') return value
+  // Convert dict to readable string
+  const entries = Object.entries(value).filter(([_, v]) => v)
+  if (entries.length === 0) return ''
+  return entries.map(([k, v]) => `${k}: ${v}`).join(', ')
 }
 
 /**
@@ -86,7 +116,7 @@ function normalizePersona(persona: any): Persona {
  * **Demographics:** description
  * etc.
  */
-function parsePersonasFromText(content: string): Persona[] {
+export function parsePersonasFromText(content: string): Persona[] {
   const personas: Persona[] = []
 
   // Split by ## headers (assuming each persona has its own section)
@@ -204,13 +234,31 @@ function parseListField(content: string): string[] {
 /**
  * Get related features for a persona
  *
- * Matches features that are mentioned in the persona's related_features list
- * or that mention the persona by name
+ * Matches features that:
+ * 1. Have this persona in their target_personas (v2 enrichment)
+ * 2. Are in the persona's related_features list
+ * 3. Mention the persona by name
  */
 export function getRelatedFeatures(persona: Persona, allFeatures: any[]): any[] {
   if (!allFeatures || allFeatures.length === 0) return []
 
   return allFeatures.filter(feature => {
+    // V2: Check if feature has this persona in target_personas
+    if (feature.target_personas && Array.isArray(feature.target_personas)) {
+      const hasPersona = feature.target_personas.some((tp: any) => {
+        // Match by persona_id if available
+        if (tp.persona_id && persona.id && tp.persona_id === persona.id) {
+          return true
+        }
+        // Match by persona_name
+        if (tp.persona_name && persona.name) {
+          return tp.persona_name.toLowerCase() === persona.name.toLowerCase()
+        }
+        return false
+      })
+      if (hasPersona) return true
+    }
+
     // Check if feature is in related_features list
     if (persona.related_features && persona.related_features.includes(feature.name)) {
       return true
@@ -235,8 +283,14 @@ export function getRelatedVpSteps(persona: Persona, allVpSteps: any[]): any[] {
 
   return allVpSteps.filter(step => {
     // Check if step index is in related_vp_steps list
-    if (persona.related_vp_steps && persona.related_vp_steps.includes(step.step_index)) {
-      return true
+    // Handle both string UUIDs and numeric step indices
+    if (persona.related_vp_steps && persona.related_vp_steps.length > 0) {
+      const stepId = String(step.id || step.step_index)
+      const stepIndex = step.step_index
+      const relatedSteps = persona.related_vp_steps.map(String)
+      if (relatedSteps.includes(stepId) || relatedSteps.includes(String(stepIndex))) {
+        return true
+      }
     }
 
     // Check if persona name appears in step description or label
