@@ -294,6 +294,28 @@ export const runATeam = (projectId: string, autoApply = false) =>
     }),
   })
 
+// Strategic Foundation APIs
+export const runStrategicFoundation = (projectId: string) =>
+  apiRequest<{
+    job_id: string
+    status: string
+    message: string
+  }>('/agents/strategic-foundation', {
+    method: 'POST',
+    body: JSON.stringify({ project_id: projectId }),
+  })
+
+export const getStrategicFoundationSummary = (projectId: string) =>
+  apiRequest<{
+    has_company_info: boolean
+    has_business_drivers: boolean
+    has_competitor_refs: boolean
+    has_strategic_context: boolean
+    company_name: string | null
+    business_driver_count: number
+    competitor_count: number
+  }>(`/agents/strategic-foundation/${projectId}/summary`)
+
 export const getPatches = (projectId: string, status = 'queued') =>
   apiRequest<{ patches: any[]; count: number }>(
     `/projects/${projectId}/patches?status=${status}`

@@ -646,6 +646,46 @@ registerCommand({
   },
 })
 
+// /foundation - Run strategic foundation enrichment
+registerCommand({
+  name: 'foundation',
+  description: 'Run strategic foundation enrichment (company info, business drivers, competitors)',
+  aliases: ['strategic', 'company'],
+  examples: ['/foundation', '/strategic', '/company'],
+  execute: async (_args, context): Promise<CommandResult> => {
+    const { projectId } = context
+
+    if (!projectId) {
+      return {
+        success: false,
+        message: 'No project selected. Please select a project first.',
+      }
+    }
+
+    // Import the API function dynamically to avoid circular deps
+    const { runStrategicFoundation } = await import('@/lib/api')
+
+    try {
+      const result = await runStrategicFoundation(projectId)
+
+      return {
+        success: true,
+        message: `## Strategic Foundation Started\n\n${result.message}\n\n**Job ID:** \`${result.job_id}\`\n\nThis will enrich:\n- Company information (from website)\n- Business drivers & objectives\n- Competitor references\n- Strategic context linking\n\nRefresh the Strategic Foundation tab to see progress.`,
+        data: {
+          jobId: result.job_id,
+          action: 'strategic_foundation_started',
+        },
+        navigateTo: { tab: 'strategic-foundation' },
+      }
+    } catch (error) {
+      return {
+        success: false,
+        message: `Failed to start strategic foundation: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      }
+    }
+  },
+})
+
 // /clear - Clear conversation
 registerCommand({
   name: 'clear',
