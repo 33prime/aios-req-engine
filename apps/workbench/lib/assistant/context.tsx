@@ -74,7 +74,12 @@ const createInitialContext = (projectId: string): AssistantContext => ({
   selectedEntity: null,
   messages: [],
   isLoading: false,
-  suggestedActions: [],
+  // Initialize with overview mode's quick actions
+  suggestedActions: getContextualQuickActions('overview', {
+    hasSelectedEntity: false,
+    hasPendingConfirmations: false,
+    hasBlockers: false,
+  }),
   pendingProactiveMessages: [],
   projectData: undefined,
 })
