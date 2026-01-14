@@ -13,18 +13,23 @@ app = FastAPI(
 )
 
 # Configure CORS
+import os
+cors_origins = [
+    "http://localhost:3000",
+    "http://localhost:3001",
+    "http://localhost:3002",
+    "http://127.0.0.1:3000",
+    "http://127.0.0.1:3001",
+    "http://127.0.0.1:3002",
+    "https://aios-rtg.netlify.app",
+]
+# Add any additional origins from environment
+extra_origins = os.getenv("CORS_ORIGINS", "").split(",")
+cors_origins.extend([o.strip() for o in extra_origins if o.strip()])
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",  # Next.js dev server (default)
-        "http://localhost:3001",  # Alternative port
-        "http://localhost:3002",  # Current workbench port
-        "http://127.0.0.1:3000",  # Alternative localhost
-        "http://127.0.0.1:3001",
-        "http://127.0.0.1:3002",
-        "https://aios-rtg.netlify.app",  # Production frontend
-        "https://*.netlify.app",  # Netlify preview deploys
-    ],
+    allow_origins=cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
