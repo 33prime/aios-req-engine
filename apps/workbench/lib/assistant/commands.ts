@@ -443,43 +443,6 @@ registerCommand({
   },
 })
 
-// /approve-stakeholder
-registerCommand({
-  name: 'approve-stakeholder',
-  description: 'Approve the currently selected stakeholder (consultant level)',
-  aliases: ['confirm-stakeholder'],
-  examples: ['/approve-stakeholder'],
-  execute: async (_args, context): Promise<CommandResult> => {
-    const { selectedEntity } = context
-
-    if (!selectedEntity || selectedEntity.type !== 'stakeholder') {
-      return {
-        success: false,
-        message: 'No stakeholder selected. Please click on a stakeholder first, then run this command.',
-      }
-    }
-
-    try {
-      await updateEntityStatus('stakeholders', selectedEntity.id, 'confirmed_consultant')
-
-      return {
-        success: true,
-        message: `## Stakeholder Approved\n\n**${selectedEntity.name}** has been confirmed at consultant level.`,
-        data: {
-          entityId: selectedEntity.id,
-          entityType: 'stakeholder',
-          newStatus: 'confirmed_consultant',
-        },
-      }
-    } catch (error) {
-      return {
-        success: false,
-        message: `Failed to approve stakeholder: ${error instanceof Error ? error.message : 'Unknown error'}`,
-      }
-    }
-  },
-})
-
 // =============================================================================
 // CREATE COMMANDS
 // =============================================================================
@@ -819,8 +782,7 @@ registerCommand({
     message += `### Approve Entities (select first, then approve)\n`
     message += `**/approve-feature** - Approve selected feature\n`
     message += `**/approve-persona** - Approve selected persona\n`
-    message += `**/approve-vp-step** - Approve selected VP step\n`
-    message += `**/approve-stakeholder** - Approve selected stakeholder\n\n`
+    message += `**/approve-vp-step** - Approve selected VP step\n\n`
 
     message += `### Create\n`
     message += `**/create-stakeholder** "Name" - Add new stakeholder\n\n`
