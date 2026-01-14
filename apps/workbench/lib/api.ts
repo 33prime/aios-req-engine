@@ -317,15 +317,17 @@ export const getStrategicFoundationSummary = (projectId: string) =>
   }>(`/agents/strategic-foundation/${projectId}/summary`)
 
 export const updateCompanyInfo = (projectId: string, data: {
-  name?: string
-  industry?: string
+  name?: string | null
+  industry?: string | null
+  stage?: string | null
+  size?: string | null
   company_type?: string | null
-  website?: string
-  revenue?: string
-  address?: string
+  website?: string | null
+  revenue?: string | null
+  address?: string | null
   location?: string | null
-  description?: string
-  employee_count?: string
+  description?: string | null
+  employee_count?: string | null
 }) =>
   apiRequest<{ company_info: any; success: boolean }>('/state/company-info', {
     method: 'PUT',
