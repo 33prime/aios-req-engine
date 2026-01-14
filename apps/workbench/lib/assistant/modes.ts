@@ -21,16 +21,11 @@ import type {
  */
 export const TAB_MODE_MAP: Record<TabType, AssistantMode> = {
   'overview': 'overview',
-  'definition': 'general',
-  'features': 'features',
-  'personas': 'personas',
+  'strategic-foundation': 'strategic_foundation',
+  'personas-features': 'personas_features',
   'value-path': 'value_path',
-  'research': 'research',
   'sources': 'signals',
-  'insights': 'research',
-  'activity': 'general',
-  'strategic-context': 'strategic_foundation',
-  'creative-brief': 'briefing',
+  'next-steps': 'next_steps',
 }
 
 /**
@@ -345,19 +340,19 @@ Your role:
 - Find and track competitors
 - Build strategic context
 
-Use /run-foundation to extract company info from signals, or /run-research for deep web research.`,
+Use /run-foundation to enrich company info from signals, or /create-stakeholder to add key people.`,
 
     quickActions: [
       {
-        id: 'run-foundation',
-        label: 'Run Foundation',
+        id: 'enrich-client',
+        label: 'Enrich Client',
         command: '/run-foundation',
         variant: 'primary',
       },
       {
-        id: 'run-research',
-        label: 'Deep Research',
-        command: '/run-research',
+        id: 'create-stakeholder',
+        label: 'Create Stakeholder',
+        command: '/create-stakeholder',
         variant: 'default',
       },
       {
@@ -368,10 +363,90 @@ Use /run-foundation to extract company info from signals, or /run-research for d
       },
     ],
 
-    focusEntities: ['company_info', 'business_driver', 'competitor'],
+    focusEntities: ['company_info', 'business_driver', 'competitor', 'stakeholder'],
     proactiveMessages: true,
-    suggestedCommands: ['/run-foundation', '/run-research', '/project-status'],
-    contextFields: ['companyInfo', 'businessDrivers', 'competitors'],
+    suggestedCommands: ['/run-foundation', '/create-stakeholder', '/project-status'],
+    contextFields: ['companyInfo', 'businessDrivers', 'competitors', 'stakeholders'],
+  },
+
+  // Personas & Features mode - Combined personas and features management
+  personas_features: {
+    systemPrompt: `You are an AI assistant helping manage personas and features.
+You are currently in Personas & Features mode, focused on user personas and product features.
+
+Your role:
+- Help develop and refine user personas
+- Analyze and improve feature definitions
+- Connect personas to relevant features
+- Ensure personas and features are evidence-based
+
+Use /enrich-personas to AI-enhance personas, or /enrich-features to enhance features.`,
+
+    quickActions: [
+      {
+        id: 'enrich-personas',
+        label: 'Enrich Personas',
+        command: '/enrich-personas',
+        variant: 'primary',
+      },
+      {
+        id: 'enrich-features',
+        label: 'Enrich Features',
+        command: '/enrich-features',
+        variant: 'primary',
+      },
+      {
+        id: 'project-status',
+        label: 'Check Status',
+        command: '/project-status',
+        variant: 'default',
+      },
+    ],
+
+    focusEntities: ['persona', 'feature'],
+    proactiveMessages: true,
+    suggestedCommands: ['/enrich-personas', '/enrich-features', '/project-status'],
+    contextFields: ['personas', 'features', 'personaFeatureLinks'],
+  },
+
+  // Next Steps mode - Action items and confirmations
+  next_steps: {
+    systemPrompt: `You are an AI assistant helping manage action items and confirmations.
+You are currently in Next Steps mode, focused on what needs to happen next.
+
+Your role:
+- Identify items needing confirmation
+- Suggest prioritized next actions
+- Track pending decisions
+- Help prepare for client reviews
+
+Use /pending-items to see what needs review.`,
+
+    quickActions: [
+      {
+        id: 'pending-items',
+        label: 'View Pending',
+        command: '/pending-items',
+        variant: 'primary',
+      },
+      {
+        id: 'meeting-prep',
+        label: 'Prep Meeting',
+        command: '/meeting-prep',
+        variant: 'default',
+      },
+      {
+        id: 'project-status',
+        label: 'Check Status',
+        command: '/project-status',
+        variant: 'default',
+      },
+    ],
+
+    focusEntities: ['confirmation', 'decision', 'blocker'],
+    proactiveMessages: true,
+    suggestedCommands: ['/pending-items', '/meeting-prep', '/project-status'],
+    contextFields: ['pendingConfirmations', 'blockers', 'nextActions'],
   },
 
   // General mode - Default fallback
@@ -522,27 +597,31 @@ export const MODE_TRANSITIONS: Record<AssistantMode, {
   onEnter?: string  // Message to show when entering this mode
 }> = {
   overview: {
-    allowedFrom: ['general', 'features', 'personas', 'value_path', 'research', 'signals', 'briefing'],
+    allowedFrom: ['general', 'features', 'personas', 'personas_features', 'value_path', 'research', 'signals', 'briefing', 'strategic_foundation', 'next_steps'],
     onEnter: 'Switched to Overview mode. I can help you check project health and plan next steps.',
   },
   signals: {
-    allowedFrom: ['general', 'overview', 'features', 'personas'],
-    onEnter: 'Switched to Signals mode. I can help process and route incoming signals.',
+    allowedFrom: ['general', 'overview', 'features', 'personas', 'personas_features'],
+    onEnter: 'Switched to Sources mode. I can help process and route incoming signals.',
   },
   features: {
-    allowedFrom: ['general', 'overview', 'personas', 'value_path', 'signals'],
+    allowedFrom: ['general', 'overview', 'personas', 'personas_features', 'value_path', 'signals'],
     onEnter: 'Switched to Features mode. I can help analyze and improve feature definitions.',
   },
   personas: {
-    allowedFrom: ['general', 'overview', 'features', 'value_path', 'signals'],
+    allowedFrom: ['general', 'overview', 'features', 'personas_features', 'value_path', 'signals'],
     onEnter: 'Switched to Personas mode. I can help develop and refine user personas.',
   },
+  personas_features: {
+    allowedFrom: ['general', 'overview', 'strategic_foundation', 'value_path', 'signals', 'next_steps'],
+    onEnter: 'Switched to Personas & Features. Use /enrich-personas or /enrich-features to enhance.',
+  },
   value_path: {
-    allowedFrom: ['general', 'overview', 'features', 'personas'],
+    allowedFrom: ['general', 'overview', 'features', 'personas', 'personas_features'],
     onEnter: 'Switched to Value Path mode. I can help design the user journey.',
   },
   research: {
-    allowedFrom: ['general', 'overview', 'features', 'personas', 'signals'],
+    allowedFrom: ['general', 'overview', 'features', 'personas', 'personas_features', 'signals'],
     onEnter: 'Switched to Research mode. I can help identify gaps and analyze findings.',
   },
   briefing: {
@@ -550,11 +629,15 @@ export const MODE_TRANSITIONS: Record<AssistantMode, {
     onEnter: 'Switched to Briefing mode. I can help prepare meeting summaries and discussion points.',
   },
   strategic_foundation: {
-    allowedFrom: ['general', 'overview', 'briefing'],
-    onEnter: 'Switched to Strategic Foundation. Run /run-foundation to extract company info.',
+    allowedFrom: ['general', 'overview', 'personas_features', 'next_steps'],
+    onEnter: 'Switched to Strategic Foundation. Use /run-foundation to enrich client info.',
+  },
+  next_steps: {
+    allowedFrom: ['general', 'overview', 'strategic_foundation', 'personas_features', 'value_path', 'signals'],
+    onEnter: 'Switched to Next Steps. Use /pending-items to see what needs review.',
   },
   general: {
-    allowedFrom: ['overview', 'signals', 'features', 'personas', 'value_path', 'research', 'briefing', 'strategic_foundation'],
+    allowedFrom: ['overview', 'signals', 'features', 'personas', 'personas_features', 'value_path', 'research', 'briefing', 'strategic_foundation', 'next_steps'],
   },
 }
 

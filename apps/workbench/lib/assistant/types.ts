@@ -10,26 +10,23 @@
 
 export type TabType =
   | 'overview'
-  | 'definition'
-  | 'features'
-  | 'personas'
+  | 'strategic-foundation'
+  | 'personas-features'
   | 'value-path'
-  | 'research'
   | 'sources'
-  | 'insights'
-  | 'activity'
-  | 'strategic-context'
-  | 'creative-brief'
+  | 'next-steps'
 
 export type AssistantMode =
   | 'overview'              // Project health, blockers, recommendations
   | 'signals'               // Signal processing, claim routing
   | 'features'              // Feature management, enrichment
   | 'personas'              // Persona development
+  | 'personas_features'     // Combined personas and features
   | 'value_path'            // VP flow analysis
   | 'research'              // Research queries, gap analysis
   | 'briefing'              // Pre-meeting prep
   | 'strategic_foundation'  // Company info, drivers, competitors
+  | 'next_steps'            // Action items and confirmations
   | 'general'               // Default fallback mode
 
 // =============================================================================

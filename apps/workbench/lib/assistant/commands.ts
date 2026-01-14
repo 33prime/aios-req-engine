@@ -242,6 +242,39 @@ registerCommand({
   },
 })
 
+// /enrich-personas - AI enhance all personas
+registerCommand({
+  name: 'enrich-personas',
+  description: 'AI enhance ALL personas with research and signal data',
+  aliases: ['enhance-personas'],
+  examples: ['/enrich-personas'],
+  execute: async (_args, context): Promise<CommandResult> => {
+    const { projectId } = context
+
+    if (!projectId) {
+      return {
+        success: false,
+        message: 'No project selected. Please select a project first.',
+      }
+    }
+
+    // TODO: Wire up to /agents/enrich-personas endpoint once created
+    // The chain exists at app/chains/enrich_personas_v2.py
+    return {
+      success: true,
+      message: `**Persona Enrichment**\n\nThis feature enriches personas with:\n- Detailed motivations and goals\n- Pain points and challenges\n- Technology preferences\n- Decision-making criteria\n\n*Note: The enrichment chain is being wired up. For now, use /run-foundation to extract personas from signals, then manually review and refine.*`,
+      actions: [
+        {
+          id: 'run-foundation',
+          label: 'Run Foundation',
+          command: '/run-foundation',
+          variant: 'primary',
+        },
+      ],
+    }
+  },
+})
+
 // /enrich-value-path - AI enhance all VP steps
 registerCommand({
   name: 'enrich-value-path',
@@ -327,8 +360,8 @@ registerCommand({
         actions: [
           {
             id: 'go-features',
-            label: 'Go to Features Tab',
-            navigateTo: { tab: 'features' },
+            label: 'Go to Personas & Features',
+            navigateTo: { tab: 'personas-features' },
           },
         ],
       }
@@ -371,8 +404,8 @@ registerCommand({
         actions: [
           {
             id: 'go-personas',
-            label: 'Go to Personas Tab',
-            navigateTo: { tab: 'features' },
+            label: 'Go to Personas & Features',
+            navigateTo: { tab: 'personas-features' },
           },
         ],
       }
@@ -768,8 +801,8 @@ registerCommand({
       actions: [
         {
           id: 'go-features',
-          label: 'View Features',
-          navigateTo: { tab: 'features' },
+          label: 'View Personas & Features',
+          navigateTo: { tab: 'personas-features' },
         },
         {
           id: 'go-vp',
@@ -917,6 +950,7 @@ registerCommand({
     message += `**/run-foundation** - Extract company info, drivers, competitors\n`
     message += `**/run-research** - Deep web research on company/market\n`
     message += `**/run-analysis** - Analyze signals, generate patches\n`
+    message += `**/enrich-personas** - AI enhance all personas\n`
     message += `**/enrich-features** - AI enhance all features\n`
     message += `**/enrich-value-path** - AI enhance all VP steps\n\n`
 

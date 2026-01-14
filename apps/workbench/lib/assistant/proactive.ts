@@ -94,45 +94,34 @@ registerTrigger({
 })
 
 registerTrigger({
-  id: 'tab-switch-features-empty',
+  id: 'tab-switch-personas-features-empty',
   type: 'tab_switch',
   cooldownMs: 60000, // 1 minute
-  condition: (context) => context.activeTab === 'features',
+  condition: (context) => context.activeTab === 'personas-features',
   handler: async (context): Promise<ProactiveMessage | null> => {
     const featureCount = context.projectData?.stats?.features ?? 0
+    const personaCount = context.projectData?.stats?.personas ?? 0
 
-    if (featureCount === 0) {
+    if (featureCount === 0 && personaCount === 0) {
       return {
-        message: 'No features defined yet. Would you like to add features from signals or create them manually?',
+        message: 'No personas or features defined yet. Use /run-foundation to extract from signals, or add them manually.',
         priority: 'medium',
         actions: [
           {
-            id: 'add-from-signals',
-            label: 'From Signals',
-            command: '/process',
+            id: 'run-foundation',
+            label: 'Run Foundation',
+            command: '/run-foundation',
             variant: 'primary',
           },
           {
-            id: 'add-manual',
-            label: 'Add Manually',
-            command: '/add feature',
+            id: 'enrich-features',
+            label: 'Enrich Features',
+            command: '/enrich-features',
           },
         ],
         dismissable: true,
       }
     }
-
-    return null
-  },
-})
-
-registerTrigger({
-  id: 'tab-switch-personas-tip',
-  type: 'tab_switch',
-  cooldownMs: 120000, // 2 minutes
-  condition: (context) => context.activeTab === 'personas',
-  handler: async (context): Promise<ProactiveMessage | null> => {
-    const personaCount = context.projectData?.stats?.personas ?? 0
 
     if (personaCount > 0 && personaCount < 3) {
       return {
@@ -220,22 +209,22 @@ registerTrigger({
     const { projectData, mode } = context
 
     // Different suggestions based on mode
-    if (mode === 'features') {
-      const unconfirmedFeatures = (projectData?.stats?.features ?? 0) > 0
-      if (unconfirmedFeatures) {
+    if (mode === 'personas_features' || mode === 'features') {
+      const hasFeatures = (projectData?.stats?.features ?? 0) > 0
+      if (hasFeatures) {
         return {
-          message: 'Need help with anything? I can analyze features, suggest improvements, or help with enrichment.',
+          message: 'Need help with anything? I can enrich personas, enhance features, or check project status.',
           priority: 'low',
           actions: [
             {
-              id: 'analyze-all',
-              label: 'Analyze All',
-              icon: 'scan',
+              id: 'enrich-personas',
+              label: 'Enrich Personas',
+              command: '/enrich-personas',
             },
             {
-              id: 'suggest-improvements',
-              label: 'Suggest Improvements',
-              icon: 'lightbulb',
+              id: 'enrich-features',
+              label: 'Enrich Features',
+              command: '/enrich-features',
             },
           ],
           dismissable: true,
