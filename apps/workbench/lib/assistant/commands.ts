@@ -133,38 +133,25 @@ registerCommand({
       }
     }
 
-    // Research agent needs seed context - check if we have company info
-    if (!projectData?.companyInfo?.name) {
-      return {
-        success: false,
-        message: `## Research Requires Company Info\n\nThe research agent needs company context to run effectively.\n\nPlease run \`/run-foundation\` first to extract company information, then try again.`,
-        actions: [
-          {
-            id: 'run-foundation-first',
-            label: 'Run Foundation First',
-            command: '/run-foundation',
-            variant: 'primary',
-          },
-        ],
-      }
-    }
-
     const { runResearchAgent } = await import('@/lib/api')
 
     try {
+      // Use project name as fallback if no company info extracted yet
+      const clientName = projectData?.name || 'Company'
+
       const result = await runResearchAgent(
         projectId,
         {
-          client_name: projectData.companyInfo.name,
-          industry: projectData.companyInfo.industry || 'technology',
-          competitors: projectData.competitors?.map((c: any) => c.name) || [],
+          client_name: clientName,
+          industry: 'technology',
+          competitors: [],
         },
         15
       )
 
       return {
         success: true,
-        message: `## Research Started\n\n**Job ID:** \`${result.job_id}\`\n\nResearching:\n- ${projectData.companyInfo.name}\n- Industry trends\n- Competitor landscape\n\nThis may take a few minutes. Results will appear in the Sources tab.`,
+        message: `## Research Started\n\n**Job ID:** \`${result.job_id}\`\n\nResearching:\n- ${clientName}\n- Industry trends\n- Competitor landscape\n\nThis may take a few minutes. Results will appear in the Sources tab.\n\n**Tip:** Run \`/run-foundation\` first to extract company info for better research results.`,
         data: {
           jobId: result.job_id,
           action: 'research_started',
