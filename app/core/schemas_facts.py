@@ -14,24 +14,17 @@ class EvidenceRef(BaseModel):
     """Reference to evidence from a signal chunk."""
 
     chunk_id: UUID = Field(..., description="Chunk UUID from which evidence was extracted")
-    excerpt: str = Field(..., max_length=280, description="Verbatim excerpt from chunk (max 280)")
-    rationale: str = Field(..., description="Why this excerpt supports the fact")
+    excerpt: str = Field(..., max_length=2000, description="Verbatim excerpt from chunk (max 2000)")
+    rationale: str = Field(..., max_length=500, description="Why this excerpt supports the fact")
 
 
 class FactItem(BaseModel):
     """A single extracted fact with provenance."""
 
-    fact_type: Literal[
-        "feature",
-        "constraint",
-        "persona",
-        "kpi",
-        "process",
-        "data_requirement",
-        "integration",
-        "risk",
-        "assumption",
-    ] = Field(..., description="Category of the fact")
+    fact_type: str = Field(
+        ...,
+        description="Category of the fact (e.g., feature, constraint, persona, kpi, process, organizational_goal, etc.)"
+    )
     title: str = Field(..., description="Short fact title")
     detail: str = Field(..., description="Detailed description of the fact")
     confidence: Literal["low", "medium", "high"] = Field(
@@ -68,6 +61,18 @@ class Contradiction(BaseModel):
     )
 
 
+class ExtractedClientInfo(BaseModel):
+    """Client/project context information extracted from signal."""
+
+    client_name: str | None = Field(None, description="Name of the client company")
+    industry: str | None = Field(None, description="Industry/vertical of the client")
+    website: str | None = Field(None, description="Client website URL")
+    competitors: list[str] = Field(default_factory=list, description="Competitor names mentioned")
+    confidence: Literal["low", "medium", "high"] = Field(
+        default="medium", description="Confidence in extracted info"
+    )
+
+
 class ExtractFactsOutput(BaseModel):
     """Complete output from fact extraction LLM."""
 
@@ -78,6 +83,9 @@ class ExtractFactsOutput(BaseModel):
     )
     contradictions: list[Contradiction] = Field(
         default_factory=list, description="Identified contradictions"
+    )
+    client_info: ExtractedClientInfo | None = Field(
+        default=None, description="Extracted client/project context information"
     )
 
 

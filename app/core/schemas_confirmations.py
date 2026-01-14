@@ -15,6 +15,9 @@ class ConfirmationKind(str):
     FEATURE = "feature"
     INSIGHT = "insight"
     GATE = "gate"
+    CHAT = "chat"
+    PERSONA = "persona"
+    STAKEHOLDER = "stakeholder"
 
 
 class ConfirmationStatus(str):
@@ -64,7 +67,7 @@ class ConfirmationItemOut(BaseModel):
 
     id: UUID = Field(..., description="Confirmation item UUID")
     project_id: UUID = Field(..., description="Project UUID")
-    kind: Literal["prd", "vp", "feature", "insight", "gate"] = Field(
+    kind: Literal["prd", "vp", "feature", "insight", "gate", "chat", "persona", "stakeholder"] = Field(
         ..., description="Type of confirmation"
     )
     target_table: str | None = Field(default=None, description="Target table name if applicable")
@@ -95,7 +98,7 @@ class ConfirmationItemOut(BaseModel):
 class ConfirmationItemCreate(BaseModel):
     """Schema for creating a confirmation item."""
 
-    kind: Literal["prd", "vp", "feature", "insight", "gate"] = Field(
+    kind: Literal["prd", "vp", "feature", "insight", "gate", "chat", "persona", "stakeholder"] = Field(
         ..., description="Type of confirmation"
     )
     target_table: str | None = Field(default=None, description="Target table name if applicable")

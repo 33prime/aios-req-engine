@@ -29,6 +29,44 @@ logger = get_logger(__name__)
 router = APIRouter()
 
 
+async def process_signal_pipeline(
+    project_id: UUID,
+    signal_id: UUID,
+    run_id: UUID,
+) -> dict[str, Any]:
+    """
+    Process a signal through the extract_facts and build_state pipeline.
+
+    This is the public async wrapper for _auto_trigger_processing that can
+    be called from chat tools after a signal is added.
+
+    Args:
+        project_id: Project UUID
+        signal_id: Signal UUID that was just ingested
+        run_id: Run tracking UUID
+
+    Returns:
+        Dict with processing results
+    """
+    import asyncio
+    from concurrent.futures import ThreadPoolExecutor
+
+    # Run the sync processing in a thread pool to not block
+    def run_processing():
+        _auto_trigger_processing(project_id, signal_id, run_id)
+        return {
+            "status": "completed",
+            "signal_id": str(signal_id),
+            "project_id": str(project_id),
+        }
+
+    loop = asyncio.get_event_loop()
+    with ThreadPoolExecutor() as pool:
+        result = await loop.run_in_executor(pool, run_processing)
+
+    return result
+
+
 def _cap_text(text: str) -> str:
     """Truncate text to MAX_SIGNAL_CHARS limit."""
     settings = get_settings()
@@ -216,6 +254,17 @@ def _auto_trigger_processing(
             f"Project in maintenance mode, triggering surgical update",
             extra={"run_id": str(run_id), "project_id": str(project_id)},
         )
+
+        # Create job for visibility
+        from app.db.jobs import create_job, start_job, complete_job, fail_job
+        agent_job_id = create_job(
+            project_id=project_id,
+            job_type="surgical_update",
+            input_json={"signal_id": str(signal_id), "trigger": "auto"},
+            run_id=run_id,
+        )
+        start_job(agent_job_id)
+
         try:
             from app.graphs.surgical_update_graph import run_surgical_update
 
@@ -229,12 +278,15 @@ def _auto_trigger_processing(
                 extra={"run_id": str(run_id), "result": result.model_dump()},
             )
 
+            complete_job(agent_job_id, output_json=result.model_dump())
+
             # Phase 3: Trigger selective enrichment for changed entities
             if result.patches_applied > 0:
                 _trigger_selective_enrichment(project_id, result, run_id)
 
         except Exception as e:
-            logger.error(f"Surgical update failed: {e}", extra={"run_id": str(run_id)})
+            logger.exception(f"Surgical update failed", extra={"run_id": str(run_id)})
+            fail_job(agent_job_id, str(e))
             # Don't raise - ingestion already succeeded
 
     else:
@@ -243,25 +295,440 @@ def _auto_trigger_processing(
             f"Project in initial mode, triggering extract_facts",
             extra={"run_id": str(run_id), "project_id": str(project_id)},
         )
+
+        # Create job for visibility
+        from app.db.jobs import create_job, start_job, complete_job, fail_job
+        agent_job_id = create_job(
+            project_id=project_id,
+            job_type="extract_facts",
+            input_json={"signal_id": str(signal_id), "trigger": "auto"},
+            run_id=run_id,
+        )
+        start_job(agent_job_id)
+
         try:
             from app.graphs.extract_facts_graph import run_extract_facts
 
-            result = run_extract_facts(
+            # Run extract_facts with proper parameters
+            llm_output, extracted_facts_id, actual_project_id = run_extract_facts(
                 signal_id=signal_id,
                 project_id=project_id,
+                job_id=agent_job_id,
                 run_id=run_id,
-            )
-            logger.info(
-                f"Extract facts completed: {result.get('total_facts', 0)} facts extracted",
-                extra={"run_id": str(run_id)},
+                top_chunks=None,  # Use default from settings
             )
 
-            # TODO: Optionally trigger build_state or check baseline completeness
-            # For now, extract_facts is sufficient
+            facts_count = len(llm_output.facts)
+            logger.info(
+                f"Extract facts completed: {facts_count} facts extracted",
+                extra={"run_id": str(run_id), "extracted_facts_id": str(extracted_facts_id)},
+            )
+
+            # Auto-update creative brief if client_info was extracted
+            client_info_extracted = False
+            if llm_output.client_info:
+                try:
+                    client_info_extracted = _update_creative_brief_from_extraction(
+                        project_id=project_id,
+                        client_info=llm_output.client_info,
+                        signal_id=signal_id,
+                    )
+                except Exception as e:
+                    logger.warning(
+                        f"Failed to update creative brief from extraction: {e}",
+                        extra={"run_id": str(run_id)},
+                    )
+
+            complete_job(
+                agent_job_id,
+                output_json={
+                    "extracted_facts_id": str(extracted_facts_id),
+                    "total_facts": facts_count,
+                    "summary": llm_output.summary,
+                    "client_info_extracted": client_info_extracted,
+                },
+            )
+
+            # Auto-trigger build_state to create features, personas, PRD, VP from facts
+            if facts_count > 0:
+                _auto_trigger_build_state(project_id, run_id)
 
         except Exception as e:
-            logger.error(f"Extract facts failed: {e}", extra={"run_id": str(run_id)})
+            logger.exception(f"Extract facts failed", extra={"run_id": str(run_id)})
+            fail_job(agent_job_id, str(e))
             # Don't raise - ingestion already succeeded
+
+
+def _auto_trigger_build_state(project_id: UUID, run_id: UUID) -> None:
+    """
+    Auto-trigger build_state agent to create features, personas, PRD, VP from facts.
+
+    This runs after extract_facts in initial mode to populate the project state.
+    After build_state completes, checks baseline and triggers research if ready.
+
+    Args:
+        project_id: Project UUID
+        run_id: Run tracking UUID
+    """
+    from app.db.jobs import create_job, start_job, complete_job, fail_job
+
+    logger.info(
+        f"Auto-triggering build_state for project {project_id}",
+        extra={"run_id": str(run_id), "project_id": str(project_id)},
+    )
+
+    # Create job for visibility
+    build_job_id = create_job(
+        project_id=project_id,
+        job_type="build_state",
+        input_json={"trigger": "auto_after_extract_facts"},
+        run_id=run_id,
+    )
+    start_job(build_job_id)
+
+    try:
+        from app.graphs.build_state_graph import run_build_state_agent
+
+        llm_output, prd_count, vp_count, features_count = run_build_state_agent(
+            project_id=project_id,
+            job_id=build_job_id,
+            run_id=run_id,
+            include_research=False,  # No research yet in initial mode
+        )
+
+        result = {
+            "features_created": features_count,
+            "prd_sections_created": prd_count,
+            "vp_steps_created": vp_count,
+            "summary": llm_output.summary if hasattr(llm_output, 'summary') else "State built successfully",
+        }
+
+        logger.info(
+            f"Build state completed: {features_count} features, {prd_count} PRD sections, {vp_count} VP steps",
+            extra={"run_id": str(run_id), "result": result},
+        )
+
+        complete_job(build_job_id, output_json=result)
+
+        # Check baseline readiness and trigger research if ready
+        _check_and_trigger_research(project_id, run_id)
+
+    except Exception as e:
+        logger.exception(f"Build state failed", extra={"run_id": str(run_id)})
+        fail_job(build_job_id, str(e))
+        # Don't raise - extract_facts already succeeded
+
+
+def _check_and_trigger_research(project_id: UUID, run_id: UUID) -> None:
+    """
+    Check baseline completeness and trigger research agent if ready.
+
+    Args:
+        project_id: Project UUID
+        run_id: Run tracking UUID
+    """
+    # TEMPORARILY DISABLED: Auto-research agent is disabled while testing signal pipeline
+    # Re-enable by removing this early return once Perplexity integration is optimized
+    logger.info(
+        "Auto-research agent disabled - skipping research trigger",
+        extra={"run_id": str(run_id), "project_id": str(project_id)},
+    )
+    return
+
+    from app.core.baseline_scoring import calculate_baseline_completeness
+
+    completeness = calculate_baseline_completeness(project_id)
+
+    logger.info(
+        f"Baseline completeness check: score={completeness['score']}, ready={completeness['ready']}",
+        extra={"run_id": str(run_id), "project_id": str(project_id)},
+    )
+
+    if completeness["ready"]:
+        logger.info(
+            f"Baseline ready (score={completeness['score']}), triggering research agent",
+            extra={"run_id": str(run_id), "project_id": str(project_id)},
+        )
+        _auto_trigger_research(project_id, run_id)
+    else:
+        logger.info(
+            f"Baseline not ready (score={completeness['score']}), skipping research",
+            extra={"run_id": str(run_id), "missing": completeness["missing"]},
+        )
+
+
+def _auto_trigger_research(project_id: UUID, run_id: UUID) -> None:
+    """
+    Auto-trigger research agent to gather external market/competitive research.
+
+    This runs when baseline is ready (>=75% completeness).
+    After research completes, triggers red_team analysis.
+
+    Args:
+        project_id: Project UUID
+        run_id: Run tracking UUID
+    """
+    from app.db.jobs import create_job, start_job, complete_job, fail_job
+
+    logger.info(
+        f"Auto-triggering research agent for project {project_id}",
+        extra={"run_id": str(run_id), "project_id": str(project_id)},
+    )
+
+    # Create job for visibility
+    research_job_id = create_job(
+        project_id=project_id,
+        job_type="research_agent",
+        input_json={"trigger": "auto_after_build_state", "max_queries": 15},
+        run_id=run_id,
+    )
+    start_job(research_job_id)
+
+    try:
+        from app.graphs.research_agent_graph import run_research_agent_graph
+        from app.db.state import get_enriched_state
+
+        # Build seed context from enriched state
+        enriched_state = get_enriched_state(project_id)
+        seed_context = {
+            "features": enriched_state.get("features", []),
+            "personas": enriched_state.get("personas", []),
+            "prd_sections": enriched_state.get("prd_sections", []),
+        }
+
+        llm_output, signal_id, chunks_created, queries_executed = run_research_agent_graph(
+            project_id=project_id,
+            run_id=run_id,
+            job_id=research_job_id,
+            seed_context=seed_context,
+            max_queries=15,
+        )
+
+        result = {
+            "signal_id": str(signal_id) if signal_id else None,
+            "chunks_created": chunks_created,
+            "queries_executed": queries_executed,
+            "summary": llm_output.executive_summary if hasattr(llm_output, 'executive_summary') else "Research completed",
+        }
+
+        logger.info(
+            f"Research agent completed: {queries_executed} queries, {chunks_created} chunks",
+            extra={"run_id": str(run_id), "result": result},
+        )
+
+        complete_job(research_job_id, output_json=result)
+
+        # Trigger red_team analysis after research
+        _auto_trigger_red_team(project_id, run_id, include_research=True)
+
+    except Exception as e:
+        logger.exception(f"Research agent failed", extra={"run_id": str(run_id)})
+        fail_job(research_job_id, str(e))
+        # Don't raise - build_state already succeeded
+
+
+def _auto_trigger_red_team(project_id: UUID, run_id: UUID, include_research: bool = True) -> None:
+    """
+    Auto-trigger red_team agent for gap analysis.
+
+    This runs after research agent completes.
+    After red_team completes, triggers a_team to generate patches.
+
+    Args:
+        project_id: Project UUID
+        run_id: Run tracking UUID
+        include_research: Whether to include research signals in analysis
+    """
+    from app.db.jobs import create_job, start_job, complete_job, fail_job
+
+    logger.info(
+        f"Auto-triggering red_team for project {project_id}",
+        extra={"run_id": str(run_id), "project_id": str(project_id), "include_research": include_research},
+    )
+
+    # Create job for visibility
+    redteam_job_id = create_job(
+        project_id=project_id,
+        job_type="red_team",
+        input_json={"trigger": "auto_after_research", "include_research": include_research},
+        run_id=run_id,
+    )
+    start_job(redteam_job_id)
+
+    try:
+        from app.graphs.red_team_graph import run_redteam_agent
+
+        llm_output, insight_count = run_redteam_agent(
+            project_id=str(project_id),
+            run_id=str(run_id),
+            job_id=str(redteam_job_id),
+            include_research=include_research,
+        )
+
+        result = {
+            "insights_created": insight_count,
+            "model": llm_output.model if hasattr(llm_output, 'model') else "unknown",
+        }
+
+        logger.info(
+            f"Red team completed: {insight_count} insights created",
+            extra={"run_id": str(run_id), "result": result},
+        )
+
+        complete_job(redteam_job_id, output_json=result)
+
+        # Trigger a_team to convert insights to patches
+        if insight_count > 0:
+            _auto_trigger_a_team(project_id, run_id)
+
+    except Exception as e:
+        logger.exception(f"Red team failed", extra={"run_id": str(run_id)})
+        fail_job(redteam_job_id, str(e))
+        # Don't raise - research already succeeded
+
+
+def _auto_trigger_a_team(project_id: UUID, run_id: UUID) -> None:
+    """
+    Auto-trigger a_team agent to convert insights to patches.
+
+    This runs after red_team creates insights.
+
+    Args:
+        project_id: Project UUID
+        run_id: Run tracking UUID
+    """
+    from app.db.jobs import create_job, start_job, complete_job, fail_job
+
+    logger.info(
+        f"Auto-triggering a_team for project {project_id}",
+        extra={"run_id": str(run_id), "project_id": str(project_id)},
+    )
+
+    # Create job for visibility
+    ateam_job_id = create_job(
+        project_id=project_id,
+        job_type="a_team",
+        input_json={"trigger": "auto_after_red_team", "auto_apply": True},
+        run_id=run_id,
+    )
+    start_job(ateam_job_id)
+
+    try:
+        from app.graphs.a_team_graph import run_a_team_graph
+
+        patches_generated, patches_auto_applied, patches_queued = run_a_team_graph(
+            project_id=project_id,
+            run_id=run_id,
+            job_id=ateam_job_id,
+            insight_ids=None,  # Process all open insights
+            auto_apply=True,
+        )
+
+        result = {
+            "patches_generated": patches_generated,
+            "patches_auto_applied": patches_auto_applied,
+            "patches_queued": patches_queued,
+        }
+
+        logger.info(
+            f"A-team completed: {patches_generated} patches ({patches_auto_applied} auto-applied, {patches_queued} queued)",
+            extra={"run_id": str(run_id), "result": result},
+        )
+
+        complete_job(ateam_job_id, output_json=result)
+
+        logger.info(
+            f"🎉 Full auto-pipeline completed for project {project_id}",
+            extra={
+                "run_id": str(run_id),
+                "project_id": str(project_id),
+                "pipeline": "ingest → extract_facts → build_state → research → red_team → a_team",
+            },
+        )
+
+    except Exception as e:
+        logger.exception(f"A-team failed", extra={"run_id": str(run_id)})
+        fail_job(ateam_job_id, str(e))
+        # Don't raise - red_team already succeeded
+
+
+def _update_creative_brief_from_extraction(
+    project_id: UUID,
+    client_info: Any,
+    signal_id: UUID,
+) -> bool:
+    """
+    Update the creative brief with extracted client information.
+
+    Only updates fields that are not already set by the user.
+
+    Args:
+        project_id: Project UUID
+        client_info: ExtractedClientInfo from fact extraction
+        signal_id: Signal UUID that the info was extracted from
+
+    Returns:
+        True if any updates were made, False otherwise
+    """
+    from app.db.creative_briefs import get_creative_brief, upsert_creative_brief
+
+    # Build update data from extracted info
+    update_data = {}
+
+    if client_info.client_name:
+        update_data["client_name"] = client_info.client_name
+
+    if client_info.industry:
+        update_data["industry"] = client_info.industry
+
+    if client_info.website:
+        update_data["website"] = client_info.website
+
+    if client_info.competitors:
+        update_data["competitors"] = client_info.competitors
+
+    if not update_data:
+        logger.debug(
+            "No client info to update",
+            extra={"project_id": str(project_id)},
+        )
+        return False
+
+    # Get existing brief to check for user-set values
+    existing_brief = get_creative_brief(project_id)
+    field_sources = existing_brief.get("field_sources", {}) if existing_brief else {}
+
+    # Filter out fields already set by user
+    filtered_data = {}
+    for field, value in update_data.items():
+        if field_sources.get(field) != "user":
+            filtered_data[field] = value
+
+    if not filtered_data:
+        logger.debug(
+            "All extracted fields already user-confirmed, skipping update",
+            extra={"project_id": str(project_id)},
+        )
+        return False
+
+    # Upsert with extracted source
+    upsert_creative_brief(
+        project_id=project_id,
+        data=filtered_data,
+        source="extracted",
+        signal_id=signal_id,
+    )
+
+    logger.info(
+        f"Updated creative brief from extraction: {list(filtered_data.keys())}",
+        extra={
+            "project_id": str(project_id),
+            "signal_id": str(signal_id),
+            "fields_updated": list(filtered_data.keys()),
+        },
+    )
+
+    return True
 
 
 def _ingest_text(
@@ -392,11 +859,56 @@ async def ingest_signal(request: IngestRequest) -> IngestResponse:
         )
 
         # Auto-trigger processing based on project mode
-        _auto_trigger_processing(
-            project_id=request.project_id,
-            signal_id=signal_id,
-            run_id=run_id,
-        )
+        try:
+            logger.info(
+                f"🚀 Calling auto-trigger processing for signal {signal_id}",
+                extra={"run_id": str(run_id), "signal_id": str(signal_id), "project_id": str(request.project_id)},
+            )
+            _auto_trigger_processing(
+                project_id=request.project_id,
+                signal_id=signal_id,
+                run_id=run_id,
+            )
+            logger.info(
+                f"✅ Auto-trigger processing completed for signal {signal_id}",
+                extra={"run_id": str(run_id), "signal_id": str(signal_id)},
+            )
+        except Exception as auto_trigger_error:
+            logger.exception(
+                f"❌ Auto-trigger processing failed for signal {signal_id}",
+                extra={"run_id": str(run_id), "signal_id": str(signal_id), "error": str(auto_trigger_error)},
+            )
+            # Don't fail ingestion if auto-trigger fails
+
+        # Check if client signal resolves any open confirmations
+        try:
+            from app.chains.confirmation_resolver import process_client_signal_for_confirmations
+
+            resolution_result = await process_client_signal_for_confirmations(
+                project_id=request.project_id,
+                signal_id=signal_id,
+                signal_content=capped_text,
+                signal_type=request.signal_type,
+                signal_source=request.source,
+                metadata=metadata,
+                run_id=run_id,
+            )
+
+            if resolution_result.get("resolved", 0) > 0:
+                logger.info(
+                    f"✅ Auto-resolved {resolution_result['resolved']} confirmations from client signal",
+                    extra={
+                        "run_id": str(run_id),
+                        "signal_id": str(signal_id),
+                        "resolved_count": resolution_result["resolved"],
+                    },
+                )
+        except Exception as resolution_error:
+            logger.warning(
+                f"Confirmation resolution check failed (non-blocking): {resolution_error}",
+                extra={"run_id": str(run_id), "signal_id": str(signal_id)},
+            )
+            # Don't fail ingestion if resolution check fails
 
         return IngestResponse(
             run_id=run_id,

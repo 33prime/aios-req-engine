@@ -157,7 +157,7 @@ def generate_prd_summary(
                 {"role": "user", "content": user_prompt},
             ],
             temperature=0.3,
-            max_tokens=2000,
+            max_tokens=16384,
         )
 
         raw_output = response.choices[0].message.content

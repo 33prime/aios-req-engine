@@ -13,6 +13,7 @@ from app.core.schemas_projects import (
     ProjectDetailResponse,
     ProjectListResponse,
     ProjectResponse,
+    StatusNarrative,
     UpdateProjectRequest,
 )
 from app.db.project_gates import get_or_create_project_gate, upsert_project_gate
@@ -54,16 +55,7 @@ async def list_all_projects(
 
         # Convert to response model
         projects = [
-            ProjectResponse(
-                id=UUID(p["id"]),
-                name=p["name"],
-                description=p.get("description"),
-                prd_mode=p.get("prd_mode", "initial"),
-                status=p.get("status", "active"),
-                created_at=p["created_at"],
-                updated_at=p.get("updated_at"),
-                signal_id=None,  # Not stored in project, would need to query signals
-            )
+            _to_project_response(p)
             for p in result["projects"]
         ]
 
@@ -115,13 +107,13 @@ async def create_new_project(request: CreateProjectRequest) -> ProjectResponse:
 
                 run_id = uuid.uuid4()
 
-                # Insert signal
+                # Insert signal (authority=consultant since consultant is entering description)
                 signal = insert_signal(
                     project_id=project_id,
                     signal_type="note",
                     source="project_description",
                     raw_text=request.description,
-                    metadata={"authority": "client", "auto_ingested": True},
+                    metadata={"authority": "consultant", "auto_ingested": True},
                     run_id=run_id,
                 )
                 signal_id = UUID(signal["id"])
@@ -131,8 +123,8 @@ async def create_new_project(request: CreateProjectRequest) -> ProjectResponse:
                     extra={"project_id": str(project_id), "signal_id": str(signal_id)},
                 )
 
-                # Chunk and embed
-                chunks = chunk_text(request.description, metadata={"authority": "client"})
+                # Chunk and embed (authority=consultant since consultant is entering description)
+                chunks = chunk_text(request.description, metadata={"authority": "consultant"})
                 if chunks:
                     chunk_texts = [chunk["content"] for chunk in chunks]
                     embeddings = embed_texts(chunk_texts)
@@ -148,20 +140,48 @@ async def create_new_project(request: CreateProjectRequest) -> ProjectResponse:
                         extra={"signal_id": str(signal_id)},
                     )
 
-                # Trigger extract_facts (auto-processing in initial mode)
-                from app.graphs.extract_facts_graph import run_extract_facts_agent
+                # Create onboarding job and run in background
+                from app.db.jobs import create_job, start_job, complete_job, fail_job
+                import threading
 
-                run_extract_facts_agent(
+                onboarding_job_id = create_job(
                     project_id=project_id,
-                    signal_id=signal_id,
+                    job_type="onboarding",
+                    input_json={"signal_id": str(signal_id)},
                     run_id=run_id,
-                    job_id=None,  # No job tracking for auto-triggered processing
                 )
 
                 logger.info(
-                    "Triggered extract_facts for description signal",
-                    extra={"project_id": str(project_id), "signal_id": str(signal_id)},
+                    f"Created onboarding job {onboarding_job_id}",
+                    extra={"project_id": str(project_id), "job_id": str(onboarding_job_id)},
                 )
+
+                # Run onboarding in background thread
+                def run_onboarding_background():
+                    try:
+                        start_job(onboarding_job_id)
+                        from app.graphs.onboarding_graph import run_onboarding
+
+                        result = run_onboarding(
+                            project_id=project_id,
+                            signal_id=signal_id,
+                            job_id=onboarding_job_id,
+                            run_id=run_id,
+                        )
+                        complete_job(onboarding_job_id, output_json=result)
+                        logger.info(
+                            f"Onboarding job {onboarding_job_id} completed",
+                            extra={"result": result},
+                        )
+                    except Exception as e:
+                        logger.error(f"Onboarding job {onboarding_job_id} failed: {e}")
+                        fail_job(onboarding_job_id, error_message=str(e))
+
+                thread = threading.Thread(target=run_onboarding_background, daemon=True)
+                thread.start()
+
+                # Return immediately with job_id so frontend can poll
+                return _to_project_response(project, signal_id=signal_id, onboarding_job_id=onboarding_job_id)
 
             except Exception as e:
                 logger.error(
@@ -171,17 +191,8 @@ async def create_new_project(request: CreateProjectRequest) -> ProjectResponse:
                 # Don't fail project creation if ingestion fails
                 logger.warning("Continuing without description ingestion")
 
-        # Step 3: Return project response
-        return ProjectResponse(
-            id=project_id,
-            name=project["name"],
-            description=project.get("description"),
-            prd_mode=project.get("prd_mode", "initial"),
-            status=project.get("status", "active"),
-            created_at=project["created_at"],
-            updated_at=project.get("updated_at"),
-            signal_id=signal_id,
-        )
+        # Step 3: Return project response (no onboarding if no description)
+        return _to_project_response(project, signal_id=signal_id)
 
     except Exception as e:
         logger.exception("Failed to create project")
@@ -211,6 +222,8 @@ async def get_single_project(project_id: UUID) -> ProjectDetailResponse:
             created_at=project_details["created_at"],
             updated_at=project_details.get("updated_at"),
             signal_id=None,
+            portal_enabled=project_details.get("portal_enabled", False),
+            portal_phase=project_details.get("portal_phase"),
             counts=project_details["counts"],
         )
 
@@ -249,16 +262,7 @@ async def update_existing_project(
         else:
             project = update_project(project_id, updates)
 
-        return ProjectResponse(
-            id=UUID(project["id"]),
-            name=project["name"],
-            description=project.get("description"),
-            prd_mode=project.get("prd_mode", "initial"),
-            status=project.get("status", "active"),
-            created_at=project["created_at"],
-            updated_at=project.get("updated_at"),
-            signal_id=None,
-        )
+        return _to_project_response(project)
 
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
@@ -284,16 +288,7 @@ async def archive_existing_project(project_id: UUID) -> ProjectResponse:
     try:
         project = db_archive_project(project_id)
 
-        return ProjectResponse(
-            id=UUID(project["id"]),
-            name=project["name"],
-            description=project.get("description"),
-            prd_mode=project.get("prd_mode", "initial"),
-            status=project.get("status", "archived"),
-            created_at=project["created_at"],
-            updated_at=project.get("updated_at"),
-            signal_id=None,
-        )
+        return _to_project_response(project)
 
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
@@ -347,3 +342,395 @@ async def update_baseline_config(project_id: UUID, request: BaselinePatchRequest
     except RuntimeError as e:
         logger.exception(f"Failed to update baseline config for {project_id}")
         raise HTTPException(status_code=500, detail=f"Baseline gate error: {str(e)}") from e
+
+
+# ======================
+# Research Tab Endpoints
+# ======================
+
+
+@router.get("/{project_id}/research/chunks")
+async def get_research_chunks(
+    project_id: UUID,
+    limit: int = Query(20, ge=1, le=100, description="Maximum number of chunks"),
+    offset: int = Query(0, ge=0, description="Offset for pagination"),
+):
+    """
+    Get recent research chunks for the project.
+
+    Args:
+        project_id: Project UUID
+        limit: Maximum number of results
+        offset: Offset for pagination
+
+    Returns:
+        List of research chunks
+    """
+    from app.db.supabase_client import get_supabase
+
+    try:
+        supabase = get_supabase()
+
+        # First get signals for this project
+        signals_response = (
+            supabase.table("signals")
+            .select("id")
+            .eq("project_id", str(project_id))
+            .execute()
+        )
+
+        signal_ids = [s["id"] for s in (signals_response.data or [])]
+
+        if not signal_ids:
+            return {"chunks": [], "total": 0}
+
+        # Get chunks for these signals
+        response = (
+            supabase.table("signal_chunks")
+            .select("id, content, chunk_index, metadata, created_at, signal_id")
+            .in_("signal_id", signal_ids)
+            .order("created_at", desc=True)
+            .range(offset, offset + limit - 1)
+            .execute()
+        )
+
+        chunks = []
+        for chunk in response.data or []:
+            metadata = chunk.get("metadata", {}) or {}
+            chunks.append({
+                "id": chunk["id"],
+                "content": chunk.get("content", ""),
+                "chunk_type": metadata.get("chunk_type", metadata.get("doc_type", "general")),
+                "source_name": metadata.get("title", metadata.get("source", "Unknown")),
+                "created_at": chunk["created_at"],
+                "evidence_links": 0,  # TODO: Count actual evidence links
+            })
+
+        return {"chunks": chunks, "total": len(chunks)}
+
+    except Exception as e:
+        logger.exception(f"Failed to get research chunks for project {project_id}")
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.get("/{project_id}/research/evidence-stats")
+async def get_evidence_stats(project_id: UUID):
+    """
+    Get evidence statistics for the project.
+
+    Args:
+        project_id: Project UUID
+
+    Returns:
+        Evidence statistics including coverage metrics
+    """
+    from app.db.supabase_client import get_supabase
+
+    try:
+        supabase = get_supabase()
+
+        # First get signals for this project
+        signals_response = (
+            supabase.table("signals")
+            .select("id")
+            .eq("project_id", str(project_id))
+            .execute()
+        )
+        signal_ids = [s["id"] for s in (signals_response.data or [])]
+
+        # Count total research chunks
+        total_chunks = 0
+        if signal_ids:
+            chunks_response = (
+                supabase.table("signal_chunks")
+                .select("id", count="exact")
+                .in_("signal_id", signal_ids)
+                .execute()
+            )
+            total_chunks = chunks_response.count or 0
+
+        # Get features with evidence counts
+        features_response = (
+            supabase.table("features")
+            .select("id, evidence")
+            .eq("project_id", str(project_id))
+            .execute()
+        )
+        features = features_response.data or []
+        total_features = len(features)
+        features_with_evidence = sum(
+            1 for f in features
+            if f.get("evidence") and len(f["evidence"]) > 0
+        )
+
+        # Count linked chunks (chunks that appear in evidence arrays)
+        linked_chunk_ids = set()
+        for feature in features:
+            for evidence in (feature.get("evidence") or []):
+                if evidence.get("chunk_id"):
+                    linked_chunk_ids.add(evidence["chunk_id"])
+
+        # Also check PRD sections and VP steps
+        prd_response = (
+            supabase.table("prd_sections")
+            .select("evidence")
+            .eq("project_id", str(project_id))
+            .execute()
+        )
+        for section in prd_response.data or []:
+            for evidence in (section.get("evidence") or []):
+                if evidence.get("chunk_id"):
+                    linked_chunk_ids.add(evidence["chunk_id"])
+
+        vp_response = (
+            supabase.table("vp_steps")
+            .select("evidence")
+            .eq("project_id", str(project_id))
+            .execute()
+        )
+        for step in vp_response.data or []:
+            for evidence in (step.get("evidence") or []):
+                if evidence.get("chunk_id"):
+                    linked_chunk_ids.add(evidence["chunk_id"])
+
+        return {
+            "total_chunks": total_chunks,
+            "linked_chunks": len(linked_chunk_ids),
+            "features_with_evidence": features_with_evidence,
+            "total_features": total_features,
+        }
+
+    except Exception as e:
+        logger.exception(f"Failed to get evidence stats for project {project_id}")
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.get("/{project_id}/research/gaps")
+async def get_evidence_gaps(project_id: UUID):
+    """
+    Get entities that lack research evidence.
+
+    Args:
+        project_id: Project UUID
+
+    Returns:
+        List of entities without evidence
+    """
+    from app.db.supabase_client import get_supabase
+
+    try:
+        supabase = get_supabase()
+        gaps = []
+
+        # Check features (MVP only by default)
+        features_response = (
+            supabase.table("features")
+            .select("id, name, evidence, is_mvp")
+            .eq("project_id", str(project_id))
+            .eq("is_mvp", True)
+            .execute()
+        )
+        for feature in features_response.data or []:
+            evidence = feature.get("evidence") or []
+            if len(evidence) == 0:
+                gaps.append({
+                    "entity_type": "feature",
+                    "entity_id": feature["id"],
+                    "entity_name": feature.get("name", "Untitled"),
+                    "has_evidence": False,
+                })
+
+        # Check PRD sections
+        prd_response = (
+            supabase.table("prd_sections")
+            .select("id, label, evidence")
+            .eq("project_id", str(project_id))
+            .execute()
+        )
+        for section in prd_response.data or []:
+            evidence = section.get("evidence") or []
+            if len(evidence) == 0:
+                gaps.append({
+                    "entity_type": "prd_section",
+                    "entity_id": section["id"],
+                    "entity_name": section.get("label", "Untitled"),
+                    "has_evidence": False,
+                })
+
+        # Check VP steps
+        vp_response = (
+            supabase.table("vp_steps")
+            .select("id, label, evidence")
+            .eq("project_id", str(project_id))
+            .execute()
+        )
+        for step in vp_response.data or []:
+            evidence = step.get("evidence") or []
+            if len(evidence) == 0:
+                gaps.append({
+                    "entity_type": "vp_step",
+                    "entity_id": step["id"],
+                    "entity_name": step.get("label", "Untitled"),
+                    "has_evidence": False,
+                })
+
+        return {"gaps": gaps, "total": len(gaps)}
+
+    except Exception as e:
+        logger.exception(f"Failed to get evidence gaps for project {project_id}")
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.get("/{project_id}/status-narrative")
+async def get_project_status_narrative(
+    project_id: UUID,
+    regenerate: bool = Query(False, description="Force regenerate even if recent"),
+):
+    """
+    Get or generate the AI status narrative for a project.
+
+    Args:
+        project_id: Project UUID
+        regenerate: Force regeneration even if a recent one exists
+
+    Returns:
+        StatusNarrative with where_today and where_going
+    """
+    from app.chains.generate_status_narrative import (
+        generate_status_narrative,
+        get_or_generate_narrative,
+    )
+
+    try:
+        if regenerate:
+            narrative = await generate_status_narrative(project_id)
+        else:
+            narrative = await get_or_generate_narrative(project_id)
+
+        return StatusNarrative(
+            where_today=narrative.get("where_today", ""),
+            where_going=narrative.get("where_going", ""),
+            updated_at=narrative.get("updated_at"),
+        )
+    except Exception as e:
+        logger.exception(f"Failed to get status narrative for {project_id}")
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.get("/{project_id}/research/sources")
+async def get_research_sources(
+    project_id: UUID,
+    research_only: bool = Query(False, description="If true, only return research-type signals"),
+):
+    """
+    Get all signal sources for the project.
+
+    Args:
+        project_id: Project UUID
+        research_only: If true, filter to only research-type signals
+
+    Returns:
+        List of signal sources with metadata and chunk counts
+    """
+    from app.db.supabase_client import get_supabase
+
+    try:
+        supabase = get_supabase()
+
+        # Build query - optionally filter to research-type signals
+        query = (
+            supabase.table("signals")
+            .select("id, signal_type, source, metadata, created_at")
+            .eq("project_id", str(project_id))
+        )
+
+        if research_only:
+            query = query.in_("signal_type", ["market_research", "research", "competitive_analysis"])
+
+        response = query.order("created_at", desc=True).execute()
+
+        # Get chunk counts for each signal
+        signal_ids = [s["id"] for s in response.data or []]
+        chunk_counts = {}
+        if signal_ids:
+            chunks_response = (
+                supabase.table("signal_chunks")
+                .select("signal_id")
+                .in_("signal_id", signal_ids)
+                .execute()
+            )
+            for chunk in chunks_response.data or []:
+                sid = chunk["signal_id"]
+                chunk_counts[sid] = chunk_counts.get(sid, 0) + 1
+
+        sources = []
+        for signal in response.data or []:
+            metadata = signal.get("metadata", {}) or {}
+            signal_type = signal.get("signal_type", "unknown")
+
+            # Friendly display name for signal type
+            type_labels = {
+                "market_research": "Market Research",
+                "research": "Research",
+                "competitive_analysis": "Competitive Analysis",
+                "email": "Email",
+                "transcript": "Transcript",
+                "note": "Note",
+                "file": "File",
+                "file_text": "Document",
+            }
+
+            sources.append({
+                "id": signal["id"],
+                "source_type": signal_type,
+                "source_type_label": type_labels.get(signal_type, signal_type.replace("_", " ").title()),
+                "source_url": metadata.get("url", metadata.get("source_url")),
+                "source_name": metadata.get("title", signal.get("source", "Unknown Source")),
+                "created_at": signal["created_at"],
+                "chunk_count": chunk_counts.get(signal["id"], 0),
+                "metadata": metadata,
+            })
+
+        return {"sources": sources, "total": len(sources)}
+
+    except Exception as e:
+        logger.exception(f"Failed to get research sources for project {project_id}")
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+# ======================
+# Helper Functions
+# ======================
+
+
+def _to_project_response(p: dict, signal_id: UUID | None = None, onboarding_job_id: UUID | None = None) -> ProjectResponse:
+    """Convert a project dict to ProjectResponse."""
+    # Parse status_narrative if present
+    status_narrative = None
+    if p.get("status_narrative"):
+        try:
+            sn = p["status_narrative"]
+            status_narrative = StatusNarrative(
+                where_today=sn.get("where_today", ""),
+                where_going=sn.get("where_going", ""),
+                updated_at=sn.get("updated_at"),
+            )
+        except Exception:
+            pass
+
+    return ProjectResponse(
+        id=UUID(p["id"]) if isinstance(p["id"], str) else p["id"],
+        name=p["name"],
+        description=p.get("description"),
+        prd_mode=p.get("prd_mode", "initial"),
+        status=p.get("status", "active"),
+        created_at=p["created_at"],
+        updated_at=p.get("updated_at"),
+        signal_id=signal_id,
+        onboarding_job_id=onboarding_job_id,
+        portal_enabled=p.get("portal_enabled", False),
+        portal_phase=p.get("portal_phase"),
+        stage=p.get("stage", "discovery"),
+        client_name=p.get("client_name"),
+        status_narrative=status_narrative,
+    )

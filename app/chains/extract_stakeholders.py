@@ -37,17 +37,19 @@ IMPORTANT RULES:
 - Infer expertise from context (a person discussing SSO setup likely has "security" or "IT" expertise)
 - Be generous with topics_discussed - capture all subjects they're connected to
 
-Output ONLY valid JSON array:
-[
-  {
-    "name": "string",
-    "role": "string or null",
-    "email": "string or null",
-    "domain_expertise": ["string"],
-    "source_type": "direct_participant" | "mentioned",
-    "topics_discussed": ["string"]
-  }
-]
+Output valid JSON object with a "stakeholders" key containing an array:
+{
+  "stakeholders": [
+    {
+      "name": "string",
+      "role": "string or null",
+      "email": "string or null",
+      "domain_expertise": ["string"],
+      "source_type": "direct_participant" | "mentioned",
+      "topics_discussed": ["string"]
+    }
+  ]
+}
 """
 
 
@@ -99,7 +101,7 @@ Content to analyze:
 Extract all stakeholders mentioned in this content."""
 
         response = client.chat.completions.create(
-            model=settings.FACT_EXTRACTION_MODEL,
+            model=settings.FACTS_MODEL,
             messages=[
                 {"role": "system", "content": SYSTEM_PROMPT},
                 {"role": "user", "content": user_prompt},
@@ -110,24 +112,30 @@ Extract all stakeholders mentioned in this content."""
         )
 
         raw_output = response.choices[0].message.content
+        logger.debug(f"Stakeholder extraction raw output: {raw_output[:500]}")
 
         # Parse response - handle both array and object with array
         try:
             parsed = json.loads(raw_output)
             if isinstance(parsed, list):
                 extracted = parsed
+                logger.debug(f"Parsed as array with {len(extracted)} items")
             elif isinstance(parsed, dict) and "stakeholders" in parsed:
                 extracted = parsed["stakeholders"]
+                logger.debug(f"Parsed from 'stakeholders' key with {len(extracted)} items")
             else:
                 # Try to find any array in the response
-                for value in parsed.values():
+                logger.debug(f"Looking for array in dict keys: {list(parsed.keys())}")
+                for key, value in parsed.items():
                     if isinstance(value, list):
                         extracted = value
+                        logger.debug(f"Found array in key '{key}' with {len(extracted)} items")
                         break
                 else:
+                    logger.warning(f"No array found in parsed response: {list(parsed.keys())}")
                     extracted = []
-        except json.JSONDecodeError:
-            logger.warning(f"Failed to parse stakeholder extraction response: {raw_output[:200]}")
+        except json.JSONDecodeError as e:
+            logger.warning(f"Failed to parse stakeholder extraction response: {e} - {raw_output[:200]}")
             extracted = []
 
         logger.info(
@@ -139,8 +147,13 @@ Extract all stakeholders mentioned in this content."""
         created_stakeholders = []
         for sh in extracted:
             try:
+                # Skip if not a dict (e.g., LLM returned strings)
+                if not isinstance(sh, dict):
+                    logger.warning(f"Skipping non-dict stakeholder entry: {type(sh)}")
+                    continue
+
                 name = sh.get("name")
-                if not name or len(name.strip()) < 2:
+                if not name or len(str(name).strip()) < 2:
                     continue
 
                 # Determine if direct participant

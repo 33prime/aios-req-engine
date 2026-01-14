@@ -1,7 +1,21 @@
 'use client'
 
 import { Sparkles, Info } from 'lucide-react'
-import { formatDistanceToNow } from 'date-fns'
+
+// Simple relative time formatter
+function formatDistanceToNow(date: Date): string {
+  const now = new Date()
+  const diffMs = now.getTime() - date.getTime()
+  const diffMins = Math.floor(diffMs / 60000)
+  const diffHours = Math.floor(diffMins / 60)
+  const diffDays = Math.floor(diffHours / 24)
+
+  if (diffMins < 1) return 'less than a minute'
+  if (diffMins < 60) return `${diffMins} minute${diffMins === 1 ? '' : 's'}`
+  if (diffHours < 24) return `${diffHours} hour${diffHours === 1 ? '' : 's'}`
+  if (diffDays < 30) return `${diffDays} day${diffDays === 1 ? '' : 's'}`
+  return date.toLocaleDateString()
+}
 
 interface EnrichmentContextProps {
   newSignalsCount?: number
@@ -22,7 +36,7 @@ export default function EnrichmentContext({
   const formatDate = (dateString: string) => {
     try {
       const date = new Date(dateString)
-      return formatDistanceToNow(date, { addSuffix: true })
+      return formatDistanceToNow(date) + ' ago'
     } catch {
       return dateString
     }

@@ -156,6 +156,7 @@ def reconcile_state(
     response = client.chat.completions.create(
         model=model,
         temperature=0,
+        max_tokens=16384,
         messages=[
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": user_prompt},
@@ -181,6 +182,7 @@ def reconcile_state(
     retry_response = client.chat.completions.create(
         model=model,
         temperature=0,
+        max_tokens=16384,
         messages=[
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": user_prompt},

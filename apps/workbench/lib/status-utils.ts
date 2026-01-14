@@ -38,6 +38,7 @@ export function getStatusBadgeConfig(status: string | null | undefined) {
     case 'ai_draft':
       return statusColors.aiDraft
 
+    case 'needs_client':
     case 'needs_confirmation':
     case 'needs confirmation':
       return statusColors.needsConfirmation
@@ -89,6 +90,7 @@ const statusOrder: Record<string, number> = {
   ai_draft: 0,
   confirmed_consultant: 1,
   confirmed: 1,
+  needs_client: 2,
   needs_confirmation: 2,
   confirmed_client: 3,
   client_confirmed: 3
@@ -108,7 +110,7 @@ export function compareStatuses(statusA: string, statusB: string): number {
  */
 export function isReadyForClient(status: string): boolean {
   const normalized = status.toLowerCase().trim()
-  return normalized === 'needs_confirmation'
+  return normalized === 'needs_client' || normalized === 'needs_confirmation'
 }
 
 /**

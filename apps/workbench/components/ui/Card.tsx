@@ -12,6 +12,7 @@
  */
 
 import React, { HTMLAttributes, ReactNode } from 'react'
+import { LucideIcon } from 'lucide-react'
 
 interface CardProps extends HTMLAttributes<HTMLDivElement> {
   children: ReactNode
@@ -76,14 +77,16 @@ interface CardHeaderProps {
   title: string | ReactNode
   subtitle?: string | ReactNode
   actions?: ReactNode
+  icon?: LucideIcon
   className?: string
 }
 
-export function CardHeader({ title, subtitle, actions, className = '' }: CardHeaderProps) {
+export function CardHeader({ title, subtitle, actions, icon: Icon, className = '' }: CardHeaderProps) {
   return (
     <div className={`flex items-start justify-between mb-4 ${className}`}>
       <div className="flex-1">
-        <h3 className="text-section text-ui-headingDark">
+        <h3 className="text-section text-ui-headingDark flex items-center gap-2">
+          {Icon && <Icon className="h-5 w-5 text-ui-supportText" />}
           {title}
         </h3>
         {subtitle && (

@@ -1,8 +1,9 @@
 'use client'
 
 import { useState } from 'react'
-import { Target, CheckCircle, AlertCircle, Info, ExternalLink, ChevronDown, ChevronUp } from 'lucide-react'
+import { Target, CheckCircle, AlertCircle, Info, ExternalLink, ChevronDown, ChevronUp, History } from 'lucide-react'
 import { Feature } from '@/types/api'
+import ChangeLogTimeline from '@/components/revisions/ChangeLogTimeline'
 
 interface FeatureDetailCardProps {
   feature: Feature
@@ -13,6 +14,7 @@ interface FeatureDetailCardProps {
 export default function FeatureDetailCard({ feature, onViewEvidence, onConfirmationChange }: FeatureDetailCardProps) {
   const [showDetails, setShowDetails] = useState(false)
   const [showEvidence, setShowEvidence] = useState(false)
+  const [showHistory, setShowHistory] = useState(false)
   const [updating, setUpdating] = useState(false)
 
   const getStatusColor = (status: string) => {
@@ -21,6 +23,7 @@ export default function FeatureDetailCard({ feature, onViewEvidence, onConfirmat
         return 'bg-green-100 text-green-800'
       case 'confirmed_consultant':
         return 'bg-blue-100 text-blue-800'
+      case 'needs_client':
       case 'needs_confirmation':
         return 'bg-yellow-100 text-yellow-800'
       default:
@@ -288,6 +291,27 @@ export default function FeatureDetailCard({ feature, onViewEvidence, onConfirmat
           )}
         </div>
       )}
+
+      {/* Change History Section */}
+      <div className="border-t border-gray-200 pt-4">
+        <button
+          onClick={() => setShowHistory(!showHistory)}
+          className="flex items-center text-sm font-medium text-blue-600 hover:text-blue-800"
+        >
+          <History className="h-4 w-4 mr-1" />
+          Change History
+          {showHistory ? <ChevronUp className="h-4 w-4 ml-1" /> : <ChevronDown className="h-4 w-4 ml-1" />}
+        </button>
+
+        {showHistory && (
+          <div className="mt-4">
+            <ChangeLogTimeline entityType="feature" entityId={feature.id} limit={10} />
+          </div>
+        )}
+      </div>
     </div>
   )
 }
+
+
+

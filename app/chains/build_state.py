@@ -80,23 +80,42 @@ You MUST output ONLY valid JSON matching this exact schema:
       "status": "draft",
       "evidence": [...]
     }
+  ],
+  "personas": [
+    {
+      "slug": "string - stable identifier (e.g., 'sales-representative')",
+      "name": "string - persona name (e.g., 'Sales Representative')",
+      "role": "string - role/title",
+      "demographics": {"age_range": "string", "location": "string", ...},
+      "psychographics": {"tech_savviness": "string", "motivations": "string", ...},
+      "goals": ["string - persona goal 1", "string - goal 2", ...],
+      "pain_points": ["string - pain point 1", "string - pain point 2", ...],
+      "description": "string - brief persona description"
+    }
   ]
 }
 
 CRITICAL RULES:
 1. Output ONLY the JSON object, no markdown, no explanation, no preamble.
-2. Create at least 4 PRD sections (software_summary, personas, key_features, happy_path are required).
-3. Create at least 3 Value Path steps describing the user workflow.
-4. Create at least 5 Key Features with appropriate categories.
-5. All items MUST have status="draft" (never confirmed_client).
-6. Set required=true for software_summary, personas, key_features, and happy_path sections.
-7. evidence.chunk_id MUST be one of the chunk_ids provided in the user message.
-8. evidence.excerpt MUST be copied verbatim from the chunk (max 280 characters).
-9. If something is uncertain, add it to client_needs or needed arrays instead of making assumptions.
-10. Be specific and actionable - avoid vague statements.
-11. Prioritize chunks with authority='client' over authority='research'.
-12. software_summary section should contain a brief overview of the software (2-3 paragraphs): what the software is and what problem it solves, key capabilities and features (high-level), and target users and their primary use cases.
-13. Generate constraints section if technical, security, or business constraints are mentioned in the facts."""
+2. The JSON MUST have 4 top-level keys: "prd_sections", "vp_steps", "features", and "personas" (all required).
+3. Create at least 4 PRD sections (software_summary, personas, key_features, happy_path are required).
+4. Create at least 7 Value Path steps describing the user workflow.
+5. Create at least 8 Key Features with appropriate categories.
+6. Create at least 2 Persona entities with structured data (slug, name, role, demographics, psychographics, goals, pain_points, description).
+7. NEVER omit the "personas" array - it is REQUIRED and must have at least 2 items.
+8. All items MUST have status="draft" (never confirmed_client).
+9. Set required=true for software_summary, personas, key_features, and happy_path sections.
+10. Each prd_section, vp_step, and feature should have evidence entries with chunk_ids when relevant content exists in the provided chunks.
+11. evidence.chunk_id MUST be one of the chunk_ids provided in the user message.
+12. evidence.excerpt MUST be copied verbatim from the chunk (max 280 characters).
+13. If something is uncertain, add it to client_needs or needed arrays instead of making assumptions.
+14. Be specific and actionable - avoid vague statements.
+15. Prioritize chunks with authority='client' over authority='research'.
+16. software_summary section should contain a brief overview of the software (2-3 paragraphs): what the software is and what problem it solves, key capabilities and features (high-level), and target users and their primary use cases.
+17. Generate constraints section if technical, security, or business constraints are mentioned in the facts.
+18. Persona slugs should be lowercase-hyphenated (e.g., 'sales-representative', 'sales-manager').
+19. Demographics and psychographics should include relevant attributes like age range, tech savviness, motivations, etc.
+20. Persona goals and pain_points should be specific to their role and how they interact with the software."""
 
 
 FIX_SCHEMA_PROMPT = """The previous output was invalid. Here is the error:
@@ -107,7 +126,23 @@ Here is your previous output:
 
 {previous_output}
 
-Please fix the output to match the required JSON schema exactly. Output ONLY valid JSON, no explanation."""
+CRITICAL FIX REQUIRED:
+- Your JSON is MISSING the "personas" field. You MUST include it.
+- The "personas" field must be an array with at least 2 persona objects.
+- Each persona must have: slug, name, role, demographics, psychographics, goals, pain_points, description.
+- Example persona structure:
+  {{
+    "slug": "sales-manager",
+    "name": "Sales Manager",
+    "role": "Sales team leader",
+    "demographics": {{"age_range": "30-45", "location": "USA"}},
+    "psychographics": {{"tech_savviness": "medium", "motivations": "efficiency"}},
+    "goals": ["Close deals faster", "Track team performance"],
+    "pain_points": ["Manual data entry", "Lack of visibility"],
+    "description": "Manages sales team and oversees deal pipeline"
+  }}
+
+Please fix the output to match the required JSON schema exactly. Output ONLY valid JSON with ALL required fields including personas, no explanation."""
 
 
 def run_build_state_chain(
@@ -155,9 +190,25 @@ def run_build_state_chain(
                 {"role": "user", "content": user_prompt},
             ],
             temperature=0.1,
+            max_tokens=16384,  # Increased for larger outputs with 7+ VP steps, 8+ features, personas
         )
 
         output_text = response.choices[0].message.content or ""
+
+        # Log if output was truncated
+        finish_reason = response.choices[0].finish_reason
+        if finish_reason == "length":
+            logger.warning(
+                "LLM output was truncated due to token limit. Increase max_tokens.",
+                extra={"finish_reason": finish_reason, "output_length": len(output_text)},
+            )
+
+        # Log a sample of the output for debugging
+        logger.info(
+            f"LLM output preview (first 500 chars): {output_text[:500]}...",
+            extra={"output_length": len(output_text), "finish_reason": finish_reason},
+        )
+
         return _parse_and_validate(output_text)
 
     except (json.JSONDecodeError, ValidationError) as e:
@@ -180,9 +231,17 @@ def run_build_state_chain(
                     },
                 ],
                 temperature=0.1,
+                max_tokens=16384,  # Increased for larger outputs with 7+ VP steps, 8+ features, personas
             )
 
             fixed_output = fix_response.choices[0].message.content or ""
+
+            # Log retry output
+            logger.info(
+                f"Retry output preview (first 500 chars): {fixed_output[:500]}...",
+                extra={"output_length": len(fixed_output)},
+            )
+
             return _parse_and_validate(fixed_output)
 
         except (json.JSONDecodeError, ValidationError) as retry_error:

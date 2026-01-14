@@ -515,10 +515,42 @@ def apply_proposal(proposal_id: UUID, applied_by: str | None = None) -> dict[str
                     if not after or "slug" not in after:
                         continue
 
+                    # Call upsert_persona with individual parameters (not payload dict)
                     upsert_persona(
                         project_id=project_id,
                         slug=after["slug"],
-                        payload=after,
+                        name=after.get("name", after.get("slug", "Unknown")),
+                        role=after.get("role"),
+                        demographics=after.get("demographics"),
+                        psychographics=after.get("psychographics"),
+                        goals=after.get("goals"),
+                        pain_points=after.get("pain_points"),
+                        description=after.get("description"),
+                        related_features=after.get("related_features"),
+                        related_vp_steps=after.get("related_vp_steps"),
+                        confirmation_status=after.get("confirmation_status", "ai_generated"),
+                    )
+                    applied_count += 1
+
+            # Apply constraint changes
+            if "constraint" in changes_by_type:
+                from app.db.constraints import upsert_constraint
+
+                constraint_changes = changes_by_type["constraint"]
+
+                for change in constraint_changes["creates"] + constraint_changes["updates"]:
+                    after = change.get("after")
+
+                    if not after or "title" not in after:
+                        continue
+
+                    upsert_constraint(
+                        project_id=project_id,
+                        title=after["title"],
+                        constraint_type=after.get("constraint_type", "technical"),
+                        description=after.get("description"),
+                        severity=after.get("severity", "should_have"),
+                        evidence=change.get("evidence", []),
                     )
                     applied_count += 1
 

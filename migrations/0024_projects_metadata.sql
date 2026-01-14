@@ -14,3 +14,6 @@ COMMENT ON COLUMN projects.metadata IS 'Project-specific metadata (flexible JSON
 
 -- Optional: Create index for metadata queries (if needed in future)
 -- CREATE INDEX IF NOT EXISTS idx_projects_metadata ON projects USING gin(metadata);
+
+
+

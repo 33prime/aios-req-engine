@@ -5,6 +5,7 @@ from uuid import UUID
 
 from app.core.logging import get_logger
 from app.db.supabase_client import get_supabase
+from app.db.confirmations import upsert_confirmation_item
 
 logger = get_logger(__name__)
 
@@ -360,9 +361,10 @@ def update_prd_section_status(
     supabase = get_supabase()
 
     try:
+        # Update both status columns for consistency
         response = (
             supabase.table("prd_sections")
-            .update({"confirmation_status": status})
+            .update({"status": status, "confirmation_status": status})
             .eq("id", str(section_id))
             .execute()
         )
@@ -371,13 +373,44 @@ def update_prd_section_status(
             raise ValueError(f"PRD section not found: {section_id}")
 
         updated_section = response.data[0]
-        logger.info(f"Updated confirmation status for PRD section {section_id} to {status}")
+        logger.info(f"Updated status for PRD section {section_id} to {status}")
+
+        # If marked as needs_client, create a confirmation item
+        if status == "needs_client":
+            project_id = updated_section.get("project_id")
+            slug = updated_section.get("slug", "unknown")
+            label = updated_section.get("label", slug)
+
+            # Get client_needs from section if available
+            client_needs = updated_section.get("client_needs", [])
+            ask = client_needs[0].get("ask", f"Please review and confirm the {label} section.") if client_needs else f"Please review and confirm the {label} section."
+            why = client_needs[0].get("why", "Consultant marked this section as needing client input.") if client_needs else "Consultant marked this section as needing client input."
+
+            try:
+                upsert_confirmation_item(
+                    project_id=UUID(project_id),
+                    key=f"prd:{slug}:manual",
+                    payload={
+                        "kind": "prd",
+                        "title": f"Confirm: {label}",
+                        "why": why,
+                        "ask": ask,
+                        "priority": "medium",
+                        "suggested_method": "email",
+                        "status": "open",
+                        "target_table": "prd_sections",
+                        "target_id": str(section_id),
+                    }
+                )
+                logger.info(f"Created confirmation item for PRD section {section_id}")
+            except Exception as conf_err:
+                logger.warning(f"Failed to create confirmation item: {conf_err}")
 
         return updated_section
 
     except ValueError:
         raise
     except Exception as e:
-        logger.error(f"Failed to update confirmation status for PRD section {section_id}: {e}")
+        logger.error(f"Failed to update status for PRD section {section_id}: {e}")
         raise
 

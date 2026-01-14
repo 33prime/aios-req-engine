@@ -7,7 +7,6 @@ from app.core.embeddings import embed_texts
 from app.core.logging import get_logger
 from app.db.confirmations import list_confirmation_items
 from app.db.facts import list_latest_extracted_facts
-from app.db.insights import list_latest_insights
 from app.db.phase0 import search_signal_chunks
 from app.db.prd import list_prd_sections
 
@@ -327,9 +326,9 @@ def get_prd_enrich_context(
 
     logger.info(f"Selected {len(sections)} PRD sections for enrichment")
 
-    # Get latest facts and insights for context
+    # Get latest facts for context (insights system removed)
     facts = list_latest_extracted_facts(project_id, limit=8)
-    insights = list_latest_insights(project_id, limit=15, statuses=["open", "queued", "resolved"])
+    insights: list = []  # Insights system removed
 
     # Get confirmations for context
     confirmations = list_confirmation_items(project_id)

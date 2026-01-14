@@ -229,8 +229,8 @@ export const componentClasses = {
 // TYPE DEFINITIONS
 // ============================================================================
 
-export type StatusType = 'draft' | 'confirmed_consultant' | 'needs_confirmation' | 'confirmed_client'
+export type StatusType = 'draft' | 'confirmed_consultant' | 'needs_client' | 'confirmed_client'
 export type SeverityType = 'critical' | 'important' | 'minor'
 export type GateType = 'completeness' | 'validation' | 'assumption' | 'scope' | 'wow'
 export type ChannelType = 'email' | 'meeting'
-export type ButtonVariant = 'primary' | 'secondary' | 'outline'
+export type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'ghost'

@@ -12,7 +12,7 @@
 import React, { useState } from 'react'
 import { ListItem, EmptyState } from '@/components/ui'
 import { StatusBadge } from '@/components/ui/StatusBadge'
-import { FileText, Users, Target, Zap, Filter } from 'lucide-react'
+import { FileText, Users, Target, Zap, Filter, ShieldAlert, Info } from 'lucide-react'
 import type { PrdSection } from '@/types/api'
 
 interface PrdListProps {
@@ -22,27 +22,67 @@ interface PrdListProps {
 }
 
 const SECTION_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
+  software_summary: Info,
   personas: Users,
   key_features: Target,
   happy_path: Zap,
+  constraints: ShieldAlert,
 }
 
 const SECTION_DESCRIPTIONS: Record<string, string> = {
+  software_summary: 'High-level overview',
   personas: 'User personas and characteristics',
   key_features: 'Core product features',
   happy_path: 'Ideal user journey',
-  constraints: 'Scope and limitations',
+  constraints: 'Technical and business constraints',
   features_must_have: 'Must-have features',
   features_nice_to_have: 'Nice-to-have features',
+}
+
+// Define section display order
+const SECTION_ORDER = [
+  'software_summary',
+  'personas',
+  'key_features',
+  'happy_path',
+  'constraints',
+]
+
+function sortSections(sections: PrdSection[]): PrdSection[] {
+  return [...sections].sort((a, b) => {
+    const aIndex = SECTION_ORDER.indexOf(a.slug)
+    const bIndex = SECTION_ORDER.indexOf(b.slug)
+
+    // If both are in the defined order, sort by order
+    if (aIndex !== -1 && bIndex !== -1) {
+      return aIndex - bIndex
+    }
+
+    // If only a is in order, a comes first
+    if (aIndex !== -1) return -1
+
+    // If only b is in order, b comes first
+    if (bIndex !== -1) return 1
+
+    // Otherwise, sort alphabetically by slug
+    return a.slug.localeCompare(b.slug)
+  })
 }
 
 export function PrdList({ sections, selectedId, onSelect }: PrdListProps) {
   const [statusFilter, setStatusFilter] = useState<string | null>(null)
 
-  // Filter sections
+  // Check if entity was recently updated (last 24 hours)
+  const isRecentlyUpdated = (updatedAt: string) => {
+    const diffMs = new Date().getTime() - new Date(updatedAt).getTime()
+    return diffMs < 24 * 60 * 60 * 1000
+  }
+
+  // Sort sections first, then filter
+  const sortedSections = sortSections(sections)
   const filteredSections = statusFilter
-    ? sections.filter(s => s.status === statusFilter)
-    : sections
+    ? sortedSections.filter(s => s.status === statusFilter)
+    : sortedSections
 
   // Count by status
   const statusCounts = sections.reduce((acc, s) => {
@@ -103,6 +143,7 @@ export function PrdList({ sections, selectedId, onSelect }: PrdListProps) {
           const Icon = SECTION_ICONS[section.slug] || FileText
           const description = SECTION_DESCRIPTIONS[section.slug] || section.slug.replace(/_/g, ' ')
           const isEnriched = !!section.enrichment
+          const recentlyUpdated = isRecentlyUpdated(section.updated_at)
 
           return (
             <ListItem
@@ -113,6 +154,12 @@ export function PrdList({ sections, selectedId, onSelect }: PrdListProps) {
                   <span>{section.label}</span>
                   {isEnriched && (
                     <span className="text-xs text-brand-accent">✨</span>
+                  )}
+                  {recentlyUpdated && (
+                    <span className="relative inline-flex h-2 w-2">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span>
+                    </span>
                   )}
                 </div>
               }

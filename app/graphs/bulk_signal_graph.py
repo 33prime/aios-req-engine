@@ -25,6 +25,7 @@ from app.chains.extract_facts import extract_facts_from_chunks
 from app.chains.extract_stakeholders import extract_stakeholders_from_signal
 from app.chains.validate_bulk_changes import validate_bulk_changes
 from app.core.config import get_settings
+from app.core.fact_inputs import get_project_context_for_extraction
 from app.core.logging import get_logger
 from app.core.schemas_bulk_signal import (
     BulkPipelineState,
@@ -172,15 +173,24 @@ def run_fact_extraction(state: BulkProcessingState) -> dict[str, Any]:
     try:
         settings = get_settings()
 
+        # Fetch project context to improve extraction quality
+        project_context = None
+        try:
+            project_context = get_project_context_for_extraction(state.project_id)
+        except Exception as e:
+            logger.warning(f"Failed to fetch project context: {e}")
+
         # Extract facts
         result = extract_facts_from_chunks(
             signal=state.signal,
             chunks=state.chunks,
             settings=settings,
+            project_context=project_context,
         )
 
-        # Convert facts to entities
-        entities = facts_to_entities(result.facts)
+        # Convert facts to entities (convert Pydantic models to dicts first)
+        facts_as_dicts = [f.model_dump() if hasattr(f, 'model_dump') else f for f in result.facts]
+        entities = facts_to_entities(facts_as_dicts)
 
         logger.info(
             f"Fact extraction complete: {len(result.facts)} facts → {len(entities)} entities",
@@ -225,22 +235,29 @@ def run_stakeholder_extraction(state: BulkProcessingState) -> dict[str, Any]:
     error: str | None = None
 
     try:
-        # Run async extraction in sync context
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
+        # Run async extraction in a separate thread to avoid uvloop conflict
+        import concurrent.futures
 
-        try:
-            stakeholders = loop.run_until_complete(
-                extract_stakeholders_from_signal(
-                    project_id=state.project_id,
-                    signal_id=state.signal_id,
-                    content=state.signal_content,
-                    source_type=state.signal_type,
-                    metadata=state.signal_metadata,
+        def run_async_extraction():
+            """Run async code in a new thread with fresh event loop."""
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            try:
+                return loop.run_until_complete(
+                    extract_stakeholders_from_signal(
+                        project_id=state.project_id,
+                        signal_id=state.signal_id,
+                        content=state.signal_content,
+                        source_type=state.signal_type,
+                        metadata=state.signal_metadata,
+                    )
                 )
-            )
-        finally:
-            loop.close()
+            finally:
+                loop.close()
+
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            future = executor.submit(run_async_extraction)
+            stakeholders = future.result(timeout=120)
 
         # Convert to ExtractedEntity
         for sh in stakeholders:
@@ -732,40 +749,66 @@ def run_bulk_signal_pipeline(
     )
 
     try:
-        final_state = graph.invoke(initial_state)
+        final_state_raw = graph.invoke(initial_state)
+
+        # Handle both dict and object returns from LangGraph
+        if isinstance(final_state_raw, dict):
+            proposal_id = final_state_raw.get("proposal_id")
+            consolidation = final_state_raw.get("consolidation")
+            validation = final_state_raw.get("validation")
+            proposal = final_state_raw.get("proposal")
+            creative_brief_fields = final_state_raw.get("creative_brief_fields_updated", [])
+        else:
+            proposal_id = final_state_raw.proposal_id
+            consolidation = final_state_raw.consolidation
+            validation = final_state_raw.validation
+            proposal = final_state_raw.proposal
+            creative_brief_fields = final_state_raw.creative_brief_fields_updated
+
+        # Extract counts safely
+        if consolidation:
+            if isinstance(consolidation, dict):
+                total_changes = consolidation.get("total_creates", 0) + consolidation.get("total_updates", 0)
+                features_count = len(consolidation.get("features", []))
+                personas_count = len(consolidation.get("personas", []))
+                stakeholders_count = len(consolidation.get("stakeholders", []))
+            else:
+                total_changes = consolidation.total_creates + consolidation.total_updates
+                features_count = len(consolidation.features)
+                personas_count = len(consolidation.personas)
+                stakeholders_count = len(consolidation.stakeholders)
+        else:
+            total_changes = 0
+            features_count = 0
+            personas_count = 0
+            stakeholders_count = 0
+
+        if validation:
+            if isinstance(validation, dict):
+                contradictions_count = len(validation.get("contradictions", []))
+            else:
+                contradictions_count = len(validation.contradictions)
+        else:
+            contradictions_count = 0
+
+        requires_review = True
+        if proposal:
+            if isinstance(proposal, dict):
+                requires_review = proposal.get("requires_review", True)
+            else:
+                requires_review = proposal.requires_review
 
         result = {
             "success": True,
-            "proposal_id": str(final_state.proposal_id) if final_state.proposal_id else None,
-            "total_changes": (
-                final_state.consolidation.total_creates + final_state.consolidation.total_updates
-                if final_state.consolidation else 0
-            ),
-            "features_count": (
-                len(final_state.consolidation.features)
-                if final_state.consolidation else 0
-            ),
-            "personas_count": (
-                len(final_state.consolidation.personas)
-                if final_state.consolidation else 0
-            ),
-            "stakeholders_count": (
-                len(final_state.consolidation.stakeholders)
-                if final_state.consolidation else 0
-            ),
-            "requires_review": final_state.proposal.requires_review if final_state.proposal else True,
-            "contradictions": (
-                len(final_state.validation.contradictions)
-                if final_state.validation else 0
-            ),
-            "creative_brief_updated": (
-                final_state.creative_brief_result.get("applied", False)
-                if final_state.creative_brief_result else False
-            ),
-            "creative_brief_fields": (
-                final_state.creative_brief_result.get("fields_found", [])
-                if final_state.creative_brief_result else []
-            ),
+            "proposal_id": str(proposal_id) if proposal_id else None,
+            "total_changes": total_changes,
+            "features_count": features_count,
+            "personas_count": personas_count,
+            "stakeholders_count": stakeholders_count,
+            "requires_review": requires_review,
+            "contradictions": contradictions_count,
+            "creative_brief_updated": len(creative_brief_fields) > 0,
+            "creative_brief_fields": creative_brief_fields or [],
         }
 
         logger.info(

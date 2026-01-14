@@ -22,8 +22,8 @@ class EnrichVPStepOutput(BaseModel):
         description="Proposed needed items in same format as existing needed"
     )
     evidence: list[EvidenceRef] = Field(
-        min_length=1,
-        description="Evidence supporting all changes and proposals"
+        default_factory=list,
+        description="Evidence supporting all changes and proposals (optional)"
     )
     summary: str = Field(..., description="Brief summary of enrichment changes")
     schema_version: str = Field(default="vp_enrichment_v1", description="Schema version")

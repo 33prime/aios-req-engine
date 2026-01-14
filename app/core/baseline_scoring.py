@@ -1,13 +1,22 @@
-"""Baseline completeness scoring for PRD readiness assessment.
+"""Baseline completeness scoring for prototype readiness assessment.
 
-This module calculates a completeness score (0-1) for a project's baseline PRD,
+This module calculates a completeness score (0-1) for a project's baseline,
 helping consultants decide when to finalize the baseline and switch to maintenance mode.
+
+IMPORTANT: Prototype readiness is based on CONFIRMED entities only.
+- AI-generated drafts don't count toward readiness
+- Only client_confirmed and consultant_confirmed entities count
+- Threshold for "ready" is 60%
+
+NOTE: PRD sections are no longer used. Scoring is based on:
+- Features (40%)
+- Value Path steps (35%)
+- Personas (25%)
 """
 
 from uuid import UUID
 
 from app.core.logging import get_logger
-from app.db.prd import list_prd_sections
 from app.db.features import list_features
 from app.db.vp import list_vp_steps
 from app.db.personas import list_personas
@@ -18,127 +27,102 @@ logger = get_logger(__name__)
 # Score Components
 # =========================
 
-# Required PRD sections (must exist and have content)
-REQUIRED_PRD_SLUGS = [
-    "software_summary",
-    "personas",
-    "key_features",
-    "happy_path",
-    "constraints",
-]
-
-# Minimum thresholds for entities
+# Minimum thresholds for CONFIRMED entities
 MIN_FEATURES = 3
 MIN_PERSONAS = 2
 MIN_VP_STEPS = 3
 
 # Weight distribution (must sum to 1.0)
-WEIGHT_PRD_SECTIONS = 0.40  # 40% - Required sections filled
-WEIGHT_FEATURES = 0.20  # 20% - Feature count
-WEIGHT_PERSONAS = 0.15  # 15% - Persona count
-WEIGHT_VP_STEPS = 0.15  # 15% - VP step count
-WEIGHT_CONSTRAINTS = 0.10  # 10% - Constraints captured
+# NOTE: PRD sections removed - weights redistributed
+WEIGHT_FEATURES = 0.40  # 40% - Feature count (most important)
+WEIGHT_VP_STEPS = 0.35  # 35% - VP step count
+WEIGHT_PERSONAS = 0.25  # 25% - Persona count
+
+# Readiness threshold (60% confirmed = ready for prototype)
+READINESS_THRESHOLD = 0.60
+
+# Confirmation statuses that count as "confirmed"
+CONFIRMED_STATUSES = {"confirmed_client", "confirmed_consultant"}
+
+
+def _is_confirmed(entity: dict) -> bool:
+    """Check if an entity has a confirmed status."""
+    status = entity.get("confirmation_status", "ai_generated")
+    return status in CONFIRMED_STATUSES
 
 
 def calculate_baseline_completeness(project_id: UUID) -> dict:
     """
     Calculate baseline completeness score for a project.
 
+    IMPORTANT: Only CONFIRMED entities count toward the readiness score.
+    AI-generated drafts are tracked separately but don't contribute to readiness.
+
     Args:
         project_id: Project UUID
 
     Returns:
         Dict with:
-          - score: float (0-1) - Overall completeness score
+          - score: float (0-1) - Overall completeness score (confirmed only)
           - breakdown: dict - Component scores
-          - ready: bool - Whether score >= 0.75 (ready to finalize)
+          - ready: bool - Whether score >= 60% (ready for prototype)
           - missing: list[str] - Missing required components
+          - counts: dict - Total and confirmed counts for each entity type
 
-    Score components:
-      - Required PRD sections filled: 40%
-      - Key features count (min 3): 20%
-      - Personas count (min 2): 15%
-      - VP steps count (min 3): 15%
-      - At least 1 constraint captured: 10%
+    Score components (confirmed entities only):
+      - Key features count (min 3 confirmed): 40%
+      - VP steps count (min 3 confirmed): 35%
+      - Personas count (min 2 confirmed): 25%
     """
     # Fetch all entities
-    prd_sections = list_prd_sections(project_id)
     features = list_features(project_id)
     vp_steps = list_vp_steps(project_id)
     personas = list_personas(project_id)
 
-    # Calculate component scores
-    prd_score = _score_prd_sections(prd_sections)
-    features_score = _score_features(features)
-    personas_score = _score_personas(personas)
-    vp_score = _score_vp_steps(vp_steps)
-    constraints_score = _score_constraints(prd_sections)
+    # Filter to confirmed entities only
+    confirmed_features = [f for f in features if _is_confirmed(f)]
+    confirmed_personas = [p for p in personas if _is_confirmed(p)]
+    confirmed_vp_steps = [v for v in vp_steps if _is_confirmed(v)]
+
+    # Calculate component scores (using confirmed entities only)
+    features_score = _score_features(confirmed_features)
+    personas_score = _score_personas(confirmed_personas)
+    vp_score = _score_vp_steps(confirmed_vp_steps)
 
     # Weighted total
     total_score = (
-        prd_score * WEIGHT_PRD_SECTIONS
-        + features_score * WEIGHT_FEATURES
+        features_score * WEIGHT_FEATURES
         + personas_score * WEIGHT_PERSONAS
         + vp_score * WEIGHT_VP_STEPS
-        + constraints_score * WEIGHT_CONSTRAINTS
     )
 
-    # Identify missing components
+    # Identify missing components (based on confirmed counts)
     missing = []
-    if prd_score < 1.0:
-        missing_slugs = _get_missing_prd_slugs(prd_sections)
-        missing.extend([f"PRD section: {slug}" for slug in missing_slugs])
     if features_score < 1.0:
-        missing.append(f"Features (have {len(features)}, need {MIN_FEATURES})")
+        missing.append(f"Confirmed features (have {len(confirmed_features)}, need {MIN_FEATURES})")
     if personas_score < 1.0:
-        missing.append(f"Personas (have {len(personas)}, need {MIN_PERSONAS})")
+        missing.append(f"Confirmed personas (have {len(confirmed_personas)}, need {MIN_PERSONAS})")
     if vp_score < 1.0:
-        missing.append(f"VP steps (have {len(vp_steps)}, need {MIN_VP_STEPS})")
-    if constraints_score < 1.0:
-        missing.append("Constraints section")
+        missing.append(f"Confirmed VP steps (have {len(confirmed_vp_steps)}, need {MIN_VP_STEPS})")
 
     return {
         "score": round(total_score, 3),
         "breakdown": {
-            "prd_sections": round(prd_score, 3),
             "features": round(features_score, 3),
             "personas": round(personas_score, 3),
             "vp_steps": round(vp_score, 3),
-            "constraints": round(constraints_score, 3),
         },
         "counts": {
-            "prd_sections": len(prd_sections),
             "features": len(features),
+            "features_confirmed": len(confirmed_features),
             "personas": len(personas),
+            "personas_confirmed": len(confirmed_personas),
             "vp_steps": len(vp_steps),
+            "vp_steps_confirmed": len(confirmed_vp_steps),
         },
-        "ready": total_score >= 0.75,
+        "ready": total_score >= READINESS_THRESHOLD,
         "missing": missing,
     }
-
-
-def _score_prd_sections(prd_sections: list[dict]) -> float:
-    """
-    Score based on required PRD sections being filled.
-
-    Returns 1.0 if all required sections exist and have content, 0.0-1.0 proportional otherwise.
-    """
-    if not REQUIRED_PRD_SLUGS:
-        return 1.0
-
-    existing_slugs = {section["slug"] for section in prd_sections}
-    filled_count = 0
-
-    for slug in REQUIRED_PRD_SLUGS:
-        if slug in existing_slugs:
-            # Find the section
-            section = next(s for s in prd_sections if s["slug"] == slug)
-            # Check if it has content (fields dict has content or other data)
-            fields = section.get("fields", {})
-            if fields and _has_meaningful_content(fields):
-                filled_count += 1
-
-    return filled_count / len(REQUIRED_PRD_SLUGS)
 
 
 def _score_features(features: list[dict]) -> float:
@@ -177,65 +161,6 @@ def _score_vp_steps(vp_steps: list[dict]) -> float:
     return count / MIN_VP_STEPS
 
 
-def _score_constraints(prd_sections: list[dict]) -> float:
-    """
-    Score based on constraints section being filled.
-
-    Returns 1.0 if constraints section exists and has content, 0.0 otherwise.
-    """
-    constraints_section = next(
-        (s for s in prd_sections if s["slug"] == "constraints"), None
-    )
-
-    if not constraints_section:
-        return 0.0
-
-    fields = constraints_section.get("fields", {})
-    if fields and _has_meaningful_content(fields):
-        return 1.0
-
-    return 0.0
-
-
-def _has_meaningful_content(fields: dict) -> bool:
-    """
-    Check if fields dict has meaningful content.
-
-    Returns True if there's non-empty text content or structured data.
-    """
-    # Check for text content
-    content = fields.get("content", "").strip()
-    if content and len(content) > 10:  # At least 10 characters
-        return True
-
-    # Check for other non-empty fields
-    for key, value in fields.items():
-        if key == "content":
-            continue
-        if value:  # Any truthy value
-            return True
-
-    return False
-
-
-def _get_missing_prd_slugs(prd_sections: list[dict]) -> list[str]:
-    """Get list of required PRD slugs that are missing or empty."""
-    existing_slugs = {section["slug"] for section in prd_sections}
-    missing = []
-
-    for slug in REQUIRED_PRD_SLUGS:
-        if slug not in existing_slugs:
-            missing.append(slug)
-        else:
-            # Check if it has content
-            section = next(s for s in prd_sections if s["slug"] == slug)
-            fields = section.get("fields", {})
-            if not _has_meaningful_content(fields):
-                missing.append(slug)
-
-    return missing
-
-
 def format_completeness_summary(completeness: dict) -> str:
     """
     Format completeness score as human-readable summary.
@@ -252,27 +177,32 @@ def format_completeness_summary(completeness: dict) -> str:
     missing = completeness["missing"]
 
     percentage = int(score * 100)
+    threshold_percent = int(READINESS_THRESHOLD * 100)
+
+    # Format counts as "confirmed/total"
+    features_str = f"{counts.get('features_confirmed', 0)}/{counts['features']} confirmed"
+    personas_str = f"{counts.get('personas_confirmed', 0)}/{counts['personas']} confirmed"
+    vp_str = f"{counts.get('vp_steps_confirmed', 0)}/{counts['vp_steps']} confirmed"
 
     summary_lines = [
-        f"Baseline Completeness: {percentage}%",
+        f"Prototype Readiness: {percentage}%",
+        "(Based on confirmed entities only)",
         "",
         "Component Scores:",
-        f"  ✓ PRD Sections: {int(breakdown['prd_sections'] * 100)}% ({counts['prd_sections']} sections)",
-        f"  ✓ Features: {int(breakdown['features'] * 100)}% ({counts['features']} features)",
-        f"  ✓ Personas: {int(breakdown['personas'] * 100)}% ({counts['personas']} personas)",
-        f"  ✓ Value Path: {int(breakdown['vp_steps'] * 100)}% ({counts['vp_steps']} steps)",
-        f"  ✓ Constraints: {int(breakdown['constraints'] * 100)}%",
+        f"  ✓ Features: {int(breakdown['features'] * 100)}% ({features_str})",
+        f"  ✓ Value Path: {int(breakdown['vp_steps'] * 100)}% ({vp_str})",
+        f"  ✓ Personas: {int(breakdown['personas'] * 100)}% ({personas_str})",
     ]
 
     if missing:
         summary_lines.extend(["", "Missing Components:", *[f"  - {item}" for item in missing]])
 
     if completeness["ready"]:
-        summary_lines.extend(["", "✅ Ready to finalize baseline (>= 75%)"])
+        summary_lines.extend(["", f"✅ Ready for prototype (>= {threshold_percent}% confirmed)"])
     else:
-        needed = 75 - percentage
+        needed = threshold_percent - percentage
         summary_lines.extend(
-            ["", f"⚠️  Need {needed}% more to finalize baseline"]
+            ["", f"⚠️  Need {needed}% more confirmed entities for prototype"]
         )
 
     return "\n".join(summary_lines)

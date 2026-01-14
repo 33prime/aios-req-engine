@@ -214,7 +214,7 @@ export default function PatchFeed({ projectId, limit = 20, className = '' }: Pat
                     {patch.evidence.length > 0 && (
                       <div className="mt-2">
                         <EvidenceGroup
-                          evidence={patch.evidence}
+                          evidence={patch.evidence as any}
                           maxDisplay={3}
                         />
                       </div>

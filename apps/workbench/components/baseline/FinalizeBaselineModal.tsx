@@ -63,7 +63,8 @@ export default function FinalizeBaselineModal({
         await onFinalize()
       } else {
         // Otherwise, call the API directly
-        const response = await fetch(`/v1/projects/${projectId}/baseline/finalize`, {
+        const apiBase = process.env.NEXT_PUBLIC_API_BASE || ''
+        const response = await fetch(`${apiBase}/v1/projects/${projectId}/baseline/finalize`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

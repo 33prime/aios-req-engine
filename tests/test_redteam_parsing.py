@@ -215,3 +215,6 @@ class TestRedTeamOutput:
         dumped = output.model_dump(mode="json")
 
         assert isinstance(dumped["insights"][0]["evidence"][0]["chunk_id"], str)
+
+
+

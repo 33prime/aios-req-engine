@@ -1,20 +1,31 @@
 /**
  * VpDetail Component
  *
- * Right column: Detailed view of selected VP step
- * - Step description and core fields
- * - Enrichment details (data schema, business logic, transition logic)
- * - Evidence links
- * - Status update actions
+ * Detailed view of selected VP step matching the mockup design:
+ * - Single bordered container with sections
+ * - Emoji section headers
+ * - Action buttons at bottom
  */
 
 'use client'
 
 import React, { useState } from 'react'
-import { Card, CardHeader, CardSection, EmptyState, Button, ButtonGroup } from '@/components/ui'
-import { StatusBadge } from '@/components/ui/StatusBadge'
-import { Zap, Info, AlertCircle, ExternalLink, CheckCircle, AlertTriangle, Database, GitBranch, Code } from 'lucide-react'
-import type { VpStep } from '@/types/api'
+import { EmptyState } from '@/components/ui'
+import { Markdown } from '@/components/ui/Markdown'
+import {
+  Zap,
+  User,
+  Bot,
+  Plug,
+  Check,
+  AlertTriangle,
+  ExternalLink,
+  History,
+  ChevronDown,
+  ChevronUp,
+} from 'lucide-react'
+import type { VpStep, VpEvidence } from '@/types/api'
+import ChangeLogTimeline from '@/components/revisions/ChangeLogTimeline'
 
 interface VpDetailProps {
   step: VpStep | null
@@ -23,9 +34,60 @@ interface VpDetailProps {
   updating?: boolean
 }
 
+// Calculate value rating (stars)
+function getValueRating(step: VpStep): { stars: number; label: string } {
+  const hasHighValue = step.value_created && step.value_created.length > 100
+  const hasEvidence = step.evidence && step.evidence.length > 0
+  const hasFeatures = step.features_used && step.features_used.length >= 2
+
+  let stars = 1
+  if (hasHighValue) stars++
+  if (hasEvidence) stars++
+  if (hasFeatures && stars < 3) stars++
+
+  const label = stars >= 3 ? 'High' : stars >= 2 ? 'Medium' : 'Low'
+  return { stars, label }
+}
+
+// Extract actors from step
+function getActors(step: VpStep) {
+  const humanActors: { name: string; role: string }[] = []
+  const systemActors: { name: string; role: string }[] = []
+
+  // Primary persona
+  if (step.actor_persona_name || step.actor_persona_id) {
+    humanActors.push({
+      name: step.actor_persona_name || 'User',
+      role: 'initiates'
+    })
+  }
+
+  // Detect system actors from narrative
+  const narrative = step.narrative_system?.toLowerCase() || ''
+
+  if (narrative.includes('ai') || narrative.includes('nlp') || narrative.includes('machine learning')) {
+    systemActors.push({ name: 'AI Engine', role: 'processes' })
+  }
+
+  if (narrative.includes('api') || narrative.includes('external service')) {
+    systemActors.push({ name: 'External API', role: 'integrates' })
+  }
+
+  // Integrations as system actors
+  if (step.integrations_triggered && step.integrations_triggered.length > 0) {
+    step.integrations_triggered.forEach(integration => {
+      if (!systemActors.find(a => a.name === integration)) {
+        systemActors.push({ name: integration, role: 'triggered' })
+      }
+    })
+  }
+
+  return { humanActors, systemActors }
+}
+
 export function VpDetail({ step, onStatusUpdate, onViewEvidence, updating = false }: VpDetailProps) {
-  const [showEnrichment, setShowEnrichment] = useState(true)
-  const [showEvidence, setShowEvidence] = useState(false)
+  const [showEvidence, setShowEvidence] = useState(true)
+  const [showHistory, setShowHistory] = useState(false)
 
   if (!step) {
     return (
@@ -37,310 +99,254 @@ export function VpDetail({ step, onStatusUpdate, onViewEvidence, updating = fals
     )
   }
 
-  const hasEnrichment = !!step.enrichment
-  const evidenceItems = step.enrichment?.evidence || []
+  const confirmationStatus = step.confirmation_status || step.status
+  const isConfirmed = confirmationStatus === 'confirmed_consultant' || confirmationStatus === 'confirmed_client'
+  const statusText = isConfirmed ? 'Confirmed' : confirmationStatus === 'needs_client' ? 'Needs Client' : 'Draft'
+  const statusIcon = isConfirmed ? '✓' : '○'
+
+  const { humanActors, systemActors } = getActors(step)
+  const allActors = [...humanActors, ...systemActors]
+  const { stars, label: valueLabel } = getValueRating(step)
+  const evidenceItems = step.evidence || []
 
   return (
-    <div className="space-y-6">
-      {/* Header Card */}
-      <Card>
-        <CardHeader
-          title={
-            <div className="flex items-center gap-3">
-              <div className="flex items-center justify-center w-10 h-10 bg-brand-primary/10 rounded-full text-brand-primary font-semibold">
-                {step.step_index}
-              </div>
-              <span>{step.label}</span>
-            </div>
-          }
-          subtitle={`Step ${step.step_index} of ${step.step_index}`}
-          actions={
-            <div className="flex items-center gap-2">
-              {hasEnrichment && (
-                <span className="text-xs font-medium text-green-600 bg-green-50 px-2 py-1 rounded">
-                  ✨ Enriched
-                </span>
-              )}
-              <StatusBadge status={step.status} />
-            </div>
-          }
-        />
-
-        {/* Description */}
-        {step.description && (
-          <div className="mt-4 pt-4 border-t border-ui-cardBorder">
-            <h4 className="text-sm font-medium text-ui-bodyText mb-2">Description</h4>
-            <p className="text-body text-ui-bodyText">{step.description}</p>
-          </div>
-        )}
-
-        {/* Status Actions */}
-        <div className="mt-4 pt-4 border-t border-ui-cardBorder">
-          <h4 className="text-sm font-medium text-ui-bodyText mb-3">Update Status</h4>
-          <ButtonGroup>
-            <Button
-              variant={step.status === 'confirmed_consultant' ? 'primary' : 'secondary'}
-              onClick={() => onStatusUpdate(step.id, 'confirmed_consultant')}
-              disabled={updating || step.status === 'confirmed_consultant'}
-              icon={<CheckCircle className="h-4 w-4" />}
-              className="flex-1"
-            >
-              Confirm
-            </Button>
-            <Button
-              variant={step.status === 'needs_confirmation' ? 'primary' : 'secondary'}
-              onClick={() => onStatusUpdate(step.id, 'needs_confirmation')}
-              disabled={updating || step.status === 'needs_confirmation'}
-              icon={<AlertTriangle className="h-4 w-4" />}
-              className="flex-1"
-            >
-              Needs Confirmation
-            </Button>
-          </ButtonGroup>
-          <p className="text-xs text-ui-supportText mt-2">
-            Confirm if the step is accurate. Mark for confirmation if client input is needed.
-          </p>
+    <div className="border border-gray-200 rounded-lg overflow-hidden bg-white">
+      {/* Header */}
+      <div className="bg-gray-50 px-4 py-3 border-b border-gray-200">
+        <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+          Step Detail
+        </h3>
+        <div className="mt-1 flex items-center gap-2 flex-wrap">
+          <span className="text-lg font-medium text-gray-900">
+            Step {step.step_index}: {step.label}
+          </span>
+          <span className={`text-sm ${isConfirmed ? 'text-green-600' : 'text-gray-400'}`}>
+            {statusIcon} {statusText}
+          </span>
         </div>
-      </Card>
+      </div>
 
-      {/* Core Fields (if available) */}
-      {(step.user_benefit_pain || step.ui_overview || step.value_created || step.kpi_impact) && (
-        <Card>
-          <CardHeader title="Core Fields" />
-          <div className="space-y-4">
-            {step.user_benefit_pain && (
-              <div>
-                <h5 className="text-sm font-medium text-ui-bodyText mb-1">User Benefit/Pain</h5>
-                <p className="text-support text-ui-supportText">{step.user_benefit_pain}</p>
-              </div>
-            )}
-            {step.ui_overview && (
-              <div>
-                <h5 className="text-sm font-medium text-ui-bodyText mb-1">UI Overview</h5>
-                <p className="text-support text-ui-supportText">{step.ui_overview}</p>
-              </div>
-            )}
-            {step.value_created && (
-              <div>
-                <h5 className="text-sm font-medium text-ui-bodyText mb-1">Value Created</h5>
-                <p className="text-support text-ui-supportText">{step.value_created}</p>
-              </div>
-            )}
-            {step.kpi_impact && (
-              <div>
-                <h5 className="text-sm font-medium text-ui-bodyText mb-1">KPI Impact</h5>
-                <p className="text-support text-ui-supportText">{step.kpi_impact}</p>
-              </div>
-            )}
-          </div>
-        </Card>
-      )}
+      {/* Content sections */}
+      <div className="p-4 space-y-5">
 
-      {/* Enrichment Details (if available) */}
-      {hasEnrichment && (
-        <Card>
-          <CardHeader
-            title="Enrichment Details"
-            actions={
-              <button
-                onClick={() => setShowEnrichment(!showEnrichment)}
-                className="text-sm text-brand-primary hover:text-brand-primary/80"
-              >
-                {showEnrichment ? 'Hide' : 'Show'}
-              </button>
-            }
-          />
-
-          {showEnrichment && (
-            <div className="space-y-4">
-              {/* Summary */}
-              {step.enrichment.summary && (
-                <div className="bg-brand-primary/5 p-4 rounded-lg border border-brand-primary/20">
-                  <div className="flex items-start gap-2">
-                    <Info className="h-4 w-4 text-brand-accent flex-shrink-0 mt-0.5" />
-                    <div>
-                      <h5 className="text-sm font-medium text-ui-bodyText mb-1">AI Summary</h5>
-                      <p className="text-support text-ui-supportText">{step.enrichment.summary}</p>
-                    </div>
+        {/* ACTORS */}
+        {allActors.length > 0 && (
+          <section>
+            <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+              👤 Actors
+            </h4>
+            <div className="flex flex-wrap items-center gap-4">
+              {humanActors.map((actor, idx) => (
+                <div key={`human-${idx}`} className="flex items-center gap-2">
+                  <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                    <User className="w-4 h-4 text-blue-600" />
                   </div>
+                  <span className="text-sm text-gray-700">
+                    {actor.name} <span className="text-gray-400">({actor.role})</span>
+                  </span>
                 </div>
-              )}
-
-              {/* Data Schema */}
-              {step.enrichment.enhanced_fields?.data_schema && (
-                <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-                  <div className="flex items-start gap-2 mb-2">
-                    <Database className="h-4 w-4 text-blue-600 flex-shrink-0 mt-0.5" />
-                    <h5 className="text-sm font-semibold text-blue-900">Data Schema</h5>
+              ))}
+              {systemActors.map((actor, idx) => (
+                <div key={`system-${idx}`} className="flex items-center gap-2">
+                  <div className="w-8 h-8 bg-slate-100 rounded-full flex items-center justify-center">
+                    {actor.name.toLowerCase().includes('ai') || actor.name.toLowerCase().includes('engine') ? (
+                      <Bot className="w-4 h-4 text-slate-500" />
+                    ) : (
+                      <Plug className="w-4 h-4 text-slate-500" />
+                    )}
                   </div>
-                  <div className="text-support text-blue-800 whitespace-pre-wrap">
-                    {step.enrichment.enhanced_fields.data_schema}
-                  </div>
-                </div>
-              )}
-
-              {/* Business Logic */}
-              {step.enrichment.enhanced_fields?.business_logic && (
-                <div className="bg-green-50 p-4 rounded-lg border border-green-200">
-                  <div className="flex items-start gap-2 mb-2">
-                    <Code className="h-4 w-4 text-green-600 flex-shrink-0 mt-0.5" />
-                    <h5 className="text-sm font-semibold text-green-900">Business Logic</h5>
-                  </div>
-                  <div className="text-support text-green-800 whitespace-pre-wrap">
-                    {step.enrichment.enhanced_fields.business_logic}
-                  </div>
-                </div>
-              )}
-
-              {/* Transition Logic */}
-              {step.enrichment.enhanced_fields?.transition_logic && (
-                <div className="bg-purple-50 p-4 rounded-lg border border-purple-200">
-                  <div className="flex items-start gap-2 mb-2">
-                    <GitBranch className="h-4 w-4 text-purple-600 flex-shrink-0 mt-0.5" />
-                    <h5 className="text-sm font-semibold text-purple-900">Transition Logic</h5>
-                  </div>
-                  <div className="text-support text-purple-800 whitespace-pre-wrap">
-                    {step.enrichment.enhanced_fields.transition_logic}
-                  </div>
-                </div>
-              )}
-
-              {/* Other Enhanced Fields */}
-              {step.enrichment.enhanced_fields && Object.keys(step.enrichment.enhanced_fields).length > 0 && (
-                <div className="pt-4 border-t border-ui-cardBorder">
-                  <h5 className="text-sm font-medium text-ui-bodyText mb-3">Additional Fields</h5>
-                  <div className="space-y-2">
-                    {Object.entries(step.enrichment.enhanced_fields)
-                      .filter(([key]) => !['data_schema', 'business_logic', 'transition_logic'].includes(key))
-                      .map(([field, value]) => (
-                        <div key={field} className="bg-ui-background p-3 rounded border border-ui-cardBorder">
-                          <div className="text-sm font-medium text-ui-bodyText capitalize mb-1">
-                            {field.replace(/_/g, ' ')}
-                          </div>
-                          <div className="text-support text-ui-supportText whitespace-pre-wrap">
-                            {String(value)}
-                          </div>
-                        </div>
-                      ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Proposed Needs */}
-              {step.enrichment.proposed_needs && step.enrichment.proposed_needs.length > 0 && (
-                <div className="pt-4 border-t border-ui-cardBorder">
-                  <h5 className="text-sm font-medium text-ui-bodyText mb-3">
-                    Proposed Client Needs ({step.enrichment.proposed_needs.length})
-                  </h5>
-                  <div className="space-y-3">
-                    {step.enrichment.proposed_needs.map((need: any, idx: number) => (
-                      <div key={idx} className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
-                        <div className="font-medium text-ui-bodyText text-sm mb-1">
-                          {need.title || need.ask}
-                        </div>
-                        <div className="text-support text-ui-supportText text-sm mb-2">
-                          {need.ask || need.why}
-                        </div>
-                        {need.why && need.ask && (
-                          <div className="text-xs text-ui-supportText italic mb-2">
-                            "{need.why}"
-                          </div>
-                        )}
-                        <div className="flex items-center gap-2">
-                          <span className={`text-xs font-medium px-2 py-0.5 rounded ${
-                            need.priority === 'high' ? 'bg-red-100 text-red-800' :
-                            need.priority === 'medium' ? 'bg-yellow-100 text-yellow-800' :
-                            'bg-green-100 text-green-800'
-                          }`}>
-                            {need.priority} priority
-                          </span>
-                          {need.suggested_method && (
-                            <span className="text-xs text-ui-supportText">
-                              {need.suggested_method}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-        </Card>
-      )}
-
-      {/* Evidence Card */}
-      {evidenceItems.length > 0 && (
-        <Card>
-          <CardHeader
-            title={`Evidence (${evidenceItems.length})`}
-            actions={
-              <button
-                onClick={() => setShowEvidence(!showEvidence)}
-                className="text-sm text-brand-primary hover:text-brand-primary/80"
-              >
-                {showEvidence ? 'Hide' : 'Show'}
-              </button>
-            }
-          />
-
-          {showEvidence && (
-            <div className="space-y-3">
-              {evidenceItems.map((evidence: any, idx: number) => (
-                <div key={idx} className="bg-ui-background border border-ui-cardBorder rounded-lg p-3">
-                  <div className="flex items-start gap-2 mb-2">
-                    <AlertCircle className="h-4 w-4 text-brand-accent flex-shrink-0 mt-0.5" />
-                    <p className="text-support text-ui-bodyText flex-1 italic">
-                      "{evidence.excerpt}"
-                    </p>
-                  </div>
-                  <div className="flex items-center justify-between pl-6">
-                    <span className="text-xs text-ui-supportText">{evidence.rationale}</span>
-                    <button
-                      onClick={() => onViewEvidence(evidence.chunk_id)}
-                      className="text-xs text-brand-primary hover:text-brand-primary/80 flex items-center gap-1"
-                    >
-                      View source <ExternalLink className="h-3 w-3" />
-                    </button>
-                  </div>
+                  <span className="text-sm text-gray-500">
+                    {actor.name} <span className="text-gray-400">({actor.role})</span>
+                  </span>
                 </div>
               ))}
             </div>
-          )}
-        </Card>
-      )}
+          </section>
+        )}
 
-      {/* Metadata */}
-      <Card>
-        <CardHeader title="Metadata" />
-        <div className="grid grid-cols-2 gap-4 text-sm">
-          <div>
-            <div className="text-support text-ui-supportText">Step Index</div>
-            <div className="text-body text-ui-bodyText font-medium">{step.step_index}</div>
-          </div>
-          <div>
-            <div className="text-support text-ui-supportText">Status</div>
-            <div className="text-body text-ui-bodyText font-medium">{step.status}</div>
-          </div>
-          <div>
-            <div className="text-support text-ui-supportText">Created</div>
-            <div className="text-body text-ui-bodyText font-medium">
-              {new Date(step.created_at).toLocaleString()}
+        {/* USER EXPERIENCE */}
+        {step.narrative_user && (
+          <section>
+            <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+              📖 User Experience
+            </h4>
+            <div className="border border-gray-200 rounded-lg p-3 bg-gray-50">
+              <div className="prose prose-sm max-w-none text-gray-700">
+                <Markdown content={step.narrative_user} />
+              </div>
             </div>
-          </div>
-          <div>
-            <div className="text-support text-ui-supportText">Last Updated</div>
-            <div className="text-body text-ui-bodyText font-medium">
-              {new Date(step.updated_at).toLocaleString()}
+          </section>
+        )}
+
+        {/* BEHIND THE SCENES */}
+        {step.narrative_system && (
+          <section>
+            <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+              ⚙️ Behind the Scenes
+            </h4>
+            <div className="border border-gray-200 rounded-lg p-3 bg-gray-50">
+              <div className="prose prose-sm max-w-none text-gray-700">
+                <Markdown content={step.narrative_system} />
+              </div>
             </div>
-          </div>
-          <div className="col-span-2">
-            <div className="text-support text-ui-supportText">Step ID</div>
-            <div className="text-xs font-mono text-ui-supportText">{step.id}</div>
-          </div>
+          </section>
+        )}
+
+        {/* FEATURES */}
+        {step.features_used && step.features_used.length > 0 && (
+          <section>
+            <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+              Features
+            </h4>
+            <div className="flex flex-wrap gap-3">
+              {step.features_used.map((feature, idx) => (
+                <div key={idx} className="text-center">
+                  <span className="inline-block px-3 py-1.5 bg-gray-100 border border-gray-200 rounded-lg text-sm text-gray-700">
+                    {feature.feature_name}
+                  </span>
+                  {feature.role === 'core' && (
+                    <div className="text-xs text-gray-400 mt-1">core</div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* VALUE CREATED */}
+        {step.value_created && (
+          <section>
+            <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2 flex items-center gap-2">
+              Value Created
+              <span className="text-amber-400">
+                {[1, 2, 3].map(i => (
+                  <span key={i} className={i <= stars ? '' : 'opacity-30'}>★</span>
+                ))}
+              </span>
+              <span className="text-amber-600 text-xs font-normal">{valueLabel}</span>
+            </h4>
+            <p className="text-sm text-gray-700">"{step.value_created}"</p>
+          </section>
+        )}
+
+        {/* EVIDENCE */}
+        {evidenceItems.length > 0 && (
+          <section>
+            <div className="flex items-center justify-between mb-2">
+              <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                Evidence ({evidenceItems.length})
+              </h4>
+              <button
+                onClick={() => setShowEvidence(!showEvidence)}
+                className="text-xs text-blue-600 hover:text-blue-800"
+              >
+                {showEvidence ? 'Hide' : 'Show'}
+              </button>
+            </div>
+
+            {showEvidence && (
+              <div className="space-y-2">
+                {evidenceItems.map((evidence: VpEvidence, idx: number) => (
+                  <div
+                    key={idx}
+                    className={`border rounded-lg p-3 ${
+                      evidence.source_type === 'signal'
+                        ? 'bg-green-50 border-green-200'
+                        : evidence.source_type === 'research'
+                          ? 'bg-blue-50 border-blue-200'
+                          : 'bg-gray-50 border-gray-200'
+                    }`}
+                  >
+                    <div className="flex items-start gap-2 mb-1">
+                      <span className={`text-xs px-2 py-0.5 rounded font-medium ${
+                        evidence.source_type === 'signal'
+                          ? 'bg-green-100 text-green-700'
+                          : evidence.source_type === 'research'
+                            ? 'bg-blue-100 text-blue-700'
+                            : 'bg-gray-100 text-gray-600'
+                      }`}>
+                        {evidence.source_type}
+                      </span>
+                    </div>
+                    <p className="text-sm text-gray-700 italic mb-1">
+                      "{evidence.excerpt}"
+                    </p>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-gray-500">{evidence.rationale}</span>
+                      {evidence.chunk_id && (
+                        <button
+                          onClick={() => onViewEvidence(evidence.chunk_id!)}
+                          className="text-xs text-blue-600 hover:text-blue-800 flex items-center gap-1"
+                        >
+                          View source <ExternalLink className="h-3 w-3" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+        )}
+
+        {/* Legacy Description (fallback for non-V2) */}
+        {!step.narrative_user && !step.narrative_system && step.description && (
+          <section>
+            <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+              Description
+            </h4>
+            <p className="text-sm text-gray-700">{step.description}</p>
+          </section>
+        )}
+
+        {/* ACTION BUTTONS */}
+        <div className="pt-4 border-t border-gray-200 flex gap-3">
+          <button
+            onClick={() => onStatusUpdate(step.id, 'confirmed_consultant')}
+            disabled={updating || confirmationStatus === 'confirmed_consultant'}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors
+              ${confirmationStatus === 'confirmed_consultant'
+                ? 'bg-green-100 text-green-800 border border-green-300'
+                : 'bg-green-50 text-green-700 border border-green-200 hover:bg-green-100'
+              }
+              ${updating ? 'opacity-50 cursor-not-allowed' : ''}
+            `}
+          >
+            <Check className="w-4 h-4" /> Confirm
+          </button>
+          <button
+            onClick={() => onStatusUpdate(step.id, 'needs_client')}
+            disabled={updating || confirmationStatus === 'needs_client'}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors
+              ${confirmationStatus === 'needs_client'
+                ? 'bg-amber-100 text-amber-800 border border-amber-300'
+                : 'bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100'
+              }
+              ${updating ? 'opacity-50 cursor-not-allowed' : ''}
+            `}
+          >
+            <AlertTriangle className="w-4 h-4" /> Needs Client Review
+          </button>
         </div>
-      </Card>
+
+        {/* CHANGE HISTORY */}
+        <section className="pt-4 border-t border-gray-200">
+          <button
+            onClick={() => setShowHistory(!showHistory)}
+            className="flex items-center text-xs font-semibold text-gray-500 uppercase tracking-wide hover:text-blue-600"
+          >
+            <History className="h-4 w-4 mr-1" />
+            Change History
+            {showHistory ? <ChevronUp className="h-4 w-4 ml-1" /> : <ChevronDown className="h-4 w-4 ml-1" />}
+          </button>
+
+          {showHistory && (
+            <div className="mt-4">
+              <ChangeLogTimeline entityType="vp_step" entityId={step.id} limit={10} />
+            </div>
+          )}
+        </section>
+      </div>
     </div>
   )
 }

@@ -13,7 +13,7 @@ from app.db.vp import patch_vp_step_enrichment
 
 logger = get_logger(__name__)
 
-MAX_STEPS = 8
+MAX_STEPS = 100  # Increased to handle any reasonable number of VP steps
 
 
 @dataclass

@@ -172,6 +172,7 @@ def enrich_feature(
     response = client.chat.completions.create(
         model=model,
         temperature=0,
+        max_tokens=16384,
         messages=[
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": prompt},
@@ -198,6 +199,7 @@ def enrich_feature(
     retry_response = client.chat.completions.create(
         model=model,
         temperature=0,
+        max_tokens=16384,
         messages=[
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": prompt},

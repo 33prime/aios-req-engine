@@ -133,6 +133,7 @@ export function ProductRequirementsTab({ projectId }: ProductRequirementsTabProp
           right={
             <PrdDetail
               section={selectedSection}
+              projectId={projectId}
               onStatusUpdate={handleStatusUpdate}
               onViewEvidence={handleViewEvidence}
               updating={updating}

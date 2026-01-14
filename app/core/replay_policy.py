@@ -55,3 +55,6 @@ def make_replay_output_for_extract_facts(
         "contradictions_count": response.contradictions_count,
         "facts_preview": facts_preview,
     }
+
+
+

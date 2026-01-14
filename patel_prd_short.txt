@@ -41,3 +41,6 @@ Technical Requirements:
 - Frontend: React or Angular for responsive Client Portal and Drag-and-Drop Report Builder
 - Security: SOC 2 compliance features (encryption, RBAC) for the Data Room
 - Output: PDF Generation engine supporting high-fidelity print layouts
+
+
+

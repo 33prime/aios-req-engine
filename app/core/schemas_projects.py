@@ -31,6 +31,14 @@ class CreateProjectRequest(BaseModel):
     tags: list[str] = Field(default_factory=list, description="Tags for categorization")
 
 
+class StatusNarrative(BaseModel):
+    """AI-generated status narrative for dashboard."""
+
+    where_today: str = Field(..., description="Current project status summary")
+    where_going: str = Field(..., description="Next steps and direction")
+    updated_at: str | None = Field(None, description="When the narrative was last generated")
+
+
 class ProjectResponse(BaseModel):
     """Response schema for a single project."""
 
@@ -42,6 +50,22 @@ class ProjectResponse(BaseModel):
     created_at: str = Field(..., description="Creation timestamp")
     updated_at: str | None = Field(None, description="Last update timestamp")
     signal_id: UUID | None = Field(None, description="ID of description signal if auto-ingested")
+    onboarding_job_id: UUID | None = Field(
+        None,
+        description="ID of onboarding job if auto-processing description (for polling progress)",
+    )
+    portal_enabled: bool = Field(False, description="Whether client portal is enabled")
+    portal_phase: Literal["pre_call", "post_call", "building", "testing"] | None = Field(
+        None, description="Current portal phase"
+    )
+    # New dashboard fields
+    stage: Literal["discovery", "prototype_refinement", "proposal"] = Field(
+        "discovery", description="Project stage"
+    )
+    client_name: str | None = Field(None, description="Client/company display name")
+    status_narrative: StatusNarrative | None = Field(
+        None, description="AI-generated status summary"
+    )
 
 
 class ProjectDetailResponse(ProjectResponse):

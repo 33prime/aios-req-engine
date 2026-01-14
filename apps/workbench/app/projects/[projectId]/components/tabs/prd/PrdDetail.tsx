@@ -10,29 +10,107 @@
 
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Card, CardHeader, CardSection, EmptyState, Button, ButtonGroup } from '@/components/ui'
 import { StatusBadge } from '@/components/ui/StatusBadge'
-import { FileText, Users, Target, Zap, Info, AlertCircle, ExternalLink, CheckCircle, AlertTriangle, History, Clock } from 'lucide-react'
+import { FileText, Users, Target, Zap, Info, AlertCircle, ExternalLink, CheckCircle, AlertTriangle, History, Clock, ShieldAlert } from 'lucide-react'
 import type { PrdSection } from '@/types/api'
 import { EvidenceGroup } from '@/components/evidence/EvidenceChip'
+import { NestedFeatures } from './NestedFeatures'
+import { NestedPersonas } from './NestedPersonas'
+import { NestedVpSteps } from './NestedVpSteps'
 
 interface PrdDetailProps {
   section: PrdSection | null
+  projectId: string
   onStatusUpdate: (sectionId: string, newStatus: string) => Promise<void>
   onViewEvidence: (chunkId: string) => void
   updating?: boolean
 }
 
 const SECTION_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
+  software_summary: Info,
   personas: Users,
   key_features: Target,
   happy_path: Zap,
+  constraints: ShieldAlert,
 }
 
-export function PrdDetail({ section, onStatusUpdate, onViewEvidence, updating = false }: PrdDetailProps) {
+export function PrdDetail({ section, projectId, onStatusUpdate, onViewEvidence, updating = false }: PrdDetailProps) {
   const [showEnrichment, setShowEnrichment] = useState(true)
   const [showEvidence, setShowEvidence] = useState(false)
+  const [patchHistory, setPatchHistory] = useState<any[]>([])
+  const [loadingPatches, setLoadingPatches] = useState(false)
+  const [personas, setPersonas] = useState<any[]>([])
+  const [loadingPersonas, setLoadingPersonas] = useState(false)
+
+  // Load personas when viewing personas section
+  useEffect(() => {
+    if (section?.slug === 'personas' && projectId) {
+      loadPersonas()
+    }
+  }, [section?.slug, projectId])
+
+  const loadPersonas = async () => {
+    try {
+      setLoadingPersonas(true)
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_BASE}/v1/state/personas?project_id=${projectId}`
+      )
+
+      if (response.ok) {
+        const data = await response.json()
+        setPersonas(data)
+      }
+    } catch (error) {
+      console.error('Failed to load personas:', error)
+    } finally {
+      setLoadingPersonas(false)
+    }
+  }
+
+  // Load patch history when section changes
+  useEffect(() => {
+    if (section?.id) {
+      loadPatchHistory()
+    } else {
+      setPatchHistory([])
+    }
+  }, [section?.id])
+
+  const loadPatchHistory = async () => {
+    if (!section?.id) return
+
+    try {
+      setLoadingPatches(true)
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_BASE}/v1/entities/prd_section/${section.id}/patch-history?limit=5`
+      )
+
+      if (response.ok) {
+        const patches = await response.json()
+        setPatchHistory(patches)
+      }
+    } catch (error) {
+      console.error('Failed to load patch history:', error)
+    } finally {
+      setLoadingPatches(false)
+    }
+  }
+
+  const getTimeAgo = (timestamp: string) => {
+    const now = new Date()
+    const past = new Date(timestamp)
+    const diffMs = now.getTime() - past.getTime()
+    const diffMins = Math.floor(diffMs / 60000)
+    const diffHours = Math.floor(diffMs / 3600000)
+    const diffDays = Math.floor(diffMs / 86400000)
+
+    if (diffMins < 1) return 'just now'
+    if (diffMins < 60) return `${diffMins}m ago`
+    if (diffHours < 24) return `${diffHours}h ago`
+    return `${diffDays}d ago`
+  }
 
   if (!section) {
     return (
@@ -91,13 +169,13 @@ export function PrdDetail({ section, onStatusUpdate, onViewEvidence, updating = 
               Confirm
             </Button>
             <Button
-              variant={section.status === 'needs_confirmation' ? 'primary' : 'secondary'}
-              onClick={() => onStatusUpdate(section.id, 'needs_confirmation')}
-              disabled={updating || section.status === 'needs_confirmation'}
+              variant={section.status === 'needs_client' ? 'primary' : 'secondary'}
+              onClick={() => onStatusUpdate(section.id, 'needs_client')}
+              disabled={updating || section.status === 'needs_client'}
               icon={<AlertTriangle className="h-4 w-4" />}
               className="flex-1"
             >
-              Needs Confirmation
+              Needs Client
             </Button>
           </ButtonGroup>
           <p className="text-xs text-ui-supportText mt-2">
@@ -155,6 +233,23 @@ export function PrdDetail({ section, onStatusUpdate, onViewEvidence, updating = 
           </div>
         )}
       </Card>
+
+      {/* Nested Content Based on Section Type */}
+      {section.slug === 'key_features' && (
+        <NestedFeatures projectId={projectId} onViewEvidence={onViewEvidence} />
+      )}
+
+      {section.slug === 'personas' && (
+        <NestedPersonas
+          content={section.fields?.content || ''}
+          enrichedContent={section.enrichment?.enhanced_fields?.content}
+          structuredPersonas={personas}
+        />
+      )}
+
+      {section.slug === 'happy_path' && (
+        <NestedVpSteps projectId={projectId} onViewEvidence={onViewEvidence} />
+      )}
 
       {/* Enrichment Details (if available) */}
       {hasEnrichment && (
@@ -291,40 +386,63 @@ export function PrdDetail({ section, onStatusUpdate, onViewEvidence, updating = 
           subtitle="Surgical updates applied to this section"
         />
 
-        {/* TODO: Load patch history from API */}
-        {/* For now, show empty state */}
-        <div className="text-center py-8 bg-ui-background rounded-lg border border-ui-cardBorder">
-          <Clock className="h-12 w-12 text-ui-supportText mx-auto mb-3" />
-          <p className="text-sm font-medium text-ui-bodyText mb-1">No recent changes</p>
-          <p className="text-xs text-ui-supportText">
-            Surgical updates will appear here in maintenance mode
-          </p>
-        </div>
-
-        {/* Example of what patch history will look like when implemented:
-        <div className="space-y-3">
-          <div className="bg-ui-background border border-ui-cardBorder rounded-lg p-3">
-            <div className="flex items-start gap-2 mb-2">
-              <CheckCircle className="h-4 w-4 text-green-600 flex-shrink-0 mt-0.5" />
-              <div className="flex-1">
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-sm font-medium text-ui-bodyText">
-                    Added constraint about data privacy
-                  </span>
-                  <span className="text-xs text-ui-supportText">2h ago</span>
-                </div>
-                <p className="text-xs text-ui-supportText mb-2">
-                  Auto-applied • Minor severity
-                </p>
-                <EvidenceGroup
-                  evidence={[...]}
-                  maxDisplay={2}
-                />
-              </div>
-            </div>
+        {loadingPatches ? (
+          <div className="text-center py-8">
+            <p className="text-sm text-ui-supportText">Loading patch history...</p>
           </div>
-        </div>
-        */}
+        ) : patchHistory.length === 0 ? (
+          <div className="text-center py-8 bg-ui-background rounded-lg border border-ui-cardBorder">
+            <Clock className="h-12 w-12 text-ui-supportText mx-auto mb-3" />
+            <p className="text-sm font-medium text-ui-bodyText mb-1">No recent changes</p>
+            <p className="text-xs text-ui-supportText">
+              Surgical updates will appear here in maintenance mode
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {patchHistory.map((patch) => {
+              const patchData = patch.patch_data || {}
+              const proposedChanges = patchData.proposed_changes || {}
+              const changedFields = Object.keys(proposedChanges)
+
+              return (
+                <div key={patch.id} className="bg-ui-background border border-ui-cardBorder rounded-lg p-3">
+                  <div className="flex items-start gap-2 mb-2">
+                    <CheckCircle className="h-4 w-4 text-green-600 flex-shrink-0 mt-0.5" />
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-sm font-medium text-ui-bodyText">
+                          {patch.title || 'Updated section'}
+                        </span>
+                        <span className="text-xs text-ui-supportText">
+                          {patch.applied_at ? getTimeAgo(patch.applied_at) : 'Recently'}
+                        </span>
+                      </div>
+                      <p className="text-xs text-ui-supportText mb-2">
+                        {patchData.rationale || patch.finding}
+                      </p>
+                      {changedFields.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mb-2">
+                          {changedFields.map((field) => (
+                            <span
+                              key={field}
+                              className="text-xs px-2 py-0.5 bg-blue-50 text-blue-700 rounded"
+                            >
+                              {field.replace(/_/g, ' ')}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                      {patch.auto_apply_ok && (
+                        <span className="text-xs text-green-600">Auto-applied • Safe</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
       </Card>
 
       {/* Metadata */}

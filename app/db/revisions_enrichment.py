@@ -22,6 +22,11 @@ def insert_enrichment_revision(
     new_facts_count: int = 0,
     context_summary: str | None = None,
     run_id: UUID | None = None,
+    # New fields for enhanced change tracking
+    changes: dict[str, Any] | None = None,
+    diff_summary: str | None = None,
+    created_by: str | None = None,
+    source_signal_id: UUID | None = None,
 ) -> dict[str, Any]:
     """
     Create an enrichment revision record.
@@ -38,6 +43,10 @@ def insert_enrichment_revision(
         new_facts_count: Number of new facts since last enrichment
         context_summary: Human-readable context (e.g., "based on 5 new signals")
         run_id: Associated agent run ID for audit trail
+        changes: Dict of field changes {field: {before, after}}
+        diff_summary: Human-readable summary of changes (e.g., "Updated name, description")
+        created_by: Who created this revision (consultant, system, chat_assistant)
+        source_signal_id: UUID of signal that triggered this change
 
     Returns:
         Created revision record as dict
@@ -60,6 +69,10 @@ def insert_enrichment_revision(
             "new_facts_count": new_facts_count,
             "context_summary": context_summary,
             "run_id": str(run_id) if run_id else None,
+            "changes": changes,
+            "diff_summary": diff_summary,
+            "created_by": created_by,
+            "source_signal_id": str(source_signal_id) if source_signal_id else None,
         }
 
         response = supabase.table("enrichment_revisions").insert(data).execute()

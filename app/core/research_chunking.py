@@ -117,3 +117,6 @@ Mitigation: {risk.mitigation}"""
             chunks.append(make_chunk("additional_insight", insight_content, {"insight_index": i}))
 
     return chunks
+
+
+

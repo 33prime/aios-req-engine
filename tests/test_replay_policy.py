@@ -221,3 +221,6 @@ class TestMakeReplayOutputForExtractFacts:
         # Preview should not include detail, evidence, etc.
         assert "detail" not in replay_output["facts_preview"][0]
         assert "evidence" not in replay_output["facts_preview"][0]
+
+
+

@@ -1,8 +1,10 @@
 """API endpoints for LangGraph agents."""
 
+from typing import Any
 from uuid import UUID, uuid4
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, BackgroundTasks, HTTPException
+from pydantic import BaseModel
 
 from app.core.logging import get_logger
 from app.core.replay_policy import (
@@ -28,6 +30,42 @@ from app.graphs.extract_facts_graph import run_extract_facts
 logger = get_logger(__name__)
 
 router = APIRouter()
+
+
+# ============================================================================
+# Strategic Foundation Schemas
+# ============================================================================
+
+
+class StrategicFoundationRequest(BaseModel):
+    """Request to run strategic foundation enrichment."""
+    project_id: UUID
+
+
+class StrategicFoundationResponse(BaseModel):
+    """Response from strategic foundation enrichment."""
+    job_id: UUID
+    status: str
+    message: str
+
+
+class StrategicFoundationResult(BaseModel):
+    """Result of strategic foundation enrichment."""
+    company_enriched: bool
+    enrichment_source: str | None = None
+    enrichment_confidence: float | None = None
+    scraped_chars: int | None = None
+    stakeholders_linked: int
+    errors: list[str]
+
+
+class StrategicFoundationSummary(BaseModel):
+    """Summary of strategic foundation state."""
+    company: dict[str, Any]
+    business_drivers: dict[str, Any]
+    competitors: dict[str, Any]
+    stakeholders: dict[str, Any]
+    constraints: dict[str, Any]
 
 
 @router.post("/extract-facts", response_model=ExtractFactsResponse)
@@ -353,3 +391,126 @@ async def replay_agent_run(
         if job_id:
             fail_job(job_id, str(e))
         raise HTTPException(status_code=500, detail="Replay failed") from e
+
+
+# ============================================================================
+# Strategic Foundation Endpoints
+# ============================================================================
+
+
+async def _execute_strategic_foundation(job_id: UUID, project_id: UUID) -> None:
+    """Background task to execute strategic foundation enrichment."""
+    from app.chains.run_strategic_foundation import run_strategic_foundation
+
+    try:
+        start_job(job_id)
+        logger.info(f"Starting strategic foundation for project {project_id}")
+
+        result = await run_strategic_foundation(project_id)
+
+        complete_job(job_id, result)
+        logger.info(
+            f"Completed strategic foundation for project {project_id}",
+            extra={"result": result},
+        )
+
+    except Exception as e:
+        logger.exception(f"Strategic foundation failed: {e}")
+        fail_job(job_id, str(e))
+
+
+@router.post("/strategic-foundation", response_model=StrategicFoundationResponse)
+async def run_strategic_foundation_endpoint(
+    request: StrategicFoundationRequest,
+    background_tasks: BackgroundTasks,
+) -> StrategicFoundationResponse:
+    """
+    Run Strategic Foundation enrichment as a background job.
+
+    This endpoint:
+    1. Creates a job for tracking
+    2. Queues background task for:
+       - Company enrichment (Firecrawl + LLM)
+       - Stakeholder ↔ Project Member linking
+    3. Returns immediately with job_id for polling
+
+    Use GET /jobs/{job_id} to poll for completion.
+
+    Args:
+        request: StrategicFoundationRequest with project_id
+
+    Returns:
+        StrategicFoundationResponse with job_id and status
+    """
+    run_id = uuid4()
+
+    try:
+        # Create job
+        job_id = create_job(
+            project_id=request.project_id,
+            job_type="strategic_foundation",
+            input_json={"project_id": str(request.project_id)},
+            run_id=run_id,
+        )
+
+        # Queue background task
+        background_tasks.add_task(
+            _execute_strategic_foundation,
+            job_id,
+            request.project_id,
+        )
+
+        logger.info(
+            f"Queued strategic foundation for project {request.project_id}",
+            extra={"job_id": str(job_id), "run_id": str(run_id)},
+        )
+
+        return StrategicFoundationResponse(
+            job_id=job_id,
+            status="queued",
+            message="Strategic foundation enrichment started. Poll /jobs/{job_id} for status.",
+        )
+
+    except Exception as e:
+        logger.exception(f"Failed to queue strategic foundation: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to start strategic foundation: {str(e)}",
+        ) from e
+
+
+@router.get(
+    "/strategic-foundation/{project_id}/summary",
+    response_model=StrategicFoundationSummary,
+)
+async def get_strategic_foundation_summary_endpoint(
+    project_id: UUID,
+) -> StrategicFoundationSummary:
+    """
+    Get summary of strategic foundation state for a project.
+
+    Returns counts and status for:
+    - Company info
+    - Business drivers (by type)
+    - Competitors (by type)
+    - Stakeholders (by type, linked count)
+    - Constraints
+
+    Args:
+        project_id: Project UUID
+
+    Returns:
+        StrategicFoundationSummary with counts and status
+    """
+    from app.chains.run_strategic_foundation import get_strategic_foundation_summary
+
+    try:
+        summary = get_strategic_foundation_summary(project_id)
+        return StrategicFoundationSummary(**summary)
+
+    except Exception as e:
+        logger.exception(f"Failed to get strategic foundation summary: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to get summary: {str(e)}",
+        ) from e

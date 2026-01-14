@@ -50,7 +50,7 @@ You MUST output ONLY valid JSON matching this exact schema:
 }
 
 CRITICAL RULES:
-1. Output ONLY the JSON object, no markdown, no explanation, no preamble.
+1. Output ONLY valid JSON - no markdown code blocks (```), no explanation, no preamble.
 2. enhanced_fields should improve and expand the step's text content with more detail, implementation specifics, and clarity.
 3. proposed_needs should only be added if there are genuine gaps in understanding that need clarification.
 4. Every piece of evidence MUST reference real chunk_ids from the provided context using the [ID:uuid] format.
@@ -59,7 +59,10 @@ CRITICAL RULES:
 7. Rationale must explain why this evidence supports your enrichment.
 8. Do NOT change step status or any canonical fields.
 9. Focus on user experience, implementation details, and success metrics.
-10. If no improvements are needed, return minimal enhancements with appropriate summary."""
+10. If no improvements are needed, return minimal enhancements with appropriate summary.
+11. Ensure all JSON strings are properly escaped (quotes, newlines, etc.).
+12. Evidence array can be empty [] if no evidence is available.
+"""
 
 FIX_SCHEMA_PROMPT = """The previous output was invalid. Here is the error:
 
@@ -69,7 +72,14 @@ Here is your previous output:
 
 {previous_output}
 
-Please fix the output to match the required JSON schema exactly. Output ONLY valid JSON, no explanation."""
+CRITICAL FIXES NEEDED:
+- Output ONLY valid JSON (no ``` markdown, no explanation)
+- Properly escape all quotes and newlines in strings
+- Ensure all UUIDs are valid format
+- Evidence array can be empty [] if no evidence available
+- All object keys must be properly quoted
+
+Please fix and output valid JSON only:"""
 
 
 def enrich_vp_step(
@@ -128,6 +138,7 @@ def enrich_vp_step(
     response = client.chat.completions.create(
         model=model,
         temperature=0,
+        max_tokens=16384,
         messages=[
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": prompt},
@@ -159,6 +170,7 @@ def enrich_vp_step(
     retry_response = client.chat.completions.create(
         model=model,
         temperature=0,
+        max_tokens=16384,
         messages=[
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": prompt},

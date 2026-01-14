@@ -7,7 +7,6 @@ from app.core.embeddings import embed_texts
 from app.core.logging import get_logger
 from app.db.facts import list_latest_extracted_facts
 from app.db.features import list_features
-from app.db.insights import list_latest_insights
 from app.db.phase0 import search_signal_chunks
 from app.db.prd import list_prd_sections
 from app.db.vp import list_vp_steps
@@ -71,8 +70,8 @@ def get_delta_inputs(
     # Get latest extracted facts (limit to recent ones)
     extracted_facts = list_latest_extracted_facts(project_id, limit=3)
 
-    # Get latest insights with status open or queued
-    insights = list_latest_insights(project_id, limit=50, statuses=["open", "queued"])
+    # Insights system removed
+    insights: list = []
 
     # Filter by checkpoint if present
     last_facts_id = project_state.get("last_extracted_facts_id")

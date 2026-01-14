@@ -1,6 +1,51 @@
 """Chunk selection and prompt building for fact extraction."""
 
 from typing import Any
+from uuid import UUID
+
+from app.core.logging import get_logger
+from app.core.state_snapshot import get_state_snapshot
+
+logger = get_logger(__name__)
+
+
+def truncate_at_sentence_boundary(content: str, max_chars: int) -> str:
+    """
+    Truncate content at a sentence boundary near max_chars.
+
+    Preserves semantic meaning by avoiding mid-sentence cuts.
+
+    Args:
+        content: Text to truncate
+        max_chars: Maximum character limit
+
+    Returns:
+        Truncated text at sentence boundary
+    """
+    if len(content) <= max_chars:
+        return content
+
+    truncated = content[:max_chars]
+
+    # Look for sentence-ending punctuation followed by space or newline
+    for sep in ['. ', '.\n', '!\n', '! ', '?\n', '? ']:
+        last_sep = truncated.rfind(sep)
+        if last_sep > max_chars * 0.6:  # At least 60% of content preserved
+            return truncated[:last_sep + 1].strip()
+
+    # Fallback: Look for any sentence-ending punctuation
+    for punct in '.!?':
+        last_punct = truncated.rfind(punct)
+        if last_punct > max_chars * 0.7:
+            return truncated[:last_punct + 1].strip()
+
+    # Last resort: Find last space to avoid cutting words
+    last_space = truncated.rfind(' ')
+    if last_space > max_chars * 0.8:
+        return truncated[:last_space].strip()
+
+    # If all else fails, return the truncated content
+    return truncated.strip()
 
 
 def select_chunks_for_facts(
@@ -33,24 +78,70 @@ def select_chunks_for_facts(
         truncated = dict(chunk)
         content = truncated.get("content", "")
         if len(content) > max_chars_per_chunk:
-            truncated["content"] = content[:max_chars_per_chunk]
+            # Use sentence-boundary aware truncation instead of hard cut
+            truncated["content"] = truncate_at_sentence_boundary(content, max_chars_per_chunk)
         selected.append(truncated)
 
     return selected
 
 
-def build_facts_prompt(signal: dict[str, Any], selected_chunks: list[dict[str, Any]]) -> str:
+def build_facts_prompt(
+    signal: dict[str, Any],
+    selected_chunks: list[dict[str, Any]],
+    project_context: dict[str, Any] | None = None,
+) -> str:
     """
     Build the user prompt for fact extraction.
 
     Args:
         signal: Signal dict with project_id, signal_type, source, id
         selected_chunks: List of selected chunk dicts
+        project_context: Optional project context with name, domain, existing entities, state_snapshot
 
     Returns:
         Formatted prompt string for the LLM
     """
     lines: list[str] = []
+
+    # State snapshot - comprehensive project context (~500 tokens)
+    if project_context and project_context.get("state_snapshot"):
+        lines.append("=== PROJECT STATE SNAPSHOT ===")
+        lines.append(project_context["state_snapshot"])
+        lines.append("")
+        lines.append(
+            "NOTE: Use this context to avoid duplicating existing entities. "
+            "Only extract NEW information not already captured above."
+        )
+        lines.append("")
+
+    # Fallback project context if no state snapshot
+    elif project_context:
+        lines.append("=== PROJECT CONTEXT ===")
+        if project_context.get("name"):
+            lines.append(f"Project: {project_context['name']}")
+        if project_context.get("domain"):
+            lines.append(f"Domain: {project_context['domain']}")
+        if project_context.get("description"):
+            lines.append(f"Description: {project_context['description'][:200]}")
+
+        # Show existing features to help avoid duplicates
+        existing_features = project_context.get("existing_features", [])
+        if existing_features:
+            feature_names = [f.get("name", f.get("title", "?")) for f in existing_features[:10]]
+            lines.append(f"Existing features ({len(existing_features)}): {', '.join(feature_names)}")
+
+        # Show existing personas
+        existing_personas = project_context.get("existing_personas", [])
+        if existing_personas:
+            persona_names = [p.get("name", p.get("slug", "?")) for p in existing_personas[:5]]
+            lines.append(f"Existing personas ({len(existing_personas)}): {', '.join(persona_names)}")
+
+        lines.append("")
+        lines.append(
+            "NOTE: When extracting, check if entities already exist above. "
+            "If so, only extract NEW information or updates, not duplicates."
+        )
+        lines.append("")
 
     # Signal header
     lines.append("=== SIGNAL CONTEXT ===")
@@ -68,7 +159,7 @@ def build_facts_prompt(signal: dict[str, Any], selected_chunks: list[dict[str, A
     lines.append("Rules:")
     lines.append("- evidence.chunk_id MUST be one of the chunk_ids provided below")
     lines.append(
-        "- evidence.excerpt MUST be copied verbatim from the chunk content (max 280 chars)"
+        "- evidence.excerpt MUST be copied verbatim from the chunk content (max 1000 chars)"
     )
     lines.append("- Every fact and contradiction MUST have at least one evidence reference")
     lines.append("- Be precise and avoid speculation")
@@ -93,3 +184,85 @@ def build_facts_prompt(signal: dict[str, Any], selected_chunks: list[dict[str, A
         lines.append("")
 
     return "\n".join(lines)
+
+
+def get_project_context_for_extraction(project_id: UUID) -> dict[str, Any]:
+    """
+    Fetch project context for use in extraction prompts.
+
+    Uses the state snapshot for comprehensive, cached context.
+    Falls back to manual entity fetching if snapshot unavailable.
+
+    Args:
+        project_id: Project UUID
+
+    Returns:
+        Dict with state_snapshot (preferred) or project name, domain, existing_features, existing_personas
+    """
+    from app.db.supabase_client import get_supabase
+
+    context: dict[str, Any] = {}
+
+    # Try to get state snapshot first (preferred - comprehensive ~500 token context)
+    try:
+        state_snapshot = get_state_snapshot(project_id)
+        if state_snapshot:
+            context["state_snapshot"] = state_snapshot
+            logger.debug(f"Using state snapshot for extraction context ({len(state_snapshot)} chars)")
+            return context
+    except Exception as e:
+        logger.warning(f"Failed to get state snapshot, falling back to manual context: {e}")
+
+    # Fallback: Manual context building
+    supabase = get_supabase()
+
+    try:
+        # Get project info
+        proj_resp = (
+            supabase.table("projects")
+            .select("name, description, metadata")
+            .eq("id", str(project_id))
+            .single()
+            .execute()
+        )
+        if proj_resp.data:
+            context["name"] = proj_resp.data.get("name")
+            context["description"] = proj_resp.data.get("description")
+            meta = proj_resp.data.get("metadata") or {}
+            context["domain"] = meta.get("domain") or meta.get("industry")
+
+    except Exception as e:
+        logger.warning(f"Failed to fetch project info: {e}")
+
+    try:
+        # Get existing features (limit to 10 for context)
+        feat_resp = (
+            supabase.table("features")
+            .select("id, name, description")
+            .eq("project_id", str(project_id))
+            .order("created_at", desc=True)
+            .limit(15)
+            .execute()
+        )
+        context["existing_features"] = feat_resp.data or []
+
+    except Exception as e:
+        logger.warning(f"Failed to fetch features: {e}")
+        context["existing_features"] = []
+
+    try:
+        # Get existing personas (limit to 5 for context)
+        persona_resp = (
+            supabase.table("personas")
+            .select("id, slug, name, role")
+            .eq("project_id", str(project_id))
+            .limit(10)
+            .execute()
+        )
+        context["existing_personas"] = persona_resp.data or []
+
+    except Exception as e:
+        logger.warning(f"Failed to fetch personas: {e}")
+        context["existing_personas"] = []
+
+    return context

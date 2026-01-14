@@ -4,18 +4,18 @@
 
 export interface AgendaItem {
   topic: string
-  time_allocation_minutes: number
-  discussion_approach: string
-  related_confirmation_ids: string[]
-  key_questions: string[]
+  description: string
+  time_minutes: number
+  confirmation_ids: string[]
 }
 
 export interface MeetingAgenda {
   title: string
-  summary: string
-  suggested_duration_minutes: number
-  agenda_items: AgendaItem[]
+  duration_estimate: string
+  agenda: AgendaItem[]
+  pre_read: string
   confirmation_count: number
+  confirmations_included: string[]
 }
 
 /**
@@ -28,39 +28,35 @@ export function exportAgendaAsMarkdown(agenda: MeetingAgenda): string {
   lines.push(`# ${agenda.title}`)
   lines.push('')
 
-  // Summary
-  lines.push(`**Summary:** ${agenda.summary}`)
+  // Duration and count
+  lines.push(`**Duration:** ${agenda.duration_estimate} | **Items:** ${agenda.agenda.length} | **Confirmations:** ${agenda.confirmation_count}`)
   lines.push('')
-  lines.push(
-    `**Duration:** ${agenda.suggested_duration_minutes} minutes | **Items:** ${agenda.agenda_items.length} | **Confirmations:** ${agenda.confirmation_count}`
-  )
-  lines.push('')
+
+  // Pre-read
+  if (agenda.pre_read) {
+    lines.push(`**Pre-read for client:**`)
+    lines.push(agenda.pre_read)
+    lines.push('')
+  }
+
   lines.push('---')
   lines.push('')
 
   // Agenda items
-  agenda.agenda_items.forEach((item, index) => {
-    lines.push(`## ${index + 1}. ${item.topic} (${item.time_allocation_minutes} min)`)
+  agenda.agenda.forEach((item, index) => {
+    lines.push(`## ${index + 1}. ${item.topic} (${item.time_minutes} min)`)
     lines.push('')
 
-    // Discussion approach
-    lines.push(`**Discussion Approach:**`)
-    lines.push(item.discussion_approach)
-    lines.push('')
-
-    // Key questions
-    if (item.key_questions && item.key_questions.length > 0) {
-      lines.push(`**Key Questions:**`)
-      item.key_questions.forEach((question) => {
-        lines.push(`- ${question}`)
-      })
+    // Description
+    if (item.description) {
+      lines.push(item.description)
       lines.push('')
     }
 
     // Related confirmations
-    if (item.related_confirmation_ids && item.related_confirmation_ids.length > 0) {
+    if (item.confirmation_ids && item.confirmation_ids.length > 0) {
       lines.push(
-        `**Related Confirmations:** ${item.related_confirmation_ids.length} item${item.related_confirmation_ids.length !== 1 ? 's' : ''}`
+        `**Related Confirmations:** ${item.confirmation_ids.length} item${item.confirmation_ids.length !== 1 ? 's' : ''}`
       )
       lines.push('')
     }
@@ -83,41 +79,39 @@ export function exportAgendaAsText(agenda: MeetingAgenda): string {
   lines.push('='.repeat(agenda.title.length))
   lines.push('')
 
-  // Summary
-  lines.push(`Summary: ${agenda.summary}`)
-  lines.push('')
+  // Duration and count
   lines.push(
-    `Duration: ${agenda.suggested_duration_minutes} minutes | Items: ${agenda.agenda_items.length} | Confirmations: ${agenda.confirmation_count}`
+    `Duration: ${agenda.duration_estimate} | Items: ${agenda.agenda.length} | Confirmations: ${agenda.confirmation_count}`
   )
   lines.push('')
+
+  // Pre-read
+  if (agenda.pre_read) {
+    lines.push(`Pre-read for client:`)
+    const wrappedPreRead = wrapText(agenda.pre_read, 70, '   ')
+    lines.push(wrappedPreRead)
+    lines.push('')
+  }
+
   lines.push('-'.repeat(60))
   lines.push('')
 
   // Agenda items
-  agenda.agenda_items.forEach((item, index) => {
-    lines.push(`${index + 1}. ${item.topic} (${item.time_allocation_minutes} min)`)
+  agenda.agenda.forEach((item, index) => {
+    lines.push(`${index + 1}. ${item.topic} (${item.time_minutes} min)`)
     lines.push('')
 
-    // Discussion approach
-    lines.push(`   Discussion Approach:`)
-    // Wrap text to 70 characters
-    const wrappedApproach = wrapText(item.discussion_approach, 70, '   ')
-    lines.push(wrappedApproach)
-    lines.push('')
-
-    // Key questions
-    if (item.key_questions && item.key_questions.length > 0) {
-      lines.push(`   Key Questions:`)
-      item.key_questions.forEach((question) => {
-        lines.push(`   • ${question}`)
-      })
+    // Description
+    if (item.description) {
+      const wrappedDescription = wrapText(item.description, 70, '   ')
+      lines.push(wrappedDescription)
       lines.push('')
     }
 
     // Related confirmations
-    if (item.related_confirmation_ids && item.related_confirmation_ids.length > 0) {
+    if (item.confirmation_ids && item.confirmation_ids.length > 0) {
       lines.push(
-        `   Related Confirmations: ${item.related_confirmation_ids.length} item${item.related_confirmation_ids.length !== 1 ? 's' : ''}`
+        `   Related Confirmations: ${item.confirmation_ids.length} item${item.confirmation_ids.length !== 1 ? 's' : ''}`
       )
       lines.push('')
     }

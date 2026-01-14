@@ -1,4 +1,46 @@
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8001'
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8000'
+
+// API key fallback disabled - auth is required
+// Set NEXT_PUBLIC_BYPASS_AUTH=true to enable API key fallback for testing
+const ADMIN_API_KEY = process.env.NEXT_PUBLIC_BYPASS_AUTH === 'true'
+  ? process.env.NEXT_PUBLIC_ADMIN_API_KEY
+  : undefined
+
+// Module-level access token for authenticated requests
+let accessToken: string | null = null
+
+export const setAccessToken = (token: string | null) => {
+  accessToken = token
+  // Persist to localStorage for page reloads
+  if (typeof window !== 'undefined') {
+    if (token) {
+      localStorage.setItem('access_token', token)
+    } else {
+      localStorage.removeItem('access_token')
+    }
+  }
+}
+
+export const getAccessToken = () => {
+  // Restore from localStorage if not set
+  if (!accessToken && typeof window !== 'undefined') {
+    accessToken = localStorage.getItem('access_token')
+  }
+  return accessToken
+}
+
+export const clearAuth = () => {
+  accessToken = null
+  if (typeof window !== 'undefined') {
+    localStorage.removeItem('access_token')
+    localStorage.removeItem('refresh_token')
+    // Clear Supabase session storage
+    const keysToRemove = Object.keys(localStorage).filter(key =>
+      key.startsWith('sb-') || key.includes('supabase')
+    )
+    keysToRemove.forEach(key => localStorage.removeItem(key))
+  }
+}
 
 export class ApiError extends Error {
   constructor(public status: number, message: string) {
@@ -17,9 +59,18 @@ async function apiRequest<T>(
   const startTime = Date.now()
 
   try {
+    // Build auth headers - prefer Bearer token, fallback to API key
+    const authHeaders: Record<string, string> = {}
+    if (accessToken) {
+      authHeaders['Authorization'] = `Bearer ${accessToken}`
+    } else if (ADMIN_API_KEY) {
+      authHeaders['X-API-Key'] = ADMIN_API_KEY
+    }
+
     const response = await fetch(url, {
       headers: {
         'Content-Type': 'application/json',
+        ...authHeaders,
         ...options?.headers,
       },
       ...options,
@@ -188,20 +239,6 @@ export const enrichVp = (projectId: string, includeResearch = false) =>
     steps_updated: number
     summary: string
   }>('/agents/enrich-vp', {
-    method: 'POST',
-    body: JSON.stringify({
-      project_id: projectId,
-      include_research: includeResearch,
-    }),
-  })
-
-export const runRedTeam = (projectId: string, includeResearch = false) =>
-  apiRequest<{
-    run_id: string
-    job_id: string
-    insights_count: number
-    summary: string
-  }>('/agents/red-team', {
     method: 'POST',
     body: JSON.stringify({
       project_id: projectId,
@@ -407,25 +444,6 @@ export const getWhoWouldKnow = (
     }),
   })
 
-// Insights APIs
-export const getInsights = (projectId: string) =>
-  apiRequest<any[]>(`/insights?project_id=${projectId}`)
-
-export const applyInsight = (insightId: string) =>
-  apiRequest<any>(`/insights/${insightId}/apply`, {
-    method: 'PATCH',
-  })
-
-export const confirmInsight = (insightId: string) =>
-  apiRequest<any>(`/insights/${insightId}/confirm`, {
-    method: 'POST',
-  })
-
-export const dismissInsight = (insightId: string) =>
-  apiRequest<any>(`/insights/${insightId}/dismiss`, {
-    method: 'PATCH',
-  })
-
 // Evidence APIs
 export const getSignal = (signalId: string) =>
   apiRequest<any>(`/signals/${signalId}`)
@@ -445,6 +463,45 @@ export const createProject = (data: { name: string; description?: string; auto_i
     method: 'POST',
     body: JSON.stringify(data),
   })
+
+// Enhanced project creation with guided context
+export interface CreateProjectContextPayload {
+  name: string
+  problem: string
+  beneficiaries: string
+  features: string[]
+  company_name?: string
+  company_website?: string
+}
+
+export const createProjectWithContext = (payload: CreateProjectContextPayload) => {
+  // Transform the guided creation data into a rich description for the backend
+  const description = `## Problem
+${payload.problem}
+
+## Who Benefits
+${payload.beneficiaries}
+
+## Core Features
+${payload.features.map((f, i) => `${i + 1}. ${f}`).join('\n')}`
+
+  return apiRequest<any>('/projects', {
+    method: 'POST',
+    body: JSON.stringify({
+      name: payload.name,
+      description,
+      auto_ingest_description: true,
+      // Pass additional context metadata
+      metadata: {
+        problem: payload.problem,
+        beneficiaries: payload.beneficiaries,
+        features: payload.features,
+        company_name: payload.company_name,
+        company_website: payload.company_website,
+      },
+    }),
+  })
+}
 
 export const getProjectDetails = (projectId: string) =>
   apiRequest<any>(`/projects/${projectId}`)
@@ -671,3 +728,437 @@ export const updatePersonaStatus = (personaId: string, status: string) =>
     method: 'PATCH',
     body: JSON.stringify({ status }),
   })
+
+// ============================================
+// Client Portal Admin APIs
+// ============================================
+
+// Portal Configuration
+export interface PortalConfig {
+  portal_enabled: boolean
+  portal_phase?: 'pre_call' | 'post_call' | 'building' | 'testing'
+  discovery_call_date?: string
+  client_display_name?: string
+}
+
+export const getPortalConfig = (projectId: string) =>
+  apiRequest<{
+    portal_enabled: boolean
+    portal_phase: string
+    discovery_call_date: string | null
+    call_completed_at: string | null
+    client_display_name: string | null
+  }>(`/projects/${projectId}`)
+
+export const updatePortalConfig = (projectId: string, config: Partial<PortalConfig>) =>
+  apiRequest<any>(`/admin/projects/${projectId}/portal`, {
+    method: 'PATCH',
+    body: JSON.stringify(config),
+  })
+
+// Project Members (Clients)
+export interface ProjectMember {
+  id: string
+  user_id: string
+  role: 'consultant' | 'client'
+  invited_at: string
+  accepted_at: string | null
+  user?: {
+    id: string
+    email: string
+    first_name: string | null
+    last_name: string | null
+    company_name: string | null
+  }
+}
+
+export const getProjectMembers = async (projectId: string) => {
+  const members = await apiRequest<ProjectMember[]>(
+    `/admin/projects/${projectId}/members`
+  )
+  return { members, total: members.length }
+}
+
+export const inviteClient = (
+  projectId: string,
+  data: {
+    email: string
+    first_name?: string
+    last_name?: string
+    company_name?: string
+    send_email?: boolean
+  }
+) =>
+  apiRequest<{
+    user: { id: string; email: string; first_name?: string; last_name?: string }
+    project_member: { id: string; role: string }
+    magic_link_sent: boolean
+  }>(`/admin/projects/${projectId}/invite`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+
+export const removeProjectMember = (projectId: string, userId: string) =>
+  apiRequest<{ success: boolean }>(`/admin/projects/${projectId}/members/${userId}`, {
+    method: 'DELETE',
+  })
+
+export const resendInvite = (projectId: string, userId: string) =>
+  apiRequest<{ success: boolean; magic_link_sent: boolean }>(
+    `/admin/projects/${projectId}/members/${userId}/resend`,
+    { method: 'POST' }
+  )
+
+// Info Requests (Pre-call questions, Post-call actions)
+export interface InfoRequest {
+  id: string
+  project_id: string
+  phase: 'pre_call' | 'post_call'
+  created_by: 'ai' | 'consultant'
+  display_order: number
+  title: string
+  description: string | null
+  request_type: 'question' | 'document' | 'tribal_knowledge'
+  input_type: 'text' | 'file' | 'multi_text' | 'text_and_file'
+  priority: 'high' | 'medium' | 'low' | 'none' | null
+  best_answered_by: string | null
+  status: 'not_started' | 'in_progress' | 'complete' | 'skipped'
+  answer_data: Record<string, any> | null
+  why_asking: string | null
+  example_answer: string | null
+  created_at: string
+}
+
+export const getInfoRequests = (projectId: string, phase?: 'pre_call' | 'post_call') => {
+  const params = new URLSearchParams()
+  if (phase) params.set('phase', phase)
+  const query = params.toString()
+  return apiRequest<{ info_requests: InfoRequest[]; total: number }>(
+    `/admin/projects/${projectId}/info-requests${query ? `?${query}` : ''}`
+  )
+}
+
+export const generateInfoRequests = (projectId: string, count = 3) =>
+  apiRequest<{
+    info_requests: InfoRequest[]
+    generated_count: number
+  }>(`/admin/projects/${projectId}/info-requests/generate`, {
+    method: 'POST',
+    body: JSON.stringify({ count }),
+  })
+
+export const createInfoRequest = (
+  projectId: string,
+  data: {
+    phase: 'pre_call' | 'post_call'
+    title: string
+    description?: string
+    request_type?: 'question' | 'document' | 'tribal_knowledge'
+    input_type?: 'text' | 'file' | 'multi_text' | 'text_and_file'
+    priority?: 'high' | 'medium' | 'low' | 'none'
+    best_answered_by?: string
+    why_asking?: string
+    example_answer?: string
+  }
+) =>
+  apiRequest<InfoRequest>(`/admin/projects/${projectId}/info-requests`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+
+export const updateInfoRequest = (
+  requestId: string,
+  data: Partial<{
+    title: string
+    description: string
+    priority: 'high' | 'medium' | 'low' | 'none'
+    best_answered_by: string
+    why_asking: string
+    example_answer: string
+  }>
+) =>
+  apiRequest<InfoRequest>(`/admin/info-requests/${requestId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  })
+
+export const deleteInfoRequest = (requestId: string) =>
+  apiRequest<{ success: boolean }>(`/admin/info-requests/${requestId}`, {
+    method: 'DELETE',
+  })
+
+// ============================================
+// Organization APIs
+// ============================================
+
+import type {
+  Organization,
+  OrganizationWithRole,
+  OrganizationSummary,
+  OrganizationCreate,
+  OrganizationUpdate,
+  OrganizationMember,
+  OrganizationMemberPublic,
+  Invitation,
+  InvitationWithOrg,
+  InvitationCreate,
+  Profile,
+  ProfileUpdate,
+  OrganizationRole,
+} from '../types/api'
+
+// Current organization ID (set by org switcher)
+let currentOrganizationId: string | null = null
+
+export const setCurrentOrganization = (orgId: string | null) => {
+  currentOrganizationId = orgId
+}
+
+export const getCurrentOrganization = () => currentOrganizationId
+
+// Helper for org-scoped requests
+async function orgApiRequest<T>(
+  endpoint: string,
+  options?: RequestInit
+): Promise<T> {
+  const headers: Record<string, string> = {
+    ...(options?.headers as Record<string, string>),
+  }
+
+  if (currentOrganizationId) {
+    headers['X-Organization-Id'] = currentOrganizationId
+  }
+
+  return apiRequest<T>(endpoint, {
+    ...options,
+    headers,
+  })
+}
+
+// Organization CRUD
+export const listOrganizations = () =>
+  apiRequest<OrganizationWithRole[]>('/organizations')
+
+export const createOrganization = (data: OrganizationCreate) =>
+  apiRequest<Organization>('/organizations', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+
+export const getOrganization = (orgId: string) =>
+  apiRequest<Organization>(`/organizations/${orgId}`)
+
+export const getOrganizationSummary = (orgId: string) =>
+  apiRequest<OrganizationSummary>(`/organizations/${orgId}/summary`)
+
+export const updateOrganization = (orgId: string, data: OrganizationUpdate) =>
+  apiRequest<Organization>(`/organizations/${orgId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  })
+
+export const deleteOrganization = (orgId: string) =>
+  apiRequest<{ message: string; id: string }>(`/organizations/${orgId}`, {
+    method: 'DELETE',
+  })
+
+// Organization Members
+export const listOrganizationMembers = (orgId: string) =>
+  apiRequest<OrganizationMemberPublic[]>(`/organizations/${orgId}/members`)
+
+export const updateMemberRole = (
+  orgId: string,
+  userId: string,
+  role: OrganizationRole
+) =>
+  apiRequest<OrganizationMember>(`/organizations/${orgId}/members/${userId}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ organization_role: role }),
+  })
+
+export const removeOrganizationMember = (orgId: string, userId: string) =>
+  apiRequest<{ message: string; user_id: string }>(
+    `/organizations/${orgId}/members/${userId}`,
+    { method: 'DELETE' }
+  )
+
+export const leaveOrganization = (orgId: string) =>
+  apiRequest<{ message: string; organization_id: string }>(
+    `/organizations/${orgId}/leave`,
+    { method: 'POST' }
+  )
+
+// Organization Invitations
+export const sendInvitation = (orgId: string, data: InvitationCreate) =>
+  apiRequest<Invitation>(`/organizations/${orgId}/invitations`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+
+export const listInvitations = (orgId: string) =>
+  apiRequest<Invitation[]>(`/organizations/${orgId}/invitations`)
+
+export const cancelInvitation = (orgId: string, invitationId: string) =>
+  apiRequest<{ message: string; id: string }>(
+    `/organizations/${orgId}/invitations/${invitationId}`,
+    { method: 'DELETE' }
+  )
+
+export const getInvitationByToken = (token: string) =>
+  apiRequest<InvitationWithOrg>(`/organizations/invitations/${token}`)
+
+export const acceptInvitation = (token: string) =>
+  apiRequest<{
+    organization: Organization
+    member: OrganizationMember
+    message: string
+  }>('/organizations/invitations/accept', {
+    method: 'POST',
+    body: JSON.stringify({ invite_token: token }),
+  })
+
+// Organization Projects
+export const listOrganizationProjects = (orgId: string) =>
+  apiRequest<any[]>(`/organizations/${orgId}/projects`)
+
+// Profile
+export const getMyProfile = () => apiRequest<Profile>('/organizations/profile/me')
+
+export const updateMyProfile = (data: ProfileUpdate) =>
+  apiRequest<Profile>('/organizations/profile/me', {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  })
+
+// ============================================
+// Discovery Prep APIs
+// ============================================
+
+import type {
+  DiscoveryPrepBundle,
+  GeneratePrepResponse,
+  SendToPortalResponse,
+} from '../types/api'
+
+export const getDiscoveryPrep = (projectId: string) =>
+  apiRequest<DiscoveryPrepBundle>(`/discovery-prep/${projectId}`)
+
+export const generateDiscoveryPrep = (projectId: string, forceRegenerate = false) =>
+  apiRequest<GeneratePrepResponse>(`/discovery-prep/${projectId}/generate`, {
+    method: 'POST',
+    body: JSON.stringify({ force_regenerate: forceRegenerate }),
+  })
+
+export const confirmPrepQuestion = (projectId: string, questionId: string, confirmed = true) =>
+  apiRequest<DiscoveryPrepBundle>(`/discovery-prep/${projectId}/questions/${questionId}/confirm`, {
+    method: 'POST',
+    body: JSON.stringify({ confirmed }),
+  })
+
+export const confirmPrepDocument = (projectId: string, documentId: string, confirmed = true) =>
+  apiRequest<DiscoveryPrepBundle>(`/discovery-prep/${projectId}/documents/${documentId}/confirm`, {
+    method: 'POST',
+    body: JSON.stringify({ confirmed }),
+  })
+
+export const sendDiscoveryPrepToPortal = (projectId: string, inviteEmails?: string[]) =>
+  apiRequest<SendToPortalResponse>(`/discovery-prep/${projectId}/send`, {
+    method: 'POST',
+    body: JSON.stringify({ invite_emails: inviteEmails }),
+  })
+
+export const regeneratePrepQuestions = (projectId: string) =>
+  apiRequest<DiscoveryPrepBundle>(`/discovery-prep/${projectId}/regenerate-questions`, {
+    method: 'POST',
+  })
+
+export const regeneratePrepDocuments = (projectId: string) =>
+  apiRequest<DiscoveryPrepBundle>(`/discovery-prep/${projectId}/regenerate-documents`, {
+    method: 'POST',
+  })
+
+export const deleteDiscoveryPrep = (projectId: string) =>
+  apiRequest<{ message: string }>(`/discovery-prep/${projectId}`, {
+    method: 'DELETE',
+  })
+
+// ============================================
+// Meetings APIs
+// ============================================
+
+import type {
+  Meeting,
+  ProjectTask,
+  ProjectTasksResponse,
+  StatusNarrative,
+} from '../types/api'
+
+export const listMeetings = (projectId?: string, status?: string, upcomingOnly = false) => {
+  const params = new URLSearchParams()
+  if (projectId) params.set('project_id', projectId)
+  if (status) params.set('status', status)
+  if (upcomingOnly) params.set('upcoming_only', 'true')
+  const query = params.toString()
+  return apiRequest<Meeting[]>(`/meetings${query ? `?${query}` : ''}`)
+}
+
+export const listUpcomingMeetings = (limit = 10) =>
+  apiRequest<Meeting[]>(`/meetings/upcoming?limit=${limit}`)
+
+export const getMeeting = (meetingId: string) =>
+  apiRequest<Meeting>(`/meetings/${meetingId}`)
+
+export const createMeeting = (data: {
+  project_id: string
+  title: string
+  meeting_date: string
+  meeting_time: string
+  meeting_type?: 'discovery' | 'validation' | 'review' | 'other'
+  description?: string
+  duration_minutes?: number
+  timezone?: string
+  stakeholder_ids?: string[]
+  agenda?: Record<string, any>
+}) =>
+  apiRequest<Meeting>('/meetings', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+
+export const updateMeeting = (meetingId: string, data: Partial<{
+  title: string
+  description: string
+  meeting_type: 'discovery' | 'validation' | 'review' | 'other'
+  status: 'scheduled' | 'completed' | 'cancelled'
+  meeting_date: string
+  meeting_time: string
+  duration_minutes: number
+  timezone: string
+  stakeholder_ids: string[]
+  agenda: Record<string, any>
+  summary: string
+  highlights: Record<string, any>
+}>) =>
+  apiRequest<Meeting>(`/meetings/${meetingId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  })
+
+export const deleteMeeting = (meetingId: string) =>
+  apiRequest<{ success: boolean; meeting_id: string }>(`/meetings/${meetingId}`, {
+    method: 'DELETE',
+  })
+
+// ============================================
+// Tasks APIs
+// ============================================
+
+export const getProjectTasks = (projectId: string) =>
+  apiRequest<ProjectTasksResponse>(`/projects/${projectId}/tasks`)
+
+// ============================================
+// Status Narrative APIs
+// ============================================
+
+export const getStatusNarrative = (projectId: string, regenerate = false) =>
+  apiRequest<StatusNarrative>(`/projects/${projectId}/status-narrative?regenerate=${regenerate}`)

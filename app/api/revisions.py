@@ -30,6 +30,12 @@ class RevisionOut(BaseModel):
     context_summary: str | None
     run_id: UUID | None
     created_at: str
+    # New fields for enhanced change tracking
+    changes: dict[str, Any] | None = None
+    diff_summary: str | None = None
+    revision_number: int | None = None
+    created_by: str | None = None
+    source_signal_id: UUID | None = None
 
 
 class ListRevisionsResponse(BaseModel):
@@ -61,7 +67,7 @@ async def list_entity_revisions_api(
         HTTPException 500: If database operation fails
     """
     # Validate entity type
-    valid_types = ["prd_section", "vp_step", "feature"]
+    valid_types = ["prd_section", "vp_step", "feature", "persona"]
     if entity_type not in valid_types:
         raise HTTPException(
             status_code=400,

@@ -1,252 +1,33 @@
+/**
+ * Features Page - Redirect
+ *
+ * Features are now shown nested within the Product Requirements tab.
+ * This page redirects to the main project page.
+ */
+
 'use client'
 
-import { useState, useEffect } from 'react'
-import { useParams } from 'next/navigation'
-import Link from 'next/link'
-import {
-  ArrowLeft,
-  Target,
-  Play,
-  CheckCircle,
-  AlertCircle,
-  Info,
-  ExternalLink
-} from 'lucide-react'
-import { getFeatures, getBaselineStatus, enrichFeatures, getSignal, getSignalChunks } from '@/lib/api'
-import { Feature, BaselineStatus, Signal, SignalChunk } from '@/types/api'
-import FeatureDetailCard from '@/components/FeatureDetailCard'
+import { useEffect } from 'react'
+import { useParams, useRouter } from 'next/navigation'
 
 export default function FeaturesPage() {
   const params = useParams()
+  const router = useRouter()
   const projectId = params.projectId as string
 
-  const [features, setFeatures] = useState<Feature[]>([])
-  const [baseline, setBaseline] = useState<BaselineStatus | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [running, setRunning] = useState(false)
-  const [selectedSignal, setSelectedSignal] = useState<Signal | null>(null)
-  const [signalChunks, setSignalChunks] = useState<SignalChunk[]>([])
-
   useEffect(() => {
-    loadData()
-  }, [projectId])
-
-  const loadData = async () => {
-    try {
-      setLoading(true)
-      const [featuresData, baselineData] = await Promise.all([
-        getFeatures(projectId),
-        getBaselineStatus(projectId),
-      ])
-      setFeatures(featuresData)
-      setBaseline(baselineData)
-    } catch (error) {
-      console.error('Failed to load features:', error)
-      alert('Failed to load features')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const handleEnrichFeatures = async (onlyMvp = false) => {
-    try {
-      setRunning(true)
-      const result = await enrichFeatures(projectId, {
-        onlyMvp,
-        includeResearch: baseline?.baseline_ready,
-      })
-
-      // Poll job status
-      pollJobStatus(result.job_id)
-    } catch (error) {
-      console.error('Failed to enrich features:', error)
-      alert('Failed to enrich features')
-      setRunning(false)
-    }
-  }
-
-  const pollJobStatus = async (jobId: string) => {
-    const checkStatus = async () => {
-      try {
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE}/v1/jobs/${jobId}`)
-        if (response.ok) {
-          const job = await response.json()
-          if (job.status === 'completed') {
-            alert('Feature enrichment completed!')
-            loadData() // Refresh data
-            setRunning(false)
-          } else if (job.status === 'failed') {
-            alert(`Feature enrichment failed: ${job.error}`)
-            setRunning(false)
-          } else {
-            // Still running, check again in 2 seconds
-            setTimeout(checkStatus, 2000)
-          }
-        }
-      } catch (error) {
-        console.error('Failed to check job status:', error)
-        setRunning(false)
-      }
-    }
-    checkStatus()
-  }
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'confirmed_client':
-        return 'bg-green-100 text-green-800'
-      case 'confirmed_consultant':
-        return 'bg-blue-100 text-blue-800'
-      case 'needs_confirmation':
-        return 'bg-yellow-100 text-yellow-800'
-      default:
-        return 'bg-gray-100 text-gray-800'
-    }
-  }
-
-  const viewEvidence = async (chunkId: string) => {
-    try {
-      console.log('🔍 Viewing evidence for chunk:', chunkId)
-      // Extract signal ID from chunk ID (assuming format: signalId-chunkIndex)
-      const signalId = chunkId.split('-')[0]
-
-      const [signal, chunks] = await Promise.all([
-        getSignal(signalId),
-        getSignalChunks(signalId)
-      ])
-
-      console.log('✅ Loaded evidence:', { signal, chunks: chunks.chunks })
-      setSelectedSignal(signal)
-      setSignalChunks(chunks.chunks)
-    } catch (error) {
-      console.error('❌ Failed to load evidence:', error)
-      alert('Failed to load evidence details')
-    }
-  }
-
-  if (loading) {
-    return (
-      <div className="max-w-7xl mx-auto px-4 py-8">
-        <div className="flex justify-center items-center h-64">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-        </div>
-      </div>
-    )
-  }
-
-  const mvpFeatures = features.filter(f => f.is_mvp)
-  const enrichedFeatures = features.filter(f => f.details)
+    // Redirect to Product Requirements tab (main project page)
+    router.replace(`/projects/${projectId}`)
+  }, [projectId, router])
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-8">
-      {/* Header */}
-      <div className="mb-8">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-4">
-            <Link href={`/projects/${projectId}`} className="btn btn-secondary">
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back to Dashboard
-            </Link>
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">Features</h1>
-              <p className="text-gray-600 mt-1">
-                {features.length} features • {mvpFeatures.length} MVP • {enrichedFeatures.length} enriched
-              </p>
-            </div>
-          </div>
-
-          <div className="flex space-x-4">
-            <button
-              onClick={() => handleEnrichFeatures(true)}
-              disabled={running}
-              className="btn btn-primary"
-            >
-              {running ? (
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-              ) : (
-                <Play className="h-4 w-4 mr-2" />
-              )}
-              Enrich MVP Features
-            </button>
-            <button
-              onClick={() => handleEnrichFeatures(false)}
-              disabled={running}
-              className="btn btn-secondary"
-            >
-              {running ? (
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600 mr-2"></div>
-              ) : (
-                <Play className="h-4 w-4 mr-2" />
-              )}
-              Enrich All Features
-            </button>
-          </div>
-        </div>
+    <div className="p-6 flex items-center justify-center">
+      <div className="text-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-primary mx-auto mb-4"></div>
+        <p className="text-support text-ui-supportText">
+          Redirecting to Product Requirements...
+        </p>
       </div>
-
-      {/* Features List */}
-      <div className="space-y-6">
-        {features.map((feature) => (
-          <FeatureDetailCard
-            key={feature.id}
-            feature={feature}
-            onViewEvidence={viewEvidence}
-          />
-        ))}
-      </div>
-
-      {features.length === 0 && (
-        <div className="text-center py-12">
-          <Target className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">No features found</h3>
-          <p className="text-gray-600">Run the build state agent to extract features from your signals.</p>
-        </div>
-      )}
-
-      {/* Evidence Modal */}
-      {selectedSignal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg max-w-4xl w-full max-h-[80vh] overflow-hidden">
-            <div className="p-6 border-b">
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold text-gray-900">Evidence Source</h3>
-                <button
-                  onClick={() => {
-                    setSelectedSignal(null)
-                    setSignalChunks([])
-                  }}
-                  className="text-gray-400 hover:text-gray-600"
-                >
-                  ✕
-                </button>
-              </div>
-              <div className="mt-2 text-sm text-gray-600">
-                <p><strong>Source:</strong> {selectedSignal.source}</p>
-                <p><strong>Type:</strong> {selectedSignal.signal_type}</p>
-                <p><strong>Date:</strong> {new Date(selectedSignal.created_at).toLocaleString()}</p>
-              </div>
-            </div>
-
-            <div className="p-6 overflow-y-auto max-h-96">
-              <div className="space-y-4">
-                {signalChunks.map((chunk, idx) => (
-                  <div key={idx} className="border border-gray-200 rounded-lg p-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm font-medium text-gray-700">
-                        Chunk {chunk.chunk_index + 1}
-                      </span>
-                      <span className="text-xs text-gray-500">
-                        Characters {chunk.start_char}-{chunk.end_char}
-                      </span>
-                    </div>
-                    <p className="text-sm text-gray-700">{chunk.content}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }

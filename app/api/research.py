@@ -6,6 +6,7 @@ from uuid import UUID
 from fastapi import APIRouter, HTTPException
 
 from app.core.baseline_gate import require_baseline_ready
+from app.core.chunking import chunk_text
 from app.core.embeddings import embed_texts
 from app.core.logging import get_logger
 from app.core.research_render import render_research_report
@@ -20,12 +21,193 @@ from app.core.schemas_research import (
     ResearchIngestResponse,
     ResearchReport,
 )
+from pydantic import BaseModel
 from app.db.jobs import complete_job, create_job, fail_job, start_job
 from app.db.phase0 import insert_signal, insert_signal_chunks
 
 logger = get_logger(__name__)
 
 router = APIRouter()
+
+
+class SimpleResearchUploadRequest(BaseModel):
+    """Simple research document upload from frontend."""
+    project_id: UUID
+    title: str
+    doc_type: str
+    content: str
+
+
+class SignalClassificationInfo(BaseModel):
+    """Signal classification info for response."""
+    power_level: str
+    power_score: float
+    reason: str
+    estimated_entity_count: int
+    recommended_pipeline: str
+
+
+class SimpleResearchUploadResponse(BaseModel):
+    """Response from simple research upload."""
+    signal_id: UUID
+    chunks_inserted: int
+    classification: SignalClassificationInfo | None = None
+
+
+@router.post("/ingest", response_model=SimpleResearchUploadResponse)
+async def upload_simple_research(request: SimpleResearchUploadRequest) -> SimpleResearchUploadResponse:
+    """
+    Upload a simple research document (frontend UI upload).
+
+    This endpoint treats research as regular signals with automatic processing.
+
+    This endpoint:
+    1. Creates a signal with the research content
+    2. Chunks using standard chunk_text() for consistency (1200 chars, 120 overlap)
+    3. Embeds the content
+    4. Tags with authority="research"
+    5. Auto-triggers processing (extract_facts or surgical_update based on project mode)
+
+    For structured n8n automation with validation, use /ingest/structured instead.
+
+    Args:
+        request: Simple research upload request (project_id, title, doc_type, content)
+
+    Returns:
+        SimpleResearchUploadResponse with signal_id and chunks count
+
+    Raises:
+        HTTPException 500: If upload fails
+    """
+    run_id = uuid.uuid4()
+
+    try:
+        logger.info(
+            f"Starting simple research upload for project {request.project_id}",
+            extra={
+                "run_id": str(run_id),
+                "title": request.title,
+                "doc_type": request.doc_type,
+            },
+        )
+
+        # Build metadata
+        metadata = {
+            "authority": "research",
+            "title": request.title,
+            "doc_type": request.doc_type,
+            "upload_type": "manual",
+        }
+
+        # Insert signal
+        signal = insert_signal(
+            project_id=request.project_id,
+            signal_type="market_research",
+            source=f"manual_{request.doc_type}",
+            raw_text=request.content,
+            metadata=metadata,
+            run_id=run_id,
+        )
+        signal_id = UUID(signal["id"])
+
+        # Chunk the content using standard chunk_text() for consistency
+        chunks = chunk_text(request.content, metadata={"doc_type": request.doc_type})
+
+        logger.info(
+            f"Created {len(chunks)} chunks",
+            extra={"run_id": str(run_id), "signal_id": str(signal_id)},
+        )
+
+        # Get embeddings
+        chunk_texts = [chunk["content"] for chunk in chunks]
+        embeddings = embed_texts(chunk_texts) if chunk_texts else []
+
+        # Insert chunks (chunk_text already returns proper structure)
+        inserted = insert_signal_chunks(
+            signal_id=signal_id,
+            chunks=chunks,
+            embeddings=embeddings,
+            run_id=run_id,
+        )
+
+        logger.info(
+            f"Successfully uploaded research document: {request.title}",
+            extra={
+                "run_id": str(run_id),
+                "signal_id": str(signal_id),
+                "chunks": len(inserted),
+            },
+        )
+
+        # Classify signal for pipeline routing
+        from app.core.signal_classifier import classify_signal
+        classification = classify_signal(
+            source_type=request.doc_type,
+            content=request.content,
+            metadata={"title": request.title},
+        )
+
+        logger.info(
+            f"Signal classified as {classification.power_level.value}",
+            extra={
+                "run_id": str(run_id),
+                "signal_id": str(signal_id),
+                "power_level": classification.power_level.value,
+                "power_score": classification.power_score,
+            },
+        )
+
+        # Auto-trigger processing using the new unified pipeline
+        # Routes to bulk pipeline automatically if heavyweight
+        try:
+            from app.core.signal_pipeline import process_signal
+
+            logger.info(
+                f"Processing research signal {signal_id} through unified pipeline",
+                extra={"run_id": str(run_id), "signal_id": str(signal_id)},
+            )
+
+            pipeline_result = await process_signal(
+                project_id=request.project_id,
+                signal_id=signal_id,
+                run_id=run_id,
+                signal_content=request.content,
+                signal_type="research",
+                signal_metadata={"doc_type": request.doc_type, "title": request.title},
+            )
+
+            if pipeline_result.get("success"):
+                logger.info(
+                    f"Processing completed for research signal {signal_id}: pipeline={pipeline_result.get('pipeline')}",
+                    extra={"run_id": str(run_id), "signal_id": str(signal_id), "result": pipeline_result},
+                )
+            else:
+                logger.warning(
+                    f"Processing failed for research signal {signal_id}: {pipeline_result.get('error')}",
+                    extra={"run_id": str(run_id), "signal_id": str(signal_id)},
+                )
+        except Exception as processing_error:
+            logger.exception(
+                f"Processing failed for research signal {signal_id}",
+                extra={"run_id": str(run_id), "signal_id": str(signal_id)},
+            )
+            # Don't fail upload if processing fails
+
+        return SimpleResearchUploadResponse(
+            signal_id=signal_id,
+            chunks_inserted=len(inserted),
+            classification=SignalClassificationInfo(
+                power_level=classification.power_level.value,
+                power_score=classification.power_score,
+                reason=classification.reason,
+                estimated_entity_count=classification.estimated_entity_count,
+                recommended_pipeline=classification.recommended_pipeline,
+            ),
+        )
+
+    except Exception as e:
+        logger.exception("Simple research upload failed", extra={"run_id": str(run_id)})
+        raise HTTPException(status_code=500, detail="Research upload failed") from e
 
 
 def _ingest_research_report(
@@ -149,18 +331,26 @@ def _ingest_research_report(
     return signal_id, len(inserted)
 
 
-@router.post("/ingest/research", response_model=ResearchIngestResponse)
-async def ingest_research(request: ResearchIngestRequest) -> ResearchIngestResponse:
+@router.post("/ingest/structured", response_model=ResearchIngestResponse)
+async def ingest_structured_research(request: ResearchIngestRequest) -> ResearchIngestResponse:
     """
-    Ingest deep research reports from n8n.
+    Ingest structured research reports from n8n automation.
+
+    This endpoint handles complex research reports with:
+    - Validation and completeness scoring
+    - Structured section rendering
+    - Multiple reports per request
+    - Baseline gate requirement
+
+    For simple manual uploads from the UI, use /ingest instead.
 
     This endpoint:
     1. Checks baseline gate (requires at least 1 client signal + 1 fact extraction)
-    2. For each report: renders to sections, embeds, stores as signal + chunks
+    2. For each report: validates, renders to sections, embeds, stores as signal + chunks
     3. Tags all signals with authority="research"
 
     Args:
-        request: Research ingestion request with project_id and reports
+        request: Research ingestion request with project_id and structured reports
 
     Returns:
         ResearchIngestResponse with ingested report details

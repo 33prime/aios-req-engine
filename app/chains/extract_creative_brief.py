@@ -108,7 +108,7 @@ Content to analyze:
 Extract any creative brief information from this content. Focus especially on fields that are currently empty or could be enriched."""
 
         response = client.chat.completions.create(
-            model=settings.FACT_EXTRACTION_MODEL,
+            model=settings.FACTS_MODEL,
             messages=[
                 {"role": "system", "content": SYSTEM_PROMPT},
                 {"role": "user", "content": user_prompt},

@@ -20,7 +20,6 @@ interface StreamingProgressProps {
 const PHASES = [
   { key: 'build_state', label: 'Build State', description: 'Reconciling facts into entities' },
   { key: 'research', label: 'Smart Research', description: 'Checking if research needed' },
-  { key: 'red_team', label: 'Red Team', description: 'Finding gaps with evidence' },
   { key: 'a_team', label: 'A-Team', description: 'Generating solutions' },
   { key: 'reconcile', label: 'Reconcile', description: 'Updating final state' },
 ];
@@ -171,17 +170,6 @@ export function StreamingProgress({
                     {phase.key === 'research' && !phaseData.skipped && (
                       <div>
                         ✓ {phaseData.chunks_created || 0} research chunks created
-                      </div>
-                    )}
-
-                    {phase.key === 'red_team' && (
-                      <div className="flex gap-4">
-                        <span>✓ {phaseData.insights_found} insights</span>
-                        {phaseData.critical_count > 0 && (
-                          <span className="text-red-600 font-medium">
-                            ⚠ {phaseData.critical_count} critical
-                          </span>
-                        )}
                       </div>
                     )}
 

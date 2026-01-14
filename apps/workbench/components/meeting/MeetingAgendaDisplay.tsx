@@ -36,7 +36,7 @@ export function MeetingAgendaDisplay({ agenda, onClose }: MeetingAgendaDisplayPr
   }
 
   const expandAll = () => {
-    setExpandedItems(new Set(agenda.agenda_items.map((_, i) => i)))
+    setExpandedItems(new Set(agenda.agenda.map((_, i) => i)))
   }
 
   const collapseAll = () => {
@@ -84,20 +84,25 @@ export function MeetingAgendaDisplay({ agenda, onClose }: MeetingAgendaDisplayPr
         />
 
         <div className="px-6 pb-6 space-y-4">
-          {/* Summary */}
-          <p className="text-gray-700">{agenda.summary}</p>
+          {/* Pre-read / Summary */}
+          {agenda.pre_read && (
+            <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+              <p className="text-sm font-medium text-yellow-800 mb-1">Pre-read for client:</p>
+              <p className="text-sm text-yellow-700">{agenda.pre_read}</p>
+            </div>
+          )}
 
           {/* Stats */}
           <div className="flex gap-6 text-sm">
             <div className="flex items-center gap-2">
               <Clock className="h-4 w-4 text-gray-500" />
-              <span className="font-medium">{agenda.suggested_duration_minutes} minutes</span>
+              <span className="font-medium">{agenda.duration_estimate}</span>
             </div>
             <div className="flex items-center gap-2">
               <Users className="h-4 w-4 text-gray-500" />
               <span className="font-medium">{agenda.confirmation_count} confirmations</span>
             </div>
-            <div className="text-gray-600">{agenda.agenda_items.length} agenda items</div>
+            <div className="text-gray-600">{agenda.agenda.length} agenda items</div>
           </div>
         </div>
       </Card>
@@ -114,7 +119,7 @@ export function MeetingAgendaDisplay({ agenda, onClose }: MeetingAgendaDisplayPr
 
       {/* Agenda Items */}
       <div className="space-y-3">
-        {agenda.agenda_items.map((item, index) => {
+        {agenda.agenda.map((item, index) => {
           const isExpanded = expandedItems.has(index)
 
           return (
@@ -130,7 +135,7 @@ export function MeetingAgendaDisplay({ agenda, onClose }: MeetingAgendaDisplayPr
                     </span>
                     <div>
                       <h3 className="font-semibold text-gray-900">{item.topic}</h3>
-                      <p className="text-sm text-gray-500">{item.time_allocation_minutes} minutes</p>
+                      <p className="text-sm text-gray-500">{item.time_minutes} minutes</p>
                     </div>
                   </div>
                 </div>
@@ -145,37 +150,25 @@ export function MeetingAgendaDisplay({ agenda, onClose }: MeetingAgendaDisplayPr
 
               {isExpanded && (
                 <div className="px-4 pb-4 space-y-4 border-t bg-gray-50/50">
-                  {/* Discussion Approach */}
-                  <div className="pt-4">
-                    <h4 className="text-sm font-semibold text-gray-700 mb-2">
-                      Discussion Approach
-                    </h4>
-                    <p className="text-sm text-gray-600">{item.discussion_approach}</p>
-                  </div>
-
-                  {/* Key Questions */}
-                  {item.key_questions && item.key_questions.length > 0 && (
-                    <div>
-                      <h4 className="text-sm font-semibold text-gray-700 mb-2">Key Questions</h4>
-                      <ul className="list-disc list-inside space-y-1">
-                        {item.key_questions.map((question, qIndex) => (
-                          <li key={qIndex} className="text-sm text-gray-600">
-                            {question}
-                          </li>
-                        ))}
-                      </ul>
+                  {/* Description */}
+                  {item.description && (
+                    <div className="pt-4">
+                      <h4 className="text-sm font-semibold text-gray-700 mb-2">
+                        Discussion Points
+                      </h4>
+                      <p className="text-sm text-gray-600">{item.description}</p>
                     </div>
                   )}
 
                   {/* Related Confirmations */}
-                  {item.related_confirmation_ids && item.related_confirmation_ids.length > 0 && (
+                  {item.confirmation_ids && item.confirmation_ids.length > 0 && (
                     <div>
                       <h4 className="text-sm font-semibold text-gray-700 mb-1">
                         Related Confirmations
                       </h4>
                       <p className="text-sm text-gray-500">
-                        {item.related_confirmation_ids.length} confirmation
-                        {item.related_confirmation_ids.length !== 1 ? 's' : ''} grouped in this
+                        {item.confirmation_ids.length} confirmation
+                        {item.confirmation_ids.length !== 1 ? 's' : ''} grouped in this
                         topic
                       </p>
                     </div>

@@ -226,3 +226,6 @@ class TestRedTeamAgentGraph:
             assert count == 0
             mock_facts.assert_called_once()
             mock_chain.assert_called_once()
+
+
+

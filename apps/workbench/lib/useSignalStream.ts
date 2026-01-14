@@ -17,8 +17,6 @@ export type StreamEventType =
   | 'research_check'
   | 'research_started'
   | 'research_completed'
-  | 'red_team_started'
-  | 'red_team_completed'
   | 'a_team_started'
   | 'a_team_completed'
   | 'reconcile_started'

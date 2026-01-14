@@ -1,16 +1,18 @@
 """Pydantic schemas for red-team agent and insights."""
 
-from typing import Literal
+from datetime import datetime
+from typing import Literal, Optional, List
 from uuid import UUID
 
 from pydantic import BaseModel, Field
+from app.core.schemas_evidence import Evidence
 
 
 class InsightTarget(BaseModel):
     """Target entity for an insight."""
 
-    kind: Literal["feature", "prd_section", "vp_step"] = Field(
-        ..., description="Type of target entity"
+    kind: str = Field(
+        ..., description="Type of target entity (e.g., feature, prd_section, vp_step)"
     )
     id: str | None = Field(default=None, description="Entity ID if applicable")
     label: str = Field(..., description="Human-readable label for the target")
@@ -27,8 +29,8 @@ class EvidenceRef(BaseModel):
 class ProposedChange(BaseModel):
     """Suggested change to apply to project state"""
 
-    action: Literal["add", "modify", "deprecate"] = Field(
-        ..., description="Type of change to make"
+    action: str = Field(
+        ..., description="Type of change to make (e.g., add, modify, deprecate)"
     )
     field: str = Field(..., description="Which field to change")
     current_value: str | None = Field(default=None, description="Current value (if modifying)")
@@ -39,29 +41,49 @@ class ProposedChange(BaseModel):
 class RedTeamInsight(BaseModel):
     """A single insight from red-team analysis."""
 
-    severity: Literal["minor", "important", "critical"] = Field(
-        ..., description="Severity of the issue"
+    severity: str = Field(
+        ..., description="Severity of the issue (e.g., minor, important, critical)"
     )
-    gate: Literal["completeness", "validation", "assumption", "scope", "wow"] = Field(
-        ..., description="Which validation gate this insight applies to"
+    gate: str = Field(
+        ..., description="Which validation gate this insight applies to (e.g., completeness, validation, assumption, scope, wow)"
     )
-    category: Literal["logic", "ux", "security", "data", "reporting", "scope", "ops"] = Field(
-        ..., description="Category of the issue"
+    category: str = Field(
+        ..., description="Category of the issue (e.g., logic, ux, security, data, reporting, scope, ops)"
     )
     title: str = Field(..., description="Short title for the insight")
     finding: str = Field(..., description="What is wrong")
     why: str = Field(..., description="Why it matters")
-    suggested_action: Literal["apply_internally", "needs_confirmation"] = Field(
-        ..., description="Whether to apply internally or needs client confirmation"
+    suggested_action: str = Field(
+        ..., description="Whether to apply internally or needs client confirmation (e.g., apply_internally, needs_confirmation)"
     )
     targets: list[InsightTarget] = Field(
         default_factory=list, description="Target entities affected"
     )
     evidence: list[EvidenceRef] = Field(
-        ..., min_length=1, description="Evidence references (at least 1)"
+        default_factory=list, description="Evidence references (optional)"
     )
     proposed_changes: list[ProposedChange] = Field(
         default_factory=list, description="Suggested changes to apply"
+    )
+
+    # Enhanced evidence tracking
+    evidence_chain: List[Evidence] = Field(
+        default_factory=list,
+        description="Extended evidence with source attribution"
+    )
+    reasoning: Optional[str] = Field(
+        None,
+        description="Detailed reasoning based on evidence"
+    )
+    suggested_questions: List[str] = Field(
+        default_factory=list,
+        description="Questions to resolve this gap"
+    )
+    confidence: Optional[float] = Field(
+        None,
+        ge=0.0,
+        le=1.0,
+        description="Confidence in this finding (0.0-1.0)"
     )
 
 

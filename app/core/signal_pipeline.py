@@ -423,3 +423,107 @@ async def _stream_bulk_processing(
             "data": {"error": str(e)},
             "progress": 50
         }
+
+
+async def process_signal(
+    project_id: UUID,
+    signal_id: UUID,
+    run_id: UUID,
+    signal_content: str,
+    signal_type: str = "signal",
+    signal_metadata: dict | None = None,
+    force_bulk: bool = False,
+) -> Dict[str, Any]:
+    """
+    Process a signal through the new unified pipeline (non-streaming).
+
+    This is a convenience wrapper around stream_signal_processing that
+    collects all events and returns a summary result.
+
+    Args:
+        project_id: Project UUID
+        signal_id: Signal UUID
+        run_id: Run tracking UUID
+        signal_content: Raw signal content
+        signal_type: Type of signal (transcript, document, email, etc.)
+        signal_metadata: Optional metadata
+        force_bulk: Force bulk pipeline regardless of classification
+
+    Returns:
+        Dict with processing results including:
+        - success: bool
+        - pipeline: "standard" or "bulk"
+        - classification: power level info
+        - features_created/updated: counts
+        - proposal_id: if bulk pipeline created a proposal
+        - error: if processing failed
+    """
+    result = {
+        "success": True,
+        "pipeline": "standard",
+        "signal_id": str(signal_id),
+        "project_id": str(project_id),
+        "features_created": 0,
+        "personas_created": 0,
+        "vp_steps_created": 0,
+        "proposal_id": None,
+        "error": None,
+    }
+
+    try:
+        async for event in stream_signal_processing(
+            project_id=project_id,
+            signal_id=signal_id,
+            run_id=run_id,
+            signal_content=signal_content,
+            signal_type=signal_type,
+            signal_metadata=signal_metadata,
+            force_bulk=force_bulk,
+        ):
+            event_type = event.get("type", "")
+            event_data = event.get("data", {})
+
+            # Capture classification info
+            if event_type == StreamEvent.CLASSIFICATION_COMPLETED:
+                result["classification"] = {
+                    "power_level": event_data.get("power_level"),
+                    "power_score": event_data.get("power_score"),
+                    "reason": event_data.get("reason"),
+                    "estimated_entity_count": event_data.get("estimated_entity_count"),
+                }
+                if event_data.get("using_bulk_pipeline"):
+                    result["pipeline"] = "bulk"
+
+            # Capture build state results (standard pipeline)
+            elif event_type == StreamEvent.BUILD_STATE_COMPLETED:
+                result["features_created"] = event_data.get("features_created", 0)
+                result["personas_created"] = event_data.get("personas_created", 0)
+                result["vp_steps_created"] = event_data.get("vp_steps_created", 0)
+
+            # Capture bulk extraction results
+            elif event_type == StreamEvent.BULK_EXTRACTION_COMPLETED:
+                result["features_found"] = event_data.get("features_found", 0)
+                result["personas_found"] = event_data.get("personas_found", 0)
+                result["stakeholders_found"] = event_data.get("stakeholders_found", 0)
+
+            # Capture proposal creation
+            elif event_type == StreamEvent.BULK_PROPOSAL_CREATED:
+                result["proposal_id"] = event_data.get("proposal_id")
+                result["total_changes"] = event_data.get("total_changes", 0)
+                result["requires_review"] = event_data.get("requires_review", True)
+
+            # Handle errors
+            elif event_type == StreamEvent.ERROR:
+                result["success"] = False
+                result["error"] = event_data.get("error", "Unknown error")
+
+            # Capture final completion
+            elif event_type == StreamEvent.COMPLETED:
+                result["message"] = event_data.get("message", "Processing completed")
+
+    except Exception as e:
+        logger.exception(f"Signal processing failed: {e}")
+        result["success"] = False
+        result["error"] = str(e)
+
+    return result

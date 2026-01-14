@@ -19,7 +19,7 @@ import { createProject } from '@/lib/api'
 interface CreateProjectModalProps {
   isOpen: boolean
   onClose: () => void
-  onSuccess: (projectId: string) => void
+  onSuccess: (response: { id: string; name: string; onboarding_job_id?: string }) => void
 }
 
 export function CreateProjectModal({ isOpen, onClose, onSuccess }: CreateProjectModalProps) {
@@ -56,8 +56,12 @@ export function CreateProjectModal({ isOpen, onClose, onSuccess }: CreateProject
       setDescription('')
       setAutoIngest(true)
 
-      // Call success handler with project ID
-      onSuccess(response.id)
+      // Call success handler with full response (includes onboarding_job_id)
+      onSuccess({
+        id: response.id,
+        name: response.name,
+        onboarding_job_id: response.onboarding_job_id,
+      })
     } catch (err: any) {
       console.error('Failed to create project:', err)
       setError(err.message || 'Failed to create project')

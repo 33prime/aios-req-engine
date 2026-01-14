@@ -834,3 +834,181 @@ def suggest_stakeholders_for_confirmation(
         suggestions.append(suggestion)
 
     return suggestions
+
+
+# ============================================================================
+# User Linking Functions
+# ============================================================================
+
+
+def link_stakeholder_to_user(
+    stakeholder_id: UUID,
+    user_id: UUID,
+) -> dict:
+    """
+    Link a stakeholder to a user account.
+
+    Args:
+        stakeholder_id: Stakeholder UUID
+        user_id: User UUID to link
+
+    Returns:
+        Updated stakeholder dict
+    """
+    return update_stakeholder(stakeholder_id, {"linked_user_id": str(user_id)})
+
+
+def link_stakeholder_to_project_member(
+    stakeholder_id: UUID,
+    project_member_id: UUID,
+) -> dict:
+    """
+    Link a stakeholder to a project member.
+
+    Args:
+        stakeholder_id: Stakeholder UUID
+        project_member_id: Project member UUID to link
+
+    Returns:
+        Updated stakeholder dict
+    """
+    return update_stakeholder(stakeholder_id, {"linked_project_member_id": str(project_member_id)})
+
+
+def find_stakeholder_by_email(
+    project_id: UUID,
+    email: str,
+) -> dict | None:
+    """
+    Find a stakeholder by email address.
+
+    Args:
+        project_id: Project UUID
+        email: Email to search for
+
+    Returns:
+        Stakeholder dict or None if not found
+    """
+    supabase = get_supabase()
+
+    response = (
+        supabase.table("stakeholders")
+        .select("*")
+        .eq("project_id", str(project_id))
+        .ilike("email", email)
+        .maybe_single()
+        .execute()
+    )
+
+    return response.data
+
+
+def auto_link_project_members_to_stakeholders(project_id: UUID) -> int:
+    """
+    Automatically link project members to stakeholders by email match.
+
+    Args:
+        project_id: Project UUID
+
+    Returns:
+        Number of stakeholders linked
+    """
+    supabase = get_supabase()
+
+    # Get all stakeholders with emails
+    stakeholders = (
+        supabase.table("stakeholders")
+        .select("id, email")
+        .eq("project_id", str(project_id))
+        .not_.is_("email", "null")
+        .is_("linked_user_id", "null")
+        .execute()
+    ).data or []
+
+    if not stakeholders:
+        return 0
+
+    # Get project members with emails
+    project_members = (
+        supabase.table("project_members")
+        .select("id, user_id, users(email)")
+        .eq("project_id", str(project_id))
+        .execute()
+    ).data or []
+
+    # Build email to member map
+    email_to_member = {}
+    for pm in project_members:
+        user_info = pm.get("users")
+        if user_info and user_info.get("email"):
+            email_to_member[user_info["email"].lower()] = {
+                "user_id": pm.get("user_id"),
+                "project_member_id": pm.get("id"),
+            }
+
+    # Link stakeholders
+    linked_count = 0
+    for sh in stakeholders:
+        email = sh.get("email", "").lower()
+        if email and email in email_to_member:
+            member_info = email_to_member[email]
+            update_stakeholder(
+                UUID(sh["id"]),
+                {
+                    "linked_user_id": member_info["user_id"],
+                    "linked_project_member_id": member_info["project_member_id"],
+                }
+            )
+            linked_count += 1
+            logger.info(f"Linked stakeholder {sh['id']} to user {member_info['user_id']}")
+
+    return linked_count
+
+
+def find_similar_stakeholder(
+    project_id: UUID,
+    name: str,
+    email: str | None = None,
+) -> dict | None:
+    """
+    Find a similar stakeholder by name or email.
+
+    Args:
+        project_id: Project UUID
+        name: Name to match
+        email: Optional email to match (takes priority)
+
+    Returns:
+        Most similar stakeholder or None
+    """
+    # First try email match
+    if email:
+        by_email = find_stakeholder_by_email(project_id, email)
+        if by_email:
+            return by_email
+
+    # Then try name match
+    supabase = get_supabase()
+
+    response = (
+        supabase.table("stakeholders")
+        .select("*")
+        .eq("project_id", str(project_id))
+        .ilike("name", name)
+        .maybe_single()
+        .execute()
+    )
+
+    if response.data:
+        return response.data
+
+    # Try partial name match
+    stakeholders = list_stakeholders(project_id)
+    name_lower = name.lower().strip()
+
+    for sh in stakeholders:
+        sh_name = sh.get("name", "").lower().strip()
+        if sh_name and (name_lower in sh_name or sh_name in name_lower):
+            return sh
+
+    return None

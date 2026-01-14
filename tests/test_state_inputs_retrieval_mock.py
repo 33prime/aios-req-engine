@@ -181,3 +181,6 @@ class TestRetrieveProjectChunks:
             # Should only call embed_texts once (early exit)
             assert mock_embed.call_count == 1
 
+
+
+

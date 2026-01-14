@@ -195,3 +195,41 @@ def get_confirmation_item(confirmation_id: UUID) -> dict[str, Any] | None:
         )
         raise
 
+
+def list_confirmations_by_ids(confirmation_ids: list[UUID]) -> list[dict[str, Any]]:
+    """
+    Get multiple confirmation items by their IDs.
+
+    Args:
+        confirmation_ids: List of confirmation item UUIDs
+
+    Returns:
+        List of confirmation item dicts
+
+    Raises:
+        Exception: If database operation fails
+    """
+    if not confirmation_ids:
+        return []
+
+    supabase = get_supabase()
+
+    try:
+        # Convert UUIDs to strings for query
+        id_strings = [str(cid) for cid in confirmation_ids]
+
+        response = (
+            supabase.table("confirmation_items")
+            .select("*")
+            .in_("id", id_strings)
+            .execute()
+        )
+
+        return response.data or []
+
+    except Exception as e:
+        logger.error(
+            f"Failed to list confirmations by IDs: {e}",
+            extra={"confirmation_ids_count": len(confirmation_ids)},
+        )
+        raise

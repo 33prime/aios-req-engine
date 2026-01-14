@@ -39,7 +39,7 @@ class PRDSectionPatch(BaseModel):
         default=None, description="Partial update to fields JSON"
     )
     set_status: Literal[
-        "draft", "needs_confirmation", "confirmed_consultant", "confirmed_client"
+        "draft", "needs_client", "confirmed_consultant", "confirmed_client"
     ] | None = Field(default=None, description="New status if changing")
     add_client_needs: list[ClientNeed] = Field(
         default_factory=list, description="Client needs to add"
@@ -55,7 +55,7 @@ class VPStepPatch(BaseModel):
         default=None, description="Fields to update (label, description, etc.)"
     )
     set_status: Literal[
-        "draft", "needs_confirmation", "confirmed_consultant", "confirmed_client"
+        "draft", "needs_client", "confirmed_consultant", "confirmed_client"
     ] | None = Field(default=None, description="New status if changing")
     add_needed: list[ClientNeed] = Field(default_factory=list, description="Needed items to add")
     evidence: list[EvidenceRef] = Field(default_factory=list, description="Supporting evidence")
@@ -70,7 +70,7 @@ class FeatureOp(BaseModel):
     is_mvp: bool = Field(default=True, description="Is this MVP?")
     confidence: Literal["low", "medium", "high"] = Field(default="medium", description="Confidence")
     set_status: Literal[
-        "draft", "needs_confirmation", "confirmed_consultant", "confirmed_client"
+        "draft", "needs_client", "confirmed_consultant", "confirmed_client"
     ] | None = Field(default="draft", description="Status")
     evidence: list[EvidenceRef] = Field(default_factory=list, description="Supporting evidence")
     reason: str = Field(..., description="Reason for this operation")

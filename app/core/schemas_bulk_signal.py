@@ -21,7 +21,10 @@ from pydantic import BaseModel, Field
 class ExtractedEntity(BaseModel):
     """Entity extracted from a signal by any extraction agent."""
 
-    entity_type: Literal["feature", "persona", "vp_step", "prd_section", "stakeholder"]
+    entity_type: Literal[
+        "feature", "persona", "vp_step", "prd_section", "stakeholder", "constraint",
+        "business_driver", "competitor_ref", "company_info"
+    ]
     raw_data: dict[str, Any]  # Raw extraction output
 
     # Matching info (populated during consolidation)
@@ -60,7 +63,10 @@ class FieldChange(BaseModel):
 class ConsolidatedChange(BaseModel):
     """A single change to apply (create or update)."""
 
-    entity_type: Literal["feature", "persona", "vp_step", "prd_section", "stakeholder"]
+    entity_type: Literal[
+        "feature", "persona", "vp_step", "prd_section", "stakeholder", "constraint",
+        "business_driver", "competitor_ref", "company_info"
+    ]
     operation: Literal["create", "update"]
 
     # For updates
@@ -90,6 +96,10 @@ class ConsolidationResult(BaseModel):
     vp_steps: list[ConsolidatedChange] = Field(default_factory=list)
     prd_sections: list[ConsolidatedChange] = Field(default_factory=list)
     stakeholders: list[ConsolidatedChange] = Field(default_factory=list)
+    constraints: list[ConsolidatedChange] = Field(default_factory=list)
+    business_drivers: list[ConsolidatedChange] = Field(default_factory=list)
+    competitor_refs: list[ConsolidatedChange] = Field(default_factory=list)
+    company_info: list[ConsolidatedChange] = Field(default_factory=list)
 
     # Summary
     total_creates: int = 0
@@ -165,6 +175,10 @@ class BulkSignalProposal(BaseModel):
     personas_count: int = 0
     vp_steps_count: int = 0
     stakeholders_count: int = 0
+    constraints_count: int = 0
+    business_drivers_count: int = 0
+    competitor_refs_count: int = 0
+    company_info_count: int = 0
 
     # Recommendations
     requires_review: bool = True

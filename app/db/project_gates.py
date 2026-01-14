@@ -98,6 +98,7 @@ def upsert_project_gate(project_id: UUID, patch: dict[str, Any]) -> dict[str, An
 
     try:
         update_data = {k: v for k, v in patch.items() if v is not None}
+        update_data["project_id"] = str(project_id)  # Always include project_id
         update_data["updated_at"] = "now()"
 
         response = (

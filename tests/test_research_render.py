@@ -166,3 +166,6 @@ class TestRenderResearchReport:
 
         assert full_text == ""
         assert sections == []
+
+
+

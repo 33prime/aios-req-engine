@@ -15,6 +15,47 @@
   }
 }
 
+/* Expedition Theme Variables for Journey Visualization */
+:root {
+  /* Expedition palette */
+  --expedition-bg: #f8f6f1;
+  --expedition-border: #d4cfc4;
+  --expedition-dark: #1a2f23;
+
+  /* Trail colors */
+  --trail-complete: #4a7c59;
+  --trail-pending: #c9c2b4;
+  --topo-line: #8b7355;
+
+  /* Waypoint colors */
+  --waypoint-complete: #4a9c6d;
+  --waypoint-current: #e07a3d;
+  --waypoint-pending: #a89f91;
+
+  /* Status colors */
+  --blocker-color: #c94a4a;
+  --blocker-stroke: #a63c3c;
+  --warning-color: #d4a537;
+  --checkpoint-color: #5a8fbd;
+  --checkpoint-stroke: #4a7aa3;
+
+  /* Marker colors */
+  --current-marker: #e07a3d;
+  --endpoint-color: #5c4a3d;
+  --flag-color: #c94a4a;
+
+  /* Text colors */
+  --label-color: #5c4a3d;
+  --stat-value-color: #1a2f23;
+  --stat-label-color: #7a6f63;
+
+  /* Tooltip */
+  --tooltip-bg: #1a2f23;
+  --tooltip-border: #2d4a3a;
+  --tooltip-text: #f8f6f1;
+  --tooltip-subtext: #a8b5aa;
+}
+
 @layer components {
   .btn {
     @apply px-4 py-2 rounded-md font-medium transition-colors duration-200;

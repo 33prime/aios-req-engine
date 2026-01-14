@@ -1,18 +1,19 @@
 /**
  * Main Workspace Page
  *
- * Unified 5-tab workspace for consultant workflow:
- * 1. Product Requirements - PRD sections with status tracking
- * 2. Value Path - VP steps with enrichment details
- * 3. Insights - Red team analysis with decision workflow
- * 4. Next Steps - Batched client confirmations
- * 5. Sources - Signal provenance and impact tracking
+ * Unified workspace for consultant workflow with tabs:
+ * - Overview - Project dashboard with status and tasks
+ * - Strategic Foundation - PRD sections and context
+ * - Personas & Features - User personas and feature specs
+ * - Value Path - User journey steps
+ * - Sources - Signals and research
+ * - Next Steps - Confirmations and actions
  *
  * Features:
+ * - Clean header with project info, stage, and portal status
  * - Tab navigation with counts
- * - Header with agent actions and research toggle
- * - Real-time data loading and updates
- * - Job polling for async operations
+ * - Chat assistant for adding signals/research
+ * - Activity drawer
  */
 
 'use client'
@@ -22,24 +23,20 @@ import { useParams } from 'next/navigation'
 import { TabNavigation, MobileTabNavigation, type TabType } from './components/TabNavigation'
 import { WorkspaceHeader, CompactHeader } from './components/WorkspaceHeader'
 import { OverviewTab } from './components/tabs/OverviewTab'
-import { StrategicContextTab } from './components/tabs/StrategicContextTab'
+import { StrategicFoundationTab } from './components/tabs/StrategicFoundationTab'
 import { ValuePathTab } from './components/tabs/ValuePathTab'
 import { EnhancedResearchTab } from './components/tabs/research/EnhancedResearchTab'
 import { NextStepsTab } from './components/tabs/NextStepsTab'
 import { PersonasFeaturesTab } from './components/tabs/PersonasFeaturesTab'
-import { AddSignalModal } from './components/AddSignalModal'
-import { AddResearchModal } from './components/AddResearchModal'
 import { ResearchAgentModal } from './components/ResearchAgentModal'
 import { ChatBubble } from './components/ChatBubble'
 import { ChatPanel } from './components/ChatPanel'
 import { ActivityDrawer } from './components/ActivityDrawer'
-import { CreativeBriefModal } from './components/CreativeBriefModal'
-import PatchFeed from './components/PatchFeed'
 import CascadeSidebar from '@/components/cascades/CascadeSidebar'
 import { AssistantProvider } from '@/lib/assistant'
-import { getBaselineStatus, getBaselineCompleteness, finalizeBaseline, listConfirmations, getFeatures, getPrdSections, getVpSteps, getInsights, listProjectSignals, listPendingCascades, applyCascade, dismissCascade } from '@/lib/api'
+import { getBaselineStatus, getBaselineCompleteness, getProjectDetails, listConfirmations, getPrdSections, getVpSteps, listProjectSignals, listPendingCascades, applyCascade, dismissCascade } from '@/lib/api'
 import { useChat } from '@/lib/useChat'
-import type { BaselineStatus } from '@/types/api'
+import type { BaselineStatus, ProjectDetailWithDashboard } from '@/types/api'
 
 export default function WorkspacePage() {
   const params = useParams()
@@ -48,10 +45,10 @@ export default function WorkspacePage() {
   // Tab state
   const [activeTab, setActiveTab] = useState<TabType>('overview')
 
-  // Data state
+  // Project data state
+  const [project, setProject] = useState<ProjectDetailWithDashboard | null>(null)
   const [baseline, setBaseline] = useState<BaselineStatus | null>(null)
   const [baselineCompleteness, setBaselineCompleteness] = useState<any>(null)
-  const [prdMode, setPrdMode] = useState<'initial' | 'maintenance'>('initial')
   const [counts, setCounts] = useState({
     strategicContext: 0,
     valuePath: 0,
@@ -66,11 +63,8 @@ export default function WorkspacePage() {
     improvements: 0
   })
   const [loading, setLoading] = useState(true)
-  const [loadingCompleteness, setLoadingCompleteness] = useState(true)
 
-  // Modal state
-  const [showAddSignal, setShowAddSignal] = useState(false)
-  const [showAddResearch, setShowAddResearch] = useState(false)
+  // Research modal state
   const [showResearchModal, setShowResearchModal] = useState(false)
   const [researchSeedContext, setResearchSeedContext] = useState({
     client_name: '',
@@ -91,9 +85,8 @@ export default function WorkspacePage() {
     },
   })
 
-  // Modal/drawer state
+  // Drawer state
   const [isActivityDrawerOpen, setIsActivityDrawerOpen] = useState(false)
-  const [isCreativeBriefModalOpen, setIsCreativeBriefModalOpen] = useState(false)
 
   // Cascade state
   const [cascades, setCascades] = useState<any[]>([])
@@ -102,39 +95,16 @@ export default function WorkspacePage() {
   // Load project data
   useEffect(() => {
     loadProjectData()
-  }, [projectId])
-
-  // Load baseline completeness
-  useEffect(() => {
     loadBaselineCompleteness()
   }, [projectId])
 
   const loadBaselineCompleteness = async () => {
     try {
-      setLoadingCompleteness(true)
       const data = await getBaselineCompleteness(projectId)
-      // Extract prd_mode from response
-      const { prd_mode, ...completeness } = data
-      setBaselineCompleteness(completeness)
-      setPrdMode(prd_mode)
+      setBaselineCompleteness(data)
       console.log('✅ Baseline completeness loaded:', data)
     } catch (error) {
       console.error('❌ Failed to load baseline completeness:', error)
-    } finally {
-      setLoadingCompleteness(false)
-    }
-  }
-
-  const handleFinalizeBaseline = async () => {
-    try {
-      await finalizeBaseline(projectId)
-      console.log('✅ Baseline finalized')
-      // Reload completeness data
-      await loadBaselineCompleteness()
-      await loadProjectData()
-    } catch (error) {
-      console.error('❌ Failed to finalize baseline:', error)
-      throw error
     }
   }
 
@@ -144,39 +114,32 @@ export default function WorkspacePage() {
       console.log('🔄 Loading workspace data for:', projectId)
 
       const [
+        projectData,
         baselineData,
         prdData,
         vpData,
-        insightsData,
-        patchesResponse,
         confirmationsData,
         signalsData,
         researchJobsResponse,
       ] = await Promise.all([
+        getProjectDetails(projectId),
         getBaselineStatus(projectId),
         getPrdSections(projectId),
         getVpSteps(projectId),
-        getInsights(projectId),
-        fetch(`${process.env.NEXT_PUBLIC_API_BASE}/v1/insights?project_id=${projectId}&insight_type=patch`).then(r => r.json()),
         listConfirmations(projectId, 'open'),
         listProjectSignals(projectId),
         fetch(`${process.env.NEXT_PUBLIC_API_BASE}/v1/jobs?project_id=${projectId}&job_type=research_query&limit=50`).then(r => r.json()),
       ])
 
+      setProject(projectData)
       setBaseline(baselineData)
 
-      // Handle patches response (could be array or object with patches property)
-      const patchesData = Array.isArray(patchesResponse) ? patchesResponse : patchesResponse.patches || []
-
-      // Calculate combined improvements count (insights + patches)
-      const totalImprovements = insightsData.length + patchesData.length
-
-      // Update counts (strategicContext count stays at 0 for now - will be updated when we add strategic context API)
+      // Update counts
       const researchJobs = Array.isArray(researchJobsResponse) ? researchJobsResponse : researchJobsResponse.jobs || []
       setCounts({
-        strategicContext: 0, // TODO: Update when strategic context API is connected
+        strategicContext: 0,
         valuePath: vpData.length,
-        improvements: totalImprovements,
+        improvements: 0,
         nextSteps: confirmationsData.confirmations?.length || 0,
         sources: signalsData.total || 0,
         research: researchJobs.length
@@ -184,19 +147,17 @@ export default function WorkspacePage() {
 
       // Calculate recent changes (entities updated in last 24 hours)
       const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
-      const recentInsights = insightsData.filter((i: any) => i.updated_at > cutoff).length
-      const recentPatches = patchesData.filter((p: any) => p.updated_at > cutoff).length
 
       setRecentChanges({
-        strategicContext: 0, // TODO: Update when strategic context API is connected
+        strategicContext: 0,
         valuePath: vpData.filter((v: any) => v.updated_at > cutoff).length,
-        improvements: recentInsights + recentPatches
+        improvements: 0
       })
 
       console.log('✅ Workspace data loaded:', {
+        project: projectData.name,
         prd: prdData.length,
         vp: vpData.length,
-        improvements: totalImprovements,
         confirmations: confirmationsData.confirmations?.length || 0,
         sources: signalsData.total || 0
       })
@@ -266,7 +227,7 @@ export default function WorkspacePage() {
   }
 
   // Handle agent runs
-  const handleRunAgent = async (agentType: 'build' | 'reconcile' | 'redteam' | 'enrich-prd' | 'enrich-vp' | 'research') => {
+  const handleRunAgent = async (agentType: 'build' | 'reconcile' | 'enrich-prd' | 'enrich-vp' | 'research') => {
     try {
       console.log('🚀 Running agent:', agentType)
 
@@ -285,10 +246,6 @@ export default function WorkspacePage() {
           break
         case 'reconcile':
           endpoint = '/v1/state/reconcile'
-          body.include_research = baseline?.baseline_ready
-          break
-        case 'redteam':
-          endpoint = '/v1/agents/red-team'
           body.include_research = baseline?.baseline_ready
           break
         case 'enrich-prd':
@@ -408,13 +365,13 @@ export default function WorkspacePage() {
     switch (activeTab) {
       case 'overview':
         return <OverviewTab projectId={projectId} isActive={activeTab === 'overview'} />
-      case 'strategic-context':
-        return <StrategicContextTab projectId={projectId} />
+      case 'strategic-foundation':
+        return <StrategicFoundationTab projectId={projectId} />
       case 'personas-features':
         return <PersonasFeaturesTab projectId={projectId} isActive={activeTab === 'personas-features'} />
       case 'value-path':
         return <ValuePathTab projectId={projectId} />
-      case 'research':
+      case 'sources':
         return <EnhancedResearchTab projectId={projectId} />
       case 'next-steps':
         return <NextStepsTab projectId={projectId} />
@@ -462,43 +419,24 @@ export default function WorkspacePage() {
     <div className="min-h-screen bg-ui-background">
       {/* Desktop Header */}
       <div className="hidden lg:block">
-        <div className="bg-white border-b border-gray-200">
-          {/* PRD Mode Badge */}
-          <div className="px-6 py-2 bg-gray-50 border-b border-gray-200">
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-medium text-gray-600">Project Mode:</span>
-              <span
-                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${
-                  prdMode === 'maintenance'
-                    ? 'bg-blue-100 text-blue-800'
-                    : 'bg-gray-100 text-gray-800'
-                }`}
-              >
-                {prdMode === 'maintenance' ? '🔧 Maintenance (Surgical Updates)' : '🌱 Initial (Generative)'}
-              </span>
-            </div>
-          </div>
-
-          <WorkspaceHeader
-            projectId={projectId}
-            baseline={baseline}
-            baselineCompleteness={baselineCompleteness}
-            prdMode={prdMode}
-            onBaselineToggle={handleBaselineToggle}
-            onFinalizeBaseline={handleFinalizeBaseline}
-            onRefresh={loadProjectData}
-            onAddSignal={() => setShowAddSignal(true)}
-            onAddResearch={() => setShowAddResearch(true)}
-            onShowActivity={() => setIsActivityDrawerOpen(true)}
-            onShowCreativeBrief={() => setIsCreativeBriefModalOpen(true)}
-          />
-        </div>
+        <WorkspaceHeader
+          projectId={projectId}
+          projectName={project?.name || 'Loading...'}
+          clientName={project?.client_name}
+          stage={project?.stage}
+          portalEnabled={project?.portal_enabled}
+          baseline={baseline}
+          onBaselineToggle={handleBaselineToggle}
+          onRefresh={loadProjectData}
+          onShowActivity={() => setIsActivityDrawerOpen(true)}
+        />
       </div>
 
       {/* Mobile Header */}
       <div className="lg:hidden">
         <CompactHeader
           projectId={projectId}
+          projectName={project?.name || 'Loading...'}
           onRefresh={loadProjectData}
         />
       </div>
@@ -526,19 +464,7 @@ export default function WorkspacePage() {
         {renderTabContent()}
       </main>
 
-      {/* Modals */}
-      <AddSignalModal
-        isOpen={showAddSignal}
-        onClose={() => setShowAddSignal(false)}
-        projectId={projectId}
-        onSuccess={loadProjectData}
-      />
-      <AddResearchModal
-        isOpen={showAddResearch}
-        onClose={() => setShowAddResearch(false)}
-        projectId={projectId}
-        onSuccess={loadProjectData}
-      />
+      {/* Research Agent Modal */}
       {showResearchModal && (
         <ResearchAgentModal
           projectId={projectId}
@@ -580,13 +506,6 @@ export default function WorkspacePage() {
         projectId={projectId}
         isOpen={isActivityDrawerOpen}
         onClose={() => setIsActivityDrawerOpen(false)}
-      />
-
-      {/* Creative Brief Modal */}
-      <CreativeBriefModal
-        projectId={projectId}
-        isOpen={isCreativeBriefModalOpen}
-        onClose={() => setIsCreativeBriefModalOpen(false)}
       />
 
       {/* Cascade Sidebar */}

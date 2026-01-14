@@ -9,7 +9,8 @@ from pydantic import BaseModel, Field
 # Shared types
 # =======================
 
-StatusLiteral = Literal["draft", "confirmed_consultant", "needs_confirmation", "confirmed_client"]
+# Note: 'confirmed' is included for backward compatibility with legacy data
+StatusLiteral = Literal["draft", "confirmed_consultant", "needs_client", "confirmed_client", "confirmed"]
 
 # =======================
 # Output models (match DB shape)
@@ -62,6 +63,24 @@ class VpStepOut(BaseModel):
     enrichment_schema_version: str | None = Field(None, description="Schema version used")
     enrichment_updated_at: str | None = Field(None, description="Enrichment timestamp")
 
+    # V2 fields
+    actor_persona_id: str | None = Field(None, description="Primary persona UUID for this step")
+    actor_persona_name: str | None = Field(None, description="Primary persona name")
+    narrative_user: str | None = Field(None, description="User-facing narrative")
+    narrative_system: str | None = Field(None, description="Behind-the-scenes narrative")
+    features_used: list[dict[str, Any]] = Field(default_factory=list, description="Features used in this step")
+    rules_applied: list[str] = Field(default_factory=list, description="Business rules active")
+    integrations_triggered: list[str] = Field(default_factory=list, description="External integrations used")
+    ui_highlights: list[str] = Field(default_factory=list, description="Key UI elements")
+    confirmation_status: str | None = Field(None, description="Confirmation status: ai_generated, confirmed_consultant, etc.")
+    has_signal_evidence: bool = Field(False, description="Whether step has signal-based evidence")
+    generation_status: str | None = Field(None, description="Generation status: none, generated, stale")
+    generated_at: str | None = Field(None, description="When step was generated")
+    is_stale: bool = Field(False, description="Whether step needs update")
+    stale_reason: str | None = Field(None, description="Why step is stale")
+    consultant_edited: bool = Field(False, description="Whether consultant has edited")
+    consultant_edited_at: str | None = Field(None, description="When consultant edited")
+
 
 class FeatureOut(BaseModel):
     """Feature output matching database schema."""
@@ -73,9 +92,48 @@ class FeatureOut(BaseModel):
     is_mvp: bool = Field(..., description="Whether feature is MVP")
     confidence: Literal["low", "medium", "high"] = Field(..., description="Confidence level")
     status: StatusLiteral = Field(..., description="Feature status")
-    evidence: list[dict[str, Any]] = Field(..., description="Evidence references")
+    evidence: list[dict[str, Any]] = Field(default_factory=list, description="Evidence references")
     created_at: str = Field(..., description="Creation timestamp")
     updated_at: str = Field(..., description="Last update timestamp")
+
+    # V2 enrichment fields
+    overview: str | None = Field(None, description="Business-friendly description")
+    target_personas: list[dict[str, Any]] = Field(default_factory=list, description="Personas who use this feature")
+    user_actions: list[str] = Field(default_factory=list, description="Step-by-step user actions")
+    system_behaviors: list[str] = Field(default_factory=list, description="Behind-the-scenes behaviors")
+    ui_requirements: list[str] = Field(default_factory=list, description="UI requirements")
+    rules: list[str] = Field(default_factory=list, description="Business rules")
+    integrations: list[str] = Field(default_factory=list, description="External integrations")
+    enrichment_status: str | None = Field(None, description="Enrichment status: none, enriched, stale")
+    enriched_at: str | None = Field(None, description="When feature was enriched")
+
+
+class PersonaOut(BaseModel):
+    """Persona output matching database schema."""
+
+    id: UUID = Field(..., description="Persona UUID")
+    project_id: UUID = Field(..., description="Project UUID")
+    slug: str = Field(..., description="Persona slug identifier")
+    name: str = Field(..., description="Persona name")
+    role: str | None = Field(None, description="Role or title")
+    demographics: dict[str, Any] = Field(default_factory=dict, description="Demographic attributes")
+    psychographics: dict[str, Any] = Field(default_factory=dict, description="Psychographic attributes")
+    goals: list[str] = Field(default_factory=list, description="Persona goals")
+    pain_points: list[str] = Field(default_factory=list, description="Persona pain points")
+    description: str | None = Field(None, description="Persona description")
+    related_features: list[str] = Field(default_factory=list, description="Related feature UUIDs")
+    related_vp_steps: list[str] = Field(default_factory=list, description="Related VP step UUIDs")
+    confirmation_status: str = Field(..., description="Confirmation status")
+    confirmed_by: UUID | None = Field(None, description="User who confirmed")
+    confirmed_at: str | None = Field(None, description="Confirmation timestamp")
+    created_at: str = Field(..., description="Creation timestamp")
+    updated_at: str = Field(..., description="Last update timestamp")
+
+    # V2 enrichment fields
+    overview: str | None = Field(None, description="Detailed description of who this persona is")
+    key_workflows: list[dict[str, Any]] = Field(default_factory=list, description="How this persona uses features together")
+    enrichment_status: str | None = Field(None, description="Enrichment status: none, enriched, stale")
+    enriched_at: str | None = Field(None, description="When persona was enriched")
 
 
 # =======================
@@ -100,6 +158,11 @@ class BuildStateOutput(BaseModel):
     features: list[dict[str, Any]] = Field(
         ...,
         description="Features: {name, category, is_mvp, confidence, status, evidence}",
+    )
+    personas: list[dict[str, Any]] = Field(
+        ...,
+        min_length=2,
+        description="Personas: {slug, name, role, demographics, psychographics, goals, pain_points, description}",
     )
 
 

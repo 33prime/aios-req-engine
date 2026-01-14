@@ -50,3 +50,6 @@ def get_enriched_state(project_id: str) -> Dict[str, List[Dict]]:
             "prd_sections": [],
             "vp_steps": []
         }
+
+
+

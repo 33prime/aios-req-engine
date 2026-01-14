@@ -8,7 +8,7 @@ from langgraph.graph import END, StateGraph
 
 from app.chains.extract_facts import extract_facts_from_chunks
 from app.core.config import get_settings
-from app.core.fact_inputs import select_chunks_for_facts
+from app.core.fact_inputs import get_project_context_for_extraction, select_chunks_for_facts
 from app.core.logging import get_logger
 from app.core.schemas_facts import ExtractFactsOutput
 from app.db.facts import insert_extracted_facts
@@ -113,12 +113,22 @@ def call_llm(state: ExtractFactsState) -> dict[str, Any]:
         extra={"run_id": str(state.run_id), "chunk_count": len(state.selected_chunks)},
     )
 
+    # Fetch project context to improve extraction quality
+    project_context = None
+    try:
+        project_id = state.signal.get("project_id")
+        if project_id:
+            project_context = get_project_context_for_extraction(UUID(project_id))
+    except Exception as e:
+        logger.warning(f"Failed to fetch project context: {e}")
+
     try:
         llm_output = extract_facts_from_chunks(
             signal=state.signal,
             chunks=state.selected_chunks,
             settings=settings,
             model_override=state.model_override,
+            project_context=project_context,
         )
 
         logger.info(

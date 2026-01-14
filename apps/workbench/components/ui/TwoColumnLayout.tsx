@@ -17,6 +17,7 @@
  */
 
 import React, { ReactNode } from 'react'
+import { LucideIcon } from 'lucide-react'
 
 interface TwoColumnLayoutProps {
   left: ReactNode
@@ -146,7 +147,7 @@ export function RightColumn({ children, title, subtitle, actions, className = ''
  */
 
 interface ListItemProps {
-  title: string
+  title: ReactNode
   subtitle?: string
   meta?: ReactNode
   badge?: ReactNode

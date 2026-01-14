@@ -59,3 +59,6 @@ comment on column public.insights.evidence is
 comment on column public.insights.source is 
   'Source metadata: {agent, model, prompt_version, schema_version}';
 
+
+
+

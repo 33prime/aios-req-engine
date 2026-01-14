@@ -178,7 +178,7 @@ export function ActionsTab({ projectId }: ActionsTabProps) {
   const handleGenerateMeetingAgenda = async (confirmationIds: string[]) => {
     try {
       console.log('🔄 Generating meeting agenda for', confirmationIds.length, 'confirmations')
-      const agenda = await generateMeetingAgenda(projectId, confirmationIds)
+      const agenda = await generateMeetingAgenda(projectId, { confirmationIds })
       console.log('✅ Meeting agenda generated:', agenda)
       setMeetingAgenda(agenda)
       setShowAgendaBuilder(false)

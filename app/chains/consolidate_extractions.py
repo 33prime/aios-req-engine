@@ -29,7 +29,8 @@ def get_existing_entities(project_id: UUID) -> dict[str, list[dict]]:
     Fetch all existing entities for a project.
 
     Returns:
-        Dict with keys: features, personas, vp_steps, prd_sections, stakeholders
+        Dict with keys: features, personas, vp_steps, prd_sections, stakeholders,
+        constraints, business_drivers, competitor_refs, company_info
     """
     supabase = get_supabase()
 
@@ -43,14 +44,14 @@ def get_existing_entities(project_id: UUID) -> dict[str, list[dict]]:
 
         personas = (
             supabase.table("personas")
-            .select("id, name, slug, role, goals, pain_points, behaviors")
+            .select("id, name, slug, role, goals, pain_points, description")
             .eq("project_id", str(project_id))
             .execute()
         ).data or []
 
         vp_steps = (
             supabase.table("vp_steps")
-            .select("id, step_index, name, description, actor, trigger_event, system_response")
+            .select("id, step_index, label, description, actor_persona_name")
             .eq("project_id", str(project_id))
             .order("step_index")
             .execute()
@@ -58,7 +59,7 @@ def get_existing_entities(project_id: UUID) -> dict[str, list[dict]]:
 
         prd_sections = (
             supabase.table("prd_sections")
-            .select("id, slug, title, content")
+            .select("id, slug, label, fields")
             .eq("project_id", str(project_id))
             .execute()
         ).data or []
@@ -70,12 +71,61 @@ def get_existing_entities(project_id: UUID) -> dict[str, list[dict]]:
             .execute()
         ).data or []
 
+        # Fetch constraints
+        try:
+            constraints = (
+                supabase.table("constraints")
+                .select("id, title, description, constraint_type, severity")
+                .eq("project_id", str(project_id))
+                .execute()
+            ).data or []
+        except Exception:
+            constraints = []
+
+        # Fetch business drivers (kpi, pain, goal)
+        try:
+            business_drivers = (
+                supabase.table("business_drivers")
+                .select("id, driver_type, description, measurement, timeframe, priority")
+                .eq("project_id", str(project_id))
+                .execute()
+            ).data or []
+        except Exception:
+            business_drivers = []
+
+        # Fetch competitor references
+        try:
+            competitor_refs = (
+                supabase.table("competitor_references")
+                .select("id, reference_type, name, url, category, strengths, weaknesses")
+                .eq("project_id", str(project_id))
+                .execute()
+            ).data or []
+        except Exception:
+            competitor_refs = []
+
+        # Fetch company info (one per project)
+        try:
+            company_info_result = (
+                supabase.table("company_info")
+                .select("id, name, industry, stage, size, description")
+                .eq("project_id", str(project_id))
+                .execute()
+            ).data or []
+            company_info = company_info_result[0] if company_info_result else None
+        except Exception:
+            company_info = None
+
         return {
             "features": features,
             "personas": personas,
             "vp_steps": vp_steps,
             "prd_sections": prd_sections,
             "stakeholders": stakeholders,
+            "constraints": constraints,
+            "business_drivers": business_drivers,
+            "competitor_refs": competitor_refs,
+            "company_info": company_info,
         }
 
     except Exception as e:
@@ -86,6 +136,10 @@ def get_existing_entities(project_id: UUID) -> dict[str, list[dict]]:
             "vp_steps": [],
             "prd_sections": [],
             "stakeholders": [],
+            "constraints": [],
+            "business_drivers": [],
+            "competitor_refs": [],
+            "company_info": None,
         }
 
 
@@ -278,7 +332,7 @@ def consolidate_personas(
     changes = []
     seen_names: set[str] = set()
 
-    important_fields = ["name", "role", "goals", "pain_points", "behaviors"]
+    important_fields = ["name", "role", "goals", "pain_points", "description"]
 
     for entity in extracted:
         if entity.entity_type != "persona":
@@ -316,7 +370,7 @@ def consolidate_personas(
                     "role": raw.get("role"),
                     "goals": raw.get("goals", []),
                     "pain_points": raw.get("pain_points", []),
-                    "behaviors": raw.get("behaviors", []),
+                    "description": raw.get("description", ""),
                 },
                 evidence=[
                     {"excerpt": exc, "source": "signal"}
@@ -331,7 +385,7 @@ def consolidate_personas(
                 "role": raw.get("role"),
                 "goals": raw.get("goals"),
                 "pain_points": raw.get("pain_points"),
-                "behaviors": raw.get("behaviors"),
+                "description": raw.get("description"),
             }
 
             field_changes = detect_field_changes(matched, new_data, important_fields)
@@ -365,7 +419,7 @@ def consolidate_vp_steps(
     changes = []
     seen_names: set[str] = set()
 
-    important_fields = ["name", "description", "actor", "trigger_event", "system_response"]
+    important_fields = ["label", "description", "actor", "trigger_event", "system_response"]
 
     for entity in extracted:
         if entity.entity_type != "vp_step":
@@ -402,7 +456,7 @@ def consolidate_vp_steps(
                 operation="create",
                 entity_name=name,
                 after={
-                    "name": name,
+                    "label": name,  # Database column is 'label', not 'name'
                     "step_index": step_index,
                     "description": raw.get("description"),
                     "actor": raw.get("actor"),
@@ -432,7 +486,7 @@ def consolidate_vp_steps(
                     entity_type="vp_step",
                     operation="update",
                     entity_id=UUID(matched["id"]),
-                    entity_name=matched.get("name"),
+                    entity_name=matched.get("label") or matched.get("name"),
                     before={f.field_name: f.old_value for f in field_changes},
                     after={f.field_name: f.new_value for f in field_changes},
                     field_changes=field_changes,
@@ -536,6 +590,397 @@ def consolidate_stakeholders(
     return changes
 
 
+def consolidate_constraints(
+    extracted: list[ExtractedEntity],
+    existing_constraints: list[dict],
+) -> list[ConsolidatedChange]:
+    """
+    Consolidate extracted constraints (risks, KPIs, requirements, etc.)
+
+    Constraints include:
+    - Technical/business constraints
+    - Risks and threats
+    - KPIs and success metrics
+    - Assumptions
+    """
+    changes = []
+    seen_titles: set[str] = set()
+
+    # Use looser matching for constraints (they can be worded differently)
+    matcher = SimilarityMatcher(entity_type="feature")
+
+    important_fields = ["title", "description", "constraint_type", "severity"]
+
+    for entity in extracted:
+        if entity.entity_type != "constraint":
+            continue
+
+        title = extract_name_from_entity(entity)
+        if not title:
+            continue
+
+        title_lower = title.lower().strip()
+        if title_lower in seen_titles:
+            continue
+        seen_titles.add(title_lower)
+
+        raw = entity.raw_data
+        fact_type = raw.get("fact_type", "constraint").lower()
+
+        # Map fact_type to constraint_type
+        constraint_type_mapping = {
+            "risk": "risk",
+            "threat": "risk",
+            "kpi": "kpi",
+            "metric": "kpi",
+            "goal": "kpi",
+            "objective": "kpi",
+            "organizational_goal": "kpi",
+            "assumption": "assumption",
+            "constraint": "technical",
+            "requirement": "technical",
+            "integration": "integration",
+            "data_requirement": "technical",
+        }
+        constraint_type = constraint_type_mapping.get(fact_type, "technical")
+
+        # Match against existing constraints
+        match_result = matcher.find_best_match(
+            candidate=title,
+            corpus=existing_constraints,
+            text_field="title",
+            id_field="id",
+        )
+
+        if not match_result.is_match:
+            changes.append(ConsolidatedChange(
+                entity_type="constraint",
+                operation="create",
+                entity_name=title,
+                after={
+                    "title": title,
+                    "description": raw.get("detail") or raw.get("description"),
+                    "constraint_type": constraint_type,
+                    "severity": "should_have",  # Default severity
+                },
+                evidence=[
+                    {"excerpt": exc, "source": "signal"}
+                    for exc in entity.evidence_excerpts
+                ],
+                rationale=f"New {constraint_type} identified: {title}",
+                confidence=raw.get("confidence", 0.7) if isinstance(raw.get("confidence"), (int, float)) else 0.7,
+            ))
+
+        elif match_result.matched_item:
+            matched = match_result.matched_item
+            new_data = {
+                "description": raw.get("detail") or raw.get("description"),
+            }
+
+            field_changes = detect_field_changes(matched, new_data, important_fields)
+
+            if field_changes:
+                changes.append(ConsolidatedChange(
+                    entity_type="constraint",
+                    operation="update",
+                    entity_id=UUID(matched["id"]),
+                    entity_name=matched.get("title"),
+                    before={f.field_name: f.old_value for f in field_changes},
+                    after={f.field_name: f.new_value for f in field_changes},
+                    field_changes=field_changes,
+                    evidence=[
+                        {"excerpt": exc, "source": "signal"}
+                        for exc in entity.evidence_excerpts
+                    ],
+                    rationale=f"Updated {constraint_type} info",
+                    confidence=0.7,
+                    similarity_score=match_result.score,
+                ))
+
+    return changes
+
+
+def consolidate_business_drivers(
+    extracted: list[ExtractedEntity],
+    existing_drivers: list[dict],
+) -> list[ConsolidatedChange]:
+    """
+    Consolidate extracted business drivers (KPIs, pains, goals).
+
+    Maps fact_type to driver_type:
+    - kpi, metric → kpi
+    - pain → pain
+    - goal, objective → goal
+    """
+    changes = []
+    seen_descriptions: set[str] = set()
+
+    matcher = SimilarityMatcher(entity_type="feature")
+
+    for entity in extracted:
+        if entity.entity_type != "business_driver":
+            continue
+
+        raw = entity.raw_data
+        description = raw.get("title") or raw.get("description") or ""
+        if not description:
+            continue
+
+        desc_lower = description.lower().strip()[:100]
+        if desc_lower in seen_descriptions:
+            continue
+        seen_descriptions.add(desc_lower)
+
+        # Map fact_type to driver_type
+        fact_type = raw.get("fact_type", "").lower()
+        driver_type_mapping = {
+            "kpi": "kpi",
+            "metric": "kpi",
+            "pain": "pain",
+            "goal": "goal",
+            "objective": "goal",
+            "organizational_goal": "goal",
+        }
+        driver_type = driver_type_mapping.get(fact_type, "goal")
+
+        # Match against existing drivers of same type
+        same_type_drivers = [d for d in existing_drivers if d.get("driver_type") == driver_type]
+        match_result = matcher.find_best_match(
+            candidate=description,
+            corpus=same_type_drivers,
+            text_field="description",
+            id_field="id",
+        )
+
+        if not match_result.is_match:
+            changes.append(ConsolidatedChange(
+                entity_type="business_driver",
+                operation="create",
+                entity_name=description[:50],
+                after={
+                    "driver_type": driver_type,
+                    "description": description,
+                    "measurement": raw.get("measurement") or raw.get("detail"),
+                    "timeframe": raw.get("timeframe"),
+                    "priority": 3,  # Default medium priority
+                },
+                evidence=[
+                    {"excerpt": exc, "source": "signal"}
+                    for exc in entity.evidence_excerpts
+                ],
+                rationale=f"New {driver_type} identified: {description[:50]}",
+                confidence=0.75,
+            ))
+
+        elif match_result.matched_item:
+            matched = match_result.matched_item
+            new_data = {
+                "measurement": raw.get("measurement") or raw.get("detail"),
+                "timeframe": raw.get("timeframe"),
+            }
+
+            field_changes = detect_field_changes(
+                matched, new_data, ["description", "measurement", "timeframe"]
+            )
+
+            if field_changes:
+                changes.append(ConsolidatedChange(
+                    entity_type="business_driver",
+                    operation="update",
+                    entity_id=UUID(matched["id"]),
+                    entity_name=matched.get("description", "")[:50],
+                    before={f.field_name: f.old_value for f in field_changes},
+                    after={f.field_name: f.new_value for f in field_changes},
+                    field_changes=field_changes,
+                    evidence=[
+                        {"excerpt": exc, "source": "signal"}
+                        for exc in entity.evidence_excerpts
+                    ],
+                    rationale=f"Updated {driver_type} with new details",
+                    confidence=0.7,
+                    similarity_score=match_result.score,
+                ))
+
+    return changes
+
+
+def consolidate_competitor_refs(
+    extracted: list[ExtractedEntity],
+    existing_refs: list[dict],
+) -> list[ConsolidatedChange]:
+    """
+    Consolidate extracted competitor references (competitors, design inspiration).
+
+    Maps fact_type to reference_type:
+    - competitor → competitor
+    - design_inspiration → design_inspiration
+    - feature_inspiration → feature_inspiration
+    """
+    changes = []
+    seen_names: set[str] = set()
+
+    matcher = SimilarityMatcher(entity_type="feature")
+
+    for entity in extracted:
+        if entity.entity_type != "competitor_ref":
+            continue
+
+        raw = entity.raw_data
+        name = raw.get("title") or raw.get("name") or ""
+        if not name:
+            continue
+
+        name_lower = name.lower().strip()
+        if name_lower in seen_names:
+            continue
+        seen_names.add(name_lower)
+
+        # Map fact_type to reference_type
+        fact_type = raw.get("fact_type", "").lower()
+        ref_type_mapping = {
+            "competitor": "competitor",
+            "design_inspiration": "design_inspiration",
+            "feature_inspiration": "feature_inspiration",
+        }
+        reference_type = ref_type_mapping.get(fact_type, "competitor")
+
+        # Match against existing refs
+        match_result = matcher.find_best_match(
+            candidate=name,
+            corpus=existing_refs,
+            text_field="name",
+            id_field="id",
+        )
+
+        if not match_result.is_match:
+            changes.append(ConsolidatedChange(
+                entity_type="competitor_ref",
+                operation="create",
+                entity_name=name,
+                after={
+                    "reference_type": reference_type,
+                    "name": name,
+                    "url": raw.get("url"),
+                    "category": raw.get("category", "Direct competitor" if reference_type == "competitor" else "Design reference"),
+                    "research_notes": raw.get("detail") or raw.get("description"),
+                },
+                evidence=[
+                    {"excerpt": exc, "source": "signal"}
+                    for exc in entity.evidence_excerpts
+                ],
+                rationale=f"New {reference_type.replace('_', ' ')}: {name}",
+                confidence=0.8,
+            ))
+
+        elif match_result.matched_item:
+            matched = match_result.matched_item
+            new_data = {
+                "url": raw.get("url"),
+                "research_notes": raw.get("detail") or raw.get("description"),
+            }
+
+            field_changes = detect_field_changes(
+                matched, new_data, ["url", "research_notes", "category"]
+            )
+
+            if field_changes:
+                changes.append(ConsolidatedChange(
+                    entity_type="competitor_ref",
+                    operation="update",
+                    entity_id=UUID(matched["id"]),
+                    entity_name=matched.get("name"),
+                    before={f.field_name: f.old_value for f in field_changes},
+                    after={f.field_name: f.new_value for f in field_changes},
+                    field_changes=field_changes,
+                    evidence=[
+                        {"excerpt": exc, "source": "signal"}
+                        for exc in entity.evidence_excerpts
+                    ],
+                    rationale=f"Updated {reference_type.replace('_', ' ')} info",
+                    confidence=0.7,
+                    similarity_score=match_result.score,
+                ))
+
+    return changes
+
+
+def consolidate_company_info(
+    extracted: list[ExtractedEntity],
+    existing_company: dict | None,
+) -> list[ConsolidatedChange]:
+    """
+    Consolidate extracted company info (one per project).
+
+    If company info exists, update it. Otherwise create new.
+    """
+    changes = []
+
+    company_entities = [e for e in extracted if e.entity_type == "company_info"]
+    if not company_entities:
+        return changes
+
+    # Take the first company info entity (should only be one per signal)
+    entity = company_entities[0]
+    raw = entity.raw_data
+
+    name = raw.get("title") or raw.get("name") or raw.get("client_name") or ""
+    if not name:
+        return changes
+
+    if not existing_company:
+        changes.append(ConsolidatedChange(
+            entity_type="company_info",
+            operation="create",
+            entity_name=name,
+            after={
+                "name": name,
+                "industry": raw.get("industry"),
+                "stage": raw.get("stage"),
+                "size": raw.get("size"),
+                "description": raw.get("detail") or raw.get("description"),
+                "key_differentiators": raw.get("key_differentiators", []),
+            },
+            evidence=[
+                {"excerpt": exc, "source": "signal"}
+                for exc in entity.evidence_excerpts
+            ],
+            rationale=f"New company info: {name}",
+            confidence=0.85,
+        ))
+    else:
+        new_data = {
+            "name": name,
+            "industry": raw.get("industry"),
+            "stage": raw.get("stage"),
+            "size": raw.get("size"),
+            "description": raw.get("detail") or raw.get("description"),
+        }
+
+        field_changes = detect_field_changes(
+            existing_company, new_data,
+            ["name", "industry", "stage", "size", "description"]
+        )
+
+        if field_changes:
+            changes.append(ConsolidatedChange(
+                entity_type="company_info",
+                operation="update",
+                entity_id=UUID(existing_company["id"]),
+                entity_name=existing_company.get("name"),
+                before={f.field_name: f.old_value for f in field_changes},
+                after={f.field_name: f.new_value for f in field_changes},
+                field_changes=field_changes,
+                evidence=[
+                    {"excerpt": exc, "source": "signal"}
+                    for exc in entity.evidence_excerpts
+                ],
+                rationale="Updated company info",
+                confidence=0.8,
+            ))
+
+    return changes
+
+
 def facts_to_entities(facts: list[dict]) -> list[ExtractedEntity]:
     """
     Convert extracted facts to typed entities for consolidation.
@@ -544,22 +989,63 @@ def facts_to_entities(facts: list[dict]) -> list[ExtractedEntity]:
     - feature, capability, function → feature
     - persona, user, role → persona
     - process, workflow, flow → vp_step
+    - kpi, pain, goal → business_driver
+    - competitor, design_inspiration → competitor_ref
     """
     entities = []
 
     type_mapping = {
+        # Features - ONLY user-facing capabilities
         "feature": "feature",
         "capability": "feature",
         "function": "feature",
-        "integration": "feature",
+
+        # Personas - user archetypes
         "persona": "persona",
         "user": "persona",
         "user_type": "persona",
-        "role": "persona",
+
+        # VP Steps - journey steps
         "process": "vp_step",
         "workflow": "vp_step",
         "flow": "vp_step",
         "step": "vp_step",
+        "journey": "vp_step",
+        "stage": "vp_step",
+        "vp_step": "vp_step",
+
+        # Stakeholders - people mentioned in signals
+        "stakeholder": "stakeholder",
+        "actor": "stakeholder",
+
+        # Constraints - technical/business limitations
+        "constraint": "constraint",
+        "requirement": "constraint",
+        "integration": "constraint",
+        "data_requirement": "constraint",
+
+        # Risks - go to constraints table with type='risk'
+        "risk": "constraint",
+        "threat": "constraint",
+
+        # Assumptions - go to constraints table with type='assumption'
+        "assumption": "constraint",
+
+        # Business Drivers - KPIs, Pains, Goals → business_drivers table
+        "kpi": "business_driver",
+        "metric": "business_driver",
+        "pain": "business_driver",
+        "goal": "business_driver",
+        "objective": "business_driver",
+        "organizational_goal": "business_driver",
+
+        # Competitor References - competitors and design inspiration
+        "competitor": "competitor_ref",
+        "design_inspiration": "competitor_ref",
+        "feature_inspiration": "competitor_ref",
+
+        # Company Info - client company details
+        "company_info": "company_info",
     }
 
     for fact in facts:
@@ -567,6 +1053,10 @@ def facts_to_entities(facts: list[dict]) -> list[ExtractedEntity]:
         entity_type = type_mapping.get(fact_type)
 
         if not entity_type:
+            logger.info(
+                f"Unmapped fact type '{fact_type}' - title: {fact.get('title', 'unknown')}",
+                extra={"fact_type": fact_type, "title": fact.get("title")},
+            )
             continue
 
         evidence_excerpts = [
@@ -583,10 +1073,22 @@ def facts_to_entities(facts: list[dict]) -> list[ExtractedEntity]:
                 "detail": fact.get("detail"),
                 "details": fact.get("detail"),
                 "confidence": fact.get("confidence"),
+                "fact_type": fact_type,  # Pass through for driver_type/reference_type mapping
+                # For company_info
+                "industry": fact.get("industry"),
+                "stage": fact.get("stage"),
+                "size": fact.get("size"),
+                "client_name": fact.get("client_name"),
+                # For business drivers
+                "measurement": fact.get("measurement"),
+                "timeframe": fact.get("timeframe"),
+                # For competitor refs
+                "url": fact.get("url"),
+                "category": fact.get("category"),
             },
             evidence_excerpts=evidence_excerpts,
             source_chunk_ids=[
-                ev.get("chunk_id", "")
+                str(ev.get("chunk_id", ""))
                 for ev in fact.get("evidence", [])
                 if ev.get("chunk_id")
             ],
@@ -657,8 +1159,31 @@ def consolidate_extractions(
         existing["stakeholders"],
     )
 
+    constraints = consolidate_constraints(
+        [e for e in all_entities if e.entity_type == "constraint"],
+        existing.get("constraints", []),
+    )
+
+    business_drivers = consolidate_business_drivers(
+        [e for e in all_entities if e.entity_type == "business_driver"],
+        existing.get("business_drivers", []),
+    )
+
+    competitor_refs = consolidate_competitor_refs(
+        [e for e in all_entities if e.entity_type == "competitor_ref"],
+        existing.get("competitor_refs", []),
+    )
+
+    company_info = consolidate_company_info(
+        all_entities,  # Will filter internally
+        existing.get("company_info"),
+    )
+
     # Calculate summary
-    all_changes = features + personas + vp_steps + stakeholders
+    all_changes = (
+        features + personas + vp_steps + stakeholders + constraints +
+        business_drivers + competitor_refs + company_info
+    )
     total_creates = sum(1 for c in all_changes if c.operation == "create")
     total_updates = sum(1 for c in all_changes if c.operation == "update")
 
@@ -671,6 +1196,10 @@ def consolidate_extractions(
         personas=personas,
         vp_steps=vp_steps,
         stakeholders=stakeholders,
+        constraints=constraints,
+        business_drivers=business_drivers,
+        competitor_refs=competitor_refs,
+        company_info=company_info,
         total_creates=total_creates,
         total_updates=total_updates,
         duplicates_merged=duplicates_merged,
@@ -685,6 +1214,10 @@ def consolidate_extractions(
             "personas": len(personas),
             "vp_steps": len(vp_steps),
             "stakeholders": len(stakeholders),
+            "constraints": len(constraints),
+            "business_drivers": len(business_drivers),
+            "competitor_refs": len(competitor_refs),
+            "company_info": len(company_info),
         },
     )
 

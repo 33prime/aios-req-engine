@@ -7,3 +7,6 @@ add column if not exists last_state_built_at timestamptz null;
 
 -- Add comment
 comment on column public.project_state.last_state_built_at is 'Timestamp when build state was last run to create initial canonical state';
+
+
+

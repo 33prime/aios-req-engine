@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter
 
-from app.api import agents, baseline, confirmations, enrich_features, enrich_prd, enrich_vp, insights, jobs, outreach, phase0, projects, reconcile, redteam, research, signals, state
+from app.api import activity, admin, agents, analytics, auth, baseline, chat, client_portal, confirmations, creative_brief, discovery_prep, enrich_features, enrich_prd, enrich_vp, entity_cascades, jobs, meetings, organizations, outreach, phase0, projects, proposals, research, research_agent, revisions, signals, signal_stream, stakeholders, state, tasks
 
 router = APIRouter()
 
@@ -15,14 +15,14 @@ router.include_router(agents.router, prefix="/agents", tags=["agents"])
 # Include Phase 1.3: Projects routes (baseline gate management)
 router.include_router(projects.router, prefix="/projects", tags=["projects"])
 
+# Include Chat Assistant routes
+router.include_router(chat.router, tags=["chat"])
+
 # Include Phase 1.3: Research ingestion routes
-router.include_router(research.router, tags=["research"])
+router.include_router(research.router, prefix="/research", tags=["research"])
 
-# Include Phase 1.3: Red-team routes (agents/red-team and insights)
-router.include_router(redteam.router, tags=["redteam"])
-
-# Include Phase 2D: Insights management routes
-router.include_router(insights.router, tags=["insights"])
+# Include Research Agent routes
+router.include_router(research_agent.router, tags=["research_agent"])
 
 # Include Phase 2D: Job status routes
 router.include_router(jobs.router, prefix="/jobs", tags=["jobs"])
@@ -30,11 +30,11 @@ router.include_router(jobs.router, prefix="/jobs", tags=["jobs"])
 # Include Phase 2D: Signal evidence drilldown routes
 router.include_router(signals.router, tags=["signals"])
 
+# Include Phase 4: Signal streaming pipeline routes
+router.include_router(signal_stream.router, prefix="/stream", tags=["signal_stream"])
+
 # Include Phase 2A: State building routes (PRD, VP, Features)
 router.include_router(state.router, tags=["state"])
-
-# Include Phase 2B: Reconciliation routes
-router.include_router(reconcile.router, tags=["reconcile"])
 
 # Include Phase 2C: Feature enrichment routes
 router.include_router(enrich_features.router, tags=["enrich_features"])
@@ -53,3 +53,45 @@ router.include_router(outreach.router, tags=["outreach"])
 
 # Include Phase 3: Baseline management routes
 router.include_router(baseline.router, tags=["baseline"])
+
+# Include analytics routes
+router.include_router(analytics.router, tags=["analytics"])
+
+# Include Creative Brief routes
+router.include_router(creative_brief.router, tags=["creative_brief"])
+
+# Include Batch Proposals and Cascade routes
+router.include_router(proposals.router, tags=["proposals"])
+
+# Include Entity Cascade routes (impact analysis, staleness tracking)
+router.include_router(entity_cascades.router, tags=["entity_cascades"])
+
+# Include Activity Feed routes (recent changes, items needing action)
+router.include_router(activity.router, tags=["activity"])
+
+# Include Revisions routes (entity-level change history)
+router.include_router(revisions.router, tags=["revisions"])
+
+# Include Stakeholders routes
+router.include_router(stakeholders.router, tags=["stakeholders"])
+
+# Include Authentication routes
+router.include_router(auth.router, tags=["auth"])
+
+# Include Admin routes (consultant management of clients)
+router.include_router(admin.router, tags=["admin"])
+
+# Include Organizations routes
+router.include_router(organizations.router, tags=["organizations"])
+
+# Include Client Portal routes
+router.include_router(client_portal.router, tags=["portal"])
+
+# Include Discovery Prep routes (pre-call question/document generation)
+router.include_router(discovery_prep.router, tags=["discovery_prep"])
+
+# Include Meetings routes
+router.include_router(meetings.router, tags=["meetings"])
+
+# Include Tasks routes (system-generated tasks)
+router.include_router(tasks.router, tags=["tasks"])

@@ -567,7 +567,7 @@ def find_matching_vp_step(
     return matcher.find_best_match(
         candidate=step_name,
         corpus=existing_steps,
-        text_field="name",
+        text_field="label",  # VP steps use 'label' not 'name'
         id_field="id",
     )
 
@@ -589,10 +589,15 @@ def should_create_or_update(
         Tuple of (action, match_result) where action is "create", "update", or "review"
     """
     matcher = SimilarityMatcher(entity_type=entity_type)
+
+    # Use correct text field per entity type
+    # VP steps use 'label', everything else uses 'name'
+    text_field = "label" if entity_type == "vp_step" else "name"
+
     result = matcher.find_best_match(
         candidate=candidate_name,
         corpus=existing_entities,
-        text_field="name",
+        text_field=text_field,
         id_field="id",
     )
 

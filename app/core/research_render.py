@@ -163,3 +163,6 @@ def render_research_report(report: ResearchReport) -> tuple[str, list[dict[str, 
     full_text = "".join(full_parts).strip()
 
     return full_text, sections
+
+
+
