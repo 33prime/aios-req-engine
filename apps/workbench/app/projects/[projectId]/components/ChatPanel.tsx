@@ -323,14 +323,14 @@ export function ChatPanel({
           </div>
         )}
 
-        {/* Quick Actions Bar */}
+        {/* Quick Actions Bar - uses modeConfig directly for immediate updates on tab change */}
         <div className="px-4 py-3 border-b border-gray-100 bg-gray-50">
           <div className="flex items-center gap-2 overflow-x-auto pb-1">
             <span className="text-xs text-ui-supportText whitespace-nowrap flex items-center gap-1">
               <Sparkles className="h-3 w-3" />
               Quick:
             </span>
-            {getQuickActions().slice(0, 5).map((action) => (
+            {modeConfig.quickActions.slice(0, 5).map((action) => (
               <button
                 key={action.id}
                 onClick={() => handleQuickAction(action)}
