@@ -29,6 +29,7 @@ import {
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { Card, CardHeader, EmptyState } from '@/components/ui'
+import { updateCompanyInfo } from '@/lib/api'
 
 interface StrategicFoundationTabProps {
   projectId: string
@@ -302,6 +303,7 @@ export function StrategicFoundationTab({ projectId }: StrategicFoundationTabProp
           stakeholders={stakeholders}
           strategicContext={strategicContext}
           projectId={projectId}
+          onRefresh={loadData}
         />
       )}
 
@@ -385,11 +387,13 @@ function ProjectContextSubTab({
   stakeholders,
   strategicContext,
   projectId,
+  onRefresh,
 }: {
   companyInfo: CompanyInfo | null
   stakeholders: Stakeholder[]
   strategicContext: StrategicContext | null
   projectId: string
+  onRefresh?: () => void
 }) {
   const [industryTab, setIndustryTab] = useState<'overview' | 'trends'>('overview')
   const hasEnrichment = companyInfo?.enriched_at
@@ -397,7 +401,7 @@ function ProjectContextSubTab({
   return (
     <div className="space-y-6">
       {/* Company Information Card - First (above Executive Summary) */}
-      <CompanyInformationCard companyInfo={companyInfo} projectId={projectId} />
+      <CompanyInformationCard companyInfo={companyInfo} projectId={projectId} onSave={onRefresh} />
 
       {/* Strategic Context Overview - Show if available */}
       {strategicContext && (
@@ -1083,15 +1087,29 @@ function ReferencesSubTab({
 function CompanyInformationCard({
   companyInfo,
   projectId,
+  onSave,
 }: {
   companyInfo: CompanyInfo | null
   projectId: string
+  onSave?: () => void
 }) {
   const [isEditing, setIsEditing] = useState(false)
-  const [editData, setEditData] = useState<Partial<CompanyInfo>>({})
+  const [editData, setEditData] = useState<Partial<CompanyInfo> & { city?: string; state?: string; country?: string }>({})
+
+  // Parse location into city, state, country
+  const parseLocation = (location: string | null) => {
+    if (!location) return { city: '', state: '', country: '' }
+    const parts = location.split(',').map((p) => p.trim())
+    return {
+      city: parts[0] || '',
+      state: parts[1] || '',
+      country: parts[2] || '',
+    }
+  }
 
   // Initialize edit data when entering edit mode
   const handleEdit = () => {
+    const locationParts = parseLocation(companyInfo?.location || null)
     if (companyInfo) {
       setEditData({
         company_type: companyInfo.company_type || companyInfo.stage,
@@ -1103,25 +1121,43 @@ function CompanyInformationCard({
         address: companyInfo.address,
         location: companyInfo.location,
         description: companyInfo.description,
+        city: locationParts.city,
+        state: locationParts.state,
+        country: locationParts.country,
+      })
+    } else {
+      setEditData({
+        city: '',
+        state: '',
+        country: '',
       })
     }
     setIsEditing(true)
   }
 
   const handleSave = async () => {
-    // TODO: Implement save to backend
     try {
-      const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001'
-      await fetch(`${baseUrl}/v1/state/company-info`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          project_id: projectId,
-          ...editData,
-        }),
+      // Combine city, state, country into location string
+      const locationParts = [editData.city, editData.state, editData.country].filter(Boolean)
+      const combinedLocation = locationParts.length > 0 ? locationParts.join(', ') : null
+
+      const { city, state, country, ...dataToSave } = editData
+
+      // Validate company_type against allowed values
+      const validCompanyTypes = ['Startup', 'SMB', 'Enterprise', 'Agency', 'Government', 'Non-Profit']
+      const companyType = dataToSave.company_type && validCompanyTypes.includes(dataToSave.company_type)
+        ? dataToSave.company_type
+        : null
+
+      await updateCompanyInfo(projectId, {
+        ...dataToSave,
+        company_type: companyType,
+        location: combinedLocation,
       })
+
       setIsEditing(false)
-      // Refresh would happen via parent state
+      // Refresh data from parent
+      onSave?.()
     } catch (error) {
       console.error('Failed to save company info:', error)
     }
@@ -1144,35 +1180,32 @@ function CompanyInformationCard({
 
   return (
     <Card>
-      <div className="flex items-center justify-between p-4 pb-0">
-        <div className="flex items-center gap-3">
-          <div className="p-2 bg-emerald-50 rounded-lg">
-            <Building2 className="h-5 w-5 text-[#009b87]" />
+      <div className="flex items-center justify-between px-4 py-3">
+        <div className="flex items-center gap-2.5">
+          <div className="p-1.5 bg-emerald-50 rounded-lg">
+            <Building2 className="h-4 w-4 text-[#009b87]" />
           </div>
-          <div>
-            <h3 className="text-base font-semibold text-gray-900">Company Information</h3>
-            <p className="text-sm text-gray-500">Key company details and overview</p>
-          </div>
+          <h3 className="text-sm font-semibold text-gray-900">Company Information</h3>
         </div>
         {!isEditing ? (
           <button
             onClick={handleEdit}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-lg transition-colors"
+            className="flex items-center gap-1.5 px-2.5 py-1 text-xs text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-md transition-colors"
           >
-            <Pencil className="h-4 w-4" />
+            <Pencil className="h-3.5 w-3.5" />
             Edit
           </button>
         ) : (
           <div className="flex items-center gap-2">
             <button
               onClick={handleCancel}
-              className="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-lg transition-colors"
+              className="px-2.5 py-1 text-xs text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-md transition-colors"
             >
               Cancel
             </button>
             <button
               onClick={handleSave}
-              className="px-3 py-1.5 text-sm text-white bg-[#009b87] hover:bg-[#007a6b] rounded-lg transition-colors"
+              className="px-2.5 py-1 text-xs text-white bg-[#009b87] hover:bg-[#007a6b] rounded-md transition-colors"
             >
               Save
             </button>
@@ -1180,11 +1213,11 @@ function CompanyInformationCard({
         )}
       </div>
 
-      <div className="p-4 pt-4 border-t border-gray-100 mt-4">
-        {companyInfo ? (
-          <div className="space-y-4">
+      <div className="px-4 pb-4 pt-2 border-t border-gray-100">
+        {companyInfo || isEditing ? (
+          <div className="space-y-3">
             {/* Row 1: Company Type, Industry, Website */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-3 gap-4">
               <div>
                 <label className="block text-xs font-medium text-gray-500 mb-1">Company Type</label>
                 {isEditing ? (
@@ -1192,11 +1225,11 @@ function CompanyInformationCard({
                     type="text"
                     value={editData.company_type || ''}
                     onChange={(e) => setEditData({ ...editData, company_type: e.target.value })}
-                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#009b87] focus:border-transparent"
-                    placeholder="e.g., SMB (midsize)"
+                    className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded-md focus:ring-1 focus:ring-[#009b87] focus:border-[#009b87] outline-none"
+                    placeholder="e.g., SMB"
                   />
                 ) : (
-                  <p className="text-sm font-medium text-gray-900">{getCompanyTypeDisplay()}</p>
+                  <p className="text-sm text-gray-900">{getCompanyTypeDisplay()}</p>
                 )}
               </div>
 
@@ -1207,12 +1240,12 @@ function CompanyInformationCard({
                     type="text"
                     value={editData.industry || ''}
                     onChange={(e) => setEditData({ ...editData, industry: e.target.value })}
-                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#009b87] focus:border-transparent"
-                    placeholder="e.g., Management Consulting Services"
+                    className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded-md focus:ring-1 focus:ring-[#009b87] focus:border-[#009b87] outline-none"
+                    placeholder="e.g., Consulting"
                   />
                 ) : (
-                  <p className="text-sm font-medium text-gray-900">
-                    {companyInfo.industry_display || companyInfo.industry || 'Not specified'}
+                  <p className="text-sm text-gray-900">
+                    {companyInfo?.industry_display || companyInfo?.industry || 'Not specified'}
                   </p>
                 )}
               </div>
@@ -1224,103 +1257,115 @@ function CompanyInformationCard({
                     type="url"
                     value={editData.website || ''}
                     onChange={(e) => setEditData({ ...editData, website: e.target.value })}
-                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#009b87] focus:border-transparent"
+                    className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded-md focus:ring-1 focus:ring-[#009b87] focus:border-[#009b87] outline-none"
                     placeholder="https://example.com"
                   />
-                ) : companyInfo.website ? (
+                ) : companyInfo?.website ? (
                   <a
                     href={companyInfo.website.startsWith('http') ? companyInfo.website : `https://${companyInfo.website}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center gap-1.5 text-sm text-[#009b87] hover:underline"
+                    className="text-sm text-[#009b87] hover:underline"
                   >
-                    <Globe className="h-4 w-4" />
                     {companyInfo.website.replace(/^https?:\/\//, '')}
                   </a>
                 ) : (
-                  <p className="text-sm text-gray-500">Not specified</p>
+                  <p className="text-sm text-gray-400">Not specified</p>
                 )}
               </div>
             </div>
 
-            {/* Row 2: Revenue, Address */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">Revenue</label>
-                {isEditing ? (
-                  <input
-                    type="text"
-                    value={editData.revenue || ''}
-                    onChange={(e) => setEditData({ ...editData, revenue: e.target.value })}
-                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#009b87] focus:border-transparent"
-                    placeholder="e.g., $1M - $10M"
-                  />
-                ) : (
-                  <p className="flex items-center gap-1.5 text-sm text-gray-900">
-                    <DollarSign className="h-4 w-4 text-[#009b87]" />
-                    {companyInfo.revenue || 'Not specified'}
-                  </p>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">Address</label>
-                {isEditing ? (
-                  <input
-                    type="text"
-                    value={editData.address || ''}
-                    onChange={(e) => setEditData({ ...editData, address: e.target.value })}
-                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#009b87] focus:border-transparent"
-                    placeholder="Full address"
-                  />
-                ) : (
-                  <p className="flex items-center gap-1.5 text-sm text-gray-900">
-                    <MapPin className="h-4 w-4 text-gray-400" />
-                    {companyInfo.address || 'Not specified'}
-                  </p>
-                )}
-              </div>
-            </div>
-
-            {/* Row 3: Location */}
+            {/* Row 2: Revenue */}
             <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">Location</label>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Revenue</label>
               {isEditing ? (
                 <input
                   type="text"
-                  value={editData.location || ''}
-                  onChange={(e) => setEditData({ ...editData, location: e.target.value })}
-                  className="w-full md:w-1/3 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#009b87] focus:border-transparent"
-                  placeholder="e.g., USA, Europe"
+                  value={editData.revenue || ''}
+                  onChange={(e) => setEditData({ ...editData, revenue: e.target.value })}
+                  className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded-md focus:ring-1 focus:ring-[#009b87] focus:border-[#009b87] outline-none"
+                  placeholder="e.g., $1M - $10M"
                 />
               ) : (
-                <p className="text-sm font-medium text-[#009b87]">
-                  {companyInfo.location || 'Not specified'}
+                <p className="text-sm text-gray-900">
+                  {companyInfo?.revenue || 'Not specified'}
                 </p>
               )}
             </div>
 
-            {/* Row 4: Company Overview - Full Width */}
+            {/* Row 3: Address */}
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Address</label>
+              {isEditing ? (
+                <input
+                  type="text"
+                  value={editData.address || ''}
+                  onChange={(e) => setEditData({ ...editData, address: e.target.value })}
+                  className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded-md focus:ring-1 focus:ring-[#009b87] focus:border-[#009b87] outline-none"
+                  placeholder="Full street address"
+                />
+              ) : (
+                <p className="text-sm text-gray-900">
+                  {companyInfo?.address || 'Not specified'}
+                </p>
+              )}
+            </div>
+
+            {/* Row 4: Location (City, State, Country) */}
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Location</label>
+              {isEditing ? (
+                <div className="grid grid-cols-3 gap-4">
+                  <input
+                    type="text"
+                    value={editData.city || ''}
+                    onChange={(e) => setEditData({ ...editData, city: e.target.value })}
+                    className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded-md focus:ring-1 focus:ring-[#009b87] focus:border-[#009b87] outline-none"
+                    placeholder="City"
+                  />
+                  <input
+                    type="text"
+                    value={editData.state || ''}
+                    onChange={(e) => setEditData({ ...editData, state: e.target.value })}
+                    className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded-md focus:ring-1 focus:ring-[#009b87] focus:border-[#009b87] outline-none"
+                    placeholder="State"
+                  />
+                  <input
+                    type="text"
+                    value={editData.country || ''}
+                    onChange={(e) => setEditData({ ...editData, country: e.target.value })}
+                    className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded-md focus:ring-1 focus:ring-[#009b87] focus:border-[#009b87] outline-none"
+                    placeholder="Country"
+                  />
+                </div>
+              ) : (
+                <p className="text-sm text-gray-900">
+                  {companyInfo?.location || 'Not specified'}
+                </p>
+              )}
+            </div>
+
+            {/* Row 5: Company Overview */}
             <div>
               <label className="block text-xs font-medium text-gray-500 mb-1">Company Overview</label>
               {isEditing ? (
                 <textarea
                   value={editData.description || ''}
                   onChange={(e) => setEditData({ ...editData, description: e.target.value })}
-                  rows={4}
-                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#009b87] focus:border-transparent resize-none"
+                  rows={3}
+                  className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded-md focus:ring-1 focus:ring-[#009b87] focus:border-[#009b87] outline-none resize-none"
                   placeholder="Company description and overview..."
                 />
               ) : (
                 <p className="text-sm text-gray-700 leading-relaxed">
-                  {companyInfo.description || companyInfo.unique_selling_point || 'No company overview available.'}
+                  {companyInfo?.description || companyInfo?.unique_selling_point || 'No company overview available.'}
                 </p>
               )}
             </div>
           </div>
         ) : (
           <EmptyState
-            icon={<Building2 className="h-12 w-12" />}
+            icon={<Building2 className="h-10 w-10" />}
             title="No company info yet"
             description="Add a client transcript to extract company details"
           />

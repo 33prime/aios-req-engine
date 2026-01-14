@@ -316,6 +316,22 @@ export const getStrategicFoundationSummary = (projectId: string) =>
     competitor_count: number
   }>(`/agents/strategic-foundation/${projectId}/summary`)
 
+export const updateCompanyInfo = (projectId: string, data: {
+  name?: string
+  industry?: string
+  company_type?: string | null
+  website?: string
+  revenue?: string
+  address?: string
+  location?: string | null
+  description?: string
+  employee_count?: string
+}) =>
+  apiRequest<{ company_info: any; success: boolean }>('/state/company-info', {
+    method: 'PUT',
+    body: JSON.stringify({ project_id: projectId, ...data }),
+  })
+
 export const getPatches = (projectId: string, status = 'queued') =>
   apiRequest<{ patches: any[]; count: number }>(
     `/projects/${projectId}/patches?status=${status}`

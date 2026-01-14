@@ -29,7 +29,7 @@ export const TAB_MODE_MAP: Record<TabType, AssistantMode> = {
   'sources': 'signals',
   'insights': 'research',
   'activity': 'general',
-  'strategic-context': 'briefing',
+  'strategic-context': 'strategic_foundation',
   'creative-brief': 'briefing',
 }
 
@@ -334,6 +334,46 @@ Focus on clarity and actionability for meeting contexts.`,
     contextFields: ['readinessScore', 'blockers', 'pendingDecisions', 'recentChanges'],
   },
 
+  // Strategic Foundation mode - Company info, drivers, competitors
+  strategic_foundation: {
+    systemPrompt: `You are helping build the strategic foundation for this project.
+Focus on extracting and organizing company information, business drivers, and competitive landscape.
+
+Your role:
+- Help extract company details from signals
+- Identify business drivers and objectives
+- Find and track competitors
+- Build strategic context
+
+Use /run-foundation to extract company info from signals, or /run-research for deep web research.`,
+
+    quickActions: [
+      {
+        id: 'run-foundation',
+        label: 'Run Foundation',
+        command: '/run-foundation',
+        variant: 'primary',
+      },
+      {
+        id: 'run-research',
+        label: 'Deep Research',
+        command: '/run-research',
+        variant: 'default',
+      },
+      {
+        id: 'project-status',
+        label: 'Check Status',
+        command: '/project-status',
+        variant: 'default',
+      },
+    ],
+
+    focusEntities: ['company_info', 'business_driver', 'competitor'],
+    proactiveMessages: true,
+    suggestedCommands: ['/run-foundation', '/run-research', '/project-status'],
+    contextFields: ['companyInfo', 'businessDrivers', 'competitors'],
+  },
+
   // General mode - Default fallback
   general: {
     systemPrompt: `You are an AI assistant helping manage a product requirements project.
@@ -509,8 +549,12 @@ export const MODE_TRANSITIONS: Record<AssistantMode, {
     allowedFrom: ['general', 'overview'],
     onEnter: 'Switched to Briefing mode. I can help prepare meeting summaries and discussion points.',
   },
+  strategic_foundation: {
+    allowedFrom: ['general', 'overview', 'briefing'],
+    onEnter: 'Switched to Strategic Foundation. Run /run-foundation to extract company info.',
+  },
   general: {
-    allowedFrom: ['overview', 'signals', 'features', 'personas', 'value_path', 'research', 'briefing'],
+    allowedFrom: ['overview', 'signals', 'features', 'personas', 'value_path', 'research', 'briefing', 'strategic_foundation'],
   },
 }
 

@@ -223,16 +223,15 @@ export function ChatPanel({
     inputRef.current?.focus()
   }, [])
 
-  // Combined messages (external + assistant system messages)
+  // Combined messages (external + all context messages including command results)
   const allMessages = useMemo(() => {
-    // Merge external messages with any assistant system messages
-    const assistantSystemMessages = context.messages.filter(m => m.role === 'system')
+    // Merge external messages with ALL assistant context messages (user, assistant, system)
     return [
       ...externalMessages.map(m => ({
         ...m,
         timestamp: m.timestamp || new Date(),
       })),
-      ...assistantSystemMessages.map(m => ({
+      ...context.messages.map(m => ({
         role: m.role as 'user' | 'assistant' | 'system',
         content: m.content,
         timestamp: m.timestamp,
@@ -265,9 +264,17 @@ export function ChatPanel({
 
   return (
     <>
+      {/* Backdrop - click to close */}
+      {isOpen && !isMinimized && (
+        <div
+          className="fixed inset-0 bg-black/10 z-40 transition-opacity"
+          onClick={onClose}
+        />
+      )}
+
       {/* Floating Panel */}
       <div
-        className={`fixed top-0 right-0 h-full w-full sm:w-[840px] bg-white shadow-2xl z-50 transition-transform duration-300 ease-in-out border-l border-gray-200 ${
+        className={`fixed top-0 right-0 h-full w-full sm:w-[560px] bg-white shadow-2xl z-50 transition-transform duration-300 ease-in-out border-l border-gray-200 ${
           isOpen ? 'translate-x-0' : 'translate-x-full'
         }`}
       >
@@ -347,7 +354,7 @@ export function ChatPanel({
         {/* Messages Area */}
         <div className="flex flex-col h-[calc(100%-280px)] overflow-y-auto px-6 py-4 space-y-4">
           {allMessages.length === 0 ? (
-            <WelcomeScreen suggestedCommands={modeConfig.suggestedCommands} onCommand={setInput} />
+            <WelcomeScreen suggestedCommands={modeConfig.suggestedCommands} onCommand={setInput} activeTab={activeTab} />
           ) : (
             <>
               {allMessages.map((message, index) => (
@@ -464,44 +471,45 @@ export function ChatPanel({
 function WelcomeScreen({
   suggestedCommands,
   onCommand,
+  activeTab,
 }: {
   suggestedCommands: string[]
   onCommand: (cmd: string) => void
+  activeTab?: string
 }) {
+  const contextMessages: Record<string, string> = {
+    'strategic-context': 'Extract company info, business drivers, and competitors from your signals.',
+    'features': 'Analyze features, enrich with AI, or approve pending items.',
+    'value-path': 'Design and refine the user journey steps.',
+    'sources': 'Process signals and route claims to entities.',
+    'overview': 'Check project health and plan next steps.',
+    'personas': 'Develop and refine user personas with evidence.',
+    'research': 'Search research findings and identify gaps.',
+  }
+
+  const defaultMessage = 'Use commands to run AI agents or ask questions about your project.'
+
   return (
-    <div className="flex-1 flex items-center justify-center">
-      <div className="text-center max-w-sm">
-        <div className="w-16 h-16 bg-brand-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
-          <MessageCircleIcon className="h-8 w-8 text-brand-primary" />
-        </div>
-        <h3 className="text-lg font-medium text-ui-bodyText mb-2">
-          Welcome to your AI Assistant
-        </h3>
-        <p className="text-sm text-ui-supportText">
-          Ask me about your project or use slash commands for quick actions.
-        </p>
-        <div className="mt-6 space-y-2 text-left">
-          <p className="text-xs font-medium text-ui-bodyText">Try these commands:</p>
-          <div className="flex flex-wrap gap-2">
-            {suggestedCommands.map((cmd) => (
-              <button
-                key={cmd}
-                onClick={() => onCommand(cmd)}
-                className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-full text-xs font-mono transition-colors"
-              >
-                {cmd}
-              </button>
-            ))}
-          </div>
-        </div>
-        <div className="mt-4 text-xs text-ui-supportText text-left">
-          <p className="font-medium text-ui-bodyText mb-1">Or ask:</p>
-          <ul className="space-y-1">
-            <li>• "What needs my attention?"</li>
-            <li>• "Analyze this feature"</li>
-            <li>• "Prepare a client briefing"</li>
-          </ul>
-        </div>
+    <div className="flex-1 flex flex-col items-center justify-center px-6">
+      <div className="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center mb-3">
+        <Sparkles className="h-6 w-6 text-gray-500" />
+      </div>
+      <h3 className="text-sm font-semibold text-gray-900 mb-1">
+        AI Assistant
+      </h3>
+      <p className="text-sm text-gray-500 text-center max-w-[280px] mb-5">
+        {contextMessages[activeTab || ''] || defaultMessage}
+      </p>
+      <div className="flex flex-wrap justify-center gap-2">
+        {suggestedCommands.map((cmd) => (
+          <button
+            key={cmd}
+            onClick={() => onCommand(cmd)}
+            className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-full text-xs font-mono transition-colors"
+          >
+            {cmd}
+          </button>
+        ))}
       </div>
     </div>
   )
@@ -726,12 +734,13 @@ function MessageBubble({
   const hasRunningTools = message.toolCalls?.some(t => t.status === 'running')
   const allToolsComplete = (message.toolCalls?.length ?? 0) > 0 && message.toolCalls?.every(t => t.status !== 'running')
 
-  // System messages have different styling
+  // System messages have different styling - subtle pill
   if (isSystem) {
     return (
-      <div className="flex justify-center">
-        <div className="px-4 py-2 bg-blue-50 text-blue-800 rounded-lg text-sm max-w-[90%]">
-          <Markdown content={message.content} className="text-sm" />
+      <div className="flex justify-center my-3">
+        <div className="flex items-center gap-1.5 px-3 py-1 bg-gray-100 text-gray-500 rounded-full text-xs">
+          <ChevronRight className="h-3 w-3" />
+          <span>{message.content}</span>
         </div>
       </div>
     )

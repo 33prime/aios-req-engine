@@ -136,7 +136,7 @@ def extract_strategic_entities_from_signals(project_id: UUID) -> dict[str, Any]:
     Extract business drivers and competitor refs from all project signals.
 
     This function:
-    1. Gets all signals for the project
+    1. Gets all signals for the project (or uses project description if none)
     2. For each signal, extracts facts using the fact extraction chain
     3. Converts relevant facts (pain, goal, competitor, design_inspiration) to entities
     4. Creates business_drivers and competitor_refs in the database
@@ -155,6 +155,7 @@ def extract_strategic_entities_from_signals(project_id: UUID) -> dict[str, Any]:
     from app.db.signals import list_project_signals, list_signal_chunks
     from app.db.business_drivers import create_business_driver, find_similar_driver
     from app.db.competitor_refs import create_competitor_ref, find_similar_competitor
+    from app.db.projects import get_project
 
     settings = get_settings()
 
@@ -169,9 +170,28 @@ def extract_strategic_entities_from_signals(project_id: UUID) -> dict[str, Any]:
     signal_response = list_project_signals(project_id, limit=50)
     signals = signal_response.get("signals", [])
 
+    # If no signals, use project description as a synthetic signal
     if not signals:
-        logger.info(f"No signals found for project {project_id}")
-        return result
+        logger.info(f"No signals found for project {project_id}, using project description")
+        try:
+            project = get_project(project_id)
+            if project and project.get("description"):
+                # Create synthetic signal from project description
+                signals = [{
+                    "id": str(project_id),  # Use project_id as signal_id for synthetic
+                    "content": f"Project: {project.get('name', 'Untitled')}\n\n{project.get('description', '')}",
+                    "title": project.get("name", "Project Description"),
+                    "signal_type": "project_description",
+                }]
+                logger.info(f"Created synthetic signal from project description ({len(project.get('description', ''))} chars)")
+            else:
+                logger.info(f"No project description found for project {project_id}")
+                return result
+        except Exception as e:
+            error_msg = f"Failed to get project for synthetic signal: {e}"
+            result["errors"].append(error_msg)
+            logger.warning(error_msg)
+            return result
 
     logger.info(f"Processing {len(signals)} signals for strategic entity extraction")
 
@@ -184,9 +204,14 @@ def extract_strategic_entities_from_signals(project_id: UUID) -> dict[str, Any]:
         if not signal_id:
             continue
 
+        # Check if this is a synthetic signal (from project description)
+        is_synthetic = signal.get("signal_type") == "project_description"
+
         try:
-            # Get chunks for this signal
-            chunks = list_signal_chunks(UUID(signal_id))
+            # Get chunks for this signal (skip DB lookup for synthetic signals)
+            chunks = []
+            if not is_synthetic:
+                chunks = list_signal_chunks(UUID(signal_id))
 
             # If no chunks, create a synthetic chunk from signal content
             if not chunks and signal.get("content"):
@@ -202,12 +227,12 @@ def extract_strategic_entities_from_signals(project_id: UUID) -> dict[str, Any]:
             if not chunks:
                 continue
 
-            # Extract facts from chunks
+            # Extract facts from chunks using GPT-4o for better quality
             extraction = extract_facts_from_chunks(
                 signal=signal,
                 chunks=chunks,
                 settings=settings,
-                model_override=settings.FACTS_MODEL or "gpt-4o-mini",
+                model_override="gpt-4o",  # Use stronger model for strategic foundation
             )
 
             result["signals_processed"] += 1
@@ -248,7 +273,7 @@ def extract_strategic_entities_from_signals(project_id: UUID) -> dict[str, Any]:
                             description=description,
                             measurement=detail if fact_type in ("kpi", "metric") else None,
                             priority=3,
-                            source_signal_id=UUID(signal_id),
+                            source_signal_id=None if is_synthetic else UUID(signal_id),
                         )
                         result["business_drivers_created"] += 1
                         seen_drivers.add(desc_key)
@@ -276,7 +301,7 @@ def extract_strategic_entities_from_signals(project_id: UUID) -> dict[str, Any]:
                             reference_type=ref_type,
                             name=name,
                             research_notes=detail,
-                            source_signal_id=UUID(signal_id),
+                            source_signal_id=None if is_synthetic else UUID(signal_id),
                         )
                         result["competitor_refs_created"] += 1
                         seen_competitors.add(name_key)

@@ -94,7 +94,7 @@ registerCommand({
 
       return {
         success: true,
-        message: `## Strategic Foundation Started\n\n${result.message}\n\n**Job ID:** \`${result.job_id}\`\n\nThis will extract:\n- Company information (from website)\n- Business drivers & objectives\n- Competitor references\n- Strategic context linking\n\nRefresh the Strategic Foundation tab to see progress.`,
+        message: `**Strategic Foundation running...**\n\nExtracting company info, business drivers, and competitors from your signals. This usually takes 1-2 minutes.\n\nRefresh the tab when complete to see results.`,
         data: {
           jobId: result.job_id,
           action: 'strategic_foundation_started',
@@ -103,7 +103,7 @@ registerCommand({
     } catch (error) {
       return {
         success: false,
-        message: `Failed to start strategic foundation: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        message: `Failed to start: ${error instanceof Error ? error.message : 'Unknown error'}`,
       }
     }
   },
@@ -151,7 +151,7 @@ registerCommand({
 
       return {
         success: true,
-        message: `## Research Started\n\n**Job ID:** \`${result.job_id}\`\n\nResearching:\n- ${clientName}\n- Industry trends\n- Competitor landscape\n\nThis may take a few minutes. Results will appear in the Sources tab.\n\n**Tip:** Run \`/run-foundation\` first to extract company info for better research results.`,
+        message: `**Research running...**\n\nResearching ${clientName}, industry trends, and competitor landscape. This may take a few minutes.\n\nResults will appear in the Sources tab.`,
         data: {
           jobId: result.job_id,
           action: 'research_started',
@@ -189,7 +189,7 @@ registerCommand({
 
       return {
         success: true,
-        message: `## Signal Analysis Started\n\n**Job ID:** \`${result.job_id}\`\n\nThe A-Team is analyzing your signals to:\n- Find gaps in features and personas\n- Generate improvement patches\n- Identify missing information\n\nPatches will appear in the Patches tab for review.`,
+        message: `**Signal analysis running...**\n\nAnalyzing your signals to find gaps and generate improvement patches.\n\nPatches will appear in the Patches tab for review.`,
         data: {
           jobId: result.job_id,
           action: 'analysis_started',
@@ -227,7 +227,7 @@ registerCommand({
 
       return {
         success: true,
-        message: `## Feature Enrichment Started\n\n**Job ID:** \`${result.job_id}\`\n\nEnhancing all features with:\n- Research findings\n- Signal evidence\n- Acceptance criteria\n- User story details\n\nThis may take a few minutes.`,
+        message: `**Enriching features...**\n\nEnhancing all features with research findings, signal evidence, and acceptance criteria.\n\nThis may take a few minutes.`,
         data: {
           jobId: result.job_id,
           action: 'enrich_features_started',
@@ -265,7 +265,7 @@ registerCommand({
 
       return {
         success: true,
-        message: `## Value Path Enrichment Started\n\n**Job ID:** \`${result.job_id}\`\n\nEnhancing all value path steps with:\n- Journey details\n- Emotional mapping\n- Feature connections\n- Success metrics\n\nThis may take a few minutes.`,
+        message: `**Enriching value path...**\n\nEnhancing all journey steps with details, emotional mapping, and success metrics.\n\nThis may take a few minutes.`,
         data: {
           jobId: result.job_id,
           action: 'enrich_vp_started',

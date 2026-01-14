@@ -856,7 +856,7 @@ async def update_company_info_endpoint(
     body: CompanyInfoUpdate,
 ) -> dict:
     """
-    Update company info for a project.
+    Create or update company info for a project.
 
     Args:
         body: Company info update data
@@ -869,26 +869,32 @@ async def update_company_info_endpoint(
     """
     try:
         # Get existing company info to preserve fields not being updated
-        existing = get_company_info(body.project_id)
+        existing = get_company_info(body.project_id) or {}
 
-        if not existing:
-            raise HTTPException(status_code=404, detail="Company info not found")
+        # Validate company_type against allowed values
+        valid_company_types = {'Startup', 'SMB', 'Enterprise', 'Agency', 'Government', 'Non-Profit'}
+        company_type_value = body.company_type if body.company_type is not None else existing.get("company_type")
+        if company_type_value and company_type_value not in valid_company_types:
+            company_type_value = None  # Reset invalid values
 
-        # Merge updates with existing data
+        # Merge updates with existing data (or use defaults for new)
         updated = upsert_company_info(
             project_id=body.project_id,
-            name=body.name or existing.get("name", "Unknown"),
+            name=body.name or existing.get("name", "Unknown Company"),
             industry=body.industry if body.industry is not None else existing.get("industry"),
             stage=body.stage if body.stage is not None else existing.get("stage"),
             size=body.size if body.size is not None else existing.get("size"),
             website=body.website if body.website is not None else existing.get("website"),
             description=body.description if body.description is not None else existing.get("description"),
+            company_type=company_type_value,
+            revenue=body.revenue if body.revenue is not None else existing.get("revenue"),
+            address=body.address if body.address is not None else existing.get("address"),
+            location=body.location if body.location is not None else existing.get("location"),
+            employee_count=body.employee_count if body.employee_count is not None else existing.get("employee_count"),
         )
 
         return {"company_info": updated, "success": True}
 
-    except HTTPException:
-        raise
     except Exception as e:
         logger.exception(f"Failed to update company info: {e}")
         raise HTTPException(status_code=500, detail="Failed to update company info") from e

@@ -22,15 +22,18 @@ def get_company_info(project_id: UUID) -> dict[str, Any] | None:
     """
     supabase = get_supabase()
 
-    response = (
-        supabase.table("company_info")
-        .select("*")
-        .eq("project_id", str(project_id))
-        .maybe_single()
-        .execute()
-    )
-
-    return response.data
+    try:
+        response = (
+            supabase.table("company_info")
+            .select("*")
+            .eq("project_id", str(project_id))
+            .maybe_single()
+            .execute()
+        )
+        return response.data if response else None
+    except Exception as e:
+        logger.error(f"Error getting company info for project {project_id}: {e}")
+        return None
 
 
 def upsert_company_info(
@@ -44,6 +47,11 @@ def upsert_company_info(
     key_differentiators: list[str] | None = None,
     source_signal_id: UUID | None = None,
     revision_id: UUID | None = None,
+    company_type: str | None = None,
+    revenue: str | None = None,
+    address: str | None = None,
+    location: str | None = None,
+    employee_count: str | None = None,
 ) -> dict[str, Any]:
     """
     Create or update company info for a project.
@@ -59,6 +67,11 @@ def upsert_company_info(
         key_differentiators: List of differentiators
         source_signal_id: Signal this was extracted from
         revision_id: Revision tracking ID
+        company_type: Company type (SMB, Enterprise, etc.)
+        revenue: Revenue range
+        address: Physical address
+        location: City, State, Country
+        employee_count: Number of employees
 
     Returns:
         Created/updated company info dict
@@ -86,6 +99,16 @@ def upsert_company_info(
         data["source_signal_id"] = str(source_signal_id)
     if revision_id is not None:
         data["revision_id"] = str(revision_id)
+    if company_type is not None:
+        data["company_type"] = company_type
+    if revenue is not None:
+        data["revenue"] = revenue
+    if address is not None:
+        data["address"] = address
+    if location is not None:
+        data["location"] = location
+    if employee_count is not None:
+        data["employee_count"] = employee_count
 
     response = (
         supabase.table("company_info")

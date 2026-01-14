@@ -929,9 +929,10 @@ def auto_link_project_members_to_stakeholders(project_id: UUID) -> int:
         return 0
 
     # Get project members with emails
+    # Use explicit FK relationship since project_members has two FKs to users (user_id, invited_by)
     project_members = (
         supabase.table("project_members")
-        .select("id, user_id, users(email)")
+        .select("id, user_id, users!project_members_user_id_fkey(email)")
         .eq("project_id", str(project_id))
         .execute()
     ).data or []

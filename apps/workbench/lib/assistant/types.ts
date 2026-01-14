@@ -22,14 +22,15 @@ export type TabType =
   | 'creative-brief'
 
 export type AssistantMode =
-  | 'overview'      // Project health, blockers, recommendations
-  | 'signals'       // Signal processing, claim routing
-  | 'features'      // Feature management, enrichment
-  | 'personas'      // Persona development
-  | 'value_path'    // VP flow analysis
-  | 'research'      // Research queries, gap analysis
-  | 'briefing'      // Pre-meeting prep
-  | 'general'       // Default fallback mode
+  | 'overview'              // Project health, blockers, recommendations
+  | 'signals'               // Signal processing, claim routing
+  | 'features'              // Feature management, enrichment
+  | 'personas'              // Persona development
+  | 'value_path'            // VP flow analysis
+  | 'research'              // Research queries, gap analysis
+  | 'briefing'              // Pre-meeting prep
+  | 'strategic_foundation'  // Company info, drivers, competitors
+  | 'general'               // Default fallback mode
 
 // =============================================================================
 // Entity Types
