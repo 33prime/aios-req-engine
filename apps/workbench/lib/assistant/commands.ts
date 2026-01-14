@@ -526,69 +526,210 @@ registerCommand({
 // /project-status
 registerCommand({
   name: 'project-status',
-  description: 'Show project readiness score, blockers, and stats',
+  description: 'Show comprehensive project status with all entities',
   aliases: ['status', 'health'],
   examples: ['/project-status', '/status'],
   execute: async (_args, context): Promise<CommandResult> => {
-    const { projectData } = context
+    const { projectId } = context
 
-    if (!projectData) {
+    if (!projectId) {
       return {
         success: false,
-        message: 'No project data available. Please select a project first.',
+        message: 'No project selected. Please select a project first.',
       }
     }
 
-    const readiness = projectData.readinessScore ?? 0
-    const blockers = projectData.blockers ?? []
-    const warnings = projectData.warnings ?? []
-    const pending = projectData.pendingConfirmations ?? 0
+    const { getProjectStatus } = await import('@/lib/api')
 
-    let message = `## Project Status\n\n`
-    message += `**Readiness Score:** ${readiness}/100\n\n`
+    try {
+      const status = await getProjectStatus(projectId)
 
-    if (projectData.stats) {
-      message += `### Stats\n`
-      message += `- Features: ${projectData.stats.features}\n`
-      message += `- Personas: ${projectData.stats.personas}\n`
-      message += `- Value Path Steps: ${projectData.stats.vpSteps}\n`
-      message += `- Signals: ${projectData.stats.signals}\n\n`
-    }
+      // Build formatted output
+      let message = `# ${status.project.name}\n\n`
 
-    if (blockers.length > 0) {
-      message += `### Blockers (${blockers.length})\n`
-      blockers.forEach((b: string) => {
-        message += `- ${b}\n`
-      })
+      // Readiness score with visual indicator
+      const score = status.readiness.score
+      const scoreBar = '█'.repeat(Math.floor(score / 10)) + '░'.repeat(10 - Math.floor(score / 10))
+      message += `**Readiness:** ${scoreBar} ${score}/100\n\n`
+
+      // Company Info
+      if (status.company) {
+        message += `## Company\n`
+        message += `**${status.company.name || 'Unknown'}**`
+        const details = [status.company.industry, status.company.stage].filter(Boolean)
+        if (details.length > 0) {
+          message += ` (${details.join(' • ')})`
+        }
+        message += '\n'
+        if (status.company.location) {
+          message += `📍 ${status.company.location}\n`
+        }
+        if (status.company.unique_selling_point) {
+          message += `\n> ${status.company.unique_selling_point.slice(0, 150)}...\n`
+        }
+        message += '\n'
+      }
+
+      // Strategic Context
+      message += `## Strategic Context\n`
+      message += `*${status.strategic.total_drivers} business drivers (${status.strategic.confirmed_drivers} confirmed)*\n\n`
+
+      if (status.strategic.pains.length > 0) {
+        message += `**Pain Points (${status.strategic.pains.length})**\n`
+        status.strategic.pains.slice(0, 3).forEach((p) => {
+          const tag = p.status === 'confirmed' ? ' ✓' : ''
+          message += `- ${p.description}${tag}\n`
+        })
+        message += '\n'
+      }
+
+      if (status.strategic.goals.length > 0) {
+        message += `**Goals (${status.strategic.goals.length})**\n`
+        status.strategic.goals.slice(0, 3).forEach((g) => {
+          const tag = g.status === 'confirmed' ? ' ✓' : ''
+          message += `- ${g.description}${tag}\n`
+        })
+        message += '\n'
+      }
+
+      if (status.strategic.kpis.length > 0) {
+        message += `**Success Metrics (${status.strategic.kpis.length})**\n`
+        status.strategic.kpis.slice(0, 3).forEach((k) => {
+          const tag = k.status === 'confirmed' ? ' ✓' : ''
+          const target = k.measurement ? ` → ${k.measurement}` : ''
+          message += `- ${k.description}${target}${tag}\n`
+        })
+        message += '\n'
+      }
+
+      // Product State
+      message += `## Product Definition\n`
+
+      // Features
+      const f = status.product.features
+      message += `**Features:** ${f.total} total, ${f.mvp} MVP, ${f.confirmed} confirmed\n`
+      if (f.items.length > 0) {
+        f.items.slice(0, 4).forEach((feat) => {
+          const mvpTag = feat.is_mvp ? '[MVP] ' : ''
+          message += `  - ${mvpTag}${feat.name}\n`
+        })
+        if (f.total > 4) {
+          message += `  - ... and ${f.total - 4} more\n`
+        }
+      }
       message += '\n'
-    }
 
-    if (warnings.length > 0) {
-      message += `### Warnings (${warnings.length})\n`
-      warnings.forEach((w: string) => {
-        message += `- ${w}\n`
-      })
+      // Personas
+      const p = status.product.personas
+      message += `**Personas:** ${p.total} defined, ${p.primary} primary\n`
+      if (p.items.length > 0) {
+        p.items.slice(0, 3).forEach((persona) => {
+          const primaryTag = persona.is_primary ? ' [Primary]' : ''
+          const role = persona.role ? ` - ${persona.role}` : ''
+          message += `  - ${persona.name}${role}${primaryTag}\n`
+        })
+      }
       message += '\n'
-    }
 
-    if (pending > 0) {
-      message += `### Pending Confirmations: ${pending}\n`
-    }
+      // VP Steps
+      const vp = status.product.vp_steps
+      message += `**Value Path:** ${vp.total} stages\n`
+      if (vp.items.length > 0) {
+        vp.items.slice(0, 4).forEach((step) => {
+          message += `  ${step.order}. ${step.name}\n`
+        })
+        if (vp.total > 4) {
+          message += `  ... and ${vp.total - 4} more stages\n`
+        }
+      }
+      message += '\n'
 
-    const actions: QuickAction[] = []
-    if (pending > 0) {
-      actions.push({
-        id: 'review-pending',
-        label: 'View Pending Items',
-        command: '/pending-items',
-        variant: 'primary',
-      })
-    }
+      // Market Context
+      if (status.market.competitors.length > 0 || status.market.constraints.length > 0) {
+        message += `## Market Context\n`
+        if (status.market.competitors.length > 0) {
+          message += `**Competitors:** ${status.market.competitors.map((c) => c.name).join(', ')}\n`
+        }
+        if (status.market.design_refs.length > 0) {
+          message += `**Design Inspiration:** ${status.market.design_refs.join(', ')}\n`
+        }
+        if (status.market.constraints.length > 0) {
+          message += `**Constraints:** ${status.market.constraints.map((c) => c.name).join(', ')}\n`
+        }
+        message += '\n'
+      }
 
-    return {
-      success: true,
-      message,
-      actions,
+      // Stakeholders
+      if (status.stakeholders.total > 0) {
+        message += `## Stakeholders (${status.stakeholders.total})\n`
+        status.stakeholders.items.slice(0, 3).forEach((s) => {
+          const role = s.role ? ` - ${s.role}` : ''
+          const type = s.type ? ` (${s.type})` : ''
+          message += `- ${s.name}${role}${type}\n`
+        })
+        message += '\n'
+      }
+
+      // Signals
+      message += `## Data Sources\n`
+      message += `**Signals:** ${status.signals.total} processed\n\n`
+
+      // Blockers and Suggestions
+      if (status.readiness.blockers.length > 0) {
+        message += `## ⚠️ Blockers\n`
+        status.readiness.blockers.forEach((b) => {
+          message += `- ${b}\n`
+        })
+        message += '\n'
+      }
+
+      if (status.readiness.suggestions.length > 0) {
+        message += `## 💡 Suggested Next Steps\n`
+        status.readiness.suggestions.forEach((s) => {
+          message += `- ${s}\n`
+        })
+      }
+
+      // Quick actions based on state
+      const actions: QuickAction[] = []
+
+      if (status.strategic.total_drivers === 0) {
+        actions.push({
+          id: 'run-foundation',
+          label: 'Run Foundation',
+          command: '/run-foundation',
+          variant: 'primary',
+        })
+      }
+
+      if (status.product.features.total === 0) {
+        actions.push({
+          id: 'enrich-features',
+          label: 'Generate Features',
+          command: '/enrich-features',
+          variant: 'default',
+        })
+      }
+
+      if (status.product.vp_steps.total === 0) {
+        actions.push({
+          id: 'enrich-vp',
+          label: 'Generate Value Path',
+          command: '/enrich-value-path',
+          variant: 'default',
+        })
+      }
+
+      return {
+        success: true,
+        message,
+        actions,
+      }
+    } catch (error) {
+      return {
+        success: false,
+        message: `Failed to get project status: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      }
     }
   },
 })
@@ -788,7 +929,7 @@ registerCommand({
     message += `**/create-stakeholder** "Name" - Add new stakeholder\n\n`
 
     message += `### View Info\n`
-    message += `**/project-status** - Show readiness, blockers, stats\n`
+    message += `**/project-status** - Show comprehensive project state overview\n`
     message += `**/pending-items** - List items needing confirmation\n`
     message += `**/meeting-prep** - Generate meeting briefing\n\n`
 

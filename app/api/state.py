@@ -996,3 +996,188 @@ async def get_constraints_endpoint(
         raise HTTPException(status_code=500, detail="Failed to get constraints") from e
 
 
+# =============================================================================
+# Project Status Endpoint (for AI Assistant)
+# =============================================================================
+
+
+@router.get("/state/project-status")
+async def get_project_status_endpoint(
+    project_id: UUID = Query(..., description="Project UUID"),  # noqa: B008
+) -> dict:
+    """
+    Get comprehensive project status for AI assistant display.
+
+    Returns structured data about all project entities, their counts,
+    confirmation status, and suggested next steps.
+
+    Args:
+        project_id: Project UUID
+
+    Returns:
+        Comprehensive project status dict
+
+    Raises:
+        HTTPException 500: If retrieval fails
+    """
+    from app.db.projects import get_project
+    from app.db.signals import list_project_signals
+
+    try:
+        # Get project info
+        project = get_project(project_id)
+        project_name = project.get("name", "Unknown") if project else "Unknown"
+        project_description = project.get("description", "") if project else ""
+
+        # Get company info
+        company = get_company_info(project_id)
+
+        # Get business drivers grouped by type
+        all_drivers = list_business_drivers(project_id)
+        pains = [d for d in all_drivers if d.get("driver_type") == "pain"]
+        goals = [d for d in all_drivers if d.get("driver_type") == "goal"]
+        kpis = [d for d in all_drivers if d.get("driver_type") == "kpi"]
+
+        # Get competitors and references
+        all_refs = list_competitor_refs(project_id)
+        competitors = [r for r in all_refs if r.get("reference_type") == "competitor"]
+        design_refs = [r for r in all_refs if r.get("reference_type") == "design_inspiration"]
+
+        # Get constraints
+        all_constraints = list_constraints(project_id)
+
+        # Get features
+        features = list_features(project_id)
+        mvp_features = [f for f in features if f.get("is_mvp")]
+        confirmed_features = [f for f in features if f.get("confirmation_status") in ("confirmed_client", "confirmed_consultant")]
+
+        # Get personas
+        personas = list_personas(project_id)
+        primary_personas = [p for p in personas if p.get("is_primary")]
+        confirmed_personas = [p for p in personas if p.get("confirmation_status") in ("confirmed_client", "confirmed_consultant")]
+
+        # Get VP steps
+        vp_steps = list_vp_steps(project_id)
+
+        # Get stakeholders
+        stakeholders = list_stakeholders(project_id)
+
+        # Get signals
+        signals_response = list_project_signals(project_id, limit=100)
+        signals = signals_response.get("signals", [])
+
+        # Calculate readiness and determine blockers/suggestions
+        blockers = []
+        suggestions = []
+
+        if not company:
+            blockers.append("No company information defined")
+            suggestions.append("Add company info in Strategic Foundation tab")
+
+        if not all_drivers:
+            blockers.append("No business drivers defined")
+            suggestions.append("Run /run-foundation to extract business drivers")
+        elif len(pains) == 0:
+            suggestions.append("Add pain points to clarify problems being solved")
+        elif len(goals) == 0:
+            suggestions.append("Add goals to define success criteria")
+        elif len(kpis) == 0:
+            suggestions.append("Add KPIs to measure success")
+
+        if not features:
+            blockers.append("No features defined")
+            suggestions.append("Run /enrich-features to generate features")
+        elif len(confirmed_features) < len(features) / 2:
+            suggestions.append(f"Confirm features: {len(confirmed_features)}/{len(features)} confirmed")
+
+        if not personas:
+            suggestions.append("Run /enrich-personas to generate user personas")
+        elif not primary_personas:
+            suggestions.append("Mark a primary persona to guide feature prioritization")
+
+        if not vp_steps:
+            suggestions.append("Run /enrich-value-path to generate user journey")
+
+        if not signals:
+            suggestions.append("Add signals (emails, notes, research) to enrich context")
+
+        # Calculate readiness score (0-100)
+        readiness = 0
+        if company:
+            readiness += 15
+        if all_drivers:
+            readiness += min(20, len(all_drivers) * 2)
+        if features:
+            readiness += min(25, len(features) * 2)
+            if confirmed_features:
+                readiness += min(10, len(confirmed_features) * 2)
+        if personas:
+            readiness += min(15, len(personas) * 5)
+        if vp_steps:
+            readiness += min(15, len(vp_steps) * 3)
+
+        readiness = min(100, readiness)
+
+        return {
+            "project": {
+                "id": str(project_id),
+                "name": project_name,
+                "description": project_description[:200] if project_description else None,
+            },
+            "company": {
+                "name": company.get("name") if company else None,
+                "industry": company.get("industry") if company else None,
+                "stage": company.get("stage") if company else None,
+                "location": company.get("location") if company else None,
+                "website": company.get("website") if company else None,
+                "unique_selling_point": company.get("unique_selling_point") if company else None,
+            } if company else None,
+            "strategic": {
+                "pains": [{"description": p.get("description"), "status": p.get("status")} for p in pains[:5]],
+                "goals": [{"description": g.get("description"), "status": g.get("status")} for g in goals[:5]],
+                "kpis": [{"description": k.get("description"), "measurement": k.get("measurement"), "status": k.get("status")} for k in kpis[:5]],
+                "total_drivers": len(all_drivers),
+                "confirmed_drivers": len([d for d in all_drivers if d.get("status") == "confirmed"]),
+            },
+            "market": {
+                "competitors": [{"name": c.get("name"), "notes": c.get("research_notes", "")[:80]} for c in competitors[:5]],
+                "design_refs": [r.get("name") for r in design_refs[:3]],
+                "constraints": [{"name": c.get("name"), "type": c.get("constraint_type")} for c in all_constraints[:5]],
+            },
+            "product": {
+                "features": {
+                    "total": len(features),
+                    "mvp": len(mvp_features),
+                    "confirmed": len(confirmed_features),
+                    "items": [{"name": f.get("name"), "is_mvp": f.get("is_mvp"), "status": f.get("confirmation_status")} for f in features[:8]],
+                },
+                "personas": {
+                    "total": len(personas),
+                    "primary": len(primary_personas),
+                    "confirmed": len(confirmed_personas),
+                    "items": [{"name": p.get("name"), "role": p.get("role"), "is_primary": p.get("is_primary")} for p in personas[:5]],
+                },
+                "vp_steps": {
+                    "total": len(vp_steps),
+                    "items": [{"name": s.get("name"), "order": s.get("step_order")} for s in vp_steps[:6]],
+                },
+            },
+            "stakeholders": {
+                "total": len(stakeholders),
+                "items": [{"name": s.get("name"), "role": s.get("role"), "type": s.get("stakeholder_type")} for s in stakeholders[:5]],
+            },
+            "signals": {
+                "total": len(signals),
+            },
+            "readiness": {
+                "score": readiness,
+                "blockers": blockers,
+                "suggestions": suggestions[:5],
+            },
+        }
+
+    except Exception as e:
+        logger.exception(f"Failed to get project status: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get project status") from e
+
+

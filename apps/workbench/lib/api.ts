@@ -1200,3 +1200,68 @@ export const getProjectTasks = (projectId: string) =>
 
 export const getStatusNarrative = (projectId: string, regenerate = false) =>
   apiRequest<StatusNarrative>(`/projects/${projectId}/status-narrative?regenerate=${regenerate}`)
+
+// ============================================
+// Project Status API (for AI Assistant)
+// ============================================
+
+export interface ProjectStatusResponse {
+  project: {
+    id: string
+    name: string
+    description: string | null
+  }
+  company: {
+    name: string | null
+    industry: string | null
+    stage: string | null
+    location: string | null
+    website: string | null
+    unique_selling_point: string | null
+  } | null
+  strategic: {
+    pains: Array<{ description: string; status: string | null }>
+    goals: Array<{ description: string; status: string | null }>
+    kpis: Array<{ description: string; measurement: string | null; status: string | null }>
+    total_drivers: number
+    confirmed_drivers: number
+  }
+  market: {
+    competitors: Array<{ name: string; notes: string }>
+    design_refs: string[]
+    constraints: Array<{ name: string; type: string | null }>
+  }
+  product: {
+    features: {
+      total: number
+      mvp: number
+      confirmed: number
+      items: Array<{ name: string; is_mvp: boolean; status: string | null }>
+    }
+    personas: {
+      total: number
+      primary: number
+      confirmed: number
+      items: Array<{ name: string; role: string | null; is_primary: boolean }>
+    }
+    vp_steps: {
+      total: number
+      items: Array<{ name: string; order: number }>
+    }
+  }
+  stakeholders: {
+    total: number
+    items: Array<{ name: string; role: string | null; type: string | null }>
+  }
+  signals: {
+    total: number
+  }
+  readiness: {
+    score: number
+    blockers: string[]
+    suggestions: string[]
+  }
+}
+
+export const getProjectStatus = (projectId: string) =>
+  apiRequest<ProjectStatusResponse>(`/state/project-status?project_id=${projectId}`)
