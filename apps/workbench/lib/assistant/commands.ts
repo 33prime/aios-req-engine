@@ -328,7 +328,7 @@ registerCommand({
           {
             id: 'go-features',
             label: 'Go to Features Tab',
-            navigateTo: { tab: 'personas-features' },
+            navigateTo: { tab: 'features' },
           },
         ],
       }
@@ -372,7 +372,7 @@ registerCommand({
           {
             id: 'go-personas',
             label: 'Go to Personas Tab',
-            navigateTo: { tab: 'personas-features' },
+            navigateTo: { tab: 'features' },
           },
         ],
       }
@@ -665,7 +665,7 @@ registerCommand({
         {
           id: 'go-features',
           label: 'View Features',
-          navigateTo: { tab: 'personas-features' },
+          navigateTo: { tab: 'features' },
         },
         {
           id: 'go-vp',
