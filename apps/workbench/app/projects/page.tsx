@@ -134,10 +134,10 @@ export default function ProjectsPage() {
           {/* Left Column - Projects */}
           <div className="lg:col-span-3">
             {/* Section Header with Actions */}
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-3">
               <h2 className="text-lg font-semibold text-gray-900">Latest Projects</h2>
-              <div className="flex items-center gap-3">
-                {/* Search */}
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
+                {/* Search - full width on mobile */}
                 <form onSubmit={handleSearch} className="relative">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                   <input
@@ -145,42 +145,45 @@ export default function ProjectsPage() {
                     placeholder="Search..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-9 pr-4 py-2 w-48 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#009b87] focus:border-transparent"
+                    className="pl-9 pr-4 py-2 w-full sm:w-48 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#009b87] focus:border-transparent"
                   />
                 </form>
 
-                {/* Status Filter */}
-                <div className="flex border border-gray-300 rounded-lg overflow-hidden">
+                {/* Filters + Button row */}
+                <div className="flex items-center gap-2">
+                  {/* Status Filter */}
+                  <div className="flex border border-gray-300 rounded-lg overflow-hidden">
+                    <button
+                      onClick={() => setStatusFilter('active')}
+                      className={`px-3 py-2 text-sm font-medium transition-colors ${
+                        statusFilter === 'active'
+                          ? 'bg-[#009b87] text-white'
+                          : 'bg-white text-gray-700 hover:bg-gray-50'
+                      }`}
+                    >
+                      Active
+                    </button>
+                    <button
+                      onClick={() => setStatusFilter('archived')}
+                      className={`px-3 py-2 text-sm font-medium transition-colors border-l border-gray-300 ${
+                        statusFilter === 'archived'
+                          ? 'bg-[#009b87] text-white'
+                          : 'bg-white text-gray-700 hover:bg-gray-50'
+                      }`}
+                    >
+                      Archived
+                    </button>
+                  </div>
+
+                  {/* New Project Button */}
                   <button
-                    onClick={() => setStatusFilter('active')}
-                    className={`px-3 py-2 text-sm font-medium transition-colors ${
-                      statusFilter === 'active'
-                        ? 'bg-[#009b87] text-white'
-                        : 'bg-white text-gray-700 hover:bg-gray-50'
-                    }`}
+                    onClick={() => setShowCreateModal(true)}
+                    className="flex items-center justify-center gap-2 px-4 py-2 bg-[#009b87] text-white rounded-lg hover:bg-[#007a6b] transition-colors text-sm font-medium flex-1 sm:flex-none"
                   >
-                    Active
-                  </button>
-                  <button
-                    onClick={() => setStatusFilter('archived')}
-                    className={`px-3 py-2 text-sm font-medium transition-colors border-l border-gray-300 ${
-                      statusFilter === 'archived'
-                        ? 'bg-[#009b87] text-white'
-                        : 'bg-white text-gray-700 hover:bg-gray-50'
-                    }`}
-                  >
-                    Archived
+                    <Plus className="w-4 h-4" />
+                    <span className="hidden sm:inline">New Project</span>
                   </button>
                 </div>
-
-                {/* New Project Button */}
-                <button
-                  onClick={() => setShowCreateModal(true)}
-                  className="flex items-center gap-2 px-4 py-2 bg-[#009b87] text-white rounded-lg hover:bg-[#007a6b] transition-colors text-sm font-medium"
-                >
-                  <Plus className="w-4 h-4" />
-                  New Project
-                </button>
               </div>
             </div>
 

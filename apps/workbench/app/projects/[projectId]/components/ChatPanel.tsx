@@ -242,7 +242,7 @@ export function ChatPanel({
   // If minimized, show compact docked bar
   if (isMinimized && isOpen) {
     return (
-      <div className="fixed bottom-4 right-4 z-50">
+      <div className="fixed bottom-4 right-4 sm:bottom-4 sm:right-4 z-50">
         <button
           onClick={onToggleMinimize}
           className="flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-brand-primary to-brand-primaryHover text-white rounded-lg shadow-lg hover:shadow-xl transition-all"
@@ -274,20 +274,20 @@ export function ChatPanel({
 
       {/* Floating Panel */}
       <div
-        className={`fixed top-0 right-0 h-full w-full sm:w-[560px] bg-white shadow-2xl z-50 transition-transform duration-300 ease-in-out border-l border-gray-200 ${
+        className={`fixed top-0 right-0 h-[100dvh] w-full sm:w-[560px] bg-white shadow-2xl z-50 transition-transform duration-300 ease-in-out border-l border-gray-200 flex flex-col ${
           isOpen ? 'translate-x-0' : 'translate-x-full'
         }`}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-brand-primary to-brand-primaryHover">
-          <div className="flex-1">
+        <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-200 bg-gradient-to-r from-brand-primary to-brand-primaryHover flex-shrink-0">
+          <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
-              <h2 className="text-lg font-semibold text-white">AI Assistant</h2>
+              <h2 className="text-base sm:text-lg font-semibold text-white">AI Assistant</h2>
               <span className="px-2 py-0.5 bg-white/20 rounded text-xs text-white/90 capitalize">
                 {context.mode.replace('_', ' ')} Mode
               </span>
             </div>
-            <p className="text-xs text-white/80 mt-0.5">{getContextHint()}</p>
+            <p className="text-xs text-white/80 mt-0.5 hidden sm:block truncate">{getContextHint()}</p>
           </div>
           <div className="flex items-center gap-2">
             {onToggleMinimize && (
@@ -324,8 +324,8 @@ export function ChatPanel({
         )}
 
         {/* Quick Actions Bar - uses modeConfig directly for immediate updates on tab change */}
-        <div className="px-4 py-3 border-b border-gray-100 bg-gray-50">
-          <div className="flex items-center gap-2 overflow-x-auto pb-1">
+        <div className="px-3 sm:px-4 py-2 sm:py-3 border-b border-gray-100 bg-gray-50 flex-shrink-0">
+          <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-hide">
             <span className="text-xs text-ui-supportText whitespace-nowrap flex items-center gap-1">
               <Sparkles className="h-3 w-3" />
               Quick:
@@ -352,7 +352,7 @@ export function ChatPanel({
         </div>
 
         {/* Messages Area */}
-        <div className="flex flex-col h-[calc(100%-280px)] overflow-y-auto px-6 py-4 space-y-4">
+        <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4 space-y-4">
           {allMessages.length === 0 ? (
             <WelcomeScreen suggestedCommands={modeConfig.suggestedCommands} onCommand={setInput} activeTab={activeTab} />
           ) : (
@@ -370,11 +370,11 @@ export function ChatPanel({
         </div>
 
         {/* Input Area */}
-        <div className="absolute bottom-0 left-0 right-0 border-t border-gray-200 bg-white px-6 py-4">
+        <div className="border-t border-gray-200 bg-white px-4 sm:px-6 py-3 sm:py-4 flex-shrink-0 pb-safe">
           {/* Signal Icon Bar */}
           {onSendSignal && !showSignalInput && (
-            <div className="flex items-center gap-2 mb-3">
-              <span className="text-xs text-ui-supportText mr-1">Add signal:</span>
+            <div className="flex items-center gap-2 mb-3 overflow-x-auto">
+              <span className="text-xs text-ui-supportText mr-1 flex-shrink-0">Add:</span>
               <SignalButton icon={Mail} label="email" onClick={() => { setSignalType('email'); setShowSignalInput(true); }} />
               <SignalButton icon={FileText} label="note" onClick={() => { setSignalType('note'); setShowSignalInput(true); }} />
               <SignalButton icon={Mic} label="transcript" onClick={() => { setSignalType('transcript'); setShowSignalInput(true); }} />
