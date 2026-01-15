@@ -540,6 +540,7 @@ export interface ProjectWithDashboard extends Project {
   status_narrative?: StatusNarrative
   portal_enabled?: boolean
   portal_phase?: 'pre_call' | 'post_call' | 'building' | 'testing'
+  readiness_score?: number
 }
 
 export interface ProjectDetailWithDashboard extends ProjectWithDashboard {

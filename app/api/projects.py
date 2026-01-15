@@ -6,6 +6,7 @@ from uuid import UUID
 from fastapi import APIRouter, HTTPException, Query
 
 from app.core.logging import get_logger
+from app.core.readiness import calculate_readiness_score
 from app.core.schemas_projects import (
     BaselinePatchRequest,
     BaselineStatus,
@@ -53,11 +54,19 @@ async def list_all_projects(
     try:
         result = list_projects(status=status, search=search, limit=limit, offset=offset)
 
-        # Convert to response model
-        projects = [
-            _to_project_response(p)
-            for p in result["projects"]
-        ]
+        # Convert to response model with readiness scores
+        projects = []
+        for p in result["projects"]:
+            project_response = _to_project_response(p)
+            # Calculate readiness score for each project
+            try:
+                project_id = UUID(p["id"]) if isinstance(p["id"], str) else p["id"]
+                readiness = calculate_readiness_score(project_id)
+                project_response.readiness_score = readiness.score
+            except Exception as e:
+                logger.warning(f"Failed to calculate readiness for project {p['id']}: {e}")
+                project_response.readiness_score = None
+            projects.append(project_response)
 
         return ProjectListResponse(projects=projects, total=result["total"])
 

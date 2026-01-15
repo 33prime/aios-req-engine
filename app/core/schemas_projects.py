@@ -66,6 +66,9 @@ class ProjectResponse(BaseModel):
     status_narrative: StatusNarrative | None = Field(
         None, description="AI-generated status summary"
     )
+    readiness_score: int | None = Field(
+        None, description="Project readiness score (0-100)"
+    )
 
 
 class ProjectDetailResponse(ProjectResponse):
