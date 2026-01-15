@@ -200,11 +200,14 @@ export function PersonasFeaturesTab({ projectId, isActive = true }: PersonasFeat
   const mvpCount = features.filter(f => f.is_mvp).length
   const otherCount = features.length - mvpCount
 
+  // Calculate draft features for alert banner
+  const draftFeatures = features.filter(f => !f.confirmation_status || f.confirmation_status === 'ai_generated')
+
   if (loading) {
     return (
       <div className="p-8 flex items-center justify-center">
         <div className="text-center">
-          <Loader2 className="w-8 h-8 animate-spin text-blue-600 mx-auto mb-3" />
+          <Loader2 className="w-8 h-8 animate-spin text-[#009b87] mx-auto mb-3" />
           <p className="text-gray-500">Loading personas and features...</p>
         </div>
       </div>
@@ -214,48 +217,33 @@ export function PersonasFeaturesTab({ projectId, isActive = true }: PersonasFeat
   return (
     <div className="p-6 max-w-6xl mx-auto">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-semibold text-gray-900">Personas & Features</h1>
-          <p className="text-gray-500 text-sm mt-1">
-            {personas.length} persona{personas.length !== 1 ? 's' : ''} • {features.length} feature{features.length !== 1 ? 's' : ''}
-          </p>
-        </div>
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-gray-900 mb-2">Personas & Features</h1>
+        <p className="text-base text-gray-600">
+          {personas.length} persona{personas.length !== 1 ? 's' : ''} • {features.length} feature{features.length !== 1 ? 's' : ''}
+        </p>
       </div>
 
-      {/* AI Insights */}
-      {insights.length > 0 && (
-        <div className="mb-6 space-y-3">
-          {insights.slice(0, 2).map((insight, idx) => {
-            const styles = {
-              warning: { bg: 'bg-amber-50', border: 'border-amber-200', text: 'text-amber-800', icon: AlertTriangle },
-              info: { bg: 'bg-blue-50', border: 'border-blue-200', text: 'text-blue-800', icon: Info },
-              tip: { bg: 'bg-emerald-50', border: 'border-emerald-200', text: 'text-emerald-800', icon: Lightbulb },
-            }
-            const style = styles[insight.type]
-            const Icon = style.icon
-            return (
-              <div key={idx} className={`flex items-start gap-3 px-4 py-3 rounded-lg border ${style.bg} ${style.border}`}>
-                <Icon className={`h-5 w-5 ${style.text} flex-shrink-0 mt-0.5`} />
-                <p className={`text-sm ${style.text}`}>{insight.message}</p>
-              </div>
-            )
-          })}
+      {/* Alert Banner - Simple info style for draft features */}
+      {draftFeatures.length > 0 && features.length > 0 && (
+        <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-8 flex items-start gap-3">
+          <Info className="w-5 h-5 text-gray-600 mt-0.5 flex-shrink-0" />
+          <p className="text-sm text-gray-700">
+            {draftFeatures.length} of {features.length} feature{features.length !== 1 ? 's are' : ' is'} still AI draft{draftFeatures.length !== 1 ? 's' : ''}. Review and confirm them to solidify your requirements.
+          </p>
         </div>
       )}
 
       {/* Cards View */}
-      <div className="space-y-8">
+      <div className="space-y-10">
         {/* Personas Section */}
         <section>
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2">
-              <Users className="h-5 w-5 text-gray-600" />
-              <h2 className="text-lg font-semibold text-gray-900">Personas</h2>
-              <span className="text-sm text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">
-                {personas.length}
-              </span>
-            </div>
+          <div className="flex items-center gap-2 mb-6">
+            <Users className="h-5 w-5 text-gray-600" />
+            <h2 className="text-xl font-semibold text-gray-900">Personas</h2>
+            <span className="text-sm text-gray-500">
+              {personas.length}
+            </span>
           </div>
 
           {personas.length === 0 ? (
@@ -265,12 +253,12 @@ export function PersonasFeaturesTab({ projectId, isActive = true }: PersonasFeat
               <p className="text-gray-500 text-sm mb-4">
                 Personas help you understand who will use your product.
               </p>
-              <p className="text-blue-600 text-sm">
+              <p className="text-[#009b87] text-sm">
                 Ask the AI assistant to create personas from your project description.
               </p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {personas.map(persona => (
                 <PersonaCard
                   key={persona.id}
@@ -340,7 +328,7 @@ export function PersonasFeaturesTab({ projectId, isActive = true }: PersonasFeat
               <p className="text-gray-500 text-sm mb-4">
                 Features describe what your product will do.
               </p>
-              <p className="text-blue-600 text-sm">
+              <p className="text-[#009b87] text-sm">
                 Ask the AI assistant to extract features from your requirements.
               </p>
             </div>

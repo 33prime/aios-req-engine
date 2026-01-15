@@ -136,7 +136,7 @@ export default function FeatureTable({ features, onConfirmationChange, onDelete,
       case 'confirmed_client':
         return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800"><CheckCircle className="h-3 w-3" />Client</span>
       case 'confirmed_consultant':
-        return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800"><CheckCircle className="h-3 w-3" />Confirmed</span>
+        return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-emerald-100 text-emerald-800"><CheckCircle className="h-3 w-3" />Confirmed</span>
       case 'needs_client':
         return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-800"><Clock className="h-3 w-3" />Review</span>
       default:
@@ -150,7 +150,7 @@ export default function FeatureTable({ features, onConfirmationChange, onDelete,
     return (
       <div className="flex items-center gap-0.5">
         {[1, 2, 3].map(i => (
-          <div key={i} className={`w-1.5 h-1.5 rounded-full ${i <= filled ? 'bg-blue-500' : 'bg-gray-200'}`} />
+          <div key={i} className={`w-1.5 h-1.5 rounded-full ${i <= filled ? 'bg-emerald-500' : 'bg-gray-200'}`} />
         ))}
       </div>
     )
@@ -181,14 +181,14 @@ export default function FeatureTable({ features, onConfirmationChange, onDelete,
             <div key={feature.id}>
               {/* Main Row */}
               <div
-                className={`grid grid-cols-[auto_1fr_100px_80px_100px_80px] gap-4 px-4 py-3 items-center hover:bg-gray-50 cursor-pointer transition-colors ${isExpanded ? 'bg-blue-50' : ''} ${recentlyUpdated ? 'border-l-2 border-l-yellow-400' : ''} ${confirmed ? 'bg-blue-50/30' : ''}`}
+                className={`grid grid-cols-[auto_1fr_100px_80px_100px_80px] gap-4 px-4 py-3 items-center hover:bg-gray-50 cursor-pointer transition-colors ${isExpanded ? 'bg-emerald-50' : ''} ${recentlyUpdated ? 'border-l-2 border-l-yellow-400' : ''} ${confirmed ? 'bg-emerald-50/30' : ''}`}
                 onClick={() => toggleExpand(feature.id)}
               >
                 <div className="w-6 flex items-center">
                   {isExpanded ? (
-                    <ChevronDown className="h-4 w-4 text-gray-400" />
+                    <ChevronDown className="h-4 w-4 text-gray-400 group-hover:text-[#009b87]" />
                   ) : (
-                    <ChevronRight className="h-4 w-4 text-gray-400" />
+                    <ChevronRight className="h-4 w-4 text-gray-400 group-hover:text-[#009b87]" />
                   )}
                 </div>
                 <div className="flex items-center gap-2 min-w-0">
@@ -204,7 +204,7 @@ export default function FeatureTable({ features, onConfirmationChange, onDelete,
                 <div className="text-sm text-gray-600 truncate">{feature.category}</div>
                 <div className="text-center">
                   {feature.is_mvp && (
-                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-blue-600 text-white">MVP</span>
+                    <span className="inline-flex items-center px-2.5 py-1 rounded text-xs font-medium bg-[#009b87] text-white">MVP</span>
                   )}
                 </div>
                 <div>{getConfidenceDots(feature.confidence)}</div>
@@ -218,7 +218,7 @@ export default function FeatureTable({ features, onConfirmationChange, onDelete,
                     {/* Overview */}
                     {feature.overview && (
                       <div>
-                        <h4 className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Overview</h4>
+                        <h4 className="text-xs font-semibold text-[#009b87] uppercase tracking-wide mb-1">Overview</h4>
                         <div className="text-sm text-gray-700">
                           <Markdown content={feature.overview} />
                         </div>
@@ -230,7 +230,7 @@ export default function FeatureTable({ features, onConfirmationChange, onDelete,
                       {/* Target Personas */}
                       {feature.target_personas && feature.target_personas.length > 0 && (
                         <div className="bg-white rounded-lg p-3 border border-gray-200">
-                          <h4 className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2 flex items-center gap-1.5">
+                          <h4 className="text-xs font-semibold text-[#009b87] uppercase tracking-wide mb-2 flex items-center gap-1.5">
                             <Users className="h-3.5 w-3.5" />
                             Who Uses This
                           </h4>
@@ -238,7 +238,7 @@ export default function FeatureTable({ features, onConfirmationChange, onDelete,
                             {feature.target_personas.map((persona, idx) => (
                               <div key={idx} className="flex items-start gap-2 text-sm">
                                 <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs ${
-                                  persona.role === 'primary' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600'
+                                  persona.role === 'primary' ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-600'
                                 }`}>
                                   {persona.role === 'primary' ? 'P' : 'S'}
                                 </span>
@@ -255,7 +255,7 @@ export default function FeatureTable({ features, onConfirmationChange, onDelete,
                       {/* User Actions */}
                       {feature.user_actions && feature.user_actions.length > 0 && (
                         <div className="bg-white rounded-lg p-3 border border-gray-200">
-                          <h4 className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2 flex items-center gap-1.5">
+                          <h4 className="text-xs font-semibold text-[#009b87] uppercase tracking-wide mb-2 flex items-center gap-1.5">
                             <MousePointer className="h-3.5 w-3.5" />
                             User Actions
                           </h4>
@@ -270,7 +270,7 @@ export default function FeatureTable({ features, onConfirmationChange, onDelete,
                       {/* System Behaviors */}
                       {feature.system_behaviors && feature.system_behaviors.length > 0 && (
                         <div className="bg-white rounded-lg p-3 border border-gray-200">
-                          <h4 className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2 flex items-center gap-1.5">
+                          <h4 className="text-xs font-semibold text-[#009b87] uppercase tracking-wide mb-2 flex items-center gap-1.5">
                             <Settings className="h-3.5 w-3.5" />
                             System Behaviors
                           </h4>
@@ -288,7 +288,7 @@ export default function FeatureTable({ features, onConfirmationChange, onDelete,
                       {/* UI Requirements */}
                       {feature.ui_requirements && feature.ui_requirements.length > 0 && (
                         <div className="bg-white rounded-lg p-3 border border-gray-200">
-                          <h4 className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2 flex items-center gap-1.5">
+                          <h4 className="text-xs font-semibold text-[#009b87] uppercase tracking-wide mb-2 flex items-center gap-1.5">
                             <Layout className="h-3.5 w-3.5" />
                             UI Requirements
                           </h4>
@@ -306,7 +306,7 @@ export default function FeatureTable({ features, onConfirmationChange, onDelete,
                       {/* Business Rules */}
                       {feature.rules && feature.rules.length > 0 && (
                         <div className="bg-white rounded-lg p-3 border border-gray-200">
-                          <h4 className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2 flex items-center gap-1.5">
+                          <h4 className="text-xs font-semibold text-[#009b87] uppercase tracking-wide mb-2 flex items-center gap-1.5">
                             <BookOpen className="h-3.5 w-3.5" />
                             Business Rules
                           </h4>
@@ -324,7 +324,7 @@ export default function FeatureTable({ features, onConfirmationChange, onDelete,
                       {/* Integrations */}
                       {feature.integrations && feature.integrations.length > 0 && (
                         <div className="bg-white rounded-lg p-3 border border-gray-200">
-                          <h4 className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2 flex items-center gap-1.5">
+                          <h4 className="text-xs font-semibold text-[#009b87] uppercase tracking-wide mb-2 flex items-center gap-1.5">
                             <Link2 className="h-3.5 w-3.5" />
                             Integrations
                           </h4>
@@ -342,7 +342,7 @@ export default function FeatureTable({ features, onConfirmationChange, onDelete,
                     {/* Evidence */}
                     {feature.evidence && feature.evidence.length > 0 && (
                       <div>
-                        <h4 className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">
+                        <h4 className="text-xs font-semibold text-[#009b87] uppercase tracking-wide mb-2">
                           Evidence ({feature.evidence.length})
                         </h4>
                         <div className="space-y-2">
@@ -362,7 +362,7 @@ export default function FeatureTable({ features, onConfirmationChange, onDelete,
                         {isConfirmed(feature) ? (
                           <>
                             {/* Confirmed state - show status badge, revert, and delete */}
-                            <span className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg bg-blue-600 text-white">
+                            <span className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg bg-[#009b87] text-white">
                               <CheckCircle className="h-4 w-4" />
                               Confirmed
                             </span>
@@ -421,7 +421,7 @@ export default function FeatureTable({ features, onConfirmationChange, onDelete,
                     <div className="pt-3 border-t border-gray-200">
                       <button
                         onClick={(e) => toggleHistory(feature.id, e)}
-                        className="flex items-center gap-1.5 text-xs font-medium text-gray-500 hover:text-blue-600 uppercase tracking-wide"
+                        className="flex items-center gap-1.5 text-xs font-medium text-gray-500 hover:text-[#009b87] uppercase tracking-wide"
                       >
                         <History className="h-3.5 w-3.5" />
                         Change History

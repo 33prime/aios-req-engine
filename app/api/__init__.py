@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter
 
-from app.api import activity, admin, agents, analytics, auth, baseline, chat, client_portal, confirmations, creative_brief, discovery_prep, enrich_features, enrich_prd, enrich_vp, entity_cascades, jobs, meetings, organizations, outreach, phase0, projects, proposals, research, research_agent, revisions, signals, signal_stream, stakeholders, state, tasks
+from app.api import activity, admin, agents, analytics, auth, baseline, chat, client_portal, confirmations, creative_brief, discovery_prep, enrich_features, enrich_prd, enrich_vp, entity_cascades, jobs, meetings, organizations, outreach, phase0, project_creation, projects, proposals, readiness, research, research_agent, revisions, signals, signal_stream, stakeholders, state, tasks
 
 router = APIRouter()
 
@@ -95,3 +95,9 @@ router.include_router(meetings.router, tags=["meetings"])
 
 # Include Tasks routes (system-generated tasks)
 router.include_router(tasks.router, tags=["tasks"])
+
+# Include Readiness routes (project readiness scoring)
+router.include_router(readiness.router, tags=["readiness"])
+
+# Include Project Creation Chat routes (AI-assisted project creation)
+router.include_router(project_creation.router, tags=["project_creation"])

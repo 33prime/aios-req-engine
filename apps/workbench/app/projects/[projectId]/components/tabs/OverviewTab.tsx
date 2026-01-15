@@ -20,9 +20,6 @@ import {
   RefreshCw,
   Sparkles,
   Target,
-  Users,
-  Route,
-  FileText,
   ChevronRight,
   AlertCircle
 } from 'lucide-react'
@@ -30,12 +27,10 @@ import {
   getStatusNarrative,
   getProjectTasks,
   listMeetings,
-  listUpcomingMeetings,
-  getFeatures,
-  getVpSteps,
-  getPersonas
+  getReadinessScore,
 } from '@/lib/api'
 import type { StatusNarrative, ProjectTask, Meeting } from '@/types/api'
+import type { ReadinessScore, ReadinessRecommendation } from '@/lib/api'
 
 interface OverviewTabProps {
   projectId: string
@@ -46,11 +41,7 @@ export function OverviewTab({ projectId, isActive = true }: OverviewTabProps) {
   const [statusNarrative, setStatusNarrative] = useState<StatusNarrative | null>(null)
   const [tasks, setTasks] = useState<ProjectTask[]>([])
   const [meetings, setMeetings] = useState<Meeting[]>([])
-  const [stats, setStats] = useState({
-    features: 0,
-    personas: 0,
-    vpSteps: 0,
-  })
+  const [readiness, setReadiness] = useState<ReadinessScore | null>(null)
   const [loading, setLoading] = useState(true)
   const [regeneratingNarrative, setRegeneratingNarrative] = useState(false)
 
@@ -68,26 +59,18 @@ export function OverviewTab({ projectId, isActive = true }: OverviewTabProps) {
         narrativeData,
         tasksData,
         meetingsData,
-        featuresData,
-        vpData,
-        personasData,
+        readinessData,
       ] = await Promise.all([
         getStatusNarrative(projectId).catch(() => null),
         getProjectTasks(projectId).catch(() => ({ tasks: [] })),
         listMeetings(projectId, 'scheduled', true).catch(() => []),
-        getFeatures(projectId).catch(() => []),
-        getVpSteps(projectId).catch(() => []),
-        getPersonas(projectId).catch(() => []),
+        getReadinessScore(projectId).catch(() => null),
       ])
 
       setStatusNarrative(narrativeData)
       setTasks(tasksData.tasks || [])
       setMeetings(Array.isArray(meetingsData) ? meetingsData : [])
-      setStats({
-        features: Array.isArray(featuresData) ? featuresData.length : 0,
-        personas: Array.isArray(personasData) ? personasData.length : 0,
-        vpSteps: Array.isArray(vpData) ? vpData.length : 0,
-      })
+      setReadiness(readinessData)
     } catch (error) {
       console.error('Failed to load overview data:', error)
     } finally {
@@ -107,21 +90,7 @@ export function OverviewTab({ projectId, isActive = true }: OverviewTabProps) {
     }
   }
 
-  // Calculate readiness score
-  const calculateReadiness = () => {
-    let score = 0
-    if (stats.features >= 3) score += 30
-    else if (stats.features >= 1) score += 15
-    if (stats.personas >= 2) score += 25
-    else if (stats.personas >= 1) score += 12
-    if (stats.vpSteps >= 3) score += 25
-    else if (stats.vpSteps >= 1) score += 12
-    // Base score for having a project
-    score += 20
-    return Math.min(score, 100)
-  }
-
-  const readinessScore = calculateReadiness()
+  const readinessScore = readiness?.score ?? 0
 
   if (loading) {
     return (
@@ -196,61 +165,112 @@ export function OverviewTab({ projectId, isActive = true }: OverviewTabProps) {
           <div className="flex items-center gap-2 mb-4">
             <Target className="w-5 h-5 text-[#009b87]" />
             <h2 className="text-lg font-semibold text-gray-900">Readiness</h2>
+            {readiness?.ready && (
+              <span className="px-2 py-0.5 text-xs font-medium bg-emerald-100 text-emerald-700 rounded-full">
+                Ready
+              </span>
+            )}
           </div>
 
           {/* Score Circle */}
-          <div className="flex justify-center mb-6">
-            <div className="relative w-32 h-32">
+          <div className="flex justify-center mb-4">
+            <div className="relative w-28 h-28">
               <svg className="w-full h-full transform -rotate-90">
                 <circle
-                  cx="64"
-                  cy="64"
-                  r="56"
+                  cx="56"
+                  cy="56"
+                  r="48"
                   fill="none"
                   stroke="#e5e7eb"
-                  strokeWidth="12"
+                  strokeWidth="10"
                 />
                 <circle
-                  cx="64"
-                  cy="64"
-                  r="56"
+                  cx="56"
+                  cy="56"
+                  r="48"
                   fill="none"
-                  stroke={readinessScore >= 75 ? '#10b981' : readinessScore >= 50 ? '#f59e0b' : '#ef4444'}
-                  strokeWidth="12"
+                  stroke={readinessScore >= 80 ? '#009b87' : readinessScore >= 50 ? '#34d399' : '#a7f3d0'}
+                  strokeWidth="10"
                   strokeLinecap="round"
-                  strokeDasharray={`${(readinessScore / 100) * 352} 352`}
+                  strokeDasharray={`${(readinessScore / 100) * 301.6} 301.6`}
                 />
               </svg>
               <div className="absolute inset-0 flex flex-col items-center justify-center">
-                <span className="text-3xl font-bold text-gray-900">{readinessScore}%</span>
-                <span className="text-xs text-gray-500">complete</span>
+                <span className="text-2xl font-bold text-gray-900">{Math.round(readinessScore)}%</span>
+                <span className="text-xs text-gray-500">{readiness?.threshold ?? 80}% needed</span>
               </div>
             </div>
           </div>
 
-          {/* Breakdown */}
-          <div className="space-y-3">
-            <ReadinessItem
-              icon={<FileText className="w-4 h-4" />}
-              label="Features"
-              count={stats.features}
-              target={3}
-            />
-            <ReadinessItem
-              icon={<Users className="w-4 h-4" />}
-              label="Personas"
-              count={stats.personas}
-              target={2}
-            />
-            <ReadinessItem
-              icon={<Route className="w-4 h-4" />}
-              label="Value Path"
-              count={stats.vpSteps}
-              target={3}
-            />
-          </div>
+          {/* Caps Applied */}
+          {readiness?.caps_applied && readiness.caps_applied.length > 0 && (
+            <div className="mb-4 p-2 bg-gray-50 border border-gray-200 rounded-lg">
+              <div className="flex items-center gap-1.5 text-gray-700 text-xs font-medium mb-1">
+                <AlertCircle className="w-3.5 h-3.5" />
+                Score Limited
+              </div>
+              {readiness.caps_applied.map((cap) => (
+                <p key={cap.cap_id} className="text-xs text-gray-600">
+                  {cap.reason} (max {cap.limit}%)
+                </p>
+              ))}
+            </div>
+          )}
+
+          {/* Dimension Breakdown */}
+          {readiness?.dimensions && (
+            <div className="space-y-2 mb-4">
+              <DimensionBar
+                label="Value Path"
+                score={readiness.dimensions.value_path?.score ?? 0}
+                weight={35}
+              />
+              <DimensionBar
+                label="Problem"
+                score={readiness.dimensions.problem?.score ?? 0}
+                weight={25}
+              />
+              <DimensionBar
+                label="Solution"
+                score={readiness.dimensions.solution?.score ?? 0}
+                weight={25}
+              />
+              <DimensionBar
+                label="Engagement"
+                score={readiness.dimensions.engagement?.score ?? 0}
+                weight={15}
+              />
+            </div>
+          )}
+
+          {/* Quick Stats */}
+          {readiness && (
+            <div className="pt-3 border-t border-gray-100 grid grid-cols-2 gap-2 text-xs">
+              <div className="text-gray-500">
+                Confirmed: <span className="font-medium text-gray-700">{readiness.confirmed_entities}/{readiness.total_entities}</span>
+              </div>
+              <div className="text-gray-500">
+                Client signals: <span className="font-medium text-gray-700">{readiness.client_signals_count}</span>
+              </div>
+            </div>
+          )}
         </div>
       </div>
+
+      {/* Recommendations Row */}
+      {readiness?.top_recommendations && readiness.top_recommendations.length > 0 && (
+        <div className="bg-white rounded-xl border border-gray-200 p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <ArrowRight className="w-5 h-5 text-[#009b87]" />
+            <h2 className="text-lg font-semibold text-gray-900">Next Actions</h2>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {readiness.top_recommendations.slice(0, 3).map((rec, idx) => (
+              <RecommendationCard key={idx} recommendation={rec} />
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Bottom Row: Tasks + Meetings */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -316,37 +336,64 @@ export function OverviewTab({ projectId, isActive = true }: OverviewTabProps) {
 
 // Helper Components
 
-function ReadinessItem({
-  icon,
+function DimensionBar({
   label,
-  count,
-  target,
+  score,
+  weight,
 }: {
-  icon: React.ReactNode
   label: string
-  count: number
-  target: number
+  score: number
+  weight: number
 }) {
-  const isComplete = count >= target
+  // Green gradient: darker teal for high scores, lighter for lower
+  const getColor = (s: number) => {
+    if (s >= 80) return 'bg-[#009b87]'
+    if (s >= 50) return 'bg-emerald-400'
+    return 'bg-emerald-200'
+  }
 
   return (
-    <div className="flex items-center gap-3">
-      <div className={`p-1.5 rounded ${isComplete ? 'bg-emerald-100 text-emerald-600' : 'bg-gray-100 text-gray-400'}`}>
-        {icon}
+    <div className="flex items-center gap-2">
+      <span className="text-xs text-gray-600 w-20 truncate">{label}</span>
+      <div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
+        <div
+          className={`h-full rounded-full transition-all ${getColor(score)}`}
+          style={{ width: `${score}%` }}
+        />
       </div>
-      <div className="flex-1">
-        <div className="flex items-center justify-between">
-          <span className="text-sm text-gray-700">{label}</span>
-          <span className={`text-sm font-medium ${isComplete ? 'text-emerald-600' : 'text-gray-500'}`}>
-            {count}/{target}
+      <span className="text-xs font-medium text-gray-700 w-10 text-right">{Math.round(score)}%</span>
+      <span className="text-xs text-gray-400 w-8">({weight}%)</span>
+    </div>
+  )
+}
+
+function RecommendationCard({ recommendation }: { recommendation: ReadinessRecommendation }) {
+  const effortColors = {
+    low: 'bg-emerald-100 text-emerald-700',
+    medium: 'bg-gray-100 text-gray-700',
+    high: 'bg-gray-200 text-gray-700',
+  }
+
+  const dimensionLabels: Record<string, string> = {
+    value_path: 'Value Path',
+    problem: 'Problem',
+    solution: 'Solution',
+    engagement: 'Engagement',
+  }
+
+  return (
+    <div className="p-3 bg-gray-50 rounded-lg border border-gray-100">
+      <p className="text-sm text-gray-900 mb-2">{recommendation.action}</p>
+      <div className="flex items-center gap-2 text-xs">
+        <span className="text-emerald-600 font-medium">{recommendation.impact}</span>
+        <span className={`px-1.5 py-0.5 rounded ${effortColors[recommendation.effort]}`}>
+          {recommendation.effort}
+        </span>
+        {recommendation.dimension && (
+          <span className="text-gray-400">
+            {dimensionLabels[recommendation.dimension] || recommendation.dimension}
           </span>
-        </div>
-        <div className="w-full h-1.5 bg-gray-200 rounded-full mt-1 overflow-hidden">
-          <div
-            className={`h-full rounded-full transition-all ${isComplete ? 'bg-emerald-500' : 'bg-amber-500'}`}
-            style={{ width: `${Math.min((count / target) * 100, 100)}%` }}
-          />
-        </div>
+        )}
       </div>
     </div>
   )

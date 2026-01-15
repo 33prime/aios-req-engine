@@ -172,8 +172,8 @@ export function VpPathSummary({ steps, onSelectStep }: VpPathSummaryProps) {
 
   if (steps.length === 0) {
     return (
-      <div className="bg-white rounded-lg border border-gray-200 p-4">
-        <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-4">
+      <div className="bg-white rounded-xl border border-gray-200 p-4">
+        <h3 className="text-sm font-semibold text-[#009b87] uppercase tracking-wide mb-4">
           Path Summary
         </h3>
         <p className="text-sm text-gray-500">Generate the value path to see insights.</p>
@@ -182,14 +182,14 @@ export function VpPathSummary({ steps, onSelectStep }: VpPathSummaryProps) {
   }
 
   return (
-    <div className="bg-white rounded-lg border border-gray-200 p-4 space-y-5">
-      <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
+    <div className="bg-white rounded-xl border border-gray-200 p-4 space-y-5">
+      <h3 className="text-sm font-semibold text-[#009b87] uppercase tracking-wide">
         Path Summary
       </h3>
 
       {/* Actors Section */}
       <div>
-        <h4 className="text-xs font-medium text-gray-500 uppercase mb-2 flex items-center gap-1">
+        <h4 className="text-xs font-semibold text-[#009b87] uppercase tracking-wide mb-2 flex items-center gap-1">
           <User className="w-3 h-3" /> Actors
         </h4>
         <div className="space-y-1.5">
@@ -197,8 +197,8 @@ export function VpPathSummary({ steps, onSelectStep }: VpPathSummaryProps) {
           {humanActors.map(actor => (
             <div key={actor.name} className="flex items-center justify-between text-sm">
               <div className="flex items-center gap-2">
-                <div className="w-5 h-5 rounded-full bg-blue-100 flex items-center justify-center">
-                  <User className="w-3 h-3 text-blue-600" />
+                <div className="w-5 h-5 rounded-full bg-emerald-100 flex items-center justify-center">
+                  <User className="w-3 h-3 text-emerald-700" />
                 </div>
                 <span className="text-gray-700">{actor.name}</span>
               </div>
@@ -232,7 +232,7 @@ export function VpPathSummary({ steps, onSelectStep }: VpPathSummaryProps) {
 
       {/* Progress Section */}
       <div>
-        <h4 className="text-xs font-medium text-gray-500 uppercase mb-2 flex items-center gap-1">
+        <h4 className="text-xs font-semibold text-[#009b87] uppercase tracking-wide mb-2 flex items-center gap-1">
           <CheckCircle className="w-3 h-3" /> Progress
         </h4>
         <div className="space-y-1">
@@ -251,7 +251,7 @@ export function VpPathSummary({ steps, onSelectStep }: VpPathSummaryProps) {
 
       {/* Evidence Section */}
       <div>
-        <h4 className="text-xs font-medium text-gray-500 uppercase mb-2 flex items-center gap-1">
+        <h4 className="text-xs font-semibold text-[#009b87] uppercase tracking-wide mb-2 flex items-center gap-1">
           <FileText className="w-3 h-3" /> Evidence
         </h4>
         <div className="space-y-1">
@@ -286,7 +286,7 @@ export function VpPathSummary({ steps, onSelectStep }: VpPathSummaryProps) {
 
       {/* Value Moments Section */}
       <div>
-        <h4 className="text-xs font-medium text-gray-500 uppercase mb-2 flex items-center gap-1">
+        <h4 className="text-xs font-semibold text-[#009b87] uppercase tracking-wide mb-2 flex items-center gap-1">
           <Sparkles className="w-3 h-3" /> Value Moments
         </h4>
         <div className="space-y-1 text-sm">
@@ -320,7 +320,7 @@ export function VpPathSummary({ steps, onSelectStep }: VpPathSummaryProps) {
       {/* Gaps Section */}
       {gaps.length > 0 && (
         <div>
-          <h4 className="text-xs font-medium text-gray-500 uppercase mb-2 flex items-center gap-1">
+          <h4 className="text-xs font-semibold text-[#009b87] uppercase tracking-wide mb-2 flex items-center gap-1">
             <AlertTriangle className="w-3 h-3" /> Gaps
           </h4>
           <div className="space-y-1.5">

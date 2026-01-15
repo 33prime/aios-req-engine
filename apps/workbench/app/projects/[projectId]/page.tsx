@@ -34,7 +34,7 @@ import { ChatPanel } from './components/ChatPanel'
 import { ActivityDrawer } from './components/ActivityDrawer'
 import CascadeSidebar from '@/components/cascades/CascadeSidebar'
 import { AssistantProvider } from '@/lib/assistant'
-import { getBaselineStatus, getBaselineCompleteness, getProjectDetails, listConfirmations, getPrdSections, getVpSteps, listProjectSignals, listPendingCascades, applyCascade, dismissCascade } from '@/lib/api'
+import { getBaselineStatus, getBaselineCompleteness, getProjectDetails, listConfirmations, listProjectSignals, listPendingCascades, applyCascade, dismissCascade } from '@/lib/api'
 import { useChat } from '@/lib/useChat'
 import type { BaselineStatus, ProjectDetailWithDashboard } from '@/types/api'
 
@@ -92,77 +92,57 @@ export default function WorkspacePage() {
   const [cascades, setCascades] = useState<any[]>([])
   const [isCascadeSidebarOpen, setIsCascadeSidebarOpen] = useState(false)
 
-  // Load project data
+  // Load all project data in a single consolidated effect
   useEffect(() => {
     loadProjectData()
-    loadBaselineCompleteness()
   }, [projectId])
-
-  const loadBaselineCompleteness = async () => {
-    try {
-      const data = await getBaselineCompleteness(projectId)
-      setBaselineCompleteness(data)
-      console.log('✅ Baseline completeness loaded:', data)
-    } catch (error) {
-      console.error('❌ Failed to load baseline completeness:', error)
-    }
-  }
 
   const loadProjectData = async () => {
     try {
       setLoading(true)
-      console.log('🔄 Loading workspace data for:', projectId)
 
+      // Fetch only what's needed for header + tab counts
+      // Individual tabs will load their own detailed data
       const [
         projectData,
         baselineData,
-        prdData,
-        vpData,
+        completenessData,
         confirmationsData,
         signalsData,
-        researchJobsResponse,
+        cascadesData,
       ] = await Promise.all([
         getProjectDetails(projectId),
         getBaselineStatus(projectId),
-        getPrdSections(projectId),
-        getVpSteps(projectId),
+        getBaselineCompleteness(projectId).catch(() => null),
         listConfirmations(projectId, 'open'),
         listProjectSignals(projectId),
-        fetch(`${process.env.NEXT_PUBLIC_API_BASE}/v1/jobs?project_id=${projectId}&job_type=research_query&limit=50`).then(r => r.json()),
+        listPendingCascades(projectId).catch(() => ({ cascades: [] })),
       ])
 
       setProject(projectData)
       setBaseline(baselineData)
+      setBaselineCompleteness(completenessData)
+      setCascades(cascadesData.cascades || [])
 
-      // Update counts
-      const researchJobs = Array.isArray(researchJobsResponse) ? researchJobsResponse : researchJobsResponse.jobs || []
+      // Use counts from project details (already includes vp_steps, features, etc.)
+      const projectCounts = projectData.counts || {}
       setCounts({
-        strategicContext: 0,
-        valuePath: vpData.length,
+        strategicContext: projectCounts.prd_sections || 0,
+        valuePath: projectCounts.vp_steps || 0,
         improvements: 0,
         nextSteps: confirmationsData.confirmations?.length || 0,
         sources: signalsData.total || 0,
-        research: researchJobs.length
+        research: 0
       })
 
-      // Calculate recent changes (entities updated in last 24 hours)
-      const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
-
+      // Reset recent changes (not critical for initial load)
       setRecentChanges({
         strategicContext: 0,
-        valuePath: vpData.filter((v: any) => v.updated_at > cutoff).length,
+        valuePath: 0,
         improvements: 0
       })
-
-      console.log('✅ Workspace data loaded:', {
-        project: projectData.name,
-        prd: prdData.length,
-        vp: vpData.length,
-        confirmations: confirmationsData.confirmations?.length || 0,
-        sources: signalsData.total || 0
-      })
     } catch (error) {
-      console.error('❌ Failed to load workspace data:', error)
+      console.error('Failed to load workspace data:', error)
     } finally {
       setLoading(false)
     }
@@ -190,28 +170,12 @@ export default function WorkspacePage() {
     }
   }
 
-  // Load cascades
-  const loadCascades = async () => {
-    try {
-      const data = await listPendingCascades(projectId)
-      setCascades(data.cascades || [])
-    } catch (error) {
-      console.error('Failed to load cascades:', error)
-    }
-  }
-
-  // Load cascades on mount
-  useEffect(() => {
-    loadCascades()
-  }, [projectId])
-
   // Cascade handlers
   const handleApplyCascade = async (cascadeId: string) => {
     try {
       await applyCascade(cascadeId)
       setCascades(prev => prev.filter(c => c.id !== cascadeId))
-      loadProjectData() // Refresh data after applying cascade
-      loadCascades() // Refresh cascades in case more were created
+      loadProjectData() // Refresh all data including cascades
     } catch (error) {
       console.error('Failed to apply cascade:', error)
     }
@@ -339,8 +303,7 @@ export default function WorkspacePage() {
               alert(`${agentType} completed successfully!`)
             }
 
-            loadProjectData() // Refresh data
-            loadCascades() // Refresh cascades (may have new conflicts/suggestions)
+            loadProjectData() // Refresh all data including cascades
           } else if (job.status === 'failed') {
             console.log('❌ Job failed:', job.error)
             alert(`${agentType} failed: ${job.error}`)
@@ -364,7 +327,12 @@ export default function WorkspacePage() {
   const renderTabContent = () => {
     switch (activeTab) {
       case 'overview':
-        return <OverviewTab projectId={projectId} isActive={activeTab === 'overview'} />
+        return (
+          <OverviewTab
+            projectId={projectId}
+            isActive={activeTab === 'overview'}
+          />
+        )
       case 'strategic-foundation':
         return <StrategicFoundationTab projectId={projectId} />
       case 'personas-features':

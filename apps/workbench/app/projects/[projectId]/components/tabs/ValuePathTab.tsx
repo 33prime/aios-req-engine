@@ -18,7 +18,7 @@ import { VpDetail } from './vp'
 import { getVpSteps, updateVpStepStatus, getSignal, getSignalChunks, getPersonas } from '@/lib/api'
 import type { VpStep, Signal, SignalChunk } from '@/types/api'
 import type { Persona } from '@/lib/persona-utils'
-import { Zap, Loader2 } from 'lucide-react'
+import { Zap, Loader2, Download } from 'lucide-react'
 
 interface ValuePathTabProps {
   projectId: string
@@ -145,11 +145,18 @@ export function ValuePathTab({ projectId }: ValuePathTabProps) {
     return status === 'confirmed_consultant' || status === 'confirmed_client'
   }).length
 
+  // Determine path status
+  const isPathComplete = steps.length > 0 && confirmedCount === steps.length
+  const pathTitle = steps.length > 0 ? 'Primary Value Path' : 'Value Path'
+  const pathDescription = steps.length > 0
+    ? `End-to-end journey showing how ${steps[0]?.actor_persona_name || 'users'} create value through the system`
+    : 'The golden path showing how users flow through the system to create value'
+
   if (loading) {
     return (
       <div className="p-8 flex items-center justify-center min-h-[400px]">
         <div className="text-center">
-          <Loader2 className="w-8 h-8 animate-spin text-blue-600 mx-auto mb-3" />
+          <Loader2 className="w-8 h-8 animate-spin text-[#009b87] mx-auto mb-3" />
           <p className="text-gray-500">Loading Value Path...</p>
         </div>
       </div>
@@ -166,7 +173,7 @@ export function ValuePathTab({ projectId }: ValuePathTabProps) {
             The Value Path is your "golden path" showing how users flow through the system to create value.
             It combines personas, features, and evidence into a demo-ready narrative.
           </p>
-          <p className="text-blue-600 text-sm">
+          <p className="text-[#009b87] text-sm">
             Ask the AI assistant to "generate the value path" to get started.
           </p>
         </div>
@@ -178,12 +185,26 @@ export function ValuePathTab({ projectId }: ValuePathTabProps) {
     <>
       <div className="p-6 space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between mb-2">
           <div>
-            <h1 className="text-2xl font-semibold text-gray-900">Value Path</h1>
-            <p className="text-gray-500 text-sm mt-1">
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">{pathTitle}</h1>
+            <p className="text-base text-gray-600">{pathDescription}</p>
+            <p className="text-sm text-gray-500 mt-1">
               {steps.length} steps • {confirmedCount} confirmed
             </p>
+          </div>
+          <div className="flex items-center gap-3">
+            <span className={`px-3 py-1 text-sm font-medium rounded-full ${
+              isPathComplete
+                ? 'bg-green-100 text-green-800'
+                : 'bg-gray-100 text-gray-600'
+            }`}>
+              {isPathComplete ? 'Active' : 'Draft'}
+            </span>
+            <button className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors flex items-center gap-2">
+              <Download className="w-4 h-4" />
+              Export
+            </button>
           </div>
         </div>
 

@@ -1,7 +1,7 @@
 'use client'
 
-import { User, Target, AlertCircle, CheckCircle, Clock, TrendingUp, Heart, AlertTriangle, Zap } from 'lucide-react'
-import { Persona, getPersonaInitials, getPersonaColor, formatDemographicsOrPsychographics } from '@/lib/persona-utils'
+import { User, Target, AlertCircle, CheckCircle, Clock, TrendingUp, AlertTriangle, Zap, MapPin, ChevronRight } from 'lucide-react'
+import { Persona, getPersonaInitials, formatDemographicsOrPsychographics } from '@/lib/persona-utils'
 
 interface PersonaCardProps {
   persona: Persona
@@ -15,36 +15,44 @@ const isRecentlyUpdated = (updatedAt: string | undefined) => {
   return diffMs < 24 * 60 * 60 * 1000
 }
 
+// Extract age range from demographics
+const getAgeRange = (demographics: string | Record<string, any> | undefined): string | null => {
+  if (!demographics) return null
+  if (typeof demographics === 'string') {
+    const ageMatch = demographics.match(/(\d+[-–]\d+|\d+\+?)\s*(years?|y\/o)?/i)
+    return ageMatch ? ageMatch[1] : null
+  }
+  if (typeof demographics === 'object') {
+    return demographics.age || demographics.ageRange || demographics.age_range || null
+  }
+  return null
+}
+
+// Extract location from demographics
+const getLocation = (demographics: string | Record<string, any> | undefined): string | null => {
+  if (!demographics) return null
+  if (typeof demographics === 'object') {
+    return demographics.location || demographics.region || demographics.city || null
+  }
+  return null
+}
+
 export default function PersonaCard({ persona, onClick }: PersonaCardProps) {
   const initials = getPersonaInitials(persona)
-  const colors = getPersonaColor(persona)
   const recentlyUpdated = isRecentlyUpdated((persona as any).updated_at)
 
-  // Get preview of goals (first 2)
-  const goalsPreview = persona.goals?.slice(0, 2) || []
-  const hasMoreGoals = (persona.goals?.length || 0) > 2
+  // Get preview of goals (first 3)
+  const goalsPreview = persona.goals?.slice(0, 3) || []
+  const hasMoreGoals = (persona.goals?.length || 0) > 3
+  const remainingCount = (persona.goals?.length || 0) - 3
 
   // Score helpers
   const coverageScore = persona.coverage_score ?? null
   const healthScore = persona.health_score ?? null
 
-  const getCoverageColor = (score: number) => {
-    if (score >= 70) return 'text-green-600 bg-green-50'
-    if (score >= 40) return 'text-amber-600 bg-amber-50'
-    return 'text-red-600 bg-red-50'
-  }
-
-  const getHealthColor = (score: number) => {
-    if (score >= 70) return 'text-green-500'
-    if (score >= 40) return 'text-amber-500'
-    return 'text-red-500'
-  }
-
-  const getHealthIndicator = (score: number) => {
-    if (score >= 70) return 'bg-green-500'
-    if (score >= 40) return 'bg-amber-500'
-    return 'bg-red-500'
-  }
+  // Demographics parsing
+  const ageRange = getAgeRange(persona.demographics)
+  const location = getLocation(persona.demographics)
 
   // Confirmation status badge
   const getConfirmationBadge = () => {
@@ -53,29 +61,26 @@ export default function PersonaCard({ persona, onClick }: PersonaCardProps) {
     switch (status) {
       case 'confirmed_client':
         return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800 border border-green-200">
-            <CheckCircle className="h-3 w-3" />
-            Client Confirmed
+          <span className="px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-700 flex items-center gap-1">
+            <CheckCircle className="w-3 h-3" /> Client
           </span>
         )
       case 'confirmed_consultant':
         return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200">
-            <CheckCircle className="h-3 w-3" />
-            Confirmed
+          <span className="px-2 py-1 text-xs font-medium rounded-full bg-emerald-100 text-emerald-700 flex items-center gap-1">
+            <CheckCircle className="w-3 h-3" /> Confirmed
           </span>
         )
       case 'needs_client':
         return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-800 border border-amber-200">
-            <Clock className="h-3 w-3" />
-            Needs Review
+          <span className="px-2 py-1 text-xs font-medium rounded-full bg-amber-100 text-amber-700 flex items-center gap-1">
+            <Clock className="w-3 h-3" /> Needs Review
           </span>
         )
       case 'ai_generated':
       default:
         return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-700 border border-gray-200">
+          <span className="px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-600">
             AI Draft
           </span>
         )
@@ -83,128 +88,109 @@ export default function PersonaCard({ persona, onClick }: PersonaCardProps) {
   }
 
   return (
-    <button
+    <div
       onClick={onClick}
-      className={`w-full text-left bg-white border rounded-lg p-4 hover:shadow-md hover:border-blue-300 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${recentlyUpdated ? 'border-yellow-400 border-l-4' : 'border-gray-200'}`}
+      className="bg-white rounded-xl border-2 border-gray-200 overflow-hidden hover:shadow-lg hover:border-[#009b87] transition-all duration-200 cursor-pointer"
     >
-      {/* Recently Updated Badge */}
+      {/* Recently Updated Banner */}
       {recentlyUpdated && (
-        <div className="mb-3">
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-yellow-100 text-yellow-700 text-xs font-medium rounded" title="Updated in the last 24 hours">
-            <Zap className="h-3 w-3" />
-            Recently Updated
-          </span>
+        <div className="bg-emerald-50 border-b border-emerald-200 px-4 py-2">
+          <div className="flex items-center gap-1.5">
+            <Zap className="w-4 h-4 text-[#009b87]" />
+            <span className="text-xs font-medium text-emerald-700">Recently Updated</span>
+          </div>
         </div>
       )}
 
-      {/* Header with Avatar */}
-      <div className="flex items-start gap-3 mb-3">
-        {/* Avatar with Health Indicator */}
-        <div className="relative flex-shrink-0">
-          <div
-            className={`w-12 h-12 rounded-full ${colors.bg} ${colors.text} flex items-center justify-center font-semibold text-lg`}
-          >
-            {initials}
-          </div>
-          {/* Health indicator dot */}
-          {healthScore !== null && (
-            <div
-              className={`absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full ${getHealthIndicator(healthScore)} border-2 border-white`}
-              title={`Health: ${healthScore.toFixed(0)}%`}
-            />
-          )}
-        </div>
-
-        {/* Name and Role */}
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1">
-            <h3 className="font-semibold text-gray-900 truncate">{persona.name}</h3>
-            {getConfirmationBadge()}
-          </div>
-          {persona.role && (
-            <p className="text-sm text-gray-600 truncate">{persona.role}</p>
-          )}
-        </div>
-      </div>
-
-      {/* Coverage Score Badge */}
-      {coverageScore !== null && (
-        <div className="mb-3">
-          <div className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-medium ${getCoverageColor(coverageScore)}`}>
-            <TrendingUp className="h-3 w-3" />
-            <span>{coverageScore.toFixed(0)}% coverage</span>
-          </div>
-          {healthScore !== null && healthScore < 50 && (
-            <div className="inline-flex items-center gap-1 ml-2 text-xs text-amber-600">
-              <AlertTriangle className="h-3 w-3" />
-              <span>Needs update</span>
+      <div className="p-5">
+        {/* Header with Avatar, Name, Role, Confirmation Badge */}
+        <div className="flex items-start justify-between mb-4">
+          <div className="flex items-center gap-3">
+            {/* Emerald Avatar */}
+            <div className="w-12 h-12 rounded-full bg-emerald-100 flex items-center justify-center text-lg font-semibold text-emerald-700">
+              {initials}
             </div>
-          )}
-        </div>
-      )}
-
-      {/* Description Preview */}
-      {persona.description && (
-        <p className="text-sm text-gray-700 mb-3 line-clamp-2">
-          {persona.description}
-        </p>
-      )}
-
-      {/* Demographics/Psychographics Preview */}
-      {(persona.demographics || persona.psychographics) && (
-        <div className="text-xs text-gray-600 mb-3 line-clamp-1">
-          {formatDemographicsOrPsychographics(persona.demographics) || formatDemographicsOrPsychographics(persona.psychographics)}
-        </div>
-      )}
-
-      {/* Key Goals Preview */}
-      {goalsPreview.length > 0 && (
-        <div className="space-y-1">
-          <div className="flex items-center gap-1.5 text-xs font-medium text-gray-700">
-            <Target className="h-3.5 w-3.5 text-blue-600" />
-            <span>Key Goals</span>
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900">{persona.name}</h3>
+              {persona.role && (
+                <p className="text-sm text-gray-600">{persona.role}</p>
+              )}
+            </div>
           </div>
-          <ul className="space-y-1">
-            {goalsPreview.map((goal, idx) => (
-              <li key={idx} className="text-sm text-gray-600 truncate pl-5">
-                • {goal}
-              </li>
-            ))}
-          </ul>
-          {hasMoreGoals && (
-            <p className="text-xs text-gray-500 italic pl-5">
-              +{(persona.goals?.length || 0) - 2} more...
-            </p>
-          )}
+          {/* Confirmation badge */}
+          {getConfirmationBadge()}
         </div>
-      )}
 
-      {/* Pain Points Indicator */}
-      {persona.pain_points && persona.pain_points.length > 0 && (
-        <div className="mt-3 pt-3 border-t border-gray-100">
-          <div className="flex items-center gap-1.5 text-xs text-gray-600">
-            <AlertCircle className="h-3.5 w-3.5 text-amber-600" />
-            <span>{persona.pain_points.length} pain point{persona.pain_points.length !== 1 ? 's' : ''}</span>
+        {/* Metadata Row */}
+        {(location || ageRange) && (
+          <div className="flex items-center gap-3 text-xs text-gray-600 mb-4 pb-4 border-b border-gray-200">
+            {location && (
+              <span className="flex items-center gap-1">
+                <MapPin className="w-3.5 h-3.5" /> {location}
+              </span>
+            )}
+            {location && ageRange && <span className="text-gray-300">•</span>}
+            {ageRange && (
+              <span className="flex items-center gap-1">
+                <User className="w-3.5 h-3.5" /> Age: {ageRange}
+              </span>
+            )}
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Related Items Count */}
-      {((persona.related_features?.length || 0) > 0 || (persona.related_vp_steps?.length || 0) > 0) && (
-        <div className="mt-3 flex items-center gap-3 text-xs text-gray-500">
-          {(persona.related_features?.length || 0) > 0 && (
-            <span>{persona.related_features?.length} feature{persona.related_features?.length !== 1 ? 's' : ''}</span>
-          )}
-          {(persona.related_vp_steps?.length || 0) > 0 && (
-            <span>{persona.related_vp_steps?.length} VP step{persona.related_vp_steps?.length !== 1 ? 's' : ''}</span>
-          )}
-        </div>
-      )}
+        {/* Coverage Score */}
+        {coverageScore !== null && (
+          <div className="mb-4">
+            <div className="flex items-center gap-1 text-xs text-gray-600">
+              <TrendingUp className="w-4 h-4" />
+              <span className="font-medium">{coverageScore.toFixed(0)}% coverage</span>
+              {healthScore !== null && healthScore < 50 && (
+                <span className="ml-2 text-amber-600 flex items-center gap-1">
+                  <AlertTriangle className="h-3 w-3" />
+                  Needs update
+                </span>
+              )}
+            </div>
+          </div>
+        )}
 
-      {/* Click to expand hint */}
-      <div className="mt-3 text-xs text-blue-600 font-medium">
-        Click to view details →
+        {/* Key Goals with teal header */}
+        {goalsPreview.length > 0 && (
+          <div className="mb-4">
+            <div className="flex items-center gap-2 mb-2">
+              <CheckCircle className="w-4 h-4 text-[#009b87]" />
+              <h4 className="text-xs font-semibold text-[#009b87] uppercase tracking-wide">Key Goals</h4>
+            </div>
+            <ul className="space-y-1.5 text-sm text-gray-700">
+              {goalsPreview.map((goal, idx) => (
+                <li key={idx} className="flex items-start">
+                  <span className="text-[#009b87] mr-2 mt-0.5">•</span>
+                  <span className="line-clamp-1">{goal}</span>
+                </li>
+              ))}
+            </ul>
+            {hasMoreGoals && (
+              <button className="text-xs text-[#009b87] hover:underline mt-2 flex items-center gap-1">
+                +{remainingCount} more...
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* Pain Points Badge */}
+        {persona.pain_points && persona.pain_points.length > 0 && (
+          <div className="flex items-center gap-2 mb-4">
+            <AlertTriangle className="w-4 h-4 text-gray-600" />
+            <span className="text-sm text-gray-700">{persona.pain_points.length} pain point{persona.pain_points.length !== 1 ? 's' : ''}</span>
+          </div>
+        )}
+
+        {/* View Details Button */}
+        <button className="w-full text-sm text-[#009b87] hover:text-[#007a6b] font-medium flex items-center justify-center gap-1 py-2 hover:bg-emerald-50 rounded-lg transition-colors">
+          View Details
+          <ChevronRight className="w-4 h-4" />
+        </button>
       </div>
-    </button>
+    </div>
   )
 }

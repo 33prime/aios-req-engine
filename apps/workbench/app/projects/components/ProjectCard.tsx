@@ -7,6 +7,7 @@ interface ProjectCardProps {
   project: ProjectDetailWithDashboard
   tasks?: ProjectTask[]
   gaps?: string[]
+  readinessScore?: number
   onClick: () => void
 }
 
@@ -22,25 +23,8 @@ const stageLabels: Record<string, string> = {
   proposal: 'Proposal',
 }
 
-export function ProjectCard({ project, tasks = [], gaps = [], onClick }: ProjectCardProps) {
-  // Calculate readiness score from counts (simplified - in real app this would come from API)
-  const calculateReadiness = () => {
-    const counts = project.counts || {}
-    const hasFeatures = (counts.features || 0) >= 3
-    const hasPersonas = (counts.personas || 0) >= 1
-    const hasPrd = (counts.prd_sections || 0) >= 3
-    const hasVp = (counts.vp_steps || 0) >= 3
-
-    let score = 0
-    if (hasFeatures) score += 25
-    if (hasPersonas) score += 25
-    if (hasPrd) score += 25
-    if (hasVp) score += 25
-
-    return score
-  }
-
-  const readiness = calculateReadiness()
+export function ProjectCard({ project, tasks = [], gaps = [], readinessScore, onClick }: ProjectCardProps) {
+  const readiness = readinessScore ?? 0
   const stage = project.stage || 'discovery'
 
   // Get next steps from tasks (limit to 4)
@@ -71,17 +55,17 @@ export function ProjectCard({ project, tasks = [], gaps = [], onClick }: Project
         <div className="flex items-center gap-3 ml-4 flex-shrink-0">
           <div className="text-right">
             <span className="text-sm text-gray-500">Readiness Score: </span>
-            <span className="text-sm font-semibold text-gray-900">{readiness}%</span>
+            <span className="text-sm font-semibold text-gray-900">{Math.round(readiness)}%</span>
           </div>
           <div className="w-20 h-2 bg-gray-200 rounded-full overflow-hidden">
             <div
               className={`h-full rounded-full transition-all ${
-                readiness < 30 ? 'bg-red-500' : readiness < 60 ? 'bg-yellow-500' : 'bg-emerald-500'
+                readiness >= 80 ? 'bg-[#009b87]' : readiness >= 50 ? 'bg-emerald-400' : 'bg-emerald-200'
               }`}
               style={{ width: `${readiness}%` }}
             />
           </div>
-          <div className="w-8 h-8 rounded-full bg-emerald-500 flex items-center justify-center">
+          <div className="w-8 h-8 rounded-full bg-[#009b87] flex items-center justify-center">
             <svg className="w-4 h-4 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M7 17L17 7M17 7H7M17 7V17" strokeLinecap="round" strokeLinejoin="round" />
             </svg>

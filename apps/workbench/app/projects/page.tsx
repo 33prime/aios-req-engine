@@ -12,9 +12,9 @@
 import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Plus, Search, FolderOpen } from 'lucide-react'
-import { listProjects, listUpcomingMeetings, getProjectTasks } from '@/lib/api'
-import type { ProjectDetailWithDashboard, Meeting, ProjectTask } from '@/types/api'
-import { GuidedProjectCreation } from './components/GuidedProjectCreation'
+import { listProjects, listUpcomingMeetings, getReadinessScore } from '@/lib/api'
+import type { ProjectDetailWithDashboard, Meeting } from '@/types/api'
+import { SmartProjectCreation } from './components/SmartProjectCreation'
 import { OnboardingModal } from './components/OnboardingModal'
 import { ProjectCard } from './components/ProjectCard'
 import { MeetingCard } from './components/MeetingCard'
@@ -30,8 +30,8 @@ function formatDate() {
 export default function ProjectsPage() {
   const router = useRouter()
   const [projects, setProjects] = useState<ProjectDetailWithDashboard[]>([])
-  const [projectTasks, setProjectTasks] = useState<Record<string, ProjectTask[]>>({})
   const [meetings, setMeetings] = useState<Meeting[]>([])
+  const [readinessScores, setReadinessScores] = useState<Record<string, number>>({})
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<'active' | 'archived' | 'all'>('active')
@@ -57,22 +57,26 @@ export default function ProjectsPage() {
         listUpcomingMeetings(10),
       ])
 
-      setProjects(projectsData.projects as ProjectDetailWithDashboard[])
+      const projectsList = projectsData.projects as ProjectDetailWithDashboard[]
+      setProjects(projectsList)
       setMeetings(meetingsData)
 
-      // Load tasks for each project
-      const tasksMap: Record<string, ProjectTask[]> = {}
-      await Promise.all(
-        projectsData.projects.slice(0, 10).map(async (p: any) => {
-          try {
-            const tasksData = await getProjectTasks(p.id)
-            tasksMap[p.id] = tasksData.tasks
-          } catch {
-            tasksMap[p.id] = []
-          }
-        })
-      )
-      setProjectTasks(tasksMap)
+      // Fetch readiness scores for all projects in parallel
+      const readinessPromises = projectsList.map(async (project) => {
+        try {
+          const readiness = await getReadinessScore(project.id)
+          return { id: project.id, score: readiness.score }
+        } catch {
+          return { id: project.id, score: 0 }
+        }
+      })
+
+      const scores = await Promise.all(readinessPromises)
+      const scoresMap: Record<string, number> = {}
+      scores.forEach(({ id, score }) => {
+        scoresMap[id] = score
+      })
+      setReadinessScores(scoresMap)
     } catch (error) {
       console.error('Failed to load data:', error)
     } finally {
@@ -226,7 +230,7 @@ export default function ProjectsPage() {
                   <ProjectCard
                     key={project.id}
                     project={project}
-                    tasks={projectTasks[project.id] || []}
+                    readinessScore={readinessScores[project.id]}
                     onClick={() => handleProjectClick(project.id)}
                   />
                 ))}
@@ -257,8 +261,8 @@ export default function ProjectsPage() {
         </div>
       </div>
 
-      {/* Guided Project Creation */}
-      <GuidedProjectCreation
+      {/* Smart Project Creation Chat */}
+      <SmartProjectCreation
         isOpen={showCreateModal}
         onClose={() => setShowCreateModal(false)}
         onSuccess={handleProjectCreated}

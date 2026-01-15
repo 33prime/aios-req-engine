@@ -1267,3 +1267,54 @@ export interface ProjectStatusResponse {
 
 export const getProjectStatus = (projectId: string) =>
   apiRequest<ProjectStatusResponse>(`/state/project-status?project_id=${projectId}`)
+
+// ============================================
+// Readiness Score API
+// ============================================
+
+export interface ReadinessFactorScore {
+  score: number
+  max_score: number
+  details: string | null
+}
+
+export interface ReadinessRecommendation {
+  action: string
+  impact: string
+  effort: 'low' | 'medium' | 'high'
+  priority: number
+  dimension: string | null
+}
+
+export interface ReadinessDimensionScore {
+  score: number
+  weight: number
+  weighted_score: number
+  factors: Record<string, ReadinessFactorScore>
+  blockers: string[]
+  recommendations: ReadinessRecommendation[]
+  summary: string | null
+}
+
+export interface ReadinessCapApplied {
+  cap_id: string
+  limit: number
+  reason: string
+}
+
+export interface ReadinessScore {
+  score: number
+  ready: boolean
+  threshold: number
+  dimensions: Record<string, ReadinessDimensionScore>
+  caps_applied: ReadinessCapApplied[]
+  top_recommendations: ReadinessRecommendation[]
+  computed_at: string
+  confirmed_entities: number
+  total_entities: number
+  client_signals_count: number
+  meetings_completed: number
+}
+
+export const getReadinessScore = (projectId: string) =>
+  apiRequest<ReadinessScore>(`/projects/${projectId}/readiness`)
