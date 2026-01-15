@@ -239,7 +239,7 @@ export function VpDetail({ step, onStatusUpdate, onViewEvidence, updating = fals
         )}
 
         {/* Features & Value - Two Column Grid */}
-        {(step.features_used?.length > 0 || step.value_created) && (
+        {((step.features_used?.length ?? 0) > 0 || step.value_created) && (
           <div className="grid grid-cols-2 gap-6">
             {/* Features */}
             {step.features_used && step.features_used.length > 0 && (
