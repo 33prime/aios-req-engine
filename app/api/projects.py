@@ -214,6 +214,24 @@ async def get_single_project(project_id: UUID) -> ProjectDetailResponse:
     try:
         project_details = get_project_details(project_id)
 
+        # Parse status_narrative if present
+        status_narrative = None
+        if project_details.get("status_narrative"):
+            try:
+                sn = project_details["status_narrative"]
+                status_narrative = StatusNarrative(
+                    where_today=sn.get("where_today", ""),
+                    where_going=sn.get("where_going", ""),
+                    updated_at=sn.get("updated_at"),
+                )
+            except Exception:
+                pass
+
+        # Convert cached readiness score from 0-1 to 0-100 percentage
+        readiness_score = None
+        if project_details.get("cached_readiness_score") is not None:
+            readiness_score = int(project_details["cached_readiness_score"] * 100)
+
         return ProjectDetailResponse(
             id=UUID(project_details["id"]),
             name=project_details["name"],
@@ -226,6 +244,11 @@ async def get_single_project(project_id: UUID) -> ProjectDetailResponse:
             portal_enabled=project_details.get("portal_enabled", False),
             portal_phase=project_details.get("portal_phase"),
             counts=project_details["counts"],
+            # Include cached dashboard data
+            stage=project_details.get("stage", "discovery"),
+            client_name=project_details.get("client_name"),
+            status_narrative=status_narrative,
+            readiness_score=readiness_score,
         )
 
     except ValueError as e:
