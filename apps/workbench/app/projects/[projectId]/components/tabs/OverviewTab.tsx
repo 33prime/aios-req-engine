@@ -37,25 +37,23 @@ interface OverviewTabProps {
   isActive?: boolean
   /** Cached status narrative from project details */
   cachedNarrative?: StatusNarrative | null
-  /** Cached readiness score from project details (0-100) */
-  cachedReadinessScore?: number | null
+  /** Full cached readiness data from project details */
+  cachedReadinessData?: ReadinessScore | null
 }
 
 export function OverviewTab({
   projectId,
   isActive = true,
   cachedNarrative,
-  cachedReadinessScore,
+  cachedReadinessData,
 }: OverviewTabProps) {
-  // Use cached data for immediate display, fetch full data in background
+  // Use cached data for immediate display
   const [statusNarrative, setStatusNarrative] = useState<StatusNarrative | null>(cachedNarrative || null)
   const [tasks, setTasks] = useState<ProjectTask[]>([])
   const [meetings, setMeetings] = useState<Meeting[]>([])
-  const [readiness, setReadiness] = useState<ReadinessScore | null>(
-    cachedReadinessScore != null ? { score: cachedReadinessScore, ready: cachedReadinessScore >= 80 } as ReadinessScore : null
-  )
+  const [readiness, setReadiness] = useState<ReadinessScore | null>(cachedReadinessData || null)
   // Don't show loading spinner if we have cached data
-  const [loading, setLoading] = useState(!cachedNarrative && cachedReadinessScore == null)
+  const [loading, setLoading] = useState(!cachedNarrative && !cachedReadinessData)
   const [regeneratingNarrative, setRegeneratingNarrative] = useState(false)
 
   useEffect(() => {
@@ -67,20 +65,24 @@ export function OverviewTab({
   const loadOverviewData = async () => {
     try {
       // Only show loading if we have no cached data
-      if (!cachedNarrative && cachedReadinessScore == null) {
+      if (!cachedNarrative && !cachedReadinessData) {
         setLoading(true)
       }
 
-      // Fetch tasks, meetings, and full readiness (for dimensions) in background
-      const [tasksData, meetingsData, readinessData] = await Promise.all([
+      // Fetch tasks and meetings (always needed)
+      const [tasksData, meetingsData] = await Promise.all([
         getProjectTasks(projectId).catch(() => ({ tasks: [] })),
         listMeetings(projectId, 'scheduled', true).catch(() => []),
-        getReadinessScore(projectId).catch(() => null),
       ])
 
       setTasks(tasksData?.tasks || [])
       setMeetings(Array.isArray(meetingsData) ? meetingsData : [])
-      if (readinessData) setReadiness(readinessData)
+
+      // Only fetch readiness if we don't have cached data
+      if (!cachedReadinessData) {
+        const readinessData = await getReadinessScore(projectId).catch(() => null)
+        if (readinessData) setReadiness(readinessData)
+      }
 
       // Only fetch narrative if we don't have it cached
       if (!cachedNarrative) {

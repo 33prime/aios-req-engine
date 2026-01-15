@@ -78,6 +78,10 @@ class ProjectDetailResponse(ProjectResponse):
         ...,
         description="Entity counts (signals, prd_sections, vp_steps, features, insights, personas)",
     )
+    cached_readiness_data: dict[str, Any] | None = Field(
+        None,
+        description="Full cached readiness data for instant display (dimensions, recommendations, etc.)",
+    )
 
 
 class ProjectListResponse(BaseModel):

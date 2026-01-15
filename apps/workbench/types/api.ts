@@ -552,4 +552,17 @@ export interface ProjectDetailWithDashboard extends ProjectWithDashboard {
     insights: number
     personas: number
   }
+  /** Full cached readiness data for instant display */
+  cached_readiness_data?: {
+    score: number
+    ready: boolean
+    threshold: number
+    dimensions: Record<string, { score: number; weight: number; weighted_score: number }>
+    caps_applied: Array<{ cap_id: string; limit: number; reason: string }>
+    top_recommendations: Array<{ action: string; impact: string; effort: string; priority: number }>
+    confirmed_entities: number
+    total_entities: number
+    client_signals_count: number
+    meetings_completed: number
+  } | null
 }

@@ -249,6 +249,7 @@ async def get_single_project(project_id: UUID) -> ProjectDetailResponse:
             client_name=project_details.get("client_name"),
             status_narrative=status_narrative,
             readiness_score=readiness_score,
+            cached_readiness_data=project_details.get("cached_readiness_data"),
         )
 
     except ValueError as e:

@@ -332,7 +332,7 @@ export default function WorkspacePage() {
             projectId={projectId}
             isActive={activeTab === 'overview'}
             cachedNarrative={project?.status_narrative || null}
-            cachedReadinessScore={project?.readiness_score ?? null}
+            cachedReadinessData={project?.cached_readiness_data || null}
           />
         )
       case 'strategic-foundation':

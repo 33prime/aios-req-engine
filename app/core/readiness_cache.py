@@ -57,8 +57,12 @@ async def update_project_state(project_id: UUID) -> dict:
     supabase = get_supabase()
     now = datetime.now(UTC).isoformat()
 
+    # Serialize full readiness data for instant frontend display
+    readiness_data = readiness.model_dump(mode="json")
+
     supabase.table("projects").update({
         "cached_readiness_score": score,
+        "cached_readiness_data": readiness_data,
         "readiness_calculated_at": now,
         "status_narrative": narrative,
     }).eq("id", str(project_id)).execute()
