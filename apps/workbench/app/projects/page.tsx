@@ -61,25 +61,20 @@ export default function ProjectsPage() {
       setProjects(projectsList)
       setMeetings(meetingsData)
 
-      // Fetch readiness scores for all projects in parallel
-      const readinessPromises = projectsList.map(async (project) => {
+      // Show page immediately - don't wait for readiness scores
+      setLoading(false)
+
+      // Fetch readiness scores in background (don't block page load)
+      projectsList.forEach(async (project) => {
         try {
           const readiness = await getReadinessScore(project.id)
-          return { id: project.id, score: readiness.score }
+          setReadinessScores(prev => ({ ...prev, [project.id]: readiness.score }))
         } catch {
-          return { id: project.id, score: 0 }
+          setReadinessScores(prev => ({ ...prev, [project.id]: 0 }))
         }
       })
-
-      const scores = await Promise.all(readinessPromises)
-      const scoresMap: Record<string, number> = {}
-      scores.forEach(({ id, score }) => {
-        scoresMap[id] = score
-      })
-      setReadinessScores(scoresMap)
     } catch (error) {
       console.error('Failed to load data:', error)
-    } finally {
       setLoading(false)
     }
   }
