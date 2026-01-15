@@ -1,6 +1,6 @@
 [project]
 name = "aios-req-engine"
-version = "0.1.0"
+version = "0.1.1"
 description = "LangGraph-based requirements engine microservice"
 requires-python = ">=3.10"
 dependencies = [
