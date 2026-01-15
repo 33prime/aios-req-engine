@@ -14,6 +14,9 @@
 # Environment
 [build.environment]
   NODE_VERSION = "20"
+  NPM_FLAGS = "--legacy-peer-deps"
+  # Force cache bust by incrementing this
+  NETLIFY_CACHE_BUST = "2"
 
 # Headers for security
 [[headers]]

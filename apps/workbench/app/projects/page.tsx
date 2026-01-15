@@ -126,6 +126,7 @@ export default function ProjectsPage() {
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Daily Snapshot</h1>
           <p className="text-gray-600">
             Welcome back! Here&apos;s the latest for <span className="font-medium text-gray-900">{formatDate()}</span>.
+            <span className="ml-2 text-xs text-gray-400">v0.2.0</span>
           </p>
         </div>
 
