@@ -34,7 +34,7 @@ import { ChatPanel } from './components/ChatPanel'
 import { ActivityDrawer } from './components/ActivityDrawer'
 import CascadeSidebar from '@/components/cascades/CascadeSidebar'
 import { AssistantProvider } from '@/lib/assistant'
-import { getBaselineStatus, getBaselineCompleteness, getProjectDetails, listConfirmations, listProjectSignals, listPendingCascades, applyCascade, dismissCascade } from '@/lib/api'
+import { getBaselineStatus, getProjectDetails, listConfirmations, listProjectSignals, listPendingCascades, applyCascade, dismissCascade } from '@/lib/api'
 import { useChat } from '@/lib/useChat'
 import type { BaselineStatus, ProjectDetailWithDashboard } from '@/types/api'
 
@@ -48,7 +48,6 @@ export default function WorkspacePage() {
   // Project data state
   const [project, setProject] = useState<ProjectDetailWithDashboard | null>(null)
   const [baseline, setBaseline] = useState<BaselineStatus | null>(null)
-  const [baselineCompleteness, setBaselineCompleteness] = useState<any>(null)
   const [counts, setCounts] = useState({
     strategicContext: 0,
     valuePath: 0,
@@ -101,28 +100,9 @@ export default function WorkspacePage() {
     try {
       setLoading(true)
 
-      // Fetch only what's needed for header + tab counts
-      // Individual tabs will load their own detailed data
-      const [
-        projectData,
-        baselineData,
-        completenessData,
-        confirmationsData,
-        signalsData,
-        cascadesData,
-      ] = await Promise.all([
-        getProjectDetails(projectId),
-        getBaselineStatus(projectId),
-        getBaselineCompleteness(projectId).catch(() => null),
-        listConfirmations(projectId, 'open'),
-        listProjectSignals(projectId),
-        listPendingCascades(projectId).catch(() => ({ cascades: [] })),
-      ])
-
+      // FAST PATH: Only load project details first (has counts, cached readiness)
+      const projectData = await getProjectDetails(projectId)
       setProject(projectData)
-      setBaseline(baselineData)
-      setBaselineCompleteness(completenessData)
-      setCascades(cascadesData.cascades || [])
 
       // Use counts from project details (already includes vp_steps, features, etc.)
       const projectCounts = projectData.counts || {}
@@ -130,21 +110,41 @@ export default function WorkspacePage() {
         strategicContext: projectCounts.prd_sections || 0,
         valuePath: projectCounts.vp_steps || 0,
         improvements: 0,
-        nextSteps: confirmationsData.confirmations?.length || 0,
-        sources: signalsData.total || 0,
+        nextSteps: 0, // Will update in background
+        sources: projectCounts.signals || 0,
         research: 0
       })
 
-      // Reset recent changes (not critical for initial load)
-      setRecentChanges({
-        strategicContext: 0,
-        valuePath: 0,
-        improvements: 0
-      })
+      // Show page immediately
+      setLoading(false)
+
+      // BACKGROUND: Load secondary data without blocking
+      loadSecondaryData()
     } catch (error) {
       console.error('Failed to load workspace data:', error)
-    } finally {
       setLoading(false)
+    }
+  }
+
+  const loadSecondaryData = async () => {
+    // Load secondary data in parallel, don't block page
+    try {
+      const [baselineData, confirmationsData, cascadesData] = await Promise.all([
+        getBaselineStatus(projectId).catch(() => ({ baseline_ready: false })),
+        listConfirmations(projectId, 'open').catch(() => ({ confirmations: [] })),
+        listPendingCascades(projectId).catch(() => ({ cascades: [] })),
+      ])
+
+      setBaseline(baselineData)
+      setCascades(cascadesData.cascades || [])
+
+      // Update confirmation count
+      setCounts(prev => ({
+        ...prev,
+        nextSteps: confirmationsData.confirmations?.length || 0,
+      }))
+    } catch (error) {
+      console.error('Failed to load secondary data:', error)
     }
   }
 
@@ -350,22 +350,20 @@ export default function WorkspacePage() {
 
   // Build project data for assistant context - memoized to prevent infinite loops
   const assistantProjectData = useMemo(() => ({
-    readinessScore: baselineCompleteness?.overall_score ?? 0,
-    blockers: baselineCompleteness?.blockers ?? [],
-    warnings: baselineCompleteness?.warnings ?? [],
+    readinessScore: project?.readiness_score ?? 0,
+    blockers: [],
+    warnings: [],
     pendingConfirmations: counts.nextSteps,
     stats: {
-      features: baselineCompleteness?.features_count ?? 0,
-      personas: baselineCompleteness?.personas_count ?? 0,
+      features: project?.counts?.features ?? 0,
+      personas: project?.counts?.personas ?? 0,
       vpSteps: counts.valuePath,
       signals: counts.sources,
     },
   }), [
-    baselineCompleteness?.overall_score,
-    baselineCompleteness?.blockers,
-    baselineCompleteness?.warnings,
-    baselineCompleteness?.features_count,
-    baselineCompleteness?.personas_count,
+    project?.readiness_score,
+    project?.counts?.features,
+    project?.counts?.personas,
     counts.nextSteps,
     counts.valuePath,
     counts.sources,
