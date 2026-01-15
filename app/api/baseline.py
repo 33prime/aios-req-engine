@@ -13,7 +13,6 @@ from pydantic import BaseModel
 
 from app.core.baseline_scoring import calculate_baseline_completeness
 from app.core.logging import get_logger
-from app.core.readiness_cache import update_project_readiness
 from app.db.supabase_client import get_supabase
 
 logger = get_logger(__name__)
@@ -195,12 +194,6 @@ def get_baseline_completeness(project_id: UUID):
 
     # Calculate completeness
     completeness = calculate_baseline_completeness(project_id)
-
-    # Also update the cached score (non-blocking, just fire and forget)
-    try:
-        update_project_readiness(project_id)
-    except Exception as e:
-        logger.warning(f"Failed to update cached readiness: {e}")
 
     logger.info(
         f"Baseline completeness: {completeness['score']:.1%} (ready: {completeness['ready']}, mode: {prd_mode})",

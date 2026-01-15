@@ -12,8 +12,8 @@ The readiness score is cached and updated when:
 from datetime import UTC, datetime
 from uuid import UUID
 
-from app.core.baseline_scoring import calculate_baseline_completeness
 from app.core.logging import get_logger
+from app.core.readiness import compute_readiness
 from app.db.supabase_client import get_supabase
 
 logger = get_logger(__name__)
@@ -23,16 +23,19 @@ def update_project_readiness(project_id: UUID) -> float:
     """
     Recalculate and cache the readiness score for a project.
 
+    Uses the new dimensional readiness scoring (value_path, problem,
+    solution, engagement) for consistency with OverviewTab.
+
     Args:
         project_id: Project UUID
 
     Returns:
-        The new readiness score (0-1)
+        The new readiness score (0-100 as float for storage as 0-1)
     """
     try:
-        # Calculate fresh score
-        completeness = calculate_baseline_completeness(project_id)
-        score = completeness["score"]
+        # Calculate fresh score using new dimensional readiness
+        readiness = compute_readiness(project_id)
+        score = readiness.score / 100.0  # Convert 0-100 to 0-1 for storage
 
         # Update the projects table
         supabase = get_supabase()
@@ -44,8 +47,8 @@ def update_project_readiness(project_id: UUID) -> float:
         }).eq("id", str(project_id)).execute()
 
         logger.info(
-            f"Updated cached readiness score for project {project_id}: {score:.1%}",
-            extra={"project_id": str(project_id), "score": score},
+            f"Updated cached readiness score for project {project_id}: {readiness.score}%",
+            extra={"project_id": str(project_id), "score": readiness.score},
         )
 
         return score
