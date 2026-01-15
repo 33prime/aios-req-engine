@@ -12,7 +12,7 @@
 import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Plus, Search, FolderOpen } from 'lucide-react'
-import { listProjects, listUpcomingMeetings } from '@/lib/api'
+import { listProjects, listUpcomingMeetings, getReadinessScore } from '@/lib/api'
 import type { ProjectDetailWithDashboard, Meeting } from '@/types/api'
 import { SmartProjectCreation } from './components/SmartProjectCreation'
 import { OnboardingModal } from './components/OnboardingModal'
@@ -31,6 +31,7 @@ export default function ProjectsPage() {
   const router = useRouter()
   const [projects, setProjects] = useState<ProjectDetailWithDashboard[]>([])
   const [meetings, setMeetings] = useState<Meeting[]>([])
+  const [readinessScores, setReadinessScores] = useState<Record<string, number>>({})
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<'active' | 'archived' | 'all'>('active')
@@ -49,18 +50,31 @@ export default function ProjectsPage() {
     try {
       setLoading(true)
 
-      // Load projects (with readiness scores) and meetings in parallel
+      // Load projects and meetings in parallel
       const status = statusFilter === 'all' ? undefined : statusFilter
       const [projectsData, meetingsData] = await Promise.all([
         listProjects(status, searchQuery),
         listUpcomingMeetings(10),
       ])
 
-      setProjects(projectsData.projects as ProjectDetailWithDashboard[])
+      const projectsList = projectsData.projects as ProjectDetailWithDashboard[]
+      setProjects(projectsList)
       setMeetings(meetingsData)
+
+      // Show page immediately
+      setLoading(false)
+
+      // Load readiness scores in background (don't block page)
+      projectsList.forEach(async (project) => {
+        try {
+          const readiness = await getReadinessScore(project.id)
+          setReadinessScores(prev => ({ ...prev, [project.id]: readiness.score }))
+        } catch {
+          // Ignore errors - score just won't show
+        }
+      })
     } catch (error) {
       console.error('Failed to load data:', error)
-    } finally {
       setLoading(false)
     }
   }
@@ -211,7 +225,7 @@ export default function ProjectsPage() {
                   <ProjectCard
                     key={project.id}
                     project={project}
-                    readinessScore={project.readiness_score}
+                    readinessScore={readinessScores[project.id]}
                     onClick={() => handleProjectClick(project.id)}
                   />
                 ))}
