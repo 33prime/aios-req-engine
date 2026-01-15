@@ -560,6 +560,7 @@ export interface ProjectDetailWithDashboard extends ProjectWithDashboard {
     dimensions: Record<string, { score: number; weight: number; weighted_score: number }>
     caps_applied: Array<{ cap_id: string; limit: number; reason: string }>
     top_recommendations: Array<{ action: string; impact: string; effort: string; priority: number }>
+    computed_at: string
     confirmed_entities: number
     total_entities: number
     client_signals_count: number
