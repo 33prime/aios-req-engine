@@ -12,7 +12,7 @@
 import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Plus, Search, FolderOpen } from 'lucide-react'
-import { listProjects, listUpcomingMeetings, getReadinessScore } from '@/lib/api'
+import { listProjects, listUpcomingMeetings } from '@/lib/api'
 import type { ProjectDetailWithDashboard, Meeting } from '@/types/api'
 import { SmartProjectCreation } from './components/SmartProjectCreation'
 import { OnboardingModal } from './components/OnboardingModal'
@@ -31,7 +31,6 @@ export default function ProjectsPage() {
   const router = useRouter()
   const [projects, setProjects] = useState<ProjectDetailWithDashboard[]>([])
   const [meetings, setMeetings] = useState<Meeting[]>([])
-  const [readinessScores, setReadinessScores] = useState<Record<string, number>>({})
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<'active' | 'archived' | 'all'>('active')
@@ -63,16 +62,6 @@ export default function ProjectsPage() {
 
       // Show page immediately
       setLoading(false)
-
-      // Load readiness scores in background (don't block page)
-      projectsList.forEach(async (project) => {
-        try {
-          const readiness = await getReadinessScore(project.id)
-          setReadinessScores(prev => ({ ...prev, [project.id]: readiness.score }))
-        } catch {
-          // Ignore errors - score just won't show
-        }
-      })
     } catch (error) {
       console.error('Failed to load data:', error)
       setLoading(false)
@@ -225,7 +214,7 @@ export default function ProjectsPage() {
                   <ProjectCard
                     key={project.id}
                     project={project}
-                    readinessScore={readinessScores[project.id]}
+                    readinessScore={project.readiness_score ?? undefined}
                     onClick={() => handleProjectClick(project.id)}
                   />
                 ))}

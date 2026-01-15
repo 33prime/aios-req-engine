@@ -1,0 +1,122 @@
+"""Cached readiness score management.
+
+This module handles caching readiness scores in the projects table
+to avoid expensive recalculations on every list request.
+
+The readiness score is cached and updated when:
+1. Entities (features, personas, vp_steps) are created/updated/deleted
+2. An entity's confirmation status changes
+3. Manually via the refresh endpoint
+"""
+
+from datetime import UTC, datetime
+from uuid import UUID
+
+from app.core.baseline_scoring import calculate_baseline_completeness
+from app.core.logging import get_logger
+from app.db.supabase_client import get_supabase
+
+logger = get_logger(__name__)
+
+
+def update_project_readiness(project_id: UUID) -> float:
+    """
+    Recalculate and cache the readiness score for a project.
+
+    Args:
+        project_id: Project UUID
+
+    Returns:
+        The new readiness score (0-1)
+    """
+    try:
+        # Calculate fresh score
+        completeness = calculate_baseline_completeness(project_id)
+        score = completeness["score"]
+
+        # Update the projects table
+        supabase = get_supabase()
+        now = datetime.now(UTC).isoformat()
+
+        supabase.table("projects").update({
+            "cached_readiness_score": score,
+            "readiness_calculated_at": now,
+        }).eq("id", str(project_id)).execute()
+
+        logger.info(
+            f"Updated cached readiness score for project {project_id}: {score:.1%}",
+            extra={"project_id": str(project_id), "score": score},
+        )
+
+        return score
+
+    except Exception as e:
+        logger.error(f"Failed to update readiness score for {project_id}: {e}")
+        raise
+
+
+def update_all_readiness_scores() -> dict:
+    """
+    Update readiness scores for all active projects.
+
+    This is useful for bulk updates or initial population.
+
+    Returns:
+        Dict with count of updated projects and any errors
+    """
+    supabase = get_supabase()
+
+    try:
+        # Get all active projects
+        response = (
+            supabase.table("projects")
+            .select("id")
+            .eq("status", "active")
+            .execute()
+        )
+
+        projects = response.data or []
+        updated = 0
+        errors = []
+
+        for project in projects:
+            try:
+                update_project_readiness(UUID(project["id"]))
+                updated += 1
+            except Exception as e:
+                errors.append({"project_id": project["id"], "error": str(e)})
+
+        logger.info(
+            f"Bulk updated readiness scores: {updated} projects, {len(errors)} errors",
+            extra={"updated": updated, "errors": len(errors)},
+        )
+
+        return {"updated": updated, "errors": errors}
+
+    except Exception as e:
+        logger.error(f"Failed to bulk update readiness scores: {e}")
+        raise
+
+
+def invalidate_project_readiness(project_id: UUID) -> None:
+    """
+    Mark a project's readiness score as stale (set to NULL).
+
+    This is called when entities change, so the score gets recalculated
+    on next request.
+
+    Args:
+        project_id: Project UUID
+    """
+    try:
+        supabase = get_supabase()
+        supabase.table("projects").update({
+            "cached_readiness_score": None,
+            "readiness_calculated_at": None,
+        }).eq("id", str(project_id)).execute()
+
+        logger.debug(f"Invalidated readiness score for project {project_id}")
+
+    except Exception as e:
+        logger.error(f"Failed to invalidate readiness score for {project_id}: {e}")
+        # Don't raise - this is a non-critical operation

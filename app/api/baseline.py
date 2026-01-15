@@ -5,7 +5,7 @@ Handles baseline finalization, completeness scoring, and mode switching.
 Phase 1: Surgical Updates for Features
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException
@@ -13,6 +13,7 @@ from pydantic import BaseModel
 
 from app.core.baseline_scoring import calculate_baseline_completeness
 from app.core.logging import get_logger
+from app.core.readiness_cache import update_project_readiness
 from app.db.supabase_client import get_supabase
 
 logger = get_logger(__name__)
@@ -123,7 +124,7 @@ def finalize_baseline(project_id: UUID, request: FinalizeBaselineRequest):
     )
 
     # Update project to maintenance mode
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(UTC).isoformat()
 
     update_response = (
         supabase.table("projects")
@@ -195,6 +196,12 @@ def get_baseline_completeness(project_id: UUID):
     # Calculate completeness
     completeness = calculate_baseline_completeness(project_id)
 
+    # Also update the cached score (non-blocking, just fire and forget)
+    try:
+        update_project_readiness(project_id)
+    except Exception as e:
+        logger.warning(f"Failed to update cached readiness: {e}")
+
     logger.info(
         f"Baseline completeness: {completeness['score']:.1%} (ready: {completeness['ready']}, mode: {prd_mode})",
         extra={"project_id": str(project_id), "score": completeness["score"], "prd_mode": prd_mode},
@@ -246,7 +253,7 @@ def rebuild_baseline(project_id: UUID, request: RebuildBaselineRequest):
         raise HTTPException(status_code=404, detail="Project not found")
 
     # Reset to initial mode
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(UTC).isoformat()
 
     update_response = (
         supabase.table("projects")

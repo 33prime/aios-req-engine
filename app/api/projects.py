@@ -6,7 +6,7 @@ from uuid import UUID
 from fastapi import APIRouter, HTTPException, Query
 
 from app.core.logging import get_logger
-# Note: readiness calculation moved to separate endpoint for performance
+from app.core.readiness_cache import update_all_readiness_scores, update_project_readiness
 from app.core.schemas_projects import (
     BaselinePatchRequest,
     BaselineStatus,
@@ -20,6 +20,8 @@ from app.core.schemas_projects import (
 from app.db.project_gates import get_or_create_project_gate, upsert_project_gate
 from app.db.projects import (
     archive_project as db_archive_project,
+)
+from app.db.projects import (
     create_project,
     get_project,
     get_project_details,
@@ -139,8 +141,9 @@ async def create_new_project(request: CreateProjectRequest) -> ProjectResponse:
                     )
 
                 # Create onboarding job and run in background
-                from app.db.jobs import create_job, start_job, complete_job, fail_job
                 import threading
+
+                from app.db.jobs import complete_job, create_job, fail_job, start_job
 
                 onboarding_job_id = create_job(
                     project_id=project_id,
@@ -579,6 +582,53 @@ async def get_evidence_gaps(project_id: UUID):
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
+@router.post("/{project_id}/readiness/refresh")
+async def refresh_project_readiness(project_id: UUID):
+    """
+    Refresh the cached readiness score for a project.
+
+    This recalculates the readiness score and stores it in the database.
+
+    Args:
+        project_id: Project UUID
+
+    Returns:
+        Updated readiness score
+    """
+    try:
+        score = update_project_readiness(project_id)
+        return {
+            "project_id": str(project_id),
+            "readiness_score": int(score * 100),
+            "message": "Readiness score refreshed",
+        }
+    except Exception as e:
+        logger.exception(f"Failed to refresh readiness for {project_id}")
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.post("/readiness/refresh-all")
+async def refresh_all_readiness():
+    """
+    Refresh cached readiness scores for all active projects.
+
+    This is an admin endpoint for bulk updates.
+
+    Returns:
+        Summary of update results
+    """
+    try:
+        result = update_all_readiness_scores()
+        return {
+            "updated": result["updated"],
+            "errors": len(result["errors"]),
+            "message": f"Refreshed {result['updated']} projects",
+        }
+    except Exception as e:
+        logger.exception("Failed to refresh all readiness scores")
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
 @router.get("/{project_id}/status-narrative")
 async def get_project_status_narrative(
     project_id: UUID,
@@ -721,6 +771,11 @@ def _to_project_response(p: dict, signal_id: UUID | None = None, onboarding_job_
         except Exception:
             pass
 
+    # Convert cached readiness score from 0-1 to 0-100 percentage
+    readiness_score = None
+    if p.get("cached_readiness_score") is not None:
+        readiness_score = int(p["cached_readiness_score"] * 100)
+
     return ProjectResponse(
         id=UUID(p["id"]) if isinstance(p["id"], str) else p["id"],
         name=p["name"],
@@ -736,4 +791,5 @@ def _to_project_response(p: dict, signal_id: UUID | None = None, onboarding_job_
         stage=p.get("stage", "discovery"),
         client_name=p.get("client_name"),
         status_narrative=status_narrative,
+        readiness_score=readiness_score,
     )
