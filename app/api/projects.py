@@ -6,7 +6,7 @@ from uuid import UUID
 from fastapi import APIRouter, HTTPException, Query
 
 from app.core.logging import get_logger
-from app.core.readiness_cache import update_all_readiness_scores, update_project_readiness
+from app.core.readiness_cache import update_all_readiness_scores, update_project_readiness, update_project_state
 from app.core.schemas_projects import (
     BaselinePatchRequest,
     BaselineStatus,
@@ -585,25 +585,29 @@ async def get_evidence_gaps(project_id: UUID):
 @router.post("/{project_id}/readiness/refresh")
 async def refresh_project_readiness(project_id: UUID):
     """
-    Refresh the cached readiness score for a project.
+    Refresh all cached project state: readiness, narrative, and snapshot.
 
-    This recalculates the readiness score and stores it in the database.
+    This is the main "refresh" action that:
+    1. Regenerates the state snapshot (for AI context)
+    2. Computes the readiness score (for progress tracking)
+    3. Generates the status narrative (human-readable TL;DR)
 
     Args:
         project_id: Project UUID
 
     Returns:
-        Updated readiness score
+        Updated readiness score and narrative
     """
     try:
-        score = update_project_readiness(project_id)
+        result = await update_project_state(project_id)
         return {
             "project_id": str(project_id),
-            "readiness_score": int(score * 100),
-            "message": "Readiness score refreshed",
+            "readiness_score": result["readiness_score"],
+            "narrative": result["narrative"],
+            "message": "Project state refreshed",
         }
     except Exception as e:
-        logger.exception(f"Failed to refresh readiness for {project_id}")
+        logger.exception(f"Failed to refresh project state for {project_id}")
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
