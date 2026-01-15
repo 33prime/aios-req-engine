@@ -15,8 +15,6 @@
 import React from 'react'
 import Link from 'next/link'
 import {
-  RefreshCw,
-  Settings,
   Clock,
   ArrowLeft,
   Globe,
@@ -43,25 +41,14 @@ interface WorkspaceHeaderProps {
   clientName?: string
   stage?: ProjectStage
   portalEnabled?: boolean
-  baseline: {
-    baseline_ready: boolean
-    client_signal_count?: number
-    fact_count?: number
-  } | null
-  onBaselineToggle: () => void
-  onRefresh: () => void
   onShowActivity?: () => void
 }
 
 export function WorkspaceHeader({
-  projectId,
   projectName,
   clientName,
   stage = 'discovery',
   portalEnabled = false,
-  baseline,
-  onBaselineToggle,
-  onRefresh,
   onShowActivity,
 }: WorkspaceHeaderProps) {
   return (
@@ -127,39 +114,9 @@ export function WorkspaceHeader({
                 variant="ghost"
                 onClick={onShowActivity}
                 icon={<Clock className="h-5 w-5" />}
-                className="hidden sm:inline-flex"
                 label="View activity"
               />
             )}
-
-            {/* Research Toggle */}
-            <div className="flex items-center gap-2">
-              <Settings className="h-4 w-4 text-gray-400 hidden sm:block" />
-              <span className="text-sm text-gray-500 hidden sm:block">Research</span>
-              <button
-                onClick={onBaselineToggle}
-                className={`
-                  relative inline-flex h-6 w-11 items-center rounded-full transition-colors
-                  ${baseline?.baseline_ready ? 'bg-[#009b87]' : 'bg-gray-300'}
-                `}
-                aria-label="Toggle research access"
-              >
-                <span
-                  className={`
-                    inline-block h-4 w-4 transform rounded-full bg-white transition-transform shadow-sm
-                    ${baseline?.baseline_ready ? 'translate-x-6' : 'translate-x-1'}
-                  `}
-                />
-              </button>
-            </div>
-
-            {/* Refresh Button */}
-            <IconButton
-              icon={<RefreshCw className="h-4 w-4" />}
-              label="Refresh data"
-              variant="secondary"
-              onClick={onRefresh}
-            />
           </div>
         </div>
       </div>
@@ -174,35 +131,22 @@ export function WorkspaceHeader({
  */
 
 interface CompactHeaderProps {
-  projectId: string
   projectName: string
-  onRefresh: () => void
 }
 
-export function CompactHeader({ projectId, projectName, onRefresh }: CompactHeaderProps) {
+export function CompactHeader({ projectName }: CompactHeaderProps) {
   return (
     <header className="bg-white border-b border-gray-200 lg:hidden">
-      <div className="px-4 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Link
-            href="/projects"
-            className="text-gray-500 hover:text-gray-900 transition-colors"
-          >
-            <ArrowLeft className="h-5 w-5" />
-          </Link>
-          <div>
-            <h1 className="text-base font-semibold text-gray-900 truncate max-w-[200px]">
-              {projectName}
-            </h1>
-          </div>
-        </div>
-        <IconButton
-          icon={<RefreshCw className="h-4 w-4" />}
-          label="Refresh"
-          variant="secondary"
-          size="sm"
-          onClick={onRefresh}
-        />
+      <div className="px-4 py-3 flex items-center gap-3">
+        <Link
+          href="/projects"
+          className="text-gray-500 hover:text-gray-900 transition-colors"
+        >
+          <ArrowLeft className="h-5 w-5" />
+        </Link>
+        <h1 className="text-base font-semibold text-gray-900 truncate max-w-[200px]">
+          {projectName}
+        </h1>
       </div>
     </header>
   )

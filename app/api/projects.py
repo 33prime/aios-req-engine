@@ -605,12 +605,12 @@ async def get_project_status_narrative(
     Returns:
         StatusNarrative with where_today and where_going
     """
-    from app.chains.generate_status_narrative import (
-        generate_status_narrative,
-        get_or_generate_narrative,
-    )
-
     try:
+        from app.chains.generate_status_narrative import (
+            generate_status_narrative,
+            get_or_generate_narrative,
+        )
+
         if regenerate:
             narrative = await generate_status_narrative(project_id)
         else:
@@ -622,8 +622,13 @@ async def get_project_status_narrative(
             updated_at=narrative.get("updated_at"),
         )
     except Exception as e:
-        logger.exception(f"Failed to get status narrative for {project_id}")
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        logger.warning(f"Failed to get status narrative for {project_id}: {e}")
+        # Return empty narrative instead of crashing - narrative is optional
+        return StatusNarrative(
+            where_today="",
+            where_going="",
+            updated_at=None,
+        )
 
 
 @router.get("/{project_id}/research/sources")

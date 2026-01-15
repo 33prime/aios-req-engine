@@ -393,9 +393,6 @@ export default function WorkspacePage() {
           clientName={project?.client_name}
           stage={project?.stage}
           portalEnabled={project?.portal_enabled}
-          baseline={baseline}
-          onBaselineToggle={handleBaselineToggle}
-          onRefresh={loadProjectData}
           onShowActivity={() => setIsActivityDrawerOpen(true)}
         />
       </div>
@@ -403,9 +400,7 @@ export default function WorkspacePage() {
       {/* Mobile Header */}
       <div className="lg:hidden">
         <CompactHeader
-          projectId={projectId}
           projectName={project?.name || 'Loading...'}
-          onRefresh={loadProjectData}
         />
       </div>
 
