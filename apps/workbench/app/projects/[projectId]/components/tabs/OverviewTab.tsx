@@ -259,14 +259,14 @@ export function OverviewTab({
             </div>
           )}
 
-          {/* Quick Stats */}
-          {readiness && (
+          {/* Quick Stats - only show when full data loaded */}
+          {readiness?.dimensions && (
             <div className="pt-3 border-t border-gray-100 grid grid-cols-2 gap-2 text-xs">
               <div className="text-gray-500">
-                Confirmed: <span className="font-medium text-gray-700">{readiness.confirmed_entities}/{readiness.total_entities}</span>
+                Confirmed: <span className="font-medium text-gray-700">{readiness.confirmed_entities ?? 0}/{readiness.total_entities ?? 0}</span>
               </div>
               <div className="text-gray-500">
-                Client signals: <span className="font-medium text-gray-700">{readiness.client_signals_count}</span>
+                Client signals: <span className="font-medium text-gray-700">{readiness.client_signals_count ?? 0}</span>
               </div>
             </div>
           )}
