@@ -116,9 +116,9 @@ def update_project_readiness(project_id: UUID) -> float:
 
 def update_all_readiness_scores() -> dict:
     """
-    Update readiness scores for all active projects.
+    Update readiness scores for all active projects (sync, no narratives).
 
-    This is useful for bulk updates or initial population.
+    This is useful for quick bulk updates of just the readiness scores.
 
     Returns:
         Dict with count of updated projects and any errors
@@ -154,6 +154,51 @@ def update_all_readiness_scores() -> dict:
 
     except Exception as e:
         logger.error(f"Failed to bulk update readiness scores: {e}")
+        raise
+
+
+async def update_all_project_states() -> dict:
+    """
+    Update full project state (readiness, snapshot, narrative) for all active projects.
+
+    This is the comprehensive refresh that includes narrative generation.
+
+    Returns:
+        Dict with count of updated projects and any errors
+    """
+    supabase = get_supabase()
+
+    try:
+        # Get all active projects
+        response = (
+            supabase.table("projects")
+            .select("id")
+            .eq("status", "active")
+            .execute()
+        )
+
+        projects = response.data or []
+        updated = 0
+        errors = []
+
+        for project in projects:
+            try:
+                await update_project_state(UUID(project["id"]))
+                updated += 1
+                logger.info(f"Updated full state for project {project['id']}")
+            except Exception as e:
+                logger.error(f"Failed to update project {project['id']}: {e}")
+                errors.append({"project_id": project["id"], "error": str(e)})
+
+        logger.info(
+            f"Bulk updated project states: {updated} projects, {len(errors)} errors",
+            extra={"updated": updated, "errors": len(errors)},
+        )
+
+        return {"updated": updated, "errors": errors}
+
+    except Exception as e:
+        logger.error(f"Failed to bulk update project states: {e}")
         raise
 
 

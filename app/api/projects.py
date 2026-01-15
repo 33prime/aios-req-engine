@@ -614,22 +614,23 @@ async def refresh_project_readiness(project_id: UUID):
 @router.post("/readiness/refresh-all")
 async def refresh_all_readiness():
     """
-    Refresh cached readiness scores for all active projects.
+    Refresh all cached project state (readiness, snapshot, narrative) for all active projects.
 
-    This is an admin endpoint for bulk updates.
+    This is an admin endpoint for bulk updates. Generates narratives for all projects.
 
     Returns:
         Summary of update results
     """
     try:
-        result = update_all_readiness_scores()
+        from app.core.readiness_cache import update_all_project_states
+        result = await update_all_project_states()
         return {
             "updated": result["updated"],
             "errors": len(result["errors"]),
-            "message": f"Refreshed {result['updated']} projects",
+            "message": f"Refreshed {result['updated']} projects with narratives",
         }
     except Exception as e:
-        logger.exception("Failed to refresh all readiness scores")
+        logger.exception("Failed to refresh all project states")
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
