@@ -331,6 +331,8 @@ export default function WorkspacePage() {
           <OverviewTab
             projectId={projectId}
             isActive={activeTab === 'overview'}
+            cachedNarrative={project?.status_narrative || null}
+            cachedReadinessScore={project?.readiness_score != null ? Math.round(project.readiness_score * 100) : null}
           />
         )
       case 'strategic-foundation':

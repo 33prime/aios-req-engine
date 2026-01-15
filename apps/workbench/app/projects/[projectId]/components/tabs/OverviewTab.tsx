@@ -35,14 +35,27 @@ import type { ReadinessScore, ReadinessRecommendation } from '@/lib/api'
 interface OverviewTabProps {
   projectId: string
   isActive?: boolean
+  /** Cached status narrative from project details */
+  cachedNarrative?: StatusNarrative | null
+  /** Cached readiness score from project details (0-100) */
+  cachedReadinessScore?: number | null
 }
 
-export function OverviewTab({ projectId, isActive = true }: OverviewTabProps) {
-  const [statusNarrative, setStatusNarrative] = useState<StatusNarrative | null>(null)
+export function OverviewTab({
+  projectId,
+  isActive = true,
+  cachedNarrative,
+  cachedReadinessScore,
+}: OverviewTabProps) {
+  // Use cached data for immediate display, fetch full data in background
+  const [statusNarrative, setStatusNarrative] = useState<StatusNarrative | null>(cachedNarrative || null)
   const [tasks, setTasks] = useState<ProjectTask[]>([])
   const [meetings, setMeetings] = useState<Meeting[]>([])
-  const [readiness, setReadiness] = useState<ReadinessScore | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [readiness, setReadiness] = useState<ReadinessScore | null>(
+    cachedReadinessScore != null ? { score: cachedReadinessScore, ready: cachedReadinessScore >= 80 } as ReadinessScore : null
+  )
+  // Don't show loading spinner if we have cached data
+  const [loading, setLoading] = useState(!cachedNarrative && cachedReadinessScore == null)
   const [regeneratingNarrative, setRegeneratingNarrative] = useState(false)
 
   useEffect(() => {
@@ -53,24 +66,27 @@ export function OverviewTab({ projectId, isActive = true }: OverviewTabProps) {
 
   const loadOverviewData = async () => {
     try {
-      setLoading(true)
+      // Only show loading if we have no cached data
+      if (!cachedNarrative && cachedReadinessScore == null) {
+        setLoading(true)
+      }
 
-      const [
-        narrativeData,
-        tasksData,
-        meetingsData,
-        readinessData,
-      ] = await Promise.all([
-        getStatusNarrative(projectId).catch(() => null),
+      // Fetch tasks, meetings, and full readiness (for dimensions) in background
+      const [tasksData, meetingsData, readinessData] = await Promise.all([
         getProjectTasks(projectId).catch(() => ({ tasks: [] })),
         listMeetings(projectId, 'scheduled', true).catch(() => []),
         getReadinessScore(projectId).catch(() => null),
       ])
 
-      setStatusNarrative(narrativeData)
-      setTasks(tasksData.tasks || [])
+      setTasks(tasksData?.tasks || [])
       setMeetings(Array.isArray(meetingsData) ? meetingsData : [])
-      setReadiness(readinessData)
+      if (readinessData) setReadiness(readinessData)
+
+      // Only fetch narrative if we don't have it cached
+      if (!cachedNarrative) {
+        const narrativeData = await getStatusNarrative(projectId).catch(() => null)
+        if (narrativeData) setStatusNarrative(narrativeData)
+      }
     } catch (error) {
       console.error('Failed to load overview data:', error)
     } finally {
