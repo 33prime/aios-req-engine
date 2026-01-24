@@ -521,7 +521,7 @@ def _assess_full_requirements(project_id: UUID) -> GateAssessment:
             .execute()
         )
 
-        features = features_response.data or []
+        features = (features_response.data if features_response else None) or []
         feature_count = len(features)
 
         # Get signals to check if features are well-evidenced
@@ -532,7 +532,7 @@ def _assess_full_requirements(project_id: UUID) -> GateAssessment:
             .execute()
         )
 
-        signal_count = len(signals_response.data or [])
+        signal_count = len((signals_response.data if signals_response else None) or [])
 
         # Requirements are "full" when:
         # 1. We have at least 5 confirmed features

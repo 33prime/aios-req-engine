@@ -52,7 +52,7 @@ def build_canonical_index(project_id: UUID) -> CanonicalIndex:
             description=f.get("description", "")[:200] if f.get("description") else "",
             confirmation_status=f.get("confirmation_status", "ai_generated"),
         )
-        for f in features_response.data
+        for f in (features_response.data if features_response and features_response.data else [])
     ]
 
     # Load personas
@@ -74,7 +74,7 @@ def build_canonical_index(project_id: UUID) -> CanonicalIndex:
             description=p.get("description", "")[:200] if p.get("description") else "",
             confirmation_status=p.get("confirmation_status", "ai_generated"),
         )
-        for p in personas_response.data
+        for p in (personas_response.data if personas_response and personas_response.data else [])
     ]
 
     # Load VP steps
@@ -95,7 +95,7 @@ def build_canonical_index(project_id: UUID) -> CanonicalIndex:
             description=v.get("description", "")[:200] if v.get("description") else "",
             confirmation_status=v.get("confirmation_status", "ai_generated"),
         )
-        for v in vp_steps_response.data
+        for v in (vp_steps_response.data if vp_steps_response and vp_steps_response.data else [])
     ]
 
     # Load PRD sections
@@ -116,7 +116,7 @@ def build_canonical_index(project_id: UUID) -> CanonicalIndex:
             description=s.get("content", "")[:200] if s.get("content") else "",
             confirmation_status=s.get("confirmation_status", "ai_generated"),
         )
-        for s in prd_sections_response.data
+        for s in (prd_sections_response.data if prd_sections_response and prd_sections_response.data else [])
     ]
 
     index = CanonicalIndex(

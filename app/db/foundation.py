@@ -50,15 +50,17 @@ def get_project_foundation(project_id: UUID) -> Optional[ProjectFoundation]:
             supabase.table("project_foundation")
             .select("*")
             .eq("project_id", str(project_id))
-            .maybe_single()
             .execute()
         )
 
-        if not response.data:
+        # Check if response is None or response.data is None/empty
+        if response is None or not response.data or len(response.data) == 0:
             return None
 
-        # Parse JSONB fields into Pydantic models
-        data = response.data.copy()
+        # Get first row (should only be one due to unique project_id)
+        data = response.data[0] if isinstance(response.data, list) else response.data
+
+        # Parse JSONB fields into Pydantic models (data is already extracted above)
 
         # Parse each gate if present
         if data.get("core_pain"):
@@ -306,14 +308,16 @@ def get_foundation_element(
             supabase.table("project_foundation")
             .select(element_type)
             .eq("project_id", str(project_id))
-            .maybe_single()
             .execute()
         )
 
-        if not response.data:
+        # Check if response is None or response.data is None/empty
+        if response is None or not response.data or len(response.data) == 0:
             return None
 
-        return response.data.get(element_type)
+        # Get first row
+        row = response.data[0] if isinstance(response.data, list) else response.data
+        return row.get(element_type) if row else None
 
     except Exception as e:
         logger.error(

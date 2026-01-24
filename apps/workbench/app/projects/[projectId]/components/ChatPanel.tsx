@@ -134,12 +134,16 @@ export function ChatPanel({
   // Get command suggestions for autocomplete
   const commandSuggestions = useMemo(() => {
     if (!input.startsWith('/')) return []
-    return getCommandSuggestions(input)
+    const suggestions = getCommandSuggestions(input)
+    console.log('Command suggestions for "' + input + '":', suggestions)
+    return suggestions
   }, [input, getCommandSuggestions])
 
   // Show/hide command suggestions
   useEffect(() => {
-    setShowCommandSuggestions(input.startsWith('/') && commandSuggestions.length > 0)
+    const shouldShow = input.startsWith('/') && commandSuggestions.length > 0
+    console.log('Show command suggestions:', shouldShow, 'input:', input, 'count:', commandSuggestions.length)
+    setShowCommandSuggestions(shouldShow)
   }, [input, commandSuggestions])
 
   // Context hint based on mode
@@ -414,16 +418,15 @@ export function ChatPanel({
             />
           )}
 
-          {/* Command Autocomplete */}
-          {showCommandSuggestions && (
-            <CommandAutocomplete
-              suggestions={commandSuggestions}
-              onSelect={handleCommandSelect}
-            />
-          )}
-
           <form onSubmit={handleSubmit} className="flex gap-2">
             <div className="relative flex-1">
+              {/* Command Autocomplete - positioned relative to input */}
+              {showCommandSuggestions && (
+                <CommandAutocomplete
+                  suggestions={commandSuggestions}
+                  onSelect={handleCommandSelect}
+                />
+              )}
               <textarea
                 ref={inputRef}
                 value={input}
@@ -582,11 +585,11 @@ function CommandAutocomplete({
   onSelect: (cmd: CommandDefinition) => void
 }) {
   return (
-    <div className="absolute bottom-full left-0 right-0 mb-2 bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden">
-      <div className="p-2 text-xs text-ui-supportText bg-gray-50 border-b border-gray-200">
-        Commands (Tab to complete)
+    <div className="absolute bottom-full left-0 right-0 mb-2 bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden z-50">
+      <div className="p-2 text-xs text-ui-supportText bg-gray-50 border-b border-gray-200 font-medium">
+        💡 Available Commands (Tab to complete)
       </div>
-      <div className="max-h-48 overflow-y-auto">
+      <div className="max-h-64 overflow-y-auto">
         {suggestions.map((cmd) => (
           <button
             key={cmd.name}

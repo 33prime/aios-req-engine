@@ -29,6 +29,7 @@ export function registerCommand(command: CommandDefinition): void {
   command.aliases?.forEach((alias) => {
     commands.set(alias, command)
   })
+  console.log(`Registered command: /${command.name}`, command.aliases ? `(aliases: ${command.aliases.join(', ')})` : '')
 }
 
 /**
@@ -52,6 +53,7 @@ export function getAllCommands(): CommandDefinition[] {
     }
   })
 
+  console.log(`getAllCommands() returning ${result.length} commands`)
   return result
 }
 

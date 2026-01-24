@@ -383,7 +383,11 @@ export default function WorkspacePage() {
   }
 
   return (
-    <AssistantProvider projectId={projectId} initialProjectData={assistantProjectData}>
+    <AssistantProvider
+      projectId={projectId}
+      initialProjectData={assistantProjectData}
+      onProjectDataChanged={loadProjectData}
+    >
     <div className="min-h-screen bg-ui-background">
       {/* Desktop Header */}
       <div className="hidden lg:block">

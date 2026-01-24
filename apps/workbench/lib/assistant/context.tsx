@@ -195,6 +195,8 @@ interface AssistantProviderProps {
   projectId: string
   initialProjectData?: ProjectContextData
   onSendMessage?: (content: string, context: AssistantContext) => Promise<string>
+  /** Callback when project data should be refreshed (e.g., after DI Agent actions) */
+  onProjectDataChanged?: () => Promise<void>
 }
 
 export function AssistantProvider({
@@ -202,6 +204,7 @@ export function AssistantProvider({
   projectId,
   initialProjectData,
   onSendMessage,
+  onProjectDataChanged,
 }: AssistantProviderProps) {
   const [context, dispatch] = useReducer(
     assistantReducer,
@@ -388,6 +391,22 @@ export function AssistantProvider({
           // Handle navigation
           if (result.navigateTo?.tab) {
             setActiveTab(result.navigateTo.tab)
+          }
+
+          // Refresh project data after DI Agent commands
+          const diAgentCommands = [
+            'analyze-project', 'di', 'analyze',
+            'extract-core-pain', 'core-pain', 'pain',
+            'extract-persona', 'persona', 'primary-persona',
+            'identify-wow', 'wow', 'wow-moment',
+            'extract-business-case',
+            'extract-budget-constraints'
+          ]
+          if (result.success && diAgentCommands.includes(name) && onProjectDataChanged) {
+            // Refresh project data in the background
+            onProjectDataChanged().catch(err =>
+              console.error('Failed to refresh project data:', err)
+            )
           }
         } else {
           // Regular message - send to AI
