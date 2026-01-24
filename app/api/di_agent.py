@@ -211,13 +211,14 @@ async def invoke_di_agent_endpoint(
         )
 
         # Convert response to API format
+        # Note: tools_called already contains results (ToolCall.result field)
         return InvokeDIAgentResponse(
             observation=response.observation,
             thinking=response.thinking,
             decision=response.decision,
             action_type=response.action_type,
-            tools_called=response.tools_called,
-            tool_results=response.tool_results,
+            tools_called=[tc.model_dump() if hasattr(tc, 'model_dump') else tc for tc in response.tools_called] if response.tools_called else None,
+            tool_results=None,  # Deprecated - results are in tools_called
             guidance=response.guidance.model_dump() if response.guidance else None,
             readiness_before=response.readiness_before,
             readiness_after=response.readiness_after,

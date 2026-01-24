@@ -34,15 +34,15 @@ def get_di_cache(project_id: UUID) -> Optional[DICacheData]:
             supabase.table("di_analysis_cache")
             .select("*")
             .eq("project_id", str(project_id))
-            .maybe_single()
             .execute()
         )
 
-        if not response.data:
+        # Check if response is None or response.data is None/empty
+        if response is None or not response.data or len(response.data) == 0:
             return None
 
-        # Convert to DICacheData model
-        data = response.data.copy()
+        # Convert to DICacheData model (get first row)
+        data = (response.data[0] if isinstance(response.data, list) else response.data).copy()
         data["project_id"] = str(data["project_id"])
         data["signals_analyzed"] = [str(s) for s in (data.get("signals_analyzed") or [])]
 
@@ -215,7 +215,7 @@ def update_cache(
             f"({len(updates)} fields)"
         )
 
-        return response.data[0] if response.data else {}
+        return response.data[0] if (response and response.data) else {}
 
     except Exception as e:
         logger.error(f"Failed to update cache for project {project_id}: {e}")
@@ -262,7 +262,7 @@ def get_unanalyzed_signals(
                 .order("created_at", desc=False)
                 .execute()
             )
-            unanalyzed = unanalyzed_response.data or []
+            unanalyzed = (unanalyzed_response.data if unanalyzed_response and unanalyzed_response.data else [])
 
             logger.debug(
                 f"Project {project_id}: {len(unanalyzed)} unanalyzed signals "
@@ -277,7 +277,7 @@ def get_unanalyzed_signals(
                 .order("created_at", desc=False)
                 .execute()
             )
-            unanalyzed = all_signals_response.data or []
+            unanalyzed = (all_signals_response.data if all_signals_response and all_signals_response.data else [])
 
             logger.debug(
                 f"Project {project_id}: {len(unanalyzed)} unanalyzed signals "
