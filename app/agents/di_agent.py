@@ -220,12 +220,22 @@ What's your reasoning and recommended action?"""
             # Recompute readiness after tool execution
             updated_readiness = compute_readiness(project_id)
             agent_response.readiness_after = int(updated_readiness.score)
-            agent_response.gates_affected = [
-                gate for gate, assessment in {
-                    **updated_readiness.gates.get("prototype_gates", {}),
-                    **updated_readiness.gates.get("build_gates", {})
-                }.items() if assessment.satisfied
-            ]
+
+            # Build list of satisfied gates (gates is a dict, values might be dicts or objects)
+            gates_affected = []
+            all_gates = {
+                **updated_readiness.gates.get("prototype_gates", {}),
+                **updated_readiness.gates.get("build_gates", {})
+            }
+            for gate_name, gate_data in all_gates.items():
+                # Handle both dict and object formats
+                if isinstance(gate_data, dict):
+                    if gate_data.get("satisfied"):
+                        gates_affected.append(gate_name)
+                elif hasattr(gate_data, "satisfied") and gate_data.satisfied:
+                    gates_affected.append(gate_name)
+
+            agent_response.gates_affected = gates_affected
 
         # ======================================================================
         # 6. Log invocation
