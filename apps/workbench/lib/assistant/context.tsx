@@ -381,6 +381,7 @@ export function AssistantProvider({
               commandArgs: JSON.stringify(args),
             },
           }
+          console.log('📨 Adding assistant message:', assistantMessage.content.substring(0, 200))
           dispatch({ type: 'ADD_MESSAGE', message: assistantMessage })
 
           // Update quick actions if result includes them
