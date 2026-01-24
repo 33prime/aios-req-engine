@@ -134,16 +134,12 @@ export function ChatPanel({
   // Get command suggestions for autocomplete
   const commandSuggestions = useMemo(() => {
     if (!input.startsWith('/')) return []
-    const suggestions = getCommandSuggestions(input)
-    console.log('Command suggestions for "' + input + '":', suggestions)
-    return suggestions
+    return getCommandSuggestions(input)
   }, [input, getCommandSuggestions])
 
   // Show/hide command suggestions
   useEffect(() => {
-    const shouldShow = input.startsWith('/') && commandSuggestions.length > 0
-    console.log('Show command suggestions:', shouldShow, 'input:', input, 'count:', commandSuggestions.length)
-    setShowCommandSuggestions(shouldShow)
+    setShowCommandSuggestions(input.startsWith('/') && commandSuggestions.length > 0)
   }, [input, commandSuggestions])
 
   // Context hint based on mode

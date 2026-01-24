@@ -29,7 +29,6 @@ export function registerCommand(command: CommandDefinition): void {
   command.aliases?.forEach((alias) => {
     commands.set(alias, command)
   })
-  console.log(`Registered command: /${command.name}`, command.aliases ? `(aliases: ${command.aliases.join(', ')})` : '')
 }
 
 /**
@@ -53,7 +52,6 @@ export function getAllCommands(): CommandDefinition[] {
     }
   })
 
-  console.log(`getAllCommands() returning ${result.length} commands`)
   return result
 }
 
@@ -911,34 +909,27 @@ registerCommand({
 
       if (result.action_type === 'tool_call' && result.tools_called?.length) {
         message += `### Actions Taken\n`
-        message += `Tools called: ${result.tools_called.map((t) => t.name).join(', ')}\n\n`
+        message += `Tools called: ${result.tools_called.map((t: any) => t.tool_name).join(', ')}\n\n`
 
-        if (result.tool_results?.length) {
-          message += `**Results:**\n`
-          result.tool_results.forEach((r, i) => {
-            const tool = result.tools_called?.[i]
-            if (r.success) {
-              message += `✓ ${tool?.name}: Success\n`
-            } else {
-              message += `✗ ${tool?.name}: ${r.error || 'Failed'}\n`
-            }
-          })
-          message += '\n'
-        }
+        // Results are now embedded in tools_called, not separate
+        message += `**Results:**\n`
+        result.tools_called.forEach((tool: any) => {
+          if (tool.success) {
+            message += `✓ ${tool.tool_name}: Success\n`
+          } else {
+            message += `✗ ${tool.tool_name}: ${tool.error || 'Failed'}\n`
+          }
+        })
+        message += '\n'
       } else if (result.action_type === 'guidance' && result.guidance) {
-        message += `### Guidance\n${result.guidance.summary}\n\n`
-        if (result.guidance.next_steps?.length) {
-          message += `**Next Steps:**\n`
-          result.guidance.next_steps.forEach((step) => {
-            message += `- ${step}\n`
+        const guidance: any = result.guidance
+        message += `### Guidance\n${guidance.summary}\n\n`
+        if (guidance.questions_to_ask?.length) {
+          message += `**Questions to Ask:**\n`
+          guidance.questions_to_ask.forEach((q: any) => {
+            message += `- ${q.question} *(${q.why_ask})*\n`
           })
           message += '\n'
-        }
-        if (result.guidance.questions_for_client?.length) {
-          message += `**Questions for Client:**\n`
-          result.guidance.questions_for_client.forEach((q) => {
-            message += `- ${q}\n`
-          })
         }
       }
 
@@ -952,7 +943,11 @@ registerCommand({
       return {
         success: true,
         message,
-        data: { action: 'di_agent_analysis', result },
+        data: {
+          action: 'di_agent_analysis',
+          result,
+          refresh_project: true  // Trigger auto-refresh
+        },
       }
     } catch (error: any) {
       return {
