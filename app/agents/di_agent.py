@@ -182,7 +182,53 @@ What's your reasoning and recommended action?"""
         )
 
         # ======================================================================
-        # 5. Log reasoning
+        # 5. Execute tools if decided to call them
+        # ======================================================================
+
+        if agent_response.action_type == "tool_call" and agent_response.tools_called:
+            from app.agents.di_agent_tools import execute_di_tool
+
+            logger.info(f"Executing {len(agent_response.tools_called)} tools")
+
+            # Execute each tool and update results
+            for tool_call in agent_response.tools_called:
+                try:
+                    result = await execute_di_tool(
+                        tool_name=tool_call.tool_name,
+                        tool_args=tool_call.tool_args,
+                        project_id=project_id,
+                    )
+
+                    # Update tool call with result
+                    tool_call.result = result.get("data")
+                    tool_call.success = result.get("success", False)
+                    tool_call.error = result.get("error")
+
+                    logger.info(
+                        f"Tool {tool_call.tool_name}: {'✓' if tool_call.success else '✗'}",
+                        extra={
+                            "project_id": str(project_id),
+                            "tool_name": tool_call.tool_name,
+                            "success": tool_call.success,
+                        },
+                    )
+                except Exception as e:
+                    logger.error(f"Error executing tool {tool_call.tool_name}: {e}")
+                    tool_call.success = False
+                    tool_call.error = str(e)
+
+            # Recompute readiness after tool execution
+            updated_readiness = compute_readiness(project_id)
+            agent_response.readiness_after = int(updated_readiness.score)
+            agent_response.gates_affected = [
+                gate for gate, assessment in {
+                    **updated_readiness.gates.get("prototype_gates", {}),
+                    **updated_readiness.gates.get("build_gates", {})
+                }.items() if assessment.satisfied
+            ]
+
+        # ======================================================================
+        # 6. Log invocation
         # ======================================================================
 
         execution_time_ms = int((datetime.utcnow() - start_time).total_seconds() * 1000)
