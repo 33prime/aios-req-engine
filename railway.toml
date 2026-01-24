@@ -5,7 +5,7 @@ builder = "nixpacks"
 NIXPACKS_UV_VERSION = "0.5.14"
 
 [deploy]
-startCommand = ".venv/bin/uvicorn app.main:app --host 0.0.0.0 --port $PORT --proxy-headers --forwarded-allow-ips='*'"
+startCommand = "uvicorn app.main:app --host 0.0.0.0 --port $PORT --proxy-headers --forwarded-allow-ips='*'"
 healthcheckPath = "/health"
 healthcheckTimeout = 300
 restartPolicyType = "on_failure"
