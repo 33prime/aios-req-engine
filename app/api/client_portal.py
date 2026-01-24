@@ -678,6 +678,13 @@ async def _create_portal_response_signal(info_request: InfoRequest, user_id: UUI
             "run_id": str(uuid4()),
         }).execute()
         logger.info(f"Created portal_response signal for info_request {info_request.id}")
+
+        # Invalidate DI cache - new signal to analyze
+        try:
+            from app.db.di_cache import invalidate_cache
+            invalidate_cache(info_request.project_id, "new portal_response signal")
+        except Exception as cache_err:
+            logger.warning(f"Failed to invalidate DI cache: {cache_err}")
     except Exception as e:
         logger.error(f"Failed to create portal_response signal: {e}")
         # Don't fail the request if signal creation fails

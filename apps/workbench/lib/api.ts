@@ -1302,6 +1302,16 @@ export interface ReadinessCapApplied {
   reason: string
 }
 
+export interface GateAssessment {
+  gate_name: string
+  is_satisfied: boolean
+  confidence: number
+  completeness: number
+  status: string
+  reason_not_satisfied?: string
+  how_to_acquire?: string
+}
+
 export interface ReadinessScore {
   score: number
   ready: boolean
@@ -1314,7 +1324,185 @@ export interface ReadinessScore {
   total_entities: number
   client_signals_count: number
   meetings_completed: number
+  // Gate-based readiness fields
+  phase?: string
+  gates?: GateAssessment[]
+  gate_score?: number
+  total_readiness?: number
+  prototype_gates_satisfied?: number
+  prototype_gates_total?: number
+  build_gates_satisfied?: number
+  build_gates_total?: number
 }
 
 export const getReadinessScore = (projectId: string) =>
   apiRequest<ReadinessScore>(`/projects/${projectId}/readiness`)
+
+// =============================================================================
+// DI Agent - Design Intelligence Agent
+// =============================================================================
+
+export interface DIAgentInvokeRequest {
+  trigger: string
+  trigger_context?: string
+  specific_request?: string
+}
+
+export interface DIAgentResponse {
+  observation: string
+  thinking: string
+  decision: string
+  action_type: string
+  tools_called?: Array<{ name: string; args: any }>
+  tool_results?: Array<{ success: boolean; data: any; error?: string }>
+  guidance?: {
+    summary: string
+    next_steps: string[]
+    questions_for_client?: string[]
+  }
+  readiness_before?: number
+  readiness_after?: number
+  gates_affected?: string[]
+}
+
+export interface CorePain {
+  statement: string
+  confidence: number
+  trigger?: string
+  stakes?: string
+  who_feels_it?: string
+  confirmed_by?: string
+}
+
+export interface PrimaryPersona {
+  name: string
+  role: string
+  confidence: number
+  context?: string
+  pain_experienced?: string
+  current_behavior?: string
+  desired_outcome?: string
+  confirmed_by?: string
+}
+
+export interface WowMoment {
+  description: string
+  confidence: number
+  trigger_event?: string
+  emotional_response?: string
+  level_1_core?: string
+  level_2_adjacent?: string
+  level_3_unstated?: string
+  confirmed_by?: string
+}
+
+export interface BusinessCase {
+  value_to_business: string
+  roi_framing: string
+  why_priority: string
+  confidence: number
+  success_kpis: Array<{
+    metric: string
+    current_state: string
+    target_state: string
+    measurement_method: string
+    timeframe: string
+  }>
+  confirmed_by?: string
+}
+
+export interface BudgetConstraints {
+  budget_range: string
+  budget_flexibility: string
+  timeline: string
+  confidence: number
+  hard_deadline?: string
+  deadline_driver?: string
+  technical_constraints: string[]
+  organizational_constraints: string[]
+  confirmed_by?: string
+}
+
+export interface ProjectFoundation {
+  project_id: string
+  core_pain?: CorePain
+  primary_persona?: PrimaryPersona
+  wow_moment?: WowMoment
+  design_preferences?: any
+  business_case?: BusinessCase
+  budget_constraints?: BudgetConstraints
+  confirmed_scope?: any
+  created_at: string
+  updated_at: string
+}
+
+export const invokeDIAgent = (
+  projectId: string,
+  request: DIAgentInvokeRequest
+) =>
+  apiRequest<DIAgentResponse>(`/projects/${projectId}/di-agent/invoke`, {
+    method: 'POST',
+    body: JSON.stringify(request),
+  })
+
+export const getProjectFoundation = (projectId: string) =>
+  apiRequest<ProjectFoundation>(`/projects/${projectId}/foundation`)
+
+export const extractCorePain = (projectId: string) =>
+  apiRequest<CorePain>(
+    `/projects/${projectId}/foundation/extract-core-pain`,
+    { method: 'POST' }
+  )
+
+export const extractPrimaryPersona = (projectId: string) =>
+  apiRequest<PrimaryPersona>(
+    `/projects/${projectId}/foundation/extract-primary-persona`,
+    { method: 'POST' }
+  )
+
+export const identifyWowMoment = (projectId: string) =>
+  apiRequest<WowMoment>(
+    `/projects/${projectId}/foundation/identify-wow-moment`,
+    { method: 'POST' }
+  )
+
+export const extractBusinessCase = (projectId: string) =>
+  apiRequest<BusinessCase>(
+    `/projects/${projectId}/foundation/extract-business-case`,
+    { method: 'POST' }
+  )
+
+export const extractBudgetConstraints = (projectId: string) =>
+  apiRequest<BudgetConstraints>(
+    `/projects/${projectId}/foundation/extract-budget-constraints`,
+    { method: 'POST' }
+  )
+
+export const getDIAgentLogs = (
+  projectId: string,
+  params?: {
+    limit?: number
+    offset?: number
+    trigger?: string
+    action_type?: string
+    success_only?: boolean
+  }
+) => {
+  const queryParams = new URLSearchParams()
+  if (params?.limit) queryParams.set('limit', params.limit.toString())
+  if (params?.offset) queryParams.set('offset', params.offset.toString())
+  if (params?.trigger) queryParams.set('trigger', params.trigger)
+  if (params?.action_type) queryParams.set('action_type', params.action_type)
+  if (params?.success_only) queryParams.set('success_only', 'true')
+
+  const query = queryParams.toString()
+  return apiRequest<{ logs: any[]; total: number }>(
+    `/projects/${projectId}/di-agent/logs${query ? `?${query}` : ''}`
+  )
+}
+
+export const invalidateDICache = (projectId: string, reason: string) =>
+  apiRequest<{ success: boolean; message: string }>(
+    `/projects/${projectId}/di-cache/invalidate?reason=${encodeURIComponent(reason)}`,
+    { method: 'POST' }
+  )

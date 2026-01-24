@@ -452,6 +452,14 @@ def update_feature_lifecycle(
             extra={"feature_id": str(feature_id), "lifecycle_stage": lifecycle_stage},
         )
 
+        # Refresh readiness cache when entity changes
+        try:
+            from app.core.readiness_cache import refresh_cached_readiness
+            project_id = UUID(updated_feature["project_id"])
+            refresh_cached_readiness(project_id)
+        except Exception as cache_err:
+            logger.warning(f"Failed to refresh readiness cache: {cache_err}")
+
         return updated_feature
 
     except ValueError:
@@ -591,6 +599,14 @@ def update_feature_status(
             extra={"feature_id": str(feature_id), "status": status},
         )
 
+        # Refresh readiness cache when entity changes
+        try:
+            from app.core.readiness_cache import refresh_cached_readiness
+            project_id = UUID(updated_feature["project_id"])
+            refresh_cached_readiness(project_id)
+        except Exception as cache_err:
+            logger.warning(f"Failed to refresh readiness cache: {cache_err}")
+
         return updated_feature
 
     except ValueError:
@@ -670,6 +686,14 @@ def update_feature(
         except Exception as track_err:
             logger.warning(f"Failed to track feature change: {track_err}")
 
+        # Refresh readiness cache when entity changes
+        try:
+            from app.core.readiness_cache import refresh_cached_readiness
+            project_id = UUID(updated_feature["project_id"])
+            refresh_cached_readiness(project_id)
+        except Exception as cache_err:
+            logger.warning(f"Failed to refresh readiness cache: {cache_err}")
+
         return updated_feature
 
     except ValueError:
@@ -740,6 +764,14 @@ def update_feature_enrichment(
             f"Enriched feature {feature_id}",
             extra={"feature_id": str(feature_id)},
         )
+
+        # Refresh readiness cache when entity changes
+        try:
+            from app.core.readiness_cache import refresh_cached_readiness
+            project_id = UUID(updated_feature["project_id"])
+            refresh_cached_readiness(project_id)
+        except Exception as cache_err:
+            logger.warning(f"Failed to refresh readiness cache: {cache_err}")
 
         return updated_feature
 

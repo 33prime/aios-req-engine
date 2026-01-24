@@ -46,9 +46,31 @@ interface ReadinessModalProps {
 }
 
 export function ReadinessModal({ projectId, isOpen, onClose, readinessData }: ReadinessModalProps) {
-  const [activeSection, setActiveSection] = useState<'overview' | 'breakdown' | 'actions'>('overview')
+  const [activeSection, setActiveSection] = useState<'overview' | 'breakdown' | 'actions' | 'gates'>('overview')
+  const [activeGateTab, setActiveGateTab] = useState<'prototype' | 'build'>('prototype')
 
   if (!isOpen || !readinessData) return null
+
+  // Extract gate information if available
+  const gatesData = (readinessData as any).gates as Array<{
+    gate_name: string
+    is_satisfied: boolean
+    confidence: number
+    completeness: number
+    status: string
+    reason_not_satisfied?: string
+    how_to_acquire?: string
+  }> | undefined
+
+  const phase = (readinessData as any).phase as string | undefined
+  const totalReadiness = (readinessData as any).total_readiness ?? readinessData.score
+
+  // Separate gates into prototype and build
+  const prototypeGateNames = ['core_pain', 'primary_persona', 'wow_moment', 'design_preferences']
+  const buildGateNames = ['business_case', 'budget_constraints', 'full_requirements']
+
+  const prototypeGates = gatesData?.filter(g => prototypeGateNames.includes(g.gate_name))
+  const buildGates = gatesData?.filter(g => buildGateNames.includes(g.gate_name))
 
   const getReadinessIcon = () => {
     if (readinessData.score >= 80) return <CheckCircle className="h-16 w-16 text-green-600" />
@@ -109,6 +131,13 @@ export function ReadinessModal({ projectId, isOpen, onClose, readinessData }: Re
               active={activeSection === 'overview'}
               onClick={() => setActiveSection('overview')}
             />
+            {gatesData && gatesData.length > 0 && (
+              <TabButton
+                label="Gates"
+                active={activeSection === 'gates'}
+                onClick={() => setActiveSection('gates')}
+              />
+            )}
             <TabButton
               label="Component Breakdown"
               active={activeSection === 'breakdown'}
@@ -126,12 +155,25 @@ export function ReadinessModal({ projectId, isOpen, onClose, readinessData }: Re
           <div className="flex-1 overflow-y-auto px-6 py-6">
             {activeSection === 'overview' && (
               <OverviewSection
-                score={readinessData.score}
+                score={totalReadiness}
                 level={readinessData.readiness_level}
                 icon={getReadinessIcon()}
                 color={getReadinessColor()}
                 message={getReadinessMessage()}
                 breakdown={readinessData.breakdown}
+                phase={phase}
+                prototypeGates={prototypeGates}
+                buildGates={buildGates}
+              />
+            )}
+
+            {activeSection === 'gates' && gatesData && (
+              <GatesSection
+                prototypeGates={prototypeGates || []}
+                buildGates={buildGates || []}
+                activeTab={activeGateTab}
+                setActiveTab={setActiveGateTab}
+                phase={phase}
               />
             )}
 
@@ -211,6 +253,9 @@ function OverviewSection({
   color,
   message,
   breakdown,
+  phase,
+  prototypeGates,
+  buildGates,
 }: {
   score: number
   level: string
@@ -218,17 +263,69 @@ function OverviewSection({
   color: string
   message: string
   breakdown?: any
+  phase?: string
+  prototypeGates?: any[]
+  buildGates?: any[]
 }) {
+  const getPhaseInfo = () => {
+    if (!phase) return null
+
+    switch (phase) {
+      case 'insufficient':
+        return { label: 'Insufficient', color: 'bg-red-100 text-red-800', emoji: '🔴' }
+      case 'prototype_ready':
+        return { label: 'Prototype Ready', color: 'bg-yellow-100 text-yellow-800', emoji: '🟡' }
+      case 'build_ready':
+        return { label: 'Build Ready', color: 'bg-green-100 text-green-800', emoji: '🟢' }
+      default:
+        return { label: phase, color: 'bg-gray-100 text-gray-800', emoji: '⚪' }
+    }
+  }
+
+  const phaseInfo = getPhaseInfo()
+
+  const getNextMilestone = () => {
+    if (!phase) return null
+
+    switch (phase) {
+      case 'insufficient':
+        return { text: 'Next: Satisfy prototype gates', description: 'Complete core pain, persona, and wow moment' }
+      case 'prototype_ready':
+        return { text: 'Next: Build prototype', description: 'You have enough to start building' }
+      case 'build_ready':
+        return { text: 'Next: Full implementation', description: 'Ready for production build' }
+      default:
+        return null
+    }
+  }
+
+  const nextMilestone = getNextMilestone()
+
   return (
     <div className="space-y-6">
       {/* Score Display */}
       <div className="text-center py-8">
+        {phaseInfo && (
+          <div className="flex justify-center mb-4">
+            <span className={`px-4 py-2 rounded-full text-sm font-semibold ${phaseInfo.color}`}>
+              {phaseInfo.emoji} {phaseInfo.label}
+            </span>
+          </div>
+        )}
         <div className="flex justify-center mb-4">{icon}</div>
         <div className="flex items-baseline justify-center gap-3 mb-2">
           <span className={`text-6xl font-bold ${color}`}>{score}</span>
           <span className="text-3xl text-ui-supportText">/100</span>
         </div>
         <p className="text-lg text-ui-bodyText">{message}</p>
+        {nextMilestone && (
+          <div className="mt-4 max-w-md mx-auto">
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <div className="font-semibold text-blue-900">{nextMilestone.text}</div>
+              <div className="text-sm text-blue-700 mt-1">{nextMilestone.description}</div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Progress Bar */}
@@ -306,6 +403,212 @@ function QuickStat({
         <span className="text-xs font-medium">{label}</span>
       </div>
       <div className="text-2xl font-bold">{score}</div>
+    </div>
+  )
+}
+
+// Gates Section
+function GatesSection({
+  prototypeGates,
+  buildGates,
+  activeTab,
+  setActiveTab,
+  phase,
+}: {
+  prototypeGates: any[]
+  buildGates: any[]
+  activeTab: 'prototype' | 'build'
+  setActiveTab: (tab: 'prototype' | 'build') => void
+  phase?: string
+}) {
+  const gates = activeTab === 'prototype' ? prototypeGates : buildGates
+  const unsatisfiedGates = gates.filter(g => !g.is_satisfied)
+
+  const formatGateName = (name: string) => {
+    return name
+      .split('_')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ')
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Gate Tabs */}
+      <div className="flex gap-2 border-b border-gray-200">
+        <button
+          onClick={() => setActiveTab('prototype')}
+          className={`px-4 py-2 font-medium text-sm border-b-2 transition-colors ${
+            activeTab === 'prototype'
+              ? 'border-brand-primary text-brand-primary'
+              : 'border-transparent text-ui-supportText hover:text-ui-bodyText'
+          }`}
+        >
+          Prototype Gates (0-40 pts)
+        </button>
+        <button
+          onClick={() => setActiveTab('build')}
+          className={`px-4 py-2 font-medium text-sm border-b-2 transition-colors ${
+            activeTab === 'build'
+              ? 'border-brand-primary text-brand-primary'
+              : 'border-transparent text-ui-supportText hover:text-ui-bodyText'
+          }`}
+        >
+          Build Gates (41-100 pts)
+        </button>
+      </div>
+
+      {/* Blocking Gates Warning */}
+      {unsatisfiedGates.length > 0 && (
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="h-5 w-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+            <div>
+              <div className="font-semibold text-yellow-900">
+                {unsatisfiedGates.length} {activeTab === 'prototype' ? 'Prototype' : 'Build'} Gate
+                {unsatisfiedGates.length === 1 ? '' : 's'} Not Satisfied
+              </div>
+              <div className="text-sm text-yellow-800 mt-1">
+                {activeTab === 'prototype'
+                  ? 'These gates should be satisfied before building a prototype'
+                  : 'These gates should be satisfied before starting full implementation'}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Gate Cards */}
+      <div className="space-y-4">
+        {gates.map((gate) => (
+          <GateCard key={gate.gate_name} gate={gate} formatName={formatGateName} />
+        ))}
+      </div>
+
+      {/* All Satisfied */}
+      {unsatisfiedGates.length === 0 && gates.length > 0 && (
+        <div className="bg-green-50 border border-green-200 rounded-lg p-6 text-center">
+          <CheckCircle className="h-12 w-12 text-green-600 mx-auto mb-3" />
+          <div className="font-semibold text-green-900 text-lg">
+            All {activeTab === 'prototype' ? 'Prototype' : 'Build'} Gates Satisfied!
+          </div>
+          <div className="text-sm text-green-800 mt-1">
+            {activeTab === 'prototype'
+              ? 'You have enough information to start building a prototype'
+              : 'You have enough information for full implementation'}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// Gate Card Component
+function GateCard({
+  gate,
+  formatName,
+}: {
+  gate: {
+    gate_name: string
+    is_satisfied: boolean
+    confidence: number
+    completeness: number
+    status: string
+    reason_not_satisfied?: string
+    how_to_acquire?: string
+  }
+  formatName: (name: string) => string
+}) {
+  const [expanded, setExpanded] = useState(false)
+
+  const getStatusIcon = () => {
+    if (gate.is_satisfied) {
+      return <CheckCircle className="h-5 w-5 text-green-600" />
+    }
+    return <XCircle className="h-5 w-5 text-red-600" />
+  }
+
+  const getStatusBadge = () => {
+    if (gate.is_satisfied) {
+      return (
+        <span className="px-2 py-1 bg-green-100 text-green-800 rounded text-xs font-medium">
+          ✓ Satisfied
+        </span>
+      )
+    }
+    return (
+      <span className="px-2 py-1 bg-red-100 text-red-800 rounded text-xs font-medium">
+        ⚠ Missing
+      </span>
+    )
+  }
+
+  return (
+    <div className="bg-white border border-gray-200 rounded-lg p-4">
+      <div className="flex items-start justify-between mb-3">
+        <div className="flex items-start gap-3 flex-1">
+          {getStatusIcon()}
+          <div className="flex-1">
+            <div className="flex items-center gap-2 mb-1">
+              <h3 className="font-semibold text-ui-bodyText">{formatName(gate.gate_name)}</h3>
+              {getStatusBadge()}
+            </div>
+            <div className="text-sm text-ui-supportText">
+              Confidence: {(gate.confidence * 100).toFixed(0)}% | Completeness:{' '}
+              {(gate.completeness * 100).toFixed(0)}%
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Confidence Bar */}
+      <div className="mb-3">
+        <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+          <div
+            className={`h-full transition-all duration-300 ${
+              gate.confidence >= 0.7
+                ? 'bg-green-500'
+                : gate.confidence >= 0.5
+                  ? 'bg-yellow-500'
+                  : 'bg-red-500'
+            }`}
+            style={{ width: `${gate.confidence * 100}%` }}
+          />
+        </div>
+      </div>
+
+      {/* Expandable Details */}
+      {!gate.is_satisfied && (gate.reason_not_satisfied || gate.how_to_acquire) && (
+        <div>
+          <button
+            onClick={() => setExpanded(!expanded)}
+            className="text-sm text-brand-primary hover:text-brand-primaryHover font-medium flex items-center gap-1"
+          >
+            {expanded ? '▼' : '▶'} {expanded ? 'Hide details' : 'What\'s missing & how to acquire'}
+          </button>
+
+          {expanded && (
+            <div className="mt-3 space-y-3 pl-4 border-l-2 border-gray-200">
+              {gate.reason_not_satisfied && (
+                <div>
+                  <div className="text-xs font-semibold text-ui-supportText uppercase mb-1">
+                    What's Missing
+                  </div>
+                  <div className="text-sm text-ui-bodyText">{gate.reason_not_satisfied}</div>
+                </div>
+              )}
+
+              {gate.how_to_acquire && (
+                <div>
+                  <div className="text-xs font-semibold text-ui-supportText uppercase mb-1">
+                    How to Acquire
+                  </div>
+                  <div className="text-sm text-ui-bodyText">{gate.how_to_acquire}</div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }

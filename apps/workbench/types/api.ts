@@ -565,5 +565,16 @@ export interface ProjectDetailWithDashboard extends ProjectWithDashboard {
     total_entities: number
     client_signals_count: number
     meetings_completed: number
+    // Gate-based readiness fields (DI Agent integration)
+    phase?: string  // "insufficient" | "prototype_ready" | "build_ready"
+    prototype_ready?: boolean
+    build_ready?: boolean
+    gates?: {
+      prototype_gates: Record<string, any>
+      build_gates: Record<string, any>
+    }
+    next_milestone?: string  // "prototype" | "build" | "complete"
+    blocking_gates?: string[]
+    gate_score?: number
   } | null
 }

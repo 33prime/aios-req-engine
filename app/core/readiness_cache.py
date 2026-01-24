@@ -84,7 +84,7 @@ def update_project_readiness(project_id: UUID) -> float:
     Recalculate and cache the readiness score for a project.
 
     Uses the new dimensional readiness scoring (value_path, problem,
-    solution, engagement) for consistency with OverviewTab.
+    solution, engagement) plus gate-based scoring for consistency.
 
     Args:
         project_id: Project UUID
@@ -93,9 +93,12 @@ def update_project_readiness(project_id: UUID) -> float:
         The new readiness score (0-100 as float for storage as 0-1)
     """
     try:
-        # Calculate fresh score using new dimensional readiness
+        # Calculate fresh score using new dimensional + gate-based readiness
         readiness = compute_readiness(project_id)
         score = readiness.score / 100.0  # Convert 0-100 to 0-1 for storage
+
+        # Serialize full readiness data for instant frontend display
+        readiness_data = readiness.model_dump(mode="json")
 
         # Update the projects table
         supabase = get_supabase()
@@ -103,12 +106,19 @@ def update_project_readiness(project_id: UUID) -> float:
 
         supabase.table("projects").update({
             "cached_readiness_score": score,
+            "cached_readiness_data": readiness_data,
             "readiness_calculated_at": now,
         }).eq("id", str(project_id)).execute()
 
         logger.info(
-            f"Updated cached readiness score for project {project_id}: {readiness.score}%",
-            extra={"project_id": str(project_id), "score": readiness.score},
+            f"Updated cached readiness for project {project_id}: {readiness.score}% "
+            f"(phase={readiness.phase}, gate_score={readiness.gate_score})",
+            extra={
+                "project_id": str(project_id),
+                "score": readiness.score,
+                "phase": readiness.phase,
+                "gate_score": readiness.gate_score,
+            },
         )
 
         return score
@@ -116,6 +126,20 @@ def update_project_readiness(project_id: UUID) -> float:
     except Exception as e:
         logger.error(f"Failed to update readiness score for {project_id}: {e}")
         raise
+
+
+def refresh_cached_readiness(project_id: UUID) -> None:
+    """
+    Refresh cached readiness score and data for a project.
+
+    This is called when entities or foundation elements change.
+    It's a simple wrapper around update_project_readiness() for
+    backward compatibility with existing code.
+
+    Args:
+        project_id: Project UUID
+    """
+    update_project_readiness(project_id)
 
 
 def update_all_readiness_scores() -> dict:

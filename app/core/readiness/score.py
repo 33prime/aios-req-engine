@@ -30,6 +30,10 @@ from app.core.readiness.dimensions.engagement import score_engagement
 from app.core.readiness.caps import apply_caps
 from app.core.readiness.recommendations import select_top_recommendations
 
+# Gate assessment (DI Agent integration)
+from app.core.readiness.gates import assess_all_gates
+from app.agents.di_agent_types import ReadinessPhase
+
 # Data access
 from app.db.vp import list_vp_steps
 from app.db.features import list_features
@@ -37,6 +41,7 @@ from app.db.personas import list_personas
 from app.db.strategic_context import get_strategic_context
 from app.db.signals import list_project_signals
 from app.db.meetings import list_meetings
+from app.db.foundation import get_project_foundation
 
 logger = get_logger(__name__)
 
@@ -60,6 +65,17 @@ def compute_readiness(project_id: UUID) -> ReadinessScore:
     # 1. Fetch current project state
     # ==========================================================================
     state = _fetch_project_state(project_id)
+
+    # ==========================================================================
+    # 1b. Assess gates (DI Agent integration)
+    # ==========================================================================
+    prototype_gates, build_gates, gate_score, phase = assess_all_gates(project_id)
+
+    logger.info(
+        f"Gate assessment: score={gate_score}, phase={phase.value}, "
+        f"prototype={sum(1 for g in prototype_gates.values() if g.satisfied)}/4, "
+        f"build={sum(1 for g in build_gates.values() if g.satisfied)}/4"
+    )
 
     # ==========================================================================
     # 2. Score each dimension
@@ -106,7 +122,7 @@ def compute_readiness(project_id: UUID) -> ReadinessScore:
     wow_factor = dimensions["value_path"].factors.get("wow_moment")
     wow_score = wow_factor.score if wow_factor else 50
 
-    final_score, caps_applied = apply_caps(
+    dimensional_score, caps_applied = apply_caps(
         raw_score=raw_score,
         vp_steps=state["vp_steps"],
         client_signals=state["client_signals"],
@@ -115,6 +131,27 @@ def compute_readiness(project_id: UUID) -> ReadinessScore:
         total_count=state["total_count"],
         wow_score=wow_score,
     )
+
+    # ==========================================================================
+    # 4b. Apply gate score as ceiling
+    # ==========================================================================
+    # Gates provide a hard cap on top of dimensional scoring
+    # Can't exceed gate score regardless of dimensional work
+    final_score = min(dimensional_score, gate_score)
+
+    if final_score < dimensional_score:
+        logger.info(
+            f"Gate ceiling applied: {dimensional_score:.1f} → {final_score} "
+            f"(capped by {phase.value} gates)"
+        )
+        # Add gate cap to caps_applied list
+        caps_applied.append(
+            CapApplied(
+                cap_id=f"gate_{phase.value}",
+                limit=gate_score,
+                reason=f"Gate score ceiling ({phase.value} phase: {gate_score}/100)",
+            )
+        )
 
     # ==========================================================================
     # 5. Collect and rank recommendations
@@ -130,6 +167,26 @@ def compute_readiness(project_id: UUID) -> ReadinessScore:
     # ==========================================================================
     # 6. Build final result
     # ==========================================================================
+    # Determine blocking gates
+    blocking_gates = []
+    for gate_name, assessment in {**prototype_gates, **build_gates}.items():
+        if assessment.required and not assessment.satisfied:
+            blocking_gates.append(gate_name)
+
+    # Determine next milestone
+    if phase == ReadinessPhase.BUILD_READY:
+        next_milestone = "complete"
+    elif phase == ReadinessPhase.PROTOTYPE_READY:
+        next_milestone = "build"
+    else:
+        next_milestone = "prototype"
+
+    # Convert gate assessments to dicts for JSON serialization
+    gates_dict = {
+        "prototype_gates": {k: v.model_dump() for k, v in prototype_gates.items()},
+        "build_gates": {k: v.model_dump() for k, v in build_gates.items()},
+    }
+
     return ReadinessScore(
         score=round(final_score, 1),
         ready=final_score >= READINESS_THRESHOLD,
@@ -137,6 +194,15 @@ def compute_readiness(project_id: UUID) -> ReadinessScore:
         dimensions=dimensions,
         caps_applied=caps_applied,
         top_recommendations=top_recommendations,
+        # Gate-based fields
+        phase=phase.value,
+        prototype_ready=phase in (ReadinessPhase.PROTOTYPE_READY, ReadinessPhase.BUILD_READY),
+        build_ready=phase == ReadinessPhase.BUILD_READY,
+        gates=gates_dict,
+        next_milestone=next_milestone,
+        blocking_gates=blocking_gates,
+        gate_score=gate_score,
+        # Metadata
         computed_at=datetime.utcnow(),
         confirmed_entities=state["confirmed_count"],
         total_entities=state["total_count"],
@@ -159,6 +225,7 @@ def _fetch_project_state(project_id: UUID) -> dict:
     signals_result = list_project_signals(project_id)
     signals = signals_result.get("signals", []) if isinstance(signals_result, dict) else []
     meetings = list_meetings(project_id)
+    foundation = get_project_foundation(project_id)
 
     # Filter signals by authority
     client_signals = [
@@ -191,6 +258,7 @@ def _fetch_project_state(project_id: UUID) -> dict:
         "strategic_context": strategic_context,
         "signals": signals,
         "meetings": meetings,
+        "foundation": foundation,
         "client_signals": client_signals,
         "completed_meetings": completed_meetings,
         "confirmed_count": confirmed_count,

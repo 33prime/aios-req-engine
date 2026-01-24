@@ -232,6 +232,14 @@ def update_vp_step_status(
             except Exception as conf_err:
                 logger.warning(f"Failed to create confirmation item: {conf_err}")
 
+        # Refresh readiness cache when entity changes
+        try:
+            from app.core.readiness_cache import refresh_cached_readiness
+            project_id = UUID(updated_step["project_id"])
+            refresh_cached_readiness(project_id)
+        except Exception as cache_err:
+            logger.warning(f"Failed to refresh readiness cache: {cache_err}")
+
         return updated_step
 
     except ValueError:
@@ -404,6 +412,14 @@ def update_vp_step(
             )
         except Exception as track_err:
             logger.warning(f"Failed to track VP step change: {track_err}")
+
+        # Refresh readiness cache when entity changes
+        try:
+            from app.core.readiness_cache import refresh_cached_readiness
+            project_id = UUID(updated_step["project_id"])
+            refresh_cached_readiness(project_id)
+        except Exception as cache_err:
+            logger.warning(f"Failed to refresh readiness cache: {cache_err}")
 
         return updated_step
 

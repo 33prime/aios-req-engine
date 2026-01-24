@@ -223,6 +223,14 @@ def update_persona(
         except Exception as track_err:
             logger.warning(f"Failed to track persona change: {track_err}")
 
+    # Refresh readiness cache when entity changes
+    try:
+        from app.core.readiness_cache import refresh_cached_readiness
+        project_id = UUID(updated_persona["project_id"])
+        refresh_cached_readiness(project_id)
+    except Exception as cache_err:
+        logger.warning(f"Failed to refresh readiness cache: {cache_err}")
+
     return updated_persona
 
 
@@ -393,7 +401,17 @@ def update_confirmation_status(
         .execute()
     )
 
-    return response.data[0]
+    updated_persona = response.data[0]
+
+    # Refresh readiness cache when entity changes
+    try:
+        from app.core.readiness_cache import refresh_cached_readiness
+        project_id = UUID(updated_persona["project_id"])
+        refresh_cached_readiness(project_id)
+    except Exception as cache_err:
+        logger.warning(f"Failed to refresh readiness cache: {cache_err}")
+
+    return updated_persona
 
 
 # ============================================================================
@@ -782,6 +800,14 @@ def update_persona_enrichment(
             f"Enriched persona {persona_id}",
             extra={"persona_id": str(persona_id)},
         )
+
+        # Refresh readiness cache when entity changes
+        try:
+            from app.core.readiness_cache import refresh_cached_readiness
+            project_id = UUID(updated_persona["project_id"])
+            refresh_cached_readiness(project_id)
+        except Exception as cache_err:
+            logger.warning(f"Failed to refresh readiness cache: {cache_err}")
 
         return updated_persona
 

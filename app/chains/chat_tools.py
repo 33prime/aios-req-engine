@@ -1343,6 +1343,14 @@ async def _create_signal_from_chat(project_id: UUID, params: Dict[str, Any]) -> 
 
         if response.data:
             signal = response.data[0]
+
+            # Invalidate DI cache - new signal to analyze
+            try:
+                from app.db.di_cache import invalidate_cache
+                invalidate_cache(project_id, f"new {signal_type} signal")
+            except Exception as cache_err:
+                logger.warning(f"Failed to invalidate DI cache: {cache_err}")
+
             return {
                 "success": True,
                 "signal_id": signal["id"],
@@ -2487,6 +2495,13 @@ async def _add_signal(project_id: UUID, params: Dict[str, Any]) -> Dict[str, Any
         except Exception as chunk_error:
             logger.warning(f"Failed to chunk signal {signal_id}: {chunk_error}")
             # Continue anyway - signal is saved
+
+        # Invalidate DI cache - new signal to analyze
+        try:
+            from app.db.di_cache import invalidate_cache
+            invalidate_cache(project_id, f"new {signal_type} signal from {source}")
+        except Exception as cache_err:
+            logger.warning(f"Failed to invalidate DI cache: {cache_err}")
 
         result = {
             "success": True,

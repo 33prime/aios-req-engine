@@ -1,7 +1,7 @@
 """Pydantic models for readiness scoring system."""
 
 from datetime import datetime
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -66,6 +66,33 @@ class ReadinessScore(BaseModel):
 
     top_recommendations: list[Recommendation] = Field(
         default_factory=list, description="Top 5 actions to improve readiness"
+    )
+
+    # Gate-based readiness (DI Agent integration)
+    phase: str = Field(
+        default="insufficient",
+        description="Readiness phase: insufficient (0-40), prototype_ready (41-70), build_ready (71-100)",
+    )
+    prototype_ready: bool = Field(
+        default=False, description="Whether prototype gates are satisfied (score > 40)"
+    )
+    build_ready: bool = Field(
+        default=False, description="Whether build gates are satisfied (score > 70)"
+    )
+    gates: dict[str, Any] = Field(
+        default_factory=dict,
+        description="Gate assessments: {prototype_gates: {...}, build_gates: {...}}",
+    )
+    next_milestone: str = Field(
+        default="prototype",
+        description="Next milestone: 'prototype', 'build', or 'complete'",
+    )
+    blocking_gates: list[str] = Field(
+        default_factory=list,
+        description="Unsatisfied required gates blocking progress",
+    )
+    gate_score: int = Field(
+        default=0, description="Gate-based score (0-100) that caps dimensional score"
     )
 
     # Metadata

@@ -2,6 +2,15 @@
 
 LangGraph-based requirements compilation and management microservice.
 
+## Documentation
+
+- **[DI Agent Guide](docs/DI_AGENT_GUIDE.md)** - Complete guide to using the Design Intelligence Agent for building project foundations
+- **[DI Agent API Reference](docs/API_DI_AGENT.md)** - Complete API reference for DI Agent endpoints with examples
+- **[Prompt Tuning Analysis](docs/PROMPT_TUNING.md)** - Analysis and refinement of DI Agent and extraction prompts
+- **[Performance Optimization](docs/PERFORMANCE_OPTIMIZATION.md)** - Performance analysis and optimization strategy for DI Agent and foundation system
+- **[UI Polish Recommendations](docs/UI_POLISH_RECOMMENDATIONS.md)** - Frontend polish and user experience enhancement recommendations
+- **[Consultant Workflow Implementation](docs/CONSULTANT_WORKFLOW_IMPLEMENTATION.md)** - Summary of consultant workflow enhancements
+
 ## Architecture
 
 This service follows clean architecture principles:

@@ -874,6 +874,417 @@ registerCommand({
 })
 
 // =============================================================================
+// DI AGENT COMMANDS - Design Intelligence
+// =============================================================================
+
+// /analyze-project (alias: /di)
+registerCommand({
+  name: 'analyze-project',
+  description: 'Run Design Intelligence analysis to identify next best action',
+  aliases: ['di', 'analyze'],
+  examples: ['/analyze-project', '/di'],
+  execute: async (_args, context): Promise<CommandResult> => {
+    const { projectId } = context
+
+    if (!projectId) {
+      return {
+        success: false,
+        message: 'No project selected. Please select a project first.',
+      }
+    }
+
+    const { invokeDIAgent } = await import('@/lib/api')
+
+    try {
+      const result = await invokeDIAgent(projectId, {
+        trigger: 'user_request',
+        trigger_context: 'slash command from assistant',
+      })
+
+      // Format the response
+      let message = `## 🧠 Design Intelligence Analysis\n\n`
+      message += `### Observed\n${result.observation}\n\n`
+      message += `### Thinking\n${result.thinking}\n\n`
+      message += `### Decision\n${result.decision}\n\n`
+
+      if (result.action_type === 'tool_call' && result.tools_called?.length) {
+        message += `### Actions Taken\n`
+        message += `Tools called: ${result.tools_called.map((t) => t.name).join(', ')}\n\n`
+
+        if (result.tool_results?.length) {
+          message += `**Results:**\n`
+          result.tool_results.forEach((r, i) => {
+            const tool = result.tools_called?.[i]
+            if (r.success) {
+              message += `✓ ${tool?.name}: Success\n`
+            } else {
+              message += `✗ ${tool?.name}: ${r.error || 'Failed'}\n`
+            }
+          })
+          message += '\n'
+        }
+      } else if (result.action_type === 'guidance' && result.guidance) {
+        message += `### Guidance\n${result.guidance.summary}\n\n`
+        if (result.guidance.next_steps?.length) {
+          message += `**Next Steps:**\n`
+          result.guidance.next_steps.forEach((step) => {
+            message += `- ${step}\n`
+          })
+          message += '\n'
+        }
+        if (result.guidance.questions_for_client?.length) {
+          message += `**Questions for Client:**\n`
+          result.guidance.questions_for_client.forEach((q) => {
+            message += `- ${q}\n`
+          })
+        }
+      }
+
+      if (
+        result.readiness_before !== undefined &&
+        result.readiness_after !== undefined
+      ) {
+        message += `\n**Readiness:** ${result.readiness_before}% → ${result.readiness_after}%`
+      }
+
+      return {
+        success: true,
+        message,
+        data: { action: 'di_agent_analysis', result },
+      }
+    } catch (error: any) {
+      return {
+        success: false,
+        message: `Failed to run DI analysis: ${error.message || 'Unknown error'}`,
+      }
+    }
+  },
+})
+
+// /extract-core-pain
+registerCommand({
+  name: 'extract-core-pain',
+  description: 'Extract THE singular core pain from project signals',
+  aliases: ['core-pain', 'pain'],
+  examples: ['/extract-core-pain'],
+  execute: async (_args, context): Promise<CommandResult> => {
+    const { projectId } = context
+
+    if (!projectId) {
+      return {
+        success: false,
+        message: 'No project selected. Please select a project first.',
+      }
+    }
+
+    const { extractCorePain } = await import('@/lib/api')
+
+    try {
+      const result = await extractCorePain(projectId)
+
+      let message = `## 💔 Core Pain\n\n`
+      message += `**Statement:** ${result.statement}\n\n`
+      if (result.trigger) {
+        message += `**Trigger:** ${result.trigger}\n\n`
+      }
+      if (result.stakes) {
+        message += `**Stakes:** ${result.stakes}\n\n`
+      }
+      if (result.who_feels_it) {
+        message += `**Who feels it:** ${result.who_feels_it}\n\n`
+      }
+      message += `**Confidence:** ${(result.confidence * 100).toFixed(0)}%\n`
+
+      if (result.confirmed_by) {
+        message += `\n✓ Confirmed by ${result.confirmed_by}`
+      }
+
+      return {
+        success: true,
+        message,
+        data: { action: 'core_pain_extracted', result },
+      }
+    } catch (error: any) {
+      return {
+        success: false,
+        message: `Failed to extract core pain: ${error.message || 'Unknown error'}`,
+      }
+    }
+  },
+})
+
+// /extract-persona
+registerCommand({
+  name: 'extract-persona',
+  description: 'Extract THE primary persona who feels the pain most',
+  aliases: ['persona', 'primary-persona'],
+  examples: ['/extract-persona'],
+  execute: async (_args, context): Promise<CommandResult> => {
+    const { projectId } = context
+
+    if (!projectId) {
+      return {
+        success: false,
+        message: 'No project selected. Please select a project first.',
+      }
+    }
+
+    const { extractPrimaryPersona } = await import('@/lib/api')
+
+    try {
+      const result = await extractPrimaryPersona(projectId)
+
+      let message = `## 👤 Primary Persona\n\n`
+      message += `**Name:** ${result.name}\n`
+      message += `**Role:** ${result.role}\n\n`
+
+      if (result.context) {
+        message += `**Context:** ${result.context}\n\n`
+      }
+      if (result.pain_experienced) {
+        message += `**Pain experienced:** ${result.pain_experienced}\n\n`
+      }
+      if (result.current_behavior) {
+        message += `**Current behavior:** ${result.current_behavior}\n\n`
+      }
+      if (result.desired_outcome) {
+        message += `**Desired outcome:** ${result.desired_outcome}\n\n`
+      }
+
+      message += `**Confidence:** ${(result.confidence * 100).toFixed(0)}%\n`
+
+      if (result.confirmed_by) {
+        message += `\n✓ Confirmed by ${result.confirmed_by}`
+      }
+
+      return {
+        success: true,
+        message,
+        data: { action: 'primary_persona_extracted', result },
+      }
+    } catch (error: any) {
+      return {
+        success: false,
+        message: `Failed to extract primary persona: ${error.message || 'Unknown error'}`,
+      }
+    }
+  },
+})
+
+// /identify-wow
+registerCommand({
+  name: 'identify-wow',
+  description: 'Identify THE wow moment where pain inverts to delight',
+  aliases: ['wow', 'wow-moment'],
+  examples: ['/identify-wow'],
+  execute: async (_args, context): Promise<CommandResult> => {
+    const { projectId } = context
+
+    if (!projectId) {
+      return {
+        success: false,
+        message: 'No project selected. Please select a project first.',
+      }
+    }
+
+    const { identifyWowMoment } = await import('@/lib/api')
+
+    try {
+      const result = await identifyWowMoment(projectId)
+
+      let message = `## ✨ Wow Moment\n\n`
+      message += `**Description:** ${result.description}\n\n`
+
+      if (result.trigger_event) {
+        message += `**Trigger event:** ${result.trigger_event}\n\n`
+      }
+      if (result.emotional_response) {
+        message += `**Emotional response:** ${result.emotional_response}\n\n`
+      }
+
+      message += `### Three-Level Framework\n\n`
+
+      if (result.level_1_core) {
+        message += `**Level 1 (Core pain solved):**\n${result.level_1_core}\n\n`
+      }
+      if (result.level_2_adjacent) {
+        message += `**Level 2 (Adjacent pains):**\n${result.level_2_adjacent}\n\n`
+      }
+      if (result.level_3_unstated) {
+        message += `**Level 3 (Unstated needs):**\n${result.level_3_unstated}\n\n`
+      }
+
+      message += `**Confidence:** ${(result.confidence * 100).toFixed(0)}%\n`
+
+      if (result.confirmed_by) {
+        message += `\n✓ Confirmed by ${result.confirmed_by}`
+      }
+
+      return {
+        success: true,
+        message,
+        data: { action: 'wow_moment_identified', result },
+      }
+    } catch (error: any) {
+      return {
+        success: false,
+        message: `Failed to identify wow moment: ${error.message || 'Unknown error'}`,
+      }
+    }
+  },
+})
+
+// /view-foundation
+registerCommand({
+  name: 'view-foundation',
+  description: 'View all foundation gate data for the project',
+  aliases: ['foundation', 'gates'],
+  examples: ['/view-foundation'],
+  execute: async (_args, context): Promise<CommandResult> => {
+    const { projectId } = context
+
+    if (!projectId) {
+      return {
+        success: false,
+        message: 'No project selected. Please select a project first.',
+      }
+    }
+
+    const { getProjectFoundation } = await import('@/lib/api')
+
+    try {
+      const foundation = await getProjectFoundation(projectId)
+
+      let message = `## 🏗️ Project Foundation\n\n`
+
+      // Core Pain
+      if (foundation.core_pain) {
+        message += `### 💔 Core Pain\n`
+        message += `${foundation.core_pain.statement}\n`
+        message += `*Confidence: ${(foundation.core_pain.confidence * 100).toFixed(0)}%*\n\n`
+      } else {
+        message += `### 💔 Core Pain\n*Not yet extracted*\n\n`
+      }
+
+      // Primary Persona
+      if (foundation.primary_persona) {
+        message += `### 👤 Primary Persona\n`
+        message += `**${foundation.primary_persona.name}** - ${foundation.primary_persona.role}\n`
+        message += `*Confidence: ${(foundation.primary_persona.confidence * 100).toFixed(0)}%*\n\n`
+      } else {
+        message += `### 👤 Primary Persona\n*Not yet extracted*\n\n`
+      }
+
+      // Wow Moment
+      if (foundation.wow_moment) {
+        message += `### ✨ Wow Moment\n`
+        message += `${foundation.wow_moment.description}\n`
+        message += `*Confidence: ${(foundation.wow_moment.confidence * 100).toFixed(0)}%*\n\n`
+      } else {
+        message += `### ✨ Wow Moment\n*Not yet identified*\n\n`
+      }
+
+      // Business Case
+      if (foundation.business_case) {
+        message += `### 💰 Business Case\n`
+        message += `**Value:** ${foundation.business_case.value_to_business}\n`
+        message += `**ROI:** ${foundation.business_case.roi_framing}\n`
+        message += `*Confidence: ${(foundation.business_case.confidence * 100).toFixed(0)}%*\n\n`
+      } else {
+        message += `### 💰 Business Case\n*Not yet extracted*\n\n`
+      }
+
+      // Budget Constraints
+      if (foundation.budget_constraints) {
+        message += `### 📊 Budget & Constraints\n`
+        message += `**Budget:** ${foundation.budget_constraints.budget_range}\n`
+        message += `**Timeline:** ${foundation.budget_constraints.timeline}\n`
+        message += `*Confidence: ${(foundation.budget_constraints.confidence * 100).toFixed(0)}%*\n\n`
+      } else {
+        message += `### 📊 Budget & Constraints\n*Not yet extracted*\n\n`
+      }
+
+      return {
+        success: true,
+        message,
+        data: { action: 'foundation_viewed', foundation },
+      }
+    } catch (error: any) {
+      return {
+        success: false,
+        message: `Failed to load foundation: ${error.message || 'Unknown error'}`,
+      }
+    }
+  },
+})
+
+// /view-gates
+registerCommand({
+  name: 'view-gates',
+  description: 'Show gate status from readiness assessment',
+  aliases: ['gates-status'],
+  examples: ['/view-gates'],
+  execute: async (_args, context): Promise<CommandResult> => {
+    const { projectId } = context
+
+    if (!projectId) {
+      return {
+        success: false,
+        message: 'No project selected. Please select a project first.',
+      }
+    }
+
+    const { getReadinessScore } = await import('@/lib/api')
+
+    try {
+      const readiness = await getReadinessScore(projectId)
+
+      // The readiness score now includes gate data
+      // We'll display it in a readable format
+      let message = `## 🚪 Project Gates\n\n`
+
+      message += `**Current Phase:** ${(readiness as any).phase || 'Unknown'}\n`
+      message += `**Total Readiness:** ${readiness.score}%\n\n`
+
+      // Display gate information if available
+      const gates = (readiness as any).gates || []
+
+      if (gates.length > 0) {
+        message += `### Gate Status\n\n`
+
+        gates.forEach((gate: any) => {
+          const icon = gate.is_satisfied ? '✓' : '✗'
+          const status = gate.is_satisfied ? 'Satisfied' : 'Not Satisfied'
+
+          message += `${icon} **${gate.gate_name}**: ${status}\n`
+          message += `  - Confidence: ${(gate.confidence * 100).toFixed(0)}%\n`
+          message += `  - Completeness: ${(gate.completeness * 100).toFixed(0)}%\n`
+
+          if (!gate.is_satisfied && gate.reason_not_satisfied) {
+            message += `  - Reason: ${gate.reason_not_satisfied}\n`
+          }
+
+          message += '\n'
+        })
+      } else {
+        message += `*No gate data available yet. Run /analyze-project to assess gates.*\n`
+      }
+
+      return {
+        success: true,
+        message,
+        data: { action: 'gates_viewed', readiness },
+      }
+    } catch (error: any) {
+      return {
+        success: false,
+        message: `Failed to load gate status: ${error.message || 'Unknown error'}`,
+      }
+    }
+  },
+})
+
+// =============================================================================
 // UTILITY COMMANDS
 // =============================================================================
 
@@ -945,6 +1356,14 @@ registerCommand({
 
     // Show all commands grouped by category
     let message = `## Available Commands\n\n`
+
+    message += `### Design Intelligence (DI Agent)\n`
+    message += `**/analyze-project** (or **/di**) - Run DI analysis to identify next action\n`
+    message += `**/extract-core-pain** - Extract THE singular core pain\n`
+    message += `**/extract-persona** - Extract THE primary persona\n`
+    message += `**/identify-wow** - Identify wow moment (pain → delight)\n`
+    message += `**/view-foundation** - View all foundation gate data\n`
+    message += `**/view-gates** - Show gate status and readiness\n\n`
 
     message += `### Run AI Agents\n`
     message += `**/run-foundation** - Extract company info, drivers, competitors\n`

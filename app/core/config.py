@@ -183,6 +183,12 @@ class Settings(BaseSettings):
         description="Claude model for deep research agent"
     )
 
+    # Design Intelligence Agent configuration
+    DI_AGENT_MODEL: str = Field(
+        default="claude-sonnet-4-20250514",
+        description="Claude model for DI Agent (gating and foundation)"
+    )
+
     # Firecrawl API configuration
     FIRECRAWL_API_KEY: str = Field(default="", description="Firecrawl API key for website scraping")
     FIRECRAWL_TIMEOUT: int = Field(default=30, description="Timeout for Firecrawl requests")
