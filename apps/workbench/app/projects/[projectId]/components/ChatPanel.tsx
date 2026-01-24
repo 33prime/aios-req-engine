@@ -49,10 +49,12 @@ import {
 // =============================================================================
 
 export interface ChatMessage {
+  id?: string // Add id for stable React keys
   role: 'user' | 'assistant' | 'system'
   content: string
   timestamp?: Date
   isStreaming?: boolean
+  metadata?: Record<string, unknown> // Include metadata from assistant messages
   toolCalls?: Array<{
     tool_name: string
     status: 'running' | 'complete' | 'error'
@@ -226,17 +228,23 @@ export function ChatPanel({
   // Combined messages (external + all context messages including command results)
   const allMessages = useMemo(() => {
     // Merge external messages with ALL assistant context messages (user, assistant, system)
-    return [
+    const combined = [
       ...externalMessages.map(m => ({
         ...m,
+        id: m.id || `ext-${Math.random()}`, // Ensure id exists
         timestamp: m.timestamp || new Date(),
       })),
       ...context.messages.map(m => ({
+        id: m.id, // Include id for stable React keys
         role: m.role as 'user' | 'assistant' | 'system',
         content: m.content,
         timestamp: m.timestamp,
+        metadata: m.metadata,
       })),
     ].sort((a, b) => (a.timestamp?.getTime() || 0) - (b.timestamp?.getTime() || 0))
+
+    console.log(`💬 Rendering ${combined.length} messages (${externalMessages.length} external + ${context.messages.length} context)`)
+    return combined
   }, [externalMessages, context.messages])
 
   // If minimized, show compact docked bar
@@ -359,7 +367,7 @@ export function ChatPanel({
             <>
               {allMessages.map((message, index) => (
                 <MessageBubble
-                  key={index}
+                  key={message.id || `msg-${index}`}
                   message={message}
                   onSendMessage={externalSendMessage}
                 />
