@@ -181,12 +181,19 @@ async def _stream_standard_processing(
 
     try:
         from app.graphs.build_state_graph import run_build_state_agent
+        from app.core.process_strategic_facts import process_strategic_facts_for_signal
 
         build_result = run_build_state_agent(
             project_id=project_id,
             run_id=run_id,
             job_id=None,
             mode="initial",
+        )
+
+        # Process strategic entities from extracted facts
+        strategic_result = process_strategic_facts_for_signal(
+            project_id=project_id,
+            signal_id=signal_id,
         )
 
         yield {
@@ -196,6 +203,12 @@ async def _stream_standard_processing(
                 "features_created": build_result.get("features_created", 0),
                 "personas_created": build_result.get("personas_created", 0),
                 "vp_steps_created": build_result.get("vp_steps_created", 0),
+                "business_drivers_created": strategic_result.get("business_drivers_created", 0),
+                "business_drivers_merged": strategic_result.get("business_drivers_merged", 0),
+                "competitor_refs_created": strategic_result.get("competitor_refs_created", 0),
+                "competitor_refs_merged": strategic_result.get("competitor_refs_merged", 0),
+                "stakeholders_created": strategic_result.get("stakeholders_created", 0),
+                "stakeholders_merged": strategic_result.get("stakeholders_merged", 0),
             },
             "progress": 70
         }
