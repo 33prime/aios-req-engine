@@ -448,13 +448,22 @@ def generate_proposal(state: BulkProcessingState) -> dict[str, Any]:
     requires_review = True
     auto_apply_safe = False
 
+    # Get signal authority from metadata
+    signal_authority = state.signal_metadata.get("authority", "system")
+
     if state.validation:
         if state.validation.contradictions:
             requires_review = True
             auto_apply_safe = False
-        elif state.validation.overall_confidence >= 0.8 and total_changes <= 3:
-            requires_review = False
-            auto_apply_safe = True
+        elif state.validation.overall_confidence >= 0.8:
+            # Auto-apply for high-confidence client/consultant signals
+            if signal_authority in ("client", "consultant"):
+                requires_review = False
+                auto_apply_safe = True
+            # For system/AI signals, still limit to small changes
+            elif total_changes <= 3:
+                requires_review = False
+                auto_apply_safe = True
 
     # Build review notes
     review_notes = []
@@ -606,6 +615,61 @@ def save_proposal(state: BulkProcessingState) -> dict[str, Any]:
         }
 
 
+def auto_apply_proposal(state: BulkProcessingState) -> dict[str, Any]:
+    """Auto-apply the proposal if auto_apply_safe is True."""
+    state = _check_max_steps(state)
+
+    if not state.proposal_id or not state.proposal:
+        return {"step_count": state.step_count}
+
+    logger.info(
+        f"Auto-applying proposal {state.proposal_id}",
+        extra={
+            "run_id": str(state.run_id),
+            "proposal_id": str(state.proposal_id),
+            "total_changes": state.proposal.total_changes,
+        },
+    )
+
+    try:
+        # Apply the proposal
+        from app.db.proposals import apply_proposal
+
+        apply_result = apply_proposal(
+            proposal_id=state.proposal_id,
+            project_id=state.project_id,
+            applied_by="system_auto_apply",
+        )
+
+        logger.info(
+            f"Auto-applied proposal {state.proposal_id}",
+            extra={
+                "run_id": str(state.run_id),
+                "applied_count": apply_result.get("applied_count", 0),
+            },
+        )
+
+        return {
+            "step_count": state.step_count,
+        }
+
+    except Exception as e:
+        logger.error(f"Failed to auto-apply proposal: {e}", exc_info=True)
+        return {
+            "error": str(e),
+            "step_count": state.step_count,
+        }
+
+
+def should_auto_apply(state: BulkProcessingState) -> str:
+    """Determine if we should auto-apply the proposal."""
+    if state.error:
+        return END
+    if not state.proposal or not state.proposal.auto_apply_safe:
+        return END
+    return "auto_apply"
+
+
 def should_continue_to_extraction(state: BulkProcessingState) -> str:
     """Determine if we should continue to extraction."""
     if state.error:
@@ -657,6 +721,7 @@ def build_bulk_signal_graph() -> StateGraph:
     graph.add_node("validate", validate)
     graph.add_node("generate_proposal", generate_proposal)
     graph.add_node("save_proposal", save_proposal)
+    graph.add_node("auto_apply", auto_apply_proposal)
 
     # Set entry point
     graph.set_entry_point("initialize")
@@ -693,8 +758,18 @@ def build_bulk_signal_graph() -> StateGraph:
     # Generate proposal → Save
     graph.add_edge("generate_proposal", "save_proposal")
 
-    # Save → End
-    graph.add_edge("save_proposal", END)
+    # Save → Auto-apply (conditional) or End
+    graph.add_conditional_edges(
+        "save_proposal",
+        should_auto_apply,
+        {
+            "auto_apply": "auto_apply",
+            END: END,
+        },
+    )
+
+    # Auto-apply → End
+    graph.add_edge("auto_apply", END)
 
     return graph
 
@@ -798,11 +873,17 @@ def run_bulk_signal_pipeline(
             contradictions_count = 0
 
         requires_review = True
+        auto_applied = False
         if proposal:
             if isinstance(proposal, dict):
                 requires_review = proposal.get("requires_review", True)
+                auto_apply_safe = proposal.get("auto_apply_safe", False)
             else:
                 requires_review = proposal.requires_review
+                auto_apply_safe = proposal.auto_apply_safe
+
+            # Proposal was auto-applied if auto_apply_safe was True and proposal exists
+            auto_applied = auto_apply_safe and proposal_id is not None
 
         result = {
             "success": True,
@@ -812,6 +893,7 @@ def run_bulk_signal_pipeline(
             "personas_count": personas_count,
             "stakeholders_count": stakeholders_count,
             "requires_review": requires_review,
+            "auto_applied": auto_applied,
             "contradictions": contradictions_count,
             "creative_brief_updated": len(creative_brief_fields) > 0,
             "creative_brief_fields": creative_brief_fields or [],
