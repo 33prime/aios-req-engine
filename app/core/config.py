@@ -50,7 +50,7 @@ class Settings(BaseSettings):
     MAX_SIGNAL_CHARS: int = Field(default=200_000, description="Max signal text characters")
 
     # Phase 1: Facts extraction configuration
-    FACTS_MODEL: str = Field(default="gpt-4.1-mini", description="Model for fact extraction")
+    FACTS_MODEL: str = Field(default="claude-sonnet-4-20250514", description="Model for fact extraction")
     FACTS_PROMPT_VERSION: str = Field(default="facts_v1", description="Prompt version for tracking")
     FACTS_SCHEMA_VERSION: str = Field(default="facts_v1", description="Schema version for tracking")
     MAX_FACT_CHUNKS: int = Field(default=15, description="Max chunks to send for fact extraction")

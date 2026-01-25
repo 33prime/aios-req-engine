@@ -4,6 +4,7 @@ import json
 from typing import Any
 
 from openai import OpenAI
+from anthropic import Anthropic
 from pydantic import ValidationError
 
 from app.core.config import Settings
@@ -155,6 +156,54 @@ Here is your previous output:
 Please fix the output to match the required JSON schema exactly. Output ONLY valid JSON, no explanation."""
 
 
+def _call_llm_for_extraction(
+    model: str,
+    system_prompt: str,
+    user_prompt: str,
+    settings: Settings,
+) -> str:
+    """
+    Call LLM for extraction (supports both OpenAI and Anthropic).
+
+    Args:
+        model: Model name (gpt-* or claude-*)
+        system_prompt: System prompt
+        user_prompt: User prompt
+        settings: Settings with API keys
+
+    Returns:
+        Raw string output from LLM
+    """
+    # Determine provider based on model name
+    if model.startswith("claude"):
+        # Use Anthropic
+        client = Anthropic(api_key=settings.ANTHROPIC_API_KEY)
+        response = client.messages.create(
+            model=model,
+            max_tokens=16384,
+            temperature=0,
+            system=system_prompt,
+            messages=[{"role": "user", "content": user_prompt}],
+        )
+        # Extract text from response
+        if response.content and len(response.content) > 0:
+            return response.content[0].text
+        return ""
+    else:
+        # Use OpenAI
+        client = OpenAI(api_key=settings.OPENAI_API_KEY)
+        response = client.chat.completions.create(
+            model=model,
+            temperature=0,
+            max_tokens=16384,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
+            ],
+        )
+        return response.choices[0].message.content or ""
+
+
 def extract_facts_from_chunks(
     *,
     signal: dict[str, Any],
@@ -164,7 +213,7 @@ def extract_facts_from_chunks(
     project_context: dict[str, Any] | None = None,
 ) -> ExtractFactsOutput:
     """
-    Extract structured facts from signal chunks using OpenAI.
+    Extract structured facts from signal chunks using OpenAI or Anthropic.
 
     Args:
         signal: Signal dict with id, project_id, signal_type, source
@@ -179,7 +228,6 @@ def extract_facts_from_chunks(
     Raises:
         ValueError: If model output cannot be validated after retry
     """
-    client = OpenAI(api_key=settings.OPENAI_API_KEY)
     user_prompt = build_facts_prompt(signal, chunks, project_context)
 
     # Use override if provided, else fall back to settings
@@ -191,17 +239,7 @@ def extract_facts_from_chunks(
     )
 
     # First attempt
-    response = client.chat.completions.create(
-        model=model,
-        temperature=0,
-        max_tokens=16384,
-        messages=[
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": user_prompt},
-        ],
-    )
-
-    raw_output = response.choices[0].message.content or ""
+    raw_output = _call_llm_for_extraction(model, SYSTEM_PROMPT, user_prompt, settings)
 
     # Try to parse and validate
     try:
@@ -221,19 +259,26 @@ def extract_facts_from_chunks(
 
     fix_prompt = FIX_SCHEMA_PROMPT.format(error=error_msg, previous_output=raw_output)
 
-    retry_response = client.chat.completions.create(
-        model=model,
-        temperature=0,
-        max_tokens=16384,
-        messages=[
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": user_prompt},
-            {"role": "assistant", "content": raw_output},
-            {"role": "user", "content": fix_prompt},
-        ],
-    )
-
-    retry_output = retry_response.choices[0].message.content or ""
+    # Build retry prompt with conversation history
+    if model.startswith("claude"):
+        # Anthropic retry - combine prompts
+        retry_user_prompt = f"{user_prompt}\n\n{fix_prompt}"
+        retry_output = _call_llm_for_extraction(model, SYSTEM_PROMPT, retry_user_prompt, settings)
+    else:
+        # OpenAI retry - use message history
+        client = OpenAI(api_key=settings.OPENAI_API_KEY)
+        retry_response = client.chat.completions.create(
+            model=model,
+            temperature=0,
+            max_tokens=16384,
+            messages=[
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user", "content": user_prompt},
+                {"role": "assistant", "content": raw_output},
+                {"role": "user", "content": fix_prompt},
+            ],
+        )
+        retry_output = retry_response.choices[0].message.content or ""
 
     try:
         result = _parse_and_validate(retry_output)
