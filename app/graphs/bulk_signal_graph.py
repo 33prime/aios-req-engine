@@ -437,6 +437,10 @@ def generate_proposal(state: BulkProcessingState) -> dict[str, Any]:
         summary_parts.append(f"{len(state.consolidation.vp_steps)} VP steps")
     if state.consolidation.stakeholders:
         summary_parts.append(f"{len(state.consolidation.stakeholders)} stakeholders")
+    if state.consolidation.business_drivers:
+        summary_parts.append(f"{len(state.consolidation.business_drivers)} business drivers")
+    if state.consolidation.competitor_refs:
+        summary_parts.append(f"{len(state.consolidation.competitor_refs)} competitors")
 
     summary = f"Detected {total_changes} changes: {', '.join(summary_parts)}" if summary_parts else "No changes detected"
 
@@ -473,6 +477,8 @@ def generate_proposal(state: BulkProcessingState) -> dict[str, Any]:
         personas_count=len(state.consolidation.personas),
         vp_steps_count=len(state.consolidation.vp_steps),
         stakeholders_count=len(state.consolidation.stakeholders),
+        business_drivers_count=len(state.consolidation.business_drivers),
+        competitor_refs_count=len(state.consolidation.competitor_refs),
         requires_review=requires_review,
         auto_apply_safe=auto_apply_safe,
         review_notes=review_notes,

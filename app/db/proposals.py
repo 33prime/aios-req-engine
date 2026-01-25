@@ -554,6 +554,118 @@ def apply_proposal(proposal_id: UUID, applied_by: str | None = None) -> dict[str
                     )
                     applied_count += 1
 
+            # Apply business driver changes
+            if "business_driver" in changes_by_type:
+                from app.db.business_drivers import smart_upsert_business_driver
+
+                driver_changes = changes_by_type["business_driver"]
+
+                for change in driver_changes["creates"] + driver_changes["updates"]:
+                    after = change.get("after")
+
+                    if not after or "description" not in after:
+                        continue
+
+                    # Build evidence from change
+                    evidence = change.get("evidence", [])
+                    new_evidence = []
+                    for ev in evidence:
+                        new_evidence.append({
+                            "signal_id": ev.get("signal_id", str(proposal["signal_id"]) if "signal_id" in proposal else None),
+                            "chunk_id": ev.get("chunk_id"),
+                            "text": ev.get("text", ev.get("excerpt", "")),
+                            "confidence": ev.get("confidence", 0.8),
+                        })
+
+                    driver_type = after.get("driver_type", "goal")
+                    _, action = smart_upsert_business_driver(
+                        project_id=project_id,
+                        driver_type=driver_type,
+                        description=after["description"],
+                        new_evidence=new_evidence if new_evidence else None,
+                        source_signal_id=UUID(proposal.get("signal_id")) if proposal.get("signal_id") else None,
+                        created_by="system",
+                        measurement=after.get("measurement"),
+                        priority=after.get("priority", 3),
+                    )
+                    applied_count += 1
+                    logger.info(f"{action.capitalize()} {driver_type}: {after['description'][:50]}")
+
+            # Apply competitor ref changes
+            if "competitor_ref" in changes_by_type:
+                from app.db.competitor_refs import smart_upsert_competitor_ref
+
+                comp_changes = changes_by_type["competitor_ref"]
+
+                for change in comp_changes["creates"] + comp_changes["updates"]:
+                    after = change.get("after")
+
+                    if not after or "name" not in after:
+                        continue
+
+                    # Build evidence from change
+                    evidence = change.get("evidence", [])
+                    new_evidence = []
+                    for ev in evidence:
+                        new_evidence.append({
+                            "signal_id": ev.get("signal_id", str(proposal["signal_id"]) if "signal_id" in proposal else None),
+                            "chunk_id": ev.get("chunk_id"),
+                            "text": ev.get("text", ev.get("excerpt", "")),
+                            "confidence": ev.get("confidence", 0.8),
+                        })
+
+                    ref_type = after.get("reference_type", "competitor")
+                    _, action = smart_upsert_competitor_ref(
+                        project_id=project_id,
+                        reference_type=ref_type,
+                        name=after["name"],
+                        new_evidence=new_evidence if new_evidence else None,
+                        source_signal_id=UUID(proposal.get("signal_id")) if proposal.get("signal_id") else None,
+                        created_by="system",
+                        research_notes=after.get("research_notes"),
+                    )
+                    applied_count += 1
+                    logger.info(f"{action.capitalize()} {ref_type}: {after['name']}")
+
+            # Apply stakeholder changes
+            if "stakeholder" in changes_by_type:
+                from app.db.stakeholders import smart_upsert_stakeholder
+
+                stakeholder_changes = changes_by_type["stakeholder"]
+
+                for change in stakeholder_changes["creates"] + stakeholder_changes["updates"]:
+                    after = change.get("after")
+
+                    if not after or "name" not in after:
+                        continue
+
+                    # Build evidence from change
+                    evidence = change.get("evidence", [])
+                    new_evidence = []
+                    for ev in evidence:
+                        new_evidence.append({
+                            "signal_id": ev.get("signal_id", str(proposal["signal_id"]) if "signal_id" in proposal else None),
+                            "chunk_id": ev.get("chunk_id"),
+                            "text": ev.get("text", ev.get("excerpt", "")),
+                            "confidence": ev.get("confidence", 0.8),
+                        })
+
+                    _, action = smart_upsert_stakeholder(
+                        project_id=project_id,
+                        name=after["name"],
+                        role=after.get("role"),
+                        email=after.get("email"),
+                        stakeholder_type=after.get("stakeholder_type"),
+                        influence_level=after.get("influence_level"),
+                        engagement_status=after.get("engagement_status"),
+                        notes=after.get("notes"),
+                        new_evidence=new_evidence if new_evidence else None,
+                        source_signal_id=UUID(proposal.get("signal_id")) if proposal.get("signal_id") else None,
+                        created_by="system",
+                    )
+                    applied_count += 1
+                    logger.info(f"{action.capitalize()} stakeholder: {after['name']}")
+
         except Exception as apply_error:
             error_msg = f"Failed to apply changes: {str(apply_error)}"
             errors.append(error_msg)
