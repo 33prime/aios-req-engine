@@ -137,8 +137,7 @@ async def list_competitor_refs(
         List of competitor references with counts by market position
     """
     try:
-        result = refs_db.list_competitor_refs(project_id)
-        all_refs = result.get("competitor_references", [])
+        all_refs = refs_db.list_competitor_refs(project_id)
 
         # Apply filters
         if market_position:

@@ -168,8 +168,7 @@ async def list_business_drivers(
         List of business drivers with counts by type
     """
     try:
-        result = drivers_db.list_business_drivers(project_id, driver_type=driver_type)
-        all_drivers = result.get("business_drivers", [])
+        all_drivers = drivers_db.list_business_drivers(project_id, driver_type=driver_type)
 
         # Apply additional filters
         if priority:

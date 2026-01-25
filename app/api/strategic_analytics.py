@@ -103,15 +103,9 @@ async def get_strategic_analytics(
     """
     try:
         # Gather all entity data
-        drivers_result = business_drivers.list_business_drivers(project_id)
-        all_drivers = drivers_result.get("business_drivers", [])
-
-        refs_result = competitor_refs.list_competitor_refs(project_id)
-        all_refs = refs_result.get("competitor_references", [])
-
-        stakeholders_result = stakeholders.list_stakeholders(project_id)
-        all_stakeholders = stakeholders_result.get("stakeholders", [])
-
+        all_drivers = business_drivers.list_business_drivers(project_id)
+        all_refs = competitor_refs.list_competitor_refs(project_id)
+        all_stakeholders = stakeholders.list_stakeholders(project_id)
         all_risks = risks.list_risks(project_id)
 
         # Compute entity counts
