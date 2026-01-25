@@ -777,6 +777,13 @@ def create_stakeholder_from_signal(
 
     response = supabase.table("stakeholders").insert(stakeholder_data).execute()
 
+    if not response or not response.data:
+        logger.error(
+            f"Failed to create stakeholder '{name}': no data returned",
+            extra={"project_id": str(project_id), "stakeholder_data": stakeholder_data},
+        )
+        raise ValueError(f"Failed to create stakeholder '{name}'")
+
     logger.info(
         f"Created stakeholder '{name}' from signal for project {project_id}",
         extra={

@@ -90,39 +90,42 @@ class BusinessDriverOut(BaseModel):
     project_id: UUID
     driver_type: str
     description: str
-    category: str | None
-    priority: str | None
-    notes: str | None
+    category: str | None = None
+    priority: str | int | None = None  # Support both string and int for backward compatibility
+    notes: str | None = None
+    source_type: str | None = None
+    extracted_from_signal_id: UUID | None = None
 
     # KPI fields
-    baseline_value: str | None
-    target_value: str | None
-    measurement_method: str | None
-    tracking_frequency: str | None
-    data_source: str | None
-    responsible_team: str | None
+    baseline_value: str | None = None
+    target_value: str | None = None
+    measurement_method: str | None = None
+    tracking_frequency: str | None = None
+    data_source: str | None = None
+    responsible_team: str | None = None
 
     # Pain fields
-    severity: str | None
-    frequency: str | None
-    affected_users: str | None
-    business_impact: str | None
-    current_workaround: str | None
+    severity: str | None = None
+    frequency: str | None = None
+    affected_users: str | None = None
+    business_impact: str | None = None
+    current_workaround: str | None = None
 
     # Goal fields
-    goal_timeframe: str | None
-    success_criteria: str | None
-    dependencies: str | None
-    owner: str | None
+    goal_timeframe: str | None = None
+    success_criteria: str | None = None
+    dependencies: str | None = None
+    owner: str | None = None
 
     # Tracking fields
-    evidence: list[dict[str, Any]] | None
-    source_signal_ids: list[UUID] | None
-    version: int | None
-    created_by: str | None
-    enrichment_status: str | None
-    enrichment_attempted_at: str | None
-    enrichment_error: str | None
+    evidence: list[dict[str, Any]] | None = None
+    source_signal_ids: list[UUID] | None = None
+    version: int | None = None
+    created_by: str | None = None
+    enrichment_status: str | None = None
+    enrichment_attempted_at: str | None = None
+    enrichment_error: str | None = None
+    confirmation_status: str | None = None
 
     # Standard fields
     source_type: str | None
