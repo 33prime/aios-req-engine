@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter
 
-from app.api import activity, admin, agents, analytics, auth, baseline, chat, client_portal, confirmations, creative_brief, di_agent, discovery_prep, enrich_features, enrich_prd, enrich_vp, entity_cascades, jobs, meetings, organizations, outreach, phase0, project_creation, projects, proposals, readiness, research, research_agent, revisions, signals, signal_stream, stakeholders, state, tasks
+from app.api import activity, admin, agents, analytics, auth, baseline, business_drivers, chat, client_portal, competitor_refs, confirmations, creative_brief, di_agent, discovery_prep, enrich_features, enrich_prd, enrich_vp, entity_cascades, jobs, meetings, organizations, outreach, phase0, project_creation, projects, proposals, readiness, research, research_agent, revisions, risks, signals, signal_stream, stakeholders, state, strategic_analytics, tasks
 
 router = APIRouter()
 
@@ -74,6 +74,18 @@ router.include_router(revisions.router, tags=["revisions"])
 
 # Include Stakeholders routes
 router.include_router(stakeholders.router, tags=["stakeholders"])
+
+# Include Business Drivers routes (Strategic Foundation)
+router.include_router(business_drivers.router, tags=["business_drivers"])
+
+# Include Competitor References routes (Strategic Foundation)
+router.include_router(competitor_refs.router, tags=["competitor_refs"])
+
+# Include Risks routes (Strategic Foundation)
+router.include_router(risks.router, tags=["risks"])
+
+# Include Strategic Analytics routes (Strategic Foundation)
+router.include_router(strategic_analytics.router, tags=["strategic_analytics"])
 
 # Include Authentication routes
 router.include_router(auth.router, tags=["auth"])

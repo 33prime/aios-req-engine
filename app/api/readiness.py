@@ -6,6 +6,7 @@ from fastapi import APIRouter, HTTPException
 
 from app.core.logging import get_logger
 from app.core.readiness import compute_readiness, ReadinessScore
+from app.core.readiness.gate_impact import get_entity_gate_impact_summary
 
 logger = get_logger(__name__)
 
@@ -55,4 +56,50 @@ async def get_project_readiness(project_id: UUID) -> ReadinessScore:
         raise HTTPException(
             status_code=500,
             detail="Failed to compute readiness score",
+        ) from e
+
+
+@router.get("/projects/{project_id}/readiness/gate-impact")
+async def get_gate_impact(project_id: UUID) -> dict:
+    """
+    Get strategic foundation entity impact on readiness gates.
+
+    Analyzes how enriched business drivers, competitors, stakeholders, and risks
+    contribute to each readiness gate, and provides recommendations for
+    improving gate confidence through entity enrichment.
+
+    Args:
+        project_id: Project UUID
+
+    Returns:
+        Dict with:
+        - Per-gate analysis (contributing_entities, enrichment_coverage, confidence_boost, recommendations)
+        - Overall summary (total entities, average enrichment, total boost, priority recommendations)
+
+    Raises:
+        HTTPException 500: If analysis fails
+    """
+    try:
+        impact_summary = get_entity_gate_impact_summary(project_id)
+
+        logger.info(
+            f"Computed gate impact for project {project_id}",
+            extra={
+                "project_id": str(project_id),
+                "total_entities": impact_summary.get("overall", {}).get(
+                    "total_strategic_entities", 0
+                ),
+                "avg_enrichment": impact_summary.get("overall", {}).get(
+                    "average_enrichment_coverage", 0
+                ),
+            },
+        )
+
+        return impact_summary
+
+    except Exception as e:
+        logger.exception(f"Failed to compute gate impact for project {project_id}")
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to compute gate impact",
         ) from e

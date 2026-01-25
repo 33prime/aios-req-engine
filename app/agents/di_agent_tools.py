@@ -10,17 +10,27 @@ from uuid import UUID
 from anthropic import Anthropic
 from openai import OpenAI
 
+from app.chains.enrich_competitor import enrich_competitor
+from app.chains.enrich_kpi import enrich_kpi
+from app.chains.enrich_pain_point import enrich_pain_point
+from app.chains.enrich_goal import enrich_goal
+from app.chains.enrich_stakeholder import enrich_stakeholder
+from app.chains.enrich_risk import enrich_risk
 from app.chains.extract_budget_constraints import extract_budget_constraints
 from app.chains.extract_business_case import extract_business_case
 from app.chains.extract_core_pain import extract_core_pain
 from app.chains.extract_primary_persona import extract_primary_persona
+from app.chains.extract_risks_from_signals import extract_risks_from_signals
 from app.chains.identify_wow_moment import identify_wow_moment
 from app.chains.run_strategic_foundation import run_strategic_foundation
 from app.core.config import get_settings
 from app.core.logging import get_logger
 from app.core.readiness.score import compute_readiness
+from app.db.business_drivers import list_business_drivers, smart_upsert_business_driver
+from app.db.competitor_refs import list_competitor_refs, smart_upsert_competitor_ref
 from app.db.foundation import get_foundation_element
 from app.db.signals import list_project_signals
+from app.db.stakeholders import list_stakeholders, smart_upsert_stakeholder
 from app.graphs.research_agent_graph import run_research_agent_graph
 
 logger = get_logger(__name__)
@@ -76,6 +86,19 @@ async def execute_di_tool(
             result = await _execute_analyze_gaps(project_id, tool_args)
         elif tool_name == "stop_with_guidance":
             result = await _execute_stop_with_guidance(project_id, tool_args)
+        # Strategic Foundation tools (Phase 3)
+        elif tool_name == "extract_business_drivers":
+            result = await _execute_extract_business_drivers(project_id, tool_args)
+        elif tool_name == "enrich_business_driver":
+            result = await _execute_enrich_business_driver(project_id, tool_args)
+        elif tool_name == "extract_competitors":
+            result = await _execute_extract_competitors(project_id, tool_args)
+        elif tool_name == "enrich_competitor":
+            result = await _execute_enrich_competitor(project_id, tool_args)
+        elif tool_name == "extract_stakeholders":
+            result = await _execute_extract_stakeholders(project_id, tool_args)
+        elif tool_name == "extract_risks":
+            result = await _execute_extract_risks(project_id, tool_args)
         else:
             logger.error(f"Unknown tool: {tool_name}")
             return {
@@ -544,6 +567,337 @@ async def _execute_stop_with_guidance(project_id: UUID, args: dict) -> dict:
             "success": False,
             "data": {},
             "error": f"Guidance formatting failed: {str(e)}",
+        }
+
+
+# ==========================================================================
+# Strategic Foundation Tools (Phase 3)
+# ==========================================================================
+
+
+async def _execute_extract_business_drivers(project_id: UUID, args: dict) -> dict:
+    """
+    Extract and update business drivers (KPIs, pain points, goals) from signals.
+
+    Uses smart_upsert to merge evidence and update existing drivers.
+    """
+    try:
+        driver_types = args.get("driver_types", ["kpi", "pain", "goal"])
+        enrich = args.get("enrich", False)
+        signal_ids = args.get("signal_ids", None)
+
+        # Use the run_strategic_foundation extraction
+        from app.chains.run_strategic_foundation import extract_strategic_entities_from_signals
+
+        result = extract_strategic_entities_from_signals(project_id)
+
+        # Optionally enrich newly created drivers
+        enriched_count = 0
+        if enrich:
+            drivers = list_business_drivers(project_id, limit=100)
+            for driver in drivers:
+                if driver.get("enrichment_status") == "none":
+                    driver_type = driver.get("driver_type")
+                    driver_id = UUID(driver["id"])
+
+                    try:
+                        if driver_type == "kpi":
+                            await enrich_kpi(driver_id, project_id, depth="quick")
+                        elif driver_type == "pain":
+                            await enrich_pain_point(driver_id, project_id, depth="quick")
+                        elif driver_type == "goal":
+                            await enrich_goal(driver_id, project_id, depth="quick")
+                        enriched_count += 1
+                    except Exception as e:
+                        logger.warning(f"Failed to enrich {driver_type} driver {driver_id}: {e}")
+
+        return {
+            "success": True,
+            "data": {
+                "drivers_created": result.get("business_drivers_created", 0),
+                "drivers_updated": result.get("business_drivers_updated", 0),
+                "drivers_merged": result.get("business_drivers_merged", 0),
+                "drivers_enriched": enriched_count,
+                "signals_processed": result.get("signals_processed", 0),
+                "message": f"Extracted {result.get('business_drivers_created', 0) + result.get('business_drivers_updated', 0) + result.get('business_drivers_merged', 0)} business drivers",
+            },
+            "error": None,
+        }
+
+    except Exception as e:
+        logger.error(f"Business drivers extraction failed: {e}", exc_info=True)
+        return {
+            "success": False,
+            "data": {},
+            "error": f"Business drivers extraction failed: {str(e)}",
+        }
+
+
+async def _execute_enrich_business_driver(project_id: UUID, args: dict) -> dict:
+    """
+    Enrich a specific business driver with measurement/impact details.
+
+    Calls the appropriate enrichment chain based on driver type (KPI/pain/goal).
+    """
+    try:
+        driver_id = UUID(args.get("driver_id"))
+        depth = args.get("depth", "standard")
+
+        # Get driver to determine type
+        from app.db.business_drivers import get_business_driver
+
+        driver = get_business_driver(driver_id)
+        if not driver:
+            return {
+                "success": False,
+                "data": {},
+                "error": f"Business driver {driver_id} not found",
+            }
+
+        driver_type = driver.get("driver_type")
+
+        # Call appropriate enrichment chain
+        if driver_type == "kpi":
+            result = await enrich_kpi(driver_id, project_id, depth=depth)
+        elif driver_type == "pain":
+            result = await enrich_pain_point(driver_id, project_id, depth=depth)
+        elif driver_type == "goal":
+            result = await enrich_goal(driver_id, project_id, depth=depth)
+        else:
+            return {
+                "success": False,
+                "data": {},
+                "error": f"Unknown driver type: {driver_type}",
+            }
+
+        if result.get("success"):
+            return {
+                "success": True,
+                "data": {
+                    "driver_id": str(driver_id),
+                    "driver_type": driver_type,
+                    "updated_fields": result.get("updated_fields", []),
+                    "enrichment": result.get("enrichment", {}),
+                    "message": f"Enriched {driver_type} driver with {len(result.get('updated_fields', []))} fields",
+                },
+                "error": None,
+            }
+        else:
+            return {
+                "success": False,
+                "data": {},
+                "error": result.get("error", "Enrichment failed"),
+            }
+
+    except Exception as e:
+        logger.error(f"Business driver enrichment failed: {e}", exc_info=True)
+        return {
+            "success": False,
+            "data": {},
+            "error": f"Business driver enrichment failed: {str(e)}",
+        }
+
+
+async def _execute_extract_competitors(project_id: UUID, args: dict) -> dict:
+    """
+    Extract and update competitor references from signals.
+
+    Uses smart_upsert to merge evidence and update existing competitors.
+    """
+    try:
+        include_research = args.get("include_research", False)
+        signal_ids = args.get("signal_ids", None)
+
+        # Use the run_strategic_foundation extraction
+        from app.chains.run_strategic_foundation import extract_strategic_entities_from_signals
+
+        result = extract_strategic_entities_from_signals(project_id)
+
+        # Optionally run enrichment
+        enriched_count = 0
+        if include_research:
+            competitors = list_competitor_refs(project_id, reference_type="competitor")
+            for comp in competitors[:5]:  # Limit to top 5
+                if comp.get("enrichment_status") == "none":
+                    try:
+                        comp_result = await enrich_competitor(
+                            UUID(comp["id"]),
+                            project_id,
+                            depth="standard"
+                        )
+                        if comp_result.get("success"):
+                            enriched_count += 1
+                    except Exception as e:
+                        logger.warning(f"Failed to enrich competitor {comp['id']}: {e}")
+
+        return {
+            "success": True,
+            "data": {
+                "competitors_created": result.get("competitor_refs_created", 0),
+                "competitors_updated": result.get("competitor_refs_updated", 0),
+                "competitors_merged": result.get("competitor_refs_merged", 0),
+                "competitors_enriched": enriched_count,
+                "signals_processed": result.get("signals_processed", 0),
+                "message": f"Extracted {result.get('competitor_refs_created', 0) + result.get('competitor_refs_updated', 0) + result.get('competitor_refs_merged', 0)} competitors",
+            },
+            "error": None,
+        }
+
+    except Exception as e:
+        logger.error(f"Competitor extraction failed: {e}", exc_info=True)
+        return {
+            "success": False,
+            "data": {},
+            "error": f"Competitor extraction failed: {str(e)}",
+        }
+
+
+async def _execute_enrich_competitor(project_id: UUID, args: dict) -> dict:
+    """
+    Enrich a specific competitor with market analysis.
+    """
+    try:
+        ref_id = UUID(args.get("ref_id"))
+        depth = args.get("depth", "standard")
+        include_web_scraping = args.get("include_web_scraping", False)
+
+        # Note: Web scraping integration not implemented yet
+        if include_web_scraping:
+            logger.warning("Web scraping not yet implemented for competitor enrichment")
+
+        result = await enrich_competitor(ref_id, project_id, depth=depth)
+
+        if result.get("success"):
+            return {
+                "success": True,
+                "data": {
+                    "ref_id": str(ref_id),
+                    "updated_fields": result.get("updated_fields", []),
+                    "enrichment": result.get("enrichment", {}),
+                    "message": f"Enriched competitor with {len(result.get('updated_fields', []))} fields",
+                },
+                "error": None,
+            }
+        else:
+            return {
+                "success": False,
+                "data": {},
+                "error": result.get("error", "Enrichment failed"),
+            }
+
+    except Exception as e:
+        logger.error(f"Competitor enrichment failed: {e}", exc_info=True)
+        return {
+            "success": False,
+            "data": {},
+            "error": f"Competitor enrichment failed: {str(e)}",
+        }
+
+
+async def _execute_extract_stakeholders(project_id: UUID, args: dict) -> dict:
+    """
+    Extract and update stakeholders from signals.
+
+    Uses smart_upsert to merge evidence and update existing stakeholders.
+    """
+    try:
+        link_to_personas = args.get("link_to_personas", True)
+        signal_ids = args.get("signal_ids", None)
+
+        # Extract stakeholders from signals (this logic can be enhanced)
+        # For now, use the existing stakeholder extraction in run_strategic_foundation
+        from app.chains.run_strategic_foundation import extract_strategic_entities_from_signals
+
+        result = extract_strategic_entities_from_signals(project_id)
+
+        # Optionally enrich stakeholders
+        enriched_count = 0
+        stakeholders = list_stakeholders(project_id)
+        for stakeholder in stakeholders[:10]:  # Limit to top 10
+            if stakeholder.get("enrichment_status") == "none":
+                try:
+                    enrich_result = await enrich_stakeholder(
+                        UUID(stakeholder["id"]),
+                        project_id,
+                        depth="quick"
+                    )
+                    if enrich_result.get("success"):
+                        enriched_count += 1
+                except Exception as e:
+                    logger.warning(f"Failed to enrich stakeholder {stakeholder['id']}: {e}")
+
+        # Note: Link to personas logic not implemented yet
+        if link_to_personas:
+            logger.info("Persona linking logic to be implemented")
+
+        return {
+            "success": True,
+            "data": {
+                "stakeholders_count": len(stakeholders),
+                "stakeholders_enriched": enriched_count,
+                "message": f"Processed {len(stakeholders)} stakeholders, enriched {enriched_count}",
+            },
+            "error": None,
+        }
+
+    except Exception as e:
+        logger.error(f"Stakeholder extraction failed: {e}", exc_info=True)
+        return {
+            "success": False,
+            "data": {},
+            "error": f"Stakeholder extraction failed: {str(e)}",
+        }
+
+
+async def _execute_extract_risks(project_id: UUID, args: dict) -> dict:
+    """
+    Extract and update project risks from signals.
+
+    Uses smart_upsert to merge evidence and update existing risks.
+    """
+    try:
+        risk_types = args.get("risk_types", None)  # None = all types
+        signal_ids = args.get("signal_ids", None)
+        limit = args.get("limit", 10)
+
+        # Extract risks from signals
+        if signal_ids:
+            signal_id_list = [UUID(sid) for sid in signal_ids]
+        else:
+            signal_id_list = None
+
+        result = await extract_risks_from_signals(
+            project_id=project_id,
+            signal_ids=signal_id_list,
+            limit=limit
+        )
+
+        if result.get("success"):
+            return {
+                "success": True,
+                "data": {
+                    "risks_created": result.get("risks_created", 0),
+                    "risks_updated": result.get("risks_updated", 0),
+                    "risks_merged": result.get("risks_merged", 0),
+                    "signals_processed": result.get("signals_processed", 0),
+                    "total_risks": result.get("risks_created", 0) + result.get("risks_updated", 0) + result.get("risks_merged", 0),
+                    "message": f"Extracted {result.get('risks_created', 0) + result.get('risks_updated', 0) + result.get('risks_merged', 0)} risks from {result.get('signals_processed', 0)} signals",
+                },
+                "error": None,
+            }
+        else:
+            return {
+                "success": False,
+                "data": {},
+                "error": result.get("error", "Risk extraction failed"),
+            }
+
+    except Exception as e:
+        logger.error(f"Risk extraction failed: {e}", exc_info=True)
+        return {
+            "success": False,
+            "data": {},
+            "error": f"Risk extraction failed: {str(e)}",
         }
 
 

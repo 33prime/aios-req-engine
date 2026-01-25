@@ -67,7 +67,18 @@ async def list_entity_revisions_api(
         HTTPException 500: If database operation fails
     """
     # Validate entity type
-    valid_types = ["prd_section", "vp_step", "feature", "persona"]
+    valid_types = [
+        "prd_section",
+        "vp_step",
+        "feature",
+        "persona",
+        # Strategic Foundation entities
+        "business_driver",
+        "competitor_reference",
+        "stakeholder",
+        "risk",
+        "strategic_context",
+    ]
     if entity_type not in valid_types:
         raise HTTPException(
             status_code=400,

@@ -41,8 +41,12 @@ async def run_strategic_foundation(project_id: UUID) -> dict[str, Any]:
         - company_enriched: bool
         - enrichment_source: str (if enriched)
         - stakeholders_linked: int
-        - business_drivers_created: int
-        - competitor_refs_created: int
+        - business_drivers_created: int (new entities)
+        - business_drivers_updated: int (ai_generated entities updated with new fields)
+        - business_drivers_merged: int (confirmed entities with evidence merged)
+        - competitor_refs_created: int (new entities)
+        - competitor_refs_updated: int (ai_generated entities updated)
+        - competitor_refs_merged: int (confirmed entities with evidence merged)
         - errors: list of error messages
     """
     results: dict[str, Any] = {
@@ -50,7 +54,11 @@ async def run_strategic_foundation(project_id: UUID) -> dict[str, Any]:
         "enrichment_source": None,
         "stakeholders_linked": 0,
         "business_drivers_created": 0,
+        "business_drivers_updated": 0,
+        "business_drivers_merged": 0,
         "competitor_refs_created": 0,
+        "competitor_refs_updated": 0,
+        "competitor_refs_merged": 0,
         "errors": [],
     }
 
@@ -100,14 +108,26 @@ async def run_strategic_foundation(project_id: UUID) -> dict[str, Any]:
     logger.info(f"Extracting business drivers and competitor refs for project {project_id}")
     try:
         extraction_result = extract_strategic_entities_from_signals(project_id)
+
+        # Copy all metrics from extraction result
         results["business_drivers_created"] = extraction_result.get("business_drivers_created", 0)
+        results["business_drivers_updated"] = extraction_result.get("business_drivers_updated", 0)
+        results["business_drivers_merged"] = extraction_result.get("business_drivers_merged", 0)
         results["competitor_refs_created"] = extraction_result.get("competitor_refs_created", 0)
+        results["competitor_refs_updated"] = extraction_result.get("competitor_refs_updated", 0)
+        results["competitor_refs_merged"] = extraction_result.get("competitor_refs_merged", 0)
+
         if extraction_result.get("errors"):
             results["errors"].extend(extraction_result["errors"])
+
         logger.info(
             f"Strategic entity extraction complete: "
-            f"business_drivers={results['business_drivers_created']}, "
-            f"competitor_refs={results['competitor_refs_created']}"
+            f"drivers (created={results['business_drivers_created']}, "
+            f"updated={results['business_drivers_updated']}, "
+            f"merged={results['business_drivers_merged']}), "
+            f"competitors (created={results['competitor_refs_created']}, "
+            f"updated={results['competitor_refs_updated']}, "
+            f"merged={results['competitor_refs_merged']})"
         )
     except Exception as e:
         error_msg = f"Strategic entity extraction error: {str(e)}"
@@ -119,12 +139,23 @@ async def run_strategic_foundation(project_id: UUID) -> dict[str, Any]:
     logger.info(f"State snapshot invalidated for project {project_id}")
 
     # 6. Log summary
+    total_drivers = (
+        results.get("business_drivers_created", 0) +
+        results.get("business_drivers_updated", 0) +
+        results.get("business_drivers_merged", 0)
+    )
+    total_competitors = (
+        results.get("competitor_refs_created", 0) +
+        results.get("competitor_refs_updated", 0) +
+        results.get("competitor_refs_merged", 0)
+    )
+
     logger.info(
         f"Strategic foundation complete for project {project_id}: "
         f"company_enriched={results['company_enriched']}, "
         f"stakeholders_linked={results['stakeholders_linked']}, "
-        f"business_drivers={results['business_drivers_created']}, "
-        f"competitor_refs={results['competitor_refs_created']}, "
+        f"business_drivers (total={total_drivers}), "
+        f"competitor_refs (total={total_competitors}), "
         f"errors={len(results['errors'])}"
     )
 
@@ -135,11 +166,13 @@ def extract_strategic_entities_from_signals(project_id: UUID) -> dict[str, Any]:
     """
     Extract business drivers and competitor refs from all project signals.
 
+    UPDATED: Now uses smart_upsert functions for evidence merging (Task #16).
+
     This function:
     1. Gets all signals for the project (or uses project description if none)
     2. For each signal, extracts facts using the fact extraction chain
     3. Converts relevant facts (pain, goal, competitor, design_inspiration) to entities
-    4. Creates business_drivers and competitor_refs in the database
+    4. Uses smart_upsert to merge evidence or create new entities
 
     Args:
         project_id: Project UUID
@@ -147,21 +180,29 @@ def extract_strategic_entities_from_signals(project_id: UUID) -> dict[str, Any]:
     Returns:
         Dict with:
         - business_drivers_created: int
+        - business_drivers_updated: int
+        - business_drivers_merged: int
         - competitor_refs_created: int
+        - competitor_refs_updated: int
+        - competitor_refs_merged: int
         - signals_processed: int
         - errors: list of error messages
     """
     from app.chains.extract_facts import extract_facts_from_chunks
     from app.db.signals import list_project_signals, list_signal_chunks
-    from app.db.business_drivers import create_business_driver, find_similar_driver
-    from app.db.competitor_refs import create_competitor_ref, find_similar_competitor
+    from app.db.business_drivers import smart_upsert_business_driver
+    from app.db.competitor_refs import smart_upsert_competitor_ref
     from app.db.projects import get_project
 
     settings = get_settings()
 
     result = {
         "business_drivers_created": 0,
+        "business_drivers_updated": 0,
+        "business_drivers_merged": 0,
         "competitor_refs_created": 0,
+        "competitor_refs_updated": 0,
+        "competitor_refs_merged": 0,
         "signals_processed": 0,
         "errors": [],
     }
@@ -194,10 +235,6 @@ def extract_strategic_entities_from_signals(project_id: UUID) -> dict[str, Any]:
             return result
 
     logger.info(f"Processing {len(signals)} signals for strategic entity extraction")
-
-    # Track what we've already created to avoid duplicates
-    seen_drivers: set[str] = set()
-    seen_competitors: set[str] = set()
 
     for signal in signals:
         signal_id = signal.get("id")
@@ -248,66 +285,82 @@ def extract_strategic_entities_from_signals(project_id: UUID) -> dict[str, Any]:
                     continue
 
                 description = title or detail[:100]
-                desc_key = description.lower().strip()[:50]
+
+                # Build evidence object from this fact
+                evidence = {
+                    "signal_id": signal_id,
+                    "chunk_id": chunks[0]["id"] if chunks else signal_id,
+                    "text": detail or title,
+                    "confidence": fact.confidence if hasattr(fact, "confidence") else 0.8,
+                    "fact_type": fact_type,
+                }
 
                 # Handle business driver types (pain, goal, kpi)
                 if fact_type in ("pain", "goal", "kpi", "metric", "objective"):
-                    if desc_key in seen_drivers:
-                        continue
-
-                    # Check for existing similar driver
                     driver_type = "kpi" if fact_type in ("kpi", "metric") else fact_type
                     if driver_type == "objective":
                         driver_type = "goal"
 
-                    existing = find_similar_driver(
-                        project_id, description, driver_type=driver_type, threshold=0.7
-                    )
-                    if existing:
-                        continue
-
                     try:
-                        create_business_driver(
+                        # Use smart_upsert - handles similarity check, evidence merging
+                        _, action = smart_upsert_business_driver(
                             project_id=project_id,
                             driver_type=driver_type,
                             description=description,
+                            new_evidence=[evidence],
+                            source_signal_id=UUID(signal_id) if not is_synthetic else project_id,
+                            created_by="system",
+                            similarity_threshold=0.75,
                             measurement=detail if fact_type in ("kpi", "metric") else None,
                             priority=3,
-                            source_signal_id=None if is_synthetic else UUID(signal_id),
                         )
-                        result["business_drivers_created"] += 1
-                        seen_drivers.add(desc_key)
-                        logger.debug(f"Created {driver_type} driver: {description[:50]}")
+
+                        # Track action type
+                        if action == "created":
+                            result["business_drivers_created"] += 1
+                        elif action == "updated":
+                            result["business_drivers_updated"] += 1
+                        elif action == "merged":
+                            result["business_drivers_merged"] += 1
+
+                        logger.debug(f"{action.capitalize()} {driver_type} driver: {description[:50]}")
+
                     except Exception as e:
-                        result["errors"].append(f"Failed to create business driver: {e}")
+                        result["errors"].append(f"Failed to upsert business driver: {e}")
+                        logger.warning(f"Failed to upsert business driver: {e}")
 
                 # Handle competitor types (competitor, design_inspiration, feature_inspiration)
                 elif fact_type in ("competitor", "design_inspiration", "feature_inspiration"):
                     name = title or detail[:50]
-                    name_key = name.lower().strip()
-
-                    if name_key in seen_competitors:
-                        continue
-
-                    # Check for existing similar competitor
-                    existing = find_similar_competitor(project_id, name, threshold=0.8)
-                    if existing:
-                        continue
 
                     try:
                         ref_type = fact_type
-                        create_competitor_ref(
+
+                        # Use smart_upsert - handles similarity check, evidence merging
+                        _, action = smart_upsert_competitor_ref(
                             project_id=project_id,
                             reference_type=ref_type,
                             name=name,
+                            new_evidence=[evidence],
+                            source_signal_id=UUID(signal_id) if not is_synthetic else project_id,
+                            created_by="system",
+                            similarity_threshold=0.75,
                             research_notes=detail,
-                            source_signal_id=None if is_synthetic else UUID(signal_id),
                         )
-                        result["competitor_refs_created"] += 1
-                        seen_competitors.add(name_key)
-                        logger.debug(f"Created {ref_type}: {name}")
+
+                        # Track action type
+                        if action == "created":
+                            result["competitor_refs_created"] += 1
+                        elif action == "updated":
+                            result["competitor_refs_updated"] += 1
+                        elif action == "merged":
+                            result["competitor_refs_merged"] += 1
+
+                        logger.debug(f"{action.capitalize()} {ref_type}: {name}")
+
                     except Exception as e:
-                        result["errors"].append(f"Failed to create competitor ref: {e}")
+                        result["errors"].append(f"Failed to upsert competitor ref: {e}")
+                        logger.warning(f"Failed to upsert competitor ref: {e}")
 
         except Exception as e:
             error_msg = f"Error processing signal {signal_id}: {str(e)}"
@@ -317,8 +370,12 @@ def extract_strategic_entities_from_signals(project_id: UUID) -> dict[str, Any]:
     logger.info(
         f"Strategic entity extraction complete: "
         f"processed={result['signals_processed']}, "
-        f"drivers={result['business_drivers_created']}, "
-        f"competitors={result['competitor_refs_created']}"
+        f"drivers (created={result['business_drivers_created']}, "
+        f"updated={result['business_drivers_updated']}, "
+        f"merged={result['business_drivers_merged']}), "
+        f"competitors (created={result['competitor_refs_created']}, "
+        f"updated={result['competitor_refs_updated']}, "
+        f"merged={result['competitor_refs_merged']})"
     )
 
     return result

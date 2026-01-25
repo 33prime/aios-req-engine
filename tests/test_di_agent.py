@@ -757,3 +757,359 @@ class TestDIAgentScenarios:
         assert len(response.tools_called) == 1
         assert response.gates_affected == ["primary_persona"]
         assert response.readiness_before == 25
+
+
+# =============================================================================
+# Test: Strategic Foundation Integration
+# =============================================================================
+
+
+class TestDIAgentStrategicFoundation:
+    """Test DI Agent integration with Strategic Foundation tools."""
+
+    @pytest.mark.anyio
+    @patch("app.agents.di_agent_tools.extract_strategic_entities_from_signals")
+    async def test_executes_extract_business_drivers(self, mock_extract, project_id):
+        """Routes extract_business_drivers to strategic foundation extractor."""
+        mock_extract.return_value = {
+            "success": True,
+            "business_drivers_created": 3,
+            "business_drivers_updated": 1,
+            "business_drivers_merged": 2,
+            "signals_processed": 5,
+        }
+
+        result = await execute_di_tool(
+            tool_name="extract_business_drivers",
+            tool_args={"enrich_top_drivers": False},
+            project_id=project_id,
+        )
+
+        assert result["success"] is True
+        assert result["data"]["business_drivers_created"] == 3
+        assert result["data"]["business_drivers_updated"] == 1
+        assert result["data"]["business_drivers_merged"] == 2
+        mock_extract.assert_called_once()
+
+    @pytest.mark.anyio
+    @patch("app.agents.di_agent_tools.get_business_driver")
+    @patch("app.agents.di_agent_tools.enrich_kpi")
+    async def test_executes_enrich_business_driver_kpi(self, mock_enrich, mock_get, project_id):
+        """Routes enrich_business_driver to KPI enrichment for KPI type."""
+        driver_id = uuid4()
+
+        # Mock driver with KPI type
+        mock_get.return_value = {
+            "id": str(driver_id),
+            "driver_type": "kpi",
+            "description": "Reduce support tickets by 40%",
+        }
+
+        # Mock enrichment result
+        mock_enrich.return_value = {
+            "success": True,
+            "enrichment": {
+                "baseline_value": "100 tickets/day",
+                "target_value": "60 tickets/day",
+                "measurement_method": "Zendesk ticket count",
+                "tracking_frequency": "daily",
+            },
+            "updated_fields": ["baseline_value", "target_value", "measurement_method", "tracking_frequency"],
+        }
+
+        result = await execute_di_tool(
+            tool_name="enrich_business_driver",
+            tool_args={"driver_id": str(driver_id), "depth": "standard"},
+            project_id=project_id,
+        )
+
+        assert result["success"] is True
+        assert result["data"]["enrichment"]["baseline_value"] == "100 tickets/day"
+        assert "baseline_value" in result["data"]["updated_fields"]
+        mock_enrich.assert_called_once()
+
+    @pytest.mark.anyio
+    @patch("app.agents.di_agent_tools.get_business_driver")
+    @patch("app.agents.di_agent_tools.enrich_pain_point")
+    async def test_executes_enrich_business_driver_pain(self, mock_enrich, mock_get, project_id):
+        """Routes enrich_business_driver to pain point enrichment for pain type."""
+        driver_id = uuid4()
+
+        mock_get.return_value = {
+            "id": str(driver_id),
+            "driver_type": "pain",
+            "description": "Manual data entry takes hours",
+        }
+
+        mock_enrich.return_value = {
+            "success": True,
+            "enrichment": {
+                "severity": "high",
+                "frequency": "daily",
+                "affected_users": "All CSMs (15 people)",
+                "business_impact": "3 hours/day per CSM = $150K/year in wasted time",
+            },
+            "updated_fields": ["severity", "frequency", "affected_users", "business_impact"],
+        }
+
+        result = await execute_di_tool(
+            tool_name="enrich_business_driver",
+            tool_args={"driver_id": str(driver_id)},
+            project_id=project_id,
+        )
+
+        assert result["success"] is True
+        assert result["data"]["enrichment"]["severity"] == "high"
+        assert result["data"]["enrichment"]["frequency"] == "daily"
+        mock_enrich.assert_called_once()
+
+    @pytest.mark.anyio
+    @patch("app.agents.di_agent_tools.get_business_driver")
+    @patch("app.agents.di_agent_tools.enrich_goal")
+    async def test_executes_enrich_business_driver_goal(self, mock_enrich, mock_get, project_id):
+        """Routes enrich_business_driver to goal enrichment for goal type."""
+        driver_id = uuid4()
+
+        mock_get.return_value = {
+            "id": str(driver_id),
+            "driver_type": "goal",
+            "description": "Launch in Q2 2026",
+        }
+
+        mock_enrich.return_value = {
+            "success": True,
+            "enrichment": {
+                "goal_timeframe": "Q2 2026 (April-June)",
+                "success_criteria": "MVP deployed to production with 10+ pilot customers",
+                "dependencies": "Design approval by March 15, API integration complete by April 1",
+                "owner": "Product team",
+            },
+            "updated_fields": ["goal_timeframe", "success_criteria", "dependencies", "owner"],
+        }
+
+        result = await execute_di_tool(
+            tool_name="enrich_business_driver",
+            tool_args={"driver_id": str(driver_id), "depth": "deep"},
+            project_id=project_id,
+        )
+
+        assert result["success"] is True
+        assert "Q2 2026" in result["data"]["enrichment"]["goal_timeframe"]
+        assert "success_criteria" in result["data"]["updated_fields"]
+        mock_enrich.assert_called_once()
+
+    @pytest.mark.anyio
+    @patch("app.agents.di_agent_tools.extract_strategic_entities_from_signals")
+    async def test_executes_extract_competitors(self, mock_extract, project_id):
+        """Routes extract_competitors to strategic foundation extractor."""
+        mock_extract.return_value = {
+            "success": True,
+            "competitor_references_created": 2,
+            "competitor_references_updated": 1,
+            "competitor_references_merged": 0,
+            "signals_processed": 3,
+        }
+
+        result = await execute_di_tool(
+            tool_name="extract_competitors",
+            tool_args={"enrich_top_competitors": False},
+            project_id=project_id,
+        )
+
+        assert result["success"] is True
+        assert result["data"]["competitor_references_created"] == 2
+        assert result["data"]["competitor_references_updated"] == 1
+        mock_extract.assert_called_once()
+
+    @pytest.mark.anyio
+    @patch("app.agents.di_agent_tools.enrich_competitor")
+    async def test_executes_enrich_competitor(self, mock_enrich, project_id):
+        """Routes enrich_competitor to competitor enrichment chain."""
+        competitor_id = uuid4()
+
+        mock_enrich.return_value = {
+            "success": True,
+            "enrichment": {
+                "market_position": "established_player",
+                "pricing_model": "Freemium with $99/mo Pro tier",
+                "target_audience": "SMBs in healthcare",
+                "key_differentiator": "HIPAA-compliant automation",
+                "estimated_users": "50K+ customers",
+                "founded_year": 2018,
+            },
+            "updated_fields": ["market_position", "pricing_model", "target_audience", "key_differentiator"],
+        }
+
+        result = await execute_di_tool(
+            tool_name="enrich_competitor",
+            tool_args={"competitor_id": str(competitor_id), "depth": "standard"},
+            project_id=project_id,
+        )
+
+        assert result["success"] is True
+        assert result["data"]["enrichment"]["market_position"] == "established_player"
+        assert result["data"]["enrichment"]["pricing_model"] == "Freemium with $99/mo Pro tier"
+        assert "market_position" in result["data"]["updated_fields"]
+        mock_enrich.assert_called_once()
+
+    @pytest.mark.anyio
+    @patch("app.agents.di_agent_tools.extract_strategic_entities_from_signals")
+    async def test_executes_extract_stakeholders(self, mock_extract, project_id):
+        """Routes extract_stakeholders to strategic foundation extractor."""
+        mock_extract.return_value = {
+            "success": True,
+            "stakeholders_created": 4,
+            "stakeholders_updated": 2,
+            "stakeholders_merged": 1,
+            "signals_processed": 6,
+        }
+
+        result = await execute_di_tool(
+            tool_name="extract_stakeholders",
+            tool_args={"enrich_top_stakeholders": True},
+            project_id=project_id,
+        )
+
+        assert result["success"] is True
+        assert result["data"]["stakeholders_created"] == 4
+        assert result["data"]["stakeholders_updated"] == 2
+        assert result["data"]["stakeholders_merged"] == 1
+        mock_extract.assert_called_once()
+
+    @pytest.mark.anyio
+    @patch("app.agents.di_agent_tools.extract_risks_from_signals")
+    async def test_executes_extract_risks(self, mock_extract, project_id):
+        """Routes extract_risks to risk extraction chain."""
+        mock_extract.return_value = {
+            "success": True,
+            "risks_created": 5,
+            "risks_updated": 2,
+            "risks_merged": 3,
+            "risks": [
+                {
+                    "title": "Key developer might leave",
+                    "risk_type": "team",
+                    "severity": "high",
+                    "likelihood": "medium",
+                },
+                {
+                    "title": "Regulatory approval delay",
+                    "risk_type": "compliance",
+                    "severity": "critical",
+                    "likelihood": "low",
+                },
+            ],
+            "signals_processed": 8,
+        }
+
+        result = await execute_di_tool(
+            tool_name="extract_risks",
+            tool_args={"limit": 10},
+            project_id=project_id,
+        )
+
+        assert result["success"] is True
+        assert result["data"]["risks_created"] == 5
+        assert result["data"]["risks_updated"] == 2
+        assert result["data"]["risks_merged"] == 3
+        assert len(result["data"]["risks"]) == 2
+        assert result["data"]["risks"][0]["risk_type"] == "team"
+        assert result["data"]["risks"][1]["severity"] == "critical"
+        mock_extract.assert_called_once()
+
+    @pytest.mark.anyio
+    async def test_extract_business_drivers_with_enrichment(self, project_id):
+        """Tests extract_business_drivers with automatic enrichment enabled."""
+        with patch("app.agents.di_agent_tools.extract_strategic_entities_from_signals") as mock_extract, \
+             patch("app.agents.di_agent_tools.list_business_drivers") as mock_list, \
+             patch("app.agents.di_agent_tools.enrich_kpi") as mock_enrich_kpi:
+
+            # Mock extraction result
+            mock_extract.return_value = {
+                "success": True,
+                "business_drivers_created": 3,
+                "business_drivers_updated": 0,
+                "business_drivers_merged": 0,
+                "signals_processed": 5,
+            }
+
+            # Mock driver list (return some KPIs to enrich)
+            driver_id = uuid4()
+            mock_list.return_value = {
+                "business_drivers": [
+                    {
+                        "id": str(driver_id),
+                        "driver_type": "kpi",
+                        "description": "Reduce churn by 30%",
+                        "enrichment_status": "none",
+                    }
+                ],
+                "total": 1,
+            }
+
+            # Mock enrichment result
+            mock_enrich_kpi.return_value = {
+                "success": True,
+                "enrichment": {"baseline_value": "15% monthly churn"},
+                "updated_fields": ["baseline_value"],
+            }
+
+            result = await execute_di_tool(
+                tool_name="extract_business_drivers",
+                tool_args={"enrich_top_drivers": True},
+                project_id=project_id,
+            )
+
+            assert result["success"] is True
+            assert result["data"]["business_drivers_created"] == 3
+            # Enrichment should have been called
+            assert "enriched_drivers" in result["data"]
+
+    @pytest.mark.anyio
+    async def test_strategic_foundation_error_handling(self, project_id):
+        """Tests error handling in Strategic Foundation tool execution."""
+        with patch("app.agents.di_agent_tools.extract_strategic_entities_from_signals") as mock_extract:
+            # Mock extraction failure
+            mock_extract.side_effect = Exception("Database connection failed")
+
+            result = await execute_di_tool(
+                tool_name="extract_business_drivers",
+                tool_args={},
+                project_id=project_id,
+            )
+
+            assert result["success"] is False
+            assert "Database connection failed" in result["error"]
+
+    @pytest.mark.anyio
+    async def test_extract_risks_with_specific_signals(self, project_id):
+        """Tests extract_risks with specific signal IDs."""
+        signal_ids = [uuid4(), uuid4()]
+
+        with patch("app.agents.di_agent_tools.extract_risks_from_signals") as mock_extract:
+            mock_extract.return_value = {
+                "success": True,
+                "risks_created": 2,
+                "risks_updated": 0,
+                "risks_merged": 0,
+                "risks": [
+                    {
+                        "title": "Timeline risk from Q2 deadline",
+                        "risk_type": "timeline",
+                        "severity": "medium",
+                    }
+                ],
+                "signals_processed": 2,
+            }
+
+            result = await execute_di_tool(
+                tool_name="extract_risks",
+                tool_args={"signal_ids": [str(sid) for sid in signal_ids], "limit": 5},
+                project_id=project_id,
+            )
+
+            assert result["success"] is True
+            assert result["data"]["signals_processed"] == 2
+            # Verify signal_ids were passed through
+            call_args = mock_extract.call_args
+            assert call_args.kwargs.get("signal_ids") is not None

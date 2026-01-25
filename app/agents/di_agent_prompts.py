@@ -139,6 +139,74 @@ Execute your decision:
 
 **DEFAULT**: When in doubt, provide discovery questions over stopping.
 
+# STRATEGIC FOUNDATION ENTITIES
+
+Beyond the core gates, you have access to **Strategic Foundation** extraction tools that build a comprehensive understanding of:
+
+## Business Drivers (KPIs, Pain Points, Goals)
+Strategic motivations behind the project:
+- **KPIs**: Metrics the client cares about (e.g., "Reduce support tickets 40%", "Increase conversion 15%")
+  - Enrichment: baseline_value, target_value, measurement_method, tracking_frequency
+- **Pain Points**: Specific problems causing friction (may feed into Core Pain)
+  - Enrichment: severity, frequency, affected_users, business_impact, current_workaround
+- **Goals**: High-level objectives (e.g., "Launch in Q2", "Enter SMB market")
+  - Enrichment: goal_timeframe, success_criteria, dependencies, owner
+
+**When to extract**: When signals mention metrics, problems, or objectives. These provide context for business_case and help validate core_pain.
+
+## Competitors
+Products/companies the client compares themselves to:
+- Market position, pricing models, target audience
+- What makes competitors unique (informs wow_moment differentiation)
+- Feature comparisons (informs requirements)
+
+**When to extract**: When signals mention other products, competitive analysis, or "like X but with Y". Helps with wow_moment (what makes us different) and business_case (why we'll win).
+
+## Stakeholders
+People involved in or affected by the project:
+- Roles, priorities, concerns, engagement level
+- Decision authority, approval requirements
+- Engagement strategy, risk if disengaged
+
+**When to extract**: When signals mention team members, executives, end users. Helps identify hidden stakeholders and understand political landscape (affects budget_constraints and confirmed_scope).
+
+## Risks
+Potential threats to project success:
+- Types: technical, business, market, team, timeline, budget, compliance, security, operational, strategic
+- Severity, likelihood, impact, mitigation strategies
+- Detection signals (early warning signs)
+
+**When to extract**: When signals mention concerns, blockers, uncertainties. Proactively identifies what could go wrong (critical for business_case and budget_constraints).
+
+## How Strategic Foundation Complements Gates
+
+Strategic entities are **not gates** - they don't block progress. They're **enrichment layers** that:
+- Provide evidence for business_case (KPIs show ROI, risks show stakes)
+- Inform wow_moment (competitors show what to differentiate from)
+- Support budget_constraints (stakeholder landscape shows decision makers)
+- Strengthen core_pain (pain points provide specific examples)
+
+**Use strategically**:
+- Don't extract all strategic entities just because you can
+- Extract when they'll directly help satisfy a gate
+- Prioritize gates over strategic foundation
+- Use strategic foundation to build confidence in gates
+
+## Strategic Foundation Tools
+
+Available tools:
+- `extract_business_drivers` - Extract KPIs, pain points, and goals from signals
+- `enrich_business_driver` - Deep dive on a specific driver (measurement details, severity, timeline)
+- `extract_competitors` - Identify competitive landscape from signals
+- `enrich_competitor` - Research a specific competitor (market position, pricing, features)
+- `extract_stakeholders` - Map people involved in the project
+- `extract_risks` - Identify potential threats from signals
+
+**Tool usage pattern**:
+1. Extract first (creates entities from signals)
+2. Enrich selectively (deep dive on most important entities)
+3. Link to gates (use insights to improve gate confidence)
+
 # CONSTRAINTS
 
 **You CANNOT:**
@@ -563,6 +631,238 @@ DI_AGENT_TOOLS = [
         "confidence_impact": "N/A - stops rather than improves",
         "typical_confidence": "N/A",
     },
+    # Strategic Foundation Tools
+    {
+        "name": "extract_business_drivers",
+        "description": "Extract business drivers (KPIs, pain points, goals) from project signals",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "project_id": {
+                    "type": "string",
+                    "description": "Project UUID",
+                },
+                "signal_ids": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Optional: specific signal IDs to analyze (or all if omitted)",
+                },
+                "enrich_top_drivers": {
+                    "type": "boolean",
+                    "description": "Whether to enrich the top 5 drivers with detailed analysis",
+                    "default": False,
+                },
+            },
+            "required": ["project_id"],
+        },
+        "useful_when": [
+            "Need to understand business metrics and objectives",
+            "Building business_case - KPIs show ROI potential",
+            "Strengthening core_pain - pain points provide specific examples",
+            "Signals mention metrics, problems, or goals",
+        ],
+        "not_useful_when": [
+            "No signals exist yet",
+            "Working on prototype gates - gates are higher priority",
+            "Already have comprehensive business drivers",
+        ],
+        "affects_gates": ["business_case", "core_pain"],
+        "confidence_impact": "Medium - provides business context",
+        "typical_confidence": "0.5-0.8 depending on signal explicitness",
+    },
+    {
+        "name": "enrich_business_driver",
+        "description": "Enrich a specific business driver with detailed measurement/severity/timeline analysis",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "project_id": {
+                    "type": "string",
+                    "description": "Project UUID",
+                },
+                "driver_id": {
+                    "type": "string",
+                    "description": "Business driver UUID to enrich",
+                },
+                "depth": {
+                    "type": "string",
+                    "enum": ["surface", "standard", "deep"],
+                    "description": "Analysis depth",
+                    "default": "standard",
+                },
+            },
+            "required": ["project_id", "driver_id"],
+        },
+        "useful_when": [
+            "Need detailed metrics for a key KPI (baseline, target, measurement)",
+            "Quantifying a critical pain point (severity, impact, cost)",
+            "Understanding goal timeline and success criteria",
+            "Have a specific driver that needs deeper analysis",
+        ],
+        "not_useful_when": [
+            "Driver doesn't exist yet - extract first",
+            "Driver already has detailed enrichment",
+            "Not relevant to current gate satisfaction",
+        ],
+        "affects_gates": ["business_case"],
+        "confidence_impact": "Medium - adds detail to existing driver",
+        "typical_confidence": "Enhances existing confidence, doesn't create new",
+    },
+    {
+        "name": "extract_competitors",
+        "description": "Extract competitor references from project signals to understand competitive landscape",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "project_id": {
+                    "type": "string",
+                    "description": "Project UUID",
+                },
+                "signal_ids": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Optional: specific signal IDs to analyze (or all if omitted)",
+                },
+                "enrich_top_competitors": {
+                    "type": "boolean",
+                    "description": "Whether to enrich the top 5 competitors with market analysis",
+                    "default": False,
+                },
+            },
+            "required": ["project_id"],
+        },
+        "useful_when": [
+            "Understanding competitive positioning for wow_moment differentiation",
+            "Building business_case - need to show why we'll win",
+            "Signals mention other products, competitors, or comparisons",
+            "Client says 'like X but with Y'",
+        ],
+        "not_useful_when": [
+            "No competitive mentions in signals",
+            "Working on core_pain - focus on problem, not competition",
+            "Already have comprehensive competitor list",
+        ],
+        "affects_gates": ["wow_moment", "business_case"],
+        "confidence_impact": "Low-Medium - informs differentiation",
+        "typical_confidence": "0.4-0.7 depending on how much competitors are discussed",
+    },
+    {
+        "name": "enrich_competitor",
+        "description": "Enrich a specific competitor with market research (position, pricing, features, audience)",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "project_id": {
+                    "type": "string",
+                    "description": "Project UUID",
+                },
+                "competitor_id": {
+                    "type": "string",
+                    "description": "Competitor reference UUID to enrich",
+                },
+                "depth": {
+                    "type": "string",
+                    "enum": ["surface", "standard", "deep"],
+                    "description": "Analysis depth (deep includes web scraping - not yet implemented)",
+                    "default": "standard",
+                },
+            },
+            "required": ["project_id", "competitor_id"],
+        },
+        "useful_when": [
+            "Need detailed competitive intel on a key competitor",
+            "Understanding pricing models for business_case",
+            "Identifying feature gaps for wow_moment differentiation",
+            "Client specifically asks about a competitor",
+        ],
+        "not_useful_when": [
+            "Competitor doesn't exist yet - extract first",
+            "Competitor already has detailed enrichment",
+            "Not relevant to current gate satisfaction",
+        ],
+        "affects_gates": ["wow_moment", "business_case"],
+        "confidence_impact": "Low-Medium - adds competitive context",
+        "typical_confidence": "Based on available signals, not web research yet",
+        "note": "Web scraping for deep enrichment not yet implemented",
+    },
+    {
+        "name": "extract_stakeholders",
+        "description": "Extract stakeholders from project signals to map the people landscape",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "project_id": {
+                    "type": "string",
+                    "description": "Project UUID",
+                },
+                "signal_ids": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Optional: specific signal IDs to analyze (or all if omitted)",
+                },
+                "enrich_top_stakeholders": {
+                    "type": "boolean",
+                    "description": "Whether to enrich the top 10 stakeholders with engagement analysis",
+                    "default": False,
+                },
+            },
+            "required": ["project_id"],
+        },
+        "useful_when": [
+            "Understanding decision-making structure for budget_constraints",
+            "Identifying who needs to approve scope for confirmed_scope",
+            "Signals mention team members, executives, or end users",
+            "Detecting hidden stakeholders or political landscape",
+        ],
+        "not_useful_when": [
+            "No people mentioned in signals yet",
+            "Working on prototype gates - less critical early",
+            "Already have comprehensive stakeholder map",
+        ],
+        "affects_gates": ["budget_constraints", "confirmed_scope"],
+        "confidence_impact": "Medium - reveals decision makers",
+        "typical_confidence": "0.5-0.8 depending on how stakeholders are discussed",
+        "note": "Helps identify who can approve budget and scope",
+    },
+    {
+        "name": "extract_risks",
+        "description": "Extract project risks from signals to identify potential threats and blockers",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "project_id": {
+                    "type": "string",
+                    "description": "Project UUID",
+                },
+                "signal_ids": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Optional: specific signal IDs to analyze (or all if omitted)",
+                },
+                "limit": {
+                    "type": "integer",
+                    "description": "Max signals to process",
+                    "default": 10,
+                },
+            },
+            "required": ["project_id"],
+        },
+        "useful_when": [
+            "Understanding threats for business_case (what could go wrong)",
+            "Building realistic budget_constraints (risk mitigation costs)",
+            "Signals mention concerns, blockers, uncertainties, or dependencies",
+            "Client expresses worry about specific issues",
+        ],
+        "not_useful_when": [
+            "No concerns mentioned in signals yet",
+            "Working on basic prototype gates - risks less critical early",
+            "Already have comprehensive risk register",
+        ],
+        "affects_gates": ["business_case", "budget_constraints"],
+        "confidence_impact": "Medium - highlights what could derail project",
+        "typical_confidence": "0.5-0.8 depending on explicitness of concerns",
+        "note": "10 risk types: technical, business, market, team, timeline, budget, compliance, security, operational, strategic",
+    },
 ]
 
 # =============================================================================
@@ -616,6 +916,13 @@ def get_extraction_tools() -> list[dict]:
         "extract_budget_constraints",
         "run_foundation",
         "run_research",
+        # Strategic Foundation extraction tools
+        "extract_business_drivers",
+        "enrich_business_driver",
+        "extract_competitors",
+        "enrich_competitor",
+        "extract_stakeholders",
+        "extract_risks",
     ]
     return [tool for tool in DI_AGENT_TOOLS if tool["name"] in extraction_tool_names]
 

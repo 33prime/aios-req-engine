@@ -26,16 +26,18 @@ import {
   Globe,
   DollarSign,
   MapPin,
+  BarChart3,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { Card, CardHeader, EmptyState } from '@/components/ui'
 import { updateCompanyInfo } from '@/lib/api'
+import { StrategicAnalyticsDashboard } from '@/components/StrategicAnalyticsDashboard'
 
 interface StrategicFoundationTabProps {
   projectId: string
 }
 
-type SubTab = 'context' | 'drivers' | 'references'
+type SubTab = 'context' | 'drivers' | 'references' | 'analytics'
 
 // Types for new entities
 interface CompanyInfo {
@@ -77,6 +79,13 @@ interface Stakeholder {
   is_economic_buyer: boolean
   priorities: string[]
   concerns: string[]
+  // Enrichment fields from Strategic Foundation
+  engagement_level?: 'highly_engaged' | 'moderately_engaged' | 'neutral' | 'disengaged' | 'unknown'
+  decision_authority?: string
+  engagement_strategy?: string
+  risk_if_disengaged?: string
+  win_conditions?: string[]
+  key_concerns?: string[]
 }
 
 interface BusinessDriver {
@@ -163,6 +172,7 @@ const subTabs = [
   { id: 'context' as SubTab, label: 'Project Context', icon: Building2 },
   { id: 'drivers' as SubTab, label: 'Business Drivers', icon: TrendingUp },
   { id: 'references' as SubTab, label: 'References', icon: Compass },
+  { id: 'analytics' as SubTab, label: 'Analytics', icon: BarChart3 },
 ]
 
 export function StrategicFoundationTab({ projectId }: StrategicFoundationTabProps) {
@@ -217,20 +227,20 @@ export function StrategicFoundationTab({ projectId }: StrategicFoundationTabProp
       }
 
       try {
-        const driversRes = await fetch(`${baseUrl}/v1/state/business-drivers?project_id=${projectId}`)
+        const driversRes = await fetch(`${baseUrl}/v1/projects/${projectId}/business-drivers`)
         if (driversRes.ok) {
           const data = await driversRes.json()
-          driversData = data.drivers || []
+          driversData = data.business_drivers || []
         }
       } catch (e) {
         console.log('Business drivers endpoint not available yet')
       }
 
       try {
-        const refsRes = await fetch(`${baseUrl}/v1/state/competitor-refs?project_id=${projectId}`)
+        const refsRes = await fetch(`${baseUrl}/v1/projects/${projectId}/competitors`)
         if (refsRes.ok) {
           const data = await refsRes.json()
-          refsData = data.references || []
+          refsData = data.competitor_references || []
         }
       } catch (e) {
         console.log('Competitor refs endpoint not available yet')
@@ -312,6 +322,7 @@ export function StrategicFoundationTab({ projectId }: StrategicFoundationTabProp
           drivers={businessDrivers}
           constraints={constraints}
           projectId={projectId}
+          onRefresh={loadData}
         />
       )}
 
@@ -319,7 +330,12 @@ export function StrategicFoundationTab({ projectId }: StrategicFoundationTabProp
         <ReferencesSubTab
           references={competitorRefs}
           projectId={projectId}
+          onRefresh={loadData}
         />
+      )}
+
+      {activeSubTab === 'analytics' && (
+        <StrategicAnalyticsDashboard projectId={projectId} />
       )}
     </div>
   )
@@ -469,38 +485,81 @@ function ProjectContextSubTab({
                 {stakeholders.length > 0 ? (
                   <div className="space-y-3">
                     {stakeholders.map((s) => (
-                      <div key={s.id} className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
-                        <div className="flex-shrink-0 w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center">
-                          <Users className="h-5 w-5 text-[#009b87]" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <span className="font-medium text-gray-900">{s.name}</span>
-                            {s.is_economic_buyer && (
-                              <span className="px-1.5 py-0.5 bg-green-100 text-green-700 rounded text-xs font-medium">
-                                Decision Maker
-                              </span>
-                            )}
+                      <div key={s.id} className="p-3 bg-gray-50 rounded-lg border border-gray-200">
+                        <div className="flex items-start gap-3">
+                          <div className="flex-shrink-0 w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center">
+                            <Users className="h-5 w-5 text-[#009b87]" />
                           </div>
-                          {s.role && (
-                            <div className="text-sm text-gray-500">{s.role}</div>
-                          )}
-                          <div className="flex items-center gap-2 mt-1">
-                            <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${
-                              s.stakeholder_type === 'champion' ? 'bg-emerald-50 text-[#009b87]' :
-                              s.stakeholder_type === 'sponsor' ? 'bg-emerald-100 text-emerald-700' :
-                              s.stakeholder_type === 'blocker' ? 'bg-red-50 text-red-700' :
-                              'bg-gray-100 text-gray-700'
-                            }`}>
-                              {s.stakeholder_type}
-                            </span>
-                            <span className={`px-1.5 py-0.5 rounded text-xs ${
-                              s.influence_level === 'high' ? 'bg-orange-50 text-orange-700' :
-                              s.influence_level === 'medium' ? 'bg-yellow-50 text-yellow-700' :
-                              'bg-gray-50 text-gray-600'
-                            }`}>
-                              {s.influence_level} influence
-                            </span>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="font-medium text-gray-900">{s.name}</span>
+                              {s.is_economic_buyer && (
+                                <span className="px-1.5 py-0.5 bg-green-100 text-green-700 rounded text-xs font-medium">
+                                  Decision Maker
+                                </span>
+                              )}
+                              {s.engagement_level && (
+                                <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${
+                                  s.engagement_level === 'highly_engaged' ? 'bg-emerald-100 text-emerald-700' :
+                                  s.engagement_level === 'moderately_engaged' ? 'bg-blue-100 text-blue-700' :
+                                  s.engagement_level === 'neutral' ? 'bg-gray-100 text-gray-700' :
+                                  s.engagement_level === 'disengaged' ? 'bg-red-100 text-red-700' :
+                                  'bg-gray-50 text-gray-500'
+                                }`}>
+                                  {s.engagement_level.replace('_', ' ')}
+                                </span>
+                              )}
+                            </div>
+                            {s.role && (
+                              <div className="text-sm text-gray-500 mt-0.5">{s.role}</div>
+                            )}
+                            <div className="flex items-center gap-2 mt-1 flex-wrap">
+                              <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${
+                                s.stakeholder_type === 'champion' ? 'bg-emerald-50 text-[#009b87]' :
+                                s.stakeholder_type === 'sponsor' ? 'bg-emerald-100 text-emerald-700' :
+                                s.stakeholder_type === 'blocker' ? 'bg-red-50 text-red-700' :
+                                'bg-gray-100 text-gray-700'
+                              }`}>
+                                {s.stakeholder_type}
+                              </span>
+                              <span className={`px-1.5 py-0.5 rounded text-xs ${
+                                s.influence_level === 'high' ? 'bg-orange-50 text-orange-700' :
+                                s.influence_level === 'medium' ? 'bg-yellow-50 text-yellow-700' :
+                                'bg-gray-50 text-gray-600'
+                              }`}>
+                                {s.influence_level} influence
+                              </span>
+                            </div>
+
+                            {/* Enrichment Details */}
+                            {(s.decision_authority || s.win_conditions || s.key_concerns || s.risk_if_disengaged) && (
+                              <div className="mt-3 pt-3 border-t border-gray-200 space-y-2">
+                                {s.decision_authority && (
+                                  <div className="text-xs">
+                                    <span className="font-medium text-gray-500">Decision Authority: </span>
+                                    <span className="text-gray-700">{s.decision_authority}</span>
+                                  </div>
+                                )}
+                                {s.win_conditions && s.win_conditions.length > 0 && (
+                                  <div className="text-xs">
+                                    <span className="font-medium text-gray-500">Win Conditions: </span>
+                                    <span className="text-gray-700">{s.win_conditions.slice(0, 2).join(', ')}</span>
+                                  </div>
+                                )}
+                                {s.key_concerns && s.key_concerns.length > 0 && (
+                                  <div className="text-xs">
+                                    <span className="font-medium text-gray-500">Key Concerns: </span>
+                                    <span className="text-gray-700">{s.key_concerns.slice(0, 2).join(', ')}</span>
+                                  </div>
+                                )}
+                                {s.risk_if_disengaged && (
+                                  <div className="text-xs">
+                                    <span className="font-medium text-red-600">Risk if Disengaged: </span>
+                                    <span className="text-red-700">{s.risk_if_disengaged}</span>
+                                  </div>
+                                )}
+                              </div>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -674,38 +733,81 @@ function ProjectContextSubTab({
             {stakeholders.length > 0 ? (
               <div className="space-y-3">
                 {stakeholders.map((s) => (
-                  <div key={s.id} className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
-                    <div className="flex-shrink-0 w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center">
-                      <Users className="h-5 w-5 text-[#009b87]" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium text-gray-900">{s.name}</span>
-                        {s.is_economic_buyer && (
-                          <span className="px-1.5 py-0.5 bg-green-100 text-green-700 rounded text-xs font-medium">
-                            Decision Maker
-                          </span>
-                        )}
+                  <div key={s.id} className="p-3 bg-gray-50 rounded-lg border border-gray-200">
+                    <div className="flex items-start gap-3">
+                      <div className="flex-shrink-0 w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center">
+                        <Users className="h-5 w-5 text-[#009b87]" />
                       </div>
-                      {s.role && (
-                        <div className="text-sm text-gray-500">{s.role}</div>
-                      )}
-                      <div className="flex items-center gap-2 mt-1">
-                        <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${
-                          s.stakeholder_type === 'champion' ? 'bg-emerald-50 text-[#009b87]' :
-                          s.stakeholder_type === 'sponsor' ? 'bg-emerald-100 text-emerald-700' :
-                          s.stakeholder_type === 'blocker' ? 'bg-red-50 text-red-700' :
-                          'bg-gray-100 text-gray-700'
-                        }`}>
-                          {s.stakeholder_type}
-                        </span>
-                        <span className={`px-1.5 py-0.5 rounded text-xs ${
-                          s.influence_level === 'high' ? 'bg-orange-50 text-orange-700' :
-                          s.influence_level === 'medium' ? 'bg-yellow-50 text-yellow-700' :
-                          'bg-gray-50 text-gray-600'
-                        }`}>
-                          {s.influence_level} influence
-                        </span>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-medium text-gray-900">{s.name}</span>
+                          {s.is_economic_buyer && (
+                            <span className="px-1.5 py-0.5 bg-green-100 text-green-700 rounded text-xs font-medium">
+                              Decision Maker
+                            </span>
+                          )}
+                          {s.engagement_level && (
+                            <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${
+                              s.engagement_level === 'highly_engaged' ? 'bg-emerald-100 text-emerald-700' :
+                              s.engagement_level === 'moderately_engaged' ? 'bg-blue-100 text-blue-700' :
+                              s.engagement_level === 'neutral' ? 'bg-gray-100 text-gray-700' :
+                              s.engagement_level === 'disengaged' ? 'bg-red-100 text-red-700' :
+                              'bg-gray-50 text-gray-500'
+                            }`}>
+                              {s.engagement_level.replace('_', ' ')}
+                            </span>
+                          )}
+                        </div>
+                        {s.role && (
+                          <div className="text-sm text-gray-500 mt-0.5">{s.role}</div>
+                        )}
+                        <div className="flex items-center gap-2 mt-1 flex-wrap">
+                          <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${
+                            s.stakeholder_type === 'champion' ? 'bg-emerald-50 text-[#009b87]' :
+                            s.stakeholder_type === 'sponsor' ? 'bg-emerald-100 text-emerald-700' :
+                            s.stakeholder_type === 'blocker' ? 'bg-red-50 text-red-700' :
+                            'bg-gray-100 text-gray-700'
+                          }`}>
+                            {s.stakeholder_type}
+                          </span>
+                          <span className={`px-1.5 py-0.5 rounded text-xs ${
+                            s.influence_level === 'high' ? 'bg-orange-50 text-orange-700' :
+                            s.influence_level === 'medium' ? 'bg-yellow-50 text-yellow-700' :
+                            'bg-gray-50 text-gray-600'
+                          }`}>
+                            {s.influence_level} influence
+                          </span>
+                        </div>
+
+                        {/* Enrichment Details */}
+                        {(s.decision_authority || s.win_conditions || s.key_concerns || s.risk_if_disengaged) && (
+                          <div className="mt-3 pt-3 border-t border-gray-200 space-y-2">
+                            {s.decision_authority && (
+                              <div className="text-xs">
+                                <span className="font-medium text-gray-500">Decision Authority: </span>
+                                <span className="text-gray-700">{s.decision_authority}</span>
+                              </div>
+                            )}
+                            {s.win_conditions && s.win_conditions.length > 0 && (
+                              <div className="text-xs">
+                                <span className="font-medium text-gray-500">Win Conditions: </span>
+                                <span className="text-gray-700">{s.win_conditions.slice(0, 2).join(', ')}</span>
+                              </div>
+                            )}
+                            {s.key_concerns && s.key_concerns.length > 0 && (
+                              <div className="text-xs">
+                                <span className="font-medium text-gray-500">Key Concerns: </span>
+                                <span className="text-gray-700">{s.key_concerns.slice(0, 2).join(', ')}</span>
+                              </div>
+                            )}
+                            {s.risk_if_disengaged && (
+                              <div className="text-xs">
+                                <span className="font-medium text-red-600">Risk if Disengaged: </span>
+                                <span className="text-red-700">{s.risk_if_disengaged}</span>
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -811,139 +913,245 @@ function BusinessDriversSubTab({
   drivers,
   constraints,
   projectId,
+  onRefresh,
 }: {
   drivers: BusinessDriver[]
   constraints: Constraint[]
   projectId: string
+  onRefresh?: () => void
 }) {
+  const [showAddModal, setShowAddModal] = useState(false)
+  const [editingDriver, setEditingDriver] = useState<BusinessDriver | null>(null)
+
   const kpis = drivers.filter(d => d.driver_type === 'kpi')
   const pains = drivers.filter(d => d.driver_type === 'pain')
   const goals = drivers.filter(d => d.driver_type === 'goal')
 
+  const handleDelete = async (driverId: string) => {
+    if (!confirm('Delete this business driver?')) return
+
+    try {
+      const baseUrl = process.env.NEXT_PUBLIC_API_BASE
+      const res = await fetch(`${baseUrl}/v1/projects/${projectId}/business-drivers/${driverId}`, {
+        method: 'DELETE',
+      })
+
+      if (!res.ok) throw new Error('Delete failed')
+      onRefresh?.()
+    } catch (error) {
+      console.error('Failed to delete driver:', error)
+      alert('Failed to delete business driver')
+    }
+  }
+
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      {/* KPIs */}
-      <Card>
-        <CardHeader title="KPIs" icon={Target} />
-        <div className="p-4">
-          {kpis.length > 0 ? (
-            <div className="space-y-3">
-              {kpis.map((kpi) => (
-                <div key={kpi.id} className="p-3 bg-green-50 rounded-lg border border-green-100">
-                  <div className="font-medium text-green-900">{kpi.description}</div>
-                  {kpi.measurement && (
-                    <div className="text-sm text-green-700 mt-1">
-                      Target: {kpi.measurement}
-                    </div>
-                  )}
-                  {kpi.timeframe && (
-                    <div className="text-xs text-green-600 mt-1">{kpi.timeframe}</div>
-                  )}
-                </div>
-              ))}
-            </div>
-          ) : (
-            <EmptyState
-              icon={<Target className="h-12 w-12" />}
-              title="No KPIs defined"
-              description="Extract from client discussions"
-            />
-          )}
-        </div>
-      </Card>
+    <div className="space-y-6">
+      {/* Add Button */}
+      <div className="flex justify-end">
+        <button
+          onClick={() => setShowAddModal(true)}
+          className="flex items-center gap-2 px-3 py-2 bg-brand-primary text-white rounded-lg hover:bg-brand-hover transition-colors text-sm font-medium"
+        >
+          <Plus className="h-4 w-4" />
+          Add Business Driver
+        </button>
+      </div>
 
-      {/* Pain Points */}
-      <Card>
-        <CardHeader title="Pain Points" icon={AlertCircle} />
-        <div className="p-4">
-          {pains.length > 0 ? (
-            <div className="space-y-3">
-              {pains.map((pain) => (
-                <div key={pain.id} className="p-3 bg-red-50 rounded-lg border border-red-100">
-                  <div className="font-medium text-red-900">{pain.description}</div>
-                  {pain.measurement && (
-                    <div className="text-sm text-red-700 mt-1">
-                      Impact: {pain.measurement}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          ) : (
-            <EmptyState
-              icon={<AlertCircle className="h-12 w-12" />}
-              title="No pain points defined"
-              description="Extract from client discussions"
-            />
-          )}
-        </div>
-      </Card>
-
-      {/* Goals */}
-      <Card>
-        <CardHeader title="Goals" icon={Sparkles} />
-        <div className="p-4">
-          {goals.length > 0 ? (
-            <div className="space-y-3">
-              {goals.map((goal) => (
-                <div key={goal.id} className="p-3 bg-emerald-50 rounded-lg border border-emerald-100">
-                  <div className="font-medium text-gray-900">{goal.description}</div>
-                  {goal.timeframe && (
-                    <div className="text-xs text-[#009b87] mt-1">{goal.timeframe}</div>
-                  )}
-                </div>
-              ))}
-            </div>
-          ) : (
-            <EmptyState
-              icon={<Sparkles className="h-12 w-12" />}
-              title="No goals defined"
-              description="Extract from client discussions"
-            />
-          )}
-        </div>
-      </Card>
-
-      {/* Constraints - Full Width */}
-      <div className="lg:col-span-3">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* KPIs */}
         <Card>
-          <CardHeader title="Constraints & Guardrails" icon={AlertCircle} />
+          <CardHeader title={`KPIs (${kpis.length})`} icon={Target} />
           <div className="p-4">
-            {constraints.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                {constraints.map((c) => (
-                  <div key={c.id} className="p-3 bg-ui-background rounded-lg">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="px-1.5 py-0.5 bg-gray-200 text-gray-700 rounded text-xs font-medium">
-                        {c.constraint_type}
-                      </span>
-                      {c.severity && c.severity !== 'should_have' && (
-                        <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${
-                          c.severity === 'must_have'
-                            ? 'bg-red-100 text-red-700'
-                            : 'bg-gray-100 text-gray-600'
-                        }`}>
-                          {c.severity.replace('_', ' ')}
-                        </span>
-                      )}
+            {kpis.length > 0 ? (
+              <div className="space-y-3">
+                {kpis.map((kpi) => (
+                  <div key={kpi.id} className="group p-3 bg-green-50 rounded-lg border border-green-100 hover:shadow-sm transition-shadow">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium text-green-900">{kpi.description}</div>
+                        {kpi.measurement && (
+                          <div className="text-sm text-green-700 mt-1">
+                            Target: {kpi.measurement}
+                          </div>
+                        )}
+                        {kpi.timeframe && (
+                          <div className="text-xs text-green-600 mt-1">{kpi.timeframe}</div>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button
+                          onClick={() => setEditingDriver(kpi)}
+                          className="p-1 hover:bg-green-200 rounded"
+                        >
+                          <Pencil className="h-3.5 w-3.5 text-green-700" />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(kpi.id)}
+                          className="p-1 hover:bg-red-200 rounded"
+                        >
+                          <span className="text-red-700 text-sm">×</span>
+                        </button>
+                      </div>
                     </div>
-                    <div className="font-medium text-ui-headingDark">{c.title}</div>
-                    {c.description && (
-                      <div className="text-sm text-ui-supportText mt-1 line-clamp-2">{c.description}</div>
-                    )}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <EmptyState
+                icon={<Target className="h-12 w-12" />}
+                title="No KPIs defined"
+                description="Add KPIs to track business metrics"
+              />
+            )}
+          </div>
+        </Card>
+
+        {/* Pain Points */}
+        <Card>
+          <CardHeader title={`Pain Points (${pains.length})`} icon={AlertCircle} />
+          <div className="p-4">
+            {pains.length > 0 ? (
+              <div className="space-y-3">
+                {pains.map((pain) => (
+                  <div key={pain.id} className="group p-3 bg-red-50 rounded-lg border border-red-100 hover:shadow-sm transition-shadow">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium text-red-900">{pain.description}</div>
+                        {pain.measurement && (
+                          <div className="text-sm text-red-700 mt-1">
+                            Impact: {pain.measurement}
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button
+                          onClick={() => setEditingDriver(pain)}
+                          className="p-1 hover:bg-red-200 rounded"
+                        >
+                          <Pencil className="h-3.5 w-3.5 text-red-700" />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(pain.id)}
+                          className="p-1 hover:bg-red-200 rounded"
+                        >
+                          <span className="text-red-700 text-sm">×</span>
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 ))}
               </div>
             ) : (
               <EmptyState
                 icon={<AlertCircle className="h-12 w-12" />}
-                title="No constraints defined"
-                description="Add budget, timeline, or technical constraints"
+                title="No pain points defined"
+                description="Add pain points to track challenges"
               />
             )}
           </div>
         </Card>
+
+        {/* Goals */}
+        <Card>
+          <CardHeader title={`Goals (${goals.length})`} icon={Sparkles} />
+          <div className="p-4">
+            {goals.length > 0 ? (
+              <div className="space-y-3">
+                {goals.map((goal) => (
+                  <div key={goal.id} className="group p-3 bg-emerald-50 rounded-lg border border-emerald-100 hover:shadow-sm transition-shadow">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium text-gray-900">{goal.description}</div>
+                        {goal.timeframe && (
+                          <div className="text-xs text-[#009b87] mt-1">{goal.timeframe}</div>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button
+                          onClick={() => setEditingDriver(goal)}
+                          className="p-1 hover:bg-emerald-200 rounded"
+                        >
+                          <Pencil className="h-3.5 w-3.5 text-emerald-700" />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(goal.id)}
+                          className="p-1 hover:bg-red-200 rounded"
+                        >
+                          <span className="text-red-700 text-sm">×</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <EmptyState
+                icon={<Sparkles className="h-12 w-12" />}
+                title="No goals defined"
+                description="Add goals to track objectives"
+              />
+            )}
+          </div>
+        </Card>
+
+        {/* Constraints - Full Width */}
+        <div className="lg:col-span-3">
+          <Card>
+            <CardHeader title="Constraints & Guardrails" icon={AlertCircle} />
+            <div className="p-4">
+              {constraints.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {constraints.map((c) => (
+                    <div key={c.id} className="p-3 bg-ui-background rounded-lg">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="px-1.5 py-0.5 bg-gray-200 text-gray-700 rounded text-xs font-medium">
+                          {c.constraint_type}
+                        </span>
+                        {c.severity && c.severity !== 'should_have' && (
+                          <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${
+                            c.severity === 'must_have'
+                              ? 'bg-red-100 text-red-700'
+                              : 'bg-gray-100 text-gray-600'
+                          }`}>
+                            {c.severity.replace('_', ' ')}
+                          </span>
+                        )}
+                      </div>
+                      <div className="font-medium text-ui-headingDark">{c.title}</div>
+                      {c.description && (
+                        <div className="text-sm text-ui-supportText mt-1 line-clamp-2">{c.description}</div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <EmptyState
+                  icon={<AlertCircle className="h-12 w-12" />}
+                  title="No constraints defined"
+                  description="Add budget, timeline, or technical constraints"
+                />
+              )}
+            </div>
+          </Card>
+        </div>
       </div>
+
+      {/* Add/Edit Modal */}
+      {(showAddModal || editingDriver) && (
+        <BusinessDriverModal
+          projectId={projectId}
+          driver={editingDriver}
+          onClose={() => {
+            setShowAddModal(false)
+            setEditingDriver(null)
+          }}
+          onSave={() => {
+            setShowAddModal(false)
+            setEditingDriver(null)
+            onRefresh?.()
+          }}
+        />
+      )}
     </div>
   )
 }
@@ -951,31 +1159,78 @@ function BusinessDriversSubTab({
 function ReferencesSubTab({
   references,
   projectId,
+  onRefresh,
 }: {
   references: CompetitorRef[]
   projectId: string
+  onRefresh?: () => void
 }) {
+  const [showAddModal, setShowAddModal] = useState(false)
+  const [editingRef, setEditingRef] = useState<CompetitorRef | null>(null)
+
   const competitors = references.filter(r => r.reference_type === 'competitor')
   const designRefs = references.filter(r => r.reference_type === 'design_inspiration')
   const featureRefs = references.filter(r => r.reference_type === 'feature_inspiration')
 
+  const handleDelete = async (refId: string) => {
+    if (!confirm('Delete this competitor reference?')) return
+
+    try {
+      const baseUrl = process.env.NEXT_PUBLIC_API_BASE
+      const res = await fetch(`${baseUrl}/v1/projects/${projectId}/competitors/${refId}`, {
+        method: 'DELETE',
+      })
+
+      if (!res.ok) throw new Error('Delete failed')
+      onRefresh?.()
+    } catch (error) {
+      console.error('Failed to delete reference:', error)
+      alert('Failed to delete competitor reference')
+    }
+  }
+
   return (
     <div className="space-y-6">
+      {/* Add Button */}
+      <div className="flex justify-end">
+        <button
+          onClick={() => setShowAddModal(true)}
+          className="flex items-center gap-2 px-3 py-2 bg-brand-primary text-white rounded-lg hover:bg-brand-hover transition-colors text-sm font-medium"
+        >
+          <Plus className="h-4 w-4" />
+          Add Competitor
+        </button>
+      </div>
+
       {/* Competitors */}
       <Card>
-        <CardHeader title="Competitors" icon={Target} />
+        <CardHeader title={`Competitors (${competitors.length})`} icon={Target} />
         <div className="p-4">
           {competitors.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {competitors.map((c) => (
-                <div key={c.id} className="p-4 bg-ui-background rounded-lg border border-ui-cardBorder">
+                <div key={c.id} className="group p-4 bg-ui-background rounded-lg border border-ui-cardBorder hover:shadow-sm transition-shadow">
                   <div className="flex items-center justify-between mb-2">
                     <span className="font-semibold text-ui-headingDark">{c.name}</span>
-                    {c.url && (
-                      <a href={c.url} target="_blank" rel="noopener noreferrer">
-                        <ExternalLink className="h-4 w-4 text-ui-supportText hover:text-brand-primary" />
-                      </a>
-                    )}
+                    <div className="flex items-center gap-1">
+                      {c.url && (
+                        <a href={c.url} target="_blank" rel="noopener noreferrer">
+                          <ExternalLink className="h-4 w-4 text-ui-supportText hover:text-brand-primary" />
+                        </a>
+                      )}
+                      <button
+                        onClick={() => setEditingRef(c)}
+                        className="p-1 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-gray-200 rounded"
+                      >
+                        <Pencil className="h-3.5 w-3.5 text-gray-700" />
+                      </button>
+                      <button
+                        onClick={() => handleDelete(c.id)}
+                        className="p-1 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-200 rounded"
+                      >
+                        <span className="text-red-700 text-sm">×</span>
+                      </button>
+                    </div>
                   </div>
                   {c.category && (
                     <span className="px-2 py-0.5 bg-gray-100 text-gray-700 rounded text-xs">
@@ -1076,6 +1331,344 @@ function ReferencesSubTab({
           </div>
         </Card>
       )}
+
+      {/* Add/Edit Modal */}
+      {(showAddModal || editingRef) && (
+        <CompetitorRefModal
+          projectId={projectId}
+          competitorRef={editingRef}
+          onClose={() => {
+            setShowAddModal(false)
+            setEditingRef(null)
+          }}
+          onSave={() => {
+            setShowAddModal(false)
+            setEditingRef(null)
+            onRefresh?.()
+          }}
+        />
+      )}
+    </div>
+  )
+}
+
+/**
+ * Competitor Reference Add/Edit Modal
+ */
+function CompetitorRefModal({
+  projectId,
+  competitorRef,
+  onClose,
+  onSave,
+}: {
+  projectId: string
+  competitorRef: CompetitorRef | null
+  onClose: () => void
+  onSave: () => void
+}) {
+  const [formData, setFormData] = useState({
+    name: competitorRef?.name || '',
+    url: competitorRef?.url || '',
+    category: competitorRef?.category || '',
+    research_notes: competitorRef?.research_notes || '',
+    reference_type: competitorRef?.reference_type || 'competitor' as 'competitor' | 'design_inspiration' | 'feature_inspiration',
+  })
+  const [saving, setSaving] = useState(false)
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setSaving(true)
+
+    try {
+      const baseUrl = process.env.NEXT_PUBLIC_API_BASE
+      const url = competitorRef
+        ? `${baseUrl}/v1/projects/${projectId}/competitors/${competitorRef.id}`
+        : `${baseUrl}/v1/projects/${projectId}/competitors`
+
+      const res = await fetch(url, {
+        method: competitorRef ? 'PATCH' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...formData,
+          website: formData.url, // API expects 'website' not 'url'
+        }),
+      })
+
+      if (!res.ok) throw new Error('Save failed')
+
+      onSave()
+    } catch (error) {
+      console.error('Failed to save competitor:', error)
+      alert('Failed to save competitor reference')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between p-6 border-b">
+          <h2 className="text-xl font-semibold">
+            {competitorRef ? 'Edit' : 'Add'} Competitor Reference
+          </h2>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-600"
+          >
+            <span className="text-2xl">×</span>
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Type
+            </label>
+            <select
+              value={formData.reference_type}
+              onChange={(e) => setFormData({ ...formData, reference_type: e.target.value as 'competitor' | 'design_inspiration' | 'feature_inspiration' })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-transparent"
+            >
+              <option value="competitor">Competitor</option>
+              <option value="design_inspiration">Design Inspiration</option>
+              <option value="feature_inspiration">Feature Inspiration</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Name *
+            </label>
+            <input
+              type="text"
+              value={formData.name}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-transparent"
+              required
+              placeholder="Competitor name"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Website URL
+            </label>
+            <input
+              type="url"
+              value={formData.url}
+              onChange={(e) => setFormData({ ...formData, url: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-transparent"
+              placeholder="https://competitor.com"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Category
+            </label>
+            <input
+              type="text"
+              value={formData.category}
+              onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-transparent"
+              placeholder="e.g., CRM Software, Project Management"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Research Notes
+            </label>
+            <textarea
+              value={formData.research_notes}
+              onChange={(e) => setFormData({ ...formData, research_notes: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-transparent"
+              rows={4}
+              placeholder="Strengths, weaknesses, features to study..."
+            />
+          </div>
+
+          <div className="flex justify-end gap-3 pt-4">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 border border-gray-300 rounded-lg"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={saving}
+              className="px-4 py-2 text-sm font-medium text-white bg-brand-primary hover:bg-brand-hover rounded-lg disabled:opacity-50"
+            >
+              {saving ? (
+                <span className="flex items-center gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Saving...
+                </span>
+              ) : (
+                competitorRef ? 'Update' : 'Add'
+              )}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
+/**
+ * Business Driver Add/Edit Modal
+ */
+function BusinessDriverModal({
+  projectId,
+  driver,
+  onClose,
+  onSave,
+}: {
+  projectId: string
+  driver: BusinessDriver | null
+  onClose: () => void
+  onSave: () => void
+}) {
+  const [formData, setFormData] = useState({
+    driver_type: driver?.driver_type || 'kpi' as 'kpi' | 'pain' | 'goal',
+    description: driver?.description || '',
+    measurement: driver?.measurement || '',
+    timeframe: driver?.timeframe || '',
+    priority: driver?.priority || 3,
+  })
+  const [saving, setSaving] = useState(false)
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setSaving(true)
+
+    try {
+      const baseUrl = process.env.NEXT_PUBLIC_API_BASE
+      const url = driver
+        ? `${baseUrl}/v1/projects/${projectId}/business-drivers/${driver.id}`
+        : `${baseUrl}/v1/projects/${projectId}/business-drivers`
+
+      const res = await fetch(url, {
+        method: driver ? 'PATCH' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData),
+      })
+
+      if (!res.ok) throw new Error('Save failed')
+
+      onSave()
+    } catch (error) {
+      console.error('Failed to save driver:', error)
+      alert('Failed to save business driver')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between p-6 border-b">
+          <h2 className="text-xl font-semibold">
+            {driver ? 'Edit' : 'Add'} Business Driver
+          </h2>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-600"
+          >
+            <span className="text-2xl">×</span>
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Type
+            </label>
+            <select
+              value={formData.driver_type}
+              onChange={(e) => setFormData({ ...formData, driver_type: e.target.value as 'kpi' | 'pain' | 'goal' })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-transparent"
+              disabled={!!driver}
+            >
+              <option value="kpi">KPI</option>
+              <option value="pain">Pain Point</option>
+              <option value="goal">Goal</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Description *
+            </label>
+            <textarea
+              value={formData.description}
+              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-transparent"
+              rows={3}
+              required
+              placeholder="Describe the KPI, pain point, or goal..."
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              {formData.driver_type === 'kpi' ? 'Target' : formData.driver_type === 'pain' ? 'Impact' : 'Success Criteria'}
+            </label>
+            <input
+              type="text"
+              value={formData.measurement}
+              onChange={(e) => setFormData({ ...formData, measurement: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-transparent"
+              placeholder={
+                formData.driver_type === 'kpi' ? 'e.g., 40% reduction in support tickets' :
+                formData.driver_type === 'pain' ? 'e.g., 10 hours/week wasted on manual work' :
+                'e.g., MVP launched by Q2'
+              }
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Timeframe
+            </label>
+            <input
+              type="text"
+              value={formData.timeframe}
+              onChange={(e) => setFormData({ ...formData, timeframe: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-transparent"
+              placeholder="e.g., By Q2 2026, Within 6 months"
+            />
+          </div>
+
+          <div className="flex justify-end gap-3 pt-4">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 border border-gray-300 rounded-lg"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={saving}
+              className="px-4 py-2 text-sm font-medium text-white bg-brand-primary hover:bg-brand-hover rounded-lg disabled:opacity-50"
+            >
+              {saving ? (
+                <span className="flex items-center gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Saving...
+                </span>
+              ) : (
+                driver ? 'Update' : 'Add'
+              )}
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   )
 }
