@@ -377,6 +377,147 @@ async def delete_business_driver(
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
+@router.post("/{driver_id}/enrich", response_model=BusinessDriverOut)
+async def enrich_business_driver(
+    project_id: UUID = Path(..., description="Project UUID"),
+    driver_id: UUID = Path(..., description="Business driver UUID"),
+    depth: Literal["quick", "standard", "deep"] = Query("standard", description="Enrichment depth"),
+) -> BusinessDriverOut:
+    """
+    Trigger enrichment for a business driver.
+
+    Calls the appropriate enrichment chain based on driver_type:
+    - KPI: Extract baseline, target, measurement method, tracking, data source, owner
+    - Pain: Extract severity, frequency, affected users, business impact, workaround
+    - Goal: Extract timeframe, success criteria, dependencies, owner
+
+    Args:
+        project_id: Project UUID
+        driver_id: Business driver UUID
+        depth: Enrichment depth (quick, standard, deep)
+
+    Returns:
+        Updated business driver with enrichment fields
+    """
+    try:
+        # Verify driver exists and belongs to project
+        existing = drivers_db.get_business_driver(driver_id)
+        if not existing:
+            raise HTTPException(status_code=404, detail="Business driver not found")
+        if str(existing.get("project_id")) != str(project_id):
+            raise HTTPException(status_code=404, detail="Business driver not found in this project")
+
+        driver_type = existing.get("driver_type")
+        if not driver_type:
+            raise HTTPException(status_code=400, detail="Driver type not set")
+
+        logger.info(
+            f"Enriching {driver_type} driver {driver_id}",
+            extra={"project_id": str(project_id), "driver_id": str(driver_id), "depth": depth},
+        )
+
+        # Call appropriate enrichment chain
+        enrichment_result = None
+        updated_fields = {}
+
+        if driver_type == "kpi":
+            from app.chains.enrich_kpi import enrich_kpi
+            enrichment_result = await enrich_kpi(driver_id, project_id, depth)
+
+            if enrichment_result["success"] and enrichment_result["enrichment"]:
+                enrichment = enrichment_result["enrichment"]
+                if enrichment.baseline_value:
+                    updated_fields["baseline_value"] = enrichment.baseline_value
+                if enrichment.target_value:
+                    updated_fields["target_value"] = enrichment.target_value
+                if enrichment.measurement_method:
+                    updated_fields["measurement_method"] = enrichment.measurement_method
+                if enrichment.tracking_frequency:
+                    updated_fields["tracking_frequency"] = enrichment.tracking_frequency
+                if enrichment.data_source:
+                    updated_fields["data_source"] = enrichment.data_source
+                if enrichment.responsible_team:
+                    updated_fields["responsible_team"] = enrichment.responsible_team
+
+        elif driver_type == "pain":
+            from app.chains.enrich_pain_point import enrich_pain_point
+            enrichment_result = await enrich_pain_point(driver_id, project_id, depth)
+
+            if enrichment_result["success"] and enrichment_result["enrichment"]:
+                enrichment = enrichment_result["enrichment"]
+                if enrichment.severity:
+                    updated_fields["severity"] = enrichment.severity
+                if enrichment.frequency:
+                    updated_fields["frequency"] = enrichment.frequency
+                if enrichment.affected_users:
+                    updated_fields["affected_users"] = enrichment.affected_users
+                if enrichment.business_impact:
+                    updated_fields["business_impact"] = enrichment.business_impact
+                if enrichment.current_workaround:
+                    updated_fields["current_workaround"] = enrichment.current_workaround
+
+        elif driver_type == "goal":
+            from app.chains.enrich_goal import enrich_goal
+            enrichment_result = await enrich_goal(driver_id, project_id, depth)
+
+            if enrichment_result["success"] and enrichment_result["enrichment"]:
+                enrichment = enrichment_result["enrichment"]
+                if enrichment.goal_timeframe:
+                    updated_fields["goal_timeframe"] = enrichment.goal_timeframe
+                if enrichment.success_criteria:
+                    updated_fields["success_criteria"] = enrichment.success_criteria
+                if enrichment.dependencies:
+                    updated_fields["dependencies"] = enrichment.dependencies
+                if enrichment.owner:
+                    updated_fields["owner"] = enrichment.owner
+
+        else:
+            raise HTTPException(status_code=400, detail=f"Unknown driver type: {driver_type}")
+
+        # Update enrichment status
+        if enrichment_result and enrichment_result["success"] and updated_fields:
+            updated_fields["enrichment_status"] = "enriched"
+            updated_fields["enrichment_attempted_at"] = "now()"
+            updated_fields["enrichment_error"] = None
+
+            # Update driver
+            driver = drivers_db.update_business_driver(driver_id, project_id, **updated_fields)
+
+            logger.info(
+                f"Enrichment successful for {driver_type} driver {driver_id}",
+                extra={"updated_fields": list(updated_fields.keys())},
+            )
+
+            return BusinessDriverOut(**driver)
+        elif enrichment_result and not enrichment_result["success"]:
+            # Mark enrichment as attempted but failed
+            error_msg = enrichment_result.get("error", "Unknown error")
+            drivers_db.update_business_driver(
+                driver_id,
+                project_id,
+                enrichment_status="none",
+                enrichment_attempted_at="now()",
+                enrichment_error=error_msg,
+            )
+            raise HTTPException(status_code=500, detail=f"Enrichment failed: {error_msg}")
+        else:
+            # No enrichment data found
+            drivers_db.update_business_driver(
+                driver_id,
+                project_id,
+                enrichment_status="none",
+                enrichment_attempted_at="now()",
+                enrichment_error="No enrichment data could be extracted from signals",
+            )
+            raise HTTPException(status_code=404, detail="No enrichment data found in signals")
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error enriching business driver: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
 @router.get("/type/{driver_type}", response_model=BusinessDriverListResponse)
 async def get_drivers_by_type(
     project_id: UUID = Path(..., description="Project UUID"),
@@ -406,4 +547,168 @@ async def get_drivers_by_type(
 
     except Exception as e:
         logger.error(f"Error getting drivers by type: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.post("/enrich-bulk")
+async def bulk_enrich_drivers(
+    project_id: UUID = Path(..., description="Project UUID"),
+    driver_type: Literal["kpi", "pain", "goal", "all"] | None = Query(None, description="Filter by type"),
+    depth: Literal["quick", "standard", "deep"] = Query("standard", description="Enrichment depth"),
+) -> dict[str, Any]:
+    """
+    Bulk enrich multiple business drivers.
+
+    Enriches all non-enriched drivers (or drivers of a specific type).
+    Processes in parallel with max concurrency of 5.
+
+    Args:
+        project_id: Project UUID
+        driver_type: Optional filter by type (kpi, pain, goal, all)
+        depth: Enrichment depth
+
+    Returns:
+        Summary with total, succeeded, failed, and error details
+    """
+    import asyncio
+
+    try:
+        # Get all drivers (or filtered by type)
+        filter_type = None if driver_type == "all" else driver_type
+        all_drivers = drivers_db.list_business_drivers(project_id, driver_type=filter_type)
+
+        # Filter to only non-enriched drivers
+        drivers_to_enrich = [
+            d for d in all_drivers
+            if d.get("enrichment_status") != "enriched"
+        ]
+
+        if not drivers_to_enrich:
+            return {
+                "total": 0,
+                "succeeded": 0,
+                "failed": 0,
+                "skipped": len(all_drivers),
+                "message": "All drivers already enriched",
+            }
+
+        logger.info(
+            f"Starting bulk enrichment of {len(drivers_to_enrich)} drivers",
+            extra={"project_id": str(project_id), "driver_type": driver_type, "depth": depth},
+        )
+
+        # Enrich in parallel with max concurrency
+        semaphore = asyncio.Semaphore(5)  # Max 5 concurrent
+        results = {"succeeded": 0, "failed": 0, "errors": []}
+
+        async def enrich_one(driver):
+            async with semaphore:
+                try:
+                    driver_id = UUID(driver["id"])
+                    driver_type = driver["driver_type"]
+
+                    # Call appropriate enrichment chain
+                    enrichment_result = None
+                    updated_fields = {}
+
+                    if driver_type == "kpi":
+                        from app.chains.enrich_kpi import enrich_kpi
+                        enrichment_result = await enrich_kpi(driver_id, project_id, depth)
+
+                        if enrichment_result["success"] and enrichment_result["enrichment"]:
+                            enrichment = enrichment_result["enrichment"]
+                            if enrichment.baseline_value:
+                                updated_fields["baseline_value"] = enrichment.baseline_value
+                            if enrichment.target_value:
+                                updated_fields["target_value"] = enrichment.target_value
+                            if enrichment.measurement_method:
+                                updated_fields["measurement_method"] = enrichment.measurement_method
+                            if enrichment.tracking_frequency:
+                                updated_fields["tracking_frequency"] = enrichment.tracking_frequency
+                            if enrichment.data_source:
+                                updated_fields["data_source"] = enrichment.data_source
+                            if enrichment.responsible_team:
+                                updated_fields["responsible_team"] = enrichment.responsible_team
+
+                    elif driver_type == "pain":
+                        from app.chains.enrich_pain_point import enrich_pain_point
+                        enrichment_result = await enrich_pain_point(driver_id, project_id, depth)
+
+                        if enrichment_result["success"] and enrichment_result["enrichment"]:
+                            enrichment = enrichment_result["enrichment"]
+                            if enrichment.severity:
+                                updated_fields["severity"] = enrichment.severity
+                            if enrichment.frequency:
+                                updated_fields["frequency"] = enrichment.frequency
+                            if enrichment.affected_users:
+                                updated_fields["affected_users"] = enrichment.affected_users
+                            if enrichment.business_impact:
+                                updated_fields["business_impact"] = enrichment.business_impact
+                            if enrichment.current_workaround:
+                                updated_fields["current_workaround"] = enrichment.current_workaround
+
+                    elif driver_type == "goal":
+                        from app.chains.enrich_goal import enrich_goal
+                        enrichment_result = await enrich_goal(driver_id, project_id, depth)
+
+                        if enrichment_result["success"] and enrichment_result["enrichment"]:
+                            enrichment = enrichment_result["enrichment"]
+                            if enrichment.goal_timeframe:
+                                updated_fields["goal_timeframe"] = enrichment.goal_timeframe
+                            if enrichment.success_criteria:
+                                updated_fields["success_criteria"] = enrichment.success_criteria
+                            if enrichment.dependencies:
+                                updated_fields["dependencies"] = enrichment.dependencies
+                            if enrichment.owner:
+                                updated_fields["owner"] = enrichment.owner
+
+                    # Update if successful
+                    if enrichment_result and enrichment_result["success"] and updated_fields:
+                        updated_fields["enrichment_status"] = "enriched"
+                        updated_fields["enrichment_attempted_at"] = "now()"
+                        updated_fields["enrichment_error"] = None
+                        drivers_db.update_business_driver(driver_id, project_id, **updated_fields)
+                        results["succeeded"] += 1
+                    else:
+                        # No data found
+                        drivers_db.update_business_driver(
+                            driver_id,
+                            project_id,
+                            enrichment_status="none",
+                            enrichment_attempted_at="now()",
+                            enrichment_error="No enrichment data found",
+                        )
+                        results["failed"] += 1
+                        results["errors"].append({
+                            "driver_id": str(driver_id),
+                            "description": driver["description"][:50],
+                            "error": "No enrichment data found",
+                        })
+
+                except Exception as e:
+                    results["failed"] += 1
+                    results["errors"].append({
+                        "driver_id": driver.get("id"),
+                        "description": driver.get("description", "")[:50],
+                        "error": str(e),
+                    })
+                    logger.error(f"Failed to enrich driver {driver.get('id')}: {e}")
+
+        # Run all enrichments
+        await asyncio.gather(*[enrich_one(d) for d in drivers_to_enrich])
+
+        logger.info(
+            f"Bulk enrichment complete: {results['succeeded']} succeeded, {results['failed']} failed",
+            extra={"project_id": str(project_id)},
+        )
+
+        return {
+            "total": len(drivers_to_enrich),
+            "succeeded": results["succeeded"],
+            "failed": results["failed"],
+            "errors": results["errors"][:10],  # Limit error details
+        }
+
+    except Exception as e:
+        logger.error(f"Error in bulk enrichment: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e)) from e
