@@ -290,9 +290,9 @@ def _auto_trigger_processing(
             # Don't raise - ingestion already succeeded
 
     else:
-        # Initial mode: Run extract_facts
+        # Initial mode: Run unified signal processing pipeline
         logger.info(
-            f"Project in initial mode, triggering extract_facts",
+            f"Project in initial mode, triggering unified signal pipeline",
             extra={"run_id": str(run_id), "project_id": str(project_id)},
         )
 
@@ -300,58 +300,66 @@ def _auto_trigger_processing(
         from app.db.jobs import create_job, start_job, complete_job, fail_job
         agent_job_id = create_job(
             project_id=project_id,
-            job_type="extract_facts",
+            job_type="signal_processing",
             input_json={"signal_id": str(signal_id), "trigger": "auto"},
             run_id=run_id,
         )
         start_job(agent_job_id)
 
         try:
-            from app.graphs.extract_facts_graph import run_extract_facts
+            import asyncio
+            from app.core.signal_pipeline import process_signal
+            from app.db.signals import get_signal
 
-            # Run extract_facts with proper parameters
-            llm_output, extracted_facts_id, actual_project_id = run_extract_facts(
-                signal_id=signal_id,
+            # Get signal content
+            signal = get_signal(signal_id)
+            if not signal:
+                raise ValueError(f"Signal {signal_id} not found")
+
+            signal_content = signal.get("content", "")
+            signal_type = signal.get("signal_type", "signal")
+            signal_title = signal.get("title", "Untitled")
+
+            # Run unified pipeline (async wrapper)
+            result = asyncio.run(process_signal(
                 project_id=project_id,
-                job_id=agent_job_id,
+                signal_id=signal_id,
                 run_id=run_id,
-                top_chunks=None,  # Use default from settings
-            )
+                signal_content=signal_content,
+                signal_type=signal_type,
+                signal_metadata={"title": signal_title},
+            ))
 
-            facts_count = len(llm_output.facts)
-            logger.info(
-                f"Extract facts completed: {facts_count} facts extracted",
-                extra={"run_id": str(run_id), "extracted_facts_id": str(extracted_facts_id)},
-            )
+            if result.get("success"):
+                logger.info(
+                    f"Signal processing completed: pipeline={result.get('pipeline')}",
+                    extra={
+                        "run_id": str(run_id),
+                        "features_created": result.get("features_created", 0),
+                        "personas_created": result.get("personas_created", 0),
+                        "vp_steps_created": result.get("vp_steps_created", 0),
+                        "proposal_id": result.get("proposal_id"),
+                    },
+                )
 
-            # Auto-update creative brief if client_info was extracted
-            client_info_extracted = False
-            if llm_output.client_info:
-                try:
-                    client_info_extracted = _update_creative_brief_from_extraction(
-                        project_id=project_id,
-                        client_info=llm_output.client_info,
-                        signal_id=signal_id,
-                    )
-                except Exception as e:
-                    logger.warning(
-                        f"Failed to update creative brief from extraction: {e}",
-                        extra={"run_id": str(run_id)},
-                    )
-
-            complete_job(
-                agent_job_id,
-                output_json={
-                    "extracted_facts_id": str(extracted_facts_id),
-                    "total_facts": facts_count,
-                    "summary": llm_output.summary,
-                    "client_info_extracted": client_info_extracted,
-                },
-            )
-
-            # Auto-trigger build_state to create features, personas, PRD, VP from facts
-            if facts_count > 0:
-                _auto_trigger_build_state(project_id, run_id)
+                complete_job(
+                    agent_job_id,
+                    output_json={
+                        "pipeline": result.get("pipeline"),
+                        "features_created": result.get("features_created", 0),
+                        "personas_created": result.get("personas_created", 0),
+                        "vp_steps_created": result.get("vp_steps_created", 0),
+                        "proposal_id": result.get("proposal_id"),
+                        "message": result.get("message", "Processing completed"),
+                    },
+                )
+            else:
+                error_msg = result.get("error", "Unknown error")
+                logger.error(
+                    f"Signal processing failed: {error_msg}",
+                    extra={"run_id": str(run_id), "signal_id": str(signal_id)},
+                )
+                fail_job(agent_job_id, error_msg)
 
         except Exception as e:
             logger.exception(f"Extract facts failed", extra={"run_id": str(run_id)})
