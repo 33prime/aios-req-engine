@@ -712,3 +712,61 @@ async def bulk_enrich_drivers(
     except Exception as e:
         logger.error(f"Error in bulk enrichment: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.get("/{driver_id}/associations")
+async def get_driver_associations(
+    project_id: UUID = Path(..., description="Project UUID"),
+    driver_id: UUID = Path(..., description="Business driver UUID"),
+) -> dict[str, Any]:
+    """
+    Get cross-entity associations for a business driver.
+
+    Finds related entities through:
+    - Evidence overlap (shared signal chunks)
+    - Semantic similarity
+    - Domain-specific rules (e.g., personas affected by pains)
+
+    Args:
+        project_id: Project UUID
+        driver_id: Business driver UUID
+
+    Returns:
+        Dict with:
+        - features: Features associated with this driver
+        - personas: Personas impacted by or linked to this driver
+        - related_kpis: Related KPI drivers
+        - related_pains: Related pain drivers
+        - related_goals: Related goal drivers
+    """
+    try:
+        # Verify driver exists and belongs to project
+        existing = drivers_db.get_business_driver(driver_id)
+        if not existing:
+            raise HTTPException(status_code=404, detail="Business driver not found")
+        if str(existing.get("project_id")) != str(project_id):
+            raise HTTPException(status_code=404, detail="Business driver not found in this project")
+
+        logger.info(
+            f"Getting associations for driver {driver_id}",
+            extra={"project_id": str(project_id), "driver_id": str(driver_id)},
+        )
+
+        # Get associations
+        features = drivers_db.get_driver_associated_features(driver_id)
+        personas = drivers_db.get_driver_associated_personas(driver_id)
+        related_drivers = drivers_db.get_driver_related_drivers(driver_id)
+
+        return {
+            "features": features,
+            "personas": personas,
+            "related_kpis": related_drivers.get("related_kpis", []),
+            "related_pains": related_drivers.get("related_pains", []),
+            "related_goals": related_drivers.get("related_goals", []),
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting driver associations: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e)) from e

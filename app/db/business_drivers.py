@@ -627,3 +627,221 @@ def smart_upsert_business_driver(
 
         invalidate_snapshot(project_id)
         return (driver_id, "created")
+
+
+def get_driver_associated_features(driver_id: UUID) -> list[dict[str, Any]]:
+    """
+    Get features associated with a business driver.
+
+    Finds features through:
+    - Evidence overlap (shared signal chunks)
+    - Semantic similarity between descriptions
+    - Persona overlap (for pains: features with matching target_personas)
+
+    Args:
+        driver_id: Business driver UUID
+
+    Returns:
+        List of feature dicts with id, name, confirmation_status, category
+    """
+    supabase = get_supabase()
+
+    # Get the driver
+    driver = get_business_driver(driver_id)
+    if not driver:
+        return []
+
+    project_id = UUID(driver["project_id"])
+    driver_evidence = driver.get("evidence", []) or []
+    driver_chunk_ids = {ev.get("chunk_id") for ev in driver_evidence if ev.get("chunk_id")}
+
+    # Get all features for this project
+    features_response = supabase.table("features").select(
+        "id, name, confirmation_status, category, evidence"
+    ).eq("project_id", str(project_id)).execute()
+
+    features = features_response.data or []
+
+    # Find features with evidence overlap
+    associated = []
+    for feature in features:
+        feature_evidence = feature.get("evidence", []) or []
+        feature_chunk_ids = {ev.get("chunk_id") for ev in feature_evidence if ev.get("chunk_id")}
+
+        # Check for chunk overlap
+        overlap = driver_chunk_ids & feature_chunk_ids
+        if overlap:
+            associated.append({
+                "id": feature["id"],
+                "name": feature["name"],
+                "confirmation_status": feature.get("confirmation_status"),
+                "category": feature.get("category"),
+                "association_reason": f"{len(overlap)} shared evidence sources",
+            })
+
+    # TODO: Add semantic similarity matching (future enhancement)
+
+    return associated
+
+
+def get_driver_associated_personas(driver_id: UUID) -> list[dict[str, Any]]:
+    """
+    Get personas associated with a business driver.
+
+    For pains: Finds personas where pain affects them
+    For goals/KPIs: Finds personas mentioned in evidence
+
+    Args:
+        driver_id: Business driver UUID
+
+    Returns:
+        List of persona dicts with id, name, role, pain_points
+    """
+    supabase = get_supabase()
+
+    # Get the driver
+    driver = get_business_driver(driver_id)
+    if not driver:
+        return []
+
+    project_id = UUID(driver["project_id"])
+    driver_type = driver.get("driver_type")
+    driver_evidence = driver.get("evidence", []) or []
+    driver_chunk_ids = {ev.get("chunk_id") for ev in driver_evidence if ev.get("chunk_id")}
+
+    # Get all personas for this project
+    personas_response = supabase.table("personas").select(
+        "id, name, role, pain_points, evidence"
+    ).eq("project_id", str(project_id)).execute()
+
+    personas = personas_response.data or []
+
+    # Find personas with evidence overlap or pain matching
+    associated = []
+    for persona in personas:
+        # Check evidence overlap
+        persona_evidence = persona.get("evidence", []) or []
+        persona_chunk_ids = {ev.get("chunk_id") for ev in persona_evidence if ev.get("chunk_id")}
+
+        overlap = driver_chunk_ids & persona_chunk_ids
+        if overlap:
+            associated.append({
+                "id": persona["id"],
+                "name": persona["name"],
+                "role": persona.get("role"),
+                "pain_points": persona.get("pain_points"),
+                "association_reason": f"{len(overlap)} shared evidence sources",
+            })
+            continue
+
+        # For pain drivers, check if persona's pain_points mention this pain
+        if driver_type == "pain":
+            persona_pains = persona.get("pain_points", []) or []
+            driver_desc = driver.get("description", "").lower()
+
+            for pain_point in persona_pains:
+                if isinstance(pain_point, str) and driver_desc[:30] in pain_point.lower():
+                    associated.append({
+                        "id": persona["id"],
+                        "name": persona["name"],
+                        "role": persona.get("role"),
+                        "pain_points": persona.get("pain_points"),
+                        "association_reason": "Pain point mentioned in persona",
+                    })
+                    break
+
+    return associated
+
+
+def get_driver_related_drivers(driver_id: UUID) -> dict[str, list[dict[str, Any]]]:
+    """
+    Get related business drivers (different types that are connected).
+
+    Finds relationships:
+    - KPIs that measure a Goal
+    - Pain points related to a KPI (things being measured)
+    - Goals that address a Pain
+    - Shared evidence sources
+
+    Args:
+        driver_id: Business driver UUID
+
+    Returns:
+        Dict with keys: related_kpis, related_pains, related_goals
+    """
+    supabase = get_supabase()
+
+    # Get the driver
+    driver = get_business_driver(driver_id)
+    if not driver:
+        return {"related_kpis": [], "related_pains": [], "related_goals": []}
+
+    project_id = UUID(driver["project_id"])
+    driver_type = driver.get("driver_type")
+    driver_evidence = driver.get("evidence", []) or []
+    driver_chunk_ids = {ev.get("chunk_id") for ev in driver_evidence if ev.get("chunk_id")}
+    driver_desc = driver.get("description", "").lower()
+
+    # Get all drivers for this project
+    all_drivers = list_business_drivers(project_id)
+
+    related_kpis = []
+    related_pains = []
+    related_goals = []
+
+    for other_driver in all_drivers:
+        if other_driver["id"] == str(driver_id):
+            continue  # Skip self
+
+        other_type = other_driver.get("driver_type")
+        other_evidence = other_driver.get("evidence", []) or []
+        other_chunk_ids = {ev.get("chunk_id") for ev in other_evidence if ev.get("chunk_id")}
+        other_desc = other_driver.get("description", "").lower()
+
+        # Check evidence overlap
+        overlap = driver_chunk_ids & other_chunk_ids
+
+        # Build relationship based on types
+        relationship = None
+        if overlap:
+            relationship = f"{len(overlap)} shared evidence sources"
+
+        # Check text similarity (simple substring match - can be enhanced)
+        # Extract key terms (words > 4 chars)
+        driver_terms = {w for w in driver_desc.split() if len(w) > 4}
+        other_terms = {w for w in other_desc.split() if len(w) > 4}
+        term_overlap = driver_terms & other_terms
+
+        if term_overlap and not relationship:
+            relationship = f"Shared terms: {', '.join(list(term_overlap)[:3])}"
+
+        if not relationship:
+            continue  # No relationship found
+
+        # Add to appropriate list
+        result = {
+            "id": other_driver["id"],
+            "description": other_driver["description"],
+            "driver_type": other_type,
+            "relationship": relationship,
+        }
+
+        # Include type-specific fields
+        if other_type == "kpi":
+            result["baseline_value"] = other_driver.get("baseline_value")
+            result["target_value"] = other_driver.get("target_value")
+            related_kpis.append(result)
+        elif other_type == "pain":
+            result["severity"] = other_driver.get("severity")
+            result["affected_users"] = other_driver.get("affected_users")
+            related_pains.append(result)
+        elif other_type == "goal":
+            result["goal_timeframe"] = other_driver.get("goal_timeframe")
+            result["owner"] = other_driver.get("owner")
+            related_goals.append(result)
+
+    return {
+        "related_kpis": related_kpis,
+        "related_pains": related_pains,
+        "related_goals": related_goals,
+    }
