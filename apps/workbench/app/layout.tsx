@@ -16,8 +16,13 @@ const dmSans = DM_Sans({
 })
 
 export const metadata: Metadata = {
-  title: 'Consultant Workbench',
+  title: 'Readytogo.ai',
   description: 'AI-powered requirements management workbench',
+  icons: {
+    icon: '/favicon.svg',
+    shortcut: '/favicon.svg',
+    apple: '/favicon.svg',
+  },
 }
 
 export default function RootLayout({

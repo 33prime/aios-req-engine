@@ -1,9 +1,11 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { User, Pencil, Save, X, Loader, Phone, Linkedin, Video, MapPin, FileText, Briefcase, LogOut } from 'lucide-react'
+import { useState, useEffect, useRef } from 'react'
+import { User, Pencil, Save, X, Loader, Phone, Linkedin, Video, MapPin, FileText, Briefcase, LogOut, Camera } from 'lucide-react'
+import Image from 'next/image'
 import { getMyProfile, updateMyProfile } from '@/lib/api'
 import { useAuth } from '@/components/auth/AuthProvider'
+import { supabase } from '@/lib/supabase'
 import type { Profile, ProfileUpdate } from '@/types/api'
 
 interface ProfileTabProps {
@@ -15,6 +17,8 @@ export default function ProfileTab({ onLogout }: ProfileTabProps) {
   const [profile, setProfile] = useState<Profile | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     loadProfile()
@@ -40,6 +44,58 @@ export default function ProfileTab({ onLogout }: ProfileTabProps) {
     } catch (err) {
       console.error('Failed to update profile:', err)
       throw err
+    }
+  }
+
+  const handlePhotoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file || !profile || !supabase) return
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      alert('Please select an image file')
+      return
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      alert('Image must be less than 5MB')
+      return
+    }
+
+    setIsUploadingPhoto(true)
+    try {
+      // Generate unique filename
+      const fileExt = file.name.split('.').pop()
+      const fileName = `${profile.user_id}-${Date.now()}.${fileExt}`
+      const filePath = `profile-photos/${fileName}`
+
+      // Upload to Supabase Storage
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(filePath, file, { upsert: true })
+
+      if (uploadError) {
+        throw uploadError
+      }
+
+      // Get public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(filePath)
+
+      // Update profile with new photo URL
+      const updated = await updateMyProfile({ photo_url: publicUrl })
+      setProfile(updated)
+    } catch (err) {
+      console.error('Failed to upload photo:', err)
+      alert('Failed to upload photo. Please try again.')
+    } finally {
+      setIsUploadingPhoto(false)
+      // Reset file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ''
+      }
     }
   }
 
@@ -88,12 +144,39 @@ export default function ProfileTab({ onLogout }: ProfileTabProps) {
       {/* Profile Header */}
       <div className="rounded-xl border border-zinc-200 bg-white shadow-sm p-6">
         <div className="flex items-center gap-4">
-          <div className="w-16 h-16 rounded-full bg-zinc-100 flex items-center justify-center text-zinc-400">
-            {profile.photo_url ? (
-              <img src={profile.photo_url} alt={displayName} className="w-full h-full rounded-full object-cover" />
-            ) : (
-              <User className="w-8 h-8" />
-            )}
+          {/* Profile Photo with Upload */}
+          <div className="relative group">
+            <div className="w-16 h-16 rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center text-white overflow-hidden">
+              {profile.photo_url ? (
+                <Image
+                  src={profile.photo_url}
+                  alt={displayName}
+                  width={64}
+                  height={64}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <span className="text-xl font-semibold">{initials}</span>
+              )}
+            </div>
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isUploadingPhoto}
+              className="absolute inset-0 rounded-full bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity cursor-pointer"
+            >
+              {isUploadingPhoto ? (
+                <Loader className="w-5 h-5 text-white animate-spin" />
+              ) : (
+                <Camera className="w-5 h-5 text-white" />
+              )}
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handlePhotoUpload}
+              className="hidden"
+            />
           </div>
           <div className="flex-1">
             <h2 className="text-[16px] font-semibold text-zinc-900">{displayName}</h2>
