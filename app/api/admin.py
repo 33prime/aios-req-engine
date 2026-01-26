@@ -215,19 +215,25 @@ async def invite_client_to_project(
         try:
             client = get_client()
 
-            # Send magic link via OTP - this will create the user if needed
-            # and send the email automatically
+            # Send magic link via OTP
             logger.info(f"Sending magic link to {data.email}")
+
+            # Build OTP options - only set should_create_user for new users
+            otp_options = {
+                "email_redirect_to": "http://localhost:3001/auth/verify",
+            }
+
+            if not existing_user:
+                # New user - allow Supabase to create auth user
+                otp_options["should_create_user"] = True
+                otp_options["data"] = {
+                    "first_name": data.first_name,
+                    "last_name": data.last_name,
+                }
+
             client.auth.sign_in_with_otp({
                 "email": data.email,
-                "options": {
-                    "email_redirect_to": "http://localhost:3001/auth/verify",
-                    "should_create_user": True,
-                    "data": {
-                        "first_name": data.first_name,
-                        "last_name": data.last_name,
-                    },
-                },
+                "options": otp_options,
             })
             magic_link_sent = True
             logger.info(f"Magic link sent to {data.email}")
