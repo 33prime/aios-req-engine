@@ -1,21 +1,41 @@
 'use client'
 
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { Settings, User } from 'lucide-react'
 import { useAuth } from '@/components/auth/AuthProvider'
+import { getMyProfile } from '@/lib/api'
+import type { Profile } from '@/types/api'
 
 export default function AppHeader() {
   const { user } = useAuth()
+  const [profile, setProfile] = useState<Profile | null>(null)
 
-  // Get user's full name from metadata or email
-  const displayName = user?.user_metadata?.full_name ||
-    user?.user_metadata?.name ||
-    user?.email?.split('@')[0] ||
-    'User'
+  // Fetch profile data on mount
+  useEffect(() => {
+    if (user) {
+      getMyProfile()
+        .then(setProfile)
+        .catch(() => {
+          // Silently fail - will fall back to user metadata
+        })
+    }
+  }, [user])
 
-  // Get avatar URL if available
-  const avatarUrl = user?.user_metadata?.avatar_url || user?.user_metadata?.picture
+  // Get user's full name from profile or fallback to metadata/email
+  const displayName = profile?.first_name && profile?.last_name
+    ? `${profile.first_name} ${profile.last_name}`
+    : profile?.first_name ||
+      user?.user_metadata?.full_name ||
+      user?.user_metadata?.name ||
+      user?.email?.split('@')[0] ||
+      'User'
+
+  // Get avatar URL from profile or fallback to metadata
+  const avatarUrl = profile?.photo_url ||
+    user?.user_metadata?.avatar_url ||
+    user?.user_metadata?.picture
 
   return (
     <header className="bg-white shadow-sm border-b">
