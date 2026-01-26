@@ -349,12 +349,18 @@ function InviteClientModal({
     try {
       setLoading(true)
       setError(null)
-      await inviteClient(projectId, {
+      const result = await inviteClient(projectId, {
         email: email.trim(),
         first_name: firstName.trim() || undefined,
         last_name: lastName.trim() || undefined,
         send_email: true,
       })
+
+      if (!result.magic_link_sent) {
+        setError(result.magic_link_error || 'Failed to send magic link email. Client was added but no email was sent.')
+        return
+      }
+
       onSuccess()
     } catch (err: any) {
       console.error('Failed to invite client:', err)

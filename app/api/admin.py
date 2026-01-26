@@ -205,6 +205,7 @@ async def invite_client_to_project(
 
     # Send magic link if requested
     magic_link_sent = False
+    magic_link_error = None
     if data.send_email:
         try:
             client = get_client()
@@ -231,21 +232,25 @@ async def invite_client_to_project(
             # Now send magic link (will work for both new and existing users)
             # Redirect to /auth/verify which handles the token exchange,
             # then it will redirect to the home page where user can access their project
-            client.auth.sign_in_with_otp({
+            logger.info(f"Sending magic link to {data.email}")
+            result = client.auth.sign_in_with_otp({
                 "email": data.email,
                 "options": {
                     "email_redirect_to": "http://localhost:3001/auth/verify",
                     "should_create_user": False,  # Don't create, we already did above
                 },
             })
+            logger.info(f"Magic link result: {result}")
             magic_link_sent = True
         except Exception as e:
             logger.error(f"Failed to send magic link: {e}")
+            magic_link_error = str(e)
 
     return ClientInviteResponse(
         user=user,
         project_member=member,
         magic_link_sent=magic_link_sent,
+        magic_link_error=magic_link_error,
     )
 
 

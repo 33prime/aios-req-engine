@@ -187,6 +187,7 @@ class ClientInviteResponse(BaseModel):
     user: User
     project_member: ProjectMember
     magic_link_sent: bool
+    magic_link_error: Optional[str] = None
 
 
 # ============================================================================

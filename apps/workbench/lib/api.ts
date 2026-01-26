@@ -835,6 +835,7 @@ export const inviteClient = (
     user: { id: string; email: string; first_name?: string; last_name?: string }
     project_member: { id: string; role: string }
     magic_link_sent: boolean
+    magic_link_error?: string
   }>(`/admin/projects/${projectId}/invite`, {
     method: 'POST',
     body: JSON.stringify(data),
