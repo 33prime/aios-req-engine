@@ -24,13 +24,13 @@ interface EvidenceItem {
 }
 
 interface Change {
-  entity_type: 'feature' | 'vp_step' | 'persona' | 'business_driver'
+  entity_type: 'feature' | 'vp_step' | 'persona' | 'business_driver' | 'stakeholder' | 'constraint' | 'competitor_ref'
   operation: 'create' | 'update' | 'delete'
   entity_id?: string
   before?: any
   after: any
-  evidence: EvidenceItem[]
-  rationale: string
+  evidence?: EvidenceItem[]
+  rationale?: string
 }
 
 interface ProposalData {
@@ -179,7 +179,7 @@ export function ProposalPreview({ proposal, onApply, onDiscard, isApplying }: Pr
                             {getChangeName(change)}
                           </p>
                         </div>
-                        {change.evidence.length > 0 && (
+                        {change.evidence && change.evidence.length > 0 && (
                           <div className="flex items-center gap-1 px-2 py-1 bg-blue-50 rounded text-xs text-blue-700">
                             <FileText className="h-3 w-3" />
                             <span>{change.evidence.length}</span>
@@ -226,7 +226,7 @@ export function ProposalPreview({ proposal, onApply, onDiscard, isApplying }: Pr
                           )}
 
                           {/* Evidence */}
-                          {change.evidence.length > 0 && (
+                          {change.evidence && change.evidence.length > 0 && (
                             <div>
                               <p className="text-xs font-medium text-ui-text-secondary mb-2">
                                 Evidence ({change.evidence.length}):
@@ -348,16 +348,29 @@ function OperationBadge({ operation }: { operation: string }) {
 }
 
 function getEntityIcon(entityType: string) {
-  const icons = {
+  const icons: Record<string, JSX.Element> = {
     feature: <Target className="h-4 w-4 text-brand-primary" />,
     vp_step: <Layers className="h-4 w-4 text-blue-600" />,
     persona: <Users className="h-4 w-4 text-green-600" />,
     business_driver: <FileText className="h-4 w-4 text-purple-600" />,
+    stakeholder: <Users className="h-4 w-4 text-amber-600" />,
+    constraint: <Target className="h-4 w-4 text-red-600" />,
+    competitor_ref: <FileText className="h-4 w-4 text-cyan-600" />,
   }
-  return icons[entityType as keyof typeof icons] || <FileText className="h-4 w-4 text-gray-600" />
+  return icons[entityType] || <FileText className="h-4 w-4 text-gray-600" />
 }
 
 function getChangeName(change: Change): string {
   const data = change.after || change.before || {}
-  return data.name || data.label || data.slug || data.title || 'Untitled'
+  // Handle various entity naming conventions
+  return (
+    data.name ||
+    data.label ||
+    data.title ||
+    data.slug ||
+    data.description?.slice(0, 50) ||
+    data.driver_type ||
+    data.reference_type ||
+    'Untitled'
+  )
 }

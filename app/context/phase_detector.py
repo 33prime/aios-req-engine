@@ -2,7 +2,7 @@
 
 Detects which phase a project is in based on quantitative metrics:
 - Discovery: Gathering initial requirements
-- Definition: Building comprehensive baseline PRD
+- Definition: Building comprehensive baseline
 - Validation: Refining through research and confirmations
 - Build-Ready: Ready for development handoff
 
@@ -16,7 +16,6 @@ from app.core.baseline_scoring import calculate_baseline_completeness
 from app.core.logging import get_logger
 from app.db.features import list_features
 from app.db.personas import list_personas
-from app.db.prd import list_prd_sections
 from app.db.supabase_client import get_supabase
 from app.db.vp import list_vp_steps
 
@@ -29,13 +28,9 @@ logger = get_logger(__name__)
 # Discovery exit thresholds
 DISCOVERY_MIN_PERSONAS = 1
 DISCOVERY_MIN_FEATURES = 1
-DISCOVERY_MIN_PRD_SECTIONS = 2
 DISCOVERY_BASELINE_THRESHOLD = 0.25
 
 # Definition exit thresholds
-# Note: personas, key_features, and happy_path are now tracked in separate tables
-# (personas, features, vp_steps) and scored independently
-DEFINITION_REQUIRED_PRD_SLUGS = ["software_summary"]
 DEFINITION_MIN_MVP_FEATURES = 3
 DEFINITION_MIN_VP_STEPS = 3
 DEFINITION_BASELINE_THRESHOLD = 0.75
@@ -80,7 +75,7 @@ async def _gather_phase_metrics(project_id: UUID) -> dict:
     # Get project info
     project_result = (
         supabase.table("projects")
-        .select("prd_mode, baseline_finalized_at")
+        .select("baseline_finalized_at")
         .eq("id", str(project_id))
         .single()
         .execute()
@@ -102,7 +97,6 @@ async def _gather_phase_metrics(project_id: UUID) -> dict:
     features = list_features(project_id)
     personas = list_personas(project_id)
     vp_steps = list_vp_steps(project_id)
-    prd_sections = list_prd_sections(project_id)
 
     # Get confirmations
     confirmations_result = (
@@ -132,20 +126,8 @@ async def _gather_phase_metrics(project_id: UUID) -> dict:
         baseline_score=baseline["score"],
     )
 
-    # Get filled PRD sections
-    filled_sections = [
-        s for s in prd_sections
-        if _section_has_content(s)
-    ]
-    required_prd_filled = [
-        s for s in prd_sections
-        if s.get("slug") in DEFINITION_REQUIRED_PRD_SLUGS
-        and _section_has_content(s)
-    ]
-
     return {
         # Project state
-        "prd_mode": project.get("prd_mode", "initial"),
         "baseline_finalized": project.get("baseline_finalized_at") is not None,
         "baseline_ready": project.get("baseline_ready", False),
 
@@ -155,10 +137,6 @@ async def _gather_phase_metrics(project_id: UUID) -> dict:
         "high_confidence_mvp_count": len(high_confidence_mvp),
         "personas_count": len(personas),
         "vp_steps_count": len(vp_steps),
-        "prd_sections_count": len(prd_sections),
-        "prd_sections_filled": len(filled_sections),
-        "required_prd_filled": len(required_prd_filled),
-        "required_prd_total": len(DEFINITION_REQUIRED_PRD_SLUGS),
 
         # Confirmations (insights system removed)
         "open_insights_count": 0,
@@ -175,24 +153,6 @@ async def _gather_phase_metrics(project_id: UUID) -> dict:
             if mvp_features else 0.0
         ),
     }
-
-
-def _section_has_content(section: dict) -> bool:
-    """Check if a PRD section has meaningful content."""
-    fields = section.get("fields", {})
-    if not fields:
-        return False
-
-    content = fields.get("content", "").strip()
-    if content and len(content) > 10:
-        return True
-
-    # Check other fields
-    for key, value in fields.items():
-        if key != "content" and value:
-            return True
-
-    return False
 
 
 def _calculate_simple_readiness(
@@ -275,9 +235,6 @@ def _is_in_definition(metrics: dict) -> bool:
     if metrics["features_count"] < DISCOVERY_MIN_FEATURES:
         return False
 
-    if metrics["prd_sections_filled"] < DISCOVERY_MIN_PRD_SECTIONS:
-        return False
-
     if metrics["baseline_score"] < DISCOVERY_BASELINE_THRESHOLD:
         return False
 
@@ -312,12 +269,6 @@ def get_phase_exit_criteria(
                 required_value=DISCOVERY_MIN_FEATURES,
             ),
             PhaseCriteria(
-                name="prd_sections",
-                met=metrics["prd_sections_filled"] >= DISCOVERY_MIN_PRD_SECTIONS,
-                current_value=metrics["prd_sections_filled"],
-                required_value=DISCOVERY_MIN_PRD_SECTIONS,
-            ),
-            PhaseCriteria(
                 name="baseline_score",
                 met=metrics["baseline_score"] >= DISCOVERY_BASELINE_THRESHOLD,
                 current_value=round(metrics["baseline_score"], 2),
@@ -327,12 +278,6 @@ def get_phase_exit_criteria(
 
     elif phase == ProjectPhase.DEFINITION:
         return [
-            PhaseCriteria(
-                name="required_prd_complete",
-                met=metrics["required_prd_filled"] >= metrics["required_prd_total"],
-                current_value=metrics["required_prd_filled"],
-                required_value=metrics["required_prd_total"],
-            ),
             PhaseCriteria(
                 name="mvp_features",
                 met=metrics["mvp_features_count"] >= DEFINITION_MIN_MVP_FEATURES,
@@ -404,26 +349,23 @@ def calculate_phase_progress(phase: ProjectPhase, metrics: dict) -> float:
         Progress percentage within phase
     """
     if phase == ProjectPhase.DISCOVERY:
-        # Weight: personas 30%, features 30%, prd_sections 25%, baseline 15%
+        # Weight: personas 35%, features 35%, baseline 30%
         progress = (
-            min(1.0, metrics["personas_count"] / DISCOVERY_MIN_PERSONAS) * 0.30
-            + min(1.0, metrics["features_count"] / DISCOVERY_MIN_FEATURES) * 0.30
-            + min(1.0, metrics["prd_sections_filled"] / DISCOVERY_MIN_PRD_SECTIONS) * 0.25
-            + min(1.0, metrics["baseline_score"] / DISCOVERY_BASELINE_THRESHOLD) * 0.15
+            min(1.0, metrics["personas_count"] / DISCOVERY_MIN_PERSONAS) * 0.35
+            + min(1.0, metrics["features_count"] / DISCOVERY_MIN_FEATURES) * 0.35
+            + min(1.0, metrics["baseline_score"] / DISCOVERY_BASELINE_THRESHOLD) * 0.30
         )
 
     elif phase == ProjectPhase.DEFINITION:
-        # Weight: required_prd 25%, mvp 25%, vp_steps 25%, baseline 25%
-        prd_progress = metrics["required_prd_filled"] / max(1, metrics["required_prd_total"])
+        # Weight: mvp 35%, vp_steps 35%, baseline 30%
         mvp_progress = min(1.0, metrics["mvp_features_count"] / DEFINITION_MIN_MVP_FEATURES)
         vp_progress = min(1.0, metrics["vp_steps_count"] / DEFINITION_MIN_VP_STEPS)
         baseline_progress = min(1.0, metrics["baseline_score"] / DEFINITION_BASELINE_THRESHOLD)
 
         progress = (
-            prd_progress * 0.25
-            + mvp_progress * 0.25
-            + vp_progress * 0.25
-            + baseline_progress * 0.25
+            mvp_progress * 0.35
+            + vp_progress * 0.35
+            + baseline_progress * 0.30
         )
 
     elif phase == ProjectPhase.VALIDATION:

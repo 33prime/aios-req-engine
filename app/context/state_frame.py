@@ -32,7 +32,6 @@ MILESTONES = {
     "first_feature": "First feature identified",
     "mvp_marked": "MVP features marked",
     "baseline_25": "Baseline 25% complete",
-    "required_prd": "Required PRD sections filled",
     "baseline_50": "Baseline 50% complete",
     "vp_started": "Value path steps defined",
     "baseline_75": "Baseline 75% complete",
@@ -82,8 +81,6 @@ async def generate_state_frame(project_id: UUID, context: dict | None = None) ->
         "confirmed_features": metrics.get("high_confidence_mvp_count", 0),
         "personas": metrics["personas_count"],
         "vp_steps": metrics["vp_steps_count"],
-        "prd_sections": metrics["prd_sections_count"],
-        "prd_sections_filled": metrics["prd_sections_filled"],
         "insights": metrics["open_insights_count"],
         "insights_critical": metrics["critical_insights_count"],
     }
@@ -139,9 +136,6 @@ def _compute_completed_milestones(metrics: dict) -> list[str]:
     if metrics["baseline_score"] >= 0.75:
         completed.append("baseline_75")
 
-    if metrics["required_prd_filled"] >= metrics["required_prd_total"]:
-        completed.append("required_prd")
-
     if metrics["baseline_ready"]:
         completed.append("baseline_ready")
 
@@ -176,8 +170,6 @@ def _compute_pending_milestones(phase: ProjectPhase, metrics: dict) -> list[str]
     elif phase == ProjectPhase.DEFINITION:
         if metrics["mvp_features_count"] < 3:
             pending.append("mvp_marked")
-        if metrics["required_prd_filled"] < metrics["required_prd_total"]:
-            pending.append("required_prd")
         if metrics["baseline_score"] < 0.75:
             pending.append("baseline_75")
         if not metrics["baseline_ready"]:
@@ -225,14 +217,6 @@ def _compute_blockers(phase: ProjectPhase, metrics: dict) -> list[Blocker]:
                 message=f"Only {metrics['mvp_features_count']} MVP features marked (need 3+)",
                 severity="important",
                 action_hint="Mark more features as MVP or add new MVP features",
-            ))
-        if metrics["required_prd_filled"] < metrics["required_prd_total"]:
-            missing = metrics["required_prd_total"] - metrics["required_prd_filled"]
-            blockers.append(Blocker(
-                type="incomplete_prd",
-                message=f"{missing} required PRD sections need content",
-                severity="important",
-                action_hint="Fill required PRD sections (software_summary, personas, key_features, happy_path)",
             ))
         if metrics["vp_steps_count"] < 3:
             blockers.append(Blocker(
@@ -284,7 +268,7 @@ def _compute_next_actions(
                 action="Identify core features from client signals",
                 tool_hint="propose_features",
                 priority=priority,
-                rationale="Features are the foundation of the PRD",
+                rationale="Features are the foundation of the product",
             ))
         elif blocker.type == "critical_insights":
             actions.append(NextAction(
@@ -300,27 +284,10 @@ def _compute_next_actions(
                 priority=priority,
                 rationale="Need 3+ MVP features for baseline",
             ))
-        elif blocker.type == "incomplete_prd":
-            actions.append(NextAction(
-                action="Complete required PRD sections",
-                tool_hint=None,
-                priority=priority,
-                rationale="Required sections needed for baseline completion",
-            ))
         priority += 1
 
     # Add phase-specific actions
-    if phase == ProjectPhase.DISCOVERY:
-        if metrics["prd_sections_filled"] < 2:
-            actions.append(NextAction(
-                action="Fill out software_summary and one other PRD section",
-                tool_hint=None,
-                priority=priority,
-                rationale="Basic PRD content needed to progress",
-            ))
-            priority += 1
-
-    elif phase == ProjectPhase.DEFINITION:
+    if phase == ProjectPhase.DEFINITION:
         if metrics["baseline_score"] < 0.75:
             actions.append(NextAction(
                 action="Run gap analysis to identify missing elements",
@@ -381,7 +348,6 @@ Counts:
 - Features: {frame.counts.get('features', 0)} (MVP: {frame.counts.get('mvp_features', 0)})
 - Personas: {frame.counts.get('personas', 0)}
 - VP Steps: {frame.counts.get('vp_steps', 0)}
-- PRD Sections: {frame.counts.get('prd_sections_filled', 0)}/{frame.counts.get('prd_sections', 0)}
 
 Scores:
 - Baseline: {frame.scores.get('baseline', 0):.0%}
