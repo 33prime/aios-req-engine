@@ -39,6 +39,7 @@ from app.db.project_context import create_project_context, get_project_context
 from app.db.project_members import (
     add_project_member,
     get_project_client,
+    get_project_member,
     list_project_members_with_users,
     remove_project_member,
 )
@@ -195,13 +196,17 @@ async def invite_client_to_project(
         )
         created = True
 
-    # Add to project
-    member = await add_project_member(
-        project_id=project_id,
-        user_id=user.id,
-        role=MemberRole.CLIENT,
-        invited_by=auth.user_id,
-    )
+    # Add to project (or get existing membership)
+    existing_member = await get_project_member(project_id, user.id)
+    if existing_member:
+        member = existing_member
+    else:
+        member = await add_project_member(
+            project_id=project_id,
+            user_id=user.id,
+            role=MemberRole.CLIENT,
+            invited_by=auth.user_id,
+        )
 
     # Send magic link if requested
     magic_link_sent = False
