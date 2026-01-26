@@ -210,12 +210,9 @@ async def invite_client_to_project(
         try:
             client = get_client()
 
-            # For new users, we need to:
-            # 1. Create them in Supabase Auth (auto-confirmed)
-            # 2. Then send magic link
+            # For new users, we need to create them in Supabase Auth first
             if created:
                 # Use admin API to create user with auto-confirm
-                # This requires the service role key
                 try:
                     client.auth.admin.create_user({
                         "email": data.email,
@@ -225,23 +222,46 @@ async def invite_client_to_project(
                             "last_name": data.last_name,
                         },
                     })
+                    logger.info(f"Created auth user for {data.email}")
                 except Exception as create_err:
                     # User might already exist in auth, that's ok
                     logger.info(f"Auth user creation note: {create_err}")
 
-            # Now send magic link (will work for both new and existing users)
-            # Redirect to /auth/verify which handles the token exchange,
-            # then it will redirect to the home page where user can access their project
-            logger.info(f"Sending magic link to {data.email}")
-            result = client.auth.sign_in_with_otp({
+            # Use admin API to generate magic link (bypasses signup restrictions)
+            logger.info(f"Generating magic link for {data.email}")
+            result = client.auth.admin.generate_link({
+                "type": "magiclink",
                 "email": data.email,
                 "options": {
-                    "email_redirect_to": "http://localhost:3001/auth/verify",
-                    "should_create_user": False,  # Don't create, we already did above
+                    "redirect_to": "http://localhost:3001/auth/verify",
                 },
             })
-            logger.info(f"Magic link result: {result}")
-            magic_link_sent = True
+            logger.info(f"Magic link generated: {result}")
+
+            # The result contains the magic link URL - we need to send it via email
+            # Since Supabase won't send it automatically with admin API, we use invite_user_by_email instead
+            # Actually, let's use invite_user_by_email which sends the email
+            try:
+                client.auth.admin.invite_user_by_email(
+                    data.email,
+                    options={
+                        "redirect_to": "http://localhost:3001/auth/verify",
+                    }
+                )
+                magic_link_sent = True
+                logger.info(f"Invite email sent to {data.email}")
+            except Exception as invite_err:
+                # If invite fails (user exists), try regular OTP with signup allowed
+                logger.info(f"Invite failed, trying OTP: {invite_err}")
+                client.auth.sign_in_with_otp({
+                    "email": data.email,
+                    "options": {
+                        "email_redirect_to": "http://localhost:3001/auth/verify",
+                        "should_create_user": True,  # Allow signup if needed
+                    },
+                })
+                magic_link_sent = True
+
         except Exception as e:
             logger.error(f"Failed to send magic link: {e}")
             magic_link_error = str(e)
