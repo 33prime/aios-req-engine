@@ -58,9 +58,10 @@ async def generate_discovery_prep(
     """
     Generate discovery prep content (questions, documents, agenda).
 
-    Runs Question Agent and Document Agent in parallel.
+    Runs Question Agent and Document Agent in parallel, then generates
+    a cohesive agenda that incorporates the questions.
     """
-    from app.agents.discovery_prep import generate_prep_questions, recommend_documents
+    from app.agents.discovery_prep import generate_prep_questions, recommend_documents, generate_agenda
 
     # Check if bundle exists and force_regenerate not set
     if request and not request.force_regenerate:
@@ -72,14 +73,19 @@ async def generate_discovery_prep(
             )
 
     try:
-        # Run agents in parallel
+        # Run question and document agents in parallel
         question_result, document_result = await asyncio.gather(
             generate_prep_questions(project_id),
             recommend_documents(project_id),
         )
 
-        # Generate agenda from project context
-        agenda_summary, agenda_bullets = await _generate_agenda(project_id)
+        # Generate agenda that incorporates the questions
+        document_names = [d.document_name for d in document_result.documents]
+        agenda_result = await generate_agenda(
+            project_id,
+            questions=question_result.questions,
+            document_names=document_names,
+        )
 
         # Convert agent outputs to model instances with IDs
         questions = [
@@ -103,8 +109,8 @@ async def generate_discovery_prep(
         # Create bundle
         bundle = await create_or_update_bundle(
             project_id=project_id,
-            agenda_summary=agenda_summary,
-            agenda_bullets=agenda_bullets,
+            agenda_summary=agenda_result.summary,
+            agenda_bullets=agenda_result.bullets,
             questions=questions,
             documents=documents,
         )
@@ -339,6 +345,51 @@ async def regenerate_documents(
     )
 
 
+@router.post("/{project_id}/regenerate-agenda", response_model=DiscoveryPrepBundle)
+async def regenerate_agenda(
+    project_id: UUID,
+    auth: AuthContext = Depends(require_consultant),
+):
+    """Regenerate just the agenda, keeping questions and documents."""
+    from app.agents.discovery_prep import generate_agenda
+    from app.core.schemas_discovery_prep import PrepQuestionCreate
+
+    bundle = await get_bundle(project_id)
+    if not bundle:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No bundle found. Generate one first.",
+        )
+
+    # Convert existing questions to create format for agenda agent
+    questions_for_agenda = [
+        PrepQuestionCreate(
+            question=q.question,
+            best_answered_by=q.best_answered_by,
+            why_important=q.why_important,
+        )
+        for q in bundle.questions
+    ]
+
+    document_names = [d.document_name for d in bundle.documents]
+
+    # Generate new agenda
+    agenda_result = await generate_agenda(
+        project_id,
+        questions=questions_for_agenda,
+        document_names=document_names,
+    )
+
+    # Update bundle with new agenda
+    return await create_or_update_bundle(
+        project_id=project_id,
+        agenda_summary=agenda_result.summary,
+        agenda_bullets=agenda_result.bullets,
+        questions=bundle.questions,
+        documents=bundle.documents,
+    )
+
+
 @router.delete("/{project_id}")
 async def delete_discovery_prep(
     project_id: UUID,
@@ -357,48 +408,6 @@ async def delete_discovery_prep(
 # =============================================================================
 # Helper Functions
 # =============================================================================
-
-
-async def _generate_agenda(project_id: UUID) -> tuple[str, list[str]]:
-    """Generate agenda summary and bullets from project context."""
-    import json
-    from app.core.llm import get_llm
-    from app.core.state_snapshot import get_state_snapshot
-
-    snapshot = get_state_snapshot(project_id)
-
-    prompt = f"""Based on this project context, generate a discovery call agenda.
-
-Project Context:
-{snapshot}
-
-Output JSON:
-{{
-  "summary": "One sentence summary of the call purpose",
-  "bullets": ["bullet 1", "bullet 2", "bullet 3", "bullet 4"]
-}}
-
-The 4 bullets should be personalized to this project and cover:
-1. Understanding the core problem/workflow
-2. Clarifying success criteria
-3. Discussing technical constraints
-4. Aligning on next steps
-
-Only output valid JSON."""
-
-    llm = get_llm(temperature=0.2)
-    try:
-        response = await llm.ainvoke([{"role": "user", "content": prompt}])
-        data = json.loads(response.content)
-        return data.get("summary", "Discovery call to understand requirements"), data.get("bullets", [])
-    except Exception as e:
-        logger.error(f"Error generating agenda: {e}")
-        return "Discovery call to understand project requirements", [
-            "Understand the core problem and current workflow",
-            "Define success criteria and key metrics",
-            "Discuss technical constraints and integrations",
-            "Align on timeline and next steps",
-        ]
 
 
 async def _send_invitations(project_id: UUID, emails: list[str], auth: AuthContext) -> int:
