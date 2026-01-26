@@ -499,7 +499,7 @@ async def _get_pending_proposals_count(project_id: UUID) -> int:
     supabase = get_supabase()
 
     result = (
-        supabase.table("proposals")
+        supabase.table("batch_proposals")
         .select("id", count="exact")
         .eq("project_id", str(project_id))
         .eq("status", "pending")

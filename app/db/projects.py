@@ -165,7 +165,7 @@ def get_project_details(project_id: UUID) -> dict[str, Any]:
     Returns:
         Dict with project data and entity counts:
         - Project fields (name, description, status, prd_mode, etc.)
-        - counts: { signals, prd_sections, vp_steps, features, insights, personas }
+        - counts: { signals, vp_steps, features, personas, business_drivers }
 
     Raises:
         Exception: If database operation fails
@@ -176,7 +176,7 @@ def get_project_details(project_id: UUID) -> dict[str, Any]:
         # Get base project data
         project = get_project(project_id)
 
-        # Get entity counts in parallel
+        # Get entity counts
         counts = {}
 
         # Count signals
@@ -187,15 +187,6 @@ def get_project_details(project_id: UUID) -> dict[str, Any]:
             .execute()
         )
         counts["signals"] = signals_response.count or 0
-
-        # Count PRD sections
-        prd_response = (
-            supabase.table("prd_sections")
-            .select("id", count="exact")
-            .eq("project_id", str(project_id))
-            .execute()
-        )
-        counts["prd_sections"] = prd_response.count or 0
 
         # Count VP steps
         vp_response = (
@@ -215,15 +206,6 @@ def get_project_details(project_id: UUID) -> dict[str, Any]:
         )
         counts["features"] = features_response.count or 0
 
-        # Count insights
-        insights_response = (
-            supabase.table("insights")
-            .select("id", count="exact")
-            .eq("project_id", str(project_id))
-            .execute()
-        )
-        counts["insights"] = insights_response.count or 0
-
         # Count personas
         personas_response = (
             supabase.table("personas")
@@ -232,6 +214,15 @@ def get_project_details(project_id: UUID) -> dict[str, Any]:
             .execute()
         )
         counts["personas"] = personas_response.count or 0
+
+        # Count business drivers
+        drivers_response = (
+            supabase.table("business_drivers")
+            .select("id", count="exact")
+            .eq("project_id", str(project_id))
+            .execute()
+        )
+        counts["business_drivers"] = drivers_response.count or 0
 
         # Combine project data with counts
         return {
