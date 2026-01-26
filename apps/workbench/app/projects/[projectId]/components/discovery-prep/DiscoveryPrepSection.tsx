@@ -422,13 +422,27 @@ interface QuestionCardProps {
 }
 
 function QuestionCard({ question, onConfirm, confirming, disabled }: QuestionCardProps) {
+  const hasAnswer = !!question.client_answer
+
   return (
     <div
       className={`
-        border rounded-lg p-3 transition-colors
-        ${question.confirmed ? 'border-green-200 bg-green-50' : 'border-gray-200 bg-white'}
+        border rounded-lg p-3 transition-colors relative
+        ${hasAnswer
+          ? 'border-l-4 border-l-emerald-500 border-t-emerald-200 border-r-emerald-200 border-b-emerald-200 bg-emerald-50/50'
+          : question.confirmed
+            ? 'border-green-200 bg-green-50'
+            : 'border-gray-200 bg-white'
+        }
       `}
     >
+      {/* Answered badge */}
+      {hasAnswer && (
+        <div className="absolute -top-2 right-3 px-2 py-0.5 bg-emerald-500 text-white text-xs font-medium rounded-full">
+          Answered
+        </div>
+      )}
+
       <div className="flex items-start gap-3">
         <button
           onClick={() => onConfirm(question.id, !question.confirmed)}
@@ -457,13 +471,24 @@ function QuestionCard({ question, onConfirm, confirming, disabled }: QuestionCar
               <User className="w-3 h-3" />
               {question.best_answered_by}
             </span>
+            {question.answered_at && (
+              <span className="text-emerald-600">
+                Answered {new Date(question.answered_at).toLocaleDateString()}
+              </span>
+            )}
           </div>
 
-          <p className="text-xs text-gray-500 mt-1">{question.why_important}</p>
+          {!hasAnswer && (
+            <p className="text-xs text-gray-500 mt-1">{question.why_important}</p>
+          )}
 
-          {question.client_answer && (
-            <div className="mt-2 p-2 bg-blue-50 rounded text-sm text-blue-800">
-              <span className="font-medium">Client answer:</span> {question.client_answer}
+          {hasAnswer && (
+            <div className="mt-3 p-3 bg-white rounded-lg border border-emerald-200 shadow-sm">
+              <div className="flex items-center gap-2 mb-2">
+                <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                <span className="text-xs font-medium text-emerald-700">Client Response</span>
+              </div>
+              <p className="text-sm text-gray-800 leading-relaxed">{question.client_answer}</p>
             </div>
           )}
         </div>

@@ -94,6 +94,16 @@ export function CollaborationTab({ projectId, projectName = 'Project' }: Collabo
     }
   }
 
+  // Refresh collaboration sync (without full loading state)
+  const handleRefreshSync = async () => {
+    try {
+      const collabData = await getCollaborationCurrent(projectId)
+      setCollaborationState(collabData)
+    } catch (err) {
+      console.error('Failed to refresh sync:', err)
+    }
+  }
+
   // Proposal handlers
   const handleApplyProposal = async (proposalId: string) => {
     try {
@@ -153,7 +163,6 @@ export function CollaborationTab({ projectId, projectName = 'Project' }: Collabo
     portal_phase: 'pre_call',
     questions: { sent: 0, completed: 0, in_progress: 0, pending: 0 },
     documents: { sent: 0, completed: 0, in_progress: 0, pending: 0 },
-    confirmations: { sent: 0, completed: 0, in_progress: 0, pending: 0 },
     last_client_activity: null,
     clients_invited: 0,
     clients_active: 0,
@@ -195,6 +204,7 @@ export function CollaborationTab({ projectId, projectName = 'Project' }: Collabo
             document.getElementById('discovery-prep')?.scrollIntoView({ behavior: 'smooth' })
           }}
           onEnablePortal={handleEnablePortal}
+          onRefresh={handleRefreshSync}
         />
       </div>
 

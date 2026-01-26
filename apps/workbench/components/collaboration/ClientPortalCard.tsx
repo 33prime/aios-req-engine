@@ -3,22 +3,23 @@
  *
  * Compact card showing client portal status and sync information.
  * Similar in size to the Upcoming Meetings card in Overview.
+ * Includes visual progress bars and real-time activity pulse.
  */
 
 'use client'
 
-import React from 'react'
+import React, { useState } from 'react'
 import {
   Mail,
   Users,
   CheckCircle,
   Clock,
   ExternalLink,
-  MessageSquare,
-  FileText,
   AlertCircle,
+  RefreshCw,
 } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
+import { PortalSyncIndicator } from './PortalSyncIndicator'
 
 interface PortalItemSync {
   sent: number
@@ -32,7 +33,7 @@ interface PortalSyncStatus {
   portal_phase: string
   questions: PortalItemSync
   documents: PortalItemSync
-  confirmations: PortalItemSync
+  confirmations?: PortalItemSync
   last_client_activity: string | null
   clients_invited: number
   clients_active: number
@@ -43,6 +44,7 @@ interface ClientPortalCardProps {
   portalSync: PortalSyncStatus
   onManagePortal?: () => void
   onEnablePortal?: () => void
+  onRefresh?: () => void
 }
 
 const phaseLabels: Record<string, string> = {
@@ -57,16 +59,26 @@ export function ClientPortalCard({
   portalSync,
   onManagePortal,
   onEnablePortal,
+  onRefresh,
 }: ClientPortalCardProps) {
+  const [isRefreshing, setIsRefreshing] = useState(false)
+
   const totalQuestionsSent = portalSync.questions.sent
-  const questionsAnswered = portalSync.questions.completed
   const totalDocsSent = portalSync.documents.sent
-  const docsReceived = portalSync.documents.completed
 
   const hasActivity = totalQuestionsSent > 0 || totalDocsSent > 0
-  const lastActivity = portalSync.last_client_activity
-    ? formatDistanceToNow(new Date(portalSync.last_client_activity), { addSuffix: true })
-    : null
+  const hasRecentActivity = portalSync.last_client_activity &&
+    (Date.now() - new Date(portalSync.last_client_activity).getTime()) < 1000 * 60 * 60 // 1 hour
+
+  const handleRefresh = async () => {
+    if (!onRefresh) return
+    setIsRefreshing(true)
+    try {
+      await onRefresh()
+    } finally {
+      setIsRefreshing(false)
+    }
+  }
 
   return (
     <div className="bg-white rounded-xl border border-gray-200 p-6 h-full flex flex-col">
@@ -75,18 +87,36 @@ export function ClientPortalCard({
         <div className="flex items-center gap-2">
           <Mail className="w-5 h-5 text-[#009b87]" />
           <h2 className="text-lg font-semibold text-gray-900">Client Portal</h2>
+          {portalSync.portal_enabled && hasRecentActivity && (
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+            </span>
+          )}
         </div>
-        {portalSync.portal_enabled && (
-          <a
-            href={`http://localhost:3001/${projectId}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-gray-400 hover:text-[#009b87] transition-colors"
-            title="Open Portal"
-          >
-            <ExternalLink className="w-4 h-4" />
-          </a>
-        )}
+        <div className="flex items-center gap-2">
+          {portalSync.portal_enabled && onRefresh && (
+            <button
+              onClick={handleRefresh}
+              disabled={isRefreshing}
+              className="p-1 text-gray-400 hover:text-gray-600 transition-colors"
+              title="Refresh sync status"
+            >
+              <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+            </button>
+          )}
+          {portalSync.portal_enabled && (
+            <a
+              href={`http://localhost:3001/${projectId}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-gray-400 hover:text-[#009b87] transition-colors"
+              title="Open Portal"
+            >
+              <ExternalLink className="w-4 h-4" />
+            </a>
+          )}
+        </div>
       </div>
 
       {/* Portal Status */}
@@ -112,9 +142,9 @@ export function ClientPortalCard({
       {/* Main content - grows to fill space */}
       <div className="flex-1">
         {portalSync.portal_enabled ? (
-          <div className="space-y-3">
-            {/* Clients */}
-            <div className="flex items-center justify-between text-sm">
+          <div className="space-y-4">
+            {/* Clients row */}
+            <div className="flex items-center justify-between text-sm pb-3 border-b border-gray-100">
               <span className="text-gray-500 flex items-center gap-2">
                 <Users className="w-4 h-4" />
                 Clients
@@ -125,50 +155,20 @@ export function ClientPortalCard({
               </span>
             </div>
 
-            {/* Questions sync */}
-            {totalQuestionsSent > 0 && (
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-gray-500 flex items-center gap-2">
-                  <MessageSquare className="w-4 h-4" />
-                  Questions
-                </span>
-                <span className="font-medium text-gray-900">
-                  {questionsAnswered}/{totalQuestionsSent}
-                  <span className="text-gray-400 font-normal ml-1">answered</span>
-                </span>
-              </div>
-            )}
-
-            {/* Documents sync */}
-            {totalDocsSent > 0 && (
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-gray-500 flex items-center gap-2">
-                  <FileText className="w-4 h-4" />
-                  Documents
-                </span>
-                <span className="font-medium text-gray-900">
-                  {docsReceived}/{totalDocsSent}
-                  <span className="text-gray-400 font-normal ml-1">received</span>
-                </span>
-              </div>
-            )}
-
-            {/* No activity yet */}
-            {!hasActivity && (
+            {/* Sync progress indicator */}
+            {hasActivity ? (
+              <PortalSyncIndicator
+                questions={portalSync.questions}
+                documents={portalSync.documents}
+                lastClientActivity={portalSync.last_client_activity}
+                isRefreshing={isRefreshing}
+              />
+            ) : (
               <div className="py-4 text-center">
                 <AlertCircle className="w-8 h-8 text-gray-300 mx-auto mb-2" />
                 <p className="text-sm text-gray-500">No items sent yet</p>
                 <p className="text-xs text-gray-400 mt-1">
                   Send discovery prep to start
-                </p>
-              </div>
-            )}
-
-            {/* Last activity */}
-            {lastActivity && (
-              <div className="pt-2 border-t border-gray-100">
-                <p className="text-xs text-gray-400">
-                  Last activity {lastActivity}
                 </p>
               </div>
             )}
