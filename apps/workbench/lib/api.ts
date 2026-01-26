@@ -1125,6 +1125,82 @@ export const deleteDiscoveryPrep = (projectId: string) =>
   })
 
 // ============================================
+// Collaboration APIs
+// ============================================
+
+export interface CollaborationCurrentResponse {
+  project_id: string
+  collaboration_phase: string
+  current_focus: {
+    phase: string
+    primary_action: string
+    discovery_prep?: any
+    validation?: any
+    prototype_feedback?: any
+  }
+  active_touchpoint: any | null
+  portal_sync: {
+    portal_enabled: boolean
+    portal_phase: string
+    questions: { sent: number; completed: number; in_progress: number; pending: number }
+    documents: { sent: number; completed: number; in_progress: number; pending: number }
+    last_client_activity: string | null
+    clients_invited: number
+    clients_active: number
+  }
+  pending_validation_count: number
+  pending_proposals_count: number
+  total_touchpoints_completed: number
+  last_client_interaction: string | null
+}
+
+export interface CollaborationHistoryResponse {
+  project_id: string
+  touchpoints: Array<{
+    id: string
+    type: string
+    title: string
+    status: string
+    sequence_number: number
+    outcomes_summary: string
+    completed_at: string | null
+    created_at: string
+  }>
+  total_questions_answered: number
+  total_documents_received: number
+  total_features_extracted: number
+  total_items_confirmed: number
+}
+
+export const getCollaborationCurrent = (projectId: string) =>
+  apiRequest<CollaborationCurrentResponse>(`/projects/${projectId}/collaboration/current`)
+
+export const getCollaborationHistory = (projectId: string) =>
+  apiRequest<CollaborationHistoryResponse>(`/projects/${projectId}/collaboration/history`)
+
+export const setCollaborationPhase = (projectId: string, phase: string) =>
+  apiRequest<{ success: boolean; phase: string }>(`/projects/${projectId}/collaboration/phase/${phase}`, {
+    method: 'POST',
+  })
+
+export const listTouchpoints = (projectId: string, status?: string, type?: string) => {
+  const params = new URLSearchParams()
+  if (status) params.set('status', status)
+  if (type) params.set('type', type)
+  const query = params.toString()
+  return apiRequest<any[]>(`/projects/${projectId}/collaboration/touchpoints${query ? `?${query}` : ''}`)
+}
+
+export const getTouchpointDetail = (projectId: string, touchpointId: string) =>
+  apiRequest<any>(`/projects/${projectId}/collaboration/touchpoints/${touchpointId}`)
+
+export const completeTouchpoint = (projectId: string, touchpointId: string, outcomes: any) =>
+  apiRequest<any>(`/projects/${projectId}/collaboration/touchpoints/${touchpointId}/complete`, {
+    method: 'POST',
+    body: JSON.stringify(outcomes),
+  })
+
+// ============================================
 // Meetings APIs
 // ============================================
 

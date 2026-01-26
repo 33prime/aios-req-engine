@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter
 
-from app.api import activity, admin, agents, analytics, auth, baseline, business_drivers, chat, client_portal, competitor_refs, confirmations, creative_brief, di_agent, discovery_prep, enrich_features, enrich_personas, enrich_vp, entity_cascades, jobs, meetings, organizations, outreach, phase0, project_creation, projects, proposals, readiness, research, research_agent, revisions, risks, signals, signal_stream, stakeholders, state, strategic_analytics, tasks
+from app.api import activity, admin, agents, analytics, auth, baseline, business_drivers, chat, client_portal, collaboration, competitor_refs, confirmations, creative_brief, di_agent, discovery_prep, enrich_features, enrich_personas, enrich_vp, entity_cascades, jobs, meetings, organizations, outreach, phase0, project_creation, projects, proposals, readiness, research, research_agent, revisions, risks, signals, signal_stream, stakeholders, state, strategic_analytics, tasks
 
 router = APIRouter()
 
@@ -101,6 +101,9 @@ router.include_router(client_portal.router, tags=["portal"])
 
 # Include Discovery Prep routes (pre-call question/document generation)
 router.include_router(discovery_prep.router, tags=["discovery_prep"])
+
+# Include Collaboration routes (touchpoints, phase management)
+router.include_router(collaboration.router, tags=["collaboration"])
 
 # Include Meetings routes
 router.include_router(meetings.router, tags=["meetings"])
