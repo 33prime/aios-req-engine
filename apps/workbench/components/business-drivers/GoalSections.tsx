@@ -137,16 +137,16 @@ export function GoalDetailsSection({ driver }: GoalDetailsSectionProps) {
         {hasDependencies && dependenciesList.length > 0 && (
           <div>
             <div className="text-xs font-medium text-gray-700 mb-2 flex items-center gap-1">
-              <AlertTriangle className="h-3 w-3 text-amber-600" />
+              <AlertTriangle className="h-3 w-3 text-teal-600" />
               Dependencies ({dependenciesList.length})
             </div>
             <div className="space-y-1.5">
               {dependenciesList.map((dependency, idx) => (
                 <div
                   key={idx}
-                  className="flex items-start gap-2 bg-amber-50 rounded p-2.5 border border-amber-100"
+                  className="flex items-start gap-2 bg-teal-50 rounded p-2.5 border border-teal-100"
                 >
-                  <div className="w-2 h-2 rounded-full bg-amber-500 mt-1.5 flex-shrink-0" />
+                  <div className="w-2 h-2 rounded-full bg-teal-500 mt-1.5 flex-shrink-0" />
                   <span className="text-sm text-gray-700">{dependency}</span>
                 </div>
               ))}
@@ -186,9 +186,9 @@ export function ProgressSection({ driver, supportingFeatures = [] }: ProgressSec
   const completionPercentage = totalFeatures > 0 ? Math.round((confirmedFeatures.length / totalFeatures) * 100) : 0
 
   const getProgressColor = (percentage: number) => {
-    if (percentage >= 80) return 'bg-green-500'
-    if (percentage >= 50) return 'bg-blue-500'
-    if (percentage >= 25) return 'bg-yellow-500'
+    if (percentage >= 80) return 'bg-emerald-500'
+    if (percentage >= 50) return 'bg-emerald-400'
+    if (percentage >= 25) return 'bg-teal-400'
     return 'bg-gray-300'
   }
 
@@ -225,8 +225,8 @@ export function ProgressSection({ driver, supportingFeatures = [] }: ProgressSec
             <div className="text-lg font-bold text-green-700">{confirmedFeatures.length}</div>
           </div>
           <div>
-            <div className="text-xs text-blue-600">In Progress</div>
-            <div className="text-lg font-bold text-blue-700">{totalFeatures - confirmedFeatures.length}</div>
+            <div className="text-xs text-gray-600">In Progress</div>
+            <div className="text-lg font-bold text-gray-700">{totalFeatures - confirmedFeatures.length}</div>
           </div>
         </div>
       </div>
@@ -287,20 +287,20 @@ export function SupportingFeaturesSection({ driver, supportingFeatures = [] }: S
         {/* Draft Features */}
         {draftFeatures.length > 0 && (
           <div>
-            <div className="text-xs font-medium text-blue-700 mb-2">
+            <div className="text-xs font-medium text-gray-700 mb-2">
               💡 Proposed ({draftFeatures.length})
             </div>
             <div className="space-y-1.5">
               {draftFeatures.map((feature) => (
                 <div
                   key={feature.id}
-                  className="flex items-start gap-2 bg-blue-50 rounded p-2.5 border border-blue-200"
+                  className="flex items-start gap-2 bg-gray-50 rounded p-2.5 border border-gray-200"
                 >
-                  <div className="w-2 h-2 rounded-full bg-blue-400 mt-1.5 flex-shrink-0" />
+                  <div className="w-2 h-2 rounded-full bg-gray-400 mt-1.5 flex-shrink-0" />
                   <div className="flex-1">
-                    <div className="text-sm font-medium text-blue-900">{feature.name}</div>
+                    <div className="text-sm font-medium text-gray-900">{feature.name}</div>
                     {feature.category && (
-                      <div className="text-xs text-blue-700 mt-0.5">{feature.category}</div>
+                      <div className="text-xs text-gray-700 mt-0.5">{feature.category}</div>
                     )}
                   </div>
                 </div>

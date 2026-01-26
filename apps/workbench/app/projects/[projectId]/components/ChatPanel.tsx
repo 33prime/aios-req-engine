@@ -32,6 +32,11 @@ import {
   AlertCircle,
   Info,
   Zap,
+  CheckCircle2,
+  Circle,
+  Layers,
+  FileSearch,
+  FileCheck,
 } from 'lucide-react'
 import { ProposalPreview } from './ProposalPreview'
 import { Markdown } from '../../../../components/ui/Markdown'
@@ -110,6 +115,9 @@ export function ChatPanel({
   const [showCommandSuggestions, setShowCommandSuggestions] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
+
+  // Track signal processing progress with animated phases
+  const [signalProcessingPhase, setSignalProcessingPhase] = useState(0)
 
   // Use the assistant hook
   const {
@@ -239,7 +247,7 @@ export function ChatPanel({
         role: m.role as 'user' | 'assistant' | 'system',
         content: m.content,
         timestamp: m.timestamp,
-        metadata: m.metadata,
+        metadata: m.metadata as Record<string, unknown> | undefined,
       })),
     ].sort((a, b) => (a.timestamp?.getTime() || 0) - (b.timestamp?.getTime() || 0))
 
@@ -399,9 +407,16 @@ export function ChatPanel({
               sendingSignal={sendingSignal}
               onContentChange={setSignalContent}
               onSourceChange={setSignalSource}
+              projectId={projectId}
+              processingPhase={signalProcessingPhase}
               onSubmit={async () => {
                 if (signalContent.trim() && onSendSignal) {
                   setSendingSignal(true)
+                  setSignalProcessingPhase(0)
+                  // Animate through phases while processing
+                  const phaseInterval = setInterval(() => {
+                    setSignalProcessingPhase(p => Math.min(p + 1, 4))
+                  }, 1500)
                   try {
                     await onSendSignal(signalType, signalContent.trim(), signalSource || 'chat')
                     setShowSignalInput(false)
@@ -409,7 +424,9 @@ export function ChatPanel({
                     setSignalContent('')
                     setSignalSource('')
                   } finally {
+                    clearInterval(phaseInterval)
                     setSendingSignal(false)
+                    setSignalProcessingPhase(0)
                   }
                 }
               }}
@@ -631,7 +648,7 @@ function SignalButton({
   )
 }
 
-/** Signal input form */
+/** Signal input form with animated progress */
 function SignalInputForm({
   signalType,
   signalContent,
@@ -641,6 +658,8 @@ function SignalInputForm({
   onSourceChange,
   onSubmit,
   onCancel,
+  projectId,
+  processingPhase = 0,
 }: {
   signalType: string
   signalContent: string
@@ -650,6 +669,8 @@ function SignalInputForm({
   onSourceChange: (v: string) => void
   onSubmit: () => void
   onCancel: () => void
+  projectId: string
+  processingPhase?: number
 }) {
   const icons: Record<string, string> = {
     email: '📧',
@@ -658,49 +679,96 @@ function SignalInputForm({
     document: '📄',
   }
 
+  // Processing phases for display
+  const phases = [
+    { key: 'classification', label: 'Classifying signal', icon: Zap },
+    { key: 'extraction', label: 'Extracting entities', icon: FileSearch },
+    { key: 'build_state', label: 'Building state', icon: Layers },
+    { key: 'reconcile', label: 'Finalizing', icon: FileCheck },
+  ]
+
+  const getPhaseStatus = (index: number): 'pending' | 'active' | 'completed' => {
+    if (index < processingPhase) return 'completed'
+    if (index === processingPhase) return 'active'
+    return 'pending'
+  }
+
   return (
     <div className="mb-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
       <div className="flex items-center justify-between mb-2">
         <span className="text-sm font-medium text-ui-bodyText">
           {icons[signalType] || '📄'} Add {signalType}
         </span>
-        <button onClick={onCancel} className="p-1 hover:bg-gray-200 rounded">
-          <X className="h-4 w-4 text-ui-supportText" />
-        </button>
+        {!sendingSignal && (
+          <button onClick={onCancel} className="p-1 hover:bg-gray-200 rounded">
+            <X className="h-4 w-4 text-ui-supportText" />
+          </button>
+        )}
       </div>
-      <textarea
-        value={signalContent}
-        onChange={(e) => onContentChange(e.target.value)}
-        placeholder={`Paste your ${signalType} content here...`}
-        rows={4}
-        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary resize-none"
-      />
-      <div className="flex items-center gap-2 mt-2">
-        <input
-          type="text"
-          value={signalSource}
-          onChange={(e) => onSourceChange(e.target.value)}
-          placeholder={signalType === 'email' ? 'From: client@example.com' : 'Source (optional)'}
-          className="flex-1 px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary"
-        />
-        <button
-          onClick={onSubmit}
-          disabled={!signalContent.trim() || sendingSignal}
-          className="px-4 py-1.5 bg-brand-primary hover:bg-brand-primaryHover text-white rounded-lg text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-1"
-        >
-          {sendingSignal ? (
-            <>
-              <Loader2 className="h-3 w-3 animate-spin" />
-              Processing...
-            </>
-          ) : (
-            <>
+
+      {/* Show animated progress when processing */}
+      {sendingSignal ? (
+        <div className="space-y-3 py-2">
+          {/* Progress bar */}
+          <div className="relative h-2 bg-gray-200 rounded-full overflow-hidden">
+            <div
+              className="absolute top-0 left-0 h-full bg-gradient-to-r from-brand-primary to-brand-primaryHover transition-all duration-500"
+              style={{ width: `${Math.min((processingPhase + 1) * 25, 95)}%` }}
+            />
+          </div>
+
+          {/* Phase list */}
+          <div className="space-y-1.5">
+            {phases.map((phase, index) => {
+              const status = getPhaseStatus(index)
+              const Icon = phase.icon
+              return (
+                <div key={phase.key} className="flex items-center gap-2 text-xs">
+                  {status === 'completed' && <CheckCircle2 className="h-3.5 w-3.5 text-green-600" />}
+                  {status === 'active' && <Loader2 className="h-3.5 w-3.5 text-brand-primary animate-spin" />}
+                  {status === 'pending' && <Circle className="h-3.5 w-3.5 text-gray-300" />}
+                  <Icon className={`h-3 w-3 ${status === 'active' ? 'text-brand-primary' : status === 'completed' ? 'text-green-600' : 'text-gray-400'}`} />
+                  <span className={status === 'active' ? 'text-brand-primary font-medium' : status === 'completed' ? 'text-green-700' : 'text-gray-500'}>
+                    {phase.label}
+                  </span>
+                </div>
+              )
+            })}
+          </div>
+
+          {/* Current status message */}
+          <p className="text-xs text-ui-supportText text-center">
+            {phases[Math.min(processingPhase, phases.length - 1)]?.label}...
+          </p>
+        </div>
+      ) : (
+        <>
+          <textarea
+            value={signalContent}
+            onChange={(e) => onContentChange(e.target.value)}
+            placeholder={`Paste your ${signalType} content here...`}
+            rows={4}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary resize-none"
+          />
+          <div className="flex items-center gap-2 mt-2">
+            <input
+              type="text"
+              value={signalSource}
+              onChange={(e) => onSourceChange(e.target.value)}
+              placeholder={signalType === 'email' ? 'From: client@example.com' : 'Source (optional)'}
+              className="flex-1 px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary"
+            />
+            <button
+              onClick={onSubmit}
+              disabled={!signalContent.trim() || sendingSignal}
+              className="px-4 py-1.5 bg-brand-primary hover:bg-brand-primaryHover text-white rounded-lg text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-1"
+            >
               <Send className="h-3 w-3" />
               Submit
-            </>
-          )}
-        </button>
-      </div>
+            </button>
+          </div>
+        </>
+      )}
     </div>
   )
 }
@@ -718,12 +786,22 @@ function MessageBubble({
   const [applyingProposal, setApplyingProposal] = useState<string | null>(null)
   const [showToolDetails, setShowToolDetails] = useState(true)
 
-  // Check if any tool result contains a proposal
+  // Check if any tool result contains a FULL proposal (from propose_features with changes_by_type)
   const proposalData = message.toolCalls?.find(
     (tool) =>
       tool.tool_name === 'propose_features' &&
       tool.status === 'complete' &&
-      tool.result?.proposal_id
+      tool.result?.proposal_id &&
+      tool.result?.changes_by_type // Only show full preview if we have detailed changes
+  )?.result
+
+  // Check for signal processing result (for inline approval card)
+  // This handles add_signal which returns proposal_id but not full changes
+  const signalResult = message.toolCalls?.find(
+    (tool) =>
+      tool.tool_name === 'add_signal' &&
+      tool.status === 'complete' &&
+      tool.result?.processed
   )?.result
 
   const handleApplyProposal = async (proposalId: string) => {
@@ -846,7 +924,59 @@ function MessageBubble({
           </div>
         )}
 
-        {/* Proposal Preview */}
+        {/* Signal Processing Result with Inline Approval */}
+        {signalResult && signalResult.proposal_id && (
+          <div className="mt-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+            <div className="flex items-start gap-3">
+              <div className="w-8 h-8 bg-amber-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                <Layers className="h-4 w-4 text-amber-600" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h4 className="font-medium text-amber-900 text-sm">
+                  Proposal Created: {signalResult.total_changes || 0} changes
+                </h4>
+                <p className="text-xs text-amber-700 mt-0.5">
+                  {signalResult.pipeline === 'bulk' ? 'Heavyweight signal detected - ' : ''}
+                  Review and apply changes to update your project.
+                </p>
+                <div className="flex items-center gap-2 mt-2">
+                  <button
+                    onClick={() => handleApplyProposal(signalResult.proposal_id)}
+                    disabled={applyingProposal === signalResult.proposal_id}
+                    className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white text-xs font-medium rounded-lg transition-colors disabled:opacity-50 flex items-center gap-1"
+                  >
+                    {applyingProposal === signalResult.proposal_id ? (
+                      <>
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                        Applying...
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle2 className="h-3 w-3" />
+                        Apply Changes
+                      </>
+                    )}
+                  </button>
+                  <button
+                    onClick={() => handleDiscardProposal(signalResult.proposal_id)}
+                    disabled={applyingProposal === signalResult.proposal_id}
+                    className="px-3 py-1.5 bg-white hover:bg-gray-50 text-gray-700 text-xs font-medium rounded-lg border border-gray-300 transition-colors disabled:opacity-50"
+                  >
+                    Discard
+                  </button>
+                  <button
+                    onClick={() => onSendMessage?.(`Preview proposal ${signalResult.proposal_id}`)}
+                    className="px-3 py-1.5 text-amber-700 hover:text-amber-800 text-xs font-medium underline"
+                  >
+                    View Details
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Proposal Preview (for propose_features tool) */}
         {proposalData && (
           <div className="mt-2">
             <ProposalPreview

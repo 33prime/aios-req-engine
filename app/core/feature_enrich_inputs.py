@@ -5,6 +5,7 @@ from uuid import UUID
 
 from app.core.embeddings import embed_texts
 from app.core.logging import get_logger
+from app.core.state_snapshot import get_state_snapshot
 from app.db.confirmations import list_confirmation_items
 from app.db.facts import list_latest_extracted_facts
 from app.db.features import list_features
@@ -110,6 +111,7 @@ def build_feature_enrich_prompt(
     confirmations: list[dict[str, Any]],
     chunks: list[dict[str, Any]],
     include_research: bool,
+    state_snapshot: str | None = None,
 ) -> str:
     """
     Build the prompt for feature enrichment.
@@ -121,6 +123,7 @@ def build_feature_enrich_prompt(
         confirmations: Open/resolved confirmations for context
         chunks: Supporting context chunks
         include_research: Whether research was included
+        state_snapshot: Optional pre-built state snapshot for project context
 
     Returns:
         Complete prompt for the LLM
@@ -130,7 +133,18 @@ def build_feature_enrich_prompt(
     is_mvp = feature.get("is_mvp", False)
     current_description = feature.get("description", "No description available")
 
-    prompt_parts = [
+    prompt_parts = []
+
+    # Add project context first (if available)
+    if state_snapshot:
+        prompt_parts.extend([
+            state_snapshot,
+            "",
+            "---",
+            "",
+        ])
+
+    prompt_parts.extend([
         f"# Feature Enrichment Task",
         f"",
         f"**Feature to enrich:** {feature_name}",
@@ -138,7 +152,7 @@ def build_feature_enrich_prompt(
         f"**MVP Status:** {'Yes' if is_mvp else 'No'}",
         f"**Current Description:** {current_description}",
         f"",
-    ]
+    ])
 
     # Add resolved decisions from confirmations
     resolved_decisions = [
@@ -171,14 +185,18 @@ def build_feature_enrich_prompt(
         prompt_parts.extend([
             f"## Supporting Context",
             f"Relevant excerpts from project signals{' (including research)' if include_research else ''}:",
+            f"",
+            f"Each chunk has a chunk_id in [ID:uuid] format that you MUST use when referencing evidence.",
+            f"",
         ])
         for i, chunk in enumerate(chunks[:20], 1):  # Limit to 20 chunks
+            chunk_id = chunk.get("chunk_id", "")
             snippet = chunk.get("snippet", "")
             source_type = chunk.get("signal_type", "unknown")
             authority = chunk.get("authority", "unknown")
             created_at = chunk.get("created_at", "")[:10]  # Date only
 
-            prompt_parts.append(f"{i}. [{source_type}/{authority}/{created_at}] {snippet}")
+            prompt_parts.append(f"{i}. [ID:{chunk_id}] [{source_type}/{authority}/{created_at}] {snippet}")
         prompt_parts.append("")
 
     # Add output instructions
@@ -197,6 +215,9 @@ def build_feature_enrich_prompt(
         f"",
         f"**IMPORTANT RULES:**",
         f"- Every item MUST include evidence references (chunk_id + excerpt + rationale)",
+        f"- chunk_id MUST be an exact UUID copied from the [ID:uuid] prefix in Supporting Context above",
+        f"- DO NOT make up or fabricate chunk_ids - only use the exact UUIDs provided",
+        f"- If no chunks support a section, use an empty evidence array []",
         f"- Excerpts must be verbatim from the provided chunks (max 280 chars)",
         f"- Empty arrays are allowed if no evidence exists for a section",
         f"- Do not make assumptions - base everything on provided context",
@@ -227,12 +248,17 @@ def get_feature_enrich_context(
         top_k_context: Number of context chunks to retrieve
 
     Returns:
-        Dict with features, facts, confirmations, and chunks
+        Dict with features, facts, confirmations, chunks, and state_snapshot
     """
     logger.info(
         f"Gathering enrichment context for project {project_id}",
         extra={"project_id": str(project_id)},
     )
+
+    # Get state snapshot for comprehensive project context (~500-750 tokens)
+    # This includes: identity, strategic context (drivers), product state, market context
+    state_snapshot = get_state_snapshot(project_id)
+    logger.info(f"Got state snapshot ({len(state_snapshot)} chars)")
 
     # Get features to enrich
     all_features = list_features(project_id)
@@ -279,11 +305,13 @@ def get_feature_enrich_context(
         "insights": insights,
         "confirmations": confirmations,
         "chunks": chunks,
+        "state_snapshot": state_snapshot,
+        "include_research": include_research,
     }
 
     logger.info(
         f"Gathered enrichment context: {len(features)} features, {len(facts)} facts, "
-        f"{len(confirmations)} confirmations, {len(chunks)} chunks",
+        f"{len(confirmations)} confirmations, {len(chunks)} chunks, state_snapshot included",
         extra={"project_id": str(project_id)},
     )
 

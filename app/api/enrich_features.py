@@ -5,7 +5,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, HTTPException
 
-from app.core.baseline_gate import require_baseline_ready
+# Baseline gate removed - no longer needed
 from app.core.logging import get_logger
 from app.core.schemas_feature_enrich import EnrichFeaturesRequest, EnrichFeaturesResponse
 from app.db.jobs import complete_job, create_job, fail_job, start_job
@@ -41,11 +41,6 @@ async def enrich_features(request: EnrichFeaturesRequest) -> EnrichFeaturesRespo
     job_id: UUID | None = None
 
     try:
-        # Check baseline gate if research is requested
-        gate = None
-        if request.include_research:
-            gate = require_baseline_ready(request.project_id)
-
         # Create and start job
         job_id = create_job(
             project_id=request.project_id,
@@ -69,7 +64,6 @@ async def enrich_features(request: EnrichFeaturesRequest) -> EnrichFeaturesRespo
                 "feature_ids": request.feature_ids,
                 "only_mvp": request.only_mvp,
                 "research_enabled": request.include_research,
-                "baseline_ready": gate["baseline_ready"] if gate else None,
             },
         )
 

@@ -25,12 +25,14 @@ import {
 } from 'lucide-react'
 import {
   getStatusNarrative,
-  getProjectTasks,
   listMeetings,
   getReadinessScore,
+  getTaskStats,
 } from '@/lib/api'
-import type { StatusNarrative, ProjectTask, Meeting } from '@/types/api'
-import type { ReadinessScore, ReadinessRecommendation } from '@/lib/api'
+import type { StatusNarrative, Meeting } from '@/types/api'
+import type { ReadinessScore, ReadinessRecommendation, TaskStatsResponse } from '@/lib/api'
+import { TaskListCompact, TaskActivityFeed } from '@/components/tasks'
+import { Activity } from 'lucide-react'
 
 interface OverviewTabProps {
   projectId: string
@@ -49,7 +51,8 @@ export function OverviewTab({
 }: OverviewTabProps) {
   // Use cached data for immediate display
   const [statusNarrative, setStatusNarrative] = useState<StatusNarrative | null>(cachedNarrative || null)
-  const [tasks, setTasks] = useState<ProjectTask[]>([])
+  const [taskStats, setTaskStats] = useState<TaskStatsResponse | null>(null)
+  const [taskRefreshKey, setTaskRefreshKey] = useState(0)
   const [meetings, setMeetings] = useState<Meeting[]>([])
   const [readiness, setReadiness] = useState<ReadinessScore | null>(cachedReadinessData || null)
   // Don't show loading spinner if we have cached data
@@ -69,13 +72,13 @@ export function OverviewTab({
         setLoading(true)
       }
 
-      // Fetch tasks and meetings (always needed)
-      const [tasksData, meetingsData] = await Promise.all([
-        getProjectTasks(projectId).catch(() => ({ tasks: [] })),
+      // Fetch task stats and meetings (always needed)
+      const [taskStatsData, meetingsData] = await Promise.all([
+        getTaskStats(projectId).catch(() => null),
         listMeetings(projectId, 'scheduled', true).catch(() => []),
       ])
 
-      setTasks(tasksData?.tasks || [])
+      setTaskStats(taskStatsData)
       setMeetings(Array.isArray(meetingsData) ? meetingsData : [])
 
       // Only fetch readiness if we don't have cached data
@@ -298,31 +301,25 @@ export function OverviewTab({
             <div className="flex items-center gap-2">
               <CheckCircle className="w-5 h-5 text-[#009b87]" />
               <h2 className="text-lg font-semibold text-gray-900">Tasks</h2>
-              {tasks.length > 0 && (
+              {taskStats && taskStats.by_status?.pending > 0 && (
                 <span className="px-2 py-0.5 text-xs font-medium bg-gray-100 text-gray-600 rounded-full">
-                  {tasks.length}
+                  {taskStats.by_status.pending}
                 </span>
               )}
             </div>
           </div>
 
-          {tasks.length > 0 ? (
-            <div className="space-y-3">
-              {tasks.slice(0, 5).map((task) => (
-                <TaskItem key={task.id} task={task} />
-              ))}
-              {tasks.length > 5 && (
-                <button className="w-full py-2 text-sm text-gray-500 hover:text-gray-700 text-center">
-                  +{tasks.length - 5} more tasks
-                </button>
-              )}
-            </div>
-          ) : (
-            <div className="text-center py-8">
-              <CheckCircle className="w-10 h-10 text-green-300 mx-auto mb-3" />
-              <p className="text-gray-500 text-sm">All caught up! No pending tasks.</p>
-            </div>
-          )}
+          <TaskListCompact
+            projectId={projectId}
+            maxItems={5}
+            filter="pending"
+            refreshKey={taskRefreshKey}
+            onTasksChange={() => {
+              setTaskRefreshKey(k => k + 1)
+              // Refresh task stats when a task is completed/dismissed
+              getTaskStats(projectId).then(setTaskStats).catch(() => {})
+            }}
+          />
         </div>
 
         {/* Upcoming Meetings */}
@@ -347,6 +344,19 @@ export function OverviewTab({
             </div>
           )}
         </div>
+      </div>
+
+      {/* Recent Activity Row */}
+      <div className="bg-white rounded-xl border border-gray-200 p-6">
+        <div className="flex items-center gap-2 mb-4">
+          <Activity className="w-5 h-5 text-[#009b87]" />
+          <h2 className="text-lg font-semibold text-gray-900">Recent Task Activity</h2>
+        </div>
+        <TaskActivityFeed
+          projectId={projectId}
+          maxItems={8}
+          refreshKey={taskRefreshKey}
+        />
       </div>
     </div>
   )
@@ -413,31 +423,6 @@ function RecommendationCard({ recommendation }: { recommendation: ReadinessRecom
           </span>
         )}
       </div>
-    </div>
-  )
-}
-
-function TaskItem({ task }: { task: ProjectTask }) {
-  const priorityColors = {
-    high: 'bg-red-100 text-red-700',
-    medium: 'bg-amber-100 text-amber-700',
-    low: 'bg-gray-100 text-gray-600',
-  }
-
-  return (
-    <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer">
-      <div className="mt-0.5">
-        <div className="w-5 h-5 rounded border-2 border-gray-300" />
-      </div>
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium text-gray-900 truncate">{task.title}</p>
-        {task.description && (
-          <p className="text-xs text-gray-500 mt-0.5 line-clamp-1">{task.description}</p>
-        )}
-      </div>
-      <span className={`px-2 py-0.5 text-xs font-medium rounded ${priorityColors[task.priority]}`}>
-        {task.priority}
-      </span>
     </div>
   )
 }

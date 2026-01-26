@@ -14,14 +14,14 @@ This chain helps prioritize pain points and understand their true cost.
 from typing import Any, Literal
 from uuid import UUID
 
+from langchain_anthropic import ChatAnthropic
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_core.output_parsers import PydanticOutputParser
-from langchain_openai import ChatOpenAI
 from pydantic import BaseModel, Field
 
 from app.core.config import get_settings
 from app.core.logging import get_logger
-from app.db.business_drivers import get_business_driver, update_business_driver
+from app.db.business_drivers import get_business_driver, update_business_driver, list_business_drivers
 from app.db.signals import list_project_signals, list_signal_chunks
 
 logger = get_logger(__name__)
@@ -49,6 +49,10 @@ class PainPointEnrichment(BaseModel):
     current_workaround: str | None = Field(
         None,
         description='How users currently work around this pain (e.g., "Manual Excel exports via email", "Call support for each order", "None - feature gap")',
+    )
+    should_merge_with: str | None = Field(
+        None,
+        description='If this pain point is very similar/duplicate to another existing pain, provide the ID of the pain it should be merged with. Only suggest merging if they describe the exact same problem.',
     )
     confidence: float = Field(
         0.0,
@@ -108,6 +112,11 @@ async def enrich_pain_point(
 
         logger.info(f"Enriching pain point '{description[:50]}' for project {project_id}")
 
+        # Get existing pain points for merge detection
+        existing_pains = list_business_drivers(project_id, driver_type="pain", limit=50)
+        # Exclude the current driver
+        other_pains = [pain for pain in existing_pains if pain.get("id") != str(driver_id)]
+
         # Gather context from signals
         signal_context = []
 
@@ -161,10 +170,26 @@ async def enrich_pain_point(
                 for ctx in signal_context[:8]
             ])
 
+        # Build existing pains summary for merge detection
+        existing_pains_str = ""
+        if other_pains:
+            existing_pains_str = "\n**Existing Pain Points in this project:**\n"
+            for pain in other_pains[:10]:  # Limit to 10 for context size
+                pain_id = pain.get("id", "")
+                pain_desc = pain.get("description", "")
+                pain_severity = pain.get("severity", "")
+                pain_impact = pain.get("business_impact", "")
+                existing_pains_str += f"- ID: {pain_id}, Description: {pain_desc}"
+                if pain_severity or pain_impact:
+                    existing_pains_str += f" (Severity: {pain_severity}, Impact: {pain_impact})"
+                existing_pains_str += "\n"
+        else:
+            existing_pains_str = "\n**No other pain points exist yet.**\n"
+
         # Build the enrichment prompt
         parser = PydanticOutputParser(pydantic_object=PainPointEnrichment)
 
-        system_prompt = f"""You are a pain point analysis specialist. Your job is to assess the severity and impact of user/business pain points.
+        system_prompt = f"""You are a pain point analysis specialist. Your job is to assess the severity and impact of user/business pain points and detect duplicates.
 
 Given a pain point description and related context, extract:
 
@@ -195,6 +220,12 @@ Given a pain point description and related context, extract:
    - Be specific about the workaround process
    - If no workaround exists, state "None - feature gap" or "None - users give up"
 
+**CRITICAL - Duplicate Detection:**
+- Review the list of existing pain points carefully
+- If this pain describes the EXACT SAME problem as an existing pain (same user frustration, same root cause), set `should_merge_with` to the ID of that existing pain
+- Only suggest merging if they are truly duplicates
+- Similar but distinct pains (e.g., "slow checkout" vs "confusing checkout") should NOT be merged
+
 **Important**:
 - Only extract values explicitly mentioned or strongly implied
 - If unclear, leave as null
@@ -204,20 +235,21 @@ Given a pain point description and related context, extract:
 
 {parser.get_format_instructions()}"""
 
-        user_prompt = f"""**Pain Point Description:**
+        user_prompt = f"""**Pain Point to Enrich:**
 {description}
+{existing_pains_str}
 
 **Signal Context:**
 {signal_context_str}
 
 **Task:**
-Extract pain point enrichment details from the above context. Be objective in assessing severity and frequency."""
+Extract pain point enrichment details from the above context. Review existing pains and suggest merging if this is a duplicate. Be objective in assessing severity and frequency."""
 
-        # Call LLM
-        model = ChatOpenAI(
-            model="gpt-4o",
+        # Call LLM with Claude Sonnet 4
+        model = ChatAnthropic(
+            model="claude-sonnet-4-20250514",
             temperature=0.1,
-            api_key=settings.OPENAI_API_KEY,
+            api_key=settings.ANTHROPIC_API_KEY,
         )
 
         messages = [
@@ -225,7 +257,7 @@ Extract pain point enrichment details from the above context. Be objective in as
             HumanMessage(content=user_prompt),
         ]
 
-        logger.debug(f"Calling GPT-4o for pain point enrichment (depth={depth})")
+        logger.debug(f"Calling Claude Sonnet 4 for pain point enrichment (depth={depth})")
         response = await model.ainvoke(messages)
         enrichment = parser.parse(response.content)
 

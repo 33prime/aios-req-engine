@@ -150,6 +150,21 @@ async def apply_proposal(
             )
 
         result = proposals_db.apply_proposal(proposal_id, applied_by)
+
+        # Update linked task(s) as completed
+        try:
+            from app.core.task_integrations import handle_proposal_decision
+            project_id = result.get("project_id")
+            if project_id:
+                await handle_proposal_decision(
+                    project_id=UUID(project_id) if isinstance(project_id, str) else project_id,
+                    proposal_id=proposal_id,
+                    decision="approved",
+                    decided_by=UUID(applied_by) if applied_by else None,
+                )
+        except Exception as task_err:
+            logger.warning(f"Failed to update task for proposal {proposal_id}: {task_err}")
+
         return result
 
     except HTTPException:
@@ -169,6 +184,19 @@ async def discard_proposal(proposal_id: UUID) -> dict[str, Any]:
 
         if not result:
             raise HTTPException(status_code=404, detail="Proposal not found")
+
+        # Update linked task(s) as dismissed
+        try:
+            from app.core.task_integrations import handle_proposal_decision
+            project_id = result.get("project_id")
+            if project_id:
+                await handle_proposal_decision(
+                    project_id=UUID(project_id) if isinstance(project_id, str) else project_id,
+                    proposal_id=proposal_id,
+                    decision="dismissed",
+                )
+        except Exception as task_err:
+            logger.warning(f"Failed to update task for proposal {proposal_id}: {task_err}")
 
         return result
 

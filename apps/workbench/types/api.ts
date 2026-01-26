@@ -565,3 +565,210 @@ export interface ProjectDetailWithDashboard extends ProjectWithDashboard {
     gate_score?: number
   } | null
 }
+
+// ============================================================================
+// Collaboration System (Linear Phase Workflow)
+// ============================================================================
+
+export type CollaborationPhase =
+  | 'pre_discovery'
+  | 'discovery'
+  | 'validation'
+  | 'prototype'
+  | 'proposal'
+  | 'build'
+  | 'delivery'
+
+export type PhaseStepStatus = 'locked' | 'available' | 'in_progress' | 'completed'
+
+export type PendingItemType =
+  | 'feature'
+  | 'persona'
+  | 'vp_step'
+  | 'question'
+  | 'document'
+  | 'kpi'
+  | 'goal'
+  | 'pain_point'
+  | 'requirement'
+
+export type PendingItemSource =
+  | 'phase_workflow'
+  | 'needs_review'
+  | 'ai_generated'
+  | 'manual'
+
+// Phase Progress
+
+export interface PhaseStep {
+  id: string
+  label: string
+  status: PhaseStepStatus
+  progress?: { current: number; total: number }
+  unlock_message?: string
+}
+
+export interface PhaseGate {
+  id: string
+  label: string
+  condition: string
+  met: boolean
+  current_value?: string | number
+  required_for_completion: boolean
+}
+
+export interface PhaseProgressConfig {
+  phase: CollaborationPhase
+  steps: PhaseStep[]
+  gates: PhaseGate[]
+  readiness_score: number
+}
+
+// Pending Items Queue
+
+export interface PendingItem {
+  id: string
+  item_type: PendingItemType
+  source: PendingItemSource
+  entity_id?: string
+  title: string
+  description?: string
+  why_needed?: string
+  priority: 'high' | 'medium' | 'low'
+  added_at: string
+  added_by?: string
+}
+
+export interface PendingItemsQueue {
+  items: PendingItem[]
+  by_type: Record<string, number>
+  total_count: number
+}
+
+// Client Package (AI-Synthesized)
+
+export interface SynthesizedQuestion {
+  id: string
+  question_text: string
+  hint?: string
+  suggested_answerer?: string
+  why_asking?: string
+  example_answer?: string
+  covers_items: string[]
+  covers_summary?: string
+  sequence_order: number
+}
+
+export interface ActionItem {
+  id: string
+  title: string
+  description?: string
+  item_type: 'document' | 'task' | 'approval'
+  hint?: string
+  why_needed?: string
+  covers_items: string[]
+  sequence_order: number
+}
+
+export interface AssetSuggestion {
+  id: string
+  category: 'sample_data' | 'process' | 'data_systems' | 'integration'
+  title: string
+  description: string
+  why_valuable: string
+  examples: string[]
+  priority: 'high' | 'medium' | 'low'
+  phase_relevant: CollaborationPhase[]
+}
+
+export interface ClientPackage {
+  id: string
+  project_id: string
+  status: 'draft' | 'sent' | 'responses_received'
+  questions: SynthesizedQuestion[]
+  action_items: ActionItem[]
+  suggested_assets: AssetSuggestion[]
+  source_items: string[]
+  source_items_count: number
+  questions_count: number
+  action_items_count: number
+  suggestions_count: number
+  created_at: string
+  sent_at?: string
+  updated_at: string
+}
+
+// Client Responses
+
+export interface QuestionResponse {
+  question_id: string
+  answer_text: string
+  answered_by?: string
+  answered_by_name?: string
+  answered_at: string
+}
+
+export interface ActionItemResponse {
+  action_item_id: string
+  status: 'complete' | 'skipped' | 'partial'
+  files: Array<{ id: string; name: string; url: string }>
+  notes?: string
+  completed_by?: string
+  completed_at: string
+}
+
+export interface ClientPackageResponses {
+  package_id: string
+  question_responses: QuestionResponse[]
+  action_item_responses: ActionItemResponse[]
+  questions_answered: number
+  questions_total: number
+  action_items_completed: number
+  action_items_total: number
+  overall_progress: number
+}
+
+// Main Response
+
+export interface PhaseProgressResponse {
+  project_id: string
+  current_phase: CollaborationPhase
+  phases: Array<{
+    phase: CollaborationPhase
+    status: 'locked' | 'active' | 'completed'
+    completed_at?: string
+  }>
+  phase_config: PhaseProgressConfig
+  readiness_score: number
+  readiness_gates: PhaseGate[]
+  pending_queue: PendingItemsQueue
+  draft_package?: ClientPackage
+  sent_package?: ClientPackage
+  package_responses?: ClientPackageResponses
+  portal_enabled: boolean
+  clients_count: number
+  last_client_activity?: string
+}
+
+// API Requests
+
+export interface GeneratePackageRequest {
+  item_ids?: string[]
+  include_asset_suggestions?: boolean
+  max_questions?: number
+}
+
+export interface GeneratePackageResponse {
+  package: ClientPackage
+  synthesis_notes?: string
+}
+
+export interface SendPackageRequest {
+  package_id: string
+}
+
+export interface SendPackageResponse {
+  success: boolean
+  package_id: string
+  sent_at: string
+}

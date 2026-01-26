@@ -5,6 +5,7 @@ from uuid import UUID
 
 from app.core.embeddings import embed_texts
 from app.core.logging import get_logger
+from app.core.state_snapshot import get_state_snapshot
 from app.db.confirmations import list_confirmation_items
 from app.db.facts import list_latest_extracted_facts
 from app.db.phase0 import search_signal_chunks
@@ -133,6 +134,7 @@ def build_vp_enrich_prompt(
     confirmations: list[dict[str, Any]],
     chunks: list[dict[str, Any]],
     include_research: bool,
+    state_snapshot: str | None = None,
 ) -> str:
     """
     Build the prompt for VP step enrichment.
@@ -144,6 +146,7 @@ def build_vp_enrich_prompt(
         confirmations: Open/resolved confirmations for context
         chunks: Supporting context chunks
         include_research: Whether research was included
+        state_snapshot: Optional pre-built state snapshot for project context
 
     Returns:
         Complete prompt for the LLM
@@ -155,7 +158,18 @@ def build_vp_enrich_prompt(
     step_value_created = step.get("value_created", "")
     step_kpi_impact = step.get("kpi_impact", "")
 
-    prompt_parts = [
+    prompt_parts = []
+
+    # Add project context first (if available)
+    if state_snapshot:
+        prompt_parts.extend([
+            state_snapshot,
+            "",
+            "---",
+            "",
+        ])
+
+    prompt_parts.extend([
         f"# Value Path Step Enrichment Task",
         f"",
         f"**Step to enrich:** Step {step_index} - {step_label}",
@@ -164,7 +178,7 @@ def build_vp_enrich_prompt(
         f"**Value Created:** {step_value_created}",
         f"**KPI Impact:** {step_kpi_impact}",
         f"",
-    ]
+    ])
 
     # Add resolved decisions from confirmations
     resolved_decisions = [
@@ -247,6 +261,9 @@ def build_vp_enrich_prompt(
         f"- Enhanced fields should improve clarity and add implementation details",
         f"- Proposed needs should only be added if there are genuine gaps in understanding",
         f"- Every proposal MUST include evidence references (chunk_id + excerpt + rationale)",
+        f"- chunk_id MUST be copied exactly from the [ID:uuid] prefix in Supporting Context above",
+        f"- DO NOT fabricate or make up chunk_ids - only use the exact UUIDs provided",
+        f"- If no chunks support a section, use an empty evidence array []",
         f"- Excerpts must be verbatim from the provided chunks (max 280 chars)",
         f"- If no improvements are needed, return minimal enhancements",
         f"",
@@ -321,12 +338,16 @@ def get_vp_enrich_context(
         top_k_context: Number of context chunks to retrieve
 
     Returns:
-        Dict with steps, facts, confirmations, and chunks
+        Dict with steps, facts, confirmations, chunks, and state_snapshot
     """
     logger.info(
         f"Gathering VP enrichment context for project {project_id}",
         extra={"project_id": str(project_id)},
     )
+
+    # Get state snapshot for comprehensive project context (~500-750 tokens)
+    state_snapshot = get_state_snapshot(project_id)
+    logger.info(f"Got state snapshot ({len(state_snapshot)} chars)")
 
     # Get VP steps to enrich
     all_steps = list_vp_steps(project_id)
@@ -372,11 +393,13 @@ def get_vp_enrich_context(
         "insights": insights,
         "confirmations": confirmations,
         "chunks": chunks,
+        "state_snapshot": state_snapshot,
+        "include_research": include_research,
     }
 
     logger.info(
         f"Gathered VP enrichment context: {len(steps)} steps, "
-        f"{len(facts)} facts, {len(confirmations)} confirmations, {len(chunks)} chunks",
+        f"{len(facts)} facts, {len(confirmations)} confirmations, {len(chunks)} chunks, state_snapshot included",
         extra={"project_id": str(project_id)},
     )
 

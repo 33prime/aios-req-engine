@@ -27,11 +27,13 @@ import {
   DollarSign,
   MapPin,
   BarChart3,
+  CheckCircle,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { Card, CardHeader, EmptyState } from '@/components/ui'
 import { updateCompanyInfo } from '@/lib/api'
 import { StrategicAnalyticsDashboard } from '@/components/StrategicAnalyticsDashboard'
+import BusinessDriverCard from '@/components/business-drivers/BusinessDriverCard'
 
 interface StrategicFoundationTabProps {
   projectId: string
@@ -88,6 +90,13 @@ interface Stakeholder {
   key_concerns?: string[]
 }
 
+interface Evidence {
+  chunk_id?: string
+  excerpt?: string
+  text?: string
+  rationale?: string
+}
+
 interface BusinessDriver {
   id: string
   driver_type: 'kpi' | 'pain' | 'goal'
@@ -96,6 +105,29 @@ interface BusinessDriver {
   timeframe: string | null
   priority: number
   stakeholder_id: string | null
+  // Enrichment fields
+  enrichment_status?: 'not_enriched' | 'enriched' | 'enrichment_failed'
+  evidence?: Evidence[]
+  confirmation_status?: 'ai_generated' | 'confirmed_consultant' | 'needs_client' | 'confirmed_client'
+  confidence_score?: number
+  // KPI-specific
+  baseline_value?: string
+  target_value?: string
+  measurement_method?: string
+  tracking_frequency?: string
+  data_source?: string
+  responsible_team?: string
+  // Pain-specific
+  severity?: 'critical' | 'high' | 'medium' | 'low'
+  frequency?: 'constant' | 'daily' | 'weekly' | 'monthly' | 'rare'
+  affected_users?: string
+  business_impact?: string
+  current_workaround?: string
+  // Goal-specific
+  goal_timeframe?: string
+  success_criteria?: string
+  dependencies?: string
+  owner?: string
 }
 
 interface CompetitorRef {
@@ -922,10 +954,86 @@ function BusinessDriversSubTab({
 }) {
   const [showAddModal, setShowAddModal] = useState(false)
   const [editingDriver, setEditingDriver] = useState<BusinessDriver | null>(null)
+  const [associations, setAssociations] = useState<Record<string, any>>({})
+  const [enriching, setEnriching] = useState<Set<string>>(new Set())
+  const [showBulkEnrichModal, setShowBulkEnrichModal] = useState(false)
+  const [bulkEnriching, setBulkEnriching] = useState(false)
+  const [bulkEnrichResult, setBulkEnrichResult] = useState<any>(null)
 
   const kpis = drivers.filter(d => d.driver_type === 'kpi')
   const pains = drivers.filter(d => d.driver_type === 'pain')
   const goals = drivers.filter(d => d.driver_type === 'goal')
+
+  // Count non-enriched drivers
+  const nonEnrichedCount = drivers.filter(d => !d.enrichment_status || d.enrichment_status === 'not_enriched').length
+
+  // Load associations for enriched drivers
+  useEffect(() => {
+    const enrichedDrivers = drivers.filter(d => d.enrichment_status === 'enriched')
+    enrichedDrivers.forEach(driver => {
+      if (!associations[driver.id]) {
+        loadAssociations(driver.id)
+      }
+    })
+  }, [drivers])
+
+  const loadAssociations = async (driverId: string) => {
+    try {
+      const baseUrl = process.env.NEXT_PUBLIC_API_BASE
+      const res = await fetch(`${baseUrl}/v1/projects/${projectId}/business-drivers/${driverId}/associations`)
+
+      if (res.ok) {
+        const data = await res.json()
+        setAssociations(prev => ({ ...prev, [driverId]: data }))
+      }
+    } catch (error) {
+      console.error('Failed to load associations:', error)
+    }
+  }
+
+  const handleConfirmationChange = async (driverId: string, newStatus: string) => {
+    try {
+      const baseUrl = process.env.NEXT_PUBLIC_API_BASE
+      const res = await fetch(`${baseUrl}/v1/projects/${projectId}/business-drivers/${driverId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ confirmation_status: newStatus }),
+      })
+
+      if (!res.ok) throw new Error('Update failed')
+      onRefresh?.()
+    } catch (error) {
+      console.error('Failed to update confirmation status:', error)
+      alert('Failed to update confirmation status')
+    }
+  }
+
+  const handleEnrich = async (driverId: string) => {
+    try {
+      setEnriching(prev => new Set(prev).add(driverId))
+      const baseUrl = process.env.NEXT_PUBLIC_API_BASE
+      const res = await fetch(`${baseUrl}/v1/projects/${projectId}/business-drivers/${driverId}/enrich`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ depth: 'standard' }),
+      })
+
+      if (!res.ok) throw new Error('Enrichment failed')
+
+      // Load associations after enrichment
+      await loadAssociations(driverId)
+      onRefresh?.()
+    } catch (error) {
+      console.error('Failed to enrich driver:', error)
+      alert('Failed to enrich business driver')
+    } finally {
+      setEnriching(prev => {
+        const next = new Set(prev)
+        next.delete(driverId)
+        return next
+      })
+    }
+  }
 
   const handleDelete = async (driverId: string) => {
     if (!confirm('Delete this business driver?')) return
@@ -944,10 +1052,82 @@ function BusinessDriversSubTab({
     }
   }
 
+  const handleBulkEnrich = async () => {
+    try {
+      setBulkEnriching(true)
+      setBulkEnrichResult(null)
+
+      const baseUrl = process.env.NEXT_PUBLIC_API_BASE
+      const res = await fetch(`${baseUrl}/v1/projects/${projectId}/business-drivers/enrich-bulk`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          driver_type: 'all', // Enrich all types
+          depth: 'standard',
+        }),
+      })
+
+      if (!res.ok) throw new Error('Bulk enrichment failed')
+
+      const result = await res.json()
+      setBulkEnrichResult(result)
+
+      // Refresh to show enriched drivers
+      onRefresh?.()
+    } catch (error) {
+      console.error('Failed to bulk enrich drivers:', error)
+      alert('Failed to bulk enrich business drivers')
+    } finally {
+      setBulkEnriching(false)
+    }
+  }
+
+  const handleBulkEnrichByType = async (driverType: 'kpi' | 'pain' | 'goal') => {
+    try {
+      setBulkEnriching(true)
+      const baseUrl = process.env.NEXT_PUBLIC_API_BASE
+      const res = await fetch(`${baseUrl}/v1/projects/${projectId}/business-drivers/enrich-bulk`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          driver_type: driverType,
+          depth: 'standard',
+        }),
+      })
+
+      if (!res.ok) throw new Error(`Enrichment failed for ${driverType}s`)
+
+      const result = await res.json()
+
+      // Show toast/alert with results
+      const typeName = driverType === 'kpi' ? 'KPIs' : driverType === 'pain' ? 'Pain Points' : 'Goals'
+      alert(`Enriched ${result.succeeded} ${typeName}`)
+
+      // Refresh to show enriched drivers
+      onRefresh?.()
+    } catch (error) {
+      console.error(`Failed to enrich ${driverType}s:`, error)
+      alert(`Failed to enrich ${driverType}s`)
+    } finally {
+      setBulkEnriching(false)
+    }
+  }
+
   return (
     <div className="space-y-6">
-      {/* Add Button */}
-      <div className="flex justify-end">
+      {/* Action Buttons */}
+      <div className="flex justify-between items-center">
+        <div>
+          {nonEnrichedCount > 0 && (
+            <button
+              onClick={() => setShowBulkEnrichModal(true)}
+              className="flex items-center gap-2 px-3 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition-colors text-sm font-medium"
+            >
+              <Sparkles className="h-4 w-4" />
+              Enrich All ({nonEnrichedCount})
+            </button>
+          )}
+        </div>
         <button
           onClick={() => setShowAddModal(true)}
           className="flex items-center gap-2 px-3 py-2 bg-brand-primary text-white rounded-lg hover:bg-brand-hover transition-colors text-sm font-medium"
@@ -957,43 +1137,34 @@ function BusinessDriversSubTab({
         </button>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* KPIs */}
+      <div className="space-y-6">
+        {/* KPIs Section */}
         <Card>
-          <CardHeader title={`KPIs (${kpis.length})`} icon={Target} />
+          <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
+            <CardHeader title={`KPIs (${kpis.length})`} icon={Target} />
+            {kpis.filter(k => !k.enrichment_status || k.enrichment_status === 'not_enriched').length > 0 && (
+              <button
+                onClick={() => handleBulkEnrichByType('kpi')}
+                disabled={bulkEnriching}
+                className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 disabled:opacity-50"
+              >
+                <Sparkles className="h-4 w-4" />
+                Enrich All ({kpis.filter(k => !k.enrichment_status || k.enrichment_status === 'not_enriched').length})
+              </button>
+            )}
+          </div>
           <div className="p-4">
             {kpis.length > 0 ? (
               <div className="space-y-3">
                 {kpis.map((kpi) => (
-                  <div key={kpi.id} className="group p-3 bg-green-50 rounded-lg border border-green-100 hover:shadow-sm transition-shadow">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex-1 min-w-0">
-                        <div className="font-medium text-green-900">{kpi.description}</div>
-                        {kpi.measurement && (
-                          <div className="text-sm text-green-700 mt-1">
-                            Target: {kpi.measurement}
-                          </div>
-                        )}
-                        {kpi.timeframe && (
-                          <div className="text-xs text-green-600 mt-1">{kpi.timeframe}</div>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button
-                          onClick={() => setEditingDriver(kpi)}
-                          className="p-1 hover:bg-green-200 rounded"
-                        >
-                          <Pencil className="h-3.5 w-3.5 text-green-700" />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(kpi.id)}
-                          className="p-1 hover:bg-red-200 rounded"
-                        >
-                          <span className="text-red-700 text-sm">×</span>
-                        </button>
-                      </div>
-                    </div>
-                  </div>
+                  <BusinessDriverCard
+                    key={kpi.id}
+                    driver={kpi}
+                    associations={associations[kpi.id]}
+                    onConfirmationChange={(newStatus) => handleConfirmationChange(kpi.id, newStatus)}
+                    onEdit={() => setEditingDriver(kpi)}
+                    onDelete={() => handleDelete(kpi.id)}
+                  />
                 ))}
               </div>
             ) : (
@@ -1006,39 +1177,33 @@ function BusinessDriversSubTab({
           </div>
         </Card>
 
-        {/* Pain Points */}
+        {/* Pain Points Section */}
         <Card>
-          <CardHeader title={`Pain Points (${pains.length})`} icon={AlertCircle} />
+          <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
+            <CardHeader title={`Pain Points (${pains.length})`} icon={AlertCircle} />
+            {pains.filter(p => !p.enrichment_status || p.enrichment_status === 'not_enriched').length > 0 && (
+              <button
+                onClick={() => handleBulkEnrichByType('pain')}
+                disabled={bulkEnriching}
+                className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
+              >
+                <Sparkles className="h-4 w-4" />
+                Enrich All ({pains.filter(p => !p.enrichment_status || p.enrichment_status === 'not_enriched').length})
+              </button>
+            )}
+          </div>
           <div className="p-4">
             {pains.length > 0 ? (
               <div className="space-y-3">
                 {pains.map((pain) => (
-                  <div key={pain.id} className="group p-3 bg-red-50 rounded-lg border border-red-100 hover:shadow-sm transition-shadow">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex-1 min-w-0">
-                        <div className="font-medium text-red-900">{pain.description}</div>
-                        {pain.measurement && (
-                          <div className="text-sm text-red-700 mt-1">
-                            Impact: {pain.measurement}
-                          </div>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button
-                          onClick={() => setEditingDriver(pain)}
-                          className="p-1 hover:bg-red-200 rounded"
-                        >
-                          <Pencil className="h-3.5 w-3.5 text-red-700" />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(pain.id)}
-                          className="p-1 hover:bg-red-200 rounded"
-                        >
-                          <span className="text-red-700 text-sm">×</span>
-                        </button>
-                      </div>
-                    </div>
-                  </div>
+                  <BusinessDriverCard
+                    key={pain.id}
+                    driver={pain}
+                    associations={associations[pain.id]}
+                    onConfirmationChange={(newStatus) => handleConfirmationChange(pain.id, newStatus)}
+                    onEdit={() => setEditingDriver(pain)}
+                    onDelete={() => handleDelete(pain.id)}
+                  />
                 ))}
               </div>
             ) : (
@@ -1051,37 +1216,35 @@ function BusinessDriversSubTab({
           </div>
         </Card>
 
-        {/* Goals */}
+        {/* Goals Section */}
         <Card>
-          <CardHeader title={`Goals (${goals.length})`} icon={Sparkles} />
+          <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
+            <CardHeader title={`Goals (${goals.length})`} icon={Sparkles} />
+            {goals.filter(g => !g.enrichment_status || g.enrichment_status === 'not_enriched').length > 0 && (
+              <button
+                onClick={() => handleBulkEnrichByType('goal')}
+                disabled={bulkEnriching}
+                className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium bg-teal-500 text-white rounded-lg hover:bg-teal-600 disabled:opacity-50"
+              >
+                <Sparkles className="h-4 w-4" />
+                Enrich All ({goals.filter(g => !g.enrichment_status || g.enrichment_status === 'not_enriched').length})
+              </button>
+            )}
+          </div>
           <div className="p-4">
             {goals.length > 0 ? (
               <div className="space-y-3">
                 {goals.map((goal) => (
-                  <div key={goal.id} className="group p-3 bg-emerald-50 rounded-lg border border-emerald-100 hover:shadow-sm transition-shadow">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex-1 min-w-0">
-                        <div className="font-medium text-gray-900">{goal.description}</div>
-                        {goal.timeframe && (
-                          <div className="text-xs text-[#009b87] mt-1">{goal.timeframe}</div>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button
-                          onClick={() => setEditingDriver(goal)}
-                          className="p-1 hover:bg-emerald-200 rounded"
-                        >
-                          <Pencil className="h-3.5 w-3.5 text-emerald-700" />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(goal.id)}
-                          className="p-1 hover:bg-red-200 rounded"
-                        >
-                          <span className="text-red-700 text-sm">×</span>
-                        </button>
-                      </div>
-                    </div>
-                  </div>
+                  <BusinessDriverCard
+                    key={goal.id}
+                    driver={goal}
+                    associations={associations[goal.id]}
+                    onConfirmationChange={(newStatus) => handleConfirmationChange(goal.id, newStatus)}
+                    onEnrich={() => handleEnrich(goal.id)}
+                    onEdit={() => setEditingDriver(goal)}
+                    onDelete={() => handleDelete(goal.id)}
+                    isEnriching={enriching.has(goal.id)}
+                  />
                 ))}
               </div>
             ) : (
@@ -1094,46 +1257,44 @@ function BusinessDriversSubTab({
           </div>
         </Card>
 
-        {/* Constraints - Full Width */}
-        <div className="lg:col-span-3">
-          <Card>
-            <CardHeader title="Constraints & Guardrails" icon={AlertCircle} />
-            <div className="p-4">
-              {constraints.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                  {constraints.map((c) => (
-                    <div key={c.id} className="p-3 bg-ui-background rounded-lg">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="px-1.5 py-0.5 bg-gray-200 text-gray-700 rounded text-xs font-medium">
-                          {c.constraint_type}
+        {/* Constraints Section */}
+        <Card>
+          <CardHeader title="Constraints & Guardrails" icon={AlertCircle} />
+          <div className="p-4">
+            {constraints.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                {constraints.map((c) => (
+                  <div key={c.id} className="p-3 bg-ui-background rounded-lg">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="px-1.5 py-0.5 bg-gray-200 text-gray-700 rounded text-xs font-medium">
+                        {c.constraint_type}
+                      </span>
+                      {c.severity && c.severity !== 'should_have' && (
+                        <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${
+                          c.severity === 'must_have'
+                            ? 'bg-amber-100 text-amber-800'
+                            : 'bg-gray-100 text-gray-600'
+                        }`}>
+                          {c.severity.replace('_', ' ')}
                         </span>
-                        {c.severity && c.severity !== 'should_have' && (
-                          <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${
-                            c.severity === 'must_have'
-                              ? 'bg-red-100 text-red-700'
-                              : 'bg-gray-100 text-gray-600'
-                          }`}>
-                            {c.severity.replace('_', ' ')}
-                          </span>
-                        )}
-                      </div>
-                      <div className="font-medium text-ui-headingDark">{c.title}</div>
-                      {c.description && (
-                        <div className="text-sm text-ui-supportText mt-1 line-clamp-2">{c.description}</div>
                       )}
                     </div>
-                  ))}
-                </div>
-              ) : (
-                <EmptyState
-                  icon={<AlertCircle className="h-12 w-12" />}
-                  title="No constraints defined"
-                  description="Add budget, timeline, or technical constraints"
-                />
-              )}
-            </div>
-          </Card>
-        </div>
+                    <div className="font-medium text-ui-headingDark">{c.title}</div>
+                    {c.description && (
+                      <div className="text-sm text-ui-supportText mt-1 line-clamp-2">{c.description}</div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <EmptyState
+                icon={<AlertCircle className="h-12 w-12" />}
+                title="No constraints defined"
+                description="Add budget, timeline, or technical constraints"
+              />
+            )}
+          </div>
+        </Card>
       </div>
 
       {/* Add/Edit Modal */}
@@ -1149,6 +1310,20 @@ function BusinessDriversSubTab({
             setShowAddModal(false)
             setEditingDriver(null)
             onRefresh?.()
+          }}
+        />
+      )}
+
+      {/* Bulk Enrich Modal */}
+      {showBulkEnrichModal && (
+        <BulkEnrichModal
+          nonEnrichedCount={nonEnrichedCount}
+          bulkEnriching={bulkEnriching}
+          bulkEnrichResult={bulkEnrichResult}
+          onEnrich={handleBulkEnrich}
+          onClose={() => {
+            setShowBulkEnrichModal(false)
+            setBulkEnrichResult(null)
           }}
         />
       )}
@@ -1513,6 +1688,133 @@ function CompetitorRefModal({
             </button>
           </div>
         </form>
+      </div>
+    </div>
+  )
+}
+
+/**
+ * Bulk Enrichment Modal
+ */
+function BulkEnrichModal({
+  nonEnrichedCount,
+  bulkEnriching,
+  bulkEnrichResult,
+  onEnrich,
+  onClose,
+}: {
+  nonEnrichedCount: number
+  bulkEnriching: boolean
+  bulkEnrichResult: any
+  onEnrich: () => void
+  onClose: () => void
+}) {
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
+        <div className="flex items-center justify-between p-6 border-b">
+          <h2 className="text-xl font-semibold flex items-center gap-2">
+            <Sparkles className="h-5 w-5 text-amber-500" />
+            Bulk Enrich Business Drivers
+          </h2>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-600"
+            disabled={bulkEnriching}
+          >
+            <span className="text-2xl">×</span>
+          </button>
+        </div>
+
+        <div className="p-6">
+          {!bulkEnrichResult ? (
+            <>
+              <p className="text-sm text-gray-700 mb-4">
+                Enrich <span className="font-semibold">{nonEnrichedCount}</span> business driver{nonEnrichedCount !== 1 ? 's' : ''} with AI analysis to extract:
+              </p>
+              <ul className="text-sm text-gray-600 space-y-2 mb-6 ml-4">
+                <li className="flex items-start gap-2">
+                  <CheckCircle className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
+                  <span>Measurement details for KPIs (baseline, target, method)</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <AlertCircle className="h-4 w-4 text-red-600 mt-0.5 flex-shrink-0" />
+                  <span>Impact analysis for Pain Points (severity, frequency)</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <Target className="h-4 w-4 text-emerald-600 mt-0.5 flex-shrink-0" />
+                  <span>Achievement criteria for Goals (timeframe, success criteria)</span>
+                </li>
+              </ul>
+
+              <div className="flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  disabled={bulkEnriching}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 border border-gray-300 rounded-lg disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={onEnrich}
+                  disabled={bulkEnriching}
+                  className="px-4 py-2 text-sm font-medium text-white bg-amber-500 hover:bg-amber-600 rounded-lg disabled:opacity-50 flex items-center gap-2"
+                >
+                  {bulkEnriching ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Enriching...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="h-4 w-4" />
+                      Enrich All
+                    </>
+                  )}
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="mb-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <CheckCircle className="h-5 w-5 text-green-600" />
+                  <h3 className="font-semibold text-gray-900">Enrichment Complete!</h3>
+                </div>
+                <p className="text-sm text-gray-600">
+                  Successfully enriched your business drivers.
+                </p>
+              </div>
+
+              <div className="bg-gray-50 rounded-lg p-4 space-y-2 mb-6">
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Total processed:</span>
+                  <span className="font-medium">{bulkEnrichResult.total}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-green-600">Succeeded:</span>
+                  <span className="font-medium text-green-700">{bulkEnrichResult.succeeded}</span>
+                </div>
+                {bulkEnrichResult.failed > 0 && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-red-600">Failed:</span>
+                    <span className="font-medium text-red-700">{bulkEnrichResult.failed}</span>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex justify-end">
+                <button
+                  onClick={onClose}
+                  className="px-4 py-2 text-sm font-medium text-white bg-brand-primary hover:bg-brand-hover rounded-lg"
+                >
+                  Done
+                </button>
+              </div>
+            </>
+          )}
+        </div>
       </div>
     </div>
   )

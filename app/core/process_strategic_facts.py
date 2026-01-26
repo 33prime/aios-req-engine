@@ -1,36 +1,40 @@
 """Process strategic entity fact types into database entities."""
 
+import asyncio
 from uuid import UUID
 
 from app.core.logging import get_logger
 from app.db.facts import list_latest_extracted_facts
-from app.db.business_drivers import smart_upsert_business_driver
+from app.db.business_drivers import smart_upsert_business_driver, auto_enrich_driver_if_eligible
 from app.db.competitor_refs import smart_upsert_competitor_ref
 from app.db.stakeholders import smart_upsert_stakeholder
 
 logger = get_logger(__name__)
 
 
-def process_strategic_facts_for_signal(
+async def process_strategic_facts_for_signal(
     project_id: UUID,
     signal_id: UUID | None = None,
+    auto_enrich: bool = True,
 ) -> dict[str, int]:
     """
     Process strategic entity fact types from extracted facts into database entities.
 
     This function extracts business drivers (pain, goal, kpi), competitors, and
     stakeholders from the most recent fact extraction and creates/updates entities
-    using smart_upsert functions.
+    using smart_upsert functions. Optionally auto-enriches high-confidence drivers.
 
     Args:
         project_id: Project UUID
         signal_id: Optional signal UUID for attribution
+        auto_enrich: Whether to automatically enrich high-confidence drivers (default True)
 
     Returns:
         Dict with counts:
         - business_drivers_created
         - business_drivers_updated
         - business_drivers_merged
+        - business_drivers_auto_enriched
         - competitor_refs_created
         - competitor_refs_updated
         - competitor_refs_merged
@@ -42,6 +46,7 @@ def process_strategic_facts_for_signal(
         "business_drivers_created": 0,
         "business_drivers_updated": 0,
         "business_drivers_merged": 0,
+        "business_drivers_auto_enriched": 0,
         "competitor_refs_created": 0,
         "competitor_refs_updated": 0,
         "competitor_refs_merged": 0,
@@ -102,7 +107,7 @@ def process_strategic_facts_for_signal(
                 driver_type = "goal"
 
             try:
-                _, action = smart_upsert_business_driver(
+                driver_id, action = smart_upsert_business_driver(
                     project_id=project_id,
                     driver_type=driver_type,
                     description=description,
@@ -123,6 +128,20 @@ def process_strategic_facts_for_signal(
                     result["business_drivers_merged"] += 1
 
                 logger.debug(f"{action.capitalize()} {driver_type} driver: {description[:50]}")
+
+                # Auto-enrich if eligible (high confidence, created by system)
+                if auto_enrich and action == "created":
+                    evidence_count = len(new_evidence) if new_evidence else 0
+                    enriched = await auto_enrich_driver_if_eligible(
+                        driver_id=driver_id,
+                        project_id=project_id,
+                        driver_type=driver_type,
+                        evidence_count=evidence_count,
+                        created_by="system",
+                        min_evidence_threshold=3,
+                    )
+                    if enriched:
+                        result["business_drivers_auto_enriched"] += 1
 
             except Exception as e:
                 logger.warning(f"Failed to upsert business driver: {e}")

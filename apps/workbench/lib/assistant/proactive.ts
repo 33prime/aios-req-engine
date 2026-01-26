@@ -275,21 +275,74 @@ registerTrigger({
   cooldownMs: 5000, // 5 seconds
   handler: async (_context): Promise<ProactiveMessage | null> => {
     return {
-      message: 'New signal received! Would you like me to process it and extract claims?',
-      priority: 'medium',
+      message: '📥 Processing your transcript now... Extracting features, personas, and business drivers. This may take 1-2 minutes.',
+      priority: 'high',
       actions: [
         {
-          id: 'process-signal',
-          label: 'Process Now',
-          variant: 'primary',
-        },
-        {
-          id: 'queue-signal',
-          label: 'Add to Queue',
+          id: 'view-sources',
+          label: 'View Sources Tab',
+          navigateTo: { tab: 'sources' },
         },
       ],
       dismissable: true,
-      expiresAt: new Date(Date.now() + 30000), // Expires in 30 seconds
+      expiresAt: new Date(Date.now() + 120000), // Expires in 2 minutes
+    }
+  },
+})
+
+// Signal Processing Complete Trigger
+registerTrigger({
+  id: 'signal-processing-complete',
+  type: 'signal_processed',
+  cooldownMs: 2000, // 2 seconds
+  handler: async (context): Promise<ProactiveMessage | null> => {
+    const { signalResult, projectId } = context
+
+    if (!signalResult) return null
+
+    const changesCount = signalResult.changesCount || 0
+    const proposalId = signalResult.proposalId
+
+    let message = `✅ **Analysis Complete!**\n\n`
+    message += `Extracted **${changesCount} changes** from your transcript.\n\n`
+
+    const actions: QuickAction[] = []
+
+    if (proposalId && changesCount > 0) {
+      message += `📋 **${changesCount} tasks** have been created for your review.\n\n`
+      message += `You can approve them all at once or review individually.`
+
+      actions.push({
+        id: 'approve-all',
+        label: 'Approve All',
+        command: '/approve-all-tasks',
+        variant: 'primary',
+      })
+      actions.push({
+        id: 'view-tasks',
+        label: 'Review Tasks',
+        command: '/tasks proposals',
+      })
+    } else if (changesCount > 0) {
+      message += `Changes have been automatically applied to your project.`
+      actions.push({
+        id: 'view-changes',
+        label: 'View Changes',
+        command: '/project-status',
+      })
+    }
+
+    actions.push({
+      id: 'view-overview',
+      label: 'View Overview',
+      navigateTo: { tab: 'overview' },
+    })
+
+    return {
+      message,
+      priority: 'high',
+      actions,
+      dismissable: true,
     }
   },
 })
@@ -352,6 +405,7 @@ export async function evaluateAllTriggers(
     'idle',
     'periodic',
     'signal_added',
+    'signal_processed',
   ]
 
   for (const type of types) {
@@ -433,6 +487,15 @@ export async function onSignalAdded(
   context: AssistantContext
 ): Promise<ProactiveMessage | null> {
   return evaluateTriggers('signal_added', context)
+}
+
+/**
+ * Handler to call when signal processing completes.
+ */
+export async function onSignalProcessed(
+  context: AssistantContext
+): Promise<ProactiveMessage | null> {
+  return evaluateTriggers('signal_processed', context)
 }
 
 /**

@@ -15,14 +15,14 @@ This chain analyzes signals and existing KPI data to provide actionable metrics.
 from typing import Any
 from uuid import UUID
 
+from langchain_anthropic import ChatAnthropic
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_core.output_parsers import PydanticOutputParser
-from langchain_openai import ChatOpenAI
 from pydantic import BaseModel, Field
 
 from app.core.config import get_settings
 from app.core.logging import get_logger
-from app.db.business_drivers import get_business_driver, update_business_driver
+from app.db.business_drivers import get_business_driver, update_business_driver, list_business_drivers
 from app.db.signals import list_project_signals, list_signal_chunks
 
 logger = get_logger(__name__)
@@ -54,6 +54,10 @@ class KPIEnrichment(BaseModel):
     responsible_team: str | None = Field(
         None,
         description='Team or person responsible for this KPI (e.g., "Growth team", "Sarah (Product Manager)", "Engineering lead")',
+    )
+    should_merge_with: str | None = Field(
+        None,
+        description='If this KPI is very similar to another existing KPI, provide the ID of the KPI it should be merged with. Only suggest merging if they measure the exact same metric.',
     )
     confidence: float = Field(
         0.0,
@@ -114,6 +118,11 @@ async def enrich_kpi(
 
         logger.info(f"Enriching KPI '{description[:50]}' for project {project_id}")
 
+        # Get existing KPIs for merge detection
+        existing_kpis = list_business_drivers(project_id, driver_type="kpi", limit=50)
+        # Exclude the current driver
+        other_kpis = [kpi for kpi in existing_kpis if kpi.get("id") != str(driver_id)]
+
         # Gather context from signals
         signal_context = []
 
@@ -169,10 +178,26 @@ async def enrich_kpi(
                 for ctx in signal_context[:8]  # Max 8 contexts
             ])
 
+        # Build existing KPIs summary for merge detection
+        existing_kpis_str = ""
+        if other_kpis:
+            existing_kpis_str = "\n**Existing KPIs in this project:**\n"
+            for kpi in other_kpis[:10]:  # Limit to 10 for context size
+                kpi_id = kpi.get("id", "")
+                kpi_desc = kpi.get("description", "")
+                kpi_baseline = kpi.get("baseline_value", "")
+                kpi_target = kpi.get("target_value", "")
+                existing_kpis_str += f"- ID: {kpi_id}, Description: {kpi_desc}"
+                if kpi_baseline or kpi_target:
+                    existing_kpis_str += f" (Baseline: {kpi_baseline}, Target: {kpi_target})"
+                existing_kpis_str += "\n"
+        else:
+            existing_kpis_str = "\n**No other KPIs exist yet.**\n"
+
         # Build the enrichment prompt
         parser = PydanticOutputParser(pydantic_object=KPIEnrichment)
 
-        system_prompt = f"""You are a KPI enrichment specialist. Your job is to extract detailed measurement information for a KPI.
+        system_prompt = f"""You are a KPI enrichment specialist. Your job is to extract detailed measurement information for a KPI and detect duplicates.
 
 Given a KPI description and related signal context, extract:
 1. **Baseline value**: The current state (e.g., "5 seconds", "20%", "$50K/month")
@@ -181,6 +206,12 @@ Given a KPI description and related signal context, extract:
 4. **Tracking frequency**: How often to measure (e.g., "daily", "weekly", "real-time")
 5. **Data source**: Where data comes from (e.g., "Mixpanel dashboard", "SQL query", "manual count")
 6. **Responsible team**: Who owns this (e.g., "Growth team", "Sarah Johnson (PM)", "Engineering")
+
+**CRITICAL - Duplicate Detection:**
+- Review the list of existing KPIs carefully
+- If this KPI measures the EXACT SAME metric as an existing KPI (e.g., both measure "page load time" or "conversion rate"), set `should_merge_with` to the ID of that existing KPI
+- Only suggest merging if they are truly duplicates (same metric, same measurement approach)
+- Different aspects of the same area (e.g., "mobile page load" vs "desktop page load") should NOT be merged
 
 **Important**:
 - Only extract values that are explicitly mentioned or strongly implied in the context
@@ -191,23 +222,24 @@ Given a KPI description and related signal context, extract:
 
 {parser.get_format_instructions()}"""
 
-        user_prompt = f"""**KPI Description:**
+        user_prompt = f"""**KPI to Enrich:**
 {description}
 
 **Current Measurement (if any):**
 {measurement if measurement else "Not specified"}
+{existing_kpis_str}
 
 **Signal Context:**
 {signal_context_str}
 
 **Task:**
-Extract KPI enrichment details from the above context. If information is missing, leave those fields as null."""
+Extract KPI enrichment details from the above context. Review existing KPIs and suggest merging if this is a duplicate. If information is missing, leave those fields as null."""
 
-        # Call LLM
-        model = ChatOpenAI(
-            model="gpt-4o",
+        # Call LLM with Claude Sonnet 4
+        model = ChatAnthropic(
+            model="claude-sonnet-4-20250514",
             temperature=0.1,
-            api_key=settings.OPENAI_API_KEY,
+            api_key=settings.ANTHROPIC_API_KEY,
         )
 
         messages = [
@@ -215,13 +247,14 @@ Extract KPI enrichment details from the above context. If information is missing
             HumanMessage(content=user_prompt),
         ]
 
-        logger.debug(f"Calling GPT-4o for KPI enrichment (depth={depth})")
+        logger.debug(f"Calling Claude Sonnet 4 for KPI enrichment (depth={depth})")
         response = await model.ainvoke(messages)
         enrichment = parser.parse(response.content)
 
         logger.info(
             f"KPI enrichment complete: baseline={enrichment.baseline_value}, "
-            f"target={enrichment.target_value}, confidence={enrichment.confidence}"
+            f"target={enrichment.target_value}, confidence={enrichment.confidence}, "
+            f"merge_suggestion={enrichment.should_merge_with}"
         )
 
         # Update the driver with enrichment data

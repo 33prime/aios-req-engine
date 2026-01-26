@@ -5,7 +5,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, HTTPException
 
-from app.core.baseline_gate import require_baseline_ready
+# Baseline gate removed - no longer needed
 from app.core.chunking import chunk_text
 from app.core.embeddings import embed_texts
 from app.core.logging import get_logger
@@ -363,9 +363,6 @@ async def ingest_structured_research(request: ResearchIngestRequest) -> Research
     job_id: UUID | None = None
 
     try:
-        # Check baseline gate first
-        gate = require_baseline_ready(request.project_id)
-
         # Create and start job
         job_id = create_job(
             project_id=request.project_id,
@@ -385,7 +382,6 @@ async def ingest_structured_research(request: ResearchIngestRequest) -> Research
                 "job_id": str(job_id),
                 "report_count": len(request.reports),
                 "research_enabled": True,
-                "baseline_ready": gate["baseline_ready"],
             },
         )
 

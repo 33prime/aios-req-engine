@@ -105,42 +105,63 @@ def build_facts_prompt(
 
     # State snapshot - comprehensive project context (~500 tokens)
     if project_context and project_context.get("state_snapshot"):
-        lines.append("=== PROJECT STATE SNAPSHOT ===")
+        lines.append("=== EXISTING PROJECT STATE ===")
         lines.append(project_context["state_snapshot"])
         lines.append("")
-        lines.append(
-            "NOTE: Use this context to avoid duplicating existing entities. "
-            "Only extract NEW information not already captured above."
-        )
+        lines.append("=== EXTRACTION GUIDANCE ===")
+        lines.append("When you find information in the signal:")
+        lines.append("1. If it describes a NEW capability not listed above → create FEATURE fact")
+        lines.append("2. If it adds NEW DETAILS to an existing feature → create FEATURE fact (will be merged)")
+        lines.append("3. Extract ALL workflow steps as VP_STEP facts")
+        lines.append("4. Extract ALL business drivers (pains, goals, KPIs)")
+        lines.append("5. Extract ALL personas/user types mentioned")
+        lines.append("")
+        lines.append("DO NOT skip extraction just because something similar exists.")
+        lines.append("The consolidation step handles merging - extract EVERYTHING mentioned.")
         lines.append("")
 
     # Fallback project context if no state snapshot
     elif project_context:
-        lines.append("=== PROJECT CONTEXT ===")
+        lines.append("=== EXISTING PROJECT STATE ===")
         if project_context.get("name"):
             lines.append(f"Project: {project_context['name']}")
         if project_context.get("domain"):
             lines.append(f"Domain: {project_context['domain']}")
         if project_context.get("description"):
             lines.append(f"Description: {project_context['description'][:200]}")
+        lines.append("")
 
-        # Show existing features to help avoid duplicates
+        # Show existing features with details
         existing_features = project_context.get("existing_features", [])
         if existing_features:
-            feature_names = [f.get("name", f.get("title", "?")) for f in existing_features[:10]]
-            lines.append(f"Existing features ({len(existing_features)}): {', '.join(feature_names)}")
+            lines.append(f"EXISTING FEATURES ({len(existing_features)} total):")
+            for f in existing_features[:15]:
+                name = f.get("name", f.get("title", "?"))
+                desc = f.get("description", "")[:80] if f.get("description") else ""
+                lines.append(f"  - {name}" + (f": {desc}..." if desc else ""))
+            lines.append("")
 
         # Show existing personas
         existing_personas = project_context.get("existing_personas", [])
         if existing_personas:
-            persona_names = [p.get("name", p.get("slug", "?")) for p in existing_personas[:5]]
-            lines.append(f"Existing personas ({len(existing_personas)}): {', '.join(persona_names)}")
+            lines.append(f"EXISTING PERSONAS ({len(existing_personas)} total):")
+            for p in existing_personas[:10]:
+                name = p.get("name", p.get("slug", "?"))
+                role = p.get("role", "")
+                lines.append(f"  - {name}" + (f" ({role})" if role else ""))
+            lines.append("")
 
+        lines.append("=== EXTRACTION GUIDANCE ===")
+        lines.append("When you find information in the signal:")
+        lines.append("1. If it describes a NEW feature not listed above → create FEATURE fact")
+        lines.append("2. If it adds NEW DETAILS to an existing feature → create FEATURE fact with same name")
+        lines.append("3. If it describes a NEW persona/user type → create PERSONA fact")
+        lines.append("4. If it adds details to existing persona → create PERSONA fact with same name")
+        lines.append("5. Extract ALL workflow steps as VP_STEP facts")
+        lines.append("6. Extract ALL business drivers (pains, goals, KPIs)")
         lines.append("")
-        lines.append(
-            "NOTE: When extracting, check if entities already exist above. "
-            "If so, only extract NEW information or updates, not duplicates."
-        )
+        lines.append("DO NOT skip extraction just because something similar exists.")
+        lines.append("The consolidation step will handle merging - your job is to extract EVERYTHING.")
         lines.append("")
 
     # Signal header

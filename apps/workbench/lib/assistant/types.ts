@@ -148,7 +148,7 @@ export interface ModeConfig {
 
 export interface ProactiveTrigger {
   id: string
-  type: 'tab_switch' | 'signal_added' | 'entity_selected' | 'idle' | 'periodic'
+  type: 'tab_switch' | 'signal_added' | 'signal_processed' | 'entity_selected' | 'idle' | 'periodic'
   condition?: (context: AssistantContext) => boolean
   handler: (context: AssistantContext) => Promise<ProactiveMessage | null>
   cooldownMs?: number
@@ -188,6 +188,14 @@ export interface AssistantContext {
 
   // Project data (cached)
   projectData?: ProjectContextData
+
+  // Signal processing result (for proactive notifications)
+  signalResult?: {
+    signalId?: string
+    changesCount?: number
+    proposalId?: string
+    autoApplied?: boolean
+  }
 }
 
 export interface ProjectContextData {

@@ -190,10 +190,11 @@ async def _stream_standard_processing(
             mode="initial",
         )
 
-        # Process strategic entities from extracted facts
-        strategic_result = process_strategic_facts_for_signal(
+        # Process strategic entities from extracted facts (with auto-enrichment)
+        strategic_result = await process_strategic_facts_for_signal(
             project_id=project_id,
             signal_id=signal_id,
+            auto_enrich=True,  # Auto-enrich high-confidence drivers
         )
 
         yield {
@@ -205,6 +206,7 @@ async def _stream_standard_processing(
                 "vp_steps_created": build_result.get("vp_steps_created", 0),
                 "business_drivers_created": strategic_result.get("business_drivers_created", 0),
                 "business_drivers_merged": strategic_result.get("business_drivers_merged", 0),
+                "business_drivers_auto_enriched": strategic_result.get("business_drivers_auto_enriched", 0),
                 "competitor_refs_created": strategic_result.get("competitor_refs_created", 0),
                 "competitor_refs_merged": strategic_result.get("competitor_refs_merged", 0),
                 "stakeholders_created": strategic_result.get("stakeholders_created", 0),
@@ -391,6 +393,36 @@ async def _stream_bulk_processing(
         # Proposal created
         proposal_id = result.get("proposal_id")
         if proposal_id:
+            # Create ONE task for the batch proposal (not individual tasks per change)
+            try:
+                from app.core.task_integrations import create_tasks_from_proposals
+                total_changes = result.get("total_changes", 0)
+                changes = result.get("changes", [])
+
+                # Summarize the types of changes
+                entity_types = set(c.get("entity_type", "") for c in changes if c.get("entity_type"))
+                entity_summary = ", ".join(sorted(entity_types)) if entity_types else "entities"
+
+                # Create a single task for the entire batch proposal
+                batch_proposal = [{
+                    "id": proposal_id,
+                    "title": f"Review {total_changes} changes ({entity_summary})",
+                    "description": f"Batch proposal with {total_changes} changes from signal processing. Review and approve to apply changes.",
+                    "entity_type": "proposal",  # Special type for batch proposals
+                    "entity_id": None,
+                    "entity_name": f"Batch proposal ({total_changes} changes)",
+                    "action": "review",
+                }]
+
+                await create_tasks_from_proposals(
+                    project_id=project_id,
+                    proposals=batch_proposal,
+                    signal_id=signal_id,
+                )
+                logger.info(f"Created task for batch proposal {proposal_id} with {total_changes} changes")
+            except Exception as task_err:
+                logger.warning(f"Failed to create task for proposal: {task_err}")
+
             yield {
                 "type": StreamEvent.BULK_PROPOSAL_CREATED,
                 "phase": "proposal",

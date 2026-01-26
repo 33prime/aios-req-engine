@@ -5,14 +5,14 @@ Goal Enrichment Chain - Extracts goal achievement criteria and dependencies.
 from typing import Any
 from uuid import UUID
 
+from langchain_anthropic import ChatAnthropic
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_core.output_parsers import PydanticOutputParser
-from langchain_openai import ChatOpenAI
 from pydantic import BaseModel, Field
 
 from app.core.config import get_settings
 from app.core.logging import get_logger
-from app.db.business_drivers import get_business_driver, update_business_driver
+from app.db.business_drivers import get_business_driver, update_business_driver, list_business_drivers
 from app.db.signals import list_signal_chunks
 
 logger = get_logger(__name__)
@@ -25,6 +25,7 @@ class GoalEnrichment(BaseModel):
     success_criteria: str | None = Field(None, description='Concrete success criteria (e.g., "50+ paying customers", "NPS > 40", "$100K ARR")')
     dependencies: str | None = Field(None, description='Prerequisites (e.g., "Payment integration", "Hire DevOps", "Beta testing complete")')
     owner: str | None = Field(None, description='Who owns delivery (e.g., "VP Sales", "Engineering team", "Product Manager")')
+    should_merge_with: str | None = Field(None, description='If this goal is very similar/duplicate to another existing goal, provide the ID of the goal it should be merged with. Only suggest merging if they describe the exact same objective.')
     confidence: float = Field(0.0, description="Confidence (0.0-1.0)")
     reasoning: str | None = Field(None, description="How values were determined")
 
@@ -47,6 +48,10 @@ async def enrich_goal(driver_id: UUID, project_id: UUID, depth: str = "standard"
         evidence = driver.get("evidence", []) or []
         source_signal_ids = driver.get("source_signal_ids", []) or []
 
+        # Get existing goals for merge detection
+        existing_goals = list_business_drivers(project_id, driver_type="goal", limit=50)
+        other_goals = [goal for goal in existing_goals if goal.get("id") != str(driver_id)]
+
         # Gather context
         signal_context = []
         for ev in evidence[:5]:
@@ -62,19 +67,44 @@ async def enrich_goal(driver_id: UUID, project_id: UUID, depth: str = "standard"
 
         context_str = "\n\n".join(signal_context) if signal_context else "No context available."
 
+        # Build existing goals summary for merge detection
+        existing_goals_str = ""
+        if other_goals:
+            existing_goals_str = "\n**Existing Goals in this project:**\n"
+            for goal in other_goals[:10]:
+                goal_id = goal.get("id", "")
+                goal_desc = goal.get("description", "")
+                goal_timeframe = goal.get("goal_timeframe", "")
+                existing_goals_str += f"- ID: {goal_id}, Description: {goal_desc}"
+                if goal_timeframe:
+                    existing_goals_str += f" (Timeframe: {goal_timeframe})"
+                existing_goals_str += "\n"
+        else:
+            existing_goals_str = "\n**No other goals exist yet.**\n"
+
         parser = PydanticOutputParser(pydantic_object=GoalEnrichment)
         system_prompt = f"""Extract goal achievement details: timeframe, success criteria, dependencies, and owner.
+
+**CRITICAL - Duplicate Detection:**
+- Review the list of existing goals carefully
+- If this goal describes the EXACT SAME objective as an existing goal, set `should_merge_with` to the ID of that goal
+- Only suggest merging if they are truly duplicates (same outcome, same target)
+- Related but distinct goals (e.g., "Launch MVP" vs "Reach 1000 users") should NOT be merged
+
 Only include explicit information. If not found, leave null.
 {parser.get_format_instructions()}"""
 
-        user_prompt = f"""Goal: {description}
+        user_prompt = f"""**Goal to Enrich:**
+{description}
+{existing_goals_str}
 
-Context:
+**Context:**
 {context_str}
 
-Extract goal enrichment details."""
+**Task:**
+Extract goal enrichment details. Review existing goals and suggest merging if this is a duplicate."""
 
-        model = ChatOpenAI(model="gpt-4o", temperature=0.1, api_key=settings.OPENAI_API_KEY)
+        model = ChatAnthropic(model="claude-sonnet-4-20250514", temperature=0.1, api_key=settings.ANTHROPIC_API_KEY)
         messages = [SystemMessage(content=system_prompt), HumanMessage(content=user_prompt)]
         response = await model.ainvoke(messages)
         enrichment = parser.parse(response.content)

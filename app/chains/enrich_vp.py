@@ -50,18 +50,17 @@ You MUST output ONLY valid JSON matching this exact schema:
 }
 
 CRITICAL RULES:
-1. Output ONLY valid JSON - no markdown code blocks (```), no explanation, no preamble.
-2. enhanced_fields should improve and expand the step's text content with more detail, implementation specifics, and clarity.
-3. proposed_needs should only be added if there are genuine gaps in understanding that need clarification.
-4. Every piece of evidence MUST reference real chunk_ids from the provided context using the [ID:uuid] format.
-5. chunk_id values must be valid UUIDs extracted from the [ID:uuid] prefixes in the context - DO NOT make up fake IDs.
-6. Excerpts must be verbatim quotes from the provided context chunks.
+1. Output ONLY valid JSON - no markdown code blocks, no explanation, no preamble.
+2. chunk_id MUST be an exact UUID copied from the [ID:uuid] prefix in Supporting Context - NEVER fabricate chunk_ids.
+3. If no chunks support a section, use an empty evidence array [].
+4. enhanced_fields should improve and expand the step's text content with more detail, implementation specifics, and clarity.
+5. proposed_needs should only be added if there are genuine gaps in understanding that need clarification.
+6. Excerpts must be verbatim quotes from the provided context chunks (max 280 chars).
 7. Rationale must explain why this evidence supports your enrichment.
 8. Do NOT change step status or any canonical fields.
 9. Focus on user experience, implementation details, and success metrics.
 10. If no improvements are needed, return minimal enhancements with appropriate summary.
 11. Ensure all JSON strings are properly escaped (quotes, newlines, etc.).
-12. Evidence array can be empty [] if no evidence is available.
 """
 
 FIX_SCHEMA_PROMPT = """The previous output was invalid. Here is the error:
@@ -119,7 +118,7 @@ def enrich_vp_step(
         },
     )
 
-    # Build prompt
+    # Build prompt with full project context
     prompt = build_vp_enrich_prompt(
         step=step,
         canonical_vp=context["canonical_vp"],
@@ -127,6 +126,7 @@ def enrich_vp_step(
         confirmations=context["confirmations"],
         chunks=context["chunks"],
         include_research=context.get("include_research", False),
+        state_snapshot=context.get("state_snapshot"),
     )
 
     # Use override if provided, else fall back to settings

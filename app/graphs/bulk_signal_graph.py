@@ -558,6 +558,42 @@ def save_proposal(state: BulkProcessingState) -> dict[str, Any]:
             "rationale": change.rationale,
         })
 
+    # Add business drivers (KPIs, pains, goals)
+    for change in state.consolidation.business_drivers:
+        changes.append({
+            "entity_type": "business_driver",
+            "operation": change.operation,
+            "entity_id": str(change.entity_id) if change.entity_id else None,
+            "before": change.before,
+            "after": change.after,
+            "evidence": change.evidence,
+            "rationale": change.rationale,
+        })
+
+    # Add constraints (technical requirements, risks, assumptions)
+    for change in state.consolidation.constraints:
+        changes.append({
+            "entity_type": "constraint",
+            "operation": change.operation,
+            "entity_id": str(change.entity_id) if change.entity_id else None,
+            "before": change.before,
+            "after": change.after,
+            "evidence": change.evidence,
+            "rationale": change.rationale,
+        })
+
+    # Add competitor references
+    for change in state.consolidation.competitor_refs:
+        changes.append({
+            "entity_type": "competitor_ref",
+            "operation": change.operation,
+            "entity_id": str(change.entity_id) if change.entity_id else None,
+            "before": change.before,
+            "after": change.after,
+            "evidence": change.evidence,
+            "rationale": change.rationale,
+        })
+
     # Determine proposal type
     if state.consolidation.features and not (state.consolidation.personas or state.consolidation.vp_steps):
         proposal_type = "features"

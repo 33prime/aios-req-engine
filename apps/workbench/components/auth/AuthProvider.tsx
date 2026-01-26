@@ -104,7 +104,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
         // Handle specific events
         if (event === 'SIGNED_IN') {
-          router.push('/projects')
+          // Only redirect to /projects if coming from auth pages
+          // This prevents unwanted redirects on page refresh (session restoration also triggers SIGNED_IN)
+          const currentPath = typeof window !== 'undefined' ? window.location.pathname : pathname
+          if (currentPath.startsWith('/auth')) {
+            router.push('/projects')
+          }
         } else if (event === 'SIGNED_OUT') {
           router.push('/auth/login')
         }

@@ -104,7 +104,7 @@ export function MeasurementDetailsSection({ driver }: MeasurementDetailsSectionP
               <div className="mt-2 pt-2 border-t border-green-200">
                 <div className="flex items-center justify-between text-xs">
                   <span className="text-gray-600">Gap to target:</span>
-                  <span className={`font-medium ${gap.value < 0 ? 'text-green-700' : 'text-blue-700'}`}>
+                  <span className={`font-medium ${gap.value < 0 ? 'text-emerald-700' : 'text-[#009b87]'}`}>
                     {gap.formattedGap} ({gap.percentage}% {gap.isImprovement})
                   </span>
                 </div>
@@ -194,7 +194,7 @@ export function BusinessImpactSection({
               {associatedFeatures.slice(0, 5).map((feature) => (
                 <div
                   key={feature.id}
-                  className="flex items-center gap-2 text-sm bg-blue-50 rounded p-2 border border-blue-100"
+                  className="flex items-center gap-2 text-sm bg-emerald-50 rounded p-2 border border-emerald-100"
                 >
                   <div className={`w-2 h-2 rounded-full ${
                     feature.confirmation_status === 'confirmed_client' || feature.confirmation_status === 'confirmed_consultant'
@@ -245,7 +245,7 @@ export function BusinessImpactSection({
               {relatedPains.map((pain) => (
                 <div
                   key={pain.id}
-                  className="text-sm bg-red-50 rounded p-2 border border-red-100 text-red-700"
+                  className="text-sm bg-green-50 rounded p-2 border border-green-100 text-green-700"
                 >
                   {pain.description}
                 </div>

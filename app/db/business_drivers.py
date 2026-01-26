@@ -420,18 +420,20 @@ def smart_upsert_business_driver(
         revision_number: int,
     ):
         """Track change in enrichment_revisions table."""
-        supabase.table("enrichment_revisions").insert({
+        revision_data = {
             "project_id": str(project_id),
             "entity_type": "business_driver",
             "entity_id": str(entity_id),
             "entity_label": description[:100],  # First 100 chars
             "revision_type": revision_type,
             "changes": changes,
-            "source_signal_id": str(source_signal_id),
             "revision_number": revision_number,
-            "diff_summary": f"Updated from signal {str(source_signal_id)[:8]}",
+            "diff_summary": f"Updated from signal {str(source_signal_id)[:8] if source_signal_id else 'unknown'}",
             "created_by": created_by,
-        }).execute()
+        }
+        if source_signal_id:
+            revision_data["source_signal_id"] = str(source_signal_id)
+        supabase.table("enrichment_revisions").insert(revision_data).execute()
 
     if similar:
         driver_id = UUID(similar["id"])
@@ -450,7 +452,7 @@ def smart_upsert_business_driver(
 
             # Add source signal to source_signal_ids array
             existing_signal_ids = similar.get("source_signal_ids", []) or []
-            if str(source_signal_id) not in [str(sid) for sid in existing_signal_ids]:
+            if source_signal_id and str(source_signal_id) not in [str(sid) for sid in existing_signal_ids]:
                 existing_signal_ids.append(str(source_signal_id))
 
             supabase.table("business_drivers").update({
@@ -629,6 +631,219 @@ def smart_upsert_business_driver(
         return (driver_id, "created")
 
 
+async def auto_enrich_driver_if_eligible(
+    driver_id: UUID,
+    project_id: UUID,
+    driver_type: DriverType,
+    evidence_count: int,
+    created_by: str,
+    min_evidence_threshold: int = 3,
+) -> bool:
+    """
+    Automatically enrich a business driver if it meets eligibility criteria.
+
+    Criteria for auto-enrichment:
+    - Has >= min_evidence_threshold evidence sources (default 3)
+    - Created by system/di_agent (not manual user creation)
+    - Not already enriched
+
+    Args:
+        driver_id: Business driver UUID
+        project_id: Project UUID
+        driver_type: Type of driver (kpi, pain, goal)
+        evidence_count: Number of evidence items
+        created_by: Creator (system, di_agent, consultant, client)
+        min_evidence_threshold: Minimum evidence count needed (default 3)
+
+    Returns:
+        True if enriched, False if skipped
+    """
+    # Check if eligible for auto-enrichment
+    if evidence_count < min_evidence_threshold:
+        logger.debug(
+            f"Skipping auto-enrichment for {driver_type} {driver_id}: "
+            f"only {evidence_count} evidence (need {min_evidence_threshold})"
+        )
+        return False
+
+    if created_by not in ("system", "di_agent"):
+        logger.debug(
+            f"Skipping auto-enrichment for {driver_type} {driver_id}: "
+            f"created by {created_by} (not system/di_agent)"
+        )
+        return False
+
+    # Get current driver to check enrichment status
+    driver = get_business_driver(driver_id)
+    if not driver:
+        logger.warning(f"Driver {driver_id} not found for auto-enrichment")
+        return False
+
+    if driver.get("enrichment_status") == "enriched":
+        logger.debug(f"Skipping auto-enrichment for {driver_type} {driver_id}: already enriched")
+        return False
+
+    # Import enrichment chains dynamically to avoid circular imports
+    try:
+        logger.info(
+            f"Auto-enriching {driver_type} driver {driver_id} "
+            f"({evidence_count} evidence sources)"
+        )
+
+        if driver_type == "kpi":
+            from app.chains.enrich_kpi import enrich_kpi
+            result = await enrich_kpi(driver_id, project_id, depth="standard")
+        elif driver_type == "pain":
+            from app.chains.enrich_pain_point import enrich_pain_point
+            result = await enrich_pain_point(driver_id, project_id, depth="standard")
+        elif driver_type == "goal":
+            from app.chains.enrich_goal import enrich_goal
+            result = await enrich_goal(driver_id, project_id, depth="standard")
+        else:
+            logger.warning(f"Unknown driver type {driver_type}, cannot auto-enrich")
+            return False
+
+        # Extract enrichment fields from result and update driver
+        updates = {"enrichment_status": "enriched"}
+
+        if driver_type == "kpi":
+            if result.get("baseline_value"):
+                updates["baseline_value"] = result["baseline_value"]
+            if result.get("target_value"):
+                updates["target_value"] = result["target_value"]
+            if result.get("measurement_method"):
+                updates["measurement_method"] = result["measurement_method"]
+            if result.get("tracking_frequency"):
+                updates["tracking_frequency"] = result["tracking_frequency"]
+            if result.get("data_source"):
+                updates["data_source"] = result["data_source"]
+            if result.get("responsible_team"):
+                updates["responsible_team"] = result["responsible_team"]
+
+        elif driver_type == "pain":
+            if result.get("severity"):
+                updates["severity"] = result["severity"]
+            if result.get("frequency"):
+                updates["frequency"] = result["frequency"]
+            if result.get("affected_users"):
+                updates["affected_users"] = result["affected_users"]
+            if result.get("business_impact"):
+                updates["business_impact"] = result["business_impact"]
+            if result.get("current_workaround"):
+                updates["current_workaround"] = result["current_workaround"]
+
+        elif driver_type == "goal":
+            if result.get("goal_timeframe"):
+                updates["goal_timeframe"] = result["goal_timeframe"]
+            if result.get("success_criteria"):
+                updates["success_criteria"] = result["success_criteria"]
+            if result.get("dependencies"):
+                updates["dependencies"] = result["dependencies"]
+            if result.get("owner"):
+                updates["owner"] = result["owner"]
+
+        # Update the driver
+        update_business_driver(driver_id, project_id, **updates)
+
+        # Auto-link to related features after enrichment
+        linked_count = auto_link_driver_to_features(driver_id, project_id)
+        logger.info(
+            f"Successfully auto-enriched {driver_type} driver {driver_id} "
+            f"and linked to {linked_count} features"
+        )
+        return True
+
+    except Exception as e:
+        logger.error(f"Failed to auto-enrich {driver_type} driver {driver_id}: {e}")
+        # Update enrichment_status to failed
+        update_business_driver(driver_id, project_id, enrichment_status="enrichment_failed")
+        return False
+
+
+def auto_link_driver_to_features(driver_id: UUID, project_id: UUID) -> int:
+    """
+    Automatically link a business driver to related features based on evidence and semantic similarity.
+
+    Creates explicit relationships in a linking table (if it exists) or returns count for reference.
+
+    Args:
+        driver_id: Business driver UUID
+        project_id: Project UUID
+
+    Returns:
+        Number of features linked
+    """
+    # Get associated features using existing intelligent matching
+    features = get_driver_associated_features(driver_id)
+
+    # For now, we're using dynamic associations via the association API
+    # In the future, we could create explicit link records in a junction table
+    # to cache these relationships for performance
+
+    logger.info(
+        f"Auto-linked {len(features)} features to business driver {driver_id}",
+        extra={"project_id": str(project_id), "driver_id": str(driver_id)}
+    )
+
+    return len(features)
+
+
+def auto_link_feature_to_drivers(feature_id: UUID, project_id: UUID) -> int:
+    """
+    Automatically link a feature to related business drivers.
+
+    Finds drivers that this feature supports based on:
+    - Evidence overlap (shared signal chunks)
+    - Semantic similarity (description matching)
+    - Persona overlap (for pain points)
+
+    Args:
+        feature_id: Feature UUID
+        project_id: Project UUID
+
+    Returns:
+        Number of drivers linked
+    """
+    supabase = get_supabase()
+
+    # Get the feature
+    feature_response = supabase.table("features").select("*").eq("id", str(feature_id)).maybe_single().execute()
+    if not feature_response.data:
+        return 0
+
+    feature = feature_response.data
+    feature_evidence = feature.get("evidence", []) or []
+    feature_chunk_ids = {ev.get("chunk_id") for ev in feature_evidence if ev.get("chunk_id")}
+
+    if not feature_chunk_ids:
+        return 0
+
+    # Get all business drivers for this project
+    drivers = list_business_drivers(project_id)
+
+    linked_count = 0
+    for driver in drivers:
+        driver_evidence = driver.get("evidence", []) or []
+        driver_chunk_ids = {ev.get("chunk_id") for ev in driver_evidence if ev.get("chunk_id")}
+
+        # Check for evidence overlap
+        overlap = feature_chunk_ids & driver_chunk_ids
+
+        if len(overlap) >= 1:  # At least 1 shared evidence source
+            linked_count += 1
+            logger.debug(
+                f"Auto-linked feature {feature_id} to {driver['driver_type']} driver {driver['id']} "
+                f"({len(overlap)} shared evidence)"
+            )
+
+    logger.info(
+        f"Auto-linked feature {feature_id} to {linked_count} business drivers",
+        extra={"project_id": str(project_id), "feature_id": str(feature_id)}
+    )
+
+    return linked_count
+
+
 def get_driver_associated_features(driver_id: UUID) -> list[dict[str, Any]]:
     """
     Get features associated with a business driver.
@@ -711,28 +926,14 @@ def get_driver_associated_personas(driver_id: UUID) -> list[dict[str, Any]]:
 
     # Get all personas for this project
     personas_response = supabase.table("personas").select(
-        "id, name, role, pain_points, evidence"
+        "id, name, role, pain_points"
     ).eq("project_id", str(project_id)).execute()
 
     personas = personas_response.data or []
 
-    # Find personas with evidence overlap or pain matching
+    # Find personas with pain matching (personas don't have evidence)
     associated = []
     for persona in personas:
-        # Check evidence overlap
-        persona_evidence = persona.get("evidence", []) or []
-        persona_chunk_ids = {ev.get("chunk_id") for ev in persona_evidence if ev.get("chunk_id")}
-
-        overlap = driver_chunk_ids & persona_chunk_ids
-        if overlap:
-            associated.append({
-                "id": persona["id"],
-                "name": persona["name"],
-                "role": persona.get("role"),
-                "pain_points": persona.get("pain_points"),
-                "association_reason": f"{len(overlap)} shared evidence sources",
-            })
-            continue
 
         # For pain drivers, check if persona's pain_points mention this pain
         if driver_type == "pain":

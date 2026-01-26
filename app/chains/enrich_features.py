@@ -97,13 +97,14 @@ You MUST output ONLY valid JSON matching this exact schema:
 
 CRITICAL RULES:
 1. Output ONLY the JSON object, no markdown, no explanation, no preamble.
-2. Every evidence array must have at least 1 item with chunk_id, excerpt (<=280 chars), rationale.
-3. Excerpts must be verbatim from provided chunks.
-4. Empty arrays are allowed if no evidence exists, but summary must explain gaps.
-5. Do not make assumptions - base everything on provided context.
-6. For unclear information, add open_questions instead of guessing.
-7. Feature enrichment NEVER changes canonical fields (name, is_mvp, status, etc.).
-8. Focus on providing structured details to make features more actionable."""
+2. chunk_id MUST be an exact UUID copied from the Supporting Context - NEVER fabricate chunk_ids.
+3. If no chunks support a section, use an empty evidence array [].
+4. Excerpts must be verbatim from provided chunks (<=280 chars).
+5. Empty arrays are allowed if no evidence exists, but summary must explain gaps.
+6. Do not make assumptions - base everything on provided context.
+7. For unclear information, add open_questions instead of guessing.
+8. Feature enrichment NEVER changes canonical fields (name, is_mvp, status, etc.).
+9. Focus on providing structured details to make features more actionable."""
 
 FIX_SCHEMA_PROMPT = """The previous output was invalid. Here is the error:
 
@@ -153,7 +154,7 @@ def enrich_feature(
         },
     )
 
-    # Build prompt
+    # Build prompt with full project context
     prompt = build_feature_enrich_prompt(
         project_id=project_id,
         feature=feature,
@@ -161,6 +162,7 @@ def enrich_feature(
         confirmations=context["confirmations"],
         chunks=context["chunks"],
         include_research=context.get("include_research", False),
+        state_snapshot=context.get("state_snapshot"),
     )
 
     # Use override if provided, else fall back to settings

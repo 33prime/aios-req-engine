@@ -53,13 +53,13 @@ export function PainDetailsSection({ driver }: PainDetailsSectionProps) {
   const getSeverityConfig = (severity: string) => {
     switch (severity) {
       case 'critical':
-        return { bg: 'bg-red-600', text: 'text-white', label: 'Critical - Blocking' }
+        return { bg: 'bg-green-800', text: 'text-white', label: 'Critical - Blocking' }
       case 'high':
-        return { bg: 'bg-orange-500', text: 'text-white', label: 'High - Major Friction' }
+        return { bg: 'bg-green-700', text: 'text-white', label: 'High - Major Friction' }
       case 'medium':
-        return { bg: 'bg-yellow-500', text: 'text-white', label: 'Medium - Inconvenience' }
+        return { bg: 'bg-green-600', text: 'text-white', label: 'Medium - Inconvenience' }
       case 'low':
-        return { bg: 'bg-gray-500', text: 'text-white', label: 'Low - Minor Issue' }
+        return { bg: 'bg-green-500', text: 'text-white', label: 'Low - Minor Issue' }
       default:
         return { bg: 'bg-gray-400', text: 'text-white', label: severity }
     }
@@ -120,23 +120,23 @@ export function PainDetailsSection({ driver }: PainDetailsSectionProps) {
 
         {/* Affected Users */}
         {hasAffectedUsers && (
-          <div className="bg-red-50 rounded-lg p-3 border border-red-100">
-            <div className="text-xs font-medium text-red-700 mb-1.5 flex items-center gap-1">
+          <div className="bg-green-50 rounded-lg p-3 border border-green-100">
+            <div className="text-xs font-medium text-green-700 mb-1.5 flex items-center gap-1">
               <Users className="h-3 w-3" />
               Who Experiences This Pain
             </div>
-            <div className="text-sm text-red-900">{driver.affected_users}</div>
+            <div className="text-sm text-green-900">{driver.affected_users}</div>
           </div>
         )}
 
         {/* Business Impact */}
         {hasBusinessImpact && (
-          <div className="bg-orange-50 rounded-lg p-3 border border-orange-200">
-            <div className="text-xs font-medium text-orange-700 mb-1.5 flex items-center gap-1">
+          <div className="bg-green-50 rounded-lg p-3 border border-green-200">
+            <div className="text-xs font-medium text-green-700 mb-1.5 flex items-center gap-1">
               <TrendingDown className="h-3 w-3" />
               Quantified Business Impact
             </div>
-            <div className="text-sm font-semibold text-orange-900">{driver.business_impact}</div>
+            <div className="text-sm font-semibold text-green-900">{driver.business_impact}</div>
           </div>
         )}
 
@@ -207,20 +207,20 @@ export function SolutionsSection({ driver, solutionFeatures = [] }: SolutionsSec
         {/* Proposed Solutions */}
         {draftFeatures.length > 0 && (
           <div>
-            <div className="text-xs font-medium text-blue-700 mb-2">
+            <div className="text-xs font-medium text-gray-700 mb-2">
               💡 Proposed Solutions ({draftFeatures.length})
             </div>
             <div className="space-y-2">
               {draftFeatures.map((feature) => (
                 <div
                   key={feature.id}
-                  className="flex items-start gap-2 bg-blue-50 rounded-lg p-3 border border-blue-200"
+                  className="flex items-start gap-2 bg-gray-50 rounded-lg p-3 border border-gray-200"
                 >
-                  <div className="w-2 h-2 rounded-full bg-blue-400 mt-1.5 flex-shrink-0" />
+                  <div className="w-2 h-2 rounded-full bg-gray-400 mt-1.5 flex-shrink-0" />
                   <div className="flex-1">
-                    <div className="text-sm font-medium text-blue-900">{feature.name}</div>
+                    <div className="text-sm font-medium text-gray-900">{feature.name}</div>
                     {feature.category && (
-                      <div className="text-xs text-blue-700 mt-0.5">{feature.category}</div>
+                      <div className="text-xs text-gray-700 mt-0.5">{feature.category}</div>
                     )}
                   </div>
                 </div>

@@ -483,8 +483,11 @@ async def enrich_business_driver(
             # Update driver
             driver = drivers_db.update_business_driver(driver_id, project_id, **updated_fields)
 
+            # Auto-link to related features after enrichment
+            linked_count = drivers_db.auto_link_driver_to_features(driver_id, project_id)
+
             logger.info(
-                f"Enrichment successful for {driver_type} driver {driver_id}",
+                f"Enrichment successful for {driver_type} driver {driver_id}, linked to {linked_count} features",
                 extra={"updated_fields": list(updated_fields.keys())},
             )
 
@@ -617,18 +620,18 @@ async def bulk_enrich_drivers(
 
                         if enrichment_result["success"] and enrichment_result["enrichment"]:
                             enrichment = enrichment_result["enrichment"]
-                            if enrichment.baseline_value:
-                                updated_fields["baseline_value"] = enrichment.baseline_value
-                            if enrichment.target_value:
-                                updated_fields["target_value"] = enrichment.target_value
-                            if enrichment.measurement_method:
-                                updated_fields["measurement_method"] = enrichment.measurement_method
-                            if enrichment.tracking_frequency:
-                                updated_fields["tracking_frequency"] = enrichment.tracking_frequency
-                            if enrichment.data_source:
-                                updated_fields["data_source"] = enrichment.data_source
-                            if enrichment.responsible_team:
-                                updated_fields["responsible_team"] = enrichment.responsible_team
+                            if enrichment.get("baseline_value"):
+                                updated_fields["baseline_value"] = enrichment["baseline_value"]
+                            if enrichment.get("target_value"):
+                                updated_fields["target_value"] = enrichment["target_value"]
+                            if enrichment.get("measurement_method"):
+                                updated_fields["measurement_method"] = enrichment["measurement_method"]
+                            if enrichment.get("tracking_frequency"):
+                                updated_fields["tracking_frequency"] = enrichment["tracking_frequency"]
+                            if enrichment.get("data_source"):
+                                updated_fields["data_source"] = enrichment["data_source"]
+                            if enrichment.get("responsible_team"):
+                                updated_fields["responsible_team"] = enrichment["responsible_team"]
 
                     elif driver_type == "pain":
                         from app.chains.enrich_pain_point import enrich_pain_point
@@ -636,16 +639,16 @@ async def bulk_enrich_drivers(
 
                         if enrichment_result["success"] and enrichment_result["enrichment"]:
                             enrichment = enrichment_result["enrichment"]
-                            if enrichment.severity:
-                                updated_fields["severity"] = enrichment.severity
-                            if enrichment.frequency:
-                                updated_fields["frequency"] = enrichment.frequency
-                            if enrichment.affected_users:
-                                updated_fields["affected_users"] = enrichment.affected_users
-                            if enrichment.business_impact:
-                                updated_fields["business_impact"] = enrichment.business_impact
-                            if enrichment.current_workaround:
-                                updated_fields["current_workaround"] = enrichment.current_workaround
+                            if enrichment.get("severity"):
+                                updated_fields["severity"] = enrichment["severity"]
+                            if enrichment.get("frequency"):
+                                updated_fields["frequency"] = enrichment["frequency"]
+                            if enrichment.get("affected_users"):
+                                updated_fields["affected_users"] = enrichment["affected_users"]
+                            if enrichment.get("business_impact"):
+                                updated_fields["business_impact"] = enrichment["business_impact"]
+                            if enrichment.get("current_workaround"):
+                                updated_fields["current_workaround"] = enrichment["current_workaround"]
 
                     elif driver_type == "goal":
                         from app.chains.enrich_goal import enrich_goal
@@ -653,14 +656,14 @@ async def bulk_enrich_drivers(
 
                         if enrichment_result["success"] and enrichment_result["enrichment"]:
                             enrichment = enrichment_result["enrichment"]
-                            if enrichment.goal_timeframe:
-                                updated_fields["goal_timeframe"] = enrichment.goal_timeframe
-                            if enrichment.success_criteria:
-                                updated_fields["success_criteria"] = enrichment.success_criteria
-                            if enrichment.dependencies:
-                                updated_fields["dependencies"] = enrichment.dependencies
-                            if enrichment.owner:
-                                updated_fields["owner"] = enrichment.owner
+                            if enrichment.get("goal_timeframe"):
+                                updated_fields["goal_timeframe"] = enrichment["goal_timeframe"]
+                            if enrichment.get("success_criteria"):
+                                updated_fields["success_criteria"] = enrichment["success_criteria"]
+                            if enrichment.get("dependencies"):
+                                updated_fields["dependencies"] = enrichment["dependencies"]
+                            if enrichment.get("owner"):
+                                updated_fields["owner"] = enrichment["owner"]
 
                     # Update if successful
                     if enrichment_result and enrichment_result["success"] and updated_fields:
@@ -668,6 +671,10 @@ async def bulk_enrich_drivers(
                         updated_fields["enrichment_attempted_at"] = "now()"
                         updated_fields["enrichment_error"] = None
                         drivers_db.update_business_driver(driver_id, project_id, **updated_fields)
+
+                        # Auto-link to features
+                        drivers_db.auto_link_driver_to_features(driver_id, project_id)
+
                         results["succeeded"] += 1
                     else:
                         # No data found

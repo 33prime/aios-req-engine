@@ -6,8 +6,8 @@
  * 2. Strategic Context
  * 3. Personas & Features
  * 4. Value Path
- * 5. Research
- * 6. Next Steps
+ * 5. Sources
+ * 6. Collaboration
  *
  * Usage:
  *   <TabNavigation activeTab={activeTab} onTabChange={setActiveTab} />
@@ -18,7 +18,7 @@
 import React from 'react'
 import { Compass, Zap, CheckSquare, LayoutDashboard, Search, Users, Target } from 'lucide-react'
 
-export type TabType = 'overview' | 'strategic-foundation' | 'personas-features' | 'value-path' | 'sources' | 'next-steps'
+export type TabType = 'overview' | 'strategic-foundation' | 'personas-features' | 'value-path' | 'sources' | 'collaboration'
 
 interface Tab {
   id: TabType
@@ -59,10 +59,10 @@ const tabs: Tab[] = [
     description: 'Signals and original materials'
   },
   {
-    id: 'next-steps',
-    label: 'Next Steps',
+    id: 'collaboration',
+    label: 'Collaboration',
     icon: CheckSquare,
-    description: 'Confirmations and action items'
+    description: 'Client portal, tasks, and outreach'
   }
 ]
 
@@ -93,7 +93,7 @@ export function TabNavigation({ activeTab, onTabChange, counts, recentChanges }:
           let count: number | undefined
           if (tab.id === 'strategic-foundation') count = counts?.strategicContext
           if (tab.id === 'value-path') count = counts?.valuePath
-          if (tab.id === 'next-steps') count = counts?.nextSteps
+          if (tab.id === 'collaboration') count = counts?.nextSteps
           if (tab.id === 'sources') count = counts?.sources
 
           // Get recent changes for this tab

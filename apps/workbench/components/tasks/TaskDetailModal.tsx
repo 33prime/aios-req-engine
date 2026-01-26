@@ -116,6 +116,8 @@ export function TaskDetailModal({
         }
 
         const data = await response.json()
+        const groupedChanges = groupChangesByType(data.changes || [])
+
         setProposalData({
           proposal_id: data.id,
           title: data.title,
@@ -125,7 +127,7 @@ export function TaskDetailModal({
           updates: data.changes?.filter((c: any) => c.operation === 'update').length || 0,
           deletes: data.changes?.filter((c: any) => c.operation === 'delete').length || 0,
           total_changes: data.changes?.length || 0,
-          changes_by_type: groupChangesByType(data.changes || []),
+          changes_by_type: groupedChanges,
         })
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load proposal')

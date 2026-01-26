@@ -1325,8 +1325,8 @@ def smart_upsert_stakeholder(
             data["potential_blockers"] = [str(pb) for pb in potential_blockers]
 
         response = supabase.table("stakeholders").insert(data).execute()
-        created_stakeholder = response.data[0]
-        stakeholder_id = UUID(created_stakeholder["id"])
+        created_stakeholder = response.data[0] if response.data else data
+        stakeholder_id = UUID(created_stakeholder["id"]) if response.data else UUID(data["id"])
 
         track_change(
             entity_id=stakeholder_id,

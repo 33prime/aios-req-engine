@@ -16,6 +16,21 @@ import {
   Trash2,
 } from 'lucide-react'
 import { Markdown } from '@/components/ui/Markdown'
+import {
+  MeasurementDetailsSection,
+  BusinessImpactSection,
+} from './KPISections'
+import {
+  PainDetailsSection,
+  SolutionsSection,
+  UserImpactSection,
+} from './PainSections'
+import {
+  GoalDetailsSection,
+  ProgressSection,
+  SupportingFeaturesSection,
+  RelatedMetricsSection,
+} from './GoalSections'
 
 interface Evidence {
   chunk_id?: string
@@ -34,7 +49,7 @@ interface BusinessDriver {
   evidence?: Evidence[]
 
   // Enrichment tracking
-  enrichment_status?: 'none' | 'enriched' | 'stale'
+  enrichment_status?: 'not_enriched' | 'enriched' | 'enrichment_failed' | 'none' | 'stale'
   enriched_at?: string
 
   // KPI fields
@@ -65,19 +80,31 @@ interface BusinessDriver {
 
 interface BusinessDriverCardProps {
   driver: BusinessDriver
-  onConfirmationChange?: (driverId: string, newStatus: string) => Promise<void>
+  associations?: {
+    features?: any[]
+    personas?: any[]
+    related_kpis?: any[]
+    related_pains?: any[]
+    related_goals?: any[]
+  }
+  onConfirmationChange?: (newStatus: string) => Promise<void>
   onViewEvidence?: (chunkId: string) => void
-  onEdit?: (driver: BusinessDriver) => void
-  onDelete?: (driverId: string) => void
+  onEdit?: () => void
+  onDelete?: () => void
+  onEnrich?: () => Promise<void>
+  isEnriching?: boolean
   defaultExpanded?: boolean
 }
 
 export default function BusinessDriverCard({
   driver,
+  associations,
   onConfirmationChange,
   onViewEvidence,
   onEdit,
   onDelete,
+  onEnrich,
+  isEnriching = false,
   defaultExpanded = false,
 }: BusinessDriverCardProps) {
   const [expanded, setExpanded] = useState(defaultExpanded)
@@ -89,31 +116,31 @@ export default function BusinessDriverCard({
       case 'kpi':
         return {
           icon: Target,
-          bgColor: 'bg-green-50',
-          borderColor: 'border-green-200',
-          hoverBorder: 'hover:border-green-300',
-          textColor: 'text-green-900',
-          accentColor: 'text-green-700',
+          bgColor: 'bg-emerald-50',
+          borderColor: 'border-emerald-200',
+          hoverBorder: 'hover:border-emerald-300',
+          textColor: 'text-emerald-900',
+          accentColor: 'text-emerald-600',
           label: 'KPI',
         }
       case 'pain':
         return {
           icon: AlertCircle,
-          bgColor: 'bg-red-50',
-          borderColor: 'border-red-200',
-          hoverBorder: 'hover:border-red-300',
-          textColor: 'text-red-900',
-          accentColor: 'text-red-700',
+          bgColor: 'bg-green-50',
+          borderColor: 'border-green-200',
+          hoverBorder: 'hover:border-green-300',
+          textColor: 'text-green-900',
+          accentColor: 'text-green-700',
           label: 'Pain Point',
         }
       case 'goal':
         return {
           icon: Sparkles,
-          bgColor: 'bg-emerald-50',
-          borderColor: 'border-emerald-200',
-          hoverBorder: 'hover:border-emerald-300',
-          textColor: 'text-gray-900',
-          accentColor: 'text-emerald-700',
+          bgColor: 'bg-teal-50',
+          borderColor: 'border-teal-200',
+          hoverBorder: 'hover:border-teal-300',
+          textColor: 'text-teal-900',
+          accentColor: 'text-teal-600',
           label: 'Goal',
         }
     }
@@ -136,14 +163,14 @@ export default function BusinessDriverCard({
         )
       case 'confirmed_consultant':
         return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200">
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-emerald-100 text-emerald-800 border border-emerald-200">
             <CheckCircle className="h-3 w-3" />
             Confirmed
           </span>
         )
       case 'needs_client':
         return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-800 border border-amber-200">
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-teal-100 text-teal-800 border border-teal-200">
             <Clock className="h-3 w-3" />
             Needs Review
           </span>
@@ -168,7 +195,7 @@ export default function BusinessDriverCard({
           <div
             key={i}
             className={`w-1.5 h-1.5 rounded-full ${
-              i <= filled ? 'bg-blue-500' : 'bg-gray-200'
+              i <= filled ? 'bg-[#009b87]' : 'bg-gray-200'
             }`}
           />
         ))}
@@ -224,7 +251,7 @@ export default function BusinessDriverCard({
     if (!onConfirmationChange) return
     try {
       setUpdating(true)
-      await onConfirmationChange(driver.id, 'confirmed_consultant')
+      await onConfirmationChange('confirmed_consultant')
     } catch (error) {
       console.error('Failed to confirm:', error)
     } finally {
@@ -236,7 +263,7 @@ export default function BusinessDriverCard({
     if (!onConfirmationChange) return
     try {
       setUpdating(true)
-      await onConfirmationChange(driver.id, 'needs_client')
+      await onConfirmationChange('needs_client')
     } catch (error) {
       console.error('Failed to mark for review:', error)
     } finally {
@@ -259,7 +286,7 @@ export default function BusinessDriverCard({
               <h3 className={`font-semibold truncate ${config.textColor}`}>{driver.description}</h3>
               {hasEnrichment && (
                 <span title="AI enriched">
-                  <Sparkles className="h-4 w-4 text-amber-500" />
+                  <Sparkles className="h-4 w-4 text-emerald-500" />
                 </span>
               )}
               {getConfirmationBadge()}
@@ -281,7 +308,7 @@ export default function BusinessDriverCard({
                   <button
                     onClick={(e) => {
                       e.stopPropagation()
-                      onEdit(driver)
+                      onEdit()
                     }}
                     className="p-1 hover:bg-gray-200 rounded"
                   >
@@ -292,11 +319,11 @@ export default function BusinessDriverCard({
                   <button
                     onClick={(e) => {
                       e.stopPropagation()
-                      onDelete(driver.id)
+                      onDelete()
                     }}
-                    className="p-1 hover:bg-red-200 rounded"
+                    className="p-1 hover:bg-green-200 rounded"
                   >
-                    <Trash2 className="h-3.5 w-3.5 text-red-600" />
+                    <Trash2 className="h-3.5 w-3.5 text-green-700" />
                   </button>
                 )}
               </div>
@@ -322,140 +349,44 @@ export default function BusinessDriverCard({
       {/* Expanded Content */}
       {expanded && (
         <div className="px-4 pb-4 space-y-4 border-t border-gray-100 pt-4">
-          {/* Type-specific enrichment sections will go here */}
-          {/* For now, show basic enrichment */}
-
-          {/* KPI Enrichment */}
-          {driver.driver_type === 'kpi' && (hasEnrichment) && (
-            <div>
-              <h4 className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2 flex items-center gap-1.5">
-                <TrendingUp className="h-3.5 w-3.5" />
-                Measurement Details
-              </h4>
-              <div className="space-y-2 text-sm">
-                {driver.baseline_value && (
-                  <div>
-                    <span className="font-medium text-gray-700">Baseline: </span>
-                    <span className="text-gray-600">{driver.baseline_value}</span>
-                  </div>
-                )}
-                {driver.target_value && (
-                  <div>
-                    <span className="font-medium text-gray-700">Target: </span>
-                    <span className="text-green-700 font-medium">{driver.target_value}</span>
-                  </div>
-                )}
-                {driver.measurement_method && (
-                  <div>
-                    <span className="font-medium text-gray-700">Method: </span>
-                    <span className="text-gray-600">{driver.measurement_method}</span>
-                  </div>
-                )}
-                {driver.tracking_frequency && (
-                  <div>
-                    <span className="font-medium text-gray-700">Frequency: </span>
-                    <span className="text-gray-600">{driver.tracking_frequency}</span>
-                  </div>
-                )}
-                {driver.data_source && (
-                  <div>
-                    <span className="font-medium text-gray-700">Data Source: </span>
-                    <span className="text-gray-600">{driver.data_source}</span>
-                  </div>
-                )}
-                {driver.responsible_team && (
-                  <div>
-                    <span className="font-medium text-gray-700">Owner: </span>
-                    <span className="text-gray-600">{driver.responsible_team}</span>
-                  </div>
-                )}
-              </div>
-            </div>
+          {/* Type-specific enrichment sections */}
+          {driver.driver_type === 'kpi' && (
+            <>
+              <MeasurementDetailsSection driver={driver} />
+              {associations && (
+                <BusinessImpactSection
+                  driver={driver}
+                  associatedFeatures={associations.features}
+                  associatedPersonas={associations.personas}
+                  relatedPains={associations.related_pains}
+                />
+              )}
+            </>
           )}
 
-          {/* Pain Enrichment */}
-          {driver.driver_type === 'pain' && (hasEnrichment) && (
-            <div>
-              <h4 className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2 flex items-center gap-1.5">
-                <AlertCircle className="h-3.5 w-3.5" />
-                Impact Analysis
-              </h4>
-              <div className="space-y-2 text-sm">
-                {driver.severity && (
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium text-gray-700">Severity: </span>
-                    <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
-                      driver.severity === 'critical' ? 'bg-red-600 text-white' :
-                      driver.severity === 'high' ? 'bg-orange-500 text-white' :
-                      driver.severity === 'medium' ? 'bg-yellow-500 text-white' :
-                      'bg-gray-500 text-white'
-                    }`}>
-                      {driver.severity.charAt(0).toUpperCase() + driver.severity.slice(1)}
-                    </span>
-                  </div>
-                )}
-                {driver.frequency && (
-                  <div>
-                    <span className="font-medium text-gray-700">Frequency: </span>
-                    <span className="text-gray-600">{driver.frequency.charAt(0).toUpperCase() + driver.frequency.slice(1)}</span>
-                  </div>
-                )}
-                {driver.affected_users && (
-                  <div>
-                    <span className="font-medium text-gray-700">Affected Users: </span>
-                    <span className="text-gray-600">{driver.affected_users}</span>
-                  </div>
-                )}
-                {driver.business_impact && (
-                  <div>
-                    <span className="font-medium text-gray-700">Business Impact: </span>
-                    <span className="text-red-700 font-medium">{driver.business_impact}</span>
-                  </div>
-                )}
-                {driver.current_workaround && (
-                  <div>
-                    <span className="font-medium text-gray-700">Current Workaround: </span>
-                    <span className="text-gray-600">{driver.current_workaround}</span>
-                  </div>
-                )}
-              </div>
-            </div>
+          {driver.driver_type === 'pain' && (
+            <>
+              <PainDetailsSection driver={driver} />
+              {associations && (
+                <>
+                  <SolutionsSection driver={driver} solutionFeatures={associations.features} />
+                  <UserImpactSection driver={driver} affectedPersonas={associations.personas} />
+                </>
+              )}
+            </>
           )}
 
-          {/* Goal Enrichment */}
-          {driver.driver_type === 'goal' && (hasEnrichment) && (
-            <div>
-              <h4 className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2 flex items-center gap-1.5">
-                <Target className="h-3.5 w-3.5" />
-                Achievement Criteria
-              </h4>
-              <div className="space-y-2 text-sm">
-                {driver.goal_timeframe && (
-                  <div>
-                    <span className="font-medium text-gray-700">Timeframe: </span>
-                    <span className="text-emerald-700 font-medium">{driver.goal_timeframe}</span>
-                  </div>
-                )}
-                {driver.success_criteria && (
-                  <div>
-                    <span className="font-medium text-gray-700">Success Criteria: </span>
-                    <span className="text-gray-600">{driver.success_criteria}</span>
-                  </div>
-                )}
-                {driver.dependencies && (
-                  <div>
-                    <span className="font-medium text-gray-700">Dependencies: </span>
-                    <span className="text-gray-600">{driver.dependencies}</span>
-                  </div>
-                )}
-                {driver.owner && (
-                  <div>
-                    <span className="font-medium text-gray-700">Owner: </span>
-                    <span className="text-gray-600">{driver.owner}</span>
-                  </div>
-                )}
-              </div>
-            </div>
+          {driver.driver_type === 'goal' && (
+            <>
+              <GoalDetailsSection driver={driver} />
+              {associations && (
+                <>
+                  <ProgressSection driver={driver} supportingFeatures={associations.features} />
+                  <SupportingFeaturesSection driver={driver} supportingFeatures={associations.features} />
+                  <RelatedMetricsSection driver={driver} relatedKPIs={associations.related_kpis} />
+                </>
+              )}
+            </>
           )}
 
           {/* Notes */}
@@ -493,7 +424,7 @@ export default function BusinessDriverCard({
                             e.stopPropagation()
                             onViewEvidence(evidence.chunk_id!)
                           }}
-                          className="text-blue-600 hover:text-blue-800 flex items-center gap-1"
+                          className="text-[#009b87] hover:text-emerald-700 flex items-center gap-1"
                         >
                           View source <ExternalLink className="h-3 w-3" />
                         </button>
@@ -518,7 +449,7 @@ export default function BusinessDriverCard({
                 disabled={updating || driver.confirmation_status === 'confirmed_consultant'}
                 className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
                   driver.confirmation_status === 'confirmed_consultant'
-                    ? 'bg-blue-600 text-white'
+                    ? 'bg-[#009b87] text-white'
                     : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
                 } disabled:opacity-50`}
               >
@@ -534,7 +465,7 @@ export default function BusinessDriverCard({
                 disabled={updating || driver.confirmation_status === 'needs_client'}
                 className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
                   driver.confirmation_status === 'needs_client'
-                    ? 'bg-amber-600 text-white'
+                    ? 'bg-teal-600 text-white'
                     : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
                 } disabled:opacity-50`}
               >
