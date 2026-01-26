@@ -13,7 +13,6 @@ from app.core.logging import get_logger
 from app.db.features import list_features
 from app.db.personas import list_personas
 from app.db.phase0 import vector_search_with_priority
-from app.db.prd import list_prd_sections
 from app.db.proposals import create_proposal
 from app.db.vp import list_vp_steps
 
@@ -22,17 +21,17 @@ logger = get_logger(__name__)
 # System prompt for proposal generation
 SYSTEM_PROMPT = """You are a context-aware prototype coach AI helping consultants build excellent first versions.
 
-Your task is to generate batch proposals for changes to a project's features, PRD sections, Value Path steps, or personas.
+Your task is to generate batch proposals for changes to a project's features, Value Path steps, or personas.
 
 You MUST output ONLY valid JSON matching this exact schema:
 
 {
   "title": "string - concise proposal title (e.g., 'Add Dark Mode Support')",
   "description": "string - brief description of the batch proposal",
-  "proposal_type": "string - one of: features, prd, vp, personas, mixed",
+  "proposal_type": "string - one of: features, vp, personas, mixed",
   "changes": [
     {
-      "entity_type": "string - one of: feature, prd_section, vp_step, persona",
+      "entity_type": "string - one of: feature, vp_step, persona",
       "operation": "string - one of: create, update, delete",
       "entity_id": "string|null - UUID for update/delete, null for create",
       "before": "object|null - current state for update/delete",
@@ -81,14 +80,6 @@ For features:
   - integrations: Array of external systems ["HubSpot", "OpenAI Whisper", ...]
 - Optional: evidence array, details object (legacy JSONB for backward compatibility)
 
-For prd_sections:
-- IMPORTANT: Can ONLY update existing PRD sections, CANNOT create new ones
-- Required fields: slug, label, required, status, fields
-- Valid slugs: software_summary, personas, key_features, happy_path, constraints, etc.
-- fields should contain: content (main text), and any section-specific fields
-- Optional: client_needs array, evidence array
-- When proposing PRD updates, always use operation='update' with existing section slugs
-
 For vp_steps:
 - Required fields: step_index, label, status, description
 - step_index: integer (1, 2, 3...)
@@ -133,9 +124,9 @@ Here is your previous output:
 CRITICAL FIX REQUIRED:
 - Your JSON must have: title, description, proposal_type, changes
 - Each change must have: entity_type, operation, after, rationale
-- entity_type must be one of: feature, prd_section, vp_step, persona
+- entity_type must be one of: feature, vp_step, persona
 - operation must be one of: create, update, delete
-- proposal_type must be one of: features, prd, vp, personas, mixed
+- proposal_type must be one of: features, vp, personas, mixed
 
 Please fix the output to match the required JSON schema exactly. Output ONLY valid JSON, no explanation."""
 
@@ -173,7 +164,6 @@ async def generate_feature_proposal(
     try:
         # 1. Load current project state
         current_features = list_features(project_id)
-        current_prd = list_prd_sections(project_id)
         current_vp = list_vp_steps(project_id)
         current_personas = list_personas(project_id)
 
@@ -272,7 +262,7 @@ async def generate_feature_proposal(
                     if not all(k in change for k in ["entity_type", "operation", "after", "rationale"]):
                         raise ValueError("Change missing required fields")
 
-                    if change["entity_type"] not in ["feature", "prd_section", "vp_step", "persona"]:
+                    if change["entity_type"] not in ["feature", "vp_step", "persona"]:
                         raise ValueError(f"Invalid entity_type: {change['entity_type']}")
 
                     if change["operation"] not in ["create", "update", "delete"]:
@@ -470,10 +460,10 @@ def assess_proposal_complexity(proposal_data: dict[str, Any]) -> dict[str, Any]:
                 complexity_level = "moderate"
                 reasoning.append("Single creation but not high-confidence feature")
         elif change.get("operation") == "update":
-            # Single update - check if it affects PRD sections
-            if change.get("entity_type") in ["prd_section", "vp_step"]:
+            # Single update - check if it affects VP steps
+            if change.get("entity_type") == "vp_step":
                 complexity_level = "moderate"
-                reasoning.append("Single update to PRD/VP - may affect multiple areas")
+                reasoning.append("Single update to VP - may affect multiple areas")
             else:
                 auto_apply_ok = True
                 complexity_level = "simple"
@@ -481,7 +471,7 @@ def assess_proposal_complexity(proposal_data: dict[str, Any]) -> dict[str, Any]:
 
     # Multiple changes of same type
     elif change_count <= 3 and len(entity_types) == 1:
-        if "prd_section" not in entity_types and "vp_step" not in entity_types:
+        if "vp_step" not in entity_types:
             # Multiple features/personas only
             if creates == change_count:  # All creates
                 complexity_level = "moderate"
@@ -491,7 +481,7 @@ def assess_proposal_complexity(proposal_data: dict[str, Any]) -> dict[str, Any]:
                 reasoning.append(f"{change_count} mixed operations on same entity type")
         else:
             complexity_level = "complex"
-            reasoning.append("Changes to PRD/VP sections affect multiple areas")
+            reasoning.append("Changes to VP steps affect multiple areas")
 
     # Many changes or mixed types
     else:

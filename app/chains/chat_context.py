@@ -114,9 +114,6 @@ async def get_counts_summary(supabase: Any, project_id: UUID) -> Dict[str, int]:
     """
     try:
         # Get counts in parallel
-        prd_response = (
-            supabase.table("prd_sections").select("id", count="exact").eq("project_id", str(project_id)).execute()
-        )
         features_response = (
             supabase.table("features").select("id", count="exact").eq("project_id", str(project_id)).execute()
         )
@@ -160,7 +157,6 @@ async def get_counts_summary(supabase: Any, project_id: UUID) -> Dict[str, int]:
         )
 
         return {
-            "prd_sections": prd_response.count or 0,
             "features": features_response.count or 0,
             "personas": personas_response.count or 0,
             "vp_steps": vp_response.count or 0,
@@ -324,7 +320,7 @@ async def load_focused_entity(supabase: Any, entity_type: str, entity_id: str) -
 
     Args:
         supabase: Supabase client
-        entity_type: Type of entity (prd_section, vp_step, insight, feature, etc.)
+        entity_type: Type of entity (vp_step, insight, feature, persona, etc.)
         entity_id: Entity UUID
 
     Returns:
@@ -333,7 +329,6 @@ async def load_focused_entity(supabase: Any, entity_type: str, entity_id: str) -
     try:
         # Map entity types to table names
         table_map = {
-            "prd_section": "prd_sections",
             "vp_step": "vp_steps",
             "insight": "insights",
             "feature": "features",
@@ -671,7 +666,7 @@ def _assess_value_path(vp_steps: list, total_count: int = 0) -> Dict[str, Any]:
     }
 
 
-def _assess_evidence(features: list, prd_sections: list, vp_steps: list, signal_count: int) -> Dict[str, Any]:
+def _assess_evidence(features: list, vp_steps: list, signal_count: int) -> Dict[str, Any]:
     """Assess research evidence backing."""
     if signal_count == 0:
         return {
@@ -684,11 +679,10 @@ def _assess_evidence(features: list, prd_sections: list, vp_steps: list, signal_
 
     # Check evidence linking
     features_with_evidence = sum(1 for f in features if f.get("evidence") and len(f.get("evidence", [])) > 0)
-    prd_with_evidence = sum(1 for p in prd_sections if p.get("evidence") and len(p.get("evidence", [])) > 0)
     vp_with_evidence = sum(1 for v in vp_steps if v.get("evidence") and len(v.get("evidence", [])) > 0)
 
-    total_entities = len(features) + len(prd_sections) + len(vp_steps)
-    total_with_evidence = features_with_evidence + prd_with_evidence + vp_with_evidence
+    total_entities = len(features) + len(vp_steps)
+    total_with_evidence = features_with_evidence + vp_with_evidence
 
     if total_entities == 0:
         evidence_ratio = 0
@@ -708,7 +702,7 @@ def _assess_evidence(features: list, prd_sections: list, vp_steps: list, signal_
 
     if evidence_ratio < 0.3:
         warnings.append(f"Only {int(evidence_ratio * 100)}% of decisions have evidence")
-        recommendations.append("Link research to features and PRD sections")
+        recommendations.append("Link research to features and VP steps")
 
     return {
         "score": score,

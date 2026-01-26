@@ -132,16 +132,14 @@ The workbench requires these backend endpoints (no changes from previous version
 - `GET /v1/state/features?project_id=...` - Features
 - `GET /v1/state/prd?project_id=...` - PRD sections
 - `GET /v1/state/vp?project_id=...` - VP steps
-- `PATCH /v1/state/prd/{id}/status` - Update PRD section status
 - `PATCH /v1/state/vp/{id}/status` - Update VP step status
 
 ### Agent APIs
 - `POST /v1/state/build` - Build state
 - `POST /v1/state/reconcile` - Reconcile state
 - `POST /v1/agents/enrich-features` - Feature enrichment
-- `POST /v1/agents/enrich-prd` - PRD enrichment
+- `POST /v1/agents/enrich-personas` - Persona enrichment
 - `POST /v1/agents/enrich-vp` - VP enrichment
-- `POST /v1/agents/red-team` - Red-team analysis
 
 ### Insights APIs
 - `GET /v1/insights?project_id=...` - List insights

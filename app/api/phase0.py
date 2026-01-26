@@ -144,7 +144,6 @@ def _trigger_selective_enrichment(
         f"Enriching {total_entities} changed entities: "
         f"{len(changed_entities['features'])} features, "
         f"{len(changed_entities['personas'])} personas, "
-        f"{len(changed_entities['prd_sections'])} PRD sections, "
         f"{len(changed_entities['vp_steps'])} VP steps",
         extra={"run_id": str(run_id)},
     )
@@ -172,35 +171,26 @@ def _trigger_selective_enrichment(
                 top_k_context=10,
             )
 
-        # Enrich PRD sections
-        if changed_entities["prd_sections"]:
-            from app.db.prd import get_prd_section
-            from app.graphs.enrich_prd_graph import run_enrich_prd_agent
+        # Enrich personas
+        if changed_entities["personas"]:
+            from app.graphs.enrich_personas_graph import run_enrich_personas_agent
 
-            # Convert section IDs to slugs (PRD enrichment uses slugs)
-            section_slugs = []
-            for section_id in changed_entities["prd_sections"]:
-                section = get_prd_section(UUID(section_id))
-                if section and section.get("slug"):
-                    section_slugs.append(section["slug"])
+            persona_uuids = [UUID(pid) for pid in changed_entities["personas"]]
+            logger.info(
+                f"Enriching {len(persona_uuids)} personas",
+                extra={"run_id": str(run_id), "persona_ids": changed_entities["personas"]},
+            )
 
-            if section_slugs:
-                logger.info(
-                    f"Enriching {len(section_slugs)} PRD sections",
-                    extra={"run_id": str(run_id), "section_slugs": section_slugs},
-                )
+            run_enrich_personas_agent(
+                project_id=project_id,
+                run_id=run_id,
+                job_id=None,
+                persona_ids=persona_uuids,
+                include_research=False,
+                top_k_context=10,
+            )
 
-                run_enrich_prd_agent(
-                    project_id=project_id,
-                    run_id=run_id,
-                    job_id=None,
-                    section_slugs=section_slugs,
-                    include_research=False,
-                    top_k_context=10,
-                )
-
-        # Note: Personas and VP steps don't have enrichment endpoints yet
-        # They would be added here when implemented
+        # Note: VP steps enrichment would be added here when implemented
 
         logger.info(
             "Selective enrichment completed",

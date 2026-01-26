@@ -47,7 +47,7 @@ class ListRevisionsResponse(BaseModel):
 
 @router.get("/state/{entity_type}/{entity_id}/revisions", response_model=ListRevisionsResponse)
 async def list_entity_revisions_api(
-    entity_type: str = Path(..., description="Entity type (prd_section, vp_step, feature)"),
+    entity_type: str = Path(..., description="Entity type (vp_step, feature, persona)"),
     entity_id: UUID = Path(..., description="Entity UUID"),
     limit: int = Query(50, description="Maximum number of revisions to return", ge=1, le=100),
 ) -> ListRevisionsResponse:
@@ -55,7 +55,7 @@ async def list_entity_revisions_api(
     List enrichment revisions for a specific entity.
 
     Args:
-        entity_type: Type of entity (prd_section, vp_step, feature)
+        entity_type: Type of entity (vp_step, feature, persona)
         entity_id: Entity UUID
         limit: Maximum results to return (default 50, max 100)
 
@@ -68,7 +68,6 @@ async def list_entity_revisions_api(
     """
     # Validate entity type
     valid_types = [
-        "prd_section",
         "vp_step",
         "feature",
         "persona",

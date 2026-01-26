@@ -12,7 +12,7 @@ interface Patch {
   auto_apply_ok: boolean
   parent_insight_id: string
   patch_data: {
-    target_entity_type: 'prd_section' | 'feature' | 'vp_step'
+    target_entity_type: 'feature' | 'vp_step' | 'persona' | 'business_driver'
     allowed_fields: string[]
     proposed_changes: Record<string, any>
     rationale: string

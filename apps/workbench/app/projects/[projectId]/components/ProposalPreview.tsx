@@ -24,7 +24,7 @@ interface EvidenceItem {
 }
 
 interface Change {
-  entity_type: 'feature' | 'prd_section' | 'vp_step' | 'persona'
+  entity_type: 'feature' | 'vp_step' | 'persona' | 'business_driver'
   operation: 'create' | 'update' | 'delete'
   entity_id?: string
   before?: any
@@ -350,9 +350,9 @@ function OperationBadge({ operation }: { operation: string }) {
 function getEntityIcon(entityType: string) {
   const icons = {
     feature: <Target className="h-4 w-4 text-brand-primary" />,
-    prd_section: <FileText className="h-4 w-4 text-purple-600" />,
     vp_step: <Layers className="h-4 w-4 text-blue-600" />,
     persona: <Users className="h-4 w-4 text-green-600" />,
+    business_driver: <FileText className="h-4 w-4 text-purple-600" />,
   }
   return icons[entityType as keyof typeof icons] || <FileText className="h-4 w-4 text-gray-600" />
 }

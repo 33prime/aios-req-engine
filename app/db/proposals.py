@@ -352,7 +352,6 @@ def apply_proposal(proposal_id: UUID, applied_by: str | None = None) -> dict[str
 
         # Import database functions
         from app.db.features import bulk_replace_features
-        from app.db.prd import upsert_prd_section
         from app.db.vp import upsert_vp_step
         from app.db.personas import upsert_persona
 
@@ -409,6 +408,10 @@ def apply_proposal(proposal_id: UUID, applied_by: str | None = None) -> dict[str
                         logger.warning(f"Skipping feature create: missing 'name' field")
                         errors.append("Feature missing required 'name' field")
                         continue
+
+                    # Ensure required 'category' field has a default
+                    if not feature_data.get("category"):
+                        feature_data["category"] = "Core"
 
                     # Insert new feature
                     insert_response = supabase.table("features").insert(feature_data).execute()
@@ -470,23 +473,6 @@ def apply_proposal(proposal_id: UUID, applied_by: str | None = None) -> dict[str
                     else:
                         logger.warning(f"Failed to delete feature: {entity_id} - not found or already deleted")
                         # Don't add to errors - might just be already deleted
-
-            # Apply PRD section changes
-            if "prd_section" in changes_by_type:
-                prd_changes = changes_by_type["prd_section"]
-
-                for change in prd_changes["creates"] + prd_changes["updates"]:
-                    after = change.get("after")
-
-                    if not after or "slug" not in after:
-                        continue
-
-                    upsert_prd_section(
-                        project_id=project_id,
-                        slug=after["slug"],
-                        payload=after,
-                    )
-                    applied_count += 1
 
             # Apply VP step changes
             if "vp_step" in changes_by_type:
@@ -578,12 +564,13 @@ def apply_proposal(proposal_id: UUID, applied_by: str | None = None) -> dict[str
                         })
 
                     driver_type = after.get("driver_type", "goal")
+                    signal_id = proposal.get("signal_id")
                     _, action = smart_upsert_business_driver(
                         project_id=project_id,
                         driver_type=driver_type,
                         description=after["description"],
-                        new_evidence=new_evidence if new_evidence else None,
-                        source_signal_id=UUID(proposal.get("signal_id")) if proposal.get("signal_id") else None,
+                        new_evidence=new_evidence if new_evidence else [],
+                        source_signal_id=UUID(signal_id) if signal_id else None,
                         created_by="system",
                         measurement=after.get("measurement"),
                         priority=after.get("priority", 3),
@@ -615,12 +602,13 @@ def apply_proposal(proposal_id: UUID, applied_by: str | None = None) -> dict[str
                         })
 
                     ref_type = after.get("reference_type", "competitor")
+                    signal_id = proposal.get("signal_id")
                     _, action = smart_upsert_competitor_ref(
                         project_id=project_id,
                         reference_type=ref_type,
                         name=after["name"],
-                        new_evidence=new_evidence if new_evidence else None,
-                        source_signal_id=UUID(proposal.get("signal_id")) if proposal.get("signal_id") else None,
+                        new_evidence=new_evidence if new_evidence else [],
+                        source_signal_id=UUID(signal_id) if signal_id else None,
                         created_by="system",
                         research_notes=after.get("research_notes"),
                     )
@@ -650,6 +638,7 @@ def apply_proposal(proposal_id: UUID, applied_by: str | None = None) -> dict[str
                             "confidence": ev.get("confidence", 0.8),
                         })
 
+                    signal_id = proposal.get("signal_id")
                     _, action = smart_upsert_stakeholder(
                         project_id=project_id,
                         name=after["name"],
@@ -657,10 +646,10 @@ def apply_proposal(proposal_id: UUID, applied_by: str | None = None) -> dict[str
                         email=after.get("email"),
                         stakeholder_type=after.get("stakeholder_type"),
                         influence_level=after.get("influence_level"),
-                        engagement_status=after.get("engagement_status"),
+                        engagement_level=after.get("engagement_status") or after.get("engagement_level"),
                         notes=after.get("notes"),
-                        new_evidence=new_evidence if new_evidence else None,
-                        source_signal_id=UUID(proposal.get("signal_id")) if proposal.get("signal_id") else None,
+                        new_evidence=new_evidence if new_evidence else [],
+                        source_signal_id=UUID(signal_id) if signal_id else None,
                         created_by="system",
                     )
                     applied_count += 1
@@ -905,7 +894,6 @@ def check_proposal_staleness(proposal_id: UUID) -> str | None:
             # Get entity table name
             table_map = {
                 "feature": "features",
-                "prd_section": "prd_sections",
                 "vp_step": "vp_steps",
                 "persona": "personas",
             }

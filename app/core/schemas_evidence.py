@@ -36,7 +36,6 @@ class SourceType(str, Enum):
     COMPETITIVE = "competitive"
     PERSONA = "persona"
     FEATURE = "feature"
-    PRD_SECTION = "prd_section"
     VP_STEP = "vp_step"
     USER_INPUT = "user_input"
 

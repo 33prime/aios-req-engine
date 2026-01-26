@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter
 
-from app.api import activity, admin, agents, analytics, auth, baseline, business_drivers, chat, client_portal, competitor_refs, confirmations, creative_brief, di_agent, discovery_prep, enrich_features, enrich_prd, enrich_vp, entity_cascades, jobs, meetings, organizations, outreach, phase0, project_creation, projects, proposals, readiness, research, research_agent, revisions, risks, signals, signal_stream, stakeholders, state, strategic_analytics, tasks
+from app.api import activity, admin, agents, analytics, auth, baseline, business_drivers, chat, client_portal, competitor_refs, confirmations, creative_brief, di_agent, discovery_prep, enrich_features, enrich_personas, enrich_vp, entity_cascades, jobs, meetings, organizations, outreach, phase0, project_creation, projects, proposals, readiness, research, research_agent, revisions, risks, signals, signal_stream, stakeholders, state, strategic_analytics, tasks
 
 router = APIRouter()
 
@@ -39,11 +39,11 @@ router.include_router(state.router, tags=["state"])
 # Include Phase 2C: Feature enrichment routes
 router.include_router(enrich_features.router, tags=["enrich_features"])
 
-# Include Phase 2C: PRD enrichment routes
-router.include_router(enrich_prd.router, tags=["enrich_prd"])
-
 # Include Phase 2C: VP enrichment routes
 router.include_router(enrich_vp.router, tags=["enrich_vp"])
+
+# Include Persona enrichment routes
+router.include_router(enrich_personas.router, tags=["enrich_personas"])
 
 # Include Phase 2B: Confirmation queue routes
 router.include_router(confirmations.router, tags=["confirmations"])

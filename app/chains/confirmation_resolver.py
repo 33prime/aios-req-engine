@@ -24,9 +24,9 @@ from app.db.confirmations import (
     list_confirmation_items,
     set_confirmation_status,
 )
-from app.db.prd import update_prd_section
 from app.db.features import update_feature
 from app.db.vp import update_vp_step
+from app.db.personas import update_persona
 
 logger = get_logger(__name__)
 
@@ -262,12 +262,12 @@ def _update_entity_to_confirmed_client(
     try:
         update_data = {"confirmation_status": "confirmed_client"}
 
-        if target_table == "prd_sections":
-            update_prd_section(target_id, update_data)
-        elif target_table == "features":
+        if target_table == "features":
             update_feature(target_id, update_data, run_id=None)
         elif target_table == "vp_steps":
             update_vp_step(target_id, update_data, run_id=None)
+        elif target_table == "personas":
+            update_persona(target_id, update_data)
         else:
             logger.warning(f"Unknown target table: {target_table}")
             return

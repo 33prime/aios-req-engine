@@ -10,7 +10,6 @@ logger = get_logger(__name__)
 
 # Entity types that support change tracking
 EntityType = Literal[
-    "prd_section",
     "vp_step",
     "feature",
     "persona",

@@ -12,7 +12,6 @@ from app.core.schemas_state import (
     BuildStateResponse,
     FeatureOut,
     PersonaOut,
-    PrdSectionOut,
     VpStepOut,
 )
 from app.core.schemas_strategic_context import (
@@ -30,7 +29,6 @@ from app.core.schemas_strategic_context import (
 from app.db.features import list_features, update_feature_status
 from app.db.jobs import complete_job, create_job, fail_job, start_job
 from app.db.personas import list_personas, update_confirmation_status as update_persona_status
-from app.db.prd import list_prd_sections, update_prd_section_status
 from app.db.stakeholders import (
     create_stakeholder,
     delete_stakeholder,
@@ -68,13 +66,13 @@ class UpdateStatusRequest(BaseModel):
 @router.post("/state/build", response_model=BuildStateResponse)
 async def build_state(request: BuildStateRequest) -> BuildStateResponse:
     """
-    Build canonical state (PRD sections, VP steps, Features) from extracted facts and signals.
+    Build canonical state (VP steps, Features, Personas) from extracted facts and signals.
 
     This endpoint:
     1. Loads extracted facts digest
     2. Retrieves relevant chunks via vector search
     3. Runs the state builder LLM
-    4. Persists PRD sections, VP steps, and features to database
+    4. Persists VP steps, features, and personas to database
 
     Args:
         request: BuildStateRequest with project_id and options
@@ -107,7 +105,8 @@ async def build_state(request: BuildStateRequest) -> BuildStateResponse:
         )
 
         # Run the state builder agent
-        llm_output, prd_count, vp_count, features_count = run_build_state_agent(
+        # Note: prd_count is ignored as PRD sections are deprecated
+        llm_output, _prd_count, vp_count, features_count = run_build_state_agent(
             project_id=request.project_id,
             job_id=job_id,
             run_id=run_id,
@@ -117,15 +116,14 @@ async def build_state(request: BuildStateRequest) -> BuildStateResponse:
 
         # Build summary
         summary = (
-            f"Built {prd_count} PRD sections, {vp_count} VP steps, "
-            f"and {features_count} features from extracted facts and signals."
+            f"Built {vp_count} VP steps and {features_count} features "
+            f"from extracted facts and signals."
         )
 
         # Complete job
         complete_job(
             job_id=job_id,
             output_json={
-                "prd_sections_upserted": prd_count,
                 "vp_steps_upserted": vp_count,
                 "features_written": features_count,
             },
@@ -136,7 +134,6 @@ async def build_state(request: BuildStateRequest) -> BuildStateResponse:
             extra={
                 "run_id": str(run_id),
                 "job_id": str(job_id),
-                "prd_count": prd_count,
                 "vp_count": vp_count,
                 "features_count": features_count,
             },
@@ -145,7 +142,6 @@ async def build_state(request: BuildStateRequest) -> BuildStateResponse:
         return BuildStateResponse(
             run_id=run_id,
             job_id=job_id,
-            prd_sections_upserted=prd_count,
             vp_steps_upserted=vp_count,
             features_written=features_count,
             summary=summary,
@@ -161,63 +157,6 @@ async def build_state(request: BuildStateRequest) -> BuildStateResponse:
                 logger.exception("Failed to mark job as failed")
 
         raise HTTPException(status_code=500, detail="State building failed") from e
-
-
-@router.get("/state/prd", response_model=list[PrdSectionOut])
-async def get_prd_sections(
-    project_id: UUID = Query(..., description="Project UUID"),  # noqa: B008
-) -> list[PrdSectionOut]:
-    """
-    Get all PRD sections for a project.
-
-    Args:
-        project_id: Project UUID
-
-    Returns:
-        List of PRD sections ordered by slug
-
-    Raises:
-        HTTPException 500: If retrieval fails
-    """
-    try:
-        sections = list_prd_sections(project_id)
-        return [PrdSectionOut(**section) for section in sections]
-
-    except Exception as e:
-        logger.exception(f"Failed to get PRD sections: {e}")
-        raise HTTPException(status_code=500, detail="Failed to get PRD sections") from e
-
-
-@router.patch("/state/prd/{section_id}/status", response_model=PrdSectionOut)
-async def update_prd_status(
-    section_id: UUID,
-    request: UpdateStatusRequest,
-) -> PrdSectionOut:
-    """
-    Update the confirmation status of a PRD section.
-
-    Args:
-        section_id: PRD section UUID
-        request: Request body containing new confirmation status
-
-    Returns:
-        Updated PRD section
-
-    Raises:
-        HTTPException 404: If section not found
-        HTTPException 500: If update fails
-    """
-    try:
-        updated_section = update_prd_section_status(section_id, request.status)
-        return PrdSectionOut(**updated_section)
-
-    except ValueError as e:
-        logger.warning(f"PRD section not found: {section_id}")
-        raise HTTPException(status_code=404, detail=str(e)) from e
-
-    except Exception as e:
-        logger.exception(f"Failed to update PRD section status: {e}")
-        raise HTTPException(status_code=500, detail="Failed to update PRD section status") from e
 
 
 @router.get("/state/vp", response_model=list[VpStepOut])

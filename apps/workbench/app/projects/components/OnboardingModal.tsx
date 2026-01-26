@@ -34,7 +34,6 @@ interface OnboardingModalProps {
 
 interface OnboardingResult {
   facts_extracted: number
-  prd_sections: number
   vp_steps: number
   features: number
   personas: number
@@ -238,10 +237,6 @@ export function OnboardingModal({
                     <div className="flex items-center gap-2 text-sm text-green-700">
                       <Zap className="w-4 h-4" />
                       <span>{result.vp_steps} value path steps</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-sm text-green-700">
-                      <FileText className="w-4 h-4" />
-                      <span>{result.prd_sections} PRD sections</span>
                     </div>
                   </div>
                 </div>

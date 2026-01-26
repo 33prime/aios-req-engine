@@ -1,10 +1,9 @@
 /**
  * Persona Utilities
  *
- * Helper functions for parsing and working with personas from PRD sections.
- * Personas are stored in prd_sections where slug='personas' and can be in either:
- * - enrichment.enhanced_fields.personas (structured)
- * - fields.content (text that needs parsing)
+ * Helper functions for parsing and working with personas.
+ * Personas are stored in the personas table with structured fields:
+ * - name, role, demographics, psychographics, goals, pain_points, etc.
  */
 
 // V2 workflow structure from persona enrichment

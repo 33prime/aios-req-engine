@@ -5,7 +5,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, BackgroundTasks
 
-from app.core.baseline_gate import require_baseline_ready
+# Baseline gate removed - no longer needed
 from app.core.logging import get_logger
 from app.core.schemas_vp_enrich import EnrichVPRequest, EnrichVPResponse
 from app.db.jobs import complete_job, create_job, fail_job, start_job
@@ -41,11 +41,6 @@ async def enrich_vp(request: EnrichVPRequest, background_tasks: BackgroundTasks)
     job_id: UUID | None = None
 
     try:
-        # Check baseline gate if research is requested
-        gate = None
-        if request.include_research:
-            gate = require_baseline_ready(request.project_id)
-
         # Create and start job
         job_id = create_job(
             project_id=request.project_id,
@@ -67,7 +62,6 @@ async def enrich_vp(request: EnrichVPRequest, background_tasks: BackgroundTasks)
                 "project_id": str(request.project_id),
                 "step_ids": request.step_ids,
                 "research_enabled": request.include_research,
-                "baseline_ready": gate["baseline_ready"] if gate else None,
             },
         )
 
@@ -166,20 +160,10 @@ async def trigger_red_team_analysis(project_id: UUID):
 
     Automatically includes research signals if available.
     """
-    from app.core.baseline_gate import check_baseline_gate
     from app.graphs.red_team_graph import run_redteam_agent
     from app.db.jobs import create_job, start_job, complete_job, fail_job
     from app.db.supabase_client import get_supabase
     import uuid
-
-    # Check baseline gate
-    gate_status = check_baseline_gate(project_id)
-    if not gate_status["baseline_ready"]:
-        logger.warning(
-            f"Red team auto-trigger skipped for {project_id}: baseline not ready",
-            extra={"project_id": str(project_id), "gate_status": gate_status}
-        )
-        return
 
     # Check if research signals exist
     supabase = get_supabase()

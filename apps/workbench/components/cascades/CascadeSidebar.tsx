@@ -76,10 +76,10 @@ export default function CascadeSidebar({
         return '⭐'
       case 'vp_step':
         return '📍'
-      case 'prd_section':
-        return '📄'
       case 'persona':
         return '👤'
+      case 'business_driver':
+        return '📊'
       default:
         return '📦'
     }

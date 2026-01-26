@@ -50,18 +50,7 @@ export interface Feature {
   enriched_at?: string | null
 }
 
-export interface PrdSection {
-  id: string
-  slug: string
-  label: string
-  required: boolean
-  status: string
-  fields: any
-  enrichment?: any
-  evidence?: any[]
-  created_at: string
-  updated_at: string
-}
+// PrdSection removed - PRD is now generated from features, personas, VP steps
 
 // V2 evidence item for VP steps
 export interface VpEvidence {
@@ -114,7 +103,7 @@ export interface VpStep {
 
 export interface Confirmation {
   id: string
-  kind: 'prd' | 'vp' | 'feature' | 'insight' | 'gate'
+  kind: 'vp' | 'feature' | 'insight' | 'gate' | 'persona'
   title: string
   why: string
   ask: string
@@ -214,7 +203,6 @@ export interface CreateProjectContextPayload {
 export interface ProjectDetail extends Project {
   counts: {
     signals: number
-    prd_sections: number
     vp_steps: number
     features: number
     insights: number
@@ -248,7 +236,7 @@ export interface SignalImpactResponse {
 // Timeline
 export interface TimelineEvent {
   id: string
-  type: 'signal_ingested' | 'prd_section_created' | 'vp_step_created' | 'feature_created' | 'insight_created' | 'baseline_finalized'
+  type: 'signal_ingested' | 'vp_step_created' | 'feature_created' | 'insight_created' | 'baseline_finalized' | 'persona_created'
   timestamp: string
   description: string
   metadata: any
@@ -546,7 +534,6 @@ export interface ProjectWithDashboard extends Project {
 export interface ProjectDetailWithDashboard extends ProjectWithDashboard {
   counts: {
     signals: number
-    prd_sections: number
     vp_steps: number
     features: number
     insights: number

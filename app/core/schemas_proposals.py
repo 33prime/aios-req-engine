@@ -9,9 +9,9 @@ from pydantic import BaseModel, Field
 # Shared types
 # =======================
 
-ProposalTypeLiteral = Literal["features", "prd", "vp", "personas", "mixed"]
+ProposalTypeLiteral = Literal["features", "vp", "personas", "mixed"]
 ProposalStatusLiteral = Literal["pending", "previewed", "applied", "discarded"]
-EntityTypeLiteral = Literal["feature", "prd_section", "vp_step", "persona"]
+EntityTypeLiteral = Literal["feature", "vp_step", "persona"]
 OperationLiteral = Literal["create", "update", "delete"]
 
 # =======================

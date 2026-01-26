@@ -18,7 +18,7 @@
 
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { useParams } from 'next/navigation'
 import { TabNavigation, MobileTabNavigation, type TabType } from './components/TabNavigation'
 import { WorkspaceHeader, CompactHeader } from './components/WorkspaceHeader'
@@ -26,7 +26,7 @@ import { OverviewTab } from './components/tabs/OverviewTab'
 import { StrategicFoundationTab } from './components/tabs/StrategicFoundationTab'
 import { ValuePathTab } from './components/tabs/ValuePathTab'
 import { EnhancedResearchTab } from './components/tabs/research/EnhancedResearchTab'
-import { NextStepsTab } from './components/tabs/NextStepsTab'
+import { CollaborationTab } from './components/tabs/CollaborationTab'
 import { PersonasFeaturesTab } from './components/tabs/PersonasFeaturesTab'
 import { ResearchAgentModal } from './components/ResearchAgentModal'
 import { ChatBubble } from './components/ChatBubble'
@@ -34,7 +34,7 @@ import { ChatPanel } from './components/ChatPanel'
 import { ActivityDrawer } from './components/ActivityDrawer'
 import CascadeSidebar from '@/components/cascades/CascadeSidebar'
 import { AssistantProvider } from '@/lib/assistant'
-import { getBaselineStatus, getProjectDetails, listConfirmations, listProjectSignals, listPendingCascades, applyCascade, dismissCascade } from '@/lib/api'
+import { getBaselineStatus, getProjectDetails, listConfirmations, listProjectSignals, listPendingCascades, applyCascade, dismissCascade, getTaskStats } from '@/lib/api'
 import { useChat } from '@/lib/useChat'
 import type { BaselineStatus, ProjectDetailWithDashboard } from '@/types/api'
 
@@ -87,6 +87,9 @@ export default function WorkspacePage() {
   // Drawer state
   const [isActivityDrawerOpen, setIsActivityDrawerOpen] = useState(false)
 
+  // Track processed signals to prevent infinite reload loops
+  const processedSignalsRef = useRef<Set<string>>(new Set())
+
   // Cascade state
   const [cascades, setCascades] = useState<any[]>([])
   const [isCascadeSidebarOpen, setIsCascadeSidebarOpen] = useState(false)
@@ -95,6 +98,61 @@ export default function WorkspacePage() {
   useEffect(() => {
     loadProjectData()
   }, [projectId])
+
+  // Watch for signal processing completion and trigger refresh
+  useEffect(() => {
+    // Find the most recent add_signal tool call
+    const lastMessage = messages[messages.length - 1]
+    if (!lastMessage || lastMessage.role !== 'assistant') return
+
+    const addSignalTool = lastMessage.toolCalls?.find(
+      (tc) => tc.tool_name === 'add_signal' && tc.status === 'complete'
+    )
+
+    if (addSignalTool && addSignalTool.result?.signal_id) {
+      const result = addSignalTool.result
+      const signalId = result.signal_id
+
+      // Skip if we've already processed this signal (prevents infinite loop)
+      if (processedSignalsRef.current.has(signalId)) {
+        return
+      }
+
+      // Check if processing already completed (synchronous path)
+      if (result.processed === true) {
+        // Mark as processed BEFORE calling loadProjectData to prevent re-entry
+        processedSignalsRef.current.add(signalId)
+
+        console.log('✅ Signal processed synchronously:', signalId)
+        if (result.proposal_id) {
+          console.log(`📋 Bulk proposal created: ${result.proposal_id} with ${result.total_changes || 0} changes`)
+        } else if (result.features_created || result.personas_created || result.vp_steps_created) {
+          console.log(`📝 Entities created: ${result.features_created || 0} features, ${result.personas_created || 0} personas, ${result.vp_steps_created || 0} VP steps`)
+        }
+        // Refresh data immediately since processing is done
+        loadProjectData()
+        return
+      }
+
+      // Processing was deferred or failed - check if we need to poll
+      if (result.processed === false && result.pipeline_error) {
+        // Mark as processed to prevent re-entry
+        processedSignalsRef.current.add(signalId)
+
+        console.error('❌ Signal processing failed:', result.pipeline_error)
+        // Still refresh to show the signal was added
+        loadProjectData()
+        return
+      }
+
+      // Only poll if processing was explicitly deferred (process_immediately=false)
+      // Mark as processed before starting polling
+      processedSignalsRef.current.add(signalId)
+
+      console.log('📥 Signal added, starting polling for:', signalId)
+      pollSignalStatus(signalId)
+    }
+  }, [messages])
 
   const loadProjectData = async () => {
     try {
@@ -107,7 +165,7 @@ export default function WorkspacePage() {
       // Use counts from project details (already includes vp_steps, features, etc.)
       const projectCounts = projectData.counts || {}
       setCounts({
-        strategicContext: projectCounts.prd_sections || 0,
+        strategicContext: 0, // Strategic foundation is separate from PRD sections
         valuePath: projectCounts.vp_steps || 0,
         improvements: 0,
         nextSteps: 0, // Will update in background
@@ -129,19 +187,22 @@ export default function WorkspacePage() {
   const loadSecondaryData = async () => {
     // Load secondary data in parallel, don't block page
     try {
-      const [baselineData, confirmationsData, cascadesData] = await Promise.all([
+      const [baselineData, confirmationsData, cascadesData, taskStatsData] = await Promise.all([
         getBaselineStatus(projectId).catch(() => ({ baseline_ready: false })),
         listConfirmations(projectId, 'open').catch(() => ({ confirmations: [] })),
         listPendingCascades(projectId).catch(() => ({ cascades: [] })),
+        getTaskStats(projectId).catch(() => ({ by_status: { pending: 0 }, client_relevant: 0 })),
       ])
 
       setBaseline(baselineData)
       setCascades(cascadesData.cascades || [])
 
-      // Update confirmation count
+      // Update collaboration count (confirmations + pending client tasks)
+      const confirmationCount = confirmationsData.confirmations?.length || 0
+      const clientTaskCount = taskStatsData.client_relevant || 0
       setCounts(prev => ({
         ...prev,
-        nextSteps: confirmationsData.confirmations?.length || 0,
+        nextSteps: confirmationCount + clientTaskCount,
       }))
     } catch (error) {
       console.error('Failed to load secondary data:', error)
@@ -191,7 +252,7 @@ export default function WorkspacePage() {
   }
 
   // Handle agent runs
-  const handleRunAgent = async (agentType: 'build' | 'reconcile' | 'enrich-prd' | 'enrich-vp' | 'research') => {
+  const handleRunAgent = async (agentType: 'build' | 'reconcile' | 'enrich-vp' | 'research') => {
     try {
       console.log('🚀 Running agent:', agentType)
 
@@ -210,10 +271,6 @@ export default function WorkspacePage() {
           break
         case 'reconcile':
           endpoint = '/v1/state/reconcile'
-          body.include_research = baseline?.baseline_ready
-          break
-        case 'enrich-prd':
-          endpoint = '/v1/agents/enrich-prd'
           body.include_research = baseline?.baseline_ready
           break
         case 'enrich-vp':
@@ -323,6 +380,66 @@ export default function WorkspacePage() {
     checkStatus()
   }
 
+  // Poll signal processing status (fallback for deferred/streaming processing)
+  const pollSignalStatus = async (signalId: string) => {
+    console.log('📥 Signal processing deferred - polling for completion:', signalId)
+    let pollCount = 0
+    const maxPolls = 20 // ~1 minute max (reduced since sync path is primary)
+
+    const checkStatus = async () => {
+      pollCount++
+
+      try {
+        // Check signal details to see if processing is complete
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE}/v1/signals/${signalId}`)
+        if (response.ok) {
+          const signal = await response.json()
+
+          // Check for proposal creation (heavyweight signals)
+          const hasProposal = signal.batch_proposal_id || signal.proposal_id
+
+          // Check for direct impacts (lightweight signals or auto-applied)
+          const impactResponse = await fetch(`${process.env.NEXT_PUBLIC_API_BASE}/v1/signals/${signalId}/impact`)
+          const impact = impactResponse.ok ? await impactResponse.json() : { total_impacts: 0 }
+          const totalImpacts = impact.total_impacts || 0
+
+          // Processing is complete if we have either a proposal OR impacts
+          if (hasProposal || totalImpacts > 0) {
+            if (hasProposal) {
+              console.log(`📋 Signal processing complete! Proposal created for review`)
+            }
+            if (totalImpacts > 0) {
+              console.log(`✅ Signal processing complete! ${totalImpacts} entities created/updated`)
+            }
+
+            // Refresh project data to show new entities or proposals
+            loadProjectData()
+
+            // Don't continue polling
+            return
+          }
+
+          // Check max polls - still refresh in case entities were created without impact tracking
+          if (pollCount >= maxPolls) {
+            console.log('⏰ Signal processing timeout - may still be running in background')
+            // Refresh anyway in case something was created
+            loadProjectData()
+            return
+          }
+
+          // Still processing, check again in 3 seconds
+          setTimeout(checkStatus, 3000)
+        } else {
+          console.error('Failed to fetch signal status:', response.statusText)
+        }
+      } catch (error) {
+        console.error('❌ Failed to check signal status:', error)
+      }
+    }
+
+    checkStatus()
+  }
+
   // Render active tab content
   const renderTabContent = () => {
     switch (activeTab) {
@@ -343,8 +460,8 @@ export default function WorkspacePage() {
         return <ValuePathTab projectId={projectId} />
       case 'sources':
         return <EnhancedResearchTab projectId={projectId} />
-      case 'next-steps':
-        return <NextStepsTab projectId={projectId} />
+      case 'collaboration':
+        return <CollaborationTab projectId={projectId} />
       default:
         return null
     }

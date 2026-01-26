@@ -13,14 +13,12 @@ import { CheckCircle, AlertCircle, Info, Target, Users, FileText, Zap, Lock } fr
 interface BaselineCompleteness {
   score: number
   breakdown: {
-    prd_sections: number
     features: number
     personas: number
     vp_steps: number
     constraints: number
   }
   counts: {
-    prd_sections: number
     features: number
     personas: number
     vp_steps: number
@@ -176,15 +174,6 @@ export default function BaselineStatus({
             {showDetails ? 'Hide details' : 'Show details'}
           </button>
         </div>
-
-        {/* PRD Sections */}
-        <ScoreBar
-          icon={<FileText className="h-4 w-4" />}
-          label="PRD Sections"
-          score={completeness.breakdown.prd_sections}
-          count={completeness.counts.prd_sections}
-          countLabel="sections"
-        />
 
         {/* Features */}
         <ScoreBar

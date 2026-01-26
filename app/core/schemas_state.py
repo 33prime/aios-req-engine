@@ -17,28 +17,6 @@ StatusLiteral = Literal["draft", "confirmed_consultant", "needs_client", "confir
 # =======================
 
 
-class PrdSectionOut(BaseModel):
-    """PRD section output matching database schema."""
-
-    id: UUID = Field(..., description="PRD section UUID")
-    project_id: UUID = Field(..., description="Project UUID")
-    slug: str = Field(..., description="Section slug identifier")
-    label: str = Field(..., description="Human-readable section label")
-    required: bool = Field(..., description="Whether section is required")
-    status: StatusLiteral = Field(..., description="Section status")
-    fields: dict[str, Any] = Field(..., description="Section-specific fields")
-    client_needs: list[dict[str, Any]] = Field(..., description="Client needs items")
-    sources: list[dict[str, Any]] = Field(..., description="Source references")
-    evidence: list[dict[str, Any]] = Field(..., description="Evidence references")
-    created_at: str = Field(..., description="Creation timestamp")
-    updated_at: str = Field(..., description="Last update timestamp")
-    enrichment: dict[str, Any] = Field(default_factory=dict, description="Enrichment data")
-    enrichment_model: str | None = Field(None, description="Model used for enrichment")
-    enrichment_prompt_version: str | None = Field(None, description="Prompt version used")
-    enrichment_schema_version: str | None = Field(None, description="Schema version used")
-    enrichment_updated_at: str | None = Field(None, description="Enrichment timestamp")
-
-
 class VpStepOut(BaseModel):
     """Value Path step output matching database schema."""
 
@@ -144,10 +122,6 @@ class PersonaOut(BaseModel):
 class BuildStateOutput(BaseModel):
     """Output from state builder LLM chain."""
 
-    prd_sections: list[dict[str, Any]] = Field(
-        ...,
-        description="PRD sections: {slug, label, required, status, fields, client_needs, evidence}",
-    )
     vp_steps: list[dict[str, Any]] = Field(
         ...,
         description=(
@@ -188,7 +162,6 @@ class BuildStateResponse(BaseModel):
 
     run_id: UUID = Field(..., description="Run tracking UUID")
     job_id: UUID = Field(..., description="Job tracking UUID")
-    prd_sections_upserted: int = Field(..., description="Number of PRD sections upserted")
     vp_steps_upserted: int = Field(..., description="Number of VP steps upserted")
     features_written: int = Field(..., description="Number of features written")
     summary: str = Field(..., description="Summary of state building operation")

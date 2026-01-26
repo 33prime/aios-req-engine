@@ -472,12 +472,12 @@ function getEntityIcon(entityType: string) {
   switch (entityType) {
     case 'feature':
       return <Star className="h-5 w-5 text-yellow-600" />
-    case 'prd_section':
-      return <FileText className="h-5 w-5 text-blue-600" />
     case 'vp_step':
       return <Zap className="h-5 w-5 text-purple-600" />
     case 'persona':
       return <Users className="h-5 w-5 text-green-600" />
+    case 'business_driver':
+      return <FileText className="h-5 w-5 text-blue-600" />
     default:
       return <AlertTriangle className="h-5 w-5 text-gray-600" />
   }

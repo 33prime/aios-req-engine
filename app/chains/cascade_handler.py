@@ -2,7 +2,6 @@
 
 This module handles automatic propagation of changes between entities:
 - Feature → VP Steps (add to needed array)
-- Feature → PRD key_features (append)
 - Feature → Personas (suggest related_features update)
 - Feature with low confidence or MVP → trigger research
 """
@@ -221,41 +220,7 @@ async def handle_feature_cascade(
     except Exception as e:
         logger.error(f"Error analyzing VP step cascades: {e}")
 
-    # 2. Feature → PRD key_features (always AUTO for PRD sync)
-    try:
-        prd_response = (
-            supabase.table("prd_sections")
-            .select("id, slug, fields")
-            .eq("project_id", str(project_id))
-            .eq("slug", "key_features")
-            .execute()
-        )
-
-        if prd_response.data:
-            key_features_section = prd_response.data[0]
-            fields = key_features_section.get("fields", {}) or {}
-            content = fields.get("content", "")
-
-            # Check if feature already mentioned
-            if feature_name.lower() not in content.lower():
-                cascade = CascadeResult(
-                    cascade_type=CascadeType.AUTO,  # PRD sync is always auto
-                    confidence=0.95,
-                    source_entity_type="feature",
-                    source_entity_id=feature_id,
-                    source_summary=f"Feature: {feature_name}",
-                    target_entity_type="prd_section",
-                    target_entity_id=UUID(key_features_section["id"]),
-                    target_summary="PRD: Key Features",
-                    changes={"append_feature": feature_name, "mark_ai_added": True},
-                    rationale=f"New feature '{feature_name}' should be reflected in Key Features section",
-                )
-                cascades.append(cascade)
-
-    except Exception as e:
-        logger.error(f"Error analyzing PRD cascade: {e}")
-
-    # 3. Feature → Personas
+    # 2. Feature → Personas
     try:
         personas_response = (
             supabase.table("personas")
@@ -338,35 +303,6 @@ async def apply_cascade(project_id: UUID, cascade: CascadeResult) -> dict[str, A
 
                 supabase.table("vp_steps").update({
                     "needed": current_needed,
-                    "updated_at": "now()",
-                }).eq("id", str(cascade.target_entity_id)).execute()
-
-                logger.info(f"Auto-applied cascade: {cascade.source_summary} → {cascade.target_summary}")
-
-        elif cascade.target_entity_type == "prd_section":
-            # Append to PRD key_features content
-            prd_response = (
-                supabase.table("prd_sections")
-                .select("fields")
-                .eq("id", str(cascade.target_entity_id))
-                .execute()
-            )
-
-            if prd_response.data:
-                fields = prd_response.data[0].get("fields", {}) or {}
-                content = fields.get("content", "")
-                feature_name = cascade.changes.get("append_feature", "")
-
-                # Append with AI marker
-                if content:
-                    new_content = f"{content}\n- {feature_name} [AI-added]"
-                else:
-                    new_content = f"- {feature_name} [AI-added]"
-
-                fields["content"] = new_content
-
-                supabase.table("prd_sections").update({
-                    "fields": fields,
                     "updated_at": "now()",
                 }).eq("id", str(cascade.target_entity_id)).execute()
 

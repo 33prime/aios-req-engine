@@ -8,8 +8,8 @@ from app.core.logging import get_logger
 from app.db.facts import list_latest_extracted_facts
 from app.db.features import list_features
 from app.db.phase0 import search_signal_chunks
-from app.db.prd import list_prd_sections
 from app.db.vp import list_vp_steps
+from app.db.personas import list_personas
 
 logger = get_logger(__name__)
 
@@ -22,26 +22,26 @@ def get_canonical_snapshot(project_id: UUID) -> dict[str, Any]:
         project_id: Project UUID
 
     Returns:
-        Dict with prd_sections, vp_steps, features lists
+        Dict with vp_steps, features, personas lists
     """
     logger.info(
         f"Loading canonical snapshot for project {project_id}",
         extra={"project_id": str(project_id)},
     )
 
-    prd_sections = list_prd_sections(project_id)
     vp_steps = list_vp_steps(project_id)
     features = list_features(project_id)
+    personas = list_personas(project_id)
 
     snapshot = {
-        "prd_sections": prd_sections,
         "vp_steps": vp_steps,
         "features": features,
+        "personas": personas,
     }
 
     logger.info(
-        f"Loaded canonical snapshot: {len(prd_sections)} PRD sections, "
-        f"{len(vp_steps)} VP steps, {len(features)} features",
+        f"Loaded canonical snapshot: {len(vp_steps)} VP steps, "
+        f"{len(features)} features, {len(personas)} personas",
         extra={"project_id": str(project_id)},
     )
 

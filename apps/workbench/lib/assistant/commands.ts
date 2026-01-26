@@ -258,19 +258,24 @@ registerCommand({
       }
     }
 
-    // TODO: Wire up to /agents/enrich-personas endpoint once created
-    // The chain exists at app/chains/enrich_personas_v2.py
-    return {
-      success: true,
-      message: `**Persona Enrichment**\n\nThis feature enriches personas with:\n- Detailed motivations and goals\n- Pain points and challenges\n- Technology preferences\n- Decision-making criteria\n\n*Note: The enrichment chain is being wired up. For now, use /run-foundation to extract personas from signals, then manually review and refine.*`,
-      actions: [
-        {
-          id: 'run-foundation',
-          label: 'Run Foundation',
-          command: '/run-foundation',
-          variant: 'primary',
+    const { enrichPersonas } = await import('@/lib/api')
+
+    try {
+      const result = await enrichPersonas(projectId, { includeResearch: true })
+
+      return {
+        success: true,
+        message: `**Enriching personas...**\n\nEnhancing all personas with:\n- Detailed overviews and background\n- Key workflows mapped to features\n- Goals and motivations\n- Evidence from signals\n\nThis may take a few minutes.`,
+        data: {
+          jobId: result.job_id,
+          action: 'enrich_personas_started',
         },
-      ],
+      }
+    } catch (error) {
+      return {
+        success: false,
+        message: `Failed to start persona enrichment: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      }
     }
   },
 })
@@ -308,6 +313,214 @@ registerCommand({
       return {
         success: false,
         message: `Failed to start value path enrichment: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      }
+    }
+  },
+})
+
+// /enrich-kpis - AI enhance all KPIs
+registerCommand({
+  name: 'enrich-kpis',
+  description: 'AI enhance ALL KPIs with measurement details and baselines',
+  aliases: ['enhance-kpis'],
+  examples: ['/enrich-kpis'],
+  execute: async (_args, context): Promise<CommandResult> => {
+    const { projectId } = context
+
+    if (!projectId) {
+      return {
+        success: false,
+        message: 'No project selected. Please select a project first.',
+      }
+    }
+
+    const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8000'
+    const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null
+
+    try {
+      const response = await fetch(`${API_BASE}/v1/projects/${projectId}/business-drivers/enrich-bulk?driver_type=kpi&depth=standard`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      })
+
+      if (!response.ok) {
+        throw new Error(`Failed to enrich KPIs: ${response.statusText}`)
+      }
+
+      const result = await response.json()
+
+      return {
+        success: true,
+        message: `**KPI Enrichment Complete**\n\n✓ Enriched ${result.succeeded} KPI${result.succeeded !== 1 ? 's' : ''}\n${result.failed > 0 ? `✗ Failed ${result.failed}\n` : ''}\n\nKPIs now include:\n- Baseline and target values\n- Measurement methods\n- Data sources\n- Responsible teams\n\nRefresh the Strategic Foundation tab to see updates.`,
+        data: {
+          action: 'kpis_enriched',
+          result,
+          refresh_project: true,
+        },
+      }
+    } catch (error) {
+      return {
+        success: false,
+        message: `Failed to enrich KPIs: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      }
+    }
+  },
+})
+
+// /enrich-pain-points - AI enhance all pain points
+registerCommand({
+  name: 'enrich-pain-points',
+  description: 'AI enhance ALL pain points with severity, impact, and workarounds',
+  aliases: ['enhance-pains', 'enrich-pains'],
+  examples: ['/enrich-pain-points'],
+  execute: async (_args, context): Promise<CommandResult> => {
+    const { projectId } = context
+
+    if (!projectId) {
+      return {
+        success: false,
+        message: 'No project selected. Please select a project first.',
+      }
+    }
+
+    const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8000'
+    const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null
+
+    try {
+      const response = await fetch(`${API_BASE}/v1/projects/${projectId}/business-drivers/enrich-bulk?driver_type=pain&depth=standard`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      })
+
+      if (!response.ok) {
+        throw new Error(`Failed to enrich pain points: ${response.statusText}`)
+      }
+
+      const result = await response.json()
+
+      return {
+        success: true,
+        message: `**Pain Point Enrichment Complete**\n\n✓ Enriched ${result.succeeded} pain point${result.succeeded !== 1 ? 's' : ''}\n${result.failed > 0 ? `✗ Failed ${result.failed}\n` : ''}\n\nPain points now include:\n- Severity levels (critical/high/medium/low)\n- Frequency (constant/daily/weekly/monthly/rare)\n- Affected users\n- Business impact quantification\n- Current workarounds\n\nRefresh the Strategic Foundation tab to see updates.`,
+        data: {
+          action: 'pains_enriched',
+          result,
+          refresh_project: true,
+        },
+      }
+    } catch (error) {
+      return {
+        success: false,
+        message: `Failed to enrich pain points: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      }
+    }
+  },
+})
+
+// /enrich-goals - AI enhance all goals
+registerCommand({
+  name: 'enrich-goals',
+  description: 'AI enhance ALL goals with timeframes, criteria, and dependencies',
+  aliases: ['enhance-goals'],
+  examples: ['/enrich-goals'],
+  execute: async (_args, context): Promise<CommandResult> => {
+    const { projectId } = context
+
+    if (!projectId) {
+      return {
+        success: false,
+        message: 'No project selected. Please select a project first.',
+      }
+    }
+
+    const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8000'
+    const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null
+
+    try {
+      const response = await fetch(`${API_BASE}/v1/projects/${projectId}/business-drivers/enrich-bulk?driver_type=goal&depth=standard`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      })
+
+      if (!response.ok) {
+        throw new Error(`Failed to enrich goals: ${response.statusText}`)
+      }
+
+      const result = await response.json()
+
+      return {
+        success: true,
+        message: `**Goal Enrichment Complete**\n\n✓ Enriched ${result.succeeded} goal${result.succeeded !== 1 ? 's' : ''}\n${result.failed > 0 ? `✗ Failed ${result.failed}\n` : ''}\n\nGoals now include:\n- Timeframes and deadlines\n- Success criteria\n- Dependencies and prerequisites\n- Responsible owners\n\nRefresh the Strategic Foundation tab to see updates.`,
+        data: {
+          action: 'goals_enriched',
+          result,
+          refresh_project: true,
+        },
+      }
+    } catch (error) {
+      return {
+        success: false,
+        message: `Failed to enrich goals: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      }
+    }
+  },
+})
+
+// /enrich-business-drivers - AI enhance all business drivers
+registerCommand({
+  name: 'enrich-business-drivers',
+  description: 'AI enhance ALL business drivers (KPIs, pain points, and goals)',
+  aliases: ['enhance-drivers', 'enrich-drivers'],
+  examples: ['/enrich-business-drivers'],
+  execute: async (_args, context): Promise<CommandResult> => {
+    const { projectId } = context
+
+    if (!projectId) {
+      return {
+        success: false,
+        message: 'No project selected. Please select a project first.',
+      }
+    }
+
+    const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8000'
+    const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null
+
+    try {
+      const response = await fetch(`${API_BASE}/v1/projects/${projectId}/business-drivers/enrich-bulk?driver_type=all&depth=standard`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      })
+
+      if (!response.ok) {
+        throw new Error(`Failed to enrich business drivers: ${response.statusText}`)
+      }
+
+      const result = await response.json()
+
+      return {
+        success: true,
+        message: `**Business Driver Enrichment Complete**\n\n✓ Enriched ${result.succeeded} driver${result.succeeded !== 1 ? 's' : ''}\n${result.failed > 0 ? `✗ Failed ${result.failed}\n` : ''}\n\nAll business drivers enriched with:\n- **KPIs:** Baselines, targets, measurement methods\n- **Pain Points:** Severity, impact, workarounds\n- **Goals:** Timeframes, success criteria, dependencies\n\nRefresh the Strategic Foundation tab to see updates.`,
+        data: {
+          action: 'all_drivers_enriched',
+          result,
+          refresh_project: true,
+        },
+      }
+    } catch (error) {
+      return {
+        success: false,
+        message: `Failed to enrich business drivers: ${error instanceof Error ? error.message : 'Unknown error'}`,
       }
     }
   },
@@ -1282,6 +1495,431 @@ registerCommand({
 })
 
 // =============================================================================
+// TASK COMMANDS - Work Item Management
+// =============================================================================
+
+// /tasks - List pending tasks
+registerCommand({
+  name: 'tasks',
+  description: 'List pending tasks for the project',
+  aliases: ['list-tasks', 'task-list'],
+  examples: ['/tasks', '/tasks pending', '/tasks client'],
+  args: [
+    {
+      name: 'filter',
+      type: 'string',
+      required: false,
+      description: 'Filter: pending, all, client, proposals, gaps',
+    },
+  ],
+  execute: async (args, context): Promise<CommandResult> => {
+    const { projectId } = context
+    const filter = (args.filter as string) || 'pending'
+
+    if (!projectId) {
+      return {
+        success: false,
+        message: 'No project selected. Please select a project first.',
+      }
+    }
+
+    const { listTasks, getTaskStats } = await import('@/lib/api')
+
+    try {
+      // Build filter params
+      const params: Record<string, unknown> = {
+        limit: 20,
+        sort_by: 'priority_score',
+        sort_order: 'desc' as const,
+      }
+
+      if (filter === 'pending') {
+        params.status = 'pending'
+      } else if (filter === 'client') {
+        params.requires_client_input = true
+        params.status = 'pending'
+      } else if (filter === 'proposals') {
+        params.task_type = 'proposal'
+        params.status = 'pending'
+      } else if (filter === 'gaps') {
+        params.task_type = 'gap'
+        params.status = 'pending'
+      }
+      // 'all' has no status filter
+
+      const [result, stats] = await Promise.all([
+        listTasks(projectId, params),
+        getTaskStats(projectId),
+      ])
+
+      if (result.tasks.length === 0) {
+        return {
+          success: true,
+          message: `## No Tasks\n\nNo ${filter === 'all' ? '' : filter + ' '}tasks found.\n\nTasks are automatically created when:\n- Signal processing generates proposals\n- DI Agent identifies gaps\n- Entities need enrichment\n\nOr create one manually with \`/create-task\``,
+          actions: [
+            {
+              id: 'sync-gaps',
+              label: 'Sync Gap Tasks',
+              command: '/sync-tasks gaps',
+              variant: 'primary',
+            },
+          ],
+        }
+      }
+
+      let message = `## Tasks (${filter})\n\n`
+      message += `**${stats.by_status?.pending || 0}** pending • `
+      message += `**${stats.by_status?.completed || 0}** completed • `
+      message += `**${stats.client_relevant}** need client input\n\n`
+
+      result.tasks.forEach((task, idx) => {
+        const icon = task.task_type === 'gap' ? '🎯' :
+                    task.task_type === 'proposal' ? '📋' :
+                    task.task_type === 'enrichment' ? '✨' :
+                    task.task_type === 'validation' ? '✓' : '📝'
+        const clientTag = task.requires_client_input ? ' [Client]' : ''
+        const priority = task.priority_score >= 70 ? '🔴' :
+                        task.priority_score >= 50 ? '🟡' : '🟢'
+
+        message += `${idx + 1}. ${icon} **${task.title}**${clientTag}\n`
+        message += `   ${priority} Priority: ${task.priority_score.toFixed(0)} • Type: ${task.task_type}\n`
+        if (task.description) {
+          message += `   ${task.description.slice(0, 80)}${task.description.length > 80 ? '...' : ''}\n`
+        }
+        message += '\n'
+      })
+
+      if (result.has_more) {
+        message += `*Showing ${result.tasks.length} of ${result.total} tasks*\n`
+      }
+
+      return {
+        success: true,
+        message,
+        actions: [
+          {
+            id: 'approve-all',
+            label: 'Approve All Proposals',
+            command: '/approve-all-tasks',
+            variant: 'primary',
+          },
+          {
+            id: 'view-overview',
+            label: 'View in Overview',
+            navigateTo: { tab: 'overview' },
+          },
+        ],
+      }
+    } catch (error) {
+      return {
+        success: false,
+        message: `Failed to list tasks: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      }
+    }
+  },
+})
+
+// /create-task - Create a manual task
+registerCommand({
+  name: 'create-task',
+  description: 'Create a new task to track work',
+  aliases: ['add-task', 'new-task'],
+  args: [
+    {
+      name: 'title',
+      type: 'string',
+      required: true,
+      description: 'Task title',
+    },
+  ],
+  examples: [
+    '/create-task "Review persona updates"',
+    '/create-task "Validate feature with client"',
+  ],
+  execute: async (args, context): Promise<CommandResult> => {
+    const { projectId } = context
+    const title = (args.title as string) || (args.input as string)
+
+    if (!projectId) {
+      return {
+        success: false,
+        message: 'No project selected. Please select a project first.',
+      }
+    }
+
+    if (!title) {
+      return {
+        success: false,
+        message: 'Please provide a task title.\n\nUsage: `/create-task "Title"`\n\nExample: `/create-task "Review persona updates"`',
+      }
+    }
+
+    const { createTask } = await import('@/lib/api')
+
+    try {
+      const task = await createTask(projectId, {
+        title,
+        task_type: 'manual',
+      })
+
+      return {
+        success: true,
+        message: `## Task Created\n\n**${task.title}**\n\nID: \`${task.id}\`\nPriority: ${task.priority_score.toFixed(0)}\nStatus: ${task.status}\n\nView tasks with \`/tasks\` or complete with \`/complete-task\``,
+        data: {
+          taskId: task.id,
+          action: 'task_created',
+        },
+      }
+    } catch (error) {
+      return {
+        success: false,
+        message: `Failed to create task: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      }
+    }
+  },
+})
+
+// /complete-task - Complete a task
+registerCommand({
+  name: 'complete-task',
+  description: 'Mark a task as completed',
+  aliases: ['done-task', 'finish-task'],
+  args: [
+    {
+      name: 'taskId',
+      type: 'string',
+      required: true,
+      description: 'Task ID to complete',
+    },
+  ],
+  examples: ['/complete-task abc123'],
+  execute: async (args, context): Promise<CommandResult> => {
+    const { projectId } = context
+    const taskId = (args.taskId as string) || (args.input as string)
+
+    if (!projectId) {
+      return {
+        success: false,
+        message: 'No project selected. Please select a project first.',
+      }
+    }
+
+    if (!taskId) {
+      return {
+        success: false,
+        message: 'Please provide a task ID.\n\nUsage: `/complete-task <task-id>`\n\nFind task IDs with `/tasks`',
+      }
+    }
+
+    const { completeTask } = await import('@/lib/api')
+
+    try {
+      const task = await completeTask(projectId, taskId, {
+        completion_method: 'chat_approval',
+      })
+
+      return {
+        success: true,
+        message: `## Task Completed\n\n✓ **${task.title}**\n\nCompleted via chat assistant.`,
+        data: {
+          taskId: task.id,
+          action: 'task_completed',
+        },
+      }
+    } catch (error) {
+      return {
+        success: false,
+        message: `Failed to complete task: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      }
+    }
+  },
+})
+
+// /dismiss-task - Dismiss a task
+registerCommand({
+  name: 'dismiss-task',
+  description: 'Dismiss a task as not needed',
+  aliases: ['skip-task', 'ignore-task'],
+  args: [
+    {
+      name: 'taskId',
+      type: 'string',
+      required: true,
+      description: 'Task ID to dismiss',
+    },
+  ],
+  examples: ['/dismiss-task abc123'],
+  execute: async (args, context): Promise<CommandResult> => {
+    const { projectId } = context
+    const taskId = (args.taskId as string) || (args.input as string)
+
+    if (!projectId) {
+      return {
+        success: false,
+        message: 'No project selected. Please select a project first.',
+      }
+    }
+
+    if (!taskId) {
+      return {
+        success: false,
+        message: 'Please provide a task ID.\n\nUsage: `/dismiss-task <task-id>`\n\nFind task IDs with `/tasks`',
+      }
+    }
+
+    const { dismissTask } = await import('@/lib/api')
+
+    try {
+      const task = await dismissTask(projectId, taskId, 'Dismissed via chat')
+
+      return {
+        success: true,
+        message: `## Task Dismissed\n\n✗ **${task.title}**\n\nTask has been dismissed.`,
+        data: {
+          taskId: task.id,
+          action: 'task_dismissed',
+        },
+      }
+    } catch (error) {
+      return {
+        success: false,
+        message: `Failed to dismiss task: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      }
+    }
+  },
+})
+
+// /approve-all-tasks - Bulk approve proposal tasks
+registerCommand({
+  name: 'approve-all-tasks',
+  description: 'Approve all pending proposal tasks',
+  aliases: ['approve-all', 'accept-all'],
+  examples: ['/approve-all-tasks', '/approve-all'],
+  execute: async (_args, context): Promise<CommandResult> => {
+    const { projectId } = context
+
+    if (!projectId) {
+      return {
+        success: false,
+        message: 'No project selected. Please select a project first.',
+      }
+    }
+
+    const { listTasks, bulkCompleteTasks } = await import('@/lib/api')
+
+    try {
+      // Get all pending proposal tasks
+      const result = await listTasks(projectId, {
+        status: 'pending',
+        task_type: 'proposal',
+        limit: 50,
+      })
+
+      if (result.tasks.length === 0) {
+        return {
+          success: true,
+          message: '## No Proposals to Approve\n\nThere are no pending proposal tasks.',
+        }
+      }
+
+      // Bulk complete them
+      const taskIds = result.tasks.map((t) => t.id)
+      const completed = await bulkCompleteTasks(projectId, taskIds, 'chat_approval')
+
+      return {
+        success: true,
+        message: `## Proposals Approved\n\n✓ Approved **${completed.processed}** proposal tasks.\n\nAll changes have been applied to the project.`,
+        data: {
+          action: 'tasks_bulk_completed',
+          count: completed.processed,
+          refresh_project: true,
+        },
+      }
+    } catch (error) {
+      return {
+        success: false,
+        message: `Failed to approve tasks: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      }
+    }
+  },
+})
+
+// /sync-tasks - Sync tasks from gaps or enrichment needs
+registerCommand({
+  name: 'sync-tasks',
+  description: 'Sync tasks from project state (gaps, enrichment needs)',
+  aliases: ['refresh-tasks'],
+  args: [
+    {
+      name: 'source',
+      type: 'string',
+      required: false,
+      description: 'Source to sync: gaps, enrichment, or all (default: all)',
+    },
+  ],
+  examples: ['/sync-tasks', '/sync-tasks gaps', '/sync-tasks enrichment'],
+  execute: async (args, context): Promise<CommandResult> => {
+    const { projectId } = context
+    const source = (args.source as string) || 'all'
+
+    if (!projectId) {
+      return {
+        success: false,
+        message: 'No project selected. Please select a project first.',
+      }
+    }
+
+    const { syncGapTasks, syncEnrichmentTasks } = await import('@/lib/api')
+
+    try {
+      let gapResult = { tasks_created: 0 }
+      let enrichResult = { tasks_created: 0 }
+
+      if (source === 'gaps' || source === 'all') {
+        gapResult = await syncGapTasks(projectId)
+      }
+
+      if (source === 'enrichment' || source === 'all') {
+        enrichResult = await syncEnrichmentTasks(projectId)
+      }
+
+      const totalCreated = gapResult.tasks_created + enrichResult.tasks_created
+
+      if (totalCreated === 0) {
+        return {
+          success: true,
+          message: '## Tasks Synced\n\nNo new tasks created. Project state is up to date.',
+        }
+      }
+
+      let message = `## Tasks Synced\n\n`
+      if (gapResult.tasks_created > 0) {
+        message += `✓ Created **${gapResult.tasks_created}** gap tasks\n`
+      }
+      if (enrichResult.tasks_created > 0) {
+        message += `✓ Created **${enrichResult.tasks_created}** enrichment tasks\n`
+      }
+      message += `\nView tasks with \`/tasks\``
+
+      return {
+        success: true,
+        message,
+        data: {
+          action: 'tasks_synced',
+          gap_tasks: gapResult.tasks_created,
+          enrichment_tasks: enrichResult.tasks_created,
+        },
+      }
+    } catch (error) {
+      return {
+        success: false,
+        message: `Failed to sync tasks: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      }
+    }
+  },
+})
+
+// =============================================================================
 // UTILITY COMMANDS
 // =============================================================================
 
@@ -1368,7 +2006,11 @@ registerCommand({
     message += `**/run-analysis** - Analyze signals, generate patches\n`
     message += `**/enrich-personas** - AI enhance all personas\n`
     message += `**/enrich-features** - AI enhance all features\n`
-    message += `**/enrich-value-path** - AI enhance all VP steps\n\n`
+    message += `**/enrich-value-path** - AI enhance all VP steps\n`
+    message += `**/enrich-kpis** - AI enhance all KPIs with measurements\n`
+    message += `**/enrich-pain-points** - AI enhance all pain points with severity/impact\n`
+    message += `**/enrich-goals** - AI enhance all goals with timeframes/criteria\n`
+    message += `**/enrich-business-drivers** - AI enhance ALL drivers (KPIs + pains + goals)\n\n`
 
     message += `### Approve Entities (select first, then approve)\n`
     message += `**/approve-feature** - Approve selected feature\n`
@@ -1382,6 +2024,14 @@ registerCommand({
     message += `**/project-status** - Show comprehensive project state overview\n`
     message += `**/pending-items** - List items needing confirmation\n`
     message += `**/meeting-prep** - Generate meeting briefing\n\n`
+
+    message += `### Tasks\n`
+    message += `**/tasks** - List pending tasks\n`
+    message += `**/create-task** "title" - Create a manual task\n`
+    message += `**/complete-task** <id> - Complete a task\n`
+    message += `**/dismiss-task** <id> - Dismiss a task\n`
+    message += `**/approve-all-tasks** - Approve all pending proposals\n`
+    message += `**/sync-tasks** - Sync tasks from project state\n\n`
 
     message += `### Utility\n`
     message += `**/clear-chat** - Clear conversation\n`

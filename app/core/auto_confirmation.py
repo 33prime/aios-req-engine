@@ -309,7 +309,6 @@ def _get_table_name(entity_type: str) -> str:
         "feature": "features",
         "persona": "personas",
         "vp_step": "vp_steps",
-        "prd_section": "prd_sections",
     }
     return table_map.get(entity_type, f"{entity_type}s")
 

@@ -24,7 +24,6 @@ from app.core.schemas_strategic_context import GeneratedStrategicContext
 from app.db.signals import list_project_signals
 from app.db.stakeholders import upsert_stakeholder
 from app.db.strategic_context import get_strategic_context, upsert_strategic_context
-from app.db.prd import list_prd_sections
 from app.db.personas import list_personas
 from app.db.features import list_features
 from app.db.vp import list_vp_steps
@@ -265,17 +264,9 @@ def _get_state_snapshot(project_id: UUID) -> dict[str, Any]:
         project_id: Project UUID
 
     Returns:
-        Dict with prd, personas, features, vp_steps
+        Dict with personas, features, vp_steps
     """
     snapshot = {}
-
-    try:
-        # Get PRD sections
-        prd_sections = list_prd_sections(project_id)
-        if prd_sections:
-            snapshot["prd"] = {"sections": prd_sections}
-    except Exception as e:
-        logger.warning(f"Failed to get PRD: {e}")
 
     try:
         # Get personas

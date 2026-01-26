@@ -102,7 +102,7 @@ def propagate_status_to_chunks(
     3. Updates those chunks' confirmation_status metadata
 
     Args:
-        entity_type: Type of entity ("feature", "prd_section", "vp_step")
+        entity_type: Type of entity ("feature", "vp_step", "persona")
         entity_id: UUID of the entity
         new_status: New confirmation status
 
@@ -119,8 +119,8 @@ def propagate_status_to_chunks(
     # Map entity type to table name
     table_map = {
         "feature": "features",
-        "prd_section": "prd_sections",
         "vp_step": "vp_steps",
+        "persona": "personas",
     }
 
     if entity_type not in table_map:
@@ -228,7 +228,7 @@ def bulk_update_chunk_status_for_project(
 
     Args:
         project_id: Project UUID
-        entity_type: Type of entity ("feature", "prd_section", "vp_step")
+        entity_type: Type of entity ("feature", "vp_step", "persona")
         status_filter: Entity status to filter by (e.g., "confirmed_client")
         new_chunk_status: New chunk confirmation status
 
@@ -246,8 +246,8 @@ def bulk_update_chunk_status_for_project(
     """
     table_map = {
         "feature": "features",
-        "prd_section": "prd_sections",
         "vp_step": "vp_steps",
+        "persona": "personas",
     }
 
     if entity_type not in table_map:

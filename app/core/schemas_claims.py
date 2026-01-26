@@ -17,7 +17,7 @@ from pydantic import BaseModel, Field
 class ClaimTarget(BaseModel):
     """Target entity for a claim."""
 
-    type: Literal["feature", "persona", "prd_section", "vp_step"]
+    type: Literal["feature", "persona", "vp_step"]
     id: UUID | None = None  # None if proposing new entity
     field: str  # Which field to update (e.g., "acceptance_criteria", "description")
 
@@ -75,7 +75,7 @@ class ScopedPatch(BaseModel):
     Contains the changes to apply, limited to specific fields.
     """
 
-    entity_type: Literal["feature", "persona", "prd_section", "vp_step"]
+    entity_type: Literal["feature", "persona", "vp_step"]
     entity_id: UUID
     entity_name: str  # For logging/display
     allowed_fields: list[str] = Field(
@@ -118,8 +118,8 @@ class CanonicalEntity(BaseModel):
 
     id: UUID
     name: str
-    type: Literal["feature", "persona", "prd_section", "vp_step"]
-    slug: str | None = None  # For personas and prd_sections
+    type: Literal["feature", "persona", "vp_step"]
+    slug: str | None = None  # For personas
     context: str = Field(
         default="",
         description="Brief context snippet for LLM routing (e.g., role, description)",
@@ -132,14 +132,11 @@ class CanonicalIndex(BaseModel):
 
     features: list[CanonicalEntity]
     personas: list[CanonicalEntity]
-    prd_sections: list[CanonicalEntity]
     vp_steps: list[CanonicalEntity]
 
     def all_entities(self) -> list[CanonicalEntity]:
         """Get all entities as a flat list."""
-        return (
-            self.features + self.personas + self.prd_sections + self.vp_steps
-        )
+        return self.features + self.personas + self.vp_steps
 
     def get_by_id(self, entity_id: UUID) -> CanonicalEntity | None:
         """Find entity by ID."""

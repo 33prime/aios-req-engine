@@ -89,10 +89,10 @@ export function ActivityDrawer({ projectId, isOpen, onClose }: ActivityDrawerPro
         return <Zap className="h-3 w-3 text-blue-500" />
       case 'persona':
         return <Users className="h-3 w-3 text-purple-500" />
-      case 'prd_section':
-        return <FileText className="h-3 w-3 text-green-500" />
       case 'vp_step':
         return <GitBranch className="h-3 w-3 text-orange-500" />
+      case 'business_driver':
+        return <FileText className="h-3 w-3 text-green-500" />
       default:
         return null
     }

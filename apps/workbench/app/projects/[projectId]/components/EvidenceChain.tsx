@@ -10,7 +10,7 @@ import { useState } from 'react';
 import { ChevronDown, ChevronUp, FileText, Search, User, Lightbulb, ExternalLink } from 'lucide-react';
 
 export interface Evidence {
-  source_type: 'signal' | 'research' | 'competitive' | 'persona' | 'feature' | 'prd_section' | 'vp_step' | 'user_input';
+  source_type: 'signal' | 'research' | 'competitive' | 'persona' | 'feature' | 'vp_step' | 'user_input' | 'business_driver';
   source_id: string;
   source_name: string;
   excerpt: string;
@@ -35,9 +35,9 @@ const SOURCE_TYPE_CONFIG = {
   competitive: { icon: Search, label: 'Competitive', color: 'orange' },
   persona: { icon: User, label: 'Persona', color: 'green' },
   feature: { icon: Lightbulb, label: 'Feature', color: 'indigo' },
-  prd_section: { icon: FileText, label: 'PRD', color: 'gray' },
   vp_step: { icon: FileText, label: 'Value Path', color: 'cyan' },
   user_input: { icon: User, label: 'User Input', color: 'pink' },
+  business_driver: { icon: FileText, label: 'Business Driver', color: 'gray' },
 };
 
 export function EvidenceChain({

@@ -184,7 +184,6 @@ def _is_confirmed_client(patch_data: dict, project_id: UUID) -> bool:
             "feature": "features",
             "persona": "personas",
             "vp_step": "vp_steps",
-            "prd_section": "prd_sections",
             "strategic_context": "strategic_context",
         }
         table_name = table_map.get(entity_type)

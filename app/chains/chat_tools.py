@@ -195,7 +195,7 @@ def get_tool_definitions() -> List[Dict[str, Any]]:
         },
         {
             "name": "apply_proposal",
-            "description": "Apply a batch proposal atomically, updating all entities as specified. Use this after the user has previewed and approved a proposal. IMPORTANT: For proposals with >3 changes, require confirmation.",
+            "description": "Apply a batch proposal atomically, updating all entities as specified. Use this after the user has previewed and approved a proposal.",
             "input_schema": {
                 "type": "object",
                 "properties": {
@@ -270,13 +270,13 @@ def get_tool_definitions() -> List[Dict[str, Any]]:
         },
         {
             "name": "attach_evidence",
-            "description": "Link research chunks to features, PRD sections, or Value Path steps as supporting evidence. Use this to strengthen decisions with research backing and create audit trail.",
+            "description": "Link research chunks to features or Value Path steps as supporting evidence. Use this to strengthen decisions with research backing and create audit trail.",
             "input_schema": {
                 "type": "object",
                 "properties": {
                     "entity_type": {
                         "type": "string",
-                        "enum": ["feature", "prd_section", "vp_step"],
+                        "enum": ["feature", "vp_step", "persona"],
                         "description": "Type of entity to attach evidence to",
                     },
                     "entity_id": {
@@ -306,7 +306,7 @@ def get_tool_definitions() -> List[Dict[str, Any]]:
                         "type": "array",
                         "items": {
                             "type": "string",
-                            "enum": ["feature", "prd_section", "vp_step"],
+                            "enum": ["feature", "vp_step", "persona"],
                         },
                         "description": "Types of entities to check (defaults to all)",
                     },
@@ -342,11 +342,6 @@ def get_tool_definitions() -> List[Dict[str, Any]]:
                                 "type": "array",
                                 "items": {"type": "string"},
                                 "description": "Limit to specific feature UUIDs",
-                            },
-                            "prd_section_slugs": {
-                                "type": "array",
-                                "items": {"type": "string"},
-                                "description": "Limit to specific PRD section slugs",
                             },
                             "categories": {
                                 "type": "array",
@@ -1017,8 +1012,6 @@ async def _get_project_status(project_id: UUID, params: Dict[str, Any]) -> Dict[
     include_details = params.get("include_details", False)
 
     # Get counts in parallel
-    prd_response = supabase.table("prd_sections").select("id", count="exact").eq("project_id", str(project_id)).execute()
-
     features_response = supabase.table("features").select("id", count="exact").eq("project_id", str(project_id)).execute()
 
     personas_response = supabase.table("personas").select("id", count="exact").eq("project_id", str(project_id)).execute()
@@ -1073,7 +1066,6 @@ async def _get_project_status(project_id: UUID, params: Dict[str, Any]) -> Dict[
 
     status = {
         "counts": {
-            "prd_sections": prd_response.count or 0,
             "features": features_response.count or 0,
             "personas": personas_response.count or 0,
             "vp_steps": vp_response.count or 0,
@@ -1112,7 +1104,7 @@ async def _get_project_status(project_id: UUID, params: Dict[str, Any]) -> Dict[
     else:
         status["needs_attention"] = "No urgent items"
 
-    status["message"] = f"Project has {status['counts']['prd_sections']} PRD sections, {status['counts']['features']} features, {status['counts']['vp_steps']} VP steps"
+    status["message"] = f"Project has {status['counts']['features']} features, {status['counts']['personas']} personas, {status['counts']['vp_steps']} VP steps"
 
     return status
 
@@ -1585,16 +1577,7 @@ async def _apply_proposal(project_id: UUID, params: Dict[str, Any]) -> Dict[str,
         if not proposal:
             return {"error": f"Proposal {proposal_id} not found"}
 
-        # Check if confirmation is needed
         changes_count = len(proposal.get("changes", []))
-        if changes_count > 3 and not confirmed:
-            return {
-                "success": False,
-                "error": "Confirmation required",
-                "message": f"This proposal has {changes_count} changes. Please confirm before applying.",
-                "requires_confirmation": True,
-                "changes_count": changes_count,
-            }
 
         # Mark as previewed if not already
         if proposal["status"] == "pending":
@@ -1635,7 +1618,6 @@ async def _analyze_gaps(project_id: UUID, params: Dict[str, Any]) -> Dict[str, A
     """
     from app.db.features import list_features
     from app.db.personas import list_personas
-    from app.db.prd import list_prd_sections
     from app.db.vp import list_vp_steps
 
     gap_types = params.get("gap_types", ["evidence", "personas", "features", "vp_steps"])
@@ -1647,7 +1629,6 @@ async def _analyze_gaps(project_id: UUID, params: Dict[str, Any]) -> Dict[str, A
         # Analyze evidence gaps
         if "evidence" in gap_types:
             features = list_features(project_id)
-            prd_sections = list_prd_sections(project_id)
             vp_steps = list_vp_steps(project_id)
 
             # Filter by scope
@@ -1658,9 +1639,6 @@ async def _analyze_gaps(project_id: UUID, params: Dict[str, Any]) -> Dict[str, A
             features_without_evidence = [
                 f["name"] for f in features if not f.get("evidence") or len(f["evidence"]) == 0
             ]
-            prd_without_evidence = [
-                s["label"] for s in prd_sections if not s.get("evidence") or len(s["evidence"]) == 0
-            ]
             vp_without_evidence = [
                 f"Step {s['step_index']}" for s in vp_steps if not s.get("evidence") or len(s["evidence"]) == 0
             ]
@@ -1668,11 +1646,9 @@ async def _analyze_gaps(project_id: UUID, params: Dict[str, Any]) -> Dict[str, A
             gaps["evidence"] = {
                 "features_count": len(features_without_evidence),
                 "features": features_without_evidence[:5],  # Show first 5
-                "prd_sections_count": len(prd_without_evidence),
-                "prd_sections": prd_without_evidence[:5],
                 "vp_steps_count": len(vp_without_evidence),
                 "vp_steps": vp_without_evidence[:5],
-                "message": f"{len(features_without_evidence)} features, {len(prd_without_evidence)} PRD sections, and {len(vp_without_evidence)} VP steps lack evidence",
+                "message": f"{len(features_without_evidence)} features and {len(vp_without_evidence)} VP steps lack evidence",
             }
 
         # Analyze persona gaps
@@ -1931,8 +1907,8 @@ async def _attach_evidence(project_id: UUID, params: Dict[str, Any]) -> Dict[str
         # Map entity type to table name
         table_map = {
             "feature": "features",
-            "prd_section": "prd_sections",
             "vp_step": "vp_steps",
+            "persona": "personas",
         }
 
         table_name = table_map.get(entity_type)
@@ -2004,7 +1980,7 @@ async def _find_evidence_gaps(project_id: UUID, params: Dict[str, Any]) -> Dict[
     try:
         supabase = get_supabase()
 
-        entity_types = params.get("entity_types", ["feature", "prd_section", "vp_step"])
+        entity_types = params.get("entity_types", ["feature", "vp_step", "persona"])
         mvp_only = params.get("mvp_only", True)
         suggest_queries = params.get("suggest_queries", True)
 
@@ -2034,28 +2010,6 @@ async def _find_evidence_gaps(project_id: UUID, params: Dict[str, Any]) -> Dict[
                 "count": len(features_without_evidence),
                 "items": features_without_evidence[:10],  # Limit to 10
                 "message": f"{len(features_without_evidence)} features lack evidence",
-            }
-
-        # Check PRD sections
-        if "prd_section" in entity_types:
-            prd_response = supabase.table("prd_sections").select("*").eq("project_id", str(project_id)).execute()
-            prd_sections = prd_response.data or []
-
-            prd_without_evidence = []
-            for section in prd_sections:
-                evidence = section.get("evidence", [])
-                if not evidence or len(evidence) == 0:
-                    prd_without_evidence.append({
-                        "id": section["id"],
-                        "label": section.get("label", "Untitled"),
-                        "slug": section.get("slug", ""),
-                        "suggested_query": f"{section.get('label', '')} requirements" if suggest_queries else None,
-                    })
-
-            gaps["prd_sections"] = {
-                "count": len(prd_without_evidence),
-                "items": prd_without_evidence[:10],
-                "message": f"{len(prd_without_evidence)} PRD sections lack evidence",
             }
 
         # Check VP steps
@@ -2451,6 +2405,27 @@ async def _add_signal(project_id: UUID, params: Dict[str, Any]) -> Dict[str, Any
         supabase = get_supabase()
         run_id = str(uuid_module.uuid4())
 
+        # Derive a meaningful title from the content (first line, truncated)
+        def derive_title(text: str, max_length: int = 60) -> str:
+            """Derive a title from content - first non-empty line, cleaned and truncated."""
+            lines = text.strip().split('\n')
+            for line in lines:
+                cleaned = line.strip()
+                # Skip empty lines or lines that look like timestamps/metadata
+                if cleaned and not cleaned.startswith('[') and len(cleaned) > 5:
+                    # Remove common transcript markers
+                    if cleaned.lower().startswith(('speaker', 'transcript', '---')):
+                        continue
+                    # Truncate and add ellipsis if needed
+                    if len(cleaned) > max_length:
+                        return cleaned[:max_length].rsplit(' ', 1)[0] + '...'
+                    return cleaned
+            # Fallback to generic title with timestamp
+            from datetime import datetime
+            return f"Signal from {datetime.now().strftime('%b %d, %Y')}"
+
+        signal_title = derive_title(content)
+
         # Create signal record
         signal_data = {
             "project_id": str(project_id),
@@ -2460,6 +2435,7 @@ async def _add_signal(project_id: UUID, params: Dict[str, Any]) -> Dict[str, Any
             "metadata": {
                 "source": source,
                 "added_via": "chat_assistant",
+                "title": signal_title,
             },
             "run_id": run_id,
         }
@@ -2526,7 +2502,7 @@ async def _add_signal(project_id: UUID, params: Dict[str, Any]) -> Dict[str, Any
                     run_id=UUID(run_id),
                     signal_content=content,
                     signal_type=signal_type,
-                    signal_metadata={"source": source, "added_via": "chat_assistant"},
+                    signal_metadata={"source": source, "added_via": "chat_assistant", "title": signal_title},
                 )
 
                 if pipeline_result.get("success"):

@@ -1,6 +1,6 @@
-"""Surgical update graph for maintenance mode PRD updates.
+"""Surgical update graph for maintenance mode entity updates.
 
-Phase 2: Extended for all entity types (features, personas, PRD sections, VP steps)
+Phase 2: Extended for all entity types (features, personas, VP steps)
 """
 
 from typing import Any, Annotated
@@ -22,11 +22,9 @@ from app.chains.extract_claims import extract_claims_from_signal
 from app.core.claim_router import route_claims
 from app.chains.generate_scoped_patch import generate_scoped_patch
 from app.chains.generate_persona_patch import generate_persona_patch
-from app.chains.generate_prd_section_patch import generate_prd_section_patch
 from app.core.canonical_index import build_canonical_index
 from app.db.features import get_feature, update_feature
 from app.db.personas import get_persona, update_persona
-from app.db.prd import get_prd_section, update_prd_section
 from app.db.vp import get_vp_step, update_vp_step
 
 logger = get_logger(__name__)
@@ -129,7 +127,6 @@ def load_canonical_index(state: SurgicalUpdateState) -> SurgicalUpdateState:
     logger.info(
         f"Canonical index built: {len(state.canonical_index.features)} features, "
         f"{len(state.canonical_index.personas)} personas, "
-        f"{len(state.canonical_index.prd_sections)} sections, "
         f"{len(state.canonical_index.vp_steps)} VP steps",
         extra={"run_id": str(state.run_id)},
     )
@@ -212,13 +209,6 @@ def generate_patches_node(state: SurgicalUpdateState) -> SurgicalUpdateState:
                 # Personas use persona-specific generator
                 patch = generate_persona_patch(
                     persona=entity,
-                    claims=claims,
-                    run_id=state.run_id,
-                )
-            elif entity_type == "prd_section":
-                # PRD sections use section-specific generator
-                patch = generate_prd_section_patch(
-                    prd_section=entity,
                     claims=claims,
                     run_id=state.run_id,
                 )
@@ -329,8 +319,6 @@ def _load_entity(entity_type: str, entity_id: UUID) -> dict[str, Any] | None:
             return get_feature(entity_id)
         elif entity_type == "persona":
             return get_persona(entity_id)
-        elif entity_type == "prd_section":
-            return get_prd_section(entity_id)
         elif entity_type == "vp_step":
             return get_vp_step(entity_id)
         else:
@@ -346,8 +334,6 @@ def _get_allowed_fields(entity_type: str) -> list[str]:
         return ["description", "acceptance_criteria", "dependencies", "risks", "notes"]
     elif entity_type == "persona":
         return ["demographics", "psychographics", "goals", "pain_points", "description"]
-    elif entity_type == "prd_section":
-        return ["fields"]  # PRD sections store content in fields JSONB
     elif entity_type == "vp_step":
         return ["description", "user_benefit_pain", "notes"]
     else:
@@ -373,17 +359,6 @@ def _apply_patch(patch: ScopedPatch) -> None:
 
     elif patch.entity_type == "persona":
         update_persona(entity_id, changes)
-
-    elif patch.entity_type == "prd_section":
-        # PRD sections use fields JSONB
-        section = get_prd_section(entity_id)
-        if not section:
-            raise ValueError(f"PRD section {entity_id} not found")
-
-        fields = section.get("fields", {})
-        if "fields" in changes:
-            fields.update(changes["fields"])
-            update_prd_section(entity_id, {"fields": fields})
 
     elif patch.entity_type == "vp_step":
         update_vp_step(entity_id, changes)

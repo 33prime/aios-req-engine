@@ -208,7 +208,6 @@ def get_signal_impact(signal_id: UUID) -> dict[str, Any]:
         for entity_type, entity_ids in entity_ids_by_type.items():
             # Map entity_type to table name
             table_map = {
-                "prd_section": "prd_sections",
                 "vp_step": "vp_steps",
                 "feature": "features",
                 "insight": "insights",
@@ -264,7 +263,7 @@ def record_chunk_impacts(
 
     Args:
         chunk_ids: List of chunk UUIDs
-        entity_type: Type of entity ('prd_section', 'vp_step', 'feature', 'insight', 'persona')
+        entity_type: Type of entity ('vp_step', 'feature', 'insight', 'persona')
         entity_id: UUID of the entity
         usage_context: How chunks were used ('evidence' or 'enrichment')
 

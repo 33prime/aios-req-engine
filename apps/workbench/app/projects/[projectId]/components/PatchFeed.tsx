@@ -14,7 +14,7 @@ import { EvidenceGroup } from '@/components/evidence/EvidenceChip'
 interface PatchItem {
   id: string
   timestamp: string
-  entityType: 'feature' | 'persona' | 'prd_section' | 'vp_step'
+  entityType: 'feature' | 'persona' | 'vp_step' | 'business_driver'
   entityName: string
   entityId: string
   changeSummary: string
@@ -78,10 +78,10 @@ export default function PatchFeed({ projectId, limit = 20, className = '' }: Pat
         return '🎯'
       case 'persona':
         return '👤'
-      case 'prd_section':
-        return '📄'
       case 'vp_step':
         return '⚡'
+      case 'business_driver':
+        return '📊'
       default:
         return '📦'
     }

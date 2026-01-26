@@ -13,14 +13,12 @@ import { X, AlertTriangle, CheckCircle, Info, Lock } from 'lucide-react'
 interface BaselineCompleteness {
   score: number
   breakdown: {
-    prd_sections: number
     features: number
     personas: number
     vp_steps: number
     constraints: number
   }
   counts: {
-    prd_sections: number
     features: number
     personas: number
     vp_steps: number
@@ -189,11 +187,6 @@ export default function FinalizeBaselineModal({
             <div className="mb-6">
               <h3 className="text-sm font-semibold text-gray-900 mb-3">Component Status:</h3>
               <div className="space-y-2">
-                <ComponentStatusBar
-                  label="PRD Sections"
-                  score={completeness.breakdown.prd_sections}
-                  count={completeness.counts.prd_sections}
-                />
                 <ComponentStatusBar
                   label="Features"
                   score={completeness.breakdown.features}

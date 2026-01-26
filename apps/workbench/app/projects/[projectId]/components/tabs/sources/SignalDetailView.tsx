@@ -220,11 +220,11 @@ function ImpactTab({ signal, impact }: { signal: SignalWithCounts; impact: any }
   }
 
   const entityTypeLabels: Record<string, string> = {
-    prd_section: 'PRD Sections',
     vp_step: 'VP Steps',
     feature: 'Features',
     insight: 'Insights',
     persona: 'Personas',
+    business_driver: 'Business Drivers',
   }
 
   return (
@@ -262,11 +262,12 @@ function ImpactTab({ signal, impact }: { signal: SignalWithCounts; impact: any }
 function TimelineTab({ timeline }: { timeline: any[] }) {
   const eventTypeLabels: Record<string, string> = {
     signal_ingested: 'Signal Ingested',
-    prd_section_created: 'PRD Section Created',
     vp_step_created: 'VP Step Created',
     feature_created: 'Feature Created',
     insight_created: 'Insight Created',
     baseline_finalized: 'Baseline Finalized',
+    persona_created: 'Persona Created',
+    business_driver_created: 'Business Driver Created',
   }
 
   if (timeline.length === 0) {

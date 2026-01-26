@@ -49,7 +49,7 @@ interface Revision {
 }
 
 interface ChangeLogTimelineProps {
-  entityType: 'prd_section' | 'vp_step' | 'feature' | 'persona'
+  entityType: 'vp_step' | 'feature' | 'persona' | 'business_driver' | 'stakeholder'
   entityId: string
   limit?: number
 }

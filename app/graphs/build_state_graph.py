@@ -1,4 +1,4 @@
-"""State builder LangGraph agent for canonical PRD/VP/Features generation."""
+"""State builder LangGraph agent for canonical VP/Features/Personas generation."""
 
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -17,7 +17,6 @@ from app.core.state_inputs import (
     retrieve_project_chunks,
 )
 from app.db.features import bulk_replace_features
-from app.db.prd import upsert_prd_section
 from app.db.project_state import update_project_state
 from app.db.revisions import insert_state_revision
 from app.db.vp import upsert_vp_step
@@ -48,7 +47,6 @@ class BuildStateState:
     llm_output: BuildStateOutput | None = None
 
     # Output counts
-    prd_sections_count: int = 0
     vp_steps_count: int = 0
     features_count: int = 0
     personas_count: int = 0
@@ -131,8 +129,7 @@ def call_llm(state: BuildStateState) -> dict[str, Any]:
     )
 
     logger.info(
-        f"Generated {len(llm_output.prd_sections)} PRD sections, "
-        f"{len(llm_output.vp_steps)} VP steps, "
+        f"Generated {len(llm_output.vp_steps)} VP steps, "
         f"{len(llm_output.features)} features, "
         f"{len(llm_output.personas)} personas",
         extra={"run_id": str(state.run_id)},
@@ -317,7 +314,7 @@ def _words_overlap(name1: str, name2: str, threshold: int = 2) -> bool:
 
 
 def persist(state: BuildStateState) -> dict[str, Any]:
-    """Persist PRD sections, VP steps, and features to database."""
+    """Persist VP steps, features, and personas to database."""
     state = _check_max_steps(state)
 
     if not state.llm_output:
@@ -335,45 +332,6 @@ def persist(state: BuildStateState) -> dict[str, Any]:
         f"Derived confirmation_status: {confirmation_status}",
         extra={"run_id": str(state.run_id), "chunk_count": len(state.chunks)},
     )
-
-    # Upsert PRD sections
-    prd_count = 0
-    # Valid columns for prd_sections table (excluding id, project_id, slug, created_at, updated_at)
-    VALID_PRD_COLUMNS = {
-        "label",
-        "required",
-        "status",
-        "fields",
-        "client_needs",
-        "sources",
-        "evidence",
-        "enrichment",
-        "enrichment_model",
-        "enrichment_prompt_version",
-        "enrichment_schema_version",
-        "enrichment_updated_at",
-        "is_summary",
-        "summary_attribution",
-        "confirmation_status",
-    }
-
-    for section in state.llm_output.prd_sections:
-        slug = section.get("slug")
-        if not slug:
-            logger.warning("Skipping PRD section without slug")
-            continue
-
-        # Filter payload to only include valid database columns
-        payload = {k: v for k, v in section.items() if k in VALID_PRD_COLUMNS}
-        # Add derived confirmation status
-        payload["confirmation_status"] = confirmation_status
-
-        upsert_prd_section(
-            project_id=state.project_id,
-            slug=slug,
-            payload=payload,
-        )
-        prd_count += 1
 
     # Upsert VP steps
     vp_count = 0
@@ -481,11 +439,10 @@ def persist(state: BuildStateState) -> dict[str, Any]:
     }
 
     diff = {
-        "prd_sections_created": prd_count,
         "vp_steps_created": vp_count,
         "features_created": features_count,
         "personas_created": personas_count,
-        "total_changes": prd_count + vp_count + features_count + personas_count
+        "total_changes": vp_count + features_count + personas_count
     }
 
     insert_state_revision(
@@ -504,12 +461,11 @@ def persist(state: BuildStateState) -> dict[str, Any]:
     update_project_state(state.project_id, checkpoint_patch)
 
     logger.info(
-        f"Persisted {prd_count} PRD sections, {vp_count} VP steps, {features_count} features, {personas_count} personas. Created revision and updated checkpoint.",
+        f"Persisted {vp_count} VP steps, {features_count} features, {personas_count} personas. Created revision and updated checkpoint.",
         extra={"run_id": str(state.run_id)},
     )
 
     return {
-        "prd_sections_count": prd_count,
         "vp_steps_count": vp_count,
         "features_count": features_count,
         "personas_count": personas_count,
@@ -544,7 +500,7 @@ def run_build_state_agent(
     include_research: bool = True,
     top_k_context: int = 24,
     model_override: str | None = None,
-) -> tuple[BuildStateOutput, int, int, int]:
+) -> tuple[BuildStateOutput, int, int]:
     """
     Run the state builder agent.
 
@@ -557,7 +513,7 @@ def run_build_state_agent(
         model_override: Optional model override
 
     Returns:
-        Tuple of (llm_output, prd_sections_count, vp_steps_count, features_count)
+        Tuple of (llm_output, vp_steps_count, features_count)
 
     Raises:
         Exception: If graph execution fails
@@ -591,7 +547,6 @@ def run_build_state_agent(
 
     # Extract results from final state (LangGraph returns dict)
     llm_output = final_state.get("llm_output")
-    prd_sections_count = final_state.get("prd_sections_count", 0)
     vp_steps_count = final_state.get("vp_steps_count", 0)
     features_count = final_state.get("features_count", 0)
 
@@ -600,7 +555,6 @@ def run_build_state_agent(
 
     return (
         llm_output,
-        prd_sections_count,
         vp_steps_count,
         features_count,
     )

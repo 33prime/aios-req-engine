@@ -156,12 +156,12 @@ export function MeetingAgendaBuilder({
                             </h4>
                             <span
                               className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium flex-shrink-0 ${
-                                confirmation.kind === 'prd'
-                                  ? 'bg-green-100 text-green-800'
-                                  : confirmation.kind === 'vp'
+                                confirmation.kind === 'vp'
                                   ? 'bg-purple-100 text-purple-800'
                                   : confirmation.kind === 'feature'
                                   ? 'bg-blue-100 text-blue-800'
+                                  : confirmation.kind === 'persona'
+                                  ? 'bg-green-100 text-green-800'
                                   : 'bg-orange-100 text-orange-800'
                               }`}
                             >

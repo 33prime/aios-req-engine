@@ -98,43 +98,20 @@ def build_canonical_index(project_id: UUID) -> CanonicalIndex:
         for v in (vp_steps_response.data if vp_steps_response and vp_steps_response.data else [])
     ]
 
-    # Load PRD sections
-    prd_sections_response = (
-        supabase.table("prd_sections")
-        .select("id, slug, label, content, confirmation_status")
-        .eq("project_id", str(project_id))
-        .order("created_at")
-        .execute()
-    )
-
-    prd_sections = [
-        CanonicalEntity(
-            id=s["id"],
-            type="prd_section",
-            name=s.get("label", s["slug"]),
-            slug=s["slug"],
-            description=s.get("content", "")[:200] if s.get("content") else "",
-            confirmation_status=s.get("confirmation_status", "ai_generated"),
-        )
-        for s in (prd_sections_response.data if prd_sections_response and prd_sections_response.data else [])
-    ]
-
     index = CanonicalIndex(
         features=features,
         personas=personas,
-        prd_sections=prd_sections,
         vp_steps=vp_steps,
     )
 
     logger.info(
         f"Built canonical index: {len(features)} features, {len(personas)} personas, "
-        f"{len(vp_steps)} VP steps, {len(prd_sections)} PRD sections",
+        f"{len(vp_steps)} VP steps",
         extra={
             "project_id": str(project_id),
             "feature_count": len(features),
             "persona_count": len(personas),
             "vp_step_count": len(vp_steps),
-            "prd_section_count": len(prd_sections),
         },
     )
 

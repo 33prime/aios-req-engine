@@ -495,18 +495,7 @@ async def get_evidence_stats(project_id: UUID):
                 if evidence.get("chunk_id"):
                     linked_chunk_ids.add(evidence["chunk_id"])
 
-        # Also check PRD sections and VP steps
-        prd_response = (
-            supabase.table("prd_sections")
-            .select("evidence")
-            .eq("project_id", str(project_id))
-            .execute()
-        )
-        for section in prd_response.data or []:
-            for evidence in (section.get("evidence") or []):
-                if evidence.get("chunk_id"):
-                    linked_chunk_ids.add(evidence["chunk_id"])
-
+        # Also check VP steps
         vp_response = (
             supabase.table("vp_steps")
             .select("evidence")
@@ -562,23 +551,6 @@ async def get_evidence_gaps(project_id: UUID):
                     "entity_type": "feature",
                     "entity_id": feature["id"],
                     "entity_name": feature.get("name", "Untitled"),
-                    "has_evidence": False,
-                })
-
-        # Check PRD sections
-        prd_response = (
-            supabase.table("prd_sections")
-            .select("id, label, evidence")
-            .eq("project_id", str(project_id))
-            .execute()
-        )
-        for section in prd_response.data or []:
-            evidence = section.get("evidence") or []
-            if len(evidence) == 0:
-                gaps.append({
-                    "entity_type": "prd_section",
-                    "entity_id": section["id"],
-                    "entity_name": section.get("label", "Untitled"),
                     "has_evidence": False,
                 })
 

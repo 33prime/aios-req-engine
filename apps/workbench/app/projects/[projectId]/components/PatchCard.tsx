@@ -15,7 +15,7 @@ export interface PatchInsight {
   id: string;
   status: 'open' | 'queued' | 'applied' | 'dismissed';
   patch_data: {
-    target_entity_type: 'feature' | 'prd_section' | 'vp_step';
+    target_entity_type: 'feature' | 'vp_step' | 'persona' | 'business_driver';
     target_entity_id: string;
     proposed_changes: Record<string, any>;
     rationale: string;
@@ -37,10 +37,11 @@ interface PatchCardProps {
   expanded?: boolean;
 }
 
-const ENTITY_TYPE_LABELS = {
+const ENTITY_TYPE_LABELS: Record<string, string> = {
   feature: 'Feature',
-  prd_section: 'PRD Section',
   vp_step: 'Value Path Step',
+  persona: 'Persona',
+  business_driver: 'Business Driver',
 };
 
 export function PatchCard({ patch, onAction, expanded: defaultExpanded = false }: PatchCardProps) {

@@ -22,7 +22,7 @@ class ExtractedEntity(BaseModel):
     """Entity extracted from a signal by any extraction agent."""
 
     entity_type: Literal[
-        "feature", "persona", "vp_step", "prd_section", "stakeholder", "constraint",
+        "feature", "persona", "vp_step", "stakeholder", "constraint",
         "business_driver", "competitor_ref", "company_info"
     ]
     raw_data: dict[str, Any]  # Raw extraction output
@@ -64,7 +64,7 @@ class ConsolidatedChange(BaseModel):
     """A single change to apply (create or update)."""
 
     entity_type: Literal[
-        "feature", "persona", "vp_step", "prd_section", "stakeholder", "constraint",
+        "feature", "persona", "vp_step", "stakeholder", "constraint",
         "business_driver", "competitor_ref", "company_info"
     ]
     operation: Literal["create", "update"]
@@ -94,7 +94,6 @@ class ConsolidationResult(BaseModel):
     features: list[ConsolidatedChange] = Field(default_factory=list)
     personas: list[ConsolidatedChange] = Field(default_factory=list)
     vp_steps: list[ConsolidatedChange] = Field(default_factory=list)
-    prd_sections: list[ConsolidatedChange] = Field(default_factory=list)
     stakeholders: list[ConsolidatedChange] = Field(default_factory=list)
     constraints: list[ConsolidatedChange] = Field(default_factory=list)
     business_drivers: list[ConsolidatedChange] = Field(default_factory=list)
