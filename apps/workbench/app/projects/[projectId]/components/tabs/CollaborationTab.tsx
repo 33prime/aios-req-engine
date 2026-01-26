@@ -36,6 +36,7 @@ import {
   ClientPortalCard,
   TouchpointHistory,
 } from '@/components/collaboration'
+import ClientPortalSection from '../ClientPortalSection'
 
 interface CollaborationTabProps {
   projectId: string
@@ -217,6 +218,14 @@ export function CollaborationTab({ projectId, projectName = 'Project' }: Collabo
             portalEnabled={portalSync.portal_enabled}
           />
         </div>
+      )}
+
+      {/* Client Portal Management - Shows invited clients, invite functionality */}
+      {portalSync.portal_enabled && (
+        <ClientPortalSection
+          projectId={projectId}
+          projectName={projectName}
+        />
       )}
 
       {/* Pending Validation - Full Width (primarily for post-discovery) */}

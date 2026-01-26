@@ -17,6 +17,7 @@ import {
   ExternalLink,
   AlertCircle,
   RefreshCw,
+  UserPlus,
 } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 import { PortalSyncIndicator } from './PortalSyncIndicator'
@@ -45,6 +46,7 @@ interface ClientPortalCardProps {
   onManagePortal?: () => void
   onEnablePortal?: () => void
   onRefresh?: () => void
+  onInviteClient?: () => void
 }
 
 const phaseLabels: Record<string, string> = {
@@ -60,6 +62,7 @@ export function ClientPortalCard({
   onManagePortal,
   onEnablePortal,
   onRefresh,
+  onInviteClient,
 }: ClientPortalCardProps) {
   const [isRefreshing, setIsRefreshing] = useState(false)
 
@@ -149,10 +152,21 @@ export function ClientPortalCard({
                 <Users className="w-4 h-4" />
                 Clients
               </span>
-              <span className="font-medium text-gray-900">
-                {portalSync.clients_active}/{portalSync.clients_invited}
-                <span className="text-gray-400 font-normal ml-1">active</span>
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="font-medium text-gray-900">
+                  {portalSync.clients_active}/{portalSync.clients_invited}
+                  <span className="text-gray-400 font-normal ml-1">active</span>
+                </span>
+                {onInviteClient && (
+                  <button
+                    onClick={onInviteClient}
+                    className="p-1 text-[#009b87] hover:bg-[#009b87]/10 rounded transition-colors"
+                    title="Invite client"
+                  >
+                    <UserPlus className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
             </div>
 
             {/* Sync progress indicator */}
