@@ -210,57 +210,22 @@ async def invite_client_to_project(
         try:
             client = get_client()
 
-            # For new users, we need to create them in Supabase Auth first
-            if created:
-                # Use admin API to create user with auto-confirm
-                try:
-                    client.auth.admin.create_user({
-                        "email": data.email,
-                        "email_confirm": True,  # Auto-confirm the email
-                        "user_metadata": {
-                            "first_name": data.first_name,
-                            "last_name": data.last_name,
-                        },
-                    })
-                    logger.info(f"Created auth user for {data.email}")
-                except Exception as create_err:
-                    # User might already exist in auth, that's ok
-                    logger.info(f"Auth user creation note: {create_err}")
-
-            # Use admin API to generate magic link (bypasses signup restrictions)
-            logger.info(f"Generating magic link for {data.email}")
-            result = client.auth.admin.generate_link({
-                "type": "magiclink",
+            # Send magic link via OTP - this will create the user if needed
+            # and send the email automatically
+            logger.info(f"Sending magic link to {data.email}")
+            client.auth.sign_in_with_otp({
                 "email": data.email,
                 "options": {
-                    "redirect_to": "http://localhost:3001/auth/verify",
+                    "email_redirect_to": "http://localhost:3001/auth/verify",
+                    "should_create_user": True,
+                    "data": {
+                        "first_name": data.first_name,
+                        "last_name": data.last_name,
+                    },
                 },
             })
-            logger.info(f"Magic link generated: {result}")
-
-            # The result contains the magic link URL - we need to send it via email
-            # Since Supabase won't send it automatically with admin API, we use invite_user_by_email instead
-            # Actually, let's use invite_user_by_email which sends the email
-            try:
-                client.auth.admin.invite_user_by_email(
-                    data.email,
-                    options={
-                        "redirect_to": "http://localhost:3001/auth/verify",
-                    }
-                )
-                magic_link_sent = True
-                logger.info(f"Invite email sent to {data.email}")
-            except Exception as invite_err:
-                # If invite fails (user exists), try regular OTP with signup allowed
-                logger.info(f"Invite failed, trying OTP: {invite_err}")
-                client.auth.sign_in_with_otp({
-                    "email": data.email,
-                    "options": {
-                        "email_redirect_to": "http://localhost:3001/auth/verify",
-                        "should_create_user": True,  # Allow signup if needed
-                    },
-                })
-                magic_link_sent = True
+            magic_link_sent = True
+            logger.info(f"Magic link sent to {data.email}")
 
         except Exception as e:
             logger.error(f"Failed to send magic link: {e}")
