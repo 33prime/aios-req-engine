@@ -1,0 +1,23 @@
+{
+  "allowedTools": [
+    "Bash(npm *)",
+    "Bash(npx *)",
+    "Bash(uv *)",
+    "Bash(git *)",
+    "Bash(cd *)",
+    "Bash(ls *)",
+    "Bash(cat *)",
+    "Bash(mkdir *)",
+    "Bash(rm *)",
+    "Bash(mv *)",
+    "Bash(cp *)",
+    "Bash(python *)",
+    "Bash(gh *)",
+    "Edit",
+    "Write",
+    "Read",
+    "Glob",
+    "Grep",
+    "Task"
+  ]
+}
