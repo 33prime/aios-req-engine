@@ -214,32 +214,26 @@ async def invite_client_to_project(
     if data.send_email:
         try:
             client = get_client()
+            logger.info(f"Sending magic link to {data.email} via admin API")
 
-            # Send magic link via OTP
-            logger.info(f"Sending magic link to {data.email}")
+            # Use admin API to invite user - this handles existing users gracefully
+            response = client.auth.admin.invite_user_by_email(
+                data.email,
+                options={
+                    "redirect_to": "http://localhost:3001/auth/verify",
+                    "data": {
+                        "first_name": data.first_name or "",
+                        "last_name": data.last_name or "",
+                    },
+                },
+            )
 
-            # Build OTP options - only set should_create_user for new users
-            otp_options = {
-                "email_redirect_to": "http://localhost:3001/auth/verify",
-            }
-
-            if not existing_user:
-                # New user - allow Supabase to create auth user
-                otp_options["should_create_user"] = True
-                otp_options["data"] = {
-                    "first_name": data.first_name,
-                    "last_name": data.last_name,
-                }
-
-            client.auth.sign_in_with_otp({
-                "email": data.email,
-                "options": otp_options,
-            })
+            logger.info(f"Invite response: {response}")
             magic_link_sent = True
             logger.info(f"Magic link sent to {data.email}")
 
         except Exception as e:
-            logger.error(f"Failed to send magic link: {e}")
+            logger.error(f"Failed to send magic link: {e}", exc_info=True)
             magic_link_error = str(e)
 
     return ClientInviteResponse(
