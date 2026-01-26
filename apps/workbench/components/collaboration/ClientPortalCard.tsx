@@ -200,15 +200,24 @@ export function ClientPortalCard({
         )}
       </div>
 
-      {/* Action button */}
-      <div className="mt-4 pt-4 border-t border-gray-100">
+      {/* Action buttons */}
+      <div className="mt-4 pt-4 border-t border-gray-100 space-y-2">
         {portalSync.portal_enabled ? (
-          <button
-            onClick={onManagePortal}
-            className="w-full px-4 py-2 text-sm font-medium text-[#009b87] bg-[#009b87]/10 rounded-lg hover:bg-[#009b87]/20 transition-colors"
-          >
-            Manage Portal
-          </button>
+          <>
+            <button
+              onClick={onInviteClient}
+              className="w-full px-4 py-2 text-sm font-medium text-white bg-[#009b87] rounded-lg hover:bg-[#008775] transition-colors flex items-center justify-center gap-2"
+            >
+              <UserPlus className="w-4 h-4" />
+              Invite Client
+            </button>
+            <button
+              onClick={onManagePortal}
+              className="w-full px-4 py-2 text-sm font-medium text-[#009b87] bg-[#009b87]/10 rounded-lg hover:bg-[#009b87]/20 transition-colors"
+            >
+              Manage Portal
+            </button>
+          </>
         ) : (
           <button
             onClick={onEnablePortal}

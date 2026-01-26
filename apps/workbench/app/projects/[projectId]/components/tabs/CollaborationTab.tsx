@@ -20,6 +20,7 @@ import {
   discardProposal,
   getCollaborationCurrent,
   updatePortalConfig,
+  inviteClient,
   type CollaborationCurrentResponse,
 } from '@/lib/api'
 import {
@@ -27,6 +28,7 @@ import {
   Layers,
   UserCheck,
   AlertCircle,
+  X,
 } from 'lucide-react'
 import { DiscoveryPrepSection } from '../discovery-prep'
 import { ProposalPreview } from '../ProposalPreview'
@@ -56,6 +58,9 @@ export function CollaborationTab({ projectId, projectName = 'Project' }: Collabo
 
   // Task refresh state
   const [taskRefreshKey, setTaskRefreshKey] = useState(0)
+
+  // Invite modal state
+  const [showInviteModal, setShowInviteModal] = useState(false)
 
   // Load data on mount
   useEffect(() => {
@@ -201,11 +206,12 @@ export function CollaborationTab({ projectId, projectName = 'Project' }: Collabo
           projectId={projectId}
           portalSync={portalSync}
           onManagePortal={() => {
-            // Scroll to discovery prep section for now
-            document.getElementById('discovery-prep')?.scrollIntoView({ behavior: 'smooth' })
+            // Scroll to client portal section
+            document.getElementById('client-portal-section')?.scrollIntoView({ behavior: 'smooth' })
           }}
           onEnablePortal={handleEnablePortal}
           onRefresh={handleRefreshSync}
+          onInviteClient={() => setShowInviteModal(true)}
         />
       </div>
 
@@ -222,10 +228,12 @@ export function CollaborationTab({ projectId, projectName = 'Project' }: Collabo
 
       {/* Client Portal Management - Shows invited clients, invite functionality */}
       {portalSync.portal_enabled && (
-        <ClientPortalSection
-          projectId={projectId}
-          projectName={projectName}
-        />
+        <div id="client-portal-section">
+          <ClientPortalSection
+            projectId={projectId}
+            projectName={projectName}
+          />
+        </div>
       )}
 
       {/* Pending Validation - Full Width (primarily for post-discovery) */}
@@ -294,6 +302,155 @@ export function CollaborationTab({ projectId, projectName = 'Project' }: Collabo
 
       {/* Touchpoint History - Expandable */}
       <TouchpointHistory projectId={projectId} />
+
+      {/* Invite Client Modal */}
+      {showInviteModal && (
+        <InviteClientModal
+          projectId={projectId}
+          projectName={projectName}
+          onClose={() => setShowInviteModal(false)}
+          onSuccess={() => {
+            setShowInviteModal(false)
+            loadData()
+          }}
+        />
+      )}
+    </div>
+  )
+}
+
+// ============================================================================
+// Invite Client Modal
+// ============================================================================
+
+interface InviteClientModalProps {
+  projectId: string
+  projectName: string
+  onClose: () => void
+  onSuccess: () => void
+}
+
+function InviteClientModal({
+  projectId,
+  projectName,
+  onClose,
+  onSuccess,
+}: InviteClientModalProps) {
+  const [email, setEmail] = useState('')
+  const [firstName, setFirstName] = useState('')
+  const [lastName, setLastName] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!email.trim()) return
+
+    try {
+      setLoading(true)
+      setError(null)
+      await inviteClient(projectId, {
+        email: email.trim(),
+        first_name: firstName.trim() || undefined,
+        last_name: lastName.trim() || undefined,
+        send_email: true,
+      })
+      onSuccess()
+    } catch (err: any) {
+      console.error('Failed to invite client:', err)
+      setError(err.message || 'Failed to send invite')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      <div className="absolute inset-0 bg-black/50" onClick={onClose} />
+      <div className="relative bg-white rounded-xl shadow-xl w-full max-w-md p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold text-gray-900">
+            Invite Client to Portal
+          </h3>
+          <button
+            onClick={onClose}
+            className="p-1 text-gray-400 hover:text-gray-600"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Email Address *
+            </label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="client@example.com"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#009b87] focus:border-transparent"
+              required
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                First Name
+              </label>
+              <input
+                type="text"
+                value={firstName}
+                onChange={(e) => setFirstName(e.target.value)}
+                placeholder="John"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#009b87] focus:border-transparent"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Last Name
+              </label>
+              <input
+                type="text"
+                value={lastName}
+                onChange={(e) => setLastName(e.target.value)}
+                placeholder="Doe"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#009b87] focus:border-transparent"
+              />
+            </div>
+          </div>
+
+          {error && (
+            <div className="p-3 bg-red-50 border border-red-100 rounded-lg text-sm text-red-700">
+              {error}
+            </div>
+          )}
+
+          <div className="p-3 bg-blue-50 border border-blue-100 rounded-lg text-sm text-blue-700">
+            A magic link email will be sent to this address, allowing the client
+            to access the portal for "{projectName}".
+          </div>
+
+          <div className="flex justify-end gap-3 pt-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={loading || !email.trim()}
+              className="px-4 py-2 bg-[#009b87] text-white text-sm font-medium rounded-lg hover:bg-[#008775] disabled:opacity-50"
+            >
+              {loading ? 'Sending...' : 'Send Invite'}
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   )
 }
