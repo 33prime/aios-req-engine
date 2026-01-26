@@ -178,13 +178,68 @@ async def invite_client_to_project(
     auth: AuthContext = Depends(require_consultant),
 ):
     """Invite a client to a project. Creates user if needed and sends magic link."""
-    # Get or create user
+    magic_link_sent = False
+    magic_link_error = None
+
+    # Check if user already exists in our system
     existing_user = await get_user_by_email(data.email)
 
     if existing_user:
+        # User exists - just send them a new magic link
         user = existing_user
-        created = False
+
+        if data.send_email:
+            try:
+                client = get_client()
+                logger.info(f"Sending magic link to existing user {data.email}")
+
+                # For existing users, use sign_in_with_otp (no user creation needed)
+                client.auth.sign_in_with_otp({
+                    "email": data.email,
+                    "options": {
+                        "email_redirect_to": "http://localhost:3001/auth/verify",
+                    },
+                })
+                magic_link_sent = True
+                logger.info(f"Magic link sent to {data.email}")
+
+            except Exception as e:
+                logger.error(f"Failed to send magic link: {e}", exc_info=True)
+                magic_link_error = str(e)
     else:
+        # New user - invite via Supabase first, then create our user record
+        auth_user_id = None
+
+        if data.send_email:
+            try:
+                client = get_client()
+                logger.info(f"Inviting new user {data.email} via admin API")
+
+                # Use admin API to invite - this creates the auth user and sends email
+                response = client.auth.admin.invite_user_by_email(
+                    data.email,
+                    options={
+                        "redirect_to": "http://localhost:3001/auth/verify",
+                        "data": {
+                            "first_name": data.first_name or "",
+                            "last_name": data.last_name or "",
+                        },
+                    },
+                )
+
+                logger.info(f"Invite response: {response}")
+                magic_link_sent = True
+
+                # Get the auth user ID from the response
+                if response and response.user:
+                    auth_user_id = UUID(response.user.id)
+                    logger.info(f"Auth user created with ID: {auth_user_id}")
+
+            except Exception as e:
+                logger.error(f"Failed to send magic link: {e}", exc_info=True)
+                magic_link_error = str(e)
+
+        # Create our user record (with matching ID if we got one from Supabase)
         user = await create_user(
             UserCreate(
                 email=data.email,
@@ -192,9 +247,9 @@ async def invite_client_to_project(
                 first_name=data.first_name,
                 last_name=data.last_name,
                 company_name=data.company_name,
-            )
+            ),
+            user_id=auth_user_id,
         )
-        created = True
 
     # Add to project (or get existing membership)
     existing_member = await get_project_member(project_id, user.id)
@@ -207,34 +262,6 @@ async def invite_client_to_project(
             role=MemberRole.CLIENT,
             invited_by=auth.user_id,
         )
-
-    # Send magic link if requested
-    magic_link_sent = False
-    magic_link_error = None
-    if data.send_email:
-        try:
-            client = get_client()
-            logger.info(f"Sending magic link to {data.email} via admin API")
-
-            # Use admin API to invite user - this handles existing users gracefully
-            response = client.auth.admin.invite_user_by_email(
-                data.email,
-                options={
-                    "redirect_to": "http://localhost:3001/auth/verify",
-                    "data": {
-                        "first_name": data.first_name or "",
-                        "last_name": data.last_name or "",
-                    },
-                },
-            )
-
-            logger.info(f"Invite response: {response}")
-            magic_link_sent = True
-            logger.info(f"Magic link sent to {data.email}")
-
-        except Exception as e:
-            logger.error(f"Failed to send magic link: {e}", exc_info=True)
-            magic_link_error = str(e)
 
     return ClientInviteResponse(
         user=user,

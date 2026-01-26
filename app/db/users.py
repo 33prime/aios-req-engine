@@ -26,8 +26,8 @@ async def get_user_by_email(email: str) -> Optional[User]:
     return None
 
 
-async def create_user(data: UserCreate) -> User:
-    """Create a new user."""
+async def create_user(data: UserCreate, user_id: Optional[UUID] = None) -> User:
+    """Create a new user. Optionally specify the ID (e.g., to match auth.users)."""
     client = get_client()
     user_data = {
         "email": data.email.lower(),
@@ -36,6 +36,8 @@ async def create_user(data: UserCreate) -> User:
         "last_name": data.last_name,
         "company_name": data.company_name,
     }
+    if user_id:
+        user_data["id"] = str(user_id)
     result = client.table("users").insert(user_data).execute()
     return User(**result.data[0])
 
