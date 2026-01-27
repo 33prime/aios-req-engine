@@ -73,6 +73,10 @@ def upsert_vp_step(
             **base_payload,
         }
 
+        # Ensure required fields have default values (description is NOT NULL in DB)
+        if not data.get("description"):
+            data["description"] = data.get("label", f"Step {step_index}")
+
         # If there are enrichment fields, merge them into enrichment column
         if enrichment_data:
             existing_enrichment = data.get("enrichment", {}) or {}

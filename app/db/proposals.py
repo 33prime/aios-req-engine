@@ -351,9 +351,10 @@ def apply_proposal(proposal_id: UUID, applied_by: str | None = None) -> dict[str
         errors = []
 
         # Import database functions
-        from app.db.features import bulk_replace_features
+        from app.db.features import bulk_replace_features, list_features
         from app.db.vp import upsert_vp_step
         from app.db.personas import upsert_persona
+        from app.core.similarity import find_matching_feature
 
         # Valid columns for features table (must match database schema)
         # Includes all enrichment columns from migrations 0008, 0015, 0016, 0031
@@ -392,7 +393,10 @@ def apply_proposal(proposal_id: UUID, applied_by: str | None = None) -> dict[str
             if "feature" in changes_by_type:
                 feature_changes = changes_by_type["feature"]
 
-                # Handle creates individually (DO NOT use bulk_replace - it's destructive!)
+                # Get existing features for similarity matching
+                existing_features = list_features(project_id)
+
+                # Handle creates individually with similarity checking
                 for change in feature_changes["creates"]:
                     after = change.get("after")
 
@@ -404,7 +408,8 @@ def apply_proposal(proposal_id: UUID, applied_by: str | None = None) -> dict[str
                     feature_data["project_id"] = str(project_id)
 
                     # Validate required field
-                    if not feature_data.get("name"):
+                    feature_name = feature_data.get("name", "")
+                    if not feature_name:
                         logger.warning(f"Skipping feature create: missing 'name' field")
                         errors.append("Feature missing required 'name' field")
                         continue
@@ -413,15 +418,61 @@ def apply_proposal(proposal_id: UUID, applied_by: str | None = None) -> dict[str
                     if not feature_data.get("category"):
                         feature_data["category"] = "Core"
 
-                    # Insert new feature
+                    # Check for similar existing features using similarity matching
+                    match_result = find_matching_feature(feature_name, existing_features)
+
+                    if match_result.is_match and match_result.matched_item:
+                        matched = match_result.matched_item
+                        matched_name = matched.get("name", "")
+                        matched_id = matched.get("id")
+
+                        logger.info(
+                            f"Feature '{feature_name}' matches existing '{matched_name}' "
+                            f"(score: {match_result.score:.2f}, method: {match_result.strategy.value}) - merging evidence"
+                        )
+
+                        # Merge new evidence into existing feature
+                        new_evidence = after.get("evidence", [])
+                        if new_evidence and matched_id:
+                            existing_evidence = matched.get("evidence", []) or []
+
+                            # Deduplicate by chunk_id
+                            existing_chunk_ids = {
+                                e.get("chunk_id") for e in existing_evidence if e.get("chunk_id")
+                            }
+                            unique_new_evidence = [
+                                e for e in new_evidence
+                                if e.get("chunk_id") and e.get("chunk_id") not in existing_chunk_ids
+                            ]
+
+                            if unique_new_evidence:
+                                combined_evidence = existing_evidence + unique_new_evidence
+                                try:
+                                    supabase.table("features").update({
+                                        "evidence": combined_evidence,
+                                        "updated_at": "now()",
+                                    }).eq("id", matched_id).execute()
+
+                                    logger.info(
+                                        f"Merged {len(unique_new_evidence)} evidence items into '{matched_name}'"
+                                    )
+                                except Exception as merge_err:
+                                    logger.warning(f"Failed to merge evidence: {merge_err}")
+
+                        applied_count += 1  # Count as applied (merged)
+                        continue  # Skip insert - merged instead
+
+                    # No match found - insert new feature
                     insert_response = supabase.table("features").insert(feature_data).execute()
 
                     if insert_response.data:
                         applied_count += 1
-                        logger.info(f"Created feature: {feature_data.get('name', 'Untitled')}")
+                        # Add to existing_features list so subsequent duplicates are caught
+                        existing_features.append(insert_response.data[0])
+                        logger.info(f"Created feature: {feature_name}")
                     else:
-                        logger.warning(f"Failed to create feature: {feature_data.get('name', 'Untitled')} - no data returned")
-                        errors.append(f"Failed to create feature: {feature_data.get('name', 'Untitled')}")
+                        logger.warning(f"Failed to create feature: {feature_name} - no data returned")
+                        errors.append(f"Failed to create feature: {feature_name}")
 
                 # Handle updates individually
                 for change in feature_changes["updates"]:

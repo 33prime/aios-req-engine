@@ -70,37 +70,37 @@ class CompetitorRefOut(BaseModel):
     id: UUID
     project_id: UUID
     name: str
-    website: str | None
-    product_name: str | None
-    category: str | None
-    research_notes: str | None
+    website: str | None = None
+    product_name: str | None = None
+    category: str | None = None
+    research_notes: str | None = None
 
     # Enrichment fields
-    market_position: str | None
-    pricing_model: str | None
-    target_audience: str | None
-    key_differentiator: str | None
-    feature_comparison: dict[str, Any] | None
-    funding_stage: str | None
-    estimated_users: str | None
-    founded_year: int | None
-    employee_count: str | None
+    market_position: str | None = None
+    pricing_model: str | None = None
+    target_audience: str | None = None
+    key_differentiator: str | None = None
+    feature_comparison: dict[str, Any] | None = None
+    funding_stage: str | None = None
+    estimated_users: str | None = None
+    founded_year: int | None = None
+    employee_count: str | None = None
 
     # Tracking fields
-    evidence: list[dict[str, Any]] | None
-    source_signal_ids: list[UUID] | None
-    version: int | None
-    created_by: str | None
-    enrichment_status: str | None
-    enrichment_attempted_at: str | None
-    enrichment_error: str | None
+    evidence: list[dict[str, Any]] | None = None
+    source_signal_ids: list[UUID] | None = None
+    version: int | None = None
+    created_by: str | None = None
+    enrichment_status: str | None = None
+    enrichment_attempted_at: str | None = None
+    enrichment_error: str | None = None
 
     # Standard fields
-    source_type: str | None
-    confirmation_status: str | None
-    extracted_from_signal_id: UUID | None
+    source_type: str | None = None
+    confirmation_status: str | None = None
+    extracted_from_signal_id: UUID | None = None
     created_at: str
-    updated_at: str | None
+    updated_at: str | None = None
 
     class Config:
         from_attributes = True
