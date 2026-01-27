@@ -200,22 +200,14 @@ def build_reconcile_prompt(
     lines.append("=== RECONCILIATION TASK ===\n")
     lines.append(
         "You are reconciling new client signals with the existing canonical state.\n"
-        "Update PRD sections, Value Path steps, and Features as needed.\n"
+        "Update Value Path steps and Features as needed.\n"
         "Create confirmation items for anything that needs client validation.\n\n"
     )
 
     # Current canonical state
     lines.append("=== CURRENT CANONICAL STATE ===\n\n")
 
-    lines.append(f"## PRD Sections ({len(canonical_snapshot['prd_sections'])})\n")
-    for section in canonical_snapshot["prd_sections"]:
-        lines.append(f"- slug: {section['slug']}\n")
-        lines.append(f"  label: {section['label']}\n")
-        lines.append(f"  status: {section['status']}\n")
-        lines.append(f"  fields: {section.get('fields', {})}\n")
-        lines.append(f"  client_needs: {len(section.get('client_needs', []))} items\n\n")
-
-    lines.append(f"\n## Value Path Steps ({len(canonical_snapshot['vp_steps'])})\n")
+    lines.append(f"## Value Path Steps ({len(canonical_snapshot['vp_steps'])})\n")
     for step in canonical_snapshot["vp_steps"]:
         lines.append(f"- step_index: {step['step_index']}\n")
         lines.append(f"  label: {step['label']}\n")

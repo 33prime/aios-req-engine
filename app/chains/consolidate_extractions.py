@@ -29,7 +29,7 @@ def get_existing_entities(project_id: UUID) -> dict[str, list[dict]]:
     Fetch all existing entities for a project.
 
     Returns:
-        Dict with keys: features, personas, vp_steps, prd_sections, stakeholders,
+        Dict with keys: features, personas, vp_steps, stakeholders,
         constraints, business_drivers, competitor_refs, company_info
     """
     supabase = get_supabase()
@@ -54,13 +54,6 @@ def get_existing_entities(project_id: UUID) -> dict[str, list[dict]]:
             .select("id, step_index, label, description, actor_persona_name")
             .eq("project_id", str(project_id))
             .order("step_index")
-            .execute()
-        ).data or []
-
-        prd_sections = (
-            supabase.table("prd_sections")
-            .select("id, slug, label, fields")
-            .eq("project_id", str(project_id))
             .execute()
         ).data or []
 
@@ -120,7 +113,6 @@ def get_existing_entities(project_id: UUID) -> dict[str, list[dict]]:
             "features": features,
             "personas": personas,
             "vp_steps": vp_steps,
-            "prd_sections": prd_sections,
             "stakeholders": stakeholders,
             "constraints": constraints,
             "business_drivers": business_drivers,
@@ -134,7 +126,6 @@ def get_existing_entities(project_id: UUID) -> dict[str, list[dict]]:
             "features": [],
             "personas": [],
             "vp_steps": [],
-            "prd_sections": [],
             "stakeholders": [],
             "constraints": [],
             "business_drivers": [],

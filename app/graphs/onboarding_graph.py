@@ -61,11 +61,11 @@ def run_onboarding(
         logger.error(f"Extract facts failed: {e}")
         facts_count = 0
 
-    # Step 2: Build state (PRD, VP, features, personas)
+    # Step 2: Build state (VP, features, personas)
     # Run even if no facts were extracted - might still generate useful structure
     logger.info("Step 2: Running build_state")
     try:
-        build_output, prd_count, vp_count, features_count = run_build_state_agent(
+        build_output, vp_count, features_count = run_build_state_agent(
             project_id=project_id,
             job_id=None,  # Don't create separate job
             run_id=run_id,
@@ -73,19 +73,17 @@ def run_onboarding(
         )
         personas_count = len(build_output.personas) if build_output and build_output.personas else 0
         logger.info(
-            f"Built state: {prd_count} PRD sections, {vp_count} VP steps, "
+            f"Built state: {vp_count} VP steps, "
             f"{features_count} features, {personas_count} personas"
         )
     except Exception as e:
         logger.error(f"Build state failed: {e}")
-        prd_count = 0
         vp_count = 0
         features_count = 0
         personas_count = 0
 
     result = {
         "facts_extracted": facts_count,
-        "prd_sections": prd_count,
         "vp_steps": vp_count,
         "features": features_count,
         "personas": personas_count,

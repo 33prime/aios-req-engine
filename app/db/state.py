@@ -14,7 +14,6 @@ def get_enriched_state(project_id: str) -> Dict[str, List[Dict]]:
     Returns:
         {
             "features": [...],
-            "prd_sections": [...],
             "vp_steps": [...]
         }
     """
@@ -25,17 +24,12 @@ def get_enriched_state(project_id: str) -> Dict[str, List[Dict]]:
         features_response = supabase.table("features").select("*").eq("project_id", project_id).execute()
         features = features_response.data or []
 
-        # Get PRD sections
-        prd_response = supabase.table("prd_sections").select("*").eq("project_id", project_id).execute()
-        prd_sections = prd_response.data or []
-
         # Get VP steps
         vp_response = supabase.table("vp_steps").select("*").eq("project_id", project_id).order("step_index").execute()
         vp_steps = vp_response.data or []
 
         return {
             "features": features,
-            "prd_sections": prd_sections,
             "vp_steps": vp_steps
         }
 
@@ -47,7 +41,6 @@ def get_enriched_state(project_id: str) -> Dict[str, List[Dict]]:
         # Return empty state on error
         return {
             "features": [],
-            "prd_sections": [],
             "vp_steps": []
         }
 

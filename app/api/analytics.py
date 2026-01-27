@@ -63,28 +63,6 @@ async def get_project_timeline(
                 },
             })
 
-        # Get PRD section events
-        prd_response = (
-            supabase.table("prd_sections")
-            .select("id, slug, label, created_at, updated_at")
-            .eq("project_id", str(project_id))
-            .order("created_at", desc=True)
-            .limit(limit)
-            .execute()
-        )
-
-        for section in prd_response.data or []:
-            timeline_events.append({
-                "id": section["id"],
-                "type": "prd_section_created",
-                "timestamp": section["created_at"],
-                "description": f"PRD section created: {section.get('label') or section['slug']}",
-                "metadata": {
-                    "slug": section["slug"],
-                    "label": section.get("label"),
-                },
-            })
-
         # Get VP step events
         vp_response = (
             supabase.table("vp_steps")

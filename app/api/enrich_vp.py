@@ -127,7 +127,6 @@ def check_enrichment_status(project_id: UUID) -> dict[str, bool]:
     Returns:
         {
             "features_enriched": bool,
-            "prd_enriched": bool,
             "vp_enriched": bool,
             "all_complete": bool
         }
@@ -139,18 +138,15 @@ def check_enrichment_status(project_id: UUID) -> dict[str, bool]:
     # For simplicity, assume we check if enrichment field is populated
 
     features = supabase.table("features").select("details").eq("project_id", str(project_id)).execute().data
-    prd = supabase.table("prd_sections").select("enrichment").eq("project_id", str(project_id)).execute().data
     vp = supabase.table("vp_steps").select("enrichment").eq("project_id", str(project_id)).execute().data
 
     features_enriched = all(f.get("details") is not None for f in features) if features else False
-    prd_enriched = all(p.get("enrichment") is not None for p in prd) if prd else False
     vp_enriched = all(v.get("enrichment") is not None for v in vp) if vp else False
 
     return {
         "features_enriched": features_enriched,
-        "prd_enriched": prd_enriched,
         "vp_enriched": vp_enriched,
-        "all_complete": features_enriched and prd_enriched and vp_enriched
+        "all_complete": features_enriched and vp_enriched
     }
 
 

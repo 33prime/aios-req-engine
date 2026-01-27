@@ -88,15 +88,12 @@ CLAIM_EXTRACTION_USER_PROMPT = """# Signal Content
 ## Personas
 {personas_list}
 
-## PRD Sections
-{prd_sections_list}
-
 ## Value Path Steps
 {vp_steps_list}
 
 # Task
 Extract all atomic claims from this signal that map to existing entities or propose new ones.
-Focus on actionable updates to features, personas, PRD sections, or VP steps.
+Focus on actionable updates to features, personas, or VP steps.
 
 Return JSON array of claims."""
 
@@ -131,7 +128,6 @@ def extract_claims_from_signal(
     # Format canonical index for prompt
     features_list = _format_entities_for_prompt(canonical_index.features)
     personas_list = _format_entities_for_prompt(canonical_index.personas)
-    prd_sections_list = _format_entities_for_prompt(canonical_index.prd_sections)
     vp_steps_list = _format_entities_for_prompt(canonical_index.vp_steps)
 
     # Build prompt
@@ -151,7 +147,6 @@ def extract_claims_from_signal(
             "signal_text": signal_text,
             "features_list": features_list,
             "personas_list": personas_list,
-            "prd_sections_list": prd_sections_list,
             "vp_steps_list": vp_steps_list,
         })
 

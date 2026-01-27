@@ -239,7 +239,6 @@ async def _stream_standard_processing(
         features = supabase.table("features").select("id", count="exact").eq("project_id", str(project_id)).execute()
         personas = supabase.table("personas").select("id", count="exact").eq("project_id", str(project_id)).execute()
         vp_steps = supabase.table("vp_steps").select("id", count="exact").eq("project_id", str(project_id)).execute()
-        prd_sections = supabase.table("prd_sections").select("id", count="exact").eq("project_id", str(project_id)).execute()
 
         yield {
             "type": StreamEvent.RECONCILE_COMPLETED,
@@ -248,7 +247,6 @@ async def _stream_standard_processing(
                 "total_features": features.count or 0,
                 "total_personas": personas.count or 0,
                 "total_vp_steps": vp_steps.count or 0,
-                "total_prd_sections": prd_sections.count or 0,
             },
             "progress": 95
         }

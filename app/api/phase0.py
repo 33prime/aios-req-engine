@@ -117,7 +117,6 @@ def _trigger_selective_enrichment(
     changed_entities: dict[str, list[str]] = {
         "features": [],
         "personas": [],
-        "prd_sections": [],
         "vp_steps": [],
     }
 
@@ -387,7 +386,7 @@ def _auto_trigger_build_state(project_id: UUID, run_id: UUID) -> None:
     try:
         from app.graphs.build_state_graph import run_build_state_agent
 
-        llm_output, prd_count, vp_count, features_count = run_build_state_agent(
+        llm_output, vp_count, features_count = run_build_state_agent(
             project_id=project_id,
             job_id=build_job_id,
             run_id=run_id,
@@ -396,13 +395,12 @@ def _auto_trigger_build_state(project_id: UUID, run_id: UUID) -> None:
 
         result = {
             "features_created": features_count,
-            "prd_sections_created": prd_count,
             "vp_steps_created": vp_count,
             "summary": llm_output.summary if hasattr(llm_output, 'summary') else "State built successfully",
         }
 
         logger.info(
-            f"Build state completed: {features_count} features, {prd_count} PRD sections, {vp_count} VP steps",
+            f"Build state completed: {features_count} features, {vp_count} VP steps",
             extra={"run_id": str(run_id), "result": result},
         )
 
@@ -491,7 +489,6 @@ def _auto_trigger_research(project_id: UUID, run_id: UUID) -> None:
         seed_context = {
             "features": enriched_state.get("features", []),
             "personas": enriched_state.get("personas", []),
-            "prd_sections": enriched_state.get("prd_sections", []),
         }
 
         llm_output, signal_id, chunks_created, queries_executed = run_research_agent_graph(
