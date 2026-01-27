@@ -37,6 +37,8 @@ import BusinessDriverCard from '@/components/business-drivers/BusinessDriverCard
 
 interface StrategicFoundationTabProps {
   projectId: string
+  activeSubtab?: string | null
+  onSubtabChange?: (subtab: string) => void
 }
 
 type SubTab = 'context' | 'drivers' | 'references' | 'analytics'
@@ -207,8 +209,23 @@ const subTabs = [
   { id: 'analytics' as SubTab, label: 'Analytics', icon: BarChart3 },
 ]
 
-export function StrategicFoundationTab({ projectId }: StrategicFoundationTabProps) {
-  const [activeSubTab, setActiveSubTab] = useState<SubTab>('context')
+// Valid subtab values for URL validation
+const VALID_SUBTABS: SubTab[] = ['context', 'drivers', 'references', 'analytics']
+const isValidSubtab = (subtab: string): subtab is SubTab => VALID_SUBTABS.includes(subtab as SubTab)
+
+export function StrategicFoundationTab({ projectId, activeSubtab, onSubtabChange }: StrategicFoundationTabProps) {
+  // Use prop if valid, otherwise fallback to internal state
+  const [internalSubTab, setInternalSubTab] = useState<SubTab>('context')
+  const currentSubTab: SubTab = activeSubtab && isValidSubtab(activeSubtab) ? activeSubtab : internalSubTab
+
+  // Handler for subtab changes - use prop callback if provided, otherwise internal state
+  const handleSubtabChange = (subtab: SubTab) => {
+    if (onSubtabChange) {
+      onSubtabChange(subtab)
+    } else {
+      setInternalSubTab(subtab)
+    }
+  }
   const [loading, setLoading] = useState(true)
   const [companyInfo, setCompanyInfo] = useState<CompanyInfo | null>(null)
   const [stakeholders, setStakeholders] = useState<Stakeholder[]>([])
@@ -317,11 +334,11 @@ export function StrategicFoundationTab({ projectId }: StrategicFoundationTabProp
         <nav className="flex space-x-4 px-2">
           {subTabs.map((tab) => {
             const Icon = tab.icon
-            const isActive = activeSubTab === tab.id
+            const isActive = currentSubTab === tab.id
             return (
               <button
                 key={tab.id}
-                onClick={() => setActiveSubTab(tab.id)}
+                onClick={() => handleSubtabChange(tab.id)}
                 className={`
                   flex items-center gap-2 px-3 py-2 text-sm font-medium border-b-2 transition-colors
                   ${isActive
@@ -339,7 +356,7 @@ export function StrategicFoundationTab({ projectId }: StrategicFoundationTabProp
       </div>
 
       {/* Sub-tab Content */}
-      {activeSubTab === 'context' && (
+      {currentSubTab === 'context' && (
         <ProjectContextSubTab
           companyInfo={companyInfo}
           stakeholders={stakeholders}
@@ -349,7 +366,7 @@ export function StrategicFoundationTab({ projectId }: StrategicFoundationTabProp
         />
       )}
 
-      {activeSubTab === 'drivers' && (
+      {currentSubTab === 'drivers' && (
         <BusinessDriversSubTab
           drivers={businessDrivers}
           constraints={constraints}
@@ -358,7 +375,7 @@ export function StrategicFoundationTab({ projectId }: StrategicFoundationTabProp
         />
       )}
 
-      {activeSubTab === 'references' && (
+      {currentSubTab === 'references' && (
         <ReferencesSubTab
           references={competitorRefs}
           projectId={projectId}
@@ -366,7 +383,7 @@ export function StrategicFoundationTab({ projectId }: StrategicFoundationTabProp
         />
       )}
 
-      {activeSubTab === 'analytics' && (
+      {currentSubTab === 'analytics' && (
         <StrategicAnalyticsDashboard projectId={projectId} />
       )}
     </div>

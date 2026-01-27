@@ -591,6 +591,9 @@ export type PendingItemType =
   | 'goal'
   | 'pain_point'
   | 'requirement'
+  | 'competitor'
+  | 'design_preference'
+  | 'stakeholder'
 
 export type PendingItemSource =
   | 'phase_workflow'
@@ -635,7 +638,7 @@ export interface PendingItem {
   description?: string
   why_needed?: string
   priority: 'high' | 'medium' | 'low'
-  added_at: string
+  created_at: string
   added_by?: string
 }
 

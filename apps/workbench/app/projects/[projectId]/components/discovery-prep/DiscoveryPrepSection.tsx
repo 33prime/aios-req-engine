@@ -191,8 +191,8 @@ export function DiscoveryPrepSection({
     return (
       <div className="bg-white border border-gray-200 rounded-xl p-6">
         <div className="flex items-center gap-3 mb-4">
-          <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
-            <Calendar className="w-5 h-5 text-purple-600" />
+          <div className="w-10 h-10 bg-[#009b87]/10 rounded-lg flex items-center justify-center">
+            <Calendar className="w-5 h-5 text-[#009b87]" />
           </div>
           <div>
             <h3 className="font-semibold text-gray-900">Discovery Call Prep</h3>
@@ -209,7 +209,7 @@ export function DiscoveryPrepSection({
         <button
           onClick={handleGenerate}
           disabled={generating}
-          className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-[#009b87] text-white rounded-lg hover:bg-[#008775] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
           {generating ? (
             <>
@@ -236,8 +236,8 @@ export function DiscoveryPrepSection({
         className="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition-colors"
       >
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
-            <Calendar className="w-5 h-5 text-purple-600" />
+          <div className="w-10 h-10 bg-[#009b87]/10 rounded-lg flex items-center justify-center">
+            <Calendar className="w-5 h-5 text-[#009b87]" />
           </div>
           <div className="text-left">
             <h3 className="font-semibold text-gray-900">Discovery Call Prep</h3>
@@ -280,7 +280,7 @@ export function DiscoveryPrepSection({
                 <ul className="space-y-1">
                   {bundle.agenda_bullets.map((bullet, idx) => (
                     <li key={idx} className="flex items-start gap-2 text-sm text-gray-600">
-                      <span className="text-purple-500 mt-1">•</span>
+                      <span className="text-[#009b87] mt-1">•</span>
                       {bullet}
                     </li>
                   ))}
@@ -401,8 +401,8 @@ export function DiscoveryPrepSection({
           )}
 
           {!portalEnabled && bundle.status !== 'sent' && (
-            <div className="p-4 bg-amber-50">
-              <p className="text-sm text-amber-700">
+            <div className="p-4 bg-gray-50">
+              <p className="text-sm text-gray-600">
                 Enable the client portal above to send these items to your client.
               </p>
             </div>
@@ -508,7 +508,7 @@ interface DocumentCardProps {
 function DocumentCard({ document, onConfirm, confirming, disabled }: DocumentCardProps) {
   const priorityColors = {
     high: 'bg-red-100 text-red-700',
-    medium: 'bg-yellow-100 text-yellow-700',
+    medium: 'bg-gray-100 text-gray-700',
     low: 'bg-gray-100 text-gray-600',
   }
 

@@ -234,12 +234,23 @@ async def invite_client_to_project(
                 if response and response.user:
                     auth_user_id = UUID(response.user.id)
                     logger.info(f"Auth user created with ID: {auth_user_id}")
+                else:
+                    # No user returned - invite failed
+                    raise HTTPException(
+                        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                        detail="Failed to create user in authentication system",
+                    )
 
+            except HTTPException:
+                raise
             except Exception as e:
-                logger.error(f"Failed to send magic link: {e}", exc_info=True)
-                magic_link_error = str(e)
+                logger.error(f"Failed to invite user: {e}", exc_info=True)
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail=f"Failed to send invite: {str(e)}",
+                )
 
-        # Create our user record (with matching ID if we got one from Supabase)
+        # Create our user record (with matching ID from Supabase)
         user = await create_user(
             UserCreate(
                 email=data.email,

@@ -62,6 +62,9 @@ class PendingItemType(str, Enum):
     GOAL = "goal"
     PAIN_POINT = "pain_point"
     REQUIREMENT = "requirement"
+    COMPETITOR = "competitor"
+    DESIGN_PREFERENCE = "design_preference"
+    STAKEHOLDER = "stakeholder"
 
 
 class PendingItemSource(str, Enum):
@@ -353,7 +356,7 @@ class PendingItem(BaseModel):
     description: Optional[str] = None
     why_needed: Optional[str] = None  # "Helps us understand workflow"
     priority: str = "medium"          # high, medium, low
-    added_at: datetime
+    created_at: datetime              # When added to queue
     added_by: Optional[str] = None    # "AI", "Consultant", "Phase workflow"
 
     class Config:

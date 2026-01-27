@@ -21,10 +21,12 @@ import {
   Link2
 } from 'lucide-react'
 import { Markdown } from '@/components/ui/Markdown'
+import { markEntityNeedsReview } from '@/lib/api'
 import type { Feature } from '@/types/api'
 
 interface FeatureCardProps {
   feature: Feature
+  projectId?: string
   onConfirmationChange?: (featureId: string, newStatus: string) => Promise<void>
   onViewEvidence?: (chunkId: string) => void
   defaultExpanded?: boolean
@@ -32,6 +34,7 @@ interface FeatureCardProps {
 
 export default function FeatureCard({
   feature,
+  projectId,
   onConfirmationChange,
   onViewEvidence,
   defaultExpanded = false
@@ -108,10 +111,16 @@ export default function FeatureCard({
   }
 
   const handleNeedsReview = async () => {
-    if (!onConfirmationChange) return
     try {
       setUpdating(true)
-      await onConfirmationChange(feature.id, 'needs_client')
+
+      // Use the new API if projectId is provided
+      if (projectId) {
+        await markEntityNeedsReview(projectId, 'feature', feature.id)
+      } else if (onConfirmationChange) {
+        // Fallback to legacy callback
+        await onConfirmationChange(feature.id, 'needs_client')
+      }
     } catch (error) {
       console.error('Failed to mark for review:', error)
     } finally {

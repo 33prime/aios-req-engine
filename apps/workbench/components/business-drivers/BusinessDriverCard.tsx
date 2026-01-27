@@ -16,6 +16,7 @@ import {
   Trash2,
 } from 'lucide-react'
 import { Markdown } from '@/components/ui/Markdown'
+import { markEntityNeedsReview } from '@/lib/api'
 import {
   MeasurementDetailsSection,
   BusinessImpactSection,
@@ -80,6 +81,7 @@ interface BusinessDriver {
 
 interface BusinessDriverCardProps {
   driver: BusinessDriver
+  projectId?: string
   associations?: {
     features?: any[]
     personas?: any[]
@@ -98,6 +100,7 @@ interface BusinessDriverCardProps {
 
 export default function BusinessDriverCard({
   driver,
+  projectId,
   associations,
   onConfirmationChange,
   onViewEvidence,
@@ -260,10 +263,18 @@ export default function BusinessDriverCard({
   }
 
   const handleNeedsReview = async () => {
-    if (!onConfirmationChange) return
     try {
       setUpdating(true)
-      await onConfirmationChange('needs_client')
+
+      // Use new API if projectId is provided
+      if (projectId) {
+        // Map driver_type to entity_type
+        const entityType = driver.driver_type === 'pain' ? 'pain_point' : driver.driver_type
+        await markEntityNeedsReview(projectId, entityType, driver.id)
+      } else if (onConfirmationChange) {
+        // Fallback to legacy callback
+        await onConfirmationChange('needs_client')
+      }
     } catch (error) {
       console.error('Failed to mark for review:', error)
     } finally {

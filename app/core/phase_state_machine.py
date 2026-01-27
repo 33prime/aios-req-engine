@@ -430,7 +430,7 @@ async def build_pre_discovery_state(project_id: UUID) -> dict:
     # Get discovery prep bundle status
     bundle_result = client.table("discovery_prep_bundles").select("*").eq(
         "project_id", str(project_id)
-    ).order("created_at", desc=True).limit(1).execute()
+    ).order("updated_at", desc=True).limit(1).execute()
 
     bundle = bundle_result.data[0] if bundle_result.data else None
 

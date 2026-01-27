@@ -49,32 +49,32 @@ const touchpointTypeConfig: Record<string, {
   discovery_call: {
     icon: Phone,
     label: 'Discovery Call',
-    color: 'text-purple-700',
-    bgColor: 'bg-purple-100',
+    color: 'text-[#009b87]',
+    bgColor: 'bg-[#009b87]/10',
   },
   validation_round: {
     icon: UserCheck,
     label: 'Validation Round',
-    color: 'text-amber-700',
-    bgColor: 'bg-amber-100',
+    color: 'text-[#009b87]',
+    bgColor: 'bg-[#009b87]/10',
   },
   follow_up_call: {
     icon: Phone,
     label: 'Follow-up Call',
-    color: 'text-blue-700',
-    bgColor: 'bg-blue-100',
+    color: 'text-[#009b87]',
+    bgColor: 'bg-[#009b87]/10',
   },
   prototype_review: {
     icon: MessageSquare,
     label: 'Prototype Review',
-    color: 'text-emerald-700',
-    bgColor: 'bg-emerald-100',
+    color: 'text-[#009b87]',
+    bgColor: 'bg-[#009b87]/10',
   },
   feedback_session: {
     icon: MessageSquare,
     label: 'Feedback Session',
-    color: 'text-pink-700',
-    bgColor: 'bg-pink-100',
+    color: 'text-[#009b87]',
+    bgColor: 'bg-[#009b87]/10',
   },
 }
 

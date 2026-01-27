@@ -65,13 +65,27 @@ async def send_magic_link(request: MagicLinkRequest):
         # Build redirect URL
         redirect_url = request.redirect_url or "http://localhost:3001/auth/verify"
 
-        # Send magic link via Supabase
-        client.auth.sign_in_with_otp({
-            "email": request.email,
-            "options": {
-                "email_redirect_to": redirect_url,
-            },
-        })
+        # First try sign_in_with_otp (for existing Supabase Auth users)
+        try:
+            client.auth.sign_in_with_otp({
+                "email": request.email,
+                "options": {
+                    "email_redirect_to": redirect_url,
+                },
+            })
+        except Exception as otp_error:
+            # If user doesn't exist in Supabase Auth, invite them
+            logger.info(f"OTP failed for {request.email}, trying invite: {otp_error}")
+            client.auth.admin.invite_user_by_email(
+                request.email,
+                options={
+                    "redirect_to": redirect_url,
+                    "data": {
+                        "first_name": user.first_name or "",
+                        "last_name": user.last_name or "",
+                    },
+                },
+            )
 
         return MagicLinkResponse(
             message="Magic link sent to your email",
@@ -79,7 +93,16 @@ async def send_magic_link(request: MagicLinkRequest):
         )
 
     except Exception as e:
-        logger.error(f"Error sending magic link: {e}")
+        error_msg = str(e)
+        logger.error(f"Error sending magic link to {request.email}: {error_msg}")
+
+        # Provide more specific error messages
+        if "Database error" in error_msg:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="There was an issue with your account. Please contact your consultant to resend the invite.",
+            )
+
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to send magic link. Please try again.",

@@ -4,12 +4,14 @@ import { X, User, Target, AlertCircle, Lightbulb, Zap, Star, CheckCircle, Clock,
 import { Persona, PersonaWorkflow, getPersonaInitials, formatDemographicsOrPsychographics } from '@/lib/persona-utils'
 import { DeleteConfirmationModal } from '@/components/ui/DeleteConfirmationModal'
 import ChangeLogTimeline from '@/components/revisions/ChangeLogTimeline'
+import { markEntityNeedsReview } from '@/lib/api'
 import { useState } from 'react'
 
 type TabType = 'goals' | 'journey' | 'features' | 'gaps' | 'research' | 'history'
 
 interface PersonaModalProps {
   persona: Persona | null
+  projectId?: string
   relatedFeatures?: any[]
   relatedVpSteps?: any[]
   featureCoverage?: {
@@ -29,6 +31,7 @@ interface PersonaModalProps {
 
 export default function PersonaModal({
   persona,
+  projectId,
   relatedFeatures = [],
   relatedVpSteps = [],
   featureCoverage,
@@ -77,11 +80,18 @@ export default function PersonaModal({
   const initials = getPersonaInitials(persona)
 
   const handleConfirmationChange = async (newStatus: string) => {
-    if (!onConfirmationChange || !persona.id) return
+    if (!persona.id) return
 
     try {
       setUpdating(true)
-      await onConfirmationChange(persona.id, newStatus)
+
+      // Use the new API for "needs_client" status if projectId is provided
+      if (newStatus === 'needs_client' && projectId) {
+        await markEntityNeedsReview(projectId, 'persona', persona.id)
+      } else if (onConfirmationChange) {
+        // Use legacy callback for other statuses
+        await onConfirmationChange(persona.id, newStatus)
+      }
     } catch (error) {
       console.error('Failed to update confirmation status:', error)
     } finally {

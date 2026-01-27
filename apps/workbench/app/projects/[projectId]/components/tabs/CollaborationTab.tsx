@@ -1,44 +1,43 @@
 /**
  * CollaborationTab Component
  *
- * Phase-aware interface for client collaboration:
- * - Current focus section (changes based on phase)
- * - Client portal card with sync status
- * - Discovery preparation
- * - Pending validation tasks
- * - Pending proposals
- * - Touchpoint history (completed collaboration events)
+ * Clean layout:
+ * 1. Phase Progress Timeline
+ * 2. Three cards: Client Portal | Pending Queue | History (click → modal)
+ * 3. Phase Prep (Discovery Call Prep, etc.)
+ * 4. Draft/Sent Package
  */
 
 'use client'
 
 import React, { useState, useEffect, useCallback } from 'react'
 import {
-  getPortalConfig,
-  listProposals,
-  applyProposal,
-  discardProposal,
-  getCollaborationCurrent,
+  getPhaseProgress,
+  generateClientPackage,
+  updateClientPackage,
+  sendClientPackage,
+  removePendingItem,
   updatePortalConfig,
-  inviteClient,
-  type CollaborationCurrentResponse,
 } from '@/lib/api'
 import {
   Loader2,
-  Layers,
-  UserCheck,
   AlertCircle,
+  Mail,
+  ClipboardList,
+  History,
+  ChevronRight,
   X,
 } from 'lucide-react'
-import { DiscoveryPrepSection } from '../discovery-prep'
-import { ProposalPreview } from '../ProposalPreview'
-import { TaskList } from '@/components/tasks'
 import {
-  CurrentFocusSection,
-  ClientPortalCard,
+  PhaseProgress,
+  PendingQueue,
+  PackagePreview,
+  PackageEditor,
   TouchpointHistory,
 } from '@/components/collaboration'
+import { DiscoveryPrepSection } from '../discovery-prep'
 import ClientPortalSection from '../ClientPortalSection'
+import type { PhaseProgressResponse } from '@/types/api'
 
 interface CollaborationTabProps {
   projectId: string
@@ -48,21 +47,19 @@ interface CollaborationTabProps {
 export function CollaborationTab({ projectId, projectName = 'Project' }: CollaborationTabProps) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [progressData, setProgressData] = useState<PhaseProgressResponse | null>(null)
 
-  // Collaboration state from API
-  const [collaborationState, setCollaborationState] = useState<CollaborationCurrentResponse | null>(null)
+  // Package editing state
+  const [editingPackage, setEditingPackage] = useState(false)
+  const [isGenerating, setIsGenerating] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
+  const [isSending, setIsSending] = useState(false)
 
-  // Proposal state
-  const [proposals, setProposals] = useState<any[]>([])
-  const [applyingProposal, setApplyingProposal] = useState<string | null>(null)
+  // Modal states
+  const [portalModalOpen, setPortalModalOpen] = useState(false)
+  const [queueModalOpen, setQueueModalOpen] = useState(false)
+  const [historyModalOpen, setHistoryModalOpen] = useState(false)
 
-  // Task refresh state
-  const [taskRefreshKey, setTaskRefreshKey] = useState(0)
-
-  // Invite modal state
-  const [showInviteModal, setShowInviteModal] = useState(false)
-
-  // Load data on mount
   useEffect(() => {
     loadData()
   }, [projectId])
@@ -71,67 +68,83 @@ export function CollaborationTab({ projectId, projectName = 'Project' }: Collabo
     try {
       setLoading(true)
       setError(null)
-
-      const [collabData, proposalsData] = await Promise.all([
-        getCollaborationCurrent(projectId).catch((err) => {
-          console.warn('Collaboration API not available:', err)
-          return null
-        }),
-        listProposals(projectId, 'pending').catch(() => ({ proposals: [] })),
-      ])
-
-      setCollaborationState(collabData)
-      setProposals(proposalsData.proposals || [])
-    } catch (err) {
+      const data = await getPhaseProgress(projectId)
+      setProgressData(data)
+    } catch (err: any) {
       console.error('Failed to load data:', err)
-      setError('Failed to load collaboration data')
+      setError(err.message || 'Failed to load collaboration data')
     } finally {
       setLoading(false)
     }
   }, [projectId])
 
-  // Enable portal handler
+  const handleGeneratePackage = async (itemIds?: string[]) => {
+    try {
+      setIsGenerating(true)
+      await generateClientPackage(projectId, {
+        item_ids: itemIds,
+        max_questions: 5,
+        include_asset_suggestions: true,
+      })
+      await loadData()
+      setQueueModalOpen(false)
+    } catch (err: any) {
+      console.error('Failed to generate package:', err)
+      alert(err.message || 'Failed to generate client questions')
+    } finally {
+      setIsGenerating(false)
+    }
+  }
+
+  const handleRemoveItem = async (itemId: string) => {
+    try {
+      await removePendingItem(itemId)
+      await loadData()
+    } catch (err) {
+      console.error('Failed to remove item:', err)
+    }
+  }
+
+  const handleEditPackage = () => setEditingPackage(true)
+  const handleCancelEdit = () => setEditingPackage(false)
+
+  const handleSavePackage = async (updates: { questions?: any[]; action_items?: any[] }) => {
+    if (!progressData?.draft_package?.id) return
+    try {
+      setIsSaving(true)
+      await updateClientPackage(progressData.draft_package.id, updates)
+      await loadData()
+      setEditingPackage(false)
+    } catch (err: any) {
+      console.error('Failed to save package:', err)
+      alert(err.message || 'Failed to save changes')
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  const handleSendPackage = async () => {
+    if (!progressData?.draft_package?.id) return
+    if (!confirm('Send this package to the client portal? Clients will be notified.')) return
+    try {
+      setIsSending(true)
+      await sendClientPackage(progressData.draft_package.id)
+      await loadData()
+    } catch (err: any) {
+      console.error('Failed to send package:', err)
+      alert(err.message || 'Failed to send package')
+    } finally {
+      setIsSending(false)
+    }
+  }
+
   const handleEnablePortal = async () => {
     try {
       await updatePortalConfig(projectId, { portal_enabled: true })
       await loadData()
+      setPortalModalOpen(true)
     } catch (err) {
       console.error('Failed to enable portal:', err)
-    }
-  }
-
-  // Refresh collaboration sync (without full loading state)
-  const handleRefreshSync = async () => {
-    try {
-      const collabData = await getCollaborationCurrent(projectId)
-      setCollaborationState(collabData)
-    } catch (err) {
-      console.error('Failed to refresh sync:', err)
-    }
-  }
-
-  // Proposal handlers
-  const handleApplyProposal = async (proposalId: string) => {
-    try {
-      setApplyingProposal(proposalId)
-      await applyProposal(proposalId)
-      await loadData()
-      window.location.reload()
-    } catch (err) {
-      console.error('Failed to apply proposal:', err)
-      alert('Failed to apply proposal')
-    } finally {
-      setApplyingProposal(null)
-    }
-  }
-
-  const handleDiscardProposal = async (proposalId: string) => {
-    try {
-      await discardProposal(proposalId)
-      await loadData()
-    } catch (err) {
-      console.error('Failed to discard proposal:', err)
-      alert('Failed to discard proposal')
     }
   }
 
@@ -152,10 +165,7 @@ export function CollaborationTab({ projectId, projectName = 'Project' }: Collabo
         <div className="text-center">
           <AlertCircle className="w-10 h-10 text-red-400 mx-auto mb-3" />
           <p className="text-red-600">{error}</p>
-          <button
-            onClick={loadData}
-            className="mt-4 px-4 py-2 text-sm text-gray-600 hover:text-gray-900"
-          >
+          <button onClick={loadData} className="mt-4 px-4 py-2 text-sm text-gray-600 hover:text-gray-900">
             Try again
           </button>
         </div>
@@ -163,299 +173,238 @@ export function CollaborationTab({ projectId, projectName = 'Project' }: Collabo
     )
   }
 
-  // Use collaboration state if available, otherwise fall back to defaults
-  const portalSync = collaborationState?.portal_sync || {
-    portal_enabled: false,
-    portal_phase: 'pre_call',
-    questions: { sent: 0, completed: 0, in_progress: 0, pending: 0 },
-    documents: { sent: 0, completed: 0, in_progress: 0, pending: 0 },
-    last_client_activity: null,
-    clients_invited: 0,
-    clients_active: 0,
+  if (!progressData) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <p className="text-gray-500">No collaboration data available</p>
+      </div>
+    )
   }
 
-  const currentFocus = collaborationState?.current_focus || {
-    phase: 'pre_discovery',
-    primary_action: 'Generate discovery call preparation',
-    discovery_prep: {
-      status: 'not_generated',
-      questions_total: 0,
-      questions_confirmed: 0,
-      questions_answered: 0,
-      documents_total: 0,
-      documents_confirmed: 0,
-      documents_received: 0,
-      can_send: false,
-    },
-  }
+  const {
+    current_phase,
+    phases,
+    phase_config,
+    readiness_score,
+    pending_queue,
+    draft_package,
+    sent_package,
+    portal_enabled,
+    clients_count,
+  } = progressData
 
-  const phase = collaborationState?.collaboration_phase || 'pre_discovery'
-  const isPreDiscovery = phase === 'pre_discovery' || phase === 'discovery'
+  const isDiscoveryPhase = current_phase === 'pre_discovery' || current_phase === 'discovery'
 
   return (
     <div className="space-y-6">
-      {/* Top Row: Current Focus (2/3) + Client Portal (1/3) */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Current Focus - Takes 2 columns */}
-        <div className="lg:col-span-2">
-          <CurrentFocusSection currentFocus={currentFocus} />
-        </div>
+      {/* 1. Phase Progress Timeline */}
+      <PhaseProgress
+        currentPhase={current_phase}
+        phases={phases}
+        phaseConfig={phase_config}
+        readinessScore={readiness_score}
+      />
 
+      {/* 2. Three Cards: Portal | Queue | History */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* Client Portal Card */}
-        <ClientPortalCard
-          projectId={projectId}
-          portalSync={portalSync}
-          onManagePortal={() => {
-            // Scroll to client portal section
-            document.getElementById('client-portal-section')?.scrollIntoView({ behavior: 'smooth' })
-          }}
-          onEnablePortal={handleEnablePortal}
-          onRefresh={handleRefreshSync}
-          onInviteClient={() => setShowInviteModal(true)}
-        />
+        <button
+          onClick={() => portal_enabled ? setPortalModalOpen(true) : handleEnablePortal()}
+          className="bg-white rounded-xl border border-gray-200 p-4 hover:border-[#009b87]/50 hover:shadow-sm transition-all text-left"
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                portal_enabled ? 'bg-[#009b87]' : 'bg-gray-200'
+              }`}>
+                <Mail className={`w-5 h-5 ${portal_enabled ? 'text-white' : 'text-gray-500'}`} />
+              </div>
+              <div>
+                <h3 className="font-semibold text-gray-900">Client Portal</h3>
+                <p className="text-sm text-gray-500">
+                  {portal_enabled ? `${clients_count} client${clients_count !== 1 ? 's' : ''} invited` : 'Click to enable'}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              {portal_enabled && <span className="w-2 h-2 rounded-full bg-[#009b87]" />}
+              <ChevronRight className="w-5 h-5 text-gray-400" />
+            </div>
+          </div>
+        </button>
+
+        {/* Pending Queue Card */}
+        <button
+          onClick={() => setQueueModalOpen(true)}
+          className="bg-white rounded-xl border border-gray-200 p-4 hover:border-[#009b87]/50 hover:shadow-sm transition-all text-left"
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                pending_queue.total_count > 0 ? 'bg-[#009b87]' : 'bg-gray-200'
+              }`}>
+                <ClipboardList className={`w-5 h-5 ${pending_queue.total_count > 0 ? 'text-white' : 'text-gray-500'}`} />
+              </div>
+              <div>
+                <h3 className="font-semibold text-gray-900">Pending Queue</h3>
+                <p className="text-sm text-gray-500">
+                  {pending_queue.total_count > 0
+                    ? `${pending_queue.total_count} item${pending_queue.total_count !== 1 ? 's' : ''} need input`
+                    : 'No items pending'}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              {pending_queue.total_count > 0 && (
+                <span className="px-2 py-0.5 text-xs font-medium bg-[#009b87]/10 text-[#009b87] rounded-full">
+                  {pending_queue.total_count}
+                </span>
+              )}
+              <ChevronRight className="w-5 h-5 text-gray-400" />
+            </div>
+          </div>
+        </button>
+
+        {/* History Card */}
+        <button
+          onClick={() => setHistoryModalOpen(true)}
+          className="bg-white rounded-xl border border-gray-200 p-4 hover:border-gray-300 hover:shadow-sm transition-all text-left"
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-gray-100">
+                <History className="w-5 h-5 text-gray-500" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-gray-900">History</h3>
+                <p className="text-sm text-gray-500">Past touchpoints</p>
+              </div>
+            </div>
+            <ChevronRight className="w-5 h-5 text-gray-400" />
+          </div>
+        </button>
       </div>
 
-      {/* Discovery Prep Section - Full Width (primarily for pre-discovery) */}
-      {isPreDiscovery && (
-        <div id="discovery-prep">
-          <DiscoveryPrepSection
-            projectId={projectId}
-            projectName={projectName}
-            portalEnabled={portalSync.portal_enabled}
-          />
-        </div>
-      )}
-
-      {/* Client Portal Management - Shows invited clients, invite functionality */}
-      {portalSync.portal_enabled && (
-        <div id="client-portal-section">
-          <ClientPortalSection
-            projectId={projectId}
-            projectName={projectName}
-          />
-        </div>
-      )}
-
-      {/* Pending Validation - Full Width (primarily for post-discovery) */}
-      <div className="bg-white rounded-xl border border-gray-200 p-6">
-        <div className="flex items-center gap-2 mb-4">
-          <UserCheck className="w-5 h-5 text-[#009b87]" />
-          <h2 className="text-lg font-semibold text-gray-900">Pending Validation</h2>
-          {collaborationState?.pending_validation_count ? (
-            <span className="text-sm text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">
-              {collaborationState.pending_validation_count}
-            </span>
-          ) : null}
-        </div>
-        <p className="text-sm text-gray-600 mb-4">
-          Tasks that need client review or confirmation before proceeding.
-        </p>
-        <TaskList
-          projectId={projectId}
-          initialFilter="client"
-          showFilters={false}
-          showBulkActions={true}
-          compact={false}
-          maxItems={8}
-          refreshKey={taskRefreshKey}
-          onTasksChange={() => setTaskRefreshKey(k => k + 1)}
-        />
-      </div>
-
-      {/* Pending Proposals - Full Width (if any) */}
-      {proposals.length > 0 && (
-        <div className="bg-white rounded-xl border border-gray-200 p-6">
-          <div className="flex items-center gap-2 mb-4">
-            <Layers className="w-5 h-5 text-[#009b87]" />
-            <h2 className="text-lg font-semibold text-gray-900">Pending Proposals</h2>
-            <span className="text-sm text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">
-              {proposals.length}
-            </span>
-          </div>
-          <p className="text-sm text-gray-600 mb-4">
-            Review and apply changes extracted from signals.
-          </p>
-
-          <div className="space-y-4">
-            {proposals.map((proposal) => (
-              <ProposalPreview
-                key={proposal.id}
-                proposal={{
-                  proposal_id: proposal.id,
-                  title: proposal.title || 'Untitled Proposal',
-                  description: proposal.description,
-                  status: proposal.status,
-                  creates: proposal.creates_count || 0,
-                  updates: proposal.updates_count || 0,
-                  deletes: proposal.deletes_count || 0,
-                  total_changes: proposal.total_changes || 0,
-                  changes_by_type: proposal.changes_by_type,
-                }}
-                onApply={handleApplyProposal}
-                onDiscard={handleDiscardProposal}
-                isApplying={applyingProposal === proposal.id}
-              />
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Touchpoint History - Expandable */}
-      <TouchpointHistory projectId={projectId} />
-
-      {/* Invite Client Modal */}
-      {showInviteModal && (
-        <InviteClientModal
+      {/* 3. Phase Prep */}
+      {isDiscoveryPhase ? (
+        <DiscoveryPrepSection
           projectId={projectId}
           projectName={projectName}
-          onClose={() => setShowInviteModal(false)}
-          onSuccess={() => {
-            setShowInviteModal(false)
-            loadData()
-          }}
+          portalEnabled={portal_enabled}
         />
+      ) : (
+        <div className="bg-white rounded-xl border border-gray-200 p-6">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="w-10 h-10 bg-[#009b87]/10 rounded-lg flex items-center justify-center">
+              <ClipboardList className="w-5 h-5 text-[#009b87]" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-gray-900">
+                {current_phase === 'validation' ? 'Validation Prep' :
+                 current_phase === 'prototype' ? 'Prototype Review Prep' :
+                 current_phase === 'proposal' ? 'Proposal Prep' :
+                 'Phase Prep'}
+              </h3>
+              <p className="text-sm text-gray-500">Prepare materials for this phase</p>
+            </div>
+          </div>
+          <p className="text-gray-500 text-sm">Phase-specific preparation tools coming soon.</p>
+        </div>
+      )}
+
+      {/* 4. Draft/Sent Package */}
+      {draft_package && (
+        <div>
+          {editingPackage ? (
+            <PackageEditor
+              package_={draft_package}
+              onSave={handleSavePackage}
+              onCancel={handleCancelEdit}
+              isSaving={isSaving}
+            />
+          ) : (
+            <PackagePreview
+              package_={draft_package}
+              onEdit={handleEditPackage}
+              onSend={handleSendPackage}
+              isSending={isSending}
+            />
+          )}
+        </div>
+      )}
+
+      {sent_package && !draft_package && (
+        <PackagePreview package_={sent_package} />
+      )}
+
+      {/* ============ MODALS ============ */}
+
+      {/* Client Portal Modal */}
+      {portalModalOpen && (
+        <Modal title="Client Portal" onClose={() => setPortalModalOpen(false)}>
+          <ClientPortalSection projectId={projectId} projectName={projectName} />
+        </Modal>
+      )}
+
+      {/* Pending Queue Modal */}
+      {queueModalOpen && (
+        <Modal title="Pending Input Queue" onClose={() => setQueueModalOpen(false)} size="lg">
+          <PendingQueue
+            queue={pending_queue}
+            onGeneratePackage={handleGeneratePackage}
+            onRemoveItem={handleRemoveItem}
+            isGenerating={isGenerating}
+          />
+        </Modal>
+      )}
+
+      {/* History Modal */}
+      {historyModalOpen && (
+        <Modal title="Collaboration History" onClose={() => setHistoryModalOpen(false)} size="lg">
+          <TouchpointHistory projectId={projectId} defaultExpanded={true} />
+        </Modal>
       )}
     </div>
   )
 }
 
 // ============================================================================
-// Invite Client Modal
+// Modal Component
 // ============================================================================
 
-interface InviteClientModalProps {
-  projectId: string
-  projectName: string
+interface ModalProps {
+  title: string
+  children: React.ReactNode
   onClose: () => void
-  onSuccess: () => void
+  size?: 'sm' | 'md' | 'lg'
 }
 
-function InviteClientModal({
-  projectId,
-  projectName,
-  onClose,
-  onSuccess,
-}: InviteClientModalProps) {
-  const [email, setEmail] = useState('')
-  const [firstName, setFirstName] = useState('')
-  const [lastName, setLastName] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!email.trim()) return
-
-    try {
-      setLoading(true)
-      setError(null)
-      const result = await inviteClient(projectId, {
-        email: email.trim(),
-        first_name: firstName.trim() || undefined,
-        last_name: lastName.trim() || undefined,
-        send_email: true,
-      })
-
-      if (!result.magic_link_sent) {
-        setError(result.magic_link_error || 'Failed to send magic link email. Client was added but no email was sent.')
-        return
-      }
-
-      onSuccess()
-    } catch (err: any) {
-      console.error('Failed to invite client:', err)
-      setError(err.message || 'Failed to send invite')
-    } finally {
-      setLoading(false)
-    }
+function Modal({ title, children, onClose, size = 'md' }: ModalProps) {
+  const sizeClasses = {
+    sm: 'max-w-md',
+    md: 'max-w-2xl',
+    lg: 'max-w-4xl',
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
-      <div className="relative bg-white rounded-xl shadow-xl w-full max-w-md p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-gray-900">
-            Invite Client to Portal
-          </h3>
+      <div className={`relative bg-white rounded-xl shadow-2xl w-full ${sizeClasses[size]} max-h-[85vh] overflow-hidden flex flex-col`}>
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+          <h2 className="text-lg font-semibold text-gray-900">{title}</h2>
           <button
             onClick={onClose}
-            className="p-1 text-gray-400 hover:text-gray-600"
+            className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Email Address *
-            </label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="client@example.com"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#009b87] focus:border-transparent"
-              required
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                First Name
-              </label>
-              <input
-                type="text"
-                value={firstName}
-                onChange={(e) => setFirstName(e.target.value)}
-                placeholder="John"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#009b87] focus:border-transparent"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Last Name
-              </label>
-              <input
-                type="text"
-                value={lastName}
-                onChange={(e) => setLastName(e.target.value)}
-                placeholder="Doe"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#009b87] focus:border-transparent"
-              />
-            </div>
-          </div>
-
-          {error && (
-            <div className="p-3 bg-red-50 border border-red-100 rounded-lg text-sm text-red-700">
-              {error}
-            </div>
-          )}
-
-          <div className="p-3 bg-blue-50 border border-blue-100 rounded-lg text-sm text-blue-700">
-            A magic link email will be sent to this address, allowing the client
-            to access the portal for "{projectName}".
-          </div>
-
-          <div className="flex justify-end gap-3 pt-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={loading || !email.trim()}
-              className="px-4 py-2 bg-[#009b87] text-white text-sm font-medium rounded-lg hover:bg-[#008775] disabled:opacity-50"
-            >
-              {loading ? 'Sending...' : 'Send Invite'}
-            </button>
-          </div>
-        </form>
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto p-6">
+          {children}
+        </div>
       </div>
     </div>
   )

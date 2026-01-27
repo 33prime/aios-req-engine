@@ -1202,6 +1202,85 @@ export const completeTouchpoint = (projectId: string, touchpointId: string, outc
   })
 
 // ============================================
+// Client Packages & Phase Progress APIs
+// ============================================
+
+import type {
+  PhaseProgressResponse,
+  PendingItemsQueue,
+  PendingItem,
+  ClientPackage,
+  GeneratePackageRequest,
+  GeneratePackageResponse,
+} from '../types/api'
+
+export const getPhaseProgress = (projectId: string) =>
+  apiRequest<PhaseProgressResponse>(`/collaboration/projects/${projectId}/progress`)
+
+export const listPendingItems = (projectId: string, itemType?: string, status = 'pending') => {
+  const params = new URLSearchParams()
+  if (itemType) params.set('item_type', itemType)
+  params.set('status', status)
+  const query = params.toString()
+  return apiRequest<{ items: PendingItem[]; count: number }>(
+    `/collaboration/projects/${projectId}/pending-items?${query}`
+  )
+}
+
+export const addPendingItem = (projectId: string, item: Partial<PendingItem>) =>
+  apiRequest<PendingItem>(`/collaboration/projects/${projectId}/pending-items`, {
+    method: 'POST',
+    body: JSON.stringify(item),
+  })
+
+export const removePendingItem = (itemId: string) =>
+  apiRequest<{ message: string }>(`/collaboration/pending-items/${itemId}`, {
+    method: 'DELETE',
+  })
+
+export const generateClientPackage = (projectId: string, request: GeneratePackageRequest) =>
+  apiRequest<GeneratePackageResponse>(`/collaboration/projects/${projectId}/generate-package`, {
+    method: 'POST',
+    body: JSON.stringify(request),
+  })
+
+export const getClientPackage = (packageId: string) =>
+  apiRequest<ClientPackage>(`/collaboration/packages/${packageId}`)
+
+export const updateClientPackage = (
+  packageId: string,
+  updates: { questions?: any[]; action_items?: any[] }
+) =>
+  apiRequest<{ message: string }>(`/collaboration/packages/${packageId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(updates),
+  })
+
+export const sendClientPackage = (packageId: string) =>
+  apiRequest<{ success: boolean; package_id: string; sent_at: string }>(
+    `/collaboration/packages/${packageId}/send`,
+    { method: 'POST' }
+  )
+
+export const markEntityNeedsReview = (
+  projectId: string,
+  entityType: string,
+  entityId: string,
+  reason?: string
+) =>
+  apiRequest<{ success: boolean; message: string; pending_item_id?: string }>(
+    `/collaboration/projects/${projectId}/mark-needs-review`,
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        entity_type: entityType,
+        entity_id: entityId,
+        reason,
+      }),
+    }
+  )
+
+// ============================================
 // Meetings APIs
 // ============================================
 

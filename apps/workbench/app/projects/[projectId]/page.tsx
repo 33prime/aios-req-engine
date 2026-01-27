@@ -19,7 +19,7 @@
 'use client'
 
 import { useState, useEffect, useMemo, useRef } from 'react'
-import { useParams } from 'next/navigation'
+import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { TabNavigation, MobileTabNavigation, type TabType } from './components/TabNavigation'
 import { WorkspaceHeader, CompactHeader } from './components/WorkspaceHeader'
 import { OverviewTab } from './components/tabs/OverviewTab'
@@ -38,12 +38,30 @@ import { getBaselineStatus, getProjectDetails, listConfirmations, listProjectSig
 import { useChat } from '@/lib/useChat'
 import type { BaselineStatus, ProjectDetailWithDashboard } from '@/types/api'
 
+// Valid tab values for URL validation
+const VALID_TABS: TabType[] = ['overview', 'strategic-foundation', 'personas-features', 'value-path', 'sources', 'collaboration']
+const isValidTab = (tab: string): tab is TabType => VALID_TABS.includes(tab as TabType)
+
 export default function WorkspacePage() {
   const params = useParams()
+  const router = useRouter()
+  const searchParams = useSearchParams()
   const projectId = params.projectId as string
 
-  // Tab state
-  const [activeTab, setActiveTab] = useState<TabType>('overview')
+  // Tab state from URL - defaults to 'overview' if invalid or missing
+  const tabParam = searchParams.get('tab')
+  const subtabParam = searchParams.get('subtab')
+  const activeTab: TabType = tabParam && isValidTab(tabParam) ? tabParam : 'overview'
+
+  // Update URL when main tab changes (clears subtab)
+  const handleTabChange = (tab: TabType) => {
+    router.replace(`/projects/${projectId}?tab=${tab}`, { scroll: false })
+  }
+
+  // Update URL when sub-tab changes (preserves main tab)
+  const handleSubtabChange = (subtab: string) => {
+    router.replace(`/projects/${projectId}?tab=${activeTab}&subtab=${subtab}`, { scroll: false })
+  }
 
   // Project data state
   const [project, setProject] = useState<ProjectDetailWithDashboard | null>(null)
@@ -453,7 +471,13 @@ export default function WorkspacePage() {
           />
         )
       case 'strategic-foundation':
-        return <StrategicFoundationTab projectId={projectId} />
+        return (
+          <StrategicFoundationTab
+            projectId={projectId}
+            activeSubtab={subtabParam}
+            onSubtabChange={handleSubtabChange}
+          />
+        )
       case 'personas-features':
         return <PersonasFeaturesTab projectId={projectId} isActive={activeTab === 'personas-features'} />
       case 'value-path':
@@ -529,7 +553,7 @@ export default function WorkspacePage() {
       <div className="hidden lg:block">
         <TabNavigation
           activeTab={activeTab}
-          onTabChange={setActiveTab}
+          onTabChange={handleTabChange}
           counts={counts}
           recentChanges={recentChanges}
         />
@@ -539,7 +563,7 @@ export default function WorkspacePage() {
       <div className="lg:hidden">
         <MobileTabNavigation
           activeTab={activeTab}
-          onTabChange={setActiveTab}
+          onTabChange={handleTabChange}
         />
       </div>
 

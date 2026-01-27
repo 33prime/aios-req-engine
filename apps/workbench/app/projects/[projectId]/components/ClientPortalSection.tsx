@@ -156,7 +156,7 @@ export default function ClientPortalSection({
 
   if (loading) {
     return (
-      <div className="bg-white border border-gray-200 rounded-lg p-6">
+      <div className="flex items-center justify-center py-8">
         <div className="flex items-center gap-2 text-gray-500">
           <RefreshCw className="w-4 h-4 animate-spin" />
           Loading portal data...
@@ -166,40 +166,10 @@ export default function ClientPortalSection({
   }
 
   return (
-    <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-      {/* Header */}
-      <div className="px-6 py-4 bg-gradient-to-r from-teal-50 to-emerald-50 border-b border-gray-200">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-teal-100 rounded-lg flex items-center justify-center">
-              <Mail className="w-5 h-5 text-teal-600" />
-            </div>
-            <div>
-              <h3 className="font-semibold text-gray-900">Client Portal</h3>
-              <p className="text-sm text-gray-600">
-                Invite clients to prepare for discovery calls
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            {portalEnabled && (
-              <a
-                href={clientPortalUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-1 text-sm text-teal-600 hover:text-teal-700"
-              >
-                <ExternalLink className="w-4 h-4" />
-                View Portal
-              </a>
-            )}
-          </div>
-        </div>
-      </div>
-
+    <div className="space-y-6">
       {/* Error message */}
       {error && (
-        <div className="px-6 py-3 bg-red-50 border-b border-red-100 flex items-center gap-2 text-sm text-red-700">
+        <div className="p-3 bg-red-50 rounded-lg flex items-center gap-2 text-sm text-red-700">
           <AlertCircle className="w-4 h-4" />
           {error}
           <button
@@ -211,14 +181,12 @@ export default function ClientPortalSection({
         </div>
       )}
 
-      {/* Content */}
-      <div className="p-6 space-y-6">
-        {/* Portal Status */}
+      {/* Portal Status */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <span className="text-sm font-medium text-gray-700">Status:</span>
             {portalEnabled ? (
-              <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+              <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-[#009b87]/10 text-[#009b87]">
                 <CheckCircle className="w-3 h-3" />
                 Enabled
               </span>
@@ -235,18 +203,29 @@ export default function ClientPortalSection({
             )}
           </div>
           {portalEnabled ? (
-            <button
-              onClick={handleDisablePortal}
-              disabled={actionLoading === 'disable'}
-              className="text-sm text-gray-500 hover:text-gray-700"
-            >
-              {actionLoading === 'disable' ? 'Disabling...' : 'Disable'}
-            </button>
+            <div className="flex items-center gap-3">
+              <a
+                href={clientPortalUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1 text-sm text-[#009b87] hover:text-[#007a6a]"
+              >
+                <ExternalLink className="w-4 h-4" />
+                View Portal
+              </a>
+              <button
+                onClick={handleDisablePortal}
+                disabled={actionLoading === 'disable'}
+                className="text-sm text-gray-500 hover:text-gray-700"
+              >
+                {actionLoading === 'disable' ? 'Disabling...' : 'Disable'}
+              </button>
+            </div>
           ) : (
             <button
               onClick={handleEnablePortal}
               disabled={actionLoading === 'enable'}
-              className="px-4 py-2 bg-teal-600 text-white text-sm font-medium rounded-lg hover:bg-teal-700 disabled:opacity-50"
+              className="px-4 py-2 bg-[#009b87] text-white text-sm font-medium rounded-lg hover:bg-[#007a6a] disabled:opacity-50"
             >
               {actionLoading === 'enable' ? 'Enabling...' : 'Enable Portal'}
             </button>
@@ -266,7 +245,7 @@ export default function ClientPortalSection({
                 </div>
                 <button
                   onClick={() => setShowInviteModal(true)}
-                  className="flex items-center gap-1 px-3 py-1.5 text-sm text-teal-600 hover:text-teal-700 hover:bg-teal-50 rounded-lg transition-colors"
+                  className="flex items-center gap-1 px-3 py-1.5 text-sm text-[#009b87] hover:text-[#007a6a] hover:bg-[#009b87]/10 rounded-lg transition-colors"
                 >
                   <UserPlus className="w-4 h-4" />
                   Invite Client
@@ -296,12 +275,12 @@ export default function ClientPortalSection({
                       </div>
                       <div className="flex items-center gap-2">
                         {member.accepted_at ? (
-                          <span className="text-xs text-green-600 flex items-center gap-1">
+                          <span className="text-xs text-[#009b87] flex items-center gap-1">
                             <CheckCircle className="w-3 h-3" />
                             Accepted
                           </span>
                         ) : (
-                          <span className="text-xs text-amber-600 flex items-center gap-1">
+                          <span className="text-xs text-gray-500 flex items-center gap-1">
                             <Clock className="w-3 h-3" />
                             Pending
                           </span>
@@ -309,7 +288,7 @@ export default function ClientPortalSection({
                         <button
                           onClick={() => handleResendInvite(member.user_id)}
                           disabled={actionLoading === `resend-${member.user_id}`}
-                          className="p-1 text-gray-400 hover:text-teal-600"
+                          className="p-1 text-gray-400 hover:text-[#009b87]"
                           title="Resend invite"
                         >
                           <RefreshCw
@@ -366,7 +345,7 @@ export default function ClientPortalSection({
                   <button
                     onClick={handleGenerateQuestions}
                     disabled={actionLoading === 'generate'}
-                    className="flex items-center gap-1 px-3 py-1.5 text-sm bg-purple-50 text-purple-700 hover:bg-purple-100 rounded-lg transition-colors disabled:opacity-50"
+                    className="flex items-center gap-1 px-3 py-1.5 text-sm bg-[#009b87]/10 text-[#009b87] hover:bg-[#009b87]/20 rounded-lg transition-colors disabled:opacity-50"
                   >
                     <Sparkles className="w-4 h-4" />
                     {actionLoading === 'generate'
@@ -400,9 +379,9 @@ export default function ClientPortalSection({
                           <span
                             className={`text-xs px-2 py-0.5 rounded ${
                               request.status === 'complete'
-                                ? 'bg-green-100 text-green-700'
+                                ? 'bg-[#009b87]/10 text-[#009b87]'
                                 : request.status === 'in_progress'
-                                ? 'bg-yellow-100 text-yellow-700'
+                                ? 'bg-gray-200 text-gray-700'
                                 : 'bg-gray-100 text-gray-600'
                             }`}
                           >
@@ -431,7 +410,6 @@ export default function ClientPortalSection({
             </div>
           </>
         )}
-      </div>
 
       {/* Invite Modal */}
       {showInviteModal && (
@@ -509,7 +487,7 @@ function InviteClientModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
+    <div className="fixed inset-0 z-[60] flex items-center justify-center">
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
       <div className="relative bg-white rounded-xl shadow-xl w-full max-w-md p-6">
         <h3 className="text-lg font-semibold text-gray-900 mb-4">
@@ -526,7 +504,7 @@ function InviteClientModal({
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="client@example.com"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#009b87] focus:border-transparent"
               required
             />
           </div>
@@ -541,7 +519,7 @@ function InviteClientModal({
                 value={firstName}
                 onChange={(e) => setFirstName(e.target.value)}
                 placeholder="John"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#009b87] focus:border-transparent"
               />
             </div>
             <div>
@@ -553,7 +531,7 @@ function InviteClientModal({
                 value={lastName}
                 onChange={(e) => setLastName(e.target.value)}
                 placeholder="Doe"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#009b87] focus:border-transparent"
               />
             </div>
           </div>
@@ -564,7 +542,7 @@ function InviteClientModal({
             </div>
           )}
 
-          <div className="p-3 bg-blue-50 border border-blue-100 rounded-lg text-sm text-blue-700">
+          <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-600">
             A magic link email will be sent to this address, allowing the client
             to access the portal for "{projectName}".
           </div>
@@ -580,7 +558,7 @@ function InviteClientModal({
             <button
               type="submit"
               disabled={loading || !email.trim()}
-              className="px-4 py-2 bg-teal-600 text-white text-sm font-medium rounded-lg hover:bg-teal-700 disabled:opacity-50"
+              className="px-4 py-2 bg-[#009b87] text-white text-sm font-medium rounded-lg hover:bg-[#007a6a] disabled:opacity-50"
             >
               {loading ? 'Sending...' : 'Send Invite'}
             </button>
