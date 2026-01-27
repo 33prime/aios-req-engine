@@ -123,6 +123,19 @@ Execute your decision:
 - If guidance: Provide specific questions to ask
 - If stop: Explain what's needed to proceed
 
+## 5. REMEMBER (Update Memory)
+After significant actions, update project memory:
+- **log_decision**: When a significant choice is made (architecture, scope, pivot)
+- **record_learning**: When you learn something valuable (patterns, mistakes, terminology)
+- **update_project_understanding**: When your understanding of the project evolves
+- **add_open_question**: When you identify a question that needs answering
+
+Memory is your persistent knowledge about this project. It survives across invocations and helps you:
+- Avoid repeating mistakes
+- Build on previous decisions
+- Maintain continuity of understanding
+- Remember WHY decisions were made, not just WHAT was decided
+
 ## WHEN TO STOP VS CONTINUE
 
 **STOP** (use `stop_with_guidance`) when:
@@ -863,6 +876,349 @@ DI_AGENT_TOOLS = [
         "typical_confidence": "0.5-0.8 depending on explicitness of concerns",
         "note": "10 risk types: technical, business, market, team, timeline, budget, compliance, security, operational, strategic",
     },
+    # Requirements Gap Analysis Tools
+    {
+        "name": "analyze_requirements_gaps",
+        "description": "Analyze the current requirements model (features, personas, VP steps) for logical gaps, missing references, and inconsistencies",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "project_id": {
+                    "type": "string",
+                    "description": "Project UUID",
+                },
+                "focus_areas": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Optional: specific areas to focus on (e.g., 'persona_coverage', 'vp_flow', 'feature_references', 'orphaned_entities')",
+                },
+            },
+            "required": ["project_id"],
+        },
+        "useful_when": [
+            "After uploading new requirements documents",
+            "After making significant changes to features/personas/VP",
+            "When preparing for client review",
+            "When the project feels incomplete or disconnected",
+            "Checking if value path flows logically",
+            "Verifying features are properly linked to personas",
+        ],
+        "not_useful_when": [
+            "Project has no entities yet - need features/personas first",
+            "Just starting discovery phase",
+            "Working on prototype gates - focus on core pain/persona first",
+        ],
+        "affects_gates": ["full_requirements"],
+        "confidence_impact": "Medium - identifies gaps but doesn't fill them",
+        "typical_confidence": "N/A - analysis tool",
+    },
+    {
+        "name": "propose_entity_updates",
+        "description": "Generate proposals to fill identified requirement gaps by creating or updating features, personas, or VP steps",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "project_id": {
+                    "type": "string",
+                    "description": "Project UUID",
+                },
+                "gap_analysis": {
+                    "type": "object",
+                    "description": "Output from analyze_requirements_gaps tool",
+                },
+                "max_proposals": {
+                    "type": "integer",
+                    "description": "Maximum number of proposals to generate (default: 5)",
+                    "default": 5,
+                },
+                "entity_types": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "enum": ["feature", "persona", "vp_step"],
+                    },
+                    "description": "Types of entities to propose (default: all)",
+                },
+                "auto_create_proposals": {
+                    "type": "boolean",
+                    "description": "Whether to create proposals in DB for consultant review (default: true)",
+                    "default": True,
+                },
+            },
+            "required": ["project_id", "gap_analysis"],
+        },
+        "useful_when": [
+            "After running analyze_requirements_gaps and finding gaps",
+            "When gaps have been identified that need to be addressed",
+            "Wanting to improve requirement completeness systematically",
+            "Need to propose new features based on persona pain points",
+            "Need to link VP steps to appropriate features",
+        ],
+        "not_useful_when": [
+            "No gap analysis has been run - run analyze_requirements_gaps first",
+            "Project is in final stages with locked requirements",
+            "Gaps are about missing client information - use discovery questions instead",
+        ],
+        "affects_gates": ["full_requirements", "confirmed_scope"],
+        "confidence_impact": "High - creates proposals that can improve requirements",
+        "typical_confidence": "Varies - proposals need consultant review",
+        "note": "Proposals are created for consultant review, not auto-applied",
+    },
+    # ==========================================================================
+    # Memory Tools - Persistent Project Memory
+    # ==========================================================================
+    {
+        "name": "read_project_memory",
+        "description": "Read the project memory document containing accumulated understanding, decisions, learnings, and open questions",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "project_id": {
+                    "type": "string",
+                    "description": "Project UUID",
+                },
+            },
+            "required": ["project_id"],
+        },
+        "useful_when": [
+            "Starting work on a project to understand history and context",
+            "Need to recall previous decisions and their rationale",
+            "Want to check what learnings apply to current situation",
+            "Looking for open questions that need answers",
+        ],
+        "not_useful_when": [
+            "Project memory doesn't exist yet (new project)",
+        ],
+        "affects_gates": [],
+        "confidence_impact": "None - read-only",
+        "typical_confidence": "N/A",
+    },
+    {
+        "name": "update_project_understanding",
+        "description": "Update the project understanding section of memory with new insights about the project, client, or domain",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "project_id": {
+                    "type": "string",
+                    "description": "Project UUID",
+                },
+                "understanding": {
+                    "type": "string",
+                    "description": "New or updated understanding of the project (replaces previous)",
+                },
+                "client_profile_updates": {
+                    "type": "object",
+                    "description": "Optional: Updates to client profile (e.g., communication_style, domain_vocabulary)",
+                },
+            },
+            "required": ["project_id", "understanding"],
+        },
+        "useful_when": [
+            "Gained new insight about what the project is really about",
+            "Learned something important about the client",
+            "Discovered domain-specific terminology or patterns",
+            "Understanding has evolved based on new signals",
+        ],
+        "not_useful_when": [
+            "No new understanding to record",
+            "Update is minor and not worth persisting",
+        ],
+        "affects_gates": [],
+        "confidence_impact": "None - memory update",
+        "typical_confidence": "N/A",
+    },
+    {
+        "name": "log_decision",
+        "description": "Log a significant decision with full rationale so we never lose the 'why' behind choices",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "project_id": {
+                    "type": "string",
+                    "description": "Project UUID",
+                },
+                "title": {
+                    "type": "string",
+                    "description": "Short title for the decision (e.g., 'Chose mobile-first approach')",
+                },
+                "decision": {
+                    "type": "string",
+                    "description": "What was decided",
+                },
+                "rationale": {
+                    "type": "string",
+                    "description": "WHY this decision was made - the reasoning",
+                },
+                "alternatives_considered": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "option": {"type": "string"},
+                            "why_rejected": {"type": "string"},
+                        },
+                    },
+                    "description": "Other options that were considered and why they weren't chosen",
+                },
+                "decided_by": {
+                    "type": "string",
+                    "enum": ["client", "consultant", "di_agent"],
+                    "description": "Who made this decision",
+                },
+                "decision_type": {
+                    "type": "string",
+                    "enum": ["feature", "architecture", "scope", "pivot", "terminology", "process"],
+                    "description": "Type of decision",
+                },
+            },
+            "required": ["project_id", "title", "decision", "rationale"],
+        },
+        "useful_when": [
+            "A significant choice was made that affects project direction",
+            "Client confirmed or rejected a proposal",
+            "Architecture or approach decision was made",
+            "Scope was changed or prioritized",
+            "A pivot occurred based on new information",
+        ],
+        "not_useful_when": [
+            "Decision is trivial or doesn't affect future work",
+            "Already logged this decision",
+        ],
+        "affects_gates": [],
+        "confidence_impact": "None - memory update",
+        "typical_confidence": "N/A",
+    },
+    {
+        "name": "record_learning",
+        "description": "Record a learning - what worked, what didn't, patterns discovered, or terminology learned",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "project_id": {
+                    "type": "string",
+                    "description": "Project UUID",
+                },
+                "title": {
+                    "type": "string",
+                    "description": "Short title for the learning",
+                },
+                "context": {
+                    "type": "string",
+                    "description": "What happened - the situation that led to this learning",
+                },
+                "learning": {
+                    "type": "string",
+                    "description": "What we learned - the insight or pattern",
+                },
+                "learning_type": {
+                    "type": "string",
+                    "enum": ["insight", "mistake", "pattern", "terminology"],
+                    "description": "Type of learning",
+                },
+                "domain": {
+                    "type": "string",
+                    "enum": ["client", "domain", "process", "technical"],
+                    "description": "What domain this learning applies to",
+                },
+            },
+            "required": ["project_id", "title", "context", "learning"],
+        },
+        "useful_when": [
+            "Made a mistake and want to avoid repeating it",
+            "Discovered a pattern that works for this client/project",
+            "Learned domain-specific terminology",
+            "Found a better process or approach",
+            "Client feedback taught us something",
+        ],
+        "not_useful_when": [
+            "Learning is trivial or obvious",
+            "Already recorded this learning",
+        ],
+        "affects_gates": [],
+        "confidence_impact": "None - memory update",
+        "typical_confidence": "N/A",
+        "note": "Mistakes are especially valuable - they prevent repeated errors",
+    },
+    {
+        "name": "update_strategy",
+        "description": "Update the current strategy and working hypotheses",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "project_id": {
+                    "type": "string",
+                    "description": "Project UUID",
+                },
+                "focus": {
+                    "type": "string",
+                    "description": "What we're currently focused on and why",
+                },
+                "hypotheses": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Working hypotheses we're testing",
+                },
+                "next_actions": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Planned next actions",
+                },
+            },
+            "required": ["project_id", "focus"],
+        },
+        "useful_when": [
+            "Strategy needs to be updated based on new information",
+            "Entering a new phase of the project",
+            "Forming hypotheses that need validation",
+            "Planning the next steps",
+        ],
+        "not_useful_when": [
+            "Strategy hasn't changed",
+            "Just minor tweaks that don't need recording",
+        ],
+        "affects_gates": [],
+        "confidence_impact": "None - memory update",
+        "typical_confidence": "N/A",
+    },
+    {
+        "name": "add_open_question",
+        "description": "Add an open question that needs to be answered",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "project_id": {
+                    "type": "string",
+                    "description": "Project UUID",
+                },
+                "question": {
+                    "type": "string",
+                    "description": "The question that needs answering",
+                },
+                "why_important": {
+                    "type": "string",
+                    "description": "Why this question matters",
+                },
+                "affects_gate": {
+                    "type": "string",
+                    "description": "Which gate this question relates to (if any)",
+                },
+            },
+            "required": ["project_id", "question"],
+        },
+        "useful_when": [
+            "Identified a gap in knowledge that blocks progress",
+            "Need client input on something specific",
+            "Discovered an ambiguity that needs clarification",
+        ],
+        "not_useful_when": [
+            "Question is already recorded",
+            "Can answer the question from existing signals",
+        ],
+        "affects_gates": [],
+        "confidence_impact": "None - memory update",
+        "typical_confidence": "N/A",
+    },
 ]
 
 # =============================================================================
@@ -923,6 +1279,8 @@ def get_extraction_tools() -> list[dict]:
         "enrich_competitor",
         "extract_stakeholders",
         "extract_risks",
+        # Requirements gap tools (can propose changes)
+        "propose_entity_updates",
     ]
     return [tool for tool in DI_AGENT_TOOLS if tool["name"] in extraction_tool_names]
 
@@ -937,5 +1295,7 @@ def get_guidance_tools() -> list[dict]:
         "suggest_discovery_questions",
         "analyze_gaps",
         "stop_with_guidance",
+        # Requirements gap analysis (read-only analysis)
+        "analyze_requirements_gaps",
     ]
     return [tool for tool in DI_AGENT_TOOLS if tool["name"] in guidance_tool_names]

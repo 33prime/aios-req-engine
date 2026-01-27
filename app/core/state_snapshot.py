@@ -305,7 +305,7 @@ def _build_state_section(supabase, project_id: UUID) -> str:
     try:
         features = (
             supabase.table("features")
-            .select("id, is_mvp, name, description, status")
+            .select("id, is_mvp, name, description, confirmation_status")
             .eq("project_id", str(project_id))
             .execute()
         ).data or []
@@ -315,16 +315,17 @@ def _build_state_section(supabase, project_id: UUID) -> str:
 
         if features:
             has_any_content = True
-            confirmed = len([f for f in features if f.get("status") == "confirmed"])
-            lines.append(f"Features ({len(features)} total, {len(mvp_features)} MVP, {confirmed} confirmed):")
+            confirmed = len([f for f in features if f.get("confirmation_status") in ("confirmed_client", "confirmed_consultant")])
+            draft = len([f for f in features if f.get("confirmation_status") == "ai_generated"])
+            lines.append(f"Features ({len(features)} total, {len(mvp_features)} MVP, {confirmed} confirmed, {draft} draft):")
             for f in mvp_features[:5]:
                 name = f.get("name", "?")[:50]
-                desc = f.get("description", "")[:40]
-                lines.append(f"  [MVP] {name}")
-                if desc:
-                    lines.append(f"        {desc}...")
+                status = f.get("confirmation_status", "ai_generated")
+                status_tag = " [confirmed]" if status in ("confirmed_client", "confirmed_consultant") else " [draft]"
+                lines.append(f"  [MVP] {name}{status_tag}")
             if other_features:
-                lines.append(f"  + {len(other_features)} additional features")
+                other_confirmed = len([f for f in other_features if f.get("confirmation_status") in ("confirmed_client", "confirmed_consultant")])
+                lines.append(f"  + {len(other_features)} additional features ({other_confirmed} confirmed)")
         else:
             lines.append("Features: Not yet defined")
             lines.append("  → Add signals or run enrichment to generate features")
@@ -335,7 +336,7 @@ def _build_state_section(supabase, project_id: UUID) -> str:
     try:
         personas = (
             supabase.table("personas")
-            .select("name, role, goals, frustrations, is_primary")
+            .select("name, role, goals, frustrations, is_primary, confirmation_status")
             .eq("project_id", str(project_id))
             .execute()
         ).data or []
@@ -343,17 +344,21 @@ def _build_state_section(supabase, project_id: UUID) -> str:
         if personas:
             has_any_content = True
             primary = [p for p in personas if p.get("is_primary")]
-            lines.append(f"Target Users ({len(personas)} personas):")
+            confirmed = len([p for p in personas if p.get("confirmation_status") in ("confirmed_client", "confirmed_consultant")])
+            draft = len([p for p in personas if p.get("confirmation_status") == "ai_generated"])
+            lines.append(f"Target Users ({len(personas)} personas, {confirmed} confirmed, {draft} draft):")
             # Show primary first
             for p in (primary + [p for p in personas if not p.get("is_primary")])[:4]:
                 name = p.get("name", "?")
                 role = p.get("role", "")
                 is_primary = p.get("is_primary")
+                status = p.get("confirmation_status", "ai_generated")
                 primary_tag = " [Primary]" if is_primary else ""
+                status_tag = " [confirmed]" if status in ("confirmed_client", "confirmed_consultant") else " [draft]"
                 persona_line = f"  • {name}"
                 if role:
                     persona_line += f" - {role}"
-                persona_line += primary_tag
+                persona_line += primary_tag + status_tag
                 lines.append(persona_line)
                 # Add goals if present
                 if p.get("goals"):
@@ -373,7 +378,7 @@ def _build_state_section(supabase, project_id: UUID) -> str:
     try:
         vp_steps = (
             supabase.table("vp_steps")
-            .select("name, step_order, description, outcome")
+            .select("name, step_order, description, outcome, confirmation_status")
             .eq("project_id", str(project_id))
             .order("step_order")
             .execute()
@@ -381,12 +386,16 @@ def _build_state_section(supabase, project_id: UUID) -> str:
 
         if vp_steps:
             has_any_content = True
-            lines.append(f"Value Path ({len(vp_steps)} stages):")
+            confirmed = len([s for s in vp_steps if s.get("confirmation_status") in ("confirmed_client", "confirmed_consultant")])
+            draft = len([s for s in vp_steps if s.get("confirmation_status") == "ai_generated"])
+            lines.append(f"Value Path ({len(vp_steps)} stages, {confirmed} confirmed, {draft} draft):")
             for step in vp_steps[:6]:
                 order = step.get("step_order", "?")
                 name = step.get("name", "Untitled")[:50]
                 outcome = step.get("outcome", "")[:40]
-                lines.append(f"  {order}. {name}")
+                status = step.get("confirmation_status", "ai_generated")
+                status_tag = " [confirmed]" if status in ("confirmed_client", "confirmed_consultant") else " [draft]"
+                lines.append(f"  {order}. {name}{status_tag}")
                 if outcome:
                     lines.append(f"     → {outcome}")
         else:

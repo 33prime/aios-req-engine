@@ -10,6 +10,14 @@ from uuid import UUID
 from anthropic import Anthropic
 from openai import OpenAI
 
+from app.chains.analyze_requirements_gaps import analyze_requirements_gaps
+from app.db.project_memory import (
+    add_decision,
+    add_learning,
+    get_memory_for_context,
+    get_or_create_project_memory,
+    update_project_memory,
+)
 from app.chains.enrich_competitor import enrich_competitor
 from app.chains.enrich_kpi import enrich_kpi
 from app.chains.enrich_pain_point import enrich_pain_point
@@ -22,6 +30,7 @@ from app.chains.extract_core_pain import extract_core_pain
 from app.chains.extract_primary_persona import extract_primary_persona
 from app.chains.extract_risks_from_signals import extract_risks_from_signals
 from app.chains.identify_wow_moment import identify_wow_moment
+from app.chains.propose_entity_updates import propose_entity_updates
 from app.chains.run_strategic_foundation import run_strategic_foundation
 from app.core.config import get_settings
 from app.core.logging import get_logger
@@ -31,6 +40,7 @@ from app.db.competitor_refs import list_competitor_refs, smart_upsert_competitor
 from app.db.foundation import get_foundation_element
 from app.db.signals import list_project_signals
 from app.db.stakeholders import list_stakeholders, smart_upsert_stakeholder
+from app.db.di_cache import mark_signals_analyzed, update_cache
 from app.graphs.research_agent_graph import run_research_agent_graph
 
 logger = get_logger(__name__)
@@ -99,6 +109,24 @@ async def execute_di_tool(
             result = await _execute_extract_stakeholders(project_id, tool_args)
         elif tool_name == "extract_risks":
             result = await _execute_extract_risks(project_id, tool_args)
+        # Requirements Gap Analysis tools
+        elif tool_name == "analyze_requirements_gaps":
+            result = await _execute_analyze_requirements_gaps(project_id, tool_args)
+        elif tool_name == "propose_entity_updates":
+            result = await _execute_propose_entity_updates(project_id, tool_args)
+        # Memory tools
+        elif tool_name == "read_project_memory":
+            result = await _execute_read_project_memory(project_id, tool_args)
+        elif tool_name == "update_project_understanding":
+            result = await _execute_update_project_understanding(project_id, tool_args)
+        elif tool_name == "log_decision":
+            result = await _execute_log_decision(project_id, tool_args)
+        elif tool_name == "record_learning":
+            result = await _execute_record_learning(project_id, tool_args)
+        elif tool_name == "update_strategy":
+            result = await _execute_update_strategy(project_id, tool_args)
+        elif tool_name == "add_open_question":
+            result = await _execute_add_open_question(project_id, tool_args)
         else:
             logger.error(f"Unknown tool: {tool_name}")
             return {
@@ -146,18 +174,61 @@ async def _execute_run_foundation(project_id: UUID, args: dict) -> dict:
     Runs the full strategic foundation chain which extracts features,
     personas, VP steps, PRD sections, and stakeholders.
     """
+    from datetime import datetime, timezone
+
     try:
+        # Get current signals BEFORE running foundation
+        signals_before = list_project_signals(project_id)
+        signal_ids = [s["id"] for s in signals_before] if signals_before else []
+
         result = await run_strategic_foundation(project_id)
+
+        # Mark signals as analyzed in the DI cache so agent doesn't repeat
+        if signal_ids:
+            try:
+                mark_signals_analyzed(project_id, [UUID(s) for s in signal_ids])
+                logger.info(f"Marked {len(signal_ids)} signals as analyzed for project {project_id}")
+            except Exception as cache_err:
+                logger.warning(f"Failed to update DI cache (non-fatal): {cache_err}")
+
+        # Also update last_full_analysis_at
+        try:
+            update_cache(
+                project_id,
+                last_full_analysis_at=datetime.now(timezone.utc).isoformat(),
+            )
+        except Exception as cache_err:
+            logger.warning(f"Failed to update last_full_analysis_at (non-fatal): {cache_err}")
+
+        # Calculate totals from result
+        drivers_total = (
+            result.get("business_drivers_created", 0) +
+            result.get("business_drivers_updated", 0) +
+            result.get("business_drivers_merged", 0)
+        )
+        competitors_total = (
+            result.get("competitor_refs_created", 0) +
+            result.get("competitor_refs_updated", 0) +
+            result.get("competitor_refs_merged", 0)
+        )
 
         return {
             "success": True,
             "data": {
-                "features_count": result.get("features_count", 0),
-                "personas_count": result.get("personas_count", 0),
-                "vp_steps_count": result.get("vp_steps_count", 0),
-                "prd_sections_count": result.get("prd_sections_count", 0),
-                "stakeholders_count": result.get("stakeholders_count", 0),
-                "message": "Strategic foundation extracted successfully",
+                "company_enriched": result.get("company_enriched", False),
+                "enrichment_source": result.get("enrichment_source"),
+                "stakeholders_linked": result.get("stakeholders_linked", 0),
+                "business_drivers_created": result.get("business_drivers_created", 0),
+                "business_drivers_updated": result.get("business_drivers_updated", 0),
+                "business_drivers_merged": result.get("business_drivers_merged", 0),
+                "business_drivers_total": drivers_total,
+                "competitor_refs_created": result.get("competitor_refs_created", 0),
+                "competitor_refs_updated": result.get("competitor_refs_updated", 0),
+                "competitor_refs_merged": result.get("competitor_refs_merged", 0),
+                "competitor_refs_total": competitors_total,
+                "signals_analyzed": len(signal_ids),
+                "errors": result.get("errors", []),
+                "message": f"Strategic foundation extracted: {drivers_total} business drivers, {competitors_total} competitor refs",
             },
             "error": None,
         }
@@ -915,6 +986,387 @@ def _get_recommended_action(gate_name: str) -> str:
         "design_preferences": "Gather design preferences through discovery questions",
         "business_case": "Run extract_business_case to articulate business value",
         "budget_constraints": "Run extract_budget_constraints to understand budget/timeline",
-        "full_requirements": "Run run_foundation to extract complete requirements",
+        "full_requirements": "Run run_foundation to extract complete requirements, then analyze_requirements_gaps to check for logical gaps",
     }
     return actions.get(gate_name, "Gather more information through discovery questions")
+
+
+# ==========================================================================
+# Requirements Gap Analysis Tools
+# ==========================================================================
+
+
+async def _execute_analyze_requirements_gaps(project_id: UUID, args: dict) -> dict:
+    """
+    Analyze requirements for logical gaps and inconsistencies.
+
+    Checks for missing feature references, orphaned entities, incomplete
+    definitions, and VP flow continuity issues.
+    """
+    try:
+        focus_areas = args.get("focus_areas", None)
+
+        result = await analyze_requirements_gaps(
+            project_id=project_id,
+            focus_areas=focus_areas,
+        )
+
+        if result.get("success"):
+            gaps = result.get("gaps", [])
+            summary = result.get("summary", {})
+
+            return {
+                "success": True,
+                "data": {
+                    "gaps": gaps,
+                    "total_gaps": summary.get("total_gaps", len(gaps)),
+                    "high_severity": summary.get("high_severity", 0),
+                    "medium_severity": summary.get("medium_severity", 0),
+                    "low_severity": summary.get("low_severity", 0),
+                    "overall_completeness": summary.get("overall_completeness", "unknown"),
+                    "most_critical_area": summary.get("most_critical_area", "unknown"),
+                    "recommendations": result.get("recommendations", []),
+                    "entities_analyzed": result.get("entities_analyzed", {}),
+                    "message": f"Found {len(gaps)} requirement gaps ({summary.get('high_severity', 0)} high severity)",
+                },
+                "error": None,
+            }
+        else:
+            return {
+                "success": False,
+                "data": {},
+                "error": result.get("error", "Gap analysis failed"),
+            }
+
+    except Exception as e:
+        logger.error(f"Requirements gap analysis failed: {e}", exc_info=True)
+        return {
+            "success": False,
+            "data": {},
+            "error": f"Requirements gap analysis failed: {str(e)}",
+        }
+
+
+async def _execute_propose_entity_updates(project_id: UUID, args: dict) -> dict:
+    """
+    Generate proposals to fill identified requirement gaps.
+
+    Creates proposals for features, personas, or VP steps based on
+    the gap analysis results.
+    """
+    try:
+        gap_analysis = args.get("gap_analysis")
+        if not gap_analysis:
+            return {
+                "success": False,
+                "data": {},
+                "error": "gap_analysis is required - run analyze_requirements_gaps first",
+            }
+
+        max_proposals = args.get("max_proposals", 5)
+        entity_types = args.get("entity_types", None)
+        auto_create = args.get("auto_create_proposals", True)
+
+        # Get project stage from readiness if available
+        project_stage = "requirements"  # Default
+        try:
+            readiness = compute_readiness(project_id)
+            project_stage = readiness.phase
+        except Exception:
+            pass
+
+        result = await propose_entity_updates(
+            project_id=project_id,
+            gap_analysis=gap_analysis,
+            max_proposals=max_proposals,
+            entity_types=entity_types,
+            project_stage=project_stage,
+            auto_create_proposals=auto_create,
+        )
+
+        if result.get("success"):
+            proposals = result.get("proposals", [])
+            proposals_created = result.get("proposals_created", [])
+            summary = result.get("summary", {})
+
+            return {
+                "success": True,
+                "data": {
+                    "proposals": proposals,
+                    "proposals_generated": len(proposals),
+                    "proposals_created_in_db": len(proposals_created),
+                    "proposal_ids": [p.get("id") for p in proposals_created if p],
+                    "creates": summary.get("creates", 0),
+                    "updates": summary.get("updates", 0),
+                    "by_entity_type": summary.get("by_entity_type", {}),
+                    "gaps_addressed": summary.get("gaps_addressed", 0),
+                    "message": f"Generated {len(proposals)} proposals ({len(proposals_created)} created for review)",
+                },
+                "error": None,
+            }
+        else:
+            return {
+                "success": False,
+                "data": {},
+                "error": result.get("error", "Proposal generation failed"),
+            }
+
+    except Exception as e:
+        logger.error(f"Proposal generation failed: {e}", exc_info=True)
+        return {
+            "success": False,
+            "data": {},
+            "error": f"Proposal generation failed: {str(e)}",
+        }
+
+
+# ==========================================================================
+# Memory Tools - Persistent Project Memory
+# ==========================================================================
+
+
+async def _execute_read_project_memory(project_id: UUID, args: dict) -> dict:
+    """
+    Read the project memory document.
+    """
+    try:
+        memory = get_or_create_project_memory(project_id)
+        content = get_memory_for_context(project_id, max_tokens=3000)
+
+        return {
+            "success": True,
+            "data": {
+                "content": content,
+                "version": memory.get("version", 1),
+                "last_updated": memory.get("updated_at"),
+                "updated_by": memory.get("last_updated_by"),
+                "tokens_estimate": memory.get("tokens_estimate", 0),
+                "message": f"Project memory loaded (v{memory.get('version', 1)})",
+            },
+            "error": None,
+        }
+
+    except Exception as e:
+        logger.error(f"Failed to read project memory: {e}", exc_info=True)
+        return {
+            "success": False,
+            "data": {},
+            "error": f"Failed to read project memory: {str(e)}",
+        }
+
+
+async def _execute_update_project_understanding(project_id: UUID, args: dict) -> dict:
+    """
+    Update the project understanding section of memory.
+    """
+    try:
+        understanding = args.get("understanding", "")
+        client_profile_updates = args.get("client_profile_updates", {})
+
+        # Get existing memory to merge client profile
+        memory = get_or_create_project_memory(project_id)
+        existing_profile = memory.get("client_profile", {}) or {}
+
+        # Merge profile updates
+        updated_profile = {**existing_profile, **client_profile_updates}
+
+        result = update_project_memory(
+            project_id=project_id,
+            project_understanding=understanding,
+            client_profile=updated_profile if client_profile_updates else None,
+            updated_by="di_agent",
+        )
+
+        return {
+            "success": True,
+            "data": {
+                "version": result.get("version", 1),
+                "understanding_updated": bool(understanding),
+                "profile_fields_updated": list(client_profile_updates.keys()) if client_profile_updates else [],
+                "message": "Project understanding updated",
+            },
+            "error": None,
+        }
+
+    except Exception as e:
+        logger.error(f"Failed to update project understanding: {e}", exc_info=True)
+        return {
+            "success": False,
+            "data": {},
+            "error": f"Failed to update project understanding: {str(e)}",
+        }
+
+
+async def _execute_log_decision(project_id: UUID, args: dict) -> dict:
+    """
+    Log a decision with full rationale.
+    """
+    try:
+        title = args.get("title", "Untitled Decision")
+        decision = args.get("decision", "")
+        rationale = args.get("rationale", "")
+        alternatives = args.get("alternatives_considered", [])
+        decided_by = args.get("decided_by", "di_agent")
+        decision_type = args.get("decision_type", "feature")
+
+        result = add_decision(
+            project_id=project_id,
+            title=title,
+            decision=decision,
+            rationale=rationale,
+            alternatives_considered=alternatives,
+            decided_by=decided_by,
+            decision_type=decision_type,
+        )
+
+        return {
+            "success": True,
+            "data": {
+                "decision_id": result.get("id"),
+                "title": title,
+                "decision_type": decision_type,
+                "message": f"Decision logged: {title}",
+            },
+            "error": None,
+        }
+
+    except Exception as e:
+        logger.error(f"Failed to log decision: {e}", exc_info=True)
+        return {
+            "success": False,
+            "data": {},
+            "error": f"Failed to log decision: {str(e)}",
+        }
+
+
+async def _execute_record_learning(project_id: UUID, args: dict) -> dict:
+    """
+    Record a learning in project memory.
+    """
+    try:
+        title = args.get("title", "Untitled Learning")
+        context = args.get("context", "")
+        learning = args.get("learning", "")
+        learning_type = args.get("learning_type", "insight")
+        domain = args.get("domain")
+
+        result = add_learning(
+            project_id=project_id,
+            title=title,
+            context=context,
+            learning=learning,
+            learning_type=learning_type,
+            domain=domain,
+        )
+
+        emoji = {"insight": "💡", "mistake": "⚠️", "pattern": "🔄", "terminology": "📝"}.get(learning_type, "📌")
+
+        return {
+            "success": True,
+            "data": {
+                "learning_id": result.get("id"),
+                "title": title,
+                "learning_type": learning_type,
+                "message": f"{emoji} Learning recorded: {title}",
+            },
+            "error": None,
+        }
+
+    except Exception as e:
+        logger.error(f"Failed to record learning: {e}", exc_info=True)
+        return {
+            "success": False,
+            "data": {},
+            "error": f"Failed to record learning: {str(e)}",
+        }
+
+
+async def _execute_update_strategy(project_id: UUID, args: dict) -> dict:
+    """
+    Update the current strategy and hypotheses.
+    """
+    try:
+        focus = args.get("focus", "")
+        hypotheses = args.get("hypotheses", [])
+        next_actions = args.get("next_actions", [])
+
+        strategy = {
+            "focus": focus,
+            "hypotheses": hypotheses,
+            "next_actions": next_actions,
+        }
+
+        result = update_project_memory(
+            project_id=project_id,
+            current_strategy=strategy,
+            updated_by="di_agent",
+        )
+
+        return {
+            "success": True,
+            "data": {
+                "focus": focus,
+                "hypotheses_count": len(hypotheses),
+                "next_actions_count": len(next_actions),
+                "message": f"Strategy updated: {focus[:50]}...",
+            },
+            "error": None,
+        }
+
+    except Exception as e:
+        logger.error(f"Failed to update strategy: {e}", exc_info=True)
+        return {
+            "success": False,
+            "data": {},
+            "error": f"Failed to update strategy: {str(e)}",
+        }
+
+
+async def _execute_add_open_question(project_id: UUID, args: dict) -> dict:
+    """
+    Add an open question to project memory.
+    """
+    try:
+        question = args.get("question", "")
+        why_important = args.get("why_important", "")
+        affects_gate = args.get("affects_gate")
+
+        # Get existing questions
+        memory = get_or_create_project_memory(project_id)
+        existing_questions = memory.get("open_questions", []) or []
+
+        # Add new question
+        new_question = {
+            "question": question,
+            "why_important": why_important,
+            "affects_gate": affects_gate,
+            "resolved": False,
+            "added_at": str(datetime.utcnow()),
+        }
+        existing_questions.append(new_question)
+
+        from datetime import datetime
+
+        result = update_project_memory(
+            project_id=project_id,
+            open_questions=existing_questions,
+            updated_by="di_agent",
+        )
+
+        return {
+            "success": True,
+            "data": {
+                "question": question,
+                "total_open_questions": len(existing_questions),
+                "message": f"Open question added: {question[:50]}...",
+            },
+            "error": None,
+        }
+
+    except Exception as e:
+        logger.error(f"Failed to add open question: {e}", exc_info=True)
+        return {
+            "success": False,
+            "data": {},
+            "error": f"Failed to add open question: {str(e)}",
+        }

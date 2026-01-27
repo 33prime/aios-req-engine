@@ -1108,50 +1108,125 @@ registerCommand({
 
     const { invokeDIAgent } = await import('@/lib/api')
 
+    console.log('🧠 Starting DI Agent analysis for project:', projectId)
+
     try {
       const result = await invokeDIAgent(projectId, {
         trigger: 'user_request',
         trigger_context: 'slash command from assistant',
       })
 
-      // Format the response
+      console.log('🧠 DI Agent result received:', {
+        action_type: result.action_type,
+        tools_called: result.tools_called?.length || 0,
+        has_observation: !!result.observation,
+        has_thinking: !!result.thinking,
+        has_decision: !!result.decision,
+      })
+
+      // Build a comprehensive response message
       let message = `## 🧠 Design Intelligence Analysis\n\n`
-      message += `### Observed\n${result.observation}\n\n`
-      message += `### Thinking\n${result.thinking}\n\n`
-      message += `### Decision\n${result.decision}\n\n`
 
+      // Observation section
+      if (result.observation) {
+        message += `### 👁️ Observed\n${result.observation}\n\n`
+      } else {
+        message += `### 👁️ Observed\n*No observation recorded*\n\n`
+      }
+
+      // Thinking section
+      if (result.thinking) {
+        message += `### 🤔 Thinking\n${result.thinking}\n\n`
+      } else {
+        message += `### 🤔 Thinking\n*No thinking recorded*\n\n`
+      }
+
+      // Decision section
+      if (result.decision) {
+        message += `### ✅ Decision\n${result.decision}\n\n`
+      } else {
+        message += `### ✅ Decision\n*No decision recorded*\n\n`
+      }
+
+      // Actions/Tools section
       if (result.action_type === 'tool_call' && result.tools_called?.length) {
-        message += `### Actions Taken\n`
-        message += `Tools called: ${result.tools_called.map((t: any) => t.tool_name).join(', ')}\n\n`
+        message += `### 🔧 Actions Taken\n`
+        message += `**Tools called:** ${result.tools_called.map((t: any) => t.tool_name).join(', ')}\n\n`
 
-        // Results are now embedded in tools_called, not separate
-        message += `**Results:**\n`
+        message += `| Tool | Status | Details |\n`
+        message += `|------|--------|--------|\n`
         result.tools_called.forEach((tool: any) => {
-          if (tool.success) {
-            message += `✓ ${tool.tool_name}: Success\n`
-          } else {
-            message += `✗ ${tool.tool_name}: ${tool.error || 'Failed'}\n`
-          }
+          const status = tool.success ? '✅ Success' : '❌ Failed'
+          const details = tool.success
+            ? (tool.result?.message || 'Completed').slice(0, 50)
+            : (tool.error || 'Unknown error').slice(0, 50)
+          message += `| ${tool.tool_name} | ${status} | ${details} |\n`
         })
         message += '\n'
+
+        // Show detailed results for each tool
+        result.tools_called.forEach((tool: any) => {
+          if (tool.success && tool.result) {
+            message += `<details>\n<summary>📋 ${tool.tool_name} details</summary>\n\n`
+            message += '```json\n'
+            message += JSON.stringify(tool.result, null, 2).slice(0, 500)
+            if (JSON.stringify(tool.result).length > 500) {
+              message += '\n... (truncated)'
+            }
+            message += '\n```\n</details>\n\n'
+          }
+        })
       } else if (result.action_type === 'guidance' && result.guidance) {
         const guidance: any = result.guidance
-        message += `### Guidance\n${guidance.summary}\n\n`
+        message += `### 💡 Guidance for Consultant\n`
+        message += `${guidance.summary}\n\n`
+
         if (guidance.questions_to_ask?.length) {
-          message += `**Questions to Ask:**\n`
-          guidance.questions_to_ask.forEach((q: any) => {
-            message += `- ${q.question} *(${q.why_ask})*\n`
+          message += `**Questions to Ask the Client:**\n`
+          guidance.questions_to_ask.forEach((q: any, i: number) => {
+            message += `${i + 1}. **${q.question}**\n`
+            if (q.why_ask) message += `   *Why ask:* ${q.why_ask}\n`
+            if (q.listen_for?.length) message += `   *Listen for:* ${q.listen_for.join(', ')}\n`
           })
           message += '\n'
         }
+
+        if (guidance.signals_to_watch?.length) {
+          message += `**Signals to Watch:**\n`
+          guidance.signals_to_watch.forEach((s: string) => {
+            message += `- ${s}\n`
+          })
+          message += '\n'
+        }
+
+        if (guidance.what_this_unlocks) {
+          message += `**What this unlocks:** ${guidance.what_this_unlocks}\n\n`
+        }
+      } else if (result.action_type === 'stop') {
+        message += `### ⏹️ Agent Stopped\n`
+        message += `*The agent stopped because:* ${result.decision || 'No reason provided'}\n\n`
       }
 
-      if (
-        result.readiness_before !== undefined &&
-        result.readiness_after !== undefined
-      ) {
-        message += `\n**Readiness:** ${result.readiness_before}% → ${result.readiness_after}%`
+      // Readiness section
+      message += `### 📊 Readiness\n`
+      if (result.readiness_before !== undefined && result.readiness_after !== undefined) {
+        const change = result.readiness_after - result.readiness_before
+        const changeIcon = change > 0 ? '📈' : change < 0 ? '📉' : '➡️'
+        message += `${changeIcon} **${result.readiness_before}%** → **${result.readiness_after}%**`
+        if (change !== 0) {
+          message += ` (${change > 0 ? '+' : ''}${change})`
+        }
+        message += '\n'
+      } else if (result.readiness_before !== undefined) {
+        message += `Current: **${result.readiness_before}%**\n`
       }
+
+      // Gates affected
+      if (result.gates_affected?.length) {
+        message += `\n**Gates affected:** ${result.gates_affected.join(', ')}\n`
+      }
+
+      console.log('🧠 DI Agent message formatted, length:', message.length)
 
       return {
         success: true,
@@ -1159,13 +1234,14 @@ registerCommand({
         data: {
           action: 'di_agent_analysis',
           result,
-          refresh_project: true  // Trigger auto-refresh
+          refresh_project: true
         },
       }
     } catch (error: any) {
+      console.error('🧠 DI Agent error:', error)
       return {
         success: false,
-        message: `Failed to run DI analysis: ${error.message || 'Unknown error'}`,
+        message: `## ❌ DI Analysis Failed\n\n**Error:** ${error.message || 'Unknown error'}\n\nPlease check the browser console and backend logs for more details.`,
       }
     }
   },

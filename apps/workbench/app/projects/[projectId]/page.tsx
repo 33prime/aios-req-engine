@@ -147,8 +147,8 @@ export default function WorkspacePage() {
         } else if (result.features_created || result.personas_created || result.vp_steps_created) {
           console.log(`📝 Entities created: ${result.features_created || 0} features, ${result.personas_created || 0} personas, ${result.vp_steps_created || 0} VP steps`)
         }
-        // Refresh data immediately since processing is done
-        loadProjectData()
+        // Refresh data immediately since processing is done (isRefresh=true to preserve chat)
+        loadProjectData(true)
         return
       }
 
@@ -158,8 +158,8 @@ export default function WorkspacePage() {
         processedSignalsRef.current.add(signalId)
 
         console.error('❌ Signal processing failed:', result.pipeline_error)
-        // Still refresh to show the signal was added
-        loadProjectData()
+        // Still refresh to show the signal was added (isRefresh=true to preserve chat)
+        loadProjectData(true)
         return
       }
 
@@ -172,9 +172,17 @@ export default function WorkspacePage() {
     }
   }, [messages])
 
-  const loadProjectData = async () => {
+  const loadProjectData = async (isRefresh = false) => {
+    console.log(`📦 loadProjectData called: isRefresh=${isRefresh}, currentLoading=${loading}`)
     try {
-      setLoading(true)
+      // Only show loading spinner on initial load, not on refreshes
+      // This prevents unmounting the AssistantProvider and losing chat state
+      if (!isRefresh) {
+        console.log('📦 Setting loading=true (initial load)')
+        setLoading(true)
+      } else {
+        console.log('📦 Skipping loading=true (refresh mode)')
+      }
 
       // FAST PATH: Only load project details first (has counts, cached readiness)
       const projectData = await getProjectDetails(projectId)
@@ -254,7 +262,7 @@ export default function WorkspacePage() {
     try {
       await applyCascade(cascadeId)
       setCascades(prev => prev.filter(c => c.id !== cascadeId))
-      loadProjectData() // Refresh all data including cascades
+      loadProjectData(true) // Refresh all data including cascades (preserve chat)
     } catch (error) {
       console.error('Failed to apply cascade:', error)
     }
@@ -378,7 +386,7 @@ export default function WorkspacePage() {
               alert(`${agentType} completed successfully!`)
             }
 
-            loadProjectData() // Refresh all data including cascades
+            loadProjectData(true) // Refresh all data including cascades (preserve chat)
           } else if (job.status === 'failed') {
             console.log('❌ Job failed:', job.error)
             alert(`${agentType} failed: ${job.error}`)
@@ -430,8 +438,8 @@ export default function WorkspacePage() {
               console.log(`✅ Signal processing complete! ${totalImpacts} entities created/updated`)
             }
 
-            // Refresh project data to show new entities or proposals
-            loadProjectData()
+            // Refresh project data to show new entities or proposals (preserve chat)
+            loadProjectData(true)
 
             // Don't continue polling
             return
@@ -440,8 +448,8 @@ export default function WorkspacePage() {
           // Check max polls - still refresh in case entities were created without impact tracking
           if (pollCount >= maxPolls) {
             console.log('⏰ Signal processing timeout - may still be running in background')
-            // Refresh anyway in case something was created
-            loadProjectData()
+            // Refresh anyway in case something was created (preserve chat)
+            loadProjectData(true)
             return
           }
 
@@ -513,6 +521,7 @@ export default function WorkspacePage() {
   ])
 
   if (loading) {
+    console.log('📦 Rendering loading spinner (AssistantProvider NOT rendered)')
     return (
       <div className="min-h-screen bg-ui-background flex items-center justify-center">
         <div className="text-center">
@@ -527,7 +536,7 @@ export default function WorkspacePage() {
     <AssistantProvider
       projectId={projectId}
       initialProjectData={assistantProjectData}
-      onProjectDataChanged={loadProjectData}
+      onProjectDataChanged={() => loadProjectData(true)}
     >
     <div className="min-h-screen bg-ui-background">
       {/* Desktop Header */}

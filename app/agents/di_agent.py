@@ -21,7 +21,8 @@ from app.core.metrics import timer, track_performance
 from app.core.readiness.score import compute_readiness
 from app.core.state_snapshot import get_state_snapshot
 from app.db.di_cache import get_di_cache, is_cache_valid, get_unanalyzed_signals
-from app.db.di_logs import log_agent_invocation
+from app.db.di_logs import get_recent_actions_for_context, log_agent_invocation
+from app.db.project_memory import get_memory_for_context, get_mistakes_to_avoid, get_recent_decisions
 
 logger = get_logger(__name__)
 
@@ -79,9 +80,21 @@ async def invoke_di_agent(
             # Check cache validity (passing both cache and unanalyzed to avoid refetches)
             cache_valid = is_cache_valid(project_id, cache=di_cache, unanalyzed_signals=unanalyzed) if di_cache else False
 
+        # Get recent agent actions for context (avoid repeating same actions)
+        with timer("DI Agent - Fetch recent actions", str(project_id)):
+            recent_actions = get_recent_actions_for_context(project_id, limit=5, hours=24)
+
+        # Get project memory (persistent understanding, decisions, learnings)
+        with timer("DI Agent - Fetch project memory", str(project_id)):
+            project_memory = get_memory_for_context(project_id, max_tokens=1500)
+            recent_decisions = get_recent_decisions(project_id, limit=5)
+            mistakes_to_avoid = get_mistakes_to_avoid(project_id, limit=3)
+
         logger.info(
             f"Agent observed state: score={readiness.score}, phase={readiness.phase}, "
-            f"cache_valid={cache_valid}, unanalyzed_signals={len(unanalyzed)}",
+            f"cache_valid={cache_valid}, unanalyzed_signals={len(unanalyzed)}, "
+            f"recent_actions={len(recent_actions)}, decisions={len(recent_decisions)}, "
+            f"mistakes_to_avoid={len(mistakes_to_avoid)}",
             extra={
                 "project_id": str(project_id),
                 "score": readiness.score,
@@ -95,6 +108,12 @@ async def invoke_di_agent(
 
         # Format gates for prompt
         gates_summary = _format_gates_summary(readiness.gates)
+
+        # Format recent actions for prompt
+        recent_actions_summary = _format_recent_actions(recent_actions)
+
+        # Format memory context for prompt
+        memory_summary = _format_memory_context(project_memory, recent_decisions, mistakes_to_avoid)
 
         # Format cache status
         cache_summary = _format_cache_summary(di_cache, cache_valid)
@@ -125,8 +144,14 @@ async def invoke_di_agent(
 ## DI Cache
 {cache_summary}
 
+## Recent Agent Actions (Last 24h)
+{recent_actions_summary}
+
+## Project Memory (Persistent Knowledge)
+{memory_summary}
+
 ## Project Context
-{state_snapshot[:3000]}
+{state_snapshot[:2500]}
 
 ---
 
@@ -146,6 +171,10 @@ Remember:
 - Prototype gates (core_pain, primary_persona, wow_moment) come before build gates
 - Be honest about confidence - it's okay to suggest questions if signal is sparse
 - Drive toward {readiness.next_milestone}
+- DO NOT repeat tools that were recently called unless results indicate they should be re-run
+- Check "Recent Agent Actions" to understand what was already tried
+- Review "Project Memory" for decisions, learnings, and mistakes to avoid
+- After significant actions, update memory with log_decision, record_learning, or update_project_understanding
 
 What's your reasoning and recommended action?"""
 
@@ -354,6 +383,101 @@ def _format_cache_summary(cache: dict | None, is_valid: bool) -> str:
     analyzed = len(cache.get("signals_analyzed", []))
     last_analysis = cache.get("last_full_analysis_at", "never")
     return f"Cache VALID ({analyzed} signals analyzed, last: {last_analysis[:10]})"
+
+
+def _format_recent_actions(actions: list[dict]) -> str:
+    """Format recent agent actions for context.
+
+    This helps the agent understand what was already tried and avoid
+    redundant operations.
+    """
+    if not actions:
+        return "No recent actions in the last 24 hours."
+
+    lines = []
+    for i, action in enumerate(actions, 1):
+        timestamp = action.get("timestamp", "?")
+        if timestamp and len(timestamp) > 16:
+            timestamp = timestamp[11:16]  # Just HH:MM
+
+        action_type = action.get("action_type", "unknown")
+        tools = action.get("tools", [])
+        readiness_change = action.get("readiness_change", "? → ?")
+        gates = action.get("gates_affected", [])
+
+        if tools:
+            tools_str = ", ".join(tools)
+            lines.append(f"{i}. [{timestamp}] **{action_type}**: {tools_str}")
+        else:
+            lines.append(f"{i}. [{timestamp}] **{action_type}**")
+
+        lines.append(f"   Readiness: {readiness_change}")
+        if gates:
+            lines.append(f"   Gates affected: {', '.join(gates)}")
+
+    return "\n".join(lines)
+
+
+def _format_memory_context(
+    project_memory: str,
+    recent_decisions: list[dict],
+    mistakes_to_avoid: list[dict],
+) -> str:
+    """Format project memory, decisions, and learnings for context.
+
+    This gives the agent persistent knowledge about the project.
+    """
+    lines = []
+
+    # Add recent key decisions (most important for context)
+    if recent_decisions:
+        lines.append("### Key Decisions")
+        for d in recent_decisions[:3]:  # Top 3 most recent
+            title = d.get("title", "Untitled")
+            decision = d.get("decision", "")[:100]
+            rationale = d.get("rationale", "")[:100]
+            lines.append(f"- **{title}**: {decision}")
+            if rationale:
+                lines.append(f"  *Why*: {rationale}")
+        lines.append("")
+
+    # Add mistakes to avoid (critical for not repeating errors)
+    if mistakes_to_avoid:
+        lines.append("### ⚠️ Mistakes to Avoid")
+        for m in mistakes_to_avoid:
+            title = m.get("title", "")
+            learning = m.get("learning", "")
+            lines.append(f"- {title}: {learning}")
+        lines.append("")
+
+    # Add condensed project memory if available
+    if project_memory and project_memory != "No project memory exists yet.":
+        # Extract key sections from the memory document
+        lines.append("### Project Understanding (from memory)")
+
+        # Try to find the understanding section
+        if "## Project Understanding" in project_memory:
+            try:
+                understanding_start = project_memory.find("## Project Understanding")
+                next_section = project_memory.find("\n## ", understanding_start + 1)
+                if next_section > 0:
+                    understanding = project_memory[understanding_start:next_section].strip()
+                else:
+                    understanding = project_memory[understanding_start:understanding_start + 500]
+
+                # Clean up and truncate
+                understanding = understanding.replace("## Project Understanding", "").strip()
+                if len(understanding) > 300:
+                    understanding = understanding[:300] + "..."
+                if understanding and understanding != "*Not yet documented*":
+                    lines.append(understanding)
+            except Exception:
+                pass
+
+    if not lines:
+        return "No project memory accumulated yet."
+
+    return "\n".join(lines)
 
 
 def _format_trigger(

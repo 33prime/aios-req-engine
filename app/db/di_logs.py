@@ -359,6 +359,81 @@ def get_invocation_stats(project_id: UUID) -> dict[str, Any]:
         raise
 
 
+def get_recent_actions_for_context(
+    project_id: UUID,
+    limit: int = 5,
+    hours: int = 24,
+) -> list[dict]:
+    """
+    Get recent agent actions formatted for inclusion in agent context.
+
+    Returns a simplified view of recent actions to help the agent
+    understand what has already been tried and avoid redundant work.
+
+    Args:
+        project_id: Project UUID
+        limit: Maximum number of actions to return
+        hours: Only include actions from the last N hours
+
+    Returns:
+        List of simplified action records with key fields:
+        - created_at, action_type, tools_called (names only),
+        - readiness_before/after, success, gates_affected
+
+    Raises:
+        Exception: If database query fails
+    """
+    from datetime import datetime, timedelta
+
+    supabase = get_supabase()
+
+    try:
+        # Calculate cutoff time
+        cutoff = datetime.utcnow() - timedelta(hours=hours)
+
+        response = (
+            supabase.table("di_agent_logs")
+            .select(
+                "created_at, action_type, tools_called, "
+                "readiness_before, readiness_after, success, "
+                "gates_affected, decision"
+            )
+            .eq("project_id", str(project_id))
+            .eq("success", True)
+            .gte("created_at", cutoff.isoformat())
+            .order("created_at", desc=True)
+            .limit(limit)
+            .execute()
+        )
+
+        # Simplify the response for context
+        actions = []
+        for log in (response.data or []):
+            tool_names = []
+            if log.get("tools_called"):
+                tool_names = [
+                    tc.get("tool_name", "unknown")
+                    for tc in log["tools_called"]
+                ]
+
+            actions.append({
+                "timestamp": log.get("created_at"),
+                "action_type": log.get("action_type"),
+                "tools": tool_names,
+                "readiness_change": f"{log.get('readiness_before', '?')} → {log.get('readiness_after', '?')}",
+                "gates_affected": log.get("gates_affected", []),
+                "decision_summary": (log.get("decision", "")[:150] + "...") if log.get("decision") else None,
+            })
+
+        return actions
+
+    except Exception as e:
+        logger.error(
+            f"Failed to get recent actions for project {project_id}: {e}"
+        )
+        return []  # Return empty list on error to not break agent invocation
+
+
 def delete_logs(project_id: UUID) -> None:
     """
     Delete all agent logs for a project.

@@ -61,9 +61,12 @@ export interface ChatMessage {
   isStreaming?: boolean
   metadata?: Record<string, unknown> // Include metadata from assistant messages
   toolCalls?: Array<{
+    id?: string
     tool_name: string
-    status: 'running' | 'complete' | 'error'
+    status: 'pending' | 'running' | 'complete' | 'error'
+    args?: Record<string, unknown>
     result?: any
+    error?: string
   }>
 }
 
@@ -248,6 +251,8 @@ export function ChatPanel({
         content: m.content,
         timestamp: m.timestamp,
         metadata: m.metadata as Record<string, unknown> | undefined,
+        toolCalls: m.toolCalls, // Include tool calls for display
+        isStreaming: m.isStreaming,
       })),
     ].sort((a, b) => (a.timestamp?.getTime() || 0) - (b.timestamp?.getTime() || 0))
 
@@ -878,7 +883,7 @@ function MessageBubble({
                   <div
                     key={idx}
                     className={`flex items-start gap-2 text-xs px-3 py-2 rounded-lg transition-all ${
-                      tool.status === 'running'
+                      tool.status === 'pending' || tool.status === 'running'
                         ? 'bg-brand-primary/5 border border-brand-primary/20'
                         : tool.status === 'error'
                           ? 'bg-red-50 border border-red-100'
@@ -887,7 +892,7 @@ function MessageBubble({
                   >
                     {/* Status icon */}
                     <div className="flex-shrink-0 mt-0.5">
-                      {tool.status === 'running' && (
+                      {(tool.status === 'pending' || tool.status === 'running') && (
                         <Loader2 className="h-3.5 w-3.5 animate-spin text-brand-primary" />
                       )}
                       {tool.status === 'complete' && (

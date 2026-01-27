@@ -1511,12 +1511,23 @@ export interface DIAgentResponse {
   thinking: string
   decision: string
   action_type: string
-  tools_called?: Array<{ name: string; args: any }>
-  tool_results?: Array<{ success: boolean; data: any; error?: string }>
+  tools_called?: Array<{
+    tool_name: string
+    tool_args: Record<string, any>
+    result?: Record<string, any>
+    success: boolean
+    error?: string | null
+  }>
+  tool_results?: Array<{ success: boolean; data: any; error?: string }>  // Deprecated - results in tools_called
   guidance?: {
     summary: string
-    next_steps: string[]
-    questions_for_client?: string[]
+    questions_to_ask?: Array<{
+      question: string
+      why_ask: string
+      listen_for?: string[]
+    }>
+    signals_to_watch?: string[]
+    what_this_unlocks?: string
   }
   readiness_before?: number
   readiness_after?: number
