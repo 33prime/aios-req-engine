@@ -264,12 +264,12 @@ def extract_strategic_entities_from_signals(project_id: UUID) -> dict[str, Any]:
             if not chunks:
                 continue
 
-            # Extract facts from chunks using GPT-4o for better quality
+            # Extract facts from chunks using Claude Sonnet 4 for best structured extraction
             extraction = extract_facts_from_chunks(
                 signal=signal,
                 chunks=chunks,
                 settings=settings,
-                model_override="gpt-4o",  # Use stronger model for strategic foundation
+                model_override="claude-sonnet-4-20250514",  # Claude excels at structured entity extraction
             )
 
             result["signals_processed"] += 1

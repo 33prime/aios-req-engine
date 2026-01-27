@@ -4,6 +4,7 @@ Provides a conversational interface for creating new projects using Claude Haiku
 """
 
 import json
+import re
 import uuid
 from typing import Any, AsyncGenerator
 
@@ -19,6 +20,7 @@ from app.chains.project_creation_chat import (
 )
 from app.core.config import get_settings
 from app.core.logging import get_logger
+from app.db.company_info import upsert_company_info
 from app.db.projects import create_project
 
 logger = get_logger(__name__)
@@ -164,6 +166,45 @@ async def project_creation_chat(request: ProjectCreationChatRequest) -> Streamin
     )
 
 
+def _parse_client_details(client_info: str | None) -> tuple[str | None, str | None]:
+    """
+    Parse client name and website from the client_info description.
+
+    Expected formats:
+    - "Client: Acme Motors (acmemotors.com)"
+    - "Client: Acme Motors (https://acmemotors.com)"
+
+    Args:
+        client_info: Description text that may contain client details
+
+    Returns:
+        Tuple of (client_name, website) - either may be None
+    """
+    if not client_info:
+        return None, None
+
+    client_name = None
+    website = None
+
+    # Try to match "Client: Name (website)" pattern
+    match = re.search(r"Client:\s*([^(]+?)\s*\(([^)]+)\)", client_info, re.IGNORECASE)
+    if match:
+        client_name = match.group(1).strip()
+        website_raw = match.group(2).strip()
+        # Ensure website has protocol
+        if website_raw and not website_raw.startswith("http"):
+            website = f"https://{website_raw}"
+        else:
+            website = website_raw
+    else:
+        # Try just "Client: Name" without website
+        match = re.search(r"Client:\s*([^.]+)", client_info, re.IGNORECASE)
+        if match:
+            client_name = match.group(1).strip()
+
+    return client_name, website
+
+
 async def _create_project_from_state(state: dict[str, Any]) -> dict[str, Any]:
     """
     Create a project from the conversation state.
@@ -192,6 +233,25 @@ async def _create_project_from_state(state: dict[str, Any]) -> dict[str, Any]:
         "id": project_id,
         "name": project_name,
     }
+
+    # Create company_info record from parsed client details
+    client_name, website = _parse_client_details(client_info)
+    company_name = client_name or project_name  # Fall back to project name
+
+    try:
+        company_info_record = upsert_company_info(
+            project_id=uuid.UUID(project_id),
+            name=company_name,
+            website=website,
+            description=client_info,
+        )
+        logger.info(
+            f"Created company_info for project {project_id}: {company_name}",
+            extra={"company_info_id": company_info_record.get("id")},
+        )
+    except Exception as e:
+        logger.warning(f"Failed to create company_info: {e}")
+        # Don't fail project creation if company_info fails
 
     # If we have client info, ingest it as a signal and run onboarding
     if client_info:

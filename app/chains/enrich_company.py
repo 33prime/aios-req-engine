@@ -1,7 +1,7 @@
 """
 Company Enrichment Chain
 
-Uses Firecrawl for web scraping + OpenAI for fast enrichment.
+Uses Firecrawl for web scraping + Claude Sonnet 4 for enrichment.
 This is pre-research enrichment - fast (~5-10 seconds), not deep.
 """
 
@@ -10,7 +10,7 @@ import logging
 from typing import Any
 from uuid import UUID
 
-from langchain_openai import ChatOpenAI
+from anthropic import Anthropic
 
 from app.core.config import get_settings
 from app.core.firecrawl_service import scrape_website_safe
@@ -120,16 +120,17 @@ async def enrich_company(project_id: UUID) -> dict[str, Any]:
         description=description or "Not provided",
     )
 
-    # 3. Get enrichment via fast model
+    # 3. Get enrichment via Claude Sonnet 4
     logger.info(f"Running enrichment inference for {name}")
-    llm = ChatOpenAI(
-        api_key=settings.OPENAI_API_KEY,
-        model=settings.OPENAI_MODEL_MINI,  # gpt-4o-mini for speed
-        temperature=0.3,
-    )
+    client = Anthropic(api_key=settings.ANTHROPIC_API_KEY)
 
-    response = await llm.ainvoke(prompt)
-    response_text = response.content
+    response = client.messages.create(
+        model="claude-sonnet-4-20250514",
+        max_tokens=4096,
+        temperature=0.3,
+        messages=[{"role": "user", "content": prompt}],
+    )
+    response_text = response.content[0].text if response.content else ""
 
     # 4. Parse JSON response
     try:
