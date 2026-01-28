@@ -1,17 +1,15 @@
 'use client'
 
-import React, { useState, useRef, useEffect, useCallback } from 'react'
-import { X, Check, ChevronRight, Plus, Trash2 } from 'lucide-react'
+import React, { useState, useRef, useEffect } from 'react'
+import { X, Check, ChevronRight } from 'lucide-react'
 import { CreationAnimation } from './CreationAnimation'
 import { createProjectWithContext } from '@/lib/api'
 
-type CreationStep = 'name' | 'problem' | 'beneficiaries' | 'features' | 'company' | 'creating' | 'complete'
+type CreationStep = 'name' | 'brief' | 'company' | 'creating' | 'complete'
 
 interface ProjectData {
   name: string
-  problem: string
-  beneficiaries: string
-  features: string[]
+  brief: string
   companyName: string
   companyWebsite: string
 }
@@ -22,17 +20,13 @@ interface GuidedProjectCreationProps {
   onSuccess: (response: any) => void
 }
 
-const REQUIRED_STEPS: CreationStep[] = ['name', 'problem', 'beneficiaries', 'features']
-const MIN_FEATURES = 2
-const MAX_FEATURES = 4
+const REQUIRED_STEPS: CreationStep[] = ['name', 'brief']
 
 export function GuidedProjectCreation({ isOpen, onClose, onSuccess }: GuidedProjectCreationProps) {
   const [step, setStep] = useState<CreationStep>('name')
   const [data, setData] = useState<ProjectData>({
     name: '',
-    problem: '',
-    beneficiaries: '',
-    features: ['', ''],
+    brief: '',
     companyName: '',
     companyWebsite: '',
   })
@@ -48,9 +42,9 @@ export function GuidedProjectCreation({ isOpen, onClose, onSuccess }: GuidedProj
   useEffect(() => {
     if (!isOpen) return
     const timer = setTimeout(() => {
-      if (step === 'name' || step === 'features') {
+      if (step === 'name') {
         inputRef.current?.focus()
-      } else if (step === 'problem' || step === 'beneficiaries') {
+      } else if (step === 'brief') {
         textareaRef.current?.focus()
       }
     }, 100)
@@ -63,9 +57,7 @@ export function GuidedProjectCreation({ isOpen, onClose, onSuccess }: GuidedProj
       setStep('name')
       setData({
         name: '',
-        problem: '',
-        beneficiaries: '',
-        features: ['', ''],
+        brief: '',
         companyName: '',
         companyWebsite: '',
       })
@@ -85,12 +77,8 @@ export function GuidedProjectCreation({ isOpen, onClose, onSuccess }: GuidedProj
     switch (checkStep) {
       case 'name':
         return data.name.trim().length >= 3
-      case 'problem':
-        return data.problem.trim().length >= 20
-      case 'beneficiaries':
-        return data.beneficiaries.trim().length >= 10
-      case 'features':
-        return data.features.filter((f) => f.trim().length > 0).length >= MIN_FEATURES
+      case 'brief':
+        return data.brief.trim().length >= 50
       default:
         return false
     }
@@ -101,15 +89,8 @@ export function GuidedProjectCreation({ isOpen, onClose, onSuccess }: GuidedProj
       case 'name':
         if (data.name.trim().length < 3) return 'Project name must be at least 3 characters'
         return null
-      case 'problem':
-        if (data.problem.trim().length < 20) return 'Please provide more detail about the problem (at least 20 characters)'
-        return null
-      case 'beneficiaries':
-        if (data.beneficiaries.trim().length < 10) return 'Please describe who benefits from this solution'
-        return null
-      case 'features':
-        const validFeatures = data.features.filter((f) => f.trim().length > 0)
-        if (validFeatures.length < MIN_FEATURES) return `Please add at least ${MIN_FEATURES} features`
+      case 'brief':
+        if (data.brief.trim().length < 50) return 'Please provide more detail about your project (at least 50 characters)'
         return null
       default:
         return null
@@ -126,15 +107,9 @@ export function GuidedProjectCreation({ isOpen, onClose, onSuccess }: GuidedProj
 
     switch (step) {
       case 'name':
-        setStep('problem')
+        setStep('brief')
         break
-      case 'problem':
-        setStep('beneficiaries')
-        break
-      case 'beneficiaries':
-        setStep('features')
-        break
-      case 'features':
+      case 'brief':
         setStep('company')
         break
       case 'company':
@@ -151,33 +126,11 @@ export function GuidedProjectCreation({ isOpen, onClose, onSuccess }: GuidedProj
   }
 
   const handleTextareaKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    // Only Cmd/Ctrl+Enter advances, regular Enter creates newlines
+    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
       e.preventDefault()
       goToNextStep()
     }
-    // Shift+Enter allows new line (default behavior)
-  }
-
-  const addFeature = () => {
-    if (data.features.length < MAX_FEATURES) {
-      setData((prev) => ({ ...prev, features: [...prev.features, ''] }))
-    }
-  }
-
-  const removeFeature = (index: number) => {
-    if (data.features.length > MIN_FEATURES) {
-      setData((prev) => ({
-        ...prev,
-        features: prev.features.filter((_, i) => i !== index),
-      }))
-    }
-  }
-
-  const updateFeature = (index: number, value: string) => {
-    setData((prev) => ({
-      ...prev,
-      features: prev.features.map((f, i) => (i === index ? value : f)),
-    }))
   }
 
   const handleCompanyChoice = (hasCompany: boolean) => {
@@ -194,12 +147,19 @@ export function GuidedProjectCreation({ isOpen, onClose, onSuccess }: GuidedProj
     try {
       const payload = {
         name: data.name.trim(),
-        problem: data.problem.trim(),
-        beneficiaries: data.beneficiaries.trim(),
-        features: data.features.filter((f) => f.trim().length > 0),
+        brief: data.brief.trim(),
         company_name: data.companyName.trim() || undefined,
         company_website: data.companyWebsite.trim() || undefined,
       }
+
+      // Debug logging to verify data is captured correctly
+      console.log('📝 Creating project with payload:', {
+        name: payload.name,
+        brief_length: payload.brief.length,
+        brief_preview: payload.brief.substring(0, 200) + (payload.brief.length > 200 ? '...' : ''),
+        company_name: payload.company_name,
+        company_website: payload.company_website,
+      })
 
       const response = await createProjectWithContext(payload)
       setCreatedProject(response)
@@ -219,7 +179,7 @@ export function GuidedProjectCreation({ isOpen, onClose, onSuccess }: GuidedProj
 
   const handleClose = () => {
     // Warn if data entered
-    const hasData = data.name || data.problem || data.beneficiaries || data.features.some((f) => f)
+    const hasData = data.name || data.brief
     if (hasData && step !== 'creating') {
       if (!window.confirm('You have unsaved changes. Are you sure you want to close?')) {
         return
@@ -287,37 +247,13 @@ export function GuidedProjectCreation({ isOpen, onClose, onSuccess }: GuidedProj
               </div>
             )}
 
-            {/* Problem */}
-            {(['beneficiaries', 'features', 'company'].includes(step) && data.problem) && (
+            {/* Brief */}
+            {(step === 'company' && data.brief) && (
               <div className="flex items-start gap-2 text-sm">
                 <Check className="w-4 h-4 text-emerald-600 mt-0.5 flex-shrink-0" />
                 <div>
-                  <span className="text-gray-500">Problem:</span>
-                  <span className="ml-2 text-gray-700 line-clamp-2">{data.problem}</span>
-                </div>
-              </div>
-            )}
-
-            {/* Beneficiaries */}
-            {(['features', 'company'].includes(step) && data.beneficiaries) && (
-              <div className="flex items-start gap-2 text-sm">
-                <Check className="w-4 h-4 text-emerald-600 mt-0.5 flex-shrink-0" />
-                <div>
-                  <span className="text-gray-500">Who Benefits:</span>
-                  <span className="ml-2 text-gray-700 line-clamp-2">{data.beneficiaries}</span>
-                </div>
-              </div>
-            )}
-
-            {/* Features */}
-            {(step === 'company' && data.features.filter(f => f).length > 0) && (
-              <div className="flex items-start gap-2 text-sm">
-                <Check className="w-4 h-4 text-emerald-600 mt-0.5 flex-shrink-0" />
-                <div>
-                  <span className="text-gray-500">Features:</span>
-                  <span className="ml-2 text-gray-700">
-                    {data.features.filter(f => f).join(', ')}
-                  </span>
+                  <span className="text-gray-500">Project Brief:</span>
+                  <span className="ml-2 text-gray-700 line-clamp-2">{data.brief.slice(0, 100)}...</span>
                 </div>
               </div>
             )}
@@ -348,93 +284,39 @@ export function GuidedProjectCreation({ isOpen, onClose, onSuccess }: GuidedProj
               </div>
             )}
 
-            {/* Step: Problem */}
-            {step === 'problem' && (
+            {/* Step: Brief */}
+            {step === 'brief' && (
               <div>
                 <label className="flex items-center gap-2 text-gray-900 font-medium mb-3">
                   <ChevronRight className="w-4 h-4 text-[#009b87]" />
-                  What problem does this solve?
+                  Tell us about your project
                 </label>
                 <textarea
                   ref={textareaRef}
-                  value={data.problem}
-                  onChange={(e) => setData((prev) => ({ ...prev, problem: e.target.value }))}
+                  value={data.brief}
+                  onChange={(e) => setData((prev) => ({ ...prev, brief: e.target.value }))}
                   onKeyDown={handleTextareaKeyDown}
-                  placeholder="Describe the main challenge or pain point this project addresses..."
-                  rows={4}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#009b87] focus:border-transparent resize-none"
-                />
-                <p className="text-sm text-gray-400 mt-2">
-                  What pain point or challenge are you addressing?
-                </p>
-              </div>
-            )}
+                  placeholder="Describe your project in detail...
 
-            {/* Step: Beneficiaries */}
-            {step === 'beneficiaries' && (
-              <div>
-                <label className="flex items-center gap-2 text-gray-900 font-medium mb-3">
-                  <ChevronRight className="w-4 h-4 text-[#009b87]" />
-                  Who benefits from this solution?
-                </label>
-                <textarea
-                  ref={textareaRef}
-                  value={data.beneficiaries}
-                  onChange={(e) => setData((prev) => ({ ...prev, beneficiaries: e.target.value }))}
-                  onKeyDown={handleTextareaKeyDown}
-                  placeholder="Describe the target users or personas who will use this..."
-                  rows={4}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#009b87] focus:border-transparent resize-none"
-                />
-                <p className="text-sm text-gray-400 mt-2">
-                  Who are the primary users that will benefit?
-                </p>
-              </div>
-            )}
+Include information like:
+• What problem does it solve?
+• Who are the target users?
+• What are the key features?
+• Any technical requirements?
+• Business goals and constraints?
 
-            {/* Step: Features */}
-            {step === 'features' && (
-              <div>
-                <label className="flex items-center gap-2 text-gray-900 font-medium mb-3">
-                  <ChevronRight className="w-4 h-4 text-[#009b87]" />
-                  What are the core features? ({MIN_FEATURES}-{MAX_FEATURES} required)
-                </label>
-                <div className="space-y-3">
-                  {data.features.map((feature, index) => (
-                    <div key={index} className="flex items-center gap-2">
-                      <span className="text-sm text-gray-500 w-6">{index + 1}.</span>
-                      <input
-                        ref={index === 0 ? inputRef : undefined}
-                        type="text"
-                        value={feature}
-                        onChange={(e) => updateFeature(index, e.target.value)}
-                        onKeyDown={handleKeyDown}
-                        placeholder={`Feature ${index + 1}`}
-                        className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#009b87] focus:border-transparent"
-                      />
-                      {data.features.length > MIN_FEATURES && (
-                        <button
-                          onClick={() => removeFeature(index)}
-                          className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      )}
-                    </div>
-                  ))}
+The more detail you provide, the better the AI can help."
+                  rows={16}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#009b87] focus:border-transparent resize-y min-h-[300px]"
+                />
+                <div className="flex items-center justify-between mt-2">
+                  <p className="text-sm text-gray-400">
+                    Paste your full project brief, requirements doc, or detailed description
+                  </p>
+                  <p className="text-xs text-gray-400">
+                    {data.brief.length.toLocaleString()} characters
+                  </p>
                 </div>
-                {data.features.length < MAX_FEATURES && (
-                  <button
-                    onClick={addFeature}
-                    className="mt-3 flex items-center gap-2 text-sm text-[#009b87] hover:text-[#007a6b] font-medium"
-                  >
-                    <Plus className="w-4 h-4" />
-                    Add another feature
-                  </button>
-                )}
-                <p className="text-sm text-gray-400 mt-3">
-                  Keep it high-level, e.g., &ldquo;Real-time order tracking&rdquo;
-                </p>
               </div>
             )}
 
@@ -508,7 +390,11 @@ export function GuidedProjectCreation({ isOpen, onClose, onSuccess }: GuidedProj
         {/* Footer */}
         <div className="px-6 py-4 border-t border-gray-200 bg-gray-50 flex items-center justify-between">
           <p className="text-sm text-gray-500">
-            Press <kbd className="px-1.5 py-0.5 bg-gray-200 rounded text-xs font-mono">Enter</kbd> to continue
+            {step === 'brief' ? (
+              <>Press <kbd className="px-1.5 py-0.5 bg-gray-200 rounded text-xs font-mono">⌘+Enter</kbd> to continue</>
+            ) : (
+              <>Press <kbd className="px-1.5 py-0.5 bg-gray-200 rounded text-xs font-mono">Enter</kbd> to continue</>
+            )}
           </p>
           <button
             onClick={goToNextStep}
@@ -517,8 +403,6 @@ export function GuidedProjectCreation({ isOpen, onClose, onSuccess }: GuidedProj
           >
             {step === 'company' && showCompanyInputs === true ? (
               <>Create Project</>
-            ) : step === 'features' ? (
-              <>Continue</>
             ) : (
               <>Next</>
             )}

@@ -276,7 +276,7 @@ def get_project_source_usage(project_id: UUID) -> list[dict[str, Any]]:
         # Get all signals for project
         signals_response = (
             supabase.table("signals")
-            .select("id, source_label, signal_type, source_type, created_at")
+            .select("id, source_label, signal_type, source_type, source, created_at")
             .eq("project_id", str(project_id))
             .order("created_at", desc=True)
             .execute()
@@ -327,10 +327,33 @@ def get_project_source_usage(project_id: UUID) -> list[dict[str, Any]]:
                 if last_used is None and impact.get("created_at"):
                     last_used = impact["created_at"]
 
+            # Build display name from source_label or fallback to signal_type + source
+            source_name = signal.get("source_label")
+            if not source_name:
+                signal_type = signal.get("signal_type", "signal")
+                source = signal.get("source", "")
+                type_labels = {
+                    "email": "Email",
+                    "transcript": "Transcript",
+                    "note": "Note",
+                    "file": "Document",
+                    "file_text": "Document",
+                    "research": "Research",
+                    "chat": "Chat",
+                }
+                type_label = type_labels.get(signal_type, signal_type.replace("_", " ").title())
+
+                if source == "project_description":
+                    source_name = "Project Brief"
+                elif source:
+                    source_name = f"{type_label}: {source[:30]}"
+                else:
+                    source_name = type_label
+
             results.append({
                 "source_id": signal_id,
                 "source_type": "signal",
-                "source_name": signal.get("source_label") or "Unnamed Signal",
+                "source_name": source_name,
                 "signal_type": signal.get("signal_type"),
                 "total_uses": len(impacts),
                 "uses_by_entity": uses_by_entity,

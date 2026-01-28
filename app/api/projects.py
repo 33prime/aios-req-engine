@@ -116,6 +116,7 @@ async def create_new_project(request: CreateProjectRequest) -> ProjectResponse:
                     raw_text=request.description,
                     metadata={"authority": "consultant", "auto_ingested": True},
                     run_id=run_id,
+                    source_label=f"Project Brief: {request.name}",
                 )
                 signal_id = UUID(signal["id"])
 
@@ -917,6 +918,136 @@ async def add_to_project_memory(
         raise
     except Exception as e:
         logger.exception(f"Failed to add to project memory for {project_id}")
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.post("/{project_id}/memory/synthesize")
+async def synthesize_project_memory(project_id: UUID):
+    """
+    Regenerate project memory using LLM synthesis.
+
+    Uses Claude Sonnet to analyze all project context (signals, entities,
+    decisions, learnings) and create an intelligent summary document.
+
+    Args:
+        project_id: Project UUID
+
+    Returns:
+        Updated memory content
+    """
+    try:
+        from app.chains.synthesize_memory import update_memory_with_llm
+
+        result = update_memory_with_llm(project_id)
+
+        return {
+            "success": True,
+            "message": "Memory synthesized successfully",
+            "content_preview": (result.get("content", "")[:500] + "...")
+            if result.get("content")
+            else None,
+        }
+    except Exception as e:
+        logger.exception(f"Failed to synthesize memory for {project_id}")
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.get("/{project_id}/memory/content")
+async def get_memory_content(project_id: UUID):
+    """
+    Get the full memory content document.
+
+    Returns the markdown content that the AI can use for context.
+
+    Args:
+        project_id: Project UUID
+
+    Returns:
+        Memory content document
+    """
+    from app.db.project_memory import get_project_memory
+
+    try:
+        memory = get_project_memory(project_id)
+
+        if not memory:
+            return {
+                "content": None,
+                "last_updated_by": None,
+                "message": "No memory exists for this project yet",
+            }
+
+        return {
+            "content": memory.get("content"),
+            "last_updated_by": memory.get("last_updated_by"),
+            "tokens_estimate": memory.get("tokens_estimate"),
+            "last_compacted_at": memory.get("last_compacted_at"),
+            "compaction_count": memory.get("compaction_count", 0),
+        }
+    except Exception as e:
+        logger.exception(f"Failed to get memory content for {project_id}")
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.post("/{project_id}/memory/compact")
+async def compact_project_memory(project_id: UUID, force: bool = Query(False)):
+    """
+    Compact project memory to reduce token count.
+
+    Uses Haiku to intelligently compress memory while preserving:
+    - Landmark decisions (auto-detected)
+    - Project overview and key entities
+    - Current focus and open questions
+
+    Compaction is triggered automatically when memory exceeds 2000 tokens.
+    Use force=true to compact regardless of current size.
+
+    Args:
+        project_id: Project UUID
+        force: Force compaction even if below threshold
+
+    Returns:
+        Compaction results including before/after token counts
+    """
+    try:
+        from app.chains.compact_memory import compact_memory, should_compact, estimate_tokens
+        from app.db.project_memory import get_project_memory, update_project_memory
+
+        memory = get_project_memory(project_id)
+        if not memory:
+            return {
+                "compacted": False,
+                "reason": "No memory exists for this project",
+            }
+
+        content = memory.get("content", "")
+        current_tokens = estimate_tokens(content)
+
+        if not force and not should_compact(content):
+            return {
+                "compacted": False,
+                "reason": f"Memory is within limits ({current_tokens} tokens)",
+                "current_tokens": current_tokens,
+                "threshold": 2000,
+            }
+
+        # Run compaction
+        result = compact_memory(project_id)
+
+        # Update compaction metadata
+        if result.get("compacted"):
+            from app.db.supabase_client import get_supabase
+            supabase = get_supabase()
+
+            supabase.table("project_memory").update({
+                "last_compacted_at": datetime.utcnow().isoformat(),
+                "compaction_count": (memory.get("compaction_count") or 0) + 1,
+            }).eq("project_id", str(project_id)).execute()
+
+        return result
+
+    except Exception as e:
+        logger.exception(f"Failed to compact memory for {project_id}")
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 

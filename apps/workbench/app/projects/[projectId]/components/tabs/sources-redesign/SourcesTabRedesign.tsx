@@ -39,8 +39,8 @@ export function SourcesTabRedesign({ projectId, onUploadClick }: SourcesTabRedes
   const pathname = usePathname()
   const searchParams = useSearchParams()
 
-  // Get active sub-tab from URL, default to 'documents'
-  const activeTab = (searchParams.get('sources_tab') as SourcesSubTab) || 'documents'
+  // Get active sub-tab from URL, default to 'signals'
+  const activeTab = (searchParams.get('sources_tab') as SourcesSubTab) || 'signals'
 
   // Data state
   const [documents, setDocuments] = useState<DocumentSummaryItem[]>([])
@@ -114,16 +114,34 @@ export function SourcesTabRedesign({ projectId, onUploadClick }: SourcesTabRedes
     loadEvidence()
   }, [projectId])
 
-  // Load memory and format as markdown
+  // Load memory content (LLM-synthesized document)
   useEffect(() => {
     const loadMemory = async () => {
       setIsLoadingMemory(true)
       try {
-        const data = await getProjectMemory(projectId)
-        const formattedMemory = formatMemoryAsMarkdown(data)
-        setMemoryContent(formattedMemory)
+        // First try to get the LLM-synthesized content
+        const { getMemoryContent } = await import('@/lib/api')
+        const contentData = await getMemoryContent(projectId)
+
+        if (contentData.content) {
+          // Use the LLM-synthesized memory document
+          setMemoryContent(contentData.content)
+        } else {
+          // Fallback to structured data if no content exists
+          const data = await getProjectMemory(projectId)
+          const formattedMemory = formatMemoryAsMarkdown(data)
+          setMemoryContent(formattedMemory)
+        }
       } catch (error) {
         console.error('Failed to load memory:', error)
+        // Try fallback to structured data
+        try {
+          const data = await getProjectMemory(projectId)
+          const formattedMemory = formatMemoryAsMarkdown(data)
+          setMemoryContent(formattedMemory)
+        } catch {
+          // Ignore secondary error
+        }
       } finally {
         setIsLoadingMemory(false)
       }
@@ -131,7 +149,7 @@ export function SourcesTabRedesign({ projectId, onUploadClick }: SourcesTabRedes
     loadMemory()
   }, [projectId])
 
-  // Format ProjectMemory as markdown
+  // Fallback: Format structured memory as markdown (used if no LLM content exists)
   function formatMemoryAsMarkdown(memory: ProjectMemory): string | null {
     const sections: string[] = []
 

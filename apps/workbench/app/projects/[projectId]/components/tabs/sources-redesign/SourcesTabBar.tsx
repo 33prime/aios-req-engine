@@ -25,8 +25,8 @@ interface TabConfig {
 }
 
 const TABS: TabConfig[] = [
-  { id: 'documents', label: 'Documents', icon: FileText },
   { id: 'signals', label: 'Signals', icon: Signal },
+  { id: 'documents', label: 'Documents', icon: FileText },
   { id: 'research', label: 'Research', icon: Globe },
   { id: 'intelligence', label: 'Intelligence', icon: Sparkles },
   { id: 'memory', label: 'Memory', icon: BookOpen },

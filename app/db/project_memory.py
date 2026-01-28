@@ -256,6 +256,10 @@ def add_decision(
     try:
         response = supabase.table("project_decisions").insert(payload).execute()
         logger.info(f"Added decision for {project_id}: {title}")
+
+        # Trigger compaction check (background)
+        trigger_compaction_check(project_id)
+
         return response.data[0] if response.data else {}
     except Exception as e:
         logger.error(f"Failed to add decision for {project_id}: {e}")
@@ -363,6 +367,10 @@ def add_learning(
     try:
         response = supabase.table("project_learnings").insert(payload).execute()
         logger.info(f"Added learning for {project_id}: {title}")
+
+        # Trigger compaction check (background)
+        trigger_compaction_check(project_id)
+
         return response.data[0] if response.data else {}
     except Exception as e:
         logger.error(f"Failed to add learning for {project_id}: {e}")
@@ -584,4 +592,41 @@ def regenerate_memory_document(project_id: UUID, project_name: str = "Project") 
     Regenerate the memory document from structured data and save it.
     """
     content = synthesize_memory_document(project_id, project_name)
-    return update_project_memory(project_id, content=content, updated_by="system")
+    result = update_project_memory(project_id, content=content, updated_by="system")
+
+    # Check if compaction needed after regeneration
+    trigger_compaction_check(project_id)
+
+    return result
+
+
+# =============================================================================
+# Auto-Compaction
+# =============================================================================
+
+
+def trigger_compaction_check(project_id: UUID) -> None:
+    """
+    Check if memory needs compaction and trigger it if so.
+
+    This is called after memory-growing operations to keep memory lean.
+    Runs in a background thread to avoid blocking the main operation.
+    """
+    import threading
+
+    def _check_and_compact():
+        try:
+            from app.chains.compact_memory import maybe_compact_memory
+
+            result = maybe_compact_memory(project_id)
+            if result and result.get("compacted"):
+                logger.info(
+                    f"Auto-compacted memory for {project_id}: "
+                    f"{result.get('before_tokens')} → {result.get('after_tokens')} tokens"
+                )
+        except Exception as e:
+            logger.warning(f"Auto-compaction check failed for {project_id}: {e}")
+
+    # Run in background to avoid blocking
+    thread = threading.Thread(target=_check_and_compact, daemon=True)
+    thread.start()

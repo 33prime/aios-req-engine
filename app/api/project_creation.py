@@ -133,6 +133,9 @@ async def project_creation_chat(request: ProjectCreationChatRequest) -> Streamin
             messages_dict = [{"role": m.role, "content": m.content} for m in request.messages]
             state = parse_conversation_state(messages_dict, full_response)
 
+            # Include full messages in state for storing complete conversation
+            state["_full_messages"] = messages_dict
+
             logger.info(f"Conversation state: {state}")
 
             # Check if ready to create project
@@ -263,14 +266,37 @@ async def _create_project_from_state(state: dict[str, Any]) -> dict[str, Any]:
 
             run_id = uuid.uuid4()
 
+            # Build full conversation text to store (not just the brief summary)
+            # This preserves all the detailed information the user provided
+            conversation_messages = state.get("_full_messages", [])
+            if conversation_messages:
+                # Format the full conversation as the signal content
+                full_conversation_parts = []
+                for msg in conversation_messages:
+                    role = msg.get("role", "user")
+                    content = msg.get("content", "")
+                    if role == "user":
+                        full_conversation_parts.append(f"User: {content}")
+                    # Skip assistant messages to keep just the user input
+
+                # Combine user messages with the summary
+                full_text = "\n\n".join(full_conversation_parts)
+                if full_text:
+                    full_text += f"\n\n---\n\nSummary: {client_info}"
+                else:
+                    full_text = client_info
+            else:
+                full_text = client_info
+
             # Insert signal (authority=client since this is client information)
             signal = insert_signal(
                 project_id=uuid.UUID(project_id),
                 signal_type="note",
                 source="project_creation_chat",
-                raw_text=client_info,
-                metadata={"authority": "client", "auto_ingested": True},
+                raw_text=full_text,
+                metadata={"authority": "client", "auto_ingested": True, "summary": client_info},
                 run_id=run_id,
+                source_label=f"Project Intake: {project_name}",
             )
             signal_id = uuid.UUID(signal["id"])
 
@@ -279,8 +305,8 @@ async def _create_project_from_state(state: dict[str, Any]) -> dict[str, Any]:
                 extra={"project_id": project_id, "signal_id": str(signal_id)},
             )
 
-            # Chunk and embed
-            chunks = chunk_text(client_info, metadata={"authority": "client"})
+            # Chunk and embed the full conversation text
+            chunks = chunk_text(full_text, metadata={"authority": "client"})
             if chunks:
                 chunk_texts = [chunk["content"] for chunk in chunks]
                 embeddings = embed_texts(chunk_texts)

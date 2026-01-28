@@ -509,35 +509,21 @@ export const createProject = (data: { name: string; description?: string; auto_i
 // Enhanced project creation with guided context
 export interface CreateProjectContextPayload {
   name: string
-  problem: string
-  beneficiaries: string
-  features: string[]
+  brief: string
   company_name?: string
   company_website?: string
 }
 
 export const createProjectWithContext = (payload: CreateProjectContextPayload) => {
-  // Transform the guided creation data into a rich description for the backend
-  const description = `## Problem
-${payload.problem}
-
-## Who Benefits
-${payload.beneficiaries}
-
-## Core Features
-${payload.features.map((f, i) => `${i + 1}. ${f}`).join('\n')}`
-
+  // Use the brief directly as the description - no transformation needed
   return apiRequest<any>('/projects', {
     method: 'POST',
     body: JSON.stringify({
       name: payload.name,
-      description,
+      description: payload.brief,
       auto_ingest_description: true,
       // Pass additional context metadata
       metadata: {
-        problem: payload.problem,
-        beneficiaries: payload.beneficiaries,
-        features: payload.features,
         company_name: payload.company_name,
         company_website: payload.company_website,
       },
@@ -1677,6 +1663,97 @@ export const invalidateDICache = (projectId: string, reason: string) =>
   )
 
 // ============================================
+// Gap Analysis APIs
+// ============================================
+
+export interface GapAnalysisResponse {
+  foundation: Record<string, any>
+  evidence: Record<string, any>
+  solution: Record<string, any>
+  stakeholders: Record<string, any>
+  summary: string
+  priority_gaps: Array<{
+    type: string
+    severity: string
+    gate?: string
+    description: string
+    suggestion?: string
+  }>
+  phase: string
+  total_readiness: number
+  counts: {
+    total_gaps?: number
+    critical_gaps?: number
+    high_gaps?: number
+    medium_gaps?: number
+    low_gaps?: number
+  }
+}
+
+export interface RequirementsGapsResponse {
+  success: boolean
+  gaps: Array<{
+    gap_type: string
+    severity: string
+    entity_type?: string
+    entity_id?: string
+    description: string
+    suggestion?: string
+  }>
+  summary: {
+    total_gaps: number
+    high_severity: number
+    medium_severity: number
+    low_severity: number
+    most_critical_area?: string
+    overall_completeness?: number
+  }
+  recommendations: string[]
+  entities_analyzed: {
+    features?: number
+    personas?: number
+    vp_steps?: number
+  }
+}
+
+export interface GapFixSuggestionsResponse {
+  success: boolean
+  suggestions: Array<{
+    entity_type: string
+    action: string
+    title: string
+    description: string
+    severity?: string
+    risk_level?: string
+    auto_applicable?: boolean
+  }>
+  summary: string
+  auto_applicable: number
+}
+
+export const analyzeGaps = (projectId: string) =>
+  apiRequest<GapAnalysisResponse>(`/projects/${projectId}/gaps/analyze`)
+
+export const analyzeRequirementsGaps = (projectId: string, focusAreas?: string[]) => {
+  const params = focusAreas?.length ? `?focus_areas=${focusAreas.join(',')}` : ''
+  return apiRequest<RequirementsGapsResponse>(`/projects/${projectId}/gaps/requirements${params}`)
+}
+
+export const suggestGapFixes = (
+  projectId: string,
+  maxSuggestions = 5,
+  autoApply = false
+) => {
+  const params = new URLSearchParams()
+  params.set('max_suggestions', maxSuggestions.toString())
+  if (autoApply) params.set('auto_apply', 'true')
+  return apiRequest<GapFixSuggestionsResponse>(
+    `/projects/${projectId}/gaps/suggest-fixes?${params.toString()}`,
+    { method: 'POST' }
+  )
+}
+
+// ============================================
 // Task APIs
 // ============================================
 
@@ -1936,6 +2013,33 @@ export const addToMemory = (
     }
   )
 
+export const getMemoryContent = (projectId: string) =>
+  apiRequest<{
+    content: string | null
+    last_updated_by: string | null
+    tokens_estimate: number | null
+    message?: string
+  }>(`/projects/${projectId}/memory/content`)
+
+export const synthesizeMemory = (projectId: string) =>
+  apiRequest<{
+    success: boolean
+    message: string
+    content_preview: string | null
+  }>(`/projects/${projectId}/memory/synthesize`, { method: 'POST' })
+
+export const compactMemory = (projectId: string, force = false) =>
+  apiRequest<{
+    compacted: boolean
+    reason?: string
+    method?: string
+    before_tokens?: number
+    after_tokens?: number
+    reduction_percent?: number
+    landmarks_preserved?: number
+    landmarks?: string[]
+  }>(`/projects/${projectId}/memory/compact?force=${force}`, { method: 'POST' })
+
 // =============================================================================
 // Document Upload
 // =============================================================================
@@ -2057,6 +2161,18 @@ export interface DocumentSummaryResponse {
  */
 export const getDocumentsSummary = (projectId: string) =>
   apiRequest<DocumentSummaryResponse>(`/projects/${projectId}/documents/summary`)
+
+/**
+ * Get a signed download URL for a document.
+ */
+export interface DocumentDownloadResponse {
+  download_url: string
+  filename: string
+  mime_type: string
+}
+
+export const getDocumentDownloadUrl = (documentId: string) =>
+  apiRequest<DocumentDownloadResponse>(`/documents/${documentId}/download`)
 
 /**
  * Source usage aggregation
