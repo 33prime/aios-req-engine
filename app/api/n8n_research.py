@@ -414,6 +414,14 @@ async def n8n_research_callback(callback: N8NResearchCallback) -> dict:
         except Exception as e:
             logger.warning(f"Could not append research to memory: {e}")
 
+        # Auto-trigger strategic foundation extraction
+        foundation_job_id = None
+        try:
+            foundation_job_id = _trigger_foundation(callback.project_id)
+            logger.info(f"Auto-triggered foundation extraction: {foundation_job_id}")
+        except Exception as e:
+            logger.warning(f"Could not auto-trigger foundation: {e}")
+
         # Complete the job
         complete_job(callback.job_id, {
             "signal_id": str(signal_id),
@@ -504,6 +512,45 @@ def _append_research_to_memory(project_id: UUID, research_content: str) -> None:
             domain="market_research",
         )
         logger.info(f"Added research insights to project memory")
+
+
+def _trigger_foundation(project_id: UUID) -> UUID | None:
+    """
+    Auto-trigger strategic foundation extraction after research completes.
+
+    This runs in the background to extract company info, business drivers,
+    and competitors from the newly added research signal.
+    """
+    import threading
+    from app.db.jobs import create_job, start_job
+
+    # Create job for foundation extraction
+    run_id = uuid.uuid4()
+    job_id = create_job(
+        project_id=project_id,
+        job_type="strategic_foundation",
+        input_json={"trigger": "research_complete", "auto_triggered": True},
+        run_id=run_id,
+    )
+    start_job(job_id)
+
+    def run_foundation():
+        try:
+            from app.graphs.strategic_foundation_graph import run_strategic_foundation
+            run_strategic_foundation(project_id, run_id, job_id)
+            logger.info(f"Foundation extraction completed for project {project_id}")
+        except Exception as e:
+            logger.exception(f"Foundation extraction failed: {e}")
+            try:
+                fail_job(job_id, str(e))
+            except Exception:
+                pass
+
+    # Run in background thread
+    thread = threading.Thread(target=run_foundation, daemon=True)
+    thread.start()
+
+    return job_id
 
 
 # =============================================================================

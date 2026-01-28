@@ -142,9 +142,24 @@ registerCommand({
 
       const projectName = projectData?.name || 'your project'
 
+      let message = `## 🔬 Research Started\n\n`
+      message += `Analyzing **${projectName}** across multiple dimensions:\n\n`
+      message += `- Market size and growth trends\n`
+      message += `- Competitor landscape and positioning\n`
+      message += `- Industry pain points and opportunities\n`
+      message += `- Feature benchmarking\n`
+      message += `- User personas and segments\n`
+      if (focus) {
+        message += `\n**Special Focus:** ${focus}\n`
+      }
+      message += `\n---\n`
+      message += `⏱️ This typically takes 2-3 minutes.\n\n`
+      message += `📬 You'll receive a notification when complete, and results will appear in the **Sources tab**.\n\n`
+      message += `💡 *Tip: Once research completes, run \`/run-foundation\` to extract strategic insights.*`
+
       return {
         success: true,
-        message: `**Research started**\n\nResearching ${projectName}, industry trends, and competitor landscape.\n\n${focus ? `Focus: ${focus}\n\n` : ''}Results will appear in the Sources tab when complete.`,
+        message,
         data: {
           jobId: result.job_id,
           action: 'research_started',
