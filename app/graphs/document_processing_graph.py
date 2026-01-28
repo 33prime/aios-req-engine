@@ -163,7 +163,8 @@ def extract_content(state: DocumentProcessingState) -> dict[str, Any]:
     if state.error:
         return {}
 
-    logger.info(f"Extracting content from {state.original_filename}")
+    logger.info(f"Extracting content from {state.original_filename} ({len(state.file_bytes)} bytes)")
+    extract_start = time.time()
 
     # Get appropriate extractor
     extractor = get_extractor(
@@ -184,9 +185,11 @@ def extract_content(state: DocumentProcessingState) -> dict[str, Any]:
             )
         )
 
+        extract_time = time.time() - extract_start
         logger.info(
             f"Extracted {len(result.sections)} sections, "
-            f"{result.word_count} words from {state.original_filename}"
+            f"{result.word_count} words from {state.original_filename} "
+            f"in {extract_time:.1f}s"
         )
 
         return {"extraction_result": result}
@@ -204,6 +207,7 @@ def classify_content(state: DocumentProcessingState) -> dict[str, Any]:
         return {}
 
     logger.info(f"Classifying {state.original_filename}")
+    classify_start = time.time()
 
     try:
         # Run classification (async operation)
@@ -218,9 +222,10 @@ def classify_content(state: DocumentProcessingState) -> dict[str, Any]:
             )
         )
 
+        classify_time = time.time() - classify_start
         logger.info(
             f"Classified as {result.document_class} "
-            f"(quality={result.quality_score:.2f})"
+            f"(quality={result.quality_score:.2f}) in {classify_time:.1f}s"
         )
 
         return {"classification": result}
@@ -281,7 +286,8 @@ def create_signal_and_embed(state: DocumentProcessingState) -> dict[str, Any]:
     if state.error or not state.chunks:
         return {}
 
-    logger.info(f"Creating signal for {state.original_filename}")
+    logger.info(f"Creating signal for {state.original_filename} ({len(state.chunks)} chunks)")
+    embed_start = time.time()
 
     settings = get_settings()
     supabase = get_supabase()
@@ -354,7 +360,8 @@ def create_signal_and_embed(state: DocumentProcessingState) -> dict[str, Any]:
             if chunk_response.data:
                 chunk_ids.append(chunk_response.data[0]["id"])
 
-        logger.info(f"Created signal {signal_id} with {len(chunk_ids)} chunks")
+        embed_time = time.time() - embed_start
+        logger.info(f"Created signal {signal_id} with {len(chunk_ids)} chunks in {embed_time:.1f}s")
 
         return {
             "signal_id": signal_id,
