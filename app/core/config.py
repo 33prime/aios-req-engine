@@ -39,6 +39,12 @@ class Settings(BaseSettings):
     # Environment
     REQ_ENGINE_ENV: str = Field(default="dev", description="Environment: dev, staging, prod")
 
+    # API Base URL (for webhook callbacks)
+    API_BASE_URL: str = Field(
+        default="http://localhost:8000",
+        description="Base URL for API callbacks (e.g., https://api.example.com)"
+    )
+
     # Embedding configuration
     EMBEDDING_MODEL: str = Field(
         default="text-embedding-3-small", description="OpenAI embedding model"

@@ -109,22 +109,23 @@ registerCommand({
   },
 })
 
-// /run-research - Deep web research
+// /run-research - Trigger n8n research workflow
 registerCommand({
   name: 'run-research',
-  description: 'Run deep web research on company, competitors, and market',
+  description: 'Run AI research on company, competitors, and market',
   aliases: ['research'],
   args: [
     {
       name: 'focus',
       type: 'string',
       required: false,
-      description: 'Optional focus area for research',
+      description: 'Optional focus area for research (e.g., "competitor pricing")',
     },
   ],
   examples: ['/run-research', '/run-research "competitor analysis"'],
-  execute: async (_args, context): Promise<CommandResult> => {
+  execute: async (args, context): Promise<CommandResult> => {
     const { projectId, projectData } = context
+    const focus = args.focus as string | undefined
 
     if (!projectId) {
       return {
@@ -133,25 +134,17 @@ registerCommand({
       }
     }
 
-    const { runResearchAgent } = await import('@/lib/api')
+    const { triggerN8nResearch } = await import('@/lib/api')
 
     try {
-      // Use project name as fallback if no company info extracted yet
-      const clientName = projectData?.name || 'Company'
+      const focusAreas = focus ? [focus] : []
+      const result = await triggerN8nResearch(projectId, focusAreas)
 
-      const result = await runResearchAgent(
-        projectId,
-        {
-          client_name: clientName,
-          industry: 'technology',
-          competitors: [],
-        },
-        15
-      )
+      const projectName = projectData?.name || 'your project'
 
       return {
         success: true,
-        message: `**Research running...**\n\nResearching ${clientName}, industry trends, and competitor landscape. This may take a few minutes.\n\nResults will appear in the Sources tab.`,
+        message: `**Research started**\n\nResearching ${projectName}, industry trends, and competitor landscape.\n\n${focus ? `Focus: ${focus}\n\n` : ''}Results will appear in the Sources tab when complete.`,
         data: {
           jobId: result.job_id,
           action: 'research_started',
@@ -1138,6 +1131,244 @@ registerCommand({
 })
 
 // =============================================================================
+// GAP ANALYSIS COMMANDS
+// =============================================================================
+
+// /analyze-gaps - Comprehensive gap analysis
+registerCommand({
+  name: 'analyze-gaps',
+  description: 'Analyze gaps in foundation, evidence, and solution coverage',
+  aliases: ['gaps', 'find-gaps'],
+  examples: ['/analyze-gaps', '/gaps'],
+  execute: async (_args, context): Promise<CommandResult> => {
+    const { projectId } = context
+
+    if (!projectId) {
+      return {
+        success: false,
+        message: 'No project selected. Please select a project first.',
+      }
+    }
+
+    const { analyzeGaps } = await import('@/lib/api')
+
+    try {
+      const result = await analyzeGaps(projectId)
+
+      let message = `## Gap Analysis\n\n`
+
+      // Summary
+      if (result.summary) {
+        message += `${result.summary}\n\n`
+      }
+
+      // Readiness
+      message += `**Readiness:** ${result.total_readiness.toFixed(0)}% | **Phase:** ${result.phase || 'Unknown'}\n\n`
+
+      // Counts
+      if (result.counts) {
+        const { critical_gaps = 0, high_gaps = 0, medium_gaps = 0, low_gaps = 0 } = result.counts
+        message += `**Gap Counts:** `
+        if (critical_gaps > 0) message += `🔴 ${critical_gaps} critical `
+        if (high_gaps > 0) message += `🟠 ${high_gaps} high `
+        if (medium_gaps > 0) message += `🟡 ${medium_gaps} medium `
+        if (low_gaps > 0) message += `🟢 ${low_gaps} low`
+        message += '\n\n'
+      }
+
+      // Priority gaps (top 5)
+      if (result.priority_gaps?.length > 0) {
+        message += `### Priority Gaps\n\n`
+        const topGaps = result.priority_gaps.slice(0, 5)
+        topGaps.forEach((gap, i) => {
+          const severity = gap.severity === 'critical' ? '🔴' :
+                          gap.severity === 'high' ? '🟠' :
+                          gap.severity === 'medium' ? '🟡' : '🟢'
+          message += `${i + 1}. ${severity} **${gap.type}**: ${gap.description}\n`
+          if (gap.suggestion) {
+            message += `   → *${gap.suggestion}*\n`
+          }
+        })
+        message += '\n'
+      } else {
+        message += `*No significant gaps found. Project is on track!*\n\n`
+      }
+
+      message += `\n*Use /suggest-fixes to get actionable suggestions.*`
+
+      return {
+        success: true,
+        message,
+        data: { action: 'gaps_analyzed', result },
+      }
+    } catch (error: any) {
+      return {
+        success: false,
+        message: `Failed to analyze gaps: ${error.message || 'Unknown error'}`,
+      }
+    }
+  },
+})
+
+// /analyze-requirements - Requirements gap analysis
+registerCommand({
+  name: 'analyze-requirements',
+  description: 'Analyze logical gaps in requirements (features, personas, VP steps)',
+  aliases: ['req-gaps', 'requirements-gaps'],
+  examples: ['/analyze-requirements', '/req-gaps'],
+  args: [
+    {
+      name: 'focus',
+      type: 'string',
+      required: false,
+      description: 'Focus areas (features, personas, vp_steps)',
+    },
+  ],
+  execute: async (args, context): Promise<CommandResult> => {
+    const { projectId } = context
+
+    if (!projectId) {
+      return {
+        success: false,
+        message: 'No project selected. Please select a project first.',
+      }
+    }
+
+    const { analyzeRequirementsGaps } = await import('@/lib/api')
+
+    try {
+      const focus = args.focus as string | undefined
+      const focusAreas = focus ? focus.split(',').map(s => s.trim()) : undefined
+      const result = await analyzeRequirementsGaps(projectId, focusAreas)
+
+      let message = `## Requirements Gap Analysis\n\n`
+
+      // Summary stats
+      if (result.summary) {
+        const { total_gaps, high_severity, medium_severity, low_severity, overall_completeness } = result.summary
+        message += `**Total Gaps:** ${total_gaps} | `
+        message += `High: ${high_severity} | Medium: ${medium_severity} | Low: ${low_severity}\n`
+        if (overall_completeness !== undefined) {
+          message += `**Completeness:** ${overall_completeness.toFixed(0)}%\n`
+        }
+        message += '\n'
+      }
+
+      // Entities analyzed
+      if (result.entities_analyzed) {
+        const { features = 0, personas = 0, vp_steps = 0 } = result.entities_analyzed
+        message += `*Analyzed: ${features} features, ${personas} personas, ${vp_steps} VP steps*\n\n`
+      }
+
+      // Gaps (top 10)
+      if (result.gaps?.length > 0) {
+        message += `### Gaps Found\n\n`
+        const topGaps = result.gaps.slice(0, 10)
+        topGaps.forEach((gap, i) => {
+          const severity = gap.severity === 'high' ? '🔴' :
+                          gap.severity === 'medium' ? '🟡' : '🟢'
+          message += `${i + 1}. ${severity} **${gap.gap_type}**: ${gap.description}\n`
+          if (gap.suggestion) {
+            message += `   → *${gap.suggestion}*\n`
+          }
+        })
+        message += '\n'
+      } else {
+        message += `*No requirements gaps found!*\n\n`
+      }
+
+      // Recommendations
+      if (result.recommendations?.length > 0) {
+        message += `### Recommendations\n\n`
+        result.recommendations.slice(0, 5).forEach((rec, i) => {
+          message += `${i + 1}. ${rec}\n`
+        })
+      }
+
+      return {
+        success: true,
+        message,
+        data: { action: 'requirements_analyzed', result },
+      }
+    } catch (error: any) {
+      return {
+        success: false,
+        message: `Failed to analyze requirements: ${error.message || 'Unknown error'}`,
+      }
+    }
+  },
+})
+
+// /suggest-fixes - Get suggestions to fix gaps
+registerCommand({
+  name: 'suggest-fixes',
+  description: 'Generate actionable suggestions to fix identified gaps',
+  aliases: ['fix-gaps', 'gap-fixes'],
+  examples: ['/suggest-fixes', '/fix-gaps'],
+  args: [
+    {
+      name: 'max',
+      type: 'number',
+      required: false,
+      description: 'Maximum suggestions (1-20, default 5)',
+    },
+  ],
+  execute: async (args, context): Promise<CommandResult> => {
+    const { projectId } = context
+
+    if (!projectId) {
+      return {
+        success: false,
+        message: 'No project selected. Please select a project first.',
+      }
+    }
+
+    const { suggestGapFixes } = await import('@/lib/api')
+
+    try {
+      const maxSuggestions = Math.min(20, Math.max(1, Number(args.max) || 5))
+      const result = await suggestGapFixes(projectId, maxSuggestions)
+
+      let message = `## Gap Fix Suggestions\n\n`
+
+      if (result.summary) {
+        message += `${result.summary}\n\n`
+      }
+
+      if (result.suggestions?.length > 0) {
+        result.suggestions.forEach((suggestion, i) => {
+          const severity = suggestion.severity === 'critical' ? '🔴' :
+                          suggestion.severity === 'high' ? '🟠' :
+                          suggestion.severity === 'medium' ? '🟡' : '🟢'
+          const risk = suggestion.risk_level === 'low' ? '✅' : '⚠️'
+
+          message += `### ${i + 1}. ${suggestion.title}\n`
+          message += `${severity} ${suggestion.entity_type} | ${suggestion.action} | Risk: ${risk}\n\n`
+          message += `${suggestion.description}\n\n`
+        })
+
+        if (result.auto_applicable > 0) {
+          message += `\n*${result.auto_applicable} suggestions can be auto-applied.*\n`
+        }
+      } else {
+        message += `*No suggestions needed - project is in good shape!*\n`
+      }
+
+      return {
+        success: true,
+        message,
+        data: { action: 'fixes_suggested', result },
+      }
+    } catch (error: any) {
+      return {
+        success: false,
+        message: `Failed to generate suggestions: ${error.message || 'Unknown error'}`,
+      }
+    }
+  },
+})
+
+// =============================================================================
 // TASK COMMANDS - Work Item Management
 // =============================================================================
 
@@ -1642,6 +1873,11 @@ registerCommand({
     message += `**/status** - Project state overview\n`
     message += `**/view-foundation** - View foundation data\n`
     message += `**/view-gates** - Show gate status and readiness\n\n`
+
+    message += `### Gap Analysis\n`
+    message += `**/analyze-gaps** - Find gaps in foundation and evidence\n`
+    message += `**/analyze-requirements** - Find logical gaps in requirements\n`
+    message += `**/suggest-fixes** - Get actionable suggestions to fix gaps\n\n`
 
     message += `### Tasks\n`
     message += `**/tasks** - List pending tasks\n`

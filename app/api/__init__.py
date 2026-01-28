@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter
 
-from app.api import activity, admin, agents, analytics, auth, baseline, business_drivers, chat, client_packages, client_portal, collaboration, competitor_refs, confirmations, creative_brief, di_agent, discovery_prep, document_uploads, enrich_features, enrich_personas, enrich_vp, entity_cascades, evidence, jobs, meetings, organizations, outreach, phase0, project_creation, projects, proposals, readiness, research, research_agent, revisions, risks, signals, signal_stream, sources, stakeholders, state, strategic_analytics, tasks
+from app.api import activity, admin, agents, analytics, auth, baseline, business_drivers, chat, client_packages, client_portal, collaboration, competitor_refs, confirmations, creative_brief, di_agent, discovery_prep, document_uploads, enrich_features, enrich_personas, enrich_vp, entity_cascades, evidence, jobs, meetings, n8n_research, organizations, outreach, phase0, project_creation, projects, proposals, readiness, research, research_agent, revisions, risks, signals, signal_stream, sources, stakeholders, state, strategic_analytics, tasks
 
 router = APIRouter()
 
@@ -23,6 +23,9 @@ router.include_router(research.router, prefix="/research", tags=["research"])
 
 # Include Research Agent routes
 router.include_router(research_agent.router, tags=["research_agent"])
+
+# Include n8n Research Integration routes
+router.include_router(n8n_research.router, tags=["n8n_research"])
 
 # Include Phase 2D: Job status routes
 router.include_router(jobs.router, prefix="/jobs", tags=["jobs"])

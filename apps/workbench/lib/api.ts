@@ -280,6 +280,32 @@ export const runResearchAgent = (
     }),
   })
 
+// n8n Research Integration (external research workflow)
+export const triggerN8nResearch = (
+  projectId: string,
+  focusAreas?: string[]
+) =>
+  apiRequest<{
+    job_id: string
+    status: string
+    message: string
+  }>(`/projects/${projectId}/trigger-research`, {
+    method: 'POST',
+    body: JSON.stringify({
+      focus_areas: focusAreas || [],
+    }),
+  })
+
+export const getN8nResearchStatus = (projectId: string, jobId: string) =>
+  apiRequest<{
+    job_id: string
+    status: string
+    created_at: string
+    completed_at: string | null
+    output: Record<string, unknown> | null
+    error: string | null
+  }>(`/projects/${projectId}/research-status/${jobId}`)
+
 export const runATeam = (projectId: string, autoApply = false) =>
   apiRequest<{
     run_id: string
