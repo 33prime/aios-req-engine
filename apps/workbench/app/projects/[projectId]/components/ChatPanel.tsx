@@ -380,22 +380,27 @@ export function ChatPanel({
       const successCount = results.filter((r) => r.success).length
       const failedFiles = results.filter((r) => !r.success)
 
-      let message = ''
       if (successCount > 0) {
         const fileNames = results
           .filter((r) => r.success)
           .map((r) => r.file)
           .join(', ')
-        message = `Uploaded ${successCount} file${successCount > 1 ? 's' : ''}: ${fileNames}. Processing will begin shortly.`
-      }
-      if (failedFiles.length > 0) {
-        const errors = failedFiles.map((f) => `${f.file}: ${f.error}`).join(', ')
-        message += message ? '\n\n' : ''
-        message += `Failed to upload: ${errors}`
+
+        // Show upload confirmation - processing happens automatically in background
+        // Features, personas, and other entities will be extracted and merged
+        externalSendMessage({
+          role: 'assistant',
+          content: `📄 **Document${successCount > 1 ? 's' : ''} uploaded:** ${fileNames}\n\nProcessing in background. Features, personas, and other insights will be automatically extracted and added to your project.`,
+        })
       }
 
-      // Add system message about upload
-      assistantSendMessage(`/status`) // Trigger status refresh after upload
+      if (failedFiles.length > 0) {
+        const errors = failedFiles.map((f) => `${f.file}: ${f.error}`).join('\n- ')
+        externalSendMessage({
+          role: 'assistant',
+          content: `⚠️ **Upload failed:**\n- ${errors}`,
+        })
+      }
     },
     [projectId, externalSendMessage, assistantSendMessage]
   )

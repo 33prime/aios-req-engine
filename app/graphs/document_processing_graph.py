@@ -433,7 +433,59 @@ def finalize(state: DocumentProcessingState) -> dict[str, Any]:
         processing_duration_ms=duration_ms,
     )
 
+    # Trigger signal pipeline to extract features/personas/etc. in background
+    if state.signal_id and state.project_id:
+        _trigger_signal_pipeline(
+            project_id=state.project_id,
+            signal_id=state.signal_id,
+            signal_content=state.extraction_result.raw_text[:50000] if state.extraction_result else "",
+            signal_type="document",
+        )
+
     return {}
+
+
+def _trigger_signal_pipeline(
+    project_id: UUID,
+    signal_id: UUID,
+    signal_content: str,
+    signal_type: str,
+) -> None:
+    """Trigger signal pipeline in background to extract features/personas/etc."""
+    import threading
+    from uuid import uuid4
+
+    def run_pipeline():
+        try:
+            run_id = uuid4()
+            logger.info(
+                f"Starting signal pipeline for document signal {signal_id}",
+                extra={"project_id": str(project_id), "run_id": str(run_id)},
+            )
+
+            # Run build state to extract features/personas/etc.
+            from app.graphs.build_state_graph import run_build_state_agent
+
+            result = run_build_state_agent(
+                project_id=project_id,
+                run_id=run_id,
+                job_id=None,
+                mode="initial",
+            )
+
+            logger.info(
+                f"Signal pipeline completed for document: "
+                f"{result.get('features_created', 0)} features, "
+                f"{result.get('personas_created', 0)} personas",
+                extra={"project_id": str(project_id), "signal_id": str(signal_id)},
+            )
+
+        except Exception as e:
+            logger.exception(f"Signal pipeline failed for document: {e}")
+
+    # Run in background thread
+    thread = threading.Thread(target=run_pipeline, daemon=True)
+    thread.start()
 
 
 def should_continue(state: DocumentProcessingState) -> str:
