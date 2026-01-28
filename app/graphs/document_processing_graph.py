@@ -329,26 +329,27 @@ def create_signal_and_embed(state: DocumentProcessingState) -> dict[str, Any]:
 
         signal_id = UUID(signal_response.data[0]["id"])
 
-        # Embed and insert chunks
+        # Embed chunks in batch (much faster than one-by-one)
         from openai import OpenAI
 
         openai_client = OpenAI(api_key=settings.OPENAI_API_KEY)
+
+        # Batch embed all chunks at once
+        chunk_texts = [chunk.content_with_context for chunk in state.chunks]
+        embedding_response = openai_client.embeddings.create(
+            model=settings.EMBEDDING_MODEL,
+            input=chunk_texts,
+        )
+        embeddings = [e.embedding for e in embedding_response.data]
+
+        # Insert all chunks with their embeddings
         chunk_ids = []
-
-        for chunk in state.chunks:
-            # Generate embedding for content_with_context
-            embedding_response = openai_client.embeddings.create(
-                model=settings.EMBEDDING_MODEL,
-                input=chunk.content_with_context,
-            )
-            embedding = embedding_response.data[0].embedding
-
-            # Insert chunk
+        for i, chunk in enumerate(state.chunks):
             chunk_data = {
                 "signal_id": str(signal_id),
                 "chunk_index": chunk.chunk_index,
                 "content": chunk.original_content,
-                "embedding": embedding,
+                "embedding": embeddings[i],
                 "metadata": chunk.metadata,
                 "document_upload_id": str(state.document_id),
                 "page_number": chunk.page_number,
