@@ -215,9 +215,10 @@ export function SourcesTabRedesign({ projectId, onUploadClick }: SourcesTabRedes
   }
 
   // Calculate tab counts
+  // Signals tab now shows ALL sources (signals + research + documents) as a unified timeline
   const counts = {
     documents: documents.length,
-    signals: sources.filter(s => s.signal_type !== 'research').length,
+    signals: sources.length + documents.length,  // Total of all sources
     research: sources.filter(s => s.signal_type === 'research').length,
     intelligence: undefined, // Don't show count
     memory: undefined, // Don't show count
@@ -255,7 +256,9 @@ export function SourcesTabRedesign({ projectId, onUploadClick }: SourcesTabRedes
         {activeTab === 'signals' && (
           <SignalsTab
             signals={sources}
-            isLoading={isLoadingSources}
+            documents={documents}
+            isLoading={isLoadingSources || isLoadingDocuments}
+            onNavigateToTab={handleTabChange}
           />
         )}
 

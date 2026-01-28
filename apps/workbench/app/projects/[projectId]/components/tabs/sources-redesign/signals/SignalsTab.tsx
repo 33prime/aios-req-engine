@@ -1,16 +1,17 @@
 /**
  * SignalsTab Component
  *
- * Timeline view of signals (emails, notes, transcripts, chat).
+ * Unified timeline view of ALL sources: signals, research, and documents.
+ * Shows everything in chronological order with appropriate previews.
  */
 
 'use client'
 
 import { useState, useMemo } from 'react'
 import { formatDistanceToNow } from 'date-fns'
-import { ChevronDown, ChevronUp, Sparkles, CheckCircle, AlertCircle, Info } from 'lucide-react'
+import { ChevronDown, ChevronUp, Sparkles, CheckCircle, AlertCircle, Info, FileText, Globe, ArrowRight } from 'lucide-react'
 import { SourceTypeBadge, UsageBar } from '../shared'
-import { getSignal, type SourceUsageItem } from '@/lib/api'
+import { getSignal, type SourceUsageItem, type DocumentSummaryItem } from '@/lib/api'
 import { Markdown } from '@/components/ui/Markdown'
 
 interface QualityInfo {
@@ -21,34 +22,93 @@ interface QualityInfo {
 
 interface SignalsTabProps {
   signals: SourceUsageItem[]
+  documents?: DocumentSummaryItem[]
   isLoading: boolean
+  onNavigateToTab?: (tab: 'research' | 'documents') => void
 }
 
-type SignalFilter = 'all' | 'email' | 'note' | 'transcript' | 'chat'
+type SignalFilter = 'all' | 'email' | 'note' | 'transcript' | 'chat' | 'research' | 'document'
 
-export function SignalsTab({ signals, isLoading }: SignalsTabProps) {
+// Unified timeline item type
+interface TimelineItem {
+  id: string
+  type: 'signal' | 'research' | 'document'
+  name: string
+  signalType?: string | null
+  date: string | null
+  data: SourceUsageItem | DocumentSummaryItem
+}
+
+export function SignalsTab({ signals, documents = [], isLoading, onNavigateToTab }: SignalsTabProps) {
   const [filter, setFilter] = useState<SignalFilter>('all')
 
-  // Filter signals (exclude research type - that's in Research tab)
-  const filteredSignals = useMemo(() => {
-    let result = signals.filter(s => s.signal_type !== 'research')
+  // Build unified timeline from all sources
+  const timelineItems = useMemo(() => {
+    const items: TimelineItem[] = []
 
-    if (filter !== 'all') {
-      result = result.filter(s => s.signal_type === filter)
+    // Add all signals (including research)
+    signals.forEach(s => {
+      items.push({
+        id: s.source_id,
+        type: s.signal_type === 'research' ? 'research' : 'signal',
+        name: s.source_name,
+        signalType: s.signal_type,
+        date: s.last_used,
+        data: s,
+      })
+    })
+
+    // Add documents
+    documents.forEach(d => {
+      items.push({
+        id: d.id,
+        type: 'document',
+        name: d.original_filename,
+        signalType: 'document',
+        date: d.created_at || null,
+        data: d,
+      })
+    })
+
+    // Sort by date (most recent first)
+    items.sort((a, b) => {
+      if (!a.date && !b.date) return 0
+      if (!a.date) return 1
+      if (!b.date) return -1
+      return new Date(b.date).getTime() - new Date(a.date).getTime()
+    })
+
+    return items
+  }, [signals, documents])
+
+  // Filter timeline items
+  const filteredItems = useMemo(() => {
+    if (filter === 'all') return timelineItems
+
+    if (filter === 'research') {
+      return timelineItems.filter(item => item.type === 'research')
     }
 
-    return result
-  }, [signals, filter])
+    if (filter === 'document') {
+      return timelineItems.filter(item => item.type === 'document')
+    }
 
-  // Get unique signal types for filter chips
-  const signalTypes = useMemo(() => {
-    const types = new Set(signals
-      .filter(s => s.signal_type !== 'research')
-      .map(s => s.signal_type)
-      .filter(Boolean) as string[]
+    // Signal type filter
+    return timelineItems.filter(item =>
+      item.type === 'signal' && item.signalType === filter
     )
+  }, [timelineItems, filter])
+
+  // Get unique types for filter chips
+  const availableFilters = useMemo(() => {
+    const types = new Set<string>()
+    timelineItems.forEach(item => {
+      if (item.type === 'research') types.add('research')
+      else if (item.type === 'document') types.add('document')
+      else if (item.signalType) types.add(item.signalType)
+    })
     return Array.from(types)
-  }, [signals])
+  }, [timelineItems])
 
   if (isLoading) {
     return (
@@ -66,7 +126,7 @@ export function SignalsTab({ signals, isLoading }: SignalsTabProps) {
     )
   }
 
-  if (filteredSignals.length === 0) {
+  if (filteredItems.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-16 text-center">
         <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
@@ -74,9 +134,9 @@ export function SignalsTab({ signals, isLoading }: SignalsTabProps) {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
           </svg>
         </div>
-        <h3 className="text-lg font-medium text-gray-900 mb-2">No signals yet</h3>
+        <h3 className="text-lg font-medium text-gray-900 mb-2">No sources yet</h3>
         <p className="text-sm text-gray-500 max-w-sm">
-          Signals include emails, notes, transcripts, and chat messages that provide project context.
+          Sources include emails, notes, transcripts, documents, and research that inform this project.
         </p>
       </div>
     )
@@ -85,31 +145,41 @@ export function SignalsTab({ signals, isLoading }: SignalsTabProps) {
   return (
     <div className="space-y-4">
       {/* Filter chips */}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 flex-wrap">
         <FilterChip
           active={filter === 'all'}
           onClick={() => setFilter('all')}
         >
-          All
+          All ({timelineItems.length})
         </FilterChip>
-        {signalTypes.includes('email') && (
+        {availableFilters.includes('email') && (
           <FilterChip active={filter === 'email'} onClick={() => setFilter('email')}>
             Emails
           </FilterChip>
         )}
-        {signalTypes.includes('note') && (
+        {availableFilters.includes('note') && (
           <FilterChip active={filter === 'note'} onClick={() => setFilter('note')}>
             Notes
           </FilterChip>
         )}
-        {signalTypes.includes('transcript') && (
+        {availableFilters.includes('transcript') && (
           <FilterChip active={filter === 'transcript'} onClick={() => setFilter('transcript')}>
             Transcripts
           </FilterChip>
         )}
-        {signalTypes.includes('chat') && (
+        {availableFilters.includes('chat') && (
           <FilterChip active={filter === 'chat'} onClick={() => setFilter('chat')}>
             Chat
+          </FilterChip>
+        )}
+        {availableFilters.includes('research') && (
+          <FilterChip active={filter === 'research'} onClick={() => setFilter('research')}>
+            Research
+          </FilterChip>
+        )}
+        {availableFilters.includes('document') && (
+          <FilterChip active={filter === 'document'} onClick={() => setFilter('document')}>
+            Documents
           </FilterChip>
         )}
       </div>
@@ -120,8 +190,12 @@ export function SignalsTab({ signals, isLoading }: SignalsTabProps) {
         <div className="absolute left-5 top-0 bottom-0 w-0.5 bg-gray-200" />
 
         <div className="space-y-4">
-          {filteredSignals.map((signal) => (
-            <SignalTimelineItem key={signal.source_id} signal={signal} />
+          {filteredItems.map((item) => (
+            <TimelineItemCard
+              key={item.id}
+              item={item}
+              onNavigateToTab={onNavigateToTab}
+            />
           ))}
         </div>
       </div>
@@ -129,25 +203,53 @@ export function SignalsTab({ signals, isLoading }: SignalsTabProps) {
   )
 }
 
-function SignalTimelineItem({ signal }: { signal: SourceUsageItem }) {
+function TimelineItemCard({
+  item,
+  onNavigateToTab,
+}: {
+  item: TimelineItem
+  onNavigateToTab?: (tab: 'research' | 'documents') => void
+}) {
   const [isExpanded, setIsExpanded] = useState(false)
   const [content, setContent] = useState<string | null>(null)
   const [quality, setQuality] = useState<QualityInfo | null>(null)
   const [isLoading, setIsLoading] = useState(false)
 
-  const totalContributions =
-    signal.uses_by_entity.feature +
-    signal.uses_by_entity.persona +
-    signal.uses_by_entity.vp_step
+  // Get data based on item type
+  const signal = item.type !== 'document' ? (item.data as SourceUsageItem) : null
+  const document = item.type === 'document' ? (item.data as DocumentSummaryItem) : null
+
+  const totalContributions = signal
+    ? signal.uses_by_entity.feature + signal.uses_by_entity.persona + signal.uses_by_entity.vp_step
+    : 0
 
   const handleExpand = async () => {
-    if (!isExpanded && content === null) {
+    // For research and documents, just toggle - content is already available or we link to the tab
+    if (item.type === 'research') {
+      // Research has content in the signal data
+      if (!isExpanded && signal?.content) {
+        setContent(signal.content)
+      }
+      setIsExpanded(!isExpanded)
+      return
+    }
+
+    if (item.type === 'document') {
+      // Documents show summary and link to Documents tab
+      if (!isExpanded && document) {
+        setContent(document.content_summary || 'Document uploaded. View in Documents tab for details.')
+      }
+      setIsExpanded(!isExpanded)
+      return
+    }
+
+    // For regular signals, fetch content
+    if (!isExpanded && content === null && signal) {
       setIsLoading(true)
       try {
         const response = await getSignal(signal.source_id)
         setContent(response.raw_text || 'No content available')
 
-        // Extract quality info from metadata
         const metadata = response.metadata || {}
         if (metadata.quality_score) {
           setQuality({
@@ -165,35 +267,33 @@ function SignalTimelineItem({ signal }: { signal: SourceUsageItem }) {
     setIsExpanded(!isExpanded)
   }
 
+  // Get icon based on type
+  const getIcon = () => {
+    if (item.type === 'research') {
+      return <Globe className="w-4 h-4 text-violet-600" />
+    }
+    if (item.type === 'document') {
+      return <FileText className="w-4 h-4 text-blue-600" />
+    }
+    return <SourceTypeBadge type={item.signalType || 'note'} showLabel={false} />
+  }
+
+  // Get badge color based on type
+  const getDotStyle = () => {
+    if (item.type === 'research') return 'bg-violet-50 border-violet-200'
+    if (item.type === 'document') return 'bg-blue-50 border-blue-200'
+    return 'bg-white border-gray-200'
+  }
+
   // Quality badge styling
   const getQualityBadge = () => {
     if (!quality) return null
 
     const styles = {
-      excellent: {
-        bg: 'bg-emerald-50',
-        border: 'border-emerald-200',
-        text: 'text-emerald-700',
-        icon: <Sparkles className="w-4 h-4 text-emerald-500" />,
-      },
-      good: {
-        bg: 'bg-blue-50',
-        border: 'border-blue-200',
-        text: 'text-blue-700',
-        icon: <CheckCircle className="w-4 h-4 text-blue-500" />,
-      },
-      basic: {
-        bg: 'bg-amber-50',
-        border: 'border-amber-200',
-        text: 'text-amber-700',
-        icon: <Info className="w-4 h-4 text-amber-500" />,
-      },
-      sparse: {
-        bg: 'bg-gray-50',
-        border: 'border-gray-200',
-        text: 'text-gray-600',
-        icon: <AlertCircle className="w-4 h-4 text-gray-400" />,
-      },
+      excellent: { bg: 'bg-emerald-50', border: 'border-emerald-200', text: 'text-emerald-700', icon: <Sparkles className="w-4 h-4 text-emerald-500" /> },
+      good: { bg: 'bg-blue-50', border: 'border-blue-200', text: 'text-blue-700', icon: <CheckCircle className="w-4 h-4 text-blue-500" /> },
+      basic: { bg: 'bg-amber-50', border: 'border-amber-200', text: 'text-amber-700', icon: <Info className="w-4 h-4 text-amber-500" /> },
+      sparse: { bg: 'bg-gray-50', border: 'border-gray-200', text: 'text-gray-600', icon: <AlertCircle className="w-4 h-4 text-gray-400" /> },
     }
 
     const style = styles[quality.score] || styles.basic
@@ -222,8 +322,8 @@ function SignalTimelineItem({ signal }: { signal: SourceUsageItem }) {
   return (
     <div className="flex gap-4 relative">
       {/* Timeline dot */}
-      <div className="w-10 h-10 rounded-full bg-white border-2 border-gray-200 flex items-center justify-center z-10">
-        <SourceTypeBadge type={signal.signal_type || 'note'} showLabel={false} />
+      <div className={`w-10 h-10 rounded-full border-2 flex items-center justify-center z-10 ${getDotStyle()}`}>
+        {getIcon()}
       </div>
 
       {/* Content card */}
@@ -234,23 +334,31 @@ function SignalTimelineItem({ signal }: { signal: SourceUsageItem }) {
         >
           <div className="flex-1 min-w-0">
             <h4 className="text-sm font-medium text-gray-900 truncate">
-              {signal.source_name}
+              {item.name}
             </h4>
-            {signal.last_used && (
+            {item.date && (
               <p className="text-xs text-gray-500 mt-0.5">
-                {formatDistanceToNow(new Date(signal.last_used), { addSuffix: true })}
+                {formatDistanceToNow(new Date(item.date), { addSuffix: true })}
               </p>
             )}
           </div>
 
           <div className="flex items-center gap-2">
-            <SourceTypeBadge type={signal.signal_type || 'note'} showLabel={true} />
+            {item.type === 'research' && (
+              <span className="px-2 py-0.5 text-xs font-medium bg-violet-100 text-violet-700 rounded-full">
+                Research
+              </span>
+            )}
+            {item.type === 'document' && (
+              <span className="px-2 py-0.5 text-xs font-medium bg-blue-100 text-blue-700 rounded-full">
+                Document
+              </span>
+            )}
+            {item.type === 'signal' && (
+              <SourceTypeBadge type={item.signalType || 'note'} showLabel={true} />
+            )}
             <button className="p-1 text-gray-400 hover:text-gray-600">
-              {isExpanded ? (
-                <ChevronUp className="w-4 h-4" />
-              ) : (
-                <ChevronDown className="w-4 h-4" />
-              )}
+              {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
             </button>
           </div>
         </div>
@@ -262,16 +370,40 @@ function SignalTimelineItem({ signal }: { signal: SourceUsageItem }) {
               <div className="text-sm text-gray-400 italic">Loading content...</div>
             ) : (
               <>
-                {/* Quality assessment banner */}
                 {getQualityBadge()}
 
-                {/* Signal content */}
+                {/* Content preview */}
                 {content ? (
                   <div className="bg-white rounded-lg border border-gray-100 p-4">
-                    <div className="prose prose-sm max-w-none">
+                    <div className={`prose prose-sm max-w-none ${item.type === 'research' ? 'line-clamp-10' : ''}`}>
                       <Markdown content={content} />
                     </div>
-                    {content.length > 500 && (
+
+                    {/* Link to full view for research/documents */}
+                    {item.type === 'research' && onNavigateToTab && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          onNavigateToTab('research')
+                        }}
+                        className="mt-3 flex items-center gap-1 text-sm font-medium text-violet-600 hover:text-violet-700"
+                      >
+                        View full research <ArrowRight className="w-4 h-4" />
+                      </button>
+                    )}
+                    {item.type === 'document' && onNavigateToTab && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          onNavigateToTab('documents')
+                        }}
+                        className="mt-3 flex items-center gap-1 text-sm font-medium text-blue-600 hover:text-blue-700"
+                      >
+                        View in Documents <ArrowRight className="w-4 h-4" />
+                      </button>
+                    )}
+
+                    {content.length > 500 && item.type === 'signal' && (
                       <div className="mt-3 pt-3 border-t border-gray-100 text-xs text-gray-400">
                         {content.length.toLocaleString()} characters
                       </div>
@@ -285,23 +417,34 @@ function SignalTimelineItem({ signal }: { signal: SourceUsageItem }) {
           </div>
         )}
 
-        {/* Impact summary */}
-        {totalContributions > 0 && (
+        {/* Impact summary for signals */}
+        {signal && totalContributions > 0 && (
           <div className="mt-3 pt-3 border-t border-gray-100 flex items-center justify-between">
             <div className="flex-1 max-w-[100px]">
               <UsageBar count={signal.total_uses} size="sm" />
             </div>
             <div className="flex items-center gap-3 text-xs text-gray-500">
-              {signal.uses_by_entity.feature > 0 && (
-                <span>{signal.uses_by_entity.feature} features</span>
-              )}
-              {signal.uses_by_entity.persona > 0 && (
-                <span>{signal.uses_by_entity.persona} personas</span>
-              )}
-              {signal.uses_by_entity.vp_step > 0 && (
-                <span>{signal.uses_by_entity.vp_step} steps</span>
-              )}
+              {signal.uses_by_entity.feature > 0 && <span>{signal.uses_by_entity.feature} features</span>}
+              {signal.uses_by_entity.persona > 0 && <span>{signal.uses_by_entity.persona} personas</span>}
+              {signal.uses_by_entity.vp_step > 0 && <span>{signal.uses_by_entity.vp_step} steps</span>}
             </div>
+          </div>
+        )}
+
+        {/* Document metadata */}
+        {document && (
+          <div className="mt-3 pt-3 border-t border-gray-100 flex items-center gap-4 text-xs text-gray-500">
+            {document.file_type && <span className="uppercase">{document.file_type}</span>}
+            {document.page_count && <span>{document.page_count} pages</span>}
+            {document.processing_status && (
+              <span className={`px-1.5 py-0.5 rounded ${
+                document.processing_status === 'processed' ? 'bg-green-100 text-green-700' :
+                document.processing_status === 'processing' ? 'bg-amber-100 text-amber-700' :
+                'bg-gray-100 text-gray-600'
+              }`}>
+                {document.processing_status}
+              </span>
+            )}
           </div>
         )}
       </div>
