@@ -98,60 +98,94 @@ async def trigger_n8n_research(
         supabase = get_supabase()
 
         # Get project
-        project = supabase.table("projects").select("*").eq("id", str(project_id)).single().execute()
+        project = supabase.table("projects").select("*").eq("id", str(project_id)).maybe_single().execute()
         if not project.data:
             raise HTTPException(status_code=404, detail="Project not found")
 
         project_data = project.data
 
         # Get project memory (the LLM-synthesized understanding)
-        memory = supabase.table("project_memory").select("content").eq("project_id", str(project_id)).maybe_single().execute()
-        memory_content = memory.data.get("content", "") if memory.data else ""
+        memory_content = ""
+        try:
+            memory = supabase.table("project_memory").select("content").eq("project_id", str(project_id)).maybe_single().execute()
+            memory_content = memory.data.get("content", "") if memory.data else ""
+        except Exception as e:
+            logger.warning(f"Could not fetch project memory: {e}")
 
         # Get company info
-        company = supabase.table("company_profiles").select("*").eq("project_id", str(project_id)).maybe_single().execute()
-        company_data = company.data if company.data else {}
+        company_data = {}
+        try:
+            company = supabase.table("company_profiles").select("*").eq("project_id", str(project_id)).maybe_single().execute()
+            company_data = company.data if company.data else {}
+        except Exception as e:
+            logger.warning(f"Could not fetch company profile: {e}")
 
         # Get existing competitors
-        competitors = supabase.table("competitors").select("name, url, description").eq("project_id", str(project_id)).execute()
-        competitor_list = [
-            {"name": c["name"], "url": c.get("url"), "description": c.get("description")}
-            for c in (competitors.data or [])
-        ]
+        competitor_list = []
+        try:
+            competitors = supabase.table("competitors").select("name, url, description").eq("project_id", str(project_id)).execute()
+            competitor_list = [
+                {"name": c["name"], "url": c.get("url"), "description": c.get("description")}
+                for c in (competitors.data or [])
+            ]
+        except Exception as e:
+            logger.warning(f"Could not fetch competitors: {e}")
 
         # Get features (names and descriptions)
-        features = supabase.table("features").select("name, description, is_mvp, priority").eq("project_id", str(project_id)).execute()
-        feature_list = [
-            {"name": f["name"], "description": f.get("description"), "is_mvp": f.get("is_mvp"), "priority": f.get("priority")}
-            for f in (features.data or [])
-        ]
+        feature_list = []
+        try:
+            features = supabase.table("features").select("name, description, is_mvp, priority").eq("project_id", str(project_id)).execute()
+            feature_list = [
+                {"name": f["name"], "description": f.get("description"), "is_mvp": f.get("is_mvp"), "priority": f.get("priority")}
+                for f in (features.data or [])
+            ]
+        except Exception as e:
+            logger.warning(f"Could not fetch features: {e}")
 
         # Get personas
-        personas = supabase.table("personas").select("name, role, description, is_primary").eq("project_id", str(project_id)).execute()
-        persona_list = [
-            {"name": p["name"], "role": p.get("role"), "description": p.get("description"), "is_primary": p.get("is_primary")}
-            for p in (personas.data or [])
-        ]
+        persona_list = []
+        try:
+            personas = supabase.table("personas").select("name, role, description, is_primary").eq("project_id", str(project_id)).execute()
+            persona_list = [
+                {"name": p["name"], "role": p.get("role"), "description": p.get("description"), "is_primary": p.get("is_primary")}
+                for p in (personas.data or [])
+            ]
+        except Exception as e:
+            logger.warning(f"Could not fetch personas: {e}")
 
         # Get value path steps
-        vp_steps = supabase.table("vp_steps").select("name, description, step_order").eq("project_id", str(project_id)).order("step_order").execute()
-        vp_list = [
-            {"name": v["name"], "description": v.get("description"), "order": v.get("step_order")}
-            for v in (vp_steps.data or [])
-        ]
+        vp_list = []
+        try:
+            vp_steps = supabase.table("vp_steps").select("name, description, step_order").eq("project_id", str(project_id)).order("step_order").execute()
+            vp_list = [
+                {"name": v["name"], "description": v.get("description"), "order": v.get("step_order")}
+                for v in (vp_steps.data or [])
+            ]
+        except Exception as e:
+            logger.warning(f"Could not fetch vp_steps: {e}")
 
         # Get business drivers (pain points, goals, KPIs)
-        drivers = supabase.table("business_drivers").select("driver_type, description, priority, severity").eq("project_id", str(project_id)).execute()
-        pain_points = [d["description"] for d in (drivers.data or []) if d.get("driver_type") == "pain"]
-        goals = [d["description"] for d in (drivers.data or []) if d.get("driver_type") == "goal"]
-        kpis = [d["description"] for d in (drivers.data or []) if d.get("driver_type") == "kpi"]
+        pain_points = []
+        goals = []
+        kpis = []
+        try:
+            drivers = supabase.table("business_drivers").select("driver_type, description, priority, severity").eq("project_id", str(project_id)).execute()
+            pain_points = [d["description"] for d in (drivers.data or []) if d.get("driver_type") == "pain"]
+            goals = [d["description"] for d in (drivers.data or []) if d.get("driver_type") == "goal"]
+            kpis = [d["description"] for d in (drivers.data or []) if d.get("driver_type") == "kpi"]
+        except Exception as e:
+            logger.warning(f"Could not fetch business_drivers: {e}")
 
-        # Get recent key decisions
-        decisions = supabase.table("project_decisions").select("title, decision, rationale, created_at").eq("project_id", str(project_id)).eq("is_active", True).order("created_at", desc=True).limit(10).execute()
-        decision_list = [
-            {"title": d["title"], "decision": d.get("decision"), "rationale": d.get("rationale")}
-            for d in (decisions.data or [])
-        ]
+        # Get recent key decisions (gracefully handle if table/columns don't exist)
+        decision_list = []
+        try:
+            decisions = supabase.table("project_decisions").select("title, decision, rationale, created_at").eq("project_id", str(project_id)).order("created_at", desc=True).limit(10).execute()
+            decision_list = [
+                {"title": d["title"], "decision": d.get("decision"), "rationale": d.get("rationale")}
+                for d in (decisions.data or [])
+            ]
+        except Exception as e:
+            logger.warning(f"Could not fetch decisions: {e}")
 
         # Create job to track research
         job_id = create_job(

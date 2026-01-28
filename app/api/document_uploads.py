@@ -3,7 +3,7 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile
+from fastapi import APIRouter, File, Form, HTTPException, Path, Query, UploadFile
 from pydantic import BaseModel
 
 from app.core.document_processing import (
@@ -489,3 +489,49 @@ async def delete_document(document_id: UUID) -> dict:
     except Exception as e:
         logger.exception(f"Failed to delete document {document_id}")
         raise HTTPException(status_code=500, detail="Failed to delete document")
+
+
+@router.get("/documents/{document_id}/download")
+async def get_document_download_url(
+    document_id: UUID = Path(..., description="Document UUID"),
+) -> dict:
+    """
+    Get a signed download URL for a document.
+
+    Returns a temporary URL (valid for 1 hour) that can be used to download
+    the original file from storage.
+
+    Args:
+        document_id: Document UUID
+
+    Returns:
+        Dict with download_url and filename
+
+    Raises:
+        HTTPException 404: If document not found
+        HTTPException 500: If URL generation fails
+    """
+    from app.db.document_uploads import get_document_upload
+
+    doc = get_document_upload(document_id)
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    try:
+        supabase = get_supabase()
+
+        # Generate signed URL (expires in 1 hour)
+        signed_url = supabase.storage.from_("project-files").create_signed_url(
+            doc["storage_path"],
+            expires_in=3600,  # 1 hour
+        )
+
+        return {
+            "download_url": signed_url.get("signedURL"),
+            "filename": doc["original_filename"],
+            "mime_type": doc.get("mime_type", "application/octet-stream"),
+        }
+
+    except Exception as e:
+        logger.exception(f"Failed to generate download URL for document {document_id}")
+        raise HTTPException(status_code=500, detail="Failed to generate download URL")
