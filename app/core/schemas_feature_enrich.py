@@ -14,7 +14,7 @@ class FeatureEnrichmentItem(BaseModel):
     entity: str = Field(..., description="Name of the entity (e.g., 'Customer', 'SurveyResponse')")
     fields: list[str] = Field(default_factory=list, description="List of fields this entity uses")
     notes: str | None = Field(default=None, description="Additional notes about this entity usage")
-    evidence: list[EvidenceRef] = Field(min_length=1, description="Supporting evidence")
+    evidence: list[EvidenceRef] = Field(default_factory=list, description="Supporting evidence (if available)")
 
 
 class BusinessRule(BaseModel):
@@ -23,14 +23,14 @@ class BusinessRule(BaseModel):
     title: str = Field(..., description="Short title for the rule")
     rule: str = Field(..., description="The actual business logic/rule")
     verification: str | None = Field(default=None, description="How this rule is verified/enforced")
-    evidence: list[EvidenceRef] = Field(min_length=1, description="Supporting evidence")
+    evidence: list[EvidenceRef] = Field(default_factory=list, description="Supporting evidence (if available)")
 
 
 class AcceptanceCriterion(BaseModel):
     """An acceptance criterion for this feature."""
 
     criterion: str = Field(..., description="The acceptance criterion description")
-    evidence: list[EvidenceRef] = Field(min_length=1, description="Supporting evidence")
+    evidence: list[EvidenceRef] = Field(default_factory=list, description="Supporting evidence (if available)")
 
 
 class Dependency(BaseModel):
@@ -41,7 +41,7 @@ class Dependency(BaseModel):
     ] = Field(..., description="Type of dependency")
     name: str = Field(..., description="Name of the dependency")
     why: str = Field(..., description="Why this dependency is needed")
-    evidence: list[EvidenceRef] = Field(min_length=1, description="Supporting evidence")
+    evidence: list[EvidenceRef] = Field(default_factory=list, description="Supporting evidence (if available)")
 
 
 class Integration(BaseModel):
@@ -52,7 +52,7 @@ class Integration(BaseModel):
         "inbound", "outbound", "bidirectional"
     ] = Field(..., description="Direction of data flow")
     data_exchanged: str = Field(..., description="What data is exchanged")
-    evidence: list[EvidenceRef] = Field(min_length=1, description="Supporting evidence")
+    evidence: list[EvidenceRef] = Field(default_factory=list, description="Supporting evidence (if available)")
 
 
 class TelemetryEvent(BaseModel):
@@ -62,7 +62,7 @@ class TelemetryEvent(BaseModel):
     when_fired: str = Field(..., description="When this event is fired")
     properties: list[str] = Field(default_factory=list, description="Event properties")
     success_metric: str | None = Field(default=None, description="Success metric this event helps measure")
-    evidence: list[EvidenceRef] = Field(min_length=1, description="Supporting evidence")
+    evidence: list[EvidenceRef] = Field(default_factory=list, description="Supporting evidence (if available)")
 
 
 class RiskItem(BaseModel):
@@ -72,7 +72,7 @@ class RiskItem(BaseModel):
     risk: str = Field(..., description="Description of the risk")
     mitigation: str = Field(..., description="How the risk is mitigated")
     severity: Literal["low", "medium", "high"] = Field(default="medium", description="Risk severity")
-    evidence: list[EvidenceRef] = Field(min_length=1, description="Supporting evidence")
+    evidence: list[EvidenceRef] = Field(default_factory=list, description="Supporting evidence (if available)")
 
 
 class FeatureDetails(BaseModel):
@@ -108,7 +108,7 @@ class OpenQuestion(BaseModel):
     question: str = Field(..., description="The question that needs answering")
     why_it_matters: str = Field(..., description="Why answering this question matters")
     suggested_owner: str = Field(..., description="Who should answer this question")
-    evidence: list[EvidenceRef] = Field(min_length=1, description="Supporting evidence")
+    evidence: list[EvidenceRef] = Field(default_factory=list, description="Supporting evidence (if available)")
 
 
 class EnrichFeaturesOutput(BaseModel):

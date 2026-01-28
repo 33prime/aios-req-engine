@@ -15,7 +15,7 @@ from app.db.features import patch_feature_details
 
 logger = get_logger(__name__)
 
-MAX_STEPS = 8
+MAX_STEPS = 50  # Must handle N features + retries + overhead
 
 
 @dataclass
