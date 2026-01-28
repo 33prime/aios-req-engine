@@ -174,6 +174,88 @@ registerCommand({
   },
 })
 
+// /research-status - Check on running research
+registerCommand({
+  name: 'research-status',
+  description: 'Check the status of running research',
+  aliases: ['check-research'],
+  examples: ['/research-status'],
+  execute: async (_args, context): Promise<CommandResult> => {
+    const { projectId } = context
+
+    if (!projectId) {
+      return {
+        success: false,
+        message: 'No project selected. Please select a project first.',
+      }
+    }
+
+    const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8000'
+    const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null
+
+    try {
+      // Get recent research jobs
+      const response = await fetch(`${API_BASE}/v1/jobs?project_id=${projectId}&job_type=n8n_research&limit=5`, {
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch research status')
+      }
+
+      const jobs = await response.json()
+
+      if (!jobs || jobs.length === 0) {
+        return {
+          success: true,
+          message: `## Research Status\n\nNo research jobs found for this project.\n\nRun \`/run-research\` to start AI research.`,
+        }
+      }
+
+      let message = `## Research Status\n\n`
+
+      for (const job of jobs.slice(0, 3)) {
+        const status = job.status
+        const icon = status === 'completed' ? '✅' : status === 'running' ? '🔄' : status === 'failed' ? '❌' : '⏸️'
+        const date = new Date(job.created_at).toLocaleString()
+
+        message += `${icon} **${status.toUpperCase()}** - ${date}\n`
+
+        if (status === 'completed' && job.output_json) {
+          const output = job.output_json
+          message += `   Signal: \`${output.signal_id || 'N/A'}\`\n`
+          message += `   Chunks: ${output.chunks_created || 0}\n`
+        } else if (status === 'failed' && job.error_message) {
+          message += `   Error: ${job.error_message.slice(0, 100)}\n`
+        } else if (status === 'running') {
+          message += `   Research in progress... check back shortly.\n`
+        }
+        message += '\n'
+      }
+
+      const latestJob = jobs[0]
+      if (latestJob.status === 'completed') {
+        message += `\n💡 Research complete! Check the **Sources tab** for results.`
+      } else if (latestJob.status === 'running') {
+        message += `\n⏳ Research is still running. This typically takes 2-3 minutes.`
+      }
+
+      return {
+        success: true,
+        message,
+      }
+    } catch (error) {
+      return {
+        success: false,
+        message: `Failed to check research status: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      }
+    }
+  },
+})
+
 // /enrich-features - AI enhance all features
 registerCommand({
   name: 'enrich-features',
@@ -1876,6 +1958,7 @@ registerCommand({
     message += `**/di** (or **/analyze-project**) - Run DI Agent analysis\n`
     message += `**/run-foundation** - Extract company info, drivers, competitors\n`
     message += `**/run-research** - Deep web research on company/market\n`
+    message += `**/research-status** - Check status of running research\n`
     message += `**/enrich-features** - AI enhance all features\n`
     message += `**/enrich-personas** - AI enhance all personas\n`
     message += `**/enrich-value-path** - AI enhance all VP steps\n`
