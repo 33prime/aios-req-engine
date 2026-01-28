@@ -5,7 +5,10 @@ from uuid import UUID
 from fastapi import APIRouter, HTTPException, Query
 
 from app.core.logging import get_logger
+from pydantic import BaseModel
+
 from app.db.signals import (
+    get_project_source_usage,
     get_signal,
     get_signal_impact,
     list_project_signals,
@@ -173,4 +176,96 @@ async def get_signal_impact_details(signal_id: UUID) -> dict:
         raise HTTPException(
             status_code=500,
             detail="Failed to retrieve signal impact",
+        ) from e
+
+
+class SourceUsageByEntity(BaseModel):
+    """Breakdown of usage by entity type."""
+
+    feature: int = 0
+    persona: int = 0
+    vp_step: int = 0
+    business_driver: int = 0
+
+
+class SourceUsageItem(BaseModel):
+    """Usage statistics for a single source."""
+
+    source_id: str
+    source_type: str
+    source_name: str
+    signal_type: str | None = None
+    total_uses: int
+    uses_by_entity: SourceUsageByEntity
+    last_used: str | None = None
+    entities_contributed: list[str]
+
+
+class SourceUsageResponse(BaseModel):
+    """Response for source usage aggregation."""
+
+    sources: list[SourceUsageItem]
+
+
+@router.get("/projects/{project_id}/sources/usage")
+async def get_source_usage(project_id: UUID) -> SourceUsageResponse:
+    """
+    Get usage statistics for all sources in a project.
+
+    Returns per-source:
+    - Total usage count (times used as evidence)
+    - Breakdown by entity type (features, personas, etc.)
+    - Last used timestamp
+    - List of entity IDs contributed to
+
+    This enables showing "this signal contributed to 3 features, 2 personas"
+    in the Sources tab.
+
+    Args:
+        project_id: Project UUID
+
+    Returns:
+        SourceUsageResponse with sources array
+
+    Raises:
+        HTTPException 500: If database error
+    """
+    try:
+        sources = get_project_source_usage(project_id)
+
+        # Transform to response model
+        items = []
+        for src in sources:
+            # Filter uses_by_entity to known types
+            uses_by = src.get("uses_by_entity", {})
+            items.append(
+                SourceUsageItem(
+                    source_id=src["source_id"],
+                    source_type=src["source_type"],
+                    source_name=src["source_name"],
+                    signal_type=src.get("signal_type"),
+                    total_uses=src["total_uses"],
+                    uses_by_entity=SourceUsageByEntity(
+                        feature=uses_by.get("feature", 0),
+                        persona=uses_by.get("persona", 0),
+                        vp_step=uses_by.get("vp_step", 0),
+                        business_driver=uses_by.get("business_driver", 0),
+                    ),
+                    last_used=src.get("last_used"),
+                    entities_contributed=src.get("entities_contributed", []),
+                )
+            )
+
+        logger.info(
+            f"Retrieved source usage for project {project_id}: {len(items)} sources",
+            extra={"project_id": str(project_id), "count": len(items)},
+        )
+
+        return SourceUsageResponse(sources=items)
+
+    except Exception as e:
+        logger.exception(f"Failed to get source usage for project {project_id}")
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to retrieve source usage",
         ) from e

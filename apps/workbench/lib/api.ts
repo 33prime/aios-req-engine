@@ -2018,3 +2018,160 @@ export const getDocumentStatus = (documentId: string) =>
  */
 export const processDocument = (documentId: string) =>
   apiRequest<{ success: boolean }>(`/documents/${documentId}/process`, { method: 'POST' })
+
+// ============================================================================
+// Sources Tab Redesign API Functions
+// ============================================================================
+
+/**
+ * Document summary with usage stats
+ */
+export interface DocumentContributedTo {
+  features: number
+  personas: number
+  vp_steps: number
+  other: number
+}
+
+export interface DocumentSummaryItem {
+  id: string
+  original_filename: string
+  file_type: string
+  file_size_bytes: number
+  page_count: number | null
+  created_at: string
+  content_summary: string | null
+  usage_count: number
+  contributed_to: DocumentContributedTo
+  confidence_level: string
+  processing_status: string
+}
+
+export interface DocumentSummaryResponse {
+  documents: DocumentSummaryItem[]
+  total: number
+}
+
+/**
+ * Get documents with AI summaries and usage statistics.
+ */
+export const getDocumentsSummary = (projectId: string) =>
+  apiRequest<DocumentSummaryResponse>(`/projects/${projectId}/documents/summary`)
+
+/**
+ * Source usage aggregation
+ */
+export interface SourceUsageByEntity {
+  feature: number
+  persona: number
+  vp_step: number
+  business_driver: number
+}
+
+export interface SourceUsageItem {
+  source_id: string
+  source_type: string
+  source_name: string
+  signal_type: string | null
+  total_uses: number
+  uses_by_entity: SourceUsageByEntity
+  last_used: string | null
+  entities_contributed: string[]
+}
+
+export interface SourceUsageResponse {
+  sources: SourceUsageItem[]
+}
+
+/**
+ * Get usage statistics for all sources in a project.
+ */
+export const getSourceUsage = (projectId: string) =>
+  apiRequest<SourceUsageResponse>(`/projects/${projectId}/sources/usage`)
+
+/**
+ * Evidence quality breakdown
+ */
+export interface ConfirmationStatusCount {
+  count: number
+  percentage: number
+}
+
+export interface EvidenceBreakdown {
+  confirmed_client: ConfirmationStatusCount
+  confirmed_consultant: ConfirmationStatusCount
+  needs_client: ConfirmationStatusCount
+  ai_generated: ConfirmationStatusCount
+}
+
+export interface EntityTypeBreakdown {
+  confirmed_client: number
+  confirmed_consultant: number
+  needs_client: number
+  ai_generated: number
+}
+
+export interface EvidenceQualityResponse {
+  breakdown: EvidenceBreakdown
+  by_entity_type: Record<string, EntityTypeBreakdown>
+  total_entities: number
+  strong_evidence_percentage: number
+  summary: string
+}
+
+/**
+ * Get evidence quality breakdown for a project.
+ */
+export const getEvidenceQuality = (projectId: string) =>
+  apiRequest<EvidenceQualityResponse>(`/projects/${projectId}/evidence/quality`)
+
+/**
+ * Global source search
+ */
+export interface DocumentSearchResult {
+  id: string
+  filename: string
+  excerpt: string
+  relevance: number
+  file_type: string | null
+  created_at: string | null
+}
+
+export interface SignalSearchResult {
+  id: string
+  source_label: string
+  excerpt: string
+  relevance: number
+  signal_type: string | null
+  created_at: string | null
+}
+
+export interface ResearchSearchResult {
+  id: string
+  title: string
+  excerpt: string
+  relevance: number
+  created_at: string | null
+}
+
+export interface SourceSearchResponse {
+  documents: DocumentSearchResult[]
+  signals: SignalSearchResult[]
+  research: ResearchSearchResult[]
+  total_results: number
+}
+
+/**
+ * Search across all sources in a project.
+ */
+export const searchSources = (
+  projectId: string,
+  query: string,
+  types?: string[],
+  limit?: number
+) => {
+  const params = new URLSearchParams({ q: query })
+  if (types?.length) params.set('types', types.join(','))
+  if (limit) params.set('limit', String(limit))
+  return apiRequest<SourceSearchResponse>(`/projects/${projectId}/sources/search?${params}`)
+}

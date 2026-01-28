@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter
 
-from app.api import activity, admin, agents, analytics, auth, baseline, business_drivers, chat, client_packages, client_portal, collaboration, competitor_refs, confirmations, creative_brief, di_agent, discovery_prep, enrich_features, enrich_personas, enrich_vp, entity_cascades, jobs, meetings, organizations, outreach, phase0, project_creation, projects, proposals, readiness, research, research_agent, revisions, risks, signals, signal_stream, stakeholders, state, strategic_analytics, tasks
+from app.api import activity, admin, agents, analytics, auth, baseline, business_drivers, chat, client_packages, client_portal, collaboration, competitor_refs, confirmations, creative_brief, di_agent, discovery_prep, document_uploads, enrich_features, enrich_personas, enrich_vp, entity_cascades, evidence, jobs, meetings, organizations, outreach, phase0, project_creation, projects, proposals, readiness, research, research_agent, revisions, risks, signals, signal_stream, sources, stakeholders, state, strategic_analytics, tasks
 
 router = APIRouter()
 
@@ -122,3 +122,12 @@ router.include_router(di_agent.router, tags=["di_agent"])
 
 # Include Project Creation Chat routes (AI-assisted project creation)
 router.include_router(project_creation.router, tags=["project_creation"])
+
+# Include Document Uploads routes (document processing)
+router.include_router(document_uploads.router, tags=["document_uploads"])
+
+# Include Evidence Quality routes (source provenance tracking)
+router.include_router(evidence.router, tags=["evidence"])
+
+# Include Unified Sources routes (cross-source search)
+router.include_router(sources.router, tags=["sources"])

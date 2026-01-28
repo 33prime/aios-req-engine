@@ -249,6 +249,107 @@ def get_signal_impact(signal_id: UUID) -> dict[str, Any]:
         raise
 
 
+def get_project_source_usage(project_id: UUID) -> list[dict[str, Any]]:
+    """
+    Get usage statistics for all sources (signals) in a project.
+
+    Aggregates signal_impact data to show how each signal contributed
+    to entities (features, personas, vp_steps, etc.)
+
+    Args:
+        project_id: Project UUID
+
+    Returns:
+        List of source usage records:
+        - source_id: Signal UUID
+        - source_type: 'signal' (future: 'document', 'research')
+        - source_name: Signal source_label
+        - signal_type: Type of signal (email, note, transcript, etc.)
+        - total_uses: Total impact count
+        - uses_by_entity: Dict of entity_type -> count
+        - last_used: Timestamp of last impact
+        - entities_contributed: List of entity IDs
+    """
+    supabase = get_supabase()
+
+    try:
+        # Get all signals for project
+        signals_response = (
+            supabase.table("signals")
+            .select("id, source_label, signal_type, source_type, created_at")
+            .eq("project_id", str(project_id))
+            .order("created_at", desc=True)
+            .execute()
+        )
+
+        signals = signals_response.data or []
+        results = []
+
+        for signal in signals:
+            signal_id = signal["id"]
+
+            # Get all impacts for this signal
+            impacts_response = (
+                supabase.table("signal_impact")
+                .select("entity_type, entity_id, created_at")
+                .eq("signal_id", signal_id)
+                .order("created_at", desc=True)
+                .execute()
+            )
+
+            impacts = impacts_response.data or []
+
+            # Aggregate by entity type
+            uses_by_entity: dict[str, int] = {
+                "feature": 0,
+                "persona": 0,
+                "vp_step": 0,
+                "business_driver": 0,
+            }
+
+            entity_ids: set[str] = set()
+            last_used = None
+
+            for impact in impacts:
+                entity_type = impact.get("entity_type", "")
+                entity_id = impact.get("entity_id")
+
+                if entity_type in uses_by_entity:
+                    uses_by_entity[entity_type] += 1
+                else:
+                    # Handle unmapped types
+                    uses_by_entity[entity_type] = uses_by_entity.get(entity_type, 0) + 1
+
+                if entity_id:
+                    entity_ids.add(entity_id)
+
+                # Track last used (first in list since ordered desc)
+                if last_used is None and impact.get("created_at"):
+                    last_used = impact["created_at"]
+
+            results.append({
+                "source_id": signal_id,
+                "source_type": "signal",
+                "source_name": signal.get("source_label") or "Unnamed Signal",
+                "signal_type": signal.get("signal_type"),
+                "total_uses": len(impacts),
+                "uses_by_entity": uses_by_entity,
+                "last_used": last_used,
+                "entities_contributed": list(entity_ids),
+            })
+
+        logger.info(
+            f"Got source usage for project {project_id}: {len(results)} sources",
+            extra={"project_id": str(project_id), "count": len(results)},
+        )
+
+        return results
+
+    except Exception as e:
+        logger.error(f"Failed to get source usage for project {project_id}: {e}")
+        raise
+
+
 def record_chunk_impacts(
     chunk_ids: list[str],
     entity_type: str,

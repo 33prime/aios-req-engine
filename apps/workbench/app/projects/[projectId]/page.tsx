@@ -26,6 +26,8 @@ import { OverviewTab } from './components/tabs/OverviewTab'
 import { StrategicFoundationTab } from './components/tabs/StrategicFoundationTab'
 import { ValuePathTab } from './components/tabs/ValuePathTab'
 import { EnhancedResearchTab } from './components/tabs/research/EnhancedResearchTab'
+import { SourcesTabRedesign } from './components/tabs/sources-redesign'
+import { DocumentUploadModal } from './components/DocumentUploadModal'
 import { CollaborationTab } from './components/tabs/CollaborationTab'
 import { PersonasFeaturesTab } from './components/tabs/PersonasFeaturesTab'
 import { ResearchAgentModal } from './components/ResearchAgentModal'
@@ -104,6 +106,9 @@ export default function WorkspacePage() {
 
   // Drawer state
   const [isActivityDrawerOpen, setIsActivityDrawerOpen] = useState(false)
+
+  // Upload modal state
+  const [showUploadModal, setShowUploadModal] = useState(false)
 
   // Track processed signals to prevent infinite reload loops
   const processedSignalsRef = useRef<Set<string>>(new Set())
@@ -491,7 +496,12 @@ export default function WorkspacePage() {
       case 'value-path':
         return <ValuePathTab projectId={projectId} />
       case 'sources':
-        return <EnhancedResearchTab projectId={projectId} />
+        return (
+          <SourcesTabRedesign
+            projectId={projectId}
+            onUploadClick={() => setShowUploadModal(true)}
+          />
+        )
       case 'collaboration':
         return <CollaborationTab projectId={projectId} />
       default:
@@ -591,6 +601,14 @@ export default function WorkspacePage() {
           onClose={() => setShowResearchModal(false)}
         />
       )}
+
+      {/* Document Upload Modal */}
+      <DocumentUploadModal
+        projectId={projectId}
+        isOpen={showUploadModal}
+        onClose={() => setShowUploadModal(false)}
+        onUploadComplete={() => loadProjectData(true)}
+      />
 
       {/* Chat Assistant - Floating */}
       {!isChatOpen && (
