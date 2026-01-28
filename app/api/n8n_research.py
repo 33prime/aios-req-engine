@@ -49,20 +49,30 @@ class TriggerResearchResponse(BaseModel):
 
 
 class N8NResearchCallback(BaseModel):
-    """Callback payload from n8n when research completes."""
+    """Callback payload from n8n when research completes.
+
+    Accepts either:
+    1. Direct markdown in `content` field
+    2. OpenAI-style response array in `response` field
+    3. Legacy structured fields (executive_summary, key_findings, etc.)
+    """
 
     project_id: UUID
     job_id: UUID
     status: str = Field(default="completed")
 
-    # Research results
+    # Primary: Direct markdown content
+    content: str = Field(default="")
+
+    # Alternative: OpenAI-style response array
+    response: list[dict[str, Any]] | None = Field(default=None)
+
+    # Legacy structured fields (still supported)
     executive_summary: str = Field(default="")
     key_findings: list[str] = Field(default_factory=list)
     competitors: list[dict[str, Any]] = Field(default_factory=list)
     market_insights: list[str] = Field(default_factory=list)
     recommendations: list[str] = Field(default_factory=list)
-
-    # Raw content for signal storage
     raw_content: str = Field(default="")
 
     # Metadata
@@ -294,9 +304,10 @@ async def n8n_research_callback(callback: N8NResearchCallback) -> dict:
     Callback endpoint for n8n to deliver research results.
 
     n8n calls this when research is complete, and we:
-    1. Store results as a research signal
-    2. Update the job status
-    3. Make results available to /run-foundation
+    1. Extract markdown content from the payload
+    2. Store as research signal with embeddings (30/70 pipeline)
+    3. Append key insights to project memory
+    4. Make results available to /run-foundation
     """
     try:
         logger.info(
@@ -304,7 +315,8 @@ async def n8n_research_callback(callback: N8NResearchCallback) -> dict:
             extra={
                 "job_id": str(callback.job_id),
                 "status": callback.status,
-                "findings_count": len(callback.key_findings),
+                "has_content": bool(callback.content),
+                "has_response": bool(callback.response),
             }
         )
 
@@ -315,85 +327,110 @@ async def n8n_research_callback(callback: N8NResearchCallback) -> dict:
                 "message": f"Research failed: {callback.error_message}",
             }
 
-        # Build signal content from research results
-        content_parts = []
+        # Extract markdown content from various possible formats
+        signal_content = ""
 
-        if callback.executive_summary:
-            content_parts.append(f"## Executive Summary\n\n{callback.executive_summary}")
+        # Priority 1: Direct content field
+        if callback.content:
+            signal_content = callback.content
 
-        if callback.key_findings:
-            content_parts.append("## Key Findings\n\n" + "\n".join(f"- {f}" for f in callback.key_findings))
+        # Priority 2: OpenAI-style response array
+        elif callback.response:
+            try:
+                # Extract from OpenAI response format: response[0].message.content
+                first_choice = callback.response[0] if callback.response else {}
+                message = first_choice.get("message", {})
+                signal_content = message.get("content", "")
+            except (IndexError, KeyError, TypeError) as e:
+                logger.warning(f"Could not extract content from response array: {e}")
 
-        if callback.competitors:
-            comp_section = "## Competitors Analyzed\n\n"
-            for comp in callback.competitors:
-                name = comp.get("name", "Unknown")
-                desc = comp.get("description", "")
-                url = comp.get("url", "")
-                comp_section += f"### {name}\n"
-                if url:
-                    comp_section += f"URL: {url}\n"
-                if desc:
-                    comp_section += f"\n{desc}\n"
-                comp_section += "\n"
-            content_parts.append(comp_section)
+        # Priority 3: Legacy raw_content field
+        elif callback.raw_content:
+            signal_content = callback.raw_content
 
-        if callback.market_insights:
-            content_parts.append("## Market Insights\n\n" + "\n".join(f"- {i}" for i in callback.market_insights))
-
-        if callback.recommendations:
-            content_parts.append("## Recommendations\n\n" + "\n".join(f"- {r}" for r in callback.recommendations))
-
-        # Use raw_content if provided, otherwise build from structured data
-        signal_content = callback.raw_content if callback.raw_content else "\n\n".join(content_parts)
+        # Priority 4: Build from structured fields
+        else:
+            content_parts = []
+            if callback.executive_summary:
+                content_parts.append(f"## Executive Summary\n\n{callback.executive_summary}")
+            if callback.key_findings:
+                content_parts.append("## Key Findings\n\n" + "\n".join(f"- {f}" for f in callback.key_findings))
+            if callback.competitors:
+                comp_section = "## Competitors Analyzed\n\n"
+                for comp in callback.competitors:
+                    name = comp.get("name", "Unknown")
+                    desc = comp.get("description", "")
+                    comp_section += f"### {name}\n{desc}\n\n"
+                content_parts.append(comp_section)
+            if callback.market_insights:
+                content_parts.append("## Market Insights\n\n" + "\n".join(f"- {i}" for i in callback.market_insights))
+            if callback.recommendations:
+                content_parts.append("## Recommendations\n\n" + "\n".join(f"- {r}" for r in callback.recommendations))
+            signal_content = "\n\n".join(content_parts)
 
         if not signal_content:
             signal_content = "Research completed but no content was returned."
 
-        # Store as research signal
-        supabase = get_supabase()
-        signal_data = {
-            "project_id": str(callback.project_id),
-            "signal_type": "research",
-            "source": "n8n_research",
-            "source_type": "research",
-            "source_label": "AI Research Report",
-            "source_timestamp": datetime.utcnow().isoformat(),
-            "raw_text": signal_content,
-            "metadata": {
+        logger.info(f"Extracted research content: {len(signal_content)} chars")
+
+        # Process through signal pipeline (creates signal + embeddings)
+        from app.api.phase0 import _ingest_text
+
+        run_id = uuid.uuid4()
+        signal_id, chunks_created = _ingest_text(
+            project_id=callback.project_id,
+            signal_type="research",
+            source="n8n_research",
+            raw_text=signal_content,
+            metadata={
                 "authority": "research",
                 "auto_ingested": True,
                 "job_id": str(callback.job_id),
                 "queries_executed": callback.queries_executed,
                 "sources": callback.sources,
-                "competitors_count": len(callback.competitors),
-                "findings_count": len(callback.key_findings),
+                "source_label": "AI Research Report",
             },
-        }
+            run_id=run_id,
+        )
 
-        signal_response = supabase.table("signals").insert(signal_data).execute()
+        # Update signal with source_label (not passed through _ingest_text)
+        try:
+            supabase = get_supabase()
+            supabase.table("signals").update({
+                "source_label": "AI Research Report",
+                "source_type": "research",
+            }).eq("id", str(signal_id)).execute()
+        except Exception as e:
+            logger.warning(f"Could not update signal source_label: {e}")
 
-        if not signal_response.data:
-            raise HTTPException(status_code=500, detail="Failed to create signal")
+        logger.info(
+            f"Research signal created: {signal_id}",
+            extra={"chunks_created": chunks_created}
+        )
 
-        signal = signal_response.data[0]
+        # Append research summary to project memory
+        try:
+            _append_research_to_memory(callback.project_id, signal_content)
+        except Exception as e:
+            logger.warning(f"Could not append research to memory: {e}")
 
         # Complete the job
         complete_job(callback.job_id, {
-            "signal_id": str(signal["id"]),
-            "findings_count": len(callback.key_findings),
-            "competitors_count": len(callback.competitors),
+            "signal_id": str(signal_id),
+            "chunks_created": chunks_created,
+            "content_length": len(signal_content),
         })
 
         logger.info(
-            f"n8n research stored as signal {signal['id']} for project {callback.project_id}",
-            extra={"job_id": str(callback.job_id)}
+            f"n8n research processed for project {callback.project_id}",
+            extra={"job_id": str(callback.job_id), "signal_id": str(signal_id)}
         )
 
         return {
             "success": True,
-            "signal_id": str(signal["id"]),
-            "message": "Research results stored successfully",
+            "signal_id": str(signal_id),
+            "chunks_created": chunks_created,
+            "message": "Research results processed and stored successfully",
         }
 
     except Exception as e:
@@ -409,6 +446,64 @@ async def n8n_research_callback(callback: N8NResearchCallback) -> dict:
             status_code=500,
             detail=f"Failed to process callback: {str(e)}"
         ) from e
+
+
+def _append_research_to_memory(project_id: UUID, research_content: str) -> None:
+    """
+    Append key research insights to project memory.
+
+    Extracts summary, key findings, and market data to add as a learning.
+    """
+    from app.db.project_memory import add_learning
+
+    # Extract key sections from the research markdown
+    lines = research_content.split('\n')
+    summary_lines = []
+    in_summary = False
+
+    for line in lines:
+        if '**Summary:**' in line or line.strip().startswith('**Summary:**'):
+            in_summary = True
+            # Extract the summary text after "**Summary:**"
+            summary_text = line.split('**Summary:**')[-1].strip()
+            if summary_text:
+                summary_lines.append(summary_text)
+        elif in_summary and line.strip() and not line.startswith('#') and not line.startswith('**'):
+            summary_lines.append(line.strip())
+        elif in_summary and (line.startswith('#') or line.startswith('**Verdict')):
+            break
+
+    # Build memory entry
+    memory_parts = []
+
+    if summary_lines:
+        memory_parts.append(' '.join(summary_lines)[:500])
+
+    # Extract market size if present
+    if '**Market Size:**' in research_content:
+        for line in lines:
+            if '**Market Size:**' in line:
+                memory_parts.append(line.replace('- ', '').strip())
+                break
+
+    # Extract growth rate if present
+    if '**Growth Rate:**' in research_content:
+        for line in lines:
+            if '**Growth Rate:**' in line:
+                memory_parts.append(line.replace('- ', '').strip())
+                break
+
+    if memory_parts:
+        learning_content = '\n'.join(memory_parts)
+        add_learning(
+            project_id=project_id,
+            title="AI Research Findings",
+            context="External research conducted via n8n workflow",
+            learning=learning_content,
+            learning_type="insight",
+            domain="market_research",
+        )
+        logger.info(f"Added research insights to project memory")
 
 
 # =============================================================================
