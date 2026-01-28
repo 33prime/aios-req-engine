@@ -21,27 +21,27 @@ export function Markdown({ content, className = '' }: MarkdownProps) {
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={{
-        // Headings
-        h1: ({ node, ...props }) => <h1 className="text-xl font-bold mt-4 mb-2" {...props} />,
-        h2: ({ node, ...props }) => <h2 className="text-lg font-bold mt-3 mb-2" {...props} />,
-        h3: ({ node, ...props }) => <h3 className="text-base font-bold mt-2 mb-1" {...props} />,
+        // Headings - smaller for chat context
+        h1: ({ node, ...props }) => <h1 className="text-base font-bold mt-3 mb-1.5" {...props} />,
+        h2: ({ node, ...props }) => <h2 className="text-sm font-bold mt-2 mb-1" {...props} />,
+        h3: ({ node, ...props }) => <h3 className="text-sm font-semibold mt-2 mb-1" {...props} />,
 
         // Paragraphs
-        p: ({ node, ...props }) => <p className="mb-2 last:mb-0" {...props} />,
+        p: ({ node, ...props }) => <p className="mb-1.5 last:mb-0" {...props} />,
 
-        // Lists
-        ul: ({ node, ...props }) => <ul className="list-disc list-inside mb-2 space-y-1" {...props} />,
-        ol: ({ node, ...props }) => <ol className="list-decimal list-inside mb-2 space-y-1" {...props} />,
+        // Lists - tighter spacing
+        ul: ({ node, ...props }) => <ul className="list-disc list-inside mb-1.5 space-y-0.5" {...props} />,
+        ol: ({ node, ...props }) => <ol className="list-decimal list-inside mb-1.5 space-y-0.5" {...props} />,
         li: ({ node, ...props }) => <li className="ml-2" {...props} />,
 
         // Code
         code: ({ node, inline, ...props }: any) =>
           inline ? (
-            <code className="bg-gray-100 text-red-600 px-1.5 py-0.5 rounded text-sm font-mono" {...props} />
+            <code className="bg-gray-100 text-red-600 px-1 py-0.5 rounded text-xs font-mono" {...props} />
           ) : (
-            <code className="block bg-gray-900 text-gray-100 p-3 rounded text-sm font-mono overflow-x-auto mb-2" {...props} />
+            <code className="block bg-gray-900 text-gray-100 p-2.5 rounded text-xs font-mono overflow-x-auto mb-1.5" {...props} />
           ),
-        pre: ({ node, ...props }) => <pre className="mb-2" {...props} />,
+        pre: ({ node, ...props }) => <pre className="mb-1.5" {...props} />,
 
         // Links
         a: ({ node, ...props }) => (
@@ -55,24 +55,24 @@ export function Markdown({ content, className = '' }: MarkdownProps) {
 
         // Blockquotes
         blockquote: ({ node, ...props }) => (
-          <blockquote className="border-l-4 border-gray-300 pl-4 italic my-2 text-gray-600" {...props} />
+          <blockquote className="border-l-2 border-gray-300 pl-3 italic my-1.5 text-gray-600" {...props} />
         ),
 
-        // Tables
+        // Tables - lighter styling for chat
         table: ({ node, ...props }) => (
-          <div className="overflow-x-auto mb-2">
-            <table className="min-w-full border border-gray-300" {...props} />
+          <div className="overflow-x-auto mb-1.5">
+            <table className="min-w-full border-collapse text-sm" {...props} />
           </div>
         ),
-        thead: ({ node, ...props }) => <thead className="bg-gray-100" {...props} />,
-        th: ({ node, ...props }) => <th className="border border-gray-300 px-3 py-2 text-left font-semibold" {...props} />,
-        td: ({ node, ...props }) => <td className="border border-gray-300 px-3 py-2" {...props} />,
+        thead: ({ node, ...props }) => <thead {...props} />,
+        th: ({ node, ...props }) => <th className="border-b border-gray-200 px-2 py-1.5 text-left font-medium bg-gray-50" {...props} />,
+        td: ({ node, ...props }) => <td className="border-b border-gray-100 px-2 py-1.5" {...props} />,
 
         // Horizontal rule
-        hr: ({ node, ...props }) => <hr className="my-4 border-gray-300" {...props} />,
+        hr: ({ node, ...props }) => <hr className="my-3 border-gray-200" {...props} />,
 
         // Strong/Em
-        strong: ({ node, ...props }) => <strong className="font-bold" {...props} />,
+        strong: ({ node, ...props }) => <strong className="font-semibold" {...props} />,
         em: ({ node, ...props }) => <em className="italic" {...props} />,
       }}
       >

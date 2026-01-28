@@ -166,44 +166,6 @@ registerCommand({
   },
 })
 
-// /run-analysis - A-team signal analysis
-registerCommand({
-  name: 'run-analysis',
-  description: 'Analyze all signals and generate improvement patches',
-  aliases: ['analyze-signals', 'a-team'],
-  examples: ['/run-analysis'],
-  execute: async (_args, context): Promise<CommandResult> => {
-    const { projectId } = context
-
-    if (!projectId) {
-      return {
-        success: false,
-        message: 'No project selected. Please select a project first.',
-      }
-    }
-
-    const { runATeam } = await import('@/lib/api')
-
-    try {
-      const result = await runATeam(projectId, false)
-
-      return {
-        success: true,
-        message: `**Signal analysis running...**\n\nAnalyzing your signals to find gaps and generate improvement patches.\n\nPatches will appear in the Patches tab for review.`,
-        data: {
-          jobId: result.job_id,
-          action: 'analysis_started',
-        },
-      }
-    } catch (error) {
-      return {
-        success: false,
-        message: `Failed to start analysis: ${error instanceof Error ? error.message : 'Unknown error'}`,
-      }
-    }
-  },
-})
-
 // /enrich-features - AI enhance all features
 registerCommand({
   name: 'enrich-features',
@@ -521,169 +483,6 @@ registerCommand({
       return {
         success: false,
         message: `Failed to enrich business drivers: ${error instanceof Error ? error.message : 'Unknown error'}`,
-      }
-    }
-  },
-})
-
-// =============================================================================
-// APPROVE COMMANDS - Confirm Entities
-// =============================================================================
-
-// Helper to update entity status
-async function updateEntityStatus(
-  entityType: 'features' | 'personas' | 'vp' | 'stakeholders',
-  entityId: string,
-  status: string
-): Promise<any> {
-  const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8000'
-
-  // Get access token
-  const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null
-
-  const response = await fetch(`${API_BASE}/v1/state/${entityType}/${entityId}/status`, {
-    method: 'PATCH',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-    body: JSON.stringify({ confirmation_status: status }),
-  })
-
-  if (!response.ok) {
-    throw new Error(`Failed to update status: ${response.statusText}`)
-  }
-
-  return response.json()
-}
-
-// /approve-feature
-registerCommand({
-  name: 'approve-feature',
-  description: 'Approve the currently selected feature (consultant level)',
-  aliases: ['confirm-feature'],
-  examples: ['/approve-feature'],
-  execute: async (_args, context): Promise<CommandResult> => {
-    const { selectedEntity } = context
-
-    if (!selectedEntity || selectedEntity.type !== 'feature') {
-      return {
-        success: false,
-        message: 'No feature selected. Please click on a feature first, then run this command.',
-        actions: [
-          {
-            id: 'go-features',
-            label: 'Go to Personas & Features',
-            navigateTo: { tab: 'personas-features' },
-          },
-        ],
-      }
-    }
-
-    try {
-      await updateEntityStatus('features', selectedEntity.id, 'confirmed_consultant')
-
-      return {
-        success: true,
-        message: `## Feature Approved\n\n**${selectedEntity.name}** has been confirmed at consultant level.\n\nThis feature will now be included in PRD generation and can trigger enrichment cascades.`,
-        data: {
-          entityId: selectedEntity.id,
-          entityType: 'feature',
-          newStatus: 'confirmed_consultant',
-        },
-      }
-    } catch (error) {
-      return {
-        success: false,
-        message: `Failed to approve feature: ${error instanceof Error ? error.message : 'Unknown error'}`,
-      }
-    }
-  },
-})
-
-// /approve-persona
-registerCommand({
-  name: 'approve-persona',
-  description: 'Approve the currently selected persona (consultant level)',
-  aliases: ['confirm-persona'],
-  examples: ['/approve-persona'],
-  execute: async (_args, context): Promise<CommandResult> => {
-    const { selectedEntity } = context
-
-    if (!selectedEntity || selectedEntity.type !== 'persona') {
-      return {
-        success: false,
-        message: 'No persona selected. Please click on a persona first, then run this command.',
-        actions: [
-          {
-            id: 'go-personas',
-            label: 'Go to Personas & Features',
-            navigateTo: { tab: 'personas-features' },
-          },
-        ],
-      }
-    }
-
-    try {
-      await updateEntityStatus('personas', selectedEntity.id, 'confirmed_consultant')
-
-      return {
-        success: true,
-        message: `## Persona Approved\n\n**${selectedEntity.name}** has been confirmed at consultant level.\n\nThis persona will now be used for feature prioritization and journey mapping.`,
-        data: {
-          entityId: selectedEntity.id,
-          entityType: 'persona',
-          newStatus: 'confirmed_consultant',
-        },
-      }
-    } catch (error) {
-      return {
-        success: false,
-        message: `Failed to approve persona: ${error instanceof Error ? error.message : 'Unknown error'}`,
-      }
-    }
-  },
-})
-
-// /approve-vp-step
-registerCommand({
-  name: 'approve-vp-step',
-  description: 'Approve the currently selected value path step (consultant level)',
-  aliases: ['confirm-vp-step', 'approve-step'],
-  examples: ['/approve-vp-step'],
-  execute: async (_args, context): Promise<CommandResult> => {
-    const { selectedEntity } = context
-
-    if (!selectedEntity || selectedEntity.type !== 'vp_step') {
-      return {
-        success: false,
-        message: 'No value path step selected. Please click on a step first, then run this command.',
-        actions: [
-          {
-            id: 'go-vp',
-            label: 'Go to Value Path Tab',
-            navigateTo: { tab: 'value-path' },
-          },
-        ],
-      }
-    }
-
-    try {
-      await updateEntityStatus('vp', selectedEntity.id, 'confirmed_consultant')
-
-      return {
-        success: true,
-        message: `## Value Path Step Approved\n\n**${selectedEntity.name}** has been confirmed at consultant level.\n\nThis step is now part of the confirmed user journey.`,
-        data: {
-          entityId: selectedEntity.id,
-          entityType: 'vp_step',
-          newStatus: 'confirmed_consultant',
-        },
-      }
-    } catch (error) {
-      return {
-        success: false,
-        message: `Failed to approve value path step: ${error instanceof Error ? error.message : 'Unknown error'}`,
       }
     }
   },
@@ -1027,65 +826,6 @@ registerCommand({
   },
 })
 
-// /meeting-prep
-registerCommand({
-  name: 'meeting-prep',
-  description: 'Generate a pre-meeting briefing with key discussion points',
-  aliases: ['briefing', 'prep'],
-  args: [
-    {
-      name: 'type',
-      type: 'string',
-      required: false,
-      description: 'Meeting type: client, internal',
-    },
-  ],
-  examples: ['/meeting-prep', '/meeting-prep client', '/meeting-prep internal'],
-  execute: async (args, context): Promise<CommandResult> => {
-    const meetingType = (args.type as string) || 'client'
-    const { projectData } = context
-
-    if (!projectData) {
-      return {
-        success: false,
-        message: 'No project data available.',
-      }
-    }
-
-    let message = `## ${meetingType.charAt(0).toUpperCase() + meetingType.slice(1)} Meeting Prep\n\n`
-
-    message += `### Quick Stats\n`
-    message += `- Readiness: ${projectData.readinessScore ?? 0}/100\n`
-    message += `- Pending Confirmations: ${projectData.pendingConfirmations ?? 0}\n\n`
-
-    if (meetingType === 'client') {
-      message += `### Suggested Discussion Points\n`
-      message += `1. Review items needing client confirmation\n`
-      message += `2. Validate key personas and their priorities\n`
-      message += `3. Discuss feature acceptance criteria\n`
-      message += `4. Confirm business drivers and success metrics\n\n`
-    } else {
-      message += `### Internal Focus Areas\n`
-      message += `1. Review AI-generated content for accuracy\n`
-      message += `2. Address any blockers or warnings\n`
-      message += `3. Plan next enrichment priorities\n`
-      message += `4. Prepare questions for client\n\n`
-    }
-
-    if ((projectData.blockers?.length ?? 0) > 0) {
-      message += `### Blockers to Address\n`
-      projectData.blockers?.forEach((b: string) => {
-        message += `- ${b}\n`
-      })
-    }
-
-    return {
-      success: true,
-      message,
-    }
-  },
-})
-
 // =============================================================================
 // DI AGENT COMMANDS - Design Intelligence
 // =============================================================================
@@ -1242,179 +982,6 @@ registerCommand({
       return {
         success: false,
         message: `## ❌ DI Analysis Failed\n\n**Error:** ${error.message || 'Unknown error'}\n\nPlease check the browser console and backend logs for more details.`,
-      }
-    }
-  },
-})
-
-// /extract-core-pain
-registerCommand({
-  name: 'extract-core-pain',
-  description: 'Extract THE singular core pain from project signals',
-  aliases: ['core-pain', 'pain'],
-  examples: ['/extract-core-pain'],
-  execute: async (_args, context): Promise<CommandResult> => {
-    const { projectId } = context
-
-    if (!projectId) {
-      return {
-        success: false,
-        message: 'No project selected. Please select a project first.',
-      }
-    }
-
-    const { extractCorePain } = await import('@/lib/api')
-
-    try {
-      const result = await extractCorePain(projectId)
-
-      let message = `## 💔 Core Pain\n\n`
-      message += `**Statement:** ${result.statement}\n\n`
-      if (result.trigger) {
-        message += `**Trigger:** ${result.trigger}\n\n`
-      }
-      if (result.stakes) {
-        message += `**Stakes:** ${result.stakes}\n\n`
-      }
-      if (result.who_feels_it) {
-        message += `**Who feels it:** ${result.who_feels_it}\n\n`
-      }
-      message += `**Confidence:** ${(result.confidence * 100).toFixed(0)}%\n`
-
-      if (result.confirmed_by) {
-        message += `\n✓ Confirmed by ${result.confirmed_by}`
-      }
-
-      return {
-        success: true,
-        message,
-        data: { action: 'core_pain_extracted', result },
-      }
-    } catch (error: any) {
-      return {
-        success: false,
-        message: `Failed to extract core pain: ${error.message || 'Unknown error'}`,
-      }
-    }
-  },
-})
-
-// /extract-persona
-registerCommand({
-  name: 'extract-persona',
-  description: 'Extract THE primary persona who feels the pain most',
-  aliases: ['persona', 'primary-persona'],
-  examples: ['/extract-persona'],
-  execute: async (_args, context): Promise<CommandResult> => {
-    const { projectId } = context
-
-    if (!projectId) {
-      return {
-        success: false,
-        message: 'No project selected. Please select a project first.',
-      }
-    }
-
-    const { extractPrimaryPersona } = await import('@/lib/api')
-
-    try {
-      const result = await extractPrimaryPersona(projectId)
-
-      let message = `## 👤 Primary Persona\n\n`
-      message += `**Name:** ${result.name}\n`
-      message += `**Role:** ${result.role}\n\n`
-
-      if (result.context) {
-        message += `**Context:** ${result.context}\n\n`
-      }
-      if (result.pain_experienced) {
-        message += `**Pain experienced:** ${result.pain_experienced}\n\n`
-      }
-      if (result.current_behavior) {
-        message += `**Current behavior:** ${result.current_behavior}\n\n`
-      }
-      if (result.desired_outcome) {
-        message += `**Desired outcome:** ${result.desired_outcome}\n\n`
-      }
-
-      message += `**Confidence:** ${(result.confidence * 100).toFixed(0)}%\n`
-
-      if (result.confirmed_by) {
-        message += `\n✓ Confirmed by ${result.confirmed_by}`
-      }
-
-      return {
-        success: true,
-        message,
-        data: { action: 'primary_persona_extracted', result },
-      }
-    } catch (error: any) {
-      return {
-        success: false,
-        message: `Failed to extract primary persona: ${error.message || 'Unknown error'}`,
-      }
-    }
-  },
-})
-
-// /identify-wow
-registerCommand({
-  name: 'identify-wow',
-  description: 'Identify THE wow moment where pain inverts to delight',
-  aliases: ['wow', 'wow-moment'],
-  examples: ['/identify-wow'],
-  execute: async (_args, context): Promise<CommandResult> => {
-    const { projectId } = context
-
-    if (!projectId) {
-      return {
-        success: false,
-        message: 'No project selected. Please select a project first.',
-      }
-    }
-
-    const { identifyWowMoment } = await import('@/lib/api')
-
-    try {
-      const result = await identifyWowMoment(projectId)
-
-      let message = `## ✨ Wow Moment\n\n`
-      message += `**Description:** ${result.description}\n\n`
-
-      if (result.trigger_event) {
-        message += `**Trigger event:** ${result.trigger_event}\n\n`
-      }
-      if (result.emotional_response) {
-        message += `**Emotional response:** ${result.emotional_response}\n\n`
-      }
-
-      message += `### Three-Level Framework\n\n`
-
-      if (result.level_1_core) {
-        message += `**Level 1 (Core pain solved):**\n${result.level_1_core}\n\n`
-      }
-      if (result.level_2_adjacent) {
-        message += `**Level 2 (Adjacent pains):**\n${result.level_2_adjacent}\n\n`
-      }
-      if (result.level_3_unstated) {
-        message += `**Level 3 (Unstated needs):**\n${result.level_3_unstated}\n\n`
-      }
-
-      message += `**Confidence:** ${(result.confidence * 100).toFixed(0)}%\n`
-
-      if (result.confirmed_by) {
-        message += `\n✓ Confirmed by ${result.confirmed_by}`
-      }
-
-      return {
-        success: true,
-        message,
-        data: { action: 'wow_moment_identified', result },
-      }
-    } catch (error: any) {
-      return {
-        success: false,
-        message: `Failed to identify wow moment: ${error.message || 'Unknown error'}`,
       }
     }
   },
@@ -1674,15 +1241,15 @@ registerCommand({
         message,
         actions: [
           {
-            id: 'approve-all',
-            label: 'Approve All Proposals',
-            command: '/approve-all-tasks',
+            id: 'sync-tasks',
+            label: 'Sync Tasks',
+            command: '/sync-tasks',
             variant: 'primary',
           },
           {
             id: 'view-overview',
-            label: 'View in Overview',
-            navigateTo: { tab: 'overview' },
+            label: 'View in Next Steps',
+            navigateTo: { tab: 'next-steps' },
           },
         ],
       }
@@ -1740,7 +1307,7 @@ registerCommand({
 
       return {
         success: true,
-        message: `## Task Created\n\n**${task.title}**\n\nID: \`${task.id}\`\nPriority: ${task.priority_score.toFixed(0)}\nStatus: ${task.status}\n\nView tasks with \`/tasks\` or complete with \`/complete-task\``,
+        message: `## Task Created\n\n**${task.title}**\n\nID: \`${task.id}\`\nPriority: ${task.priority_score.toFixed(0)}\nStatus: ${task.status}\n\nView tasks with \`/tasks\``,
         data: {
           taskId: task.id,
           action: 'task_created',
@@ -1750,171 +1317,6 @@ registerCommand({
       return {
         success: false,
         message: `Failed to create task: ${error instanceof Error ? error.message : 'Unknown error'}`,
-      }
-    }
-  },
-})
-
-// /complete-task - Complete a task
-registerCommand({
-  name: 'complete-task',
-  description: 'Mark a task as completed',
-  aliases: ['done-task', 'finish-task'],
-  args: [
-    {
-      name: 'taskId',
-      type: 'string',
-      required: true,
-      description: 'Task ID to complete',
-    },
-  ],
-  examples: ['/complete-task abc123'],
-  execute: async (args, context): Promise<CommandResult> => {
-    const { projectId } = context
-    const taskId = (args.taskId as string) || (args.input as string)
-
-    if (!projectId) {
-      return {
-        success: false,
-        message: 'No project selected. Please select a project first.',
-      }
-    }
-
-    if (!taskId) {
-      return {
-        success: false,
-        message: 'Please provide a task ID.\n\nUsage: `/complete-task <task-id>`\n\nFind task IDs with `/tasks`',
-      }
-    }
-
-    const { completeTask } = await import('@/lib/api')
-
-    try {
-      const task = await completeTask(projectId, taskId, {
-        completion_method: 'chat_approval',
-      })
-
-      return {
-        success: true,
-        message: `## Task Completed\n\n✓ **${task.title}**\n\nCompleted via chat assistant.`,
-        data: {
-          taskId: task.id,
-          action: 'task_completed',
-        },
-      }
-    } catch (error) {
-      return {
-        success: false,
-        message: `Failed to complete task: ${error instanceof Error ? error.message : 'Unknown error'}`,
-      }
-    }
-  },
-})
-
-// /dismiss-task - Dismiss a task
-registerCommand({
-  name: 'dismiss-task',
-  description: 'Dismiss a task as not needed',
-  aliases: ['skip-task', 'ignore-task'],
-  args: [
-    {
-      name: 'taskId',
-      type: 'string',
-      required: true,
-      description: 'Task ID to dismiss',
-    },
-  ],
-  examples: ['/dismiss-task abc123'],
-  execute: async (args, context): Promise<CommandResult> => {
-    const { projectId } = context
-    const taskId = (args.taskId as string) || (args.input as string)
-
-    if (!projectId) {
-      return {
-        success: false,
-        message: 'No project selected. Please select a project first.',
-      }
-    }
-
-    if (!taskId) {
-      return {
-        success: false,
-        message: 'Please provide a task ID.\n\nUsage: `/dismiss-task <task-id>`\n\nFind task IDs with `/tasks`',
-      }
-    }
-
-    const { dismissTask } = await import('@/lib/api')
-
-    try {
-      const task = await dismissTask(projectId, taskId, 'Dismissed via chat')
-
-      return {
-        success: true,
-        message: `## Task Dismissed\n\n✗ **${task.title}**\n\nTask has been dismissed.`,
-        data: {
-          taskId: task.id,
-          action: 'task_dismissed',
-        },
-      }
-    } catch (error) {
-      return {
-        success: false,
-        message: `Failed to dismiss task: ${error instanceof Error ? error.message : 'Unknown error'}`,
-      }
-    }
-  },
-})
-
-// /approve-all-tasks - Bulk approve proposal tasks
-registerCommand({
-  name: 'approve-all-tasks',
-  description: 'Approve all pending proposal tasks',
-  aliases: ['approve-all', 'accept-all'],
-  examples: ['/approve-all-tasks', '/approve-all'],
-  execute: async (_args, context): Promise<CommandResult> => {
-    const { projectId } = context
-
-    if (!projectId) {
-      return {
-        success: false,
-        message: 'No project selected. Please select a project first.',
-      }
-    }
-
-    const { listTasks, bulkCompleteTasks } = await import('@/lib/api')
-
-    try {
-      // Get all pending proposal tasks
-      const result = await listTasks(projectId, {
-        status: 'pending',
-        task_type: 'proposal',
-        limit: 50,
-      })
-
-      if (result.tasks.length === 0) {
-        return {
-          success: true,
-          message: '## No Proposals to Approve\n\nThere are no pending proposal tasks.',
-        }
-      }
-
-      // Bulk complete them
-      const taskIds = result.tasks.map((t) => t.id)
-      const completed = await bulkCompleteTasks(projectId, taskIds, 'chat_approval')
-
-      return {
-        success: true,
-        message: `## Proposals Approved\n\n✓ Approved **${completed.processed}** proposal tasks.\n\nAll changes have been applied to the project.`,
-        data: {
-          action: 'tasks_bulk_completed',
-          count: completed.processed,
-          refresh_project: true,
-        },
-      }
-    } catch (error) {
-      return {
-        success: false,
-        message: `Failed to approve tasks: ${error instanceof Error ? error.message : 'Unknown error'}`,
       }
     }
   },
@@ -1996,6 +1398,162 @@ registerCommand({
 })
 
 // =============================================================================
+// MEMORY COMMANDS
+// =============================================================================
+
+// /memory - View project memory
+registerCommand({
+  name: 'memory',
+  description: 'View project memory (decisions, learnings, questions)',
+  aliases: ['view-memory', 'memories'],
+  examples: ['/memory'],
+  execute: async (_args, context): Promise<CommandResult> => {
+    const { projectId } = context
+
+    if (!projectId) {
+      return {
+        success: false,
+        message: 'No project selected. Please select a project first.',
+      }
+    }
+
+    const { getProjectMemory } = await import('@/lib/api')
+
+    try {
+      const memory = await getProjectMemory(projectId)
+
+      if (!memory || (memory.decisions.length === 0 && memory.learnings.length === 0 && memory.questions.length === 0)) {
+        return {
+          success: true,
+          message: `## Project Memory\n\n*No memories recorded yet.*\n\nUse \`/remember\` to add decisions, learnings, or questions.`,
+        }
+      }
+
+      let message = `## Project Memory\n\n`
+
+      if (memory.decisions.length > 0) {
+        message += `### Key Decisions\n`
+        memory.decisions.forEach((d: any, i: number) => {
+          const date = d.created_at ? new Date(d.created_at).toLocaleDateString() : ''
+          message += `${i + 1}. ${d.content}${date ? ` *(${date})*` : ''}\n`
+          if (d.rationale) {
+            message += `   *Rationale: ${d.rationale}*\n`
+          }
+        })
+        message += '\n'
+      }
+
+      if (memory.learnings.length > 0) {
+        message += `### Learnings\n`
+        memory.learnings.forEach((l: any) => {
+          message += `- ${l.content}\n`
+        })
+        message += '\n'
+      }
+
+      if (memory.questions.length > 0) {
+        message += `### Open Questions\n`
+        memory.questions.forEach((q: any) => {
+          const resolved = q.resolved ? '✓' : '○'
+          message += `- ${resolved} ${q.content}\n`
+        })
+      }
+
+      return {
+        success: true,
+        message,
+        data: { action: 'memory_viewed', memory },
+      }
+    } catch (error: any) {
+      return {
+        success: false,
+        message: `Failed to load memory: ${error.message || 'Unknown error'}`,
+      }
+    }
+  },
+})
+
+// /remember - Add to project memory
+registerCommand({
+  name: 'remember',
+  description: 'Add a decision, learning, or question to project memory',
+  aliases: ['add-to-memory', 'note'],
+  args: [
+    {
+      name: 'type',
+      type: 'string',
+      required: false,
+      description: 'Memory type: decision, learning, or question',
+    },
+    {
+      name: 'content',
+      type: 'string',
+      required: false,
+      description: 'The content to remember',
+    },
+  ],
+  examples: [
+    '/remember decision "We chose React for the frontend"',
+    '/remember learning "Client prefers visual mockups"',
+    '/remember question "What is the budget timeline?"',
+  ],
+  execute: async (args, context): Promise<CommandResult> => {
+    const { projectId } = context
+    const type = args.type as string | undefined
+    const content = args.content as string || args.input as string
+
+    if (!projectId) {
+      return {
+        success: false,
+        message: 'No project selected. Please select a project first.',
+      }
+    }
+
+    // If no type provided, show usage
+    if (!type || !['decision', 'learning', 'question'].includes(type)) {
+      return {
+        success: false,
+        message: `## Add to Memory\n\nUsage: \`/remember <type> "<content>"\`\n\n**Types:**\n- \`decision\` - A key decision made\n- \`learning\` - Something learned about the project/client\n- \`question\` - An open question to resolve\n\n**Examples:**\n- \`/remember decision "We chose mobile-first approach"\`\n- \`/remember learning "Weekly check-ins work better"\`\n- \`/remember question "Who approves final designs?"\``,
+      }
+    }
+
+    if (!content) {
+      return {
+        success: false,
+        message: `Please provide content to remember.\n\nUsage: \`/remember ${type} "Your content here"\``,
+      }
+    }
+
+    const { addToMemory } = await import('@/lib/api')
+
+    try {
+      await addToMemory(projectId, type, content)
+
+      const typeLabels: Record<string, string> = {
+        decision: 'Decision',
+        learning: 'Learning',
+        question: 'Question',
+      }
+
+      return {
+        success: true,
+        message: `## ${typeLabels[type]} Added\n\n"${content}"\n\nView all memories with \`/memory\``,
+        data: {
+          action: 'memory_added',
+          type,
+          content,
+        },
+      }
+    } catch (error: any) {
+      return {
+        success: false,
+        message: `Failed to add memory: ${error.message || 'Unknown error'}`,
+      }
+    }
+  },
+})
+
+// =============================================================================
 // UTILITY COMMANDS
 // =============================================================================
 
@@ -2068,52 +1626,40 @@ registerCommand({
     // Show all commands grouped by category
     let message = `## Available Commands\n\n`
 
-    message += `### Design Intelligence (DI Agent)\n`
-    message += `**/analyze-project** (or **/di**) - Run DI analysis to identify next action\n`
-    message += `**/extract-core-pain** - Extract THE singular core pain\n`
-    message += `**/extract-persona** - Extract THE primary persona\n`
-    message += `**/identify-wow** - Identify wow moment (pain → delight)\n`
-    message += `**/view-foundation** - View all foundation gate data\n`
-    message += `**/view-gates** - Show gate status and readiness\n\n`
-
-    message += `### Run AI Agents\n`
+    message += `### AI Agents\n`
+    message += `**/di** (or **/analyze-project**) - Run DI Agent analysis\n`
     message += `**/run-foundation** - Extract company info, drivers, competitors\n`
     message += `**/run-research** - Deep web research on company/market\n`
-    message += `**/run-analysis** - Analyze signals, generate patches\n`
-    message += `**/enrich-personas** - AI enhance all personas\n`
     message += `**/enrich-features** - AI enhance all features\n`
+    message += `**/enrich-personas** - AI enhance all personas\n`
     message += `**/enrich-value-path** - AI enhance all VP steps\n`
-    message += `**/enrich-kpis** - AI enhance all KPIs with measurements\n`
-    message += `**/enrich-pain-points** - AI enhance all pain points with severity/impact\n`
-    message += `**/enrich-goals** - AI enhance all goals with timeframes/criteria\n`
-    message += `**/enrich-business-drivers** - AI enhance ALL drivers (KPIs + pains + goals)\n\n`
+    message += `**/enrich-business-drivers** - AI enhance all drivers\n`
+    message += `**/enrich-kpis** - AI enhance KPIs\n`
+    message += `**/enrich-pain-points** - AI enhance pain points\n`
+    message += `**/enrich-goals** - AI enhance goals\n\n`
 
-    message += `### Approve Entities (select first, then approve)\n`
-    message += `**/approve-feature** - Approve selected feature\n`
-    message += `**/approve-persona** - Approve selected persona\n`
-    message += `**/approve-vp-step** - Approve selected VP step\n\n`
+    message += `### View Info\n`
+    message += `**/status** - Project state overview\n`
+    message += `**/view-foundation** - View foundation data\n`
+    message += `**/view-gates** - Show gate status and readiness\n\n`
+
+    message += `### Tasks\n`
+    message += `**/tasks** - List pending tasks\n`
+    message += `**/create-task** "title" - Create a task\n`
+    message += `**/sync-tasks** - Analyze gaps + create tasks\n\n`
 
     message += `### Create\n`
     message += `**/create-stakeholder** "Name" - Add new stakeholder\n\n`
 
-    message += `### View Info\n`
-    message += `**/project-status** - Show comprehensive project state overview\n`
-    message += `**/pending-items** - List items needing confirmation\n`
-    message += `**/meeting-prep** - Generate meeting briefing\n\n`
-
-    message += `### Tasks\n`
-    message += `**/tasks** - List pending tasks\n`
-    message += `**/create-task** "title" - Create a manual task\n`
-    message += `**/complete-task** <id> - Complete a task\n`
-    message += `**/dismiss-task** <id> - Dismiss a task\n`
-    message += `**/approve-all-tasks** - Approve all pending proposals\n`
-    message += `**/sync-tasks** - Sync tasks from project state\n\n`
+    message += `### Memory\n`
+    message += `**/memory** - View project memory\n`
+    message += `**/remember** - Add to project memory\n\n`
 
     message += `### Utility\n`
-    message += `**/clear-chat** - Clear conversation\n`
+    message += `**/clear** - Clear conversation\n`
     message += `**/help** - Show this help\n\n`
 
-    message += `*Type \`/help <command>\` for detailed usage.*`
+    message += `*Type \`/help <command>\` for details.*`
 
     return { success: true, message }
   },

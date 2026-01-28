@@ -1,6 +1,7 @@
 """API endpoints for project-level operations."""
 
 import uuid
+from datetime import datetime
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Query
@@ -749,6 +750,173 @@ async def get_research_sources(
 
     except Exception as e:
         logger.exception(f"Failed to get research sources for project {project_id}")
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+# ======================
+# Project Memory Endpoints
+# ======================
+
+
+@router.get("/{project_id}/memory")
+async def get_project_memory_endpoint(project_id: UUID):
+    """
+    Get project memory (decisions, learnings, questions).
+
+    Returns formatted memory for display in the chat assistant.
+
+    Args:
+        project_id: Project UUID
+
+    Returns:
+        Memory with decisions, learnings, and questions
+    """
+    from app.db.project_memory import get_project_memory, get_recent_decisions, get_learnings
+
+    try:
+        memory = get_project_memory(project_id)
+        decisions = get_recent_decisions(project_id, limit=20)
+        learnings = get_learnings(project_id, limit=20)
+
+        # Format decisions
+        formatted_decisions = [
+            {
+                "id": d["id"],
+                "content": d.get("decision", d.get("title", "")),
+                "rationale": d.get("rationale"),
+                "created_at": d.get("created_at"),
+            }
+            for d in decisions
+        ]
+
+        # Format learnings
+        formatted_learnings = [
+            {
+                "id": l["id"],
+                "content": l.get("learning", l.get("title", "")),
+                "created_at": l.get("created_at"),
+            }
+            for l in learnings
+        ]
+
+        # Format questions from memory
+        questions = []
+        if memory and memory.get("open_questions"):
+            for i, q in enumerate(memory["open_questions"]):
+                if isinstance(q, dict):
+                    questions.append({
+                        "id": str(i),
+                        "content": q.get("question", ""),
+                        "resolved": q.get("resolved", False),
+                        "created_at": q.get("created_at"),
+                    })
+                else:
+                    questions.append({
+                        "id": str(i),
+                        "content": q,
+                        "resolved": False,
+                        "created_at": None,
+                    })
+
+        return {
+            "decisions": formatted_decisions,
+            "learnings": formatted_learnings,
+            "questions": questions,
+        }
+    except Exception as e:
+        logger.exception(f"Failed to get project memory for {project_id}")
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.post("/{project_id}/memory/{memory_type}")
+async def add_to_project_memory(
+    project_id: UUID,
+    memory_type: str,
+    content: str = Query(..., description="Content to add to memory"),
+    rationale: str | None = Query(None, description="Optional rationale (for decisions)"),
+):
+    """
+    Add to project memory (decision, learning, or question).
+
+    Args:
+        project_id: Project UUID
+        memory_type: Type of memory (decision, learning, question)
+        content: The content to add
+        rationale: Optional rationale (for decisions)
+
+    Returns:
+        The created memory entry
+    """
+    from pydantic import BaseModel
+
+    class MemoryAddRequest(BaseModel):
+        content: str
+        rationale: str | None = None
+
+    from app.db.project_memory import (
+        add_decision,
+        add_learning,
+        get_or_create_project_memory,
+        update_project_memory,
+    )
+
+    try:
+        if memory_type == "decision":
+            result = add_decision(
+                project_id=project_id,
+                title=content[:100],
+                decision=content,
+                rationale=rationale or "Added via chat assistant",
+                decided_by="consultant",
+                decision_type="manual",
+            )
+            return {
+                "id": result.get("id"),
+                "type": "decision",
+                "content": content,
+            }
+
+        elif memory_type == "learning":
+            result = add_learning(
+                project_id=project_id,
+                title=content[:100],
+                context="Added via chat assistant",
+                learning=content,
+                learning_type="insight",
+            )
+            return {
+                "id": result.get("id"),
+                "type": "learning",
+                "content": content,
+            }
+
+        elif memory_type == "question":
+            # Questions are stored in the open_questions array
+            memory = get_or_create_project_memory(project_id)
+            questions = memory.get("open_questions", []) or []
+            new_question = {
+                "question": content,
+                "resolved": False,
+                "created_at": str(datetime.now().isoformat()),
+            }
+            questions.append(new_question)
+            update_project_memory(project_id, open_questions=questions, updated_by="consultant")
+            return {
+                "id": str(len(questions) - 1),
+                "type": "question",
+                "content": content,
+            }
+
+        else:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid memory type: {memory_type}. Use 'decision', 'learning', or 'question'.",
+            )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"Failed to add to project memory for {project_id}")
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 

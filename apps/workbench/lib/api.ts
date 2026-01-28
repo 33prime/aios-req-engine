@@ -1894,3 +1894,127 @@ export const recalculatePrioritiesForEntity = (
     `/projects/${projectId}/tasks/recalculate-for-entity?entity_type=${encodeURIComponent(entityType)}&entity_id=${encodeURIComponent(entityId)}`,
     { method: 'POST' }
   )
+
+// ============================================
+// Project Memory APIs
+// ============================================
+
+export interface ProjectMemory {
+  decisions: Array<{
+    id: string
+    content: string
+    rationale?: string
+    created_at: string
+  }>
+  learnings: Array<{
+    id: string
+    content: string
+    created_at: string
+  }>
+  questions: Array<{
+    id: string
+    content: string
+    resolved: boolean
+    created_at: string
+  }>
+}
+
+export const getProjectMemory = (projectId: string) =>
+  apiRequest<ProjectMemory>(`/projects/${projectId}/memory`)
+
+export const addToMemory = (
+  projectId: string,
+  type: string,
+  content: string,
+  rationale?: string
+) =>
+  apiRequest<{ id: string; type: string; content: string }>(
+    `/projects/${projectId}/memory/${type}`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ content, rationale }),
+    }
+  )
+
+// =============================================================================
+// Document Upload
+// =============================================================================
+
+export interface DocumentUploadResponse {
+  id: string
+  project_id: string
+  original_filename: string
+  file_type: string
+  file_size_bytes: number
+  processing_status: string
+  is_duplicate: boolean
+  duplicate_of?: string
+}
+
+export interface DocumentStatusResponse {
+  id: string
+  processing_status: 'pending' | 'processing' | 'completed' | 'failed'
+  original_filename: string
+  message?: string
+  started_at?: string
+  completed_at?: string
+  duration_ms?: number
+  document_class?: string
+  page_count?: number
+  word_count?: number
+  total_chunks?: number
+  signal_id?: string
+  error?: string
+}
+
+/**
+ * Upload a document for processing.
+ * Uses FormData for multipart upload.
+ */
+export const uploadDocument = async (
+  projectId: string,
+  file: File,
+  uploadSource: string = 'workbench',
+  authority: string = 'consultant'
+): Promise<DocumentUploadResponse> => {
+  const url = `${API_BASE}/v1/projects/${projectId}/documents`
+
+  const formData = new FormData()
+  formData.append('file', file)
+  formData.append('upload_source', uploadSource)
+  formData.append('authority', authority)
+
+  const token = getAccessToken()
+  const headers: HeadersInit = {}
+
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`
+  } else if (ADMIN_API_KEY) {
+    headers['X-API-Key'] = ADMIN_API_KEY
+  }
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers,
+    body: formData,
+  })
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ detail: 'Upload failed' }))
+    throw new ApiError(response.status, errorData.detail || 'Upload failed')
+  }
+
+  return response.json()
+}
+
+/**
+ * Get document processing status.
+ */
+export const getDocumentStatus = (documentId: string) =>
+  apiRequest<DocumentStatusResponse>(`/documents/${documentId}/status`)
+
+/**
+ * Trigger immediate processing of a document.
+ */
+export const processDocument = (documentId: string) =>
+  apiRequest<{ success: boolean }>(`/documents/${documentId}/process`, { method: 'POST' })

@@ -303,23 +303,7 @@ export function AssistantProvider({
         dispatch({ type: 'ADD_PROACTIVE_MESSAGE', message })
       }
 
-      // Add transition message if moving to a new mode
-      const newMode = getModeForTab(tab)
-      const previousMode = getModeForTab(previousTab)
-      if (newMode !== previousMode) {
-        const transitionMessage = getModeTransitionMessage(newMode)
-        if (transitionMessage) {
-          dispatch({
-            type: 'ADD_MESSAGE',
-            message: {
-              id: generateId(),
-              role: 'system',
-              content: transitionMessage,
-              timestamp: new Date(),
-            },
-          })
-        }
-      }
+      // Mode transitions no longer add system messages to reduce chat clutter
     },
     [] // No dependencies - uses contextRef
   )

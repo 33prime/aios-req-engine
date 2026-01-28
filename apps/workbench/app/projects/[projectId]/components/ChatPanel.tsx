@@ -23,20 +23,14 @@ import {
   Loader2,
   X,
   Minimize2,
-  Mail,
-  FileText,
-  Mic,
-  ClipboardPaste,
   Sparkles,
   ChevronRight,
   AlertCircle,
   Info,
   Zap,
   CheckCircle2,
-  Circle,
   Layers,
-  FileSearch,
-  FileCheck,
+  Upload,
 } from 'lucide-react'
 import { ProposalPreview } from './ProposalPreview'
 import { Markdown } from '../../../../components/ui/Markdown'
@@ -48,6 +42,7 @@ import {
   type CommandDefinition,
   getModeConfig,
 } from '@/lib/assistant'
+import { uploadDocument, processDocument, type DocumentUploadResponse } from '@/lib/api'
 
 // =============================================================================
 // Types
@@ -110,17 +105,19 @@ export function ChatPanel({
   onToggleMinimize,
 }: ChatPanelProps) {
   const [input, setInput] = useState('')
-  const [showSignalInput, setShowSignalInput] = useState(false)
-  const [signalType, setSignalType] = useState<string>('')
-  const [signalContent, setSignalContent] = useState('')
-  const [signalSource, setSignalSource] = useState('')
-  const [sendingSignal, setSendingSignal] = useState(false)
   const [showCommandSuggestions, setShowCommandSuggestions] = useState(false)
+  const [isDragging, setIsDragging] = useState(false)
+  const [uploadingFiles, setUploadingFiles] = useState(false)
+  const [activePrompt, setActivePrompt] = useState<{
+    type: 'create-task' | 'create-stakeholder' | 'remember'
+    step?: 'type' | 'content' // for remember command
+    memoryType?: 'decision' | 'learning' | 'question'
+  } | null>(null)
+  const [promptInput, setPromptInput] = useState('')
+  const [promptSubmitting, setPromptSubmitting] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
-
-  // Track signal processing progress with animated phases
-  const [signalProcessingPhase, setSignalProcessingPhase] = useState(0)
+  const promptInputRef = useRef<HTMLInputElement>(null)
 
   // Use the assistant hook
   const {
@@ -182,6 +179,23 @@ export function ChatPanel({
       setInput('')
       setShowCommandSuggestions(false)
 
+      // Check if it's a command that needs a prompt
+      const commandsNeedingPrompt = [
+        { pattern: /^\/(create-task|add-task|new-task)$/i, type: 'create-task' as const },
+        { pattern: /^\/(create-stakeholder|add-stakeholder)$/i, type: 'create-stakeholder' as const },
+        { pattern: /^\/(remember|add-to-memory)$/i, type: 'remember' as const },
+      ]
+
+      for (const cmd of commandsNeedingPrompt) {
+        if (cmd.pattern.test(trimmedInput)) {
+          setActivePrompt({ type: cmd.type, step: cmd.type === 'remember' ? 'type' : undefined })
+          setPromptInput('')
+          // Focus the prompt input after render
+          setTimeout(() => promptInputRef.current?.focus(), 100)
+          return
+        }
+      }
+
       // Check if it's a slash command
       if (isCommand(trimmedInput)) {
         // Handle through assistant (local command execution)
@@ -235,6 +249,156 @@ export function ChatPanel({
     setShowCommandSuggestions(false)
     inputRef.current?.focus()
   }, [])
+
+  // Handle inline prompt submission
+  const handlePromptSubmit = useCallback(async () => {
+    if (!activePrompt || promptSubmitting) return
+
+    const value = promptInput.trim()
+    if (!value && activePrompt.type !== 'remember') return
+
+    setPromptSubmitting(true)
+
+    try {
+      if (activePrompt.type === 'create-task') {
+        await assistantSendMessage(`/create-task "${value}"`)
+      } else if (activePrompt.type === 'create-stakeholder') {
+        await assistantSendMessage(`/create-stakeholder "${value}"`)
+      } else if (activePrompt.type === 'remember') {
+        if (activePrompt.step === 'type') {
+          // Should not reach here - type is selected via buttons
+          return
+        }
+        // Submit the memory content
+        if (activePrompt.memoryType && value) {
+          await assistantSendMessage(`/remember ${activePrompt.memoryType} "${value}"`)
+        }
+      }
+    } finally {
+      setPromptSubmitting(false)
+      setActivePrompt(null)
+      setPromptInput('')
+      inputRef.current?.focus()
+    }
+  }, [activePrompt, promptInput, promptSubmitting, assistantSendMessage])
+
+  // Handle memory type selection for /remember
+  const handleMemoryTypeSelect = useCallback((type: 'decision' | 'learning' | 'question') => {
+    setActivePrompt({ type: 'remember', step: 'content', memoryType: type })
+    setPromptInput('')
+    setTimeout(() => promptInputRef.current?.focus(), 100)
+  }, [])
+
+  // Cancel prompt
+  const handlePromptCancel = useCallback(() => {
+    setActivePrompt(null)
+    setPromptInput('')
+    inputRef.current?.focus()
+  }, [])
+
+  // File drag and drop handlers
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+  }, [])
+
+  const handleDragEnter = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDragging(true)
+  }, [])
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    // Only set dragging to false if leaving the container
+    if (e.currentTarget.contains(e.relatedTarget as Node)) return
+    setIsDragging(false)
+  }, [])
+
+  const handleFileDrop = useCallback(
+    async (e: React.DragEvent) => {
+      e.preventDefault()
+      e.stopPropagation()
+      setIsDragging(false)
+
+      const files = Array.from(e.dataTransfer.files).slice(0, 5) // Max 5 files
+      if (files.length === 0) return
+
+      // Validate file types
+      const allowedTypes = [
+        'application/pdf',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+        'image/png',
+        'image/jpeg',
+        'image/webp',
+        'image/gif',
+      ]
+
+      const validFiles = files.filter((f) => allowedTypes.includes(f.type))
+      if (validFiles.length === 0) {
+        externalSendMessage(
+          'I can only accept PDF, DOCX, XLSX, PPTX, or images (PNG, JPG, WEBP, GIF).'
+        )
+        return
+      }
+
+      setUploadingFiles(true)
+
+      // Upload files and show progress
+      const results: { file: string; success: boolean; error?: string; docId?: string }[] = []
+
+      for (const file of validFiles) {
+        try {
+          const response = await uploadDocument(projectId, file)
+          results.push({
+            file: file.name,
+            success: true,
+            docId: response.id,
+          })
+
+          // Trigger processing immediately
+          if (!response.is_duplicate) {
+            processDocument(response.id).catch((err) =>
+              console.error(`Failed to trigger processing for ${file.name}:`, err)
+            )
+          }
+        } catch (err) {
+          results.push({
+            file: file.name,
+            success: false,
+            error: err instanceof Error ? err.message : 'Upload failed',
+          })
+        }
+      }
+
+      setUploadingFiles(false)
+
+      // Show results in chat
+      const successCount = results.filter((r) => r.success).length
+      const failedFiles = results.filter((r) => !r.success)
+
+      let message = ''
+      if (successCount > 0) {
+        const fileNames = results
+          .filter((r) => r.success)
+          .map((r) => r.file)
+          .join(', ')
+        message = `Uploaded ${successCount} file${successCount > 1 ? 's' : ''}: ${fileNames}. Processing will begin shortly.`
+      }
+      if (failedFiles.length > 0) {
+        const errors = failedFiles.map((f) => `${f.file}: ${f.error}`).join(', ')
+        message += message ? '\n\n' : ''
+        message += `Failed to upload: ${errors}`
+      }
+
+      // Add system message about upload
+      assistantSendMessage(`/status`) // Trigger status refresh after upload
+    },
+    [projectId, externalSendMessage, assistantSendMessage]
+  )
 
   // Combined messages (external + all context messages including command results)
   const allMessages = useMemo(() => {
@@ -298,7 +462,32 @@ export function ChatPanel({
         className={`fixed top-0 right-0 h-[100dvh] w-full sm:w-[560px] bg-white shadow-2xl z-50 transition-transform duration-300 ease-in-out border-l border-gray-200 flex flex-col ${
           isOpen ? 'translate-x-0' : 'translate-x-full'
         }`}
+        onDragOver={handleDragOver}
+        onDragEnter={handleDragEnter}
+        onDragLeave={handleDragLeave}
+        onDrop={handleFileDrop}
       >
+        {/* Drag overlay */}
+        {isDragging && (
+          <div className="absolute inset-0 z-50 bg-brand-primary/5 border-2 border-dashed border-brand-primary rounded-lg flex items-center justify-center pointer-events-none">
+            <div className="text-center p-6">
+              <Upload className="h-12 w-12 text-brand-primary mx-auto mb-3" />
+              <p className="text-lg font-medium text-brand-primary">Drop files here</p>
+              <p className="text-sm text-ui-supportText mt-1">PDF, DOCX, XLSX, PPTX, or images (max 5)</p>
+            </div>
+          </div>
+        )}
+
+        {/* Upload progress overlay */}
+        {uploadingFiles && (
+          <div className="absolute inset-0 z-50 bg-white/90 flex items-center justify-center">
+            <div className="text-center p-6">
+              <Loader2 className="h-10 w-10 text-brand-primary mx-auto mb-3 animate-spin" />
+              <p className="text-base font-medium text-ui-bodyText">Uploading files...</p>
+            </div>
+          </div>
+        )}
+
         {/* Header */}
         <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-200 bg-gradient-to-r from-brand-primary to-brand-primaryHover flex-shrink-0">
           <div className="flex-1 min-w-0">
@@ -392,56 +581,183 @@ export function ChatPanel({
 
         {/* Input Area */}
         <div className="border-t border-gray-200 bg-white px-4 sm:px-6 py-3 sm:py-4 flex-shrink-0 pb-safe">
-          {/* Signal Icon Bar */}
-          {onSendSignal && !showSignalInput && (
-            <div className="flex items-center gap-2 mb-3 overflow-x-auto">
-              <span className="text-xs text-ui-supportText mr-1 flex-shrink-0">Add:</span>
-              <SignalButton icon={Mail} label="email" onClick={() => { setSignalType('email'); setShowSignalInput(true); }} />
-              <SignalButton icon={FileText} label="note" onClick={() => { setSignalType('note'); setShowSignalInput(true); }} />
-              <SignalButton icon={Mic} label="transcript" onClick={() => { setSignalType('transcript'); setShowSignalInput(true); }} />
-              <SignalButton icon={ClipboardPaste} label="document" onClick={() => { setSignalType('document'); setShowSignalInput(true); }} />
-            </div>
-          )}
+          {/* Inline Command Prompt */}
+          {activePrompt && (
+            <div className="mb-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
+              {activePrompt.type === 'create-task' && (
+                <>
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-lg">📝</span>
+                    <span className="text-sm font-medium text-ui-bodyText">Create Task</span>
+                  </div>
+                  <p className="text-xs text-ui-supportText mb-2">Enter a title for your task:</p>
+                  <div className="flex items-center gap-2">
+                    <input
+                      ref={promptInputRef}
+                      type="text"
+                      value={promptInput}
+                      onChange={(e) => setPromptInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault()
+                          handlePromptSubmit()
+                        }
+                        if (e.key === 'Escape') handlePromptCancel()
+                      }}
+                      placeholder="e.g., Review persona updates with client"
+                      className="flex-1 px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary"
+                      disabled={promptSubmitting}
+                    />
+                    <button
+                      onClick={handlePromptSubmit}
+                      disabled={!promptInput.trim() || promptSubmitting}
+                      className="px-3 py-1.5 bg-brand-primary hover:bg-brand-primaryHover text-white text-sm font-medium rounded-lg disabled:opacity-50 transition-colors flex items-center gap-1"
+                    >
+                      {promptSubmitting ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Create'}
+                    </button>
+                    <button
+                      onClick={handlePromptCancel}
+                      disabled={promptSubmitting}
+                      className="px-3 py-1.5 text-gray-600 hover:text-gray-800 text-sm font-medium"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </>
+              )}
 
-          {/* Inline Signal Input */}
-          {showSignalInput && (
-            <SignalInputForm
-              signalType={signalType}
-              signalContent={signalContent}
-              signalSource={signalSource}
-              sendingSignal={sendingSignal}
-              onContentChange={setSignalContent}
-              onSourceChange={setSignalSource}
-              projectId={projectId}
-              processingPhase={signalProcessingPhase}
-              onSubmit={async () => {
-                if (signalContent.trim() && onSendSignal) {
-                  setSendingSignal(true)
-                  setSignalProcessingPhase(0)
-                  // Animate through phases while processing
-                  const phaseInterval = setInterval(() => {
-                    setSignalProcessingPhase(p => Math.min(p + 1, 4))
-                  }, 1500)
-                  try {
-                    await onSendSignal(signalType, signalContent.trim(), signalSource || 'chat')
-                    setShowSignalInput(false)
-                    setSignalType('')
-                    setSignalContent('')
-                    setSignalSource('')
-                  } finally {
-                    clearInterval(phaseInterval)
-                    setSendingSignal(false)
-                    setSignalProcessingPhase(0)
-                  }
-                }
-              }}
-              onCancel={() => {
-                setShowSignalInput(false)
-                setSignalType('')
-                setSignalContent('')
-                setSignalSource('')
-              }}
-            />
+              {activePrompt.type === 'create-stakeholder' && (
+                <>
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-lg">👤</span>
+                    <span className="text-sm font-medium text-ui-bodyText">Add Stakeholder</span>
+                  </div>
+                  <p className="text-xs text-ui-supportText mb-2">Enter the stakeholder's name:</p>
+                  <div className="flex items-center gap-2">
+                    <input
+                      ref={promptInputRef}
+                      type="text"
+                      value={promptInput}
+                      onChange={(e) => setPromptInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault()
+                          handlePromptSubmit()
+                        }
+                        if (e.key === 'Escape') handlePromptCancel()
+                      }}
+                      placeholder="e.g., John Smith"
+                      className="flex-1 px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary"
+                      disabled={promptSubmitting}
+                    />
+                    <button
+                      onClick={handlePromptSubmit}
+                      disabled={!promptInput.trim() || promptSubmitting}
+                      className="px-3 py-1.5 bg-brand-primary hover:bg-brand-primaryHover text-white text-sm font-medium rounded-lg disabled:opacity-50 transition-colors flex items-center gap-1"
+                    >
+                      {promptSubmitting ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Add'}
+                    </button>
+                    <button
+                      onClick={handlePromptCancel}
+                      disabled={promptSubmitting}
+                      className="px-3 py-1.5 text-gray-600 hover:text-gray-800 text-sm font-medium"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </>
+              )}
+
+              {activePrompt.type === 'remember' && activePrompt.step === 'type' && (
+                <>
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-lg">🧠</span>
+                    <span className="text-sm font-medium text-ui-bodyText">Add to Memory</span>
+                  </div>
+                  <p className="text-xs text-ui-supportText mb-3">What type of memory?</p>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => handleMemoryTypeSelect('decision')}
+                      className="px-3 py-1.5 bg-blue-100 hover:bg-blue-200 text-blue-800 text-sm font-medium rounded-lg transition-colors"
+                    >
+                      Decision
+                    </button>
+                    <button
+                      onClick={() => handleMemoryTypeSelect('learning')}
+                      className="px-3 py-1.5 bg-green-100 hover:bg-green-200 text-green-800 text-sm font-medium rounded-lg transition-colors"
+                    >
+                      Learning
+                    </button>
+                    <button
+                      onClick={() => handleMemoryTypeSelect('question')}
+                      className="px-3 py-1.5 bg-amber-100 hover:bg-amber-200 text-amber-800 text-sm font-medium rounded-lg transition-colors"
+                    >
+                      Question
+                    </button>
+                    <button
+                      onClick={handlePromptCancel}
+                      className="ml-auto px-3 py-1.5 text-gray-600 hover:text-gray-800 text-sm font-medium"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </>
+              )}
+
+              {activePrompt.type === 'remember' && activePrompt.step === 'content' && (
+                <>
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-lg">🧠</span>
+                    <span className="text-sm font-medium text-ui-bodyText">
+                      Add {activePrompt.memoryType === 'decision' ? 'Decision' : activePrompt.memoryType === 'learning' ? 'Learning' : 'Question'}
+                    </span>
+                  </div>
+                  <p className="text-xs text-ui-supportText mb-2">
+                    {activePrompt.memoryType === 'decision' && 'Record the decision and its rationale:'}
+                    {activePrompt.memoryType === 'learning' && 'What did you learn?'}
+                    {activePrompt.memoryType === 'question' && 'What question needs to be answered?'}
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <input
+                      ref={promptInputRef}
+                      type="text"
+                      value={promptInput}
+                      onChange={(e) => setPromptInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault()
+                          handlePromptSubmit()
+                        }
+                        if (e.key === 'Escape') handlePromptCancel()
+                      }}
+                      placeholder={
+                        activePrompt.memoryType === 'decision'
+                          ? 'e.g., We chose mobile-first because 70% of users are mobile'
+                          : activePrompt.memoryType === 'learning'
+                            ? 'e.g., Client prefers visual mockups over text specs'
+                            : 'e.g., What is the budget timeline?'
+                      }
+                      className="flex-1 px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary"
+                      disabled={promptSubmitting}
+                    />
+                    <button
+                      onClick={handlePromptSubmit}
+                      disabled={!promptInput.trim() || promptSubmitting}
+                      className="px-3 py-1.5 bg-brand-primary hover:bg-brand-primaryHover text-white text-sm font-medium rounded-lg disabled:opacity-50 transition-colors flex items-center gap-1"
+                    >
+                      {promptSubmitting ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Save'}
+                    </button>
+                    <button
+                      onClick={handlePromptCancel}
+                      disabled={promptSubmitting}
+                      className="px-3 py-1.5 text-gray-600 hover:text-gray-800 text-sm font-medium"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
           )}
 
           <form onSubmit={handleSubmit} className="flex gap-2">
@@ -632,152 +948,6 @@ function CommandAutocomplete({
   )
 }
 
-/** Signal type button */
-function SignalButton({
-  icon: Icon,
-  label,
-  onClick,
-}: {
-  icon: React.ElementType
-  label: string
-  onClick: () => void
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors group"
-      title={`Add ${label}`}
-    >
-      <Icon className="h-4 w-4 text-ui-supportText group-hover:text-brand-primary" />
-    </button>
-  )
-}
-
-/** Signal input form with animated progress */
-function SignalInputForm({
-  signalType,
-  signalContent,
-  signalSource,
-  sendingSignal,
-  onContentChange,
-  onSourceChange,
-  onSubmit,
-  onCancel,
-  projectId,
-  processingPhase = 0,
-}: {
-  signalType: string
-  signalContent: string
-  signalSource: string
-  sendingSignal: boolean
-  onContentChange: (v: string) => void
-  onSourceChange: (v: string) => void
-  onSubmit: () => void
-  onCancel: () => void
-  projectId: string
-  processingPhase?: number
-}) {
-  const icons: Record<string, string> = {
-    email: '📧',
-    note: '📝',
-    transcript: '🎤',
-    document: '📄',
-  }
-
-  // Processing phases for display
-  const phases = [
-    { key: 'classification', label: 'Classifying signal', icon: Zap },
-    { key: 'extraction', label: 'Extracting entities', icon: FileSearch },
-    { key: 'build_state', label: 'Building state', icon: Layers },
-    { key: 'reconcile', label: 'Finalizing', icon: FileCheck },
-  ]
-
-  const getPhaseStatus = (index: number): 'pending' | 'active' | 'completed' => {
-    if (index < processingPhase) return 'completed'
-    if (index === processingPhase) return 'active'
-    return 'pending'
-  }
-
-  return (
-    <div className="mb-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
-      <div className="flex items-center justify-between mb-2">
-        <span className="text-sm font-medium text-ui-bodyText">
-          {icons[signalType] || '📄'} Add {signalType}
-        </span>
-        {!sendingSignal && (
-          <button onClick={onCancel} className="p-1 hover:bg-gray-200 rounded">
-            <X className="h-4 w-4 text-ui-supportText" />
-          </button>
-        )}
-      </div>
-
-      {/* Show animated progress when processing */}
-      {sendingSignal ? (
-        <div className="space-y-3 py-2">
-          {/* Progress bar */}
-          <div className="relative h-2 bg-gray-200 rounded-full overflow-hidden">
-            <div
-              className="absolute top-0 left-0 h-full bg-gradient-to-r from-brand-primary to-brand-primaryHover transition-all duration-500"
-              style={{ width: `${Math.min((processingPhase + 1) * 25, 95)}%` }}
-            />
-          </div>
-
-          {/* Phase list */}
-          <div className="space-y-1.5">
-            {phases.map((phase, index) => {
-              const status = getPhaseStatus(index)
-              const Icon = phase.icon
-              return (
-                <div key={phase.key} className="flex items-center gap-2 text-xs">
-                  {status === 'completed' && <CheckCircle2 className="h-3.5 w-3.5 text-green-600" />}
-                  {status === 'active' && <Loader2 className="h-3.5 w-3.5 text-brand-primary animate-spin" />}
-                  {status === 'pending' && <Circle className="h-3.5 w-3.5 text-gray-300" />}
-                  <Icon className={`h-3 w-3 ${status === 'active' ? 'text-brand-primary' : status === 'completed' ? 'text-green-600' : 'text-gray-400'}`} />
-                  <span className={status === 'active' ? 'text-brand-primary font-medium' : status === 'completed' ? 'text-green-700' : 'text-gray-500'}>
-                    {phase.label}
-                  </span>
-                </div>
-              )
-            })}
-          </div>
-
-          {/* Current status message */}
-          <p className="text-xs text-ui-supportText text-center">
-            {phases[Math.min(processingPhase, phases.length - 1)]?.label}...
-          </p>
-        </div>
-      ) : (
-        <>
-          <textarea
-            value={signalContent}
-            onChange={(e) => onContentChange(e.target.value)}
-            placeholder={`Paste your ${signalType} content here...`}
-            rows={4}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary resize-none"
-          />
-          <div className="flex items-center gap-2 mt-2">
-            <input
-              type="text"
-              value={signalSource}
-              onChange={(e) => onSourceChange(e.target.value)}
-              placeholder={signalType === 'email' ? 'From: client@example.com' : 'Source (optional)'}
-              className="flex-1 px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary"
-            />
-            <button
-              onClick={onSubmit}
-              disabled={!signalContent.trim() || sendingSignal}
-              className="px-4 py-1.5 bg-brand-primary hover:bg-brand-primaryHover text-white rounded-lg text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-1"
-            >
-              <Send className="h-3 w-3" />
-              Submit
-            </button>
-          </div>
-        </>
-      )}
-    </div>
-  )
-}
-
 /** Individual message bubble component */
 function MessageBubble({
   message,
@@ -824,16 +994,9 @@ function MessageBubble({
   const hasRunningTools = message.toolCalls?.some(t => t.status === 'running')
   const allToolsComplete = (message.toolCalls?.length ?? 0) > 0 && message.toolCalls?.every(t => t.status !== 'running')
 
-  // System messages have different styling - subtle pill
+  // Hide system messages entirely (mode transitions, etc.)
   if (isSystem) {
-    return (
-      <div className="flex justify-center my-3">
-        <div className="flex items-center gap-1.5 px-3 py-1 bg-gray-100 text-gray-500 rounded-full text-xs">
-          <ChevronRight className="h-3 w-3" />
-          <span>{message.content}</span>
-        </div>
-      </div>
-    )
+    return null
   }
 
   return (

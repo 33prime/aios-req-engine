@@ -61,22 +61,22 @@ Be concise and actionable. Focus on what needs immediate attention.`,
         variant: 'default',
       },
       {
-        id: 'prep-meeting',
-        label: 'Prep Meeting',
-        command: '/briefing',
-        variant: 'default',
+        id: 'run-di',
+        label: 'Run DI Analysis',
+        command: '/di',
+        variant: 'primary',
       },
       {
-        id: 'review-pending',
-        label: 'Review Pending',
-        command: '/review',
-        variant: 'primary',
+        id: 'view-gates',
+        label: 'View Gates',
+        command: '/view-gates',
+        variant: 'default',
       },
     ],
 
     focusEntities: ['project', 'blocker', 'warning'],
     proactiveMessages: true,
-    suggestedCommands: ['/status', '/briefing', '/review'],
+    suggestedCommands: ['/status', '/di', '/view-gates'],
     contextFields: ['readinessScore', 'blockers', 'warnings', 'pendingConfirmations', 'stats'],
   },
 
@@ -224,32 +224,16 @@ Focus on the end-to-end user experience and value realization.`,
 
     quickActions: [
       {
-        id: 'analyze-step',
-        label: 'Analyze Step',
-        command: '/analyze',
-        variant: 'default',
-      },
-      {
-        id: 'add-step',
-        label: 'Add Step',
-        command: '/add vp_step',
+        id: 'enrich-value-path',
+        label: 'Enrich Value Path',
+        command: '/enrich-value-path',
         variant: 'primary',
-      },
-      {
-        id: 'reorder-steps',
-        label: 'Reorder',
-        icon: 'move',
-      },
-      {
-        id: 'view-flow',
-        label: 'View Flow',
-        icon: 'git-branch',
       },
     ],
 
     focusEntities: ['vp_step'],
     proactiveMessages: true,
-    suggestedCommands: ['/analyze', '/add vp_step', '/surgical'],
+    suggestedCommands: ['/enrich-value-path'],
     contextFields: ['selectedStep', 'adjacentSteps', 'supportingFeatures'],
   },
 
@@ -340,32 +324,38 @@ Your role:
 - Find and track competitors
 - Build strategic context
 
-Use /run-foundation to enrich company info from signals, or /create-stakeholder to add key people.`,
+Use /run-foundation to enrich company info from signals, or /run-research for deep web research.`,
 
     quickActions: [
       {
-        id: 'enrich-client',
-        label: 'Enrich Client',
+        id: 'run-foundation',
+        label: 'Run Foundation',
         command: '/run-foundation',
         variant: 'primary',
       },
       {
-        id: 'create-stakeholder',
-        label: 'Create Stakeholder',
-        command: '/create-stakeholder',
+        id: 'run-research',
+        label: 'Run Research',
+        command: '/run-research',
         variant: 'default',
       },
       {
-        id: 'project-status',
-        label: 'Check Status',
-        command: '/project-status',
+        id: 'enrich-drivers',
+        label: 'Enrich Drivers',
+        command: '/enrich-business-drivers',
+        variant: 'default',
+      },
+      {
+        id: 'view-foundation',
+        label: 'View Foundation',
+        command: '/view-foundation',
         variant: 'default',
       },
     ],
 
     focusEntities: ['company_info', 'business_driver', 'competitor', 'stakeholder'],
     proactiveMessages: true,
-    suggestedCommands: ['/run-foundation', '/create-stakeholder', '/project-status'],
+    suggestedCommands: ['/run-foundation', '/run-research', '/enrich-business-drivers', '/view-foundation'],
     contextFields: ['companyInfo', 'businessDrivers', 'competitors', 'stakeholders'],
   },
 
@@ -384,28 +374,22 @@ Use /enrich-personas to AI-enhance personas, or /enrich-features to enhance feat
 
     quickActions: [
       {
-        id: 'enrich-personas',
-        label: 'Enrich Personas',
-        command: '/enrich-personas',
-        variant: 'primary',
-      },
-      {
         id: 'enrich-features',
         label: 'Enrich Features',
         command: '/enrich-features',
         variant: 'primary',
       },
       {
-        id: 'project-status',
-        label: 'Check Status',
-        command: '/project-status',
-        variant: 'default',
+        id: 'enrich-personas',
+        label: 'Enrich Personas',
+        command: '/enrich-personas',
+        variant: 'primary',
       },
     ],
 
     focusEntities: ['persona', 'feature'],
     proactiveMessages: true,
-    suggestedCommands: ['/enrich-personas', '/enrich-features', '/project-status'],
+    suggestedCommands: ['/enrich-features', '/enrich-personas'],
     contextFields: ['personas', 'features', 'personaFeatureLinks'],
   },
 
@@ -420,32 +404,26 @@ Your role:
 - Track pending decisions
 - Help prepare for client reviews
 
-Use /pending-items to see what needs review.`,
+Use /tasks to see current tasks, or /sync-tasks to analyze gaps and create tasks.`,
 
     quickActions: [
       {
-        id: 'pending-items',
-        label: 'View Pending',
-        command: '/pending-items',
+        id: 'view-tasks',
+        label: 'View Tasks',
+        command: '/tasks',
+        variant: 'default',
+      },
+      {
+        id: 'sync-tasks',
+        label: 'Sync Tasks',
+        command: '/sync-tasks',
         variant: 'primary',
-      },
-      {
-        id: 'meeting-prep',
-        label: 'Prep Meeting',
-        command: '/meeting-prep',
-        variant: 'default',
-      },
-      {
-        id: 'project-status',
-        label: 'Check Status',
-        command: '/project-status',
-        variant: 'default',
       },
     ],
 
     focusEntities: ['confirmation', 'decision', 'blocker'],
     proactiveMessages: true,
-    suggestedCommands: ['/pending-items', '/meeting-prep', '/project-status'],
+    suggestedCommands: ['/tasks', '/sync-tasks'],
     contextFields: ['pendingConfirmations', 'blockers', 'nextActions'],
   },
 
