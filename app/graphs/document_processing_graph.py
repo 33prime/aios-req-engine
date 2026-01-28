@@ -9,7 +9,9 @@ LangGraph workflow for processing uploaded documents:
 6. Update document status
 """
 
+import asyncio
 import time
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any
@@ -36,6 +38,26 @@ from app.db.supabase_client import get_supabase
 logger = get_logger(__name__)
 
 MAX_STEPS = 10
+
+# Thread pool for running async code from sync context
+_executor = ThreadPoolExecutor(max_workers=4)
+
+
+def _run_async(coro):
+    """Run an async coroutine from sync context safely.
+
+    Works whether or not there's already an event loop running.
+    """
+    try:
+        # Try to get existing loop
+        loop = asyncio.get_running_loop()
+        # If we're in an async context, run in thread pool
+        import concurrent.futures
+        future = _executor.submit(asyncio.run, coro)
+        return future.result(timeout=300)  # 5 min timeout
+    except RuntimeError:
+        # No loop running - safe to use asyncio.run directly
+        return asyncio.run(coro)
 
 
 @dataclass
@@ -153,20 +175,14 @@ def extract_content(state: DocumentProcessingState) -> dict[str, Any]:
         return {"error": f"No extractor for {state.file_type}"}
 
     try:
-        # Run extraction (sync wrapper for async)
-        import asyncio
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        try:
-            result = loop.run_until_complete(
-                extractor.extract(
-                    file_bytes=state.file_bytes,
-                    filename=state.original_filename,
-                    mime_type=state.mime_type,
-                )
+        # Run extraction (async operation)
+        result = _run_async(
+            extractor.extract(
+                file_bytes=state.file_bytes,
+                filename=state.original_filename,
+                mime_type=state.mime_type,
             )
-        finally:
-            loop.close()
+        )
 
         logger.info(
             f"Extracted {len(result.sections)} sections, "
@@ -190,23 +206,17 @@ def classify_content(state: DocumentProcessingState) -> dict[str, Any]:
     logger.info(f"Classifying {state.original_filename}")
 
     try:
-        # Run classification (sync wrapper for async)
-        import asyncio
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        try:
-            result = loop.run_until_complete(
-                classify_document(
-                    content_preview=state.extraction_result.get_first_n_chars(2000),
-                    filename=state.original_filename,
-                    file_type=state.file_type,
-                    full_content=state.extraction_result.raw_text[:4000]
-                    if len(state.extraction_result.raw_text) > 2000
-                    else None,
-                )
+        # Run classification (async operation)
+        result = _run_async(
+            classify_document(
+                content_preview=state.extraction_result.get_first_n_chars(2000),
+                filename=state.original_filename,
+                file_type=state.file_type,
+                full_content=state.extraction_result.raw_text[:4000]
+                if len(state.extraction_result.raw_text) > 2000
+                else None,
             )
-        finally:
-            loop.close()
+        )
 
         logger.info(
             f"Classified as {result.document_class} "
@@ -360,7 +370,14 @@ def finalize(state: DocumentProcessingState) -> dict[str, Any]:
     """Finalize processing and update document status."""
     state = _check_max_steps(state)
 
-    duration_ms = int(time.time() * 1000) - state.start_time_ms
+    # Calculate duration safely (avoid overflow if start_time_ms wasn't set)
+    if state.start_time_ms > 0:
+        duration_ms = int(time.time() * 1000) - state.start_time_ms
+        # Sanity check - duration should be reasonable (< 1 hour)
+        if duration_ms < 0 or duration_ms > 3600000:
+            duration_ms = 0
+    else:
+        duration_ms = 0
 
     if state.error:
         logger.error(f"Document processing failed: {state.error}")
