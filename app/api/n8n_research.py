@@ -461,45 +461,92 @@ def _append_research_to_memory(project_id: UUID, research_content: str) -> None:
     Append key research insights to project memory.
 
     Extracts summary, key findings, and market data to add as a learning.
+    Works with various markdown formats from n8n.
     """
     from app.db.project_memory import add_learning
 
-    # Extract key sections from the research markdown
+    if not research_content or len(research_content) < 50:
+        logger.warning("Research content too short for memory extraction")
+        return
+
     lines = research_content.split('\n')
-    summary_lines = []
-    in_summary = False
-
-    for line in lines:
-        if '**Summary:**' in line or line.strip().startswith('**Summary:**'):
-            in_summary = True
-            # Extract the summary text after "**Summary:**"
-            summary_text = line.split('**Summary:**')[-1].strip()
-            if summary_text:
-                summary_lines.append(summary_text)
-        elif in_summary and line.strip() and not line.startswith('#') and not line.startswith('**'):
-            summary_lines.append(line.strip())
-        elif in_summary and (line.startswith('#') or line.startswith('**Verdict')):
-            break
-
-    # Build memory entry
     memory_parts = []
 
-    if summary_lines:
-        memory_parts.append(' '.join(summary_lines)[:500])
+    # Strategy 1: Look for explicit summary sections (various formats)
+    summary_patterns = [
+        '**Summary:**', '## Summary', '### Summary',
+        '**Executive Summary:**', '## Executive Summary',
+        '**Overview:**', '## Overview',
+        '**Key Takeaways:**', '## Key Takeaways',
+    ]
 
-    # Extract market size if present
-    if '**Market Size:**' in research_content:
-        for line in lines:
-            if '**Market Size:**' in line:
-                memory_parts.append(line.replace('- ', '').strip())
+    for pattern in summary_patterns:
+        if pattern.lower() in research_content.lower():
+            # Find the section and extract content
+            in_section = False
+            section_content = []
+            for line in lines:
+                if pattern.replace('*', '').replace('#', '').strip().lower() in line.lower():
+                    in_section = True
+                    # Extract inline content after the header
+                    if ':' in line:
+                        after_colon = line.split(':', 1)[-1].strip()
+                        if after_colon:
+                            section_content.append(after_colon)
+                    continue
+                if in_section:
+                    # Stop at next heading or major section
+                    if line.startswith('#') or (line.startswith('**') and line.endswith(':**')):
+                        break
+                    if line.strip():
+                        section_content.append(line.strip())
+                    if len(' '.join(section_content)) > 400:
+                        break
+
+            if section_content:
+                memory_parts.append(' '.join(section_content)[:500])
                 break
 
-    # Extract growth rate if present
-    if '**Growth Rate:**' in research_content:
+    # Strategy 2: If no summary found, extract first meaningful paragraphs
+    if not memory_parts:
+        paragraphs = []
+        current_para = []
         for line in lines:
-            if '**Growth Rate:**' in line:
-                memory_parts.append(line.replace('- ', '').strip())
-                break
+            # Skip headings and empty lines at start
+            if line.startswith('#'):
+                if current_para:
+                    paragraphs.append(' '.join(current_para))
+                    current_para = []
+                continue
+            if line.strip():
+                current_para.append(line.strip())
+            elif current_para:
+                paragraphs.append(' '.join(current_para))
+                current_para = []
+                if len(paragraphs) >= 2:
+                    break
+
+        if current_para:
+            paragraphs.append(' '.join(current_para))
+
+        # Take first 2 meaningful paragraphs
+        meaningful = [p for p in paragraphs if len(p) > 50][:2]
+        if meaningful:
+            memory_parts.append(' '.join(meaningful)[:500])
+
+    # Extract market data if present
+    market_patterns = [
+        ('**Market Size:**', 'Market Size'),
+        ('**Growth Rate:**', 'Growth'),
+        ('**TAM:**', 'TAM'),
+        ('**Revenue:**', 'Revenue'),
+    ]
+    for pattern, label in market_patterns:
+        if pattern in research_content:
+            for line in lines:
+                if pattern in line:
+                    memory_parts.append(line.replace('- ', '').strip())
+                    break
 
     if memory_parts:
         learning_content = '\n'.join(memory_parts)
@@ -511,7 +558,20 @@ def _append_research_to_memory(project_id: UUID, research_content: str) -> None:
             learning_type="insight",
             domain="market_research",
         )
-        logger.info(f"Added research insights to project memory")
+        logger.info(f"Added research insights to project memory: {len(learning_content)} chars")
+    else:
+        # Fallback: just store first 500 chars as a summary
+        fallback = research_content[:500].strip()
+        if fallback:
+            add_learning(
+                project_id=project_id,
+                title="AI Research Findings",
+                context="External research conducted via n8n workflow",
+                learning=fallback,
+                learning_type="insight",
+                domain="market_research",
+            )
+            logger.info(f"Added research fallback to project memory")
 
 
 def _trigger_foundation(project_id: UUID) -> UUID | None:

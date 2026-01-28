@@ -199,6 +199,7 @@ class SourceUsageItem(BaseModel):
     uses_by_entity: SourceUsageByEntity
     last_used: str | None = None
     entities_contributed: list[str]
+    content: str | None = None  # Full content for research signals
 
 
 class SourceUsageResponse(BaseModel):
@@ -253,6 +254,7 @@ async def get_source_usage(project_id: UUID) -> SourceUsageResponse:
                     ),
                     last_used=src.get("last_used"),
                     entities_contributed=src.get("entities_contributed", []),
+                    content=src.get("content"),  # Include for research signals
                 )
             )
 

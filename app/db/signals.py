@@ -273,10 +273,10 @@ def get_project_source_usage(project_id: UUID) -> list[dict[str, Any]]:
     supabase = get_supabase()
 
     try:
-        # Get all signals for project
+        # Get all signals for project (include raw_text for research signals)
         signals_response = (
             supabase.table("signals")
-            .select("id, source_label, signal_type, source_type, source, created_at")
+            .select("id, source_label, signal_type, source_type, source, raw_text, created_at")
             .eq("project_id", str(project_id))
             .order("created_at", desc=True)
             .execute()
@@ -350,7 +350,7 @@ def get_project_source_usage(project_id: UUID) -> list[dict[str, Any]]:
                 else:
                     source_name = type_label
 
-            results.append({
+            result_item = {
                 "source_id": signal_id,
                 "source_type": "signal",
                 "source_name": source_name,
@@ -359,7 +359,13 @@ def get_project_source_usage(project_id: UUID) -> list[dict[str, Any]]:
                 "uses_by_entity": uses_by_entity,
                 "last_used": last_used,
                 "entities_contributed": list(entity_ids),
-            })
+            }
+
+            # Include content for research signals (for display in Research tab)
+            if signal.get("signal_type") == "research":
+                result_item["content"] = signal.get("raw_text", "")
+
+            results.append(result_item)
 
         logger.info(
             f"Got source usage for project {project_id}: {len(results)} sources",

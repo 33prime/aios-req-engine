@@ -2219,6 +2219,7 @@ export interface SourceUsageItem {
   uses_by_entity: SourceUsageByEntity
   last_used: string | null
   entities_contributed: string[]
+  content?: string | null  // Full content for research signals
 }
 
 export interface SourceUsageResponse {

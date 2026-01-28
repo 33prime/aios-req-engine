@@ -68,11 +68,12 @@ function ResearchCard({ research }: { research: SourceUsageItem }) {
   const [copied, setCopied] = useState(false)
   const [expanded, setExpanded] = useState(false)
 
-  // For now, we show the source name - in a full implementation
-  // we'd fetch the actual research content
+  // Use content field for research signals, fallback to source_name
+  const researchContent = research.content || research.source_name
+
   const handleCopy = async () => {
     try {
-      await navigator.clipboard.writeText(research.source_name)
+      await navigator.clipboard.writeText(researchContent)
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
     } catch (err) {
@@ -121,11 +122,11 @@ function ResearchCard({ research }: { research: SourceUsageItem }) {
       {/* Content */}
       <div className="p-4">
         <div className={`prose prose-sm max-w-none ${!expanded ? 'line-clamp-6' : ''}`}>
-          <Markdown content={research.source_name} />
+          <Markdown content={researchContent} />
         </div>
 
         {/* Show expand button if content is long */}
-        {research.source_name.length > 500 && (
+        {researchContent.length > 500 && (
           <button
             onClick={() => setExpanded(!expanded)}
             className="mt-3 text-sm font-medium text-brand-primary hover:text-brand-primaryHover"
