@@ -2,9 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import {
-  Mail,
   Users,
-  Sparkles,
   ExternalLink,
   UserPlus,
   Trash2,
@@ -12,28 +10,27 @@ import {
   CheckCircle,
   Clock,
   AlertCircle,
-  ChevronDown,
-  ChevronUp,
 } from 'lucide-react'
 import * as api from '@/lib/api'
 
 interface ClientPortalSectionProps {
   projectId: string
   projectName: string
+  onPhaseChange?: () => void
 }
 
 export default function ClientPortalSection({
   projectId,
   projectName,
+  onPhaseChange,
 }: ClientPortalSectionProps) {
   const [portalEnabled, setPortalEnabled] = useState(false)
   const [portalPhase, setPortalPhase] = useState<string>('pre_call')
+  const [collaborationPhase, setCollaborationPhase] = useState<string>('pre_discovery')
   const [members, setMembers] = useState<api.ProjectMember[]>([])
-  const [infoRequests, setInfoRequests] = useState<api.InfoRequest[]>([])
   const [loading, setLoading] = useState(true)
   const [actionLoading, setActionLoading] = useState<string | null>(null)
   const [showInviteModal, setShowInviteModal] = useState(false)
-  const [showQuestions, setShowQuestions] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const loadData = useCallback(async () => {
@@ -45,6 +42,7 @@ export default function ClientPortalSection({
       const project = await api.getProjectDetails(projectId)
       setPortalEnabled(project.portal_enabled || false)
       setPortalPhase(project.portal_phase || 'pre_call')
+      setCollaborationPhase(project.collaboration_phase || 'pre_discovery')
 
       // Load members
       try {
@@ -53,14 +51,6 @@ export default function ClientPortalSection({
       } catch {
         // Members endpoint may not exist yet
         setMembers([])
-      }
-
-      // Load info requests
-      try {
-        const requestsData = await api.getInfoRequests(projectId, 'pre_call')
-        setInfoRequests(requestsData.info_requests || [])
-      } catch {
-        setInfoRequests([])
       }
     } catch (err) {
       console.error('Failed to load portal data:', err)
@@ -100,15 +90,35 @@ export default function ClientPortalSection({
     }
   }
 
-  const handleGenerateQuestions = async () => {
+  const handleAdvancePhase = async () => {
     try {
-      setActionLoading('generate')
-      const result = await api.generateInfoRequests(projectId, 3)
-      setInfoRequests(result.info_requests || [])
-      setShowQuestions(true)
+      setActionLoading('advance')
+
+      // 1. Create a Discovery Call touchpoint
+      const touchpoint = await api.createTouchpoint(projectId, {
+        type: 'discovery_call',
+        title: 'Discovery Call',
+        description: 'Initial discovery call with client',
+      })
+
+      // 2. Mark it as completed (outcomes are numeric stats)
+      await api.completeTouchpoint(projectId, touchpoint.id, {})
+
+      // 3. Update portal phase to post_call (if not already)
+      if (portalPhase !== 'post_call') {
+        await api.updatePortalConfig(projectId, { portal_phase: 'post_call' })
+      }
+
+      // 4. Advance collaboration phase to validation
+      await api.setCollaborationPhase(projectId, 'validation')
+
+      setPortalPhase('post_call')
+      setCollaborationPhase('validation')
+      // Notify parent to refresh
+      onPhaseChange?.()
     } catch (err) {
-      console.error('Failed to generate questions:', err)
-      setError('Failed to generate questions')
+      console.error('Failed to advance phase:', err)
+      setError('Failed to advance phase')
     } finally {
       setActionLoading(null)
     }
@@ -134,19 +144,6 @@ export default function ClientPortalSection({
     } catch (err) {
       console.error('Failed to resend invite:', err)
       setError('Failed to resend invite')
-    } finally {
-      setActionLoading(null)
-    }
-  }
-
-  const handleDeleteQuestion = async (requestId: string) => {
-    try {
-      setActionLoading(`delete-${requestId}`)
-      await api.deleteInfoRequest(requestId)
-      setInfoRequests((prev) => prev.filter((r) => r.id !== requestId))
-    } catch (err) {
-      console.error('Failed to delete question:', err)
-      setError('Failed to delete question')
     } finally {
       setActionLoading(null)
     }
@@ -204,6 +201,17 @@ export default function ClientPortalSection({
           </div>
           {portalEnabled ? (
             <div className="flex items-center gap-3">
+              {/* Show button if: pre_call OR mixed state (post_call but still pre_discovery) */}
+              {(portalPhase === 'pre_call' || (portalPhase === 'post_call' && collaborationPhase === 'pre_discovery')) && (
+                <button
+                  onClick={handleAdvancePhase}
+                  disabled={actionLoading === 'advance'}
+                  className="px-3 py-1.5 bg-[#009b87] text-white text-sm font-medium rounded-lg hover:bg-[#007a6a] disabled:opacity-50"
+                >
+                  {actionLoading === 'advance' ? 'Advancing...' :
+                   portalPhase === 'post_call' ? 'Complete Discovery Setup' : 'Mark Discovery Complete'}
+                </button>
+              )}
               <a
                 href={clientPortalUrl}
                 target="_blank"
@@ -314,100 +322,6 @@ export default function ClientPortalSection({
               )}
             </div>
 
-            {/* Pre-Call Questions */}
-            <div>
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <Sparkles className="w-4 h-4 text-gray-500" />
-                  <span className="text-sm font-medium text-gray-700">
-                    Pre-Call Questions ({infoRequests.length})
-                  </span>
-                </div>
-                <div className="flex items-center gap-2">
-                  {infoRequests.length > 0 && (
-                    <button
-                      onClick={() => setShowQuestions(!showQuestions)}
-                      className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700"
-                    >
-                      {showQuestions ? (
-                        <>
-                          <ChevronUp className="w-4 h-4" />
-                          Hide
-                        </>
-                      ) : (
-                        <>
-                          <ChevronDown className="w-4 h-4" />
-                          Show
-                        </>
-                      )}
-                    </button>
-                  )}
-                  <button
-                    onClick={handleGenerateQuestions}
-                    disabled={actionLoading === 'generate'}
-                    className="flex items-center gap-1 px-3 py-1.5 text-sm bg-[#009b87]/10 text-[#009b87] hover:bg-[#009b87]/20 rounded-lg transition-colors disabled:opacity-50"
-                  >
-                    <Sparkles className="w-4 h-4" />
-                    {actionLoading === 'generate'
-                      ? 'Generating...'
-                      : infoRequests.length > 0
-                      ? 'Regenerate'
-                      : 'Generate Questions'}
-                  </button>
-                </div>
-              </div>
-
-              {showQuestions && infoRequests.length > 0 && (
-                <div className="space-y-2">
-                  {infoRequests.map((request, index) => (
-                    <div
-                      key={request.id}
-                      className="p-3 bg-gray-50 rounded-lg border border-gray-100"
-                    >
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex-1">
-                          <div className="text-sm font-medium text-gray-900">
-                            {index + 1}. {request.title}
-                          </div>
-                          {request.why_asking && (
-                            <div className="text-xs text-gray-500 mt-1">
-                              Why: {request.why_asking}
-                            </div>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span
-                            className={`text-xs px-2 py-0.5 rounded ${
-                              request.status === 'complete'
-                                ? 'bg-[#009b87]/10 text-[#009b87]'
-                                : request.status === 'in_progress'
-                                ? 'bg-gray-200 text-gray-700'
-                                : 'bg-gray-100 text-gray-600'
-                            }`}
-                          >
-                            {request.status.replace('_', ' ')}
-                          </span>
-                          <button
-                            onClick={() => handleDeleteQuestion(request.id)}
-                            disabled={actionLoading === `delete-${request.id}`}
-                            className="p-1 text-gray-400 hover:text-red-600"
-                          >
-                            <Trash2 className="w-3 h-3" />
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {infoRequests.length === 0 && (
-                <div className="text-sm text-gray-500 bg-gray-50 rounded-lg p-4 text-center">
-                  No questions generated yet. Click "Generate Questions" to create
-                  AI-powered pre-call questions.
-                </div>
-              )}
-            </div>
           </>
         )}
 

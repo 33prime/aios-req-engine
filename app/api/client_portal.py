@@ -162,6 +162,15 @@ async def get_dashboard(
             "duration_minutes": 60,
         }
 
+    # Get agenda from discovery prep bundle
+    from app.db.discovery_prep import get_bundle
+    agenda_summary = None
+    agenda_bullets = []
+    bundle = await get_bundle(project_id)
+    if bundle:
+        agenda_summary = bundle.agenda_summary
+        agenda_bullets = bundle.agenda_bullets or []
+
     return DashboardResponse(
         project_id=project_id,
         project_name=project.get("client_display_name") or project["name"],
@@ -170,6 +179,8 @@ async def get_dashboard(
         progress=progress,
         info_requests=info_requests,
         due_date=project.get("prototype_expected_date"),
+        agenda_summary=agenda_summary,
+        agenda_bullets=agenda_bullets,
     )
 
 

@@ -251,16 +251,30 @@ async def invite_client_to_project(
                 )
 
         # Create our user record (with matching ID from Supabase)
-        user = await create_user(
-            UserCreate(
-                email=data.email,
-                user_type=UserType.CLIENT,
-                first_name=data.first_name,
-                last_name=data.last_name,
-                company_name=data.company_name,
-            ),
-            user_id=auth_user_id,
-        )
+        # If user already exists (e.g., from previous invite), fetch instead
+        try:
+            user = await create_user(
+                UserCreate(
+                    email=data.email,
+                    user_type=UserType.CLIENT,
+                    first_name=data.first_name,
+                    last_name=data.last_name,
+                    company_name=data.company_name,
+                ),
+                user_id=auth_user_id,
+            )
+        except Exception as create_err:
+            # User might already exist in our table (duplicate key)
+            if "duplicate key" in str(create_err).lower() or "23505" in str(create_err):
+                logger.info(f"User already exists in table, fetching by ID: {auth_user_id}")
+                user = await get_user_by_id(auth_user_id) if auth_user_id else await get_user_by_email(data.email)
+                if not user:
+                    raise HTTPException(
+                        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                        detail="User exists but could not be fetched",
+                    )
+            else:
+                raise
 
     # Add to project (or get existing membership)
     existing_member = await get_project_member(project_id, user.id)

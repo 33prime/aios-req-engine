@@ -13,7 +13,7 @@ import {
   Loader2,
   Filter
 } from 'lucide-react'
-import { getPersonas, getFeatures, getVpSteps, updateFeatureStatus, updatePersonaStatus, getPersonaCoverage, buildState, type PersonaFeatureCoverage } from '@/lib/api'
+import { getPersonas, getFeatures, getVpSteps, updateFeatureStatus, updatePersonaStatus, getPersonaCoverage, buildState, markEntityNeedsReview, type PersonaFeatureCoverage } from '@/lib/api'
 import type { Feature, VpStep } from '@/types/api'
 import type { Persona } from '@/lib/persona-utils'
 import PersonaCard from '@/components/personas/PersonaCard'
@@ -101,7 +101,12 @@ export function PersonasFeaturesTab({ projectId, isActive = true }: PersonasFeat
     )
 
     try {
-      await updateFeatureStatus(featureId, newStatus)
+      // Use markEntityNeedsReview for needs_client to add to pending queue
+      if (newStatus === 'needs_client') {
+        await markEntityNeedsReview(projectId, 'feature', featureId)
+      } else {
+        await updateFeatureStatus(featureId, newStatus)
+      }
     } catch (error) {
       // Revert on error
       console.error('Failed to update feature status:', error)
@@ -124,7 +129,12 @@ export function PersonasFeaturesTab({ projectId, isActive = true }: PersonasFeat
     }
 
     try {
-      await updatePersonaStatus(personaId, newStatus)
+      // Use markEntityNeedsReview for needs_client to add to pending queue
+      if (newStatus === 'needs_client') {
+        await markEntityNeedsReview(projectId, 'persona', personaId)
+      } else {
+        await updatePersonaStatus(personaId, newStatus)
+      }
     } catch (error) {
       console.error('Failed to update persona status:', error)
       loadData()

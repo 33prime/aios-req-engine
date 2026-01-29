@@ -15,7 +15,7 @@ import React, { useState, useEffect } from 'react'
 import { VpJourneyFlow } from './vp/VpJourneyFlow'
 import { VpPathSummary } from './vp/VpPathSummary'
 import { VpDetail } from './vp'
-import { getVpSteps, updateVpStepStatus, getSignal, getSignalChunks, getPersonas } from '@/lib/api'
+import { getVpSteps, updateVpStepStatus, getSignal, getSignalChunks, getPersonas, markEntityNeedsReview } from '@/lib/api'
 import type { VpStep, Signal, SignalChunk } from '@/types/api'
 import type { Persona } from '@/lib/persona-utils'
 import { Zap, Loader2, Download } from 'lucide-react'
@@ -96,7 +96,13 @@ export function ValuePathTab({ projectId }: ValuePathTabProps) {
   const handleStatusUpdate = async (stepId: string, newStatus: string) => {
     try {
       setUpdating(true)
-      const updated = await updateVpStepStatus(stepId, newStatus)
+
+      // Use markEntityNeedsReview for needs_client to add to pending queue
+      if (newStatus === 'needs_client') {
+        await markEntityNeedsReview(projectId, 'vp_step', stepId)
+      } else {
+        await updateVpStepStatus(stepId, newStatus)
+      }
 
       // Update local state
       setSteps(prev => prev.map(s =>

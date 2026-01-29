@@ -107,6 +107,28 @@ export default function DashboardPage() {
         </div>
       )}
 
+      {/* Call Agenda (Pre-call) */}
+      {isPreCall && (dashboard.agenda_summary || (dashboard.agenda_bullets && dashboard.agenda_bullets.length > 0)) && (
+        <div className="card mb-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-3">Call Agenda</h3>
+          {dashboard.agenda_summary && (
+            <p className="text-sm text-gray-700 mb-4">{dashboard.agenda_summary}</p>
+          )}
+          {dashboard.agenda_bullets && dashboard.agenda_bullets.length > 0 && (
+            <ul className="space-y-2">
+              {dashboard.agenda_bullets.map((bullet, index) => (
+                <li key={index} className="flex items-start gap-3 text-sm text-gray-700">
+                  <span className="flex-shrink-0 w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-medium">
+                    {index + 1}
+                  </span>
+                  <span>{bullet}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+
       {/* Call Summary Card (Post-call) */}
       {!isPreCall && (
         <div className="card mb-6">

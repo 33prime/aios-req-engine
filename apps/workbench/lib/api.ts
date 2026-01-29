@@ -1239,7 +1239,7 @@ export interface Touchpoint {
 export const createTouchpoint = (projectId: string, data: CreateTouchpointRequest) =>
   apiRequest<Touchpoint>(`/projects/${projectId}/collaboration/touchpoints`, {
     method: 'POST',
-    body: JSON.stringify(data),
+    body: JSON.stringify({ ...data, project_id: projectId }),
   })
 
 export const listTouchpoints = (projectId: string, status?: string, type?: string) => {

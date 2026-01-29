@@ -85,6 +85,8 @@ export interface DashboardResponse {
   progress: DashboardProgress;
   info_requests: InfoRequest[];
   due_date?: string;
+  agenda_summary?: string;
+  agenda_bullets?: string[];
 }
 
 export interface MetricItem {

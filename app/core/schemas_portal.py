@@ -357,6 +357,9 @@ class DashboardResponse(BaseModel):
     progress: DashboardProgress
     info_requests: list[InfoRequest]
     due_date: Optional[datetime] = None
+    # Agenda from discovery prep
+    agenda_summary: Optional[str] = None
+    agenda_bullets: list[str] = Field(default_factory=list)
 
 
 # ============================================================================

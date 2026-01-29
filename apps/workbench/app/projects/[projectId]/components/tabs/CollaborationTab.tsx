@@ -356,7 +356,11 @@ export function CollaborationTab({ projectId, projectName = 'Project' }: Collabo
       {/* Client Portal Modal */}
       {portalModalOpen && (
         <Modal title="Client Portal" onClose={() => setPortalModalOpen(false)}>
-          <ClientPortalSection projectId={projectId} projectName={projectName} />
+          <ClientPortalSection
+            projectId={projectId}
+            projectName={projectName}
+            onPhaseChange={loadData}
+          />
         </Modal>
       )}
 
