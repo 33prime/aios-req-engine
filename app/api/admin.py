@@ -1,6 +1,7 @@
 """Admin API endpoints for consultant management of clients and portal."""
 
 import logging
+import os
 from typing import Optional
 from uuid import UUID
 
@@ -197,7 +198,7 @@ async def invite_client_to_project(
                 client.auth.sign_in_with_otp({
                     "email": data.email,
                     "options": {
-                        "email_redirect_to": "http://localhost:3001/auth/verify",
+                        "email_redirect_to": f"{os.getenv('PORTAL_URL', 'http://localhost:3001')}/auth/verify",
                     },
                 })
                 magic_link_sent = True
@@ -216,10 +217,11 @@ async def invite_client_to_project(
                 logger.info(f"Inviting new user {data.email} via admin API")
 
                 # Use admin API to invite - this creates the auth user and sends email
+                portal_url = os.getenv('PORTAL_URL', 'http://localhost:3001')
                 response = client.auth.admin.invite_user_by_email(
                     data.email,
                     options={
-                        "redirect_to": "http://localhost:3001/auth/verify",
+                        "redirect_to": f"{portal_url}/auth/verify",
                         "data": {
                             "first_name": data.first_name or "",
                             "last_name": data.last_name or "",
