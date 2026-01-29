@@ -19,6 +19,7 @@ from app.db.document_uploads import (
     get_documents_with_usage,
     get_project_document_stats,
     list_project_documents,
+    withdraw_document as db_withdraw_document,
 )
 from app.db.supabase_client import get_supabase
 
@@ -445,11 +446,39 @@ async def trigger_document_processing(document_id: UUID) -> dict:
         raise HTTPException(status_code=500, detail=f"Processing failed: {e}")
 
 
+@router.post("/documents/{document_id}/withdraw")
+async def withdraw_document(document_id: UUID) -> dict:
+    """Soft-delete a document (remove from retrieval but preserve data).
+
+    This withdraws the document and its associated signal from all search
+    and retrieval operations. The data is preserved for audit purposes.
+
+    Use this endpoint for processed documents. For failed uploads,
+    use DELETE /documents/{document_id} instead.
+
+    Args:
+        document_id: Document UUID
+
+    Returns:
+        Success status with document_id
+
+    Raises:
+        HTTPException 404: If document not found
+    """
+    success = db_withdraw_document(document_id)
+
+    if not success:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    return {"status": "withdrawn", "document_id": str(document_id)}
+
+
 @router.delete("/documents/{document_id}")
 async def delete_document(document_id: UUID) -> dict:
-    """Delete a document.
+    """Hard delete a document.
 
-    Note: This marks the document as deleted but may not remove files immediately.
+    Only allowed for documents that failed processing or have no signal.
+    For processed documents, use POST /documents/{document_id}/withdraw instead.
 
     Args:
         document_id: Document UUID
@@ -458,6 +487,7 @@ async def delete_document(document_id: UUID) -> dict:
         Success message
 
     Raises:
+        HTTPException 400: If document is processed (use withdraw instead)
         HTTPException 404: If document not found
     """
     doc = get_document_upload(document_id)
@@ -470,6 +500,13 @@ async def delete_document(document_id: UUID) -> dict:
         raise HTTPException(
             status_code=400,
             detail="Cannot delete document while processing"
+        )
+
+    # Only allow hard delete for failed uploads or documents without signals
+    if doc["processing_status"] == "completed" and doc.get("signal_id"):
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot hard delete processed documents. Use POST /documents/{document_id}/withdraw instead to soft-delete."
         )
 
     try:

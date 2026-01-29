@@ -2201,6 +2201,16 @@ export const getDocumentDownloadUrl = (documentId: string) =>
   apiRequest<DocumentDownloadResponse>(`/documents/${documentId}/download`)
 
 /**
+ * Withdraw a document (soft delete).
+ * Removes from retrieval but preserves data for audit.
+ */
+export const withdrawDocument = (documentId: string) =>
+  apiRequest<{ status: string; document_id: string }>(
+    `/documents/${documentId}/withdraw`,
+    { method: 'POST' }
+  )
+
+/**
  * Source usage aggregation
  */
 export interface SourceUsageByEntity {

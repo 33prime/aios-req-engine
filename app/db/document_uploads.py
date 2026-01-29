@@ -140,6 +140,7 @@ def list_project_documents(
     status: str | None = None,
     document_class: str | None = None,
     upload_source: str | None = None,
+    include_withdrawn: bool = False,
     limit: int = 100,
     offset: int = 0,
 ) -> dict[str, Any]:
@@ -150,6 +151,7 @@ def list_project_documents(
         status: Filter by processing_status
         document_class: Filter by document_class
         upload_source: Filter by upload_source
+        include_withdrawn: If True, include withdrawn documents (default False)
         limit: Max results
         offset: Pagination offset
 
@@ -163,6 +165,10 @@ def list_project_documents(
         .select("*", count="exact")
         .eq("project_id", str(project_id))
     )
+
+    # Exclude withdrawn documents by default
+    if not include_withdrawn:
+        query = query.neq("is_withdrawn", True)
 
     if status:
         query = query.eq("processing_status", status)
@@ -498,3 +504,71 @@ def get_documents_with_usage(project_id: UUID) -> list[dict[str, Any]]:
                 doc["confidence_level"] = "ai_weak"
 
     return documents
+
+
+def withdraw_document(document_id: UUID) -> bool:
+    """Soft-delete a document by marking it withdrawn.
+
+    This also marks the associated signal as withdrawn.
+    The document and signal data are preserved for audit purposes.
+
+    Args:
+        document_id: Document UUID
+
+    Returns:
+        True if withdrawn successfully, False if not found
+    """
+    supabase = get_supabase()
+
+    # Get document to find signal_id
+    doc = get_document_upload(document_id)
+    if not doc:
+        return False
+
+    # Mark document as withdrawn
+    withdrawn_at = datetime.utcnow().isoformat()
+
+    response = (
+        supabase.table("document_uploads")
+        .update({
+            "is_withdrawn": True,
+            "withdrawn_at": withdrawn_at,
+        })
+        .eq("id", str(document_id))
+        .execute()
+    )
+
+    if not response.data:
+        logger.warning(f"Failed to withdraw document {document_id}")
+        return False
+
+    logger.info(
+        f"Withdrew document {document_id}: {doc.get('original_filename')}",
+        extra={"document_id": str(document_id)},
+    )
+
+    # If signal exists, mark it withdrawn too
+    signal_id = doc.get("signal_id")
+    if signal_id:
+        signal_response = (
+            supabase.table("signals")
+            .update({
+                "is_withdrawn": True,
+                "withdrawn_at": withdrawn_at,
+            })
+            .eq("id", signal_id)
+            .execute()
+        )
+
+        if signal_response.data:
+            logger.info(
+                f"Withdrew associated signal {signal_id}",
+                extra={"document_id": str(document_id), "signal_id": signal_id},
+            )
+        else:
+            logger.warning(
+                f"Failed to withdraw signal {signal_id} for document {document_id}",
+                extra={"document_id": str(document_id), "signal_id": signal_id},
+            )
+
+    return True
