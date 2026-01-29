@@ -2175,6 +2175,12 @@ export interface DocumentSummaryItem {
   contributed_to: DocumentContributedTo
   confidence_level: string
   processing_status: string
+  // Analysis fields from document classification
+  quality_score?: number
+  relevance_score?: number
+  information_density?: number
+  keyword_tags?: string[]
+  key_topics?: string[]
 }
 
 export interface DocumentSummaryResponse {
@@ -2208,6 +2214,24 @@ export const withdrawDocument = (documentId: string) =>
   apiRequest<{ status: string; document_id: string }>(
     `/documents/${documentId}/withdraw`,
     { method: 'POST' }
+  )
+
+/**
+ * Reset a stuck or failed document back to pending for reprocessing.
+ */
+export const resetDocument = (documentId: string) =>
+  apiRequest<{ status: string; document_id: string; processing_status: string }>(
+    `/documents/${documentId}/reset`,
+    { method: 'POST' }
+  )
+
+/**
+ * Hard delete a document (only for failed/pending documents).
+ */
+export const deleteDocument = (documentId: string, force = false) =>
+  apiRequest<{ success: boolean; message: string }>(
+    `/documents/${documentId}${force ? '?force=true' : ''}`,
+    { method: 'DELETE' }
   )
 
 /**

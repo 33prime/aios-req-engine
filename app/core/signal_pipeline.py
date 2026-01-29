@@ -154,6 +154,7 @@ async def stream_signal_processing(
                 project_id=project_id,
                 signal_id=signal_id,
                 run_id=run_id,
+                signal_content=signal_content,
             ):
                 yield event
 
@@ -171,6 +172,7 @@ async def _stream_standard_processing(
     project_id: UUID,
     signal_id: UUID,
     run_id: UUID,
+    signal_content: str = "",
 ) -> AsyncGenerator[Dict[str, Any], None]:
     """
     Standard processing pipeline for lightweight signals.

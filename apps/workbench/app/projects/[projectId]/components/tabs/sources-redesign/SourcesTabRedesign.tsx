@@ -66,21 +66,23 @@ export function SourcesTabRedesign({ projectId, onUploadClick }: SourcesTabRedes
     router.push(`${pathname}?${params.toString()}`, { scroll: false })
   }, [pathname, router, searchParams])
 
-  // Load documents
-  useEffect(() => {
-    const loadDocuments = async () => {
-      setIsLoadingDocuments(true)
-      try {
-        const data = await getDocumentsSummary(projectId)
-        setDocuments(data.documents)
-      } catch (error) {
-        console.error('Failed to load documents:', error)
-      } finally {
-        setIsLoadingDocuments(false)
-      }
+  // Load documents function (extracted for reuse)
+  const loadDocuments = useCallback(async () => {
+    setIsLoadingDocuments(true)
+    try {
+      const data = await getDocumentsSummary(projectId)
+      setDocuments(data.documents)
+    } catch (error) {
+      console.error('Failed to load documents:', error)
+    } finally {
+      setIsLoadingDocuments(false)
     }
-    loadDocuments()
   }, [projectId])
+
+  // Load documents on mount
+  useEffect(() => {
+    loadDocuments()
+  }, [loadDocuments])
 
   // Load sources (signals)
   useEffect(() => {
@@ -250,6 +252,7 @@ export function SourcesTabRedesign({ projectId, onUploadClick }: SourcesTabRedes
             documents={documents}
             isLoading={isLoadingDocuments}
             onUploadClick={onUploadClick}
+            onRefresh={loadDocuments}
           />
         )}
 

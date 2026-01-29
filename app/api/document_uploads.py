@@ -80,6 +80,12 @@ class DocumentSummaryItem(BaseModel):
     contributed_to: DocumentContributedTo
     confidence_level: str
     processing_status: str
+    # Analysis fields from document classification
+    quality_score: float | None = None
+    relevance_score: float | None = None
+    information_density: float | None = None
+    keyword_tags: list[str] | None = None
+    key_topics: list[str] | None = None
 
 
 class DocumentSummaryResponse(BaseModel):
@@ -368,6 +374,11 @@ async def get_documents_summary(project_id: UUID) -> DocumentSummaryResponse:
                     contributed_to=DocumentContributedTo(**doc["contributed_to"]),
                     confidence_level=doc["confidence_level"],
                     processing_status=doc["processing_status"],
+                    quality_score=doc.get("quality_score"),
+                    relevance_score=doc.get("relevance_score"),
+                    information_density=doc.get("information_density"),
+                    keyword_tags=doc.get("keyword_tags"),
+                    key_topics=doc.get("key_topics"),
                 )
             )
 
@@ -473,8 +484,65 @@ async def withdraw_document(document_id: UUID) -> dict:
     return {"status": "withdrawn", "document_id": str(document_id)}
 
 
+@router.post("/documents/{document_id}/reset")
+async def reset_document(document_id: UUID) -> dict:
+    """Reset a stuck or failed document back to pending for reprocessing.
+
+    Use this when a document is stuck in 'processing' status or has failed.
+    Resets the document to 'pending' status so it can be processed again.
+
+    Args:
+        document_id: Document UUID
+
+    Returns:
+        Success status with new processing status
+
+    Raises:
+        HTTPException 400: If document is already completed successfully
+        HTTPException 404: If document not found
+    """
+    doc = get_document_upload(document_id)
+
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    # Don't reset completed documents - use withdraw instead
+    if doc["processing_status"] == "completed":
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot reset completed documents. Use withdraw to remove."
+        )
+
+    # Reset to pending
+    from app.db.document_uploads import update_document_processing
+
+    try:
+        supabase = get_supabase()
+        supabase.table("document_uploads").update({
+            "processing_status": "pending",
+            "processing_started_at": None,
+            "processing_completed_at": None,
+            "processing_error": None,
+        }).eq("id", str(document_id)).execute()
+
+        logger.info(f"Reset document {document_id} to pending")
+
+        return {
+            "status": "reset",
+            "document_id": str(document_id),
+            "processing_status": "pending",
+        }
+
+    except Exception as e:
+        logger.exception(f"Failed to reset document {document_id}")
+        raise HTTPException(status_code=500, detail="Failed to reset document")
+
+
 @router.delete("/documents/{document_id}")
-async def delete_document(document_id: UUID) -> dict:
+async def delete_document(
+    document_id: UUID,
+    force: bool = Query(default=False, description="Force delete even if processing (after 5 min timeout)"),
+) -> dict:
     """Hard delete a document.
 
     Only allowed for documents that failed processing or have no signal.
@@ -482,6 +550,7 @@ async def delete_document(document_id: UUID) -> dict:
 
     Args:
         document_id: Document UUID
+        force: Force delete stuck processing documents (only if >5 min old)
 
     Returns:
         Success message
@@ -490,17 +559,44 @@ async def delete_document(document_id: UUID) -> dict:
         HTTPException 400: If document is processed (use withdraw instead)
         HTTPException 404: If document not found
     """
+    from datetime import datetime, timezone
+
     doc = get_document_upload(document_id)
 
     if not doc:
         raise HTTPException(status_code=404, detail="Document not found")
 
-    # Don't allow deleting while processing
+    # Handle stuck "processing" documents
     if doc["processing_status"] == "processing":
-        raise HTTPException(
-            status_code=400,
-            detail="Cannot delete document while processing"
-        )
+        # Check if stuck for more than 5 minutes
+        started_at = doc.get("processing_started_at")
+        is_stuck = False
+
+        if started_at:
+            try:
+                start_time = datetime.fromisoformat(started_at.replace("Z", "+00:00"))
+                elapsed = (datetime.now(timezone.utc) - start_time).total_seconds()
+                is_stuck = elapsed > 300  # 5 minutes
+            except Exception:
+                is_stuck = True  # If we can't parse, assume stuck
+
+        if not force:
+            if is_stuck:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Document stuck in processing. Use ?force=true to delete, or POST /documents/{document_id}/reset to retry."
+                )
+            else:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Cannot delete document while processing. Wait for completion or use ?force=true after 5 minutes."
+                )
+
+        if force and not is_stuck:
+            raise HTTPException(
+                status_code=400,
+                detail="Cannot force delete - document is still actively processing. Wait 5 minutes."
+            )
 
     # Only allow hard delete for failed uploads or documents without signals
     if doc["processing_status"] == "completed" and doc.get("signal_id"):

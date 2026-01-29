@@ -16,12 +16,13 @@ interface DocumentsTabProps {
   documents: DocumentSummaryItem[]
   isLoading: boolean
   onUploadClick: () => void
+  onRefresh?: () => void
 }
 
 type FilterType = 'all' | 'pdf' | 'docx' | 'xlsx' | 'pptx' | 'image'
 type SortType = 'recent' | 'most_used' | 'name'
 
-export function DocumentsTab({ documents, isLoading, onUploadClick }: DocumentsTabProps) {
+export function DocumentsTab({ documents, isLoading, onUploadClick, onRefresh }: DocumentsTabProps) {
   const [filter, setFilter] = useState<FilterType>('all')
   const [sort, setSort] = useState<SortType>('recent')
 
@@ -170,7 +171,7 @@ export function DocumentsTab({ documents, isLoading, onUploadClick }: DocumentsT
       {/* Document grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {filteredDocuments.map(doc => (
-          <DocumentCard key={doc.id} document={doc} />
+          <DocumentCard key={doc.id} document={doc} onWithdraw={onRefresh} />
         ))}
       </div>
 

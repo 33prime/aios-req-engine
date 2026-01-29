@@ -429,11 +429,12 @@ def get_documents_with_usage(project_id: UUID) -> list[dict[str, Any]]:
     """
     supabase = get_supabase()
 
-    # Get all documents for project
+    # Get all non-withdrawn documents for project
     docs_response = (
         supabase.table("document_uploads")
         .select("*")
         .eq("project_id", str(project_id))
+        .neq("is_withdrawn", True)
         .order("created_at", desc=True)
         .execute()
     )

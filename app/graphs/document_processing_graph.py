@@ -459,32 +459,41 @@ def _trigger_signal_pipeline(
     signal_content: str,
     signal_type: str,
 ) -> None:
-    """Trigger signal pipeline in background to extract features/personas/etc."""
+    """Trigger signal pipeline in background to extract features/personas/etc.
+
+    Uses the full process_signal function to ensure documents go through the
+    complete pipeline including memory agent integration.
+    """
     import threading
     from uuid import uuid4
 
     def run_pipeline():
         try:
+            import asyncio
+            from app.core.signal_pipeline import process_signal
+
             run_id = uuid4()
             logger.info(
                 f"Starting signal pipeline for document signal {signal_id}",
                 extra={"project_id": str(project_id), "run_id": str(run_id)},
             )
 
-            # Run build state to extract features/personas/etc.
-            from app.graphs.build_state_graph import run_build_state_agent
-
-            result = run_build_state_agent(
-                project_id=project_id,
-                run_id=run_id,
-                job_id=None,
-                mode="initial",
+            # Run full signal pipeline (includes build state + memory agent)
+            result = asyncio.run(
+                process_signal(
+                    project_id=project_id,
+                    signal_id=signal_id,
+                    run_id=run_id,
+                    signal_content=signal_content,
+                    signal_type=signal_type,
+                )
             )
 
             logger.info(
                 f"Signal pipeline completed for document: "
-                f"{result.get('features_created', 0)} features, "
-                f"{result.get('personas_created', 0)} personas",
+                f"success={result.get('success')}, "
+                f"pipeline={result.get('pipeline')}, "
+                f"features={result.get('features_created', 0)}",
                 extra={"project_id": str(project_id), "signal_id": str(signal_id)},
             )
 
