@@ -196,12 +196,15 @@ async def _stream_standard_processing(
         from app.graphs.build_state_graph import run_build_state_agent
         from app.core.process_strategic_facts import process_strategic_facts_for_signal
 
-        build_result = run_build_state_agent(
+        # run_build_state_agent returns tuple: (llm_output, vp_steps_count, features_count)
+        llm_output, vp_steps_count, features_count = run_build_state_agent(
             project_id=project_id,
             run_id=run_id,
-            job_id=None,
-            mode="initial",
+            job_id=uuid.uuid4(),  # Generate job_id for tracking
         )
+
+        # Count personas from the LLM output
+        personas_count = len(llm_output.personas) if llm_output and llm_output.personas else 0
 
         # Process strategic entities from extracted facts (with auto-enrichment)
         strategic_result = await process_strategic_facts_for_signal(
@@ -212,9 +215,9 @@ async def _stream_standard_processing(
 
         # Collect results for memory logging
         processing_results = {
-            "features_created": build_result.get("features_created", 0),
-            "personas_created": build_result.get("personas_created", 0),
-            "vp_steps_created": build_result.get("vp_steps_created", 0),
+            "features_created": features_count,
+            "personas_created": personas_count,
+            "vp_steps_created": vp_steps_count,
             "business_drivers_created": strategic_result.get("business_drivers_created", 0),
             "stakeholders_created": strategic_result.get("stakeholders_created", 0),
         }
@@ -223,9 +226,9 @@ async def _stream_standard_processing(
             "type": StreamEvent.BUILD_STATE_COMPLETED,
             "phase": "build_state",
             "data": {
-                "features_created": build_result.get("features_created", 0),
-                "personas_created": build_result.get("personas_created", 0),
-                "vp_steps_created": build_result.get("vp_steps_created", 0),
+                "features_created": features_count,
+                "personas_created": personas_count,
+                "vp_steps_created": vp_steps_count,
                 "business_drivers_created": strategic_result.get("business_drivers_created", 0),
                 "business_drivers_merged": strategic_result.get("business_drivers_merged", 0),
                 "business_drivers_auto_enriched": strategic_result.get("business_drivers_auto_enriched", 0),
@@ -309,6 +312,22 @@ async def _stream_standard_processing(
             )
         except Exception as e:
             logger.warning(f"Memory agent processing failed (non-fatal): {e}")
+
+    # Mark unified memory synthesis as stale
+    if processing_results:
+        try:
+            from app.core.unified_memory_synthesis import mark_synthesis_stale
+            mark_synthesis_stale(project_id, "signal_processed")
+        except Exception as e:
+            logger.warning(f"Failed to mark synthesis stale (non-fatal): {e}")
+
+    # Refresh readiness cache after signal processing
+    if processing_results:
+        try:
+            from app.core.readiness_cache import refresh_cached_readiness
+            refresh_cached_readiness(project_id)
+        except Exception as e:
+            logger.warning(f"Failed to refresh readiness (non-fatal): {e}")
 
     # Final: Pipeline completed
     yield {
@@ -525,6 +544,20 @@ async def _stream_bulk_processing(
             except Exception as e:
                 logger.warning(f"Memory agent processing failed (non-fatal): {e}")
 
+        # Mark unified memory synthesis as stale
+        try:
+            from app.core.unified_memory_synthesis import mark_synthesis_stale
+            mark_synthesis_stale(project_id, "bulk_signal_processed")
+        except Exception as e:
+            logger.warning(f"Failed to mark synthesis stale (non-fatal): {e}")
+
+        # Refresh readiness cache after bulk signal processing
+        try:
+            from app.core.readiness_cache import refresh_cached_readiness
+            refresh_cached_readiness(project_id)
+        except Exception as e:
+            logger.warning(f"Failed to refresh readiness (non-fatal): {e}")
+
         # Final: Pipeline completed
         yield {
             "type": StreamEvent.COMPLETED,
@@ -546,6 +579,140 @@ async def _stream_bulk_processing(
             "data": {"error": str(e)},
             "progress": 50
         }
+
+
+async def process_signal_lightweight(
+    project_id: UUID,
+    signal_id: UUID,
+    signal_content: str,
+    signal_type: str = "portal_response",
+    signal_metadata: dict | None = None,
+) -> Dict[str, Any]:
+    """
+    Process a signal through the lightweight path (non-streaming, synchronous).
+
+    This is optimized for portal responses and other lightweight signals that
+    don't need the full streaming pipeline. It runs the standard processing
+    path and returns a summary of changes.
+
+    Args:
+        project_id: Project UUID
+        signal_id: Signal UUID
+        signal_content: Raw signal content
+        signal_type: Type of signal (default: portal_response)
+        signal_metadata: Optional metadata
+
+    Returns:
+        Dict with processing results including:
+        - success: bool
+        - features_created: count
+        - personas_created: count
+        - vp_steps_created: count
+        - error: if processing failed
+    """
+    run_id = uuid.uuid4()
+    signal_metadata = signal_metadata or {}
+
+    result = {
+        "success": True,
+        "signal_id": str(signal_id),
+        "project_id": str(project_id),
+        "features_created": 0,
+        "personas_created": 0,
+        "vp_steps_created": 0,
+        "business_drivers_created": 0,
+        "stakeholders_created": 0,
+        "error": None,
+    }
+
+    try:
+        # Ensure project memory exists
+        await ensure_memory_initialized(project_id)
+
+        # Run build state agent
+        from app.graphs.build_state_graph import run_build_state_agent
+        from app.core.process_strategic_facts import process_strategic_facts_for_signal
+
+        llm_output, vp_steps_count, features_count = run_build_state_agent(
+            project_id=project_id,
+            run_id=run_id,
+            job_id=uuid.uuid4(),
+        )
+
+        personas_count = len(llm_output.personas) if llm_output and llm_output.personas else 0
+
+        # Process strategic entities
+        strategic_result = await process_strategic_facts_for_signal(
+            project_id=project_id,
+            signal_id=signal_id,
+            auto_enrich=True,
+        )
+
+        result["features_created"] = features_count
+        result["personas_created"] = personas_count
+        result["vp_steps_created"] = vp_steps_count
+        result["business_drivers_created"] = strategic_result.get("business_drivers_created", 0)
+        result["stakeholders_created"] = strategic_result.get("stakeholders_created", 0)
+
+        # Log to project memory
+        processing_results = {
+            "features_created": features_count,
+            "personas_created": personas_count,
+            "vp_steps_created": vp_steps_count,
+            "business_drivers_created": strategic_result.get("business_drivers_created", 0),
+            "stakeholders_created": strategic_result.get("stakeholders_created", 0),
+        }
+
+        try:
+            await log_signal_processed(
+                project_id=project_id,
+                signal_id=signal_id,
+                signal_type=signal_type,
+                pipeline_type="lightweight",
+                results=processing_results,
+            )
+        except Exception as e:
+            logger.warning(f"Failed to log signal to memory (non-fatal): {e}")
+
+        # Process through memory agent
+        if USE_MEMORY_AGENT:
+            try:
+                from app.agents.memory_agent import process_signal_for_memory
+                await process_signal_for_memory(
+                    project_id=project_id,
+                    signal_id=signal_id,
+                    signal_type=signal_type,
+                    raw_text=signal_content[:1000] if signal_content else "",
+                    entities_extracted=processing_results,
+                )
+            except Exception as e:
+                logger.warning(f"Memory agent processing failed (non-fatal): {e}")
+
+        # Mark unified memory synthesis as stale
+        try:
+            from app.core.unified_memory_synthesis import mark_synthesis_stale
+            mark_synthesis_stale(project_id, "portal_response_processed")
+        except Exception as e:
+            logger.warning(f"Failed to mark synthesis stale (non-fatal): {e}")
+
+        # Refresh readiness cache
+        try:
+            from app.core.readiness_cache import refresh_cached_readiness
+            refresh_cached_readiness(project_id)
+        except Exception as e:
+            logger.warning(f"Failed to refresh readiness (non-fatal): {e}")
+
+        logger.info(
+            f"Lightweight signal processing completed for {signal_id}: "
+            f"features={features_count}, personas={personas_count}, vp_steps={vp_steps_count}"
+        )
+
+    except Exception as e:
+        logger.exception(f"Lightweight signal processing failed: {e}")
+        result["success"] = False
+        result["error"] = str(e)
+
+    return result
 
 
 async def process_signal(

@@ -1,25 +1,31 @@
 /**
  * MemoryTab Component
  *
- * Read-only display of project memory.
- * Shows decisions, learnings, and questions from the project.
+ * Displays the unified synthesized memory document.
+ * Shows freshness indicators, stale warnings, and refresh functionality.
  */
 
 'use client'
 
-import { Info, BookOpen } from 'lucide-react'
+import { useState } from 'react'
+import { Info, BookOpen, RefreshCw, Clock, AlertTriangle, ChevronDown, ChevronUp } from 'lucide-react'
 import { Markdown } from '@/components/ui/Markdown'
+import { UnifiedMemoryResponse } from '@/lib/api'
 
 interface MemoryTabProps {
-  /** Formatted memory content (markdown) */
-  memoryContent: string | null
+  /** Unified memory data from API */
+  unifiedMemory: UnifiedMemoryResponse | null
   /** Loading state */
   isLoading: boolean
-  /** Last updated timestamp */
-  lastUpdated?: string
+  /** Whether a refresh is in progress */
+  isRefreshing?: boolean
+  /** Callback to trigger refresh */
+  onRefresh?: () => void
 }
 
-export function MemoryTab({ memoryContent, isLoading, lastUpdated }: MemoryTabProps) {
+export function MemoryTab({ unifiedMemory, isLoading, isRefreshing, onRefresh }: MemoryTabProps) {
+  const [isExpanded, setIsExpanded] = useState(true)
+
   if (isLoading) {
     return (
       <div className="space-y-4">
@@ -49,21 +55,50 @@ export function MemoryTab({ memoryContent, isLoading, lastUpdated }: MemoryTabPr
   return (
     <div className="space-y-4">
       {/* Info banner */}
-      <div className="flex items-start gap-3 px-4 py-3 bg-amber-50 border border-amber-200 rounded-lg">
-        <Info className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+      <div className="flex items-start gap-3 px-4 py-3 bg-blue-50 border border-blue-200 rounded-lg">
+        <Info className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
         <div>
-          <p className="text-sm text-amber-800">
-            <strong>Read-only view.</strong> To update project memory, use the chat commands:
+          <p className="text-sm text-blue-800">
+            <strong>Unified Project Memory.</strong> Synthesized from knowledge graph and project records.
           </p>
-          <ul className="text-sm text-amber-700 mt-1 space-y-0.5">
-            <li><code className="bg-amber-100 px-1 rounded">/memory</code> — View full memory</li>
-            <li><code className="bg-amber-100 px-1 rounded">/remember</code> — Add a decision, learning, or question</li>
-          </ul>
+          <p className="text-xs text-blue-600 mt-1">
+            Use <code className="bg-blue-100 px-1 rounded">/remember</code> in chat to add decisions, learnings, or questions.
+          </p>
         </div>
       </div>
 
+      {/* Stale warning banner */}
+      {unifiedMemory?.is_stale && (
+        <div className="flex items-center gap-3 px-4 py-3 bg-amber-50 border border-amber-200 rounded-lg">
+          <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0" />
+          <div className="flex-1">
+            <p className="text-sm text-amber-800">
+              <strong>Updates available.</strong> New information has been added since this was synthesized.
+            </p>
+            {unifiedMemory.stale_reason && (
+              <p className="text-xs text-amber-600 mt-0.5">
+                Reason: {formatStaleReason(unifiedMemory.stale_reason)}
+              </p>
+            )}
+          </div>
+          {onRefresh && (
+            <button
+              onClick={onRefresh}
+              disabled={isRefreshing}
+              className="px-3 py-1.5 text-sm font-medium text-amber-700 bg-amber-100 hover:bg-amber-200 rounded-lg transition-colors disabled:opacity-50"
+            >
+              {isRefreshing ? (
+                <RefreshCw className="w-4 h-4 animate-spin" />
+              ) : (
+                'Refresh'
+              )}
+            </button>
+          )}
+        </div>
+      )}
+
       {/* Memory content */}
-      {memoryContent ? (
+      {unifiedMemory?.content ? (
         <div className="bg-gray-50 border border-gray-200 rounded-xl overflow-hidden">
           {/* Header */}
           <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
@@ -73,37 +108,97 @@ export function MemoryTab({ memoryContent, isLoading, lastUpdated }: MemoryTabPr
               </div>
               <div>
                 <h3 className="text-sm font-semibold text-gray-900">Project Memory</h3>
-                {lastUpdated && (
-                  <p className="text-xs text-gray-500">
-                    Last updated: {new Date(lastUpdated).toLocaleDateString()}
-                  </p>
-                )}
+                <div className="flex items-center gap-2 mt-0.5">
+                  <Clock className="w-3 h-3 text-gray-400" />
+                  <span className="text-xs text-gray-500">
+                    Synthesized {unifiedMemory.freshness?.age_human || 'recently'}
+                  </span>
+                  {unifiedMemory.is_stale && (
+                    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-700">
+                      Stale
+                    </span>
+                  )}
+                </div>
               </div>
+            </div>
+            <div className="flex items-center gap-2">
+              {onRefresh && !unifiedMemory.is_stale && (
+                <button
+                  onClick={onRefresh}
+                  disabled={isRefreshing}
+                  className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50"
+                  title="Refresh memory"
+                >
+                  <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+                </button>
+              )}
+              <button
+                onClick={() => setIsExpanded(!isExpanded)}
+                className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                {isExpanded ? (
+                  <ChevronUp className="w-4 h-4" />
+                ) : (
+                  <ChevronDown className="w-4 h-4" />
+                )}
+              </button>
             </div>
           </div>
 
           {/* Content */}
-          <div className="p-6">
-            <div className="prose prose-sm max-w-none">
-              <Markdown content={memoryContent} />
+          {isExpanded && (
+            <div className="p-6">
+              <div className="prose prose-sm max-w-none">
+                <Markdown content={unifiedMemory.content} />
+              </div>
             </div>
-          </div>
+          )}
         </div>
       ) : (
         <div className="flex flex-col items-center justify-center py-16 text-center">
           <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
             <BookOpen className="w-8 h-8 text-gray-400" />
           </div>
-          <h3 className="text-lg font-medium text-gray-900 mb-2">No memory recorded yet</h3>
+          <h3 className="text-lg font-medium text-gray-900 mb-2">No memory synthesized yet</h3>
           <p className="text-sm text-gray-500 max-w-sm mb-4">
-            Project memory captures key decisions, learnings, and open questions
-            discovered during the project.
+            Project memory will be automatically generated once you have signals, decisions, or learnings.
           </p>
-          <p className="text-sm text-gray-400">
-            Use <code className="bg-gray-100 px-1.5 py-0.5 rounded">/remember</code> in chat to add entries.
-          </p>
+          {onRefresh && (
+            <button
+              onClick={onRefresh}
+              disabled={isRefreshing}
+              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-pink-700 bg-pink-50 hover:bg-pink-100 rounded-lg transition-colors disabled:opacity-50"
+            >
+              {isRefreshing ? (
+                <>
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                  Generating...
+                </>
+              ) : (
+                <>
+                  <RefreshCw className="w-4 h-4" />
+                  Generate Memory
+                </>
+              )}
+            </button>
+          )}
         </div>
       )}
     </div>
   )
+}
+
+/**
+ * Format stale reason for display
+ */
+function formatStaleReason(reason: string): string {
+  const reasonMap: Record<string, string> = {
+    signal_processed: 'New signal processed',
+    bulk_signal_processed: 'Document processed',
+    decision_added: 'Decision added',
+    learning_added: 'Learning added',
+    question_added: 'Question added',
+    beliefs_updated: 'Knowledge graph updated',
+  }
+  return reasonMap[reason] || reason.replace(/_/g, ' ')
 }

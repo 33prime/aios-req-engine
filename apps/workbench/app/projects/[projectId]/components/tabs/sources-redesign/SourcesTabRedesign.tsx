@@ -21,12 +21,13 @@ import {
   getSourceUsage,
   getEvidenceQuality,
   searchSources,
-  getProjectMemory,
+  getUnifiedMemory,
+  refreshUnifiedMemory,
   type DocumentSummaryItem,
   type SourceUsageItem,
   type EvidenceQualityResponse,
   type SourceSearchResponse,
-  type ProjectMemory,
+  type UnifiedMemoryResponse,
 } from '@/lib/api'
 
 interface SourcesTabRedesignProps {
@@ -46,7 +47,7 @@ export function SourcesTabRedesign({ projectId, onUploadClick }: SourcesTabRedes
   const [documents, setDocuments] = useState<DocumentSummaryItem[]>([])
   const [sources, setSources] = useState<SourceUsageItem[]>([])
   const [evidenceQuality, setEvidenceQuality] = useState<EvidenceQualityResponse | null>(null)
-  const [memoryContent, setMemoryContent] = useState<string | null>(null)
+  const [unifiedMemory, setUnifiedMemory] = useState<UnifiedMemoryResponse | null>(null)
 
   // Search state
   const [searchQuery, setSearchQuery] = useState('')
@@ -58,6 +59,7 @@ export function SourcesTabRedesign({ projectId, onUploadClick }: SourcesTabRedes
   const [isLoadingSources, setIsLoadingSources] = useState(true)
   const [isLoadingEvidence, setIsLoadingEvidence] = useState(true)
   const [isLoadingMemory, setIsLoadingMemory] = useState(true)
+  const [isRefreshingMemory, setIsRefreshingMemory] = useState(false)
 
   // Tab change handler - updates URL
   const handleTabChange = useCallback((tab: SourcesSubTab) => {
@@ -116,80 +118,45 @@ export function SourcesTabRedesign({ projectId, onUploadClick }: SourcesTabRedes
     loadEvidence()
   }, [projectId])
 
-  // Load memory content (LLM-synthesized document)
-  useEffect(() => {
-    const loadMemory = async () => {
-      setIsLoadingMemory(true)
-      try {
-        // First try to get the LLM-synthesized content
-        const { getMemoryContent } = await import('@/lib/api')
-        const contentData = await getMemoryContent(projectId)
-
-        if (contentData.content) {
-          // Use the LLM-synthesized memory document
-          setMemoryContent(contentData.content)
-        } else {
-          // Fallback to structured data if no content exists
-          const data = await getProjectMemory(projectId)
-          const formattedMemory = formatMemoryAsMarkdown(data)
-          setMemoryContent(formattedMemory)
-        }
-      } catch (error) {
-        console.error('Failed to load memory:', error)
-        // Try fallback to structured data
-        try {
-          const data = await getProjectMemory(projectId)
-          const formattedMemory = formatMemoryAsMarkdown(data)
-          setMemoryContent(formattedMemory)
-        } catch {
-          // Ignore secondary error
-        }
-      } finally {
-        setIsLoadingMemory(false)
-      }
+  // Load unified memory (extracted for reuse)
+  const loadMemory = useCallback(async () => {
+    setIsLoadingMemory(true)
+    try {
+      const data = await getUnifiedMemory(projectId)
+      setUnifiedMemory(data)
+    } catch (error) {
+      console.error('Failed to load unified memory:', error)
+      // On error, set to null to show empty state
+      setUnifiedMemory(null)
+    } finally {
+      setIsLoadingMemory(false)
     }
-    loadMemory()
   }, [projectId])
 
-  // Fallback: Format structured memory as markdown (used if no LLM content exists)
-  function formatMemoryAsMarkdown(memory: ProjectMemory): string | null {
-    const sections: string[] = []
+  // Load memory on mount
+  useEffect(() => {
+    loadMemory()
+  }, [loadMemory])
 
-    if (memory.decisions.length > 0) {
-      sections.push('## Key Decisions\n')
-      memory.decisions.forEach((d, i) => {
-        const date = new Date(d.created_at).toLocaleDateString()
-        sections.push(`${i + 1}. **[${date}]** ${d.content}`)
-        if (d.rationale) {
-          sections.push(`   - *Rationale:* ${d.rationale}`)
-        }
-      })
-      sections.push('')
+  // Refresh memory handler (force refresh)
+  const handleRefreshMemory = useCallback(async () => {
+    setIsRefreshingMemory(true)
+    try {
+      const data = await refreshUnifiedMemory(projectId)
+      setUnifiedMemory(data)
+    } catch (error) {
+      console.error('Failed to refresh memory:', error)
+    } finally {
+      setIsRefreshingMemory(false)
     }
+  }, [projectId])
 
-    if (memory.learnings.length > 0) {
-      sections.push('## Learnings\n')
-      memory.learnings.forEach((l) => {
-        sections.push(`- ${l.content}`)
-      })
-      sections.push('')
-    }
-
-    if (memory.questions.length > 0) {
-      sections.push('## Open Questions\n')
-      memory.questions.forEach((q) => {
-        const checkbox = q.resolved ? '[x]' : '[ ]'
-        sections.push(`- ${checkbox} ${q.content}`)
-      })
-      sections.push('')
-    }
-
-    if (sections.length === 0) {
-      return null
-    }
-
-    return sections.join('\n')
-  }
+  // Combined refresh after document processing (refreshes docs + memory)
+  const refreshAfterDocumentProcessing = useCallback(async () => {
+    await loadDocuments()
+    // Also refresh memory since document processing creates memory entries
+    await loadMemory()
+  }, [loadDocuments, loadMemory])
 
   // Search handler
   const handleSearch = async () => {
@@ -252,7 +219,7 @@ export function SourcesTabRedesign({ projectId, onUploadClick }: SourcesTabRedes
             documents={documents}
             isLoading={isLoadingDocuments}
             onUploadClick={onUploadClick}
-            onRefresh={loadDocuments}
+            onRefresh={refreshAfterDocumentProcessing}
           />
         )}
 
@@ -281,8 +248,10 @@ export function SourcesTabRedesign({ projectId, onUploadClick }: SourcesTabRedes
 
         {activeTab === 'memory' && (
           <MemoryTab
-            memoryContent={memoryContent}
+            unifiedMemory={unifiedMemory}
             isLoading={isLoadingMemory}
+            isRefreshing={isRefreshingMemory}
+            onRefresh={handleRefreshMemory}
           />
         )}
       </div>

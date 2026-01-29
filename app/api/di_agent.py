@@ -768,3 +768,287 @@ async def invalidate_di_cache_endpoint(
             status_code=500,
             detail=f"Failed to invalidate DI cache: {str(e)}",
         ) from e
+
+
+# ==========================================================================
+# Gap Analysis Endpoints
+# ==========================================================================
+
+
+class GapAnalysisResponse(BaseModel):
+    """Response for gap analysis."""
+
+    foundation: dict = Field(default_factory=dict, description="Foundation gate gaps")
+    evidence: dict = Field(default_factory=dict, description="Evidence gaps")
+    solution: dict = Field(default_factory=dict, description="Solution coverage gaps")
+    stakeholders: dict = Field(default_factory=dict, description="Stakeholder gaps")
+    summary: str = Field("", description="Human-readable summary")
+    priority_gaps: list[dict] = Field(default_factory=list, description="Ranked gaps by severity")
+    phase: str = Field("", description="Current project phase")
+    total_readiness: float = Field(0.0, description="Overall readiness score")
+    counts: dict = Field(default_factory=dict, description="Gap counts by severity")
+
+
+class RequirementsGapsResponse(BaseModel):
+    """Response for requirements gap analysis."""
+
+    success: bool = Field(True, description="Whether analysis succeeded")
+    gaps: list[dict] = Field(default_factory=list, description="List of gaps found")
+    summary: dict = Field(default_factory=dict, description="Summary statistics")
+    recommendations: list[str] = Field(default_factory=list, description="Prioritized recommendations")
+    entities_analyzed: dict = Field(default_factory=dict, description="Counts of entities analyzed")
+
+
+class GapFixSuggestionsResponse(BaseModel):
+    """Response for gap fix suggestions."""
+
+    success: bool = Field(True, description="Whether suggestions were generated")
+    suggestions: list[dict] = Field(default_factory=list, description="List of suggested fixes")
+    summary: str = Field("", description="Human-readable summary")
+    auto_applicable: int = Field(0, description="Number of suggestions that can be auto-applied")
+
+
+@router.get(
+    "/projects/{project_id}/gaps/analyze",
+    response_model=GapAnalysisResponse,
+)
+async def analyze_gaps_endpoint(
+    project_id: UUID = Path(..., description="Project UUID"),
+) -> GapAnalysisResponse:
+    """
+    Analyze gaps in project foundation and evidence.
+
+    Identifies what's missing for prototype or build readiness:
+    - Foundation gaps (unsatisfied gates)
+    - Evidence gaps (entities without signal attribution)
+    - Solution gaps (personas/features not connected)
+    - Stakeholder gaps (mentioned but not captured)
+
+    This endpoint is available for both the chat assistant and the DI Agent.
+
+    Args:
+        project_id: Project UUID
+
+    Returns:
+        GapAnalysisResponse with comprehensive gap analysis
+    """
+    from app.chains.analyze_gaps import analyze_gaps
+
+    try:
+        logger.info(
+            f"Analyzing gaps for project {project_id}",
+            extra={"project_id": str(project_id)},
+        )
+
+        result = await analyze_gaps(project_id)
+
+        logger.info(
+            f"Gap analysis complete for project {project_id}",
+            extra={
+                "project_id": str(project_id),
+                "total_gaps": result.get("counts", {}).get("total_gaps", 0),
+            },
+        )
+
+        return GapAnalysisResponse(
+            foundation=result.get("foundation", {}),
+            evidence=result.get("evidence", {}),
+            solution=result.get("solution", {}),
+            stakeholders=result.get("stakeholders", {}),
+            summary=result.get("summary", ""),
+            priority_gaps=result.get("priority_gaps", []),
+            phase=result.get("phase", ""),
+            total_readiness=result.get("total_readiness", 0.0),
+            counts=result.get("counts", {}),
+        )
+
+    except Exception as e:
+        logger.error(
+            f"Failed to analyze gaps for project {project_id}: {e}",
+            exc_info=True,
+            extra={"project_id": str(project_id)},
+        )
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to analyze gaps: {str(e)}",
+        ) from e
+
+
+@router.get(
+    "/projects/{project_id}/gaps/requirements",
+    response_model=RequirementsGapsResponse,
+)
+async def analyze_requirements_gaps_endpoint(
+    project_id: UUID = Path(..., description="Project UUID"),
+    focus_areas: str | None = Query(
+        default=None,
+        description="Comma-separated focus areas (e.g., 'features,personas')",
+    ),
+) -> RequirementsGapsResponse:
+    """
+    Analyze logical requirements gaps.
+
+    Identifies inconsistencies and missing connections:
+    - VP steps referencing undefined features
+    - Features without target personas
+    - Personas without matching features
+    - Orphaned entities
+    - Incomplete definitions
+
+    This endpoint is available for both the chat assistant and the DI Agent.
+
+    Args:
+        project_id: Project UUID
+        focus_areas: Optional comma-separated list of areas to focus on
+
+    Returns:
+        RequirementsGapsResponse with requirements gap analysis
+    """
+    from app.chains.analyze_requirements_gaps import analyze_requirements_gaps
+
+    try:
+        logger.info(
+            f"Analyzing requirements gaps for project {project_id}",
+            extra={"project_id": str(project_id), "focus_areas": focus_areas},
+        )
+
+        # Parse focus areas if provided
+        areas = None
+        if focus_areas:
+            areas = [a.strip() for a in focus_areas.split(",") if a.strip()]
+
+        result = await analyze_requirements_gaps(project_id, focus_areas=areas)
+
+        logger.info(
+            f"Requirements gap analysis complete for project {project_id}",
+            extra={
+                "project_id": str(project_id),
+                "total_gaps": result.get("summary", {}).get("total_gaps", 0),
+            },
+        )
+
+        return RequirementsGapsResponse(
+            success=result.get("success", True),
+            gaps=result.get("gaps", []),
+            summary=result.get("summary", {}),
+            recommendations=result.get("recommendations", []),
+            entities_analyzed=result.get("entities_analyzed", {}),
+        )
+
+    except Exception as e:
+        logger.error(
+            f"Failed to analyze requirements gaps for project {project_id}: {e}",
+            exc_info=True,
+            extra={"project_id": str(project_id)},
+        )
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to analyze requirements gaps: {str(e)}",
+        ) from e
+
+
+@router.post(
+    "/projects/{project_id}/gaps/suggest-fixes",
+    response_model=GapFixSuggestionsResponse,
+)
+async def suggest_gap_fixes_endpoint(
+    project_id: UUID = Path(..., description="Project UUID"),
+    max_suggestions: int = Query(
+        default=5,
+        ge=1,
+        le=20,
+        description="Maximum number of suggestions to generate",
+    ),
+    auto_apply: bool = Query(
+        default=False,
+        description="Whether to automatically apply low-risk suggestions",
+    ),
+) -> GapFixSuggestionsResponse:
+    """
+    Generate suggestions to fix identified gaps.
+
+    Analyzes gaps and proposes entity updates to fill them:
+    - New features to address persona pain points
+    - New personas for unaddressed user segments
+    - VP step modifications for better flow
+    - Enrichment suggestions for incomplete entities
+
+    This endpoint is available for both the chat assistant and the DI Agent.
+
+    Args:
+        project_id: Project UUID
+        max_suggestions: Maximum suggestions to generate
+        auto_apply: Whether to auto-apply low-risk suggestions
+
+    Returns:
+        GapFixSuggestionsResponse with suggested fixes
+    """
+    from app.chains.analyze_gaps import analyze_gaps
+    from app.chains.propose_entity_updates import propose_entity_updates
+
+    try:
+        logger.info(
+            f"Generating gap fix suggestions for project {project_id}",
+            extra={
+                "project_id": str(project_id),
+                "max_suggestions": max_suggestions,
+                "auto_apply": auto_apply,
+            },
+        )
+
+        # First get gap analysis
+        gap_analysis = await analyze_gaps(project_id)
+
+        # Generate proposals based on gaps
+        proposals = await propose_entity_updates(
+            project_id=project_id,
+            gap_analysis=gap_analysis,
+            max_proposals=max_suggestions,
+        )
+
+        suggestions = proposals.get("proposals", [])
+        auto_applicable = sum(
+            1 for s in suggestions
+            if s.get("risk_level") == "low" and s.get("auto_applicable", False)
+        )
+
+        # Generate summary
+        if not suggestions:
+            summary = "No gaps require immediate attention. Project is on track."
+        else:
+            critical = sum(1 for s in suggestions if s.get("severity") == "critical")
+            high = sum(1 for s in suggestions if s.get("severity") == "high")
+            summary = f"Found {len(suggestions)} suggestions. "
+            if critical > 0:
+                summary += f"{critical} critical. "
+            if high > 0:
+                summary += f"{high} high priority. "
+            if auto_applicable > 0:
+                summary += f"{auto_applicable} can be auto-applied."
+
+        logger.info(
+            f"Generated {len(suggestions)} gap fix suggestions for project {project_id}",
+            extra={
+                "project_id": str(project_id),
+                "suggestion_count": len(suggestions),
+                "auto_applicable": auto_applicable,
+            },
+        )
+
+        return GapFixSuggestionsResponse(
+            success=True,
+            suggestions=suggestions,
+            summary=summary,
+            auto_applicable=auto_applicable,
+        )
+
+    except Exception as e:
+        logger.error(
+            f"Failed to generate gap fix suggestions for project {project_id}: {e}",
+            exc_info=True,
+            extra={"project_id": str(project_id)},
+        )
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to generate gap fix suggestions: {str(e)}",
+        ) from e

@@ -86,6 +86,20 @@ async def enrich_features(request: EnrichFeaturesRequest) -> EnrichFeaturesRespo
         }
         complete_job(job_id, output)
 
+        # Mark unified memory synthesis as stale so DI Agent sees fresh data
+        try:
+            from app.core.unified_memory_synthesis import mark_synthesis_stale
+            mark_synthesis_stale(request.project_id, "feature_enriched")
+        except Exception as e:
+            logger.warning(f"Failed to mark memory stale: {e}")
+
+        # Refresh state snapshot so subsequent operations have fresh context
+        try:
+            from app.core.state_snapshot import regenerate_state_snapshot
+            regenerate_state_snapshot(request.project_id)
+        except Exception as e:
+            logger.warning(f"Failed to refresh state snapshot: {e}")
+
         logger.info(
             f"Completed feature enrichment: {features_processed} processed, {features_updated} updated",
             extra={

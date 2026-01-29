@@ -126,6 +126,31 @@ export default function DashboardPage() {
         </div>
       )}
 
+      {/* Progress Context - Shows how input helps */}
+      {dashboard.progress.completed_items > 0 && dashboard.progress.completed_items < dashboard.progress.total_items && (
+        <div className="bg-gradient-to-r from-primary/5 to-primary/10 rounded-xl p-4 mb-6 border border-primary/20">
+          <div className="flex items-center gap-3">
+            <div className="flex-shrink-0">
+              <CheckCircle className="w-5 h-5 text-primary" />
+            </div>
+            <div className="flex-1">
+              <p className="text-sm font-medium text-gray-900">
+                {dashboard.progress.completed_items} of {dashboard.progress.total_items} items complete
+              </p>
+              <p className="text-xs text-gray-600 mt-0.5">
+                Your input helps us understand your needs and build the right solution faster.
+              </p>
+            </div>
+            <div className="w-24 bg-gray-200 rounded-full h-2 overflow-hidden">
+              <div
+                className="bg-primary h-2 rounded-full transition-all duration-500"
+                style={{ width: `${dashboard.progress.percentage}%` }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Progress Tracker */}
       <ProgressTracker progress={dashboard.progress} />
 

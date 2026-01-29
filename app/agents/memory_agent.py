@@ -365,6 +365,14 @@ class MemorySynthesizer:
                 f"{results['beliefs_updated']} updated, {results['edges_created']} edges"
             )
 
+            # Mark unified memory synthesis as stale if beliefs were changed
+            if results["beliefs_created"] > 0 or results["beliefs_updated"] > 0:
+                try:
+                    from app.core.unified_memory_synthesis import mark_synthesis_stale
+                    mark_synthesis_stale(project_id, "beliefs_updated")
+                except Exception as stale_err:
+                    logger.warning(f"Failed to mark synthesis stale (non-fatal): {stale_err}")
+
             return results
 
         except Exception as e:

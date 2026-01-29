@@ -83,6 +83,20 @@ async def enrich_vp(request: EnrichVPRequest, background_tasks: BackgroundTasks)
         }
         complete_job(job_id, output)
 
+        # Mark unified memory synthesis as stale so DI Agent sees fresh data
+        try:
+            from app.core.unified_memory_synthesis import mark_synthesis_stale
+            mark_synthesis_stale(request.project_id, "vp_step_enriched")
+        except Exception as e:
+            logger.warning(f"Failed to mark memory stale: {e}")
+
+        # Refresh state snapshot so subsequent operations have fresh context
+        try:
+            from app.core.state_snapshot import regenerate_state_snapshot
+            regenerate_state_snapshot(request.project_id)
+        except Exception as e:
+            logger.warning(f"Failed to refresh state snapshot: {e}")
+
         # Check if all enrichment phases complete and auto-trigger red team
         enrichment_status = check_enrichment_status(request.project_id)
         if enrichment_status["all_complete"]:

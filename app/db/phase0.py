@@ -16,6 +16,7 @@ def insert_signal(
     raw_text: str,
     metadata: dict[str, Any],
     run_id: UUID,
+    source_label: str | None = None,
 ) -> dict[str, Any]:
     """
     Insert a new signal into the database.
@@ -27,6 +28,7 @@ def insert_signal(
         raw_text: Raw text content
         metadata: Additional metadata
         run_id: Run tracking UUID
+        source_label: Human-readable name for the signal (e.g., "Project Brief", "Client Email")
 
     Returns:
         Inserted signal row as dict
@@ -37,18 +39,20 @@ def insert_signal(
     supabase = get_supabase()
 
     try:
+        data = {
+            "project_id": str(project_id),
+            "signal_type": signal_type,
+            "source": source,
+            "raw_text": raw_text,
+            "metadata": metadata,
+            "run_id": str(run_id),
+        }
+        if source_label:
+            data["source_label"] = source_label
+
         response = (
             supabase.table("signals")
-            .insert(
-                {
-                    "project_id": str(project_id),
-                    "signal_type": signal_type,
-                    "source": source,
-                    "raw_text": raw_text,
-                    "metadata": metadata,
-                    "run_id": str(run_id),
-                }
-            )
+            .insert(data)
             .execute()
         )
 

@@ -256,6 +256,13 @@ def bulk_replace_features(
                     extra={"project_id": str(project_id)},
                 )
 
+            # Invalidate readiness cache when features are created (non-blocking)
+            try:
+                from app.core.readiness_cache import invalidate_project_readiness
+                invalidate_project_readiness(project_id)
+            except Exception:
+                pass  # Non-critical
+
         return (inserted_count, confirmed_features)
 
     except Exception as e:

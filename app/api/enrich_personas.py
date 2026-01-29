@@ -82,6 +82,20 @@ async def enrich_personas(request: EnrichPersonasRequest) -> EnrichPersonasRespo
         }
         complete_job(job_id, output)
 
+        # Mark unified memory synthesis as stale so DI Agent sees fresh data
+        try:
+            from app.core.unified_memory_synthesis import mark_synthesis_stale
+            mark_synthesis_stale(request.project_id, "persona_enriched")
+        except Exception as e:
+            logger.warning(f"Failed to mark memory stale: {e}")
+
+        # Refresh state snapshot so subsequent operations have fresh context
+        try:
+            from app.core.state_snapshot import regenerate_state_snapshot
+            regenerate_state_snapshot(request.project_id)
+        except Exception as e:
+            logger.warning(f"Failed to refresh state snapshot: {e}")
+
         logger.info(
             f"Completed persona enrichment: {personas_processed} processed, {personas_updated} updated",
             extra={

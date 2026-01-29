@@ -26,6 +26,9 @@ def compute_checksum(file_bytes: bytes) -> str:
 def check_duplicate(project_id: UUID, checksum: str) -> dict[str, Any] | None:
     """Check if a document with same checksum already exists in project.
 
+    Only considers active (non-withdrawn) documents as duplicates.
+    Withdrawn documents can be re-uploaded.
+
     Args:
         project_id: Project UUID
         checksum: SHA256 checksum
@@ -40,6 +43,7 @@ def check_duplicate(project_id: UUID, checksum: str) -> dict[str, Any] | None:
         .select("*")
         .eq("project_id", str(project_id))
         .eq("checksum", checksum)
+        .neq("is_withdrawn", True)  # Allow re-upload of withdrawn docs
         .execute()
     )
 

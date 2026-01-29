@@ -829,12 +829,20 @@ async def get_project_memory_endpoint(project_id: UUID):
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
+from pydantic import BaseModel
+
+
+class MemoryAddRequest(BaseModel):
+    """Request body for adding memory entries."""
+    content: str
+    rationale: str | None = None
+
+
 @router.post("/{project_id}/memory/{memory_type}")
 async def add_to_project_memory(
     project_id: UUID,
     memory_type: str,
-    content: str = Query(..., description="Content to add to memory"),
-    rationale: str | None = Query(None, description="Optional rationale (for decisions)"),
+    request: MemoryAddRequest,
 ):
     """
     Add to project memory (decision, learning, or question).
@@ -842,17 +850,13 @@ async def add_to_project_memory(
     Args:
         project_id: Project UUID
         memory_type: Type of memory (decision, learning, question)
-        content: The content to add
-        rationale: Optional rationale (for decisions)
+        request: Request body with content and optional rationale
 
     Returns:
         The created memory entry
     """
-    from pydantic import BaseModel
-
-    class MemoryAddRequest(BaseModel):
-        content: str
-        rationale: str | None = None
+    content = request.content
+    rationale = request.rationale
 
     from app.db.project_memory import (
         add_decision,
@@ -862,6 +866,13 @@ async def add_to_project_memory(
     )
 
     try:
+        # Mark unified memory cache as stale (before making changes)
+        try:
+            from app.core.unified_memory_synthesis import mark_synthesis_stale
+            mark_synthesis_stale(project_id, f"{memory_type}_added")
+        except Exception as stale_err:
+            logger.warning(f"Failed to mark synthesis stale (non-fatal): {stale_err}")
+
         if memory_type == "decision":
             result = add_decision(
                 project_id=project_id,
@@ -1048,6 +1059,65 @@ async def compact_project_memory(project_id: UUID, force: bool = Query(False)):
 
     except Exception as e:
         logger.exception(f"Failed to compact memory for {project_id}")
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+# ======================
+# Unified Memory Endpoints
+# ======================
+
+
+@router.get("/{project_id}/memory/unified")
+async def get_unified_memory_endpoint(project_id: UUID):
+    """
+    Get the unified synthesized memory document.
+
+    Combines project memory (decisions, learnings, questions) with
+    knowledge graph (facts, beliefs, insights) into a coherent document.
+
+    Returns cached content if fresh, otherwise generates new synthesis.
+
+    Args:
+        project_id: Project UUID
+
+    Returns:
+        Unified memory document with:
+        - content: The synthesized markdown document
+        - synthesized_at: When the synthesis was created
+        - is_stale: Whether underlying data has changed
+        - stale_reason: What triggered staleness (if stale)
+        - freshness: Age information
+    """
+    from app.core.unified_memory_synthesis import get_unified_memory
+
+    try:
+        result = get_unified_memory(project_id)
+        return result
+    except Exception as e:
+        logger.exception(f"Failed to get unified memory for {project_id}")
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.post("/{project_id}/memory/unified/refresh")
+async def refresh_unified_memory_endpoint(project_id: UUID):
+    """
+    Force re-synthesis of the unified memory document.
+
+    Useful when user wants fresh content regardless of cache state.
+
+    Args:
+        project_id: Project UUID
+
+    Returns:
+        Newly synthesized unified memory document
+    """
+    from app.core.unified_memory_synthesis import get_unified_memory
+
+    try:
+        result = get_unified_memory(project_id, force_refresh=True)
+        return result
+    except Exception as e:
+        logger.exception(f"Failed to refresh unified memory for {project_id}")
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 

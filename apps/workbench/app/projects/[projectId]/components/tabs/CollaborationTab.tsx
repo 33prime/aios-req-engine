@@ -27,6 +27,7 @@ import {
   History,
   ChevronRight,
   X,
+  Plus,
 } from 'lucide-react'
 import {
   PhaseProgress,
@@ -37,6 +38,7 @@ import {
 } from '@/components/collaboration'
 import { DiscoveryPrepSection } from '../discovery-prep'
 import ClientPortalSection from '../ClientPortalSection'
+import { CreateTouchpointModal } from '../CreateTouchpointModal'
 import type { PhaseProgressResponse } from '@/types/api'
 
 interface CollaborationTabProps {
@@ -59,6 +61,7 @@ export function CollaborationTab({ projectId, projectName = 'Project' }: Collabo
   const [portalModalOpen, setPortalModalOpen] = useState(false)
   const [queueModalOpen, setQueueModalOpen] = useState(false)
   const [historyModalOpen, setHistoryModalOpen] = useState(false)
+  const [createTouchpointOpen, setCreateTouchpointOpen] = useState(false)
 
   useEffect(() => {
     loadData()
@@ -285,6 +288,17 @@ export function CollaborationTab({ projectId, projectName = 'Project' }: Collabo
         </button>
       </div>
 
+      {/* New Touchpoint Button */}
+      <button
+        onClick={() => setCreateTouchpointOpen(true)}
+        className="w-full bg-white rounded-xl border-2 border-dashed border-gray-300 p-4 hover:border-[#009b87] hover:bg-[#009b87]/5 transition-all"
+      >
+        <div className="flex items-center justify-center gap-2 text-gray-500 hover:text-[#009b87]">
+          <Plus className="w-5 h-5" />
+          <span className="font-medium">Create New Touchpoint</span>
+        </div>
+      </button>
+
       {/* 3. Phase Prep */}
       {isDiscoveryPhase ? (
         <DiscoveryPrepSection
@@ -363,6 +377,15 @@ export function CollaborationTab({ projectId, projectName = 'Project' }: Collabo
         <Modal title="Collaboration History" onClose={() => setHistoryModalOpen(false)} size="lg">
           <TouchpointHistory projectId={projectId} defaultExpanded={true} />
         </Modal>
+      )}
+
+      {/* Create Touchpoint Modal */}
+      {createTouchpointOpen && (
+        <CreateTouchpointModal
+          projectId={projectId}
+          onClose={() => setCreateTouchpointOpen(false)}
+          onCreated={loadData}
+        />
       )}
     </div>
   )

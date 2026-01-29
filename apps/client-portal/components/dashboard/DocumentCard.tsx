@@ -106,6 +106,16 @@ export default function DocumentCard({ request, projectId, onUpload }: DocumentC
             </div>
           )}
 
+          {/* Example formats hint */}
+          {request.example_formats && request.example_formats.length > 0 && !isComplete && (
+            <div className="mt-2 px-3 py-2 bg-gray-50 rounded-lg">
+              <p className="text-xs text-gray-500">
+                <span className="font-medium">Examples:</span>{' '}
+                {request.example_formats.join(', ')}
+              </p>
+            </div>
+          )}
+
           {/* Upload area or completion status */}
           {isComplete ? (
             <div className="mt-3 bg-white rounded-lg p-3 flex items-center gap-2">

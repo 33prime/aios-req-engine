@@ -56,6 +56,7 @@ export interface InfoRequest {
   auto_populates_to: string[];
   why_asking?: string;
   example_answer?: string;
+  example_formats?: string[];  // Example file formats for document requests
   pro_tip?: string;
   created_at: string;
   updated_at: string;

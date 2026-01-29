@@ -1732,7 +1732,7 @@ registerCommand({
 // /memory - View project memory
 registerCommand({
   name: 'memory',
-  description: 'View project memory (decisions, learnings, questions)',
+  description: 'View unified project memory (synthesized from decisions, learnings, knowledge graph)',
   aliases: ['view-memory', 'memories'],
   examples: ['/memory'],
   execute: async (_args, context): Promise<CommandResult> => {
@@ -1745,52 +1745,51 @@ registerCommand({
       }
     }
 
-    const { getProjectMemory } = await import('@/lib/api')
+    const { getUnifiedMemory } = await import('@/lib/api')
 
     try {
-      const memory = await getProjectMemory(projectId)
+      const memory = await getUnifiedMemory(projectId)
 
-      if (!memory || (memory.decisions.length === 0 && memory.learnings.length === 0 && memory.questions.length === 0)) {
+      if (!memory || !memory.content) {
         return {
           success: true,
-          message: `## Project Memory\n\n*No memories recorded yet.*\n\nUse \`/remember\` to add decisions, learnings, or questions.`,
+          message: `## Project Memory\n\n*No memories synthesized yet.*\n\nMemory will be generated automatically after processing signals, or use \`/remember\` to add decisions, learnings, or questions.`,
         }
       }
 
+      // Build status header with freshness info
+      let statusLine = ''
+      if (memory.freshness?.age_human) {
+        statusLine += `*Last synthesized: ${memory.freshness.age_human}*`
+      }
+      if (memory.is_stale) {
+        const staleReasonMap: Record<string, string> = {
+          signal_processed: 'new signal processed',
+          bulk_signal_processed: 'document processed',
+          decision_added: 'decision added',
+          learning_added: 'learning added',
+          question_added: 'question added',
+          beliefs_updated: 'knowledge graph updated',
+        }
+        const reason = memory.stale_reason ? staleReasonMap[memory.stale_reason] || memory.stale_reason : 'new updates'
+        statusLine += statusLine ? ` | ` : ''
+        statusLine += `**Updates available** (${reason})`
+      }
+
       let message = `## Project Memory\n\n`
-
-      if (memory.decisions.length > 0) {
-        message += `### Key Decisions\n`
-        memory.decisions.forEach((d: any, i: number) => {
-          const date = d.created_at ? new Date(d.created_at).toLocaleDateString() : ''
-          message += `${i + 1}. ${d.content}${date ? ` *(${date})*` : ''}\n`
-          if (d.rationale) {
-            message += `   *Rationale: ${d.rationale}*\n`
-          }
-        })
-        message += '\n'
+      if (statusLine) {
+        message += `${statusLine}\n\n---\n\n`
       }
-
-      if (memory.learnings.length > 0) {
-        message += `### Learnings\n`
-        memory.learnings.forEach((l: any) => {
-          message += `- ${l.content}\n`
-        })
-        message += '\n'
-      }
-
-      if (memory.questions.length > 0) {
-        message += `### Open Questions\n`
-        memory.questions.forEach((q: any) => {
-          const resolved = q.resolved ? '✓' : '○'
-          message += `- ${resolved} ${q.content}\n`
-        })
-      }
+      message += memory.content
 
       return {
         success: true,
         message,
-        data: { action: 'memory_viewed', memory },
+        data: {
+          action: 'memory_viewed',
+          is_stale: memory.is_stale,
+          freshness: memory.freshness,
+        },
       }
     } catch (error: any) {
       return {

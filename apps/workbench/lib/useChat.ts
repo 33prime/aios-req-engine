@@ -17,14 +17,19 @@
 import { useState, useCallback, useRef } from 'react'
 
 export interface ChatMessage {
-  role: 'user' | 'assistant'
+  id?: string
+  role: 'user' | 'assistant' | 'system'
   content: string
   timestamp?: Date
   isStreaming?: boolean
+  metadata?: Record<string, unknown>
   toolCalls?: Array<{
+    id?: string
     tool_name: string
-    status: 'running' | 'complete' | 'error'
+    status: 'pending' | 'running' | 'complete' | 'error'
+    args?: Record<string, unknown>
     result?: any
+    error?: string
   }>
 }
 
@@ -41,6 +46,7 @@ interface UseChatReturn {
   sendMessage: (message: string) => Promise<void>
   sendSignal: (type: string, content: string, source: string) => Promise<void>
   clearMessages: () => void
+  addLocalMessage: (message: ChatMessage) => void
 }
 
 export function useChat({
@@ -366,6 +372,11 @@ export function useChat({
     setError(null)
   }, [])
 
+  // Add a local message without triggering AI response
+  const addLocalMessage = useCallback((message: ChatMessage) => {
+    setMessages((prev) => [...prev, { ...message, timestamp: message.timestamp || new Date() }])
+  }, [])
+
   return {
     messages,
     isLoading,
@@ -373,5 +384,6 @@ export function useChat({
     sendMessage,
     sendSignal,
     clearMessages,
+    addLocalMessage,
   }
 }

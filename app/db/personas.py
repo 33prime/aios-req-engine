@@ -158,6 +158,13 @@ def create_persona(
     except Exception as track_err:
         logger.warning(f"Failed to track persona creation: {track_err}")
 
+    # Invalidate readiness cache when persona is created (non-blocking)
+    try:
+        from app.core.readiness_cache import invalidate_project_readiness
+        invalidate_project_readiness(project_id)
+    except Exception:
+        pass  # Non-critical
+
     return created_persona
 
 
@@ -364,6 +371,13 @@ def upsert_persona(
             )
         except Exception as track_err:
             logger.warning(f"Failed to track persona upsert: {track_err}")
+
+    # Invalidate readiness cache when persona is created/updated (non-blocking)
+    try:
+        from app.core.readiness_cache import invalidate_project_readiness
+        invalidate_project_readiness(project_id)
+    except Exception:
+        pass  # Non-critical
 
     return upserted_persona
 

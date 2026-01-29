@@ -143,6 +143,21 @@ class InfoRequest(InfoRequestBase):
         from_attributes = True
 
 
+class ReadinessDelta(BaseModel):
+    """Readiness score change before/after an action."""
+    before: int
+    after: int
+    change: int
+    gates_affected: list[str] = Field(default_factory=list)
+
+
+class InfoRequestWithReadinessDelta(InfoRequest):
+    """Info request response with readiness delta after answering."""
+    readiness_delta: Optional[ReadinessDelta] = None
+    signal_id: Optional[UUID] = None
+    confirmations_resolved: int = 0
+
+
 # ============================================================================
 # Project Context Schemas
 # ============================================================================

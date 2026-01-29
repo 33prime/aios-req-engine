@@ -40,6 +40,7 @@ class PrepQuestionBase(BaseModel):
     question: str = Field(..., description="The question text")
     best_answered_by: str = Field(..., description="Who should answer this question")
     why_important: str = Field(..., description="Why this question matters")
+    suggested_stakeholders: list[str] = Field(default_factory=list, description="Specific stakeholders from the project who may have the answer")
 
 
 class PrepQuestionCreate(PrepQuestionBase):
@@ -86,6 +87,7 @@ class DocRecommendation(DocRecommendationBase):
     confirmed: bool = False
     uploaded_file_id: Optional[UUID] = None
     uploaded_at: Optional[datetime] = None
+    example_formats: list[str] = Field(default_factory=list, description="Example file formats to help clients")
 
 
 class DocRecommendationUpdate(BaseModel):

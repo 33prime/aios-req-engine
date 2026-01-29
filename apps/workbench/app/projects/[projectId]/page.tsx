@@ -96,7 +96,7 @@ export default function WorkspacePage() {
   // Chat state
   const [isChatOpen, setIsChatOpen] = useState(false)
   const [isChatMinimized, setIsChatMinimized] = useState(false)
-  const { messages, isLoading: isChatLoading, sendMessage, sendSignal } = useChat({
+  const { messages, isLoading: isChatLoading, sendMessage, sendSignal, addLocalMessage } = useChat({
     projectId,
     onError: (error) => {
       console.error('Chat error:', error)
@@ -631,6 +631,7 @@ export default function WorkspacePage() {
         isLoading={isChatLoading}
         onSendMessage={sendMessage}
         onSendSignal={sendSignal}
+        onAddLocalMessage={addLocalMessage}
         activeTab={activeTab}
         isMinimized={isChatMinimized}
         onToggleMinimize={() => setIsChatMinimized(!isChatMinimized)}

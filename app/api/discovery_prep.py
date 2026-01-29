@@ -1,14 +1,21 @@
-"""API endpoints for Discovery Prep feature."""
+"""API endpoints for Discovery Prep feature.
+
+Supports stage-aware prep generation for different collaboration phases:
+- PRE_DISCOVERY: Extract requirements and understand problem space
+- VALIDATION: Confirm features and requirements
+- PROTOTYPE: Get feedback on designs
+"""
 
 import asyncio
 from datetime import datetime
 from typing import Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from app.core.auth_middleware import AuthContext, require_consultant
 from app.core.logging import get_logger
+from app.core.schemas_collaboration import CollaborationPhase
 from app.core.schemas_discovery_prep import (
     ConfirmItemRequest,
     DiscoveryPrepBundle,
@@ -53,15 +60,28 @@ async def get_discovery_prep(
 async def generate_discovery_prep(
     project_id: UUID,
     request: Optional[GeneratePrepRequest] = None,
+    phase: Optional[CollaborationPhase] = Query(
+        default=None,
+        description="Collaboration phase for stage-aware generation. Defaults to PRE_DISCOVERY.",
+    ),
     auth: AuthContext = Depends(require_consultant),
 ):
     """
-    Generate discovery prep content (questions, documents, agenda).
+    Generate prep content (questions, documents, agenda) for any collaboration phase.
 
     Runs Question Agent and Document Agent in parallel, then generates
     a cohesive agenda that incorporates the questions.
+
+    The phase parameter controls the focus of generated content:
+    - PRE_DISCOVERY: Extract requirements and understand problem space
+    - VALIDATION: Confirm features and requirements
+    - PROTOTYPE: Get feedback on designs
+    - etc.
     """
     from app.agents.discovery_prep import generate_prep_questions, recommend_documents, generate_agenda
+
+    # Default to pre_discovery if not specified
+    target_phase = phase or CollaborationPhase.PRE_DISCOVERY
 
     # Check if bundle exists and force_regenerate not set
     if request and not request.force_regenerate:
@@ -73,10 +93,10 @@ async def generate_discovery_prep(
             )
 
     try:
-        # Run question and document agents in parallel
+        # Run question and document agents in parallel (with phase awareness)
         question_result, document_result = await asyncio.gather(
-            generate_prep_questions(project_id),
-            recommend_documents(project_id),
+            generate_prep_questions(project_id, phase=target_phase),
+            recommend_documents(project_id, phase=target_phase),
         )
 
         # Generate agenda that incorporates the questions
@@ -87,21 +107,37 @@ async def generate_discovery_prep(
             document_names=document_names,
         )
 
+        # Get stakeholder suggestions for questions
+        from app.agents.stakeholder_suggester import suggest_stakeholder_for_question
+
         # Convert agent outputs to model instances with IDs
-        questions = [
-            PrepQuestion(
-                question=q.question,
-                best_answered_by=q.best_answered_by,
-                why_important=q.why_important,
+        questions = []
+        for q in question_result.questions:
+            # Get stakeholder suggestions for this question
+            suggestions = await suggest_stakeholder_for_question(project_id, q.question)
+            suggested_names = [
+                s.name for s in suggestions
+                if s.is_matched and s.name
+            ][:3]  # Limit to 3 suggestions
+
+            questions.append(
+                PrepQuestion(
+                    question=q.question,
+                    best_answered_by=q.best_answered_by,
+                    why_important=q.why_important,
+                    suggested_stakeholders=suggested_names,
+                )
             )
-            for q in question_result.questions
-        ]
+
+        # Import helper for example formats
+        from app.agents.discovery_prep.document_agent import get_example_formats
 
         documents = [
             DocRecommendation(
                 document_name=d.document_name,
                 priority=d.priority,
                 why_important=d.why_important,
+                example_formats=get_example_formats(d.document_name),
             )
             for d in document_result.documents
         ]

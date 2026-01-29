@@ -8,13 +8,20 @@ Generates 3 optimized questions based on:
 
 Questions focus on REQUIREMENTS, not GTM (go-to-market).
 Each question is designed to extract maximum useful data.
+
+Supports stage-aware generation for different collaboration phases:
+- PRE_DISCOVERY: Extract requirements and understand problem space
+- VALIDATION: Confirm features and requirements
+- PROTOTYPE: Get feedback on designs
 """
 
 import json
+from typing import Optional
 from uuid import UUID
 
 from app.core.llm import get_llm
 from app.core.logging import get_logger
+from app.core.schemas_collaboration import CollaborationPhase
 from app.core.schemas_discovery_prep import (
     PrepQuestion,
     PrepQuestionCreate,
@@ -26,17 +33,15 @@ from app.db.supabase_client import get_supabase
 logger = get_logger(__name__)
 
 
-SYSTEM_PROMPT = """You are an expert requirements analyst preparing optimized pre-call questions for a discovery call.
+SYSTEM_PROMPT = """You are an expert requirements analyst preparing optimized questions for a {phase_name}.
 
 ## Your Goal
-Generate exactly 3 HIGH-QUALITY questions that will extract MAXIMUM useful data about REQUIREMENTS.
-Focus on core requirements and understanding the client's needs, not go-to-market (GTM) topics.
+{question_goal}
 
-## Question Categories (aim for variety)
-1. **Workflow & Process**: How users currently work, pain points in current process
-2. **Success Criteria**: What success looks like, how they'll measure value
-3. **Constraints & Dependencies**: Technical limitations, integrations, compliance
-4. **Scope & Prioritization**: Must-haves vs nice-to-haves, MVP definition
+Generate exactly 3 HIGH-QUALITY questions that will extract MAXIMUM useful data.
+
+## Question Categories (aim for variety based on phase)
+{question_categories}
 
 ## Optimization Strategy
 1. Try to cover multiple gaps with a single well-crafted question
@@ -87,16 +92,25 @@ Output valid JSON only:
 }}"""
 
 
-async def generate_prep_questions(project_id: UUID) -> QuestionAgentOutput:
+async def generate_prep_questions(
+    project_id: UUID,
+    phase: CollaborationPhase = CollaborationPhase.PRE_DISCOVERY,
+) -> QuestionAgentOutput:
     """
     Generate 3 optimized prep questions for a project.
 
     Args:
         project_id: The project UUID
+        phase: The collaboration phase (affects question focus)
 
     Returns:
         QuestionAgentOutput with questions and reasoning
     """
+    from app.agents.prep_system.prep_config import get_prep_config
+
+    # Get stage-aware configuration
+    config = get_prep_config(phase)
+
     # Get state snapshot
     snapshot = get_state_snapshot(project_id, force_refresh=True)
 
@@ -106,12 +120,30 @@ async def generate_prep_questions(project_id: UUID) -> QuestionAgentOutput:
     # Get confirmation gaps (including business drivers)
     gaps = await _get_confirmation_gaps(project_id)
 
+    # Build phase-specific prompt
+    phase_name_map = {
+        CollaborationPhase.PRE_DISCOVERY: "discovery call",
+        CollaborationPhase.DISCOVERY: "discovery session",
+        CollaborationPhase.VALIDATION: "validation round",
+        CollaborationPhase.PROTOTYPE: "prototype review",
+        CollaborationPhase.PROPOSAL: "proposal review",
+        CollaborationPhase.BUILD: "build check-in",
+        CollaborationPhase.DELIVERY: "delivery review",
+    }
+    phase_name = phase_name_map.get(phase, "discovery call")
+
+    # Format question categories
+    categories_text = "\n".join(f"- **{cat}**" for cat in config.question_categories)
+
     # Build prompt
-    llm = get_llm(temperature=0.4)  # Slightly higher temp for creativity
+    llm = get_llm(temperature=config.question_temperature)
     messages = [
         {
             "role": "system",
             "content": SYSTEM_PROMPT.format(
+                phase_name=phase_name,
+                question_goal=config.question_goal,
+                question_categories=categories_text,
                 snapshot=snapshot,
                 stakeholders=stakeholders,
                 gaps=gaps,
@@ -119,7 +151,7 @@ async def generate_prep_questions(project_id: UUID) -> QuestionAgentOutput:
         },
         {
             "role": "user",
-            "content": "Generate 3 optimized pre-call questions that will help us understand the client's requirements better.",
+            "content": f"Generate 3 optimized questions for this {phase_name} that will help us {config.question_goal.lower()}.",
         },
     ]
 

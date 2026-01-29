@@ -1196,12 +1196,58 @@ export const setCollaborationPhase = (projectId: string, phase: string) =>
     method: 'POST',
   })
 
+export type TouchpointType = 'discovery_call' | 'validation_round' | 'follow_up_call' | 'prototype_review' | 'feedback_session'
+
+export interface CreateTouchpointRequest {
+  type: TouchpointType
+  title: string
+  description?: string
+  meeting_id?: string
+}
+
+export interface Touchpoint {
+  id: string
+  project_id: string
+  type: TouchpointType
+  title: string
+  description?: string
+  status: string
+  sequence_number: number
+  meeting_id?: string
+  discovery_prep_bundle_id?: string
+  outcomes: {
+    questions_sent: number
+    questions_answered: number
+    documents_requested: number
+    documents_received: number
+    features_extracted: number
+    personas_identified: number
+    items_confirmed: number
+    items_rejected: number
+    feedback_items: number
+  }
+  portal_items_count: number
+  portal_items_completed: number
+  prepared_at?: string
+  sent_at?: string
+  started_at?: string
+  completed_at?: string
+  created_at: string
+  updated_at: string
+}
+
+export const createTouchpoint = (projectId: string, data: CreateTouchpointRequest) =>
+  apiRequest<Touchpoint>(`/projects/${projectId}/collaboration/touchpoints`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+
 export const listTouchpoints = (projectId: string, status?: string, type?: string) => {
   const params = new URLSearchParams()
   if (status) params.set('status', status)
   if (type) params.set('type', type)
   const query = params.toString()
-  return apiRequest<any[]>(`/projects/${projectId}/collaboration/touchpoints${query ? `?${query}` : ''}`)
+  return apiRequest<Touchpoint[]>(`/projects/${projectId}/collaboration/touchpoints${query ? `?${query}` : ''}`)
 }
 
 export const getTouchpointDetail = (projectId: string, touchpointId: string) =>
@@ -2065,6 +2111,39 @@ export const compactMemory = (projectId: string, force = false) =>
     landmarks_preserved?: number
     landmarks?: string[]
   }>(`/projects/${projectId}/memory/compact?force=${force}`, { method: 'POST' })
+
+// ============================================
+// Unified Memory APIs
+// ============================================
+
+export interface UnifiedMemoryFreshness {
+  age_seconds: number
+  age_human: string
+}
+
+export interface UnifiedMemoryResponse {
+  content: string
+  synthesized_at: string
+  is_stale: boolean
+  stale_reason: string | null
+  freshness: UnifiedMemoryFreshness
+}
+
+/**
+ * Get the unified synthesized memory document.
+ * Returns cached content if fresh, otherwise generates new synthesis.
+ */
+export const getUnifiedMemory = (projectId: string) =>
+  apiRequest<UnifiedMemoryResponse>(`/projects/${projectId}/memory/unified`)
+
+/**
+ * Force re-synthesis of the unified memory document.
+ */
+export const refreshUnifiedMemory = (projectId: string) =>
+  apiRequest<UnifiedMemoryResponse>(
+    `/projects/${projectId}/memory/unified/refresh`,
+    { method: 'POST' }
+  )
 
 // =============================================================================
 // Document Upload

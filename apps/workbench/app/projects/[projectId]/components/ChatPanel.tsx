@@ -80,6 +80,8 @@ interface ChatPanelProps {
   onSendMessage: (message: string) => void
   /** Callback to send a signal */
   onSendSignal?: (type: string, content: string, source: string) => void
+  /** Callback to add a local message (without triggering AI) */
+  onAddLocalMessage?: (message: ChatMessage) => void
   /** Current active tab for context awareness */
   activeTab?: string
   /** Whether panel is minimized */
@@ -100,6 +102,7 @@ export function ChatPanel({
   isLoading: externalLoading,
   onSendMessage: externalSendMessage,
   onSendSignal,
+  onAddLocalMessage,
   activeTab = 'overview',
   isMinimized = false,
   onToggleMinimize,
@@ -339,9 +342,10 @@ export function ChatPanel({
 
       const validFiles = files.filter((f) => allowedTypes.includes(f.type))
       if (validFiles.length === 0) {
-        externalSendMessage(
-          'I can only accept PDF, DOCX, XLSX, PPTX, or images (PNG, JPG, WEBP, GIF).'
-        )
+        onAddLocalMessage?.({
+          role: 'assistant',
+          content: 'I can only accept PDF, DOCX, XLSX, PPTX, or images (PNG, JPG, WEBP, GIF).',
+        })
         return
       }
 
@@ -388,7 +392,7 @@ export function ChatPanel({
 
         // Show upload confirmation - processing happens automatically in background
         // Features, personas, and other entities will be extracted and merged
-        externalSendMessage({
+        onAddLocalMessage?.({
           role: 'assistant',
           content: `📄 **Document${successCount > 1 ? 's' : ''} uploaded:** ${fileNames}\n\nProcessing in background. Features, personas, and other insights will be automatically extracted and added to your project.`,
         })
@@ -396,13 +400,13 @@ export function ChatPanel({
 
       if (failedFiles.length > 0) {
         const errors = failedFiles.map((f) => `${f.file}: ${f.error}`).join('\n- ')
-        externalSendMessage({
+        onAddLocalMessage?.({
           role: 'assistant',
           content: `⚠️ **Upload failed:**\n- ${errors}`,
         })
       }
     },
-    [projectId, externalSendMessage, assistantSendMessage]
+    [projectId, onAddLocalMessage, assistantSendMessage]
   )
 
   // Combined messages (external + all context messages including command results)

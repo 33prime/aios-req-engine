@@ -18,11 +18,13 @@ from app.core.schemas_portal import (
     InfoRequestAnswer,
     InfoRequestPhase,
     InfoRequestStatus,
+    InfoRequestWithReadinessDelta,
     PortalPhase,
     PortalProject,
     PortalProjectList,
     ProjectContext,
     ProjectContextSectionUpdate,
+    ReadinessDelta,
 )
 from app.db.client_documents import (
     can_user_delete_document,
@@ -186,13 +188,17 @@ async def list_portal_info_requests(
     return await list_info_requests(project_id, phase=phase)
 
 
-@router.patch("/info-requests/{request_id}", response_model=InfoRequest)
+@router.patch("/info-requests/{request_id}", response_model=InfoRequestWithReadinessDelta)
 async def answer_info_request(
     request_id: UUID,
     data: InfoRequestAnswer,
     auth: AuthContext = Depends(require_auth),
 ):
-    """Submit an answer to an info request."""
+    """Submit an answer to an info request.
+
+    Returns the updated info request along with readiness delta showing
+    how the answer impacted the project's readiness score.
+    """
     # Get the request to verify access
     request = await get_info_request(request_id)
     if not request:
@@ -200,6 +206,15 @@ async def answer_info_request(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Info request not found",
         )
+
+    # Get readiness BEFORE answering
+    readiness_before = 0
+    try:
+        from app.core.readiness.score import compute_readiness
+        readiness_result = compute_readiness(request.project_id)
+        readiness_before = readiness_result.score
+    except Exception as e:
+        logger.warning(f"Failed to get readiness before: {e}")
 
     # Submit the answer
     updated = await submit_info_request_answer(
@@ -220,10 +235,42 @@ async def answer_info_request(
         await _flow_answer_to_context(updated)
 
     # Create authoritative signal from portal response
+    signal_id = None
+    confirmations_resolved = 0
     if updated.status == InfoRequestStatus.COMPLETE and updated.answer_data:
-        await _create_portal_response_signal(updated, auth.user_id)
+        signal_id = await _create_portal_response_signal(updated, auth.user_id)
 
-    return updated
+    # Get readiness AFTER answering
+    readiness_after = readiness_before
+    gates_affected = []
+    try:
+        from app.core.readiness.score import compute_readiness
+        readiness_result = compute_readiness(request.project_id)
+        readiness_after = readiness_result.score
+        # Track which gates changed
+        if hasattr(readiness_result, 'gates') and readiness_result.gates:
+            gates_affected = [
+                g.gate_name for g in readiness_result.gates
+                if g.is_satisfied
+            ]
+    except Exception as e:
+        logger.warning(f"Failed to get readiness after: {e}")
+
+    # Build response with readiness delta
+    readiness_delta = ReadinessDelta(
+        before=readiness_before,
+        after=readiness_after,
+        change=readiness_after - readiness_before,
+        gates_affected=gates_affected,
+    )
+
+    # Convert InfoRequest to dict and add delta fields
+    response_data = updated.model_dump()
+    response_data["readiness_delta"] = readiness_delta
+    response_data["signal_id"] = signal_id
+    response_data["confirmations_resolved"] = confirmations_resolved
+
+    return InfoRequestWithReadinessDelta(**response_data)
 
 
 @router.patch("/info-requests/{request_id}/status", response_model=InfoRequest)
@@ -642,8 +689,17 @@ async def portal_chat(
 # ============================================================================
 
 
-async def _create_portal_response_signal(info_request: InfoRequest, user_id: UUID) -> None:
-    """Create an authoritative signal from a client portal response."""
+async def _create_portal_response_signal(info_request: InfoRequest, user_id: UUID) -> Optional[UUID]:
+    """
+    Create an authoritative signal from a client portal response.
+
+    This also triggers the signal pipeline to process the response and
+    update entities, then checks if the response resolves any open
+    confirmation items.
+
+    Returns:
+        The signal UUID if created successfully, None otherwise.
+    """
     from datetime import datetime
     from uuid import uuid4
 
@@ -655,19 +711,25 @@ async def _create_portal_response_signal(info_request: InfoRequest, user_id: UUI
         if file_ids:
             answer_text = f"Client uploaded {len(file_ids)} file(s) for: {info_request.title}"
         else:
-            return  # No content to create signal from
+            return None  # No content to create signal from
+
+    signal_id = None
+    signal_content = f"Q: {info_request.title}\n\nA: {answer_text}"
 
     try:
         client = get_client()
+        signal_uuid = uuid4()
+
         # Insert signal with source_type for evidence display
-        client.table("signals").insert({
+        signal_response = client.table("signals").insert({
+            "id": str(signal_uuid),
             "project_id": str(info_request.project_id),
             "signal_type": "portal_response",
             "source": "client_portal",
             "source_type": "portal_response",
             "source_label": f"Client Answer: {info_request.title[:50]}",
             "source_timestamp": datetime.utcnow().isoformat(),
-            "raw_text": f"Q: {info_request.title}\n\nA: {answer_text}",
+            "raw_text": signal_content,
             "metadata": {
                 "info_request_id": str(info_request.id),
                 "request_type": info_request.request_type.value if info_request.request_type else "question",
@@ -677,7 +739,10 @@ async def _create_portal_response_signal(info_request: InfoRequest, user_id: UUI
             },
             "run_id": str(uuid4()),
         }).execute()
-        logger.info(f"Created portal_response signal for info_request {info_request.id}")
+
+        if signal_response.data:
+            signal_id = UUID(signal_response.data[0]["id"])
+            logger.info(f"Created portal_response signal {signal_id} for info_request {info_request.id}")
 
         # Invalidate DI cache - new signal to analyze
         try:
@@ -685,9 +750,58 @@ async def _create_portal_response_signal(info_request: InfoRequest, user_id: UUI
             invalidate_cache(info_request.project_id, "new portal_response signal")
         except Exception as cache_err:
             logger.warning(f"Failed to invalidate DI cache: {cache_err}")
+
+        # Trigger lightweight signal processing (entities, memory, readiness)
+        if signal_id:
+            try:
+                from app.core.signal_pipeline import process_signal_lightweight
+                processing_result = await process_signal_lightweight(
+                    project_id=info_request.project_id,
+                    signal_id=signal_id,
+                    signal_content=signal_content,
+                    signal_type="portal_response",
+                    signal_metadata={
+                        "authority": "client",
+                        "info_request_id": str(info_request.id),
+                    },
+                )
+                logger.info(
+                    f"Signal processing completed for {signal_id}: "
+                    f"features={processing_result.get('features_created', 0)}, "
+                    f"personas={processing_result.get('personas_created', 0)}"
+                )
+            except Exception as proc_err:
+                logger.warning(f"Signal processing failed (non-fatal): {proc_err}")
+
+            # Check if this resolves any open confirmation items
+            try:
+                from app.chains.confirmation_resolver import check_signal_resolves_confirmations
+                resolution_result = await check_signal_resolves_confirmations(
+                    project_id=info_request.project_id,
+                    signal_id=signal_id,
+                    signal_content=answer_text,
+                    signal_source="client_portal",
+                )
+                if resolution_result.get("resolved", 0) > 0:
+                    logger.info(
+                        f"Signal {signal_id} auto-resolved {resolution_result['resolved']} confirmation(s)"
+                    )
+            except Exception as resolve_err:
+                logger.warning(f"Confirmation resolution check failed (non-fatal): {resolve_err}")
+
+            # Refresh readiness cache after all processing
+            try:
+                from app.core.readiness_cache import refresh_cached_readiness
+                refresh_cached_readiness(info_request.project_id)
+            except Exception as readiness_err:
+                logger.warning(f"Readiness refresh failed (non-fatal): {readiness_err}")
+
+        return signal_id
+
     except Exception as e:
         logger.error(f"Failed to create portal_response signal: {e}")
         # Don't fail the request if signal creation fails
+        return None
 
 
 async def _flow_answer_to_context(info_request: InfoRequest) -> None:

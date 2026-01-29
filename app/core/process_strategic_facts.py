@@ -174,12 +174,26 @@ async def process_strategic_facts_for_signal(
 
                 logger.debug(f"{action.capitalize()} {ref_type}: {name}")
 
+                # Update foundation design preferences if this is a design inspiration
+                if fact_type in ("design_inspiration", "feature_inspiration"):
+                    try:
+                        from app.core.process_design_preferences import update_foundation_design_preferences
+                        update_foundation_design_preferences(project_id)
+                    except Exception as e:
+                        logger.warning(f"Failed to update design preferences: {e}")
+
             except Exception as e:
                 logger.warning(f"Failed to upsert competitor ref: {e}")
 
         # Handle stakeholder types
         elif fact_type == "stakeholder":
             name = title or detail[:50]
+
+            # Validate it's a person, not an organization
+            from app.core.stakeholder_validation import is_likely_person
+            if not is_likely_person(name):
+                logger.info(f"Skipped non-person stakeholder: '{name}'")
+                continue
 
             try:
                 _, action = smart_upsert_stakeholder(

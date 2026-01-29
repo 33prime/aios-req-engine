@@ -162,7 +162,10 @@ async def upload_document(
         supabase.storage.from_("project-files").upload(
             path=storage_path,
             file=file_bytes,
-            file_options={"content-type": file.content_type or "application/octet-stream"},
+            file_options={
+                "content-type": file.content_type or "application/octet-stream",
+                "upsert": "true",  # Allow re-upload of withdrawn documents
+            },
         )
     except Exception as e:
         logger.error(f"Failed to upload to storage: {e}")

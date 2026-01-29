@@ -297,11 +297,12 @@ def create_signal_and_embed(state: DocumentProcessingState) -> dict[str, Any]:
         signal_data = {
             "project_id": str(state.project_id),
             "signal_type": "document",
-            "content": state.extraction_result.raw_text[:50000]  # Limit content
+            "raw_text": state.extraction_result.raw_text[:50000]  # Limit content
             if state.extraction_result
             else "",
             "source_type": "upload",
             "source": state.original_filename,
+            "run_id": str(state.run_id),
             "metadata": {
                 "document_class": state.classification.document_class
                 if state.classification
@@ -349,8 +350,11 @@ def create_signal_and_embed(state: DocumentProcessingState) -> dict[str, Any]:
                 "signal_id": str(signal_id),
                 "chunk_index": chunk.chunk_index,
                 "content": chunk.original_content,
+                "start_char": 0,  # Not tracked in chunker, placeholder
+                "end_char": len(chunk.original_content),
                 "embedding": embeddings[i],
                 "metadata": chunk.metadata,
+                "run_id": str(state.run_id),
                 "document_upload_id": str(state.document_id),
                 "page_number": chunk.page_number,
                 "section_path": chunk.section_path,

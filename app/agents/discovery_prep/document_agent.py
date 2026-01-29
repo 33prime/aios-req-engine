@@ -14,13 +14,20 @@ Recommends documents like:
 - User role definitions
 - Security/compliance requirements
 - Sample data / Screenshots
+
+Supports stage-aware generation for different collaboration phases:
+- PRE_DISCOVERY: Fill knowledge gaps before first conversation
+- VALIDATION: Support requirement validation with specifics
+- PROTOTYPE: Provide design context and references
 """
 
 import json
+from typing import Optional
 from uuid import UUID
 
 from app.core.llm import get_llm
 from app.core.logging import get_logger
+from app.core.schemas_collaboration import CollaborationPhase
 from app.core.schemas_discovery_prep import (
     DocPriority,
     DocRecommendation,
@@ -33,11 +40,65 @@ from app.db.supabase_client import get_supabase
 logger = get_logger(__name__)
 
 
-SYSTEM_PROMPT = """You are an expert requirements analyst recommending documents for a discovery call.
+# Example formats for each document type to help clients understand what to provide
+ARTIFACT_EXAMPLES = {
+    "process_document": ["Order fulfillment flowchart", "Approval workflow diagram", "Process map PDF"],
+    "sample_data": ["Anonymized invoice", "Example customer record", "CSV export"],
+    "brand_guide": ["Brand guidelines PDF", "Color palette document", "Logo files"],
+    "org_chart": ["Team structure diagram", "RACI matrix", "Org chart PDF"],
+    "screenshot": ["Current dashboard", "Error message examples", "UI screenshots"],
+    "workflow": ["Process flowchart", "Sequence diagram", "BPMN diagram"],
+    "api_doc": ["API specification", "Swagger/OpenAPI file", "Integration guide"],
+    "user_guide": ["Current user manual", "Training materials", "Help documentation"],
+    "requirements": ["Feature spec", "User stories", "BRD excerpt"],
+    "data_model": ["ER diagram", "Database schema", "Data dictionary"],
+}
+
+
+def get_example_formats(document_name: str) -> list[str]:
+    """Get example file formats for a document recommendation.
+
+    Args:
+        document_name: The name/title of the document
+
+    Returns:
+        List of example formats that would be helpful
+    """
+    name_lower = document_name.lower()
+
+    # Match against known document types
+    if any(word in name_lower for word in ["process", "workflow", "flowchart", "diagram"]):
+        return ARTIFACT_EXAMPLES.get("workflow", ARTIFACT_EXAMPLES["process_document"])
+    if any(word in name_lower for word in ["sample", "data", "export", "csv"]):
+        return ARTIFACT_EXAMPLES["sample_data"]
+    if any(word in name_lower for word in ["brand", "logo", "color", "style"]):
+        return ARTIFACT_EXAMPLES["brand_guide"]
+    if any(word in name_lower for word in ["org", "team", "structure", "hierarchy"]):
+        return ARTIFACT_EXAMPLES["org_chart"]
+    if any(word in name_lower for word in ["screenshot", "ui", "screen", "dashboard"]):
+        return ARTIFACT_EXAMPLES["screenshot"]
+    if any(word in name_lower for word in ["api", "integration", "endpoint"]):
+        return ARTIFACT_EXAMPLES["api_doc"]
+    if any(word in name_lower for word in ["user guide", "manual", "training"]):
+        return ARTIFACT_EXAMPLES["user_guide"]
+    if any(word in name_lower for word in ["requirement", "spec", "story"]):
+        return ARTIFACT_EXAMPLES["requirements"]
+    if any(word in name_lower for word in ["data model", "schema", "er diagram", "database"]):
+        return ARTIFACT_EXAMPLES["data_model"]
+
+    # Default examples
+    return ["PDF document", "Screenshot", "Spreadsheet"]
+
+
+SYSTEM_PROMPT = """You are an expert requirements analyst recommending documents for a {phase_name}.
 
 ## Your Goal
-Recommend exactly 3 documents that would ACCELERATE understanding of this project's requirements.
-Focus on documents that fill knowledge gaps and provide evidence for business drivers.
+{document_strategy}
+
+Recommend exactly 3 documents that would ACCELERATE progress in this phase.
+
+## Document Priorities for this Phase
+{document_priorities}
 
 ## Document Selection Strategy
 
@@ -100,16 +161,25 @@ Output valid JSON only:
 }}"""
 
 
-async def recommend_documents(project_id: UUID) -> DocumentAgentOutput:
+async def recommend_documents(
+    project_id: UUID,
+    phase: CollaborationPhase = CollaborationPhase.PRE_DISCOVERY,
+) -> DocumentAgentOutput:
     """
     Recommend 3 documents for a project.
 
     Args:
         project_id: The project UUID
+        phase: The collaboration phase (affects document focus)
 
     Returns:
         DocumentAgentOutput with documents and reasoning
     """
+    from app.agents.prep_system.prep_config import get_prep_config
+
+    # Get stage-aware configuration
+    config = get_prep_config(phase)
+
     # Get state snapshot
     snapshot = get_state_snapshot(project_id, force_refresh=True)
 
@@ -122,12 +192,30 @@ async def recommend_documents(project_id: UUID) -> DocumentAgentOutput:
     # Get existing context to avoid redundant requests
     existing = await _get_existing_context(project_id)
 
+    # Build phase-specific prompt
+    phase_name_map = {
+        CollaborationPhase.PRE_DISCOVERY: "discovery call",
+        CollaborationPhase.DISCOVERY: "discovery session",
+        CollaborationPhase.VALIDATION: "validation round",
+        CollaborationPhase.PROTOTYPE: "prototype review",
+        CollaborationPhase.PROPOSAL: "proposal review",
+        CollaborationPhase.BUILD: "build check-in",
+        CollaborationPhase.DELIVERY: "delivery review",
+    }
+    phase_name = phase_name_map.get(phase, "discovery call")
+
+    # Format document priorities
+    priorities_text = "\n".join(f"- {p}" for p in config.document_priorities)
+
     # Build prompt
-    llm = get_llm(temperature=0.3)
+    llm = get_llm(temperature=config.document_temperature)
     messages = [
         {
             "role": "system",
             "content": SYSTEM_PROMPT.format(
+                phase_name=phase_name,
+                document_strategy=config.document_strategy,
+                document_priorities=priorities_text,
                 snapshot=snapshot,
                 industry_context=industry_context,
                 gaps=gaps,
@@ -136,7 +224,7 @@ async def recommend_documents(project_id: UUID) -> DocumentAgentOutput:
         },
         {
             "role": "user",
-            "content": "Recommend 3 specific documents that would help us understand this project's requirements better.",
+            "content": f"Recommend 3 specific documents that would help with this {phase_name}.",
         },
     ]
 
