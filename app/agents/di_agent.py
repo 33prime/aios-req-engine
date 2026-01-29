@@ -17,12 +17,16 @@ from app.agents.di_agent_prompts import DI_AGENT_SYSTEM_PROMPT, DI_AGENT_TOOLS
 from app.agents.di_agent_types import ConsultantGuidance, DIAgentResponse, QuestionToAsk
 from app.core.config import get_settings
 from app.core.logging import get_logger
+from app.core.memory_hooks import log_tool_execution_batch, ensure_memory_initialized
 from app.core.metrics import timer, track_performance
 from app.core.readiness.score import compute_readiness
 from app.core.state_snapshot import get_state_snapshot
 from app.db.di_cache import get_di_cache, is_cache_valid, get_unanalyzed_signals
 from app.db.di_logs import get_recent_actions_for_context, log_agent_invocation
 from app.db.project_memory import get_memory_for_context, get_mistakes_to_avoid, get_recent_decisions
+
+# Feature flag for new knowledge graph memory (can be disabled during transition)
+USE_KNOWLEDGE_GRAPH_MEMORY = True
 
 logger = get_logger(__name__)
 
@@ -60,6 +64,9 @@ async def invoke_di_agent(
     )
 
     try:
+        # Ensure project memory exists
+        await ensure_memory_initialized(project_id)
+
         # ======================================================================
         # 1. OBSERVE - Load current state (optimized to avoid redundant DB calls)
         # ======================================================================
@@ -86,7 +93,22 @@ async def invoke_di_agent(
 
         # Get project memory (persistent understanding, decisions, learnings)
         with timer("DI Agent - Fetch project memory", str(project_id)):
-            project_memory = get_memory_for_context(project_id, max_tokens=1500)
+            # Try new knowledge graph memory first
+            beliefs_for_prompt = []
+            insights_for_prompt = []
+            if USE_KNOWLEDGE_GRAPH_MEMORY:
+                try:
+                    from app.core.memory_renderer import render_memory_for_di_agent
+                    memory_data = await render_memory_for_di_agent(project_id, max_tokens=3000)
+                    project_memory = memory_data["markdown"]
+                    beliefs_for_prompt = memory_data.get("beliefs", [])
+                    insights_for_prompt = memory_data.get("insights", [])
+                except Exception as e:
+                    logger.warning(f"Knowledge graph memory failed, falling back to legacy: {e}")
+                    project_memory = get_memory_for_context(project_id, max_tokens=1500)
+            else:
+                project_memory = get_memory_for_context(project_id, max_tokens=1500)
+
             recent_decisions = get_recent_decisions(project_id, limit=5)
             mistakes_to_avoid = get_mistakes_to_avoid(project_id, limit=3)
 
@@ -113,7 +135,13 @@ async def invoke_di_agent(
         recent_actions_summary = _format_recent_actions(recent_actions)
 
         # Format memory context for prompt
-        memory_summary = _format_memory_context(project_memory, recent_decisions, mistakes_to_avoid)
+        memory_summary = _format_memory_context(
+            project_memory,
+            recent_decisions,
+            mistakes_to_avoid,
+            beliefs_for_prompt if USE_KNOWLEDGE_GRAPH_MEMORY else [],
+            insights_for_prompt if USE_KNOWLEDGE_GRAPH_MEMORY else [],
+        )
 
         # Format cache status
         cache_summary = _format_cache_summary(di_cache, cache_valid)
@@ -265,6 +293,21 @@ What's your reasoning and recommended action?"""
                     gates_affected.append(gate_name)
 
             agent_response.gates_affected = gates_affected
+
+            # Log tool executions to project memory
+            try:
+                tools_for_memory = [
+                    {
+                        "name": tc.tool_name,
+                        "success": tc.success,
+                        "error": tc.error,
+                        "result": tc.result,
+                    }
+                    for tc in agent_response.tools_called
+                ]
+                await log_tool_execution_batch(project_id, tools_for_memory)
+            except Exception as e:
+                logger.warning(f"Failed to log tool batch to memory (non-fatal): {e}")
 
         # ======================================================================
         # 6. Log invocation
@@ -422,12 +465,33 @@ def _format_memory_context(
     project_memory: str,
     recent_decisions: list[dict],
     mistakes_to_avoid: list[dict],
+    beliefs: list[dict] | None = None,
+    insights: list[dict] | None = None,
 ) -> str:
     """Format project memory, decisions, and learnings for context.
 
     This gives the agent persistent knowledge about the project.
+    When knowledge graph is enabled, also includes structured beliefs and insights.
     """
     lines = []
+
+    # Add beliefs from knowledge graph (highest priority - what we know)
+    if beliefs:
+        lines.append("### Current Beliefs (from knowledge graph)")
+        high_conf = [b for b in beliefs if b.get("confidence", 0) >= 0.7]
+        for b in high_conf[:5]:
+            conf = b.get("confidence", 0)
+            domain = f" [{b['domain']}]" if b.get("domain") else ""
+            lines.append(f"- **{conf:.0%}**{domain} {b['summary']}")
+        lines.append("")
+
+    # Add strategic insights from knowledge graph
+    if insights:
+        lines.append("### Strategic Insights")
+        for i in insights[:3]:
+            emoji = {"behavioral": "👤", "contradiction": "⚡", "risk": "⚠️", "opportunity": "💡"}.get(i.get("type", ""), "📌")
+            lines.append(f"- {emoji} {i['summary']}")
+        lines.append("")
 
     # Add recent key decisions (most important for context)
     if recent_decisions:
@@ -443,15 +507,15 @@ def _format_memory_context(
 
     # Add mistakes to avoid (critical for not repeating errors)
     if mistakes_to_avoid:
-        lines.append("### ⚠️ Mistakes to Avoid")
+        lines.append("### Mistakes to Avoid")
         for m in mistakes_to_avoid:
             title = m.get("title", "")
             learning = m.get("learning", "")
             lines.append(f"- {title}: {learning}")
         lines.append("")
 
-    # Add condensed project memory if available
-    if project_memory and project_memory != "No project memory exists yet.":
+    # Add condensed project memory if available (and no beliefs - avoid duplication)
+    if not beliefs and project_memory and project_memory != "No project memory exists yet.":
         # Extract key sections from the memory document
         lines.append("### Project Understanding (from memory)")
 

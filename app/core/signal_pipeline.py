@@ -14,7 +14,11 @@ from uuid import UUID
 import uuid
 
 from app.core.logging import get_logger
+from app.core.memory_hooks import log_signal_processed, ensure_memory_initialized
 from app.db.supabase_client import get_supabase
+
+# Feature flag for new memory agent (can be disabled during transition)
+USE_MEMORY_AGENT = True
 
 logger = get_logger(__name__)
 
@@ -84,6 +88,9 @@ async def stream_signal_processing(
     signal_metadata = signal_metadata or {}
 
     try:
+        # Ensure project memory exists
+        await ensure_memory_initialized(project_id)
+
         # Event 1: Pipeline started
         yield {
             "type": StreamEvent.STARTED,
@@ -170,7 +177,11 @@ async def _stream_standard_processing(
 
     1. Build State (reconcile facts into entities)
     2. Reconcile (final state update)
+    3. Log to memory (automatic)
     """
+    # Track results for memory logging
+    processing_results = {}
+
     # Phase 1: Build State
     yield {
         "type": StreamEvent.BUILD_STATE_STARTED,
@@ -196,6 +207,15 @@ async def _stream_standard_processing(
             signal_id=signal_id,
             auto_enrich=True,  # Auto-enrich high-confidence drivers
         )
+
+        # Collect results for memory logging
+        processing_results = {
+            "features_created": build_result.get("features_created", 0),
+            "personas_created": build_result.get("personas_created", 0),
+            "vp_steps_created": build_result.get("vp_steps_created", 0),
+            "business_drivers_created": strategic_result.get("business_drivers_created", 0),
+            "stakeholders_created": strategic_result.get("stakeholders_created", 0),
+        }
 
         yield {
             "type": StreamEvent.BUILD_STATE_COMPLETED,
@@ -260,6 +280,33 @@ async def _stream_standard_processing(
         }
 
     await asyncio.sleep(0.1)
+
+    # Log to project memory (automatic - ensures DI Agent stays up to date)
+    if processing_results:
+        try:
+            await log_signal_processed(
+                project_id=project_id,
+                signal_id=signal_id,
+                signal_type="signal",
+                pipeline_type="standard",
+                results=processing_results,
+            )
+        except Exception as e:
+            logger.warning(f"Failed to log signal to memory (non-fatal): {e}")
+
+    # Process through memory agent (knowledge graph)
+    if USE_MEMORY_AGENT and processing_results:
+        try:
+            from app.agents.memory_agent import process_signal_for_memory
+            await process_signal_for_memory(
+                project_id=project_id,
+                signal_id=signal_id,
+                signal_type="signal",
+                raw_text=signal_content[:1000] if signal_content else "",
+                entities_extracted=processing_results,
+            )
+        except Exception as e:
+            logger.warning(f"Memory agent processing failed (non-fatal): {e}")
 
     # Final: Pipeline completed
     yield {
@@ -444,6 +491,37 @@ async def _stream_bulk_processing(
             }
 
         await asyncio.sleep(0.1)
+
+        # Log to project memory (automatic - ensures DI Agent stays up to date)
+        bulk_results = {
+            "features_found": result.get("features_count", 0),
+            "personas_found": result.get("personas_count", 0),
+            "stakeholders_found": result.get("stakeholders_count", 0),
+        }
+        try:
+            await log_signal_processed(
+                project_id=project_id,
+                signal_id=signal_id,
+                signal_type=signal_type,
+                pipeline_type="bulk",
+                results=bulk_results,
+            )
+        except Exception as e:
+            logger.warning(f"Failed to log bulk signal to memory (non-fatal): {e}")
+
+        # Process through memory agent (knowledge graph)
+        if USE_MEMORY_AGENT:
+            try:
+                from app.agents.memory_agent import process_signal_for_memory
+                await process_signal_for_memory(
+                    project_id=project_id,
+                    signal_id=signal_id,
+                    signal_type=signal_type,
+                    raw_text=signal_content[:1000] if signal_content else "",
+                    entities_extracted=bulk_results,
+                )
+            except Exception as e:
+                logger.warning(f"Memory agent processing failed (non-fatal): {e}")
 
         # Final: Pipeline completed
         yield {
