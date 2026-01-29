@@ -149,7 +149,7 @@ export default function ClientPortalSection({
     }
   }
 
-  const clientPortalUrl = `http://localhost:3001/${projectId}`
+  const clientPortalUrl = `${process.env.NEXT_PUBLIC_PORTAL_URL || 'http://localhost:3001'}/${projectId}`
 
   if (loading) {
     return (

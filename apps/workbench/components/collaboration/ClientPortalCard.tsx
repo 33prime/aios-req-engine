@@ -110,7 +110,7 @@ export function ClientPortalCard({
           )}
           {portalSync.portal_enabled && (
             <a
-              href={`http://localhost:3001/${projectId}`}
+              href={`${process.env.NEXT_PUBLIC_PORTAL_URL || 'http://localhost:3001'}/${projectId}`}
               target="_blank"
               rel="noopener noreferrer"
               className="text-gray-400 hover:text-[#009b87] transition-colors"
