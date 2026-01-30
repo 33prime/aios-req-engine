@@ -147,8 +147,8 @@ export function ClientPortalModal({
       setLastName('')
       setShowInviteForm(false)
       onRefresh?.()
-    } catch (err: any) {
-      setError(err.message || 'Failed to send invite')
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to send invite')
     } finally {
       setActionLoading(null)
     }

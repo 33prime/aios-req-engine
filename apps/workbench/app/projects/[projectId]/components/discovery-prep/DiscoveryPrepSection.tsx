@@ -18,6 +18,7 @@ import {
   regeneratePrepDocuments,
 } from '@/lib/api'
 import type { DiscoveryPrepBundle, PrepQuestion, DocRecommendation } from '@/types/api'
+import { ApiError } from '@/lib/api'
 import {
   Sparkles,
   Check,
@@ -66,9 +67,9 @@ export function DiscoveryPrepSection({
       setError(null)
       const data = await getDiscoveryPrep(projectId)
       setBundle(data)
-    } catch (err: any) {
+    } catch (err: unknown) {
       // 404 is expected if no bundle exists yet
-      if (err.status !== 404) {
+      if (!(err instanceof ApiError && err.status === 404)) {
         console.error('Failed to load discovery prep:', err)
         setError('Failed to load discovery prep')
       }
@@ -84,7 +85,7 @@ export function DiscoveryPrepSection({
       setError(null)
       const result = await generateDiscoveryPrep(projectId, false)
       setBundle(result.bundle)
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Failed to generate:', err)
       setError('Failed to generate discovery prep. Please try again.')
     } finally {

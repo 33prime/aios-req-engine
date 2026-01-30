@@ -20,6 +20,7 @@ interface CardProps extends HTMLAttributes<HTMLDivElement> {
   active?: boolean
   noPadding?: boolean
   className?: string
+  onClick?: (e: React.MouseEvent<HTMLDivElement> | React.KeyboardEvent<HTMLDivElement>) => void
 }
 
 export function Card({
@@ -57,7 +58,7 @@ export function Card({
       onKeyDown={onClick ? (e) => {
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault()
-          onClick(e as any)
+          onClick(e)
         }
       } : undefined}
       {...props}

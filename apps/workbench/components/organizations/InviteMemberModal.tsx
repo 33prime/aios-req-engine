@@ -43,8 +43,8 @@ export default function InviteMemberModal({
         onSuccess?.()
         handleClose()
       }, 1500)
-    } catch (err: any) {
-      const errorMessage = err.message || 'Failed to send invitation'
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to send invitation'
       try {
         const parsed = JSON.parse(errorMessage)
         setError(parsed.detail || errorMessage)

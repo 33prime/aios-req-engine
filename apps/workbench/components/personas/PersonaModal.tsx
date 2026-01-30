@@ -1,7 +1,7 @@
 'use client'
 
 import { X, User, Target, AlertCircle, Lightbulb, Zap, Star, CheckCircle, Clock, TrendingUp, Search, AlertTriangle, Sparkles, Trash2, RotateCcw, Loader2, History, Bot } from 'lucide-react'
-import { Persona, PersonaWorkflow, getPersonaInitials, formatDemographicsOrPsychographics } from '@/lib/persona-utils'
+import { Persona, getPersonaInitials, formatDemographicsOrPsychographics } from '@/lib/persona-utils'
 import { DeleteConfirmationModal } from '@/components/ui/DeleteConfirmationModal'
 import ChangeLogTimeline from '@/components/revisions/ChangeLogTimeline'
 import { markEntityNeedsReview } from '@/lib/api'

@@ -25,8 +25,8 @@ export default function InviteAcceptPage() {
     try {
       const inv = await getInvitationByToken(token)
       setInvitation(inv)
-    } catch (err: any) {
-      const errorMessage = err.message || 'Failed to load invitation'
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to load invitation'
       try {
         const parsed = JSON.parse(errorMessage)
         if (parsed.detail?.includes('expired')) {
@@ -58,8 +58,8 @@ export default function InviteAcceptPage() {
       setTimeout(() => {
         router.push('/projects')
       }, 2000)
-    } catch (err: any) {
-      const errorMessage = err.message || 'Failed to accept invitation'
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to accept invitation'
       try {
         const parsed = JSON.parse(errorMessage)
         setError(parsed.detail || errorMessage)

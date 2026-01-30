@@ -1,4 +1,22 @@
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8000'
+import { API_BASE } from './config'
+import type {
+  Feature,
+  VpStep,
+  Persona,
+  Job,
+  Confirmation,
+  Signal,
+  Project,
+  ProjectDetailWithDashboard,
+  ChunkUsageAnalytics,
+  StageStatusResponse,
+  AdvanceStageRequest,
+  AdvanceStageResponse,
+  DiscoveryPrepBundle,
+  PhaseProgressResponse,
+  PendingItem,
+  ClientPackage,
+} from '../types/api'
 
 // API key fallback disabled - auth is required
 // Set NEXT_PUBLIC_BYPASS_AUTH=true to enable API key fallback for testing
@@ -54,137 +72,65 @@ async function apiRequest<T>(
   options?: RequestInit
 ): Promise<T> {
   const url = `${API_BASE}/v1${endpoint}`
-  console.log(`🌐 API Request: ${options?.method || 'GET'} ${url}`)
 
-  const startTime = Date.now()
-
-  try {
-    // Build auth headers - prefer Bearer token, fallback to API key
-    const authHeaders: Record<string, string> = {}
-    if (accessToken) {
-      authHeaders['Authorization'] = `Bearer ${accessToken}`
-    } else if (ADMIN_API_KEY) {
-      authHeaders['X-API-Key'] = ADMIN_API_KEY
-    }
-
-    const response = await fetch(url, {
-      headers: {
-        'Content-Type': 'application/json',
-        ...authHeaders,
-        ...options?.headers,
-      },
-      ...options,
-    })
-
-    const duration = Date.now() - startTime
-    console.log(`📡 API Response: ${response.status} ${response.statusText} (${duration}ms)`)
-
-    if (!response.ok) {
-      let errorText = 'Unknown error'
-      try {
-        errorText = await response.text()
-      } catch (e) {
-        console.warn('Could not read error response body:', e)
-      }
-      console.error(`❌ API Error: ${response.status} - ${errorText}`)
-      throw new ApiError(response.status, errorText)
-    }
-
-    const data = await response.json()
-    console.log(`✅ API Success:`, data)
-    return data
-  } catch (error) {
-    const duration = Date.now() - startTime
-    console.error(`💥 API Request Failed (${duration}ms):`, error)
-    throw error
+  // Build auth headers - prefer Bearer token, fallback to API key
+  const authHeaders: Record<string, string> = {}
+  if (accessToken) {
+    authHeaders['Authorization'] = `Bearer ${accessToken}`
+  } else if (ADMIN_API_KEY) {
+    authHeaders['X-API-Key'] = ADMIN_API_KEY
   }
+
+  const response = await fetch(url, {
+    headers: {
+      'Content-Type': 'application/json',
+      ...authHeaders,
+      ...options?.headers,
+    },
+    ...options,
+  })
+
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => 'Unknown error')
+    throw new ApiError(response.status, errorText)
+  }
+
+  return response.json()
 }
-
-// Project APIs
-export const getBaselineStatus = (projectId: string) =>
-  apiRequest<{ baseline_ready: boolean }>(`/projects/${projectId}/baseline`)
-
-export const updateBaselineStatus = (projectId: string, baselineReady: boolean) =>
-  apiRequest<{ baseline_ready: boolean }>(`/projects/${projectId}/baseline`, {
-    method: 'PATCH',
-    body: JSON.stringify({ baseline_ready: baselineReady }),
-  })
-
-// Baseline Completeness APIs (Phase 0 - Surgical Updates)
-export const getBaselineCompleteness = (projectId: string) =>
-  apiRequest<{
-    prd_mode: 'initial' | 'maintenance'
-    score: number
-    breakdown: {
-      features: number
-      personas: number
-      vp_steps: number
-      constraints: number
-    }
-    counts: {
-      features: number
-      personas: number
-      vp_steps: number
-    }
-    ready: boolean
-    missing: string[]
-  }>(`/projects/${projectId}/baseline/completeness`)
-
-export const finalizeBaseline = (projectId: string) =>
-  apiRequest<{ success: boolean; message: string }>(`/projects/${projectId}/baseline/finalize`, {
-    method: 'POST',
-    body: JSON.stringify({ confirmed_by: null }),
-  })
 
 // State APIs
 export const getFeatures = (projectId: string) =>
-  apiRequest<any[]>(`/state/features?project_id=${projectId}`)
+  apiRequest<Feature[]>(`/state/features?project_id=${projectId}`)
 
 // PRD sections removed - use features, personas, VP steps instead
 
 export const getVpSteps = (projectId: string) =>
-  apiRequest<any[]>(`/state/vp?project_id=${projectId}`)
+  apiRequest<VpStep[]>(`/state/vp?project_id=${projectId}`)
 
 export const getPersonas = (projectId: string) =>
-  apiRequest<any[]>(`/state/personas?project_id=${projectId}`)
-
+  apiRequest<Persona[]>(`/state/personas?project_id=${projectId}`)
 
 export const updateVpStepStatus = (stepId: string, status: string) =>
-  apiRequest<any>(`/state/vp/${stepId}/status`, {
+  apiRequest<VpStep>(`/state/vp/${stepId}/status`, {
     method: 'PATCH',
     body: JSON.stringify({ status }),
   })
 
 export const updateFeatureStatus = (featureId: string, status: string) =>
-  apiRequest<any>(`/state/features/${featureId}/status`, {
+  apiRequest<Feature>(`/state/features/${featureId}/status`, {
     method: 'PATCH',
     body: JSON.stringify({ status }),
   })
 
 // Agent APIs
 export const buildState = (projectId: string) =>
-  apiRequest<{ run_id: string; job_id: string; changed_counts: any; summary: string }>(
+  apiRequest<{ run_id: string; job_id: string; changed_counts: Record<string, number>; summary: string }>(
     '/state/build',
     {
       method: 'POST',
       body: JSON.stringify({ project_id: projectId }),
     }
   )
-
-export const reconcileState = (projectId: string, includeResearch = false) =>
-  apiRequest<{
-    run_id: string
-    job_id: string
-    changed_counts: any
-    confirmations_open_count: number
-    summary: string
-  }>('/state/reconcile', {
-    method: 'POST',
-    body: JSON.stringify({
-      project_id: projectId,
-      include_research: includeResearch,
-    }),
-  })
 
 export const enrichFeatures = (
   projectId: string,
@@ -207,7 +153,6 @@ export const enrichFeatures = (
       include_research: options.includeResearch,
     }),
   })
-
 
 export const enrichVp = (projectId: string, includeResearch = false) =>
   apiRequest<{
@@ -296,32 +241,6 @@ export const triggerN8nResearch = (
     }),
   })
 
-export const getN8nResearchStatus = (projectId: string, jobId: string) =>
-  apiRequest<{
-    job_id: string
-    status: string
-    created_at: string
-    completed_at: string | null
-    output: Record<string, unknown> | null
-    error: string | null
-  }>(`/projects/${projectId}/research-status/${jobId}`)
-
-export const runATeam = (projectId: string, autoApply = false) =>
-  apiRequest<{
-    run_id: string
-    job_id: string
-    patches_generated: number
-    patches_auto_applied: number
-    patches_queued: number
-    insights_processed: number
-  }>('/agents/a-team', {
-    method: 'POST',
-    body: JSON.stringify({
-      project_id: projectId,
-      auto_apply: autoApply,
-    }),
-  })
-
 // Strategic Foundation APIs
 export const runStrategicFoundation = (projectId: string) =>
   apiRequest<{
@@ -357,56 +276,42 @@ export const updateCompanyInfo = (projectId: string, data: {
   description?: string | null
   employee_count?: string | null
 }) =>
-  apiRequest<{ company_info: any; success: boolean }>('/state/company-info', {
+  apiRequest<{ company_info: Record<string, unknown>; success: boolean }>('/state/company-info', {
     method: 'PUT',
     body: JSON.stringify({ project_id: projectId, ...data }),
   })
 
 export const getPatches = (projectId: string, status = 'queued') =>
-  apiRequest<{ patches: any[]; count: number }>(
+  apiRequest<{ patches: Record<string, unknown>[]; count: number }>(
     `/projects/${projectId}/patches?status=${status}`
-  )
-
-export const applyPatch = (insightId: string) =>
-  apiRequest<{
-    success: boolean
-    entity_type: string
-    entity_id: string
-    changes_applied: Record<string, any>
-  }>(`/insights/${insightId}/apply-patch`, { method: 'POST' })
-
-export const dismissPatch = (insightId: string) =>
-  apiRequest<{ success: boolean; insight_id: string }>(
-    `/insights/${insightId}/dismiss-patch`,
-    { method: 'POST' }
   )
 
 // Job APIs
 export const getJobStatus = (jobId: string) =>
-  apiRequest<any>(`/jobs/${jobId}`)
+  apiRequest<Job>(`/jobs/${jobId}`)
 
 export const listProjectJobs = (projectId: string, limit = 10) =>
-  apiRequest<{ jobs: any[]; count: number }>(`/jobs?project_id=${projectId}&limit=${limit}`)
+  apiRequest<{ jobs: Job[]; count: number }>(`/jobs?project_id=${projectId}&limit=${limit}`)
 
 export const getResearchJobs = (projectId: string) =>
-  apiRequest<any[]>(`/jobs?project_id=${projectId}&job_type=research_query&limit=50`)
+  apiRequest<Job[]>(`/jobs?project_id=${projectId}&job_type=research_query&limit=50`)
 
 // Confirmation APIs
 export const listConfirmations = (projectId: string, status?: string) => {
   const params = new URLSearchParams({ project_id: projectId })
   if (status) params.set('status', status)
-  return apiRequest<{ confirmations: any[]; total: number }>(`/confirmations?${params}`)
+  return apiRequest<{ confirmations: Confirmation[]; total: number }>(`/confirmations?${params}`)
 }
 
 export const getConfirmation = (confirmationId: string) =>
-  apiRequest<any>(`/confirmations/${confirmationId}`)
+  apiRequest<Confirmation>(`/confirmations/${confirmationId}`)
 
 export const updateConfirmationStatus = (
   confirmationId: string,
   status: string,
-  resolutionEvidence?: any
+  resolutionEvidence?: Record<string, unknown>
 ) =>
-  apiRequest<any>(`/confirmations/${confirmationId}/status`, {
+  apiRequest<Confirmation>(`/confirmations/${confirmationId}/status`, {
     method: 'PATCH',
     body: JSON.stringify({
       status,
@@ -423,111 +328,30 @@ export const getConfirmationsSummary = (projectId: string) =>
     recommendation: string
   }>(`/confirmations/summary?project_id=${projectId}`)
 
-export const generateConfirmationEmail = (
-  projectId: string,
-  options?: {
-    confirmationIds?: string[]
-    clientName?: string
-    projectName?: string
-  }
-) =>
-  apiRequest<{
-    subject: string
-    body: string
-    confirmation_count: number
-    confirmations_included: string[]
-  }>('/confirmations/generate-email', {
-    method: 'POST',
-    body: JSON.stringify({
-      project_id: projectId,
-      confirmation_ids: options?.confirmationIds || [],
-      client_name: options?.clientName || '',
-      project_name: options?.projectName || '',
-    }),
-  })
-
-export const generateMeetingAgenda = (
-  projectId: string,
-  options?: {
-    confirmationIds?: string[]
-    clientName?: string
-    projectName?: string
-    meetingDuration?: number
-  }
-) =>
-  apiRequest<{
-    title: string
-    duration_estimate: string
-    agenda: Array<{
-      topic: string
-      description: string
-      time_minutes: number
-      confirmation_ids: string[]
-    }>
-    pre_read: string
-    confirmation_count: number
-    confirmations_included: string[]
-  }>('/confirmations/generate-meeting-agenda', {
-    method: 'POST',
-    body: JSON.stringify({
-      project_id: projectId,
-      confirmation_ids: options?.confirmationIds || [],
-      client_name: options?.clientName || '',
-      project_name: options?.projectName || '',
-      meeting_duration: options?.meetingDuration || 30,
-    }),
-  })
-
-export interface WhoWouldKnowSuggestion {
-  stakeholder_id: string
-  stakeholder_name: string
-  role?: string
-  match_score: number
-  reasons: string[]
-  is_primary_contact: boolean
-  suggestion_text?: string
-  topic_matches: string[]
-}
-
-export const getWhoWouldKnow = (
-  projectId: string,
-  entityType: 'feature' | 'persona' | 'vp_step',
-  entityId: string,
-  gapDescription?: string
-) =>
-  apiRequest<{
-    entity_id: string
-    entity_type: string
-    entity_name?: string
-    topics_extracted: string[]
-    suggestions: WhoWouldKnowSuggestion[]
-    total_suggestions: number
-  }>('/confirmations/who-would-know', {
-    method: 'POST',
-    body: JSON.stringify({
-      project_id: projectId,
-      entity_type: entityType,
-      entity_id: entityId,
-      gap_description: gapDescription,
-    }),
-  })
-
 // Evidence APIs
 export const getSignal = (signalId: string) =>
-  apiRequest<any>(`/signals/${signalId}`)
+  apiRequest<Signal>(`/signals/${signalId}`)
 
 export const getSignalChunks = (signalId: string) =>
-  apiRequest<{ signal_id: string; chunks: any[]; count: number }>(`/signals/${signalId}/chunks`)
+  apiRequest<{ signal_id: string; chunks: Record<string, unknown>[]; count: number }>(`/signals/${signalId}/chunks`)
 
 // Projects CRUD APIs
 export const listProjects = (status = 'active', search?: string) => {
   const params = new URLSearchParams({ status })
   if (search) params.append('search', search)
-  return apiRequest<{ projects: any[]; total: number }>(`/projects?${params}`)
+  return apiRequest<{
+    projects: ProjectDetailWithDashboard[]
+    total: number
+    owner_profiles: Record<string, {
+      first_name?: string
+      last_name?: string
+      photo_url?: string
+    }>
+  }>(`/projects?${params}`)
 }
 
 export const createProject = (data: { name: string; description?: string; auto_ingest_description?: boolean }) =>
-  apiRequest<any>(`/projects`, {
+  apiRequest<Project>(`/projects`, {
     method: 'POST',
     body: JSON.stringify(data),
   })
@@ -542,7 +366,7 @@ export interface CreateProjectContextPayload {
 
 export const createProjectWithContext = (payload: CreateProjectContextPayload) => {
   // Use the brief directly as the description - no transformation needed
-  return apiRequest<any>('/projects', {
+  return apiRequest<Project>('/projects', {
     method: 'POST',
     body: JSON.stringify({
       name: payload.name,
@@ -558,16 +382,26 @@ export const createProjectWithContext = (payload: CreateProjectContextPayload) =
 }
 
 export const getProjectDetails = (projectId: string) =>
-  apiRequest<any>(`/projects/${projectId}`)
+  apiRequest<ProjectDetailWithDashboard>(`/projects/${projectId}`)
 
-export const updateProject = (projectId: string, updates: { name?: string; description?: string; status?: string; tags?: string[]; metadata?: any }) =>
-  apiRequest<any>(`/projects/${projectId}`, {
+// Stage Progression APIs
+export const getStageStatus = (projectId: string) =>
+  apiRequest<StageStatusResponse>(`/projects/${projectId}/stage-status`)
+
+export const advanceStage = (projectId: string, request: AdvanceStageRequest) =>
+  apiRequest<AdvanceStageResponse>(`/projects/${projectId}/stage`, {
+    method: 'PATCH',
+    body: JSON.stringify(request),
+  })
+
+export const updateProject = (projectId: string, updates: { name?: string; description?: string; status?: string; tags?: string[]; metadata?: Record<string, unknown> }) =>
+  apiRequest<Project>(`/projects/${projectId}`, {
     method: 'PATCH',
     body: JSON.stringify(updates),
   })
 
 export const archiveProject = (projectId: string) =>
-  apiRequest<any>(`/projects/${projectId}`, {
+  apiRequest<{ success: boolean }>(`/projects/${projectId}`, {
     method: 'DELETE',
   })
 
@@ -577,18 +411,18 @@ export const listProjectSignals = (projectId: string, filters?: { signal_type?: 
   if (filters?.signal_type) params.append('signal_type', filters.signal_type)
   if (filters?.source_type) params.append('source_type', filters.source_type)
   const queryString = params.toString()
-  return apiRequest<{ signals: any[]; total: number }>(`/projects/${projectId}/signals${queryString ? `?${queryString}` : ''}`)
+  return apiRequest<{ signals: Signal[]; total: number }>(`/projects/${projectId}/signals${queryString ? `?${queryString}` : ''}`)
 }
 
 export const getSignalImpact = (signalId: string) =>
-  apiRequest<any>(`/signals/${signalId}/impact`)
+  apiRequest<Record<string, unknown>>(`/signals/${signalId}/impact`)
 
 // Analytics APIs
 export const getProjectTimeline = (projectId: string, limit = 500) =>
-  apiRequest<{ project_id: string; events: any[]; total: number }>(`/projects/${projectId}/analytics/timeline?limit=${limit}`)
+  apiRequest<{ project_id: string; events: Record<string, unknown>[]; total: number }>(`/projects/${projectId}/analytics/timeline?limit=${limit}`)
 
 export const getChunkUsageAnalytics = (projectId: string, topK = 20) =>
-  apiRequest<any>(`/projects/${projectId}/analytics/chunk-usage?top_k=${topK}`)
+  apiRequest<ChunkUsageAnalytics>(`/projects/${projectId}/analytics/chunk-usage?top_k=${topK}`)
 
 // Revisions APIs
 export const listEntityRevisions = (entityType: string, entityId: string, limit = 20) =>
@@ -638,61 +472,6 @@ export const applyProposal = (proposalId: string) =>
 
 export const discardProposal = (proposalId: string) =>
   apiRequest<{ success: boolean }>(`/proposals/${proposalId}/discard`, { method: 'POST' })
-
-export const batchApplyProposals = (proposalIds: string[]) =>
-  apiRequest<{ applied: number; failed: number }>('/proposals/batch-apply', {
-    method: 'POST',
-    body: JSON.stringify({ proposal_ids: proposalIds }),
-  })
-
-export const batchDiscardProposals = (proposalIds: string[]) =>
-  apiRequest<{ discarded: number }>('/proposals/batch-discard', {
-    method: 'POST',
-    body: JSON.stringify({ proposal_ids: proposalIds }),
-  })
-
-// Cascade APIs
-export const listPendingCascades = (projectId: string) =>
-  apiRequest<{
-    cascades: Array<{
-      id: string
-      source_entity_type: string
-      source_entity_id: string
-      source_summary: string
-      target_entity_type: string
-      target_entity_id: string
-      target_summary: string
-      cascade_type: 'auto' | 'suggested' | 'logged'
-      confidence: number
-      changes: Record<string, any>
-      rationale?: string
-      created_at: string
-    }>
-    total: number
-  }>(`/cascades/pending?project_id=${projectId}`)
-
-export const applyCascade = (cascadeId: string) =>
-  apiRequest<{ success: boolean }>(`/cascades/${cascadeId}/apply`, { method: 'POST' })
-
-export const dismissCascade = (cascadeId: string) =>
-  apiRequest<{ success: boolean }>(`/cascades/${cascadeId}/dismiss`, { method: 'POST' })
-
-// Persona APIs with scores
-export const getPersonasWithScores = (projectId: string) =>
-  apiRequest<{
-    personas: Array<{
-      id: string
-      name: string
-      role: string
-      goals?: string[]
-      pain_points?: string[]
-      coverage_score?: number
-      health_score?: number
-      confirmation_status?: string
-      created_at: string
-      updated_at: string
-    }>
-  }>(`/personas/with-scores?project_id=${projectId}`)
 
 // Persona feature coverage (for Gaps tab)
 export interface PersonaFeatureCoverage {
@@ -778,7 +557,7 @@ export const deletePersona = (personaId: string, cleanupReferences = true) =>
 
 // Persona confirmation status update
 export const updatePersonaStatus = (personaId: string, status: string) =>
-  apiRequest<any>(`/state/personas/${personaId}/status`, {
+  apiRequest<Persona>(`/state/personas/${personaId}/status`, {
     method: 'PATCH',
     body: JSON.stringify({ status }),
   })
@@ -805,7 +584,7 @@ export const getPortalConfig = (projectId: string) =>
   }>(`/projects/${projectId}`)
 
 export const updatePortalConfig = (projectId: string, config: Partial<PortalConfig>) =>
-  apiRequest<any>(`/admin/projects/${projectId}/portal`, {
+  apiRequest<{ success: boolean }>(`/admin/projects/${projectId}/portal`, {
     method: 'PATCH',
     body: JSON.stringify(config),
   })
@@ -1012,11 +791,6 @@ export const updateOrganization = (orgId: string, data: OrganizationUpdate) =>
     body: JSON.stringify(data),
   })
 
-export const deleteOrganization = (orgId: string) =>
-  apiRequest<{ message: string; id: string }>(`/organizations/${orgId}`, {
-    method: 'DELETE',
-  })
-
 // Organization Members
 export const listOrganizationMembers = (orgId: string) =>
   apiRequest<OrganizationMemberPublic[]>(`/organizations/${orgId}/members`)
@@ -1035,12 +809,6 @@ export const removeOrganizationMember = (orgId: string, userId: string) =>
   apiRequest<{ message: string; user_id: string }>(
     `/organizations/${orgId}/members/${userId}`,
     { method: 'DELETE' }
-  )
-
-export const leaveOrganization = (orgId: string) =>
-  apiRequest<{ message: string; organization_id: string }>(
-    `/organizations/${orgId}/leave`,
-    { method: 'POST' }
   )
 
 // Organization Invitations
@@ -1074,7 +842,7 @@ export const acceptInvitation = (token: string) =>
 
 // Organization Projects
 export const listOrganizationProjects = (orgId: string) =>
-  apiRequest<any[]>(`/organizations/${orgId}/projects`)
+  apiRequest<Project[]>(`/organizations/${orgId}/projects`)
 
 // Profile
 export const getMyProfile = () => apiRequest<Profile>('/organizations/profile/me')
@@ -1089,17 +857,11 @@ export const updateMyProfile = (data: ProfileUpdate) =>
 // Discovery Prep APIs
 // ============================================
 
-import type {
-  DiscoveryPrepBundle,
-  GeneratePrepResponse,
-  SendToPortalResponse,
-} from '../types/api'
-
 export const getDiscoveryPrep = (projectId: string) =>
   apiRequest<DiscoveryPrepBundle>(`/discovery-prep/${projectId}`)
 
 export const generateDiscoveryPrep = (projectId: string, forceRegenerate = false) =>
-  apiRequest<GeneratePrepResponse>(`/discovery-prep/${projectId}/generate`, {
+  apiRequest<{ bundle: DiscoveryPrepBundle; message: string }>(`/discovery-prep/${projectId}/generate`, {
     method: 'POST',
     body: JSON.stringify({ force_regenerate: forceRegenerate }),
   })
@@ -1117,7 +879,7 @@ export const confirmPrepDocument = (projectId: string, documentId: string, confi
   })
 
 export const sendDiscoveryPrepToPortal = (projectId: string, inviteEmails?: string[]) =>
-  apiRequest<SendToPortalResponse>(`/discovery-prep/${projectId}/send`, {
+  apiRequest<{ success: boolean; questions_sent: number; documents_sent: number; invitations_sent: number; message: string }>(`/discovery-prep/${projectId}/send`, {
     method: 'POST',
     body: JSON.stringify({ invite_emails: inviteEmails }),
   })
@@ -1130,11 +892,6 @@ export const regeneratePrepQuestions = (projectId: string) =>
 export const regeneratePrepDocuments = (projectId: string) =>
   apiRequest<DiscoveryPrepBundle>(`/discovery-prep/${projectId}/regenerate-documents`, {
     method: 'POST',
-  })
-
-export const deleteDiscoveryPrep = (projectId: string) =>
-  apiRequest<{ message: string }>(`/discovery-prep/${projectId}`, {
-    method: 'DELETE',
   })
 
 // ============================================
@@ -1250,11 +1007,8 @@ export const listTouchpoints = (projectId: string, status?: string, type?: strin
   return apiRequest<Touchpoint[]>(`/projects/${projectId}/collaboration/touchpoints${query ? `?${query}` : ''}`)
 }
 
-export const getTouchpointDetail = (projectId: string, touchpointId: string) =>
-  apiRequest<any>(`/projects/${projectId}/collaboration/touchpoints/${touchpointId}`)
-
-export const completeTouchpoint = (projectId: string, touchpointId: string, outcomes: any) =>
-  apiRequest<any>(`/projects/${projectId}/collaboration/touchpoints/${touchpointId}/complete`, {
+export const completeTouchpoint = (projectId: string, touchpointId: string, outcomes: Record<string, unknown>) =>
+  apiRequest<Touchpoint>(`/projects/${projectId}/collaboration/touchpoints/${touchpointId}/complete`, {
     method: 'POST',
     body: JSON.stringify(outcomes),
   })
@@ -1262,15 +1016,6 @@ export const completeTouchpoint = (projectId: string, touchpointId: string, outc
 // ============================================
 // Client Packages & Phase Progress APIs
 // ============================================
-
-import type {
-  PhaseProgressResponse,
-  PendingItemsQueue,
-  PendingItem,
-  ClientPackage,
-  GeneratePackageRequest,
-  GeneratePackageResponse,
-} from '../types/api'
 
 export const getPhaseProgress = (projectId: string) =>
   apiRequest<PhaseProgressResponse>(`/collaboration/projects/${projectId}/progress`)
@@ -1285,34 +1030,19 @@ export const listPendingItems = (projectId: string, itemType?: string, status = 
   )
 }
 
-export const addPendingItem = (projectId: string, item: Partial<PendingItem>) =>
-  apiRequest<PendingItem>(`/collaboration/projects/${projectId}/pending-items`, {
-    method: 'POST',
-    body: JSON.stringify(item),
-  })
-
 export const removePendingItem = (itemId: string) =>
   apiRequest<{ message: string }>(`/collaboration/pending-items/${itemId}`, {
     method: 'DELETE',
   })
 
-export const generateClientPackage = (projectId: string, request: GeneratePackageRequest) =>
-  apiRequest<GeneratePackageResponse>(`/collaboration/projects/${projectId}/generate-package`, {
+export const generateClientPackage = (projectId: string, request: { item_ids?: string[]; include_asset_suggestions?: boolean; max_questions?: number }) =>
+  apiRequest<{ package: ClientPackage; synthesis_notes?: string }>(`/collaboration/projects/${projectId}/generate-package`, {
     method: 'POST',
     body: JSON.stringify(request),
   })
 
 export const getClientPackage = (packageId: string) =>
   apiRequest<ClientPackage>(`/collaboration/packages/${packageId}`)
-
-export const updateClientPackage = (
-  packageId: string,
-  updates: { questions?: any[]; action_items?: any[] }
-) =>
-  apiRequest<{ message: string }>(`/collaboration/packages/${packageId}`, {
-    method: 'PATCH',
-    body: JSON.stringify(updates),
-  })
 
 export const sendClientPackage = (packageId: string) =>
   apiRequest<{ success: boolean; package_id: string; sent_at: string }>(
@@ -1344,8 +1074,6 @@ export const markEntityNeedsReview = (
 
 import type {
   Meeting,
-  ProjectTask,
-  ProjectTasksResponse,
   StatusNarrative,
 } from '../types/api'
 
@@ -1410,7 +1138,7 @@ export const deleteMeeting = (meetingId: string) =>
 // ============================================
 
 export const getProjectTasks = (projectId: string) =>
-  apiRequest<ProjectTasksResponse>(`/projects/${projectId}/tasks`)
+  apiRequest<{ project_id: string; tasks: Array<{ id: string; title: string; description?: string; priority: 'high' | 'medium' | 'low'; category: string; action_url?: string; action_type?: string; entity_id?: string; entity_type?: string }>; total: number }>(`/projects/${projectId}/tasks`)
 
 // ============================================
 // Status Narrative APIs
@@ -1564,6 +1292,17 @@ export interface DIAgentInvokeRequest {
   specific_request?: string
 }
 
+export interface DIAgentLog {
+  id: string
+  project_id: string
+  trigger: string
+  action_type: string
+  observation: string
+  decision: string
+  success: boolean
+  created_at: string
+}
+
 export interface DIAgentResponse {
   observation: string
   thinking: string
@@ -1675,36 +1414,6 @@ export const invokeDIAgent = (
 export const getProjectFoundation = (projectId: string) =>
   apiRequest<ProjectFoundation>(`/projects/${projectId}/foundation`)
 
-export const extractCorePain = (projectId: string) =>
-  apiRequest<CorePain>(
-    `/projects/${projectId}/foundation/extract-core-pain`,
-    { method: 'POST' }
-  )
-
-export const extractPrimaryPersona = (projectId: string) =>
-  apiRequest<PrimaryPersona>(
-    `/projects/${projectId}/foundation/extract-primary-persona`,
-    { method: 'POST' }
-  )
-
-export const identifyWowMoment = (projectId: string) =>
-  apiRequest<WowMoment>(
-    `/projects/${projectId}/foundation/identify-wow-moment`,
-    { method: 'POST' }
-  )
-
-export const extractBusinessCase = (projectId: string) =>
-  apiRequest<BusinessCase>(
-    `/projects/${projectId}/foundation/extract-business-case`,
-    { method: 'POST' }
-  )
-
-export const extractBudgetConstraints = (projectId: string) =>
-  apiRequest<BudgetConstraints>(
-    `/projects/${projectId}/foundation/extract-budget-constraints`,
-    { method: 'POST' }
-  )
-
 export const getDIAgentLogs = (
   projectId: string,
   params?: {
@@ -1723,7 +1432,7 @@ export const getDIAgentLogs = (
   if (params?.success_only) queryParams.set('success_only', 'true')
 
   const query = queryParams.toString()
-  return apiRequest<{ logs: any[]; total: number }>(
+  return apiRequest<{ logs: DIAgentLog[]; total: number }>(
     `/projects/${projectId}/di-agent/logs${query ? `?${query}` : ''}`
   )
 }
@@ -2457,15 +2166,6 @@ export const withdrawDocument = (documentId: string) =>
   )
 
 /**
- * Reset a stuck or failed document back to pending for reprocessing.
- */
-export const resetDocument = (documentId: string) =>
-  apiRequest<{ status: string; document_id: string; processing_status: string }>(
-    `/documents/${documentId}/reset`,
-    { method: 'POST' }
-  )
-
-/**
  * Hard delete a document (only for failed/pending documents).
  */
 export const deleteDocument = (documentId: string, force = false) =>
@@ -2541,57 +2241,6 @@ export interface EvidenceQualityResponse {
  */
 export const getEvidenceQuality = (projectId: string) =>
   apiRequest<EvidenceQualityResponse>(`/projects/${projectId}/evidence/quality`)
-
-/**
- * Global source search
- */
-export interface DocumentSearchResult {
-  id: string
-  filename: string
-  excerpt: string
-  relevance: number
-  file_type: string | null
-  created_at: string | null
-}
-
-export interface SignalSearchResult {
-  id: string
-  source_label: string
-  excerpt: string
-  relevance: number
-  signal_type: string | null
-  created_at: string | null
-}
-
-export interface ResearchSearchResult {
-  id: string
-  title: string
-  excerpt: string
-  relevance: number
-  created_at: string | null
-}
-
-export interface SourceSearchResponse {
-  documents: DocumentSearchResult[]
-  signals: SignalSearchResult[]
-  research: ResearchSearchResult[]
-  total_results: number
-}
-
-/**
- * Search across all sources in a project.
- */
-export const searchSources = (
-  projectId: string,
-  query: string,
-  types?: string[],
-  limit?: number
-) => {
-  const params = new URLSearchParams({ q: query })
-  if (types?.length) params.set('types', types.join(','))
-  if (limit) params.set('limit', String(limit))
-  return apiRequest<SourceSearchResponse>(`/projects/${projectId}/sources/search?${params}`)
-}
 
 // ============================================
 // Workspace Canvas APIs

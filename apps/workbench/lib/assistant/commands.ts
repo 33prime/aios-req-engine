@@ -14,6 +14,7 @@ import type {
   AssistantContext,
   QuickAction,
 } from './types'
+import { API_BASE } from '../config'
 
 // =============================================================================
 // Command Registry
@@ -190,7 +191,7 @@ registerCommand({
       }
     }
 
-    const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8000'
+
     const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null
 
     try {
@@ -386,7 +387,7 @@ registerCommand({
       }
     }
 
-    const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8000'
+
     const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null
 
     try {
@@ -438,7 +439,7 @@ registerCommand({
       }
     }
 
-    const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8000'
+
     const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null
 
     try {
@@ -490,7 +491,7 @@ registerCommand({
       }
     }
 
-    const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8000'
+
     const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null
 
     try {
@@ -542,7 +543,7 @@ registerCommand({
       }
     }
 
-    const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8000'
+
     const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null
 
     try {
@@ -614,7 +615,7 @@ registerCommand({
       }
     }
 
-    const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8000'
+
     const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null
 
     try {
@@ -1067,11 +1068,11 @@ registerCommand({
           refresh_project: true
         },
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('🧠 DI Agent error:', error)
       return {
         success: false,
-        message: `## ❌ DI Analysis Failed\n\n**Error:** ${error.message || 'Unknown error'}\n\nPlease check the browser console and backend logs for more details.`,
+        message: `## ❌ DI Analysis Failed\n\n**Error:** ${error instanceof Error ? error.message : 'Unknown error'}\n\nPlease check the browser console and backend logs for more details.`,
       }
     }
   },
@@ -1152,10 +1153,10 @@ registerCommand({
         message,
         data: { action: 'foundation_viewed', foundation },
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       return {
         success: false,
-        message: `Failed to load foundation: ${error.message || 'Unknown error'}`,
+        message: `Failed to load foundation: ${error instanceof Error ? error.message : 'Unknown error'}`,
       }
     }
   },
@@ -1186,16 +1187,16 @@ registerCommand({
       // We'll display it in a readable format
       let message = `## 🚪 Project Gates\n\n`
 
-      message += `**Current Phase:** ${(readiness as any).phase || 'Unknown'}\n`
+      message += `**Current Phase:** ${readiness.phase || 'Unknown'}\n`
       message += `**Total Readiness:** ${readiness.score}%\n\n`
 
       // Display gate information if available
-      const gates = (readiness as any).gates || []
+      const gates = readiness.gates || []
 
       if (gates.length > 0) {
         message += `### Gate Status\n\n`
 
-        gates.forEach((gate: any) => {
+        gates.forEach((gate) => {
           const icon = gate.is_satisfied ? '✓' : '✗'
           const status = gate.is_satisfied ? 'Satisfied' : 'Not Satisfied'
 
@@ -1218,10 +1219,10 @@ registerCommand({
         message,
         data: { action: 'gates_viewed', readiness },
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       return {
         success: false,
-        message: `Failed to load gate status: ${error.message || 'Unknown error'}`,
+        message: `Failed to load gate status: ${error instanceof Error ? error.message : 'Unknown error'}`,
       }
     }
   },
@@ -1298,10 +1299,10 @@ registerCommand({
         message,
         data: { action: 'gaps_analyzed', result },
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       return {
         success: false,
-        message: `Failed to analyze gaps: ${error.message || 'Unknown error'}`,
+        message: `Failed to analyze gaps: ${error instanceof Error ? error.message : 'Unknown error'}`,
       }
     }
   },
@@ -1387,10 +1388,10 @@ registerCommand({
         message,
         data: { action: 'requirements_analyzed', result },
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       return {
         success: false,
-        message: `Failed to analyze requirements: ${error.message || 'Unknown error'}`,
+        message: `Failed to analyze requirements: ${error instanceof Error ? error.message : 'Unknown error'}`,
       }
     }
   },
@@ -1456,10 +1457,10 @@ registerCommand({
         message,
         data: { action: 'fixes_suggested', result },
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       return {
         success: false,
-        message: `Failed to generate suggestions: ${error.message || 'Unknown error'}`,
+        message: `Failed to generate suggestions: ${error instanceof Error ? error.message : 'Unknown error'}`,
       }
     }
   },
@@ -1791,10 +1792,10 @@ registerCommand({
           freshness: memory.freshness,
         },
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       return {
         success: false,
-        message: `Failed to load memory: ${error.message || 'Unknown error'}`,
+        message: `Failed to load memory: ${error instanceof Error ? error.message : 'Unknown error'}`,
       }
     }
   },
@@ -1871,10 +1872,10 @@ registerCommand({
           content,
         },
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       return {
         success: false,
-        message: `Failed to add memory: ${error.message || 'Unknown error'}`,
+        message: `Failed to add memory: ${error instanceof Error ? error.message : 'Unknown error'}`,
       }
     }
   },

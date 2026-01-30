@@ -62,9 +62,9 @@ export function CreateProjectModal({ isOpen, onClose, onSuccess }: CreateProject
         name: response.name,
         onboarding_job_id: response.onboarding_job_id,
       })
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Failed to create project:', err)
-      setError(err.message || 'Failed to create project')
+      setError(err instanceof Error ? err.message : 'Failed to create project')
     } finally {
       setLoading(false)
     }

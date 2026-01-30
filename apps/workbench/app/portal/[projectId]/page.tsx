@@ -111,9 +111,9 @@ export default function PortalPage() {
         const projectData = await projectResponse.json()
         setProjectName(projectData.client_display_name || projectData.name || 'Project')
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Failed to load portal data:', err)
-      setError(err.message || 'Failed to load')
+      setError(err instanceof Error ? err.message : 'Failed to load')
     } finally {
       setLoading(false)
     }
@@ -143,9 +143,9 @@ export default function PortalPage() {
       await loadData()
       setActiveQuestionId(null)
       setAnswerText('')
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Failed to submit:', err)
-      alert(err.message || 'Failed to submit answer')
+      alert(err instanceof Error ? err.message : 'Failed to submit answer')
     } finally {
       setSubmitting(false)
     }

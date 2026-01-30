@@ -35,8 +35,8 @@ export default function CreateOrganizationModal({
         onSuccess?.(org)
         handleClose()
       }, 1000)
-    } catch (err: any) {
-      const errorMessage = err.message || 'Failed to create organization'
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to create organization'
       try {
         const parsed = JSON.parse(errorMessage)
         setError(parsed.detail || errorMessage)

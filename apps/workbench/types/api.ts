@@ -52,6 +52,32 @@ export interface Feature {
 
 // PrdSection removed - PRD is now generated from features, personas, VP steps
 
+export interface Persona {
+  id: string
+  project_id: string
+  slug: string
+  name: string
+  role: string | null
+  demographics: Record<string, any>
+  psychographics: Record<string, any>
+  goals: string[]
+  pain_points: string[]
+  description: string | null
+  related_features: string[]
+  related_vp_steps: string[]
+  confirmation_status: 'ai_generated' | 'confirmed_consultant' | 'confirmed_client' | 'needs_client'
+  confirmed_by: string | null
+  confirmed_at: string | null
+  created_at: string
+  updated_at: string
+  overview: string | null
+  key_workflows: Array<{ name: string; description: string; steps: string[]; features_used: string[] }>
+  enrichment_status: 'none' | 'enriched' | 'stale' | null
+  enriched_at: string | null
+  coverage_score?: number
+  health_score?: number
+}
+
 // V2 evidence item for VP steps
 export interface VpEvidence {
   chunk_id?: string | null
@@ -129,14 +155,6 @@ export interface Signal {
   created_at: string
 }
 
-export interface SignalChunk {
-  chunk_index: number
-  content: string
-  start_char: number
-  end_char: number
-  metadata?: any
-}
-
 export interface Insight {
   id: string
   project_id: string
@@ -162,21 +180,6 @@ export interface Insight {
   updated_at: string
 }
 
-export interface AgentRunResponse {
-  run_id: string
-  job_id: string
-  summary: string
-}
-
-export interface EnrichmentResponse extends AgentRunResponse {
-  features_processed?: number
-  features_updated?: number
-  sections_processed?: number
-  sections_updated?: number
-  steps_processed?: number
-  steps_updated?: number
-}
-
 // Projects
 export interface Project {
   id: string
@@ -190,16 +193,6 @@ export interface Project {
   onboarding_job_id?: string // ID of onboarding job (for polling progress)
 }
 
-// Enhanced project creation payload (guided flow)
-export interface CreateProjectContextPayload {
-  name: string
-  problem: string
-  beneficiaries: string
-  features: string[]
-  company_name?: string
-  company_website?: string
-}
-
 export interface ProjectDetail extends Project {
   counts: {
     signals: number
@@ -208,38 +201,6 @@ export interface ProjectDetail extends Project {
     insights: number
     personas: number
   }
-}
-
-// Signals with counts
-export interface SignalWithCounts extends Signal {
-  chunk_count: number
-  impact_count: number
-  source_label?: string
-  source_type?: string
-  source_timestamp?: string
-}
-
-// Signal impact
-export interface EntityImpactDetail {
-  id: string
-  label: string
-  slug: string
-}
-
-export interface SignalImpactResponse {
-  signal_id: string
-  total_impacts: number
-  by_entity_type: Record<string, number>
-  details: Record<string, EntityImpactDetail[]>
-}
-
-// Timeline
-export interface TimelineEvent {
-  id: string
-  type: 'signal_ingested' | 'vp_step_created' | 'feature_created' | 'insight_created' | 'baseline_finalized' | 'persona_created'
-  timestamp: string
-  description: string
-  metadata: any
 }
 
 // Analytics
@@ -254,7 +215,13 @@ export interface ChunkUsageAnalytics {
   }>
   total_citations: number
   citations_by_entity_type: Record<string, number>
-  unused_signals: SignalWithCounts[]
+  unused_signals: Array<Signal & {
+    chunk_count: number
+    impact_count: number
+    source_label?: string
+    source_type?: string
+    source_timestamp?: string
+  }>
   unused_signals_count: number
 }
 
@@ -438,19 +405,6 @@ export interface DiscoveryPrepBundle {
   updated_at: string
 }
 
-export interface GeneratePrepResponse {
-  bundle: DiscoveryPrepBundle
-  message: string
-}
-
-export interface SendToPortalResponse {
-  success: boolean
-  questions_sent: number
-  documents_sent: number
-  invitations_sent: number
-  message: string
-}
-
 // ============================================================================
 // Meetings
 // ============================================================================
@@ -483,30 +437,6 @@ export interface Meeting {
 }
 
 // ============================================================================
-// Tasks
-// ============================================================================
-
-export type TaskPriority = 'high' | 'medium' | 'low'
-
-export interface ProjectTask {
-  id: string
-  title: string
-  description?: string
-  priority: TaskPriority
-  category: string
-  action_url?: string
-  action_type?: string
-  entity_id?: string
-  entity_type?: string
-}
-
-export interface ProjectTasksResponse {
-  project_id: string
-  tasks: ProjectTask[]
-  total: number
-}
-
-// ============================================================================
 // Status Narrative
 // ============================================================================
 
@@ -520,15 +450,56 @@ export interface StatusNarrative {
 // Extended Project (with new dashboard fields)
 // ============================================================================
 
-export type ProjectStage = 'discovery' | 'prototype_refinement' | 'proposal'
+export type ProjectStage = 'discovery' | 'validation' | 'prototype' | 'prototype_refinement' | 'proposal' | 'build' | 'live'
 
 export interface ProjectWithDashboard extends Project {
+  created_by?: string
   stage: ProjectStage
   client_name?: string
   status_narrative?: StatusNarrative
   portal_enabled?: boolean
   portal_phase?: 'pre_call' | 'post_call' | 'building' | 'testing'
   readiness_score?: number
+  stage_eligible?: boolean | null
+}
+
+// ============================================================================
+// Stage Progression
+// ============================================================================
+
+export interface StageGateCriterion {
+  gate_name: string
+  gate_label: string
+  satisfied: boolean
+  confidence: number
+  required: boolean
+  missing: string[]
+  how_to_acquire: string[]
+}
+
+export interface StageStatusResponse {
+  current_stage: string
+  next_stage: string | null
+  can_advance: boolean
+  criteria: StageGateCriterion[]
+  criteria_met: number
+  criteria_total: number
+  progress_pct: number
+  transition_description: string
+  is_final_stage: boolean
+}
+
+export interface AdvanceStageRequest {
+  target_stage: string
+  force?: boolean
+  reason?: string
+}
+
+export interface AdvanceStageResponse {
+  previous_stage: string
+  current_stage: string
+  forced: boolean
+  message: string
 }
 
 export interface ProjectDetailWithDashboard extends ProjectWithDashboard {
@@ -751,27 +722,4 @@ export interface PhaseProgressResponse {
   portal_enabled: boolean
   clients_count: number
   last_client_activity?: string
-}
-
-// API Requests
-
-export interface GeneratePackageRequest {
-  item_ids?: string[]
-  include_asset_suggestions?: boolean
-  max_questions?: number
-}
-
-export interface GeneratePackageResponse {
-  package: ClientPackage
-  synthesis_notes?: string
-}
-
-export interface SendPackageRequest {
-  package_id: string
-}
-
-export interface SendPackageResponse {
-  success: boolean
-  package_id: string
-  sent_at: string
 }

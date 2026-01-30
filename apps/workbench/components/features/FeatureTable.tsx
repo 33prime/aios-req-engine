@@ -174,7 +174,7 @@ export default function FeatureTable({ features, onConfirmationChange, onDelete,
           const isExpanded = expandedIds.has(feature.id)
           const isUpdating = updatingIds.has(feature.id)
           const isEnriched = feature.enrichment_status === 'enriched' || Boolean(feature.overview)
-          const recentlyUpdated = isRecentlyUpdated((feature as any).updated_at)
+          const recentlyUpdated = isRecentlyUpdated(feature.updated_at)
           const confirmed = isConfirmed(feature)
 
           return (

@@ -39,7 +39,7 @@ const getLocation = (demographics: string | Record<string, any> | undefined): st
 
 export default function PersonaCard({ persona, onClick }: PersonaCardProps) {
   const initials = getPersonaInitials(persona)
-  const recentlyUpdated = isRecentlyUpdated((persona as any).updated_at)
+  const recentlyUpdated = isRecentlyUpdated(persona.updated_at)
 
   // Get preview of goals (first 3)
   const goalsPreview = persona.goals?.slice(0, 3) || []

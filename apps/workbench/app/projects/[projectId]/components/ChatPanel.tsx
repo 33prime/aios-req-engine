@@ -40,6 +40,7 @@ import {
   type QuickAction,
   type ProactiveMessage,
   type CommandDefinition,
+  type TabType,
   getModeConfig,
 } from '@/lib/assistant'
 import { uploadDocument, processDocument, type DocumentUploadResponse } from '@/lib/api'
@@ -137,7 +138,7 @@ export function ChatPanel({
   // Sync active tab with assistant context
   useEffect(() => {
     if (activeTab) {
-      setAssistantTab(activeTab as any)
+      setAssistantTab(activeTab as TabType)
     }
   }, [activeTab, setAssistantTab])
 

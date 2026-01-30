@@ -28,6 +28,14 @@ import dagre from 'dagre'
 import { X } from 'lucide-react'
 import type { MemoryVisualizationResponse, MemoryNodeViz, MemoryEdgeViz } from '@/lib/api'
 
+interface MemoryNodeData extends Record<string, unknown> {
+  nodeType: string
+  summary: string
+  confidence: number
+  showLabels: boolean
+  showConfidence: boolean
+}
+
 interface GraphTabProps {
   data: MemoryVisualizationResponse | null
 }
@@ -327,7 +335,7 @@ export function GraphTab({ data }: GraphTabProps) {
         <MiniMap
           position="bottom-right"
           nodeColor={(node) => {
-            const nt = (node.data as any)?.nodeType
+            const nt = (node.data as MemoryNodeData)?.nodeType
             if (nt === 'fact') return '#34d399'
             if (nt === 'belief') return '#14b8a6'
             return '#9ca3af'
