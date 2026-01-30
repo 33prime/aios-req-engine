@@ -4,9 +4,8 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { setAccessToken } from '@/lib/api'
+import { API_BASE } from '@/lib/config'
 import { supabase } from '@/lib/supabase'
-
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8000'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
@@ -39,7 +38,6 @@ export default function LoginPage() {
       })
 
       const data = await response.json()
-      console.log('Login response:', response.status, data)
 
       if (!response.ok) {
         setError(data.detail || 'Login failed. Please check your credentials.')

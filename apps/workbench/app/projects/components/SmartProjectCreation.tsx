@@ -101,9 +101,7 @@ export function SmartProjectCreation({ isOpen, onClose, onSuccess }: SmartProjec
     onError: (error) => {
       console.error('Project creation chat error:', error)
     },
-    onProjectCreated: (project) => {
-      console.log('Project created:', project)
-    },
+    onProjectCreated: () => {},
   })
 
   const [input, setInput] = useState('')

@@ -31,16 +31,6 @@ export {
   EmptyCard
 } from './Card'
 
-// Layout
-export {
-  TwoColumnLayout,
-  LeftColumn,
-  RightColumn,
-  ListItem,
-  DetailSection,
-  EmptyState
-} from './TwoColumnLayout'
-
 // Modal
 export { Modal } from './Modal'
 

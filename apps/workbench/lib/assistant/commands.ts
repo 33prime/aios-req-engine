@@ -939,20 +939,10 @@ registerCommand({
 
     const { invokeDIAgent } = await import('@/lib/api')
 
-    console.log('🧠 Starting DI Agent analysis for project:', projectId)
-
     try {
       const result = await invokeDIAgent(projectId, {
         trigger: 'user_request',
         trigger_context: 'slash command from assistant',
-      })
-
-      console.log('🧠 DI Agent result received:', {
-        action_type: result.action_type,
-        tools_called: result.tools_called?.length || 0,
-        has_observation: !!result.observation,
-        has_thinking: !!result.thinking,
-        has_decision: !!result.decision,
       })
 
       // Build a comprehensive response message
@@ -1056,8 +1046,6 @@ registerCommand({
       if (result.gates_affected?.length) {
         message += `\n**Gates affected:** ${result.gates_affected.join(', ')}\n`
       }
-
-      console.log('🧠 DI Agent message formatted, length:', message.length)
 
       return {
         success: true,

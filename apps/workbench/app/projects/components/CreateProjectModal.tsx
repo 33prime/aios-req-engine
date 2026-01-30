@@ -41,15 +41,12 @@ export function CreateProjectModal({ isOpen, onClose, onSuccess }: CreateProject
 
     try {
       setLoading(true)
-      console.log('Creating project:', { name, description, autoIngest })
 
       const response = await createProject({
         name: name.trim(),
         description: description.trim() || undefined,
         auto_ingest_description: autoIngest && !!description.trim(),
       })
-
-      console.log('Project created:', response)
 
       // Reset form
       setName('')

@@ -212,14 +212,6 @@ export function AssistantProvider({
     createInitialContext
   )
 
-  // Debug: track mount/unmount
-  useEffect(() => {
-    console.log('🤖 AssistantProvider MOUNTED')
-    return () => {
-      console.log('🤖 AssistantProvider UNMOUNTED - messages will be lost!')
-    }
-  }, [])
-
   const idleTimerRef = useRef<NodeJS.Timeout | null>(null)
   const lastActivityRef = useRef<Date>(new Date())
 
@@ -373,7 +365,6 @@ export function AssistantProvider({
               commandArgs: JSON.stringify(args),
             },
           }
-          console.log('📨 Adding assistant message:', assistantMessage.content.substring(0, 200))
           dispatch({ type: 'ADD_MESSAGE', message: assistantMessage })
 
           // Update quick actions if result includes them
@@ -396,7 +387,6 @@ export function AssistantProvider({
             'extract-budget-constraints'
           ]
           if (result.success && diAgentCommands.includes(name) && onProjectDataChanged) {
-            console.log(`🤖 DI command "${name}" completed - calling onProjectDataChanged`)
             // Refresh project data in the background
             onProjectDataChanged().catch(err =>
               console.error('Failed to refresh project data:', err)

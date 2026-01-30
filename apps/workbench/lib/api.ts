@@ -4,11 +4,9 @@ import type {
   VpStep,
   Persona,
   Job,
-  Confirmation,
   Signal,
   Project,
   ProjectDetailWithDashboard,
-  ChunkUsageAnalytics,
   StageStatusResponse,
   AdvanceStageRequest,
   AdvanceStageResponse,
@@ -110,18 +108,6 @@ export const getVpSteps = (projectId: string) =>
 export const getPersonas = (projectId: string) =>
   apiRequest<Persona[]>(`/state/personas?project_id=${projectId}`)
 
-export const updateVpStepStatus = (stepId: string, status: string) =>
-  apiRequest<VpStep>(`/state/vp/${stepId}/status`, {
-    method: 'PATCH',
-    body: JSON.stringify({ status }),
-  })
-
-export const updateFeatureStatus = (featureId: string, status: string) =>
-  apiRequest<Feature>(`/state/features/${featureId}/status`, {
-    method: 'PATCH',
-    body: JSON.stringify({ status }),
-  })
-
 // Agent APIs
 export const buildState = (projectId: string) =>
   apiRequest<{ run_id: string; job_id: string; changed_counts: Record<string, number>; summary: string }>(
@@ -193,38 +179,6 @@ export const enrichPersonas = (
     }),
   })
 
-export const runResearchAgent = (
-  projectId: string,
-  seedContext: {
-    client_name: string
-    industry: string
-    competitors?: string[]
-    focus_areas?: string[]
-    custom_questions?: string[]
-  },
-  maxQueries = 15
-) =>
-  apiRequest<{
-    run_id: string
-    job_id: string
-    signal_id: string
-    chunks_created: number
-    queries_executed: number
-    findings_summary: {
-      competitive_features: number
-      market_insights: number
-      pain_points: number
-      technical_considerations: number
-    }
-  }>('/agents/research', {
-    method: 'POST',
-    body: JSON.stringify({
-      project_id: projectId,
-      seed_context: seedContext,
-      max_queries: maxQueries,
-    }),
-  })
-
 // n8n Research Integration (external research workflow)
 export const triggerN8nResearch = (
   projectId: string,
@@ -252,88 +206,13 @@ export const runStrategicFoundation = (projectId: string) =>
     body: JSON.stringify({ project_id: projectId }),
   })
 
-export const getStrategicFoundationSummary = (projectId: string) =>
-  apiRequest<{
-    has_company_info: boolean
-    has_business_drivers: boolean
-    has_competitor_refs: boolean
-    has_strategic_context: boolean
-    company_name: string | null
-    business_driver_count: number
-    competitor_count: number
-  }>(`/agents/strategic-foundation/${projectId}/summary`)
-
-export const updateCompanyInfo = (projectId: string, data: {
-  name?: string | null
-  industry?: string | null
-  stage?: string | null
-  size?: string | null
-  company_type?: string | null
-  website?: string | null
-  revenue?: string | null
-  address?: string | null
-  location?: string | null
-  description?: string | null
-  employee_count?: string | null
-}) =>
-  apiRequest<{ company_info: Record<string, unknown>; success: boolean }>('/state/company-info', {
-    method: 'PUT',
-    body: JSON.stringify({ project_id: projectId, ...data }),
-  })
-
-export const getPatches = (projectId: string, status = 'queued') =>
-  apiRequest<{ patches: Record<string, unknown>[]; count: number }>(
-    `/projects/${projectId}/patches?status=${status}`
-  )
-
 // Job APIs
 export const getJobStatus = (jobId: string) =>
   apiRequest<Job>(`/jobs/${jobId}`)
 
-export const listProjectJobs = (projectId: string, limit = 10) =>
-  apiRequest<{ jobs: Job[]; count: number }>(`/jobs?project_id=${projectId}&limit=${limit}`)
-
-export const getResearchJobs = (projectId: string) =>
-  apiRequest<Job[]>(`/jobs?project_id=${projectId}&job_type=research_query&limit=50`)
-
-// Confirmation APIs
-export const listConfirmations = (projectId: string, status?: string) => {
-  const params = new URLSearchParams({ project_id: projectId })
-  if (status) params.set('status', status)
-  return apiRequest<{ confirmations: Confirmation[]; total: number }>(`/confirmations?${params}`)
-}
-
-export const getConfirmation = (confirmationId: string) =>
-  apiRequest<Confirmation>(`/confirmations/${confirmationId}`)
-
-export const updateConfirmationStatus = (
-  confirmationId: string,
-  status: string,
-  resolutionEvidence?: Record<string, unknown>
-) =>
-  apiRequest<Confirmation>(`/confirmations/${confirmationId}/status`, {
-    method: 'PATCH',
-    body: JSON.stringify({
-      status,
-      resolution_evidence: resolutionEvidence,
-    }),
-  })
-
-export const getConfirmationsSummary = (projectId: string) =>
-  apiRequest<{
-    total: number
-    by_method: { email: number; meeting: number }
-    by_priority: { high: number; medium: number; low: number }
-    by_kind: Record<string, any[]>
-    recommendation: string
-  }>(`/confirmations/summary?project_id=${projectId}`)
-
 // Evidence APIs
 export const getSignal = (signalId: string) =>
   apiRequest<Signal>(`/signals/${signalId}`)
-
-export const getSignalChunks = (signalId: string) =>
-  apiRequest<{ signal_id: string; chunks: Record<string, unknown>[]; count: number }>(`/signals/${signalId}/chunks`)
 
 // Projects CRUD APIs
 export const listProjects = (status = 'active', search?: string) => {
@@ -400,30 +279,6 @@ export const updateProject = (projectId: string, updates: { name?: string; descr
     body: JSON.stringify(updates),
   })
 
-export const archiveProject = (projectId: string) =>
-  apiRequest<{ success: boolean }>(`/projects/${projectId}`, {
-    method: 'DELETE',
-  })
-
-// Signals APIs (extended)
-export const listProjectSignals = (projectId: string, filters?: { signal_type?: string; source_type?: string }) => {
-  const params = new URLSearchParams()
-  if (filters?.signal_type) params.append('signal_type', filters.signal_type)
-  if (filters?.source_type) params.append('source_type', filters.source_type)
-  const queryString = params.toString()
-  return apiRequest<{ signals: Signal[]; total: number }>(`/projects/${projectId}/signals${queryString ? `?${queryString}` : ''}`)
-}
-
-export const getSignalImpact = (signalId: string) =>
-  apiRequest<Record<string, unknown>>(`/signals/${signalId}/impact`)
-
-// Analytics APIs
-export const getProjectTimeline = (projectId: string, limit = 500) =>
-  apiRequest<{ project_id: string; events: Record<string, unknown>[]; total: number }>(`/projects/${projectId}/analytics/timeline?limit=${limit}`)
-
-export const getChunkUsageAnalytics = (projectId: string, topK = 20) =>
-  apiRequest<ChunkUsageAnalytics>(`/projects/${projectId}/analytics/chunk-usage?top_k=${topK}`)
-
 // Revisions APIs
 export const listEntityRevisions = (entityType: string, entityId: string, limit = 20) =>
   apiRequest<{
@@ -443,35 +298,6 @@ export const listEntityRevisions = (entityType: string, entityId: string, limit 
     }>
     total: number
   }>(`/state/${entityType}/${entityId}/revisions?limit=${limit}`)
-
-// Proposals APIs
-export const listProposals = (projectId: string, status?: string) => {
-  const params = new URLSearchParams({ project_id: projectId })
-  if (status) params.set('status', status)
-  return apiRequest<{
-    proposals: Array<{
-      id: string
-      title: string
-      description?: string
-      proposal_type: string
-      status: string
-      creates_count: number
-      updates_count: number
-      deletes_count: number
-      stale_reason?: string | null
-      has_conflicts?: boolean
-      conflicting_proposals?: string[]
-      created_at: string
-    }>
-    total: number
-  }>(`/proposals?${params}`)
-}
-
-export const applyProposal = (proposalId: string) =>
-  apiRequest<{ success: boolean }>(`/proposals/${proposalId}/apply`, { method: 'POST' })
-
-export const discardProposal = (proposalId: string) =>
-  apiRequest<{ success: boolean }>(`/proposals/${proposalId}/discard`, { method: 'POST' })
 
 // Persona feature coverage (for Gaps tab)
 export interface PersonaFeatureCoverage {
@@ -553,13 +379,6 @@ export const getPersonaCascadeImpact = (personaId: string) =>
 export const deletePersona = (personaId: string, cleanupReferences = true) =>
   apiRequest<DeletePersonaResult>(`/personas/${personaId}?cleanup_references=${cleanupReferences}`, {
     method: 'DELETE',
-  })
-
-// Persona confirmation status update
-export const updatePersonaStatus = (personaId: string, status: string) =>
-  apiRequest<Persona>(`/state/personas/${personaId}/status`, {
-    method: 'PATCH',
-    body: JSON.stringify({ status }),
   })
 
 // ============================================
@@ -663,64 +482,6 @@ export interface InfoRequest {
   created_at: string
 }
 
-export const getInfoRequests = (projectId: string, phase?: 'pre_call' | 'post_call') => {
-  const params = new URLSearchParams()
-  if (phase) params.set('phase', phase)
-  const query = params.toString()
-  return apiRequest<{ info_requests: InfoRequest[]; total: number }>(
-    `/admin/projects/${projectId}/info-requests${query ? `?${query}` : ''}`
-  )
-}
-
-export const generateInfoRequests = (projectId: string, count = 3) =>
-  apiRequest<{
-    info_requests: InfoRequest[]
-    generated_count: number
-  }>(`/admin/projects/${projectId}/info-requests/generate`, {
-    method: 'POST',
-    body: JSON.stringify({ count }),
-  })
-
-export const createInfoRequest = (
-  projectId: string,
-  data: {
-    phase: 'pre_call' | 'post_call'
-    title: string
-    description?: string
-    request_type?: 'question' | 'document' | 'tribal_knowledge'
-    input_type?: 'text' | 'file' | 'multi_text' | 'text_and_file'
-    priority?: 'high' | 'medium' | 'low' | 'none'
-    best_answered_by?: string
-    why_asking?: string
-    example_answer?: string
-  }
-) =>
-  apiRequest<InfoRequest>(`/admin/projects/${projectId}/info-requests`, {
-    method: 'POST',
-    body: JSON.stringify(data),
-  })
-
-export const updateInfoRequest = (
-  requestId: string,
-  data: Partial<{
-    title: string
-    description: string
-    priority: 'high' | 'medium' | 'low' | 'none'
-    best_answered_by: string
-    why_asking: string
-    example_answer: string
-  }>
-) =>
-  apiRequest<InfoRequest>(`/admin/info-requests/${requestId}`, {
-    method: 'PATCH',
-    body: JSON.stringify(data),
-  })
-
-export const deleteInfoRequest = (requestId: string) =>
-  apiRequest<{ success: boolean }>(`/admin/info-requests/${requestId}`, {
-    method: 'DELETE',
-  })
-
 // ============================================
 // Organization APIs
 // ============================================
@@ -728,7 +489,6 @@ export const deleteInfoRequest = (requestId: string) =>
 import type {
   Organization,
   OrganizationWithRole,
-  OrganizationSummary,
   OrganizationCreate,
   OrganizationUpdate,
   OrganizationMember,
@@ -781,9 +541,6 @@ export const createOrganization = (data: OrganizationCreate) =>
 
 export const getOrganization = (orgId: string) =>
   apiRequest<Organization>(`/organizations/${orgId}`)
-
-export const getOrganizationSummary = (orgId: string) =>
-  apiRequest<OrganizationSummary>(`/organizations/${orgId}/summary`)
 
 export const updateOrganization = (orgId: string, data: OrganizationUpdate) =>
   apiRequest<Organization>(`/organizations/${orgId}`, {
@@ -839,10 +596,6 @@ export const acceptInvitation = (token: string) =>
     method: 'POST',
     body: JSON.stringify({ invite_token: token }),
   })
-
-// Organization Projects
-export const listOrganizationProjects = (orgId: string) =>
-  apiRequest<Project[]>(`/organizations/${orgId}/projects`)
 
 // Profile
 export const getMyProfile = () => apiRequest<Profile>('/organizations/profile/me')
@@ -1736,22 +1489,6 @@ export const getProjectTaskActivity = (
     `/projects/${projectId}/tasks/activity${query ? `?${query}` : ''}`
   )
 }
-
-export const recalculateTaskPriorities = (projectId: string) =>
-  apiRequest<{ total_checked: number; updated_count: number; updated_tasks: { id: string; title: string; old_priority: number; new_priority: number }[] }>(
-    `/projects/${projectId}/tasks/recalculate-priorities`,
-    { method: 'POST' }
-  )
-
-export const recalculatePrioritiesForEntity = (
-  projectId: string,
-  entityType: string,
-  entityId: string
-) =>
-  apiRequest<{ total_checked: number; updated_count: number; updated_tasks: { id: string; title: string; old_priority: number; new_priority: number }[] }>(
-    `/projects/${projectId}/tasks/recalculate-for-entity?entity_type=${encodeURIComponent(entityType)}&entity_id=${encodeURIComponent(entityId)}`,
-    { method: 'POST' }
-  )
 
 // ============================================
 // Project Memory APIs

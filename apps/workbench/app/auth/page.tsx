@@ -29,23 +29,18 @@ export default function AuthPage() {
 
     try {
       const redirectUrl = `${window.location.origin}/auth/verify`
-      console.log('🔐 Sending magic link to:', email.trim())
-      console.log('🔗 Redirect URL:', redirectUrl)
 
-      const { data, error: authError } = await supabase.auth.signInWithOtp({
+      const { error: authError } = await supabase.auth.signInWithOtp({
         email: email.trim(),
         options: {
           emailRedirectTo: redirectUrl,
         },
       })
 
-      console.log('📧 Supabase response:', { data, error: authError })
-
       if (authError) {
         console.error('❌ Auth error:', authError)
         setError(authError.message)
       } else {
-        console.log('✅ Magic link sent successfully')
         setSuccess(true)
       }
     } catch (err) {

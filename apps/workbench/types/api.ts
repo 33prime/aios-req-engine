@@ -14,12 +14,6 @@ export interface Job {
   completed_at?: string
 }
 
-export interface BaselineStatus {
-  baseline_ready: boolean
-  client_signal_count?: number
-  fact_count?: number
-}
-
 export interface Feature {
   id: string
   name: string
@@ -672,36 +666,6 @@ export interface ClientPackage {
   updated_at: string
 }
 
-// Client Responses
-
-export interface QuestionResponse {
-  question_id: string
-  answer_text: string
-  answered_by?: string
-  answered_by_name?: string
-  answered_at: string
-}
-
-export interface ActionItemResponse {
-  action_item_id: string
-  status: 'complete' | 'skipped' | 'partial'
-  files: Array<{ id: string; name: string; url: string }>
-  notes?: string
-  completed_by?: string
-  completed_at: string
-}
-
-export interface ClientPackageResponses {
-  package_id: string
-  question_responses: QuestionResponse[]
-  action_item_responses: ActionItemResponse[]
-  questions_answered: number
-  questions_total: number
-  action_items_completed: number
-  action_items_total: number
-  overall_progress: number
-}
-
 // Main Response
 
 export interface PhaseProgressResponse {
@@ -718,7 +682,29 @@ export interface PhaseProgressResponse {
   pending_queue: PendingItemsQueue
   draft_package?: ClientPackage
   sent_package?: ClientPackage
-  package_responses?: ClientPackageResponses
+  package_responses?: {
+    package_id: string
+    question_responses: Array<{
+      question_id: string
+      answer_text: string
+      answered_by?: string
+      answered_by_name?: string
+      answered_at: string
+    }>
+    action_item_responses: Array<{
+      action_item_id: string
+      status: 'complete' | 'skipped' | 'partial'
+      files: Array<{ id: string; name: string; url: string }>
+      notes?: string
+      completed_by?: string
+      completed_at: string
+    }>
+    questions_answered: number
+    questions_total: number
+    action_items_completed: number
+    action_items_total: number
+    overall_progress: number
+  }
   portal_enabled: boolean
   clients_count: number
   last_client_activity?: string

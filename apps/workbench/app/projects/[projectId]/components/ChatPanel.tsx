@@ -430,7 +430,6 @@ export function ChatPanel({
       })),
     ].sort((a, b) => (a.timestamp?.getTime() || 0) - (b.timestamp?.getTime() || 0))
 
-    console.log(`💬 Rendering ${combined.length} messages (${externalMessages.length} external + ${context.messages.length} context)`)
     return combined
   }, [externalMessages, context.messages])
 
