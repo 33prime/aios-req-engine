@@ -22,6 +22,11 @@ export { PackageEditor } from './PackageEditor'
 export { ClientPortalModal } from './ClientPortalModal'
 export { ClientPortalCard } from './ClientPortalCard'
 
+// Modal flows
+export { PendingItemsModal } from './PendingItemsModal'
+export { PrepReviewModal } from './PrepReviewModal'
+export { SendConfirmModal } from './SendConfirmModal'
+
 // Legacy components (still used)
 export { CurrentFocusSection } from './CurrentFocusSection'
 export { TouchpointHistory } from './TouchpointHistory'
