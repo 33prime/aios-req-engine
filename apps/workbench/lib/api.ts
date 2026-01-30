@@ -2146,6 +2146,167 @@ export const refreshUnifiedMemory = (projectId: string) =>
   )
 
 // =============================================================================
+// Memory Visualization
+// =============================================================================
+
+export interface MemoryNodeViz {
+  id: string
+  node_type: 'fact' | 'belief' | 'insight'
+  summary: string
+  content: string
+  confidence: number
+  belief_domain: string | null
+  insight_type: string | null
+  source_type: string | null
+  linked_entity_type: string | null
+  created_at: string
+  support_count: number
+  contradict_count: number
+}
+
+export interface MemoryEdgeViz {
+  id: string
+  from_node_id: string
+  to_node_id: string
+  edge_type: string
+  strength: number
+  rationale: string | null
+}
+
+export interface MemoryDecisionViz {
+  id: string
+  title: string
+  decision: string
+  rationale: string
+  confidence: number
+  decision_type: string
+  is_landmark: boolean
+  created_at: string
+}
+
+export interface MemoryLearningViz {
+  id: string
+  title: string
+  learning: string
+  learning_type: string
+  domain: string | null
+  times_applied: number
+  created_at: string
+}
+
+export interface MemoryGraphStats {
+  total_nodes: number
+  facts_count: number
+  beliefs_count: number
+  insights_count: number
+  total_edges: number
+  edges_by_type: Record<string, number>
+  average_belief_confidence: number
+  decisions_count?: number
+  learnings_count?: number
+  sources_count?: number
+}
+
+export interface MemoryVisualizationResponse {
+  stats: MemoryGraphStats
+  nodes: MemoryNodeViz[]
+  edges: MemoryEdgeViz[]
+  decisions: MemoryDecisionViz[]
+  learnings: MemoryLearningViz[]
+}
+
+export interface BeliefHistoryEntry {
+  id: string
+  node_id: string
+  previous_content: string
+  new_content: string
+  previous_confidence: number
+  new_confidence: number
+  change_type: string
+  change_reason: string
+  triggered_by_node_id: string | null
+  created_at: string
+}
+
+export const getMemoryVisualization = (projectId: string) =>
+  apiRequest<MemoryVisualizationResponse>(`/projects/${projectId}/memory/visualize`)
+
+export const getBeliefHistory = (projectId: string, beliefId: string) =>
+  apiRequest<{ history: BeliefHistoryEntry[] }>(
+    `/projects/${projectId}/memory/belief-history?belief_id=${beliefId}`
+  )
+
+// =============================================================================
+// Requirements Intelligence
+// =============================================================================
+
+export interface InformationGap {
+  id: string
+  gap_type: string
+  severity: string
+  title: string
+  description: string
+  how_to_fix: string
+}
+
+export interface SuggestedSource {
+  source_type: string
+  title: string
+  description: string
+  why_valuable: string
+  likely_owner_role: string
+  priority: string
+  related_gaps: string[]
+}
+
+export interface StakeholderIntel {
+  stakeholder_id: string | null
+  name: string | null
+  role: string
+  organization: string | null
+  stakeholder_type: string | null
+  influence_level: string | null
+  is_known: boolean
+  is_primary_contact: boolean
+  likely_knowledge: string[]
+  domain_expertise: string[]
+  concerns: string[]
+  priorities: string[]
+  engagement_tip: string | null
+}
+
+export interface TribalKnowledge {
+  title: string
+  description: string
+  why_undocumented: string
+  best_asked_of: string
+  conversation_starters: string[]
+  related_gaps: string[]
+}
+
+export interface RequirementsIntelligenceResponse {
+  summary: string
+  phase: string
+  total_readiness: number
+  information_gaps: InformationGap[]
+  suggested_sources: SuggestedSource[]
+  stakeholder_intelligence: StakeholderIntel[]
+  tribal_knowledge: TribalKnowledge[]
+  counts: {
+    gaps: number
+    sources: number
+    stakeholders_known: number
+    stakeholders_suggested: number
+    tribal: number
+  }
+}
+
+export const getRequirementsIntelligence = (projectId: string) =>
+  apiRequest<RequirementsIntelligenceResponse>(
+    `/projects/${projectId}/evidence/intelligence`
+  )
+
+// =============================================================================
 // Document Upload
 // =============================================================================
 
@@ -2431,3 +2592,49 @@ export const searchSources = (
   if (limit) params.set('limit', String(limit))
   return apiRequest<SourceSearchResponse>(`/projects/${projectId}/sources/search?${params}`)
 }
+
+// ============================================
+// Workspace Canvas APIs
+// ============================================
+
+import type { CanvasData } from '@/types/workspace'
+
+/**
+ * Get all workspace data for the canvas UI.
+ */
+export const getWorkspaceData = (projectId: string) =>
+  apiRequest<CanvasData>(`/projects/${projectId}/workspace`)
+
+/**
+ * Update the project's pitch line.
+ */
+export const updatePitchLine = (projectId: string, pitchLine: string) =>
+  apiRequest<{ success: boolean; pitch_line: string }>(`/projects/${projectId}/workspace/pitch-line`, {
+    method: 'PATCH',
+    body: JSON.stringify({ pitch_line: pitchLine }),
+  })
+
+/**
+ * Update the project's prototype URL.
+ */
+export const updatePrototypeUrl = (projectId: string, prototypeUrl: string) =>
+  apiRequest<{ success: boolean; prototype_url: string }>(`/projects/${projectId}/workspace/prototype-url`, {
+    method: 'PATCH',
+    body: JSON.stringify({ prototype_url: prototypeUrl }),
+  })
+
+/**
+ * Map a feature to a value path step (or unmap if stepId is null).
+ */
+export const mapFeatureToStep = (
+  projectId: string,
+  featureId: string,
+  vpStepId: string | null
+) =>
+  apiRequest<{ success: boolean; feature_id: string; vp_step_id: string | null }>(
+    `/projects/${projectId}/workspace/features/${featureId}/map-to-step`,
+    {
+      method: 'PATCH',
+      body: JSON.stringify({ vp_step_id: vpStepId }),
+    }
+  )

@@ -1,0 +1,105 @@
+/**
+ * BottomDock - Fixed bottom-center bar with toggle buttons for panels
+ *
+ * Three panels: Strategy (foundation + business data), Evidence (sources), Memory (decisions + activity).
+ */
+
+'use client'
+
+import { BookOpen, Database, Brain, X } from 'lucide-react'
+import { ContextPanel } from './panels/ContextPanel'
+import { EvidencePanel } from './panels/EvidencePanel'
+import { MemoryPanel } from './panels/memory/MemoryPanel'
+
+type PanelType = 'context' | 'evidence' | 'history' | null
+
+interface BottomDockProps {
+  projectId: string
+  activePanel: PanelType
+  onPanelChange: (panel: PanelType) => void
+}
+
+const DOCK_BUTTONS = [
+  { id: 'context' as const, icon: BookOpen, label: 'Strategy' },
+  { id: 'evidence' as const, icon: Database, label: 'Evidence' },
+  { id: 'history' as const, icon: Brain, label: 'Memory' },
+]
+
+const PANEL_TITLES: Record<string, string> = {
+  context: 'Strategic Intelligence',
+  evidence: 'Evidence & Sources',
+  history: 'Memory & Intelligence',
+}
+
+export function BottomDock({ projectId, activePanel, onPanelChange }: BottomDockProps) {
+  const handleToggle = (panel: 'context' | 'evidence' | 'history') => {
+    onPanelChange(activePanel === panel ? null : panel)
+  }
+
+  return (
+    <>
+      {/* Backdrop — blurred */}
+      {activePanel && (
+        <div
+          className="fixed inset-0 z-30 bg-black/30 backdrop-blur-sm"
+          onClick={() => onPanelChange(null)}
+        />
+      )}
+
+      {/* Centered modal */}
+      {activePanel && (
+        <div className="fixed inset-0 z-30 flex items-center justify-center p-8 pointer-events-none">
+          <div className="bg-white rounded-xl border border-ui-cardBorder shadow-xl w-full max-w-5xl max-h-[75vh] overflow-hidden flex flex-col pointer-events-auto">
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-ui-cardBorder bg-ui-background">
+              <h3 className="text-base font-semibold text-ui-headingDark">
+                {PANEL_TITLES[activePanel] || activePanel}
+              </h3>
+              <button
+                onClick={() => onPanelChange(null)}
+                className="p-1.5 rounded-lg text-ui-supportText hover:text-ui-headingDark hover:bg-white transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            {/* Content — scrollable */}
+            <div className="flex-1 overflow-y-auto p-6">
+              {activePanel === 'context' && <ContextPanel projectId={projectId} />}
+              {activePanel === 'evidence' && <EvidencePanel projectId={projectId} />}
+              {activePanel === 'history' && <MemoryPanel projectId={projectId} />}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Dock bar */}
+      <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-40">
+        <div className="flex items-center gap-1 bg-white rounded-full border border-ui-cardBorder shadow-lg px-2 py-1.5">
+          {DOCK_BUTTONS.map((btn) => {
+            const Icon = btn.icon
+            const isActive = activePanel === btn.id
+            return (
+              <button
+                key={btn.id}
+                onClick={() => handleToggle(btn.id)}
+                className={`
+                  flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all
+                  ${isActive
+                    ? 'bg-brand-teal/10 text-brand-teal'
+                    : 'text-ui-supportText hover:text-ui-headingDark hover:bg-ui-background'
+                  }
+                `}
+                title={btn.label}
+              >
+                <Icon className="w-4 h-4" />
+                <span>{btn.label}</span>
+              </button>
+            )
+          })}
+        </div>
+      </div>
+    </>
+  )
+}
+
+export default BottomDock
