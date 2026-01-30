@@ -1122,6 +1122,77 @@ async def refresh_unified_memory_endpoint(project_id: UUID):
 
 
 # ======================
+# Memory Visualization Endpoints
+# ======================
+
+
+@router.get("/{project_id}/memory/visualize")
+async def get_memory_visualization(project_id: UUID):
+    """
+    Aggregate all graph data for memory visualization in one call.
+
+    Returns nodes, edges, decisions, learnings, and stats for the
+    Memory & Intelligence panel.
+    """
+    from app.db.memory_graph import (
+        count_edges_to_node,
+        get_all_edges,
+        get_graph_stats,
+        get_nodes,
+    )
+    from app.db.project_memory import get_learnings, get_recent_decisions
+
+    try:
+        stats = get_graph_stats(project_id)
+        nodes_raw = get_nodes(project_id, active_only=True, limit=200)
+        edges_raw = get_all_edges(project_id, limit=500)
+        decisions = get_recent_decisions(project_id, limit=20, active_only=True)
+        learnings = get_learnings(project_id, limit=20)
+
+        # Enrich belief nodes with support/contradict counts
+        nodes = []
+        for n in nodes_raw:
+            support_count = 0
+            contradict_count = 0
+            if n["node_type"] == "belief":
+                support_count = count_edges_to_node(UUID(n["id"]), "supports")
+                contradict_count = count_edges_to_node(UUID(n["id"]), "contradicts")
+            nodes.append({
+                **n,
+                "support_count": support_count,
+                "contradict_count": contradict_count,
+            })
+
+        return {
+            "stats": stats,
+            "nodes": nodes,
+            "edges": edges_raw,
+            "decisions": decisions,
+            "learnings": learnings,
+        }
+    except Exception as e:
+        logger.exception(f"Failed to get memory visualization for {project_id}")
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.get("/{project_id}/memory/belief-history")
+async def get_belief_history_endpoint(project_id: UUID, belief_id: UUID = Query(...)):
+    """
+    Get the change history for a specific belief node.
+
+    Lazy-loaded by the Evolution tab in the Memory & Intelligence panel.
+    """
+    from app.db.memory_graph import get_belief_history
+
+    try:
+        history = get_belief_history(belief_id, limit=50)
+        return {"history": history}
+    except Exception as e:
+        logger.exception(f"Failed to get belief history for {belief_id}")
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+# ======================
 # Helper Functions
 # ======================
 

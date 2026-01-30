@@ -60,9 +60,15 @@ async def analyze_gaps(project_id: UUID) -> dict[str, Any]:
     # 2. Analyze foundation gaps
     # ==========================================================================
     foundation_gaps = {}
-    unsatisfied_gates = [gate for gate in readiness.gates if not gate.is_satisfied]
 
-    # Analyze each gate
+    # readiness.gates is {"prototype_gates": {name: dict}, "build_gates": {name: dict}}
+    # Flatten all gate assessments into a single lookup dict
+    all_gate_assessments: dict[str, dict] = {}
+    for group in ("prototype_gates", "build_gates"):
+        group_data = readiness.gates.get(group, {})
+        if isinstance(group_data, dict):
+            all_gate_assessments.update(group_data)
+
     gate_names = [
         "core_pain",
         "primary_persona",
@@ -74,18 +80,18 @@ async def analyze_gaps(project_id: UUID) -> dict[str, Any]:
     ]
 
     for gate_name in gate_names:
-        gate_assessment = next(
-            (g for g in readiness.gates if g.gate_name == gate_name), None
-        )
+        gate_assessment = all_gate_assessments.get(gate_name)
 
-        if gate_assessment:
+        if gate_assessment and isinstance(gate_assessment, dict):
+            missing_list = gate_assessment.get("missing", [])
+            how_to_list = gate_assessment.get("how_to_acquire", [])
             foundation_gaps[gate_name] = {
-                "satisfied": gate_assessment.is_satisfied,
-                "confidence": gate_assessment.confidence,
-                "completeness": gate_assessment.completeness,
-                "status": gate_assessment.status,
-                "missing": gate_assessment.reason_not_satisfied or "",
-                "how_to_acquire": gate_assessment.how_to_acquire or "",
+                "satisfied": gate_assessment.get("satisfied", False),
+                "confidence": gate_assessment.get("confidence", 0.0),
+                "completeness": gate_assessment.get("confidence", 0.0),
+                "status": "satisfied" if gate_assessment.get("satisfied") else "unsatisfied",
+                "missing": "; ".join(missing_list) if isinstance(missing_list, list) else str(missing_list),
+                "how_to_acquire": "; ".join(how_to_list) if isinstance(how_to_list, list) else str(how_to_list),
             }
         else:
             # Gate not assessed yet
@@ -311,7 +317,7 @@ async def analyze_gaps(project_id: UUID) -> dict[str, Any]:
         "summary": summary,
         "priority_gaps": priority_gaps,
         "phase": readiness.phase,
-        "total_readiness": readiness.total_readiness,
+        "total_readiness": readiness.gate_score / 100.0,
         "counts": {
             "critical_gaps": len(critical_gaps),
             "high_gaps": len(high_gaps),
