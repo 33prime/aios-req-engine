@@ -26,6 +26,10 @@ export const colors = {
   headingDark: '#1D1D1F',  // H1, section headers
   headingPrimary: '#044159', // H2, tab titles
 
+  // Brand Accent
+  teal: '#009b87',
+  tealDark: '#008775',
+
   // UI Element Colors
   buttonGray: '#F5F5F5',
   buttonGrayHover: '#E5E5E5',

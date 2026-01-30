@@ -26,29 +26,29 @@ interface TaskDetailModalProps {
 
 // Task type configuration for badges
 const taskTypeConfig: Record<string, { icon: typeof CheckCircle; label: string; color: string; bgColor: string }> = {
-  proposal: { icon: FileText, label: 'Proposal', color: 'text-blue-700', bgColor: 'bg-blue-100' },
-  gap: { icon: AlertCircle, label: 'Gap Analysis', color: 'text-amber-700', bgColor: 'bg-amber-100' },
+  proposal: { icon: FileText, label: 'Proposal', color: 'text-emerald-700', bgColor: 'bg-emerald-50' },
+  gap: { icon: AlertCircle, label: 'Gap Analysis', color: 'text-emerald-800', bgColor: 'bg-emerald-100' },
   manual: { icon: CheckCircle, label: 'Manual Task', color: 'text-gray-700', bgColor: 'bg-gray-100' },
-  enrichment: { icon: Sparkles, label: 'Enrichment', color: 'text-purple-700', bgColor: 'bg-purple-100' },
+  enrichment: { icon: Sparkles, label: 'Enrichment', color: 'text-teal-700', bgColor: 'bg-teal-50' },
   validation: { icon: Target, label: 'Validation', color: 'text-emerald-700', bgColor: 'bg-emerald-100' },
-  research: { icon: Search, label: 'Research', color: 'text-cyan-700', bgColor: 'bg-cyan-100' },
-  collaboration: { icon: MessageSquare, label: 'Client Collaboration', color: 'text-pink-700', bgColor: 'bg-pink-100' },
+  research: { icon: Search, label: 'Research', color: 'text-emerald-600', bgColor: 'bg-emerald-50' },
+  collaboration: { icon: MessageSquare, label: 'Client Collaboration', color: 'text-teal-700', bgColor: 'bg-teal-100' },
 }
 
 // Priority level configuration
 const priorityConfig = {
   high: {
     label: 'High Priority',
-    color: 'text-red-700',
-    bgColor: 'bg-red-50',
-    borderColor: 'border-red-200',
+    color: 'text-emerald-800',
+    bgColor: 'bg-emerald-50',
+    borderColor: 'border-emerald-200',
     icon: ArrowUpCircle,
   },
   medium: {
     label: 'Medium Priority',
-    color: 'text-amber-700',
-    bgColor: 'bg-amber-50',
-    borderColor: 'border-amber-200',
+    color: 'text-emerald-700',
+    bgColor: 'bg-emerald-50',
+    borderColor: 'border-emerald-100',
     icon: ArrowRightCircle,
   },
   low: {
@@ -230,7 +230,7 @@ export function TaskDetailModal({
                     {priority.label}
                   </span>
                   {task.requires_client_input && (
-                    <span className="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full bg-pink-100 text-pink-700">
+                    <span className="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full bg-teal-100 text-teal-700">
                       <User className="w-3.5 h-3.5" />
                       Client Input Required
                     </span>

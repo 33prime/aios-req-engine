@@ -154,61 +154,59 @@ export function SmartProjectCreation({ isOpen, onClose, onSuccess }: SmartProjec
 
   return (
     <div className="fixed inset-0 z-50">
-      {/* Backdrop */}
+      {/* Frosted blur backdrop */}
       <div
-        className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4"
+        className="fixed inset-0 bg-black/30 backdrop-blur-md flex items-center justify-center p-4"
         onClick={handleClose}
       >
-        {/* Modal - Large and tall */}
+        {/* Modal — 25% smaller */}
         <div
-          className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full h-[88vh] flex flex-col overflow-hidden"
+          className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full h-[66vh] flex flex-col overflow-hidden"
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header with emerald gradient */}
-          <div className="relative bg-gradient-to-r from-emerald-600 to-emerald-400 p-5 text-white flex-shrink-0">
+          <div className="relative bg-gradient-to-r from-emerald-600 to-emerald-400 px-4 py-3.5 text-white flex-shrink-0">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-white bg-opacity-20 backdrop-blur-sm flex items-center justify-center">
-                  <Lightbulb className="w-6 h-6" />
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-full bg-white bg-opacity-20 backdrop-blur-sm flex items-center justify-center">
+                  <Lightbulb className="w-4.5 h-4.5" />
                 </div>
-                <div>
-                  <h2 className="text-xl font-bold">AI Assistant</h2>
-                </div>
+                <h2 className="text-base font-bold">AI Assistant</h2>
               </div>
               <button
                 onClick={handleClose}
-                className="text-white hover:text-gray-200 transition-colors p-2"
+                className="text-white hover:text-gray-200 transition-colors p-1.5"
               >
-                <X className="w-6 h-6" />
+                <X className="w-5 h-5" />
               </button>
             </div>
           </div>
 
           {/* Messages area - gray background */}
-          <div className="flex-1 overflow-y-auto p-6 space-y-3 bg-gray-50">
+          <div className="flex-1 overflow-y-auto px-4 py-4 space-y-2.5 bg-gray-50">
             {messages.map((msg) => (
               <div key={msg.id} className="flex items-start message-enter">
-                <div className="flex-1 max-w-3xl">
+                <div className="flex-1 max-w-2xl">
                   {msg.role === 'assistant' ? (
                     /* AI Message - emerald bubble with sparkle icon */
-                    <div className="bg-emerald-50 rounded-xl px-4 py-4 shadow-sm border border-emerald-100">
-                      <div className="flex items-start gap-3">
-                        <div className="w-7 h-7 rounded-full bg-white flex items-center justify-center flex-shrink-0">
-                          <Sparkles className="w-4 h-4 text-[#009b87]" />
+                    <div className="bg-emerald-50 rounded-xl px-3.5 py-3 shadow-sm border border-emerald-100">
+                      <div className="flex items-start gap-2.5">
+                        <div className="w-6 h-6 rounded-full bg-white flex items-center justify-center flex-shrink-0">
+                          <Sparkles className="w-3.5 h-3.5 text-[#009b87]" />
                         </div>
-                        <div className="flex-1 text-sm leading-relaxed text-gray-700">
+                        <div className="flex-1 text-[13px] leading-relaxed text-gray-700">
                           {renderMarkdown(msg.content)}
                         </div>
                       </div>
                     </div>
                   ) : (
                     /* User Message - white bubble with person icon */
-                    <div className="bg-white rounded-xl px-4 py-4 shadow-sm border border-gray-200">
-                      <div className="flex items-start gap-3">
-                        <div className="w-7 h-7 rounded-full bg-gray-200 flex items-center justify-center flex-shrink-0">
-                          <User className="w-4 h-4 text-gray-600" />
+                    <div className="bg-white rounded-xl px-3.5 py-3 shadow-sm border border-gray-200">
+                      <div className="flex items-start gap-2.5">
+                        <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center flex-shrink-0">
+                          <User className="w-3.5 h-3.5 text-gray-600" />
                         </div>
-                        <div className="flex-1 text-sm leading-relaxed text-gray-700 whitespace-pre-wrap">
+                        <div className="flex-1 text-[13px] leading-relaxed text-gray-700 whitespace-pre-wrap">
                           {msg.content}
                         </div>
                       </div>
@@ -221,23 +219,23 @@ export function SmartProjectCreation({ isOpen, onClose, onSuccess }: SmartProjec
             {/* Typing indicator - only show if loading AND no streaming message exists */}
             {isLoading && !messages.some(m => m.isStreaming) && (
               <div className="flex items-start message-enter">
-                <div className="flex-1 max-w-3xl">
-                  <div className="bg-emerald-50 rounded-xl px-4 py-4 shadow-sm border border-emerald-100">
-                    <div className="flex items-start gap-3">
-                      <div className="w-7 h-7 rounded-full bg-white flex items-center justify-center flex-shrink-0">
-                        <Sparkles className="w-4 h-4 text-[#009b87]" />
+                <div className="flex-1 max-w-2xl">
+                  <div className="bg-emerald-50 rounded-xl px-3.5 py-3 shadow-sm border border-emerald-100">
+                    <div className="flex items-start gap-2.5">
+                      <div className="w-6 h-6 rounded-full bg-white flex items-center justify-center flex-shrink-0">
+                        <Sparkles className="w-3.5 h-3.5 text-[#009b87]" />
                       </div>
-                      <div className="flex gap-1 pt-2">
+                      <div className="flex gap-1 pt-1.5">
                         <div
-                          className="w-2 h-2 bg-[#009b87] rounded-full animate-bounce"
+                          className="w-1.5 h-1.5 bg-[#009b87] rounded-full animate-bounce"
                           style={{ animationDelay: '0ms' }}
                         />
                         <div
-                          className="w-2 h-2 bg-[#009b87] rounded-full animate-bounce"
+                          className="w-1.5 h-1.5 bg-[#009b87] rounded-full animate-bounce"
                           style={{ animationDelay: '150ms' }}
                         />
                         <div
-                          className="w-2 h-2 bg-[#009b87] rounded-full animate-bounce"
+                          className="w-1.5 h-1.5 bg-[#009b87] rounded-full animate-bounce"
                           style={{ animationDelay: '300ms' }}
                         />
                       </div>
@@ -250,19 +248,19 @@ export function SmartProjectCreation({ isOpen, onClose, onSuccess }: SmartProjec
             {/* Project created success message */}
             {projectCreated && (
               <div className="flex items-start message-enter">
-                <div className="flex-1 max-w-3xl">
-                  <div className="bg-emerald-100 rounded-xl px-4 py-4 shadow-sm border border-emerald-200">
-                    <div className="flex items-start gap-3">
-                      <div className="w-7 h-7 rounded-full bg-emerald-500 flex items-center justify-center flex-shrink-0">
-                        <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="flex-1 max-w-2xl">
+                  <div className="bg-emerald-100 rounded-xl px-3.5 py-3 shadow-sm border border-emerald-200">
+                    <div className="flex items-start gap-2.5">
+                      <div className="w-6 h-6 rounded-full bg-emerald-500 flex items-center justify-center flex-shrink-0">
+                        <svg className="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                         </svg>
                       </div>
                       <div className="flex-1">
-                        <p className="text-sm font-medium text-emerald-800">
+                        <p className="text-[13px] font-medium text-emerald-800">
                           Project "{projectCreated.name}" created successfully!
                         </p>
-                        <p className="text-xs text-emerald-600 mt-1">
+                        <p className="text-[11px] text-emerald-600 mt-0.5">
                           Redirecting to your new workspace...
                         </p>
                       </div>
@@ -278,24 +276,24 @@ export function SmartProjectCreation({ isOpen, onClose, onSuccess }: SmartProjec
           {/* Input area */}
           <form
             onSubmit={handleSubmit}
-            className="border-t border-gray-200 p-6 bg-white flex-shrink-0"
+            className="border-t border-gray-200 px-4 py-3.5 bg-white flex-shrink-0"
           >
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2.5">
               <input
                 type="text"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 placeholder="Write your answer"
-                className="flex-1 px-4 py-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#009b87] focus:border-transparent transition-all"
+                className="flex-1 px-3.5 py-2.5 border border-gray-300 rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#009b87] focus:border-transparent transition-all"
                 disabled={isLoading || !!projectCreated}
                 autoFocus
               />
               <button
                 type="submit"
                 disabled={!input.trim() || isLoading || !!projectCreated}
-                className="px-6 py-3 bg-[#009b87] text-white rounded-lg hover:bg-[#007a6b] transition-colors font-medium flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-4 py-2.5 bg-[#009b87] text-white rounded-lg hover:bg-[#007a6b] transition-colors font-medium flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <ArrowRight className="w-5 h-5" />
+                <ArrowRight className="w-4 h-4" />
               </button>
             </div>
           </form>

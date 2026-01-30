@@ -34,18 +34,18 @@ interface TaskCardProps {
 }
 
 const taskTypeConfig: Record<string, { icon: typeof CheckCircle; label: string; color: string }> = {
-  proposal: { icon: FileText, label: 'Proposal', color: 'bg-blue-100 text-blue-700' },
-  gap: { icon: AlertCircle, label: 'Gap', color: 'bg-amber-100 text-amber-700' },
+  proposal: { icon: FileText, label: 'Proposal', color: 'bg-emerald-50 text-emerald-700' },
+  gap: { icon: AlertCircle, label: 'Gap', color: 'bg-emerald-100 text-emerald-800' },
   manual: { icon: CheckCircle, label: 'Manual', color: 'bg-gray-100 text-gray-700' },
-  enrichment: { icon: Sparkles, label: 'Enrichment', color: 'bg-purple-100 text-purple-700' },
+  enrichment: { icon: Sparkles, label: 'Enrichment', color: 'bg-teal-50 text-teal-700' },
   validation: { icon: Target, label: 'Validation', color: 'bg-emerald-100 text-emerald-700' },
-  research: { icon: Search, label: 'Research', color: 'bg-cyan-100 text-cyan-700' },
-  collaboration: { icon: MessageSquare, label: 'Client', color: 'bg-pink-100 text-pink-700' },
+  research: { icon: Search, label: 'Research', color: 'bg-emerald-50 text-emerald-600' },
+  collaboration: { icon: MessageSquare, label: 'Client', color: 'bg-teal-100 text-teal-700' },
 }
 
 const priorityConfig: Record<string, { color: string; label: string }> = {
-  high: { color: 'text-red-600', label: 'High' },
-  medium: { color: 'text-amber-600', label: 'Medium' },
+  high: { color: 'text-emerald-800', label: 'High' },
+  medium: { color: 'text-emerald-600', label: 'Medium' },
   low: { color: 'text-gray-500', label: 'Low' },
 }
 
@@ -98,50 +98,23 @@ export function TaskCard({
   if (compact) {
     return (
       <div
-        className={`flex items-center gap-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors group ${onViewDetails ? 'cursor-pointer' : ''}`}
+        className={`p-2 bg-gray-50 rounded-md border border-gray-100 hover:bg-gray-100 transition-colors ${onViewDetails ? 'cursor-pointer' : ''}`}
         onClick={() => onViewDetails?.(task)}
       >
-        <button
-          onClick={(e) => {
-            e.stopPropagation()
-            handleComplete()
-          }}
-          disabled={isCompleting}
-          className="flex-shrink-0 w-5 h-5 rounded border-2 border-gray-300 hover:border-[#009b87] hover:bg-[#009b87]/10 transition-colors disabled:opacity-50"
-          title="Complete task"
-        >
-          {isCompleting && (
-            <span className="block w-full h-full animate-pulse bg-gray-200 rounded" />
-          )}
-        </button>
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium text-gray-900 truncate">{task.title}</p>
-          <div className="flex items-center gap-2 mt-0.5">
-            <span className={`text-xs px-1.5 py-0.5 rounded ${typeConfig.color}`}>
-              {typeConfig.label}
+        <p className="text-[11px] font-medium text-gray-900 mb-1 leading-snug truncate">{task.title}</p>
+        <div className="flex items-center gap-1.5 text-[10px]">
+          <span className={`px-1 py-px rounded ${typeConfig.color}`}>
+            {typeConfig.label}
+          </span>
+          <span className={`font-medium ${priority.color}`}>
+            {priority.label}
+          </span>
+          {task.requires_client_input && (
+            <span className="px-1 py-px bg-teal-100 text-teal-700 rounded">
+              Client
             </span>
-            {task.requires_client_input && (
-              <span className="text-xs px-1.5 py-0.5 bg-pink-100 text-pink-700 rounded flex items-center gap-1">
-                <User className="w-3 h-3" />
-                Client
-              </span>
-            )}
-          </div>
+          )}
         </div>
-        <span className={`text-xs font-medium ${priority.color}`}>
-          {priority.label}
-        </span>
-        <button
-          onClick={(e) => {
-            e.stopPropagation()
-            handleDismiss()
-          }}
-          disabled={isDismissing}
-          className="opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-gray-600 transition-all disabled:opacity-50"
-          title="Dismiss task"
-        >
-          <X className="w-4 h-4" />
-        </button>
       </div>
     )
   }
@@ -166,7 +139,7 @@ export function TaskCard({
               {typeConfig.label}
             </span>
             {task.requires_client_input && (
-              <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 bg-pink-100 text-pink-700 rounded">
+              <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 bg-teal-100 text-teal-700 rounded">
                 <User className="w-3 h-3" />
                 Client Input
               </span>

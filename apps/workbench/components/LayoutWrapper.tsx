@@ -11,9 +11,10 @@ interface LayoutWrapperProps {
 export function LayoutWrapper({ children }: LayoutWrapperProps) {
   const pathname = usePathname()
   const isAuthPage = pathname.startsWith('/auth')
+  const isWorkspacePage = pathname.includes('/workspace')
 
-  if (isAuthPage) {
-    // Auth pages render without the app shell
+  // Pages that render without the app shell
+  if (isAuthPage || isWorkspacePage) {
     return <>{children}</>
   }
 

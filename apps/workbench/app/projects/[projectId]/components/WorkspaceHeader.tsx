@@ -18,7 +18,8 @@ import {
   Clock,
   ArrowLeft,
   Globe,
-  Lock
+  Lock,
+  LayoutGrid,
 } from 'lucide-react'
 import { IconButton } from '@/components/ui'
 import type { ProjectStage } from '@/types/api'
@@ -45,6 +46,7 @@ interface WorkspaceHeaderProps {
 }
 
 export function WorkspaceHeader({
+  projectId,
   projectName,
   clientName,
   stage = 'discovery',
@@ -108,6 +110,16 @@ export function WorkspaceHeader({
 
           {/* Right: Actions */}
           <div className="flex items-center gap-3">
+            {/* New Canvas Link */}
+            <Link
+              href={`/projects/${projectId}/workspace`}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-[#009b87] bg-[#009b87]/10 rounded-lg hover:bg-[#009b87]/20 transition-colors"
+              title="Try the new canvas view"
+            >
+              <LayoutGrid className="h-4 w-4" />
+              <span className="hidden sm:inline">Canvas</span>
+            </Link>
+
             {/* Activity Button */}
             {onShowActivity && (
               <IconButton

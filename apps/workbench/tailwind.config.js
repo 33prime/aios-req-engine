@@ -13,6 +13,8 @@ module.exports = {
           accent: '#88BABF',
           deepText: '#011F26',
           warmSand: '#F2E4BB',
+          teal: '#009b87',
+          tealDark: '#008775',
         },
         ui: {
           background: '#FAFAFA',
@@ -45,7 +47,16 @@ module.exports = {
       },
       spacing: {
         'card': '16px',
-      }
+      },
+      keyframes: {
+        'slide-in-right': {
+          from: { transform: 'translateX(100%)' },
+          to: { transform: 'translateX(0)' },
+        },
+      },
+      animation: {
+        'slide-in-right': 'slide-in-right 0.25s ease-out',
+      },
     },
   },
   plugins: [],
