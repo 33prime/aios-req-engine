@@ -1,8 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import { Building2, User, Loader, ArrowLeft } from 'lucide-react'
-import Link from 'next/link'
+import { Building2, User, Loader } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import {
   OrganizationDetailsCard,
@@ -19,6 +18,7 @@ import {
   getCurrentOrganization,
   setCurrentOrganization,
 } from '@/lib/api'
+import { AppSidebar } from '@/components/workspace/AppSidebar'
 import type {
   OrganizationWithRole,
   OrganizationMemberPublic,
@@ -34,6 +34,7 @@ export default function SettingsPage() {
   const [members, setMembers] = useState<OrganizationMemberPublic[]>([])
   const [invitations, setInvitations] = useState<Invitation[]>([])
   const [showInviteModal, setShowInviteModal] = useState(false)
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
 
   const currentUserId = user?.id || ''
 
@@ -86,118 +87,130 @@ export default function SettingsPage() {
     loadOrganizationData()
   }
 
+  const sidebarWidth = sidebarCollapsed ? 64 : 224
+
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-zinc-50 flex items-center justify-center">
-        <div className="flex items-center gap-2 text-zinc-500">
-          <Loader className="w-5 h-5 animate-spin" />
-          <span className="text-[13px]">Loading settings...</span>
+      <>
+        <AppSidebar
+          isCollapsed={sidebarCollapsed}
+          onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
+        />
+        <div
+          className="min-h-screen bg-zinc-50 flex items-center justify-center transition-all duration-300"
+          style={{ marginLeft: sidebarWidth }}
+        >
+          <div className="flex items-center gap-2 text-zinc-500">
+            <Loader className="w-5 h-5 animate-spin" />
+            <span className="text-[13px]">Loading settings...</span>
+          </div>
         </div>
-      </div>
+      </>
     )
   }
 
   return (
-    <div className="min-h-screen bg-zinc-50">
-      <div className="max-w-4xl mx-auto px-4 py-8">
-        <div className="flex items-center gap-4 mb-8">
-          <Link
-            href="/projects"
-            className="p-2 hover:bg-zinc-100 rounded-lg transition-colors text-zinc-500 hover:text-zinc-700"
-          >
-            <ArrowLeft className="w-5 h-5" />
-          </Link>
-          <div>
+    <>
+      <AppSidebar
+        isCollapsed={sidebarCollapsed}
+        onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
+      />
+      <div
+        className="min-h-screen bg-zinc-50 transition-all duration-300"
+        style={{ marginLeft: sidebarWidth }}
+      >
+        <div className="max-w-4xl mx-auto px-4 py-8">
+          <div className="mb-8">
             <h1 className="text-[16px] font-semibold text-zinc-900">Settings</h1>
             <p className="text-[13px] text-zinc-500">Manage your profile and organization</p>
           </div>
-        </div>
 
-        {/* Tab Navigation */}
-        <div className="border-b border-zinc-200 mb-6">
-          <nav className="-mb-px flex space-x-8">
-            <button
-              onClick={() => setActiveTab('profile')}
-              className={`flex items-center gap-2 py-3 px-1 border-b-2 text-[13px] font-medium transition-colors ${
-                activeTab === 'profile'
-                  ? 'border-emerald-600 text-emerald-600'
-                  : 'border-transparent text-zinc-500 hover:text-zinc-700 hover:border-zinc-300'
-              }`}
-            >
-              <User className="w-4 h-4" />
-              Profile
-            </button>
-            <button
-              onClick={() => setActiveTab('organization')}
-              className={`flex items-center gap-2 py-3 px-1 border-b-2 text-[13px] font-medium transition-colors ${
-                activeTab === 'organization'
-                  ? 'border-emerald-600 text-emerald-600'
-                  : 'border-transparent text-zinc-500 hover:text-zinc-700 hover:border-zinc-300'
-              }`}
-            >
-              <Building2 className="w-4 h-4" />
-              Organization
-            </button>
-          </nav>
-        </div>
+          {/* Tab Navigation */}
+          <div className="border-b border-zinc-200 mb-6">
+            <nav className="-mb-px flex space-x-8">
+              <button
+                onClick={() => setActiveTab('profile')}
+                className={`flex items-center gap-2 py-3 px-1 border-b-2 text-[13px] font-medium transition-colors ${
+                  activeTab === 'profile'
+                    ? 'border-emerald-600 text-emerald-600'
+                    : 'border-transparent text-zinc-500 hover:text-zinc-700 hover:border-zinc-300'
+                }`}
+              >
+                <User className="w-4 h-4" />
+                Profile
+              </button>
+              <button
+                onClick={() => setActiveTab('organization')}
+                className={`flex items-center gap-2 py-3 px-1 border-b-2 text-[13px] font-medium transition-colors ${
+                  activeTab === 'organization'
+                    ? 'border-emerald-600 text-emerald-600'
+                    : 'border-transparent text-zinc-500 hover:text-zinc-700 hover:border-zinc-300'
+                }`}
+              >
+                <Building2 className="w-4 h-4" />
+                Organization
+              </button>
+            </nav>
+          </div>
 
-        {/* Content */}
-        <div className="space-y-6">
-            {activeTab === 'organization' && (
-              <>
-                {organization ? (
-                  <>
-                    <OrganizationDetailsCard
-                      organization={organization}
-                      userRole={organization.current_user_role}
-                      onUpdate={(updated) => {
-                        setOrganization({ ...updated, current_user_role: organization.current_user_role })
-                      }}
-                    />
+          {/* Content */}
+          <div className="space-y-6">
+              {activeTab === 'organization' && (
+                <>
+                  {organization ? (
+                    <>
+                      <OrganizationDetailsCard
+                        organization={organization}
+                        userRole={organization.current_user_role}
+                        onUpdate={(updated) => {
+                          setOrganization({ ...updated, current_user_role: organization.current_user_role })
+                        }}
+                      />
 
-                    <TeamMembersCard
-                      members={members}
-                      currentUserId={currentUserId}
-                      organizationId={organization.id}
-                      userRole={organization.current_user_role}
-                      onInviteClick={() => setShowInviteModal(true)}
-                      onMembersChange={loadOrganizationData}
-                    />
+                      <TeamMembersCard
+                        members={members}
+                        currentUserId={currentUserId}
+                        organizationId={organization.id}
+                        userRole={organization.current_user_role}
+                        onInviteClick={() => setShowInviteModal(true)}
+                        onMembersChange={loadOrganizationData}
+                      />
 
-                    <PendingInvitationsCard
-                      invitations={invitations}
-                      organizationId={organization.id}
-                      userRole={organization.current_user_role}
-                      onInvitationsChange={loadOrganizationData}
-                    />
+                      <PendingInvitationsCard
+                        invitations={invitations}
+                        organizationId={organization.id}
+                        userRole={organization.current_user_role}
+                        onInvitationsChange={loadOrganizationData}
+                      />
 
-                    <InviteMemberModal
-                      organizationId={organization.id}
-                      organizationName={organization.name}
-                      isOpen={showInviteModal}
-                      onClose={() => setShowInviteModal(false)}
-                      onSuccess={handleInviteSuccess}
-                    />
-                  </>
-                ) : (
-                  <div className="rounded-xl border border-zinc-200 bg-white shadow-sm p-8 text-center">
-                    <Building2 className="w-10 h-10 text-zinc-300 mx-auto mb-4" />
-                    <h3 className="text-[14px] font-semibold text-zinc-900 mb-2">
-                      No Organization
-                    </h3>
-                    <p className="text-[13px] text-zinc-600 mb-4">
-                      Create an organization to collaborate with your team.
-                    </p>
-                  </div>
-                )}
-              </>
-            )}
+                      <InviteMemberModal
+                        organizationId={organization.id}
+                        organizationName={organization.name}
+                        isOpen={showInviteModal}
+                        onClose={() => setShowInviteModal(false)}
+                        onSuccess={handleInviteSuccess}
+                      />
+                    </>
+                  ) : (
+                    <div className="rounded-xl border border-zinc-200 bg-white shadow-sm p-8 text-center">
+                      <Building2 className="w-10 h-10 text-zinc-300 mx-auto mb-4" />
+                      <h3 className="text-[14px] font-semibold text-zinc-900 mb-2">
+                        No Organization
+                      </h3>
+                      <p className="text-[13px] text-zinc-600 mb-4">
+                        Create an organization to collaborate with your team.
+                      </p>
+                    </div>
+                  )}
+                </>
+              )}
 
-            {activeTab === 'profile' && (
-              <ProfileTab onLogout={() => router.push('/auth/login')} />
-            )}
+              {activeTab === 'profile' && (
+                <ProfileTab onLogout={() => router.push('/auth/login')} />
+              )}
+          </div>
         </div>
       </div>
-    </div>
+    </>
   )
 }

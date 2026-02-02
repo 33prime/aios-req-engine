@@ -7,17 +7,32 @@ from uuid import UUID
 from fastapi import APIRouter, HTTPException, Query
 
 from app.core.logging import get_logger
-from app.core.readiness_cache import update_all_readiness_scores, update_project_readiness, update_project_state
+from app.core.readiness_cache import (
+    update_project_state,
+)
 from app.core.schemas_projects import (
+    AdvanceStageRequest,
+    AdvanceStageResponse,
     BaselinePatchRequest,
     BaselineStatus,
     CreateProjectRequest,
     ProjectDetailResponse,
     ProjectListResponse,
     ProjectResponse,
+    StageGateCriterion,
+    StageStatusResponse,
     StatusNarrative,
     UpdateProjectRequest,
 )
+from app.core.stage_progression import (
+    STAGE_LABELS,
+    StageTransitionError,
+    evaluate_from_cached_readiness,
+    evaluate_stage_eligibility,
+    validate_stage_transition,
+)
+from app.db.company_info import batch_get_company_names
+from app.db.profiles import get_profile_by_user_id
 from app.db.project_gates import get_or_create_project_gate, upsert_project_gate
 from app.db.projects import (
     archive_project as db_archive_project,
@@ -57,10 +72,29 @@ async def list_all_projects(
     try:
         result = list_projects(status=status, search=search, limit=limit, offset=offset)
 
-        # Convert to response model (readiness scores loaded separately for performance)
-        projects = [_to_project_response(p) for p in result["projects"]]
+        # Batch-fetch company names from company_info table
+        project_ids = [UUID(p["id"]) for p in result["projects"]]
+        company_names = batch_get_company_names(project_ids) if project_ids else {}
 
-        return ProjectListResponse(projects=projects, total=result["total"])
+        # Convert to response model, preferring company_info.name over projects.client_name
+        projects = [_to_project_response(p, company_name=company_names.get(p["id"])) for p in result["projects"]]
+
+        # Fetch owner profiles for all projects
+        owner_ids = list(set([UUID(p.created_by) for p in projects if p.created_by]))
+        owner_profiles = {}
+        for user_id in owner_ids:
+            try:
+                profile = await get_profile_by_user_id(user_id)
+                if profile:
+                    owner_profiles[str(user_id)] = {
+                        "first_name": profile.first_name,
+                        "last_name": profile.last_name,
+                        "photo_url": profile.photo_url,
+                    }
+            except Exception as e:
+                logger.warning(f"Failed to fetch profile for {user_id}: {e}")
+
+        return ProjectListResponse(projects=projects, total=result["total"], owner_profiles=owner_profiles)
 
     except Exception as e:
         logger.exception("Failed to list projects")
@@ -325,6 +359,122 @@ async def archive_existing_project(project_id: UUID) -> ProjectResponse:
             status_code=500,
             detail=f"Failed to archive project: {str(e)}",
         ) from e
+
+
+@router.get("/{project_id}/stage-status", response_model=StageStatusResponse)
+async def get_stage_status(project_id: UUID) -> StageStatusResponse:
+    """
+    Get stage advancement status with full criteria checklist.
+
+    Performs fresh gate assessment to determine whether the project
+    is eligible to advance to the next lifecycle stage.
+    """
+    try:
+        project = get_project(project_id)
+        current_stage = project.get("stage", "discovery")
+
+        # Fresh gate assessment
+        from app.core.readiness.gates import assess_all_gates
+        proto_gates, build_gates, _score, _phase = assess_all_gates(project_id)
+
+        # Build the gates data dict matching cached_readiness_data.gates shape
+        gates_data = {
+            "prototype_gates": {k: v.model_dump() for k, v in proto_gates.items()},
+            "build_gates": {k: v.model_dump() for k, v in build_gates.items()},
+        }
+
+        status = evaluate_stage_eligibility(current_stage, gates_data)
+
+        return StageStatusResponse(
+            current_stage=status.current_stage,
+            next_stage=status.next_stage,
+            can_advance=status.can_advance,
+            criteria=[
+                StageGateCriterion(
+                    gate_name=c.gate_name,
+                    gate_label=c.gate_label,
+                    satisfied=c.satisfied,
+                    confidence=c.confidence,
+                    required=c.required,
+                    missing=c.missing,
+                    how_to_acquire=c.how_to_acquire,
+                )
+                for c in status.criteria
+            ],
+            criteria_met=status.criteria_met,
+            criteria_total=status.criteria_total,
+            progress_pct=status.progress_pct,
+            transition_description=status.transition_description,
+            is_final_stage=status.is_final_stage,
+        )
+
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
+    except Exception as e:
+        logger.exception(f"Failed to get stage status for {project_id}")
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.patch("/{project_id}/stage", response_model=AdvanceStageResponse)
+async def advance_project_stage(
+    project_id: UUID,
+    request: AdvanceStageRequest,
+) -> AdvanceStageResponse:
+    """
+    Advance a project to a new lifecycle stage.
+
+    Validates gate requirements unless force=True.
+    """
+    try:
+        project = get_project(project_id)
+        current_stage = project.get("stage", "discovery")
+        target = request.target_stage
+
+        if not request.force:
+            # Fresh gate assessment for validation
+            from app.core.readiness.gates import assess_all_gates
+            proto_gates, build_gates, _score, _phase = assess_all_gates(project_id)
+            gates_data = {
+                "prototype_gates": {k: v.model_dump() for k, v in proto_gates.items()},
+                "build_gates": {k: v.model_dump() for k, v in build_gates.items()},
+            }
+            validate_stage_transition(current_stage, target, gates_data, force=False)
+        else:
+            # Still validate basic sanity (unknown stages, same stage)
+            from app.core.stage_progression import STAGES
+            if target not in STAGES:
+                raise StageTransitionError(f"Unknown stage: {target}")
+            if current_stage == target:
+                raise StageTransitionError("Already at that stage")
+
+        # Perform the update
+        update_project(project_id, {"stage": target})
+
+        logger.info(
+            f"Stage transition: {current_stage} → {target} "
+            f"(project={project_id}, forced={request.force}, reason={request.reason})"
+        )
+
+        from_label = STAGE_LABELS.get(current_stage, current_stage)
+        to_label = STAGE_LABELS.get(target, target)
+        msg = f"Advanced from {from_label} to {to_label}"
+        if request.force:
+            msg += f" (forced: {request.reason or 'no reason given'})"
+
+        return AdvanceStageResponse(
+            previous_stage=current_stage,
+            current_stage=target,
+            forced=request.force,
+            message=msg,
+        )
+
+    except StageTransitionError as e:
+        raise HTTPException(status_code=422, detail=str(e)) from e
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
+    except Exception as e:
+        logger.exception(f"Failed to advance stage for {project_id}")
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.get("/{project_id}/baseline", response_model=BaselineStatus)
@@ -772,7 +922,7 @@ async def get_project_memory_endpoint(project_id: UUID):
     Returns:
         Memory with decisions, learnings, and questions
     """
-    from app.db.project_memory import get_project_memory, get_recent_decisions, get_learnings
+    from app.db.project_memory import get_learnings, get_project_memory, get_recent_decisions
 
     try:
         memory = get_project_memory(project_id)
@@ -1021,8 +1171,8 @@ async def compact_project_memory(project_id: UUID, force: bool = Query(False)):
         Compaction results including before/after token counts
     """
     try:
-        from app.chains.compact_memory import compact_memory, should_compact, estimate_tokens
-        from app.db.project_memory import get_project_memory, update_project_memory
+        from app.chains.compact_memory import compact_memory, estimate_tokens, should_compact
+        from app.db.project_memory import get_project_memory
 
         memory = get_project_memory(project_id)
         if not memory:
@@ -1135,7 +1285,6 @@ async def get_memory_visualization(project_id: UUID):
     Memory & Intelligence panel.
     """
     from app.db.memory_graph import (
-        count_edges_to_node,
         get_all_edges,
         get_graph_stats,
         get_nodes,
@@ -1149,18 +1298,27 @@ async def get_memory_visualization(project_id: UUID):
         decisions = get_recent_decisions(project_id, limit=20, active_only=True)
         learnings = get_learnings(project_id, limit=20)
 
-        # Enrich belief nodes with support/contradict counts
+        # Pre-compute support/contradict counts from already-fetched edges
+        # (avoids N+1: previously made 2 DB queries per belief node)
+        support_counts: dict[str, int] = {}
+        contradict_counts: dict[str, int] = {}
+        for edge in edges_raw:
+            to_id = edge.get("to_node_id", "")
+            edge_type = edge.get("edge_type", "")
+            if edge_type == "supports":
+                support_counts[to_id] = support_counts.get(to_id, 0) + 1
+            elif edge_type == "contradicts":
+                contradict_counts[to_id] = contradict_counts.get(to_id, 0) + 1
+
+        # Enrich belief nodes with pre-computed counts
         nodes = []
         for n in nodes_raw:
-            support_count = 0
-            contradict_count = 0
-            if n["node_type"] == "belief":
-                support_count = count_edges_to_node(UUID(n["id"]), "supports")
-                contradict_count = count_edges_to_node(UUID(n["id"]), "contradicts")
+            node_id = n["id"]
+            is_belief = n["node_type"] == "belief"
             nodes.append({
                 **n,
-                "support_count": support_count,
-                "contradict_count": contradict_count,
+                "support_count": support_counts.get(node_id, 0) if is_belief else 0,
+                "contradict_count": contradict_counts.get(node_id, 0) if is_belief else 0,
             })
 
         return {
@@ -1197,7 +1355,7 @@ async def get_belief_history_endpoint(project_id: UUID, belief_id: UUID = Query(
 # ======================
 
 
-def _to_project_response(p: dict, signal_id: UUID | None = None, onboarding_job_id: UUID | None = None) -> ProjectResponse:
+def _to_project_response(p: dict, signal_id: UUID | None = None, onboarding_job_id: UUID | None = None, company_name: str | None = None) -> ProjectResponse:
     """Convert a project dict to ProjectResponse."""
     # Parse status_narrative if present
     status_narrative = None
@@ -1217,6 +1375,11 @@ def _to_project_response(p: dict, signal_id: UUID | None = None, onboarding_job_
     if p.get("cached_readiness_score") is not None:
         readiness_score = int(p["cached_readiness_score"] * 100)
 
+    # Compute stage eligibility from cached readiness data (no extra DB call)
+    current_stage = p.get("stage", "discovery")
+    cached_data = p.get("cached_readiness_data")
+    stage_eligible = evaluate_from_cached_readiness(current_stage, cached_data)
+
     return ProjectResponse(
         id=UUID(p["id"]) if isinstance(p["id"], str) else p["id"],
         name=p["name"],
@@ -1229,8 +1392,9 @@ def _to_project_response(p: dict, signal_id: UUID | None = None, onboarding_job_
         onboarding_job_id=onboarding_job_id,
         portal_enabled=p.get("portal_enabled", False),
         portal_phase=p.get("portal_phase"),
-        stage=p.get("stage", "discovery"),
-        client_name=p.get("client_name"),
+        stage=current_stage,
+        client_name=company_name or p.get("client_name"),
         status_narrative=status_narrative,
         readiness_score=readiness_score,
+        stage_eligible=stage_eligible,
     )

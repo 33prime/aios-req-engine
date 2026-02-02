@@ -36,6 +36,7 @@ import type { CanvasData, FeatureSummary } from '@/types/workspace'
 interface RequirementsCanvasProps {
   data: CanvasData
   projectId: string
+  readinessScore?: number
   onUpdatePitchLine: (pitchLine: string) => Promise<void>
   onMapFeatureToStep: (featureId: string, stepId: string | null) => Promise<void>
   onRefresh?: () => void
@@ -56,6 +57,7 @@ const PERSONA_COLORS = [
 export function RequirementsCanvas({
   data,
   projectId,
+  readinessScore: readinessScoreProp,
   onUpdatePitchLine,
   onMapFeatureToStep,
   onRefresh,
@@ -117,7 +119,7 @@ export function RequirementsCanvas({
   const mvpFeatures = [...data.features, ...data.unmapped_features].filter((f) => f.is_mvp).length
   const mappedFeatures = data.features.length
   const mappedPct = totalFeatures > 0 ? Math.round((mappedFeatures / totalFeatures) * 100) : 0
-  const readinessPct = Math.round(data.readiness_score)
+  const readinessPct = Math.round(readinessScoreProp ?? data.readiness_score)
 
   // Build persona color map for indicators
   const personaColorMap = new Map<string, string>()

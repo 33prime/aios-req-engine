@@ -1984,6 +1984,15 @@ export const getEvidenceQuality = (projectId: string) =>
 // ============================================
 
 import type { CanvasData } from '@/types/workspace'
+import type {
+  Prototype,
+  FeatureOverlay,
+  PrototypeSession,
+  PrototypeFeedback,
+  SubmitFeedbackRequest,
+  SessionContext,
+  PromptAuditResult,
+} from '../types/prototype'
 
 /**
  * Get all workspace data for the canvas UI.
@@ -2008,6 +2017,103 @@ export const updatePrototypeUrl = (projectId: string, prototypeUrl: string) =>
     method: 'PATCH',
     body: JSON.stringify({ prototype_url: prototypeUrl }),
   })
+
+// ============================================
+// Prototype Refinement APIs
+// ============================================
+
+export const generatePrototype = (projectId: string) =>
+  apiRequest<{ prototype_id: string; prompt_length: number; features_included: number; flows_included: number }>('/prototypes/generate', {
+    method: 'POST',
+    body: JSON.stringify({ project_id: projectId }),
+  })
+
+export const ingestPrototype = (projectId: string, repoUrl: string, deployUrl?: string) =>
+  apiRequest<{ prototype_id: string; local_path: string; handoff_found: boolean; status: string }>('/prototypes/ingest', {
+    method: 'POST',
+    body: JSON.stringify({ project_id: projectId, repo_url: repoUrl, deploy_url: deployUrl }),
+  })
+
+export const getPrototype = (prototypeId: string) =>
+  apiRequest<Prototype>(`/prototypes/${prototypeId}`)
+
+export const getPrototypeForProject = (projectId: string) =>
+  apiRequest<Prototype>(`/prototypes/by-project/${projectId}`)
+
+export const getPrototypeOverlays = (prototypeId: string) =>
+  apiRequest<FeatureOverlay[]>(`/prototypes/${prototypeId}/overlays`)
+
+export const getPrototypeAudit = (prototypeId: string) =>
+  apiRequest<PromptAuditResult | { message: string }>(`/prototypes/${prototypeId}/audit`)
+
+export const triggerPrototypeAnalysis = (prototypeId: string) =>
+  apiRequest<{ prototype_id: string; run_id: string; features_analyzed: number; errors: number; status: string }>(
+    `/prototypes/${prototypeId}/analyze`,
+    { method: 'POST' }
+  )
+
+export const retryPrototype = (prototypeId: string) =>
+  apiRequest<{ prototype_id: string; prompt_version: number; prompt_length: number }>(
+    `/prototypes/${prototypeId}/retry`,
+    { method: 'POST' }
+  )
+
+// Prototype Sessions
+export const createPrototypeSession = (prototypeId: string) =>
+  apiRequest<PrototypeSession>('/prototype-sessions', {
+    method: 'POST',
+    body: JSON.stringify({ prototype_id: prototypeId }),
+  })
+
+export const getPrototypeSession = (sessionId: string) =>
+  apiRequest<PrototypeSession>(`/prototype-sessions/${sessionId}`)
+
+export const submitPrototypeFeedback = (sessionId: string, data: SubmitFeedbackRequest) =>
+  apiRequest<PrototypeFeedback>(`/prototype-sessions/${sessionId}/feedback`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+
+export const prototypeSessionChat = (sessionId: string, message: string, context?: SessionContext) =>
+  apiRequest<{ response: string; extracted_feedback: Record<string, unknown>[] }>(
+    `/prototype-sessions/${sessionId}/chat`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ message, context }),
+    }
+  )
+
+export const endConsultantReview = (sessionId: string) =>
+  apiRequest<{ session_id: string; client_review_token: string; client_review_url: string }>(
+    `/prototype-sessions/${sessionId}/end-review`,
+    { method: 'POST' }
+  )
+
+export const synthesizePrototypeFeedback = (sessionId: string) =>
+  apiRequest<{
+    session_id: string
+    features_with_feedback: number
+    new_features_discovered: number
+    high_priority_changes: number
+    session_summary: string
+  }>(`/prototype-sessions/${sessionId}/synthesize`, { method: 'POST' })
+
+export const triggerPrototypeCodeUpdate = (sessionId: string) =>
+  apiRequest<{
+    session_id: string
+    files_changed: number
+    build_passed: boolean
+    commit_sha: string | null
+    summary: string
+  }>(`/prototype-sessions/${sessionId}/update-code`, { method: 'POST' })
+
+export const getPrototypeClientData = (sessionId: string, token: string) =>
+  apiRequest<{
+    deploy_url: string | null
+    session_number: number
+    features_analyzed: number
+    questions: Array<{ id: string; question: string; category: string; priority: string }>
+  }>(`/prototype-sessions/${sessionId}/client-data?token=${token}`)
 
 /**
  * Map a feature to a value path step (or unmap if stepId is null).

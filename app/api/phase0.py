@@ -5,13 +5,15 @@ import uuid
 from typing import Any
 from uuid import UUID
 
-from fastapi import APIRouter, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 
+from app.core.auth_middleware import AuthContext, require_auth
 from app.core.chunking import chunk_text
 from app.core.config import get_settings
 from app.core.embeddings import embed_texts
 from app.core.file_text import extract_text_from_upload
 from app.core.logging import get_logger
+from app.core.research_chunking import chunk_research_document
 from app.core.schemas_phase0 import (
     IngestRequest,
     IngestResponse,
@@ -20,7 +22,6 @@ from app.core.schemas_phase0 import (
     SearchResult,
 )
 from app.core.schemas_research import ResearchIngestRequest
-from app.core.research_chunking import chunk_research_document
 from app.db.jobs import complete_job, create_job, fail_job, start_job
 from app.db.phase0 import insert_signal, insert_signal_chunks, search_signal_chunks
 
@@ -109,7 +110,7 @@ def _trigger_selective_enrichment(
         run_id: Run tracking UUID
     """
     logger.info(
-        f"Triggering selective enrichment for changed entities",
+        "Triggering selective enrichment for changed entities",
         extra={"run_id": str(run_id), "project_id": str(project_id)},
     )
 
@@ -151,7 +152,6 @@ def _trigger_selective_enrichment(
     try:
         # Enrich features
         if changed_entities["features"]:
-            from app.core.schemas_feature_enrich import EnrichFeaturesRequest
             from app.graphs.enrich_features_graph import run_enrich_features_agent
 
             feature_uuids = [UUID(fid) for fid in changed_entities["features"]]
@@ -240,12 +240,12 @@ def _auto_trigger_processing(
     if prd_mode == "maintenance":
         # Maintenance mode: Run surgical update
         logger.info(
-            f"Project in maintenance mode, triggering surgical update",
+            "Project in maintenance mode, triggering surgical update",
             extra={"run_id": str(run_id), "project_id": str(project_id)},
         )
 
         # Create job for visibility
-        from app.db.jobs import create_job, start_job, complete_job, fail_job
+        from app.db.jobs import complete_job, create_job, fail_job, start_job
         agent_job_id = create_job(
             project_id=project_id,
             job_type="surgical_update",
@@ -274,19 +274,19 @@ def _auto_trigger_processing(
                 _trigger_selective_enrichment(project_id, result, run_id)
 
         except Exception as e:
-            logger.exception(f"Surgical update failed", extra={"run_id": str(run_id)})
+            logger.exception("Surgical update failed", extra={"run_id": str(run_id)})
             fail_job(agent_job_id, str(e))
             # Don't raise - ingestion already succeeded
 
     else:
         # Initial mode: Run unified signal processing pipeline
         logger.info(
-            f"Project in initial mode, triggering unified signal pipeline",
+            "Project in initial mode, triggering unified signal pipeline",
             extra={"run_id": str(run_id), "project_id": str(project_id)},
         )
 
         # Create job for visibility
-        from app.db.jobs import create_job, start_job, complete_job, fail_job
+        from app.db.jobs import complete_job, create_job, fail_job, start_job
         agent_job_id = create_job(
             project_id=project_id,
             job_type="signal_processing",
@@ -297,6 +297,7 @@ def _auto_trigger_processing(
 
         try:
             import asyncio
+
             from app.core.signal_pipeline import process_signal
             from app.db.signals import get_signal
 
@@ -351,7 +352,7 @@ def _auto_trigger_processing(
                 fail_job(agent_job_id, error_msg)
 
         except Exception as e:
-            logger.exception(f"Extract facts failed", extra={"run_id": str(run_id)})
+            logger.exception("Extract facts failed", extra={"run_id": str(run_id)})
             fail_job(agent_job_id, str(e))
             # Don't raise - ingestion already succeeded
 
@@ -367,7 +368,7 @@ def _auto_trigger_build_state(project_id: UUID, run_id: UUID) -> None:
         project_id: Project UUID
         run_id: Run tracking UUID
     """
-    from app.db.jobs import create_job, start_job, complete_job, fail_job
+    from app.db.jobs import complete_job, create_job, fail_job, start_job
 
     logger.info(
         f"Auto-triggering build_state for project {project_id}",
@@ -410,7 +411,7 @@ def _auto_trigger_build_state(project_id: UUID, run_id: UUID) -> None:
         _check_and_trigger_research(project_id, run_id)
 
     except Exception as e:
-        logger.exception(f"Build state failed", extra={"run_id": str(run_id)})
+        logger.exception("Build state failed", extra={"run_id": str(run_id)})
         fail_job(build_job_id, str(e))
         # Don't raise - extract_facts already succeeded
 
@@ -464,7 +465,7 @@ def _auto_trigger_research(project_id: UUID, run_id: UUID) -> None:
         project_id: Project UUID
         run_id: Run tracking UUID
     """
-    from app.db.jobs import create_job, start_job, complete_job, fail_job
+    from app.db.jobs import complete_job, create_job, fail_job, start_job
 
     logger.info(
         f"Auto-triggering research agent for project {project_id}",
@@ -481,8 +482,8 @@ def _auto_trigger_research(project_id: UUID, run_id: UUID) -> None:
     start_job(research_job_id)
 
     try:
-        from app.graphs.research_agent_graph import run_research_agent_graph
         from app.db.state import get_enriched_state
+        from app.graphs.research_agent_graph import run_research_agent_graph
 
         # Build seed context from enriched state
         enriched_state = get_enriched_state(project_id)
@@ -517,7 +518,7 @@ def _auto_trigger_research(project_id: UUID, run_id: UUID) -> None:
         _auto_trigger_red_team(project_id, run_id, include_research=True)
 
     except Exception as e:
-        logger.exception(f"Research agent failed", extra={"run_id": str(run_id)})
+        logger.exception("Research agent failed", extra={"run_id": str(run_id)})
         fail_job(research_job_id, str(e))
         # Don't raise - build_state already succeeded
 
@@ -534,7 +535,7 @@ def _auto_trigger_red_team(project_id: UUID, run_id: UUID, include_research: boo
         run_id: Run tracking UUID
         include_research: Whether to include research signals in analysis
     """
-    from app.db.jobs import create_job, start_job, complete_job, fail_job
+    from app.db.jobs import complete_job, create_job, fail_job, start_job
 
     logger.info(
         f"Auto-triggering red_team for project {project_id}",
@@ -577,7 +578,7 @@ def _auto_trigger_red_team(project_id: UUID, run_id: UUID, include_research: boo
             _auto_trigger_a_team(project_id, run_id)
 
     except Exception as e:
-        logger.exception(f"Red team failed", extra={"run_id": str(run_id)})
+        logger.exception("Red team failed", extra={"run_id": str(run_id)})
         fail_job(redteam_job_id, str(e))
         # Don't raise - research already succeeded
 
@@ -592,7 +593,7 @@ def _auto_trigger_a_team(project_id: UUID, run_id: UUID) -> None:
         project_id: Project UUID
         run_id: Run tracking UUID
     """
-    from app.db.jobs import create_job, start_job, complete_job, fail_job
+    from app.db.jobs import complete_job, create_job, fail_job, start_job
 
     logger.info(
         f"Auto-triggering a_team for project {project_id}",
@@ -642,7 +643,7 @@ def _auto_trigger_a_team(project_id: UUID, run_id: UUID) -> None:
         )
 
     except Exception as e:
-        logger.exception(f"A-team failed", extra={"run_id": str(run_id)})
+        logger.exception("A-team failed", extra={"run_id": str(run_id)})
         fail_job(ateam_job_id, str(e))
         # Don't raise - red_team already succeeded
 
@@ -785,7 +786,9 @@ def _ingest_text(
 
 
 @router.post("/ingest", response_model=IngestResponse)
-async def ingest_signal(request: IngestRequest) -> IngestResponse:
+async def ingest_signal(
+    request: IngestRequest, auth: AuthContext = Depends(require_auth),  # noqa: B008
+) -> IngestResponse:
     """
     Ingest a signal: store raw text, chunk, embed, and store chunks.
 
@@ -923,7 +926,9 @@ async def ingest_signal(request: IngestRequest) -> IngestResponse:
 
 
 @router.post("/search", response_model=SearchResponse)
-async def search_signals(request: SearchRequest) -> SearchResponse:
+async def search_signals(
+    request: SearchRequest, auth: AuthContext = Depends(require_auth),  # noqa: B008
+) -> SearchResponse:
     """
     Search for similar signal chunks using vector similarity.
 
@@ -1020,6 +1025,7 @@ async def ingest_file(
     signal_type: str = Form(default="file_text"),  # noqa: B008
     source: str = Form(default="upload"),  # noqa: B008
     metadata: str | None = Form(default=None),  # noqa: B008
+    auth: AuthContext = Depends(require_auth),  # noqa: B008
 ) -> IngestResponse:
     """
     Ingest a text-based file: extract text, chunk, embed, and store.
@@ -1168,7 +1174,9 @@ async def ingest_file(
 
 
 @router.post("/v1/research/ingest")
-async def ingest_research(request: ResearchIngestRequest) -> dict[str, Any]:
+async def ingest_research(
+    request: ResearchIngestRequest, auth: AuthContext = Depends(require_auth),  # noqa: B008
+) -> dict[str, Any]:
     """
     Ingest external research document as a signal.
 

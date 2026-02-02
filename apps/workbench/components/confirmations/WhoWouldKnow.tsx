@@ -36,7 +36,7 @@ interface WhoWouldKnowProps {
   className?: string
 }
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8001'
+import { API_BASE } from '@/lib/config'
 
 export default function WhoWouldKnow({
   projectId,

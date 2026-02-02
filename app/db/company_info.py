@@ -10,6 +10,38 @@ from app.db.supabase_client import get_supabase
 logger = get_logger(__name__)
 
 
+def batch_get_company_names(project_ids: list[UUID]) -> dict[str, str]:
+    """
+    Batch-fetch company names for multiple projects.
+
+    Args:
+        project_ids: List of project UUIDs
+
+    Returns:
+        Dict mapping project_id (str) to company name
+    """
+    if not project_ids:
+        return {}
+
+    supabase = get_supabase()
+
+    try:
+        response = (
+            supabase.table("company_info")
+            .select("project_id, name")
+            .in_("project_id", [str(pid) for pid in project_ids])
+            .execute()
+        )
+        return {
+            row["project_id"]: row["name"]
+            for row in (response.data or [])
+            if row.get("name")
+        }
+    except Exception as e:
+        logger.error(f"Error batch-fetching company names: {e}")
+        return {}
+
+
 def get_company_info(project_id: UUID) -> dict[str, Any] | None:
     """
     Get company info for a project (one-to-one relationship).

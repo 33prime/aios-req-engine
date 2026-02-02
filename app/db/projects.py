@@ -256,7 +256,7 @@ def update_project(
 
     try:
         # Filter out None values and only allow specific fields
-        allowed_fields = {"name", "description", "status", "tags", "metadata"}
+        allowed_fields = {"name", "description", "status", "tags", "metadata", "stage"}
         filtered_updates = {
             k: v for k, v in updates.items()
             if k in allowed_fields and v is not None

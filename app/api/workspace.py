@@ -211,17 +211,10 @@ async def get_workspace_data(project_id: UUID) -> WorkspaceData:
         except Exception:
             pass  # Table might not exist yet
 
-        # Get readiness score
+        # Get readiness score from the projects table (updated by refresh pipeline)
         readiness_score = 0.0
-        try:
-            readiness_result = client.table("cached_readiness").select(
-                "overall_score"
-            ).eq("project_id", str(project_id)).single().execute()
-
-            if readiness_result.data:
-                readiness_score = readiness_result.data.get("overall_score", 0.0)
-        except Exception:
-            pass  # Readiness might not exist yet
+        if project.get("cached_readiness_score") is not None:
+            readiness_score = float(project["cached_readiness_score"]) * 100
 
         return WorkspaceData(
             project_id=str(project_id),

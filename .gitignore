@@ -57,3 +57,4 @@ aios.db
 /blob-report/
 /playwright/.cache/
 **/e2e/.auth/
+.mcp.json

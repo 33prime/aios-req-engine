@@ -107,8 +107,8 @@ export function AppSidebar({ isCollapsed: controlledCollapsed, onToggleCollapse 
     user?.user_metadata?.picture
 
   const navItems = [
-    { href: '/projects', icon: <Home className="w-4 h-4" />, label: 'Home' },
-    { href: '/projects', icon: <Folder className="w-4 h-4" />, label: 'Projects', matchExact: true },
+    { href: '/', icon: <Home className="w-4 h-4" />, label: 'Home' },
+    { href: '/projects', icon: <Folder className="w-4 h-4" />, label: 'Projects' },
     { href: '/people', icon: <UserCircle className="w-4 h-4" />, label: 'People' },
     { href: '/calendar', icon: <Calendar className="w-4 h-4" />, label: 'Meetings' },
     { href: '/settings', icon: <Settings className="w-4 h-4" />, label: 'Admin Panel' },
@@ -117,7 +117,7 @@ export function AppSidebar({ isCollapsed: controlledCollapsed, onToggleCollapse 
   // Handle project created
   const handleProjectCreated = (response: { id: string; name: string; onboarding_job_id?: string }) => {
     setShowCreateProject(false)
-    router.push(`/projects/${response.id}/workspace`)
+    router.push(`/projects/${response.id}`)
   }
 
   return (
@@ -167,10 +167,10 @@ export function AppSidebar({ isCollapsed: controlledCollapsed, onToggleCollapse 
             {/* Green "+" button */}
             <button
               onClick={() => setShowCreateProject(true)}
-              className="p-1.5 rounded-lg bg-brand-teal text-white hover:bg-brand-tealDark transition-colors"
+              className="p-1.5 rounded-full bg-brand-teal text-white hover:bg-brand-tealDark transition-colors"
               title="New project"
             >
-              <Plus className="w-4 h-4" />
+              <Plus className="w-3.5 h-3.5" />
             </button>
           </div>
         </div>
@@ -183,7 +183,7 @@ export function AppSidebar({ isCollapsed: controlledCollapsed, onToggleCollapse 
               href={item.href}
               icon={item.icon}
               label={item.label}
-              isActive={pathname.startsWith(item.href)}
+              isActive={pathname === item.href}
               isCollapsed={isCollapsed}
             />
           ))}

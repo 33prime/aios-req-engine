@@ -199,6 +199,30 @@ class Settings(BaseSettings):
     FIRECRAWL_API_KEY: str = Field(default="", description="Firecrawl API key for website scraping")
     FIRECRAWL_TIMEOUT: int = Field(default=30, description="Timeout for Firecrawl requests")
 
+    # Prototype Refinement configuration
+    PROTOTYPE_PROMPT_MODEL: str = Field(
+        default="claude-opus-4-5-20251101",
+        description="Model for v0 prompt generation (Opus for quality)"
+    )
+    PROTOTYPE_ANALYSIS_MODEL: str = Field(
+        default="claude-sonnet-4-20250514",
+        description="Model for feature analysis"
+    )
+    PROTOTYPE_UPDATER_PLAN_MODEL: str = Field(
+        default="claude-opus-4-5-20251101",
+        description="Model for code update planning"
+    )
+    PROTOTYPE_UPDATER_EXEC_MODEL: str = Field(
+        default="claude-sonnet-4-20250514",
+        description="Model for code update execution"
+    )
+    PROTOTYPE_TEMP_DIR: str = Field(
+        default="/tmp/aios-prototypes",
+        description="Temp directory for prototype repos"
+    )
+    V0_API_KEY: str | None = Field(default=None, description="v0.dev API key")
+    V0_API_URL: str = Field(default="https://api.v0.dev", description="v0.dev API endpoint")
+
     # Chat Assistant configuration
     CHAT_MODEL: str = Field(
         default="claude-sonnet-4-20250514",

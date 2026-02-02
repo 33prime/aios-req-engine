@@ -7,6 +7,7 @@ from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 
 from app.core.logging import get_logger
+from app.core.readiness.score import compute_readiness
 from app.core.schemas_state import (
     BuildStateRequest,
     BuildStateResponse,
@@ -1040,22 +1041,29 @@ async def get_project_status_endpoint(
         if not signals:
             suggestions.append("Add signals (emails, notes, research) to enrich context")
 
-        # Calculate readiness score (0-100)
-        readiness = 0
-        if company:
-            readiness += 15
-        if all_drivers:
-            readiness += min(20, len(all_drivers) * 2)
-        if features:
-            readiness += min(25, len(features) * 2)
-            if confirmed_features:
-                readiness += min(10, len(confirmed_features) * 2)
-        if personas:
-            readiness += min(15, len(personas) * 5)
-        if vp_steps:
-            readiness += min(15, len(vp_steps) * 3)
-
-        readiness = min(100, readiness)
+        # Calculate readiness using NEW dimensional scoring
+        try:
+            readiness_result = compute_readiness(project_id)
+            readiness = readiness_result.score  # Already 0-100
+            readiness_breakdown = {
+                "score": readiness_result.score,
+                "phase": readiness_result.phase,
+                "dimensions": {
+                    name: {
+                        "score": dim.score,
+                        "weighted_score": dim.weighted_score
+                    }
+                    for name, dim in readiness_result.dimensions.items()
+                },
+                "top_recommendations": [
+                    {"action": rec.action, "impact": rec.impact}
+                    for rec in readiness_result.top_recommendations[:3]
+                ]
+            }
+        except Exception as e:
+            logger.error(f"Failed to compute readiness: {e}")
+            readiness = 0
+            readiness_breakdown = None
 
         return {
             "project": {
@@ -1112,6 +1120,7 @@ async def get_project_status_endpoint(
                 "score": readiness,
                 "blockers": blockers,
                 "suggestions": suggestions[:5],
+                "breakdown": readiness_breakdown,
             },
         }
 

@@ -4,8 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { setAccessToken } from '@/lib/api'
-
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8000'
+import { API_BASE } from '@/lib/config'
 
 interface InviteDetails {
   email: string

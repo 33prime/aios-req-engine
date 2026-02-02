@@ -58,9 +58,3 @@ export interface CanvasData {
   pending_count: number
 }
 
-export interface WorkspaceState {
-  phase: 'overview' | 'discovery' | 'build' | 'live'
-  canvasData: CanvasData | null
-  isLoading: boolean
-  error: string | null
-}

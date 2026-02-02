@@ -12,6 +12,7 @@
 import { useState, useEffect } from 'react'
 import { X, CheckCircle, XCircle, ExternalLink, Loader2, AlertCircle, Sparkles, FileText, Target, Search, MessageSquare, User, Clock, ArrowUpCircle, ArrowRightCircle, ArrowDownCircle } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
+import { API_V1 } from '@/lib/config'
 import { ProposalPreview } from '@/app/projects/[projectId]/components/ProposalPreview'
 import type { Task } from '@/lib/api'
 
@@ -101,7 +102,7 @@ export function TaskDetailModal({
       setError(null)
 
       try {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/v1'
+        const apiUrl = API_V1
         const response = await fetch(
           `${apiUrl}/proposals/${task.source_id}`,
           {
@@ -144,7 +145,7 @@ export function TaskDetailModal({
     setError(null)
 
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/v1'
+      const apiUrl = API_V1
       const response = await fetch(`${apiUrl}/proposals/${proposalId}/apply`, {
         method: 'POST',
         headers: {
@@ -173,7 +174,7 @@ export function TaskDetailModal({
     setError(null)
 
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/v1'
+      const apiUrl = API_V1
       const response = await fetch(`${apiUrl}/proposals/${proposalId}/discard`, {
         method: 'POST',
         headers: {

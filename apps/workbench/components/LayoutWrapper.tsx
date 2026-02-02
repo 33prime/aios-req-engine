@@ -11,14 +11,17 @@ interface LayoutWrapperProps {
 export function LayoutWrapper({ children }: LayoutWrapperProps) {
   const pathname = usePathname()
   const isAuthPage = pathname.startsWith('/auth')
-  const isWorkspacePage = pathname.includes('/workspace')
+  // Project detail pages (workspace canvas) and projects list render without app shell
+  const isProjectDetailPage = /^\/projects\/[^/]+\/?$/.test(pathname)
+  const isProjectsListPage = pathname === '/projects'
+  const isSettingsPage = pathname === '/settings'
 
-  // Pages that render without the app shell
-  if (isAuthPage || isWorkspacePage) {
+  // Pages that render without the app shell (they manage their own layout)
+  if (isAuthPage || isProjectDetailPage || isProjectsListPage || isSettingsPage) {
     return <>{children}</>
   }
 
-  // Regular pages get the full app shell
+  // Regular pages get the full app shell with AppHeader
   return (
     <div className="min-h-screen bg-gray-50">
       <AppHeader />

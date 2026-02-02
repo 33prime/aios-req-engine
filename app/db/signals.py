@@ -119,27 +119,37 @@ def list_project_signals(
         signals = response.data or []
         total = response.count or 0
 
-        # For each signal, get chunk count and impact count
-        for signal in signals:
-            signal_id = signal["id"]
+        # Batch fetch chunk counts and impact counts (avoids N+1 queries)
+        signal_ids = [s["id"] for s in signals]
+        chunk_counts: dict[str, int] = {}
+        impact_counts: dict[str, int] = {}
 
-            # Get chunk count
-            chunk_count_response = (
+        if signal_ids:
+            # Batch fetch all chunks for these signals and count per signal_id
+            chunks_response = (
                 supabase.table("signal_chunks")
-                .select("id", count="exact")
-                .eq("signal_id", signal_id)
+                .select("signal_id")
+                .in_("signal_id", signal_ids)
                 .execute()
             )
-            signal["chunk_count"] = chunk_count_response.count or 0
+            for row in (chunks_response.data or []):
+                sid = row["signal_id"]
+                chunk_counts[sid] = chunk_counts.get(sid, 0) + 1
 
-            # Get impact count (from signal_impact table)
-            impact_count_response = (
+            # Batch fetch all impacts for these signals and count per signal_id
+            impacts_response = (
                 supabase.table("signal_impact")
-                .select("id", count="exact")
-                .eq("signal_id", signal_id)
+                .select("signal_id")
+                .in_("signal_id", signal_ids)
                 .execute()
             )
-            signal["impact_count"] = impact_count_response.count or 0
+            for row in (impacts_response.data or []):
+                sid = row["signal_id"]
+                impact_counts[sid] = impact_counts.get(sid, 0) + 1
+
+        for signal in signals:
+            signal["chunk_count"] = chunk_counts.get(signal["id"], 0)
+            signal["impact_count"] = impact_counts.get(signal["id"], 0)
 
         logger.info(
             f"Listed {len(signals)} signals for project {project_id} (total: {total})",

@@ -7,8 +7,6 @@ import { Button } from '../ui/Button'
 import {
   MeetingAgenda,
   exportAgendaAsMarkdown,
-  exportAgendaAsText,
-  downloadAgenda,
 } from '@/lib/export-utils'
 
 interface MeetingAgendaDisplayProps {
@@ -29,10 +27,17 @@ export function MeetingAgendaDisplay({ agenda, onClose }: MeetingAgendaDisplayPr
     setExpandedItems(newExpanded)
   }
 
-  const handleExport = (format: 'md' | 'txt') => {
-    const content =
-      format === 'md' ? exportAgendaAsMarkdown(agenda) : exportAgendaAsText(agenda)
-    downloadAgenda(content, format, agenda.title)
+  const handleExport = () => {
+    const content = exportAgendaAsMarkdown(agenda)
+    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `${agenda.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')}.md`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
   }
 
   const expandAll = () => {
@@ -59,20 +64,11 @@ export function MeetingAgendaDisplay({ agenda, onClose }: MeetingAgendaDisplayPr
               <Button
                 size="sm"
                 variant="outline"
-                onClick={() => handleExport('md')}
+                onClick={handleExport}
                 title="Export as Markdown"
               >
                 <Download className="h-4 w-4 mr-1" />
-                Markdown
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => handleExport('txt')}
-                title="Export as Text"
-              >
-                <Download className="h-4 w-4 mr-1" />
-                Text
+                Export
               </Button>
               {onClose && (
                 <Button size="sm" variant="outline" onClick={onClose}>

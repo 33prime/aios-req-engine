@@ -2,7 +2,7 @@
  * CollaborationPanel - Right sidebar for collaboration features
  *
  * Contains:
- * - AI Chat interface (full WorkspaceChat)
+ * - AI Chat interface (full WorkspaceChat) — switches to FeatureInfoCard + contextual chat during review
  * - Collab hub (phase-aware action panel)
  * - Activity feed (real collaboration events)
  *
@@ -27,10 +27,14 @@ import {
   ArrowUpRight,
   CheckCircle,
   Loader2,
+  Layers,
+  Send,
 } from 'lucide-react'
 import { WorkspaceChat, type ChatMessage } from './WorkspaceChat'
 import { CollaborationHub } from './CollaborationHub'
-import { getCollaborationHistory, getDIAgentLogs, type CollaborationHistoryResponse } from '@/lib/api'
+import { getCollaborationHistory, getDIAgentLogs, submitPrototypeFeedback } from '@/lib/api'
+import { FeatureInfoTabs } from '@/components/prototype/FeatureInfoCard'
+import type { FeatureOverlay, TourStep, PrototypeSession, SubmitFeedbackRequest, SessionContext } from '@/types/prototype'
 
 // =============================================================================
 // Types
@@ -51,6 +55,17 @@ interface CollaborationPanelProps {
   // Panel state
   panelState: PanelState
   onPanelStateChange: (state: PanelState) => void
+  // Review mode props
+  isReviewActive?: boolean
+  isTourActive?: boolean
+  currentOverlay?: FeatureOverlay | null
+  currentTourStep?: TourStep | null
+  allOverlays?: FeatureOverlay[]
+  visibleFeatureIds?: string[]
+  session?: PrototypeSession | null
+  sessionContext?: SessionContext | null
+  answeredQuestionIds?: Set<string>
+  onQuestionAnswered?: (questionId: string) => void
 }
 
 export function CollaborationPanel({
@@ -64,6 +79,16 @@ export function CollaborationPanel({
   onAddLocalMessage,
   panelState,
   onPanelStateChange,
+  isReviewActive = false,
+  isTourActive = false,
+  currentOverlay = null,
+  currentTourStep = null,
+  allOverlays = [],
+  visibleFeatureIds = [],
+  session = null,
+  sessionContext = null,
+  answeredQuestionIds,
+  onQuestionAnswered,
 }: CollaborationPanelProps) {
   const [activeTab, setActiveTab] = useState<'chat' | 'collab' | 'activity'>('chat')
 
@@ -101,9 +126,9 @@ export function CollaborationPanel({
             className={`p-2 rounded-lg transition-colors ${
               activeTab === 'chat' ? 'bg-brand-teal/10 text-brand-teal' : 'text-ui-supportText hover:bg-ui-background'
             }`}
-            title="Chat"
+            title={isReviewActive ? 'Review' : 'Chat'}
           >
-            <MessageSquare className="w-5 h-5" />
+            {isReviewActive ? <Layers className="w-5 h-5" /> : <MessageSquare className="w-5 h-5" />}
           </button>
           <button
             onClick={() => { setActiveTab('collab'); handleToggleCollapse() }}
@@ -149,7 +174,7 @@ export function CollaborationPanel({
                 : 'text-ui-bodyText hover:bg-ui-background'
             }`}
           >
-            Chat
+            {isReviewActive ? 'Review' : 'Chat'}
           </button>
           <button
             onClick={() => setActiveTab('collab')}
@@ -201,14 +226,28 @@ export function CollaborationPanel({
       <div className="flex-1 overflow-hidden relative">
         {activeTab === 'chat' && (
           <div className="h-full">
-            <WorkspaceChat
-              projectId={projectId}
-              messages={messages}
-              isLoading={isChatLoading}
-              onSendMessage={onSendMessage}
-              onSendSignal={onSendSignal}
-              onAddLocalMessage={onAddLocalMessage}
-            />
+            {isReviewActive && session ? (
+              <ReviewPanel
+                overlay={currentOverlay}
+                tourStep={currentTourStep}
+                isTourActive={isTourActive}
+                allOverlays={allOverlays}
+                visibleFeatureIds={visibleFeatureIds}
+                session={session}
+                sessionContext={sessionContext}
+                answeredQuestionIds={answeredQuestionIds}
+                onQuestionAnswered={onQuestionAnswered}
+              />
+            ) : (
+              <WorkspaceChat
+                projectId={projectId}
+                messages={messages}
+                isLoading={isChatLoading}
+                onSendMessage={onSendMessage}
+                onSendSignal={onSendSignal}
+                onAddLocalMessage={onAddLocalMessage}
+              />
+            )}
           </div>
         )}
 
@@ -221,6 +260,277 @@ export function CollaborationPanel({
         )}
       </div>
     </aside>
+  )
+}
+
+// =============================================================================
+// Review Panel — Conversational question-answering during prototype review
+// =============================================================================
+
+const MAX_QUESTIONS_PER_FEATURE = 3
+
+interface ReviewPanelProps {
+  overlay: FeatureOverlay | null
+  tourStep: TourStep | null
+  isTourActive: boolean
+  allOverlays: FeatureOverlay[]
+  visibleFeatureIds: string[]
+  session: PrototypeSession
+  sessionContext: SessionContext | null
+  answeredQuestionIds?: Set<string>
+  onQuestionAnswered?: (questionId: string) => void
+}
+
+interface FeatureQuestionGroup {
+  featureName: string
+  featureId: string
+  status: string
+  confidence: number
+  questions: Array<{ id: string; question: string; category: string; priority: string; answer: string | null }>
+}
+
+function ReviewPanel({
+  overlay,
+  tourStep,
+  isTourActive,
+  allOverlays,
+  visibleFeatureIds,
+  session,
+  sessionContext,
+  answeredQuestionIds,
+  onQuestionAnswered,
+}: ReviewPanelProps) {
+  const [answerText, setAnswerText] = useState('')
+  const [activeQuestionId, setActiveQuestionId] = useState<string | null>(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
+  // Build question groups: single feature during tour, all visible features otherwise
+  const questionGroups: FeatureQuestionGroup[] = (() => {
+    if (isTourActive && overlay?.overlay_content) {
+      // Tour mode: single feature, top 3 questions
+      const content = overlay.overlay_content
+      const unanswered = content.questions
+        .filter((q) => !q.answer && !answeredQuestionIds?.has(q.id))
+        .sort((a, b) => {
+          const prio: Record<string, number> = { high: 0, medium: 1, low: 2 }
+          return (prio[a.priority] ?? 2) - (prio[b.priority] ?? 2)
+        })
+        .slice(0, MAX_QUESTIONS_PER_FEATURE)
+      return [{
+        featureName: content.feature_name,
+        featureId: overlay.feature_id || overlay.id,
+        status: content.status,
+        confidence: content.confidence,
+        questions: unanswered,
+      }]
+    }
+
+    if (overlay?.overlay_content && !isTourActive) {
+      // Radar dot clicked: show that feature's top 3 questions
+      const content = overlay.overlay_content
+      const unanswered = content.questions
+        .filter((q) => !q.answer && !answeredQuestionIds?.has(q.id))
+        .sort((a, b) => {
+          const prio: Record<string, number> = { high: 0, medium: 1, low: 2 }
+          return (prio[a.priority] ?? 2) - (prio[b.priority] ?? 2)
+        })
+        .slice(0, MAX_QUESTIONS_PER_FEATURE)
+      return [{
+        featureName: content.feature_name,
+        featureId: overlay.feature_id || overlay.id,
+        status: content.status,
+        confidence: content.confidence,
+        questions: unanswered,
+      }]
+    }
+
+    // No specific feature: show all visible features' questions
+    const groups: FeatureQuestionGroup[] = []
+    for (const ov of allOverlays) {
+      if (!ov.overlay_content) continue
+      const fid = ov.feature_id || ov.id
+      // Show all overlays when no visible features tracked yet, otherwise filter
+      if (visibleFeatureIds.length > 0 && !visibleFeatureIds.includes(fid)) continue
+      const content = ov.overlay_content
+      const unanswered = content.questions
+        .filter((q) => !q.answer && !answeredQuestionIds?.has(q.id))
+        .sort((a, b) => {
+          const prio: Record<string, number> = { high: 0, medium: 1, low: 2 }
+          return (prio[a.priority] ?? 2) - (prio[b.priority] ?? 2)
+        })
+        .slice(0, MAX_QUESTIONS_PER_FEATURE)
+      if (unanswered.length > 0) {
+        groups.push({
+          featureName: content.feature_name,
+          featureId: fid,
+          status: content.status,
+          confidence: content.confidence,
+          questions: unanswered,
+        })
+      }
+    }
+    return groups
+  })()
+
+  const totalOpen = questionGroups.reduce((sum, g) => sum + g.questions.length, 0)
+
+  const handleAnswerSubmit = async () => {
+    if (!activeQuestionId || !answerText.trim() || !session) return
+
+    setIsSubmitting(true)
+    try {
+      const req: SubmitFeedbackRequest = {
+        content: answerText.trim(),
+        feedback_type: 'answer',
+        answers_question_id: activeQuestionId,
+        feature_id: overlay?.feature_id || undefined,
+        page_path: sessionContext?.current_page,
+        component_name: overlay?.component_name || undefined,
+        context: sessionContext || undefined,
+      }
+      await submitPrototypeFeedback(session.id, req)
+      onQuestionAnswered?.(activeQuestionId)
+      setAnswerText('')
+      setActiveQuestionId(null)
+    } catch (err) {
+      console.error('Failed to submit answer:', err)
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const activeOverlayContent = overlay?.overlay_content
+
+  return (
+    <div className="flex flex-col h-full">
+      {/* Compact feature header — shown when a specific feature is selected */}
+      {activeOverlayContent && (
+        <div className="flex-shrink-0 border-b border-ui-cardBorder px-3 py-2.5">
+          <div className="flex items-center gap-2">
+            <p className="text-xs font-semibold text-ui-headingDark truncate">
+              {activeOverlayContent.feature_name}
+            </p>
+            <span className={`text-[9px] font-medium px-1.5 py-px rounded-full flex-shrink-0 ${
+              activeOverlayContent.status === 'understood' ? 'bg-emerald-100 text-emerald-700' :
+              activeOverlayContent.status === 'partial' ? 'bg-amber-100 text-amber-700' :
+              'bg-gray-100 text-gray-500'
+            }`}>
+              {activeOverlayContent.status}
+            </span>
+          </div>
+          <div className="flex items-center gap-2 mt-0.5">
+            <div className="w-12 h-1 bg-gray-100 rounded-full overflow-hidden">
+              <div
+                className={`h-full rounded-full ${
+                  activeOverlayContent.confidence >= 0.7 ? 'bg-emerald-400' :
+                  activeOverlayContent.confidence >= 0.4 ? 'bg-amber-400' : 'bg-red-400'
+                }`}
+                style={{ width: `${activeOverlayContent.confidence * 100}%` }}
+              />
+            </div>
+            <span className="text-[10px] text-ui-supportText">
+              {Math.round(activeOverlayContent.confidence * 100)}% confidence
+            </span>
+            {tourStep?.vpStepLabel && (
+              <span className="text-[10px] text-brand-primary">{tourStep.vpStepLabel}</span>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Scrollable content: info tabs + questions */}
+      <div className="flex-1 min-h-0 overflow-y-auto">
+        {/* Feature info tabs — Overview, Impact, Gaps, Flow */}
+        {activeOverlayContent && (
+          <div className="border-b border-ui-cardBorder">
+            <FeatureInfoTabs content={activeOverlayContent} tourStep={tourStep} />
+          </div>
+        )}
+
+        <div className="px-3 py-2 sticky top-0 bg-white/90 backdrop-blur-sm border-b border-ui-cardBorder/50 z-10">
+          <span className="text-[11px] font-semibold text-ui-headingDark uppercase tracking-wide">
+            {totalOpen > 0 ? `${totalOpen} questions to review` : 'All caught up'}
+          </span>
+        </div>
+
+        <div className="p-3 space-y-4">
+          {questionGroups.length === 0 && (
+            <div className="text-center py-8">
+              <div className="w-10 h-10 mx-auto mb-2 rounded-full bg-emerald-50 flex items-center justify-center">
+                <CheckCircle className="w-5 h-5 text-emerald-500" />
+              </div>
+              <p className="text-xs text-ui-supportText">
+                {isTourActive ? 'No questions for this feature' : 'Click a feature dot in the prototype to see its questions'}
+              </p>
+            </div>
+          )}
+
+          {questionGroups.map((group) => (
+            <div key={group.featureId}>
+              {/* Feature group header — only show when multiple features */}
+              {(questionGroups.length > 1 || !isTourActive) && (
+                <div className="flex items-center gap-2 mb-2">
+                  <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
+                    group.status === 'understood' ? 'bg-emerald-400' :
+                    group.status === 'partial' ? 'bg-amber-400' : 'bg-gray-300'
+                  }`} />
+                  <span className="text-[11px] font-medium text-ui-headingDark truncate">{group.featureName}</span>
+                  <span className="text-[10px] text-ui-supportText ml-auto">{group.questions.length}</span>
+                </div>
+              )}
+
+              {/* Question thread */}
+              <div className="space-y-2">
+                {group.questions.map((q) => (
+                  <div key={q.id}>
+                    {/* Question bubble — left aligned like incoming message */}
+                    <div
+                      onClick={() => setActiveQuestionId(activeQuestionId === q.id ? null : q.id)}
+                      className={`rounded-xl px-3 py-2 cursor-pointer transition-all ${
+                        activeQuestionId === q.id
+                          ? 'bg-brand-primary/8 ring-1 ring-brand-primary/20'
+                          : 'bg-ui-background hover:bg-gray-100'
+                      }`}
+                    >
+                      <div className="flex items-start gap-2">
+                        <span className={`w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0 ${
+                          q.priority === 'high' ? 'bg-brand-primary' :
+                          q.priority === 'medium' ? 'bg-brand-accent' : 'bg-gray-300'
+                        }`} />
+                        <p className="text-xs text-ui-bodyText leading-relaxed">{q.question}</p>
+                      </div>
+                    </div>
+
+                    {/* Answer input — right aligned like outgoing message */}
+                    {activeQuestionId === q.id && (
+                      <div className="mt-1.5 ml-4 flex items-center gap-1.5">
+                        <input
+                          type="text"
+                          value={answerText}
+                          onChange={(e) => setAnswerText(e.target.value)}
+                          onKeyDown={(e) => e.key === 'Enter' && handleAnswerSubmit()}
+                          placeholder="Type your answer..."
+                          className="flex-1 px-3 py-2 text-xs bg-white border border-ui-cardBorder rounded-xl focus:outline-none focus:ring-1 focus:ring-brand-teal/30 focus:border-brand-teal"
+                          disabled={isSubmitting}
+                          autoFocus
+                        />
+                        <button
+                          onClick={handleAnswerSubmit}
+                          disabled={!answerText.trim() || isSubmitting}
+                          className="p-2 rounded-xl bg-brand-teal text-white hover:bg-brand-tealDark disabled:opacity-40 transition-colors"
+                        >
+                          <Send className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
   )
 }
 

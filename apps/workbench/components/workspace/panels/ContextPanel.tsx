@@ -27,6 +27,7 @@ import {
 import { getProjectFoundation, getProjectStatus, markEntityNeedsReview } from '@/lib/api'
 import type { ProjectFoundation, ProjectStatusResponse } from '@/lib/api'
 import { Markdown } from '@/components/ui/Markdown'
+import { API_BASE } from '@/lib/config'
 
 // --- Local interfaces ---
 
@@ -126,7 +127,7 @@ export function ContextPanel({ projectId }: ContextPanelProps) {
 
   const fetchAll = useCallback(() => {
     setIsLoading(true)
-    const baseUrl = process.env.NEXT_PUBLIC_API_BASE || ''
+    const baseUrl = API_BASE
 
     Promise.all([
       getProjectFoundation(projectId).catch(() => null),
@@ -548,7 +549,7 @@ function DriverCard({
   const handleConfirm = async () => {
     try {
       setUpdating(true)
-      const baseUrl = process.env.NEXT_PUBLIC_API_BASE || ''
+      const baseUrl = API_BASE
       const res = await fetch(`${baseUrl}/v1/projects/${projectId}/business-drivers/${driver.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },

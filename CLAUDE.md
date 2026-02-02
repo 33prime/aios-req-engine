@@ -39,7 +39,8 @@ app/
 ├── graphs/       # LangGraph state machines (signal processing pipelines)
 ├── db/           # Supabase data access layer
 ├── context/      # Conversation management, intent classification, prompt building
-└── agents/       # DI Agent, Memory Agent, Research Agent, Discovery Prep
+├── agents/       # DI Agent, Memory Agent, Research Agent, Discovery Prep, Prototype Updater
+└── services/     # Git management, bridge injection
 
 apps/workbench/
 ├── app/          # Next.js pages and routes
@@ -64,6 +65,20 @@ Signal Pipeline (lightweight vs heavyweight classification)
 Entities (Features, Personas, VP Steps, PRD Sections, Stakeholders)
     ↓
 Confirmation Queue → Enrichment Pipeline → Version Tracking
+```
+
+### Prototype Refinement Loop
+
+```
+AIOS Discovery Data → v0 Prompt (Opus) → v0 API → Prototype
+    ↓
+Ingestion → Bridge Injection → Feature Analysis Pipeline
+    ↓
+Consultant Session (iframe + overlay) → Client Review (portal)
+    ↓
+Feedback Synthesis → Code Updates (Opus plan, Sonnet exec)
+    ↓
+Repeat (up to 3 sessions) → Requirements Spec
 ```
 
 ### Frontend: Three-Zone Workspace
@@ -114,6 +129,8 @@ AUTHORITY_MAP = {
 | DB access | `app/db/{entity}.py` | `app/db/features.py` |
 | LLM chains | `app/chains/{action}_{entity}.py` | `app/chains/enrich_features.py` |
 | Graphs | `app/graphs/{action}_{entity}_graph.py` | `app/graphs/build_state_graph.py` |
+| Services | `app/services/{service}.py` | `app/services/git_manager.py` |
+| Prototype chains | `app/chains/{action}_prototype_{x}.py` | `app/chains/analyze_prototype_feature.py` |
 | Frontend API | All functions in `apps/workbench/lib/api.ts` | `getFeatures(projectId)` |
 | Frontend types | All types in `apps/workbench/types/api.ts` | `Feature`, `Persona` |
 | UI primitives | `apps/workbench/components/ui/*.tsx` | `Button`, `Card`, `Modal`, `Toast` |

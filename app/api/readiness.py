@@ -2,10 +2,11 @@
 
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 
+from app.core.auth_middleware import AuthContext, require_auth
 from app.core.logging import get_logger
-from app.core.readiness import compute_readiness, ReadinessScore
+from app.core.readiness import ReadinessScore, compute_readiness
 from app.core.readiness.gate_impact import get_entity_gate_impact_summary
 
 logger = get_logger(__name__)
@@ -14,7 +15,9 @@ router = APIRouter()
 
 
 @router.get("/projects/{project_id}/readiness", response_model=ReadinessScore)
-async def get_project_readiness(project_id: UUID) -> ReadinessScore:
+async def get_project_readiness(
+    project_id: UUID, auth: AuthContext = Depends(require_auth),  # noqa: B008
+) -> ReadinessScore:
     """
     Get comprehensive readiness score for a project.
 
@@ -60,7 +63,9 @@ async def get_project_readiness(project_id: UUID) -> ReadinessScore:
 
 
 @router.get("/projects/{project_id}/readiness/gate-impact")
-async def get_gate_impact(project_id: UUID) -> dict:
+async def get_gate_impact(
+    project_id: UUID, auth: AuthContext = Depends(require_auth),  # noqa: B008
+) -> dict:
     """
     Get strategic foundation entity impact on readiness gates.
 
