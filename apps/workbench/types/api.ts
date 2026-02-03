@@ -431,6 +431,65 @@ export interface Meeting {
 }
 
 // ============================================================================
+// Communication Integrations
+// ============================================================================
+
+export type RecordingDefault = 'on' | 'off' | 'ask'
+export type BotStatus = 'deploying' | 'joining' | 'recording' | 'processing' | 'done' | 'failed' | 'cancelled'
+export type ConsentStatus = 'pending' | 'all_consented' | 'opted_out' | 'expired'
+
+export interface IntegrationSettings {
+  google_connected: boolean
+  scopes_granted: string[]
+  calendar_sync_enabled: boolean
+  recording_default: RecordingDefault
+}
+
+export interface GoogleStatusResponse {
+  connected: boolean
+  scopes: string[]
+  calendar_sync_enabled: boolean
+}
+
+export interface EmailSubmission {
+  project_id: string
+  sender: string
+  recipients: string[]
+  cc: string[]
+  subject: string
+  body: string
+  html_body?: string
+}
+
+export interface EmailTokenResponse {
+  id: string
+  project_id: string
+  token: string
+  reply_to_address: string
+  allowed_sender_domain?: string
+  allowed_sender_emails: string[]
+  expires_at: string
+  is_active: boolean
+  emails_received: number
+  max_emails: number
+  created_at: string
+}
+
+export interface MeetingBot {
+  id: string
+  meeting_id: string
+  recall_bot_id: string
+  status: BotStatus
+  consent_status: ConsentStatus
+  signal_id?: string
+  transcript_url?: string
+  recording_url?: string
+  error_message?: string
+  created_at: string
+  updated_at: string
+}
+
+// ============================================================================
 // Status Narrative
 // ============================================================================
 

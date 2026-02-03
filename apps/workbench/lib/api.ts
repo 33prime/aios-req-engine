@@ -828,6 +828,11 @@ export const markEntityNeedsReview = (
 import type {
   Meeting,
   StatusNarrative,
+  IntegrationSettings,
+  GoogleStatusResponse,
+  EmailTokenResponse,
+  MeetingBot,
+  RecordingDefault,
 } from '../types/api'
 
 export const listMeetings = (projectId?: string, status?: string, upcomingOnly = false) => {
@@ -1992,6 +1997,8 @@ import type {
   SubmitFeedbackRequest,
   SessionContext,
   PromptAuditResult,
+  DesignProfile,
+  DesignSelection,
 } from '../types/prototype'
 
 /**
@@ -2022,10 +2029,13 @@ export const updatePrototypeUrl = (projectId: string, prototypeUrl: string) =>
 // Prototype Refinement APIs
 // ============================================
 
-export const generatePrototype = (projectId: string) =>
+export const getDesignProfile = (projectId: string) =>
+  apiRequest<DesignProfile>(`/projects/${projectId}/workspace/design-profile`)
+
+export const generatePrototype = (projectId: string, designSelection?: DesignSelection) =>
   apiRequest<{ prototype_id: string; prompt_length: number; features_included: number; flows_included: number }>('/prototypes/generate', {
     method: 'POST',
-    body: JSON.stringify({ project_id: projectId }),
+    body: JSON.stringify({ project_id: projectId, design_selection: designSelection }),
   })
 
 export const ingestPrototype = (projectId: string, repoUrl: string, deployUrl?: string) =>
@@ -2129,4 +2139,89 @@ export const mapFeatureToStep = (
       method: 'PATCH',
       body: JSON.stringify({ vp_step_id: vpStepId }),
     }
+  )
+
+// ============================================
+// Communication Integration APIs
+// ============================================
+
+// Google OAuth
+export const getGoogleStatus = () =>
+  apiRequest<GoogleStatusResponse>('/communications/google/status')
+
+export const connectGoogle = (refreshToken: string, scopes: string[]) =>
+  apiRequest<GoogleStatusResponse>('/communications/google/connect', {
+    method: 'POST',
+    body: JSON.stringify({ refresh_token: refreshToken, scopes }),
+  })
+
+export const disconnectGoogle = () =>
+  apiRequest<{ success: boolean }>('/communications/google/disconnect', {
+    method: 'DELETE',
+  })
+
+// Integration Settings
+export const getIntegrationSettings = () =>
+  apiRequest<IntegrationSettings>('/communications/integrations/me')
+
+export const updateIntegrationSettings = (data: {
+  calendar_sync_enabled?: boolean
+  recording_default?: RecordingDefault
+}) =>
+  apiRequest<{ success: boolean }>('/communications/integrations/me', {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  })
+
+// Email Submission
+export const submitEmail = (data: {
+  project_id: string
+  sender: string
+  recipients: string[]
+  cc?: string[]
+  subject: string
+  body: string
+}) =>
+  apiRequest<{ signal_id: string; job_id?: string }>('/communications/emails/submit', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+
+// Email Routing Tokens
+export const createEmailToken = (data: {
+  project_id: string
+  allowed_sender_domain?: string
+  allowed_sender_emails?: string[]
+  max_emails?: number
+}) =>
+  apiRequest<EmailTokenResponse>('/communications/email-tokens', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+
+export const listEmailTokens = (projectId: string) =>
+  apiRequest<{ tokens: EmailTokenResponse[]; total: number }>(
+    `/communications/email-tokens/${projectId}`
+  )
+
+export const deactivateEmailToken = (tokenId: string) =>
+  apiRequest<{ success: boolean; token_id: string }>(
+    `/communications/email-tokens/${tokenId}`,
+    { method: 'DELETE' }
+  )
+
+// Meeting Bots
+export const deployBot = (meetingId: string) =>
+  apiRequest<MeetingBot>('/communications/bots/deploy', {
+    method: 'POST',
+    body: JSON.stringify({ meeting_id: meetingId }),
+  })
+
+export const getBotStatus = (meetingId: string) =>
+  apiRequest<MeetingBot>(`/communications/bots/${meetingId}`)
+
+export const cancelBot = (botId: string) =>
+  apiRequest<{ success: boolean; bot_id: string }>(
+    `/communications/bots/${botId}`,
+    { method: 'DELETE' }
   )

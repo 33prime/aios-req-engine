@@ -223,6 +223,57 @@ class Settings(BaseSettings):
     V0_API_KEY: str | None = Field(default=None, description="v0.dev API key")
     V0_API_URL: str = Field(default="https://api.v0.dev", description="v0.dev API endpoint")
 
+    # Google OAuth (server-side Calendar API calls)
+    GOOGLE_CLIENT_ID: str | None = Field(default=None, description="Google OAuth client ID")
+    GOOGLE_CLIENT_SECRET: str | None = Field(
+        default=None, description="Google OAuth client secret"
+    )
+
+    # Recall.ai (meeting recording)
+    RECALL_API_KEY: str | None = Field(default=None, description="Recall.ai API key")
+    RECALL_API_URL: str = Field(
+        default="https://api.recall.ai/api/v1", description="Recall.ai API base URL"
+    )
+    RECALL_WEBHOOK_SECRET: str | None = Field(
+        default=None, description="Recall.ai webhook signature secret"
+    )
+
+    # SendGrid (inbound parse + outbound transactional)
+    SENDGRID_API_KEY: str | None = Field(default=None, description="SendGrid API key")
+    SENDGRID_INBOUND_DOMAIN: str = Field(
+        default="inbound.aios.example.com",
+        description="Domain for inbound email routing",
+    )
+    SENDGRID_WEBHOOK_SECRET: str | None = Field(
+        default=None, description="SendGrid webhook signature secret"
+    )
+    SENDGRID_FROM_EMAIL: str = Field(
+        default="notifications@aios.example.com",
+        description="SendGrid sender email address",
+    )
+    SENDGRID_FROM_NAME: str = Field(
+        default="AIOS", description="SendGrid sender display name"
+    )
+
+    # Privacy and data retention
+    EMAIL_BODY_RETENTION_DAYS: int = Field(
+        default=0, description="Days to retain raw email bodies (0 = never persist)"
+    )
+    RECORDING_RETENTION_DAYS: int = Field(
+        default=14, description="Days to retain recording/transcript URLs"
+    )
+    SANITIZED_SOURCE_RETENTION_DAYS: int = Field(
+        default=90, description="Days to retain sanitized signal text"
+    )
+    CONSENT_OPT_OUT_WINDOW_HOURS: int = Field(
+        default=1, description="Hours before meeting to allow opt-out"
+    )
+
+    # Token encryption
+    TOKEN_ENCRYPTION_KEY: str | None = Field(
+        default=None, description="AES-256 key for encrypting refresh tokens at rest"
+    )
+
     # Chat Assistant configuration
     CHAT_MODEL: str = Field(
         default="claude-sonnet-4-20250514",

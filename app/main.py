@@ -74,3 +74,8 @@ async def health_check() -> JSONResponse:
 
 # Include v1 API router
 app.include_router(api_router, prefix="/v1", tags=["v1"])
+
+# Include webhooks router (no auth middleware — uses secret-based verification)
+from app.api.webhooks import router as webhooks_router
+
+app.include_router(webhooks_router, prefix="/v1", tags=["webhooks"])

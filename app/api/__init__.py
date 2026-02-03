@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter
 
-from app.api import activity, admin, agents, analytics, auth, baseline, business_drivers, chat, client_packages, client_portal, collaboration, competitor_refs, confirmations, creative_brief, di_agent, discovery_prep, document_uploads, enrich_features, enrich_personas, enrich_vp, entity_cascades, evidence, jobs, meetings, n8n_research, organizations, outreach, phase0, project_creation, projects, proposals, prototype_sessions, prototypes, readiness, research, research_agent, revisions, risks, signals, signal_stream, sources, stakeholders, state, strategic_analytics, tasks, workspace
+from app.api import activity, admin, agents, analytics, auth, baseline, business_drivers, chat, client_packages, client_portal, collaboration, communications, competitor_refs, confirmations, creative_brief, di_agent, discovery_prep, document_uploads, enrich_features, enrich_personas, enrich_vp, entity_cascades, evidence, jobs, meetings, n8n_research, organizations, outreach, phase0, project_creation, projects, proposals, prototype_sessions, prototypes, readiness, research, research_agent, revisions, risks, signals, signal_stream, sources, stakeholders, state, strategic_analytics, tasks, workspace
 
 router = APIRouter()
 
@@ -141,3 +141,6 @@ router.include_router(workspace.router, tags=["workspace"])
 # Include Prototype Refinement routes
 router.include_router(prototypes.router, tags=["prototypes"])
 router.include_router(prototype_sessions.router, tags=["prototype_sessions"])
+
+# Include Communication Integration routes (Google OAuth, email, recording)
+router.include_router(communications.router, tags=["communications"])

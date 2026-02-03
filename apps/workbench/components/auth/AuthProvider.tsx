@@ -11,6 +11,7 @@ interface AuthContextType {
   user: User | null
   session: Session | null
   loading: boolean
+  providerToken: string | null
   signOut: () => Promise<void>
 }
 
@@ -18,6 +19,7 @@ const AuthContext = createContext<AuthContextType>({
   user: null,
   session: null,
   loading: true,
+  providerToken: null,
   signOut: async () => {},
 })
 
@@ -50,6 +52,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<User | null>(null)
   const [session, setSession] = useState<Session | null>(null)
   const [loading, setLoading] = useState(true)
+  const [providerToken, setProviderToken] = useState<string | null>(null)
   const router = useRouter()
   const pathname = usePathname()
 
@@ -96,9 +99,17 @@ export function AuthProvider({ children }: AuthProviderProps) {
           setSession(newSession)
           setUser(newSession.user)
           setAccessToken(newSession.access_token)
+
+          // Capture provider token (e.g., Google OAuth) for server-side persistence
+          if (newSession.provider_token) {
+            setProviderToken(newSession.provider_token)
+            // Persist Google refresh token to backend for Calendar API access
+            _persistProviderToken(newSession.provider_token, newSession.provider_refresh_token ?? null)
+          }
         } else {
           setSession(null)
           setUser(null)
+          setProviderToken(null)
           clearAuth()
         }
 
@@ -127,6 +138,17 @@ export function AuthProvider({ children }: AuthProviderProps) {
       router.push('/auth/login')
     }
   }, [user, loading, pathname, router])
+
+  // Persist provider token (Google refresh token) to backend
+  const _persistProviderToken = async (providerToken: string, refreshToken: string | null) => {
+    if (!refreshToken) return
+    try {
+      const { connectGoogle } = await import('@/lib/api')
+      await connectGoogle(refreshToken, ['https://www.googleapis.com/auth/calendar.events'])
+    } catch (err) {
+      console.error('Failed to persist Google token:', err)
+    }
+  }
 
   const signOut = async () => {
     try {
@@ -169,7 +191,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, signOut }}>
+    <AuthContext.Provider value={{ user, session, loading, providerToken, signOut }}>
       {children}
     </AuthContext.Provider>
   )
