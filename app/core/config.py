@@ -238,21 +238,14 @@ class Settings(BaseSettings):
         default=None, description="Recall.ai webhook signature secret"
     )
 
-    # SendGrid (inbound parse + outbound transactional)
-    SENDGRID_API_KEY: str | None = Field(default=None, description="SendGrid API key")
-    SENDGRID_INBOUND_DOMAIN: str = Field(
-        default="inbound.aios.example.com",
-        description="Domain for inbound email routing",
+    # Resend (fallback outbound email when no Google user context)
+    RESEND_API_KEY: str | None = Field(default=None, description="Resend API key")
+    RESEND_FROM_EMAIL: str = Field(
+        default="notifications@readytogo.ai",
+        description="Resend fallback sender email address",
     )
-    SENDGRID_WEBHOOK_SECRET: str | None = Field(
-        default=None, description="SendGrid webhook signature secret"
-    )
-    SENDGRID_FROM_EMAIL: str = Field(
-        default="notifications@aios.example.com",
-        description="SendGrid sender email address",
-    )
-    SENDGRID_FROM_NAME: str = Field(
-        default="AIOS", description="SendGrid sender display name"
+    RESEND_FROM_NAME: str = Field(
+        default="AIOS", description="Resend fallback sender display name"
     )
 
     # Privacy and data retention

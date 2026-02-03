@@ -1,8 +1,7 @@
 """Webhook handlers for external services.
 
 Registered WITHOUT auth middleware — uses secret-based verification.
-Handles: SendGrid inbound email, Recall.ai events, consent opt-out,
-Google Calendar push notifications.
+Handles: Recall.ai events, consent opt-out, Google Calendar push notifications.
 """
 
 import hashlib
@@ -10,104 +9,14 @@ import hmac
 import logging
 from uuid import UUID, uuid4
 
-from fastapi import APIRouter, Form, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Request
 
 from app.core.config import get_settings
-from app.core.content_sanitizer import sanitize_email_body, sanitize_transcript
+from app.core.content_sanitizer import sanitize_transcript
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/webhooks")
-
-# ============================================================================
-# SendGrid Inbound Email (Phase 2)
-# ============================================================================
-
-
-@router.post("/sendgrid/inbound")
-async def sendgrid_inbound(
-    request: Request,
-    # SendGrid sends multipart/form-data fields
-    to: str = Form(""),
-    from_: str = Form("", alias="from"),
-    sender_email: str = Form("", alias="sender_email"),
-    subject: str = Form(""),
-    text: str = Form(""),
-    html: str = Form(""),
-):
-    """
-    Receive inbound email from SendGrid.
-
-    Flow:
-    1. Extract routing token from 'to' address
-    2. Validate token (active, not expired, rate limit, sender domain)
-    3. Sanitize email body
-    4. Ingest as signal
-    """
-    from app.db import email_routing_tokens as token_db
-    from app.db.phase0 import insert_signal
-
-    # Parse the routing token from the 'to' address
-    # Format: {token}@inbound.aios.example.com
-    token_value = _extract_token_from_address(to)
-    if not token_value:
-        logger.warning(f"SendGrid inbound: no valid token in 'to' address: {to}")
-        raise HTTPException(status_code=400, detail="Invalid routing address")
-
-    # Determine sender email
-    sender = sender_email or from_
-    if not sender:
-        raise HTTPException(status_code=400, detail="No sender email")
-
-    # Validate token
-    is_valid, reason, token_record = token_db.validate_token(token_value, sender)
-    if not is_valid:
-        logger.warning(
-            f"SendGrid inbound: token validation failed: {reason}, "
-            f"token={token_value}, sender={sender}"
-        )
-        raise HTTPException(status_code=403, detail=reason)
-
-    # Sanitize email body (prefer plain text, fall back to html)
-    body = text or html
-    sanitized = sanitize_email_body(body)
-
-    if not sanitized.strip():
-        logger.info("SendGrid inbound: empty body after sanitization, skipping")
-        return {"status": "skipped", "reason": "empty_body"}
-
-    # Build metadata
-    metadata = {
-        "authority": "client",
-        "sender": sender,
-        "recipients": [to],
-        "subject": subject,
-        "source": "inbound_email",
-        "routing_token_id": token_record["id"],
-    }
-
-    # Create signal
-    signal = insert_signal(
-        project_id=UUID(token_record["project_id"]),
-        source=sender,
-        signal_type="email",
-        raw_text=sanitized,
-        metadata=metadata,
-        run_id=uuid4(),
-        source_label=f"Email: {subject}" if subject else "Inbound Email",
-    )
-
-    # Increment token usage
-    token_db.increment_usage(UUID(token_record["id"]))
-
-    signal_id = signal.get("id", "")
-    logger.info(
-        f"SendGrid inbound processed: signal={signal_id}, "
-        f"project={token_record['project_id']}, sender={sender}"
-    )
-
-    return {"status": "processed", "signal_id": signal_id}
-
 
 # ============================================================================
 # Consent Opt-Out (Phase 3)
@@ -335,29 +244,3 @@ async def google_calendar_push(request: Request):
         logger.warning(f"Calendar sync failed for user {user_id}: {e}")
 
     return {"status": "processed", "user_id": user_id}
-
-
-# ============================================================================
-# Helpers
-# ============================================================================
-
-
-def _extract_token_from_address(to_address: str) -> str | None:
-    """Extract routing token from a 'to' email address.
-
-    Parses: "token@inbound.aios.example.com" -> "token"
-    Also handles: "Display Name <token@domain>" format
-    """
-    if not to_address:
-        return None
-
-    # Handle "Name <email>" format
-    if "<" in to_address:
-        to_address = to_address.split("<")[-1].rstrip(">")
-
-    # Extract local part
-    if "@" not in to_address:
-        return None
-
-    local_part = to_address.split("@")[0].strip()
-    return local_part if local_part else None

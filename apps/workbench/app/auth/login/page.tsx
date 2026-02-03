@@ -7,7 +7,10 @@ import { setAccessToken } from '@/lib/api'
 import { API_BASE } from '@/lib/config'
 import { supabase } from '@/lib/supabase'
 
-const GOOGLE_CALENDAR_SCOPE = 'https://www.googleapis.com/auth/calendar.events'
+const GOOGLE_SCOPES = [
+  'https://www.googleapis.com/auth/calendar.events',
+  'https://www.googleapis.com/auth/gmail.send',
+].join(' ')
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
@@ -86,7 +89,7 @@ export default function LoginPage() {
       const { error: oauthError } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          scopes: GOOGLE_CALENDAR_SCOPE,
+          scopes: GOOGLE_SCOPES,
           redirectTo: `${window.location.origin}/projects`,
         },
       })

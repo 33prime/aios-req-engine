@@ -19,6 +19,7 @@ async def send_consent_emails(
     meeting_title: str,
     meeting_time: str,
     participant_emails: list[str] | None = None,
+    user_id: UUID | None = None,
 ) -> dict:
     """
     Send recording consent notifications to meeting participants.
@@ -31,6 +32,7 @@ async def send_consent_emails(
         meeting_title: Meeting title for the notification
         meeting_time: Human-readable meeting time
         participant_emails: Override participant list
+        user_id: If provided, send via Gmail as this user
 
     Returns:
         Dict with emails_sent count and opt_out_deadline
@@ -59,13 +61,14 @@ async def send_consent_emails(
         f"?bot_id={bot_id}&action=opt_out"
     )
 
-    # Send consent emails via SendGrid
+    # Send consent emails (Gmail as user, Resend fallback)
     try:
         result = await send_consent_notification(
             participant_emails=participant_emails,
             meeting_title=meeting_title,
             meeting_time=meeting_time,
             opt_out_url=opt_out_url,
+            user_id=user_id,
         )
     except Exception as e:
         logger.error(f"Failed to send consent emails: {e}")

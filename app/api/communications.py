@@ -354,6 +354,7 @@ async def deploy_bot(
                 meeting_id=request.meeting_id,
                 meeting_title=meeting["title"],
                 meeting_time=f"{meeting['meeting_date']} {meeting['meeting_time']}",
+                user_id=auth.user_id,
             )
     except Exception as e:
         logger.warning(f"Failed to send consent emails: {e}")

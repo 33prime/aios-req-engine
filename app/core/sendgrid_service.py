@@ -1,12 +1,13 @@
-"""SendGrid outbound email service.
+"""Outbound email service.
 
 Sends consent notifications, reply-to token delivery, and opt-out confirmations.
-Uses SendGrid v3 API via httpx (same pattern as firecrawl_service.py).
-No Gmail/Google send scope needed.
+Primary: Gmail API (sends as the authenticated Google user).
+Fallback: Resend API (for system emails without a user context).
 """
 
 import logging
 from typing import Any
+from uuid import UUID
 
 import httpx
 
@@ -14,7 +15,86 @@ from app.core.config import get_settings
 
 logger = logging.getLogger(__name__)
 
-SENDGRID_API_URL = "https://api.sendgrid.com/v3/mail/send"
+RESEND_API_URL = "https://api.resend.com/emails"
+
+
+async def _send_via_gmail(
+    user_id: UUID,
+    to_emails: list[str],
+    subject: str,
+    html_body: str,
+    text_body: str | None = None,
+) -> dict[str, Any]:
+    """Send email via Gmail API on behalf of the authenticated user."""
+    from app.db.communication_integrations import get_integration
+    from app.core.google_auth_helper import exchange_refresh_for_access, send_gmail
+    from app.db.supabase_client import get_supabase
+
+    integration = get_integration(user_id)
+    if not integration or not integration.get("google_refresh_token_encrypted"):
+        raise ValueError("No Google integration for user")
+
+    # Get the user's email from Supabase auth
+    supabase = get_supabase()
+    user_resp = supabase.auth.admin.get_user_by_id(str(user_id))
+    user_email = user_resp.user.email if user_resp.user else None
+    if not user_email:
+        raise ValueError("Could not resolve user email")
+
+    access_token = await exchange_refresh_for_access(
+        integration["google_refresh_token_encrypted"]
+    )
+
+    return await send_gmail(
+        access_token=access_token,
+        from_email=user_email,
+        to_emails=to_emails,
+        subject=subject,
+        html_body=html_body,
+        text_body=text_body,
+    )
+
+
+async def _send_via_resend(
+    to_emails: list[str],
+    subject: str,
+    html_body: str,
+    text_body: str | None = None,
+) -> dict[str, Any]:
+    """Send email via Resend API (fallback)."""
+    settings = get_settings()
+
+    if not settings.RESEND_API_KEY:
+        raise ValueError("RESEND_API_KEY not configured")
+
+    payload: dict[str, Any] = {
+        "from": f"{settings.RESEND_FROM_NAME} <{settings.RESEND_FROM_EMAIL}>",
+        "to": to_emails,
+        "subject": subject,
+        "html": html_body,
+    }
+    if text_body:
+        payload["text"] = text_body
+
+    async with httpx.AsyncClient(timeout=15) as client:
+        response = await client.post(
+            RESEND_API_URL,
+            headers={
+                "Authorization": f"Bearer {settings.RESEND_API_KEY}",
+                "Content-Type": "application/json",
+            },
+            json=payload,
+        )
+        response.raise_for_status()
+
+        data = response.json()
+        message_id = data.get("id", "")
+        logger.info(
+            f"Resend email sent to {len(to_emails)} recipients, "
+            f"subject='{subject}', message_id={message_id}"
+        )
+
+        return {"message_id": message_id, "status": "sent"}
 
 
 async def _send_mail(
@@ -22,64 +102,27 @@ async def _send_mail(
     subject: str,
     html_body: str,
     text_body: str | None = None,
+    user_id: UUID | None = None,
 ) -> dict[str, Any]:
     """
-    Send email via SendGrid v3 Mail Send API.
+    Send email, preferring Gmail (as user) with Resend fallback.
 
     Args:
-        to_emails: List of recipient email addresses
+        to_emails: Recipient email addresses
         subject: Email subject
-        html_body: HTML body content
-        text_body: Plain text fallback (optional)
-
-    Returns:
-        Dict with message_id and status
-
-    Raises:
-        ValueError: If SendGrid is not configured
-        httpx.HTTPStatusError: If the API request fails
+        html_body: HTML content
+        text_body: Plain text fallback
+        user_id: If provided, send via Gmail as this user
     """
-    settings = get_settings()
+    if user_id:
+        try:
+            return await _send_via_gmail(
+                user_id, to_emails, subject, html_body, text_body
+            )
+        except Exception as e:
+            logger.warning(f"Gmail send failed for user {user_id}, falling back to Resend: {e}")
 
-    if not settings.SENDGRID_API_KEY:
-        raise ValueError("SENDGRID_API_KEY not configured")
-
-    personalizations = [
-        {"to": [{"email": email} for email in to_emails]}
-    ]
-
-    content = [{"type": "text/html", "value": html_body}]
-    if text_body:
-        content.insert(0, {"type": "text/plain", "value": text_body})
-
-    payload = {
-        "personalizations": personalizations,
-        "from": {
-            "email": settings.SENDGRID_FROM_EMAIL,
-            "name": settings.SENDGRID_FROM_NAME,
-        },
-        "subject": subject,
-        "content": content,
-    }
-
-    async with httpx.AsyncClient(timeout=15) as client:
-        response = await client.post(
-            SENDGRID_API_URL,
-            headers={
-                "Authorization": f"Bearer {settings.SENDGRID_API_KEY}",
-                "Content-Type": "application/json",
-            },
-            json=payload,
-        )
-        response.raise_for_status()
-
-        message_id = response.headers.get("X-Message-Id", "")
-        logger.info(
-            f"SendGrid email sent to {len(to_emails)} recipients, "
-            f"subject='{subject}', message_id={message_id}"
-        )
-
-        return {"message_id": message_id, "status": "sent"}
+    return await _send_via_resend(to_emails, subject, html_body, text_body)
 
 
 async def send_email(
@@ -87,6 +130,7 @@ async def send_email(
     subject: str,
     html_body: str,
     text_body: str | None = None,
+    user_id: UUID | None = None,
 ) -> dict[str, Any]:
     """
     Send a transactional email.
@@ -96,12 +140,13 @@ async def send_email(
         subject: Email subject
         html_body: HTML content
         text_body: Optional plain text fallback
+        user_id: If provided, send via Gmail as this user
 
     Returns:
         Dict with message_id and status
     """
     to_list = [to] if isinstance(to, str) else to
-    return await _send_mail(to_list, subject, html_body, text_body)
+    return await _send_mail(to_list, subject, html_body, text_body, user_id=user_id)
 
 
 async def send_consent_notification(
@@ -109,6 +154,7 @@ async def send_consent_notification(
     meeting_title: str,
     meeting_time: str,
     opt_out_url: str,
+    user_id: UUID | None = None,
 ) -> dict[str, Any]:
     """
     Send recording consent notification to meeting participants.
@@ -157,7 +203,9 @@ async def send_consent_notification(
         f"If any participant opts out, the recording is cancelled for all."
     )
 
-    result = await _send_mail(participant_emails, subject, html_body, text_body)
+    result = await _send_mail(
+        participant_emails, subject, html_body, text_body, user_id=user_id
+    )
     return {"sent_count": len(participant_emails), **result}
 
 
@@ -165,6 +213,7 @@ async def send_token_delivery(
     consultant_email: str,
     reply_to_address: str,
     project_name: str,
+    user_id: UUID | None = None,
 ) -> dict[str, Any]:
     """
     Send email routing token address to a consultant.
@@ -193,7 +242,7 @@ async def send_token_delivery(
     </div>
     """
 
-    result = await _send_mail([consultant_email], subject, html_body)
+    result = await _send_mail([consultant_email], subject, html_body, user_id=user_id)
     return {"sent": True, **result}
 
 
