@@ -16,6 +16,7 @@ import { AppSidebar } from './AppSidebar'
 import { PhaseSwitcher, WorkspacePhase } from './PhaseSwitcher'
 import { CollaborationPanel, type PanelState } from './CollaborationPanel'
 import { RequirementsCanvas } from './canvas/RequirementsCanvas'
+import { BRDCanvas } from './brd/BRDCanvas'
 import { BuildPhaseView } from './BuildPhaseView'
 import { OverviewPanel } from './OverviewPanel'
 import { BottomDock } from './BottomDock'
@@ -55,6 +56,12 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
   const [collaborationState, setCollaborationState] = useState<PanelState>('normal')
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true)
   const [activeBottomPanel, setActiveBottomPanel] = useState<'context' | 'evidence' | 'history' | null>(null)
+  const [discoveryViewMode, setDiscoveryViewMode] = useState<'brd' | 'canvas'>(() => {
+    if (typeof window !== 'undefined') {
+      return (localStorage.getItem('discovery-view-mode') as 'brd' | 'canvas') || 'brd'
+    }
+    return 'brd'
+  })
 
   // Review mode state
   const [isReviewActive, setIsReviewActive] = useState(false)
@@ -403,14 +410,46 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
             )}
 
             {phase === 'discovery' && canvasData && (
-              <RequirementsCanvas
-                data={canvasData}
-                projectId={projectId}
-                readinessScore={readinessData?.score}
-                onUpdatePitchLine={handleUpdatePitchLine}
-                onMapFeatureToStep={handleMapFeatureToStep}
-                onRefresh={loadData}
-              />
+              <div>
+                {/* View mode toggle */}
+                <div className="flex items-center justify-end mb-2">
+                  <div className="inline-flex items-center bg-gray-100 rounded-md p-0.5 text-[12px]">
+                    <button
+                      onClick={() => { setDiscoveryViewMode('brd'); localStorage.setItem('discovery-view-mode', 'brd') }}
+                      className={`px-3 py-1 rounded-[5px] font-medium transition-colors ${
+                        discoveryViewMode === 'brd'
+                          ? 'bg-white text-[#37352f] shadow-sm'
+                          : 'text-gray-500 hover:text-gray-700'
+                      }`}
+                    >
+                      BRD View
+                    </button>
+                    <button
+                      onClick={() => { setDiscoveryViewMode('canvas'); localStorage.setItem('discovery-view-mode', 'canvas') }}
+                      className={`px-3 py-1 rounded-[5px] font-medium transition-colors ${
+                        discoveryViewMode === 'canvas'
+                          ? 'bg-white text-[#37352f] shadow-sm'
+                          : 'text-gray-500 hover:text-gray-700'
+                      }`}
+                    >
+                      Canvas View
+                    </button>
+                  </div>
+                </div>
+
+                {discoveryViewMode === 'brd' ? (
+                  <BRDCanvas projectId={projectId} onRefresh={loadData} />
+                ) : (
+                  <RequirementsCanvas
+                    data={canvasData}
+                    projectId={projectId}
+                    readinessScore={readinessData?.score}
+                    onUpdatePitchLine={handleUpdatePitchLine}
+                    onMapFeatureToStep={handleMapFeatureToStep}
+                    onRefresh={loadData}
+                  />
+                )}
+              </div>
             )}
 
             {phase === 'build' && canvasData && (

@@ -232,6 +232,111 @@ async def update_confirmation_status(
 
 
 # ============================================================================
+# Batch Confirmation
+# ============================================================================
+
+
+class BatchConfirmRequest(BaseModel):
+    """Request to batch-confirm entities."""
+    project_id: UUID = Field(..., description="Project UUID")
+    entity_type: str = Field(..., description="Entity type: feature, persona, vp_step, business_driver, constraint")
+    entity_ids: list[str] = Field(..., description="List of entity IDs to confirm")
+    confirmation_status: str = Field(
+        default="confirmed_consultant",
+        description="Status to set (confirmed_consultant or confirmed_client)",
+    )
+
+
+class BatchConfirmResponse(BaseModel):
+    """Response from batch confirmation."""
+    updated_count: int
+    entity_type: str
+    confirmation_status: str
+
+
+ENTITY_TABLE_MAP = {
+    "feature": "features",
+    "persona": "personas",
+    "vp_step": "vp_steps",
+    "business_driver": "business_drivers",
+    "constraint": "constraints",
+}
+
+
+@router.post("/confirmations/batch", response_model=BatchConfirmResponse)
+async def batch_confirm_entities(request: BatchConfirmRequest) -> BatchConfirmResponse:
+    """
+    Batch confirm multiple entities of the same type.
+
+    Updates the confirmation_status of all specified entities.
+    Used by the BRD Canvas "Confirm All" action.
+    """
+    from app.db.supabase_client import get_supabase
+
+    valid_statuses = {"confirmed_consultant", "confirmed_client", "ai_generated", "needs_client"}
+    if request.confirmation_status not in valid_statuses:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid confirmation_status. Must be one of: {', '.join(sorted(valid_statuses))}",
+        )
+
+    table_name = ENTITY_TABLE_MAP.get(request.entity_type)
+    if not table_name:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid entity_type. Must be one of: {', '.join(sorted(ENTITY_TABLE_MAP.keys()))}",
+        )
+
+    if not request.entity_ids:
+        return BatchConfirmResponse(
+            updated_count=0,
+            entity_type=request.entity_type,
+            confirmation_status=request.confirmation_status,
+        )
+
+    try:
+        supabase = get_supabase()
+        updated_count = 0
+
+        for entity_id in request.entity_ids:
+            try:
+                result = supabase.table(table_name).update({
+                    "confirmation_status": request.confirmation_status,
+                    "updated_at": "now()",
+                }).eq("id", entity_id).eq("project_id", str(request.project_id)).execute()
+
+                if result.data:
+                    updated_count += 1
+            except Exception as e:
+                logger.warning(
+                    f"Failed to update {request.entity_type} {entity_id}: {e}",
+                    extra={"entity_id": entity_id},
+                )
+
+        logger.info(
+            f"Batch confirmed {updated_count}/{len(request.entity_ids)} {request.entity_type}s",
+            extra={
+                "project_id": str(request.project_id),
+                "entity_type": request.entity_type,
+                "count": updated_count,
+            },
+        )
+
+        return BatchConfirmResponse(
+            updated_count=updated_count,
+            entity_type=request.entity_type,
+            confirmation_status=request.confirmation_status,
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        error_msg = f"Failed to batch confirm entities: {str(e)}"
+        logger.error(error_msg, extra={"project_id": str(request.project_id)})
+        raise HTTPException(status_code=500, detail=error_msg) from e
+
+
+# ============================================================================
 # Email and Meeting Agenda Generation
 # ============================================================================
 

@@ -1988,7 +1988,7 @@ export const getEvidenceQuality = (projectId: string) =>
 // Workspace Canvas APIs
 // ============================================
 
-import type { CanvasData } from '@/types/workspace'
+import type { CanvasData, BRDWorkspaceData } from '@/types/workspace'
 import type {
   Prototype,
   FeatureOverlay,
@@ -2024,6 +2024,63 @@ export const updatePrototypeUrl = (projectId: string, prototypeUrl: string) =>
     method: 'PATCH',
     body: JSON.stringify({ prototype_url: prototypeUrl }),
   })
+
+// ============================================
+// BRD Canvas APIs
+// ============================================
+
+/**
+ * Get aggregated BRD workspace data for the BRD canvas.
+ */
+export const getBRDWorkspaceData = (projectId: string) =>
+  apiRequest<BRDWorkspaceData>(`/projects/${projectId}/workspace/brd`)
+
+/**
+ * Update the project's vision statement.
+ */
+export const updateProjectVision = (projectId: string, vision: string) =>
+  apiRequest<{ success: boolean; vision: string }>(`/projects/${projectId}/workspace/vision`, {
+    method: 'PATCH',
+    body: JSON.stringify({ vision }),
+  })
+
+/**
+ * Update a feature's MoSCoW priority group.
+ */
+export const updateFeaturePriority = (
+  projectId: string,
+  featureId: string,
+  priorityGroup: string
+) =>
+  apiRequest<{ success: boolean; feature_id: string; priority_group: string }>(
+    `/projects/${projectId}/workspace/features/${featureId}/priority`,
+    {
+      method: 'PATCH',
+      body: JSON.stringify({ priority_group: priorityGroup }),
+    }
+  )
+
+/**
+ * Batch confirm multiple entities.
+ */
+export const batchConfirmEntities = (
+  projectId: string,
+  entityType: string,
+  entityIds: string[],
+  confirmationStatus: string = 'confirmed_consultant'
+) =>
+  apiRequest<{ updated_count: number; entity_type: string; confirmation_status: string }>(
+    '/confirmations/batch',
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        project_id: projectId,
+        entity_type: entityType,
+        entity_ids: entityIds,
+        confirmation_status: confirmationStatus,
+      }),
+    }
+  )
 
 // ============================================
 // Prototype Refinement APIs

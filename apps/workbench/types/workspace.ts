@@ -58,3 +58,103 @@ export interface CanvasData {
   pending_count: number
 }
 
+// ============================================
+// BRD Canvas Types
+// ============================================
+
+export interface BRDEvidence {
+  chunk_id?: string | null
+  excerpt: string
+  source_type: 'signal' | 'research' | 'inferred'
+  rationale: string
+}
+
+export interface BusinessDriver {
+  id: string
+  description: string
+  driver_type: 'kpi' | 'pain' | 'goal'
+  severity?: string | null
+  confirmation_status?: string | null
+  evidence?: BRDEvidence[]
+  // Pain-specific
+  business_impact?: string | null
+  affected_users?: string | null
+  current_workaround?: string | null
+  // Goal-specific
+  success_criteria?: string | null
+  owner?: string | null
+  goal_timeframe?: string | null
+  // KPI-specific
+  baseline_value?: string | null
+  target_value?: string | null
+  measurement_method?: string | null
+}
+
+export interface ConstraintItem {
+  id: string
+  title: string
+  constraint_type: string
+  description?: string | null
+  severity: string
+  confirmation_status?: string | null
+  evidence?: BRDEvidence[]
+}
+
+export interface PersonaBRDSummary {
+  id: string
+  name: string
+  role?: string | null
+  description?: string | null
+  persona_type?: string | null
+  goals?: string[]
+  pain_points?: string[]
+  confirmation_status?: string | null
+}
+
+export interface VpStepBRDSummary {
+  id: string
+  step_index: number
+  title: string
+  description?: string | null
+  actor_persona_id?: string | null
+  actor_persona_name?: string | null
+  confirmation_status?: string | null
+}
+
+export interface FeatureBRDSummary {
+  id: string
+  name: string
+  description?: string | null
+  category?: string | null
+  is_mvp: boolean
+  priority_group?: string | null
+  confirmation_status?: string | null
+  vp_step_id?: string | null
+  evidence?: BRDEvidence[]
+}
+
+export type MoSCoWGroup = 'must_have' | 'should_have' | 'could_have' | 'out_of_scope'
+
+export interface BRDWorkspaceData {
+  business_context: {
+    background?: string | null
+    company_name?: string | null
+    industry?: string | null
+    pain_points: BusinessDriver[]
+    goals: BusinessDriver[]
+    vision?: string | null
+    success_metrics: BusinessDriver[]
+  }
+  actors: PersonaBRDSummary[]
+  workflows: VpStepBRDSummary[]
+  requirements: {
+    must_have: FeatureBRDSummary[]
+    should_have: FeatureBRDSummary[]
+    could_have: FeatureBRDSummary[]
+    out_of_scope: FeatureBRDSummary[]
+  }
+  constraints: ConstraintItem[]
+  readiness_score: number
+  pending_count: number
+}
+

@@ -1,0 +1,131 @@
+'use client'
+
+import { DndContext, DragOverlay, PointerSensor, useSensor, useSensors, type DragEndEvent, type DragStartEvent } from '@dnd-kit/core'
+import { useState } from 'react'
+import { Package } from 'lucide-react'
+import { SectionHeader } from '../components/SectionHeader'
+import { PriorityGroup } from './PriorityGroup'
+import type { BRDWorkspaceData, FeatureBRDSummary, MoSCoWGroup } from '@/types/workspace'
+
+interface RequirementsSectionProps {
+  requirements: BRDWorkspaceData['requirements']
+  onConfirm: (entityType: string, entityId: string) => void
+  onNeedsReview: (entityType: string, entityId: string) => void
+  onConfirmAll: (entityType: string, ids: string[]) => void
+  onMovePriority: (featureId: string, targetGroup: MoSCoWGroup) => void
+}
+
+export function RequirementsSection({
+  requirements,
+  onConfirm,
+  onNeedsReview,
+  onConfirmAll,
+  onMovePriority,
+}: RequirementsSectionProps) {
+  const [activeDragFeature, setActiveDragFeature] = useState<FeatureBRDSummary | null>(null)
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
+  )
+
+  const allFeatures = [
+    ...requirements.must_have,
+    ...requirements.should_have,
+    ...requirements.could_have,
+    ...requirements.out_of_scope,
+  ]
+
+  const allConfirmed = allFeatures.filter(
+    (f) => f.confirmation_status === 'confirmed_consultant' || f.confirmation_status === 'confirmed_client'
+  ).length
+
+  const handleDragStart = (event: DragStartEvent) => {
+    const { feature } = event.active.data.current || {}
+    if (feature) setActiveDragFeature(feature)
+  }
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    setActiveDragFeature(null)
+    const { over, active } = event
+    if (!over) return
+
+    const targetGroup = over.data.current?.group as MoSCoWGroup | undefined
+    const sourceGroup = active.data.current?.sourceGroup as MoSCoWGroup | undefined
+    const feature = active.data.current?.feature as FeatureBRDSummary | undefined
+
+    if (targetGroup && sourceGroup && feature && targetGroup !== sourceGroup) {
+      onMovePriority(feature.id, targetGroup)
+    }
+  }
+
+  // Compute non-out-of-scope features for "Confirm All"
+  const confirmableFeatures = [
+    ...requirements.must_have,
+    ...requirements.should_have,
+    ...requirements.could_have,
+  ]
+
+  return (
+    <section>
+      <SectionHeader
+        title="Requirements"
+        count={allFeatures.length}
+        confirmedCount={allConfirmed}
+        onConfirmAll={() => onConfirmAll('feature', confirmableFeatures.map((f) => f.id))}
+      />
+
+      <DndContext
+        sensors={sensors}
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+      >
+        <div className="space-y-6">
+          <PriorityGroup
+            group="must_have"
+            features={requirements.must_have}
+            onConfirm={onConfirm}
+            onNeedsReview={onNeedsReview}
+            onMove={onMovePriority}
+          />
+          <PriorityGroup
+            group="should_have"
+            features={requirements.should_have}
+            onConfirm={onConfirm}
+            onNeedsReview={onNeedsReview}
+            onMove={onMovePriority}
+          />
+          <PriorityGroup
+            group="could_have"
+            features={requirements.could_have}
+            onConfirm={onConfirm}
+            onNeedsReview={onNeedsReview}
+            onMove={onMovePriority}
+          />
+          <PriorityGroup
+            group="out_of_scope"
+            features={requirements.out_of_scope}
+            onConfirm={onConfirm}
+            onNeedsReview={onNeedsReview}
+            onMove={onMovePriority}
+          />
+        </div>
+
+        <DragOverlay>
+          {activeDragFeature ? (
+            <div className="bg-white border border-[#009b87] rounded-[3px] shadow-lg px-4 py-3 max-w-md opacity-90">
+              <div className="flex items-center gap-2">
+                <Package className="w-4 h-4 text-[#009b87]" />
+                <span className="text-[14px] font-medium text-[#37352f]">{activeDragFeature.name}</span>
+              </div>
+              {activeDragFeature.description && (
+                <p className="text-[12px] text-[rgba(55,53,47,0.65)] mt-1 truncate">
+                  {activeDragFeature.description}
+                </p>
+              )}
+            </div>
+          ) : null}
+        </DragOverlay>
+      </DndContext>
+    </section>
+  )
+}

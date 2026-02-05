@@ -789,6 +789,59 @@ def update_feature_enrichment(
         raise
 
 
+def update_feature_priority(
+    feature_id: UUID,
+    priority_group: str,
+) -> dict[str, Any]:
+    """
+    Update the MoSCoW priority group of a feature.
+
+    Args:
+        feature_id: Feature UUID
+        priority_group: New priority group (must_have, should_have, could_have, out_of_scope)
+
+    Returns:
+        Updated feature dict
+
+    Raises:
+        ValueError: If feature not found or invalid priority group
+        Exception: If database operation fails
+    """
+    valid_groups = {"must_have", "should_have", "could_have", "out_of_scope"}
+    if priority_group not in valid_groups:
+        raise ValueError(f"Invalid priority_group: {priority_group}. Must be one of {valid_groups}")
+
+    supabase = get_supabase()
+
+    try:
+        response = (
+            supabase.table("features")
+            .update({
+                "priority_group": priority_group,
+                "updated_at": "now()",
+            })
+            .eq("id", str(feature_id))
+            .execute()
+        )
+
+        if not response.data:
+            raise ValueError(f"Feature not found: {feature_id}")
+
+        updated_feature = response.data[0]
+        logger.info(
+            f"Updated feature {feature_id} priority_group to {priority_group}",
+            extra={"feature_id": str(feature_id), "priority_group": priority_group},
+        )
+
+        return updated_feature
+
+    except ValueError:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to update feature {feature_id} priority: {e}")
+        raise
+
+
 def list_features_for_enrichment(
     project_id: UUID,
     only_unenriched: bool = True,

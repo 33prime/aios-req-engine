@@ -7,6 +7,19 @@ from uuid import UUID
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
+from app.core.schemas_brd import (
+    BRDWorkspaceData,
+    BusinessContextSection,
+    ConstraintSummary,
+    EvidenceItem,
+    FeatureBRDSummary,
+    GoalSummary,
+    KPISummary,
+    PainPointSummary,
+    PersonaBRDSummary,
+    RequirementsSection,
+    VpStepBRDSummary,
+)
 from app.db.supabase_client import get_supabase as get_client
 
 logger = logging.getLogger(__name__)
@@ -469,4 +482,306 @@ async def map_feature_to_step(
         raise
     except Exception as e:
         logger.exception(f"Failed to map feature {feature_id} to step")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================================
+# BRD Canvas Endpoints
+# ============================================================================
+
+
+def _parse_evidence(raw: list | None) -> list[EvidenceItem]:
+    """Parse raw evidence JSON into EvidenceItem models."""
+    if not raw:
+        return []
+    items = []
+    for e in raw:
+        if isinstance(e, dict):
+            items.append(EvidenceItem(
+                chunk_id=e.get("chunk_id"),
+                excerpt=e.get("excerpt", ""),
+                source_type=e.get("source_type", "inferred"),
+                rationale=e.get("rationale", ""),
+            ))
+    return items
+
+
+@router.get("/brd", response_model=BRDWorkspaceData)
+async def get_brd_workspace_data(project_id: UUID) -> BRDWorkspaceData:
+    """
+    Get aggregated BRD (Business Requirements Document) workspace data.
+
+    Returns all data needed to render the BRD canvas: business context,
+    actors, workflows, requirements (MoSCoW grouped), and constraints.
+    """
+    client = get_client()
+
+    try:
+        # 1. Project info
+        project_result = client.table("projects").select(
+            "*"
+        ).eq("id", str(project_id)).single().execute()
+
+        if not project_result.data:
+            raise HTTPException(status_code=404, detail="Project not found")
+
+        project = project_result.data
+
+        # 2. Company info (background)
+        company_info = None
+        try:
+            ci_result = client.table("company_info").select(
+                "name, description, industry"
+            ).eq("project_id", str(project_id)).maybe_single().execute()
+            if ci_result and ci_result.data:
+                company_info = ci_result.data
+        except Exception:
+            pass
+
+        # 3. Business drivers (pain points, goals, KPIs)
+        drivers_result = client.table("business_drivers").select(
+            "*"
+        ).eq("project_id", str(project_id)).execute()
+
+        pain_points = []
+        goals = []
+        success_metrics = []
+
+        for d in (drivers_result.data or []):
+            dtype = d.get("driver_type")
+            evidence = _parse_evidence(d.get("evidence"))
+
+            if dtype == "pain":
+                pain_points.append(PainPointSummary(
+                    id=d["id"],
+                    description=d.get("description", ""),
+                    severity=d.get("severity"),
+                    business_impact=d.get("business_impact"),
+                    affected_users=d.get("affected_users"),
+                    current_workaround=d.get("current_workaround"),
+                    confirmation_status=d.get("confirmation_status"),
+                    evidence=evidence,
+                ))
+            elif dtype == "goal":
+                goals.append(GoalSummary(
+                    id=d["id"],
+                    description=d.get("description", ""),
+                    success_criteria=d.get("success_criteria"),
+                    owner=d.get("owner"),
+                    goal_timeframe=d.get("goal_timeframe"),
+                    confirmation_status=d.get("confirmation_status"),
+                    evidence=evidence,
+                ))
+            elif dtype == "kpi":
+                success_metrics.append(KPISummary(
+                    id=d["id"],
+                    description=d.get("description", ""),
+                    baseline_value=d.get("baseline_value"),
+                    target_value=d.get("target_value"),
+                    measurement_method=d.get("measurement_method"),
+                    confirmation_status=d.get("confirmation_status"),
+                    evidence=evidence,
+                ))
+
+        # 4. Personas
+        personas_result = client.table("personas").select(
+            "id, name, role, description, goals, pain_points, confirmation_status"
+        ).eq("project_id", str(project_id)).execute()
+
+        actors = [
+            PersonaBRDSummary(
+                id=p["id"],
+                name=p["name"],
+                role=p.get("role"),
+                description=p.get("description"),
+                persona_type=p.get("persona_type"),
+                goals=p.get("goals") or [],
+                pain_points=p.get("pain_points") or [],
+                confirmation_status=p.get("confirmation_status"),
+            )
+            for p in (personas_result.data or [])
+        ]
+
+        # 5. VP Steps
+        vp_result = client.table("vp_steps").select(
+            "*"
+        ).eq("project_id", str(project_id)).order("step_index").execute()
+
+        persona_lookup = {p.id: p.name for p in actors}
+
+        workflows = []
+        for step in (vp_result.data or []):
+            actor_id = step.get("actor_persona_id")
+            workflows.append(VpStepBRDSummary(
+                id=step["id"],
+                step_index=step.get("step_index", 0),
+                title=step.get("label", "Untitled"),
+                description=step.get("description"),
+                actor_persona_id=actor_id,
+                actor_persona_name=persona_lookup.get(actor_id) if actor_id else None,
+                confirmation_status=step.get("confirmation_status"),
+            ))
+
+        # 6. Features grouped by priority_group
+        features_result = client.table("features").select(
+            "id, name, category, is_mvp, priority_group, confirmation_status, vp_step_id, evidence, overview"
+        ).eq("project_id", str(project_id)).execute()
+
+        requirements = RequirementsSection()
+        for f in (features_result.data or []):
+            summary = FeatureBRDSummary(
+                id=f["id"],
+                name=f["name"],
+                description=f.get("overview"),
+                category=f.get("category"),
+                is_mvp=f.get("is_mvp", False),
+                priority_group=f.get("priority_group"),
+                confirmation_status=f.get("confirmation_status"),
+                vp_step_id=f.get("vp_step_id"),
+                evidence=_parse_evidence(f.get("evidence")),
+            )
+            group = f.get("priority_group")
+            if group == "must_have":
+                requirements.must_have.append(summary)
+            elif group == "could_have":
+                requirements.could_have.append(summary)
+            elif group == "out_of_scope":
+                requirements.out_of_scope.append(summary)
+            else:
+                # Default unset to should_have
+                requirements.should_have.append(summary)
+
+        # 7. Constraints
+        constraints_result = client.table("constraints").select(
+            "*"
+        ).eq("project_id", str(project_id)).execute()
+
+        constraints = [
+            ConstraintSummary(
+                id=c["id"],
+                title=c.get("title", ""),
+                constraint_type=c.get("constraint_type", ""),
+                description=c.get("description"),
+                severity=c.get("severity", "medium"),
+                confirmation_status=c.get("confirmation_status"),
+                evidence=_parse_evidence(c.get("evidence")),
+            )
+            for c in (constraints_result.data or [])
+        ]
+
+        # 8. Readiness score + pending count
+        readiness_score = 0.0
+        if project.get("cached_readiness_score") is not None:
+            readiness_score = float(project["cached_readiness_score"]) * 100
+
+        pending_count = 0
+        try:
+            pending_result = client.table("pending_items").select(
+                "id", count="exact"
+            ).eq("project_id", str(project_id)).eq("status", "pending").execute()
+            pending_count = pending_result.count or 0
+        except Exception:
+            pass
+
+        return BRDWorkspaceData(
+            business_context=BusinessContextSection(
+                background=company_info.get("description") if company_info else None,
+                company_name=company_info.get("name") if company_info else None,
+                industry=company_info.get("industry") if company_info else None,
+                pain_points=pain_points,
+                goals=goals,
+                vision=project.get("vision"),
+                success_metrics=success_metrics,
+            ),
+            actors=actors,
+            workflows=workflows,
+            requirements=requirements,
+            constraints=constraints,
+            readiness_score=readiness_score,
+            pending_count=pending_count,
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"Failed to get BRD workspace data for project {project_id}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+class VisionUpdate(BaseModel):
+    """Request body for updating project vision."""
+    vision: str
+
+
+@router.patch("/vision")
+async def update_vision(project_id: UUID, data: VisionUpdate) -> dict:
+    """Update the project's vision statement."""
+    client = get_client()
+
+    try:
+        result = client.table("projects").update({
+            "vision": data.vision,
+        }).eq("id", str(project_id)).execute()
+
+        if not result.data:
+            raise HTTPException(status_code=404, detail="Project not found")
+
+        return {"success": True, "vision": data.vision}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"Failed to update vision for project {project_id}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+class FeaturePriorityUpdate(BaseModel):
+    """Request body for updating feature priority group."""
+    priority_group: str
+
+
+@router.patch("/features/{feature_id}/priority")
+async def update_feature_priority_endpoint(
+    project_id: UUID,
+    feature_id: UUID,
+    data: FeaturePriorityUpdate,
+) -> dict:
+    """Update a feature's MoSCoW priority group."""
+    from app.db.features import update_feature_priority
+
+    valid_groups = {"must_have", "should_have", "could_have", "out_of_scope"}
+    if data.priority_group not in valid_groups:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid priority_group. Must be one of: {', '.join(sorted(valid_groups))}",
+        )
+
+    client = get_client()
+
+    try:
+        # Verify feature belongs to project
+        feature_result = client.table("features").select(
+            "id, project_id"
+        ).eq("id", str(feature_id)).single().execute()
+
+        if not feature_result.data:
+            raise HTTPException(status_code=404, detail="Feature not found")
+
+        if feature_result.data["project_id"] != str(project_id):
+            raise HTTPException(status_code=403, detail="Feature does not belong to this project")
+
+        updated = update_feature_priority(feature_id, data.priority_group)
+
+        return {
+            "success": True,
+            "feature_id": str(feature_id),
+            "priority_group": data.priority_group,
+        }
+
+    except HTTPException:
+        raise
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.exception(f"Failed to update feature {feature_id} priority")
         raise HTTPException(status_code=500, detail=str(e))
