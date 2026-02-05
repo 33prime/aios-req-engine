@@ -42,6 +42,7 @@ cors_origins = [
     "http://127.0.0.1:3002",
     "http://127.0.0.1:3003",
     "https://aios-rtg.netlify.app",
+    "https://aios-rtg-portal.netlify.app",
 ]
 # Add any additional origins from environment
 extra_origins = os.getenv("CORS_ORIGINS", "").split(",")
