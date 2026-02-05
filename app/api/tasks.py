@@ -89,7 +89,7 @@ async def list_tasks(
     limit: int = Query(50, ge=1, le=100, description="Max results"),
     offset: int = Query(0, ge=0, description="Offset for pagination"),
     sort_by: str = Query("priority_score", description="Sort field"),
-    sort_order: str = Query("desc", regex="^(asc|desc)$", description="Sort order"),
+    sort_order: str = Query("desc", pattern="^(asc|desc)$", description="Sort order"),
     auth: AuthContext = Depends(require_auth),
 ):
     """
