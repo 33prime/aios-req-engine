@@ -1,10 +1,9 @@
 """API endpoints for organization management."""
 
 import logging
-from typing import Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Header, status
+from fastapi import APIRouter, Depends, Header, HTTPException, status
 
 from app.core.auth_middleware import AuthContext, require_auth
 from app.core.schemas_organizations import (
@@ -27,6 +26,8 @@ from app.core.schemas_organizations import (
 )
 from app.db.organization_invitations import (
     accept_invitation as db_accept_invitation,
+)
+from app.db.organization_invitations import (
     cancel_invitation,
     create_invitation,
     get_invitation_by_token,
@@ -71,8 +72,8 @@ router = APIRouter(prefix="/organizations", tags=["organizations"])
 
 
 async def get_current_org_id(
-    x_organization_id: Optional[str] = Header(None, alias="X-Organization-Id"),
-) -> Optional[UUID]:
+    x_organization_id: str | None = Header(None, alias="X-Organization-Id"),
+) -> UUID | None:
     """Extract organization ID from header if present."""
     if x_organization_id:
         try:

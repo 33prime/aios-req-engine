@@ -60,6 +60,11 @@ async def generate_prototype_endpoint(
         company_info = get_company_info(request.project_id)
         learnings = get_active_learnings()
 
+        # Build design preferences from selection
+        design_preferences = None
+        if request.design_selection:
+            design_preferences = request.design_selection.model_dump()
+
         # Generate v0 prompt
         prompt_output = generate_v0_prompt(
             project=project,
@@ -68,6 +73,7 @@ async def generate_prototype_endpoint(
             vp_steps=vp_steps,
             settings=settings,
             company_info=company_info,
+            design_preferences=design_preferences,
             learnings=learnings,
         )
 
@@ -75,6 +81,7 @@ async def generate_prototype_endpoint(
         prototype = create_prototype(
             project_id=request.project_id,
             prompt_text=prompt_output.prompt,
+            design_selection=design_preferences,
         )
         update_prototype(UUID(prototype["id"]), status="generating")
 

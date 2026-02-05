@@ -17,16 +17,19 @@ def create_prototype(
     repo_url: str | None = None,
     deploy_url: str | None = None,
     prompt_text: str | None = None,
+    design_selection: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Create a new prototype record."""
     supabase = get_supabase()
-    data = {
+    data: dict[str, Any] = {
         "project_id": str(project_id),
         "repo_url": repo_url,
         "deploy_url": deploy_url,
         "prompt_text": prompt_text,
         "status": "pending",
     }
+    if design_selection is not None:
+        data["design_selection"] = design_selection
     response = supabase.table("prototypes").insert(data).execute()
     if not response.data:
         raise ValueError("Failed to create prototype")

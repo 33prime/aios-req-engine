@@ -1,7 +1,7 @@
 """Workspace API endpoints for the new canvas-based UI."""
 
 import logging
-from typing import Optional
+from datetime import UTC
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException
@@ -23,21 +23,21 @@ class PersonaSummary(BaseModel):
     """Persona summary for canvas display."""
     id: str
     name: str
-    role: Optional[str] = None
-    description: Optional[str] = None
-    persona_type: Optional[str] = None
-    confirmation_status: Optional[str] = None
-    confidence_score: Optional[float] = None
+    role: str | None = None
+    description: str | None = None
+    persona_type: str | None = None
+    confirmation_status: str | None = None
+    confidence_score: float | None = None
 
 
 class FeatureSummary(BaseModel):
     """Feature summary for canvas display."""
     id: str
     name: str
-    description: Optional[str] = None
+    description: str | None = None
     is_mvp: bool = False
-    confirmation_status: Optional[str] = None
-    vp_step_id: Optional[str] = None
+    confirmation_status: str | None = None
+    vp_step_id: str | None = None
 
 
 class VpStepSummary(BaseModel):
@@ -45,10 +45,10 @@ class VpStepSummary(BaseModel):
     id: str
     step_index: int
     title: str  # maps from 'label' column
-    description: Optional[str] = None
-    actor_persona_id: Optional[str] = None
-    actor_persona_name: Optional[str] = None
-    confirmation_status: Optional[str] = None
+    description: str | None = None
+    actor_persona_id: str | None = None
+    actor_persona_name: str | None = None
+    confirmation_status: str | None = None
     features: list[FeatureSummary] = []
 
 
@@ -56,9 +56,9 @@ class PortalClientSummary(BaseModel):
     """Portal client summary."""
     id: str
     email: str
-    name: Optional[str] = None
+    name: str | None = None
     status: str  # 'active', 'pending', 'invited'
-    last_activity: Optional[str] = None
+    last_activity: str | None = None
 
 
 class WorkspaceData(BaseModel):
@@ -66,13 +66,13 @@ class WorkspaceData(BaseModel):
     # Project basics
     project_id: str
     project_name: str
-    pitch_line: Optional[str] = None
+    pitch_line: str | None = None
     collaboration_phase: str
-    portal_phase: Optional[str] = None
+    portal_phase: str | None = None
 
     # Prototype
-    prototype_url: Optional[str] = None
-    prototype_updated_at: Optional[str] = None
+    prototype_url: str | None = None
+    prototype_updated_at: str | None = None
 
     # Readiness
     readiness_score: float = 0.0
@@ -241,6 +241,124 @@ async def get_workspace_data(project_id: UUID) -> WorkspaceData:
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.get("/design-profile")
+async def get_design_profile(project_id: UUID) -> dict:
+    """
+    Get the design profile for a project, aggregating brand data,
+    design inspirations from competitor refs, signal-extracted style cues,
+    and generic style fallbacks.
+    """
+    from app.core.schemas_prototypes import (
+        GENERIC_DESIGN_STYLES,
+        BrandData,
+        DesignInspiration,
+        DesignProfileResponse,
+    )
+
+    client = get_client()
+
+    try:
+        # 1. Brand data from company_info
+        brand_available = False
+        brand = None
+        try:
+            brand_result = (
+                client.table("company_info")
+                .select(
+                    "logo_url, brand_colors, typography, design_characteristics, "
+                    "brand_scraped_at, name"
+                )
+                .eq("project_id", str(project_id))
+                .maybe_single()
+                .execute()
+            )
+            if brand_result and brand_result.data:
+                bd = brand_result.data
+                has_brand = bool(
+                    bd.get("brand_colors") or bd.get("typography") or bd.get("logo_url")
+                )
+                if has_brand:
+                    brand_available = True
+                    brand = BrandData(
+                        logo_url=bd.get("logo_url"),
+                        brand_colors=bd.get("brand_colors") or [],
+                        typography=bd.get("typography"),
+                        design_characteristics=bd.get("design_characteristics"),
+                    )
+        except Exception:
+            pass
+
+        # 2. Design inspirations from competitor_references
+        design_inspirations: list[DesignInspiration] = []
+        try:
+            refs_result = (
+                client.table("competitor_references")
+                .select("id, name, url, description, features_to_study")
+                .eq("project_id", str(project_id))
+                .eq("reference_type", "design_inspiration")
+                .execute()
+            )
+            for ref in refs_result.data or []:
+                design_inspirations.append(
+                    DesignInspiration(
+                        id=ref["id"],
+                        name=ref["name"],
+                        url=ref.get("url"),
+                        description=ref.get("description") or ref.get("features_to_study") or "",
+                        source="competitor_ref",
+                    )
+                )
+        except Exception:
+            pass
+
+        # 3. Design preferences from project_foundation
+        suggested_style = None
+        style_source = None
+        try:
+            foundation_result = (
+                client.table("project_foundation")
+                .select("design_preferences")
+                .eq("project_id", str(project_id))
+                .maybe_single()
+                .execute()
+            )
+            if foundation_result and foundation_result.data:
+                prefs = foundation_result.data.get("design_preferences")
+                if prefs and isinstance(prefs, dict):
+                    vs = prefs.get("visual_style")
+                    if vs:
+                        suggested_style = vs
+                        style_source = "Discovery data: visual style preference"
+                    # Add references as design inspirations
+                    for ref_name in prefs.get("references", []):
+                        design_inspirations.append(
+                            DesignInspiration(
+                                id=f"foundation_ref_{ref_name.lower().replace(' ', '_')}",
+                                name=ref_name,
+                                url=None,
+                                description="Referenced as design inspiration during discovery",
+                                source="foundation",
+                            )
+                        )
+        except Exception:
+            pass
+
+        response = DesignProfileResponse(
+            brand_available=brand_available,
+            brand=brand,
+            design_inspirations=design_inspirations,
+            suggested_style=suggested_style,
+            style_source=style_source,
+            generic_styles=GENERIC_DESIGN_STYLES,
+        )
+
+        return response.model_dump()
+
+    except Exception as e:
+        logger.exception(f"Failed to get design profile for project {project_id}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 class PitchLineUpdate(BaseModel):
     """Request body for updating pitch line."""
     pitch_line: str
@@ -279,11 +397,11 @@ async def update_prototype_url(project_id: UUID, data: PrototypeUrlUpdate) -> di
     client = get_client()
 
     try:
-        from datetime import datetime, timezone
+        from datetime import datetime
 
         result = client.table("projects").update({
             "prototype_url": data.prototype_url,
-            "prototype_updated_at": datetime.now(timezone.utc).isoformat(),
+            "prototype_updated_at": datetime.now(UTC).isoformat(),
         }).eq("id", str(project_id)).execute()
 
         if not result.data:
@@ -300,7 +418,7 @@ async def update_prototype_url(project_id: UUID, data: PrototypeUrlUpdate) -> di
 
 class FeatureStepMapping(BaseModel):
     """Request body for mapping a feature to a step."""
-    vp_step_id: Optional[UUID] = None
+    vp_step_id: UUID | None = None
 
 
 @router.patch("/features/{feature_id}/map-to-step")

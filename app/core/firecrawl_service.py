@@ -64,6 +64,80 @@ async def scrape_website(url: str, timeout: int | None = None) -> dict[str, Any]
         return result
 
 
+async def scrape_website_full(url: str, timeout: int | None = None) -> dict[str, Any]:
+    """
+    Scrape a website with full HTML (not just main content).
+
+    Used for brand extraction where we need headers, footers, CSS vars, etc.
+
+    Args:
+        url: The website URL to scrape
+        timeout: Optional timeout override in seconds
+
+    Returns:
+        Dict with:
+            - html: Raw HTML content
+            - markdown: Scraped content as markdown
+            - metadata: Page metadata
+
+    Raises:
+        ValueError: If FIRECRAWL_API_KEY not configured
+        httpx.HTTPStatusError: If the API request fails
+    """
+    settings = get_settings()
+
+    if not settings.FIRECRAWL_API_KEY:
+        raise ValueError("FIRECRAWL_API_KEY not configured")
+
+    request_timeout = timeout or settings.FIRECRAWL_TIMEOUT
+
+    async with httpx.AsyncClient(timeout=request_timeout) as client:
+        logger.info(f"Scraping website (full HTML): {url}")
+
+        response = await client.post(
+            f"{FIRECRAWL_BASE_URL}/scrape",
+            headers={"Authorization": f"Bearer {settings.FIRECRAWL_API_KEY}"},
+            json={
+                "url": url,
+                "formats": ["html", "markdown"],
+                "onlyMainContent": False,
+            }
+        )
+        response.raise_for_status()
+
+        data = response.json()
+        result = {
+            "html": data.get("data", {}).get("html", ""),
+            "markdown": data.get("data", {}).get("markdown", ""),
+            "metadata": data.get("data", {}).get("metadata", {}),
+        }
+
+        logger.info(
+            f"Scraped {url} (full): {len(result['html'])} HTML chars, "
+            f"{len(result['markdown'])} md chars"
+        )
+
+        return result
+
+
+async def scrape_website_full_safe(url: str, timeout: int | None = None) -> dict[str, Any] | None:
+    """Scrape full HTML with error handling — returns None on failure."""
+    try:
+        return await scrape_website_full(url, timeout)
+    except ValueError as e:
+        logger.warning(f"Firecrawl not configured: {e}")
+        return None
+    except httpx.HTTPStatusError as e:
+        logger.warning(f"Firecrawl HTTP error for {url}: {e.response.status_code}")
+        return None
+    except httpx.TimeoutException:
+        logger.warning(f"Firecrawl timeout for {url}")
+        return None
+    except Exception as e:
+        logger.warning(f"Firecrawl error for {url}: {e}")
+        return None
+
+
 async def scrape_website_safe(url: str, timeout: int | None = None) -> dict[str, Any] | None:
     """
     Scrape a website with error handling - returns None on failure.

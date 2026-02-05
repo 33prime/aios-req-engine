@@ -32,11 +32,12 @@ import {
   getPrototypeForProject,
   getPrototypeOverlays,
   createPrototypeSession,
+  generatePrototype,
 } from '@/lib/api'
 import type { CanvasData } from '@/types/workspace'
 import type { ReadinessScore } from '@/lib/api'
 import type { StatusNarrative, VpStep } from '@/types/api'
-import type { FeatureOverlay, PrototypeSession, TourStep, SessionContext, RouteFeatureMap } from '@/types/prototype'
+import type { DesignSelection, FeatureOverlay, PrototypeSession, TourStep, SessionContext, RouteFeatureMap } from '@/types/prototype'
 import type { PrototypeFrameHandle } from '@/components/prototype/PrototypeFrame'
 
 interface WorkspaceLayoutProps {
@@ -151,6 +152,12 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
   const handleMapFeatureToStep = async (featureId: string, stepId: string | null) => {
     await mapFeatureToStep(projectId, featureId, stepId)
     // Reload data to get updated state
+    await loadData()
+  }
+
+  const handleGeneratePrototype = async (selection: DesignSelection) => {
+    await generatePrototype(projectId, selection)
+    // Refresh workspace to pick up any changes (prompt stored on prototype)
     await loadData()
   }
 
@@ -414,6 +421,7 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
                   prototypeUpdatedAt={canvasData.prototype_updated_at}
                   readinessScore={readinessData?.score ?? canvasData.readiness_score}
                   onUpdatePrototypeUrl={handleUpdatePrototypeUrl}
+                  onGeneratePrototype={handleGeneratePrototype}
                   isReviewActive={isReviewActive}
                   onStartReview={handleStartReview}
                   onEndReview={handleEndReview}

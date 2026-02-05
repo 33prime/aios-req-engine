@@ -55,6 +55,15 @@ walkable in the prototype.
 
 7. TECHNICAL STACK: React + Tailwind CSS. No backend — all data is mocked.
 
+8. DESIGN TOKENS: When design preferences are provided, apply them precisely:
+   - Use the exact color palette (primary, secondary, accent) as the foundation
+   - Apply the specified typography (font families for headings and body text)
+   - Match the spacing style (compact, balanced, or generous)
+   - Use the specified corner radius style (sharp, slightly-rounded, rounded, pill)
+   - If a logo URL is provided, include it in the navigation/header
+   - Follow the style_direction description for overall aesthetic decisions
+   - The design should feel cohesive — every UI element should reflect the chosen direction
+
 === OUTPUT FORMAT ===
 Output ONLY valid JSON with this structure:
 {
@@ -85,13 +94,36 @@ def build_user_message(
 
     # Company info
     if company_info:
-        sections.append(f"\n## Company Context")
+        sections.append("\n## Company Context")
         sections.append(json.dumps(company_info, indent=2, default=str))
 
-    # Design preferences
+    # Design preferences — output structured tokens
     if design_preferences:
-        sections.append(f"\n## Design Preferences")
-        sections.append(json.dumps(design_preferences, indent=2, default=str))
+        sections.append("\n## Design Preferences")
+        tokens = design_preferences.get("tokens", design_preferences)
+        if isinstance(tokens, dict):
+            lines = []
+            if tokens.get("primary_color"):
+                lines.append(f"- Primary Color: {tokens['primary_color']}")
+            if tokens.get("secondary_color"):
+                lines.append(f"- Secondary Color: {tokens['secondary_color']}")
+            if tokens.get("accent_color"):
+                lines.append(f"- Accent Color: {tokens['accent_color']}")
+            if tokens.get("font_heading"):
+                lines.append(f"- Heading Font: {tokens['font_heading']}")
+            if tokens.get("font_body"):
+                lines.append(f"- Body Font: {tokens['font_body']}")
+            if tokens.get("spacing"):
+                lines.append(f"- Spacing: {tokens['spacing']}")
+            if tokens.get("corners"):
+                lines.append(f"- Corner Style: {tokens['corners']}")
+            if tokens.get("logo_url"):
+                lines.append(f"- Logo URL: {tokens['logo_url']}")
+            if tokens.get("style_direction"):
+                lines.append(f"- Style Direction: {tokens['style_direction']}")
+            sections.append("\n".join(lines))
+        else:
+            sections.append(json.dumps(design_preferences, indent=2, default=str))
 
     # Personas
     sections.append(f"\n## Personas ({len(personas)})")
@@ -143,7 +175,7 @@ def build_user_message(
 
     # Cross-project learnings
     if learnings:
-        sections.append(f"\n## Prompt Learnings (from previous prototypes)")
+        sections.append("\n## Prompt Learnings (from previous prototypes)")
         for l in learnings:
             sections.append(f"- [{l.get('category')}] {l.get('learning')}")
 

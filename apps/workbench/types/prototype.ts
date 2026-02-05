@@ -1,5 +1,63 @@
 // Types for the prototype refinement subsystem
 
+// === Design profile & selection types ===
+
+export interface DesignTokens {
+  primary_color: string
+  secondary_color: string
+  accent_color: string
+  font_heading: string
+  font_body: string
+  spacing: string
+  corners: string
+  style_direction: string
+  logo_url?: string
+}
+
+export interface GenericStyle {
+  id: string
+  label: string
+  description: string
+  preview_colors: string[]
+  tokens: DesignTokens
+}
+
+export interface BrandData {
+  logo_url: string | null
+  brand_colors: string[]
+  typography: { heading_font: string; body_font: string } | null
+  design_characteristics: {
+    overall_feel: string
+    spacing: string
+    corners: string
+    visual_weight: string
+  } | null
+}
+
+export interface DesignInspiration {
+  id: string
+  name: string
+  url: string | null
+  description: string
+  source: string
+}
+
+export interface DesignProfile {
+  brand_available: boolean
+  brand: BrandData | null
+  design_inspirations: DesignInspiration[]
+  suggested_style: string | null
+  style_source: string | null
+  generic_styles: GenericStyle[]
+}
+
+export interface DesignSelection {
+  option_id: string
+  tokens: DesignTokens
+  source: string
+}
+
+
 export interface Prototype {
   id: string
   project_id: string

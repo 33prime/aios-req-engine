@@ -247,6 +247,85 @@ def update_company_enrichment(
     return response.data[0]
 
 
+def update_brand_data(
+    project_id: UUID,
+    logo_url: str | None = None,
+    brand_colors: list[str] | None = None,
+    typography: dict[str, Any] | None = None,
+    design_characteristics: dict[str, Any] | None = None,
+) -> dict[str, Any] | None:
+    """
+    Update brand extraction fields for company info.
+
+    Args:
+        project_id: Project UUID
+        logo_url: Logo URL from website
+        brand_colors: List of hex color strings
+        typography: Dict with heading_font and body_font
+        design_characteristics: Dict with overall_feel, spacing, corners, visual_weight
+
+    Returns:
+        Updated company info dict or None if not found
+    """
+    supabase = get_supabase()
+
+    data: dict[str, Any] = {"brand_scraped_at": "now()"}
+
+    if logo_url is not None:
+        data["logo_url"] = logo_url
+    if brand_colors is not None:
+        data["brand_colors"] = brand_colors
+    if typography is not None:
+        data["typography"] = typography
+    if design_characteristics is not None:
+        data["design_characteristics"] = design_characteristics
+
+    response = (
+        supabase.table("company_info")
+        .update(data)
+        .eq("project_id", str(project_id))
+        .execute()
+    )
+
+    if not response.data:
+        logger.warning(f"No company info found for project {project_id}")
+        return None
+
+    invalidate_snapshot(project_id)
+
+    logger.info(f"Updated brand data for project {project_id}")
+    return response.data[0]
+
+
+def get_brand_data(project_id: UUID) -> dict[str, Any] | None:
+    """
+    Get brand data for a project.
+
+    Args:
+        project_id: Project UUID
+
+    Returns:
+        Dict with brand fields or None if no company info exists
+    """
+    supabase = get_supabase()
+
+    try:
+        response = (
+            supabase.table("company_info")
+            .select(
+                "logo_url, brand_colors, typography, design_characteristics, "
+                "brand_scraped_at, name, website"
+            )
+            .eq("project_id", str(project_id))
+            .maybe_single()
+            .execute()
+        )
+        return response.data if response else None
+    except Exception as e:
+        logger.error(f"Error getting brand data for project {project_id}: {e}")
+        return None
+
+
 def delete_company_info(project_id: UUID) -> bool:
     """
     Delete company info for a project.

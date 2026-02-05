@@ -23,13 +23,16 @@ import {
   Link as LinkIcon,
   AlertCircle,
   Square,
+  Sparkles,
 } from 'lucide-react'
 import PrototypeFrame from '@/components/prototype/PrototypeFrame'
 import type { PrototypeFrameHandle } from '@/components/prototype/PrototypeFrame'
 import TourController from '@/components/prototype/TourController'
+import { DesignSelectionModal } from '@/components/prototype/DesignSelectionModal'
 import type {
   FeatureOverlay,
   PrototypeSession,
+  DesignSelection,
   SessionContext,
   TourStep,
   RouteFeatureMap,
@@ -42,6 +45,7 @@ interface BuildPhaseViewProps {
   prototypeUpdatedAt?: string | null
   readinessScore: number
   onUpdatePrototypeUrl: (url: string) => Promise<void>
+  onGeneratePrototype?: (selection: DesignSelection) => Promise<void>
   // Review mode props
   isReviewActive: boolean
   onStartReview: () => void
@@ -68,6 +72,7 @@ export function BuildPhaseView({
   prototypeUpdatedAt,
   readinessScore,
   onUpdatePrototypeUrl,
+  onGeneratePrototype,
   isReviewActive,
   onStartReview,
   onEndReview,
@@ -89,6 +94,8 @@ export function BuildPhaseView({
   const [isSaving, setIsSaving] = useState(false)
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [iframeKey, setIframeKey] = useState(0)
+  const [showDesignModal, setShowDesignModal] = useState(false)
+  const [isGenerating, setIsGenerating] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -146,6 +153,19 @@ export function BuildPhaseView({
   }
 
   const refreshIframe = () => setIframeKey((k) => k + 1)
+
+  const handleGeneratePrototype = async (selection: DesignSelection) => {
+    if (!onGeneratePrototype) return
+    setIsGenerating(true)
+    try {
+      await onGeneratePrototype(selection)
+      setShowDesignModal(false)
+    } catch (error) {
+      console.error('Failed to generate prototype:', error)
+    } finally {
+      setIsGenerating(false)
+    }
+  }
 
   const formatDate = (dateStr?: string | null) => {
     if (!dateStr) return null
@@ -309,19 +329,37 @@ export function BuildPhaseView({
         ) : (
           <div className="flex items-center justify-center h-full">
             <div className="text-center max-w-md">
-              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-ui-background flex items-center justify-center">
-                <LinkIcon className="w-8 h-8 text-ui-supportText" />
+              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-brand-teal/10 flex items-center justify-center">
+                <Sparkles className="w-8 h-8 text-brand-teal" />
               </div>
-              <h3 className="text-section text-ui-headingDark mb-2">Add Your Prototype URL</h3>
-              <p className="text-sm text-ui-supportText mb-4">
-                Paste the URL of your deployed prototype (Vercel, Replit, etc.) to preview it directly in the workspace.
+              <h3 className="text-section text-ui-headingDark mb-2">Generate a Prototype</h3>
+              <p className="text-sm text-ui-supportText mb-5">
+                Turn your discovery data into a v0.dev prompt with your chosen design direction.
               </p>
-              <button
-                onClick={() => setIsEditing(true)}
-                className="px-4 py-2 bg-brand-teal text-white text-sm font-medium rounded-lg hover:bg-brand-tealDark transition-colors"
-              >
-                Add Prototype URL
-              </button>
+              {onGeneratePrototype ? (
+                <button
+                  onClick={() => setShowDesignModal(true)}
+                  className="px-5 py-2.5 bg-brand-teal text-white text-sm font-medium rounded-lg hover:bg-brand-tealDark transition-colors inline-flex items-center gap-2"
+                >
+                  <Sparkles className="w-4 h-4" />
+                  Generate Prototype
+                </button>
+              ) : (
+                <button
+                  onClick={() => setIsEditing(true)}
+                  className="px-5 py-2.5 bg-brand-teal text-white text-sm font-medium rounded-lg hover:bg-brand-tealDark transition-colors"
+                >
+                  Add Prototype URL
+                </button>
+              )}
+              <div className="mt-3">
+                <button
+                  onClick={() => setIsEditing(true)}
+                  className="text-sm text-ui-supportText hover:text-ui-bodyText transition-colors underline underline-offset-2"
+                >
+                  Or paste a prototype URL
+                </button>
+              </div>
             </div>
           </div>
         )}
@@ -349,6 +387,15 @@ export function BuildPhaseView({
           </div>
         )}
       </div>
+
+      {/* Design Selection Modal */}
+      <DesignSelectionModal
+        isOpen={showDesignModal}
+        onClose={() => setShowDesignModal(false)}
+        onGenerate={handleGeneratePrototype}
+        projectId={projectId}
+        isGenerating={isGenerating}
+      />
     </div>
   )
 }

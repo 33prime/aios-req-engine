@@ -166,10 +166,20 @@ async def enrich_company(project_id: UUID) -> dict[str, Any]:
 
     logger.info(f"Company enrichment complete for project {project_id}")
 
+    # 6. Extract brand assets (non-blocking — failure doesn't affect enrichment)
+    brand_result = None
+    try:
+        from app.chains.extract_brand import extract_brand_from_website
+
+        brand_result = await extract_brand_from_website(project_id)
+    except Exception as e:
+        logger.warning(f"Brand extraction failed for project {project_id}: {e}")
+
     return {
         "success": True,
         "enrichment_source": enrichment_source,
         "enrichment_confidence": enrichment_confidence,
         "scraped_chars": len(scraped_data) if scraped_data else 0,
         "fields_enriched": list(enrichment.keys()),
+        "brand_extracted": brand_result is not None,
     }

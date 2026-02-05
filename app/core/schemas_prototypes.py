@@ -5,6 +5,169 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
+# === Design token schemas ===
+
+
+class DesignTokens(BaseModel):
+    """Design tokens that feed into the v0 prompt."""
+
+    primary_color: str = Field(..., description="Primary brand color hex")
+    secondary_color: str = Field(..., description="Secondary color hex")
+    accent_color: str = Field(..., description="Accent color hex")
+    font_heading: str = Field("Inter", description="Heading font family")
+    font_body: str = Field("Inter", description="Body font family")
+    spacing: str = Field("balanced", description="Spacing: compact, balanced, generous")
+    corners: str = Field(
+        "slightly-rounded", description="Corner style: sharp, slightly-rounded, rounded, pill"
+    )
+    style_direction: str = Field("", description="Overall style direction description")
+    logo_url: str | None = Field(None, description="Logo URL to include in header")
+
+
+class GenericStyle(BaseModel):
+    """A generic design style option."""
+
+    id: str = Field(..., description="Style identifier")
+    label: str = Field(..., description="Display label")
+    description: str = Field(..., description="Style description")
+    preview_colors: list[str] = Field(default_factory=list, description="Preview color swatches")
+    tokens: DesignTokens = Field(..., description="Design tokens for this style")
+
+
+class DesignSelection(BaseModel):
+    """What the user selected for design direction."""
+
+    option_id: str = Field(..., description="Selected option ID")
+    tokens: DesignTokens = Field(..., description="Design tokens")
+    source: str = Field("", description="Source of selection: brand, inspiration, generic")
+
+
+class BrandData(BaseModel):
+    """Brand data extracted from company website."""
+
+    logo_url: str | None = Field(None, description="Logo URL")
+    brand_colors: list[str] = Field(default_factory=list, description="Brand colors")
+    typography: dict[str, str] | None = Field(
+        None, description="Typography: {heading_font, body_font}"
+    )
+    design_characteristics: dict[str, str] | None = Field(
+        None, description="Design characteristics: {overall_feel, spacing, corners, visual_weight}"
+    )
+
+
+class DesignInspiration(BaseModel):
+    """A design inspiration from competitor refs or signals."""
+
+    id: str = Field(..., description="Reference ID")
+    name: str = Field(..., description="Reference name (e.g., 'Stripe')")
+    url: str | None = Field(None, description="Reference URL")
+    description: str = Field("", description="Why this is an inspiration")
+    source: str = Field("", description="Where this came from: competitor_ref, signal")
+
+
+class DesignProfileResponse(BaseModel):
+    """Response for the design profile endpoint."""
+
+    brand_available: bool = Field(False, description="Whether brand data was extracted")
+    brand: BrandData | None = Field(None, description="Extracted brand data")
+    design_inspirations: list[DesignInspiration] = Field(
+        default_factory=list, description="Design inspirations from competitors/signals"
+    )
+    suggested_style: str | None = Field(None, description="AI-suggested style from signals")
+    style_source: str | None = Field(None, description="Attribution for suggested style")
+    generic_styles: list[GenericStyle] = Field(default_factory=list, description="Generic style options")
+
+
+# === Generic style definitions ===
+
+GENERIC_DESIGN_STYLES: list[GenericStyle] = [
+    GenericStyle(
+        id="minimal_clean",
+        label="Minimal & Clean",
+        description="Understated elegance with generous whitespace and sharp typography",
+        preview_colors=["#000000", "#f5f5f5", "#e5e5e5"],
+        tokens=DesignTokens(
+            primary_color="#000000",
+            secondary_color="#f5f5f5",
+            accent_color="#e5e5e5",
+            font_heading="Inter",
+            font_body="Inter",
+            spacing="generous",
+            corners="sharp",
+            style_direction="Minimal and clean: high contrast black/white, generous whitespace, "
+            "sharp corners, thin borders, restrained use of color",
+        ),
+    ),
+    GenericStyle(
+        id="bold_expressive",
+        label="Bold & Expressive",
+        description="Strong typography and high contrast with vibrant accent colors",
+        preview_colors=["#1a1a2e", "#e94560", "#f5f5f5"],
+        tokens=DesignTokens(
+            primary_color="#1a1a2e",
+            secondary_color="#f5f5f5",
+            accent_color="#e94560",
+            font_heading="Sora",
+            font_body="Inter",
+            spacing="balanced",
+            corners="slightly-rounded",
+            style_direction="Bold and expressive: dark primary with vibrant red accent, "
+            "strong typography hierarchy, high visual contrast, confident layout",
+        ),
+    ),
+    GenericStyle(
+        id="warm_organic",
+        label="Warm & Organic",
+        description="Earthy tones with rounded shapes and a friendly, approachable feel",
+        preview_colors=["#2d3436", "#e17055", "#ffeaa7"],
+        tokens=DesignTokens(
+            primary_color="#2d3436",
+            secondary_color="#ffeaa7",
+            accent_color="#e17055",
+            font_heading="DM Serif Display",
+            font_body="DM Sans",
+            spacing="balanced",
+            corners="rounded",
+            style_direction="Warm and organic: earthy tones, rounded corners, warm accent colors, "
+            "friendly serif headings, approachable and human feel",
+        ),
+    ),
+    GenericStyle(
+        id="luxury_refined",
+        label="Luxury & Refined",
+        description="Elegant serif typography with gold accents and refined dark palette",
+        preview_colors=["#0c0c0c", "#c9a227", "#f8f8f8"],
+        tokens=DesignTokens(
+            primary_color="#0c0c0c",
+            secondary_color="#f8f8f8",
+            accent_color="#c9a227",
+            font_heading="Playfair Display",
+            font_body="Lato",
+            spacing="generous",
+            corners="sharp",
+            style_direction="Luxury and refined: near-black primary, gold accents, elegant serif headings, "
+            "generous spacing, minimal ornamentation, premium feel",
+        ),
+    ),
+    GenericStyle(
+        id="tech_modern",
+        label="Tech & Modern",
+        description="Clean blue palette with crisp geometry and modern sans-serif type",
+        preview_colors=["#0f172a", "#3b82f6", "#f1f5f9"],
+        tokens=DesignTokens(
+            primary_color="#0f172a",
+            secondary_color="#f1f5f9",
+            accent_color="#3b82f6",
+            font_heading="Plus Jakarta Sans",
+            font_body="Inter",
+            spacing="balanced",
+            corners="slightly-rounded",
+            style_direction="Tech and modern: dark navy primary, blue accent, clean geometry, "
+            "crisp borders, modern sans-serif type, dashboard-ready layout",
+        ),
+    ),
+]
+
 
 # === Request schemas ===
 
@@ -13,6 +176,7 @@ class GeneratePrototypeRequest(BaseModel):
     """Request body for generating a prototype from discovery data."""
 
     project_id: UUID = Field(..., description="Project UUID")
+    design_selection: DesignSelection | None = Field(None, description="Design selection from modal")
 
 
 class IngestPrototypeRequest(BaseModel):
