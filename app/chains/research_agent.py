@@ -396,18 +396,5 @@ Please output valid JSON only, matching the exact schema. Ensure:
 
 def _parse_and_validate_synthesis(raw_output: str) -> ResearchAgentOutput:
     """Parse and validate synthesis output."""
-    # Strip markdown
-    cleaned = raw_output.strip()
-    if cleaned.startswith("```json"):
-        cleaned = cleaned[7:]
-    if cleaned.startswith("```"):
-        cleaned = cleaned[3:]
-    if cleaned.endswith("```"):
-        cleaned = cleaned[:-3]
-    cleaned = cleaned.strip()
-
-    # Parse JSON
-    parsed = json.loads(cleaned)
-
-    # Validate with Pydantic
-    return ResearchAgentOutput.model_validate(parsed)
+    from app.core.llm import parse_llm_json
+    return parse_llm_json(raw_output, ResearchAgentOutput)

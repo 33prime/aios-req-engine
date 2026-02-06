@@ -317,47 +317,6 @@ def extract_facts_from_chunks(
 
 
 def _parse_and_validate(raw_output: str) -> ExtractFactsOutput:
-    """
-    Parse JSON string and validate against schema.
-
-    Args:
-        raw_output: Raw string from LLM
-
-    Returns:
-        Validated ExtractFactsOutput
-
-    Raises:
-        json.JSONDecodeError: If JSON parsing fails
-        ValidationError: If Pydantic validation fails
-    """
-    # Strip markdown code blocks if present
-    cleaned = raw_output.strip()
-    if cleaned.startswith("```json"):
-        cleaned = cleaned[7:]
-    if cleaned.startswith("```"):
-        cleaned = cleaned[3:]
-    if cleaned.endswith("```"):
-        cleaned = cleaned[:-3]
-    cleaned = cleaned.strip()
-
-    logger.debug(
-        f"Parsing LLM output (length: {len(cleaned)})",
-        extra={"output_preview": cleaned[:500] + "..." if len(cleaned) > 500 else cleaned},
-    )
-
-    try:
-        parsed = json.loads(cleaned)
-        logger.debug("JSON parsing succeeded")
-        return ExtractFactsOutput.model_validate(parsed)
-    except json.JSONDecodeError as e:
-        logger.warning(
-            f"JSON parsing failed: {e}",
-            extra={"raw_output": raw_output, "cleaned_output": cleaned},
-        )
-        raise
-    except ValidationError as e:
-        logger.warning(
-            f"Pydantic validation failed: {e}",
-            extra={"parsed_json": json.loads(cleaned) if cleaned else None},
-        )
-        raise
+    """Parse JSON string and validate against schema."""
+    from app.core.llm import parse_llm_json
+    return parse_llm_json(raw_output, ExtractFactsOutput)

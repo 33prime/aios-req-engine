@@ -204,29 +204,7 @@ def reconcile_state(
 
 
 def _parse_and_validate(raw_output: str) -> ReconcileOutput:
-    """
-    Parse JSON string and validate against schema.
-
-    Args:
-        raw_output: Raw string from LLM
-
-    Returns:
-        Validated ReconcileOutput
-
-    Raises:
-        json.JSONDecodeError: If JSON parsing fails
-        ValidationError: If Pydantic validation fails
-    """
-    # Strip markdown code blocks if present
-    cleaned = raw_output.strip()
-    if cleaned.startswith("```json"):
-        cleaned = cleaned[7:]
-    if cleaned.startswith("```"):
-        cleaned = cleaned[3:]
-    if cleaned.endswith("```"):
-        cleaned = cleaned[:-3]
-    cleaned = cleaned.strip()
-
-    parsed = json.loads(cleaned)
-    return ReconcileOutput.model_validate(parsed)
+    """Parse JSON string and validate against schema."""
+    from app.core.llm import parse_llm_json
+    return parse_llm_json(raw_output, ReconcileOutput)
 

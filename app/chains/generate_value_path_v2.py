@@ -310,18 +310,9 @@ Please fix and output ONLY valid JSON matching the schema. No markdown."""
 
 def _parse_and_validate(raw_output: str, project_id: UUID) -> GenerateVPV2Output:
     """Parse and validate LLM output."""
-    cleaned = raw_output.strip()
-    if cleaned.startswith("```json"):
-        cleaned = cleaned[7:]
-    if cleaned.startswith("```"):
-        cleaned = cleaned[3:]
-    if cleaned.endswith("```"):
-        cleaned = cleaned[:-3]
-    cleaned = cleaned.strip()
-
-    parsed = json.loads(cleaned)
+    from app.core.llm import parse_llm_json_dict
+    parsed = parse_llm_json_dict(raw_output)
     parsed["project_id"] = str(project_id)
-
     return GenerateVPV2Output.model_validate(parsed)
 
 

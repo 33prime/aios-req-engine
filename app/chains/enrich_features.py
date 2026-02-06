@@ -228,37 +228,10 @@ def enrich_feature(
 def _parse_and_validate(
     raw_output: str, project_id: UUID, feature_id: UUID, feature_slug: str
 ) -> EnrichFeaturesOutput:
-    """
-    Parse JSON string and validate against schema.
-
-    Args:
-        raw_output: Raw string from LLM
-        project_id: Project UUID
-        feature_id: Feature UUID
-        feature_slug: Feature name/slug
-
-    Returns:
-        Validated EnrichFeaturesOutput
-
-    Raises:
-        json.JSONDecodeError: If JSON parsing fails
-        ValidationError: If Pydantic validation fails
-    """
-    # Strip markdown code blocks if present
-    cleaned = raw_output.strip()
-    if cleaned.startswith("```json"):
-        cleaned = cleaned[7:]
-    if cleaned.startswith("```"):
-        cleaned = cleaned[3:]
-    if cleaned.endswith("```"):
-        cleaned = cleaned[:-3]
-    cleaned = cleaned.strip()
-
-    parsed = json.loads(cleaned)
-
-    # Add required fields that LLM doesn't provide
+    """Parse JSON string and validate against schema."""
+    from app.core.llm import parse_llm_json_dict
+    parsed = parse_llm_json_dict(raw_output)
     parsed["project_id"] = str(project_id)
     parsed["feature_id"] = str(feature_id)
     parsed["feature_slug"] = feature_slug
-
     return EnrichFeaturesOutput.model_validate(parsed)

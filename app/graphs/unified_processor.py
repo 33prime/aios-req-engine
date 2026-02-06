@@ -26,6 +26,7 @@ from datetime import datetime, timezone
 from typing import Any, Literal
 from uuid import UUID
 
+from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import END, StateGraph
 from pydantic import BaseModel
 
@@ -36,6 +37,7 @@ from app.db.supabase_client import get_supabase
 
 logger = get_logger(__name__)
 
+MAX_STEPS = 20  # Safety cap for linear pipeline (6 nodes + margin)
 
 # =============================================================================
 # Configuration
@@ -129,6 +131,7 @@ class UnifiedProcessorState:
     created_count: int = 0
     updated_count: int = 0
     review_count: int = 0
+    step_count: int = 0
 
     # Status
     success: bool = True
@@ -139,8 +142,17 @@ class UnifiedProcessorState:
 # Node Functions
 # =============================================================================
 
+def _check_max_steps(state: UnifiedProcessorState) -> UnifiedProcessorState:
+    """Check and increment step count, raise if exceeded."""
+    state.step_count += 1
+    if state.step_count > MAX_STEPS:
+        raise RuntimeError(f"Graph exceeded max steps ({MAX_STEPS})")
+    return state
+
+
 def load_signal(state: UnifiedProcessorState) -> dict[str, Any]:
     """Load signal data from database."""
+    state = _check_max_steps(state)
     logger.info(
         f"Loading signal {state.signal_id}",
         extra={"run_id": str(state.run_id)},
@@ -777,7 +789,7 @@ def build_unified_processor_graph() -> StateGraph:
     graph.add_edge("execute_operations", "queue_enrichment")
     graph.add_edge("queue_enrichment", END)
 
-    return graph.compile()
+    return graph.compile(checkpointer=MemorySaver())
 
 
 # =============================================================================
@@ -814,7 +826,8 @@ def process_signal(
     )
 
     try:
-        final_state = graph.invoke(initial_state)
+        config = {"configurable": {"thread_id": str(run_id)}}
+        final_state = graph.invoke(initial_state, config=config)
 
         result = ProcessingResult(
             signal_id=str(signal_id),

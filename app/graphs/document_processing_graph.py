@@ -17,6 +17,7 @@ from datetime import datetime, timezone
 from typing import Any
 from uuid import UUID
 
+from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import END, StateGraph
 
 from app.core.config import get_settings
@@ -551,7 +552,7 @@ def build_document_processing_graph() -> StateGraph:
     workflow.add_edge("create_signal_and_embed", "finalize")
     workflow.add_edge("finalize", END)
 
-    return workflow.compile()
+    return workflow.compile(checkpointer=MemorySaver())
 
 
 # Pre-compiled graph instance
@@ -581,8 +582,9 @@ async def process_document(
     )
 
     try:
-        # Run the graph
-        final_state = document_processing_graph.invoke(initial_state)
+        # Run the graph with checkpointer config
+        config = {"configurable": {"thread_id": str(run_id)}}
+        final_state = document_processing_graph.invoke(initial_state, config=config)
 
         return {
             "success": not final_state.error,

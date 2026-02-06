@@ -5,6 +5,7 @@ from dataclasses import dataclass, field
 from typing import Any
 from uuid import UUID
 
+from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import END, StateGraph
 
 from app.chains.research_agent import (
@@ -442,7 +443,7 @@ def _build_graph() -> StateGraph:
     return graph
 
 
-_compiled_graph = _build_graph().compile()
+_compiled_graph = _build_graph().compile(checkpointer=MemorySaver())
 
 
 def run_research_agent_graph(
@@ -466,7 +467,8 @@ def run_research_agent_graph(
         max_queries=max_queries,
     )
 
-    final_state = _compiled_graph.invoke(initial_state)
+    config = {"configurable": {"thread_id": str(run_id)}}
+    final_state = _compiled_graph.invoke(initial_state, config=config)
 
     return (
         final_state.get("llm_output"),

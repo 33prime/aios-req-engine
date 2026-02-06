@@ -4,6 +4,7 @@ from dataclasses import dataclass, field
 from typing import Any
 from uuid import UUID
 
+from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import END, StateGraph
 
 from app.chains.enrich_personas_v2 import (
@@ -20,6 +21,8 @@ from app.core.persona_enrich_inputs import (
 from app.db.personas import update_persona_enrichment
 
 logger = get_logger(__name__)
+
+MAX_STEPS = 100  # Safety cap for persona loop (generous for large persona sets)
 
 
 @dataclass
@@ -45,11 +48,21 @@ class EnrichPersonasState:
     # Output
     personas_processed: int = 0
     personas_updated: int = 0
+    step_count: int = 0
     summary: str = ""
+
+
+def _check_max_steps(state: EnrichPersonasState) -> EnrichPersonasState:
+    """Check and increment step count, raise if exceeded."""
+    state.step_count += 1
+    if state.step_count > MAX_STEPS:
+        raise RuntimeError(f"Graph exceeded max steps ({MAX_STEPS})")
+    return state
 
 
 def load_context(state: EnrichPersonasState) -> dict:
     """Load enrichment context for the project."""
+    state = _check_max_steps(state)
     logger.info(
         f"Loading persona enrichment context for project {state.project_id}",
         extra={"run_id": str(state.run_id), "job_id": str(state.job_id)},
@@ -329,7 +342,7 @@ def run_enrich_personas_agent(
 
     # Build and compile graph
     graph = build_enrich_personas_graph()
-    app = graph.compile()
+    app = graph.compile(checkpointer=MemorySaver())
 
     # Create initial state
     initial_state = EnrichPersonasState(
@@ -343,7 +356,8 @@ def run_enrich_personas_agent(
 
     # Run graph with step limit
     final_state = None
-    for step in app.stream(initial_state, {"recursion_limit": 50}):
+    config = {"configurable": {"thread_id": str(run_id)}, "recursion_limit": 50}
+    for step in app.stream(initial_state, config):
         final_state = step
 
     if final_state is None:

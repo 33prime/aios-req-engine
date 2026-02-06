@@ -4,6 +4,7 @@ from dataclasses import dataclass, field
 from typing import Any
 from uuid import UUID
 
+from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import END, StateGraph
 
 from app.chains.extract_facts import extract_facts_from_chunks
@@ -219,7 +220,7 @@ def _build_graph() -> StateGraph:
 
 
 # Compile the graph once at module load
-_compiled_graph = _build_graph().compile()
+_compiled_graph = _build_graph().compile(checkpointer=MemorySaver())
 
 
 def run_extract_facts(
@@ -262,8 +263,9 @@ def run_extract_facts(
         extra={"run_id": str(run_id), "job_id": str(job_id)},
     )
 
-    # Run the graph
-    final_state = _compiled_graph.invoke(initial_state)
+    # Run the graph with checkpointer config
+    config = {"configurable": {"thread_id": str(run_id)}}
+    final_state = _compiled_graph.invoke(initial_state, config=config)
 
     # Extract results from final state
     llm_output = final_state["llm_output"]

@@ -14,6 +14,7 @@ from datetime import datetime, timezone
 from typing import Any
 from uuid import UUID
 
+from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import END, StateGraph
 
 from app.chains.consolidate_extractions import (
@@ -818,7 +819,7 @@ def get_bulk_signal_graph() -> StateGraph:
     """Get the compiled bulk signal graph."""
     global _bulk_signal_graph
     if _bulk_signal_graph is None:
-        _bulk_signal_graph = build_bulk_signal_graph().compile()
+        _bulk_signal_graph = build_bulk_signal_graph().compile(checkpointer=MemorySaver())
     return _bulk_signal_graph
 
 
@@ -866,7 +867,8 @@ def run_bulk_signal_pipeline(
     )
 
     try:
-        final_state_raw = graph.invoke(initial_state)
+        config = {"configurable": {"thread_id": str(run_id)}}
+        final_state_raw = graph.invoke(initial_state, config=config)
 
         # Handle both dict and object returns from LangGraph
         if isinstance(final_state_raw, dict):

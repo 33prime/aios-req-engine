@@ -197,36 +197,9 @@ def enrich_vp_step(
 def _parse_and_validate(
     raw_output: str, project_id: UUID, step_id: UUID, step_index: int
 ) -> EnrichVPStepOutput:
-    """
-    Parse JSON string and validate against schema.
-
-    Args:
-        raw_output: Raw string from LLM
-        project_id: Project UUID
-        step_id: Step UUID
-        step_index: Step index
-
-    Returns:
-        Validated EnrichVPStepOutput
-
-    Raises:
-        json.JSONDecodeError: If JSON parsing fails
-        ValidationError: If Pydantic validation fails
-    """
-    # Strip markdown code blocks if present
-    cleaned = raw_output.strip()
-    if cleaned.startswith("```json"):
-        cleaned = cleaned[7:]
-    if cleaned.startswith("```"):
-        cleaned = cleaned[3:]
-    if cleaned.endswith("```"):
-        cleaned = cleaned[:-3]
-    cleaned = cleaned.strip()
-
-    parsed = json.loads(cleaned)
-
-    # Add required fields that LLM doesn't provide
+    """Parse JSON string and validate against schema."""
+    from app.core.llm import parse_llm_json_dict
+    parsed = parse_llm_json_dict(raw_output)
     parsed["step_id"] = str(step_id)
     parsed["step_index"] = step_index
-
     return EnrichVPStepOutput.model_validate(parsed)

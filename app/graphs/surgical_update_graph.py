@@ -7,6 +7,7 @@ from typing import Any, Annotated
 from uuid import UUID
 import operator
 
+from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import StateGraph, END
 from pydantic import BaseModel, Field
 
@@ -28,6 +29,8 @@ from app.db.personas import get_persona, update_persona
 from app.db.vp import get_vp_step, update_vp_step
 
 logger = get_logger(__name__)
+
+MAX_STEPS = 20  # Safety cap for linear pipeline (7 nodes + margin)
 
 
 # =========================
@@ -59,6 +62,7 @@ class SurgicalUpdateState(BaseModel):
     # Results
     applied_count: int = 0
     escalated_count: int = 0
+    step_count: int = 0
     success: bool = False
     error: str | None = None
 
@@ -71,8 +75,17 @@ class SurgicalUpdateState(BaseModel):
 # =========================
 
 
+def _check_max_steps(state: SurgicalUpdateState) -> SurgicalUpdateState:
+    """Check and increment step count, raise if exceeded."""
+    state.step_count += 1
+    if state.step_count > MAX_STEPS:
+        raise RuntimeError(f"Graph exceeded max steps ({MAX_STEPS})")
+    return state
+
+
 def check_mode(state: SurgicalUpdateState) -> SurgicalUpdateState:
     """Check if project is in maintenance mode."""
+    state = _check_max_steps(state)
     logger.info(
         f"Checking PRD mode for project {state.project_id}",
         extra={"run_id": str(state.run_id)},
@@ -392,7 +405,7 @@ def build_surgical_update_graph() -> StateGraph:
     graph.add_edge("generate_patches", "apply_or_escalate")
     graph.add_edge("apply_or_escalate", END)
 
-    return graph.compile()
+    return graph.compile(checkpointer=MemorySaver())
 
 
 # =========================
@@ -431,8 +444,9 @@ def run_surgical_update(
         run_id=run_id,
     )
 
-    # Run graph
-    final_state = graph.invoke(initial_state)
+    # Run graph with checkpointer config
+    config = {"configurable": {"thread_id": str(run_id)}}
+    final_state = graph.invoke(initial_state, config=config)
 
     # Build result
     result = SurgicalUpdateResult(

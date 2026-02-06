@@ -219,12 +219,6 @@ def run_build_state_chain(
 
 def _parse_and_validate(output: str) -> BuildStateOutput:
     """Parse and validate LLM output."""
-    # Strip markdown code blocks if present
-    output = output.strip()
-    if output.startswith("```"):
-        lines = output.split("\n")
-        output = "\n".join(lines[1:-1]) if len(lines) > 2 else output
-
-    data = json.loads(output)
-    return BuildStateOutput.model_validate(data)
+    from app.core.llm import parse_llm_json
+    return parse_llm_json(output, BuildStateOutput)
 

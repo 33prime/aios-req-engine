@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 from typing import Any
 from uuid import UUID
 
+from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import END, StateGraph
 
 from app.chains.build_state import run_build_state_chain
@@ -535,10 +536,11 @@ def run_build_state_agent(
 
     # Build and compile graph
     graph = _build_graph()
-    compiled = graph.compile()
+    compiled = graph.compile(checkpointer=MemorySaver())
 
-    # Run graph
-    final_state = compiled.invoke(initial_state)
+    # Run graph with checkpointer config
+    config = {"configurable": {"thread_id": str(run_id)}}
+    final_state = compiled.invoke(initial_state, config=config)
 
     logger.info(
         "Completed state builder graph",

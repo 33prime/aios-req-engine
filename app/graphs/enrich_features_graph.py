@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 from typing import Any
 from uuid import UUID
 
+from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import END, StateGraph
 
 from app.chains.enrich_features import enrich_feature
@@ -246,7 +247,7 @@ def _build_graph() -> StateGraph:
 
 
 # Compile the graph once at module load
-_compiled_graph = _build_graph().compile()
+_compiled_graph = _build_graph().compile(checkpointer=MemorySaver())
 
 
 def run_enrich_features_agent(
@@ -290,7 +291,8 @@ def run_enrich_features_agent(
         model_override=model_override,
     )
 
-    final_state = _compiled_graph.invoke(initial_state)
+    config = {"configurable": {"thread_id": str(run_id)}}
+    final_state = _compiled_graph.invoke(initial_state, config=config)
 
     # Extract results from final state (LangGraph returns dict)
     features_processed = final_state.get("features_processed", 0)

@@ -361,35 +361,10 @@ Please fix and output ONLY valid JSON matching the schema. No markdown, no expla
 
 
 def _parse_and_validate(raw_output: str, project_id: UUID) -> EnrichFeaturesV2Output:
-    """
-    Parse and validate LLM output.
-
-    Args:
-        raw_output: Raw string from LLM
-        project_id: Project UUID
-
-    Returns:
-        Validated EnrichFeaturesV2Output
-
-    Raises:
-        json.JSONDecodeError: If JSON parsing fails
-        ValidationError: If Pydantic validation fails
-    """
-    # Strip markdown code blocks
-    cleaned = raw_output.strip()
-    if cleaned.startswith("```json"):
-        cleaned = cleaned[7:]
-    if cleaned.startswith("```"):
-        cleaned = cleaned[3:]
-    if cleaned.endswith("```"):
-        cleaned = cleaned[:-3]
-    cleaned = cleaned.strip()
-
-    parsed = json.loads(cleaned)
-
-    # Ensure project_id is set
+    """Parse and validate LLM output."""
+    from app.core.llm import parse_llm_json_dict
+    parsed = parse_llm_json_dict(raw_output)
     parsed["project_id"] = str(project_id)
-
     return EnrichFeaturesV2Output.model_validate(parsed)
 
 
