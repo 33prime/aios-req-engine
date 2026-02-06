@@ -509,18 +509,32 @@ class TestArchivalOperations:
     """Tests for archival and maintenance operations."""
 
     def test_get_graph_stats(self, project_id, mock_supabase, sample_fact, sample_belief, sample_insight):
-        """Test getting graph statistics."""
+        """Test getting graph statistics via RPC."""
+        rpc_result = {
+            "total_nodes": 3,
+            "facts_count": 1,
+            "beliefs_count": 1,
+            "insights_count": 1,
+            "total_edges": 0,
+            "edges_by_type": {},
+            "average_belief_confidence": 0.8,
+        }
+        mock_rpc = MagicMock()
+        mock_rpc.execute.return_value = MagicMock(data=rpc_result)
+        mock_supabase.rpc.return_value = mock_rpc
+
         with patch("app.db.memory_graph.get_supabase", return_value=mock_supabase):
-            # Mock get_nodes to return mixed node types
-            nodes = [sample_fact, sample_belief, sample_insight]
+            from app.db.memory_graph import get_graph_stats
 
-            with patch("app.db.memory_graph.get_nodes", return_value=nodes):
-                with patch("app.db.memory_graph.get_all_edges", return_value=[]):
-                    from app.db.memory_graph import get_graph_stats
+            stats = get_graph_stats(project_id)
 
-                    stats = get_graph_stats(project_id)
-
-                    assert stats["total_nodes"] == 3
-                    assert stats["facts_count"] == 1
-                    assert stats["beliefs_count"] == 1
-                    assert stats["insights_count"] == 1
+            mock_supabase.rpc.assert_called_once_with(
+                "get_memory_graph_stats",
+                {"p_project_id": str(project_id)},
+            )
+            assert stats["total_nodes"] == 3
+            assert stats["facts_count"] == 1
+            assert stats["beliefs_count"] == 1
+            assert stats["insights_count"] == 1
+            assert stats["total_edges"] == 0
+            assert stats["average_belief_confidence"] == 0.8
