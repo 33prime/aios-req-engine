@@ -5,31 +5,38 @@
 -- Postgres ENUM types are hard to modify (can't remove values, ALTER TYPE needed to add).
 -- Text columns with CHECK constraints are easier to migrate and equally performant.
 --
--- Strategy: ALTER COLUMN TYPE text converts enum values to their text representation,
--- then DROP TYPE removes the enum, then ADD CONSTRAINT adds the CHECK.
+-- Strategy: Drop defaults and dependent objects (partial indexes, RLS policies),
+-- ALTER COLUMN TYPE text, re-add defaults, DROP TYPE, ADD CONSTRAINT, recreate dependents.
 
 -- ============================================================================
--- Part 1: Convert ENUM types to text + CHECK
+-- Part 1a: meetings ENUM → text
 -- ============================================================================
 
--- --- meetings table (0057) ---
+-- Drop partial index that references enum in WHERE clause
+DROP INDEX IF EXISTS idx_meetings_upcoming;
 
--- meeting_type_enum → text
+ALTER TABLE meetings ALTER COLUMN meeting_type DROP DEFAULT;
 ALTER TABLE meetings ALTER COLUMN meeting_type TYPE text;
+ALTER TABLE meetings ALTER COLUMN meeting_type SET DEFAULT 'other';
 DROP TYPE IF EXISTS meeting_type_enum;
 ALTER TABLE meetings ADD CONSTRAINT meetings_meeting_type_check
   CHECK (meeting_type IN ('discovery', 'validation', 'review', 'other'));
 
--- meeting_status_enum → text
+ALTER TABLE meetings ALTER COLUMN status DROP DEFAULT;
 ALTER TABLE meetings ALTER COLUMN status TYPE text;
+ALTER TABLE meetings ALTER COLUMN status SET DEFAULT 'scheduled';
 DROP TYPE IF EXISTS meeting_status_enum;
--- Note: meetings.status already has idx_meetings_status index
 ALTER TABLE meetings ADD CONSTRAINT meetings_status_check
   CHECK (status IN ('scheduled', 'completed', 'cancelled'));
 
--- --- collaboration_touchpoints table (0081) ---
+-- Recreate partial index with text comparison
+CREATE INDEX IF NOT EXISTS idx_meetings_upcoming
+  ON meetings(meeting_date, meeting_time) WHERE status = 'scheduled';
 
--- touchpoint_type enum → text
+-- ============================================================================
+-- Part 1b: collaboration_touchpoints ENUM → text
+-- ============================================================================
+
 ALTER TABLE collaboration_touchpoints ALTER COLUMN type TYPE text;
 DROP TYPE IF EXISTS touchpoint_type;
 ALTER TABLE collaboration_touchpoints ADD CONSTRAINT collab_touchpoints_type_check
@@ -38,17 +45,19 @@ ALTER TABLE collaboration_touchpoints ADD CONSTRAINT collab_touchpoints_type_che
     'prototype_review', 'feedback_session'
   ));
 
--- touchpoint_status enum → text
+ALTER TABLE collaboration_touchpoints ALTER COLUMN status DROP DEFAULT;
 ALTER TABLE collaboration_touchpoints ALTER COLUMN status TYPE text;
+ALTER TABLE collaboration_touchpoints ALTER COLUMN status SET DEFAULT 'preparing';
 DROP TYPE IF EXISTS touchpoint_status;
 ALTER TABLE collaboration_touchpoints ADD CONSTRAINT collab_touchpoints_status_check
   CHECK (status IN (
     'preparing', 'ready', 'sent', 'in_progress', 'completed', 'cancelled'
   ));
 
--- --- pending_items table (0082) ---
+-- ============================================================================
+-- Part 1c: pending_items ENUM → text
+-- ============================================================================
 
--- pending_item_type enum → text
 ALTER TABLE pending_items ALTER COLUMN item_type TYPE text;
 DROP TYPE IF EXISTS pending_item_type;
 ALTER TABLE pending_items ADD CONSTRAINT pending_items_item_type_check
@@ -57,32 +66,103 @@ ALTER TABLE pending_items ADD CONSTRAINT pending_items_item_type_check
     'kpi', 'goal', 'pain_point', 'requirement'
   ));
 
--- pending_item_source enum → text
+ALTER TABLE pending_items ALTER COLUMN source DROP DEFAULT;
 ALTER TABLE pending_items ALTER COLUMN source TYPE text;
+ALTER TABLE pending_items ALTER COLUMN source SET DEFAULT 'manual';
 DROP TYPE IF EXISTS pending_item_source;
 ALTER TABLE pending_items ADD CONSTRAINT pending_items_source_check
   CHECK (source IN ('phase_workflow', 'needs_review', 'ai_generated', 'manual'));
 
--- --- client_packages table (0082) ---
+-- ============================================================================
+-- Part 1d: client_packages ENUM → text
+-- Must drop 7 RLS policies across 5 tables that cast to package_status enum
+-- ============================================================================
 
--- package_status enum → text
+DROP POLICY IF EXISTS "Clients can view sent packages" ON client_packages;
+DROP POLICY IF EXISTS "Clients can view action items in sent packages" ON package_action_items;
+DROP POLICY IF EXISTS "Clients can complete action items" ON package_action_items;
+DROP POLICY IF EXISTS "Clients can view asset suggestions" ON package_asset_suggestions;
+DROP POLICY IF EXISTS "Clients can view questions in sent packages" ON package_questions;
+DROP POLICY IF EXISTS "Clients can answer questions" ON package_questions;
+DROP POLICY IF EXISTS "Clients can upload files" ON package_uploaded_files;
+
+ALTER TABLE client_packages ALTER COLUMN status DROP DEFAULT;
 ALTER TABLE client_packages ALTER COLUMN status TYPE text;
+ALTER TABLE client_packages ALTER COLUMN status SET DEFAULT 'draft';
 DROP TYPE IF EXISTS package_status;
 ALTER TABLE client_packages ADD CONSTRAINT client_packages_status_check
   CHECK (status IN ('draft', 'ready', 'sent', 'partial_response', 'complete'));
+
+-- Recreate all 7 policies with text comparisons (no enum casts)
+
+CREATE POLICY "Clients can view sent packages" ON client_packages FOR SELECT TO authenticated
+  USING (
+    status IN ('sent', 'partial_response', 'complete')
+    AND project_id IN (
+      SELECT project_id FROM project_members
+      WHERE user_id = (SELECT auth.uid()) AND role = 'client'
+    )
+  );
+
+CREATE POLICY "Clients can view action items in sent packages" ON package_action_items FOR SELECT TO authenticated
+  USING (package_id IN (
+    SELECT cp.id FROM client_packages cp
+    JOIN project_members pm ON pm.project_id = cp.project_id
+    WHERE pm.user_id = (SELECT auth.uid()) AND pm.role = 'client'
+      AND cp.status IN ('sent', 'partial_response', 'complete')
+  ));
+
+CREATE POLICY "Clients can complete action items" ON package_action_items FOR UPDATE TO authenticated
+  USING (package_id IN (
+    SELECT cp.id FROM client_packages cp
+    JOIN project_members pm ON pm.project_id = cp.project_id
+    WHERE pm.user_id = (SELECT auth.uid()) AND pm.role = 'client'
+      AND cp.status IN ('sent', 'partial_response')
+  ));
+
+CREATE POLICY "Clients can view asset suggestions" ON package_asset_suggestions FOR SELECT TO authenticated
+  USING (package_id IN (
+    SELECT cp.id FROM client_packages cp
+    JOIN project_members pm ON pm.project_id = cp.project_id
+    WHERE pm.user_id = (SELECT auth.uid()) AND pm.role = 'client'
+      AND cp.status IN ('sent', 'partial_response', 'complete')
+  ));
+
+CREATE POLICY "Clients can view questions in sent packages" ON package_questions FOR SELECT TO authenticated
+  USING (package_id IN (
+    SELECT cp.id FROM client_packages cp
+    JOIN project_members pm ON pm.project_id = cp.project_id
+    WHERE pm.user_id = (SELECT auth.uid()) AND pm.role = 'client'
+      AND cp.status IN ('sent', 'partial_response', 'complete')
+  ));
+
+CREATE POLICY "Clients can answer questions" ON package_questions FOR UPDATE TO authenticated
+  USING (package_id IN (
+    SELECT cp.id FROM client_packages cp
+    JOIN project_members pm ON pm.project_id = cp.project_id
+    WHERE pm.user_id = (SELECT auth.uid()) AND pm.role = 'client'
+      AND cp.status IN ('sent', 'partial_response')
+  ));
+
+CREATE POLICY "Clients can upload files" ON package_uploaded_files FOR INSERT TO authenticated
+  WITH CHECK (package_id IN (
+    SELECT cp.id FROM client_packages cp
+    JOIN project_members pm ON pm.project_id = cp.project_id
+    WHERE pm.user_id = (SELECT auth.uid()) AND pm.role = 'client'
+      AND cp.status IN ('sent', 'partial_response')
+  ));
 
 -- ============================================================================
 -- Part 2: Add missing CHECK constraints on status-like columns
 -- ============================================================================
 
--- prototypes.status (0095) — no CHECK exists
--- Use NOT VALID to avoid scanning existing rows, then validate separately
+-- prototypes.status — includes 'analyzed' found in production data
 ALTER TABLE prototypes ADD CONSTRAINT prototypes_status_check
-  CHECK (status IN ('pending', 'generating', 'ready', 'failed', 'active'))
+  CHECK (status IN ('pending', 'generating', 'ready', 'failed', 'active', 'analyzed'))
   NOT VALID;
 ALTER TABLE prototypes VALIDATE CONSTRAINT prototypes_status_check;
 
--- projects.collaboration_phase (0081) — no CHECK exists
+-- projects.collaboration_phase
 ALTER TABLE projects ADD CONSTRAINT projects_collaboration_phase_check
   CHECK (collaboration_phase IN (
     'pre_discovery', 'discovery', 'validation', 'prototype', 'iteration'
