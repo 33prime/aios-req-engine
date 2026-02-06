@@ -981,30 +981,28 @@ def get_graph_stats(project_id: UUID) -> dict:
     supabase = get_supabase()
 
     try:
-        # Count nodes by type
-        nodes = get_nodes(project_id, active_only=True, limit=1000)
-        facts = [n for n in nodes if n["node_type"] == "fact"]
-        beliefs = [n for n in nodes if n["node_type"] == "belief"]
-        insights = [n for n in nodes if n["node_type"] == "insight"]
+        # Single RPC call replaces fetching 1000+ rows just to count by type
+        response = supabase.rpc(
+            "get_memory_graph_stats",
+            {"p_project_id": str(project_id)},
+        ).execute()
 
-        # Count edges
-        edges = get_all_edges(project_id)
-        edges_by_type = {}
-        for e in edges:
-            t = e["edge_type"]
-            edges_by_type[t] = edges_by_type.get(t, 0) + 1
-
-        # Compute average belief confidence
-        avg_confidence = sum(b["confidence"] for b in beliefs) / len(beliefs) if beliefs else 0
+        if response.data:
+            stats = response.data
+            return {
+                "total_nodes": stats.get("total_nodes", 0),
+                "facts_count": stats.get("facts_count", 0),
+                "beliefs_count": stats.get("beliefs_count", 0),
+                "insights_count": stats.get("insights_count", 0),
+                "total_edges": stats.get("total_edges", 0),
+                "edges_by_type": stats.get("edges_by_type", {}),
+                "average_belief_confidence": stats.get("average_belief_confidence", 0),
+            }
 
         return {
-            "total_nodes": len(nodes),
-            "facts_count": len(facts),
-            "beliefs_count": len(beliefs),
-            "insights_count": len(insights),
-            "total_edges": len(edges),
-            "edges_by_type": edges_by_type,
-            "average_belief_confidence": avg_confidence,
+            "total_nodes": 0, "facts_count": 0, "beliefs_count": 0,
+            "insights_count": 0, "total_edges": 0, "edges_by_type": {},
+            "average_belief_confidence": 0,
         }
     except Exception as e:
         logger.error(f"Failed to get graph stats: {e}")

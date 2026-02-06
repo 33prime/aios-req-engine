@@ -176,53 +176,16 @@ def get_project_details(project_id: UUID) -> dict[str, Any]:
         # Get base project data
         project = get_project(project_id)
 
-        # Get entity counts
-        counts = {}
+        # Get all entity counts in a single RPC call (replaces 5 sequential queries)
+        counts_response = supabase.rpc(
+            "get_project_entity_counts",
+            {"p_project_id": str(project_id)},
+        ).execute()
 
-        # Count signals
-        signals_response = (
-            supabase.table("signals")
-            .select("id", count="exact")
-            .eq("project_id", str(project_id))
-            .execute()
-        )
-        counts["signals"] = signals_response.count or 0
-
-        # Count VP steps
-        vp_response = (
-            supabase.table("vp_steps")
-            .select("id", count="exact")
-            .eq("project_id", str(project_id))
-            .execute()
-        )
-        counts["vp_steps"] = vp_response.count or 0
-
-        # Count features
-        features_response = (
-            supabase.table("features")
-            .select("id", count="exact")
-            .eq("project_id", str(project_id))
-            .execute()
-        )
-        counts["features"] = features_response.count or 0
-
-        # Count personas
-        personas_response = (
-            supabase.table("personas")
-            .select("id", count="exact")
-            .eq("project_id", str(project_id))
-            .execute()
-        )
-        counts["personas"] = personas_response.count or 0
-
-        # Count business drivers
-        drivers_response = (
-            supabase.table("business_drivers")
-            .select("id", count="exact")
-            .eq("project_id", str(project_id))
-            .execute()
-        )
-        counts["business_drivers"] = drivers_response.count or 0
+        counts = counts_response.data if counts_response.data else {
+            "signals": 0, "vp_steps": 0, "features": 0,
+            "personas": 0, "business_drivers": 0,
+        }
 
         # Combine project data with counts
         return {

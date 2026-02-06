@@ -416,44 +416,29 @@ def record_chunk_impacts(
     supabase = get_supabase()
 
     try:
-        # Build records
+        # Batch resolve all chunk_id -> signal_id, project_id in a single RPC call
+        # (replaces 2N sequential queries with 1 query)
+        mapping_response = supabase.rpc(
+            "get_chunk_signal_map",
+            {"p_chunk_ids": chunk_ids},
+        ).execute()
+
+        chunk_map = {
+            row["chunk_id"]: row
+            for row in (mapping_response.data or [])
+        }
+
+        # Build records using the batch-resolved mapping
         records = []
-
         for chunk_id in chunk_ids:
-            # Get signal_id and project_id from chunk
-            chunk_response = (
-                supabase.table("signal_chunks")
-                .select("signal_id")
-                .eq("id", chunk_id)
-                .execute()
-            )
-
-            if not chunk_response.data:
+            mapping = chunk_map.get(chunk_id)
+            if not mapping:
                 logger.warning(f"Chunk not found: {chunk_id}")
                 continue
 
-            chunk_data = chunk_response.data[0]
-            signal_id = chunk_data["signal_id"]
-
-            # Get project_id from signal
-            signal_response = (
-                supabase.table("signals")
-                .select("project_id")
-                .eq("id", signal_id)
-                .execute()
-            )
-
-            if not signal_response.data:
-                logger.warning(f"Signal not found: {signal_id}")
-                continue
-
-            signal_data = signal_response.data[0]
-            project_id = signal_data["project_id"]
-
-            # Add record
             records.append({
-                "project_id": project_id,
-                "signal_id": signal_id,
+                "project_id": mapping["project_id"],
+                "signal_id": mapping["signal_id"],
                 "chunk_id": chunk_id,
                 "entity_type": entity_type,
                 "entity_id": str(entity_id),
