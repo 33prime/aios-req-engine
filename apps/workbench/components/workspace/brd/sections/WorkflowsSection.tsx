@@ -1,6 +1,5 @@
 'use client'
 
-import { useState } from 'react'
 import { Workflow, Clock, Plus, Pencil, Link2, Trash2 } from 'lucide-react'
 import { SectionHeader } from '../components/SectionHeader'
 import { CollapsibleCard } from '../components/CollapsibleCard'
@@ -179,209 +178,68 @@ function WorkflowStepRow({
 }
 
 // ============================================================================
-// Workflow Pair Card (Side-by-Side)
+// Workflow State Column (reusable for current/future side)
 // ============================================================================
 
-function WorkflowPairCard({
-  pair,
-  onEdit,
-  onDelete,
-  onPair,
+const stateConfig = {
+  current: {
+    label: 'Current State',
+    subtitle: 'How it works today',
+    headerColor: 'text-red-700',
+    borderColor: 'border-red-200',
+  },
+  future: {
+    label: 'Future State',
+    subtitle: 'How the system improves it',
+    headerColor: 'text-teal-700',
+    borderColor: 'border-teal-200',
+  },
+} as const
+
+function WorkflowStateColumn({
+  steps,
+  stateType,
+  workflowId,
   onCreateStep,
   onEditStep,
   onDeleteStep,
 }: {
-  pair: WorkflowPair
-  onEdit?: () => void
-  onDelete?: () => void
-  onPair?: () => void
+  steps: WorkflowStepSummary[]
+  stateType: 'current' | 'future'
+  workflowId?: string | null
   onCreateStep?: (stateType: 'current' | 'future') => void
   onEditStep?: (stepId: string) => void
   onDeleteStep?: (stepId: string) => void
 }) {
-  const [expanded, setExpanded] = useState(true)
-  const hasBothSides = pair.current_steps.length > 0 && pair.future_steps.length > 0
-  const currentWfId = pair.current_workflow_id
-  const futureWfId = pair.future_workflow_id
-
+  const cfg = stateConfig[stateType]
   return (
-    <div className="border border-[#e9e9e7] rounded-lg shadow-sm bg-white overflow-hidden">
-      {/* Header */}
-      <div
-        className="flex items-center justify-between px-4 py-3 bg-gray-50/60 border-b border-[#e9e9e7] cursor-pointer hover:bg-gray-100/60 transition-colors"
-        onClick={() => setExpanded(!expanded)}
-      >
-        <div className="flex items-center gap-2 min-w-0">
-          <Workflow className="w-4 h-4 text-blue-500 shrink-0" />
-          <span className="text-[14px] font-semibold text-[#37352f] truncate">{pair.name}</span>
-          {pair.owner && (
-            <span className="text-[11px] text-gray-400">
-              Owner: {pair.owner}
-            </span>
-          )}
-        </div>
-        <div className="flex items-center gap-1.5 shrink-0" onClick={(e) => e.stopPropagation()}>
-          {pair.roi && (
-            <span className="text-[11px] font-medium text-teal-700 bg-teal-50 px-2 py-0.5 rounded">
-              {pair.roi.time_saved_minutes}min saved ({pair.roi.time_saved_percent}%)
-            </span>
-          )}
-          {onPair && !pair.current_workflow_id && (
-            <button onClick={onPair} className="p-1 rounded text-gray-400 hover:text-blue-600 hover:bg-blue-50" title="Pair with current-state workflow">
-              <Link2 className="w-3.5 h-3.5" />
-            </button>
-          )}
-          {onEdit && (
-            <button onClick={onEdit} className="p-1 rounded text-gray-400 hover:text-gray-600 hover:bg-gray-200" title="Edit workflow">
-              <Pencil className="w-3.5 h-3.5" />
-            </button>
-          )}
-          {onDelete && (
-            <button onClick={onDelete} className="p-1 rounded text-gray-400 hover:text-red-500 hover:bg-red-50" title="Delete workflow">
-              <Trash2 className="w-3.5 h-3.5" />
-            </button>
-          )}
-        </div>
+    <div>
+      <div className="flex items-center justify-between mb-2">
+        <h4 className={`text-[12px] font-semibold ${cfg.headerColor} uppercase tracking-wide`}>
+          {cfg.label}
+        </h4>
+        {onCreateStep && workflowId && (
+          <button
+            onClick={() => onCreateStep(stateType)}
+            className="p-0.5 rounded text-gray-400 hover:text-gray-600 hover:bg-gray-100"
+            title={`Add ${stateType} step`}
+          >
+            <Plus className="w-3.5 h-3.5" />
+          </button>
+        )}
       </div>
-
-      {expanded && (
-        <div className="p-4">
-          {pair.description && (
-            <p className="text-[12px] text-gray-500 mb-3">{pair.description}</p>
-          )}
-
-          {/* Side-by-side columns */}
-          {hasBothSides ? (
-            <div className="grid grid-cols-2 gap-4">
-              {/* Current state */}
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <h4 className="text-[12px] font-semibold text-red-700 uppercase tracking-wide">
-                    Current State
-                  </h4>
-                  {onCreateStep && currentWfId && (
-                    <button
-                      onClick={() => onCreateStep('current')}
-                      className="p-0.5 rounded text-gray-400 hover:text-gray-600 hover:bg-gray-100"
-                      title="Add current step"
-                    >
-                      <Plus className="w-3.5 h-3.5" />
-                    </button>
-                  )}
-                </div>
-                <p className="text-[11px] text-gray-400 mb-2">How it works today</p>
-                <div className="space-y-0.5 border-l-2 border-red-200 pl-1">
-                  {pair.current_steps.map((step) => (
-                    <WorkflowStepRow
-                      key={step.id}
-                      step={step}
-                      stateType="current"
-                      onEdit={onEditStep ? () => onEditStep(step.id) : undefined}
-                      onDelete={onDeleteStep ? () => onDeleteStep(step.id) : undefined}
-                    />
-                  ))}
-                </div>
-              </div>
-
-              {/* Future state */}
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <h4 className="text-[12px] font-semibold text-teal-700 uppercase tracking-wide">
-                    Future State
-                  </h4>
-                  {onCreateStep && futureWfId && (
-                    <button
-                      onClick={() => onCreateStep('future')}
-                      className="p-0.5 rounded text-gray-400 hover:text-gray-600 hover:bg-gray-100"
-                      title="Add future step"
-                    >
-                      <Plus className="w-3.5 h-3.5" />
-                    </button>
-                  )}
-                </div>
-                <p className="text-[11px] text-gray-400 mb-2">How the system improves it</p>
-                <div className="space-y-0.5 border-l-2 border-teal-200 pl-1">
-                  {pair.future_steps.map((step) => (
-                    <WorkflowStepRow
-                      key={step.id}
-                      step={step}
-                      stateType="future"
-                      onEdit={onEditStep ? () => onEditStep(step.id) : undefined}
-                      onDelete={onDeleteStep ? () => onDeleteStep(step.id) : undefined}
-                    />
-                  ))}
-                </div>
-              </div>
-            </div>
-          ) : (
-            /* Single-side view (only current or only future) */
-            <div>
-              {pair.future_steps.length > 0 && (
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <h4 className="text-[12px] font-semibold text-teal-700 uppercase tracking-wide">
-                      Future State
-                    </h4>
-                    {onCreateStep && futureWfId && (
-                      <button
-                        onClick={() => onCreateStep('future')}
-                        className="p-0.5 rounded text-gray-400 hover:text-gray-600 hover:bg-gray-100"
-                      >
-                        <Plus className="w-3.5 h-3.5" />
-                      </button>
-                    )}
-                  </div>
-                  <div className="space-y-0.5 border-l-2 border-teal-200 pl-1">
-                    {pair.future_steps.map((step) => (
-                      <WorkflowStepRow
-                        key={step.id}
-                        step={step}
-                        stateType="future"
-                        onEdit={onEditStep ? () => onEditStep(step.id) : undefined}
-                        onDelete={onDeleteStep ? () => onDeleteStep(step.id) : undefined}
-                      />
-                    ))}
-                  </div>
-                </div>
-              )}
-              {pair.current_steps.length > 0 && (
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <h4 className="text-[12px] font-semibold text-red-700 uppercase tracking-wide">
-                      Current State
-                    </h4>
-                    {onCreateStep && currentWfId && (
-                      <button
-                        onClick={() => onCreateStep('current')}
-                        className="p-0.5 rounded text-gray-400 hover:text-gray-600 hover:bg-gray-100"
-                      >
-                        <Plus className="w-3.5 h-3.5" />
-                      </button>
-                    )}
-                  </div>
-                  <div className="space-y-0.5 border-l-2 border-red-200 pl-1">
-                    {pair.current_steps.map((step) => (
-                      <WorkflowStepRow
-                        key={step.id}
-                        step={step}
-                        stateType="current"
-                        onEdit={onEditStep ? () => onEditStep(step.id) : undefined}
-                        onDelete={onDeleteStep ? () => onDeleteStep(step.id) : undefined}
-                      />
-                    ))}
-                  </div>
-                </div>
-              )}
-              {pair.current_steps.length === 0 && pair.future_steps.length === 0 && (
-                <p className="text-[12px] text-gray-400 italic py-2">No steps added yet</p>
-              )}
-            </div>
-          )}
-
-          {/* ROI Footer */}
-          {pair.roi && <ROIFooter roi={pair.roi} />}
-        </div>
-      )}
+      <p className="text-[11px] text-gray-400 mb-2">{cfg.subtitle}</p>
+      <div className={`space-y-0.5 border-l-2 ${cfg.borderColor} pl-1`}>
+        {steps.map((step) => (
+          <WorkflowStepRow
+            key={step.id}
+            step={step}
+            stateType={stateType}
+            onEdit={onEditStep ? () => onEditStep(step.id) : undefined}
+            onDelete={onDeleteStep ? () => onDeleteStep(step.id) : undefined}
+          />
+        ))}
+      </div>
     </div>
   )
 }
@@ -406,11 +264,15 @@ export function WorkflowsSection({
   onDeleteStep,
   onRefreshEntity,
 }: WorkflowsSectionProps) {
-  const confirmedCount = workflows.filter(
-    (w) => w.confirmation_status === 'confirmed_consultant' || w.confirmation_status === 'confirmed_client'
-  ).length
-
   const hasWorkflowPairs = workflowPairs.length > 0
+
+  const confirmedCount = hasWorkflowPairs
+    ? workflowPairs.filter(
+        (wp) => wp.confirmation_status === 'confirmed_consultant' || wp.confirmation_status === 'confirmed_client'
+      ).length
+    : workflows.filter(
+        (w) => w.confirmation_status === 'confirmed_consultant' || w.confirmation_status === 'confirmed_client'
+      ).length
 
   return (
     <section>
@@ -419,7 +281,11 @@ export function WorkflowsSection({
           title="Key Workflows"
           count={hasWorkflowPairs ? workflowPairs.length : workflows.length}
           confirmedCount={confirmedCount}
-          onConfirmAll={() => onConfirmAll('vp_step', workflows.map((w) => w.id))}
+          onConfirmAll={() =>
+            hasWorkflowPairs
+              ? onConfirmAll('workflow', workflowPairs.map((wp) => wp.id))
+              : onConfirmAll('vp_step', workflows.map((w) => w.id))
+          }
         />
         {onCreateWorkflow && (
           <button
@@ -432,36 +298,125 @@ export function WorkflowsSection({
         )}
       </div>
 
-      {/* Workflow Pairs (side-by-side current/future view) */}
+      {/* Workflow Pairs (accordion cards with side-by-side current/future) */}
       {hasWorkflowPairs && (
-        <div className="space-y-4 mb-6">
-          {workflowPairs.map((pair) => (
-            <WorkflowPairCard
-              key={pair.id}
-              pair={pair}
-              onEdit={onEditWorkflow ? () => onEditWorkflow(pair.id) : undefined}
-              onDelete={onDeleteWorkflow ? () => onDeleteWorkflow(pair.id) : undefined}
-              onPair={onPairWorkflow ? () => onPairWorkflow(pair.id) : undefined}
-              onCreateStep={
-                onCreateStep
-                  ? (stateType) => {
-                      const wfId = stateType === 'current' ? pair.current_workflow_id : pair.future_workflow_id
-                      if (wfId) onCreateStep(wfId, stateType)
-                    }
-                  : undefined
-              }
-              onEditStep={
-                onEditStep
-                  ? (stepId) => onEditStep(pair.future_workflow_id || pair.current_workflow_id || pair.id, stepId)
-                  : undefined
-              }
-              onDeleteStep={
-                onDeleteStep
-                  ? (stepId) => onDeleteStep(pair.future_workflow_id || pair.current_workflow_id || pair.id, stepId)
-                  : undefined
-              }
-            />
-          ))}
+        <div className="space-y-2 mb-6">
+          {workflowPairs.map((pair) => {
+            const stepCount = pair.current_steps.length + pair.future_steps.length
+            const subtitleParts: string[] = []
+            if (pair.owner) subtitleParts.push(`Owner: ${pair.owner}`)
+            subtitleParts.push(`${stepCount} step${stepCount !== 1 ? 's' : ''}`)
+
+            const createStepHandler = onCreateStep
+              ? (stateType: 'current' | 'future') => {
+                  const wfId = stateType === 'current' ? pair.current_workflow_id : pair.future_workflow_id
+                  if (wfId) onCreateStep(wfId, stateType)
+                }
+              : undefined
+            const editStepHandler = onEditStep
+              ? (stepId: string) => onEditStep(pair.future_workflow_id || pair.current_workflow_id || pair.id, stepId)
+              : undefined
+            const deleteStepHandler = onDeleteStep
+              ? (stepId: string) => onDeleteStep(pair.future_workflow_id || pair.current_workflow_id || pair.id, stepId)
+              : undefined
+
+            const hasBothSides = pair.current_steps.length > 0 && pair.future_steps.length > 0
+
+            return (
+              <CollapsibleCard
+                key={pair.id}
+                title={pair.name}
+                subtitle={subtitleParts.join(' \u00b7 ')}
+                icon={<Workflow className="w-4 h-4 text-blue-400" />}
+                status={pair.confirmation_status}
+                isStale={pair.is_stale}
+                staleReason={pair.stale_reason}
+                onRefresh={onRefreshEntity ? () => onRefreshEntity('workflow', pair.id) : undefined}
+                defaultExpanded={false}
+                onConfirm={() => onConfirm('workflow', pair.id)}
+                onNeedsReview={() => onNeedsReview('workflow', pair.id)}
+                actions={
+                  <div className="flex items-center gap-1.5">
+                    {pair.roi && (
+                      <span className="text-[11px] font-medium text-teal-700 bg-teal-50 px-2 py-0.5 rounded">
+                        {pair.roi.time_saved_minutes}min saved ({pair.roi.time_saved_percent}%)
+                      </span>
+                    )}
+                    {onPairWorkflow && !pair.current_workflow_id && (
+                      <button onClick={() => onPairWorkflow(pair.id)} className="p-1 rounded text-gray-400 hover:text-blue-600 hover:bg-blue-50" title="Pair with current-state workflow">
+                        <Link2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                    {onEditWorkflow && (
+                      <button onClick={() => onEditWorkflow(pair.id)} className="p-1 rounded text-gray-400 hover:text-gray-600 hover:bg-gray-200" title="Edit workflow">
+                        <Pencil className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                    {onDeleteWorkflow && (
+                      <button onClick={() => onDeleteWorkflow(pair.id)} className="p-1 rounded text-gray-400 hover:text-red-500 hover:bg-red-50" title="Delete workflow">
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+                }
+              >
+                <div className="space-y-3">
+                  {pair.description && (
+                    <p className="text-[12px] text-gray-500">{pair.description}</p>
+                  )}
+
+                  {hasBothSides ? (
+                    <div className="grid grid-cols-2 gap-4">
+                      <WorkflowStateColumn
+                        steps={pair.current_steps}
+                        stateType="current"
+                        workflowId={pair.current_workflow_id}
+                        onCreateStep={createStepHandler}
+                        onEditStep={editStepHandler}
+                        onDeleteStep={deleteStepHandler}
+                      />
+                      <WorkflowStateColumn
+                        steps={pair.future_steps}
+                        stateType="future"
+                        workflowId={pair.future_workflow_id}
+                        onCreateStep={createStepHandler}
+                        onEditStep={editStepHandler}
+                        onDeleteStep={deleteStepHandler}
+                      />
+                    </div>
+                  ) : (
+                    <div>
+                      {pair.future_steps.length > 0 && (
+                        <WorkflowStateColumn
+                          steps={pair.future_steps}
+                          stateType="future"
+                          workflowId={pair.future_workflow_id}
+                          onCreateStep={createStepHandler}
+                          onEditStep={editStepHandler}
+                          onDeleteStep={deleteStepHandler}
+                        />
+                      )}
+                      {pair.current_steps.length > 0 && (
+                        <WorkflowStateColumn
+                          steps={pair.current_steps}
+                          stateType="current"
+                          workflowId={pair.current_workflow_id}
+                          onCreateStep={createStepHandler}
+                          onEditStep={editStepHandler}
+                          onDeleteStep={deleteStepHandler}
+                        />
+                      )}
+                      {pair.current_steps.length === 0 && pair.future_steps.length === 0 && (
+                        <p className="text-[12px] text-gray-400 italic py-2">No steps added yet</p>
+                      )}
+                    </div>
+                  )}
+
+                  {pair.roi && <ROIFooter roi={pair.roi} />}
+                </div>
+              </CollapsibleCard>
+            )
+          })}
         </div>
       )}
 

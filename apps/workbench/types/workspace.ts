@@ -197,6 +197,8 @@ export interface WorkflowPair {
   current_steps: WorkflowStepSummary[]
   future_steps: WorkflowStepSummary[]
   roi?: ROISummary | null
+  is_stale?: boolean
+  stale_reason?: string | null
 }
 
 // ============================================

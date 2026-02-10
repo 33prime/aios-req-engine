@@ -550,6 +550,10 @@ function applyConfirmationUpdate(
     update.constraints = update.constraints.map((c) =>
       c.id === entityId ? { ...c, confirmation_status: status } : c
     )
+  } else if (entityType === 'workflow') {
+    update.workflow_pairs = (update.workflow_pairs || []).map((wp) =>
+      wp.id === entityId ? { ...wp, confirmation_status: status } : wp
+    )
   } else if (entityType === 'data_entity') {
     update.data_entities = update.data_entities.map((d) =>
       d.id === entityId ? { ...d, confirmation_status: status } : d
