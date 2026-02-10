@@ -39,11 +39,40 @@ export function WorkflowsSection({ workflows, onConfirm, onNeedsReview, onConfir
               onConfirm={() => onConfirm('vp_step', step.id)}
               onNeedsReview={() => onNeedsReview('vp_step', step.id)}
             >
-              {step.description && (
-                <p className="text-[13px] text-[rgba(55,53,47,0.65)] leading-relaxed">
-                  {step.description}
-                </p>
-              )}
+              <div className="space-y-3">
+                {step.description && (
+                  <p className="text-[13px] text-[rgba(55,53,47,0.65)] leading-relaxed">
+                    {step.description}
+                  </p>
+                )}
+
+                {/* Actor persona chip */}
+                {step.actor_persona_name && (
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[11px] text-gray-400">Actor:</span>
+                    <span className="px-2 py-0.5 text-[11px] font-medium bg-indigo-50 text-indigo-700 rounded-full">
+                      {step.actor_persona_name}
+                    </span>
+                  </div>
+                )}
+
+                {/* Feature links */}
+                {step.feature_names && step.feature_names.length > 0 && (
+                  <div>
+                    <span className="text-[11px] text-gray-400 block mb-1">Features:</span>
+                    <div className="flex flex-wrap gap-1">
+                      {step.feature_names.map((name, i) => (
+                        <span
+                          key={step.feature_ids?.[i] || i}
+                          className="px-2 py-0.5 text-[11px] font-medium bg-teal-50 text-teal-700 rounded-full"
+                        >
+                          {name}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
             </CollapsibleCard>
           ))}
         </div>

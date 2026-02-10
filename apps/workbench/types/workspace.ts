@@ -76,18 +76,26 @@ export interface BusinessDriver {
   severity?: string | null
   confirmation_status?: string | null
   evidence?: BRDEvidence[]
+  associated_persona_names?: string[]
+  version?: number | null
   // Pain-specific
   business_impact?: string | null
   affected_users?: string | null
   current_workaround?: string | null
+  frequency?: string | null
   // Goal-specific
   success_criteria?: string | null
   owner?: string | null
   goal_timeframe?: string | null
+  dependencies?: string | null
   // KPI-specific
   baseline_value?: string | null
   target_value?: string | null
   measurement_method?: string | null
+  tracking_frequency?: string | null
+  data_source?: string | null
+  responsible_team?: string | null
+  missing_field_count?: number
 }
 
 export interface ConstraintItem {
@@ -119,6 +127,8 @@ export interface VpStepBRDSummary {
   actor_persona_id?: string | null
   actor_persona_name?: string | null
   confirmation_status?: string | null
+  feature_ids?: string[]
+  feature_names?: string[]
 }
 
 export interface FeatureBRDSummary {
@@ -156,5 +166,75 @@ export interface BRDWorkspaceData {
   constraints: ConstraintItem[]
   readiness_score: number
   pending_count: number
+}
+
+// ============================================
+// Driver Detail Types (for detail drawer)
+// ============================================
+
+export interface AssociatedPersona {
+  id: string
+  name: string
+  role?: string | null
+  association_reason: string
+}
+
+export interface AssociatedFeature {
+  id: string
+  name: string
+  category?: string | null
+  confirmation_status?: string | null
+  association_reason: string
+}
+
+export interface RelatedDriver {
+  id: string
+  description: string
+  driver_type: string
+  relationship: string
+}
+
+export interface RevisionEntry {
+  revision_number: number
+  revision_type: string
+  diff_summary: string
+  changes?: Record<string, unknown> | null
+  created_at: string
+  created_by?: string | null
+}
+
+export interface BusinessDriverDetail {
+  id: string
+  description: string
+  driver_type: string
+  severity?: string | null
+  confirmation_status?: string | null
+  version?: number | null
+  evidence: BRDEvidence[]
+  // Pain-specific
+  business_impact?: string | null
+  affected_users?: string | null
+  current_workaround?: string | null
+  frequency?: string | null
+  // Goal-specific
+  success_criteria?: string | null
+  owner?: string | null
+  goal_timeframe?: string | null
+  dependencies?: string | null
+  // KPI-specific
+  baseline_value?: string | null
+  target_value?: string | null
+  measurement_method?: string | null
+  tracking_frequency?: string | null
+  data_source?: string | null
+  responsible_team?: string | null
+  missing_field_count: number
+  // Associations
+  associated_personas: AssociatedPersona[]
+  associated_features: AssociatedFeature[]
+  related_drivers: RelatedDriver[]
+  // History
+  revision_count: number
+  revisions: RevisionEntry[]
 }
 

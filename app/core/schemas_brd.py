@@ -19,8 +19,11 @@ class PainPointSummary(BaseModel):
     business_impact: str | None = None
     affected_users: str | None = None
     current_workaround: str | None = None
+    frequency: str | None = None
     confirmation_status: str | None = None
     evidence: list[EvidenceItem] = []
+    associated_persona_names: list[str] = []
+    version: int | None = None
 
 
 class GoalSummary(BaseModel):
@@ -30,8 +33,11 @@ class GoalSummary(BaseModel):
     success_criteria: str | None = None
     owner: str | None = None
     goal_timeframe: str | None = None
+    dependencies: str | None = None
     confirmation_status: str | None = None
     evidence: list[EvidenceItem] = []
+    associated_persona_names: list[str] = []
+    version: int | None = None
 
 
 class KPISummary(BaseModel):
@@ -41,8 +47,14 @@ class KPISummary(BaseModel):
     baseline_value: str | None = None
     target_value: str | None = None
     measurement_method: str | None = None
+    tracking_frequency: str | None = None
+    data_source: str | None = None
+    responsible_team: str | None = None
+    missing_field_count: int = 0
     confirmation_status: str | None = None
     evidence: list[EvidenceItem] = []
+    associated_persona_names: list[str] = []
+    version: int | None = None
 
 
 class ConstraintSummary(BaseModel):
@@ -77,6 +89,8 @@ class VpStepBRDSummary(BaseModel):
     actor_persona_id: str | None = None
     actor_persona_name: str | None = None
     confirmation_status: str | None = None
+    feature_ids: list[str] = []
+    feature_names: list[str] = []
 
 
 class FeatureBRDSummary(BaseModel):
@@ -120,3 +134,79 @@ class BRDWorkspaceData(BaseModel):
     constraints: list[ConstraintSummary] = []
     readiness_score: float = 0.0
     pending_count: int = 0
+
+
+# ============================================================================
+# Driver Detail (for detail drawer)
+# ============================================================================
+
+
+class AssociatedPersona(BaseModel):
+    """Persona associated with a business driver."""
+    id: str
+    name: str
+    role: str | None = None
+    association_reason: str = ""
+
+
+class AssociatedFeature(BaseModel):
+    """Feature associated with a business driver."""
+    id: str
+    name: str
+    category: str | None = None
+    confirmation_status: str | None = None
+    association_reason: str = ""
+
+
+class RelatedDriver(BaseModel):
+    """Another business driver related to the current one."""
+    id: str
+    description: str
+    driver_type: str
+    relationship: str = ""
+
+
+class RevisionEntry(BaseModel):
+    """A single revision from the change history."""
+    revision_number: int = 0
+    revision_type: str = ""
+    diff_summary: str = ""
+    changes: dict | None = None
+    created_at: str = ""
+    created_by: str | None = None
+
+
+class BusinessDriverDetail(BaseModel):
+    """Full detail for a single business driver (for detail drawer)."""
+    id: str
+    description: str = ""
+    driver_type: str = ""
+    severity: str | None = None
+    confirmation_status: str | None = None
+    version: int | None = None
+    evidence: list[EvidenceItem] = []
+    # Pain-specific
+    business_impact: str | None = None
+    affected_users: str | None = None
+    current_workaround: str | None = None
+    frequency: str | None = None
+    # Goal-specific
+    success_criteria: str | None = None
+    owner: str | None = None
+    goal_timeframe: str | None = None
+    dependencies: str | None = None
+    # KPI-specific
+    baseline_value: str | None = None
+    target_value: str | None = None
+    measurement_method: str | None = None
+    tracking_frequency: str | None = None
+    data_source: str | None = None
+    responsible_team: str | None = None
+    missing_field_count: int = 0
+    # Associations
+    associated_personas: list[AssociatedPersona] = []
+    associated_features: list[AssociatedFeature] = []
+    related_drivers: list[RelatedDriver] = []
+    # History
+    revision_count: int = 0
+    revisions: list[RevisionEntry] = []

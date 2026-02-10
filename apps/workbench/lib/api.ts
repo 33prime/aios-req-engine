@@ -2082,6 +2082,21 @@ export const batchConfirmEntities = (
     }
   )
 
+// BRD Driver Detail + Background
+export const getBRDDriverDetail = (projectId: string, driverId: string) =>
+  apiRequest<import('@/types/workspace').BusinessDriverDetail>(
+    `/projects/${projectId}/workspace/brd/drivers/${driverId}/detail`
+  )
+
+export const updateProjectBackground = (projectId: string, background: string) =>
+  apiRequest<{ success: boolean; background: string }>(
+    `/projects/${projectId}/workspace/brd/background`,
+    {
+      method: 'PATCH',
+      body: JSON.stringify({ background }),
+    }
+  )
+
 // ============================================
 // Prototype Refinement APIs
 // ============================================

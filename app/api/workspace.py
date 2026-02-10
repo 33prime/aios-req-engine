@@ -8,8 +8,11 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from app.core.schemas_brd import (
+    AssociatedFeature,
+    AssociatedPersona,
     BRDWorkspaceData,
     BusinessContextSection,
+    BusinessDriverDetail,
     ConstraintSummary,
     EvidenceItem,
     FeatureBRDSummary,
@@ -17,7 +20,9 @@ from app.core.schemas_brd import (
     KPISummary,
     PainPointSummary,
     PersonaBRDSummary,
+    RelatedDriver,
     RequirementsSection,
+    RevisionEntry,
     VpStepBRDSummary,
 )
 from app.db.supabase_client import get_supabase as get_client
@@ -559,8 +564,10 @@ async def get_brd_workspace_data(project_id: UUID) -> BRDWorkspaceData:
                     business_impact=d.get("business_impact"),
                     affected_users=d.get("affected_users"),
                     current_workaround=d.get("current_workaround"),
+                    frequency=d.get("frequency"),
                     confirmation_status=d.get("confirmation_status"),
                     evidence=evidence,
+                    version=d.get("version"),
                 ))
             elif dtype == "goal":
                 goals.append(GoalSummary(
@@ -569,18 +576,27 @@ async def get_brd_workspace_data(project_id: UUID) -> BRDWorkspaceData:
                     success_criteria=d.get("success_criteria"),
                     owner=d.get("owner"),
                     goal_timeframe=d.get("goal_timeframe"),
+                    dependencies=d.get("dependencies"),
                     confirmation_status=d.get("confirmation_status"),
                     evidence=evidence,
+                    version=d.get("version"),
                 ))
             elif dtype == "kpi":
+                # Count missing fields among baseline_value, target_value, measurement_method
+                missing = sum(1 for f in [d.get("baseline_value"), d.get("target_value"), d.get("measurement_method")] if not f)
                 success_metrics.append(KPISummary(
                     id=d["id"],
                     description=d.get("description", ""),
                     baseline_value=d.get("baseline_value"),
                     target_value=d.get("target_value"),
                     measurement_method=d.get("measurement_method"),
+                    tracking_frequency=d.get("tracking_frequency"),
+                    data_source=d.get("data_source"),
+                    responsible_team=d.get("responsible_team"),
+                    missing_field_count=missing,
                     confirmation_status=d.get("confirmation_status"),
                     evidence=evidence,
+                    version=d.get("version"),
                 ))
 
         # 4. Personas
@@ -602,6 +618,25 @@ async def get_brd_workspace_data(project_id: UUID) -> BRDWorkspaceData:
             for p in (personas_result.data or [])
         ]
 
+        # 4b. Build persona association for drivers (simple text overlap)
+        for pain in pain_points:
+            desc_lower = pain.description.lower()
+            for actor in actors:
+                for pp_text in actor.pain_points:
+                    if pp_text and (pp_text.lower() in desc_lower or desc_lower in pp_text.lower()):
+                        if actor.name not in pain.associated_persona_names:
+                            pain.associated_persona_names.append(actor.name)
+                        break
+
+        for goal in goals:
+            desc_lower = goal.description.lower()
+            for actor in actors:
+                for g_text in actor.goals:
+                    if g_text and (g_text.lower() in desc_lower or desc_lower in g_text.lower()):
+                        if actor.name not in goal.associated_persona_names:
+                            goal.associated_persona_names.append(actor.name)
+                        break
+
         # 5. VP Steps
         vp_result = client.table("vp_steps").select(
             "*"
@@ -609,18 +644,8 @@ async def get_brd_workspace_data(project_id: UUID) -> BRDWorkspaceData:
 
         persona_lookup = {p.id: p.name for p in actors}
 
-        workflows = []
-        for step in (vp_result.data or []):
-            actor_id = step.get("actor_persona_id")
-            workflows.append(VpStepBRDSummary(
-                id=step["id"],
-                step_index=step.get("step_index", 0),
-                title=step.get("label", "Untitled"),
-                description=step.get("description"),
-                actor_persona_id=actor_id,
-                actor_persona_name=persona_lookup.get(actor_id) if actor_id else None,
-                confirmation_status=step.get("confirmation_status"),
-            ))
+        # We'll populate feature_ids/feature_names after loading features below
+        raw_vp_steps = vp_result.data or []
 
         # 6. Features grouped by priority_group
         features_result = client.table("features").select(
@@ -650,6 +675,29 @@ async def get_brd_workspace_data(project_id: UUID) -> BRDWorkspaceData:
             else:
                 # Default unset to should_have
                 requirements.should_have.append(summary)
+
+        # 6b. Build vp_step -> feature map and create workflows
+        vp_step_feature_map: dict[str, list[tuple[str, str]]] = {}
+        for f in (features_result.data or []):
+            sid = f.get("vp_step_id")
+            if sid:
+                vp_step_feature_map.setdefault(sid, []).append((f["id"], f["name"]))
+
+        workflows = []
+        for step in raw_vp_steps:
+            actor_id = step.get("actor_persona_id")
+            step_features = vp_step_feature_map.get(step["id"], [])
+            workflows.append(VpStepBRDSummary(
+                id=step["id"],
+                step_index=step.get("step_index", 0),
+                title=step.get("label", "Untitled"),
+                description=step.get("description"),
+                actor_persona_id=actor_id,
+                actor_persona_name=persona_lookup.get(actor_id) if actor_id else None,
+                confirmation_status=step.get("confirmation_status"),
+                feature_ids=[fid for fid, _ in step_features],
+                feature_names=[fname for _, fname in step_features],
+            ))
 
         # 7. Constraints
         constraints_result = client.table("constraints").select(
@@ -784,4 +832,184 @@ async def update_feature_priority_endpoint(
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         logger.exception(f"Failed to update feature {feature_id} priority")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================================
+# Driver Detail Endpoint
+# ============================================================================
+
+
+@router.get("/brd/drivers/{driver_id}/detail", response_model=BusinessDriverDetail)
+async def get_brd_driver_detail(project_id: UUID, driver_id: UUID) -> BusinessDriverDetail:
+    """
+    Get full detail for a business driver including associations and history.
+    Used by the detail drawer in the BRD canvas.
+    """
+    from app.db.business_drivers import (
+        get_business_driver,
+        get_driver_associated_features,
+        get_driver_associated_personas,
+        get_driver_related_drivers,
+    )
+    from app.db.change_tracking import count_entity_versions, get_entity_history
+
+    try:
+        driver = get_business_driver(str(driver_id))
+        if not driver:
+            raise HTTPException(status_code=404, detail="Business driver not found")
+
+        # Verify project ownership
+        if driver.get("project_id") != str(project_id):
+            raise HTTPException(status_code=403, detail="Driver does not belong to this project")
+
+        dtype = driver.get("driver_type", "")
+        evidence = _parse_evidence(driver.get("evidence"))
+
+        # Compute missing_field_count for KPIs
+        missing = 0
+        if dtype == "kpi":
+            missing = sum(1 for f in [
+                driver.get("baseline_value"),
+                driver.get("target_value"),
+                driver.get("measurement_method"),
+            ] if not f)
+
+        # Fetch associations (with graceful fallback)
+        assoc_personas: list[AssociatedPersona] = []
+        try:
+            raw_personas = get_driver_associated_personas(str(driver_id))
+            for p in (raw_personas or []):
+                assoc_personas.append(AssociatedPersona(
+                    id=p.get("id", ""),
+                    name=p.get("name", ""),
+                    role=p.get("role"),
+                    association_reason=p.get("association_reason", ""),
+                ))
+        except Exception:
+            logger.debug(f"Could not fetch associated personas for driver {driver_id}")
+
+        assoc_features: list[AssociatedFeature] = []
+        try:
+            raw_features = get_driver_associated_features(str(driver_id))
+            for f in (raw_features or []):
+                assoc_features.append(AssociatedFeature(
+                    id=f.get("id", ""),
+                    name=f.get("name", ""),
+                    category=f.get("category"),
+                    confirmation_status=f.get("confirmation_status"),
+                    association_reason=f.get("association_reason", ""),
+                ))
+        except Exception:
+            logger.debug(f"Could not fetch associated features for driver {driver_id}")
+
+        related: list[RelatedDriver] = []
+        try:
+            raw_related = get_driver_related_drivers(str(driver_id))
+            for r in (raw_related or []):
+                related.append(RelatedDriver(
+                    id=r.get("id", ""),
+                    description=r.get("description", ""),
+                    driver_type=r.get("driver_type", ""),
+                    relationship=r.get("relationship", ""),
+                ))
+        except Exception:
+            logger.debug(f"Could not fetch related drivers for driver {driver_id}")
+
+        # History
+        revisions: list[RevisionEntry] = []
+        revision_count = 0
+        try:
+            raw_history = get_entity_history(str(driver_id))
+            for h in (raw_history or []):
+                revisions.append(RevisionEntry(
+                    revision_number=h.get("revision_number", 0),
+                    revision_type=h.get("revision_type", ""),
+                    diff_summary=h.get("diff_summary", ""),
+                    changes=h.get("changes"),
+                    created_at=h.get("created_at", ""),
+                    created_by=h.get("created_by"),
+                ))
+            revision_count = count_entity_versions(str(driver_id))
+        except Exception:
+            logger.debug(f"Could not fetch history for driver {driver_id}")
+
+        return BusinessDriverDetail(
+            id=driver["id"],
+            description=driver.get("description", ""),
+            driver_type=dtype,
+            severity=driver.get("severity"),
+            confirmation_status=driver.get("confirmation_status"),
+            version=driver.get("version"),
+            evidence=evidence,
+            # Pain
+            business_impact=driver.get("business_impact"),
+            affected_users=driver.get("affected_users"),
+            current_workaround=driver.get("current_workaround"),
+            frequency=driver.get("frequency"),
+            # Goal
+            success_criteria=driver.get("success_criteria"),
+            owner=driver.get("owner"),
+            goal_timeframe=driver.get("goal_timeframe"),
+            dependencies=driver.get("dependencies"),
+            # KPI
+            baseline_value=driver.get("baseline_value"),
+            target_value=driver.get("target_value"),
+            measurement_method=driver.get("measurement_method"),
+            tracking_frequency=driver.get("tracking_frequency"),
+            data_source=driver.get("data_source"),
+            responsible_team=driver.get("responsible_team"),
+            missing_field_count=missing,
+            # Associations
+            associated_personas=assoc_personas,
+            associated_features=assoc_features,
+            related_drivers=related,
+            revision_count=revision_count,
+            revisions=revisions,
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"Failed to get driver detail for {driver_id}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================================
+# Background Edit Endpoint
+# ============================================================================
+
+
+class BackgroundUpdate(BaseModel):
+    """Request body for updating project background."""
+    background: str
+
+
+@router.patch("/brd/background")
+async def update_brd_background(project_id: UUID, data: BackgroundUpdate) -> dict:
+    """Update the project's company background description. Upserts company_info row."""
+    client = get_client()
+
+    try:
+        # Check if company_info row exists
+        existing = client.table("company_info").select(
+            "id"
+        ).eq("project_id", str(project_id)).maybe_single().execute()
+
+        if existing and existing.data:
+            # Update existing row
+            client.table("company_info").update({
+                "description": data.background,
+            }).eq("project_id", str(project_id)).execute()
+        else:
+            # Insert new row
+            client.table("company_info").insert({
+                "project_id": str(project_id),
+                "description": data.background,
+            }).execute()
+
+        return {"success": True, "background": data.background}
+
+    except Exception as e:
+        logger.exception(f"Failed to update background for project {project_id}")
         raise HTTPException(status_code=500, detail=str(e))

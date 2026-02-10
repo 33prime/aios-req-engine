@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, type ReactNode } from 'react'
-import { ChevronRight } from 'lucide-react'
+import { ChevronRight, ArrowRight } from 'lucide-react'
 import { BRDStatusBadge } from './StatusBadge'
 import { ConfirmActions } from './ConfirmActions'
 
@@ -13,6 +13,7 @@ interface CollapsibleCardProps {
   defaultExpanded?: boolean
   onConfirm?: () => void
   onNeedsReview?: () => void
+  onDetailClick?: () => void
   children: ReactNode
   actions?: ReactNode
   dragHandle?: ReactNode
@@ -36,6 +37,7 @@ export function CollapsibleCard({
   defaultExpanded = false,
   onConfirm,
   onNeedsReview,
+  onDetailClick,
   children,
   actions,
   dragHandle,
@@ -45,7 +47,7 @@ export function CollapsibleCard({
 
   return (
     <div
-      className={`border rounded-[3px] shadow-[0_1px_3px_rgba(0,0,0,0.05)] transition-all duration-150 ${bgClass}`}
+      className={`group/card border rounded-[3px] shadow-[0_1px_3px_rgba(0,0,0,0.05)] transition-all duration-150 ${bgClass}`}
     >
       {/* Header */}
       <div
@@ -63,6 +65,15 @@ export function CollapsibleCard({
           <div className="flex items-center gap-2">
             <span className="text-[14px] font-medium text-[#37352f] truncate">{title}</span>
             <BRDStatusBadge status={status} />
+            {onDetailClick && (
+              <button
+                onClick={(e) => { e.stopPropagation(); onDetailClick() }}
+                className="p-1 rounded text-gray-300 hover:text-[#009b87] hover:bg-teal-50 transition-colors opacity-0 group-hover/card:opacity-100"
+                title="View details"
+              >
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+            )}
           </div>
           {subtitle && (
             <p className="text-[13px] text-[rgba(55,53,47,0.65)] mt-0.5 truncate">

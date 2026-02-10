@@ -10,6 +10,7 @@ import { ConstraintsSection } from './sections/ConstraintsSection'
 import {
   getBRDWorkspaceData,
   updateProjectVision,
+  updateProjectBackground,
   updateFeaturePriority,
   batchConfirmEntities,
 } from '@/lib/api'
@@ -136,6 +137,26 @@ export function BRDCanvas({ projectId, onRefresh }: BRDCanvasProps) {
     }
   }, [data, projectId, loadData])
 
+  const handleUpdateBackground = useCallback(async (background: string) => {
+    if (!data) return
+
+    // Optimistic update
+    setData((prev) => {
+      if (!prev) return prev
+      return {
+        ...prev,
+        business_context: { ...prev.business_context, background },
+      }
+    })
+
+    try {
+      await updateProjectBackground(projectId, background)
+    } catch (err) {
+      console.error('Failed to update background:', err)
+      loadData()
+    }
+  }, [data, projectId, loadData])
+
   if (isLoading) {
     return (
       <div className="max-w-4xl mx-auto py-16 text-center">
@@ -205,16 +226,19 @@ export function BRDCanvas({ projectId, onRefresh }: BRDCanvasProps) {
       <div className="space-y-10">
         <BusinessContextSection
           data={data.business_context}
+          projectId={projectId}
           onConfirm={handleConfirm}
           onNeedsReview={handleNeedsReview}
           onConfirmAll={handleConfirmAll}
           onUpdateVision={handleUpdateVision}
+          onUpdateBackground={handleUpdateBackground}
         />
 
         <div className="border-t border-[#e9e9e7]" />
 
         <ActorsSection
           actors={data.actors}
+          workflows={data.workflows}
           onConfirm={handleConfirm}
           onNeedsReview={handleNeedsReview}
           onConfirmAll={handleConfirmAll}
