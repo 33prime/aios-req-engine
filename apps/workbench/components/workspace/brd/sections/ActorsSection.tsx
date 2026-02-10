@@ -12,9 +12,10 @@ interface ActorsSectionProps {
   onConfirm: (entityType: string, entityId: string) => void
   onNeedsReview: (entityType: string, entityId: string) => void
   onConfirmAll: (entityType: string, ids: string[]) => void
+  onRefreshEntity?: (entityType: string, entityId: string) => void
 }
 
-export function ActorsSection({ actors, workflows = [], onConfirm, onNeedsReview, onConfirmAll }: ActorsSectionProps) {
+export function ActorsSection({ actors, workflows = [], onConfirm, onNeedsReview, onConfirmAll, onRefreshEntity }: ActorsSectionProps) {
   const confirmedCount = actors.filter(
     (a) => a.confirmation_status === 'confirmed_consultant' || a.confirmation_status === 'confirmed_client'
   ).length
@@ -38,6 +39,9 @@ export function ActorsSection({ actors, workflows = [], onConfirm, onNeedsReview
       subtitle={actor.role || actor.persona_type || undefined}
       icon={<Users className="w-4 h-4 text-indigo-400" />}
       status={actor.confirmation_status}
+      isStale={actor.is_stale}
+      staleReason={actor.stale_reason}
+      onRefresh={onRefreshEntity ? () => onRefreshEntity('persona', actor.id) : undefined}
       onConfirm={() => onConfirm('persona', actor.id)}
       onNeedsReview={() => onNeedsReview('persona', actor.id)}
     >

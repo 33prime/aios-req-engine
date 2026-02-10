@@ -148,6 +148,7 @@ def mark_entity_stale(
         "persona": "personas",
         "vp_step": "vp_steps",
         "strategic_context": "strategic_context",
+        "data_entity": "data_entities",
     }
 
     table = table_map.get(entity_type)
@@ -190,6 +191,7 @@ def clear_staleness(
         "persona": "personas",
         "vp_step": "vp_steps",
         "strategic_context": "strategic_context",
+        "data_entity": "data_entities",
     }
 
     table = table_map.get(entity_type)

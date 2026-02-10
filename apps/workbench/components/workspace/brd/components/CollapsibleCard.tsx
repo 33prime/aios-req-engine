@@ -4,12 +4,16 @@ import { useState, type ReactNode } from 'react'
 import { ChevronRight, ArrowRight } from 'lucide-react'
 import { BRDStatusBadge } from './StatusBadge'
 import { ConfirmActions } from './ConfirmActions'
+import { StaleIndicator } from './StaleIndicator'
 
 interface CollapsibleCardProps {
   title: string
   subtitle?: string
   icon?: ReactNode
   status?: string | null
+  isStale?: boolean
+  staleReason?: string | null
+  onRefresh?: () => void
   defaultExpanded?: boolean
   onConfirm?: () => void
   onNeedsReview?: () => void
@@ -19,7 +23,10 @@ interface CollapsibleCardProps {
   dragHandle?: ReactNode
 }
 
-function getCardBg(status: string | null | undefined): string {
+function getCardBg(status: string | null | undefined, isStale?: boolean): string {
+  if (isStale) {
+    return 'bg-orange-50/30 border-orange-200'
+  }
   if (status === 'confirmed_consultant' || status === 'confirmed_client') {
     return 'bg-teal-50/40 border-teal-100'
   }
@@ -34,6 +41,9 @@ export function CollapsibleCard({
   subtitle,
   icon,
   status,
+  isStale,
+  staleReason,
+  onRefresh,
   defaultExpanded = false,
   onConfirm,
   onNeedsReview,
@@ -43,7 +53,7 @@ export function CollapsibleCard({
   dragHandle,
 }: CollapsibleCardProps) {
   const [expanded, setExpanded] = useState(defaultExpanded)
-  const bgClass = getCardBg(status)
+  const bgClass = getCardBg(status, isStale)
 
   return (
     <div
@@ -64,6 +74,9 @@ export function CollapsibleCard({
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <span className="text-[14px] font-medium text-[#37352f] truncate">{title}</span>
+            {isStale && (
+              <span className="w-2 h-2 rounded-full bg-orange-400 flex-shrink-0" title="Stale — may need refresh" />
+            )}
             <BRDStatusBadge status={status} />
             {onDetailClick && (
               <button
@@ -95,6 +108,13 @@ export function CollapsibleCard({
         }`}
       >
         <div className="px-4 pb-4 pt-1">
+          {/* Stale indicator */}
+          {isStale && (
+            <div className="mb-3">
+              <StaleIndicator reason={staleReason} onRefresh={onRefresh} />
+            </div>
+          )}
+
           {children}
 
           {/* Confirm/Review actions */}

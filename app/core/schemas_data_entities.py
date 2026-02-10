@@ -40,6 +40,8 @@ class DataEntityBRDSummary(BaseModel):
     workflow_step_count: int = 0
     confirmation_status: str | None = None
     evidence: list[dict[str, Any]] = []
+    is_stale: bool = False
+    stale_reason: str | None = None
 
 
 class DataEntityWorkflowLink(BaseModel):

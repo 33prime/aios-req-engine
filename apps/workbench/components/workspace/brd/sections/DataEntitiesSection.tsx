@@ -12,7 +12,8 @@ interface DataEntitiesSectionProps {
   onNeedsReview: (entityType: string, entityId: string) => void
   onConfirmAll: (entityType: string, ids: string[]) => void
   onCreateEntity: () => void
-  onDeleteEntity: (entityId: string) => void
+  onDeleteEntity: (entityId: string, entityName: string) => void
+  onRefreshEntity?: (entityType: string, entityId: string) => void
 }
 
 const CATEGORY_CONFIG: Record<string, { bg: string; text: string; label: string }> = {
@@ -29,6 +30,7 @@ export function DataEntitiesSection({
   onConfirmAll,
   onCreateEntity,
   onDeleteEntity,
+  onRefreshEntity,
 }: DataEntitiesSectionProps) {
   const confirmedCount = dataEntities.filter(
     (e) => e.confirmation_status === 'confirmed_consultant' || e.confirmation_status === 'confirmed_client'
@@ -64,11 +66,14 @@ export function DataEntitiesSection({
                 subtitle={entity.description || undefined}
                 icon={<Database className="w-4 h-4 text-teal-500" />}
                 status={entity.confirmation_status}
+                isStale={entity.is_stale}
+                staleReason={entity.stale_reason}
+                onRefresh={onRefreshEntity ? () => onRefreshEntity('data_entity', entity.id) : undefined}
                 onConfirm={() => onConfirm('data_entity', entity.id)}
                 onNeedsReview={() => onNeedsReview('data_entity', entity.id)}
                 actions={
                   <button
-                    onClick={() => onDeleteEntity(entity.id)}
+                    onClick={() => onDeleteEntity(entity.id, entity.name)}
                     className="p-1 rounded text-gray-300 hover:text-red-500 hover:bg-red-50 transition-colors opacity-0 group-hover/card:opacity-100"
                     title="Delete data entity"
                   >

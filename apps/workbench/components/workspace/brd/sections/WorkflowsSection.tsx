@@ -27,6 +27,7 @@ interface WorkflowsSectionProps {
   onCreateStep?: (workflowId: string, stateType: 'current' | 'future') => void
   onEditStep?: (workflowId: string, stepId: string) => void
   onDeleteStep?: (workflowId: string, stepId: string) => void
+  onRefreshEntity?: (entityType: string, entityId: string) => void
 }
 
 // ============================================================================
@@ -403,6 +404,7 @@ export function WorkflowsSection({
   onCreateStep,
   onEditStep,
   onDeleteStep,
+  onRefreshEntity,
 }: WorkflowsSectionProps) {
   const confirmedCount = workflows.filter(
     (w) => w.confirmation_status === 'confirmed_consultant' || w.confirmation_status === 'confirmed_client'
@@ -477,6 +479,9 @@ export function WorkflowsSection({
                   subtitle={step.actor_persona_name ? `Actor: ${step.actor_persona_name}` : undefined}
                   icon={<Workflow className="w-4 h-4 text-blue-400" />}
                   status={step.confirmation_status}
+                  isStale={step.is_stale}
+                  staleReason={step.stale_reason}
+                  onRefresh={onRefreshEntity ? () => onRefreshEntity('vp_step', step.id) : undefined}
                   onConfirm={() => onConfirm('vp_step', step.id)}
                   onNeedsReview={() => onNeedsReview('vp_step', step.id)}
                 >

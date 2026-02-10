@@ -81,6 +81,8 @@ class PersonaBRDSummary(BaseModel):
     goals: list[str] = []
     pain_points: list[str] = []
     confirmation_status: str | None = None
+    is_stale: bool = False
+    stale_reason: str | None = None
 
 
 class VpStepBRDSummary(BaseModel):
@@ -94,6 +96,8 @@ class VpStepBRDSummary(BaseModel):
     confirmation_status: str | None = None
     feature_ids: list[str] = []
     feature_names: list[str] = []
+    is_stale: bool = False
+    stale_reason: str | None = None
 
 
 class FeatureBRDSummary(BaseModel):
@@ -107,6 +111,8 @@ class FeatureBRDSummary(BaseModel):
     confirmation_status: str | None = None
     vp_step_id: str | None = None
     evidence: list[EvidenceItem] = []
+    is_stale: bool = False
+    stale_reason: str | None = None
 
 
 class BusinessContextSection(BaseModel):

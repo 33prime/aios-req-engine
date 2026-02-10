@@ -13,6 +13,7 @@ interface RequirementsSectionProps {
   onNeedsReview: (entityType: string, entityId: string) => void
   onConfirmAll: (entityType: string, ids: string[]) => void
   onMovePriority: (featureId: string, targetGroup: MoSCoWGroup) => void
+  onRefreshEntity?: (entityType: string, entityId: string) => void
 }
 
 export function RequirementsSection({
@@ -21,6 +22,7 @@ export function RequirementsSection({
   onNeedsReview,
   onConfirmAll,
   onMovePriority,
+  onRefreshEntity,
 }: RequirementsSectionProps) {
   const [activeDragFeature, setActiveDragFeature] = useState<FeatureBRDSummary | null>(null)
 
@@ -86,6 +88,7 @@ export function RequirementsSection({
             onConfirm={onConfirm}
             onNeedsReview={onNeedsReview}
             onMove={onMovePriority}
+            onRefreshEntity={onRefreshEntity}
           />
           <PriorityGroup
             group="should_have"
@@ -93,6 +96,7 @@ export function RequirementsSection({
             onConfirm={onConfirm}
             onNeedsReview={onNeedsReview}
             onMove={onMovePriority}
+            onRefreshEntity={onRefreshEntity}
           />
           <PriorityGroup
             group="could_have"
@@ -100,6 +104,7 @@ export function RequirementsSection({
             onConfirm={onConfirm}
             onNeedsReview={onNeedsReview}
             onMove={onMovePriority}
+            onRefreshEntity={onRefreshEntity}
           />
           <PriorityGroup
             group="out_of_scope"
@@ -107,6 +112,7 @@ export function RequirementsSection({
             onConfirm={onConfirm}
             onNeedsReview={onNeedsReview}
             onMove={onMovePriority}
+            onRefreshEntity={onRefreshEntity}
           />
         </div>
 

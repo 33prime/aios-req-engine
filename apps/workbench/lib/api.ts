@@ -2284,6 +2284,39 @@ export const unlinkDataEntityFromStep = (
   )
 
 // ============================================
+// Cascading Intelligence APIs
+// ============================================
+
+export const getBRDHealth = (projectId: string) =>
+  apiRequest<import('@/types/workspace').BRDHealthData>(
+    `/projects/${projectId}/workspace/brd/health`
+  )
+
+export const getImpactAnalysis = (projectId: string, entityType: string, entityId: string) =>
+  apiRequest<import('@/types/workspace').ImpactAnalysis>(
+    `/projects/${projectId}/impact-analysis`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ entity_type: entityType, entity_id: entityId }),
+    }
+  )
+
+export const refreshStaleEntity = (projectId: string, entityType: string, entityId: string) =>
+  apiRequest<{ entity_type: string; entity_id: string; status: string; message: string }>(
+    `/projects/${projectId}/refresh-entity`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ entity_type: entityType, entity_id: entityId }),
+    }
+  )
+
+export const processCascades = (projectId: string) =>
+  apiRequest<{ changes_processed: number; entities_marked_stale: number; errors: string[] }>(
+    `/projects/${projectId}/process-cascades`,
+    { method: 'POST' }
+  )
+
+// ============================================
 // Prototype Refinement APIs
 // ============================================
 

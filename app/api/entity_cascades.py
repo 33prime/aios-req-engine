@@ -53,6 +53,7 @@ class StaleEntitiesResponse(BaseModel):
     personas: list[dict]
     features: list[dict]
     vp_steps: list[dict]
+    data_entities: list[dict] = []
     strategic_context: list[dict]
     total_stale: int
 

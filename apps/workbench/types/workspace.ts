@@ -117,6 +117,8 @@ export interface PersonaBRDSummary {
   goals?: string[]
   pain_points?: string[]
   confirmation_status?: string | null
+  is_stale?: boolean
+  stale_reason?: string | null
 }
 
 export interface VpStepBRDSummary {
@@ -129,6 +131,8 @@ export interface VpStepBRDSummary {
   confirmation_status?: string | null
   feature_ids?: string[]
   feature_names?: string[]
+  is_stale?: boolean
+  stale_reason?: string | null
 }
 
 export interface FeatureBRDSummary {
@@ -141,6 +145,8 @@ export interface FeatureBRDSummary {
   confirmation_status?: string | null
   vp_step_id?: string | null
   evidence?: BRDEvidence[]
+  is_stale?: boolean
+  stale_reason?: string | null
 }
 
 export type MoSCoWGroup = 'must_have' | 'should_have' | 'could_have' | 'out_of_scope'
@@ -214,6 +220,8 @@ export interface DataEntityBRDSummary {
   workflow_step_count: number
   confirmation_status?: string | null
   evidence?: BRDEvidence[]
+  is_stale?: boolean
+  stale_reason?: string | null
 }
 
 export interface DataEntityWorkflowLink {
@@ -318,5 +326,37 @@ export interface BusinessDriverDetail {
   // History
   revision_count: number
   revisions: RevisionEntry[]
+}
+
+// ============================================
+// Cascading Intelligence Types
+// ============================================
+
+export interface ScopeAlert {
+  alert_type: string
+  severity: 'warning' | 'info'
+  message: string
+}
+
+export interface BRDHealthData {
+  stale_entities: {
+    features: { id: string; name: string; stale_reason?: string | null }[]
+    personas: { id: string; name: string; stale_reason?: string | null }[]
+    vp_steps: { id: string; label?: string; stale_reason?: string | null }[]
+    data_entities: { id: string; name: string; stale_reason?: string | null }[]
+    strategic_context: { id: string; stale_reason?: string | null }[]
+    total_stale: number
+  }
+  scope_alerts: ScopeAlert[]
+  dependency_count: number
+  pending_cascade_count: number
+}
+
+export interface ImpactAnalysis {
+  entity: { type: string; id: string }
+  direct_impacts: { type: string; id: string; dependency_type: string; strength: number }[]
+  indirect_impacts: { type: string; id: string; dependency_type: string; strength: number; path: string[] }[]
+  total_affected: number
+  recommendation: 'auto' | 'review_suggested' | 'high_impact_warning'
 }
 

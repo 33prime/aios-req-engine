@@ -10,8 +10,8 @@ logger = get_logger(__name__)
 
 
 # Valid entity types
-SOURCE_ENTITY_TYPES = {"persona", "feature", "vp_step", "strategic_context", "stakeholder"}
-TARGET_ENTITY_TYPES = {"persona", "feature", "vp_step", "signal", "research_chunk"}
+SOURCE_ENTITY_TYPES = {"persona", "feature", "vp_step", "strategic_context", "stakeholder", "data_entity"}
+TARGET_ENTITY_TYPES = {"persona", "feature", "vp_step", "signal", "research_chunk", "data_entity"}
 DEPENDENCY_TYPES = {"uses", "targets", "derived_from", "informed_by", "actor_of"}
 
 
@@ -404,6 +404,65 @@ def rebuild_dependencies_for_vp_step(project_id: UUID, step_id: UUID) -> dict:
     return {"created": created, "step_id": str(step_id)}
 
 
+def rebuild_dependencies_for_data_entity(project_id: UUID, entity_id: UUID) -> dict:
+    """
+    Rebuild dependencies for a data entity based on its workflow step links.
+
+    Extracts dependencies from:
+    - data_entity_workflow_steps junction -> vp_step dependencies (uses)
+
+    Args:
+        project_id: Project UUID
+        entity_id: Data entity UUID
+
+    Returns:
+        Dict with counts of dependencies created
+    """
+    supabase = get_supabase()
+
+    # Verify entity exists
+    entity_result = (
+        supabase.table("data_entities")
+        .select("id")
+        .eq("id", str(entity_id))
+        .maybe_single()
+        .execute()
+    )
+    if not entity_result or not entity_result.data:
+        raise ValueError(f"Data entity not found: {entity_id}")
+
+    # Clear existing source dependencies for this data entity
+    remove_all_source_dependencies(project_id, "data_entity", entity_id)
+
+    created = 0
+
+    # Get workflow step links
+    links_result = (
+        supabase.table("data_entity_workflow_steps")
+        .select("vp_step_id")
+        .eq("data_entity_id", str(entity_id))
+        .execute()
+    )
+
+    for link in links_result.data or []:
+        vp_step_id = link.get("vp_step_id")
+        if vp_step_id:
+            try:
+                register_dependency(
+                    project_id=project_id,
+                    source_type="data_entity",
+                    source_id=entity_id,
+                    target_type="vp_step",
+                    target_id=UUID(vp_step_id) if isinstance(vp_step_id, str) else vp_step_id,
+                    dependency_type="uses",
+                )
+                created += 1
+            except Exception as e:
+                logger.warning(f"Failed to register data entity dependency: {e}")
+
+    return {"created": created, "entity_id": str(entity_id)}
+
+
 def rebuild_dependencies_for_project(project_id: UUID) -> dict:
     """
     Rebuild the entire dependency graph for a project.
@@ -422,6 +481,7 @@ def rebuild_dependencies_for_project(project_id: UUID) -> dict:
     stats = {
         "features_processed": 0,
         "vp_steps_processed": 0,
+        "data_entities_processed": 0,
         "dependencies_created": 0,
         "errors": [],
     }
@@ -446,9 +506,30 @@ def rebuild_dependencies_for_project(project_id: UUID) -> dict:
         except Exception as e:
             stats["errors"].append(f"VP Step {step['id']}: {str(e)}")
 
+    # Rebuild data entity dependencies
+    supabase = get_supabase()
+    try:
+        de_result = (
+            supabase.table("data_entities")
+            .select("id")
+            .eq("project_id", str(project_id))
+            .execute()
+        )
+        for de in de_result.data or []:
+            try:
+                result = rebuild_dependencies_for_data_entity(project_id, UUID(de["id"]))
+                stats["data_entities_processed"] += 1
+                stats["dependencies_created"] += result["created"]
+            except Exception as e:
+                stats["errors"].append(f"Data Entity {de['id']}: {str(e)}")
+    except Exception as e:
+        stats["errors"].append(f"Data entities query: {str(e)}")
+
     logger.info(
         f"Rebuilt dependency graph: {stats['features_processed']} features, "
-        f"{stats['vp_steps_processed']} VP steps, {stats['dependencies_created']} dependencies",
+        f"{stats['vp_steps_processed']} VP steps, "
+        f"{stats['data_entities_processed']} data entities, "
+        f"{stats['dependencies_created']} dependencies",
         extra={"project_id": str(project_id)},
     )
 
@@ -552,6 +633,7 @@ def get_stale_entities(project_id: UUID) -> dict:
         "features": [],
         "personas": [],
         "vp_steps": [],
+        "data_entities": [],
         "strategic_context": [],
     }
 
@@ -583,6 +665,18 @@ def get_stale_entities(project_id: UUID) -> dict:
     )
     result["vp_steps"] = vp_steps_response.data or []
 
+    try:
+        data_entities_response = (
+            supabase.table("data_entities")
+            .select("id, name, is_stale, stale_reason, stale_since")
+            .eq("project_id", str(project_id))
+            .eq("is_stale", True)
+            .execute()
+        )
+        result["data_entities"] = data_entities_response.data or []
+    except Exception:
+        result["data_entities"] = []
+
     strategic_context_response = (
         supabase.table("strategic_context")
         .select("id, is_stale, stale_reason, stale_since")
@@ -596,6 +690,7 @@ def get_stale_entities(project_id: UUID) -> dict:
         len(result["features"])
         + len(result["personas"])
         + len(result["vp_steps"])
+        + len(result["data_entities"])
         + len(result["strategic_context"])
     )
 

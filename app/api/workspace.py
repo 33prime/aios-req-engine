@@ -617,7 +617,7 @@ async def get_brd_workspace_data(project_id: UUID) -> BRDWorkspaceData:
 
         # 4. Personas
         personas_result = client.table("personas").select(
-            "id, name, role, description, goals, pain_points, confirmation_status"
+            "id, name, role, description, goals, pain_points, confirmation_status, is_stale, stale_reason"
         ).eq("project_id", str(project_id)).execute()
 
         actors = [
@@ -630,6 +630,8 @@ async def get_brd_workspace_data(project_id: UUID) -> BRDWorkspaceData:
                 goals=p.get("goals") or [],
                 pain_points=p.get("pain_points") or [],
                 confirmation_status=p.get("confirmation_status"),
+                is_stale=p.get("is_stale", False),
+                stale_reason=p.get("stale_reason"),
             )
             for p in (personas_result.data or [])
         ]
@@ -665,7 +667,7 @@ async def get_brd_workspace_data(project_id: UUID) -> BRDWorkspaceData:
 
         # 6. Features grouped by priority_group
         features_result = client.table("features").select(
-            "id, name, category, is_mvp, priority_group, confirmation_status, vp_step_id, evidence, overview"
+            "id, name, category, is_mvp, priority_group, confirmation_status, vp_step_id, evidence, overview, is_stale, stale_reason"
         ).eq("project_id", str(project_id)).execute()
 
         requirements = RequirementsSection()
@@ -680,6 +682,8 @@ async def get_brd_workspace_data(project_id: UUID) -> BRDWorkspaceData:
                 confirmation_status=f.get("confirmation_status"),
                 vp_step_id=f.get("vp_step_id"),
                 evidence=_parse_evidence(f.get("evidence")),
+                is_stale=f.get("is_stale", False),
+                stale_reason=f.get("stale_reason"),
             )
             group = f.get("priority_group")
             if group == "must_have":
@@ -713,6 +717,8 @@ async def get_brd_workspace_data(project_id: UUID) -> BRDWorkspaceData:
                 confirmation_status=step.get("confirmation_status"),
                 feature_ids=[fid for fid, _ in step_features],
                 feature_names=[fname for _, fname in step_features],
+                is_stale=step.get("is_stale", False),
+                stale_reason=step.get("stale_reason"),
             ))
 
         # 7. Constraints
@@ -737,7 +743,7 @@ async def get_brd_workspace_data(project_id: UUID) -> BRDWorkspaceData:
         data_entities_list: list[DataEntityBRDSummary] = []
         try:
             de_result = client.table("data_entities").select(
-                "id, name, description, entity_category, fields, confirmation_status, evidence"
+                "id, name, description, entity_category, fields, confirmation_status, evidence, is_stale, stale_reason"
             ).eq("project_id", str(project_id)).order("created_at").execute()
 
             de_rows = de_result.data or []
@@ -762,6 +768,8 @@ async def get_brd_workspace_data(project_id: UUID) -> BRDWorkspaceData:
                         workflow_step_count=de_link_counts.get(d["id"], 0),
                         confirmation_status=d.get("confirmation_status"),
                         evidence=_parse_evidence(d.get("evidence")),
+                        is_stale=d.get("is_stale", False),
+                        stale_reason=d.get("stale_reason"),
                     ))
         except Exception:
             logger.debug(f"Could not load data entities for project {project_id}")
@@ -1051,6 +1059,127 @@ async def get_brd_driver_detail(project_id: UUID, driver_id: UUID) -> BusinessDr
         raise
     except Exception as e:
         logger.exception(f"Failed to get driver detail for {driver_id}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================================
+# BRD Health Endpoint
+# ============================================================================
+
+
+class ScopeAlert(BaseModel):
+    """A scope or complexity alert."""
+    alert_type: str  # scope_creep | workflow_complexity | overloaded_persona
+    severity: str  # warning | info
+    message: str
+
+
+class BRDHealthResponse(BaseModel):
+    """Health check response for BRD canvas."""
+    stale_entities: dict
+    scope_alerts: list[ScopeAlert]
+    dependency_count: int
+    pending_cascade_count: int
+
+
+@router.get("/brd/health", response_model=BRDHealthResponse)
+async def get_brd_health(project_id: UUID) -> BRDHealthResponse:
+    """
+    Get BRD health data: stale entities, scope alerts, dependency stats.
+    Used by the HealthPanel component.
+    """
+    from app.chains.entity_cascade import get_change_queue_stats
+    from app.db.entity_dependencies import get_dependency_graph, get_stale_entities
+
+    try:
+        client = get_client()
+
+        # 1. Stale entities
+        stale = get_stale_entities(project_id)
+
+        # 2. Dependency graph stats
+        graph = get_dependency_graph(project_id)
+        dependency_count = graph.get("total_count", 0)
+
+        # 3. Pending cascade count
+        queue_stats = get_change_queue_stats(project_id)
+        pending_cascade_count = queue_stats.get("pending", 0)
+
+        # 4. Scope alerts (heuristic, no LLM)
+        scope_alerts: list[ScopeAlert] = []
+
+        # scope_creep: >= 50% of features in could_have + out_of_scope
+        features_result = client.table("features").select(
+            "id, priority_group"
+        ).eq("project_id", str(project_id)).execute()
+        features_data = features_result.data or []
+        total_features = len(features_data)
+        if total_features > 0:
+            low_priority = sum(
+                1 for f in features_data
+                if f.get("priority_group") in ("could_have", "out_of_scope")
+            )
+            if low_priority / total_features >= 0.5:
+                scope_alerts.append(ScopeAlert(
+                    alert_type="scope_creep",
+                    severity="warning",
+                    message=f"{low_priority}/{total_features} features are Could Have or Out of Scope — scope may be too broad",
+                ))
+
+        # workflow_complexity: any workflow with > 15 steps
+        try:
+            from app.db.workflows import list_workflows, list_workflow_steps
+
+            workflows = list_workflows(project_id)
+            for wf in workflows:
+                steps = list_workflow_steps(wf["id"])
+                if len(steps) > 15:
+                    scope_alerts.append(ScopeAlert(
+                        alert_type="workflow_complexity",
+                        severity="warning",
+                        message=f"Workflow \"{wf.get('name', 'Untitled')}\" has {len(steps)} steps — consider breaking it down",
+                    ))
+        except Exception:
+            pass
+
+        # overloaded_persona: any persona targeted by > 10 features
+        try:
+            personas_result = client.table("personas").select(
+                "id, name"
+            ).eq("project_id", str(project_id)).execute()
+            persona_map = {p["id"]: p["name"] for p in (personas_result.data or [])}
+
+            features_full = client.table("features").select(
+                "id, target_personas"
+            ).eq("project_id", str(project_id)).execute()
+
+            persona_feature_count: dict[str, int] = {}
+            for f in (features_full.data or []):
+                for tp in (f.get("target_personas") or []):
+                    pid = tp.get("persona_id") if isinstance(tp, dict) else tp
+                    if pid:
+                        persona_feature_count[pid] = persona_feature_count.get(pid, 0) + 1
+
+            for pid, count in persona_feature_count.items():
+                if count > 10:
+                    pname = persona_map.get(pid, pid[:8])
+                    scope_alerts.append(ScopeAlert(
+                        alert_type="overloaded_persona",
+                        severity="info",
+                        message=f"Persona \"{pname}\" is targeted by {count} features — consider splitting responsibilities",
+                    ))
+        except Exception:
+            pass
+
+        return BRDHealthResponse(
+            stale_entities=stale,
+            scope_alerts=scope_alerts,
+            dependency_count=dependency_count,
+            pending_cascade_count=pending_cascade_count,
+        )
+
+    except Exception as e:
+        logger.exception(f"Failed to get BRD health for project {project_id}")
         raise HTTPException(status_code=500, detail=str(e))
 
 

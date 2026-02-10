@@ -23,12 +23,14 @@ function DraggableFeatureCard({
   onConfirm,
   onNeedsReview,
   onMove,
+  onRefresh,
 }: {
   feature: FeatureBRDSummary
   group: MoSCoWGroup
   onConfirm: () => void
   onNeedsReview: () => void
   onMove: (featureId: string, targetGroup: MoSCoWGroup) => void
+  onRefresh?: () => void
 }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: `feature-${feature.id}`,
@@ -47,6 +49,9 @@ function DraggableFeatureCard({
         title={feature.name}
         subtitle={feature.category || undefined}
         status={feature.confirmation_status}
+        isStale={feature.is_stale}
+        staleReason={feature.stale_reason}
+        onRefresh={onRefresh}
         onConfirm={onConfirm}
         onNeedsReview={onNeedsReview}
         dragHandle={
@@ -90,9 +95,10 @@ interface PriorityGroupProps {
   onConfirm: (entityType: string, entityId: string) => void
   onNeedsReview: (entityType: string, entityId: string) => void
   onMove: (featureId: string, targetGroup: MoSCoWGroup) => void
+  onRefreshEntity?: (entityType: string, entityId: string) => void
 }
 
-export function PriorityGroup({ group, features, onConfirm, onNeedsReview, onMove }: PriorityGroupProps) {
+export function PriorityGroup({ group, features, onConfirm, onNeedsReview, onMove, onRefreshEntity }: PriorityGroupProps) {
   const { setNodeRef, isOver } = useDroppable({
     id: `priority-group-${group}`,
     data: { group },
@@ -127,6 +133,7 @@ export function PriorityGroup({ group, features, onConfirm, onNeedsReview, onMov
               onConfirm={() => onConfirm('feature', feature.id)}
               onNeedsReview={() => onNeedsReview('feature', feature.id)}
               onMove={onMove}
+              onRefresh={onRefreshEntity ? () => onRefreshEntity('feature', feature.id) : undefined}
             />
           ))}
         </div>

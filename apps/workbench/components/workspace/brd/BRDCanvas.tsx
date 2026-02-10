@@ -11,6 +11,8 @@ import { DataEntitiesSection } from './sections/DataEntitiesSection'
 import { WorkflowCreateModal } from './components/WorkflowCreateModal'
 import { WorkflowStepEditor } from './components/WorkflowStepEditor'
 import { DataEntityCreateModal } from './components/DataEntityCreateModal'
+import { HealthPanel } from './components/HealthPanel'
+import { ImpactPreviewModal } from './components/ImpactPreviewModal'
 import {
   getBRDWorkspaceData,
   updateProjectVision,
@@ -23,6 +25,7 @@ import {
   deleteWorkflowStep,
   createDataEntity,
   deleteDataEntity,
+  refreshStaleEntity,
 } from '@/lib/api'
 import type { BRDWorkspaceData, MoSCoWGroup } from '@/types/workspace'
 
@@ -168,6 +171,35 @@ export function BRDCanvas({ projectId, onRefresh }: BRDCanvasProps) {
   }, [data, projectId, loadData])
 
   // ============================================================================
+  // Staleness / Refresh
+  // ============================================================================
+
+  const handleRefreshEntity = useCallback(async (entityType: string, entityId: string) => {
+    try {
+      await refreshStaleEntity(projectId, entityType, entityId)
+      loadData()
+    } catch (err) {
+      console.error('Failed to refresh entity:', err)
+    }
+  }, [projectId, loadData])
+
+  // ============================================================================
+  // Impact Preview (delete confirmation)
+  // ============================================================================
+
+  const [impactPreview, setImpactPreview] = useState<{
+    open: boolean
+    entityType: string
+    entityId: string
+    entityName: string
+    onDelete: () => void
+  }>({ open: false, entityType: '', entityId: '', entityName: '', onDelete: () => {} })
+
+  const showImpactPreview = useCallback((entityType: string, entityId: string, entityName: string, onDelete: () => void) => {
+    setImpactPreview({ open: true, entityType, entityId, entityName, onDelete })
+  }, [])
+
+  // ============================================================================
   // Workflow CRUD
   // ============================================================================
 
@@ -276,6 +308,10 @@ export function BRDCanvas({ projectId, onRefresh }: BRDCanvasProps) {
     }
   }, [projectId, loadData])
 
+  const handleDeleteDataEntityWithPreview = useCallback((entityId: string, entityName: string) => {
+    showImpactPreview('data_entity', entityId, entityName, () => handleDeleteDataEntity(entityId))
+  }, [showImpactPreview, handleDeleteDataEntity])
+
   if (isLoading) {
     return (
       <div className="max-w-4xl mx-auto py-16 text-center">
@@ -303,6 +339,9 @@ export function BRDCanvas({ projectId, onRefresh }: BRDCanvasProps) {
   const totalEntities = countEntities(data)
   const confirmedEntities = countConfirmed(data)
   const readinessPercent = totalEntities > 0 ? Math.round((confirmedEntities / totalEntities) * 100) : 0
+
+  // Count stale entities
+  const staleCount = countStale(data)
 
   return (
     <div className="max-w-4xl mx-auto py-8 px-6">
@@ -339,7 +378,15 @@ export function BRDCanvas({ projectId, onRefresh }: BRDCanvasProps) {
             {data.pending_count} items pending review
           </p>
         )}
+        {staleCount > 0 && (
+          <p className="mt-1 text-[12px] text-orange-600">
+            {staleCount} {staleCount === 1 ? 'item' : 'items'} may be outdated
+          </p>
+        )}
       </div>
+
+      {/* Health Panel */}
+      <HealthPanel projectId={projectId} onDataRefresh={loadData} />
 
       {/* BRD Sections */}
       <div className="space-y-10">
@@ -361,6 +408,7 @@ export function BRDCanvas({ projectId, onRefresh }: BRDCanvasProps) {
           onConfirm={handleConfirm}
           onNeedsReview={handleNeedsReview}
           onConfirmAll={handleConfirmAll}
+          onRefreshEntity={handleRefreshEntity}
         />
 
         <div className="border-t border-[#e9e9e7]" />
@@ -378,6 +426,7 @@ export function BRDCanvas({ projectId, onRefresh }: BRDCanvasProps) {
             setStepEditorState({ open: true, workflowId, stateType })
           }
           onDeleteStep={handleDeleteStep}
+          onRefreshEntity={handleRefreshEntity}
         />
 
         <div className="border-t border-[#e9e9e7]" />
@@ -388,6 +437,7 @@ export function BRDCanvas({ projectId, onRefresh }: BRDCanvasProps) {
           onNeedsReview={handleNeedsReview}
           onConfirmAll={handleConfirmAll}
           onMovePriority={handleMovePriority}
+          onRefreshEntity={handleRefreshEntity}
         />
 
         <div className="border-t border-[#e9e9e7]" />
@@ -398,7 +448,8 @@ export function BRDCanvas({ projectId, onRefresh }: BRDCanvasProps) {
           onNeedsReview={handleNeedsReview}
           onConfirmAll={handleConfirmAll}
           onCreateEntity={() => setShowCreateDataEntity(true)}
-          onDeleteEntity={handleDeleteDataEntity}
+          onDeleteEntity={handleDeleteDataEntityWithPreview}
+          onRefreshEntity={handleRefreshEntity}
         />
 
         <div className="border-t border-[#e9e9e7]" />
@@ -431,6 +482,17 @@ export function BRDCanvas({ projectId, onRefresh }: BRDCanvasProps) {
         stateType={stepEditorState.stateType}
         onClose={() => setStepEditorState({ open: false, workflowId: '', stateType: 'future' })}
         onSave={handleCreateStep}
+      />
+
+      {/* Impact Preview Modal */}
+      <ImpactPreviewModal
+        open={impactPreview.open}
+        projectId={projectId}
+        entityType={impactPreview.entityType}
+        entityId={impactPreview.entityId}
+        entityName={impactPreview.entityName}
+        onClose={() => setImpactPreview((prev) => ({ ...prev, open: false }))}
+        onConfirmDelete={impactPreview.onDelete}
       />
     </div>
   )
@@ -554,5 +616,17 @@ function countConfirmed(data: BRDWorkspaceData): number {
     data.requirements.could_have.filter((f) => isConfirmed(f.confirmation_status)).length +
     data.constraints.filter((c) => isConfirmed(c.confirmation_status)).length +
     data.data_entities.filter((d) => isConfirmed(d.confirmation_status)).length
+  )
+}
+
+function countStale(data: BRDWorkspaceData): number {
+  return (
+    data.actors.filter((a) => a.is_stale).length +
+    data.workflows.filter((w) => w.is_stale).length +
+    data.requirements.must_have.filter((f) => f.is_stale).length +
+    data.requirements.should_have.filter((f) => f.is_stale).length +
+    data.requirements.could_have.filter((f) => f.is_stale).length +
+    data.requirements.out_of_scope.filter((f) => f.is_stale).length +
+    data.data_entities.filter((d) => d.is_stale).length
   )
 }
