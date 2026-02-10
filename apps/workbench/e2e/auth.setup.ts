@@ -27,12 +27,19 @@ setup('authenticate', async ({ page }) => {
 
   await page.goto('/auth/login')
 
+  // Listen for API responses to debug login failures
+  page.on('response', (response) => {
+    if (response.url().includes('/auth/login')) {
+      console.log(`Login API response: ${response.status()} ${response.url()}`)
+    }
+  })
+
   await page.getByLabel('Email address').fill(email)
   await page.getByLabel('Password').fill(password)
   await page.getByRole('button', { name: 'Sign in' }).click()
 
   // Wait for redirect to projects page
-  await expect(page).toHaveURL('/projects', { timeout: 15000 })
+  await expect(page).toHaveURL(/\/projects/, { timeout: 15000 })
 
   // Save auth state
   await page.context().storageState({ path: authFile })

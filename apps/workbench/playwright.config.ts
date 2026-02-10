@@ -2,6 +2,7 @@ import { defineConfig, devices } from '@playwright/test'
 import path from 'path'
 
 const authFile = path.join(__dirname, 'e2e/.auth/user.json')
+const baseURL = process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:3001'
 
 export default defineConfig({
   testDir: './e2e',
@@ -11,7 +12,7 @@ export default defineConfig({
   workers: process.env.CI ? 1 : undefined,
   reporter: 'html',
   use: {
-    baseURL: 'http://localhost:3000',
+    baseURL,
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
   },
@@ -41,8 +42,8 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: 'npm run dev',
-    url: 'http://localhost:3000',
+    command: 'npm run dev -- -p 3001',
+    url: baseURL,
     reuseExistingServer: !process.env.CI,
     timeout: 120000,
   },
