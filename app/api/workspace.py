@@ -25,6 +25,22 @@ from app.core.schemas_brd import (
     RevisionEntry,
     VpStepBRDSummary,
 )
+from app.core.schemas_data_entities import (
+    DataEntityBRDSummary,
+    DataEntityCreate,
+    DataEntityUpdate,
+    DataEntityWorkflowLink,
+    DataEntityWorkflowLinkCreate,
+)
+from app.core.schemas_workflows import (
+    ROISummary,
+    WorkflowCreate,
+    WorkflowPair,
+    WorkflowStepCreate,
+    WorkflowStepSummary,
+    WorkflowStepUpdate,
+    WorkflowUpdate,
+)
 from app.db.supabase_client import get_supabase as get_client
 
 logger = logging.getLogger(__name__)
@@ -717,7 +733,40 @@ async def get_brd_workspace_data(project_id: UUID) -> BRDWorkspaceData:
             for c in (constraints_result.data or [])
         ]
 
-        # 8. Readiness score + pending count
+        # 8. Data entities
+        data_entities_list: list[DataEntityBRDSummary] = []
+        try:
+            de_result = client.table("data_entities").select(
+                "id, name, description, entity_category, fields, confirmation_status, evidence"
+            ).eq("project_id", str(project_id)).order("created_at").execute()
+
+            de_rows = de_result.data or []
+            if de_rows:
+                de_ids = [d["id"] for d in de_rows]
+                de_links_result = client.table("data_entity_workflow_steps").select(
+                    "data_entity_id"
+                ).in_("data_entity_id", de_ids).execute()
+                de_link_counts: dict[str, int] = {}
+                for link in (de_links_result.data or []):
+                    eid = link["data_entity_id"]
+                    de_link_counts[eid] = de_link_counts.get(eid, 0) + 1
+
+                for d in de_rows:
+                    fields_data = d.get("fields") or []
+                    data_entities_list.append(DataEntityBRDSummary(
+                        id=d["id"],
+                        name=d["name"],
+                        description=d.get("description"),
+                        entity_category=d.get("entity_category", "domain"),
+                        field_count=len(fields_data) if isinstance(fields_data, list) else 0,
+                        workflow_step_count=de_link_counts.get(d["id"], 0),
+                        confirmation_status=d.get("confirmation_status"),
+                        evidence=_parse_evidence(d.get("evidence")),
+                    ))
+        except Exception:
+            logger.debug(f"Could not load data entities for project {project_id}")
+
+        # 9. Readiness score + pending count
         readiness_score = 0.0
         if project.get("cached_readiness_score") is not None:
             readiness_score = float(project["cached_readiness_score"]) * 100
@@ -730,6 +779,33 @@ async def get_brd_workspace_data(project_id: UUID) -> BRDWorkspaceData:
             pending_count = pending_result.count or 0
         except Exception:
             pass
+
+        # 9. Workflow pairs (current/future state)
+        workflow_pairs_raw: list[dict] = []
+        roi_summary_list: list[ROISummary] = []
+        try:
+            from app.db.workflows import get_workflow_pairs
+            workflow_pairs_raw = get_workflow_pairs(project_id)
+        except Exception:
+            logger.debug(f"Could not load workflow pairs for project {project_id}")
+
+        workflow_pairs_out = []
+        for wp in workflow_pairs_raw:
+            pair = WorkflowPair(
+                id=wp["id"],
+                name=wp["name"],
+                description=wp.get("description", ""),
+                owner=wp.get("owner"),
+                confirmation_status=wp.get("confirmation_status"),
+                current_workflow_id=wp.get("current_workflow_id"),
+                future_workflow_id=wp.get("future_workflow_id"),
+                current_steps=[WorkflowStepSummary(**s) for s in wp.get("current_steps", [])],
+                future_steps=[WorkflowStepSummary(**s) for s in wp.get("future_steps", [])],
+                roi=ROISummary(workflow_name=wp["name"], **wp["roi"]) if wp.get("roi") else None,
+            )
+            workflow_pairs_out.append(pair)
+            if pair.roi:
+                roi_summary_list.append(pair.roi)
 
         return BRDWorkspaceData(
             business_context=BusinessContextSection(
@@ -745,8 +821,11 @@ async def get_brd_workspace_data(project_id: UUID) -> BRDWorkspaceData:
             workflows=workflows,
             requirements=requirements,
             constraints=constraints,
+            data_entities=data_entities_list,
             readiness_score=readiness_score,
             pending_count=pending_count,
+            workflow_pairs=workflow_pairs_out,
+            roi_summary=roi_summary_list,
         )
 
     except HTTPException:
@@ -1012,4 +1091,365 @@ async def update_brd_background(project_id: UUID, data: BackgroundUpdate) -> dic
 
     except Exception as e:
         logger.exception(f"Failed to update background for project {project_id}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================================
+# Workflow CRUD Endpoints
+# ============================================================================
+
+
+@router.post("/workflows")
+async def create_workflow_endpoint(project_id: UUID, data: WorkflowCreate) -> dict:
+    """Create a new workflow for a project."""
+    from app.db.workflows import create_workflow
+
+    try:
+        workflow = create_workflow(project_id, data.model_dump())
+        return workflow
+    except Exception as e:
+        logger.exception(f"Failed to create workflow for project {project_id}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/workflows")
+async def list_workflows_endpoint(project_id: UUID) -> list[dict]:
+    """List all workflows for a project with their steps."""
+    from app.db.workflows import list_workflows, list_workflow_steps
+
+    try:
+        workflows = list_workflows(project_id)
+        for wf in workflows:
+            wf["steps"] = list_workflow_steps(UUID(wf["id"]))
+        return workflows
+    except Exception as e:
+        logger.exception(f"Failed to list workflows for project {project_id}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/workflows/{workflow_id}")
+async def get_workflow_endpoint(project_id: UUID, workflow_id: UUID) -> dict:
+    """Get a single workflow with its steps."""
+    from app.db.workflows import get_workflow, list_workflow_steps
+
+    try:
+        workflow = get_workflow(workflow_id)
+        if not workflow:
+            raise HTTPException(status_code=404, detail="Workflow not found")
+        if workflow.get("project_id") != str(project_id):
+            raise HTTPException(status_code=403, detail="Workflow does not belong to this project")
+        workflow["steps"] = list_workflow_steps(workflow_id)
+        return workflow
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"Failed to get workflow {workflow_id}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.patch("/workflows/{workflow_id}")
+async def update_workflow_endpoint(project_id: UUID, workflow_id: UUID, data: WorkflowUpdate) -> dict:
+    """Update a workflow's metadata."""
+    from app.db.workflows import get_workflow, update_workflow
+
+    try:
+        existing = get_workflow(workflow_id)
+        if not existing:
+            raise HTTPException(status_code=404, detail="Workflow not found")
+        if existing.get("project_id") != str(project_id):
+            raise HTTPException(status_code=403, detail="Workflow does not belong to this project")
+        updated = update_workflow(workflow_id, data.model_dump(exclude_none=True))
+        return updated
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"Failed to update workflow {workflow_id}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.delete("/workflows/{workflow_id}")
+async def delete_workflow_endpoint(project_id: UUID, workflow_id: UUID) -> dict:
+    """Delete a workflow. Steps become orphaned (workflow_id set to NULL)."""
+    from app.db.workflows import delete_workflow, get_workflow
+
+    try:
+        existing = get_workflow(workflow_id)
+        if not existing:
+            raise HTTPException(status_code=404, detail="Workflow not found")
+        if existing.get("project_id") != str(project_id):
+            raise HTTPException(status_code=403, detail="Workflow does not belong to this project")
+        delete_workflow(workflow_id)
+        return {"success": True, "workflow_id": str(workflow_id)}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"Failed to delete workflow {workflow_id}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================================
+# Workflow Step CRUD Endpoints
+# ============================================================================
+
+
+@router.post("/workflows/{workflow_id}/steps")
+async def create_workflow_step_endpoint(
+    project_id: UUID, workflow_id: UUID, data: WorkflowStepCreate
+) -> dict:
+    """Add a step to a workflow."""
+    from app.db.workflows import create_workflow_step, get_workflow
+
+    try:
+        existing = get_workflow(workflow_id)
+        if not existing:
+            raise HTTPException(status_code=404, detail="Workflow not found")
+        if existing.get("project_id") != str(project_id):
+            raise HTTPException(status_code=403, detail="Workflow does not belong to this project")
+        step = create_workflow_step(workflow_id, project_id, data.model_dump())
+        return step
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"Failed to create step for workflow {workflow_id}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.patch("/workflows/{workflow_id}/steps/{step_id}")
+async def update_workflow_step_endpoint(
+    project_id: UUID, workflow_id: UUID, step_id: UUID, data: WorkflowStepUpdate
+) -> dict:
+    """Update a step within a workflow."""
+    from app.db.workflows import update_workflow_step
+
+    try:
+        updated = update_workflow_step(step_id, data.model_dump(exclude_none=True))
+        return updated
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.exception(f"Failed to update step {step_id}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.delete("/workflows/{workflow_id}/steps/{step_id}")
+async def delete_workflow_step_endpoint(
+    project_id: UUID, workflow_id: UUID, step_id: UUID
+) -> dict:
+    """Delete a step from a workflow."""
+    from app.db.workflows import delete_workflow_step
+
+    try:
+        delete_workflow_step(step_id)
+        return {"success": True, "step_id": str(step_id)}
+    except Exception as e:
+        logger.exception(f"Failed to delete step {step_id}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================================
+# Workflow Pairing + ROI Endpoints
+# ============================================================================
+
+
+class WorkflowPairRequest(BaseModel):
+    """Request body for pairing workflows."""
+    paired_workflow_id: str
+
+
+@router.post("/workflows/{workflow_id}/pair")
+async def pair_workflows_endpoint(
+    project_id: UUID, workflow_id: UUID, data: WorkflowPairRequest
+) -> dict:
+    """Pair a current workflow with a future workflow (or vice versa)."""
+    from app.db.workflows import get_workflow, pair_workflows
+
+    try:
+        wf1 = get_workflow(workflow_id)
+        if not wf1:
+            raise HTTPException(status_code=404, detail="Workflow not found")
+        if wf1.get("project_id") != str(project_id):
+            raise HTTPException(status_code=403, detail="Workflow does not belong to this project")
+
+        wf2 = get_workflow(UUID(data.paired_workflow_id))
+        if not wf2:
+            raise HTTPException(status_code=404, detail="Paired workflow not found")
+        if wf2.get("project_id") != str(project_id):
+            raise HTTPException(status_code=403, detail="Paired workflow does not belong to this project")
+
+        pair_workflows(workflow_id, UUID(data.paired_workflow_id))
+        return {
+            "success": True,
+            "workflow_id": str(workflow_id),
+            "paired_workflow_id": data.paired_workflow_id,
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"Failed to pair workflows")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/workflows/pairs")
+async def get_workflow_pairs_endpoint(project_id: UUID) -> list[dict]:
+    """Get all workflow pairs with steps and ROI for a project."""
+    from app.db.workflows import get_workflow_pairs
+
+    try:
+        return get_workflow_pairs(project_id)
+    except Exception as e:
+        logger.exception(f"Failed to get workflow pairs for project {project_id}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================================
+# Data Entity CRUD Endpoints
+# ============================================================================
+
+
+@router.post("/data-entities")
+async def create_data_entity_endpoint(project_id: UUID, data: DataEntityCreate) -> dict:
+    """Create a new data entity for a project."""
+    from app.db.data_entities import create_data_entity
+
+    try:
+        entity = create_data_entity(project_id, data.model_dump())
+        return entity
+    except Exception as e:
+        logger.exception(f"Failed to create data entity for project {project_id}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/data-entities", response_model=list[DataEntityBRDSummary])
+async def list_data_entities_endpoint(project_id: UUID) -> list[DataEntityBRDSummary]:
+    """List all data entities for a project."""
+    from app.db.data_entities import list_data_entities
+
+    try:
+        entities = list_data_entities(project_id)
+        return [
+            DataEntityBRDSummary(
+                id=e["id"],
+                name=e["name"],
+                description=e.get("description"),
+                entity_category=e.get("entity_category", "domain"),
+                field_count=len(e.get("fields") or []) if isinstance(e.get("fields"), list) else 0,
+                workflow_step_count=e.get("workflow_step_count", 0),
+                confirmation_status=e.get("confirmation_status"),
+                evidence=_parse_evidence(e.get("evidence")),
+            )
+            for e in entities
+        ]
+    except Exception as e:
+        logger.exception(f"Failed to list data entities for project {project_id}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/data-entities/{entity_id}")
+async def get_data_entity_detail_endpoint(project_id: UUID, entity_id: UUID) -> dict:
+    """Get a data entity with its workflow links."""
+    from app.db.data_entities import get_data_entity_detail
+
+    try:
+        entity = get_data_entity_detail(entity_id)
+        if not entity:
+            raise HTTPException(status_code=404, detail="Data entity not found")
+        if entity.get("project_id") != str(project_id):
+            raise HTTPException(status_code=403, detail="Data entity does not belong to this project")
+        return entity
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"Failed to get data entity {entity_id}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.patch("/data-entities/{entity_id}")
+async def update_data_entity_endpoint(project_id: UUID, entity_id: UUID, data: DataEntityUpdate) -> dict:
+    """Update a data entity."""
+    from app.db.data_entities import get_data_entity_detail, update_data_entity
+
+    try:
+        existing = get_data_entity_detail(entity_id)
+        if not existing:
+            raise HTTPException(status_code=404, detail="Data entity not found")
+        if existing.get("project_id") != str(project_id):
+            raise HTTPException(status_code=403, detail="Data entity does not belong to this project")
+        updated = update_data_entity(entity_id, data.model_dump(exclude_none=True))
+        return updated
+    except HTTPException:
+        raise
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.exception(f"Failed to update data entity {entity_id}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.delete("/data-entities/{entity_id}")
+async def delete_data_entity_endpoint(project_id: UUID, entity_id: UUID) -> dict:
+    """Delete a data entity."""
+    from app.db.data_entities import delete_data_entity, get_data_entity_detail
+
+    try:
+        existing = get_data_entity_detail(entity_id)
+        if not existing:
+            raise HTTPException(status_code=404, detail="Data entity not found")
+        if existing.get("project_id") != str(project_id):
+            raise HTTPException(status_code=403, detail="Data entity does not belong to this project")
+        delete_data_entity(entity_id)
+        return {"success": True, "entity_id": str(entity_id)}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"Failed to delete data entity {entity_id}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================================
+# Data Entity Workflow Linkage
+# ============================================================================
+
+
+@router.post("/data-entities/{entity_id}/workflow-links", response_model=DataEntityWorkflowLink)
+async def link_data_entity_to_step_endpoint(
+    project_id: UUID, entity_id: UUID, data: DataEntityWorkflowLinkCreate
+) -> DataEntityWorkflowLink:
+    """Link a data entity to a workflow step with a CRUD operation."""
+    from app.db.data_entities import get_data_entity_detail, link_entity_to_step
+
+    try:
+        existing = get_data_entity_detail(entity_id)
+        if not existing:
+            raise HTTPException(status_code=404, detail="Data entity not found")
+        if existing.get("project_id") != str(project_id):
+            raise HTTPException(status_code=403, detail="Data entity does not belong to this project")
+
+        link = link_entity_to_step(
+            entity_id, UUID(data.vp_step_id), data.operation_type, data.description
+        )
+        return DataEntityWorkflowLink(
+            id=link["id"],
+            vp_step_id=link["vp_step_id"],
+            operation_type=link["operation_type"],
+            description=link.get("description", ""),
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"Failed to link data entity {entity_id} to step")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.delete("/data-entities/{entity_id}/workflow-links/{link_id}")
+async def unlink_data_entity_from_step_endpoint(
+    project_id: UUID, entity_id: UUID, link_id: UUID
+) -> dict:
+    """Remove a data entity / workflow step link."""
+    from app.db.data_entities import unlink_entity_from_step
+
+    try:
+        unlink_entity_from_step(link_id)
+        return {"success": True, "link_id": str(link_id)}
+    except Exception as e:
+        logger.exception(f"Failed to unlink data entity {entity_id} from step")
         raise HTTPException(status_code=500, detail=str(e))

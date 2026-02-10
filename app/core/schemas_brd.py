@@ -2,6 +2,9 @@
 
 from pydantic import BaseModel, Field
 
+from app.core.schemas_data_entities import DataEntityBRDSummary
+from app.core.schemas_workflows import ROISummary, WorkflowPair
+
 
 class EvidenceItem(BaseModel):
     """Evidence citation from a source signal."""
@@ -132,8 +135,11 @@ class BRDWorkspaceData(BaseModel):
     workflows: list[VpStepBRDSummary] = []
     requirements: RequirementsSection = Field(default_factory=RequirementsSection)
     constraints: list[ConstraintSummary] = []
+    data_entities: list[DataEntityBRDSummary] = []
     readiness_score: float = 0.0
     pending_count: int = 0
+    workflow_pairs: list[WorkflowPair] = []
+    roi_summary: list[ROISummary] = []
 
 
 # ============================================================================

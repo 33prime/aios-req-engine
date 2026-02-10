@@ -109,6 +109,17 @@ def get_existing_entities(project_id: UUID) -> dict[str, list[dict]]:
         except Exception:
             company_info = None
 
+        # Fetch data entities
+        try:
+            data_entities = (
+                supabase.table("data_entities")
+                .select("id, name, description, entity_category, fields")
+                .eq("project_id", str(project_id))
+                .execute()
+            ).data or []
+        except Exception:
+            data_entities = []
+
         return {
             "features": features,
             "personas": personas,
@@ -118,6 +129,7 @@ def get_existing_entities(project_id: UUID) -> dict[str, list[dict]]:
             "business_drivers": business_drivers,
             "competitor_refs": competitor_refs,
             "company_info": company_info,
+            "data_entities": data_entities,
         }
 
     except Exception as e:
@@ -131,6 +143,7 @@ def get_existing_entities(project_id: UUID) -> dict[str, list[dict]]:
             "business_drivers": [],
             "competitor_refs": [],
             "company_info": None,
+            "data_entities": [],
         }
 
 
@@ -972,6 +985,87 @@ def consolidate_company_info(
     return changes
 
 
+def consolidate_data_entities(
+    extracted: list[ExtractedEntity],
+    existing_data_entities: list[dict],
+) -> list[ConsolidatedChange]:
+    """Consolidate extracted data entities with existing ones."""
+    changes = []
+    seen_names: set[str] = set()
+
+    matcher = SimilarityMatcher(entity_type="feature")
+    important_fields = ["name", "description", "entity_category"]
+
+    for entity in extracted:
+        if entity.entity_type != "data_entity":
+            continue
+
+        name = extract_name_from_entity(entity)
+        if not name:
+            continue
+
+        name_lower = name.lower().strip()
+        if name_lower in seen_names:
+            continue
+        seen_names.add(name_lower)
+
+        raw = entity.raw_data
+
+        match_result = matcher.find_best_match(
+            candidate=name,
+            corpus=existing_data_entities,
+            text_field="name",
+            id_field="id",
+        )
+
+        if not match_result.is_match:
+            changes.append(ConsolidatedChange(
+                entity_type="data_entity",
+                operation="create",
+                entity_name=name,
+                after={
+                    "name": name,
+                    "description": raw.get("detail") or raw.get("description", ""),
+                    "entity_category": raw.get("entity_category", "domain"),
+                    "fields": raw.get("fields", []),
+                },
+                evidence=[
+                    {"excerpt": exc, "source": "signal"}
+                    for exc in entity.evidence_excerpts
+                ],
+                rationale=f"New data entity identified: {name}",
+                confidence=0.75,
+            ))
+
+        elif match_result.matched_item:
+            matched = match_result.matched_item
+            new_data = {
+                "description": raw.get("detail") or raw.get("description"),
+            }
+
+            field_changes = detect_field_changes(matched, new_data, important_fields)
+
+            if field_changes:
+                changes.append(ConsolidatedChange(
+                    entity_type="data_entity",
+                    operation="update",
+                    entity_id=UUID(matched["id"]),
+                    entity_name=matched.get("name"),
+                    before={f.field_name: f.old_value for f in field_changes},
+                    after={f.field_name: f.new_value for f in field_changes},
+                    field_changes=field_changes,
+                    evidence=[
+                        {"excerpt": exc, "source": "signal"}
+                        for exc in entity.evidence_excerpts
+                    ],
+                    rationale=f"Updated data entity with new details",
+                    confidence=0.7,
+                    similarity_score=match_result.score,
+                ))
+
+    return changes
+
+
 def facts_to_entities(facts: list[dict]) -> list[ExtractedEntity]:
     """
     Convert extracted facts to typed entities for consolidation.
@@ -1004,6 +1098,8 @@ def facts_to_entities(facts: list[dict]) -> list[ExtractedEntity]:
         "journey": "vp_step",
         "stage": "vp_step",
         "vp_step": "vp_step",
+        "current_process": "vp_step",
+        "future_process": "vp_step",
 
         # Stakeholders - people mentioned in signals
         "stakeholder": "stakeholder",
@@ -1037,6 +1133,13 @@ def facts_to_entities(facts: list[dict]) -> list[ExtractedEntity]:
 
         # Company Info - client company details
         "company_info": "company_info",
+
+        # Data Entities - domain data objects
+        "data_entity": "data_entity",
+        "entity": "data_entity",
+        "data_object": "data_entity",
+        "record_type": "data_entity",
+        "model": "data_entity",
     }
 
     for fact in facts:
@@ -1170,10 +1273,15 @@ def consolidate_extractions(
         existing.get("company_info"),
     )
 
+    data_entities = consolidate_data_entities(
+        [e for e in all_entities if e.entity_type == "data_entity"],
+        existing.get("data_entities", []),
+    )
+
     # Calculate summary
     all_changes = (
         features + personas + vp_steps + stakeholders + constraints +
-        business_drivers + competitor_refs + company_info
+        business_drivers + competitor_refs + company_info + data_entities
     )
     total_creates = sum(1 for c in all_changes if c.operation == "create")
     total_updates = sum(1 for c in all_changes if c.operation == "update")
@@ -1191,6 +1299,7 @@ def consolidate_extractions(
         business_drivers=business_drivers,
         competitor_refs=competitor_refs,
         company_info=company_info,
+        data_entities=data_entities,
         total_creates=total_creates,
         total_updates=total_updates,
         duplicates_merged=duplicates_merged,
@@ -1209,6 +1318,7 @@ def consolidate_extractions(
             "business_drivers": len(business_drivers),
             "competitor_refs": len(competitor_refs),
             "company_info": len(company_info),
+            "data_entities": len(data_entities),
         },
     )
 

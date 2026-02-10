@@ -145,6 +145,85 @@ export interface FeatureBRDSummary {
 
 export type MoSCoWGroup = 'must_have' | 'should_have' | 'could_have' | 'out_of_scope'
 
+// ============================================
+// Workflow Current/Future State Types
+// ============================================
+
+export type AutomationLevel = 'manual' | 'semi_automated' | 'fully_automated'
+
+export interface WorkflowStepSummary {
+  id: string
+  step_index: number
+  label: string
+  description?: string | null
+  actor_persona_id?: string | null
+  actor_persona_name?: string | null
+  time_minutes?: number | null
+  pain_description?: string | null
+  benefit_description?: string | null
+  automation_level: AutomationLevel
+  operation_type?: string | null
+  confirmation_status?: string | null
+  feature_ids?: string[]
+  feature_names?: string[]
+}
+
+export interface ROISummary {
+  workflow_name: string
+  current_total_minutes: number
+  future_total_minutes: number
+  time_saved_minutes: number
+  time_saved_percent: number
+  cost_saved_per_week: number
+  cost_saved_per_year: number
+  steps_automated: number
+  steps_total: number
+}
+
+export interface WorkflowPair {
+  id: string
+  name: string
+  description?: string
+  owner?: string | null
+  confirmation_status?: string | null
+  current_workflow_id?: string | null
+  future_workflow_id?: string | null
+  current_steps: WorkflowStepSummary[]
+  future_steps: WorkflowStepSummary[]
+  roi?: ROISummary | null
+}
+
+// ============================================
+// Data Entity Types
+// ============================================
+
+export interface DataEntityFieldDef {
+  name: string
+  type: string
+  required: boolean
+  description?: string
+  constraints?: string | null
+}
+
+export interface DataEntityBRDSummary {
+  id: string
+  name: string
+  description?: string | null
+  entity_category: 'domain' | 'reference' | 'transactional' | 'system'
+  field_count: number
+  workflow_step_count: number
+  confirmation_status?: string | null
+  evidence?: BRDEvidence[]
+}
+
+export interface DataEntityWorkflowLink {
+  id: string
+  vp_step_id: string
+  vp_step_label?: string | null
+  operation_type: string
+  description?: string
+}
+
 export interface BRDWorkspaceData {
   business_context: {
     background?: string | null
@@ -164,8 +243,11 @@ export interface BRDWorkspaceData {
     out_of_scope: FeatureBRDSummary[]
   }
   constraints: ConstraintItem[]
+  data_entities: DataEntityBRDSummary[]
   readiness_score: number
   pending_count: number
+  workflow_pairs: WorkflowPair[]
+  roi_summary: ROISummary[]
 }
 
 // ============================================

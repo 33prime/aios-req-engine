@@ -18,6 +18,7 @@ EntityType = Literal[
     "stakeholder",
     "risk",
     "strategic_context",
+    "data_entity",
 ]
 
 RevisionType = Literal["created", "enriched", "updated", "merged"]

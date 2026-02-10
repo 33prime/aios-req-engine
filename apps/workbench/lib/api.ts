@@ -2098,6 +2098,192 @@ export const updateProjectBackground = (projectId: string, background: string) =
   )
 
 // ============================================
+// Workflow CRUD APIs
+// ============================================
+
+import type { WorkflowPair } from '@/types/workspace'
+
+export const createWorkflow = (
+  projectId: string,
+  data: {
+    name: string
+    description?: string
+    owner?: string
+    state_type?: 'current' | 'future'
+    paired_workflow_id?: string
+    frequency_per_week?: number
+    hourly_rate?: number
+  }
+) =>
+  apiRequest<Record<string, unknown>>(`/projects/${projectId}/workspace/workflows`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+
+export const updateWorkflow = (
+  projectId: string,
+  workflowId: string,
+  data: {
+    name?: string
+    description?: string
+    owner?: string
+    frequency_per_week?: number
+    hourly_rate?: number
+  }
+) =>
+  apiRequest<Record<string, unknown>>(`/projects/${projectId}/workspace/workflows/${workflowId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  })
+
+export const deleteWorkflow = (projectId: string, workflowId: string) =>
+  apiRequest<{ success: boolean; workflow_id: string }>(
+    `/projects/${projectId}/workspace/workflows/${workflowId}`,
+    { method: 'DELETE' }
+  )
+
+export const createWorkflowStep = (
+  projectId: string,
+  workflowId: string,
+  data: {
+    step_index: number
+    label: string
+    description?: string
+    actor_persona_id?: string
+    time_minutes?: number
+    pain_description?: string
+    benefit_description?: string
+    automation_level?: 'manual' | 'semi_automated' | 'fully_automated'
+    operation_type?: string
+  }
+) =>
+  apiRequest<Record<string, unknown>>(
+    `/projects/${projectId}/workspace/workflows/${workflowId}/steps`,
+    {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }
+  )
+
+export const updateWorkflowStep = (
+  projectId: string,
+  workflowId: string,
+  stepId: string,
+  data: {
+    label?: string
+    description?: string
+    time_minutes?: number
+    pain_description?: string
+    benefit_description?: string
+    automation_level?: string
+    operation_type?: string
+  }
+) =>
+  apiRequest<Record<string, unknown>>(
+    `/projects/${projectId}/workspace/workflows/${workflowId}/steps/${stepId}`,
+    {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    }
+  )
+
+export const deleteWorkflowStep = (
+  projectId: string,
+  workflowId: string,
+  stepId: string
+) =>
+  apiRequest<{ success: boolean; step_id: string }>(
+    `/projects/${projectId}/workspace/workflows/${workflowId}/steps/${stepId}`,
+    { method: 'DELETE' }
+  )
+
+export const pairWorkflows = (
+  projectId: string,
+  workflowId: string,
+  pairedWorkflowId: string
+) =>
+  apiRequest<{ success: boolean; workflow_id: string; paired_workflow_id: string }>(
+    `/projects/${projectId}/workspace/workflows/${workflowId}/pair`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ paired_workflow_id: pairedWorkflowId }),
+    }
+  )
+
+export const getWorkflowPairs = (projectId: string) =>
+  apiRequest<WorkflowPair[]>(`/projects/${projectId}/workspace/workflows/pairs`)
+
+// ============================================
+// Data Entity APIs
+// ============================================
+
+export const createDataEntity = (
+  projectId: string,
+  data: {
+    name: string
+    description?: string
+    entity_category?: 'domain' | 'reference' | 'transactional' | 'system'
+    fields?: Array<{ name: string; type?: string; required?: boolean; description?: string }>
+  }
+) =>
+  apiRequest<Record<string, unknown>>(`/projects/${projectId}/workspace/data-entities`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+
+export const updateDataEntity = (
+  projectId: string,
+  entityId: string,
+  data: {
+    name?: string
+    description?: string
+    entity_category?: string
+    fields?: Array<{ name: string; type?: string; required?: boolean; description?: string }>
+  }
+) =>
+  apiRequest<Record<string, unknown>>(
+    `/projects/${projectId}/workspace/data-entities/${entityId}`,
+    {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    }
+  )
+
+export const deleteDataEntity = (projectId: string, entityId: string) =>
+  apiRequest<{ success: boolean; entity_id: string }>(
+    `/projects/${projectId}/workspace/data-entities/${entityId}`,
+    { method: 'DELETE' }
+  )
+
+export const getDataEntityDetail = (projectId: string, entityId: string) =>
+  apiRequest<Record<string, unknown>>(
+    `/projects/${projectId}/workspace/data-entities/${entityId}`
+  )
+
+export const linkDataEntityToStep = (
+  projectId: string,
+  entityId: string,
+  data: { vp_step_id: string; operation_type: string; description?: string }
+) =>
+  apiRequest<{ id: string; vp_step_id: string; operation_type: string; description: string }>(
+    `/projects/${projectId}/workspace/data-entities/${entityId}/workflow-links`,
+    {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }
+  )
+
+export const unlinkDataEntityFromStep = (
+  projectId: string,
+  entityId: string,
+  linkId: string
+) =>
+  apiRequest<{ success: boolean; link_id: string }>(
+    `/projects/${projectId}/workspace/data-entities/${entityId}/workflow-links/${linkId}`,
+    { method: 'DELETE' }
+  )
+
+// ============================================
 // Prototype Refinement APIs
 // ============================================
 

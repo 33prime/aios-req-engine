@@ -79,6 +79,12 @@ CONSTRAINT: A requirement limiting HOW features must be built.
   - Integration: "Must integrate with Azure", "Must work with existing EMR"
   - Architecture: "Cloud-based on Azure", "Real-time data sync required"
 
+DATA_ENTITY: A data object or record type that the system manages.
+  - A noun/object in the domain model that gets created, stored, or manipulated
+  - Include key fields in the detail if mentioned
+  - GOOD: "Patient Record", "Invoice", "Work Order", "Appointment Slot"
+  - BAD: "database" (too generic), "data" (too vague)
+
 PERSONA: A user archetype with specific goals and pain points.
   - title: SHORT role name only (1-3 words, e.g., "Care Staff", "Leadership", "Data Analyst")
   - detail: Include goals and pain points in the detail field, NOT in the title
@@ -90,7 +96,15 @@ STAKEHOLDER: A named person involved in the project.
   - Include name, role/title, and relationship to project
   - Example: "Susan Cordts - Client stakeholder, decision maker on technical requirements"
 
-VP_STEP / PROCESS: A step in the user's journey or workflow.
+CURRENT_PROCESS: A step describing how things work TODAY (existing workflow, manual step, current pain).
+  - Signals: "Today we manually...", "Currently the process is...", "Right now they have to..."
+  - Examples: "Staff manually reviews PDF logs before each visit", "Admin copies data between three spreadsheets"
+
+FUTURE_PROCESS: A step describing how the PROPOSED SYSTEM will work (automated step, future benefit).
+  - Signals: "The system will...", "Users will be able to...", "This automates..."
+  - Examples: "System auto-imports member data from CRM", "Dashboard shows real-time alerts"
+
+VP_STEP / PROCESS: A general process step when current/future state is unclear.
   - Part of a sequence with clear trigger and outcome
   - Examples: "Staff reviews member data before weekly meeting", "User asks question via chat interface", "System generates SQL query from natural language"
 
@@ -114,7 +128,7 @@ You MUST output ONLY valid JSON matching this exact schema:
   "summary": "string - brief summary of what was extracted",
   "facts": [
     {
-      "fact_type": "feature|constraint|persona|stakeholder|kpi|pain|goal|process|risk|assumption|competitor|design_inspiration",
+      "fact_type": "feature|constraint|persona|stakeholder|kpi|pain|goal|current_process|future_process|process|risk|assumption|competitor|design_inspiration|data_entity",
       "title": "string - SHORT title (3-8 words for features, concise for others)",
       "detail": "string - detailed description. For inferred facts, start with '[AI Suggestion] '",
       "confidence": "low|medium|high",
@@ -159,10 +173,11 @@ You MUST output ONLY valid JSON matching this exact schema:
 4. Mark inferred/suggested items with confidence: "low" and prefix detail with "[AI Suggestion] ".
 5. FEATURE titles should be descriptive (3-15 words). Include enough context to understand the capability.
 6. Do NOT classify constraints, compliance, or KPIs as features. Use the correct fact_type.
-7. Extract EVERY workflow step mentioned as VP_STEP facts.
+7. Extract EVERY workflow step mentioned. Classify as CURRENT_PROCESS (how it works today), FUTURE_PROCESS (how the system will improve it), or VP_STEP (when unclear).
 8. Extract EVERY user role/type mentioned as PERSONA facts.
 9. Be AGGRESSIVE - extract everything mentioned. Over-extraction is better than under-extraction.
-10. ALWAYS look for client_info: company name, industry, website, and competitors."""
+10. ALWAYS look for client_info: company name, industry, website, and competitors.
+11. When you detect both current and future process steps for the same workflow, extract BOTH separately with the correct fact_type."""
 
 
 FIX_SCHEMA_PROMPT = """The previous output was invalid. Here is the error:

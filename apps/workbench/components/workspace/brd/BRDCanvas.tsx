@@ -7,12 +7,22 @@ import { ActorsSection } from './sections/ActorsSection'
 import { WorkflowsSection } from './sections/WorkflowsSection'
 import { RequirementsSection } from './sections/RequirementsSection'
 import { ConstraintsSection } from './sections/ConstraintsSection'
+import { DataEntitiesSection } from './sections/DataEntitiesSection'
+import { WorkflowCreateModal } from './components/WorkflowCreateModal'
+import { WorkflowStepEditor } from './components/WorkflowStepEditor'
+import { DataEntityCreateModal } from './components/DataEntityCreateModal'
 import {
   getBRDWorkspaceData,
   updateProjectVision,
   updateProjectBackground,
   updateFeaturePriority,
   batchConfirmEntities,
+  createWorkflow,
+  deleteWorkflow,
+  createWorkflowStep,
+  deleteWorkflowStep,
+  createDataEntity,
+  deleteDataEntity,
 } from '@/lib/api'
 import type { BRDWorkspaceData, MoSCoWGroup } from '@/types/workspace'
 
@@ -157,6 +167,115 @@ export function BRDCanvas({ projectId, onRefresh }: BRDCanvasProps) {
     }
   }, [data, projectId, loadData])
 
+  // ============================================================================
+  // Workflow CRUD
+  // ============================================================================
+
+  const [showCreateDataEntity, setShowCreateDataEntity] = useState(false)
+  const [showCreateWorkflow, setShowCreateWorkflow] = useState(false)
+  const [stepEditorState, setStepEditorState] = useState<{
+    open: boolean
+    workflowId: string
+    stateType: 'current' | 'future'
+  }>({ open: false, workflowId: '', stateType: 'future' })
+
+  const handleCreateWorkflow = useCallback(async (wfData: {
+    name: string
+    description: string
+    owner: string
+    state_type: 'current' | 'future'
+    frequency_per_week: number
+    hourly_rate: number
+  }) => {
+    try {
+      await createWorkflow(projectId, wfData)
+      setShowCreateWorkflow(false)
+      loadData()
+    } catch (err) {
+      console.error('Failed to create workflow:', err)
+    }
+  }, [projectId, loadData])
+
+  const handleDeleteWorkflow = useCallback(async (workflowId: string) => {
+    try {
+      await deleteWorkflow(projectId, workflowId)
+      loadData()
+    } catch (err) {
+      console.error('Failed to delete workflow:', err)
+    }
+  }, [projectId, loadData])
+
+  const handleCreateStep = useCallback(async (stepData: {
+    label: string
+    description: string
+    time_minutes: number | undefined
+    automation_level: string
+    operation_type: string | undefined
+    pain_description: string
+    benefit_description: string
+  }) => {
+    if (!stepEditorState.workflowId) return
+    // Compute step_index: count existing steps in the pair for this side
+    const pair = data?.workflow_pairs?.find(
+      (p) => p.current_workflow_id === stepEditorState.workflowId || p.future_workflow_id === stepEditorState.workflowId
+    )
+    const existingSteps = stepEditorState.stateType === 'current' ? pair?.current_steps : pair?.future_steps
+    const nextIndex = (existingSteps?.length || 0) + 1
+
+    try {
+      await createWorkflowStep(projectId, stepEditorState.workflowId, {
+        step_index: nextIndex,
+        label: stepData.label,
+        description: stepData.description || undefined,
+        time_minutes: stepData.time_minutes,
+        automation_level: stepData.automation_level as 'manual' | 'semi_automated' | 'fully_automated',
+        operation_type: stepData.operation_type,
+        pain_description: stepData.pain_description || undefined,
+        benefit_description: stepData.benefit_description || undefined,
+      })
+      setStepEditorState({ open: false, workflowId: '', stateType: 'future' })
+      loadData()
+    } catch (err) {
+      console.error('Failed to create step:', err)
+    }
+  }, [projectId, stepEditorState, data, loadData])
+
+  const handleDeleteStep = useCallback(async (workflowId: string, stepId: string) => {
+    try {
+      await deleteWorkflowStep(projectId, workflowId, stepId)
+      loadData()
+    } catch (err) {
+      console.error('Failed to delete step:', err)
+    }
+  }, [projectId, loadData])
+
+  // ============================================================================
+  // Data Entity CRUD
+  // ============================================================================
+
+  const handleCreateDataEntity = useCallback(async (entityData: {
+    name: string
+    description: string
+    entity_category: 'domain' | 'reference' | 'transactional' | 'system'
+  }) => {
+    try {
+      await createDataEntity(projectId, entityData)
+      setShowCreateDataEntity(false)
+      loadData()
+    } catch (err) {
+      console.error('Failed to create data entity:', err)
+    }
+  }, [projectId, loadData])
+
+  const handleDeleteDataEntity = useCallback(async (entityId: string) => {
+    try {
+      await deleteDataEntity(projectId, entityId)
+      loadData()
+    } catch (err) {
+      console.error('Failed to delete data entity:', err)
+    }
+  }, [projectId, loadData])
+
   if (isLoading) {
     return (
       <div className="max-w-4xl mx-auto py-16 text-center">
@@ -248,9 +367,17 @@ export function BRDCanvas({ projectId, onRefresh }: BRDCanvasProps) {
 
         <WorkflowsSection
           workflows={data.workflows}
+          workflowPairs={data.workflow_pairs}
+          roiSummary={data.roi_summary}
           onConfirm={handleConfirm}
           onNeedsReview={handleNeedsReview}
           onConfirmAll={handleConfirmAll}
+          onCreateWorkflow={() => setShowCreateWorkflow(true)}
+          onDeleteWorkflow={handleDeleteWorkflow}
+          onCreateStep={(workflowId, stateType) =>
+            setStepEditorState({ open: true, workflowId, stateType })
+          }
+          onDeleteStep={handleDeleteStep}
         />
 
         <div className="border-t border-[#e9e9e7]" />
@@ -265,6 +392,17 @@ export function BRDCanvas({ projectId, onRefresh }: BRDCanvasProps) {
 
         <div className="border-t border-[#e9e9e7]" />
 
+        <DataEntitiesSection
+          dataEntities={data.data_entities}
+          onConfirm={handleConfirm}
+          onNeedsReview={handleNeedsReview}
+          onConfirmAll={handleConfirmAll}
+          onCreateEntity={() => setShowCreateDataEntity(true)}
+          onDeleteEntity={handleDeleteDataEntity}
+        />
+
+        <div className="border-t border-[#e9e9e7]" />
+
         <ConstraintsSection
           constraints={data.constraints}
           onConfirm={handleConfirm}
@@ -272,6 +410,28 @@ export function BRDCanvas({ projectId, onRefresh }: BRDCanvasProps) {
           onConfirmAll={handleConfirmAll}
         />
       </div>
+
+      {/* Data Entity Create Modal */}
+      <DataEntityCreateModal
+        open={showCreateDataEntity}
+        onClose={() => setShowCreateDataEntity(false)}
+        onSave={handleCreateDataEntity}
+      />
+
+      {/* Workflow Create Modal */}
+      <WorkflowCreateModal
+        open={showCreateWorkflow}
+        onClose={() => setShowCreateWorkflow(false)}
+        onSave={handleCreateWorkflow}
+      />
+
+      {/* Workflow Step Editor */}
+      <WorkflowStepEditor
+        open={stepEditorState.open}
+        stateType={stepEditorState.stateType}
+        onClose={() => setStepEditorState({ open: false, workflowId: '', stateType: 'future' })}
+        onSave={handleCreateStep}
+      />
     </div>
   )
 }
@@ -328,6 +488,10 @@ function applyConfirmationUpdate(
     update.constraints = update.constraints.map((c) =>
       c.id === entityId ? { ...c, confirmation_status: status } : c
     )
+  } else if (entityType === 'data_entity') {
+    update.data_entities = update.data_entities.map((d) =>
+      d.id === entityId ? { ...d, confirmation_status: status } : d
+    )
   }
 
   return update
@@ -370,7 +534,8 @@ function countEntities(data: BRDWorkspaceData): number {
     data.requirements.must_have.length +
     data.requirements.should_have.length +
     data.requirements.could_have.length +
-    data.constraints.length
+    data.constraints.length +
+    data.data_entities.length
   )
 }
 
@@ -387,6 +552,7 @@ function countConfirmed(data: BRDWorkspaceData): number {
     data.requirements.must_have.filter((f) => isConfirmed(f.confirmation_status)).length +
     data.requirements.should_have.filter((f) => isConfirmed(f.confirmation_status)).length +
     data.requirements.could_have.filter((f) => isConfirmed(f.confirmation_status)).length +
-    data.constraints.filter((c) => isConfirmed(c.confirmation_status)).length
+    data.constraints.filter((c) => isConfirmed(c.confirmation_status)).length +
+    data.data_entities.filter((d) => isConfirmed(d.confirmation_status)).length
   )
 }
