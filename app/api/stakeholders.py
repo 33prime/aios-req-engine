@@ -416,13 +416,13 @@ async def get_stakeholder(
         try:
             dep_result = (
                 supabase.table("entity_dependencies")
-                .select("target_id")
-                .eq("source_type", "stakeholder")
-                .eq("source_id", str(stakeholder_id))
-                .eq("target_type", "feature")
+                .select("target_entity_id")
+                .eq("source_entity_type", "stakeholder")
+                .eq("source_entity_id", str(stakeholder_id))
+                .eq("target_entity_type", "feature")
                 .execute()
             )
-            feature_ids = [d["target_id"] for d in (dep_result.data or [])]
+            feature_ids = [d["target_entity_id"] for d in (dep_result.data or [])]
             if feature_ids:
                 f_result = (
                     supabase.table("features")
@@ -687,10 +687,15 @@ async def list_all_stakeholders(
     offset: int = Query(0, ge=0),
 ) -> PeopleListResponse:
     """List all stakeholders across projects with optional filters."""
-    from app.db.supabase_client import get_supabase
+    from supabase import create_client
+    from app.core.config import get_settings
 
     try:
-        supabase = get_supabase()
+        # Use a fresh service-role client to bypass RLS for cross-project queries.
+        # The shared singleton from get_supabase() may have been mutated by auth
+        # middleware, causing RLS to filter out rows with a stale JWT.
+        settings = get_settings()
+        supabase = create_client(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_ROLE_KEY)
 
         query = supabase.table("stakeholders").select(
             "*, projects(name)", count="exact"
