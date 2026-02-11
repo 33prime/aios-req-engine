@@ -24,8 +24,8 @@ export function ConfirmActions({ status, onConfirm, onNeedsReview, size = 'sm' }
         disabled={isConfirmed}
         className={`${btnBase} font-medium inline-flex items-center gap-1 transition-colors ${
           isConfirmed
-            ? 'bg-teal-50 text-teal-700 cursor-default'
-            : 'bg-white border border-gray-200 text-gray-600 hover:bg-teal-50 hover:text-teal-700 hover:border-teal-200'
+            ? 'bg-[#E8F5E9] text-[#25785A] cursor-default'
+            : 'bg-white border border-gray-200 text-gray-600 hover:bg-[#E8F5E9] hover:text-[#25785A] hover:border-[#3FAF7A]'
         }`}
       >
         <Check className="w-3 h-3" />
@@ -37,8 +37,8 @@ export function ConfirmActions({ status, onConfirm, onNeedsReview, size = 'sm' }
           disabled={isNeedsReview}
           className={`${btnBase} font-medium inline-flex items-center gap-1 transition-colors ${
             isNeedsReview
-              ? 'bg-yellow-50 text-yellow-700 cursor-default'
-              : 'bg-white border border-gray-200 text-gray-600 hover:bg-yellow-50 hover:text-yellow-700 hover:border-yellow-200'
+              ? 'bg-gray-100 text-gray-600 cursor-default'
+              : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-100 hover:text-gray-700 hover:border-gray-300'
           }`}
         >
           <AlertCircle className="w-3 h-3" />
