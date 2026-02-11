@@ -124,13 +124,13 @@ export function RequirementsSection({
 
         <DragOverlay>
           {activeDragFeature ? (
-            <div className="bg-white border border-[#009b87] rounded-[3px] shadow-lg px-4 py-3 max-w-md opacity-90">
+            <div className="bg-white border border-[#3FAF7A] rounded-2xl shadow-lg px-4 py-3 max-w-md opacity-90">
               <div className="flex items-center gap-2">
-                <Package className="w-4 h-4 text-[#009b87]" />
-                <span className="text-[14px] font-medium text-[#37352f]">{activeDragFeature.name}</span>
+                <Package className="w-4 h-4 text-[#3FAF7A]" />
+                <span className="text-[14px] font-medium text-[#333333]">{activeDragFeature.name}</span>
               </div>
               {activeDragFeature.description && (
-                <p className="text-[12px] text-[rgba(55,53,47,0.65)] mt-1 truncate">
+                <p className="text-[12px] text-[#666666] mt-1 truncate">
                   {activeDragFeature.description}
                 </p>
               )}
