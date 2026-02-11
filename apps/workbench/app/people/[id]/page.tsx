@@ -2,14 +2,17 @@
 
 import { useState, useEffect } from 'react'
 import { useParams, useSearchParams, useRouter } from 'next/navigation'
+import { Loader2 } from 'lucide-react'
 import { getStakeholder } from '@/lib/api'
 import type { StakeholderDetail } from '@/types/workspace'
 import { AppSidebar } from '@/components/workspace/AppSidebar'
 import { StakeholderHeader } from './components/StakeholderHeader'
 import { StakeholderOverviewTab } from './components/StakeholderOverviewTab'
-import { StakeholderEnrichmentTab } from './components/StakeholderEnrichmentTab'
+import { StakeholderActivityTab } from './components/StakeholderActivityTab'
+import { StakeholderEvidenceTab } from './components/StakeholderEvidenceTab'
+import { StakeholderInsightsTab } from './components/StakeholderInsightsTab'
 
-type TabId = 'overview' | 'enrichment'
+type TabId = 'overview' | 'activity' | 'evidence' | 'insights'
 
 export default function PersonDetailPage() {
   const params = useParams()
@@ -27,7 +30,7 @@ export default function PersonDetailPage() {
   useEffect(() => {
     if (!stakeholderId || !projectId) return
     setLoading(true)
-    getStakeholder(projectId, stakeholderId)
+    getStakeholder(projectId, stakeholderId, true)
       .then((data) => {
         setStakeholder(data)
         setError(null)
@@ -43,17 +46,19 @@ export default function PersonDetailPage() {
 
   const tabs: { id: TabId; label: string }[] = [
     { id: 'overview', label: 'Overview' },
-    { id: 'enrichment', label: 'Enrichment (AI)' },
+    { id: 'activity', label: 'Activity' },
+    { id: 'evidence', label: 'Evidence & Sources' },
+    { id: 'insights', label: 'AI Insights' },
   ]
 
   if (loading) {
     return (
       <>
         <AppSidebar isCollapsed={sidebarCollapsed} onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)} />
-        <div className="min-h-screen bg-[#FAFAFA] flex items-center justify-center transition-all duration-300" style={{ marginLeft: sidebarWidth }}>
+        <div className="min-h-screen bg-[#F4F4F4] flex items-center justify-center transition-all duration-300" style={{ marginLeft: sidebarWidth }}>
           <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#009b87] mx-auto mb-4" />
-            <p className="text-sm text-[rgba(55,53,47,0.45)]">Loading stakeholder...</p>
+            <Loader2 className="w-8 h-8 text-[#3FAF7A] animate-spin mx-auto mb-3" />
+            <p className="text-[13px] text-[#999]">Loading stakeholder...</p>
           </div>
         </div>
       </>
@@ -64,12 +69,12 @@ export default function PersonDetailPage() {
     return (
       <>
         <AppSidebar isCollapsed={sidebarCollapsed} onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)} />
-        <div className="min-h-screen bg-[#FAFAFA] flex items-center justify-center transition-all duration-300" style={{ marginLeft: sidebarWidth }}>
+        <div className="min-h-screen bg-[#F4F4F4] flex items-center justify-center transition-all duration-300" style={{ marginLeft: sidebarWidth }}>
           <div className="text-center">
-            <p className="text-red-500 mb-3">{error || 'Stakeholder not found'}</p>
+            <p className="text-[14px] text-[#666] mb-3">{error || 'Stakeholder not found'}</p>
             <button
               onClick={() => router.push('/people')}
-              className="px-4 py-2 text-sm text-white bg-[#009b87] rounded-md hover:bg-[#008474] transition-colors"
+              className="px-6 py-3 text-[13px] font-medium text-white bg-[#3FAF7A] rounded-xl hover:bg-[#25785A] transition-colors"
             >
               Back to People
             </button>
@@ -82,15 +87,15 @@ export default function PersonDetailPage() {
   return (
     <>
       <AppSidebar isCollapsed={sidebarCollapsed} onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)} />
-      <div className="min-h-screen bg-[#FAFAFA] transition-all duration-300" style={{ marginLeft: sidebarWidth }}>
-        <div className="max-w-[800px] mx-auto px-4 py-6">
+      <div className="min-h-screen bg-[#F4F4F4] transition-all duration-300" style={{ marginLeft: sidebarWidth }}>
+        <div className="max-w-[1200px] mx-auto px-6 py-6">
           <StakeholderHeader
             stakeholder={stakeholder}
             onBack={() => router.push('/people')}
           />
 
           {/* Tabs */}
-          <div className="border-b border-gray-200 mb-6">
+          <div className="border-b border-[#E5E5E5] mb-6">
             <div className="flex gap-6">
               {tabs.map((tab) => (
                 <button
@@ -98,8 +103,8 @@ export default function PersonDetailPage() {
                   onClick={() => setActiveTab(tab.id)}
                   className={`pb-2.5 text-[13px] font-medium border-b-2 transition-colors ${
                     activeTab === tab.id
-                      ? 'text-[#009b87] border-[#009b87]'
-                      : 'text-[rgba(55,53,47,0.45)] border-transparent hover:text-[rgba(55,53,47,0.65)]'
+                      ? 'text-[#3FAF7A] border-[#3FAF7A]'
+                      : 'text-[#999] border-transparent hover:text-[#666]'
                   }`}
                 >
                   {tab.label}
@@ -109,10 +114,10 @@ export default function PersonDetailPage() {
           </div>
 
           {/* Tab Content */}
-          <div className="bg-white rounded-lg border border-gray-200 p-6">
-            {activeTab === 'overview' && <StakeholderOverviewTab stakeholder={stakeholder} />}
-            {activeTab === 'enrichment' && <StakeholderEnrichmentTab stakeholder={stakeholder} />}
-          </div>
+          {activeTab === 'overview' && <StakeholderOverviewTab stakeholder={stakeholder} />}
+          {activeTab === 'activity' && <StakeholderActivityTab />}
+          {activeTab === 'evidence' && <StakeholderEvidenceTab projectId={projectId} stakeholderId={stakeholderId} />}
+          {activeTab === 'insights' && <StakeholderInsightsTab stakeholder={stakeholder} />}
         </div>
       </div>
     </>

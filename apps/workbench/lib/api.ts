@@ -2291,6 +2291,7 @@ import type {
   StakeholderBRDSummary,
   StakeholderDetail,
   StakeholderCreatePayload,
+  StakeholderEvidenceData,
 } from '@/types/workspace'
 
 export const listAllStakeholders = (params?: {
@@ -2314,9 +2315,14 @@ export const listAllStakeholders = (params?: {
   )
 }
 
-export const getStakeholder = (projectId: string, stakeholderId: string) =>
+export const getStakeholder = (projectId: string, stakeholderId: string, detail = false) =>
   apiRequest<StakeholderDetail>(
-    `/projects/${projectId}/stakeholders/${stakeholderId}`
+    `/projects/${projectId}/stakeholders/${stakeholderId}${detail ? '?detail=true' : ''}`
+  )
+
+export const getStakeholderEvidence = (projectId: string, stakeholderId: string) =>
+  apiRequest<StakeholderEvidenceData>(
+    `/projects/${projectId}/stakeholders/${stakeholderId}/evidence`
   )
 
 export const createStakeholder = (projectId: string, data: StakeholderCreatePayload) =>

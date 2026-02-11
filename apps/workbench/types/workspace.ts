@@ -274,6 +274,97 @@ export interface StakeholderDetail extends StakeholderBRDSummary {
   project_name?: string | null
   created_at: string
   updated_at?: string | null
+
+  // Extended fields (from enrichment)
+  linkedin_profile?: string | null
+  communication_preferences?: Record<string, string> | null
+  last_interaction_date?: string | null
+  preferred_channel?: string | null
+  approval_required_for?: string[] | null
+  veto_power_over?: string[] | null
+  reports_to_id?: string | null
+  allies?: string[] | null
+  potential_blockers?: string[] | null
+  linked_persona_id?: string | null
+  source_signal_ids?: string[] | null
+  version?: number | null
+  enrichment_status?: string | null
+  extracted_from_signal_id?: string | null
+  mentioned_in_signals?: string[] | null
+
+  // Resolved references (from ?detail=true)
+  reports_to?: ResolvedStakeholderRef | null
+  allies_resolved?: ResolvedStakeholderRef[]
+  potential_blockers_resolved?: ResolvedStakeholderRef[]
+  linked_persona?: ResolvedPersonaRef | null
+  linked_features?: LinkedFeatureRef[]
+  linked_drivers?: LinkedDriverRef[]
+}
+
+// ============================================
+// Stakeholder Detail Reference Types
+// ============================================
+
+export interface ResolvedStakeholderRef {
+  id: string
+  name: string
+  role?: string | null
+  stakeholder_type?: string | null
+}
+
+export interface ResolvedPersonaRef {
+  id: string
+  name: string
+  role?: string | null
+}
+
+export interface LinkedFeatureRef {
+  id: string
+  name: string
+  priority_group?: string | null
+  confirmation_status?: string | null
+}
+
+export interface LinkedDriverRef {
+  id: string
+  description: string
+  driver_type: string
+  severity?: string | null
+}
+
+export interface SignalReference {
+  id: string
+  title?: string | null
+  signal_type?: string | null
+  source_label?: string | null
+  created_at?: string | null
+}
+
+export interface FieldAttribution {
+  field_path: string
+  signal_id?: string | null
+  signal_source?: string | null
+  signal_label?: string | null
+  contributed_at?: string | null
+  version_number?: number | null
+}
+
+export interface EnrichmentRevisionSummary {
+  revision_number?: number | null
+  revision_type: string
+  diff_summary?: string | null
+  changes?: Record<string, unknown> | null
+  created_at: string
+  created_by?: string | null
+  source_signal_id?: string | null
+}
+
+export interface StakeholderEvidenceData {
+  source_signals: SignalReference[]
+  field_attributions: FieldAttribution[]
+  enrichment_history: EnrichmentRevisionSummary[]
+  evidence_items: Array<Record<string, unknown>>
+  topic_mentions: Record<string, number>
 }
 
 export interface StakeholderCreatePayload {
