@@ -163,12 +163,12 @@ export function CollaborationPanel({
 
   return (
     <aside className={`fixed right-0 top-0 h-screen ${panelWidth} bg-white border-l border-ui-cardBorder flex flex-col z-30 transition-all duration-200`}>
-      {/* Header — matches main header height (px-6 py-4) */}
-      <div className="flex items-center justify-between px-4 py-4 border-b border-[#E5E5E5] flex-shrink-0">
-        <div className="flex items-center gap-1 bg-[#F4F4F4] rounded-xl p-1 border border-[#E5E5E5]">
+      {/* Header — aligned with main header height */}
+      <div className="flex items-center gap-2 px-3 py-4 border-b border-[#E5E5E5] flex-shrink-0">
+        <div className="flex items-center gap-1 bg-[#F4F4F4] rounded-xl p-1 border border-[#E5E5E5] flex-1 min-w-0">
           <button
             onClick={() => setActiveTab('chat')}
-            className={`px-3 py-1.5 text-[13px] font-medium rounded-lg transition-colors ${
+            className={`flex-1 px-3 py-1.5 text-[13px] font-medium rounded-lg transition-colors text-center ${
               activeTab === 'chat'
                 ? 'bg-white text-[#3FAF7A] shadow-sm'
                 : 'text-[#666666] hover:text-[#333333]'
@@ -178,7 +178,7 @@ export function CollaborationPanel({
           </button>
           <button
             onClick={() => setActiveTab('collab')}
-            className={`px-3 py-1.5 text-[13px] font-medium rounded-lg transition-colors ${
+            className={`flex-1 px-3 py-1.5 text-[13px] font-medium rounded-lg transition-colors text-center ${
               activeTab === 'collab'
                 ? 'bg-white text-[#3FAF7A] shadow-sm'
                 : 'text-[#666666] hover:text-[#333333]'
@@ -188,7 +188,7 @@ export function CollaborationPanel({
           </button>
           <button
             onClick={() => setActiveTab('activity')}
-            className={`px-3 py-1.5 text-[13px] font-medium rounded-lg transition-colors relative ${
+            className={`flex-1 px-3 py-1.5 text-[13px] font-medium rounded-lg transition-colors text-center relative ${
               activeTab === 'activity'
                 ? 'bg-white text-[#3FAF7A] shadow-sm'
                 : 'text-[#666666] hover:text-[#333333]'
@@ -202,8 +202,7 @@ export function CollaborationPanel({
             )}
           </button>
         </div>
-        <div className="flex items-center gap-0.5">
-          {/* Wide toggle */}
+        <div className="flex items-center gap-0.5 shrink-0">
           <button
             onClick={handleToggleWide}
             className="p-1.5 rounded-lg text-[#999999] hover:bg-[#F4F4F4] hover:text-[#666666] transition-colors"
@@ -211,7 +210,6 @@ export function CollaborationPanel({
           >
             {isWide ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
           </button>
-          {/* Collapse */}
           <button
             onClick={handleToggleCollapse}
             className="p-1.5 rounded-lg text-[#999999] hover:bg-[#F4F4F4] hover:text-[#666666] transition-colors"
