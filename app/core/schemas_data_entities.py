@@ -36,6 +36,7 @@ class DataEntityBRDSummary(BaseModel):
     name: str
     description: str | None = None
     entity_category: str = "domain"
+    fields: list[dict[str, Any]] = []
     field_count: int = 0
     workflow_step_count: int = 0
     confirmation_status: str | None = None

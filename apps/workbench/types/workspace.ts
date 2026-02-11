@@ -213,11 +213,20 @@ export interface DataEntityFieldDef {
   constraints?: string | null
 }
 
+export interface DataEntityField {
+  name: string
+  type?: string
+  required?: boolean
+  description?: string
+  group?: string
+}
+
 export interface DataEntityBRDSummary {
   id: string
   name: string
   description?: string | null
   entity_category: 'domain' | 'reference' | 'transactional' | 'system'
+  fields: DataEntityField[]
   field_count: number
   workflow_step_count: number
   confirmation_status?: string | null

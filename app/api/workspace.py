@@ -760,12 +760,15 @@ async def get_brd_workspace_data(project_id: UUID) -> BRDWorkspaceData:
 
                 for d in de_rows:
                     fields_data = d.get("fields") or []
+                    if not isinstance(fields_data, list):
+                        fields_data = []
                     data_entities_list.append(DataEntityBRDSummary(
                         id=d["id"],
                         name=d["name"],
                         description=d.get("description"),
                         entity_category=d.get("entity_category", "domain"),
-                        field_count=len(fields_data) if isinstance(fields_data, list) else 0,
+                        fields=fields_data,
+                        field_count=len(fields_data),
                         workflow_step_count=de_link_counts.get(d["id"], 0),
                         confirmation_status=d.get("confirmation_status"),
                         evidence=_parse_evidence(d.get("evidence")),
@@ -1484,19 +1487,23 @@ async def list_data_entities_endpoint(project_id: UUID) -> list[DataEntityBRDSum
 
     try:
         entities = list_data_entities(project_id)
-        return [
-            DataEntityBRDSummary(
+        result = []
+        for e in entities:
+            fields_data = e.get("fields") or []
+            if not isinstance(fields_data, list):
+                fields_data = []
+            result.append(DataEntityBRDSummary(
                 id=e["id"],
                 name=e["name"],
                 description=e.get("description"),
                 entity_category=e.get("entity_category", "domain"),
-                field_count=len(e.get("fields") or []) if isinstance(e.get("fields"), list) else 0,
+                fields=fields_data,
+                field_count=len(fields_data),
                 workflow_step_count=e.get("workflow_step_count", 0),
                 confirmation_status=e.get("confirmation_status"),
                 evidence=_parse_evidence(e.get("evidence")),
-            )
-            for e in entities
-        ]
+            ))
+        return result
     except Exception as e:
         logger.exception(f"Failed to list data entities for project {project_id}")
         raise HTTPException(status_code=500, detail=str(e))
