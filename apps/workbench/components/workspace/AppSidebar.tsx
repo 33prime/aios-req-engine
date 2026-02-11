@@ -18,7 +18,6 @@ import {
   Home,
   Folder,
   UserCircle,
-  Calendar,
   Settings,
   ChevronLeft,
   ChevronRight,
@@ -110,7 +109,6 @@ export function AppSidebar({ isCollapsed: controlledCollapsed, onToggleCollapse 
     { href: '/', icon: <Home className="w-4 h-4" />, label: 'Home' },
     { href: '/projects', icon: <Folder className="w-4 h-4" />, label: 'Projects' },
     { href: '/people', icon: <UserCircle className="w-4 h-4" />, label: 'People' },
-    { href: '/calendar', icon: <Calendar className="w-4 h-4" />, label: 'Meetings' },
     { href: '/settings', icon: <Settings className="w-4 h-4" />, label: 'Admin Panel' },
   ]
 

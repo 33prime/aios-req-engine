@@ -57,4 +57,15 @@ aios.db
 /blob-report/
 /playwright/.cache/
 **/e2e/.auth/
+**/playwright-report/
+**/test-results/
 .mcp.json
+
+# Build cache
+*.tsbuildinfo
+
+# Scratch / generated files
+aios-architecture-explorer.html
+v0_input_preview_*.md
+v0_prompt_*.md
+v0_prompt_*.json
