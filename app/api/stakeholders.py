@@ -4,7 +4,7 @@ from typing import Any
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Path, Query
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from app.core.logging import get_logger
 from app.db import stakeholders as stakeholders_db
@@ -54,6 +54,14 @@ class StakeholderUpdate(BaseModel):
     concerns: list[str] | None = None
     notes: str | None = None
     is_primary_contact: bool | None = None
+
+
+def _coerce_str_to_list(v: list[str] | str | None) -> list[str] | None:
+    """Coerce JSONB string values to single-item lists. Some older stakeholders
+    have priorities/concerns stored as plain strings instead of arrays."""
+    if isinstance(v, str):
+        return [v]
+    return v
 
 
 class StakeholderOut(BaseModel):
@@ -111,6 +119,11 @@ class StakeholderOut(BaseModel):
     version: int | None = None
     enrichment_status: str | None = None
     linkedin_profile: str | None = None
+
+    @field_validator("priorities", "concerns", "win_conditions", "key_concerns", mode="before")
+    @classmethod
+    def coerce_str_to_list(cls, v: list[str] | str | None) -> list[str] | None:
+        return _coerce_str_to_list(v)
 
     class Config:
         from_attributes = True
