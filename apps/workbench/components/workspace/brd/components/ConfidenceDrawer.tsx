@@ -6,14 +6,11 @@ import {
   CheckCircle2,
   Circle,
   FileText,
-  AlertTriangle,
   Clock,
   Link2,
   ChevronDown,
   ChevronRight,
   Shield,
-  Sparkles,
-  Eye,
   BarChart3,
 } from 'lucide-react'
 import { getEntityConfidence } from '@/lib/api'
@@ -35,18 +32,13 @@ interface ConfidenceDrawerProps {
 
 type TabId = 'overview' | 'evidence' | 'gaps' | 'history'
 
-const CATEGORY_CONFIG: Record<ConfidenceCategory, { bg: string; text: string; label: string }> = {
-  identity: { bg: 'bg-green-50', text: 'text-green-700', label: 'Identity' },
-  detail: { bg: 'bg-blue-50', text: 'text-blue-700', label: 'Detail' },
-  relationships: { bg: 'bg-purple-50', text: 'text-purple-700', label: 'Relationships' },
-  provenance: { bg: 'bg-amber-50', text: 'text-amber-700', label: 'Provenance' },
-  confirmation: { bg: 'bg-yellow-50', text: 'text-yellow-700', label: 'Confirmation' },
-}
-
-const SOURCE_TYPE_CONFIG: Record<string, { bg: string; text: string; label: string }> = {
-  signal: { bg: 'bg-blue-50', text: 'text-blue-700', label: 'Signal' },
-  research: { bg: 'bg-purple-50', text: 'text-purple-700', label: 'Research' },
-  inferred: { bg: 'bg-gray-100', text: 'text-gray-600', label: 'Inferred' },
+// All categories use the same neutral styling — no colored badges
+const CATEGORY_LABELS: Record<ConfidenceCategory, string> = {
+  identity: 'Identity',
+  detail: 'Detail',
+  relationships: 'Relationships',
+  provenance: 'Provenance',
+  confirmation: 'Confirmation',
 }
 
 function formatRelativeTime(dateStr: string | null | undefined): string {
@@ -93,7 +85,7 @@ export function ConfidenceDrawer({
   const tabs: { id: TabId; label: string; icon: React.ReactNode }[] = [
     { id: 'overview', label: 'Overview', icon: <BarChart3 className="w-3.5 h-3.5" /> },
     { id: 'evidence', label: 'Evidence', icon: <FileText className="w-3.5 h-3.5" /> },
-    { id: 'gaps', label: 'Gaps', icon: <AlertTriangle className="w-3.5 h-3.5" /> },
+    { id: 'gaps', label: 'Gaps', icon: <Shield className="w-3.5 h-3.5" /> },
     { id: 'history', label: 'History', icon: <Clock className="w-3.5 h-3.5" /> },
   ]
 
@@ -106,25 +98,27 @@ export function ConfidenceDrawer({
 
       {/* Drawer */}
       <div className="fixed right-0 top-0 h-screen w-[560px] max-w-[90vw] bg-white shadow-xl z-50 flex flex-col animate-slide-in-right">
-        {/* Header */}
-        <div className="flex items-start justify-between px-6 py-4 border-b border-gray-100">
-          <div className="min-w-0">
-            <div className="flex items-center gap-2 mb-1">
-              <Shield className="w-4 h-4 text-[#3FAF7A] flex-shrink-0" />
-              <h2 className="text-[16px] font-semibold text-[#37352f] truncate">{entityName}</h2>
+        {/* Header — navy accent bar */}
+        <div className="bg-[#0A1E2F] px-6 py-4">
+          <div className="flex items-start justify-between">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 mb-1">
+                <Shield className="w-4 h-4 text-[#3FAF7A] flex-shrink-0" />
+                <h2 className="text-[16px] font-semibold text-white truncate">{entityName}</h2>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-[12px] text-white/50 capitalize">{entityType.replace('_', ' ')}</span>
+                <BRDStatusBadge status={data?.confirmation_status ?? initialStatus} />
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              <span className="text-[12px] text-[rgba(55,53,47,0.45)] capitalize">{entityType.replace('_', ' ')}</span>
-              <BRDStatusBadge status={data?.confirmation_status ?? initialStatus} />
-            </div>
+            <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-white/10 transition-colors flex-shrink-0">
+              <X className="w-4 h-4 text-white/60" />
+            </button>
           </div>
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors flex-shrink-0">
-            <X className="w-4 h-4 text-gray-400" />
-          </button>
         </div>
 
         {/* Confirmation actions */}
-        <div className="px-6 py-2 border-b border-gray-50">
+        <div className="px-6 py-2.5 border-b border-[#E5E5E5]">
           <ConfirmActions
             status={data?.confirmation_status ?? initialStatus ?? 'ai_generated'}
             onConfirm={() => onConfirm(entityType, entityId)}
@@ -133,21 +127,21 @@ export function ConfidenceDrawer({
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-0 border-b border-gray-100 px-6">
+        <div className="flex gap-0 border-b border-[#E5E5E5] px-6">
           {tabs.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
               className={`flex items-center gap-1.5 px-3 py-2.5 text-[12px] font-medium border-b-2 transition-colors ${
                 activeTab === tab.id
-                  ? 'text-[#3FAF7A] border-[#3FAF7A]'
-                  : 'text-[rgba(55,53,47,0.45)] border-transparent hover:text-[rgba(55,53,47,0.65)]'
+                  ? 'text-[#333333] border-[#3FAF7A]'
+                  : 'text-[#999999] border-transparent hover:text-[#666666]'
               }`}
             >
               {tab.icon}
               {tab.label}
               {tab.id === 'gaps' && gapCount > 0 && (
-                <span className="ml-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700">
+                <span className="ml-0.5 w-5 h-5 rounded-full text-[10px] font-bold bg-[#0A1E2F] text-white inline-flex items-center justify-center">
                   {gapCount}
                 </span>
               )}
@@ -156,13 +150,13 @@ export function ConfidenceDrawer({
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto px-6 py-4">
+        <div className="flex-1 overflow-y-auto px-6 py-4 bg-[#F4F4F4]">
           {loading ? (
             <div className="flex items-center justify-center py-12">
               <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#3FAF7A]" />
             </div>
           ) : !data ? (
-            <p className="text-[13px] text-gray-400 text-center py-8">Failed to load confidence data</p>
+            <p className="text-[13px] text-[#999999] text-center py-8">Failed to load confidence data</p>
           ) : activeTab === 'overview' ? (
             <OverviewTab data={data} />
           ) : activeTab === 'evidence' ? (
@@ -199,49 +193,50 @@ function OverviewTab({ data }: { data: EntityConfidenceData }) {
   const dependedByCount = data.dependencies.filter(d => d.direction === 'depended_by').length
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       {/* Stale indicator */}
       {data.is_stale && (
         <StaleIndicator reason={data.stale_reason} />
       )}
 
-      {/* Completeness progress */}
-      <div>
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-[13px] font-medium text-[#37352f]">Confidence Score</span>
-          <span className="text-[13px] font-semibold text-[#37352f]">{data.completeness_met}/{data.completeness_total}</span>
+      {/* Completeness progress — card style */}
+      <div className="bg-white rounded-2xl shadow-md border border-[#E5E5E5] p-5">
+        <div className="flex items-center justify-between mb-3">
+          <span className="text-[13px] font-semibold text-[#333333]">Confidence Score</span>
+          <span className="text-[13px] font-bold text-[#333333]">{data.completeness_met}/{data.completeness_total}</span>
         </div>
-        <div className="h-2.5 bg-gray-100 rounded-full overflow-hidden">
-          <div
-            className="h-full rounded-full transition-all duration-300"
-            style={{
-              width: `${pct}%`,
-              backgroundColor: pct >= 80 ? '#3FAF7A' : pct >= 50 ? '#F59E0B' : '#EF4444',
-            }}
-          />
+        <div className="flex items-center gap-2">
+          <span className="text-[11px] text-[#666666] w-16 shrink-0">Progress</span>
+          <div className="flex-1 h-2 bg-[#F0F0F0] rounded-full overflow-hidden">
+            <div
+              className="h-full bg-[#3FAF7A] rounded-full transition-all duration-300"
+              style={{ width: `${pct}%` }}
+            />
+          </div>
+          <span className="text-[11px] font-medium text-[#333333] w-10 text-right">{pct}%</span>
         </div>
-        <p className="text-[11px] text-[rgba(55,53,47,0.45)] mt-1">{pct}% of confidence criteria met</p>
       </div>
 
-      {/* Grouped checklist */}
+      {/* Grouped checklist — each category in its own card */}
       {Array.from(grouped.entries()).map(([category, items]) => {
-        const catConfig = CATEGORY_CONFIG[category as ConfidenceCategory] || CATEGORY_CONFIG.detail
+        const label = CATEGORY_LABELS[category as ConfidenceCategory] || category
         return (
-          <div key={category}>
-            <div className="flex items-center gap-2 mb-2">
-              <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wider ${catConfig.bg} ${catConfig.text}`}>
-                {catConfig.label}
+          <div key={category} className="bg-white rounded-2xl shadow-md border border-[#E5E5E5] overflow-hidden">
+            {/* Category header — like workflow column headers */}
+            <div className="px-4 py-2 bg-[#F0F0F0]">
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-[#666666]">
+                {label}
               </span>
             </div>
-            <div className="space-y-1.5">
+            <div className="px-4 py-3 space-y-2">
               {items.map((item, i) => (
-                <div key={i} className="flex items-start gap-2">
+                <div key={i} className="flex items-center gap-2.5">
                   {item.is_met ? (
-                    <CheckCircle2 className="w-4 h-4 text-[#3FAF7A] flex-shrink-0 mt-0.5" />
+                    <CheckCircle2 className="w-4 h-4 text-[#3FAF7A] flex-shrink-0" />
                   ) : (
-                    <Circle className="w-4 h-4 text-gray-300 flex-shrink-0 mt-0.5" />
+                    <Circle className="w-4 h-4 text-[#E5E5E5] flex-shrink-0" />
                   )}
-                  <span className={`text-[13px] ${item.is_met ? 'text-[rgba(55,53,47,0.65)]' : 'text-[#37352f]'}`}>
+                  <span className={`text-[13px] ${item.is_met ? 'text-[#666666]' : 'text-[#333333] font-medium'}`}>
                     {item.label}
                   </span>
                 </div>
@@ -253,17 +248,17 @@ function OverviewTab({ data }: { data: EntityConfidenceData }) {
 
       {/* Dependencies summary */}
       {(dependsOnCount > 0 || dependedByCount > 0) && (
-        <div className="pt-3 border-t border-gray-100">
+        <div className="bg-white rounded-2xl shadow-md border border-[#E5E5E5] p-4">
           <div className="flex items-center gap-2 mb-2">
-            <Link2 className="w-3.5 h-3.5 text-gray-400" />
-            <span className="text-[12px] font-semibold text-[rgba(55,53,47,0.45)] uppercase tracking-wider">Dependencies</span>
+            <Link2 className="w-3.5 h-3.5 text-[#999999]" />
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-[#666666]">Dependencies</span>
           </div>
-          <div className="flex gap-4 text-[13px] text-[rgba(55,53,47,0.65)]">
+          <div className="flex gap-4 text-[13px] text-[#666666]">
             {dependsOnCount > 0 && (
-              <span>Depends on <strong>{dependsOnCount}</strong> {dependsOnCount === 1 ? 'entity' : 'entities'}</span>
+              <span>Depends on <strong className="text-[#333333]">{dependsOnCount}</strong> {dependsOnCount === 1 ? 'entity' : 'entities'}</span>
             )}
             {dependedByCount > 0 && (
-              <span><strong>{dependedByCount}</strong> {dependedByCount === 1 ? 'entity depends' : 'entities depend'} on this</span>
+              <span><strong className="text-[#333333]">{dependedByCount}</strong> {dependedByCount === 1 ? 'entity depends' : 'entities depend'} on this</span>
             )}
           </div>
         </div>
@@ -283,82 +278,77 @@ function EvidenceTab({ data }: { data: EntityConfidenceData }) {
   if (!hasEvidence && !hasAttributions) {
     return (
       <div className="text-center py-10">
-        <FileText className="w-8 h-8 text-gray-300 mx-auto mb-2" />
-        <p className="text-[13px] text-[rgba(55,53,47,0.45)]">No evidence tracked yet</p>
-        <p className="text-[12px] text-[rgba(55,53,47,0.35)] mt-1">Process a signal to establish provenance</p>
+        <FileText className="w-8 h-8 text-[#E5E5E5] mx-auto mb-2" />
+        <p className="text-[13px] text-[#999999]">No evidence tracked yet</p>
+        <p className="text-[12px] text-[#999999]/70 mt-1">Process a signal to establish provenance</p>
       </div>
     )
   }
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       {/* Evidence items */}
       {hasEvidence && (
-        <div>
-          <h4 className="text-[12px] font-semibold text-[rgba(55,53,47,0.45)] uppercase tracking-wider mb-3">
-            Evidence ({data.evidence.length})
-          </h4>
-          <div className="space-y-3">
-            {data.evidence.map((ev, i) => {
-              const srcConfig = SOURCE_TYPE_CONFIG[ev.source_type] || SOURCE_TYPE_CONFIG.inferred
-              return (
-                <div key={i} className="border border-gray-100 rounded-md p-3">
-                  {ev.excerpt && (
-                    <blockquote className="text-[13px] text-[rgba(55,53,47,0.65)] italic border-l-2 border-[#3FAF7A] pl-3 mb-2">
-                      {ev.excerpt}
-                    </blockquote>
+        <div className="bg-white rounded-2xl shadow-md border border-[#E5E5E5] overflow-hidden">
+          <div className="px-4 py-2 bg-[#F0F0F0]">
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-[#666666]">
+              Evidence ({data.evidence.length})
+            </span>
+          </div>
+          <div className="divide-y divide-[#E5E5E5]">
+            {data.evidence.map((ev, i) => (
+              <div key={i} className="px-4 py-3">
+                {ev.excerpt && (
+                  <blockquote className="text-[13px] text-[#666666] italic border-l-2 border-[#3FAF7A] pl-3 mb-2">
+                    {ev.excerpt}
+                  </blockquote>
+                )}
+                {ev.rationale && (
+                  <p className="text-[12px] text-[#999999] mb-2">{ev.rationale}</p>
+                )}
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-[#E8F5E9] text-[#25785A]">
+                    {ev.source_type || 'Signal'}
+                  </span>
+                  {ev.signal_label && (
+                    <span className="text-[11px] text-[#999999]">{ev.signal_label}</span>
                   )}
-                  {ev.rationale && (
-                    <p className="text-[12px] text-[rgba(55,53,47,0.45)] mb-2">{ev.rationale}</p>
+                  {ev.signal_created_at && (
+                    <span className="text-[11px] text-[#999999]/70">{formatRelativeTime(ev.signal_created_at)}</span>
                   )}
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium ${srcConfig.bg} ${srcConfig.text}`}>
-                      {srcConfig.label}
-                    </span>
-                    {ev.signal_label && (
-                      <span className="text-[11px] text-[rgba(55,53,47,0.45)]">
-                        {ev.signal_label}
-                      </span>
-                    )}
-                    {ev.signal_created_at && (
-                      <span className="text-[11px] text-[rgba(55,53,47,0.35)]">
-                        {formatRelativeTime(ev.signal_created_at)}
-                      </span>
-                    )}
-                  </div>
                 </div>
-              )
-            })}
+              </div>
+            ))}
           </div>
         </div>
       )}
 
       {/* Field attributions */}
       {hasAttributions && (
-        <div>
-          <h4 className="text-[12px] font-semibold text-[rgba(55,53,47,0.45)] uppercase tracking-wider mb-3">
-            Field Attributions ({data.field_attributions.length})
-          </h4>
-          <div className="overflow-hidden rounded-md border border-gray-100">
-            <table className="w-full text-[12px]">
-              <thead>
-                <tr className="bg-gray-50/50">
-                  <th className="text-left px-3 py-2 font-medium text-[rgba(55,53,47,0.45)]">Field</th>
-                  <th className="text-left px-3 py-2 font-medium text-[rgba(55,53,47,0.45)]">Source</th>
-                  <th className="text-left px-3 py-2 font-medium text-[rgba(55,53,47,0.45)]">Date</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.field_attributions.map((attr, i) => (
-                  <tr key={i} className="border-t border-gray-50">
-                    <td className="px-3 py-2 text-[rgba(55,53,47,0.65)] font-mono text-[11px]">{attr.field_path}</td>
-                    <td className="px-3 py-2 text-[rgba(55,53,47,0.65)]">{attr.signal_label || '—'}</td>
-                    <td className="px-3 py-2 text-[rgba(55,53,47,0.45)]">{formatRelativeTime(attr.contributed_at)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        <div className="bg-white rounded-2xl shadow-md border border-[#E5E5E5] overflow-hidden">
+          <div className="px-4 py-2 bg-[#F0F0F0]">
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-[#666666]">
+              Field Attributions ({data.field_attributions.length})
+            </span>
           </div>
+          <table className="w-full text-[12px]">
+            <thead>
+              <tr className="border-b border-[#E5E5E5]">
+                <th className="text-left px-4 py-2 font-medium text-[#999999]">Field</th>
+                <th className="text-left px-4 py-2 font-medium text-[#999999]">Source</th>
+                <th className="text-left px-4 py-2 font-medium text-[#999999]">Date</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.field_attributions.map((attr, i) => (
+                <tr key={i} className="border-t border-[#E5E5E5]/50">
+                  <td className="px-4 py-2 text-[#333333] font-mono text-[11px]">{attr.field_path}</td>
+                  <td className="px-4 py-2 text-[#666666]">{attr.signal_label || '—'}</td>
+                  <td className="px-4 py-2 text-[#999999]">{formatRelativeTime(attr.contributed_at)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
     </div>
@@ -374,32 +364,34 @@ function GapsTab({ gaps }: { gaps: ConfidenceGap[] }) {
     return (
       <div className="text-center py-10">
         <CheckCircle2 className="w-8 h-8 text-[#3FAF7A] mx-auto mb-2" />
-        <p className="text-[14px] font-medium text-[#37352f]">All confidence criteria met</p>
-        <p className="text-[12px] text-[rgba(55,53,47,0.45)] mt-1">This entity has full evidence and confirmation coverage</p>
+        <p className="text-[14px] font-medium text-[#333333]">All confidence criteria met</p>
+        <p className="text-[12px] text-[#999999] mt-1">This entity has full evidence and confirmation coverage</p>
       </div>
     )
   }
 
   return (
     <div className="space-y-3">
-      <p className="text-[12px] text-[rgba(55,53,47,0.45)] mb-1">
+      <p className="text-[12px] text-[#999999] mb-1">
         {gaps.length} {gaps.length === 1 ? 'gap' : 'gaps'} to address for full confidence
       </p>
       {gaps.map((gap, i) => {
-        const catConfig = CATEGORY_CONFIG[gap.category as ConfidenceCategory] || CATEGORY_CONFIG.detail
+        const label = CATEGORY_LABELS[gap.category as ConfidenceCategory] || gap.category
         return (
-          <div key={i} className="border border-gray-100 rounded-md p-3">
-            <div className="flex items-start gap-2">
-              <Circle className="w-4 h-4 text-gray-300 flex-shrink-0 mt-0.5" />
+          <div key={i} className="bg-white rounded-2xl shadow-md border border-[#E5E5E5] px-4 py-3">
+            <div className="flex items-start gap-2.5">
+              <div className="w-7 h-7 rounded-full bg-[#0A1E2F] flex items-center justify-center shrink-0 mt-0.5">
+                <span className="text-[11px] font-bold text-white">{i + 1}</span>
+              </div>
               <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="text-[13px] font-medium text-[#37352f]">{gap.label}</span>
-                  <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium ${catConfig.bg} ${catConfig.text}`}>
-                    {catConfig.label}
+                <div className="flex items-center gap-2 mb-0.5">
+                  <span className="text-[13px] font-medium text-[#333333]">{gap.label}</span>
+                  <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-[#F0F0F0] text-[#666666]">
+                    {label}
                   </span>
                 </div>
                 {gap.suggestion && (
-                  <p className="text-[12px] text-[rgba(55,53,47,0.45)]">{gap.suggestion}</p>
+                  <p className="text-[12px] text-[#999999]">{gap.suggestion}</p>
                 )}
               </div>
             </div>
@@ -420,8 +412,8 @@ function HistoryTab({ data }: { data: EntityConfidenceData }) {
   if (data.revisions.length === 0) {
     return (
       <div className="text-center py-10">
-        <Clock className="w-8 h-8 text-gray-300 mx-auto mb-2" />
-        <p className="text-[13px] text-[rgba(55,53,47,0.45)]">No revision history available</p>
+        <Clock className="w-8 h-8 text-[#E5E5E5] mx-auto mb-2" />
+        <p className="text-[13px] text-[#999999]">No revision history available</p>
       </div>
     )
   }
@@ -439,42 +431,46 @@ function HistoryTab({ data }: { data: EntityConfidenceData }) {
             <div key={i} className="relative flex gap-3">
               {/* Timeline line + dot */}
               <div className="flex flex-col items-center flex-shrink-0">
-                <div className="w-2.5 h-2.5 rounded-full bg-[#3FAF7A] border-2 border-white shadow-sm mt-1.5" />
-                {!isLast && <div className="w-px flex-1 bg-gray-200 mt-1" />}
+                <div className="w-7 h-7 rounded-full bg-[#0A1E2F] flex items-center justify-center shrink-0">
+                  <span className="text-[11px] font-bold text-white">{i + 1}</span>
+                </div>
+                {!isLast && <div className="w-0 flex-1 border-l-2 border-dashed border-[#E5E5E5] min-h-[16px]" />}
               </div>
 
               {/* Content */}
               <div className={`flex-1 min-w-0 ${isLast ? 'pb-0' : 'pb-4'}`}>
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-[12px] text-[rgba(55,53,47,0.35)]">
-                    {formatRelativeTime(rev.created_at)}
-                  </span>
-                  {rev.revision_type && (
-                    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-gray-100 text-gray-600">
-                      {rev.revision_type}
+                <div className="bg-white rounded-xl border border-[#E5E5E5] px-3.5 py-2.5">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-[12px] text-[#999999]">
+                      {formatRelativeTime(rev.created_at)}
                     </span>
+                    {rev.revision_type && (
+                      <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-[#E8F5E9] text-[#25785A]">
+                        {rev.revision_type}
+                      </span>
+                    )}
+                    {rev.created_by && (
+                      <span className="text-[11px] text-[#999999]">by {rev.created_by}</span>
+                    )}
+                  </div>
+                  {rev.diff_summary && (
+                    <p className="text-[13px] text-[#666666] mt-1">{rev.diff_summary}</p>
                   )}
-                  {rev.created_by && (
-                    <span className="text-[11px] text-[rgba(55,53,47,0.35)]">by {rev.created_by}</span>
+                  {hasChanges && (
+                    <button
+                      onClick={() => setExpandedIdx(isExpanded ? null : i)}
+                      className="flex items-center gap-1 mt-1.5 text-[11px] text-[#3FAF7A] hover:text-[#25785A] transition-colors"
+                    >
+                      {isExpanded ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
+                      {isExpanded ? 'Hide changes' : 'Show changes'}
+                    </button>
+                  )}
+                  {isExpanded && rev.changes && (
+                    <div className="mt-2 p-2 bg-[#F4F4F4] rounded-lg text-[11px] font-mono text-[#666666] overflow-x-auto">
+                      <pre className="whitespace-pre-wrap">{JSON.stringify(rev.changes, null, 2)}</pre>
+                    </div>
                   )}
                 </div>
-                {rev.diff_summary && (
-                  <p className="text-[13px] text-[rgba(55,53,47,0.65)] mt-0.5">{rev.diff_summary}</p>
-                )}
-                {hasChanges && (
-                  <button
-                    onClick={() => setExpandedIdx(isExpanded ? null : i)}
-                    className="flex items-center gap-1 mt-1 text-[11px] text-[#3FAF7A] hover:text-[#25785A] transition-colors"
-                  >
-                    {isExpanded ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
-                    {isExpanded ? 'Hide changes' : 'Show changes'}
-                  </button>
-                )}
-                {isExpanded && rev.changes && (
-                  <div className="mt-2 p-2 bg-gray-50 rounded text-[11px] font-mono text-[rgba(55,53,47,0.65)] overflow-x-auto">
-                    <pre className="whitespace-pre-wrap">{JSON.stringify(rev.changes, null, 2)}</pre>
-                  </div>
-                )}
               </div>
             </div>
           )
@@ -482,14 +478,14 @@ function HistoryTab({ data }: { data: EntityConfidenceData }) {
       </div>
 
       {/* Entity timestamps */}
-      <div className="mt-4 pt-3 border-t border-gray-100 space-y-1">
+      <div className="mt-4 pt-3 border-t border-[#E5E5E5] space-y-1">
         {data.created_at && (
-          <p className="text-[11px] text-[rgba(55,53,47,0.35)]">
+          <p className="text-[11px] text-[#999999]">
             Created {new Date(data.created_at).toLocaleDateString()} at {new Date(data.created_at).toLocaleTimeString()}
           </p>
         )}
         {data.updated_at && (
-          <p className="text-[11px] text-[rgba(55,53,47,0.35)]">
+          <p className="text-[11px] text-[#999999]">
             Last updated {formatRelativeTime(data.updated_at)}
           </p>
         )}
