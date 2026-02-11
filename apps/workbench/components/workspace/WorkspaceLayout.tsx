@@ -10,8 +10,6 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
-import Link from 'next/link'
-import { ArrowLeft } from 'lucide-react'
 import { AppSidebar } from './AppSidebar'
 import { PhaseSwitcher, WorkspacePhase } from './PhaseSwitcher'
 import { CollaborationPanel, type PanelState } from './CollaborationPanel'
@@ -369,15 +367,6 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
           <header className="sticky top-0 z-20 bg-white border-b border-ui-cardBorder">
             <div className="flex items-center justify-between px-6 py-4">
               <div className="flex items-center gap-4">
-                <Link
-                  href={`/projects/${projectId}`}
-                  className="flex items-center gap-1.5 text-sm text-ui-supportText hover:text-ui-headingDark transition-colors"
-                  title="Back to classic view"
-                >
-                  <ArrowLeft className="w-4 h-4" />
-                  <span className="hidden sm:inline">Classic</span>
-                </Link>
-                <div className="h-5 w-px bg-ui-cardBorder" />
                 <div>
                   <h1 className="text-h2 text-ui-headingDark">
                     {canvasData?.project_name}

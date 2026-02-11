@@ -7,7 +7,7 @@
 
 'use client'
 
-import { LayoutDashboard, FileText, Hammer, Rocket } from 'lucide-react'
+import { LayoutDashboard, FileText, Rocket, Wrench } from 'lucide-react'
 
 export type WorkspacePhase = 'overview' | 'discovery' | 'build' | 'live'
 
@@ -33,7 +33,7 @@ const PHASES = [
   {
     id: 'build' as const,
     label: 'Build',
-    icon: Hammer,
+    icon: Wrench,
     description: 'Prototype',
   },
   {
@@ -46,7 +46,7 @@ const PHASES = [
 
 export function PhaseSwitcher({ currentPhase, onPhaseChange, disabled }: PhaseSwitcherProps) {
   return (
-    <div className="inline-flex items-center bg-ui-background rounded-lg p-1 border border-ui-cardBorder">
+    <div className="inline-flex items-center bg-[#F4F4F4] rounded-xl p-1 border border-[#E5E5E5]">
       {PHASES.map((phase) => {
         const isActive = currentPhase === phase.id
         const Icon = phase.icon
@@ -57,11 +57,11 @@ export function PhaseSwitcher({ currentPhase, onPhaseChange, disabled }: PhaseSw
             onClick={() => onPhaseChange(phase.id)}
             disabled={disabled}
             className={`
-              flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium
+              flex items-center gap-2 px-4 py-2 rounded-lg text-[13px] font-medium
               transition-all duration-200
               ${isActive
-                ? 'bg-white text-brand-teal shadow-sm'
-                : 'text-ui-bodyText hover:text-ui-headingDark'
+                ? 'bg-white text-[#3FAF7A] shadow-sm'
+                : 'text-[#666666] hover:text-[#333333]'
               }
               ${disabled ? 'opacity-50 cursor-not-allowed' : ''}
             `}

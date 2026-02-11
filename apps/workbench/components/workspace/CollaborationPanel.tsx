@@ -163,40 +163,40 @@ export function CollaborationPanel({
 
   return (
     <aside className={`fixed right-0 top-0 h-screen ${panelWidth} bg-white border-l border-ui-cardBorder flex flex-col z-30 transition-all duration-200`}>
-      {/* Header */}
-      <div className="flex items-center justify-between px-3 py-2.5 border-b border-ui-cardBorder flex-shrink-0">
-        <div className="flex items-center gap-0.5">
+      {/* Header — matches main header height (px-6 py-4) */}
+      <div className="flex items-center justify-between px-4 py-4 border-b border-[#E5E5E5] flex-shrink-0">
+        <div className="flex items-center gap-1 bg-[#F4F4F4] rounded-xl p-1 border border-[#E5E5E5]">
           <button
             onClick={() => setActiveTab('chat')}
-            className={`px-2.5 py-1.5 text-sm font-medium rounded-lg transition-colors ${
+            className={`px-3 py-1.5 text-[13px] font-medium rounded-lg transition-colors ${
               activeTab === 'chat'
-                ? 'bg-brand-teal/10 text-brand-teal'
-                : 'text-ui-bodyText hover:bg-ui-background'
+                ? 'bg-white text-[#3FAF7A] shadow-sm'
+                : 'text-[#666666] hover:text-[#333333]'
             }`}
           >
             {isReviewActive ? 'Review' : 'Chat'}
           </button>
           <button
             onClick={() => setActiveTab('collab')}
-            className={`px-2.5 py-1.5 text-sm font-medium rounded-lg transition-colors ${
+            className={`px-3 py-1.5 text-[13px] font-medium rounded-lg transition-colors ${
               activeTab === 'collab'
-                ? 'bg-brand-teal/10 text-brand-teal'
-                : 'text-ui-bodyText hover:bg-ui-background'
+                ? 'bg-white text-[#3FAF7A] shadow-sm'
+                : 'text-[#666666] hover:text-[#333333]'
             }`}
           >
             Collab
           </button>
           <button
             onClick={() => setActiveTab('activity')}
-            className={`px-2.5 py-1.5 text-sm font-medium rounded-lg transition-colors relative ${
+            className={`px-3 py-1.5 text-[13px] font-medium rounded-lg transition-colors relative ${
               activeTab === 'activity'
-                ? 'bg-brand-teal/10 text-brand-teal'
-                : 'text-ui-bodyText hover:bg-ui-background'
+                ? 'bg-white text-[#3FAF7A] shadow-sm'
+                : 'text-[#666666] hover:text-[#333333]'
             }`}
           >
             Activity
             {pendingCount > 0 && (
-              <span className="ml-1 px-1.5 py-0.5 bg-red-500 text-white text-xs rounded-full">
+              <span className="ml-1 px-1.5 py-0.5 bg-[#3FAF7A] text-white text-[10px] font-bold rounded-full">
                 {pendingCount}
               </span>
             )}
@@ -206,7 +206,7 @@ export function CollaborationPanel({
           {/* Wide toggle */}
           <button
             onClick={handleToggleWide}
-            className="p-1.5 rounded-lg text-ui-supportText hover:bg-ui-background hover:text-ui-bodyText transition-colors"
+            className="p-1.5 rounded-lg text-[#999999] hover:bg-[#F4F4F4] hover:text-[#666666] transition-colors"
             title={isWide ? 'Normal width' : 'Wide mode'}
           >
             {isWide ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
@@ -214,7 +214,7 @@ export function CollaborationPanel({
           {/* Collapse */}
           <button
             onClick={handleToggleCollapse}
-            className="p-1.5 rounded-lg text-ui-supportText hover:bg-ui-background hover:text-ui-bodyText transition-colors"
+            className="p-1.5 rounded-lg text-[#999999] hover:bg-[#F4F4F4] hover:text-[#666666] transition-colors"
             title="Collapse panel"
           >
             <ChevronRight className="w-4 h-4" />
