@@ -11,6 +11,7 @@ interface ConstraintsSectionProps {
   onConfirm: (entityType: string, entityId: string) => void
   onNeedsReview: (entityType: string, entityId: string) => void
   onConfirmAll: (entityType: string, ids: string[]) => void
+  onStatusClick?: (entityType: string, entityId: string, entityName: string, status?: string | null) => void
 }
 
 const SEVERITY_COLORS: Record<string, string> = {
@@ -20,7 +21,7 @@ const SEVERITY_COLORS: Record<string, string> = {
   low: 'text-gray-500',
 }
 
-export function ConstraintsSection({ constraints, onConfirm, onNeedsReview, onConfirmAll }: ConstraintsSectionProps) {
+export function ConstraintsSection({ constraints, onConfirm, onNeedsReview, onConfirmAll, onStatusClick }: ConstraintsSectionProps) {
   const confirmedCount = constraints.filter(
     (c) => c.confirmation_status === 'confirmed_consultant' || c.confirmation_status === 'confirmed_client'
   ).length
@@ -46,6 +47,7 @@ export function ConstraintsSection({ constraints, onConfirm, onNeedsReview, onCo
               status={constraint.confirmation_status}
               onConfirm={() => onConfirm('constraint', constraint.id)}
               onNeedsReview={() => onNeedsReview('constraint', constraint.id)}
+              onStatusClick={onStatusClick ? () => onStatusClick('constraint', constraint.id, constraint.title, constraint.confirmation_status) : undefined}
             >
               <div className="space-y-2 text-[13px] text-[rgba(55,53,47,0.65)]">
                 {constraint.description && (

@@ -13,6 +13,7 @@ interface StakeholdersSectionProps {
   onConfirmAll: (entityType: string, ids: string[]) => void
   onOpenDetail: (stakeholder: StakeholderBRDSummary) => void
   onRefreshEntity?: (entityType: string, entityId: string) => void
+  onStatusClick?: (entityType: string, entityId: string, entityName: string, status?: string | null) => void
 }
 
 const TYPE_CONFIG: Record<string, { bg: string; text: string; label: string }> = {
@@ -36,6 +37,7 @@ export function StakeholdersSection({
   onConfirmAll,
   onOpenDetail,
   onRefreshEntity,
+  onStatusClick,
 }: StakeholdersSectionProps) {
   const confirmedCount = stakeholders.filter(
     (s) => s.confirmation_status === 'confirmed_consultant' || s.confirmation_status === 'confirmed_client'
@@ -71,6 +73,7 @@ export function StakeholdersSection({
                 status={stakeholder.confirmation_status}
                 onConfirm={() => onConfirm('stakeholder', stakeholder.id)}
                 onNeedsReview={() => onNeedsReview('stakeholder', stakeholder.id)}
+                onStatusClick={onStatusClick ? () => onStatusClick('stakeholder', stakeholder.id, stakeholder.name, stakeholder.confirmation_status) : undefined}
                 onDetailClick={() => onOpenDetail(stakeholder)}
               >
                 <div className="space-y-2 text-[13px] text-[rgba(55,53,47,0.65)]">

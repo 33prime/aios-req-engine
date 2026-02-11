@@ -13,9 +13,10 @@ interface ActorsSectionProps {
   onNeedsReview: (entityType: string, entityId: string) => void
   onConfirmAll: (entityType: string, ids: string[]) => void
   onRefreshEntity?: (entityType: string, entityId: string) => void
+  onStatusClick?: (entityType: string, entityId: string, entityName: string, status?: string | null) => void
 }
 
-export function ActorsSection({ actors, workflows = [], onConfirm, onNeedsReview, onConfirmAll, onRefreshEntity }: ActorsSectionProps) {
+export function ActorsSection({ actors, workflows = [], onConfirm, onNeedsReview, onConfirmAll, onRefreshEntity, onStatusClick }: ActorsSectionProps) {
   const confirmedCount = actors.filter(
     (a) => a.confirmation_status === 'confirmed_consultant' || a.confirmation_status === 'confirmed_client'
   ).length
@@ -44,6 +45,7 @@ export function ActorsSection({ actors, workflows = [], onConfirm, onNeedsReview
       onRefresh={onRefreshEntity ? () => onRefreshEntity('persona', actor.id) : undefined}
       onConfirm={() => onConfirm('persona', actor.id)}
       onNeedsReview={() => onNeedsReview('persona', actor.id)}
+      onStatusClick={onStatusClick ? () => onStatusClick('persona', actor.id, actor.name, actor.confirmation_status) : undefined}
     >
       <div className="space-y-3 text-[13px] text-[rgba(55,53,47,0.65)]">
         {actor.description && (

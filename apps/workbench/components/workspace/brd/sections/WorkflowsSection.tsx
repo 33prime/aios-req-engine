@@ -1,8 +1,10 @@
 'use client'
 
-import { Workflow, Clock, Plus, Pencil, Link2, Trash2 } from 'lucide-react'
+import { useState } from 'react'
+import { Workflow, Clock, Plus, Pencil, Link2, Trash2, ChevronRight } from 'lucide-react'
 import { SectionHeader } from '../components/SectionHeader'
-import { CollapsibleCard } from '../components/CollapsibleCard'
+import { BRDStatusBadge } from '../components/StatusBadge'
+import { StaleIndicator } from '../components/StaleIndicator'
 import type {
   VpStepBRDSummary,
   WorkflowPair,
@@ -27,6 +29,7 @@ interface WorkflowsSectionProps {
   onEditStep?: (workflowId: string, stepId: string) => void
   onDeleteStep?: (workflowId: string, stepId: string) => void
   onRefreshEntity?: (entityType: string, entityId: string) => void
+  onStatusClick?: (entityType: string, entityId: string, entityName: string, status?: string | null) => void
 }
 
 // ============================================================================
@@ -35,9 +38,9 @@ interface WorkflowsSectionProps {
 
 function AutomationBadge({ level }: { level: AutomationLevel }) {
   const config: Record<AutomationLevel, { dot: string; label: string; bg: string; text: string }> = {
-    manual: { dot: 'bg-red-400', label: 'Manual', bg: 'bg-red-50', text: 'text-red-700' },
-    semi_automated: { dot: 'bg-yellow-400', label: 'Semi-auto', bg: 'bg-yellow-50', text: 'text-yellow-700' },
-    fully_automated: { dot: 'bg-green-400', label: 'Automated', bg: 'bg-green-50', text: 'text-green-700' },
+    manual: { dot: 'bg-gray-400', label: 'Manual', bg: 'bg-gray-100', text: 'text-gray-600' },
+    semi_automated: { dot: 'bg-amber-400', label: 'Semi-auto', bg: 'bg-amber-50', text: 'text-amber-700' },
+    fully_automated: { dot: 'bg-[#3FAF7A]', label: 'Automated', bg: 'bg-[#E8F5E9]', text: 'text-[#25785A]' },
   }
   const c = config[level] || config.manual
   return (
@@ -55,26 +58,26 @@ function AutomationBadge({ level }: { level: AutomationLevel }) {
 function ROIFooter({ roi }: { roi: ROISummary }) {
   const pct = Math.min(Math.max(roi.time_saved_percent, 0), 100)
   return (
-    <div className="mt-3 pt-3 border-t border-gray-200 space-y-2">
+    <div className="mt-4 pt-4 border-t border-[#E5E5E5] space-y-2">
       {/* Progress bar */}
       <div className="flex items-center gap-2">
-        <span className="text-[11px] text-gray-500 w-16 shrink-0">Time saved</span>
+        <span className="text-[11px] text-[#666666] w-16 shrink-0">Time saved</span>
         <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
           <div
-            className="h-full bg-teal-500 rounded-full transition-all"
+            className="h-full bg-[#3FAF7A] rounded-full transition-all"
             style={{ width: `${pct}%` }}
           />
         </div>
-        <span className="text-[11px] font-medium text-[#37352f] w-10 text-right">
+        <span className="text-[11px] font-medium text-[#333333] w-10 text-right">
           {roi.time_saved_percent}%
         </span>
       </div>
       {/* Stats row */}
-      <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-gray-500">
+      <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-[#666666]">
         <span>
           {roi.current_total_minutes}min → {roi.future_total_minutes}min
         </span>
-        <span className="font-medium text-teal-700">
+        <span className="font-medium text-[#25785A]">
           Saves {roi.time_saved_minutes}min/run
         </span>
         {roi.cost_saved_per_week > 0 && (
@@ -91,112 +94,114 @@ function ROIFooter({ roi }: { roi: ROISummary }) {
 }
 
 // ============================================================================
-// Single Step Row
+// Step Card (numbered badge + connector line)
 // ============================================================================
 
-function WorkflowStepRow({
+function StepCard({
   step,
+  index,
+  isLast,
   stateType,
   onEdit,
   onDelete,
 }: {
   step: WorkflowStepSummary
+  index: number
+  isLast: boolean
   stateType: 'current' | 'future'
   onEdit?: () => void
   onDelete?: () => void
 }) {
   return (
-    <div className="group/step py-2 px-3 rounded hover:bg-gray-50/60 transition-colors">
-      <div className="flex items-start justify-between gap-2">
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-1.5">
-            <span className="text-[12px] font-medium text-gray-400 w-4">{step.step_index}.</span>
-            <span className="text-[13px] font-medium text-[#37352f] truncate">{step.label}</span>
-            <AutomationBadge level={step.automation_level} />
-          </div>
-          {step.description && (
-            <p className="text-[12px] text-gray-500 mt-0.5 ml-5 line-clamp-2">{step.description}</p>
-          )}
+    <div className="flex gap-3 group/step">
+      {/* Left: numbered badge + connector line */}
+      <div className="flex flex-col items-center shrink-0">
+        <div className="w-7 h-7 rounded-full bg-[#0A1E2F] flex items-center justify-center shrink-0">
+          <span className="text-[11px] font-bold text-white">{index}</span>
         </div>
-        {/* Time + actions */}
-        <div className="flex items-center gap-1 shrink-0">
-          {step.time_minutes != null && (
-            <span className="inline-flex items-center gap-0.5 text-[11px] text-gray-400">
-              <Clock className="w-3 h-3" />
-              {step.time_minutes}m
-            </span>
+        {!isLast && (
+          <div className="w-0 flex-1 border-l-2 border-dashed border-[#E5E5E5] min-h-[16px]" />
+        )}
+      </div>
+
+      {/* Right: step content */}
+      <div className="flex-1 min-w-0 pb-4">
+        <div className="bg-white border border-[#E5E5E5] rounded-xl px-3.5 py-2.5 hover:shadow-sm transition-shadow">
+          <div className="flex items-start justify-between gap-2">
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <span className="text-[13px] font-medium text-[#333333]">{step.label}</span>
+                <AutomationBadge level={step.automation_level} />
+                {step.time_minutes != null && (
+                  <span className="inline-flex items-center gap-0.5 text-[11px] text-[#999999]">
+                    <Clock className="w-3 h-3" />
+                    {step.time_minutes}m
+                  </span>
+                )}
+              </div>
+              {step.description && (
+                <p className="text-[12px] text-[#666666] mt-1 line-clamp-2">{step.description}</p>
+              )}
+            </div>
+
+            {/* Hover actions */}
+            {(onEdit || onDelete) && (
+              <div className="flex items-center gap-0.5 opacity-0 group-hover/step:opacity-100 transition-opacity shrink-0">
+                {onEdit && (
+                  <button onClick={onEdit} className="p-1 rounded hover:bg-gray-100 text-[#999999] hover:text-[#333333]" title="Edit step">
+                    <Pencil className="w-3 h-3" />
+                  </button>
+                )}
+                {onDelete && (
+                  <button onClick={onDelete} className="p-1 rounded hover:bg-red-50 text-[#999999] hover:text-red-500" title="Delete step">
+                    <Trash2 className="w-3 h-3" />
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Pain / Benefit text (grey italic, no red) */}
+          {stateType === 'current' && step.pain_description && (
+            <p className="text-[11px] text-[#999999] mt-1.5 italic">Pain: {step.pain_description}</p>
           )}
-          {(onEdit || onDelete) && (
-            <div className="flex items-center gap-0.5 opacity-0 group-hover/step:opacity-100 transition-opacity">
-              {onEdit && (
-                <button onClick={onEdit} className="p-1 rounded hover:bg-gray-200 text-gray-400 hover:text-gray-600" title="Edit step">
-                  <Pencil className="w-3 h-3" />
-                </button>
-              )}
-              {onDelete && (
-                <button onClick={onDelete} className="p-1 rounded hover:bg-red-50 text-gray-400 hover:text-red-500" title="Delete step">
-                  <Trash2 className="w-3 h-3" />
-                </button>
-              )}
+          {stateType === 'future' && step.benefit_description && (
+            <p className="text-[11px] text-[#25785A] mt-1.5 italic">Benefit: {step.benefit_description}</p>
+          )}
+
+          {/* Actor persona pill */}
+          {step.actor_persona_name && (
+            <div className="mt-1.5">
+              <span className="px-2 py-0.5 text-[10px] font-medium bg-[#E8F5E9] text-[#25785A] rounded-full">
+                {step.actor_persona_name}
+              </span>
+            </div>
+          )}
+
+          {/* Feature links (future side only) */}
+          {stateType === 'future' && step.feature_names && step.feature_names.length > 0 && (
+            <div className="flex flex-wrap gap-1 mt-1.5">
+              {step.feature_names.map((name, i) => (
+                <span
+                  key={step.feature_ids?.[i] || i}
+                  className="px-1.5 py-0.5 text-[10px] font-medium bg-blue-50 text-blue-700 rounded"
+                >
+                  {name}
+                </span>
+              ))}
             </div>
           )}
         </div>
       </div>
-
-      {/* Pain / Benefit text */}
-      {stateType === 'current' && step.pain_description && (
-        <p className="text-[11px] text-red-600/70 mt-1 ml-5 italic">Pain: {step.pain_description}</p>
-      )}
-      {stateType === 'future' && step.benefit_description && (
-        <p className="text-[11px] text-teal-600/70 mt-1 ml-5 italic">Benefit: {step.benefit_description}</p>
-      )}
-
-      {/* Feature links (future side only) */}
-      {stateType === 'future' && step.feature_names && step.feature_names.length > 0 && (
-        <div className="flex flex-wrap gap-1 mt-1 ml-5">
-          {step.feature_names.map((name, i) => (
-            <span
-              key={step.feature_ids?.[i] || i}
-              className="px-1.5 py-0.5 text-[10px] font-medium bg-teal-50 text-teal-700 rounded"
-            >
-              {name}
-            </span>
-          ))}
-        </div>
-      )}
-
-      {/* Actor */}
-      {step.actor_persona_name && (
-        <div className="mt-1 ml-5">
-          <span className="px-1.5 py-0.5 text-[10px] font-medium bg-indigo-50 text-indigo-700 rounded">
-            {step.actor_persona_name}
-          </span>
-        </div>
-      )}
     </div>
   )
 }
 
 // ============================================================================
-// Workflow State Column (reusable for current/future side)
+// Step Column (Current or Future side)
 // ============================================================================
 
-const stateConfig = {
-  current: {
-    label: 'Current State',
-    subtitle: 'How it works today',
-    headerColor: 'text-red-700',
-    borderColor: 'border-red-200',
-  },
-  future: {
-    label: 'Future State',
-    subtitle: 'How the system improves it',
-    headerColor: 'text-teal-700',
-    borderColor: 'border-teal-200',
-  },
-} as const
-
-function WorkflowStateColumn({
+function StepColumn({
   steps,
   stateType,
   workflowId,
@@ -211,34 +216,194 @@ function WorkflowStateColumn({
   onEditStep?: (stepId: string) => void
   onDeleteStep?: (stepId: string) => void
 }) {
-  const cfg = stateConfig[stateType]
+  const isCurrent = stateType === 'current'
   return (
-    <div>
-      <div className="flex items-center justify-between mb-2">
-        <h4 className={`text-[12px] font-semibold ${cfg.headerColor} uppercase tracking-wide`}>
-          {cfg.label}
-        </h4>
-        {onCreateStep && workflowId && (
-          <button
-            onClick={() => onCreateStep(stateType)}
-            className="p-0.5 rounded text-gray-400 hover:text-gray-600 hover:bg-gray-100"
-            title={`Add ${stateType} step`}
-          >
-            <Plus className="w-3.5 h-3.5" />
-          </button>
-        )}
+    <div className="flex-1 min-w-0">
+      {/* Column header */}
+      <div className={`px-3 py-1.5 rounded-lg mb-3 ${
+        isCurrent
+          ? 'bg-[#F0F0F0] text-[#666666]'
+          : 'bg-[#E8F5E9] text-[#25785A]'
+      }`}>
+        <span className="text-[11px] font-semibold uppercase tracking-wider">
+          {isCurrent ? 'Current (Manual)' : 'Future (Automated)'}
+        </span>
       </div>
-      <p className="text-[11px] text-gray-400 mb-2">{cfg.subtitle}</p>
-      <div className={`space-y-0.5 border-l-2 ${cfg.borderColor} pl-1`}>
-        {steps.map((step) => (
-          <WorkflowStepRow
-            key={step.id}
-            step={step}
-            stateType={stateType}
-            onEdit={onEditStep ? () => onEditStep(step.id) : undefined}
-            onDelete={onDeleteStep ? () => onDeleteStep(step.id) : undefined}
+
+      {/* Steps */}
+      {steps.length > 0 ? (
+        <div>
+          {steps.map((step, idx) => (
+            <StepCard
+              key={step.id}
+              step={step}
+              index={idx + 1}
+              isLast={idx === steps.length - 1}
+              stateType={stateType}
+              onEdit={onEditStep ? () => onEditStep(step.id) : undefined}
+              onDelete={onDeleteStep ? () => onDeleteStep(step.id) : undefined}
+            />
+          ))}
+        </div>
+      ) : (
+        <p className="text-[12px] text-[#999999] italic py-3 px-3">No steps yet</p>
+      )}
+
+      {/* Add Step button */}
+      {onCreateStep && workflowId && (
+        <button
+          onClick={() => onCreateStep(stateType)}
+          className="inline-flex items-center gap-1 px-3 py-1.5 text-[11px] font-medium text-[#666666] hover:text-[#25785A] hover:bg-[#E8F5E9] rounded-lg transition-colors mt-1"
+        >
+          <Plus className="w-3 h-3" />
+          Add Step
+        </button>
+      )}
+    </div>
+  )
+}
+
+// ============================================================================
+// Workflow Accordion Card
+// ============================================================================
+
+function WorkflowAccordionCard({
+  pair,
+  onConfirm,
+  onNeedsReview,
+  onEditWorkflow,
+  onDeleteWorkflow,
+  onPairWorkflow,
+  onCreateStep,
+  onEditStep,
+  onDeleteStep,
+  onRefreshEntity,
+  onStatusClick,
+}: {
+  pair: WorkflowPair
+  onConfirm: (entityType: string, entityId: string) => void
+  onNeedsReview: (entityType: string, entityId: string) => void
+  onEditWorkflow?: (workflowId: string) => void
+  onDeleteWorkflow?: (workflowId: string) => void
+  onPairWorkflow?: (workflowId: string) => void
+  onCreateStep?: (workflowId: string, stateType: 'current' | 'future') => void
+  onEditStep?: (workflowId: string, stepId: string) => void
+  onDeleteStep?: (workflowId: string, stepId: string) => void
+  onRefreshEntity?: (entityType: string, entityId: string) => void
+  onStatusClick?: (entityType: string, entityId: string, entityName: string, status?: string | null) => void
+}) {
+  const [expanded, setExpanded] = useState(false)
+
+  const currentMin = pair.current_steps.reduce((sum, s) => sum + (s.time_minutes || 0), 0)
+  const futureMin = pair.future_steps.reduce((sum, s) => sum + (s.time_minutes || 0), 0)
+
+  const createStepHandler = onCreateStep
+    ? (stateType: 'current' | 'future') => {
+        const wfId = stateType === 'current' ? pair.current_workflow_id : pair.future_workflow_id
+        if (wfId) onCreateStep(wfId, stateType)
+      }
+    : undefined
+  const editStepHandler = onEditStep
+    ? (stepId: string) => onEditStep(pair.future_workflow_id || pair.current_workflow_id || pair.id, stepId)
+    : undefined
+  const deleteStepHandler = onDeleteStep
+    ? (stepId: string) => onDeleteStep(pair.future_workflow_id || pair.current_workflow_id || pair.id, stepId)
+    : undefined
+
+  return (
+    <div className="bg-white rounded-2xl shadow-md border border-[#E5E5E5] overflow-hidden">
+      {/* Header row — clickable */}
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="w-full flex items-center gap-3 px-5 py-4 text-left hover:bg-gray-50/50 transition-colors"
+      >
+        <ChevronRight
+          className={`w-4 h-4 text-[#999999] shrink-0 transition-transform duration-200 ${expanded ? 'rotate-90' : ''}`}
+        />
+        <Workflow className="w-4 h-4 text-[#3FAF7A] shrink-0" />
+        <span className="text-[14px] font-semibold text-[#333333] truncate">{pair.name}</span>
+        <span onClick={(e) => e.stopPropagation()}>
+          <BRDStatusBadge
+            status={pair.confirmation_status}
+            onClick={onStatusClick ? () => onStatusClick('workflow', pair.id, pair.name, pair.confirmation_status) : undefined}
           />
-        ))}
+        </span>
+
+        {/* Time summaries */}
+        {currentMin > 0 && (
+          <span className="text-[11px] text-[#999999] shrink-0">Current: {currentMin}min</span>
+        )}
+        {futureMin > 0 && (
+          <span className="text-[11px] text-[#999999] shrink-0">Future: {futureMin}min</span>
+        )}
+
+        {/* Staleness indicator */}
+        {pair.is_stale && (
+          <StaleIndicator reason={pair.stale_reason || undefined} />
+        )}
+
+        {/* Right side: ROI savings + action buttons */}
+        <div className="ml-auto flex items-center gap-2 shrink-0" onClick={(e) => e.stopPropagation()}>
+          {pair.roi && pair.roi.time_saved_minutes > 0 && (
+            <span className="text-[11px] font-medium text-[#25785A] bg-[#E8F5E9] px-2 py-0.5 rounded">
+              {pair.roi.time_saved_minutes}min saved ({pair.roi.time_saved_percent}%)
+            </span>
+          )}
+          {onPairWorkflow && !pair.current_workflow_id && (
+            <button onClick={() => onPairWorkflow(pair.id)} className="p-1 rounded text-[#999999] hover:text-blue-600 hover:bg-blue-50" title="Pair with current-state workflow">
+              <Link2 className="w-3.5 h-3.5" />
+            </button>
+          )}
+          {onEditWorkflow && (
+            <button onClick={() => onEditWorkflow(pair.id)} className="p-1 rounded text-[#999999] hover:text-[#333333] hover:bg-gray-100" title="Edit workflow">
+              <Pencil className="w-3.5 h-3.5" />
+            </button>
+          )}
+          {onDeleteWorkflow && (
+            <button onClick={() => onDeleteWorkflow(pair.id)} className="p-1 rounded text-[#999999] hover:text-red-500 hover:bg-red-50" title="Delete workflow">
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
+      </button>
+
+      {/* Expanded body */}
+      <div
+        className={`overflow-hidden transition-all duration-200 ${expanded ? 'max-h-[2000px] opacity-100' : 'max-h-0 opacity-0'}`}
+      >
+        <div className="px-5 pb-5 pt-1">
+          {pair.description && (
+            <p className="text-[12px] text-[#666666] mb-4">{pair.description}</p>
+          )}
+
+          {/* Side-by-side columns */}
+          {(pair.current_steps.length > 0 || pair.future_steps.length > 0) ? (
+            <div className="flex gap-6">
+              {(pair.current_steps.length > 0 || pair.current_workflow_id) && (
+                <StepColumn
+                  steps={pair.current_steps}
+                  stateType="current"
+                  workflowId={pair.current_workflow_id}
+                  onCreateStep={createStepHandler}
+                  onEditStep={editStepHandler}
+                  onDeleteStep={deleteStepHandler}
+                />
+              )}
+              <StepColumn
+                steps={pair.future_steps}
+                stateType="future"
+                workflowId={pair.future_workflow_id}
+                onCreateStep={createStepHandler}
+                onEditStep={editStepHandler}
+                onDeleteStep={deleteStepHandler}
+              />
+            </div>
+          ) : (
+            <p className="text-[12px] text-[#999999] italic py-2">No steps added yet</p>
+          )}
+
+          {pair.roi && <ROIFooter roi={pair.roi} />}
+        </div>
       </div>
     </div>
   )
@@ -263,6 +428,7 @@ export function WorkflowsSection({
   onEditStep,
   onDeleteStep,
   onRefreshEntity,
+  onStatusClick,
 }: WorkflowsSectionProps) {
   const hasWorkflowPairs = workflowPairs.length > 0
 
@@ -290,7 +456,7 @@ export function WorkflowsSection({
         {onCreateWorkflow && (
           <button
             onClick={onCreateWorkflow}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-gray-600 bg-white border border-gray-200 rounded-md hover:bg-blue-50 hover:text-blue-700 hover:border-blue-200 transition-colors"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-[#666666] bg-white border border-[#E5E5E5] rounded-xl hover:bg-[#E8F5E9] hover:text-[#25785A] hover:border-[#3FAF7A] transition-colors"
           >
             <Plus className="w-3.5 h-3.5" />
             Add Workflow
@@ -298,188 +464,140 @@ export function WorkflowsSection({
         )}
       </div>
 
-      {/* Workflow Pairs (accordion cards with side-by-side current/future) */}
+      {/* Workflow Pairs (branded accordion cards) */}
       {hasWorkflowPairs && (
-        <div className="space-y-2 mb-6">
-          {workflowPairs.map((pair) => {
-            const stepCount = pair.current_steps.length + pair.future_steps.length
-            const subtitleParts: string[] = []
-            if (pair.owner) subtitleParts.push(`Owner: ${pair.owner}`)
-            subtitleParts.push(`${stepCount} step${stepCount !== 1 ? 's' : ''}`)
-
-            const createStepHandler = onCreateStep
-              ? (stateType: 'current' | 'future') => {
-                  const wfId = stateType === 'current' ? pair.current_workflow_id : pair.future_workflow_id
-                  if (wfId) onCreateStep(wfId, stateType)
-                }
-              : undefined
-            const editStepHandler = onEditStep
-              ? (stepId: string) => onEditStep(pair.future_workflow_id || pair.current_workflow_id || pair.id, stepId)
-              : undefined
-            const deleteStepHandler = onDeleteStep
-              ? (stepId: string) => onDeleteStep(pair.future_workflow_id || pair.current_workflow_id || pair.id, stepId)
-              : undefined
-
-            const hasBothSides = pair.current_steps.length > 0 && pair.future_steps.length > 0
-
-            return (
-              <CollapsibleCard
-                key={pair.id}
-                title={pair.name}
-                subtitle={subtitleParts.join(' \u00b7 ')}
-                icon={<Workflow className="w-4 h-4 text-blue-400" />}
-                status={pair.confirmation_status}
-                isStale={pair.is_stale}
-                staleReason={pair.stale_reason}
-                onRefresh={onRefreshEntity ? () => onRefreshEntity('workflow', pair.id) : undefined}
-                defaultExpanded={false}
-                onConfirm={() => onConfirm('workflow', pair.id)}
-                onNeedsReview={() => onNeedsReview('workflow', pair.id)}
-                actions={
-                  <div className="flex items-center gap-1.5">
-                    {pair.roi && (
-                      <span className="text-[11px] font-medium text-teal-700 bg-teal-50 px-2 py-0.5 rounded">
-                        {pair.roi.time_saved_minutes}min saved ({pair.roi.time_saved_percent}%)
-                      </span>
-                    )}
-                    {onPairWorkflow && !pair.current_workflow_id && (
-                      <button onClick={() => onPairWorkflow(pair.id)} className="p-1 rounded text-gray-400 hover:text-blue-600 hover:bg-blue-50" title="Pair with current-state workflow">
-                        <Link2 className="w-3.5 h-3.5" />
-                      </button>
-                    )}
-                    {onEditWorkflow && (
-                      <button onClick={() => onEditWorkflow(pair.id)} className="p-1 rounded text-gray-400 hover:text-gray-600 hover:bg-gray-200" title="Edit workflow">
-                        <Pencil className="w-3.5 h-3.5" />
-                      </button>
-                    )}
-                    {onDeleteWorkflow && (
-                      <button onClick={() => onDeleteWorkflow(pair.id)} className="p-1 rounded text-gray-400 hover:text-red-500 hover:bg-red-50" title="Delete workflow">
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    )}
-                  </div>
-                }
-              >
-                <div className="space-y-3">
-                  {pair.description && (
-                    <p className="text-[12px] text-gray-500">{pair.description}</p>
-                  )}
-
-                  {hasBothSides ? (
-                    <div className="grid grid-cols-2 gap-4">
-                      <WorkflowStateColumn
-                        steps={pair.current_steps}
-                        stateType="current"
-                        workflowId={pair.current_workflow_id}
-                        onCreateStep={createStepHandler}
-                        onEditStep={editStepHandler}
-                        onDeleteStep={deleteStepHandler}
-                      />
-                      <WorkflowStateColumn
-                        steps={pair.future_steps}
-                        stateType="future"
-                        workflowId={pair.future_workflow_id}
-                        onCreateStep={createStepHandler}
-                        onEditStep={editStepHandler}
-                        onDeleteStep={deleteStepHandler}
-                      />
-                    </div>
-                  ) : (
-                    <div>
-                      {pair.future_steps.length > 0 && (
-                        <WorkflowStateColumn
-                          steps={pair.future_steps}
-                          stateType="future"
-                          workflowId={pair.future_workflow_id}
-                          onCreateStep={createStepHandler}
-                          onEditStep={editStepHandler}
-                          onDeleteStep={deleteStepHandler}
-                        />
-                      )}
-                      {pair.current_steps.length > 0 && (
-                        <WorkflowStateColumn
-                          steps={pair.current_steps}
-                          stateType="current"
-                          workflowId={pair.current_workflow_id}
-                          onCreateStep={createStepHandler}
-                          onEditStep={editStepHandler}
-                          onDeleteStep={deleteStepHandler}
-                        />
-                      )}
-                      {pair.current_steps.length === 0 && pair.future_steps.length === 0 && (
-                        <p className="text-[12px] text-gray-400 italic py-2">No steps added yet</p>
-                      )}
-                    </div>
-                  )}
-
-                  {pair.roi && <ROIFooter roi={pair.roi} />}
-                </div>
-              </CollapsibleCard>
-            )
-          })}
+        <div className="space-y-3 mb-6">
+          {workflowPairs.map((pair) => (
+            <WorkflowAccordionCard
+              key={pair.id}
+              pair={pair}
+              onConfirm={onConfirm}
+              onNeedsReview={onNeedsReview}
+              onEditWorkflow={onEditWorkflow}
+              onDeleteWorkflow={onDeleteWorkflow}
+              onPairWorkflow={onPairWorkflow}
+              onCreateStep={onCreateStep}
+              onEditStep={onEditStep}
+              onDeleteStep={onDeleteStep}
+              onRefreshEntity={onRefreshEntity}
+              onStatusClick={onStatusClick}
+            />
+          ))}
         </div>
       )}
 
-      {/* Legacy flat VP steps (shown when no workflow pairs, or alongside them for unmapped steps) */}
+      {/* Legacy flat VP steps (shown when no workflow pairs) */}
       {!hasWorkflowPairs && (
         <>
           {workflows.length === 0 ? (
-            <p className="text-[13px] text-[rgba(55,53,47,0.45)] italic">No workflows mapped yet</p>
+            <p className="text-[13px] text-[#999999] italic">No workflows mapped yet</p>
           ) : (
-            <div className="space-y-2">
+            <div className="space-y-3">
               {workflows.map((step, idx) => (
-                <CollapsibleCard
+                <LegacyStepCard
                   key={step.id}
-                  title={`${idx + 1}. ${step.title}`}
-                  subtitle={step.actor_persona_name ? `Actor: ${step.actor_persona_name}` : undefined}
-                  icon={<Workflow className="w-4 h-4 text-blue-400" />}
-                  status={step.confirmation_status}
-                  isStale={step.is_stale}
-                  staleReason={step.stale_reason}
-                  onRefresh={onRefreshEntity ? () => onRefreshEntity('vp_step', step.id) : undefined}
+                  step={step}
+                  index={idx + 1}
                   onConfirm={() => onConfirm('vp_step', step.id)}
                   onNeedsReview={() => onNeedsReview('vp_step', step.id)}
-                >
-                  <div className="space-y-3">
-                    {step.description && (
-                      <p className="text-[13px] text-[rgba(55,53,47,0.65)] leading-relaxed">
-                        {step.description}
-                      </p>
-                    )}
-
-                    {/* Actor persona chip */}
-                    {step.actor_persona_name && (
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-[11px] text-gray-400">Actor:</span>
-                        <span className="px-2 py-0.5 text-[11px] font-medium bg-indigo-50 text-indigo-700 rounded-full">
-                          {step.actor_persona_name}
-                        </span>
-                      </div>
-                    )}
-
-                    {/* Feature links */}
-                    {step.feature_names && step.feature_names.length > 0 && (
-                      <div>
-                        <span className="text-[11px] text-gray-400 block mb-1">Features:</span>
-                        <div className="flex flex-wrap gap-1">
-                          {step.feature_names.map((name, i) => (
-                            <span
-                              key={step.feature_ids?.[i] || i}
-                              className="px-2 py-0.5 text-[11px] font-medium bg-teal-50 text-teal-700 rounded-full"
-                            >
-                              {name}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </CollapsibleCard>
+                  onRefresh={onRefreshEntity ? () => onRefreshEntity('vp_step', step.id) : undefined}
+                  onStatusClick={onStatusClick ? () => onStatusClick('vp_step', step.id, step.title, step.confirmation_status) : undefined}
+                />
               ))}
             </div>
           )}
         </>
       )}
     </section>
+  )
+}
+
+// ============================================================================
+// Legacy flat step card (branded accordion style)
+// ============================================================================
+
+function LegacyStepCard({
+  step,
+  index,
+  onConfirm,
+  onNeedsReview,
+  onRefresh,
+  onStatusClick,
+}: {
+  step: VpStepBRDSummary
+  index: number
+  onConfirm: () => void
+  onNeedsReview: () => void
+  onRefresh?: () => void
+  onStatusClick?: () => void
+}) {
+  const [expanded, setExpanded] = useState(false)
+
+  return (
+    <div className="bg-white rounded-2xl shadow-md border border-[#E5E5E5] overflow-hidden">
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="w-full flex items-center gap-3 px-5 py-4 text-left hover:bg-gray-50/50 transition-colors"
+      >
+        <ChevronRight
+          className={`w-4 h-4 text-[#999999] shrink-0 transition-transform duration-200 ${expanded ? 'rotate-90' : ''}`}
+        />
+        <div className="w-7 h-7 rounded-full bg-[#0A1E2F] flex items-center justify-center shrink-0">
+          <span className="text-[11px] font-bold text-white">{index}</span>
+        </div>
+        <span className="text-[14px] font-semibold text-[#333333] truncate">{step.title}</span>
+        <span onClick={(e) => e.stopPropagation()}>
+          <BRDStatusBadge
+            status={step.confirmation_status}
+            onClick={onStatusClick}
+          />
+        </span>
+        {step.actor_persona_name && (
+          <span className="px-2 py-0.5 text-[10px] font-medium bg-[#E8F5E9] text-[#25785A] rounded-full shrink-0">
+            {step.actor_persona_name}
+          </span>
+        )}
+        {step.is_stale && (
+          <StaleIndicator reason={step.stale_reason || undefined} />
+        )}
+      </button>
+
+      <div
+        className={`overflow-hidden transition-all duration-200 ${expanded ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'}`}
+      >
+        <div className="px-5 pb-4 pt-1 space-y-3">
+          {step.description && (
+            <p className="text-[13px] text-[#666666] leading-relaxed">
+              {step.description}
+            </p>
+          )}
+
+          {step.actor_persona_name && (
+            <div className="flex items-center gap-1.5">
+              <span className="text-[11px] text-[#999999]">Actor:</span>
+              <span className="px-2 py-0.5 text-[11px] font-medium bg-[#E8F5E9] text-[#25785A] rounded-full">
+                {step.actor_persona_name}
+              </span>
+            </div>
+          )}
+
+          {step.feature_names && step.feature_names.length > 0 && (
+            <div>
+              <span className="text-[11px] text-[#999999] block mb-1">Features:</span>
+              <div className="flex flex-wrap gap-1">
+                {step.feature_names.map((name, i) => (
+                  <span
+                    key={step.feature_ids?.[i] || i}
+                    className="px-2 py-0.5 text-[11px] font-medium bg-blue-50 text-blue-700 rounded-full"
+                  >
+                    {name}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
   )
 }

@@ -2082,6 +2082,12 @@ export const batchConfirmEntities = (
     }
   )
 
+// Entity Confidence
+export const getEntityConfidence = (projectId: string, entityType: string, entityId: string) =>
+  apiRequest<import('@/types/workspace').EntityConfidenceData>(
+    `/projects/${projectId}/workspace/entity-confidence/${entityType}/${entityId}`
+  )
+
 // BRD Driver Detail + Background
 export const getBRDDriverDetail = (projectId: string, driverId: string) =>
   apiRequest<import('@/types/workspace').BusinessDriverDetail>(

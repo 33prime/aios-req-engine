@@ -510,3 +510,69 @@ export interface ImpactAnalysis {
   recommendation: 'auto' | 'review_suggested' | 'high_impact_warning'
 }
 
+// ============================================
+// Entity Confidence Types
+// ============================================
+
+export type ConfidenceCategory = 'identity' | 'detail' | 'relationships' | 'provenance' | 'confirmation'
+
+export interface ConfidenceGap {
+  label: string
+  category: ConfidenceCategory
+  is_met: boolean
+  suggestion?: string | null
+}
+
+export interface EvidenceWithSource extends BRDEvidence {
+  signal_id?: string | null
+  signal_label?: string | null
+  signal_type?: string | null
+  signal_created_at?: string | null
+}
+
+export interface FieldAttributionItem {
+  field_path: string
+  signal_id?: string | null
+  signal_label?: string | null
+  contributed_at?: string | null
+  version_number?: number | null
+}
+
+export interface ConfidenceRevision {
+  revision_type: string
+  diff_summary?: string | null
+  changes?: Record<string, unknown> | null
+  created_at: string
+  created_by?: string | null
+  source_signal_id?: string | null
+}
+
+export interface DependencyItem {
+  entity_type: string
+  entity_id: string
+  dependency_type?: string | null
+  strength?: number | null
+  direction: 'depends_on' | 'depended_by'
+}
+
+export interface EntityConfidenceData {
+  entity_type: string
+  entity_id: string
+  entity_name: string
+  confirmation_status?: string | null
+  is_stale: boolean
+  stale_reason?: string | null
+  created_at?: string | null
+  updated_at?: string | null
+
+  completeness_items: ConfidenceGap[]
+  completeness_met: number
+  completeness_total: number
+
+  evidence: EvidenceWithSource[]
+  field_attributions: FieldAttributionItem[]
+  gaps: ConfidenceGap[]
+  revisions: ConfidenceRevision[]
+  dependencies: DependencyItem[]
+}
+

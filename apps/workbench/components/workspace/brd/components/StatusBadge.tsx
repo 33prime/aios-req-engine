@@ -3,6 +3,7 @@
 interface BRDStatusBadgeProps {
   status: string | null | undefined
   className?: string
+  onClick?: () => void
 }
 
 const STATUS_CONFIG: Record<string, { label: string; bg: string; text: string }> = {
@@ -15,13 +16,15 @@ const STATUS_CONFIG: Record<string, { label: string; bg: string; text: string }>
 
 const DEFAULT_CONFIG = { label: 'Draft', bg: '#f3f4f6', text: '#6b7280' }
 
-export function BRDStatusBadge({ status, className = '' }: BRDStatusBadgeProps) {
+export function BRDStatusBadge({ status, className = '', onClick }: BRDStatusBadgeProps) {
   const config = STATUS_CONFIG[status || ''] || DEFAULT_CONFIG
 
   return (
     <span
-      className={`inline-flex items-center rounded-xl px-2.5 py-1 text-[11px] font-medium leading-none ${className}`}
+      className={`inline-flex items-center rounded-xl px-2.5 py-1 text-[11px] font-medium leading-none ${onClick ? 'cursor-pointer hover:brightness-95 transition-all' : ''} ${className}`}
       style={{ backgroundColor: config.bg, color: config.text }}
+      onClick={onClick ? (e) => { e.stopPropagation(); onClick() } : undefined}
+      role={onClick ? 'button' : undefined}
     >
       {config.label}
     </span>

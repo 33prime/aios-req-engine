@@ -16,6 +16,7 @@ interface BusinessContextSectionProps {
   onConfirmAll: (entityType: string, ids: string[]) => void
   onUpdateVision: (vision: string) => void
   onUpdateBackground: (background: string) => void
+  onStatusClick?: (entityType: string, entityId: string, entityName: string, status?: string | null) => void
 }
 
 const SHOW_MAX_PAINS = 8
@@ -30,6 +31,7 @@ export function BusinessContextSection({
   onConfirmAll,
   onUpdateVision,
   onUpdateBackground,
+  onStatusClick,
 }: BusinessContextSectionProps) {
   const [editingVision, setEditingVision] = useState(false)
   const [visionDraft, setVisionDraft] = useState(data.vision || '')
@@ -150,6 +152,7 @@ export function BusinessContextSection({
                 status={pain.confirmation_status}
                 onConfirm={() => onConfirm('business_driver', pain.id)}
                 onNeedsReview={() => onNeedsReview('business_driver', pain.id)}
+                onStatusClick={onStatusClick ? () => onStatusClick('business_driver', pain.id, pain.description.slice(0, 60), pain.confirmation_status) : undefined}
                 onDetailClick={() => setSelectedDriver({ id: pain.id, type: 'pain', data: pain })}
               >
                 <div className="space-y-2 text-[13px] text-[rgba(55,53,47,0.65)]">
@@ -214,6 +217,7 @@ export function BusinessContextSection({
                 status={goal.confirmation_status}
                 onConfirm={() => onConfirm('business_driver', goal.id)}
                 onNeedsReview={() => onNeedsReview('business_driver', goal.id)}
+                onStatusClick={onStatusClick ? () => onStatusClick('business_driver', goal.id, goal.description.slice(0, 60), goal.confirmation_status) : undefined}
                 onDetailClick={() => setSelectedDriver({ id: goal.id, type: 'goal', data: goal })}
               >
                 <div className="space-y-2 text-[13px] text-[rgba(55,53,47,0.65)]">
@@ -325,6 +329,7 @@ export function BusinessContextSection({
                 status={metric.confirmation_status}
                 onConfirm={() => onConfirm('business_driver', metric.id)}
                 onNeedsReview={() => onNeedsReview('business_driver', metric.id)}
+                onStatusClick={onStatusClick ? () => onStatusClick('business_driver', metric.id, metric.description.slice(0, 60), metric.confirmation_status) : undefined}
                 onDetailClick={() => setSelectedDriver({ id: metric.id, type: 'kpi', data: metric })}
               >
                 <div className="space-y-2 text-[13px] text-[rgba(55,53,47,0.65)]">

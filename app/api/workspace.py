@@ -837,7 +837,7 @@ async def get_brd_workspace_data(project_id: UUID) -> BRDWorkspaceData:
                 future_workflow_id=wp.get("future_workflow_id"),
                 current_steps=[WorkflowStepSummary(**s) for s in wp.get("current_steps", [])],
                 future_steps=[WorkflowStepSummary(**s) for s in wp.get("future_steps", [])],
-                roi=ROISummary(workflow_name=wp["name"], **wp["roi"]) if wp.get("roi") else None,
+                roi=ROISummary(**{**wp["roi"], "workflow_name": wp["name"]}) if wp.get("roi") else None,
             )
             workflow_pairs_out.append(pair)
             if pair.roi:
@@ -1610,4 +1610,367 @@ async def unlink_data_entity_from_step_endpoint(
         return {"success": True, "link_id": str(link_id)}
     except Exception as e:
         logger.exception(f"Failed to unlink data entity {entity_id} from step")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================================
+# Entity Confidence Endpoint
+# ============================================================================
+
+
+# Table → (table_name, name_column) mapping
+CONFIDENCE_TABLE_MAP: dict[str, tuple[str, str]] = {
+    "feature": ("features", "name"),
+    "persona": ("personas", "name"),
+    "vp_step": ("vp_steps", "label"),
+    "business_driver": ("business_drivers", "description"),
+    "constraint": ("constraints", "title"),
+    "data_entity": ("data_entities", "name"),
+    "stakeholder": ("stakeholders", "name"),
+    "workflow": ("workflows", "name"),
+}
+
+
+class ConfidenceGap(BaseModel):
+    """A single completeness check item."""
+    label: str
+    category: str  # identity, detail, relationships, provenance, confirmation
+    is_met: bool
+    suggestion: str | None = None
+
+
+class EvidenceWithSource(BaseModel):
+    """Evidence item with resolved signal info."""
+    chunk_id: str | None = None
+    excerpt: str = ""
+    source_type: str = "inferred"
+    rationale: str = ""
+    signal_id: str | None = None
+    signal_label: str | None = None
+    signal_type: str | None = None
+    signal_created_at: str | None = None
+
+
+class FieldAttributionOut(BaseModel):
+    """A field attribution record."""
+    field_path: str
+    signal_id: str | None = None
+    signal_label: str | None = None
+    contributed_at: str | None = None
+    version_number: int | None = None
+
+
+class ConfidenceRevision(BaseModel):
+    """A revision entry."""
+    revision_type: str = ""
+    diff_summary: str | None = None
+    changes: dict | None = None
+    created_at: str = ""
+    created_by: str | None = None
+    source_signal_id: str | None = None
+
+
+class DependencyItem(BaseModel):
+    """An entity dependency."""
+    entity_type: str
+    entity_id: str
+    dependency_type: str | None = None
+    strength: float | None = None
+    direction: str  # 'depends_on' | 'depended_by'
+
+
+class EntityConfidenceResponse(BaseModel):
+    """Full confidence data for an entity."""
+    entity_type: str
+    entity_id: str
+    entity_name: str
+    confirmation_status: str | None = None
+    is_stale: bool = False
+    stale_reason: str | None = None
+    created_at: str | None = None
+    updated_at: str | None = None
+
+    completeness_items: list[ConfidenceGap] = []
+    completeness_met: int = 0
+    completeness_total: int = 0
+
+    evidence: list[EvidenceWithSource] = []
+    field_attributions: list[FieldAttributionOut] = []
+    gaps: list[ConfidenceGap] = []
+    revisions: list[ConfidenceRevision] = []
+    dependencies: list[DependencyItem] = []
+
+
+def _compute_completeness(entity_type: str, entity: dict) -> list[ConfidenceGap]:
+    """Compute completeness check items for an entity."""
+    checks: list[tuple[str, str, str, bool]] = []  # (label, category, suggestion, is_met)
+
+    if entity_type == "feature":
+        checks = [
+            ("Has name", "identity", "Add a descriptive name", bool(entity.get("name"))),
+            ("Has description", "detail", "Add an overview describing the feature", bool(entity.get("overview"))),
+            ("Has acceptance criteria", "detail", "Define acceptance criteria", bool(entity.get("acceptance_criteria"))),
+            ("Priority assigned", "detail", "Assign a MoSCoW priority group", bool(entity.get("priority_group"))),
+            ("Target personas linked", "relationships", "Link personas who benefit from this feature", len(entity.get("target_personas") or []) > 0),
+            ("Has signal evidence", "provenance", "Process a signal that mentions this feature", len(entity.get("evidence") or []) > 0),
+            ("Confirmed by consultant or client", "confirmation", "Review and confirm this feature", entity.get("confirmation_status") in ("confirmed_consultant", "confirmed_client")),
+            ("Not stale", "confirmation", "Refresh this entity to clear stale status", not entity.get("is_stale")),
+        ]
+    elif entity_type == "persona":
+        checks = [
+            ("Has name", "identity", "Add a persona name", bool(entity.get("name"))),
+            ("Has role", "identity", "Add the persona's role or title", bool(entity.get("role"))),
+            ("Has goals", "detail", "Add goals this persona wants to achieve", len(entity.get("goals") or []) > 0),
+            ("Has pain points", "detail", "Add pain points this persona experiences", len(entity.get("pain_points") or []) > 0),
+            ("Has description", "detail", "Add a description of this persona", bool(entity.get("description"))),
+            ("Has signal evidence", "provenance", "Process a signal that mentions this persona", len(entity.get("evidence") or []) > 0),
+            ("Confirmed by consultant or client", "confirmation", "Review and confirm this persona", entity.get("confirmation_status") in ("confirmed_consultant", "confirmed_client")),
+            ("Not stale", "confirmation", "Refresh this entity to clear stale status", not entity.get("is_stale")),
+        ]
+    elif entity_type == "vp_step":
+        checks = [
+            ("Has label", "identity", "Add a step label", bool(entity.get("label"))),
+            ("Has description", "detail", "Add a description of this step", bool(entity.get("description"))),
+            ("Actor assigned", "relationships", "Assign a persona to this step", bool(entity.get("actor_persona_id"))),
+            ("Has signal evidence", "provenance", "Process a signal that mentions this step", len(entity.get("evidence") or []) > 0),
+            ("Confirmed", "confirmation", "Review and confirm this step", entity.get("confirmation_status") in ("confirmed_consultant", "confirmed_client")),
+            ("Not stale", "confirmation", "Refresh this entity to clear stale status", not entity.get("is_stale")),
+        ]
+    elif entity_type == "business_driver":
+        checks = [
+            ("Has description", "identity", "Add a description", bool(entity.get("description"))),
+            ("Has evidence", "provenance", "Process a signal that supports this driver", len(entity.get("evidence") or []) > 0),
+            ("Confirmed", "confirmation", "Review and confirm this driver", entity.get("confirmation_status") in ("confirmed_consultant", "confirmed_client")),
+        ]
+        dtype = entity.get("driver_type")
+        if dtype == "pain":
+            checks.append(("Has business impact", "detail", "Describe the business impact", bool(entity.get("business_impact"))))
+            checks.append(("Has severity", "detail", "Set a severity level", bool(entity.get("severity"))))
+        elif dtype == "goal":
+            checks.append(("Has success criteria", "detail", "Define success criteria", bool(entity.get("success_criteria"))))
+        elif dtype == "kpi":
+            checks.append(("Has baseline value", "detail", "Set a baseline measurement", bool(entity.get("baseline_value"))))
+            checks.append(("Has target value", "detail", "Set a target value", bool(entity.get("target_value"))))
+            checks.append(("Has measurement method", "detail", "Define how to measure this KPI", bool(entity.get("measurement_method"))))
+    elif entity_type == "data_entity":
+        checks = [
+            ("Has name", "identity", "Add a name", bool(entity.get("name"))),
+            ("Has description", "detail", "Add a description", bool(entity.get("description"))),
+            ("Has fields defined", "detail", "Add field definitions", len(entity.get("fields") or []) > 0),
+            ("Has evidence", "provenance", "Process a signal that mentions this entity", len(entity.get("evidence") or []) > 0),
+            ("Confirmed", "confirmation", "Review and confirm", entity.get("confirmation_status") in ("confirmed_consultant", "confirmed_client")),
+            ("Not stale", "confirmation", "Refresh to clear stale status", not entity.get("is_stale")),
+        ]
+    elif entity_type == "stakeholder":
+        checks = [
+            ("Has name", "identity", "Add a name", bool(entity.get("name"))),
+            ("Has role", "identity", "Add a role or title", bool(entity.get("role"))),
+            ("Has email", "detail", "Add contact email", bool(entity.get("email"))),
+            ("Stakeholder type set", "detail", "Set stakeholder type (champion, sponsor, etc.)", bool(entity.get("stakeholder_type"))),
+            ("Influence level set", "detail", "Set influence level", bool(entity.get("influence_level"))),
+            ("Has evidence", "provenance", "Process a signal that mentions this stakeholder", len(entity.get("evidence") or []) > 0),
+            ("Confirmed", "confirmation", "Review and confirm", entity.get("confirmation_status") in ("confirmed_consultant", "confirmed_client")),
+        ]
+    elif entity_type == "constraint":
+        checks = [
+            ("Has title", "identity", "Add a title", bool(entity.get("title"))),
+            ("Has description", "detail", "Add a description", bool(entity.get("description"))),
+            ("Constraint type set", "detail", "Set constraint type", bool(entity.get("constraint_type"))),
+            ("Has evidence", "provenance", "Process a signal that mentions this constraint", len(entity.get("evidence") or []) > 0),
+            ("Confirmed", "confirmation", "Review and confirm", entity.get("confirmation_status") in ("confirmed_consultant", "confirmed_client")),
+        ]
+    elif entity_type == "workflow":
+        checks = [
+            ("Has name", "identity", "Add a name", bool(entity.get("name"))),
+            ("Has description", "detail", "Add a description", bool(entity.get("description"))),
+            ("Confirmed", "confirmation", "Review and confirm", entity.get("confirmation_status") in ("confirmed_consultant", "confirmed_client")),
+        ]
+
+    return [
+        ConfidenceGap(label=label, category=cat, is_met=met, suggestion=None if met else sug)
+        for label, cat, sug, met in checks
+    ]
+
+
+@router.get(
+    "/entity-confidence/{entity_type}/{entity_id}",
+    response_model=EntityConfidenceResponse,
+)
+async def get_entity_confidence(
+    project_id: UUID, entity_type: str, entity_id: UUID
+) -> EntityConfidenceResponse:
+    """
+    Get confidence data for a BRD entity: completeness checks, evidence with
+    source signal resolution, field attributions, revision history, and dependencies.
+    """
+    if entity_type not in CONFIDENCE_TABLE_MAP:
+        raise HTTPException(status_code=400, detail=f"Unsupported entity type: {entity_type}")
+
+    table_name, name_col = CONFIDENCE_TABLE_MAP[entity_type]
+    client = get_client()
+
+    try:
+        # 1. Fetch entity row
+        entity_result = client.table(table_name).select("*").eq("id", str(entity_id)).maybe_single().execute()
+        if not entity_result or not entity_result.data:
+            raise HTTPException(status_code=404, detail="Entity not found")
+        entity = entity_result.data
+
+        entity_name = entity.get(name_col, "")
+        # Truncate long descriptions used as names (business_driver)
+        if name_col == "description" and entity_name and len(entity_name) > 80:
+            entity_name = entity_name[:77] + "..."
+
+        # 2. Completeness checks
+        completeness_items = _compute_completeness(entity_type, entity)
+        completeness_met = sum(1 for c in completeness_items if c.is_met)
+        completeness_total = len(completeness_items)
+        gaps = [c for c in completeness_items if not c.is_met]
+
+        # 3. Evidence with source signal resolution
+        raw_evidence = entity.get("evidence") or []
+        evidence_out: list[EvidenceWithSource] = []
+        chunk_ids: list[str] = []
+
+        for ev in raw_evidence:
+            if isinstance(ev, dict):
+                cid = ev.get("chunk_id")
+                if cid:
+                    chunk_ids.append(cid)
+                evidence_out.append(EvidenceWithSource(
+                    chunk_id=cid,
+                    excerpt=ev.get("excerpt", ""),
+                    source_type=ev.get("source_type", "inferred"),
+                    rationale=ev.get("rationale", ""),
+                ))
+
+        # Resolve chunk_ids to signal info
+        if chunk_ids:
+            try:
+                rpc_result = client.rpc(
+                    "get_chunk_signal_map",
+                    {"p_chunk_ids": chunk_ids},
+                ).execute()
+                chunk_signal_map: dict[str, dict] = {}
+                for row in (rpc_result.data or []):
+                    chunk_signal_map[row["chunk_id"]] = row
+
+                # Now fetch signal details
+                signal_ids = list({r.get("signal_id") for r in chunk_signal_map.values() if r.get("signal_id")})
+                signal_lookup: dict[str, dict] = {}
+                if signal_ids:
+                    sig_result = client.table("signals").select(
+                        "id, source_label, signal_type, created_at"
+                    ).in_("id", signal_ids).execute()
+                    for sig in (sig_result.data or []):
+                        signal_lookup[sig["id"]] = sig
+
+                # Enrich evidence items
+                for ev_item in evidence_out:
+                    if ev_item.chunk_id and ev_item.chunk_id in chunk_signal_map:
+                        sig_id = chunk_signal_map[ev_item.chunk_id].get("signal_id")
+                        if sig_id and sig_id in signal_lookup:
+                            sig = signal_lookup[sig_id]
+                            ev_item.signal_id = sig_id
+                            ev_item.signal_label = sig.get("source_label")
+                            ev_item.signal_type = sig.get("signal_type")
+                            ev_item.signal_created_at = sig.get("created_at")
+            except Exception:
+                logger.debug(f"Could not resolve chunk signals for entity {entity_id}")
+
+        # 4. Field attributions
+        attributions_out: list[FieldAttributionOut] = []
+        try:
+            attr_result = client.table("field_attributions").select(
+                "field_path, signal_id, contributed_at, version_number"
+            ).eq("entity_type", entity_type).eq("entity_id", str(entity_id)).execute()
+
+            if attr_result.data:
+                # Resolve signal labels
+                attr_signal_ids = list({a["signal_id"] for a in attr_result.data if a.get("signal_id")})
+                attr_signal_lookup: dict[str, str] = {}
+                if attr_signal_ids:
+                    sig_res = client.table("signals").select(
+                        "id, source_label"
+                    ).in_("id", attr_signal_ids).execute()
+                    attr_signal_lookup = {s["id"]: s.get("source_label", "") for s in (sig_res.data or [])}
+
+                for a in attr_result.data:
+                    attributions_out.append(FieldAttributionOut(
+                        field_path=a["field_path"],
+                        signal_id=a.get("signal_id"),
+                        signal_label=attr_signal_lookup.get(a.get("signal_id", ""), None),
+                        contributed_at=a.get("contributed_at"),
+                        version_number=a.get("version_number"),
+                    ))
+        except Exception:
+            logger.debug(f"Could not load field attributions for {entity_type}/{entity_id}")
+
+        # 5. Revision history
+        revisions_out: list[ConfidenceRevision] = []
+        try:
+            from app.db.change_tracking import get_entity_history
+            raw_history = get_entity_history(str(entity_id))
+            for h in (raw_history or []):
+                revisions_out.append(ConfidenceRevision(
+                    revision_type=h.get("revision_type", h.get("change_type", "")),
+                    diff_summary=h.get("diff_summary"),
+                    changes=h.get("changes"),
+                    created_at=h.get("created_at", ""),
+                    created_by=h.get("created_by"),
+                    source_signal_id=h.get("source_signal_id"),
+                ))
+        except Exception:
+            logger.debug(f"Could not load revisions for {entity_type}/{entity_id}")
+
+        # 6. Dependencies
+        dependencies_out: list[DependencyItem] = []
+        try:
+            from app.db.entity_dependencies import get_dependents, get_dependencies
+
+            deps = get_dependencies(project_id, entity_type, entity_id)
+            for d in (deps or []):
+                dependencies_out.append(DependencyItem(
+                    entity_type=d.get("target_type", d.get("entity_type", "")),
+                    entity_id=d.get("target_id", d.get("entity_id", "")),
+                    dependency_type=d.get("dependency_type"),
+                    strength=d.get("strength"),
+                    direction="depends_on",
+                ))
+
+            dependents = get_dependents(project_id, entity_type, entity_id)
+            for d in (dependents or []):
+                dependencies_out.append(DependencyItem(
+                    entity_type=d.get("source_type", d.get("entity_type", "")),
+                    entity_id=d.get("source_id", d.get("entity_id", "")),
+                    dependency_type=d.get("dependency_type"),
+                    strength=d.get("strength"),
+                    direction="depended_by",
+                ))
+        except Exception:
+            logger.debug(f"Could not load dependencies for {entity_type}/{entity_id}")
+
+        return EntityConfidenceResponse(
+            entity_type=entity_type,
+            entity_id=str(entity_id),
+            entity_name=entity_name,
+            confirmation_status=entity.get("confirmation_status"),
+            is_stale=entity.get("is_stale", False),
+            stale_reason=entity.get("stale_reason"),
+            created_at=entity.get("created_at"),
+            updated_at=entity.get("updated_at"),
+            completeness_items=completeness_items,
+            completeness_met=completeness_met,
+            completeness_total=completeness_total,
+            evidence=evidence_out,
+            field_attributions=attributions_out,
+            gaps=gaps,
+            revisions=revisions_out,
+            dependencies=dependencies_out,
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"Failed to get entity confidence for {entity_type}/{entity_id}")
         raise HTTPException(status_code=500, detail=str(e))

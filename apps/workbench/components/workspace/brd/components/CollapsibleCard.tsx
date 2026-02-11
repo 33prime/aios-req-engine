@@ -18,6 +18,7 @@ interface CollapsibleCardProps {
   onConfirm?: () => void
   onNeedsReview?: () => void
   onDetailClick?: () => void
+  onStatusClick?: () => void
   children: ReactNode
   actions?: ReactNode
   dragHandle?: ReactNode
@@ -48,6 +49,7 @@ export function CollapsibleCard({
   onConfirm,
   onNeedsReview,
   onDetailClick,
+  onStatusClick,
   children,
   actions,
   dragHandle,
@@ -77,7 +79,7 @@ export function CollapsibleCard({
             {isStale && (
               <span className="w-2 h-2 rounded-full bg-orange-400 flex-shrink-0" title="Stale — may need refresh" />
             )}
-            <BRDStatusBadge status={status} />
+            <BRDStatusBadge status={status} onClick={onStatusClick} />
             {onDetailClick && (
               <button
                 onClick={(e) => { e.stopPropagation(); onDetailClick() }}

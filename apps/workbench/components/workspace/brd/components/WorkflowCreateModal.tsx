@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { X } from 'lucide-react'
 
 interface WorkflowCreateModalProps {
@@ -14,9 +14,18 @@ interface WorkflowCreateModalProps {
     frequency_per_week: number
     hourly_rate: number
   }) => void
+  initialData?: {
+    id: string
+    name: string
+    description?: string
+    owner?: string
+    state_type?: 'current' | 'future'
+    frequency_per_week?: number
+    hourly_rate?: number
+  }
 }
 
-export function WorkflowCreateModal({ open, onClose, onSave }: WorkflowCreateModalProps) {
+export function WorkflowCreateModal({ open, onClose, onSave, initialData }: WorkflowCreateModalProps) {
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [owner, setOwner] = useState('')
@@ -24,7 +33,21 @@ export function WorkflowCreateModal({ open, onClose, onSave }: WorkflowCreateMod
   const [frequency, setFrequency] = useState('')
   const [hourlyRate, setHourlyRate] = useState('')
 
+  // Sync form state when modal opens
+  useEffect(() => {
+    if (open) {
+      setName(initialData?.name || '')
+      setDescription(initialData?.description || '')
+      setOwner(initialData?.owner || '')
+      setStateType(initialData?.state_type || 'future')
+      setFrequency(initialData?.frequency_per_week ? String(initialData.frequency_per_week) : '')
+      setHourlyRate(initialData?.hourly_rate ? String(initialData.hourly_rate) : '')
+    }
+  }, [open, initialData])
+
   if (!open) return null
+
+  const isEdit = !!initialData
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -37,20 +60,15 @@ export function WorkflowCreateModal({ open, onClose, onSave }: WorkflowCreateMod
       frequency_per_week: parseFloat(frequency) || 0,
       hourly_rate: parseFloat(hourlyRate) || 0,
     })
-    // Reset
-    setName('')
-    setDescription('')
-    setOwner('')
-    setStateType('future')
-    setFrequency('')
-    setHourlyRate('')
   }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
       <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200">
-          <h3 className="text-[15px] font-semibold text-[#37352f]">Create Workflow</h3>
+          <h3 className="text-[15px] font-semibold text-[#37352f]">
+            {isEdit ? 'Edit Workflow' : 'Create Workflow'}
+          </h3>
           <button onClick={onClose} className="p-1 rounded hover:bg-gray-100 text-gray-400">
             <X className="w-4 h-4" />
           </button>
@@ -63,7 +81,7 @@ export function WorkflowCreateModal({ open, onClose, onSave }: WorkflowCreateMod
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="e.g. Client Onboarding"
-              className="w-full px-3 py-2 text-[13px] border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-teal-400"
+              className="w-full px-3 py-2 text-[13px] border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3FAF7A]/30 focus:border-[#3FAF7A]"
               autoFocus
             />
           </div>
@@ -74,7 +92,7 @@ export function WorkflowCreateModal({ open, onClose, onSave }: WorkflowCreateMod
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Brief description of this workflow..."
               rows={2}
-              className="w-full px-3 py-2 text-[13px] border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-teal-400 resize-none"
+              className="w-full px-3 py-2 text-[13px] border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3FAF7A]/30 focus:border-[#3FAF7A] resize-none"
             />
           </div>
           <div>
@@ -84,7 +102,7 @@ export function WorkflowCreateModal({ open, onClose, onSave }: WorkflowCreateMod
               value={owner}
               onChange={(e) => setOwner(e.target.value)}
               placeholder="e.g. Account Manager"
-              className="w-full px-3 py-2 text-[13px] border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-teal-400"
+              className="w-full px-3 py-2 text-[13px] border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3FAF7A]/30 focus:border-[#3FAF7A]"
             />
           </div>
           <div>
@@ -95,7 +113,7 @@ export function WorkflowCreateModal({ open, onClose, onSave }: WorkflowCreateMod
                 onClick={() => setStateType('future')}
                 className={`flex-1 px-3 py-2 text-[12px] font-medium rounded-md border transition-colors ${
                   stateType === 'future'
-                    ? 'bg-teal-50 border-teal-300 text-teal-700'
+                    ? 'bg-[#E8F5E9] border-[#3FAF7A] text-[#25785A]'
                     : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50'
                 }`}
               >
@@ -106,7 +124,7 @@ export function WorkflowCreateModal({ open, onClose, onSave }: WorkflowCreateMod
                 onClick={() => setStateType('current')}
                 className={`flex-1 px-3 py-2 text-[12px] font-medium rounded-md border transition-colors ${
                   stateType === 'current'
-                    ? 'bg-red-50 border-red-300 text-red-700'
+                    ? 'bg-gray-100 border-gray-300 text-gray-700'
                     : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50'
                 }`}
               >
@@ -124,7 +142,7 @@ export function WorkflowCreateModal({ open, onClose, onSave }: WorkflowCreateMod
                 placeholder="0"
                 min="0"
                 step="0.5"
-                className="w-full px-3 py-2 text-[13px] border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-teal-400"
+                className="w-full px-3 py-2 text-[13px] border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3FAF7A]/30 focus:border-[#3FAF7A]"
               />
             </div>
             <div>
@@ -136,7 +154,7 @@ export function WorkflowCreateModal({ open, onClose, onSave }: WorkflowCreateMod
                 placeholder="0"
                 min="0"
                 step="5"
-                className="w-full px-3 py-2 text-[13px] border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-teal-400"
+                className="w-full px-3 py-2 text-[13px] border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3FAF7A]/30 focus:border-[#3FAF7A]"
               />
             </div>
           </div>
@@ -151,9 +169,9 @@ export function WorkflowCreateModal({ open, onClose, onSave }: WorkflowCreateMod
             <button
               type="submit"
               disabled={!name.trim()}
-              className="px-4 py-2 text-[13px] font-medium text-white bg-[#009b87] rounded-md hover:bg-[#008474] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              className="px-4 py-2 text-[13px] font-medium text-white bg-[#3FAF7A] rounded-md hover:bg-[#25785A] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              Create
+              {isEdit ? 'Save Changes' : 'Create'}
             </button>
           </div>
         </form>

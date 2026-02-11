@@ -14,6 +14,7 @@ interface DataEntitiesSectionProps {
   onCreateEntity: () => void
   onDeleteEntity: (entityId: string, entityName: string) => void
   onRefreshEntity?: (entityType: string, entityId: string) => void
+  onStatusClick?: (entityType: string, entityId: string, entityName: string, status?: string | null) => void
 }
 
 const CATEGORY_CONFIG: Record<string, { bg: string; text: string; label: string }> = {
@@ -31,6 +32,7 @@ export function DataEntitiesSection({
   onCreateEntity,
   onDeleteEntity,
   onRefreshEntity,
+  onStatusClick,
 }: DataEntitiesSectionProps) {
   const confirmedCount = dataEntities.filter(
     (e) => e.confirmation_status === 'confirmed_consultant' || e.confirmation_status === 'confirmed_client'
@@ -71,6 +73,7 @@ export function DataEntitiesSection({
                 onRefresh={onRefreshEntity ? () => onRefreshEntity('data_entity', entity.id) : undefined}
                 onConfirm={() => onConfirm('data_entity', entity.id)}
                 onNeedsReview={() => onNeedsReview('data_entity', entity.id)}
+                onStatusClick={onStatusClick ? () => onStatusClick('data_entity', entity.id, entity.name, entity.confirmation_status) : undefined}
                 actions={
                   <button
                     onClick={() => onDeleteEntity(entity.id, entity.name)}

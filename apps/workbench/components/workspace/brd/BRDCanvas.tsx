@@ -13,6 +13,7 @@ import { WorkflowCreateModal } from './components/WorkflowCreateModal'
 import { WorkflowStepEditor } from './components/WorkflowStepEditor'
 import { DataEntityCreateModal } from './components/DataEntityCreateModal'
 import { StakeholderDetailDrawer } from './components/StakeholderDetailDrawer'
+import { ConfidenceDrawer } from './components/ConfidenceDrawer'
 import { HealthPanel } from './components/HealthPanel'
 import { ImpactPreviewModal } from './components/ImpactPreviewModal'
 import {
@@ -22,14 +23,17 @@ import {
   updateFeaturePriority,
   batchConfirmEntities,
   createWorkflow,
+  updateWorkflow,
   deleteWorkflow,
   createWorkflowStep,
+  updateWorkflowStep,
   deleteWorkflowStep,
+  pairWorkflows,
   createDataEntity,
   deleteDataEntity,
   refreshStaleEntity,
 } from '@/lib/api'
-import type { BRDWorkspaceData, MoSCoWGroup, StakeholderBRDSummary } from '@/types/workspace'
+import type { BRDWorkspaceData, MoSCoWGroup, StakeholderBRDSummary, AutomationLevel } from '@/types/workspace'
 
 interface BRDCanvasProps {
   projectId: string
@@ -211,15 +215,56 @@ export function BRDCanvas({ projectId, onRefresh }: BRDCanvasProps) {
   }>({ open: false, stakeholder: null })
 
   // ============================================================================
+  // Confidence Drawer
+  // ============================================================================
+
+  const [confidenceDrawer, setConfidenceDrawer] = useState<{
+    open: boolean
+    entityType: string
+    entityId: string
+    entityName: string
+    initialStatus?: string | null
+  }>({ open: false, entityType: '', entityId: '', entityName: '' })
+
+  const handleOpenConfidence = useCallback((entityType: string, entityId: string, entityName: string, status?: string | null) => {
+    // Close other drawers when opening confidence
+    setStakeholderDrawer({ open: false, stakeholder: null })
+    setConfidenceDrawer({ open: true, entityType, entityId, entityName, initialStatus: status })
+  }, [])
+
+  // ============================================================================
   // Workflow CRUD
   // ============================================================================
 
   const [showCreateDataEntity, setShowCreateDataEntity] = useState(false)
   const [showCreateWorkflow, setShowCreateWorkflow] = useState(false)
+
+  // Edit workflow state
+  const [editWorkflowData, setEditWorkflowData] = useState<{
+    id: string
+    name: string
+    description?: string
+    owner?: string
+    state_type?: 'current' | 'future'
+    frequency_per_week?: number
+    hourly_rate?: number
+  } | null>(null)
+
+  // Step editor state — extended with stepId + initialData for edit mode
   const [stepEditorState, setStepEditorState] = useState<{
     open: boolean
     workflowId: string
     stateType: 'current' | 'future'
+    stepId?: string
+    initialData?: {
+      label?: string
+      description?: string
+      time_minutes?: number | null
+      automation_level?: AutomationLevel
+      operation_type?: string | null
+      pain_description?: string | null
+      benefit_description?: string | null
+    }
   }>({ open: false, workflowId: '', stateType: 'future' })
 
   const handleCreateWorkflow = useCallback(async (wfData: {
@@ -239,6 +284,42 @@ export function BRDCanvas({ projectId, onRefresh }: BRDCanvasProps) {
     }
   }, [projectId, loadData])
 
+  const handleEditWorkflow = useCallback((workflowId: string) => {
+    if (!data?.workflow_pairs) return
+    const pair = data.workflow_pairs.find((p) => p.id === workflowId)
+    if (!pair) return
+    setEditWorkflowData({
+      id: pair.id,
+      name: pair.name,
+      description: pair.description,
+      owner: pair.owner || undefined,
+    })
+  }, [data])
+
+  const handleUpdateWorkflow = useCallback(async (wfData: {
+    name: string
+    description: string
+    owner: string
+    state_type: 'current' | 'future'
+    frequency_per_week: number
+    hourly_rate: number
+  }) => {
+    if (!editWorkflowData) return
+    try {
+      await updateWorkflow(projectId, editWorkflowData.id, {
+        name: wfData.name,
+        description: wfData.description,
+        owner: wfData.owner,
+        frequency_per_week: wfData.frequency_per_week,
+        hourly_rate: wfData.hourly_rate,
+      })
+      setEditWorkflowData(null)
+      loadData()
+    } catch (err) {
+      console.error('Failed to update workflow:', err)
+    }
+  }, [projectId, editWorkflowData, loadData])
+
   const handleDeleteWorkflow = useCallback(async (workflowId: string) => {
     try {
       await deleteWorkflow(projectId, workflowId)
@@ -247,6 +328,35 @@ export function BRDCanvas({ projectId, onRefresh }: BRDCanvasProps) {
       console.error('Failed to delete workflow:', err)
     }
   }, [projectId, loadData])
+
+  const handleEditStep = useCallback((workflowId: string, stepId: string) => {
+    if (!data?.workflow_pairs) return
+    // Find the step in workflow pairs
+    for (const pair of data.workflow_pairs) {
+      const allSteps = [...pair.current_steps, ...pair.future_steps]
+      const step = allSteps.find((s) => s.id === stepId)
+      if (step) {
+        const isCurrent = pair.current_steps.some((s) => s.id === stepId)
+        const actualWorkflowId = isCurrent ? pair.current_workflow_id : pair.future_workflow_id
+        setStepEditorState({
+          open: true,
+          workflowId: actualWorkflowId || workflowId,
+          stateType: isCurrent ? 'current' : 'future',
+          stepId: step.id,
+          initialData: {
+            label: step.label,
+            description: step.description ?? undefined,
+            time_minutes: step.time_minutes,
+            automation_level: step.automation_level,
+            operation_type: step.operation_type,
+            pain_description: step.pain_description,
+            benefit_description: step.benefit_description,
+          },
+        })
+        return
+      }
+    }
+  }, [data])
 
   const handleCreateStep = useCallback(async (stepData: {
     label: string
@@ -283,6 +393,33 @@ export function BRDCanvas({ projectId, onRefresh }: BRDCanvasProps) {
     }
   }, [projectId, stepEditorState, data, loadData])
 
+  const handleUpdateStep = useCallback(async (stepData: {
+    label: string
+    description: string
+    time_minutes: number | undefined
+    automation_level: string
+    operation_type: string | undefined
+    pain_description: string
+    benefit_description: string
+  }) => {
+    if (!stepEditorState.workflowId || !stepEditorState.stepId) return
+    try {
+      await updateWorkflowStep(projectId, stepEditorState.workflowId, stepEditorState.stepId, {
+        label: stepData.label,
+        description: stepData.description || undefined,
+        time_minutes: stepData.time_minutes,
+        automation_level: stepData.automation_level,
+        operation_type: stepData.operation_type || undefined,
+        pain_description: stepData.pain_description || undefined,
+        benefit_description: stepData.benefit_description || undefined,
+      })
+      setStepEditorState({ open: false, workflowId: '', stateType: 'future' })
+      loadData()
+    } catch (err) {
+      console.error('Failed to update step:', err)
+    }
+  }, [projectId, stepEditorState, loadData])
+
   const handleDeleteStep = useCallback(async (workflowId: string, stepId: string) => {
     try {
       await deleteWorkflowStep(projectId, workflowId, stepId)
@@ -291,6 +428,41 @@ export function BRDCanvas({ projectId, onRefresh }: BRDCanvasProps) {
       console.error('Failed to delete step:', err)
     }
   }, [projectId, loadData])
+
+  const handlePairWorkflow = useCallback(async (workflowId: string) => {
+    if (!data?.workflow_pairs) return
+    // Find unpaired current-state workflows to pair with
+    const unpaired = data.workflow_pairs.filter(
+      (wp) => wp.id !== workflowId && !wp.current_workflow_id && wp.future_workflow_id
+    )
+    if (unpaired.length === 0) {
+      // No unpaired workflows available — prompt user via window.prompt
+      const targetId = window.prompt('Enter the workflow ID to pair with (no unpaired workflows found):')
+      if (targetId) {
+        try {
+          await pairWorkflows(projectId, workflowId, targetId)
+          loadData()
+        } catch (err) {
+          console.error('Failed to pair workflows:', err)
+        }
+      }
+      return
+    }
+    // Simple selection: use the first unpaired, or prompt if multiple
+    const names = unpaired.map((wp, i) => `${i + 1}. ${wp.name}`).join('\n')
+    const choice = window.prompt(`Select workflow to pair with:\n${names}\n\nEnter number:`)
+    if (choice) {
+      const idx = parseInt(choice, 10) - 1
+      if (idx >= 0 && idx < unpaired.length) {
+        try {
+          await pairWorkflows(projectId, workflowId, unpaired[idx].id)
+          loadData()
+        } catch (err) {
+          console.error('Failed to pair workflows:', err)
+        }
+      }
+    }
+  }, [data, projectId, loadData])
 
   // ============================================================================
   // Data Entity CRUD
@@ -326,7 +498,7 @@ export function BRDCanvas({ projectId, onRefresh }: BRDCanvasProps) {
   if (isLoading) {
     return (
       <div className="max-w-4xl mx-auto py-16 text-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#009b87] mx-auto mb-3" />
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#3FAF7A] mx-auto mb-3" />
         <p className="text-[13px] text-[rgba(55,53,47,0.45)]">Loading BRD...</p>
       </div>
     )
@@ -338,7 +510,7 @@ export function BRDCanvas({ projectId, onRefresh }: BRDCanvasProps) {
         <p className="text-red-500 mb-3">{error || 'No data available'}</p>
         <button
           onClick={loadData}
-          className="px-4 py-2 text-sm text-white bg-[#009b87] rounded-md hover:bg-[#008474] transition-colors"
+          className="px-4 py-2 text-sm text-white bg-[#3FAF7A] rounded-md hover:bg-[#25785A] transition-colors"
         >
           Retry
         </button>
@@ -353,6 +525,9 @@ export function BRDCanvas({ projectId, onRefresh }: BRDCanvasProps) {
 
   // Count stale entities
   const staleCount = countStale(data)
+
+  // Determine whether step editor is in create or edit mode
+  const isStepEdit = !!stepEditorState.stepId
 
   return (
     <div className="max-w-4xl mx-auto py-8 px-6">
@@ -376,7 +551,7 @@ export function BRDCanvas({ projectId, onRefresh }: BRDCanvasProps) {
         <div className="flex items-center gap-3">
           <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
             <div
-              className="h-full bg-[#009b87] rounded-full transition-all duration-300"
+              className="h-full bg-[#3FAF7A] rounded-full transition-all duration-300"
               style={{ width: `${readinessPercent}%` }}
             />
           </div>
@@ -409,6 +584,7 @@ export function BRDCanvas({ projectId, onRefresh }: BRDCanvasProps) {
           onConfirmAll={handleConfirmAll}
           onUpdateVision={handleUpdateVision}
           onUpdateBackground={handleUpdateBackground}
+          onStatusClick={handleOpenConfidence}
         />
 
         <div className="border-t border-[#e9e9e7]" />
@@ -420,6 +596,7 @@ export function BRDCanvas({ projectId, onRefresh }: BRDCanvasProps) {
           onNeedsReview={handleNeedsReview}
           onConfirmAll={handleConfirmAll}
           onRefreshEntity={handleRefreshEntity}
+          onStatusClick={handleOpenConfidence}
         />
 
         <div className="border-t border-[#e9e9e7]" />
@@ -432,12 +609,16 @@ export function BRDCanvas({ projectId, onRefresh }: BRDCanvasProps) {
           onNeedsReview={handleNeedsReview}
           onConfirmAll={handleConfirmAll}
           onCreateWorkflow={() => setShowCreateWorkflow(true)}
+          onEditWorkflow={handleEditWorkflow}
           onDeleteWorkflow={handleDeleteWorkflow}
+          onPairWorkflow={handlePairWorkflow}
           onCreateStep={(workflowId, stateType) =>
             setStepEditorState({ open: true, workflowId, stateType })
           }
+          onEditStep={handleEditStep}
           onDeleteStep={handleDeleteStep}
           onRefreshEntity={handleRefreshEntity}
+          onStatusClick={handleOpenConfidence}
         />
 
         <div className="border-t border-[#e9e9e7]" />
@@ -449,6 +630,7 @@ export function BRDCanvas({ projectId, onRefresh }: BRDCanvasProps) {
           onConfirmAll={handleConfirmAll}
           onMovePriority={handleMovePriority}
           onRefreshEntity={handleRefreshEntity}
+          onStatusClick={handleOpenConfidence}
         />
 
         <div className="border-t border-[#e9e9e7]" />
@@ -461,6 +643,7 @@ export function BRDCanvas({ projectId, onRefresh }: BRDCanvasProps) {
           onCreateEntity={() => setShowCreateDataEntity(true)}
           onDeleteEntity={handleDeleteDataEntityWithPreview}
           onRefreshEntity={handleRefreshEntity}
+          onStatusClick={handleOpenConfidence}
         />
 
         <div className="border-t border-[#e9e9e7]" />
@@ -470,8 +653,12 @@ export function BRDCanvas({ projectId, onRefresh }: BRDCanvasProps) {
           onConfirm={handleConfirm}
           onNeedsReview={handleNeedsReview}
           onConfirmAll={handleConfirmAll}
-          onOpenDetail={(stakeholder) => setStakeholderDrawer({ open: true, stakeholder })}
+          onOpenDetail={(stakeholder) => {
+            setConfidenceDrawer((prev) => ({ ...prev, open: false }))
+            setStakeholderDrawer({ open: true, stakeholder })
+          }}
           onRefreshEntity={handleRefreshEntity}
+          onStatusClick={handleOpenConfidence}
         />
 
         <div className="border-t border-[#e9e9e7]" />
@@ -481,6 +668,7 @@ export function BRDCanvas({ projectId, onRefresh }: BRDCanvasProps) {
           onConfirm={handleConfirm}
           onNeedsReview={handleNeedsReview}
           onConfirmAll={handleConfirmAll}
+          onStatusClick={handleOpenConfidence}
         />
       </div>
 
@@ -491,19 +679,24 @@ export function BRDCanvas({ projectId, onRefresh }: BRDCanvasProps) {
         onSave={handleCreateDataEntity}
       />
 
-      {/* Workflow Create Modal */}
+      {/* Workflow Create/Edit Modal */}
       <WorkflowCreateModal
-        open={showCreateWorkflow}
-        onClose={() => setShowCreateWorkflow(false)}
-        onSave={handleCreateWorkflow}
+        open={showCreateWorkflow || !!editWorkflowData}
+        onClose={() => {
+          setShowCreateWorkflow(false)
+          setEditWorkflowData(null)
+        }}
+        onSave={editWorkflowData ? handleUpdateWorkflow : handleCreateWorkflow}
+        initialData={editWorkflowData || undefined}
       />
 
-      {/* Workflow Step Editor */}
+      {/* Workflow Step Create/Edit Editor */}
       <WorkflowStepEditor
         open={stepEditorState.open}
         stateType={stepEditorState.stateType}
         onClose={() => setStepEditorState({ open: false, workflowId: '', stateType: 'future' })}
-        onSave={handleCreateStep}
+        onSave={isStepEdit ? handleUpdateStep : handleCreateStep}
+        initialData={stepEditorState.initialData}
       />
 
       {/* Impact Preview Modal */}
@@ -526,6 +719,20 @@ export function BRDCanvas({ projectId, onRefresh }: BRDCanvasProps) {
           onClose={() => setStakeholderDrawer({ open: false, stakeholder: null })}
           onConfirm={handleConfirm}
           onNeedsReview={handleNeedsReview}
+        />
+      )}
+
+      {/* Confidence Drawer */}
+      {confidenceDrawer.open && (
+        <ConfidenceDrawer
+          entityType={confidenceDrawer.entityType}
+          entityId={confidenceDrawer.entityId}
+          entityName={confidenceDrawer.entityName}
+          projectId={projectId}
+          initialStatus={confidenceDrawer.initialStatus}
+          onClose={() => setConfidenceDrawer((prev) => ({ ...prev, open: false }))}
+          onConfirm={(entityType, entityId) => handleConfirm(entityType, entityId)}
+          onNeedsReview={(entityType, entityId) => handleNeedsReview(entityType, entityId)}
         />
       )}
     </div>
