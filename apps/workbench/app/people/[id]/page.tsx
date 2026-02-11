@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useParams, useSearchParams, useRouter } from 'next/navigation'
-import { Loader2 } from 'lucide-react'
+import { Loader2, User, Activity, FileSearch, Sparkles } from 'lucide-react'
 import { getStakeholder } from '@/lib/api'
 import type { StakeholderDetail } from '@/types/workspace'
 import { AppSidebar } from '@/components/workspace/AppSidebar'
@@ -44,11 +44,11 @@ export default function PersonDetailPage() {
 
   const sidebarWidth = sidebarCollapsed ? 64 : 224
 
-  const tabs: { id: TabId; label: string }[] = [
-    { id: 'overview', label: 'Overview' },
-    { id: 'activity', label: 'Activity' },
-    { id: 'evidence', label: 'Evidence & Sources' },
-    { id: 'insights', label: 'AI Insights' },
+  const tabs: { id: TabId; label: string; icon: React.ReactNode }[] = [
+    { id: 'overview', label: 'Overview', icon: <User className="w-3.5 h-3.5" /> },
+    { id: 'activity', label: 'Activity', icon: <Activity className="w-3.5 h-3.5" /> },
+    { id: 'evidence', label: 'Evidence & Sources', icon: <FileSearch className="w-3.5 h-3.5" /> },
+    { id: 'insights', label: 'Intelligence', icon: <Sparkles className="w-3.5 h-3.5" /> },
   ]
 
   if (loading) {
@@ -101,12 +101,13 @@ export default function PersonDetailPage() {
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`pb-2.5 text-[13px] font-medium border-b-2 transition-colors ${
+                  className={`inline-flex items-center gap-1.5 pb-2.5 text-[13px] font-medium border-b-2 transition-colors ${
                     activeTab === tab.id
                       ? 'text-[#3FAF7A] border-[#3FAF7A]'
                       : 'text-[#999] border-transparent hover:text-[#666]'
                   }`}
                 >
+                  {tab.icon}
                   {tab.label}
                 </button>
               ))}
