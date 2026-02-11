@@ -55,7 +55,7 @@ function ConstraintAccordionCard({
         <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full shrink-0 ${sev.bg} ${sev.text}`}>
           {sev.label}
         </span>
-        <span onClick={(e) => e.stopPropagation()}>
+        <span className="ml-auto shrink-0" onClick={(e) => e.stopPropagation()}>
           <BRDStatusBadge
             status={constraint.confirmation_status}
             onClick={onStatusClick ? () => onStatusClick('constraint', constraint.id, constraint.title, constraint.confirmation_status) : undefined}

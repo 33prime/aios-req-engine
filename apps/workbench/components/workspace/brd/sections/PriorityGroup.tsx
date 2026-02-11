@@ -108,7 +108,7 @@ function FeatureAccordionCard({
           {feature.category && (
             <span className="text-[12px] text-[#999999] shrink-0">({feature.category})</span>
           )}
-          <span onClick={(e) => e.stopPropagation()}>
+          <span className="ml-auto shrink-0" onClick={(e) => e.stopPropagation()}>
             <BRDStatusBadge
               status={feature.confirmation_status}
               onClick={onStatusClick}

@@ -8,10 +8,10 @@ interface BRDStatusBadgeProps {
 
 const STATUS_CONFIG: Record<string, { label: string; bg: string; text: string }> = {
   ai_generated: { label: 'AI Draft', bg: '#f3f4f6', text: '#6b7280' },
-  confirmed_consultant: { label: 'Confirmed', bg: '#f0fdfa', text: '#0f766e' },
-  confirmed_client: { label: 'Client Confirmed', bg: '#ecfdf5', text: '#047857' },
-  needs_client: { label: 'Needs Review', bg: '#fefce8', text: '#a16207' },
-  needs_confirmation: { label: 'Needs Review', bg: '#fefce8', text: '#a16207' },
+  confirmed_consultant: { label: 'Confirmed', bg: '#E8F5E9', text: '#25785A' },
+  confirmed_client: { label: 'Client Confirmed', bg: '#E8F5E9', text: '#25785A' },
+  needs_client: { label: 'Needs Review', bg: '#F0F0F0', text: '#666666' },
+  needs_confirmation: { label: 'Needs Review', bg: '#F0F0F0', text: '#666666' },
 }
 
 const DEFAULT_CONFIG = { label: 'Draft', bg: '#f3f4f6', text: '#6b7280' }

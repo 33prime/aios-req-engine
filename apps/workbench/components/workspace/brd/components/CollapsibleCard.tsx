@@ -24,19 +24,6 @@ interface CollapsibleCardProps {
   dragHandle?: ReactNode
 }
 
-function getCardBg(status: string | null | undefined, isStale?: boolean): string {
-  if (isStale) {
-    return 'bg-orange-50/30 border-orange-200'
-  }
-  if (status === 'confirmed_consultant' || status === 'confirmed_client') {
-    return 'bg-teal-50/40 border-teal-100'
-  }
-  if (status === 'needs_client' || status === 'needs_confirmation') {
-    return 'bg-yellow-50/40 border-yellow-100'
-  }
-  return 'bg-white border-[#e9e9e7]'
-}
-
 export function CollapsibleCard({
   title,
   subtitle,
@@ -55,49 +42,47 @@ export function CollapsibleCard({
   dragHandle,
 }: CollapsibleCardProps) {
   const [expanded, setExpanded] = useState(defaultExpanded)
-  const bgClass = getCardBg(status, isStale)
 
   return (
     <div
-      className={`group/card border rounded-[3px] shadow-[0_1px_3px_rgba(0,0,0,0.05)] transition-all duration-150 ${bgClass}`}
+      className="group/card bg-white rounded-2xl shadow-md border border-[#E5E5E5] overflow-hidden"
     >
       {/* Header */}
       <div
-        className="flex items-center gap-2 px-4 py-3 cursor-pointer hover:bg-[rgba(55,53,47,0.03)] transition-colors rounded-[3px]"
+        className="flex items-center gap-3 px-5 py-4 cursor-pointer hover:bg-gray-50/50 transition-colors"
         onClick={() => setExpanded(!expanded)}
       >
         {dragHandle}
         <ChevronRight
-          className={`w-4 h-4 text-gray-400 flex-shrink-0 transition-transform duration-150 ${
+          className={`w-4 h-4 text-[#999999] flex-shrink-0 transition-transform duration-200 ${
             expanded ? 'rotate-90' : ''
           }`}
         />
         {icon && <span className="flex-shrink-0">{icon}</span>}
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <span className="text-[14px] font-medium text-[#37352f] truncate">{title}</span>
-            {isStale && (
-              <span className="w-2 h-2 rounded-full bg-orange-400 flex-shrink-0" title="Stale — may need refresh" />
-            )}
-            <BRDStatusBadge status={status} onClick={onStatusClick} />
-            {onDetailClick && (
-              <button
-                onClick={(e) => { e.stopPropagation(); onDetailClick() }}
-                className="p-1 rounded text-gray-300 hover:text-[#009b87] hover:bg-teal-50 transition-colors opacity-0 group-hover/card:opacity-100"
-                title="View details"
-              >
-                <ArrowRight className="w-3.5 h-3.5" />
-              </button>
-            )}
-          </div>
-          {subtitle && (
-            <p className="text-[13px] text-[rgba(55,53,47,0.65)] mt-0.5 truncate">
-              {subtitle}
-            </p>
-          )}
-        </div>
+        <span className="text-[14px] font-semibold text-[#333333] truncate">{title}</span>
+        {subtitle && (
+          <span className="text-[12px] text-[#999999] shrink-0">({subtitle})</span>
+        )}
+        {onDetailClick && (
+          <button
+            onClick={(e) => { e.stopPropagation(); onDetailClick() }}
+            className="p-1 rounded text-[#999999] hover:text-[#3FAF7A] hover:bg-[#E8F5E9] transition-colors opacity-0 group-hover/card:opacity-100 shrink-0"
+            title="View details"
+          >
+            <ArrowRight className="w-3.5 h-3.5" />
+          </button>
+        )}
+        {/* Right-aligned status badge */}
+        <span className="ml-auto shrink-0" onClick={(e) => e.stopPropagation()}>
+          <BRDStatusBadge status={status} onClick={onStatusClick} />
+        </span>
+        {isStale && (
+          <span className="shrink-0">
+            <span className="w-2 h-2 rounded-full bg-[#999999] inline-block" title="Stale — may need refresh" />
+          </span>
+        )}
         {actions && (
-          <div className="flex-shrink-0 ml-2" onClick={(e) => e.stopPropagation()}>
+          <div className="flex-shrink-0" onClick={(e) => e.stopPropagation()}>
             {actions}
           </div>
         )}
@@ -109,7 +94,7 @@ export function CollapsibleCard({
           expanded ? 'max-h-[4000px] opacity-100' : 'max-h-0 opacity-0'
         }`}
       >
-        <div className="px-4 pb-4 pt-1">
+        <div className="px-5 pb-5 pt-1">
           {/* Stale indicator */}
           {isStale && (
             <div className="mb-3">
@@ -121,7 +106,7 @@ export function CollapsibleCard({
 
           {/* Confirm/Review actions */}
           {(onConfirm || onNeedsReview) && (
-            <div className="mt-3 pt-3 border-t border-gray-100">
+            <div className="mt-4 pt-3 border-t border-[#E5E5E5]">
               <ConfirmActions
                 status={status}
                 onConfirm={onConfirm || (() => {})}

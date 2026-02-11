@@ -322,13 +322,6 @@ function WorkflowAccordionCard({
         />
         <Workflow className="w-4 h-4 text-[#3FAF7A] shrink-0" />
         <span className="text-[14px] font-semibold text-[#333333] truncate">{pair.name}</span>
-        <span onClick={(e) => e.stopPropagation()}>
-          <BRDStatusBadge
-            status={pair.confirmation_status}
-            onClick={onStatusClick ? () => onStatusClick('workflow', pair.id, pair.name, pair.confirmation_status) : undefined}
-          />
-        </span>
-
         {/* Time summaries */}
         {currentMin > 0 && (
           <span className="text-[11px] text-[#999999] shrink-0">Current: {currentMin}min</span>
@@ -342,8 +335,12 @@ function WorkflowAccordionCard({
           <StaleIndicator reason={pair.stale_reason || undefined} />
         )}
 
-        {/* Right side: ROI savings + action buttons */}
+        {/* Right side: status badge + ROI savings + action buttons */}
         <div className="ml-auto flex items-center gap-2 shrink-0" onClick={(e) => e.stopPropagation()}>
+          <BRDStatusBadge
+            status={pair.confirmation_status}
+            onClick={onStatusClick ? () => onStatusClick('workflow', pair.id, pair.name, pair.confirmation_status) : undefined}
+          />
           {pair.roi && pair.roi.time_saved_minutes > 0 && (
             <span className="text-[11px] font-medium text-[#25785A] bg-[#E8F5E9] px-2 py-0.5 rounded">
               {pair.roi.time_saved_minutes}min saved ({pair.roi.time_saved_percent}%)
@@ -546,17 +543,17 @@ function LegacyStepCard({
           <span className="text-[11px] font-bold text-white">{index}</span>
         </div>
         <span className="text-[14px] font-semibold text-[#333333] truncate">{step.title}</span>
-        <span onClick={(e) => e.stopPropagation()}>
-          <BRDStatusBadge
-            status={step.confirmation_status}
-            onClick={onStatusClick}
-          />
-        </span>
         {step.actor_persona_name && (
           <span className="px-2 py-0.5 text-[10px] font-medium bg-[#E8F5E9] text-[#25785A] rounded-full shrink-0">
             {step.actor_persona_name}
           </span>
         )}
+        <span className="ml-auto shrink-0" onClick={(e) => e.stopPropagation()}>
+          <BRDStatusBadge
+            status={step.confirmation_status}
+            onClick={onStatusClick}
+          />
+        </span>
         {step.is_stale && (
           <StaleIndicator reason={step.stale_reason || undefined} />
         )}

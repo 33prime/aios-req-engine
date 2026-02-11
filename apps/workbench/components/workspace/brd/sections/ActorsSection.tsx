@@ -48,14 +48,14 @@ function ActorAccordionCard({
         {actor.role && (
           <span className="text-[12px] text-[#999999] shrink-0">({actor.role})</span>
         )}
-        <span onClick={(e) => e.stopPropagation()}>
+        <span className="ml-auto shrink-0" onClick={(e) => e.stopPropagation()}>
           <BRDStatusBadge
             status={actor.confirmation_status}
             onClick={onStatusClick ? () => onStatusClick('persona', actor.id, actor.name, actor.confirmation_status) : undefined}
           />
         </span>
         {actor.is_stale && (
-          <span className="ml-auto shrink-0">
+          <span className="shrink-0">
             <StaleIndicator reason={actor.stale_reason || undefined} onRefresh={onRefreshEntity ? () => onRefreshEntity('persona', actor.id) : undefined} />
           </span>
         )}

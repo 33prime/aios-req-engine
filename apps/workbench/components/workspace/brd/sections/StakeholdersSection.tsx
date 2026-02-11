@@ -17,17 +17,17 @@ interface StakeholdersSectionProps {
 }
 
 const TYPE_CONFIG: Record<string, { bg: string; text: string; label: string }> = {
-  champion: { bg: 'bg-green-50', text: 'text-green-700', label: 'Champion' },
-  sponsor: { bg: 'bg-blue-50', text: 'text-blue-700', label: 'Sponsor' },
-  blocker: { bg: 'bg-red-50', text: 'text-red-700', label: 'Blocker' },
-  influencer: { bg: 'bg-purple-50', text: 'text-purple-700', label: 'Influencer' },
-  end_user: { bg: 'bg-gray-100', text: 'text-gray-600', label: 'End User' },
+  champion: { bg: 'bg-[#E8F5E9]', text: 'text-[#25785A]', label: 'Champion' },
+  sponsor: { bg: 'bg-[#E8F5E9]', text: 'text-[#25785A]', label: 'Sponsor' },
+  blocker: { bg: 'bg-[#0A1E2F]', text: 'text-white', label: 'Blocker' },
+  influencer: { bg: 'bg-[#F0F0F0]', text: 'text-[#666666]', label: 'Influencer' },
+  end_user: { bg: 'bg-[#F0F0F0]', text: 'text-[#666666]', label: 'End User' },
 }
 
 const INFLUENCE_CONFIG: Record<string, { bg: string; text: string }> = {
-  high: { bg: 'bg-orange-50', text: 'text-orange-700' },
-  medium: { bg: 'bg-yellow-50', text: 'text-yellow-700' },
-  low: { bg: 'bg-gray-100', text: 'text-gray-500' },
+  high: { bg: 'bg-[#25785A]', text: 'text-white' },
+  medium: { bg: 'bg-[#E8F5E9]', text: 'text-[#25785A]' },
+  low: { bg: 'bg-[#F0F0F0]', text: 'text-[#999999]' },
 }
 
 export function StakeholdersSection({
@@ -54,7 +54,7 @@ export function StakeholdersSection({
         />
       </div>
       {stakeholders.length === 0 ? (
-        <p className="text-[13px] text-[rgba(55,53,47,0.45)] italic">No stakeholders identified yet</p>
+        <p className="text-[13px] text-[#999999] italic">No stakeholders identified yet</p>
       ) : (
         <div className="space-y-2">
           {stakeholders.map((stakeholder) => {
@@ -69,7 +69,7 @@ export function StakeholdersSection({
                 key={stakeholder.id}
                 title={stakeholder.name}
                 subtitle={subtitle}
-                icon={<Users className="w-4 h-4 text-purple-500" />}
+                icon={<Users className="w-4 h-4 text-[#3FAF7A]" />}
                 status={stakeholder.confirmation_status}
                 onConfirm={() => onConfirm('stakeholder', stakeholder.id)}
                 onNeedsReview={() => onNeedsReview('stakeholder', stakeholder.id)}
@@ -87,8 +87,8 @@ export function StakeholdersSection({
                       </span>
                     )}
                     {stakeholder.is_primary_contact && (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-amber-50 text-amber-700">
-                        <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-[#E8F5E9] text-[#25785A]">
+                        <Star className="w-3 h-3 fill-[#3FAF7A] text-[#3FAF7A]" />
                         Primary
                       </span>
                     )}

@@ -71,14 +71,14 @@ function DataEntityAccordionCard({
             {entity.workflow_step_count} {entity.workflow_step_count === 1 ? 'link' : 'links'}
           </span>
         )}
-        <span onClick={(e) => e.stopPropagation()}>
+        <span className="ml-auto shrink-0" onClick={(e) => e.stopPropagation()}>
           <BRDStatusBadge
             status={entity.confirmation_status}
             onClick={onStatusClick ? () => onStatusClick('data_entity', entity.id, entity.name, entity.confirmation_status) : undefined}
           />
         </span>
         {entity.is_stale && (
-          <span className="ml-auto shrink-0">
+          <span className="shrink-0">
             <StaleIndicator reason={entity.stale_reason || undefined} onRefresh={onRefreshEntity ? () => onRefreshEntity('data_entity', entity.id) : undefined} />
           </span>
         )}
