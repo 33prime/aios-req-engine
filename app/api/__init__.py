@@ -78,6 +78,9 @@ router.include_router(revisions.router, tags=["revisions"])
 # Include Stakeholders routes
 router.include_router(stakeholders.router, tags=["stakeholders"])
 
+# Include People routes (cross-project stakeholder views)
+router.include_router(stakeholders.people_router, tags=["people"])
+
 # Include Business Drivers routes (Strategic Foundation)
 router.include_router(business_drivers.router, tags=["business_drivers"])
 

@@ -234,6 +234,62 @@ export interface DataEntityWorkflowLink {
   description?: string
 }
 
+// ============================================
+// Stakeholder Types
+// ============================================
+
+export type StakeholderType = 'champion' | 'sponsor' | 'blocker' | 'influencer' | 'end_user'
+export type InfluenceLevel = 'high' | 'medium' | 'low'
+
+export interface StakeholderBRDSummary {
+  id: string
+  name: string
+  first_name?: string | null
+  last_name?: string | null
+  role?: string | null
+  email?: string | null
+  organization?: string | null
+  stakeholder_type?: StakeholderType | null
+  influence_level?: InfluenceLevel | null
+  is_primary_contact?: boolean
+  domain_expertise?: string[]
+  confirmation_status?: string | null
+  evidence?: BRDEvidence[]
+}
+
+export interface StakeholderDetail extends StakeholderBRDSummary {
+  project_id: string
+  phone?: string | null
+  topic_mentions?: Record<string, number> | null
+  priorities?: string[] | null
+  concerns?: string[] | null
+  notes?: string | null
+  source_type?: string | null
+  engagement_level?: string | null
+  decision_authority?: string | null
+  engagement_strategy?: string | null
+  risk_if_disengaged?: string | null
+  win_conditions?: string[] | null
+  key_concerns?: string[] | null
+  project_name?: string | null
+  created_at: string
+  updated_at?: string | null
+}
+
+export interface StakeholderCreatePayload {
+  name: string
+  role?: string
+  email?: string
+  phone?: string
+  organization?: string
+  stakeholder_type?: StakeholderType
+  influence_level?: InfluenceLevel
+  domain_expertise?: string[]
+  priorities?: string[]
+  concerns?: string[]
+  notes?: string
+}
+
 export interface BRDWorkspaceData {
   business_context: {
     background?: string | null
@@ -254,6 +310,7 @@ export interface BRDWorkspaceData {
   }
   constraints: ConstraintItem[]
   data_entities: DataEntityBRDSummary[]
+  stakeholders: StakeholderBRDSummary[]
   readiness_score: number
   pending_count: number
   workflow_pairs: WorkflowPair[]

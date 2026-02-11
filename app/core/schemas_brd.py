@@ -71,6 +71,23 @@ class ConstraintSummary(BaseModel):
     evidence: list[EvidenceItem] = []
 
 
+class StakeholderBRDSummary(BaseModel):
+    """Stakeholder summary for BRD canvas."""
+    id: str
+    name: str
+    first_name: str | None = None
+    last_name: str | None = None
+    role: str | None = None
+    email: str | None = None
+    organization: str | None = None
+    stakeholder_type: str | None = None
+    influence_level: str | None = None
+    is_primary_contact: bool = False
+    domain_expertise: list[str] = []
+    confirmation_status: str | None = None
+    evidence: list[EvidenceItem] = []
+
+
 class PersonaBRDSummary(BaseModel):
     """Persona summary for BRD canvas."""
     id: str
@@ -142,6 +159,7 @@ class BRDWorkspaceData(BaseModel):
     requirements: RequirementsSection = Field(default_factory=RequirementsSection)
     constraints: list[ConstraintSummary] = []
     data_entities: list[DataEntityBRDSummary] = []
+    stakeholders: list[StakeholderBRDSummary] = []
     readiness_score: float = 0.0
     pending_count: int = 0
     workflow_pairs: list[WorkflowPair] = []

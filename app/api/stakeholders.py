@@ -23,6 +23,8 @@ class StakeholderCreate(BaseModel):
     """Request body for creating a stakeholder."""
 
     name: str = Field(..., min_length=1, description="Stakeholder name")
+    first_name: str | None = Field(None, description="First name (auto-parsed from name if not provided)")
+    last_name: str | None = Field(None, description="Last name (auto-parsed from name if not provided)")
     role: str | None = Field(None, description="Job title/role")
     email: str | None = Field(None, description="Email address")
     phone: str | None = Field(None, description="Phone number")
@@ -39,6 +41,8 @@ class StakeholderUpdate(BaseModel):
     """Request body for updating a stakeholder."""
 
     name: str | None = None
+    first_name: str | None = None
+    last_name: str | None = None
     role: str | None = None
     email: str | None = None
     phone: str | None = None
@@ -58,7 +62,10 @@ class StakeholderOut(BaseModel):
     id: UUID
     project_id: UUID
     name: str
+    first_name: str | None = None
+    last_name: str | None = None
     role: str | None
+    project_name: str | None = None
     email: str | None
     phone: str | None
     organization: str | None
@@ -173,6 +180,15 @@ async def create_stakeholder(
         Created stakeholder
     """
     try:
+        # Auto-parse first/last name from name if not provided
+        first_name = body.first_name
+        last_name = body.last_name
+        if not first_name:
+            parts = body.name.strip().split(" ", 1)
+            first_name = parts[0]
+            if not last_name and len(parts) > 1:
+                last_name = parts[1]
+
         stakeholder = stakeholders_db.create_stakeholder(
             project_id=project_id,
             name=body.name,
@@ -185,6 +201,8 @@ async def create_stakeholder(
             concerns=body.concerns,
             notes=body.notes,
             confirmation_status="confirmed_consultant",  # Manual creation = confirmed
+            first_name=first_name,
+            last_name=last_name,
         )
 
         # Update domain expertise if provided
@@ -392,6 +410,63 @@ async def who_would_know(
 
     except Exception as e:
         logger.error(f"Error in who-would-know: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+# ============================================================================
+# Cross-Project People Endpoint
+# ============================================================================
+
+people_router = APIRouter(prefix="/people")
+
+
+class PeopleListResponse(BaseModel):
+    """Response for listing stakeholders across projects."""
+    stakeholders: list[StakeholderOut]
+    total: int
+
+
+@people_router.get("", response_model=PeopleListResponse)
+async def list_all_stakeholders(
+    search: str | None = Query(None, description="Search by name or email"),
+    stakeholder_type: str | None = Query(None, description="Filter by type"),
+    influence_level: str | None = Query(None, description="Filter by influence level"),
+    project_id: str | None = Query(None, description="Filter by project"),
+    limit: int = Query(50, ge=1, le=200),
+    offset: int = Query(0, ge=0),
+) -> PeopleListResponse:
+    """List all stakeholders across projects with optional filters."""
+    from app.db.supabase_client import get_supabase
+
+    try:
+        supabase = get_supabase()
+
+        query = supabase.table("stakeholders").select(
+            "*, projects(name)", count="exact"
+        ).order("updated_at", desc=True).range(offset, offset + limit - 1)
+
+        if project_id:
+            query = query.eq("project_id", project_id)
+        if stakeholder_type:
+            query = query.eq("stakeholder_type", stakeholder_type)
+        if influence_level:
+            query = query.eq("influence_level", influence_level)
+        if search:
+            query = query.or_(f"name.ilike.%{search}%,email.ilike.%{search}%")
+
+        result = query.execute()
+        total = result.count or 0
+
+        stakeholders_out = []
+        for s in (result.data or []):
+            project_info = s.pop("projects", None)
+            s["project_name"] = project_info.get("name") if project_info else None
+            stakeholders_out.append(StakeholderOut(**s))
+
+        return PeopleListResponse(stakeholders=stakeholders_out, total=total)
+
+    except Exception as e:
+        logger.error(f"Error listing all stakeholders: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 

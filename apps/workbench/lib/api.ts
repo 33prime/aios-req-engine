@@ -2284,6 +2284,72 @@ export const unlinkDataEntityFromStep = (
   )
 
 // ============================================
+// Stakeholder / People APIs
+// ============================================
+
+import type {
+  StakeholderBRDSummary,
+  StakeholderDetail,
+  StakeholderCreatePayload,
+} from '@/types/workspace'
+
+export const listAllStakeholders = (params?: {
+  search?: string
+  stakeholder_type?: string
+  influence_level?: string
+  project_id?: string
+  limit?: number
+  offset?: number
+}) => {
+  const qp = new URLSearchParams()
+  if (params?.search) qp.set('search', params.search)
+  if (params?.stakeholder_type) qp.set('stakeholder_type', params.stakeholder_type)
+  if (params?.influence_level) qp.set('influence_level', params.influence_level)
+  if (params?.project_id) qp.set('project_id', params.project_id)
+  if (params?.limit) qp.set('limit', params.limit.toString())
+  if (params?.offset) qp.set('offset', params.offset.toString())
+  const query = qp.toString()
+  return apiRequest<{ stakeholders: StakeholderDetail[]; total: number }>(
+    `/people${query ? `?${query}` : ''}`
+  )
+}
+
+export const getStakeholder = (projectId: string, stakeholderId: string) =>
+  apiRequest<StakeholderDetail>(
+    `/projects/${projectId}/stakeholders/${stakeholderId}`
+  )
+
+export const createStakeholder = (projectId: string, data: StakeholderCreatePayload) =>
+  apiRequest<StakeholderDetail>(`/projects/${projectId}/stakeholders`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+
+export const updateStakeholder = (
+  projectId: string,
+  stakeholderId: string,
+  data: Partial<StakeholderCreatePayload>
+) =>
+  apiRequest<StakeholderDetail>(
+    `/projects/${projectId}/stakeholders/${stakeholderId}`,
+    {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    }
+  )
+
+export const deleteStakeholder = (projectId: string, stakeholderId: string) =>
+  apiRequest<{ success: boolean; message: string }>(
+    `/projects/${projectId}/stakeholders/${stakeholderId}`,
+    { method: 'DELETE' }
+  )
+
+export const listProjectStakeholders = (projectId: string) =>
+  apiRequest<{ stakeholders: StakeholderDetail[]; total: number }>(
+    `/projects/${projectId}/stakeholders`
+  )
+
+// ============================================
 // Cascading Intelligence APIs
 // ============================================
 

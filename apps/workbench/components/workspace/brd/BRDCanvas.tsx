@@ -8,9 +8,11 @@ import { WorkflowsSection } from './sections/WorkflowsSection'
 import { RequirementsSection } from './sections/RequirementsSection'
 import { ConstraintsSection } from './sections/ConstraintsSection'
 import { DataEntitiesSection } from './sections/DataEntitiesSection'
+import { StakeholdersSection } from './sections/StakeholdersSection'
 import { WorkflowCreateModal } from './components/WorkflowCreateModal'
 import { WorkflowStepEditor } from './components/WorkflowStepEditor'
 import { DataEntityCreateModal } from './components/DataEntityCreateModal'
+import { StakeholderDetailDrawer } from './components/StakeholderDetailDrawer'
 import { HealthPanel } from './components/HealthPanel'
 import { ImpactPreviewModal } from './components/ImpactPreviewModal'
 import {
@@ -27,7 +29,7 @@ import {
   deleteDataEntity,
   refreshStaleEntity,
 } from '@/lib/api'
-import type { BRDWorkspaceData, MoSCoWGroup } from '@/types/workspace'
+import type { BRDWorkspaceData, MoSCoWGroup, StakeholderBRDSummary } from '@/types/workspace'
 
 interface BRDCanvasProps {
   projectId: string
@@ -198,6 +200,15 @@ export function BRDCanvas({ projectId, onRefresh }: BRDCanvasProps) {
   const showImpactPreview = useCallback((entityType: string, entityId: string, entityName: string, onDelete: () => void) => {
     setImpactPreview({ open: true, entityType, entityId, entityName, onDelete })
   }, [])
+
+  // ============================================================================
+  // Stakeholder Detail Drawer
+  // ============================================================================
+
+  const [stakeholderDrawer, setStakeholderDrawer] = useState<{
+    open: boolean
+    stakeholder: StakeholderBRDSummary | null
+  }>({ open: false, stakeholder: null })
 
   // ============================================================================
   // Workflow CRUD
@@ -454,6 +465,17 @@ export function BRDCanvas({ projectId, onRefresh }: BRDCanvasProps) {
 
         <div className="border-t border-[#e9e9e7]" />
 
+        <StakeholdersSection
+          stakeholders={data.stakeholders}
+          onConfirm={handleConfirm}
+          onNeedsReview={handleNeedsReview}
+          onConfirmAll={handleConfirmAll}
+          onOpenDetail={(stakeholder) => setStakeholderDrawer({ open: true, stakeholder })}
+          onRefreshEntity={handleRefreshEntity}
+        />
+
+        <div className="border-t border-[#e9e9e7]" />
+
         <ConstraintsSection
           constraints={data.constraints}
           onConfirm={handleConfirm}
@@ -494,6 +516,18 @@ export function BRDCanvas({ projectId, onRefresh }: BRDCanvasProps) {
         onClose={() => setImpactPreview((prev) => ({ ...prev, open: false }))}
         onConfirmDelete={impactPreview.onDelete}
       />
+
+      {/* Stakeholder Detail Drawer */}
+      {stakeholderDrawer.open && stakeholderDrawer.stakeholder && (
+        <StakeholderDetailDrawer
+          stakeholderId={stakeholderDrawer.stakeholder.id}
+          projectId={projectId}
+          initialData={stakeholderDrawer.stakeholder}
+          onClose={() => setStakeholderDrawer({ open: false, stakeholder: null })}
+          onConfirm={handleConfirm}
+          onNeedsReview={handleNeedsReview}
+        />
+      )}
     </div>
   )
 }
@@ -558,6 +592,10 @@ function applyConfirmationUpdate(
     update.data_entities = update.data_entities.map((d) =>
       d.id === entityId ? { ...d, confirmation_status: status } : d
     )
+  } else if (entityType === 'stakeholder') {
+    update.stakeholders = update.stakeholders.map((s) =>
+      s.id === entityId ? { ...s, confirmation_status: status } : s
+    )
   }
 
   return update
@@ -601,7 +639,8 @@ function countEntities(data: BRDWorkspaceData): number {
     data.requirements.should_have.length +
     data.requirements.could_have.length +
     data.constraints.length +
-    data.data_entities.length
+    data.data_entities.length +
+    data.stakeholders.length
   )
 }
 
@@ -619,7 +658,8 @@ function countConfirmed(data: BRDWorkspaceData): number {
     data.requirements.should_have.filter((f) => isConfirmed(f.confirmation_status)).length +
     data.requirements.could_have.filter((f) => isConfirmed(f.confirmation_status)).length +
     data.constraints.filter((c) => isConfirmed(c.confirmation_status)).length +
-    data.data_entities.filter((d) => isConfirmed(d.confirmation_status)).length
+    data.data_entities.filter((d) => isConfirmed(d.confirmation_status)).length +
+    data.stakeholders.filter((s) => isConfirmed(s.confirmation_status)).length
   )
 }
 

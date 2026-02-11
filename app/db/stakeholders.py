@@ -97,6 +97,8 @@ def create_stakeholder(
     linked_persona_id: UUID | None = None,
     evidence: list | None = None,
     confirmation_status: str = "ai_generated",
+    first_name: str | None = None,
+    last_name: str | None = None,
 ) -> dict:
     """
     Create a new stakeholder.
@@ -138,6 +140,10 @@ def create_stakeholder(
     # Only add email if provided (column may not exist in older schemas)
     if email:
         stakeholder_data["email"] = email
+    if first_name is not None:
+        stakeholder_data["first_name"] = first_name
+    if last_name is not None:
+        stakeholder_data["last_name"] = last_name
 
     response = (
         supabase.table("stakeholders")

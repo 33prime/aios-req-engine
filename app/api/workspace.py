@@ -23,6 +23,7 @@ from app.core.schemas_brd import (
     RelatedDriver,
     RequirementsSection,
     RevisionEntry,
+    StakeholderBRDSummary,
     VpStepBRDSummary,
 )
 from app.core.schemas_data_entities import (
@@ -774,6 +775,33 @@ async def get_brd_workspace_data(project_id: UUID) -> BRDWorkspaceData:
         except Exception:
             logger.debug(f"Could not load data entities for project {project_id}")
 
+        # 8b. Stakeholders
+        stakeholders_list: list[StakeholderBRDSummary] = []
+        try:
+            sh_result = client.table("stakeholders").select(
+                "id, name, first_name, last_name, role, email, organization, stakeholder_type, "
+                "influence_level, is_primary_contact, domain_expertise, confirmation_status, evidence"
+            ).eq("project_id", str(project_id)).order("created_at").execute()
+
+            for s in (sh_result.data or []):
+                stakeholders_list.append(StakeholderBRDSummary(
+                    id=s["id"],
+                    name=s["name"],
+                    first_name=s.get("first_name"),
+                    last_name=s.get("last_name"),
+                    role=s.get("role"),
+                    email=s.get("email"),
+                    organization=s.get("organization"),
+                    stakeholder_type=s.get("stakeholder_type"),
+                    influence_level=s.get("influence_level"),
+                    is_primary_contact=s.get("is_primary_contact", False),
+                    domain_expertise=s.get("domain_expertise") or [],
+                    confirmation_status=s.get("confirmation_status"),
+                    evidence=_parse_evidence(s.get("evidence")),
+                ))
+        except Exception:
+            logger.debug(f"Could not load stakeholders for project {project_id}")
+
         # 9. Readiness score + pending count
         readiness_score = 0.0
         if project.get("cached_readiness_score") is not None:
@@ -830,6 +858,7 @@ async def get_brd_workspace_data(project_id: UUID) -> BRDWorkspaceData:
             requirements=requirements,
             constraints=constraints,
             data_entities=data_entities_list,
+            stakeholders=stakeholders_list,
             readiness_score=readiness_score,
             pending_count=pending_count,
             workflow_pairs=workflow_pairs_out,

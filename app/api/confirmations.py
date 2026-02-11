@@ -260,6 +260,7 @@ ENTITY_TABLE_MAP = {
     "vp_step": "vp_steps",
     "business_driver": "business_drivers",
     "constraint": "constraints",
+    "stakeholder": "stakeholders",
 }
 
 
