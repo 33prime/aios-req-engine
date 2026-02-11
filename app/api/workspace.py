@@ -760,6 +760,12 @@ async def get_brd_workspace_data(project_id: UUID) -> BRDWorkspaceData:
 
                 for d in de_rows:
                     fields_data = d.get("fields") or []
+                    if isinstance(fields_data, str):
+                        try:
+                            import json as _json
+                            fields_data = _json.loads(fields_data)
+                        except Exception:
+                            fields_data = []
                     if not isinstance(fields_data, list):
                         fields_data = []
                     data_entities_list.append(DataEntityBRDSummary(
@@ -1490,6 +1496,12 @@ async def list_data_entities_endpoint(project_id: UUID) -> list[DataEntityBRDSum
         result = []
         for e in entities:
             fields_data = e.get("fields") or []
+            if isinstance(fields_data, str):
+                try:
+                    import json as _json
+                    fields_data = _json.loads(fields_data)
+                except Exception:
+                    fields_data = []
             if not isinstance(fields_data, list):
                 fields_data = []
             result.append(DataEntityBRDSummary(

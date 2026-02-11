@@ -19,13 +19,6 @@ interface DataEntitiesSectionProps {
   onStatusClick?: (entityType: string, entityId: string, entityName: string, status?: string | null) => void
 }
 
-const CATEGORY_LABELS: Record<string, string> = {
-  domain: 'Domain',
-  reference: 'Reference',
-  transactional: 'Transactional',
-  system: 'System',
-}
-
 /** Group fields by their `group` property. Ungrouped fields go under null key. */
 function groupFields(fields: DataEntityField[]): Map<string | null, DataEntityField[]> {
   const groups = new Map<string | null, DataEntityField[]>()
@@ -52,7 +45,6 @@ function DataEntityCard({
   onRefreshEntity?: (entityType: string, entityId: string) => void
   onStatusClick?: (entityType: string, entityId: string, entityName: string, status?: string | null) => void
 }) {
-  const catLabel = CATEGORY_LABELS[entity.entity_category] || 'Domain'
   const fieldGroups = useMemo(() => groupFields(entity.fields || []), [entity.fields])
   const hasGroups = fieldGroups.size > 1 || (fieldGroups.size === 1 && !fieldGroups.has(null))
 
@@ -64,7 +56,7 @@ function DataEntityCard({
         <div className="flex items-start gap-3 mb-1">
           <div className="flex-1 min-w-0">
             <h4 className="text-[15px] font-bold text-[#333333]">
-              {entity.name} <span className="font-normal text-[#999999]">({catLabel})</span>
+              {entity.name}
             </h4>
           </div>
           <span className="shrink-0" onClick={(e) => e.stopPropagation()}>
