@@ -119,6 +119,7 @@ export interface PersonaBRDSummary {
   confirmation_status?: string | null
   is_stale?: boolean
   stale_reason?: string | null
+  canvas_role?: 'primary' | 'secondary' | null
 }
 
 export interface VpStepBRDSummary {
@@ -609,5 +610,34 @@ export interface EntityConfidenceData {
   gaps: ConfidenceGap[]
   revisions: ConfidenceRevision[]
   dependencies: DependencyItem[]
+}
+
+// ============================================
+// Canvas View Synthesis Types
+// ============================================
+
+export interface ValuePathStep {
+  step_index: number
+  title: string
+  description: string
+  actor_persona_id?: string | null
+  actor_persona_name?: string | null
+  pain_addressed?: string | null
+  goal_served?: string | null
+  linked_feature_ids: string[]
+  linked_feature_names: string[]
+  source_workflow_step_id?: string | null
+  automation_level: AutomationLevel
+  time_minutes?: number | null
+  roi_impact: 'high' | 'medium' | 'low'
+}
+
+export interface CanvasViewData {
+  actors: (PersonaBRDSummary & { canvas_role: 'primary' | 'secondary' })[]
+  value_path: ValuePathStep[]
+  synthesis_rationale?: string | null
+  synthesis_stale: boolean
+  mvp_features: FeatureBRDSummary[]
+  workflow_pairs: WorkflowPair[]
 }
 

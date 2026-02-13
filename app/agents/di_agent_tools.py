@@ -127,6 +127,8 @@ async def execute_di_tool(
             result = await _execute_update_strategy(project_id, tool_args)
         elif tool_name == "add_open_question":
             result = await _execute_add_open_question(project_id, tool_args)
+        elif tool_name == "synthesize_value_path":
+            result = await _execute_synthesize_value_path(project_id, tool_args)
         else:
             logger.error(f"Unknown tool: {tool_name}")
             return {
@@ -1369,4 +1371,33 @@ async def _execute_add_open_question(project_id: UUID, args: dict) -> dict:
             "success": False,
             "data": {},
             "error": f"Failed to add open question: {str(e)}",
+        }
+
+
+async def _execute_synthesize_value_path(project_id: UUID, args: dict) -> dict:
+    """
+    Synthesize the optimal value path for the Canvas View prototype.
+    """
+    try:
+        from app.chains.synthesize_value_path import synthesize_value_path
+
+        result = await synthesize_value_path(project_id)
+
+        return {
+            "success": True,
+            "data": {
+                "step_count": result.get("step_count", 0),
+                "version": result.get("version", 1),
+                "synthesis_rationale": result.get("synthesis_rationale", ""),
+                "message": f"Value path synthesized with {result.get('step_count', 0)} steps (v{result.get('version', 1)})",
+            },
+            "error": None,
+        }
+
+    except Exception as e:
+        logger.error(f"Failed to synthesize value path: {e}", exc_info=True)
+        return {
+            "success": False,
+            "data": {},
+            "error": f"Failed to synthesize value path: {str(e)}",
         }

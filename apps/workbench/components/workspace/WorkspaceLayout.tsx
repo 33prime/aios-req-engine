@@ -13,7 +13,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { AppSidebar } from './AppSidebar'
 import { PhaseSwitcher, WorkspacePhase } from './PhaseSwitcher'
 import { CollaborationPanel, type PanelState } from './CollaborationPanel'
-import { RequirementsCanvas } from './canvas/RequirementsCanvas'
+import { CanvasView } from './canvas/CanvasView'
 import { BRDCanvas } from './brd/BRDCanvas'
 import { BuildPhaseView } from './BuildPhaseView'
 import { OverviewPanel } from './OverviewPanel'
@@ -429,14 +429,7 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
                 {discoveryViewMode === 'brd' ? (
                   <BRDCanvas projectId={projectId} onRefresh={loadData} />
                 ) : (
-                  <RequirementsCanvas
-                    data={canvasData}
-                    projectId={projectId}
-                    readinessScore={readinessData?.score}
-                    onUpdatePitchLine={handleUpdatePitchLine}
-                    onMapFeatureToStep={handleMapFeatureToStep}
-                    onRefresh={loadData}
-                  />
+                  <CanvasView projectId={projectId} onRefresh={loadData} />
                 )}
               </div>
             )}

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { Users, ChevronRight } from 'lucide-react'
+import { Users, ChevronRight, Star } from 'lucide-react'
 import { SectionHeader } from '../components/SectionHeader'
 import { BRDStatusBadge } from '../components/StatusBadge'
 import { ConfirmActions } from '../components/ConfirmActions'
@@ -16,6 +16,37 @@ interface ActorsSectionProps {
   onConfirmAll: (entityType: string, ids: string[]) => void
   onRefreshEntity?: (entityType: string, entityId: string) => void
   onStatusClick?: (entityType: string, entityId: string, entityName: string, status?: string | null) => void
+  onCanvasRoleUpdate?: (personaId: string, role: 'primary' | 'secondary' | null) => void
+}
+
+function CanvasRoleToggle({
+  role,
+  onToggle,
+}: {
+  role?: 'primary' | 'secondary' | null
+  onToggle: () => void
+}) {
+  if (role === 'primary') {
+    return (
+      <button onClick={onToggle} className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#E8F5E9] text-[#25785A] text-[10px] font-medium hover:bg-[#d0ecd6] transition-colors" title="Click to change canvas role">
+        <Star className="w-3 h-3 fill-[#3FAF7A] text-[#3FAF7A]" />
+        Primary
+      </button>
+    )
+  }
+  if (role === 'secondary') {
+    return (
+      <button onClick={onToggle} className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#F0F0F0] text-[#666666] text-[10px] font-medium hover:bg-[#e5e5e5] transition-colors" title="Click to change canvas role">
+        <Star className="w-3 h-3 fill-[#999999] text-[#999999]" />
+        Secondary
+      </button>
+    )
+  }
+  return (
+    <button onClick={onToggle} className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[#999999] text-[10px] font-medium hover:bg-[#F0F0F0] transition-colors" title="Set canvas role">
+      <Star className="w-3 h-3" />
+    </button>
+  )
 }
 
 function ActorAccordionCard({
@@ -24,12 +55,14 @@ function ActorAccordionCard({
   onNeedsReview,
   onRefreshEntity,
   onStatusClick,
+  onCanvasRoleUpdate,
 }: {
   actor: PersonaBRDSummary
   onConfirm: (entityType: string, entityId: string) => void
   onNeedsReview: (entityType: string, entityId: string) => void
   onRefreshEntity?: (entityType: string, entityId: string) => void
   onStatusClick?: (entityType: string, entityId: string, entityName: string, status?: string | null) => void
+  onCanvasRoleUpdate?: (personaId: string, role: 'primary' | 'secondary' | null) => void
 }) {
   const [expanded, setExpanded] = useState(false)
 
@@ -47,6 +80,17 @@ function ActorAccordionCard({
         <span className="text-[14px] font-semibold text-[#333333] truncate">{actor.name}</span>
         {actor.role && (
           <span className="text-[12px] text-[#999999] shrink-0">({actor.role})</span>
+        )}
+        {onCanvasRoleUpdate && (
+          <span className="shrink-0" onClick={(e) => e.stopPropagation()}>
+            <CanvasRoleToggle
+              role={actor.canvas_role}
+              onToggle={() => {
+                const nextRole = !actor.canvas_role ? 'primary' : actor.canvas_role === 'primary' ? 'secondary' : null
+                onCanvasRoleUpdate(actor.id, nextRole)
+              }}
+            />
+          </span>
         )}
         <span className="ml-auto shrink-0" onClick={(e) => e.stopPropagation()}>
           <BRDStatusBadge
@@ -122,7 +166,7 @@ function ActorAccordionCard({
   )
 }
 
-export function ActorsSection({ actors, workflows = [], onConfirm, onNeedsReview, onConfirmAll, onRefreshEntity, onStatusClick }: ActorsSectionProps) {
+export function ActorsSection({ actors, workflows = [], onConfirm, onNeedsReview, onConfirmAll, onRefreshEntity, onStatusClick, onCanvasRoleUpdate }: ActorsSectionProps) {
   const confirmedCount = actors.filter(
     (a) => a.confirmation_status === 'confirmed_consultant' || a.confirmation_status === 'confirmed_client'
   ).length
@@ -147,6 +191,7 @@ export function ActorsSection({ actors, workflows = [], onConfirm, onNeedsReview
       onNeedsReview={onNeedsReview}
       onRefreshEntity={onRefreshEntity}
       onStatusClick={onStatusClick}
+      onCanvasRoleUpdate={onCanvasRoleUpdate}
     />
   )
 

@@ -34,6 +34,7 @@ import {
   createDataEntity,
   deleteDataEntity,
   refreshStaleEntity,
+  updateCanvasRole,
 } from '@/lib/api'
 import type { BRDWorkspaceData, BRDHealthData, MoSCoWGroup, StakeholderBRDSummary, AutomationLevel } from '@/types/workspace'
 
@@ -523,6 +524,35 @@ export function BRDCanvas({ projectId, onRefresh }: BRDCanvasProps) {
     }
   }, [projectId, loadData])
 
+  // ============================================================================
+  // Canvas Role
+  // ============================================================================
+
+  const handleCanvasRoleUpdate = useCallback(async (personaId: string, role: 'primary' | 'secondary' | null) => {
+    if (!data) return
+
+    // Optimistic update
+    setData((prev) => {
+      if (!prev) return prev
+      return {
+        ...prev,
+        actors: prev.actors.map((a) =>
+          a.id === personaId ? { ...a, canvas_role: role } : a
+        ),
+      }
+    })
+
+    try {
+      await updateCanvasRole(projectId, personaId, role)
+    } catch (err: unknown) {
+      console.error('Failed to update canvas role:', err)
+      // Show error message from backend (e.g., limit exceeded)
+      const message = err instanceof Error ? err.message : 'Failed to update canvas role'
+      alert(message)
+      loadData()
+    }
+  }, [data, projectId, loadData])
+
   const handleDeleteDataEntityWithPreview = useCallback((entityId: string, entityName: string) => {
     showImpactPreview('data_entity', entityId, entityName, () => handleDeleteDataEntity(entityId))
   }, [showImpactPreview, handleDeleteDataEntity])
@@ -635,6 +665,7 @@ export function BRDCanvas({ projectId, onRefresh }: BRDCanvasProps) {
           onConfirmAll={handleConfirmAll}
           onRefreshEntity={handleRefreshEntity}
           onStatusClick={handleOpenConfidence}
+          onCanvasRoleUpdate={handleCanvasRoleUpdate}
         />
 
         <div className="border-t border-[#e9e9e7]" />

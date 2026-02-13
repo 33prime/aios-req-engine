@@ -2417,6 +2417,41 @@ export const processCascades = (projectId: string) =>
   )
 
 // ============================================
+// Canvas View APIs
+// ============================================
+
+export const getCanvasViewData = (projectId: string) =>
+  apiRequest<import('@/types/workspace').CanvasViewData>(
+    `/projects/${projectId}/workspace/canvas`
+  )
+
+export const triggerValuePathSynthesis = (projectId: string) =>
+  apiRequest<{
+    value_path: import('@/types/workspace').ValuePathStep[]
+    synthesis_rationale: string
+    excluded_flows: string[]
+    step_count: number
+    version: number
+  }>(
+    `/projects/${projectId}/workspace/canvas/synthesize`,
+    { method: 'POST' }
+  )
+
+export const updateCanvasRole = (projectId: string, personaId: string, canvasRole: string | null) =>
+  apiRequest<{ success: boolean; persona_id: string; canvas_role: string | null }>(
+    `/projects/${projectId}/workspace/personas/${personaId}/canvas-role`,
+    {
+      method: 'PATCH',
+      body: JSON.stringify({ canvas_role: canvasRole }),
+    }
+  )
+
+export const getCanvasActors = (projectId: string) =>
+  apiRequest<import('@/types/workspace').PersonaBRDSummary[]>(
+    `/projects/${projectId}/workspace/canvas-actors`
+  )
+
+// ============================================
 // Prototype Refinement APIs
 // ============================================
 

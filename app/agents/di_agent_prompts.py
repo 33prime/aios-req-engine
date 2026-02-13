@@ -1219,6 +1219,38 @@ DI_AGENT_TOOLS = [
         "confidence_impact": "None - memory update",
         "typical_confidence": "N/A",
     },
+    {
+        "name": "synthesize_value_path",
+        "description": "Synthesize the optimal value path for the Canvas View prototype. "
+        "Analyzes canvas actors, workflows, must-have features, and business drivers to "
+        "produce a linear golden path of high-value steps the prototype must implement.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "project_id": {
+                    "type": "string",
+                    "description": "Project UUID",
+                },
+                "focus": {
+                    "type": "string",
+                    "description": "Optional focus area or constraint for the synthesis",
+                },
+            },
+            "required": ["project_id"],
+        },
+        "useful_when": [
+            "Canvas actors have been selected and workflows are defined",
+            "Project has must-have features and business drivers identified",
+            "Consultant wants to generate the prototype blueprint",
+        ],
+        "not_useful_when": [
+            "No canvas actors are selected yet",
+            "Project has insufficient discovery data",
+        ],
+        "affects_gates": ["prototype_readiness"],
+        "confidence_impact": "high",
+        "typical_confidence": "0.8",
+    },
 ]
 
 # =============================================================================

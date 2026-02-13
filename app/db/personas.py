@@ -877,6 +877,82 @@ def list_personas_for_enrichment(
         raise
 
 
+def update_canvas_role(persona_id: UUID, canvas_role: str | None) -> dict:
+    """
+    Set or clear a persona's canvas role.
+
+    Args:
+        persona_id: Persona UUID
+        canvas_role: 'primary', 'secondary', or None to clear
+
+    Returns:
+        Updated persona dict
+    """
+    supabase = get_supabase()
+
+    response = (
+        supabase.table("personas")
+        .update({"canvas_role": canvas_role, "updated_at": "now()"})
+        .eq("id", str(persona_id))
+        .execute()
+    )
+
+    if not response.data:
+        raise ValueError(f"Persona not found: {persona_id}")
+
+    return response.data[0]
+
+
+def get_canvas_actors(project_id: UUID) -> list[dict]:
+    """
+    Get personas selected for Canvas View, ordered primary first.
+
+    Args:
+        project_id: Project UUID
+
+    Returns:
+        List of persona dicts with canvas_role set
+    """
+    supabase = get_supabase()
+
+    response = (
+        supabase.table("personas")
+        .select("*")
+        .eq("project_id", str(project_id))
+        .not_.is_("canvas_role", "null")
+        .order("canvas_role")
+        .execute()
+    )
+
+    return response.data or []
+
+
+def count_canvas_roles(project_id: UUID) -> dict[str, int]:
+    """
+    Count current canvas role assignments for a project.
+
+    Returns:
+        Dict with primary and secondary counts
+    """
+    supabase = get_supabase()
+
+    response = (
+        supabase.table("personas")
+        .select("canvas_role")
+        .eq("project_id", str(project_id))
+        .not_.is_("canvas_role", "null")
+        .execute()
+    )
+
+    counts = {"primary": 0, "secondary": 0}
+    for row in (response.data or []):
+        role = row.get("canvas_role")
+        if role in counts:
+            counts[role] += 1
+
+    return counts
+
+
 def get_persona_feature_coverage(persona_id: UUID) -> dict:
     """
     Get detailed feature coverage breakdown for a persona.

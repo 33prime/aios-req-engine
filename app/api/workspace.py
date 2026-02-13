@@ -13,6 +13,7 @@ from app.core.schemas_brd import (
     BRDWorkspaceData,
     BusinessContextSection,
     BusinessDriverDetail,
+    CanvasRoleUpdate,
     ConstraintSummary,
     EvidenceItem,
     FeatureBRDSummary,
@@ -618,7 +619,7 @@ async def get_brd_workspace_data(project_id: UUID) -> BRDWorkspaceData:
 
         # 4. Personas
         personas_result = client.table("personas").select(
-            "id, name, role, description, goals, pain_points, confirmation_status, is_stale, stale_reason"
+            "id, name, role, description, goals, pain_points, confirmation_status, is_stale, stale_reason, canvas_role"
         ).eq("project_id", str(project_id)).execute()
 
         actors = [
@@ -633,6 +634,7 @@ async def get_brd_workspace_data(project_id: UUID) -> BRDWorkspaceData:
                 confirmation_status=p.get("confirmation_status"),
                 is_stale=p.get("is_stale", False),
                 stale_reason=p.get("stale_reason"),
+                canvas_role=p.get("canvas_role"),
             )
             for p in (personas_result.data or [])
         ]
@@ -1992,6 +1994,203 @@ async def get_entity_confidence(
         raise
     except Exception as e:
         logger.exception(f"Failed to get entity confidence for {entity_type}/{entity_id}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================================
+# Canvas View Endpoints
+# ============================================================================
+
+
+@router.patch("/personas/{persona_id}/canvas-role")
+async def update_canvas_role_endpoint(
+    project_id: UUID, persona_id: UUID, body: CanvasRoleUpdate
+) -> dict:
+    """Set or clear a persona's canvas role. Enforces max 2 primary + 1 secondary."""
+    from app.db.personas import count_canvas_roles, get_persona, update_canvas_role
+
+    try:
+        persona = get_persona(persona_id)
+        if not persona:
+            raise HTTPException(status_code=404, detail="Persona not found")
+        if persona.get("project_id") != str(project_id):
+            raise HTTPException(status_code=403, detail="Persona does not belong to this project")
+
+        # Validate limits when setting a role
+        if body.canvas_role:
+            if body.canvas_role not in ("primary", "secondary"):
+                raise HTTPException(status_code=400, detail="canvas_role must be 'primary', 'secondary', or null")
+
+            counts = count_canvas_roles(project_id)
+
+            # Exclude current persona from count if they already have a role
+            current_role = persona.get("canvas_role")
+            if current_role and current_role in counts:
+                counts[current_role] -= 1
+
+            if body.canvas_role == "primary" and counts["primary"] >= 2:
+                raise HTTPException(status_code=400, detail="Maximum 2 primary actors allowed")
+            if body.canvas_role == "secondary" and counts["secondary"] >= 1:
+                raise HTTPException(status_code=400, detail="Maximum 1 secondary actor allowed")
+
+        updated = update_canvas_role(persona_id, body.canvas_role)
+        return {"success": True, "persona_id": str(persona_id), "canvas_role": body.canvas_role}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"Failed to update canvas role for persona {persona_id}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/canvas-actors")
+async def get_canvas_actors_endpoint(project_id: UUID) -> list[dict]:
+    """Get personas selected for Canvas View, ordered by canvas_role."""
+    from app.db.personas import get_canvas_actors
+
+    try:
+        actors = get_canvas_actors(project_id)
+        return [
+            PersonaBRDSummary(
+                id=p["id"],
+                name=p["name"],
+                role=p.get("role"),
+                description=p.get("description"),
+                goals=p.get("goals") or [],
+                pain_points=p.get("pain_points") or [],
+                confirmation_status=p.get("confirmation_status"),
+                is_stale=p.get("is_stale", False),
+                stale_reason=p.get("stale_reason"),
+                canvas_role=p.get("canvas_role"),
+            ).model_dump()
+            for p in actors
+        ]
+    except Exception as e:
+        logger.exception(f"Failed to get canvas actors for project {project_id}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/canvas")
+async def get_canvas_view_data(project_id: UUID) -> dict:
+    """Get full Canvas View data: actors + value path + MVP features."""
+    from app.db.personas import get_canvas_actors
+
+    try:
+        client = get_client()
+
+        # 1. Canvas actors
+        canvas_actors_raw = get_canvas_actors(project_id)
+        canvas_actors = [
+            PersonaBRDSummary(
+                id=p["id"],
+                name=p["name"],
+                role=p.get("role"),
+                description=p.get("description"),
+                goals=p.get("goals") or [],
+                pain_points=p.get("pain_points") or [],
+                confirmation_status=p.get("confirmation_status"),
+                is_stale=p.get("is_stale", False),
+                stale_reason=p.get("stale_reason"),
+                canvas_role=p.get("canvas_role"),
+            ).model_dump()
+            for p in canvas_actors_raw
+        ]
+
+        # 2. Canvas synthesis (value path)
+        value_path: list[dict] = []
+        synthesis_rationale = None
+        synthesis_stale = False
+        try:
+            from app.db.canvas_synthesis import get_canvas_synthesis
+            synthesis = get_canvas_synthesis(project_id)
+            if synthesis:
+                value_path = synthesis.get("value_path") or []
+                synthesis_rationale = synthesis.get("synthesis_rationale")
+                synthesis_stale = synthesis.get("is_stale", False)
+        except Exception:
+            logger.debug(f"Could not load canvas synthesis for project {project_id}")
+
+        # 3. Must-have features
+        features_result = client.table("features").select(
+            "id, name, category, is_mvp, priority_group, confirmation_status, vp_step_id, overview, is_stale, stale_reason"
+        ).eq("project_id", str(project_id)).eq("priority_group", "must_have").execute()
+
+        mvp_features = [
+            FeatureBRDSummary(
+                id=f["id"],
+                name=f["name"],
+                description=f.get("overview"),
+                category=f.get("category"),
+                is_mvp=f.get("is_mvp", False),
+                priority_group="must_have",
+                confirmation_status=f.get("confirmation_status"),
+                vp_step_id=f.get("vp_step_id"),
+                is_stale=f.get("is_stale", False),
+                stale_reason=f.get("stale_reason"),
+            ).model_dump()
+            for f in (features_result.data or [])
+        ]
+
+        # 4. Workflow pairs (for actor journey drill-down)
+        workflow_pairs_out = []
+        try:
+            from app.db.workflows import get_workflow_pairs
+            workflow_pairs_raw = get_workflow_pairs(project_id)
+            for wp in workflow_pairs_raw:
+                pair = WorkflowPair(
+                    id=wp["id"],
+                    name=wp["name"],
+                    description=wp.get("description", ""),
+                    owner=wp.get("owner"),
+                    confirmation_status=wp.get("confirmation_status"),
+                    current_workflow_id=wp.get("current_workflow_id"),
+                    future_workflow_id=wp.get("future_workflow_id"),
+                    current_steps=[WorkflowStepSummary(**s) for s in wp.get("current_steps", [])],
+                    future_steps=[WorkflowStepSummary(**s) for s in wp.get("future_steps", [])],
+                    roi=ROISummary(**{**wp["roi"], "workflow_name": wp["name"]}) if wp.get("roi") else None,
+                )
+                workflow_pairs_out.append(pair.model_dump())
+        except Exception:
+            logger.debug(f"Could not load workflow pairs for canvas view, project {project_id}")
+
+        return {
+            "actors": canvas_actors,
+            "value_path": value_path,
+            "synthesis_rationale": synthesis_rationale,
+            "synthesis_stale": synthesis_stale,
+            "mvp_features": mvp_features,
+            "workflow_pairs": workflow_pairs_out,
+        }
+
+    except Exception as e:
+        logger.exception(f"Failed to get canvas view data for project {project_id}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/canvas/synthesize")
+async def trigger_value_path_synthesis(project_id: UUID) -> dict:
+    """Trigger AI synthesis of the value path."""
+    from app.db.personas import get_canvas_actors
+
+    try:
+        # Validate canvas actors are selected
+        actors = get_canvas_actors(project_id)
+        if not actors:
+            raise HTTPException(
+                status_code=400,
+                detail="No canvas actors selected. Select actors in BRD View first.",
+            )
+
+        # Run the synthesis chain
+        from app.chains.synthesize_value_path import synthesize_value_path
+        result = await synthesize_value_path(project_id)
+
+        return result
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"Failed to synthesize value path for project {project_id}")
         raise HTTPException(status_code=500, detail=str(e))
 
 

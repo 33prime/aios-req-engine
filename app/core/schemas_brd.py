@@ -88,6 +88,11 @@ class StakeholderBRDSummary(BaseModel):
     evidence: list[EvidenceItem] = []
 
 
+class CanvasRoleUpdate(BaseModel):
+    """Request body for updating a persona's canvas role."""
+    canvas_role: str | None = None  # 'primary', 'secondary', or None to clear
+
+
 class PersonaBRDSummary(BaseModel):
     """Persona summary for BRD canvas."""
     id: str
@@ -100,6 +105,7 @@ class PersonaBRDSummary(BaseModel):
     confirmation_status: str | None = None
     is_stale: bool = False
     stale_reason: str | None = None
+    canvas_role: str | None = None
 
 
 class VpStepBRDSummary(BaseModel):
