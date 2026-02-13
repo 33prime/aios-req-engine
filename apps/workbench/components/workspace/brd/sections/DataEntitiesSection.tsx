@@ -1,14 +1,16 @@
 'use client'
 
-import { useMemo } from 'react'
-import { Database, Plus, Trash2 } from 'lucide-react'
+import { useMemo, useState } from 'react'
+import { Database, Plus, Trash2, LayoutGrid, GitBranch } from 'lucide-react'
 import { SectionHeader } from '../components/SectionHeader'
 import { BRDStatusBadge } from '../components/StatusBadge'
 import { ConfirmActions } from '../components/ConfirmActions'
 import { StaleIndicator } from '../components/StaleIndicator'
+import { DataEntityERD } from '../components/DataEntityERD'
 import type { DataEntityBRDSummary, DataEntityField } from '@/types/workspace'
 
 interface DataEntitiesSectionProps {
+  projectId: string
   dataEntities: DataEntityBRDSummary[]
   onConfirm: (entityType: string, entityId: string) => void
   onNeedsReview: (entityType: string, entityId: string) => void
@@ -123,7 +125,10 @@ function DataEntityCard({
   )
 }
 
+type ViewMode = 'cards' | 'diagram'
+
 export function DataEntitiesSection({
+  projectId,
   dataEntities,
   onConfirm,
   onNeedsReview,
@@ -133,6 +138,8 @@ export function DataEntitiesSection({
   onRefreshEntity,
   onStatusClick,
 }: DataEntitiesSectionProps) {
+  const [viewMode, setViewMode] = useState<ViewMode>('cards')
+
   const confirmedCount = dataEntities.filter(
     (e) => e.confirmation_status === 'confirmed_consultant' || e.confirmation_status === 'confirmed_client'
   ).length
@@ -146,16 +153,48 @@ export function DataEntitiesSection({
           confirmedCount={confirmedCount}
           onConfirmAll={() => onConfirmAll('data_entity', dataEntities.map((e) => e.id))}
         />
-        <button
-          onClick={onCreateEntity}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-[#666666] bg-white border border-[#E5E5E5] rounded-xl hover:bg-[#E8F5E9] hover:text-[#25785A] hover:border-[#3FAF7A] transition-colors"
-        >
-          <Plus className="w-3.5 h-3.5" />
-          Add Data Entity
-        </button>
+        <div className="flex items-center gap-2">
+          {/* Cards/Diagram toggle */}
+          {dataEntities.length > 0 && (
+            <div className="flex rounded-lg border border-[#E5E5E5] overflow-hidden">
+              <button
+                onClick={() => setViewMode('cards')}
+                className={`inline-flex items-center gap-1 px-2.5 py-1.5 text-[11px] font-medium transition-colors ${
+                  viewMode === 'cards'
+                    ? 'bg-[#E8F5E9] text-[#25785A]'
+                    : 'bg-white text-[#666666] hover:bg-gray-50'
+                }`}
+              >
+                <LayoutGrid className="w-3 h-3" />
+                Cards
+              </button>
+              <button
+                onClick={() => setViewMode('diagram')}
+                className={`inline-flex items-center gap-1 px-2.5 py-1.5 text-[11px] font-medium transition-colors ${
+                  viewMode === 'diagram'
+                    ? 'bg-[#E8F5E9] text-[#25785A]'
+                    : 'bg-white text-[#666666] hover:bg-gray-50'
+                }`}
+              >
+                <GitBranch className="w-3 h-3" />
+                Diagram
+              </button>
+            </div>
+          )}
+          <button
+            onClick={onCreateEntity}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-[#666666] bg-white border border-[#E5E5E5] rounded-xl hover:bg-[#E8F5E9] hover:text-[#25785A] hover:border-[#3FAF7A] transition-colors"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            Add Data Entity
+          </button>
+        </div>
       </div>
+
       {dataEntities.length === 0 ? (
         <p className="text-[13px] text-[#999999] italic">No data entities identified yet</p>
+      ) : viewMode === 'diagram' ? (
+        <DataEntityERD projectId={projectId} />
       ) : (
         <div className="space-y-3">
           {dataEntities.map((entity) => (

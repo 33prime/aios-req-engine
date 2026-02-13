@@ -118,6 +118,23 @@ export const buildState = (projectId: string) =>
     }
   )
 
+export const enrichAllPhases = (
+  projectId: string,
+  options: { includeResearch?: boolean } = {}
+) =>
+  apiRequest<{
+    run_id: string
+    features: { processed: number; updated: number; summary: string; error: string | null }
+    personas: { processed: number; updated: number; summary: string; error: string | null }
+    vp_steps: { processed: number; updated: number; summary: string; error: string | null }
+  }>(`/projects/${projectId}/enrich-all`, {
+    method: 'POST',
+    body: JSON.stringify({
+      project_id: projectId,
+      include_research: options.includeResearch,
+    }),
+  })
+
 export const enrichFeatures = (
   projectId: string,
   options: {
@@ -2368,6 +2385,11 @@ export const listProjectStakeholders = (projectId: string) =>
 export const getBRDHealth = (projectId: string) =>
   apiRequest<import('@/types/workspace').BRDHealthData>(
     `/projects/${projectId}/workspace/brd/health`
+  )
+
+export const getDataEntityGraph = (projectId: string) =>
+  apiRequest<import('@/types/workspace').DataEntityGraphData>(
+    `/projects/${projectId}/workspace/data-entity-graph`
   )
 
 export const getImpactAnalysis = (projectId: string, entityType: string, entityId: string) =>

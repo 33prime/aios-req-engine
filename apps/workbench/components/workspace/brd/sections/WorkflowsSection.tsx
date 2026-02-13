@@ -1,10 +1,11 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { Workflow, Clock, Plus, Pencil, Link2, Trash2, ChevronRight } from 'lucide-react'
 import { SectionHeader } from '../components/SectionHeader'
 import { BRDStatusBadge } from '../components/StatusBadge'
 import { StaleIndicator } from '../components/StaleIndicator'
+import { WorkflowDiagramCard } from '../components/WorkflowDiagramCard'
 import type {
   VpStepBRDSummary,
   WorkflowPair,
@@ -429,6 +430,15 @@ export function WorkflowsSection({
 }: WorkflowsSectionProps) {
   const hasWorkflowPairs = workflowPairs.length > 0
 
+  // Top 3 workflow pairs by ROI for diagram display
+  const topPairs = useMemo(() => {
+    if (!hasWorkflowPairs) return []
+    return [...workflowPairs]
+      .filter((p) => p.roi && p.roi.time_saved_percent > 0)
+      .sort((a, b) => (b.roi?.time_saved_percent || 0) - (a.roi?.time_saved_percent || 0))
+      .slice(0, 3)
+  }, [workflowPairs, hasWorkflowPairs])
+
   const confirmedCount = hasWorkflowPairs
     ? workflowPairs.filter(
         (wp) => wp.confirmation_status === 'confirmed_consultant' || wp.confirmation_status === 'confirmed_client'
@@ -460,6 +470,15 @@ export function WorkflowsSection({
           </button>
         )}
       </div>
+
+      {/* Top workflow journey diagrams */}
+      {topPairs.length > 0 && (
+        <div className="space-y-3 border-b border-[#E5E5E5] pb-6 mb-6">
+          {topPairs.map((pair, i) => (
+            <WorkflowDiagramCard key={pair.id} pair={pair} index={i} />
+          ))}
+        </div>
+      )}
 
       {/* Workflow Pairs (branded accordion cards) */}
       {hasWorkflowPairs && (

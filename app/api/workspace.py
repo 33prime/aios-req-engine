@@ -1993,3 +1993,99 @@ async def get_entity_confidence(
     except Exception as e:
         logger.exception(f"Failed to get entity confidence for {entity_type}/{entity_id}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================================
+# Data Entity Relationship Graph (ERD)
+# ============================================================================
+
+
+class ERDNode(BaseModel):
+    id: str
+    name: str
+    entity_category: str
+    field_count: int
+    fields: list[dict]
+    workflow_step_count: int
+
+
+class ERDEdge(BaseModel):
+    id: str
+    source: str
+    target: str
+    edge_type: str
+    label: str | None = None
+
+
+class DataEntityGraphResponse(BaseModel):
+    nodes: list[ERDNode]
+    edges: list[ERDEdge]
+
+
+@router.get("/data-entity-graph", response_model=DataEntityGraphResponse)
+async def get_data_entity_graph(project_id: UUID) -> DataEntityGraphResponse:
+    """Get data entity relationship graph for ERD rendering."""
+    from app.db.data_entities import list_data_entities
+    from app.db.entity_dependencies import get_dependency_graph
+    from app.db.supabase_client import get_supabase
+
+    try:
+        client = get_supabase()
+
+        # Load entities
+        entities = list_data_entities(project_id)
+
+        # Load workflow links for step counts
+        entity_ids = [e["id"] for e in entities]
+        wf_link_counts: dict[str, int] = {}
+        if entity_ids:
+            wf_result = (
+                client.table("data_entity_workflow_steps")
+                .select("data_entity_id")
+                .in_("data_entity_id", entity_ids)
+                .execute()
+            )
+            for link in wf_result.data or []:
+                eid = link["data_entity_id"]
+                wf_link_counts[eid] = wf_link_counts.get(eid, 0) + 1
+
+        # Build nodes
+        nodes = []
+        for e in entities:
+            fields_raw = e.get("fields") or []
+            if isinstance(fields_raw, str):
+                import json
+                try:
+                    fields_raw = json.loads(fields_raw)
+                except Exception:
+                    fields_raw = []
+
+            nodes.append(ERDNode(
+                id=e["id"],
+                name=e["name"],
+                entity_category=e.get("entity_category", "domain"),
+                field_count=len(fields_raw),
+                fields=fields_raw[:5],  # Top 5 fields for node display
+                workflow_step_count=wf_link_counts.get(e["id"], 0),
+            ))
+
+        # Load dependency edges filtered to data_entity type
+        dep_graph = get_dependency_graph(project_id)
+        edges = []
+        for dep in dep_graph.get("dependencies", []):
+            src_type = dep.get("source_entity_type", "")
+            tgt_type = dep.get("target_entity_type", "")
+            if "data_entity" in (src_type, tgt_type):
+                edges.append(ERDEdge(
+                    id=dep["id"],
+                    source=dep["source_entity_id"],
+                    target=dep["target_entity_id"],
+                    edge_type=dep.get("dependency_type", "uses"),
+                    label=dep.get("dependency_type"),
+                ))
+
+        return DataEntityGraphResponse(nodes=nodes, edges=edges)
+
+    except Exception as e:
+        logger.exception(f"Failed to get data entity graph for project {project_id}")
+        raise HTTPException(status_code=500, detail=str(e))

@@ -511,6 +511,32 @@ export interface BRDHealthData {
   pending_cascade_count: number
 }
 
+// ============================================
+// Data Entity ERD Types
+// ============================================
+
+export interface ERDNode {
+  id: string
+  name: string
+  entity_category: 'domain' | 'reference' | 'transactional' | 'system'
+  field_count: number
+  fields: { name: string; type?: string; required?: boolean; group?: string }[]
+  workflow_step_count: number
+}
+
+export interface ERDEdge {
+  id: string
+  source: string
+  target: string
+  edge_type: string
+  label?: string | null
+}
+
+export interface DataEntityGraphData {
+  nodes: ERDNode[]
+  edges: ERDEdge[]
+}
+
 export interface ImpactAnalysis {
   entity: { type: string; id: string }
   direct_impacts: { type: string; id: string; dependency_type: string; strength: number }[]

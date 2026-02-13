@@ -5,9 +5,11 @@ from uuid import UUID
 
 from app.core.embeddings import embed_texts
 from app.core.logging import get_logger
-from app.core.state_snapshot import get_state_snapshot
-from app.db.confirmations import list_confirmation_items
-from app.db.facts import list_latest_extracted_facts
+from app.db.context_cache import (
+    cached_confirmation_items,
+    cached_extracted_facts,
+    cached_state_snapshot,
+)
 from app.db.phase0 import search_signal_chunks
 from app.db.vp import list_vp_steps
 
@@ -346,7 +348,7 @@ def get_vp_enrich_context(
     )
 
     # Get state snapshot for comprehensive project context (~500-750 tokens)
-    state_snapshot = get_state_snapshot(project_id)
+    state_snapshot = cached_state_snapshot(project_id)
     logger.info(f"Got state snapshot ({len(state_snapshot)} chars)")
 
     # Get VP steps to enrich
@@ -359,11 +361,11 @@ def get_vp_enrich_context(
     logger.info(f"Selected {len(steps)} VP steps for enrichment")
 
     # Get latest facts for context (insights system removed)
-    facts = list_latest_extracted_facts(project_id, limit=8)
+    facts = cached_extracted_facts(project_id, limit=8)
     insights: list = []  # Insights system removed
 
     # Get confirmations for context
-    confirmations = list_confirmation_items(project_id)
+    confirmations = cached_confirmation_items(project_id)
 
     # Generate queries for vector search based on VP workflow
     queries = [

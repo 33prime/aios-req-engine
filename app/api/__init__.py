@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter
 
-from app.api import activity, admin, agents, analytics, auth, baseline, business_drivers, chat, client_packages, client_portal, collaboration, communications, competitor_refs, confirmations, creative_brief, di_agent, discovery_prep, document_uploads, enrich_features, enrich_personas, enrich_vp, entity_cascades, evidence, jobs, meetings, n8n_research, organizations, outreach, phase0, project_creation, projects, proposals, prototype_sessions, prototypes, readiness, research, research_agent, revisions, risks, signals, signal_stream, sources, stakeholders, state, strategic_analytics, tasks, workspace
+from app.api import activity, admin, agents, analytics, auth, baseline, business_drivers, chat, client_packages, client_portal, collaboration, communications, competitor_refs, confirmations, creative_brief, di_agent, discovery_prep, document_uploads, enrich_all, enrich_features, enrich_personas, enrich_vp, entity_cascades, evidence, jobs, meetings, n8n_research, organizations, outreach, phase0, project_creation, projects, proposals, prototype_sessions, prototypes, readiness, research, research_agent, revisions, risks, signals, signal_stream, sources, stakeholders, state, strategic_analytics, tasks, workspace
 
 router = APIRouter()
 
@@ -137,6 +137,9 @@ router.include_router(evidence.router, tags=["evidence"])
 
 # Include Unified Sources routes (cross-source search)
 router.include_router(sources.router, tags=["sources"])
+
+# Include Parallel Enrichment routes
+router.include_router(enrich_all.router, tags=["enrich_all"])
 
 # Include Workspace routes (canvas-based UI)
 router.include_router(workspace.router, tags=["workspace"])

@@ -9,15 +9,17 @@ import { RequirementsSection } from './sections/RequirementsSection'
 import { ConstraintsSection } from './sections/ConstraintsSection'
 import { DataEntitiesSection } from './sections/DataEntitiesSection'
 import { StakeholdersSection } from './sections/StakeholdersSection'
+import { IntelligenceSection } from './sections/IntelligenceSection'
 import { WorkflowCreateModal } from './components/WorkflowCreateModal'
 import { WorkflowStepEditor } from './components/WorkflowStepEditor'
 import { DataEntityCreateModal } from './components/DataEntityCreateModal'
 import { StakeholderDetailDrawer } from './components/StakeholderDetailDrawer'
 import { ConfidenceDrawer } from './components/ConfidenceDrawer'
-import { HealthPanel } from './components/HealthPanel'
 import { ImpactPreviewModal } from './components/ImpactPreviewModal'
 import {
   getBRDWorkspaceData,
+  getBRDHealth,
+  processCascades,
   updateProjectVision,
   updateProjectBackground,
   updateFeaturePriority,
@@ -33,7 +35,7 @@ import {
   deleteDataEntity,
   refreshStaleEntity,
 } from '@/lib/api'
-import type { BRDWorkspaceData, MoSCoWGroup, StakeholderBRDSummary, AutomationLevel } from '@/types/workspace'
+import type { BRDWorkspaceData, BRDHealthData, MoSCoWGroup, StakeholderBRDSummary, AutomationLevel } from '@/types/workspace'
 
 interface BRDCanvasProps {
   projectId: string
@@ -44,6 +46,35 @@ export function BRDCanvas({ projectId, onRefresh }: BRDCanvasProps) {
   const [data, setData] = useState<BRDWorkspaceData | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+
+  // Health data (lifted from HealthPanel for IntelligenceSection)
+  const [health, setHealth] = useState<BRDHealthData | null>(null)
+  const [healthLoading, setHealthLoading] = useState(true)
+  const [isRefreshingHealth, setIsRefreshingHealth] = useState(false)
+
+  const loadHealth = useCallback(async () => {
+    try {
+      setHealthLoading(true)
+      const result = await getBRDHealth(projectId)
+      setHealth(result)
+    } catch (err) {
+      console.error('Failed to load BRD health:', err)
+    } finally {
+      setHealthLoading(false)
+    }
+  }, [projectId])
+
+  const handleRefreshHealth = useCallback(async () => {
+    setIsRefreshingHealth(true)
+    try {
+      await processCascades(projectId)
+      await loadHealth()
+    } catch (err) {
+      console.error('Failed to process cascades:', err)
+    } finally {
+      setIsRefreshingHealth(false)
+    }
+  }, [projectId, loadHealth])
 
   const loadData = useCallback(async () => {
     try {
@@ -61,7 +92,8 @@ export function BRDCanvas({ projectId, onRefresh }: BRDCanvasProps) {
 
   useEffect(() => {
     loadData()
-  }, [loadData])
+    loadHealth()
+  }, [loadData, loadHealth])
 
   // Optimistic confirm: update local state immediately, then sync
   const handleConfirm = useCallback(async (entityType: string, entityId: string) => {
@@ -571,8 +603,14 @@ export function BRDCanvas({ projectId, onRefresh }: BRDCanvasProps) {
         )}
       </div>
 
-      {/* Health Panel */}
-      <HealthPanel projectId={projectId} onDataRefresh={loadData} />
+      {/* Intelligence Dashboard */}
+      <IntelligenceSection
+        data={data}
+        health={health}
+        healthLoading={healthLoading}
+        onRefreshAll={handleRefreshHealth}
+        isRefreshing={isRefreshingHealth}
+      />
 
       {/* BRD Sections */}
       <div className="space-y-10">
@@ -636,6 +674,7 @@ export function BRDCanvas({ projectId, onRefresh }: BRDCanvasProps) {
         <div className="border-t border-[#e9e9e7]" />
 
         <DataEntitiesSection
+          projectId={projectId}
           dataEntities={data.data_entities}
           onConfirm={handleConfirm}
           onNeedsReview={handleNeedsReview}

@@ -5,9 +5,11 @@ from uuid import UUID
 
 from app.core.embeddings import embed_texts
 from app.core.logging import get_logger
-from app.core.state_snapshot import get_state_snapshot
 from app.db.business_drivers import list_business_drivers
-from app.db.confirmations import list_confirmation_items
+from app.db.context_cache import (
+    cached_confirmation_items,
+    cached_state_snapshot,
+)
 from app.db.features import list_features
 from app.db.personas import list_personas, list_personas_for_enrichment
 from app.db.phase0 import search_signal_chunks
@@ -260,7 +262,7 @@ def get_persona_enrich_context(
     )
 
     # Get state snapshot for comprehensive project context (~500-750 tokens)
-    state_snapshot = get_state_snapshot(project_id)
+    state_snapshot = cached_state_snapshot(project_id)
     logger.info(f"Got state snapshot ({len(state_snapshot)} chars)")
 
     # Get personas to enrich
@@ -279,7 +281,7 @@ def get_persona_enrich_context(
     business_drivers = list_business_drivers(project_id)
 
     # Get confirmations for resolved decisions
-    confirmations = list_confirmation_items(project_id)
+    confirmations = cached_confirmation_items(project_id)
 
     # Generate queries for vector search
     queries = [

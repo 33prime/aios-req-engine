@@ -7,6 +7,8 @@ Takes outputs from multiple extraction agents and:
 4. Outputs ConsolidatedChanges for proposal generation
 """
 
+import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Any
 from uuid import UUID
 
@@ -1232,51 +1234,60 @@ def consolidate_extractions(
 
     logger.info(f"Collected {len(all_entities)} entities from {len(extraction_results)} agents")
 
-    # Consolidate by type
-    features = consolidate_features(
-        [e for e in all_entities if e.entity_type == "feature"],
-        existing["features"],
-    )
+    # Pre-filter entities by type for parallel consolidation
+    entities_by_type = {
+        "feature": [e for e in all_entities if e.entity_type == "feature"],
+        "persona": [e for e in all_entities if e.entity_type == "persona"],
+        "vp_step": [e for e in all_entities if e.entity_type == "vp_step"],
+        "stakeholder": [e for e in all_entities if e.entity_type == "stakeholder"],
+        "constraint": [e for e in all_entities if e.entity_type == "constraint"],
+        "business_driver": [e for e in all_entities if e.entity_type == "business_driver"],
+        "competitor_ref": [e for e in all_entities if e.entity_type == "competitor_ref"],
+        "data_entity": [e for e in all_entities if e.entity_type == "data_entity"],
+    }
 
-    personas = consolidate_personas(
-        [e for e in all_entities if e.entity_type == "persona"],
-        existing["personas"],
-    )
+    # Build task list: (function, filtered_entities, existing_data)
+    tasks = {
+        "features": (consolidate_features, entities_by_type["feature"], existing["features"]),
+        "personas": (consolidate_personas, entities_by_type["persona"], existing["personas"]),
+        "vp_steps": (consolidate_vp_steps, entities_by_type["vp_step"], existing["vp_steps"]),
+        "stakeholders": (consolidate_stakeholders, entities_by_type["stakeholder"], existing["stakeholders"]),
+        "constraints": (consolidate_constraints, entities_by_type["constraint"], existing.get("constraints", [])),
+        "business_drivers": (consolidate_business_drivers, entities_by_type["business_driver"], existing.get("business_drivers", [])),
+        "competitor_refs": (consolidate_competitor_refs, entities_by_type["competitor_ref"], existing.get("competitor_refs", [])),
+        "company_info": (consolidate_company_info, all_entities, existing.get("company_info")),
+        "data_entities": (consolidate_data_entities, entities_by_type["data_entity"], existing.get("data_entities", [])),
+    }
 
-    vp_steps = consolidate_vp_steps(
-        [e for e in all_entities if e.entity_type == "vp_step"],
-        existing["vp_steps"],
-    )
+    # Execute consolidation functions in parallel (max 5 workers to respect DB pool)
+    t_start = time.monotonic()
+    results: dict[str, list[ConsolidatedChange]] = {}
 
-    stakeholders = consolidate_stakeholders(
-        [e for e in all_entities if e.entity_type == "stakeholder"],
-        existing["stakeholders"],
-    )
+    with ThreadPoolExecutor(max_workers=5) as executor:
+        futures = {
+            executor.submit(func, entities, exist): name
+            for name, (func, entities, exist) in tasks.items()
+        }
+        for future in as_completed(futures):
+            name = futures[future]
+            try:
+                results[name] = future.result()
+            except Exception:
+                logger.exception(f"Consolidation failed for {name}, returning empty changes")
+                results[name] = []
 
-    constraints = consolidate_constraints(
-        [e for e in all_entities if e.entity_type == "constraint"],
-        existing.get("constraints", []),
-    )
+    t_elapsed = time.monotonic() - t_start
+    logger.info(f"Parallel consolidation completed in {t_elapsed:.2f}s")
 
-    business_drivers = consolidate_business_drivers(
-        [e for e in all_entities if e.entity_type == "business_driver"],
-        existing.get("business_drivers", []),
-    )
-
-    competitor_refs = consolidate_competitor_refs(
-        [e for e in all_entities if e.entity_type == "competitor_ref"],
-        existing.get("competitor_refs", []),
-    )
-
-    company_info = consolidate_company_info(
-        all_entities,  # Will filter internally
-        existing.get("company_info"),
-    )
-
-    data_entities = consolidate_data_entities(
-        [e for e in all_entities if e.entity_type == "data_entity"],
-        existing.get("data_entities", []),
-    )
+    features = results["features"]
+    personas = results["personas"]
+    vp_steps = results["vp_steps"]
+    stakeholders = results["stakeholders"]
+    constraints = results["constraints"]
+    business_drivers = results["business_drivers"]
+    competitor_refs = results["competitor_refs"]
+    company_info = results["company_info"]
+    data_entities = results["data_entities"]
 
     # Calculate summary
     all_changes = (

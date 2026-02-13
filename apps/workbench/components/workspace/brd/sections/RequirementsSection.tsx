@@ -4,6 +4,7 @@ import { DndContext, DragOverlay, PointerSensor, useSensor, useSensors, type Dra
 import { useState } from 'react'
 import { Package } from 'lucide-react'
 import { SectionHeader } from '../components/SectionHeader'
+import { KeyFeaturesBar } from '../components/KeyFeaturesBar'
 import { PriorityGroup } from './PriorityGroup'
 import type { BRDWorkspaceData, FeatureBRDSummary, MoSCoWGroup } from '@/types/workspace'
 
@@ -77,6 +78,8 @@ export function RequirementsSection({
         confirmedCount={allConfirmed}
         onConfirmAll={() => onConfirmAll('feature', confirmableFeatures.map((f) => f.id))}
       />
+
+      <KeyFeaturesBar mustHaveFeatures={requirements.must_have} />
 
       <DndContext
         sensors={sensors}
