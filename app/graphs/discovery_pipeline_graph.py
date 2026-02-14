@@ -54,6 +54,15 @@ class DiscoveryPipelineState:
     workflow_ids: dict[str, str] = field(default_factory=dict)
     existing_drivers: list[dict] = field(default_factory=list)
 
+    # Seeded context (loaded in source_mapping, used by Phases 1-7)
+    known_competitor_names: list[str] = field(default_factory=list)
+    known_competitor_urls: list[str] = field(default_factory=list)
+    known_pain_keywords: list[str] = field(default_factory=list)
+    known_goal_keywords: list[str] = field(default_factory=list)
+    existing_company_info: dict = field(default_factory=dict)
+    has_pdl_enrichment: bool = False
+    existing_driver_descriptions: list[str] = field(default_factory=list)
+
     # Phase 1
     source_registry: dict[str, list[dict]] = field(default_factory=dict)
 
@@ -225,6 +234,58 @@ def source_mapping(state: DiscoveryPipelineState) -> dict[str, Any]:
         feature_names, feature_ids = [], {}
         workflow_labels, workflow_ids = [], {}
 
+    # Load seeded context for smarter searches
+    known_competitor_names: list[str] = []
+    known_competitor_urls: list[str] = []
+    known_pain_keywords: list[str] = []
+    known_goal_keywords: list[str] = []
+    existing_company_info: dict = {}
+    has_pdl_enrichment = False
+    existing_driver_descriptions: list[str] = []
+
+    try:
+        from app.db.business_drivers import list_business_drivers
+        from app.db.company_info import get_company_info
+        from app.db.competitor_refs import list_competitor_refs
+
+        # Company info
+        ci = get_company_info(state.project_id)
+        if ci:
+            existing_company_info = ci
+            has_pdl_enrichment = bool(ci.get("enriched_at"))
+
+        # Known competitors
+        competitors = list_competitor_refs(state.project_id, limit=20)
+        for c in competitors:
+            if c.get("name"):
+                known_competitor_names.append(c["name"])
+            if c.get("website"):
+                known_competitor_urls.append(c["website"])
+
+        # Business drivers -> pain/goal keywords
+        drivers = list_business_drivers(state.project_id, limit=50)
+        for d in drivers:
+            desc = d.get("description", "")
+            if desc:
+                existing_driver_descriptions.append(desc)
+            if d.get("driver_type") == "pain" and desc:
+                # Extract key phrase (first 5 words)
+                words = desc.split()[:5]
+                known_pain_keywords.append(" ".join(words))
+            elif d.get("driver_type") == "goal" and desc:
+                words = desc.split()[:5]
+                known_goal_keywords.append(" ".join(words))
+
+        if known_competitor_names:
+            logger.info(f"Seeded {len(known_competitor_names)} known competitors: {known_competitor_names[:3]}")
+        if known_pain_keywords:
+            logger.info(f"Seeded {len(known_pain_keywords)} pain keywords")
+        if has_pdl_enrichment:
+            logger.info("PDL enrichment already exists — will skip PDL call")
+
+    except Exception as e:
+        logger.warning(f"Failed to load seeded context (non-fatal): {e}")
+
     # Run source mapping
     source_registry: dict[str, list[dict]] = {}
     cost_entries: list[dict] = []
@@ -240,6 +301,9 @@ def source_mapping(state: DiscoveryPipelineState) -> dict[str, Any]:
                         company_name=state.company_name,
                         industry=state.industry,
                         focus_areas=state.focus_areas,
+                        known_competitors=known_competitor_names,
+                        known_pain_keywords=known_pain_keywords,
+                        company_website=existing_company_info.get("website") or state.company_website,
                     )
                 )
             finally:
@@ -275,6 +339,14 @@ def source_mapping(state: DiscoveryPipelineState) -> dict[str, Any]:
         "feature_ids": feature_ids,
         "workflow_labels": workflow_labels,
         "workflow_ids": workflow_ids,
+        # Seeded context
+        "known_competitor_names": known_competitor_names,
+        "known_competitor_urls": known_competitor_urls,
+        "known_pain_keywords": known_pain_keywords,
+        "known_goal_keywords": known_goal_keywords,
+        "existing_company_info": existing_company_info,
+        "has_pdl_enrichment": has_pdl_enrichment,
+        "existing_driver_descriptions": existing_driver_descriptions,
     }
 
 
@@ -319,6 +391,8 @@ def parallel_intelligence(state: DiscoveryPipelineState) -> dict[str, Any]:
             company_name=state.company_name,
             company_website=state.company_website,
             source_registry=state.source_registry,
+            existing_company_info=state.existing_company_info,
+            skip_pdl=state.has_pdl_enrichment,
         )
 
     def competitor_factory():
@@ -327,6 +401,8 @@ def parallel_intelligence(state: DiscoveryPipelineState) -> dict[str, Any]:
             company_name=state.company_name,
             source_registry=state.source_registry,
             max_competitors=settings.DISCOVERY_MAX_COMPETITORS,
+            known_competitor_names=state.known_competitor_names,
+            known_competitor_urls=state.known_competitor_urls,
         )
 
     def market_factory():
@@ -491,6 +567,7 @@ def evidence_synthesis(state: DiscoveryPipelineState) -> dict[str, Any]:
                         user_voice=state.user_voice,
                         feature_matrix=state.feature_matrix,
                         gap_analysis=state.gap_analysis,
+                        existing_drivers=state.existing_driver_descriptions,
                     )
                 )
             finally:

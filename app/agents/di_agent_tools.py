@@ -131,6 +131,8 @@ async def execute_di_tool(
             result = await _execute_synthesize_value_path(project_id, tool_args)
         elif tool_name == "run_discover":
             result = await _execute_run_discover(project_id, tool_args)
+        elif tool_name == "check_discovery_readiness":
+            result = await _execute_check_discovery_readiness(project_id, tool_args)
         else:
             logger.error(f"Unknown tool: {tool_name}")
             return {
@@ -356,6 +358,42 @@ async def _execute_run_discover(project_id: UUID, args: dict) -> dict:
             "success": False,
             "data": {},
             "error": f"Discovery pipeline failed: {str(e)}",
+        }
+
+
+async def _execute_check_discovery_readiness(project_id: UUID, args: dict) -> dict:
+    """
+    Check discovery readiness for a project.
+
+    Pure data query — no LLM, no cost. Returns score, what exists,
+    what's missing, and actionable suggestions.
+    """
+    try:
+        from app.chains.assess_discovery_readiness import assess_discovery_readiness
+
+        result = assess_discovery_readiness(project_id)
+
+        return {
+            "success": True,
+            "data": {
+                "score": result["score"],
+                "effectiveness_label": result["effectiveness_label"],
+                "have": result["have"],
+                "missing": result["missing"],
+                "actions": result["actions"],
+                "cost_estimate": result["cost_estimate"],
+                "potential_savings": result["potential_savings"],
+                "message": f"Discovery readiness: {result['score']}% ({result['effectiveness_label']})",
+            },
+            "error": None,
+        }
+
+    except Exception as e:
+        logger.error(f"Discovery readiness check failed: {e}", exc_info=True)
+        return {
+            "success": False,
+            "data": {},
+            "error": f"Discovery readiness check failed: {str(e)}",
         }
 
 

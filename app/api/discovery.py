@@ -12,7 +12,7 @@ from fastapi import APIRouter, BackgroundTasks, HTTPException
 from pydantic import BaseModel, Field
 
 from app.core.logging import get_logger
-from app.core.schemas_discovery import DiscoveryProgress, DiscoveryRequest
+from app.core.schemas_discovery import DiscoveryProgress, DiscoveryReadinessReport, DiscoveryRequest
 from app.db.jobs import create_job, get_job, start_job
 from app.db.supabase_client import get_supabase
 
@@ -240,3 +240,21 @@ async def get_discovery_progress(
             else {}
         ),
     }
+
+
+@router.get(
+    "/projects/{project_id}/discover/readiness",
+    response_model=DiscoveryReadinessReport,
+)
+async def get_discovery_readiness(project_id: UUID) -> DiscoveryReadinessReport:
+    """
+    Check discovery readiness for a project.
+
+    Pure data query — no LLM, no cost. Returns a readiness score,
+    what data exists, what's missing, and actionable suggestions
+    to improve discovery effectiveness.
+    """
+    from app.chains.assess_discovery_readiness import assess_discovery_readiness
+
+    result = assess_discovery_readiness(project_id)
+    return DiscoveryReadinessReport(**result)

@@ -20,20 +20,45 @@ def build_search_queries(
     company_name: str,
     industry: str | None = None,
     focus_areas: list[str] | None = None,
+    known_competitors: list[str] | None = None,
+    known_pain_keywords: list[str] | None = None,
+    company_website: str | None = None,
 ) -> list[dict[str, str]]:
     """Build categorized search queries from company info.
 
+    When seeded with project context, produces targeted queries
+    instead of generic ones. All seeding is additive — empty
+    project runs identically to before.
+
     Returns list of {query, category} dicts.
     """
-    queries = [
-        {"query": f'"{company_name}" about', "category": "company"},
-        {"query": f'"{company_name}" pricing', "category": "company"},
-        {"query": f'"{company_name}" competitors', "category": "competitor"},
-        {"query": f'"{company_name}" vs', "category": "competitor"},
+    queries: list[dict[str, str]] = []
+
+    # Company queries — skip "about" if we already have the website
+    if not company_website:
+        queries.append({"query": f'"{company_name}" about', "category": "company"})
+    else:
+        # Use site-specific pricing search
+        domain = company_website.replace("https://", "").replace("http://", "").split("/")[0]
+        queries.append({"query": f"site:{domain} pricing", "category": "company"})
+
+    queries.append({"query": f'"{company_name}" pricing', "category": "company"})
+
+    # Competitor queries — use known competitors for targeted searches
+    if known_competitors:
+        for comp in known_competitors[:3]:
+            queries.append({"query": f'"{comp}" vs "{company_name}"', "category": "competitor"})
+            queries.append({"query": f'"{comp}" pricing', "category": "competitor"})
+    else:
+        queries.append({"query": f'"{company_name}" competitors', "category": "competitor"})
+        queries.append({"query": f'"{company_name}" vs', "category": "competitor"})
+
+    # Review queries (always useful)
+    queries.extend([
         {"query": f'"site:g2.com" "{company_name}"', "category": "review"},
         {"query": f'"site:capterra.com" "{company_name}"', "category": "review"},
         {"query": f'"{company_name}" reviews', "category": "review"},
-    ]
+    ])
 
     if industry:
         queries.extend([
@@ -41,11 +66,17 @@ def build_search_queries(
             {"query": f'"{industry}" trends 2026', "category": "industry"},
         ])
 
-        # Add pain-focused forum queries
-        pain_keywords = " ".join(focus_areas[:3]) if focus_areas else industry
-        queries.append(
-            {"query": f'"site:reddit.com" "{industry}" {pain_keywords}', "category": "forum"}
-        )
+        # Forum queries — use pain keywords if available
+        if known_pain_keywords:
+            pain_terms = " ".join(known_pain_keywords[:2])
+            queries.append(
+                {"query": f'"site:reddit.com" "{industry}" {pain_terms}', "category": "forum"}
+            )
+        else:
+            pain_keywords = " ".join(focus_areas[:3]) if focus_areas else industry
+            queries.append(
+                {"query": f'"site:reddit.com" "{industry}" {pain_keywords}', "category": "forum"}
+            )
 
     return queries
 
@@ -68,6 +99,9 @@ async def run_source_mapping(
     company_name: str,
     industry: str | None = None,
     focus_areas: list[str] | None = None,
+    known_competitors: list[str] | None = None,
+    known_pain_keywords: list[str] | None = None,
+    company_website: str | None = None,
 ) -> tuple[dict[str, list[dict[str, Any]]], list[dict[str, Any]]]:
     """Execute Phase 1: Source Mapping.
 
@@ -76,7 +110,14 @@ async def run_source_mapping(
         source_registry: dict keyed by category -> list of source dicts
         cost_entries: list of cost tracking dicts
     """
-    queries = build_search_queries(company_name, industry, focus_areas)
+    queries = build_search_queries(
+        company_name,
+        industry,
+        focus_areas,
+        known_competitors=known_competitors,
+        known_pain_keywords=known_pain_keywords,
+        company_website=company_website,
+    )
     cost_entries: list[dict[str, Any]] = []
 
     # Run all searches concurrently

@@ -2417,6 +2417,26 @@ export const processCascades = (projectId: string) =>
   )
 
 // ============================================
+// Workflow Step Detail APIs
+// ============================================
+
+export const getWorkflowStepDetail = (projectId: string, stepId: string) =>
+  apiRequest<import('@/types/workspace').WorkflowStepDetail>(
+    `/projects/${projectId}/workspace/workflows/steps/${stepId}/detail`
+  )
+
+export const enrichWorkflowStep = (projectId: string, stepId: string) =>
+  apiRequest<{ success: boolean; enrichment_data: Record<string, unknown> }>(
+    `/projects/${projectId}/workspace/workflows/steps/${stepId}/enrich`,
+    { method: 'POST' }
+  )
+
+export const getWorkflowDetail = (projectId: string, workflowId: string) =>
+  apiRequest<import('@/types/workspace').WorkflowDetail>(
+    `/projects/${projectId}/workspace/workflows/${workflowId}/detail`
+  )
+
+// ============================================
 // Canvas View APIs
 // ============================================
 
@@ -2757,3 +2777,17 @@ export const getDiscoveryProgress = (projectId: string, jobId: string) =>
     drivers_count?: number
     competitors_count?: number
   }>(`/projects/${projectId}/discover/progress/${jobId}`)
+
+export interface DiscoveryReadinessReport {
+  score: number
+  effectiveness_label: string
+  have: Array<{ item: string; value: string; weight: number }>
+  missing: Array<{ item: string; impact: string; reason: string; weight: number }>
+  actions: Array<{ action: string; impact: string; how: string; priority: number }>
+  category_scores: Record<string, { score: number; max: number }>
+  cost_estimate: number
+  potential_savings: number
+}
+
+export const getDiscoveryReadiness = (projectId: string) =>
+  apiRequest<DiscoveryReadinessReport>(`/projects/${projectId}/discover/readiness`)

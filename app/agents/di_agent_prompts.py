@@ -1297,6 +1297,33 @@ DI_AGENT_TOOLS = [
         "confidence_impact": "high",
         "typical_confidence": "0.8",
     },
+    {
+        "name": "check_discovery_readiness",
+        "description": "Check how ready the project is for discovery intelligence. Returns a readiness score, what data exists, what's missing, and actionable suggestions. Pure data query — no LLM, no cost.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "project_id": {
+                    "type": "string",
+                    "description": "Project UUID",
+                },
+            },
+            "required": ["project_id"],
+        },
+        "useful_when": [
+            "Before running /discover to check if the project has enough data",
+            "Consultant asks 'what should I do before running discovery?'",
+            "Need to assess if discovery will be effective or wasteful",
+            "Want to know what data is missing to improve discovery results",
+        ],
+        "not_useful_when": [
+            "Already running discovery — too late to check",
+            "Project has no company name set — discovery can't run regardless",
+        ],
+        "affects_gates": [],
+        "confidence_impact": "N/A — assessment tool, not extraction",
+        "typical_confidence": "N/A",
+    },
 ]
 
 # =============================================================================

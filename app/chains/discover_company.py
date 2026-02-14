@@ -97,8 +97,14 @@ async def run_company_intelligence(
     company_name: str,
     company_website: str | None,
     source_registry: dict[str, list[dict[str, Any]]],
+    existing_company_info: dict[str, Any] | None = None,
+    skip_pdl: bool = False,
 ) -> tuple[dict[str, Any], list[dict[str, Any]]]:
     """Execute Phase 2: Company Intelligence.
+
+    Args:
+        existing_company_info: If provided, used to seed profile (skip PDL).
+        skip_pdl: If True, skip $0.03 PDL call and use existing_company_info.
 
     Returns:
         Tuple of (company_profile, cost_entries)
@@ -106,28 +112,44 @@ async def run_company_intelligence(
     cost_entries: list[dict[str, Any]] = []
     company_profile: dict[str, Any] = {"name": company_name}
 
-    # 1. PDL enrichment
-    pdl_data = await enrich_company_safe(
-        name=company_name,
-        website=company_website,
-    )
-    if pdl_data:
+    # 1. PDL enrichment (or reuse existing)
+    if skip_pdl and existing_company_info:
+        logger.info("Skipping PDL — using existing company info")
         company_profile.update({
-            "employee_count": pdl_data.get("employee_count"),
-            "employee_count_range": pdl_data.get("employee_count_range"),
-            "revenue_range": pdl_data.get("revenue_range"),
-            "funding_total": pdl_data.get("funding_total"),
-            "funding_last_round": pdl_data.get("funding_last_round"),
-            "founded_year": pdl_data.get("founded_year"),
-            "industries": pdl_data.get("industries"),
-            "tech_stack": pdl_data.get("tech_stack", []),
-            "linkedin_url": pdl_data.get("linkedin_url"),
+            "employee_count": existing_company_info.get("employee_count"),
+            "employee_count_range": existing_company_info.get("employee_count_range"),
+            "revenue_range": existing_company_info.get("revenue_range"),
+            "funding_total": existing_company_info.get("funding_total"),
+            "funding_last_round": existing_company_info.get("funding_last_round"),
+            "founded_year": existing_company_info.get("founded_year"),
+            "industries": existing_company_info.get("industries"),
+            "tech_stack": existing_company_info.get("tech_stack", []),
+            "linkedin_url": existing_company_info.get("linkedin_url"),
         })
-        cost_entries.append({
-            "phase": "company_intel",
-            "service": "pdl",
-            "cost_usd": 0.03,
-        })
+        if not company_website:
+            company_website = existing_company_info.get("website")
+    else:
+        pdl_data = await enrich_company_safe(
+            name=company_name,
+            website=company_website,
+        )
+        if pdl_data:
+            company_profile.update({
+                "employee_count": pdl_data.get("employee_count"),
+                "employee_count_range": pdl_data.get("employee_count_range"),
+                "revenue_range": pdl_data.get("revenue_range"),
+                "funding_total": pdl_data.get("funding_total"),
+                "funding_last_round": pdl_data.get("funding_last_round"),
+                "founded_year": pdl_data.get("founded_year"),
+                "industries": pdl_data.get("industries"),
+                "tech_stack": pdl_data.get("tech_stack", []),
+                "linkedin_url": pdl_data.get("linkedin_url"),
+            })
+            cost_entries.append({
+                "phase": "company_intel",
+                "service": "pdl",
+                "cost_usd": 0.03,
+            })
 
     # 2. Firecrawl scrape (homepage + about + pricing from source_registry)
     company_urls = source_registry.get("company", [])

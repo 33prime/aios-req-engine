@@ -200,15 +200,31 @@ registerCommand({
       }
     }
 
-    const { runDiscovery } = await import('@/lib/api')
+    const { runDiscovery, getDiscoveryReadiness } = await import('@/lib/api')
 
     try {
+      // Auto-check readiness before launching
+      let readinessWarning = ''
+      try {
+        const readiness = await getDiscoveryReadiness(projectId)
+        if (readiness.score < 40) {
+          const topMissing = readiness.missing.slice(0, 3)
+          readinessWarning = `> **Low readiness (${readiness.score}%)** — discovery results may be generic.\n`
+          for (const m of topMissing) {
+            readinessWarning += `> - ${m.item} [${m.impact}]: ${m.reason}\n`
+          }
+          readinessWarning += `> Run \`/discover-check\` for full details.\n\n`
+        }
+      } catch {
+        // Non-blocking — proceed with discovery even if readiness check fails
+      }
+
       const focusAreas = focus ? [focus] : []
       const result = await runDiscovery(projectId, { focus_areas: focusAreas })
 
       const projectName = projectData?.name || 'your project'
 
-      let message = `## Discovery Pipeline Started\n\n`
+      let message = readinessWarning + `## Discovery Pipeline Started\n\n`
       message += `Researching **${projectName}** with data-first intelligence:\n\n`
       message += `1. Source Mapping (SerpAPI)\n`
       message += `2. Company Intel (PDL + Firecrawl)\n`
@@ -322,6 +338,97 @@ registerCommand({
       return {
         success: false,
         message: `Failed to check discovery status: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      }
+    }
+  },
+})
+
+// /discover-check - Discovery readiness assessment
+registerCommand({
+  name: 'discover-check',
+  description: 'Check what data exists before running discovery, with a readiness score and suggestions',
+  aliases: ['discovery-check', 'discover-readiness'],
+  examples: ['/discover-check'],
+  execute: async (_args, context): Promise<CommandResult> => {
+    const { projectId } = context
+
+    if (!projectId) {
+      return {
+        success: false,
+        message: 'No project selected. Please select a project first.',
+      }
+    }
+
+    const { getDiscoveryReadiness } = await import('@/lib/api')
+
+    try {
+      const report = await getDiscoveryReadiness(projectId)
+
+      const filled = Math.floor(report.score / 10)
+      const empty = 10 - filled
+      const scoreBar = '\u2588'.repeat(filled) + '\u2591'.repeat(empty)
+
+      let message = `## Discovery Readiness Check\n\n`
+      message += `**Effectiveness:** ${scoreBar} ${report.score}% (${report.effectiveness_label})\n\n`
+
+      // What we have
+      if (report.have.length > 0) {
+        message += `### What We Have\n`
+        for (const item of report.have) {
+          message += `- **${item.item}**: ${item.value}\n`
+        }
+        message += '\n'
+      }
+
+      // What's missing
+      if (report.missing.length > 0) {
+        message += `### What's Missing\n`
+        for (const item of report.missing) {
+          message += `- **${item.item}** [${item.impact} impact]\n`
+          message += `  ${item.reason}\n`
+        }
+        message += '\n'
+      }
+
+      // Recommended actions
+      if (report.actions.length > 0) {
+        message += `### Recommended Actions\n`
+        for (let i = 0; i < report.actions.length; i++) {
+          const action = report.actions[i]
+          message += `${i + 1}. **${action.action}**\n`
+          message += `   Impact: ${action.impact}\n`
+          message += `   How: ${action.how}\n`
+        }
+        message += '\n'
+      }
+
+      // Cost estimate
+      message += `---\n`
+      message += `**Estimated cost:** $${report.cost_estimate.toFixed(2)}`
+      if (report.potential_savings > 0) {
+        message += ` (saving $${report.potential_savings.toFixed(2)} from existing data)`
+      }
+
+      // Quick actions
+      const actions: QuickAction[] = []
+      if (report.score >= 30) {
+        actions.push({
+          id: 'run-discover',
+          label: 'Run Discovery',
+          command: '/discover',
+          variant: report.score >= 60 ? 'primary' : 'default',
+        })
+      }
+
+      return {
+        success: true,
+        message,
+        actions,
+      }
+    } catch (error) {
+      return {
+        success: false,
+        message: `Failed to check discovery readiness: ${error instanceof Error ? error.message : 'Unknown error'}`,
       }
     }
   },

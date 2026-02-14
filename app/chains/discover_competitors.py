@@ -201,16 +201,37 @@ async def run_competitor_intelligence(
     company_name: str,
     source_registry: dict[str, list[dict[str, Any]]],
     max_competitors: int = 5,
+    known_competitor_names: list[str] | None = None,
+    known_competitor_urls: list[str] | None = None,
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     """Execute Phase 3: Competitor Intelligence.
+
+    Args:
+        known_competitor_names: Pre-seeded competitor names from project data.
+        known_competitor_urls: Pre-seeded competitor URLs for PDL skip.
 
     Returns:
         Tuple of (competitors, cost_entries)
     """
     cost_entries: list[dict[str, Any]] = []
 
-    # Extract competitor names from search results
-    candidate_names = _extract_competitor_names(source_registry)
+    # Use known competitors as primary list, supplement from search results
+    if known_competitor_names:
+        candidate_names = list(known_competitor_names)
+        # Supplement with discovered names if under max
+        if len(candidate_names) < max_competitors:
+            discovered = _extract_competitor_names(source_registry)
+            company_lower = company_name.lower()
+            known_lower = {n.lower() for n in candidate_names}
+            for d in discovered:
+                if d.lower() not in known_lower and company_lower not in d.lower():
+                    candidate_names.append(d)
+                    if len(candidate_names) >= max_competitors:
+                        break
+        logger.info(f"Using {len(known_competitor_names)} known + {len(candidate_names) - len(known_competitor_names)} discovered competitors")
+    else:
+        # Extract competitor names from search results
+        candidate_names = _extract_competitor_names(source_registry)
 
     # Filter out the company itself
     company_lower = company_name.lower()

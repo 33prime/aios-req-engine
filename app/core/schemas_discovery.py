@@ -108,3 +108,49 @@ class DiscoveryResult(BaseModel):
     total_cost_usd: float = 0.0
     elapsed_seconds: float = 0.0
     phase_errors: dict[str, str] = Field(default_factory=dict)
+
+
+# =============================================================================
+# Discovery Readiness
+# =============================================================================
+
+
+class ReadinessHaveItem(BaseModel):
+    """Something the project already has for discovery."""
+    item: str
+    value: str
+    weight: int
+
+
+class ReadinessMissingItem(BaseModel):
+    """Something missing that would improve discovery."""
+    item: str
+    impact: str  # HIGH, MEDIUM, LOW
+    reason: str
+    weight: int
+
+
+class ReadinessAction(BaseModel):
+    """Recommended action to improve readiness."""
+    action: str
+    impact: str
+    how: str
+    priority: int
+
+
+class ReadinessCategoryScore(BaseModel):
+    """Score for a single readiness category."""
+    score: int
+    max: int
+
+
+class DiscoveryReadinessReport(BaseModel):
+    """Full discovery readiness report."""
+    score: int
+    effectiveness_label: str  # Poor, Fair, Good, Excellent
+    have: list[ReadinessHaveItem] = Field(default_factory=list)
+    missing: list[ReadinessMissingItem] = Field(default_factory=list)
+    actions: list[ReadinessAction] = Field(default_factory=list)
+    category_scores: dict[str, ReadinessCategoryScore] = Field(default_factory=dict)
+    cost_estimate: float
+    potential_savings: float

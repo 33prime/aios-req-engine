@@ -21,7 +21,7 @@ Every driver MUST be backed by evidence from the provided data. NEVER generate f
 Company: {company_name}
 Industry: {industry}
 {vision_section}
-
+{existing_drivers_section}
 ## Existing Project Entities (for relationship matching)
 Personas: {persona_names}
 Workflow Steps: {workflow_labels}
@@ -116,8 +116,13 @@ async def run_driver_synthesis(
     user_voice: list[dict[str, Any]],
     feature_matrix: dict[str, Any],
     gap_analysis: list[str],
+    existing_drivers: list[str] | None = None,
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     """Execute Phase 7: Evidence-Based Business Driver Synthesis.
+
+    Args:
+        existing_drivers: Descriptions of already-known business drivers.
+            Sonnet will dedup against these.
 
     Returns:
         Tuple of (business_drivers, cost_entries)
@@ -177,6 +182,14 @@ async def run_driver_synthesis(
     # Vision section
     vision_section = f"Project Vision: {project_vision}" if project_vision else ""
 
+    # Existing drivers section
+    existing_drivers_section = ""
+    if existing_drivers:
+        existing_drivers_section = "\n## Existing Business Drivers (DO NOT DUPLICATE)\n"
+        existing_drivers_section += "The project already has these drivers. Validate them with new evidence or add NEW ones, but do NOT duplicate:\n"
+        for i, desc in enumerate(existing_drivers[:15], 1):
+            existing_drivers_section += f"{i}. {desc[:150]}\n"
+
     client = AsyncAnthropic(api_key=settings.ANTHROPIC_API_KEY)
 
     try:
@@ -189,6 +202,7 @@ async def run_driver_synthesis(
                     company_name=company_name,
                     industry=industry or "Unknown",
                     vision_section=vision_section,
+                    existing_drivers_section=existing_drivers_section,
                     persona_names=", ".join(persona_names) if persona_names else "None yet",
                     workflow_labels=", ".join(workflow_labels) if workflow_labels else "None yet",
                     feature_names=", ".join(feature_names) if feature_names else "None yet",
