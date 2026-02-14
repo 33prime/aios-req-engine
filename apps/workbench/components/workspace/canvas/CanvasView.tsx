@@ -69,12 +69,15 @@ export function CanvasView({ projectId, onRefresh }: CanvasViewProps) {
   }, [projectId])
 
   // Load project context separately (non-blocking)
+  const [contextLoaded, setContextLoaded] = useState(false)
   const loadContext = useCallback(async () => {
     try {
       const ctx = await getProjectContext(projectId)
       setProjectContext(ctx)
     } catch (err) {
       console.error('Failed to load project context:', err)
+    } finally {
+      setContextLoaded(true)
     }
   }, [projectId])
 
@@ -83,11 +86,11 @@ export function CanvasView({ projectId, onRefresh }: CanvasViewProps) {
     loadContext()
   }, [loadData, loadContext])
 
-  // Auto-generate missing data after initial load
+  // Auto-generate missing data after both loads complete
   const [autoGenTriggered, setAutoGenTriggered] = useState(false)
 
   useEffect(() => {
-    if (isLoading || autoGenTriggered) return
+    if (isLoading || !contextLoaded || autoGenTriggered) return
     if (!data) return
 
     let triggered = false
@@ -113,7 +116,7 @@ export function CanvasView({ projectId, onRefresh }: CanvasViewProps) {
     }
 
     if (triggered) setAutoGenTriggered(true)
-  }, [isLoading, data, projectContext, autoGenTriggered, projectId, isGeneratingContext, isSynthesizing, loadData])
+  }, [isLoading, contextLoaded, data, projectContext, autoGenTriggered, projectId, isGeneratingContext, isSynthesizing, loadData])
 
   const handleSynthesize = useCallback(async () => {
     try {

@@ -62,7 +62,19 @@ export function ValuePathStepDrawer({
     setLoading(true)
     getValuePathStepDetail(projectId, stepIndex)
       .then((data) => {
-        if (!cancelled) setDetail(data)
+        if (!cancelled) {
+          console.log('[StepDrawer] Loaded detail:', {
+            step: data.step_index,
+            data_operations: data.data_operations?.length ?? 'undefined',
+            input_deps: data.input_dependencies?.length ?? 'undefined',
+            output_effects: data.output_effects?.length ?? 'undefined',
+            components: data.recommended_components?.length ?? 'undefined',
+            suggestions: data.ai_suggestions?.length ?? 'undefined',
+            unlocks: data.unlocks?.length ?? 'undefined',
+            features: data.linked_features?.length ?? 'undefined',
+          })
+          setDetail(data)
+        }
       })
       .catch((err) => {
         console.error('Failed to load value path step detail:', err)

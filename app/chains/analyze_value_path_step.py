@@ -9,6 +9,7 @@ from uuid import UUID
 
 from app.core.logging import get_logger
 from app.core.schemas_canvas import (
+    RecommendedComponent,
     StepActor,
     StepBusinessLogic,
     StepDataOperation,
@@ -70,28 +71,54 @@ async def get_value_path_step_detail(
         except Exception:
             logger.debug(f"Could not load actor persona {actor_id}")
 
-    # 3. Load data entity operations via source workflow step
-    source_step_id = step_data.get("source_workflow_step_id")
+    # 3. Load data entity operations — prefer synthesis data, fall back to DB lookup
     data_operations: list[StepDataOperation] = []
-    if source_step_id:
+    synth_ops = step_data.get("data_operations") or []
+    if synth_ops:
+        # Use LLM-generated data operations from synthesis
+        # Try to resolve entity IDs from names
+        all_entities: dict[str, dict] = {}
         try:
-            de_links = client.table("data_entity_workflow_steps").select(
-                "data_entity_id, operation_type, description, "
-                "data_entities(id, name, entity_category)"
-            ).eq("vp_step_id", source_step_id).execute()
-
-            for link in (de_links.data or []):
-                de = link.get("data_entities") or {}
-                if de.get("id"):
-                    data_operations.append(StepDataOperation(
-                        entity_id=de["id"],
-                        entity_name=de.get("name", "Unknown"),
-                        entity_category=de.get("entity_category", "domain"),
-                        operation=link.get("operation_type", "read"),
-                        description=link.get("description"),
-                    ))
+            de_result = client.table("data_entities").select(
+                "id, name, entity_category"
+            ).eq("project_id", str(project_id)).execute()
+            for de in (de_result.data or []):
+                all_entities[de["name"].lower()] = de
         except Exception:
-            logger.debug(f"Could not load data entity links for step {source_step_id}")
+            pass
+
+        for op in synth_ops:
+            entity_name = op.get("entity_name", "Unknown")
+            matched = all_entities.get(entity_name.lower(), {})
+            data_operations.append(StepDataOperation(
+                entity_id=matched.get("id", ""),
+                entity_name=entity_name,
+                entity_category=matched.get("entity_category", "domain"),
+                operation=op.get("operation", "read"),
+                description=op.get("description"),
+            ))
+    else:
+        # Fall back to DB lookup via source workflow step
+        source_step_id = step_data.get("source_workflow_step_id")
+        if source_step_id:
+            try:
+                de_links = client.table("data_entity_workflow_steps").select(
+                    "data_entity_id, operation_type, description, "
+                    "data_entities(id, name, entity_category)"
+                ).eq("vp_step_id", source_step_id).execute()
+
+                for link in (de_links.data or []):
+                    de = link.get("data_entities") or {}
+                    if de.get("id"):
+                        data_operations.append(StepDataOperation(
+                            entity_id=de["id"],
+                            entity_name=de.get("name", "Unknown"),
+                            entity_category=de.get("entity_category", "domain"),
+                            operation=link.get("operation_type", "read"),
+                            description=link.get("description"),
+                        ))
+            except Exception:
+                logger.debug(f"Could not load data entity links for step {source_step_id}")
 
     # 4. Load linked features
     linked_features: list[StepLinkedFeature] = []
@@ -130,7 +157,22 @@ async def get_value_path_step_detail(
             suggested_feature=u.get("suggested_feature", ""),
         ))
 
-    # 8. Assemble the full detail
+    # 8. Extract system flow from synthesis data
+    input_dependencies = step_data.get("input_dependencies") or []
+    output_effects = step_data.get("output_effects") or []
+
+    # 9. Extract components from synthesis data
+    recommended_components: list[RecommendedComponent] = []
+    for c in (step_data.get("recommended_components") or []):
+        recommended_components.append(RecommendedComponent(
+            name=c.get("name", ""),
+            description=c.get("description", ""),
+            priority=c.get("priority", "nice_to_have"),
+            rationale=c.get("rationale", ""),
+        ))
+    ai_suggestions = step_data.get("ai_suggestions") or []
+
+    # 10. Assemble the full detail
     return ValuePathStepDetail(
         step_index=step_data["step_index"],
         title=step_data["title"],
@@ -145,14 +187,14 @@ async def get_value_path_step_detail(
         combined_value=combined_value,
         # Tab 2: System Flow
         data_operations=data_operations,
-        input_dependencies=[],
-        output_effects=[],
+        input_dependencies=input_dependencies,
+        output_effects=output_effects,
         # Tab 3: Business Calculations
         business_logic=business_logic,
         # Tab 4: Features
-        recommended_components=[],
+        recommended_components=recommended_components,
         linked_features=linked_features,
-        ai_suggestions=[],
+        ai_suggestions=ai_suggestions,
         effort_level=_estimate_effort(step_data, data_operations, linked_features),
         # Tab 5: Unlocks
         unlocks=unlocks,

@@ -29,6 +29,10 @@ Rules:
   onboarding, basic navigation, account settings, profile setup
 - Each step must link to specific features it enables
 - Each step must reference the actor who performs it
+- IMPORTANT: Use the EXACT actor_persona_id UUIDs provided in the context (e.g. [id=...]).
+  Do NOT invent or generate new UUIDs. Copy the IDs verbatim.
+- IMPORTANT: Use the EXACT linked_feature_ids UUIDs provided in the context.
+  Do NOT invent new UUIDs. Only reference features listed in the context.
 - Order steps in the logical sequence a user would experience
 - Maximum 12-15 steps (prototype scope)
 - Include pain_addressed and goal_served for each step
@@ -56,6 +60,22 @@ they're the "while we're here, we could also..." opportunities.
 DO NOT frame unlocks as before→after or pain→goal. Those belong in the step itself.
 Unlocks are the EXTRA, UNEXPECTED value on top of solving the stated problem.
 
+For each step, also specify:
+
+System Flow — what data this step touches:
+- "data_operations": list of {entity_name, operation (create/read/update/delete), description}.
+  Use the Data Entities provided in context. Each step should reference at least one.
+- "input_dependencies": list of strings — what must exist or happen before this step runs
+  (e.g. "Engagement data aggregated from parish systems", "Parishioner segments defined")
+- "output_effects": list of strings — what this step produces or changes
+  (e.g. "Creates disengagement risk scores", "Updates donor impact reports")
+
+Components — what UI/system components this step needs:
+- "recommended_components": list of {name, description, priority ("must_have"|"nice_to_have"), rationale}
+  (e.g. dashboard widgets, data tables, forms, charts, notification panels, AI recommendation cards)
+- "ai_suggestions": list of strings — implementation insights or smart shortcuts
+  (e.g. "Use streaming for real-time dashboard updates", "Pre-compute segments nightly for instant load")
+
 Return valid JSON with this exact structure:
 {
   "value_path": [
@@ -81,7 +101,16 @@ Return valid JSON with this exact structure:
           "strategic_value": "Why this extra value matters to the business",
           "suggested_feature": "Name of a non-MVP feature this could power, or empty string"
         }
-      ]
+      ],
+      "data_operations": [
+        {"entity_name": "Name from Data Entities list", "operation": "read|create|update|delete", "description": "Brief description"}
+      ],
+      "input_dependencies": ["What must exist before this step"],
+      "output_effects": ["What this step produces"],
+      "recommended_components": [
+        {"name": "Component Name", "description": "What it does", "priority": "must_have|nice_to_have", "rationale": "Why needed"}
+      ],
+      "ai_suggestions": ["Implementation insight or smart shortcut"]
     }
   ],
   "synthesis_rationale": "Brief explanation of why this path was chosen",
@@ -110,7 +139,7 @@ def _build_synthesis_prompt(
             goals = a.get("goals") or []
             pains = a.get("pain_points") or []
             actor_lines.append(
-                f"- {a['name']}{role_str}{canvas_str}\n"
+                f"- {a['name']} [id={a['id']}]{role_str}{canvas_str}\n"
                 f"  Goals: {'; '.join(goals[:5]) if goals else 'None specified'}\n"
                 f"  Pain points: {'; '.join(pains[:5]) if pains else 'None specified'}"
             )
@@ -282,7 +311,7 @@ async def synthesize_value_path(project_id: UUID) -> dict:
     model = ChatAnthropic(
         model="claude-sonnet-4-20250514",
         temperature=0.1,
-        max_tokens=8192,
+        max_tokens=16384,
         api_key=settings.ANTHROPIC_API_KEY,
     )
 
