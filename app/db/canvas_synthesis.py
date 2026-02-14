@@ -31,14 +31,16 @@ def get_canvas_synthesis(project_id: UUID, synthesis_type: str = "value_path") -
         .execute()
     )
 
-    if response.data:
-        # Parse value_path if it's a string
-        vp = response.data.get("value_path")
-        if isinstance(vp, str):
-            try:
-                response.data["value_path"] = json.loads(vp)
-            except Exception:
-                response.data["value_path"] = []
+    if response is None or response.data is None:
+        return None
+
+    # Parse value_path if it's a string
+    vp = response.data.get("value_path")
+    if isinstance(vp, str):
+        try:
+            response.data["value_path"] = json.loads(vp)
+        except Exception:
+            response.data["value_path"] = []
 
     return response.data
 
@@ -97,7 +99,16 @@ def upsert_canvas_synthesis(
         .execute()
     )
 
-    result = response.data[0]
+    if response.data:
+        result = response.data[0]
+    else:
+        # Upsert may return empty when RLS filters the response — re-fetch
+        logger.warning(
+            f"Upsert returned empty data for project {project_id}, re-fetching",
+            extra={"project_id": str(project_id)},
+        )
+        result = get_canvas_synthesis(project_id, synthesis_type) or data
+
     logger.info(
         f"Upserted canvas synthesis for project {project_id} (v{version}, {len(value_path)} steps)",
         extra={"project_id": str(project_id), "version": version},

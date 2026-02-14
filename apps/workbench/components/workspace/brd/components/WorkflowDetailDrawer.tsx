@@ -35,12 +35,16 @@ import type {
   LinkedPersona,
   RevisionEntry,
 } from '@/types/workspace'
+import type { StakeholderBRDSummary } from '@/types/workspace'
+import { WhoHasTheData } from './WhoHasTheData'
+import { inferTopicsFromText } from '@/lib/topic-role-map'
 
-type TabId = 'overview' | 'connections' | 'insights' | 'history'
+type TabId = 'overview' | 'connections' | 'insights' | 'history' | 'who_knows'
 
 interface WorkflowDetailDrawerProps {
   workflowId: string
   projectId: string
+  stakeholders?: StakeholderBRDSummary[]
   onClose: () => void
   onConfirm: (entityType: string, entityId: string) => void
   onNeedsReview: (entityType: string, entityId: string) => void
@@ -52,11 +56,13 @@ const TABS: { id: TabId; label: string; icon: typeof Clock }[] = [
   { id: 'connections', label: 'Connections', icon: Link2 },
   { id: 'insights', label: 'Insights', icon: Sparkles },
   { id: 'history', label: 'History', icon: Clock },
+  { id: 'who_knows', label: 'Who Knows', icon: Users },
 ]
 
 export function WorkflowDetailDrawer({
   workflowId,
   projectId,
+  stakeholders = [],
   onClose,
   onConfirm,
   onNeedsReview,
@@ -228,6 +234,16 @@ export function WorkflowDetailDrawer({
               {activeTab === 'connections' && <ConnectionsTab detail={detail} />}
               {activeTab === 'insights' && <InsightsTab insights={detail.insights} />}
               {activeTab === 'history' && <HistoryTab revisions={detail.revisions} />}
+              {activeTab === 'who_knows' && (
+                <WhoHasTheData
+                  topics={[
+                    'process', 'workflow', 'operations',
+                    ...inferTopicsFromText(detail.name + ' ' + (detail.description || '')),
+                  ]}
+                  stakeholders={stakeholders}
+                  evidence={[]}
+                />
+              )}
             </>
           ) : (
             <div className="text-center py-8">

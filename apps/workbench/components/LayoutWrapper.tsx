@@ -16,9 +16,10 @@ export function LayoutWrapper({ children }: LayoutWrapperProps) {
   const isProjectsListPage = pathname === '/projects'
   const isSettingsPage = pathname === '/settings'
   const isPeoplePage = pathname === '/people' || pathname.startsWith('/people/')
+  const isClientsPage = pathname === '/clients' || pathname.startsWith('/clients/')
 
   // Pages that render without the app shell (they manage their own layout)
-  if (isAuthPage || isProjectDetailPage || isProjectsListPage || isSettingsPage || isPeoplePage) {
+  if (isAuthPage || isProjectDetailPage || isProjectsListPage || isSettingsPage || isPeoplePage || isClientsPage) {
     return <>{children}</>
   }
 

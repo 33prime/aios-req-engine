@@ -1,29 +1,55 @@
 'use client'
 
-import { Users, Zap, AlertTriangle } from 'lucide-react'
-import type { PersonaBRDSummary } from '@/types/workspace'
+import { useMemo } from 'react'
+import { Users, Zap, AlertTriangle, ArrowRight } from 'lucide-react'
+import type { PersonaBRDSummary, WorkflowPair, WorkflowStepSummary } from '@/types/workspace'
+
+// Boilerplate patterns to exclude from journey strips
+const BOILERPLATE = [
+  /sign\s*up/i, /sign\s*in/i, /log\s*in/i, /log\s*out/i,
+  /register/i, /registration/i, /password\s*reset/i, /forgot\s*password/i,
+  /onboarding/i, /welcome/i, /getting\s*started/i, /basic\s*navigation/i, /homepage/i,
+]
 
 interface CanvasActorsRowProps {
   actors: (PersonaBRDSummary & { canvas_role: 'primary' | 'secondary' })[]
+  workflowPairs: WorkflowPair[]
   onSynthesize: () => void
   isSynthesizing: boolean
   synthesisStale: boolean
   hasValuePath: boolean
-  onActorClick: (actorId: string | null) => void
-  selectedActorId: string | null
+  onActorClick?: (actor: PersonaBRDSummary) => void
 }
 
 export function CanvasActorsRow({
   actors,
+  workflowPairs,
   onSynthesize,
   isSynthesizing,
   synthesisStale,
   hasValuePath,
   onActorClick,
-  selectedActorId,
 }: CanvasActorsRowProps) {
   const primaryActors = actors.filter((a) => a.canvas_role === 'primary')
   const secondaryActors = actors.filter((a) => a.canvas_role === 'secondary')
+
+  // Build actor → future steps map
+  const actorSteps = useMemo(() => {
+    const map: Record<string, WorkflowStepSummary[]> = {}
+    for (const actor of actors) {
+      const steps: WorkflowStepSummary[] = []
+      for (const pair of workflowPairs) {
+        for (const step of pair.future_steps) {
+          if (step.actor_persona_id === actor.id && !BOILERPLATE.some((p) => p.test(step.label))) {
+            steps.push(step)
+          }
+        }
+      }
+      steps.sort((a, b) => a.step_index - b.step_index)
+      map[actor.id] = steps
+    }
+    return map
+  }, [actors, workflowPairs])
 
   return (
     <section>
@@ -67,8 +93,8 @@ export function CanvasActorsRow({
             key={actor.id}
             actor={actor}
             isPrimary
-            isSelected={selectedActorId === actor.id}
-            onClick={() => onActorClick(selectedActorId === actor.id ? null : actor.id)}
+            journeySteps={actorSteps[actor.id] || []}
+            onClick={onActorClick ? () => onActorClick(actor) : undefined}
           />
         ))}
         {secondaryActors.map((actor) => (
@@ -76,8 +102,8 @@ export function CanvasActorsRow({
             key={actor.id}
             actor={actor}
             isPrimary={false}
-            isSelected={selectedActorId === actor.id}
-            onClick={() => onActorClick(selectedActorId === actor.id ? null : actor.id)}
+            journeySteps={actorSteps[actor.id] || []}
+            onClick={onActorClick ? () => onActorClick(actor) : undefined}
           />
         ))}
       </div>
@@ -88,56 +114,84 @@ export function CanvasActorsRow({
 function ActorCard({
   actor,
   isPrimary,
-  isSelected,
+  journeySteps,
   onClick,
 }: {
   actor: PersonaBRDSummary
   isPrimary: boolean
-  isSelected: boolean
-  onClick: () => void
+  journeySteps: WorkflowStepSummary[]
+  onClick?: () => void
 }) {
   const goals = actor.goals || []
   const painPoints = actor.pain_points || []
 
   return (
-    <button
+    <div
+      className={`flex-1 min-w-[260px] max-w-[400px] text-left bg-white rounded-2xl shadow-md border transition-all ${
+        isPrimary ? 'border-l-4 border-l-[#3FAF7A]' : 'border-l-4 border-l-[#0A1E2F]'
+      } border-[#E5E5E5] ${onClick ? 'cursor-pointer hover:shadow-lg hover:border-[#3FAF7A]/40' : ''}`}
       onClick={onClick}
-      className={`flex-1 min-w-[220px] max-w-[340px] text-left bg-white rounded-2xl shadow-md border px-5 py-4 transition-all ${
-        isSelected
-          ? 'border-[#3FAF7A] ring-2 ring-[#3FAF7A]/20'
-          : 'border-[#E5E5E5] hover:border-[#3FAF7A]/40'
-      } ${isPrimary ? 'border-l-4 border-l-[#3FAF7A]' : 'border-l-4 border-l-[#0A1E2F]'}`}
+      role={onClick ? 'button' : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onKeyDown={onClick ? (e) => { if (e.key === 'Enter' || e.key === ' ') onClick() } : undefined}
     >
-      <div className="flex items-center gap-2 mb-2">
-        <div className="w-8 h-8 rounded-full bg-[#F4F4F4] flex items-center justify-center shrink-0">
-          <Users className="w-4 h-4 text-[#666666]" />
+      {/* Top section: identity + pain/goal */}
+      <div className="px-5 py-4">
+        <div className="flex items-center gap-2 mb-2">
+          <div className="w-8 h-8 rounded-full bg-[#F4F4F4] flex items-center justify-center shrink-0">
+            <Users className="w-4 h-4 text-[#666666]" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-[14px] font-semibold text-[#333333] truncate">{actor.name}</p>
+            {actor.role && (
+              <p className="text-[11px] text-[#999999] truncate">{actor.role}</p>
+            )}
+          </div>
+          <span className={`ml-auto shrink-0 px-2 py-0.5 text-[10px] font-medium rounded-full ${
+            isPrimary
+              ? 'bg-[#E8F5E9] text-[#25785A]'
+              : 'bg-[#F0F0F0] text-[#666666]'
+          }`}>
+            {isPrimary ? 'Primary' : 'Secondary'}
+          </span>
         </div>
-        <div className="min-w-0">
-          <p className="text-[14px] font-semibold text-[#333333] truncate">{actor.name}</p>
-          {actor.role && (
-            <p className="text-[11px] text-[#999999] truncate">{actor.role}</p>
-          )}
-        </div>
-        <span className={`ml-auto shrink-0 px-2 py-0.5 text-[10px] font-medium rounded-full ${
-          isPrimary
-            ? 'bg-[#E8F5E9] text-[#25785A]'
-            : 'bg-[#F0F0F0] text-[#666666]'
-        }`}>
-          {isPrimary ? 'Primary' : 'Secondary'}
-        </span>
+
+        {painPoints.length > 0 && (
+          <p className="text-[11px] text-[#999999] mt-2 line-clamp-1 italic">
+            Pain: {painPoints[0]}
+          </p>
+        )}
+        {goals.length > 0 && (
+          <p className="text-[11px] text-[#25785A] mt-1 line-clamp-1 italic">
+            Goal: {goals[0]}
+          </p>
+        )}
       </div>
 
-      {/* Pain/goal highlights */}
-      {painPoints.length > 0 && (
-        <p className="text-[11px] text-[#999999] mt-2 line-clamp-1 italic">
-          Pain: {painPoints[0]}
-        </p>
+      {/* Bottom section: inline journey */}
+      {journeySteps.length > 0 && (
+        <div className="border-t border-[#E5E5E5] px-4 py-2.5 bg-[#FAFAFA] rounded-b-2xl">
+          <div className="flex items-center gap-1 overflow-x-auto scrollbar-hide">
+            {journeySteps.slice(0, 6).map((step, idx) => (
+              <div key={step.id} className="flex items-center shrink-0">
+                <span className={`px-2 py-0.5 text-[10px] font-medium rounded whitespace-nowrap ${
+                  isPrimary
+                    ? 'bg-[#E8F5E9] text-[#25785A]'
+                    : 'bg-[#F0F0F0] text-[#666666]'
+                }`}>
+                  {step.label}
+                </span>
+                {idx < Math.min(journeySteps.length, 6) - 1 && (
+                  <ArrowRight className="w-2.5 h-2.5 text-[#E5E5E5] shrink-0 mx-0.5" />
+                )}
+              </div>
+            ))}
+            {journeySteps.length > 6 && (
+              <span className="text-[10px] text-[#999999] ml-1">+{journeySteps.length - 6}</span>
+            )}
+          </div>
+        </div>
       )}
-      {goals.length > 0 && (
-        <p className="text-[11px] text-[#25785A] mt-1 line-clamp-1 italic">
-          Goal: {goals[0]}
-        </p>
-      )}
-    </button>
+    </div>
   )
 }

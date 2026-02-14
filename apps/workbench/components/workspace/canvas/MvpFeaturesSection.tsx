@@ -5,6 +5,7 @@ import type { FeatureBRDSummary } from '@/types/workspace'
 
 interface MvpFeaturesSectionProps {
   features: FeatureBRDSummary[]
+  onFeatureClick?: (feature: FeatureBRDSummary) => void
 }
 
 function StatusBadge({ status }: { status?: string | null }) {
@@ -23,7 +24,7 @@ function StatusBadge({ status }: { status?: string | null }) {
   )
 }
 
-export function MvpFeaturesSection({ features }: MvpFeaturesSectionProps) {
+export function MvpFeaturesSection({ features, onFeatureClick }: MvpFeaturesSectionProps) {
   const confirmedCount = features.filter(
     (f) => f.confirmation_status === 'confirmed_consultant' || f.confirmation_status === 'confirmed_client'
   ).length
@@ -72,7 +73,13 @@ export function MvpFeaturesSection({ features }: MvpFeaturesSectionProps) {
           {features.map((feature) => (
             <div
               key={feature.id}
-              className="bg-white rounded-2xl shadow-md border border-[#E5E5E5] px-5 py-4"
+              className={`bg-white rounded-2xl shadow-md border border-[#E5E5E5] px-5 py-4 ${
+                onFeatureClick ? 'cursor-pointer hover:border-[#3FAF7A]/40 transition-colors' : ''
+              }`}
+              onClick={onFeatureClick ? () => onFeatureClick(feature) : undefined}
+              role={onFeatureClick ? 'button' : undefined}
+              tabIndex={onFeatureClick ? 0 : undefined}
+              onKeyDown={onFeatureClick ? (e) => { if (e.key === 'Enter' || e.key === ' ') onFeatureClick(feature) } : undefined}
             >
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">

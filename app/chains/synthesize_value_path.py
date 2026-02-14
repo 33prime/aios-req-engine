@@ -37,6 +37,17 @@ Rules:
   "medium" = moderate improvement
   "low" = minor convenience
 
+For each step, also include 1-2 "unlocks" — strategic transformations this step enables.
+These are NOT just "saves time" or "reduces errors" — those are efficiency.
+Real unlocks are:
+- "capability": Something that was literally impossible before (new ability)
+- "scale": Can now handle 10x/100x volume or reach
+- "insight": Surfaces knowledge or patterns that didn't exist before
+- "speed": Time compression so dramatic it changes behavior or decisions
+
+Also include a "transformation_narrative" — one sentence describing the before→after
+shift this step creates. Frame it as: "Instead of X, now Y — which means Z."
+
 Return valid JSON with this exact structure:
 {
   "value_path": [
@@ -53,7 +64,16 @@ Return valid JSON with this exact structure:
       "source_workflow_step_id": "uuid or null",
       "automation_level": "manual|semi_automated|fully_automated",
       "time_minutes": 5,
-      "roi_impact": "high|medium|low"
+      "roi_impact": "high|medium|low",
+      "unlocks": [
+        {
+          "description": "What becomes possible",
+          "unlock_type": "capability|scale|insight|speed",
+          "enabled_by": "What feature/automation enables this",
+          "strategic_value": "Why this matters strategically"
+        }
+      ],
+      "transformation_narrative": "Instead of X, now Y — which means Z."
     }
   ],
   "synthesis_rationale": "Brief explanation of why this path was chosen",

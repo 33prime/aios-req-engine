@@ -4,10 +4,21 @@ import { useState, useEffect, useCallback } from 'react'
 import { Cpu, RefreshCw } from 'lucide-react'
 import { CanvasActorsRow } from './CanvasActorsRow'
 import { ValuePathSection } from './ValuePathSection'
-import { ActorJourneySection } from './ActorJourneySection'
 import { MvpFeaturesSection } from './MvpFeaturesSection'
-import { getCanvasViewData, triggerValuePathSynthesis } from '@/lib/api'
-import type { CanvasViewData } from '@/types/workspace'
+import { AssumptionsSection } from './AssumptionsSection'
+import { ProjectContextSection } from './ProjectContextSection'
+import { ValuePathStepDrawer } from './ValuePathStepDrawer'
+import { UnlockDetailDrawer } from './UnlockDetailDrawer'
+import { FeatureDrawer } from '../brd/components/FeatureDrawer'
+import { PersonaDrawer } from '../brd/components/PersonaDrawer'
+import {
+  getCanvasViewData,
+  triggerValuePathSynthesis,
+  getProjectContext,
+  generateProjectContext,
+  batchConfirmEntities,
+} from '@/lib/api'
+import type { CanvasViewData, ProjectContext, ValuePathUnlock, FeatureBRDSummary, PersonaBRDSummary } from '@/types/workspace'
 
 interface CanvasViewProps {
   projectId: string
@@ -19,7 +30,29 @@ export function CanvasView({ projectId, onRefresh }: CanvasViewProps) {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [isSynthesizing, setIsSynthesizing] = useState(false)
-  const [selectedActorId, setSelectedActorId] = useState<string | null>(null)
+
+  // Project Context state
+  const [projectContext, setProjectContext] = useState<ProjectContext | null>(null)
+  const [isGeneratingContext, setIsGeneratingContext] = useState(false)
+
+  // Value Path Step Drawer state (left-click on a step)
+  const [selectedStep, setSelectedStep] = useState<{
+    stepIndex: number
+    stepTitle: string
+  } | null>(null)
+
+  // Unlock Detail Drawer state (click on an unlock)
+  const [selectedUnlock, setSelectedUnlock] = useState<{
+    stepIndex: number
+    stepTitle: string
+    unlock: ValuePathUnlock
+  } | null>(null)
+
+  // Feature Drawer state (click on an MVP feature)
+  const [selectedFeature, setSelectedFeature] = useState<FeatureBRDSummary | null>(null)
+
+  // Persona Drawer state (click on an actor card)
+  const [selectedPersona, setSelectedPersona] = useState<PersonaBRDSummary | null>(null)
 
   const loadData = useCallback(async () => {
     try {
@@ -35,9 +68,20 @@ export function CanvasView({ projectId, onRefresh }: CanvasViewProps) {
     }
   }, [projectId])
 
+  // Load project context separately (non-blocking)
+  const loadContext = useCallback(async () => {
+    try {
+      const ctx = await getProjectContext(projectId)
+      setProjectContext(ctx)
+    } catch (err) {
+      console.error('Failed to load project context:', err)
+    }
+  }, [projectId])
+
   useEffect(() => {
     loadData()
-  }, [loadData])
+    loadContext()
+  }, [loadData, loadContext])
 
   const handleSynthesize = useCallback(async () => {
     try {
@@ -50,6 +94,74 @@ export function CanvasView({ projectId, onRefresh }: CanvasViewProps) {
       setIsSynthesizing(false)
     }
   }, [projectId, loadData])
+
+  const handleGenerateContext = useCallback(async () => {
+    try {
+      setIsGeneratingContext(true)
+      const ctx = await generateProjectContext(projectId)
+      setProjectContext(ctx)
+    } catch (err) {
+      console.error('Failed to generate project context:', err)
+    } finally {
+      setIsGeneratingContext(false)
+    }
+  }, [projectId])
+
+  const handleStepClick = useCallback(
+    (stepIndex: number, stepTitle: string) => {
+      setSelectedUnlock(null) // close unlock drawer if open
+      setSelectedStep({ stepIndex, stepTitle })
+    },
+    []
+  )
+
+  const handleUnlockClick = useCallback(
+    (stepIndex: number, stepTitle: string, unlock: ValuePathUnlock) => {
+      setSelectedStep(null) // close step drawer if open
+      setSelectedUnlock({ stepIndex, stepTitle, unlock })
+    },
+    []
+  )
+
+  const handleActorClick = useCallback((actor: PersonaBRDSummary) => {
+    setSelectedPersona(actor)
+  }, [])
+
+  const handleFeatureClick = useCallback((feature: FeatureBRDSummary) => {
+    setSelectedFeature(feature)
+  }, [])
+
+  const handleFeatureConfirm = useCallback(
+    async (_entityType: string, entityId: string) => {
+      await batchConfirmEntities(projectId, 'feature', [entityId], 'confirmed_consultant')
+      await loadData()
+    },
+    [projectId, loadData]
+  )
+
+  const handleFeatureNeedsReview = useCallback(
+    async (_entityType: string, entityId: string) => {
+      await batchConfirmEntities(projectId, 'feature', [entityId], 'needs_client')
+      await loadData()
+    },
+    [projectId, loadData]
+  )
+
+  const handleConfirm = useCallback(
+    async (entityType: string, entityId: string) => {
+      await batchConfirmEntities(projectId, entityType, [entityId], 'confirmed_consultant')
+      await loadData()
+    },
+    [projectId, loadData]
+  )
+
+  const handleNeedsReview = useCallback(
+    async (entityType: string, entityId: string) => {
+      await batchConfirmEntities(projectId, entityType, [entityId], 'needs_client')
+      await loadData()
+    },
+    [projectId, loadData]
+  )
 
   if (isLoading) {
     return (
@@ -84,19 +196,33 @@ export function CanvasView({ projectId, onRefresh }: CanvasViewProps) {
         <div className="flex items-center gap-3">
           <Cpu className="w-6 h-6 text-[#3FAF7A]" />
           <div>
-            <h1 className="text-[24px] font-bold text-[#333333]">Prototype Blueprint</h1>
+            <h1 className="text-[24px] font-bold text-[#333333]">Product Intelligence Canvas</h1>
             <p className="text-[13px] text-[#999999] mt-0.5">
-              Technical translation of your BRD — the data needed to build the prototype
+              AI-synthesized product blueprint — the translation from discovery to build
             </p>
           </div>
         </div>
         <button
-          onClick={() => { loadData(); onRefresh?.() }}
+          onClick={() => {
+            loadData()
+            loadContext()
+            onRefresh?.()
+          }}
           className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-[#666666] bg-white border border-[#E5E5E5] rounded-xl hover:bg-gray-50 transition-colors"
         >
           <RefreshCw className="w-3.5 h-3.5" />
           Refresh
         </button>
+      </div>
+
+      {/* Project Context — always shown */}
+      <div className="mb-8">
+        <ProjectContextSection
+          projectId={projectId}
+          context={projectContext}
+          onGenerate={handleGenerateContext}
+          isGenerating={isGeneratingContext}
+        />
       </div>
 
       {/* Empty state when no actors selected */}
@@ -116,36 +242,82 @@ export function CanvasView({ projectId, onRefresh }: CanvasViewProps) {
       {/* Canvas sections */}
       {hasActors && (
         <div className="space-y-8">
-          {/* Actors Row */}
+          {/* Actors Row — persona cards with inline workflow journeys */}
           <CanvasActorsRow
             actors={data.actors}
+            workflowPairs={data.workflow_pairs}
             onSynthesize={handleSynthesize}
             isSynthesizing={isSynthesizing}
             synthesisStale={data.synthesis_stale}
             hasValuePath={hasValuePath}
-            onActorClick={setSelectedActorId}
-            selectedActorId={selectedActorId}
+            onActorClick={handleActorClick}
           />
 
-          {/* Value Path */}
+          {/* Value Path — side-by-side: Steps ↔ What This Unlocks */}
           <ValuePathSection
             steps={data.value_path}
             rationale={data.synthesis_rationale}
             isStale={data.synthesis_stale}
             onRegenerate={handleSynthesize}
             isSynthesizing={isSynthesizing}
-          />
-
-          {/* Actor Journey (drill-down) */}
-          <ActorJourneySection
-            workflowPairs={data.workflow_pairs}
-            selectedActorId={selectedActorId}
-            actors={data.actors}
+            onStepClick={handleStepClick}
+            onUnlockClick={handleUnlockClick}
+            selectedStepIndex={selectedStep?.stepIndex ?? null}
           />
 
           {/* MVP Features */}
-          <MvpFeaturesSection features={data.mvp_features} />
+          <MvpFeaturesSection features={data.mvp_features} onFeatureClick={handleFeatureClick} />
+
+          {/* Assumptions & Open Questions — from project context */}
+          {projectContext && (
+            <AssumptionsSection
+              assumptions={projectContext.assumptions}
+              openQuestions={projectContext.open_questions}
+            />
+          )}
         </div>
+      )}
+
+      {/* Value Path Step Drawer — opens on step click */}
+      {selectedStep && (
+        <ValuePathStepDrawer
+          projectId={projectId}
+          stepIndex={selectedStep.stepIndex}
+          stepTitle={selectedStep.stepTitle}
+          onClose={() => setSelectedStep(null)}
+        />
+      )}
+
+      {/* Unlock Detail Drawer — opens on unlock click */}
+      {selectedUnlock && (
+        <UnlockDetailDrawer
+          stepIndex={selectedUnlock.stepIndex}
+          stepTitle={selectedUnlock.stepTitle}
+          unlock={selectedUnlock.unlock}
+          onClose={() => setSelectedUnlock(null)}
+        />
+      )}
+
+      {/* Feature Drawer — opens on MVP feature click */}
+      {selectedFeature && (
+        <FeatureDrawer
+          feature={selectedFeature}
+          projectId={projectId}
+          onClose={() => setSelectedFeature(null)}
+          onConfirm={handleFeatureConfirm}
+          onNeedsReview={handleFeatureNeedsReview}
+        />
+      )}
+
+      {/* Persona Drawer — opens on actor card click */}
+      {selectedPersona && (
+        <PersonaDrawer
+          persona={selectedPersona}
+          projectId={projectId}
+          onClose={() => setSelectedPersona(null)}
+          onConfirm={handleConfirm}
+          onNeedsReview={handleNeedsReview}
+        />
       )}
     </div>
   )

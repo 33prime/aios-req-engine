@@ -1,0 +1,798 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>People Detail — UI Sketch</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = {
+  theme: {
+    extend: {
+      colors: {
+        brand: { green: '#3FAF7A', 'green-light': '#4CC08C', 'green-dark': '#25785A', navy: '#0A1E2F', slate: '#0D2A35', beige: '#EDE8D5' },
+        txt: { primary: '#333333', secondary: '#666666', muted: '#999999', faint: '#BBBBBB' },
+        surface: { page: '#F4F4F4', border: '#E5E5E5' }
+      }
+    }
+  }
+}
+</script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+  body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; }
+  .tab-active { color: #3FAF7A; border-bottom: 2px solid #3FAF7A; }
+  .tab-inactive { color: #999999; border-bottom: 2px solid transparent; }
+  .tab-inactive:hover { color: #666666; }
+  .topic-bar { transition: width 0.6s ease-out; }
+  .fade-in { animation: fadeIn 0.3s ease-out; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+  .card { background: white; border: 1px solid #E5E5E5; border-radius: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04); }
+  .card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.08), 0 2px 4px rgba(0,0,0,0.04); }
+  .section-label { font-size: 12px; font-weight: 600; color: #999999; text-transform: uppercase; letter-spacing: 0.05em; }
+  .signal-card { border-left: 3px solid transparent; transition: border-color 0.2s ease-out, background 0.2s ease-out, box-shadow 0.2s ease-out; }
+  .signal-card:hover { border-left-color: #3FAF7A; background: #FAFAFA; }
+  .connection-row { transition: background 0.2s ease-out; }
+  .connection-row:hover { background: rgba(63,175,122,0.06); }
+</style>
+</head>
+<body class="bg-surface-page min-h-screen">
+
+<!-- Sidebar (Brand Navy) -->
+<div class="fixed left-0 top-0 h-screen w-16 bg-brand-navy z-10 flex flex-col items-center py-4">
+  <div class="w-8 h-8 rounded-lg bg-brand-green flex items-center justify-center text-white text-[11px] font-bold mb-8">R</div>
+  <div class="space-y-5 flex-1">
+    <div class="w-5 h-5 rounded bg-white/10 mx-auto"></div>
+    <div class="w-5 h-5 rounded bg-white/10 mx-auto"></div>
+    <div class="relative mx-auto">
+      <div class="absolute left-0 top-1/2 -translate-y-1/2 -ml-[7px] w-[3px] h-5 rounded-r bg-brand-green"></div>
+      <div class="w-5 h-5 rounded bg-white/10 mx-auto"></div>
+    </div>
+    <div class="w-5 h-5 rounded bg-white/10 mx-auto"></div>
+  </div>
+</div>
+
+<!-- Right chat panel placeholder -->
+<div class="fixed right-0 top-0 h-screen w-12 bg-white border-l border-surface-border z-10 flex flex-col items-center py-4">
+  <div class="w-6 h-6 rounded-full bg-surface-page flex items-center justify-center">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#999" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+  </div>
+</div>
+
+<!-- Main content — fills between sidebar and chat -->
+<div class="ml-16 mr-12 min-h-screen">
+  <div class="px-8 py-6 max-w-[1200px]">
+
+    <!-- Back nav -->
+    <button class="inline-flex items-center gap-1.5 text-[13px] text-txt-muted hover:text-txt-primary mb-5 transition-colors duration-200">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+      Back to People
+    </button>
+
+    <!-- ================================================================ -->
+    <!-- HEADER -->
+    <!-- ================================================================ -->
+    <div class="mb-6">
+      <div class="flex items-start gap-4 mb-3">
+        <div class="w-14 h-14 rounded-full bg-gradient-to-br from-brand-green to-brand-green-dark flex items-center justify-center text-white text-[22px] font-semibold flex-shrink-0 shadow-sm">
+          S
+        </div>
+        <div class="flex-1 min-w-0">
+          <h1 class="text-[28px] font-bold text-txt-primary leading-tight">Susan Cordts</h1>
+          <p class="text-[14px] text-txt-secondary mt-0.5">VP of Engineering @ Acme Corp</p>
+
+          <!-- Meta row -->
+          <div class="flex items-center gap-4 mt-2.5 flex-wrap text-[12px] text-txt-muted">
+            <span class="inline-flex items-center gap-1">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+              susan@acmecorp.com
+            </span>
+            <span class="inline-flex items-center gap-1">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"/><rect width="4" height="12" x="2" y="9"/><circle cx="4" cy="4" r="2"/></svg>
+              <a href="#" class="text-brand-green hover:text-brand-green-dark hover:underline transition-colors">LinkedIn</a>
+            </span>
+            <span class="inline-flex items-center gap-1">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/></svg>
+              <a href="#" class="text-brand-green hover:text-brand-green-dark hover:underline transition-colors">Acme Redesign</a>
+            </span>
+            <span class="inline-flex items-center gap-1">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              Last activity: 2 days ago
+            </span>
+          </div>
+
+          <!-- Badges -->
+          <div class="flex items-center gap-2 mt-3 flex-wrap">
+            <span class="inline-flex items-center px-3 py-1 rounded-full text-[11px] font-medium bg-brand-green/10 text-brand-green-dark">Champion</span>
+            <span class="inline-flex items-center px-3 py-1 rounded-full text-[11px] font-medium bg-brand-green/10 text-brand-green-dark">High Influence</span>
+            <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full text-[11px] font-medium bg-brand-green/10 text-brand-green-dark">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+              Primary Contact
+            </span>
+            <span class="inline-flex items-center px-3 py-1 rounded-full text-[11px] font-medium bg-brand-green/10 text-brand-green">Confirmed</span>
+            <span class="inline-flex items-center px-3 py-1 rounded-full text-[11px] font-medium bg-brand-green/10 text-brand-green-dark">Enriched</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ================================================================ -->
+    <!-- TABS -->
+    <!-- ================================================================ -->
+    <div class="border-b border-surface-border mb-6">
+      <div class="flex gap-6" id="tabBar">
+        <button onclick="switchTab('overview')" class="pb-2.5 text-[13px] font-semibold tab-active" data-tab="overview">Overview</button>
+        <button onclick="switchTab('activity')" class="pb-2.5 text-[13px] font-semibold tab-inactive" data-tab="activity">Activity</button>
+        <button onclick="switchTab('evidence')" class="pb-2.5 text-[13px] font-semibold tab-inactive" data-tab="evidence">Evidence & Sources</button>
+        <button onclick="switchTab('insights')" class="pb-2.5 text-[13px] font-semibold tab-inactive" data-tab="insights">AI Insights</button>
+      </div>
+    </div>
+
+    <!-- ================================================================ -->
+    <!-- TAB: OVERVIEW -->
+    <!-- ================================================================ -->
+    <div id="tab-overview" class="fade-in">
+      <div class="grid grid-cols-[1fr_340px] gap-6">
+
+        <!-- LEFT COLUMN -->
+        <div class="space-y-6">
+
+          <!-- Contact & Identity -->
+          <div class="card p-6">
+            <h3 class="section-label mb-4">Contact & Identity</h3>
+            <div class="grid grid-cols-2 gap-x-6 gap-y-4">
+              <div>
+                <p class="text-[11px] text-txt-faint mb-0.5">Email</p>
+                <p class="text-[13px] text-txt-primary">susan@acmecorp.com</p>
+              </div>
+              <div>
+                <p class="text-[11px] text-txt-faint mb-0.5">Phone</p>
+                <p class="text-[13px] text-txt-primary">+1 (555) 234-5678</p>
+              </div>
+              <div>
+                <p class="text-[11px] text-txt-faint mb-0.5">Organization</p>
+                <p class="text-[13px] text-txt-primary">Acme Corp</p>
+              </div>
+              <div>
+                <p class="text-[11px] text-txt-faint mb-0.5">LinkedIn</p>
+                <a href="#" class="text-[13px] text-brand-green hover:text-brand-green-dark hover:underline transition-colors">linkedin.com/in/susancordts</a>
+              </div>
+              <div>
+                <p class="text-[11px] text-txt-faint mb-0.5">Source</p>
+                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-gray-100 text-txt-secondary">Direct Participant</span>
+              </div>
+              <div>
+                <p class="text-[11px] text-txt-faint mb-0.5">Communication Pref</p>
+                <p class="text-[13px] text-txt-primary">Email, weekly cadence</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Domain Expertise -->
+          <div class="card p-6">
+            <h3 class="section-label mb-4">Domain Expertise</h3>
+            <div class="flex flex-wrap gap-2">
+              <span class="px-3 py-1 rounded-full text-[12px] font-medium bg-brand-green/10 text-brand-green">Platform Architecture</span>
+              <span class="px-3 py-1 rounded-full text-[12px] font-medium bg-brand-green/10 text-brand-green">API Design</span>
+              <span class="px-3 py-1 rounded-full text-[12px] font-medium bg-brand-green/10 text-brand-green">Security & Compliance</span>
+              <span class="px-3 py-1 rounded-full text-[12px] font-medium bg-brand-green/10 text-brand-green">CI/CD</span>
+              <span class="px-3 py-1 rounded-full text-[12px] font-medium bg-brand-green/10 text-brand-green">Team Leadership</span>
+            </div>
+          </div>
+
+          <!-- Priorities & Concerns -->
+          <div class="card p-6">
+            <div class="grid grid-cols-2 gap-8">
+              <div>
+                <h3 class="section-label mb-4">Priorities</h3>
+                <ul class="space-y-2.5">
+                  <li class="flex items-start gap-2.5 text-[13px] text-txt-secondary">
+                    <span class="text-brand-green mt-0.5 text-lg leading-none">&#8226;</span>
+                    <span>Reduce deployment time from 2 weeks to 2 days</span>
+                  </li>
+                  <li class="flex items-start gap-2.5 text-[13px] text-txt-secondary">
+                    <span class="text-brand-green mt-0.5 text-lg leading-none">&#8226;</span>
+                    <span>SSO integration for enterprise clients</span>
+                  </li>
+                  <li class="flex items-start gap-2.5 text-[13px] text-txt-secondary">
+                    <span class="text-brand-green mt-0.5 text-lg leading-none">&#8226;</span>
+                    <span>API-first architecture for partner integrations</span>
+                  </li>
+                </ul>
+              </div>
+              <div>
+                <h3 class="section-label mb-4">Concerns</h3>
+                <ul class="space-y-2.5">
+                  <li class="flex items-start gap-2.5 text-[13px] text-txt-secondary">
+                    <span class="text-brand-navy/40 mt-0.5 text-lg leading-none">&#8226;</span>
+                    <span>Migration risk from legacy monolith</span>
+                  </li>
+                  <li class="flex items-start gap-2.5 text-[13px] text-txt-secondary">
+                    <span class="text-brand-navy/40 mt-0.5 text-lg leading-none">&#8226;</span>
+                    <span>Team bandwidth during Q2 product launch</span>
+                  </li>
+                  <li class="flex items-start gap-2.5 text-[13px] text-txt-secondary">
+                    <span class="text-brand-navy/40 mt-0.5 text-lg leading-none">&#8226;</span>
+                    <span>Budget approval for additional cloud infrastructure</span>
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          <!-- Notes -->
+          <div class="card p-6">
+            <h3 class="section-label mb-4">Notes</h3>
+            <p class="text-[14px] text-txt-secondary leading-relaxed">
+              Susan is the key technical decision maker. She's been with Acme for 8 years and led the original platform build. Very detail-oriented — prefers to see technical specs before giving approval. Responsive on email, typically replies within 2 hours during business hours. Strong advocate for the project internally.
+            </p>
+          </div>
+        </div>
+
+        <!-- RIGHT COLUMN -->
+        <div class="space-y-6">
+
+          <!-- Decision Scope -->
+          <div class="card p-6">
+            <h3 class="section-label mb-4">Decision Scope</h3>
+            <div class="space-y-4">
+              <div>
+                <p class="text-[11px] text-txt-faint mb-1">Authority</p>
+                <p class="text-[13px] text-txt-secondary">Final sign-off on technical architecture and vendor selection</p>
+              </div>
+              <div>
+                <p class="text-[11px] text-txt-faint mb-1.5">Approval Required For</p>
+                <div class="flex flex-wrap gap-1.5">
+                  <span class="px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-brand-green/10 text-brand-green-dark">Architecture decisions</span>
+                  <span class="px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-brand-green/10 text-brand-green-dark">Tech stack changes</span>
+                  <span class="px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-brand-green/10 text-brand-green-dark">Infrastructure spend</span>
+                </div>
+              </div>
+              <div>
+                <p class="text-[11px] text-txt-faint mb-1.5">Veto Power Over</p>
+                <div class="flex flex-wrap gap-1.5">
+                  <span class="px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-brand-navy/10 text-brand-navy">Vendor selection</span>
+                  <span class="px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-brand-navy/10 text-brand-navy">Security policies</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Requirement Connections -->
+          <div class="card p-6">
+            <h3 class="section-label mb-4">Requirement Connections</h3>
+            <div class="space-y-1">
+              <div class="connection-row flex items-center gap-2.5 px-2.5 py-2 rounded-xl cursor-pointer">
+                <div class="w-1.5 h-1.5 rounded-full bg-brand-green flex-shrink-0"></div>
+                <span class="text-[13px] font-medium text-txt-primary flex-1 truncate">SSO Integration</span>
+                <span class="text-[10px] px-2 py-0.5 rounded-full bg-brand-green/10 text-brand-green-dark font-medium">Must Have</span>
+              </div>
+              <div class="connection-row flex items-center gap-2.5 px-2.5 py-2 rounded-xl cursor-pointer">
+                <div class="w-1.5 h-1.5 rounded-full bg-brand-green flex-shrink-0"></div>
+                <span class="text-[13px] font-medium text-txt-primary flex-1 truncate">API Gateway</span>
+                <span class="text-[10px] px-2 py-0.5 rounded-full bg-brand-green/10 text-brand-green-dark font-medium">Must Have</span>
+              </div>
+              <div class="connection-row flex items-center gap-2.5 px-2.5 py-2 rounded-xl cursor-pointer">
+                <div class="w-1.5 h-1.5 rounded-full bg-brand-green-light flex-shrink-0"></div>
+                <span class="text-[13px] font-medium text-txt-primary flex-1 truncate">Automated CI/CD Pipeline</span>
+                <span class="text-[10px] px-2 py-0.5 rounded-full bg-brand-green/10 text-brand-green-dark font-medium">Should Have</span>
+              </div>
+              <div class="connection-row flex items-center gap-2.5 px-2.5 py-2 rounded-xl cursor-pointer">
+                <div class="w-1.5 h-1.5 rounded-full bg-brand-green-light flex-shrink-0"></div>
+                <span class="text-[13px] font-medium text-txt-primary flex-1 truncate">Multi-tenant Data Isolation</span>
+                <span class="text-[10px] px-2 py-0.5 rounded-full bg-brand-green/10 text-brand-green-dark font-medium">Should Have</span>
+              </div>
+            </div>
+            <div class="mt-4 pt-4 border-t border-surface-border">
+              <p class="section-label mb-3">Business Drivers</p>
+              <div class="space-y-1">
+                <div class="connection-row flex items-center gap-2.5 px-2.5 py-2 rounded-xl cursor-pointer">
+                  <div class="w-1.5 h-1.5 rounded-full bg-brand-navy/30 flex-shrink-0"></div>
+                  <span class="text-[13px] text-txt-secondary flex-1 truncate">Manual deployment bottleneck</span>
+                  <span class="text-[10px] px-2 py-0.5 rounded-full bg-brand-navy/10 text-brand-navy font-medium">Pain</span>
+                </div>
+                <div class="connection-row flex items-center gap-2.5 px-2.5 py-2 rounded-xl cursor-pointer">
+                  <div class="w-1.5 h-1.5 rounded-full bg-brand-green/50 flex-shrink-0"></div>
+                  <span class="text-[13px] text-txt-secondary flex-1 truncate">Enterprise client onboarding</span>
+                  <span class="text-[10px] px-2 py-0.5 rounded-full bg-brand-green/10 text-brand-green-dark font-medium">Goal</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Organizational Relationships -->
+          <div class="card p-6">
+            <h3 class="section-label mb-4">Relationships</h3>
+            <div class="space-y-4">
+              <div>
+                <p class="text-[11px] text-txt-faint mb-2">Reports To</p>
+                <div class="flex items-center gap-2.5">
+                  <div class="w-7 h-7 rounded-full bg-gradient-to-br from-brand-navy to-brand-slate flex items-center justify-center text-white text-[10px] font-medium">M</div>
+                  <span class="text-[13px] text-txt-primary font-medium">Mark Thompson</span>
+                  <span class="text-[11px] text-txt-muted">CTO</span>
+                </div>
+              </div>
+              <div>
+                <p class="text-[11px] text-txt-faint mb-2">Allies</p>
+                <div class="space-y-2">
+                  <div class="flex items-center gap-2.5">
+                    <div class="w-7 h-7 rounded-full bg-gradient-to-br from-brand-green to-brand-green-dark flex items-center justify-center text-white text-[10px] font-medium">J</div>
+                    <span class="text-[13px] text-txt-primary font-medium">James Park</span>
+                    <span class="text-[11px] text-txt-muted">Lead Architect</span>
+                  </div>
+                  <div class="flex items-center gap-2.5">
+                    <div class="w-7 h-7 rounded-full bg-gradient-to-br from-brand-green-light to-brand-green flex items-center justify-center text-white text-[10px] font-medium">L</div>
+                    <span class="text-[13px] text-txt-primary font-medium">Lisa Chen</span>
+                    <span class="text-[11px] text-txt-muted">Product Director</span>
+                  </div>
+                </div>
+              </div>
+              <div>
+                <p class="text-[11px] text-txt-faint mb-2">Potential Blockers</p>
+                <div class="flex items-center gap-2.5">
+                  <div class="w-7 h-7 rounded-full bg-gradient-to-br from-gray-400 to-gray-500 flex items-center justify-center text-white text-[10px] font-medium">R</div>
+                  <span class="text-[13px] text-txt-primary font-medium">Robert Kim</span>
+                  <span class="text-[11px] text-txt-muted">CFO</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Linked Persona -->
+          <div class="card p-6">
+            <h3 class="section-label mb-4">Linked Persona</h3>
+            <div class="flex items-center gap-3 p-3 bg-surface-page rounded-xl">
+              <div class="w-9 h-9 rounded-xl bg-brand-green/10 flex items-center justify-center">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3FAF7A" stroke-width="2"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+              </div>
+              <div>
+                <p class="text-[13px] font-medium text-txt-primary">Engineering Lead</p>
+                <p class="text-[11px] text-txt-muted">Technical decision maker persona</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ================================================================ -->
+    <!-- TAB: ACTIVITY (placeholder) -->
+    <!-- ================================================================ -->
+    <div id="tab-activity" class="hidden fade-in">
+      <div class="card p-12 text-center">
+        <div class="w-16 h-16 rounded-2xl bg-surface-page flex items-center justify-center mx-auto mb-4">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#BBBBBB" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+          </svg>
+        </div>
+        <h3 class="text-[18px] font-semibold text-txt-primary mb-1">Activity Timeline</h3>
+        <p class="text-[14px] text-txt-secondary max-w-md mx-auto mb-8">
+          A chronological feed of all interactions — signal mentions, confirmation changes, enrichment updates, and portal activity.
+        </p>
+
+        <!-- Preview -->
+        <div class="max-w-lg mx-auto text-left">
+          <p class="section-label mb-3 px-1">Preview</p>
+          <div class="space-y-2.5 opacity-50">
+            <div class="flex items-start gap-3 p-3.5 bg-surface-page rounded-xl">
+              <div class="w-8 h-8 rounded-xl bg-brand-green/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#3FAF7A" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/></svg>
+              </div>
+              <div class="flex-1 min-w-0">
+                <p class="text-[13px] text-txt-primary"><span class="font-medium">Mentioned in signal</span> — Discovery Call #3</p>
+                <p class="text-[11px] text-txt-muted mt-0.5">2 days ago</p>
+              </div>
+            </div>
+            <div class="flex items-start gap-3 p-3.5 bg-surface-page rounded-xl">
+              <div class="w-8 h-8 rounded-xl bg-brand-green/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#3FAF7A" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+              </div>
+              <div class="flex-1 min-w-0">
+                <p class="text-[13px] text-txt-primary"><span class="font-medium">Confirmed</span> by consultant</p>
+                <p class="text-[11px] text-txt-muted mt-0.5">3 days ago</p>
+              </div>
+            </div>
+            <div class="flex items-start gap-3 p-3.5 bg-surface-page rounded-xl">
+              <div class="w-8 h-8 rounded-xl bg-brand-green/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#3FAF7A" stroke-width="2"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
+              </div>
+              <div class="flex-1 min-w-0">
+                <p class="text-[13px] text-txt-primary"><span class="font-medium">AI enrichment</span> completed — added engagement strategy</p>
+                <p class="text-[11px] text-txt-muted mt-0.5">5 days ago</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <p class="text-[12px] text-txt-faint mt-8">Coming soon — will be part of system-wide activity infrastructure</p>
+      </div>
+    </div>
+
+    <!-- ================================================================ -->
+    <!-- TAB: EVIDENCE & SOURCES -->
+    <!-- ================================================================ -->
+    <div id="tab-evidence" class="hidden fade-in">
+      <div class="space-y-6">
+
+        <!-- Source Signals -->
+        <div class="card p-6">
+          <div class="flex items-center justify-between mb-5">
+            <h3 class="section-label">Source Signals</h3>
+            <span class="text-[12px] text-txt-muted">Mentioned in 6 signals</span>
+          </div>
+          <div class="space-y-3">
+            <div class="signal-card p-4 rounded-xl bg-white border border-surface-border cursor-pointer">
+              <div class="flex items-start justify-between mb-2">
+                <div class="flex items-center gap-2">
+                  <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-brand-green/10 text-brand-green">Transcript</span>
+                  <span class="text-[13px] font-semibold text-txt-primary">Discovery Call #3 — Technical Requirements</span>
+                </div>
+                <span class="text-[11px] text-txt-muted whitespace-nowrap ml-4">Feb 8, 2026</span>
+              </div>
+              <p class="text-[13px] text-txt-secondary line-clamp-2 leading-relaxed">
+                "Susan emphasized the need for SSO integration, noting that 3 enterprise prospects have specifically requested it. She also flagged concerns about the deployment timeline..."
+              </p>
+              <div class="flex items-center gap-4 mt-2.5">
+                <span class="text-[11px] text-txt-faint">Source: direct_participant</span>
+                <span class="text-[11px] text-txt-faint">5 facts extracted</span>
+              </div>
+            </div>
+            <div class="signal-card p-4 rounded-xl bg-white border border-surface-border cursor-pointer">
+              <div class="flex items-start justify-between mb-2">
+                <div class="flex items-center gap-2">
+                  <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-brand-navy/10 text-brand-navy">Email</span>
+                  <span class="text-[13px] font-semibold text-txt-primary">RE: Architecture Review Follow-up</span>
+                </div>
+                <span class="text-[11px] text-txt-muted whitespace-nowrap ml-4">Feb 5, 2026</span>
+              </div>
+              <p class="text-[13px] text-txt-secondary line-clamp-2 leading-relaxed">
+                "Attached is the architecture decision record from last quarter. I've highlighted the sections on data isolation — this is non-negotiable for our enterprise tier..."
+              </p>
+              <div class="flex items-center gap-4 mt-2.5">
+                <span class="text-[11px] text-txt-faint">Source: direct_participant</span>
+                <span class="text-[11px] text-txt-faint">3 facts extracted</span>
+              </div>
+            </div>
+            <div class="signal-card p-4 rounded-xl bg-white border border-surface-border cursor-pointer">
+              <div class="flex items-start justify-between mb-2">
+                <div class="flex items-center gap-2">
+                  <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-brand-green/10 text-brand-green-dark">Document</span>
+                  <span class="text-[13px] font-semibold text-txt-primary">Technical Requirements Spreadsheet</span>
+                </div>
+                <span class="text-[11px] text-txt-muted whitespace-nowrap ml-4">Jan 28, 2026</span>
+              </div>
+              <p class="text-[13px] text-txt-secondary line-clamp-2 leading-relaxed">
+                "Shared by Susan. Contains 47 technical requirements prioritized by her team, with estimated effort and dependencies mapped out..."
+              </p>
+              <div class="flex items-center gap-4 mt-2.5">
+                <span class="text-[11px] text-txt-faint">Source: mentioned</span>
+                <span class="text-[11px] text-txt-faint">12 facts extracted</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Topic Heatmap -->
+        <div class="card p-6">
+          <h3 class="section-label mb-2">Topic Frequency</h3>
+          <p class="text-[13px] text-txt-muted mb-5">What this stakeholder discusses most across all signals</p>
+          <div class="space-y-3">
+            <div class="flex items-center gap-4">
+              <span class="text-[13px] text-txt-secondary w-28 text-right flex-shrink-0 font-medium">SSO</span>
+              <div class="flex-1 h-7 bg-surface-page rounded-full overflow-hidden">
+                <div class="topic-bar h-full bg-brand-green rounded-full flex items-center justify-end pr-3" style="width: 85%">
+                  <span class="text-[11px] text-white font-semibold">12</span>
+                </div>
+              </div>
+            </div>
+            <div class="flex items-center gap-4">
+              <span class="text-[13px] text-txt-secondary w-28 text-right flex-shrink-0 font-medium">Security</span>
+              <div class="flex-1 h-7 bg-surface-page rounded-full overflow-hidden">
+                <div class="topic-bar h-full bg-brand-green rounded-full flex items-center justify-end pr-3" style="width: 70%">
+                  <span class="text-[11px] text-white font-semibold">9</span>
+                </div>
+              </div>
+            </div>
+            <div class="flex items-center gap-4">
+              <span class="text-[13px] text-txt-secondary w-28 text-right flex-shrink-0 font-medium">API Design</span>
+              <div class="flex-1 h-7 bg-surface-page rounded-full overflow-hidden">
+                <div class="topic-bar h-full bg-brand-green-light rounded-full flex items-center justify-end pr-3" style="width: 55%">
+                  <span class="text-[11px] text-white font-semibold">7</span>
+                </div>
+              </div>
+            </div>
+            <div class="flex items-center gap-4">
+              <span class="text-[13px] text-txt-secondary w-28 text-right flex-shrink-0 font-medium">Deployment</span>
+              <div class="flex-1 h-7 bg-surface-page rounded-full overflow-hidden">
+                <div class="topic-bar h-full bg-brand-green-light rounded-full flex items-center justify-end pr-3" style="width: 45%">
+                  <span class="text-[11px] text-white font-semibold">6</span>
+                </div>
+              </div>
+            </div>
+            <div class="flex items-center gap-4">
+              <span class="text-[13px] text-txt-secondary w-28 text-right flex-shrink-0 font-medium">Multi-tenancy</span>
+              <div class="flex-1 h-7 bg-surface-page rounded-full overflow-hidden">
+                <div class="topic-bar h-full bg-brand-green/60 rounded-full flex items-center justify-end pr-3" style="width: 35%">
+                  <span class="text-[11px] text-white font-semibold">5</span>
+                </div>
+              </div>
+            </div>
+            <div class="flex items-center gap-4">
+              <span class="text-[13px] text-txt-secondary w-28 text-right flex-shrink-0 font-medium">Budget</span>
+              <div class="flex-1 h-7 bg-surface-page rounded-full overflow-hidden">
+                <div class="topic-bar h-full bg-brand-green/40 rounded-full flex items-center justify-end pr-3" style="width: 20%">
+                  <span class="text-[11px] text-brand-green-dark font-semibold">3</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Field Attributions -->
+        <div class="card p-6">
+          <h3 class="section-label mb-2">Field Attributions</h3>
+          <p class="text-[13px] text-txt-muted mb-5">Where each piece of information was learned</p>
+          <div class="divide-y divide-surface-border">
+            <div class="flex items-center gap-4 py-3">
+              <span class="text-[13px] font-medium text-txt-primary w-36 flex-shrink-0">Role</span>
+              <span class="text-[13px] text-txt-secondary flex-1">VP of Engineering</span>
+              <a href="#" class="text-[12px] text-brand-green hover:text-brand-green-dark hover:underline whitespace-nowrap transition-colors">Discovery Call #1</a>
+            </div>
+            <div class="flex items-center gap-4 py-3">
+              <span class="text-[13px] font-medium text-txt-primary w-36 flex-shrink-0">Domain Expertise</span>
+              <span class="text-[13px] text-txt-secondary flex-1">Platform Architecture, API Design</span>
+              <a href="#" class="text-[12px] text-brand-green hover:text-brand-green-dark hover:underline whitespace-nowrap transition-colors">Architecture Review</a>
+            </div>
+            <div class="flex items-center gap-4 py-3">
+              <span class="text-[13px] font-medium text-txt-primary w-36 flex-shrink-0">Priorities</span>
+              <span class="text-[13px] text-txt-secondary flex-1">SSO, deployment speed</span>
+              <a href="#" class="text-[12px] text-brand-green hover:text-brand-green-dark hover:underline whitespace-nowrap transition-colors">Discovery Call #3</a>
+            </div>
+            <div class="flex items-center gap-4 py-3">
+              <span class="text-[13px] font-medium text-txt-primary w-36 flex-shrink-0">Concerns</span>
+              <span class="text-[13px] text-txt-secondary flex-1">Migration risk, budget</span>
+              <a href="#" class="text-[12px] text-brand-green hover:text-brand-green-dark hover:underline whitespace-nowrap transition-colors">Email Thread</a>
+            </div>
+            <div class="flex items-center gap-4 py-3">
+              <span class="text-[13px] font-medium text-txt-primary w-36 flex-shrink-0">Influence Level</span>
+              <span class="text-[13px] text-txt-secondary flex-1">High</span>
+              <span class="text-[11px] px-2.5 py-0.5 rounded-full bg-brand-green/10 text-brand-green-dark font-medium">AI inferred</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Evidence Citations -->
+        <div class="card p-6">
+          <h3 class="section-label mb-5">Evidence Citations</h3>
+          <div class="space-y-3">
+            <div class="p-4 bg-surface-page rounded-xl border-l-3 border-l-brand-green" style="border-left: 3px solid #3FAF7A">
+              <p class="text-[13px] text-txt-secondary leading-relaxed italic mb-2.5">
+                "Susan is the key technical decision maker. She has veto authority on vendor selection and has been pushing hard for SSO as the top priority."
+              </p>
+              <div class="flex items-center gap-2">
+                <span class="text-[10px] px-2 py-0.5 rounded-full bg-brand-green/10 text-brand-green font-medium">Signal</span>
+                <span class="text-[12px] text-txt-muted">Discovery Call #2 — Stakeholder Mapping</span>
+              </div>
+            </div>
+            <div class="p-4 bg-surface-page rounded-xl" style="border-left: 3px solid #0A1E2F">
+              <p class="text-[13px] text-txt-secondary leading-relaxed italic mb-2.5">
+                "Concerns about migration risk are well-founded — they experienced significant downtime during their last platform migration 2 years ago."
+              </p>
+              <div class="flex items-center gap-2">
+                <span class="text-[10px] px-2 py-0.5 rounded-full bg-brand-green/10 text-brand-green-dark font-medium">Inferred</span>
+                <span class="text-[12px] text-txt-muted">AI analysis of multiple signals</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ================================================================ -->
+    <!-- TAB: AI INSIGHTS -->
+    <!-- ================================================================ -->
+    <div id="tab-insights" class="hidden fade-in">
+      <div class="space-y-6">
+
+        <!-- Enrichment status bar -->
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-medium bg-brand-green/10 text-brand-green">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
+              Enriched
+            </span>
+            <span class="text-[12px] text-txt-muted">Last enriched: Feb 9, 2026 &middot; Version 3 &middot; Confidence: High</span>
+          </div>
+          <button class="inline-flex items-center gap-1.5 px-4 py-2 text-[13px] font-semibold text-brand-green bg-brand-green/10 rounded-xl hover:bg-brand-green/20 transition-colors duration-200">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 16h5v5"/></svg>
+            Re-enrich
+          </button>
+        </div>
+
+        <div class="grid grid-cols-2 gap-6">
+
+          <!-- Engagement Assessment -->
+          <div class="card p-6">
+            <div class="flex items-center gap-2.5 mb-4">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#3FAF7A" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+              <h3 class="text-[14px] font-semibold text-txt-primary">Engagement Assessment</h3>
+            </div>
+            <div class="mb-3">
+              <span class="inline-flex items-center px-3 py-1 rounded-full text-[12px] font-medium bg-brand-green/10 text-brand-green-dark">Highly Engaged</span>
+            </div>
+            <p class="text-[14px] text-txt-secondary leading-relaxed">
+              Responds to emails within 2 hours. Proactively shares relevant documents. Has attended all scheduled meetings and frequently raises new topics for discussion.
+            </p>
+          </div>
+
+          <!-- Engagement Strategy -->
+          <div class="card p-6">
+            <div class="flex items-center gap-2.5 mb-4">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#3FAF7A" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="m16 12-4-4-4 4"/><path d="M12 16V8"/></svg>
+              <h3 class="text-[14px] font-semibold text-txt-primary">Engagement Strategy</h3>
+            </div>
+            <p class="text-[14px] text-txt-secondary leading-relaxed">
+              Lead with technical specifics — Susan responds best to detailed architecture proposals. Schedule bi-weekly 1:1 reviews of technical decisions. Share prototype early for her input on security patterns. Avoid high-level summaries; she prefers raw data.
+            </p>
+          </div>
+
+          <!-- Risk if Disengaged -->
+          <div class="card p-6">
+            <div class="flex items-center gap-2.5 mb-4">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0A1E2F" stroke-width="2"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+              <h3 class="text-[14px] font-semibold text-txt-primary">Risk if Disengaged</h3>
+            </div>
+            <p class="text-[14px] text-txt-secondary leading-relaxed">
+              <strong class="text-brand-navy font-semibold">High risk.</strong> As the primary technical decision maker, her disengagement would stall architecture approvals and potentially delay the project by 4-6 weeks. She is also the internal champion — without her advocacy, budget approval becomes significantly harder.
+            </p>
+          </div>
+
+          <!-- Decision Power -->
+          <div class="card p-6">
+            <div class="flex items-center gap-2.5 mb-4">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#25785A" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+              <h3 class="text-[14px] font-semibold text-txt-primary">Decision Power</h3>
+            </div>
+            <p class="text-[14px] text-txt-secondary mb-4">Final sign-off on technical architecture and vendor selection.</p>
+            <div class="space-y-3">
+              <div>
+                <p class="text-[11px] text-txt-faint mb-1.5">Approval Required For</p>
+                <div class="flex flex-wrap gap-1.5">
+                  <span class="px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-brand-green/10 text-brand-green-dark">Architecture</span>
+                  <span class="px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-brand-green/10 text-brand-green-dark">Tech stack</span>
+                  <span class="px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-brand-green/10 text-brand-green-dark">Infra spend</span>
+                </div>
+              </div>
+              <div>
+                <p class="text-[11px] text-txt-faint mb-1.5">Veto Power</p>
+                <div class="flex flex-wrap gap-1.5">
+                  <span class="px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-brand-navy/10 text-brand-navy">Vendor selection</span>
+                  <span class="px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-brand-navy/10 text-brand-navy">Security policies</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Win Conditions & Key Concerns -->
+        <div class="grid grid-cols-2 gap-6">
+          <div class="card p-6">
+            <div class="flex items-center gap-2.5 mb-4">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#3FAF7A" stroke-width="2"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>
+              <h3 class="text-[14px] font-semibold text-txt-primary">Win Conditions</h3>
+            </div>
+            <ul class="space-y-2.5">
+              <li class="flex items-start gap-2.5 text-[14px] text-txt-secondary">
+                <span class="text-brand-green mt-0.5 text-lg leading-none">&#8226;</span>
+                <span>Platform can handle 10x current load without architecture changes</span>
+              </li>
+              <li class="flex items-start gap-2.5 text-[14px] text-txt-secondary">
+                <span class="text-brand-green mt-0.5 text-lg leading-none">&#8226;</span>
+                <span>Zero-downtime deployments achievable within 6 months</span>
+              </li>
+              <li class="flex items-start gap-2.5 text-[14px] text-txt-secondary">
+                <span class="text-brand-green mt-0.5 text-lg leading-none">&#8226;</span>
+                <span>Her team can maintain the system without external dependency</span>
+              </li>
+            </ul>
+          </div>
+
+          <div class="card p-6">
+            <div class="flex items-center gap-2.5 mb-4">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0A1E2F" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/></svg>
+              <h3 class="text-[14px] font-semibold text-txt-primary">Key Concerns</h3>
+            </div>
+            <ul class="space-y-2.5">
+              <li class="flex items-start gap-2.5 text-[14px] text-txt-secondary">
+                <span class="text-brand-navy/40 mt-0.5 text-lg leading-none">&#8226;</span>
+                <span>Vendor lock-in from proprietary integrations</span>
+              </li>
+              <li class="flex items-start gap-2.5 text-[14px] text-txt-secondary">
+                <span class="text-brand-navy/40 mt-0.5 text-lg leading-none">&#8226;</span>
+                <span>Data migration complexity underestimated</span>
+              </li>
+              <li class="flex items-start gap-2.5 text-[14px] text-txt-secondary">
+                <span class="text-brand-navy/40 mt-0.5 text-lg leading-none">&#8226;</span>
+                <span>Team capacity during Q2 product launch crunch</span>
+              </li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- Relationship Map -->
+        <div class="card p-6">
+          <div class="flex items-center gap-2.5 mb-5">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0A1E2F" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            <h3 class="text-[14px] font-semibold text-txt-primary">Relationship Map</h3>
+          </div>
+          <div class="grid grid-cols-3 gap-5">
+            <div>
+              <p class="text-[11px] text-txt-faint mb-2.5">Reports To</p>
+              <div class="flex items-center gap-2.5 p-3 bg-surface-page rounded-xl">
+                <div class="w-8 h-8 rounded-full bg-gradient-to-br from-brand-navy to-brand-slate flex items-center justify-center text-white text-[11px] font-medium">M</div>
+                <div>
+                  <p class="text-[13px] font-medium text-txt-primary">Mark Thompson</p>
+                  <p class="text-[11px] text-txt-muted">CTO</p>
+                </div>
+              </div>
+            </div>
+            <div>
+              <p class="text-[11px] text-txt-faint mb-2.5">Allies</p>
+              <div class="space-y-2">
+                <div class="flex items-center gap-2.5 p-3 bg-brand-green/5 rounded-xl">
+                  <div class="w-8 h-8 rounded-full bg-gradient-to-br from-brand-green to-brand-green-dark flex items-center justify-center text-white text-[11px] font-medium">J</div>
+                  <div>
+                    <p class="text-[13px] font-medium text-txt-primary">James Park</p>
+                    <p class="text-[11px] text-txt-muted">Lead Architect</p>
+                  </div>
+                </div>
+                <div class="flex items-center gap-2.5 p-3 bg-brand-green/5 rounded-xl">
+                  <div class="w-8 h-8 rounded-full bg-gradient-to-br from-brand-green-light to-brand-green flex items-center justify-center text-white text-[11px] font-medium">L</div>
+                  <div>
+                    <p class="text-[13px] font-medium text-txt-primary">Lisa Chen</p>
+                    <p class="text-[11px] text-txt-muted">Product Director</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div>
+              <p class="text-[11px] text-txt-faint mb-2.5">Potential Friction</p>
+              <div class="flex items-center gap-2.5 p-3 bg-gray-100/60 rounded-xl">
+                <div class="w-8 h-8 rounded-full bg-gradient-to-br from-gray-400 to-gray-500 flex items-center justify-center text-white text-[11px] font-medium">R</div>
+                <div>
+                  <p class="text-[13px] font-medium text-txt-primary">Robert Kim</p>
+                  <p class="text-[11px] text-txt-muted">CFO — budget concerns</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+function switchTab(tabId) {
+  document.querySelectorAll('[id^="tab-"]').forEach(el => el.classList.add('hidden'));
+  const target = document.getElementById('tab-' + tabId);
+  if (target) {
+    target.classList.remove('hidden');
+    target.classList.remove('fade-in');
+    void target.offsetWidth;
+    target.classList.add('fade-in');
+  }
+  document.querySelectorAll('#tabBar button').forEach(btn => {
+    btn.classList.remove('tab-active');
+    btn.classList.add('tab-inactive');
+  });
+  const activeBtn = document.querySelector(`#tabBar button[data-tab="${tabId}"]`);
+  if (activeBtn) {
+    activeBtn.classList.remove('tab-inactive');
+    activeBtn.classList.add('tab-active');
+  }
+}
+</script>
+</body>
+</html>
