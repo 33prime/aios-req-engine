@@ -541,6 +541,52 @@ DI_AGENT_TOOLS = [
         "typical_confidence": "Adds context, doesn't directly satisfy gates",
     },
     {
+        "name": "run_discover",
+        "description": "Run data-first discovery intelligence pipeline: SerpAPI source mapping, PDL company/competitor enrichment, Firecrawl web scraping, Bright Data reviews, and Sonnet-powered business driver synthesis. Every fact traces to a real URL with a real quote. Costs ~$1.05/run, takes ~60-90s.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "project_id": {
+                    "type": "string",
+                    "description": "Project UUID",
+                },
+                "company_name": {
+                    "type": "string",
+                    "description": "Company name to research (defaults to project company)",
+                },
+                "company_website": {
+                    "type": "string",
+                    "description": "Company website URL (optional)",
+                },
+                "industry": {
+                    "type": "string",
+                    "description": "Industry for market research (optional)",
+                },
+                "focus_areas": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Optional focus areas (e.g., 'competitor pricing', 'user pain points')",
+                },
+            },
+            "required": ["project_id"],
+        },
+        "useful_when": [
+            "Starting a new project and need comprehensive market/competitive context",
+            "Need real evidence (URLs, quotes) for business drivers — not AI-generated slop",
+            "Want to profile competitors with real firmographic data from PDL",
+            "Need user voice data from G2, Capterra, Reddit",
+            "Want to populate business drivers with evidence chains",
+        ],
+        "not_useful_when": [
+            "Already have rich signals from client conversations",
+            "Only need to extract from existing signals (use run_foundation)",
+            "Budget is a concern (costs ~$1.05 per run)",
+        ],
+        "affects_gates": ["core_pain", "primary_persona", "business_case", "wow_moment"],
+        "confidence_impact": "High - produces evidence-backed business drivers with real URLs",
+        "typical_confidence": "High for market/competitive context, medium for client-specific needs",
+    },
+    {
         "name": "suggest_discovery_questions",
         "description": "Generate specific discovery questions for consultant to ask the client to fill gaps",
         "input_schema": {

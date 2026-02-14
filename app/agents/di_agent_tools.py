@@ -129,6 +129,8 @@ async def execute_di_tool(
             result = await _execute_add_open_question(project_id, tool_args)
         elif tool_name == "synthesize_value_path":
             result = await _execute_synthesize_value_path(project_id, tool_args)
+        elif tool_name == "run_discover":
+            result = await _execute_run_discover(project_id, tool_args)
         else:
             logger.error(f"Unknown tool: {tool_name}")
             return {
@@ -274,6 +276,85 @@ async def _execute_run_research(project_id: UUID, args: dict) -> dict:
             "success": False,
             "data": {},
             "error": f"Research agent failed: {str(e)}",
+        }
+
+
+async def _execute_run_discover(project_id: UUID, args: dict) -> dict:
+    """
+    Execute the discovery intelligence pipeline.
+
+    Runs parallelized data-first research: SerpAPI → PDL + Firecrawl → Sonnet synthesis.
+    Produces business drivers with evidence chains and entity links.
+    """
+    import uuid as uuid_mod
+
+    from app.db.jobs import create_job, start_job
+    from app.db.supabase_client import get_supabase
+
+    try:
+        company_name = args.get("company_name")
+        company_website = args.get("company_website")
+        industry = args.get("industry")
+        focus_areas = args.get("focus_areas", [])
+
+        if not company_name:
+            # Try to get from project
+            supabase = get_supabase()
+            project = supabase.table("projects").select(
+                "name, company_name, company_website, industry"
+            ).eq("id", str(project_id)).maybe_single().execute()
+            if project.data:
+                company_name = project.data.get("company_name") or project.data.get("name", "Unknown")
+                company_website = company_website or project.data.get("company_website")
+                industry = industry or project.data.get("industry")
+
+        run_id = uuid_mod.uuid4()
+        job_id = create_job(
+            project_id=project_id,
+            job_type="discovery_pipeline",
+            input_json={
+                "company_name": company_name,
+                "company_website": company_website,
+                "industry": industry,
+                "focus_areas": focus_areas,
+            },
+            run_id=run_id,
+        )
+
+        start_job(job_id)
+
+        from app.graphs.discovery_pipeline_graph import run_discovery_pipeline
+
+        result = run_discovery_pipeline(
+            project_id=project_id,
+            run_id=run_id,
+            job_id=job_id,
+            company_name=company_name or "Unknown",
+            company_website=company_website,
+            industry=industry,
+            focus_areas=focus_areas,
+        )
+
+        return {
+            "success": result.get("success", False),
+            "data": {
+                "job_id": str(job_id),
+                "signal_id": result.get("signal_id"),
+                "drivers_count": result.get("business_drivers_count", 0),
+                "competitors_count": result.get("competitors_count", 0),
+                "total_cost_usd": result.get("total_cost_usd", 0),
+                "phase_errors": result.get("phase_errors", {}),
+                "message": "Discovery pipeline completed",
+            },
+            "error": None,
+        }
+
+    except Exception as e:
+        logger.error(f"Discovery pipeline failed: {e}", exc_info=True)
+        return {
+            "success": False,
+            "data": {},
+            "error": f"Discovery pipeline failed: {str(e)}",
         }
 
 

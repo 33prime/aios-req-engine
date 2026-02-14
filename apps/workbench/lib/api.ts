@@ -2651,3 +2651,109 @@ export const cancelBot = (botId: string) =>
     `/communications/bots/${botId}`,
     { method: 'DELETE' }
   )
+
+// ============================================================================
+// Client Organizations
+// ============================================================================
+
+import type {
+  ClientSummary,
+  ClientDetail,
+  ClientCreatePayload,
+} from '@/types/workspace'
+
+export const listClients = (params?: {
+  search?: string
+  organization_id?: string
+  limit?: number
+  offset?: number
+}) => {
+  const qp = new URLSearchParams()
+  if (params?.search) qp.set('search', params.search)
+  if (params?.organization_id) qp.set('organization_id', params.organization_id)
+  if (params?.limit) qp.set('limit', params.limit.toString())
+  if (params?.offset) qp.set('offset', params.offset.toString())
+  const query = qp.toString()
+  return apiRequest<{ clients: ClientSummary[]; total: number }>(
+    `/clients${query ? `?${query}` : ''}`
+  )
+}
+
+export const getClient = (clientId: string) =>
+  apiRequest<ClientDetail>(`/clients/${clientId}`)
+
+export const createClient = (data: ClientCreatePayload) =>
+  apiRequest<ClientSummary>(`/clients`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+
+export const updateClient = (clientId: string, data: Partial<ClientCreatePayload>) =>
+  apiRequest<ClientSummary>(`/clients/${clientId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  })
+
+export const deleteClient = (clientId: string) =>
+  apiRequest<{ success: boolean; message: string }>(`/clients/${clientId}`, {
+    method: 'DELETE',
+  })
+
+export const enrichClient = (clientId: string) =>
+  apiRequest<{ success: boolean; message: string; client_id: string }>(
+    `/clients/${clientId}/enrich`,
+    { method: 'POST' }
+  )
+
+export const linkProjectToClient = (clientId: string, projectId: string) =>
+  apiRequest<{ success: boolean; message: string }>(
+    `/clients/${clientId}/projects/${projectId}/link`,
+    { method: 'POST' }
+  )
+
+export const unlinkProjectFromClient = (clientId: string, projectId: string) =>
+  apiRequest<{ success: boolean; message: string }>(
+    `/clients/${clientId}/projects/${projectId}/link`,
+    { method: 'DELETE' }
+  )
+
+// =============================================================================
+// Discovery Pipeline
+// =============================================================================
+
+export const runDiscovery = (
+  projectId: string,
+  options?: {
+    company_name?: string
+    company_website?: string
+    industry?: string
+    focus_areas?: string[]
+  }
+) =>
+  apiRequest<{ job_id: string; status: string; message: string }>(
+    `/projects/${projectId}/discover`,
+    {
+      method: 'POST',
+      body: JSON.stringify(options || {}),
+    }
+  )
+
+export const getDiscoveryProgress = (projectId: string, jobId: string) =>
+  apiRequest<{
+    job_id: string
+    status: string
+    phases: Array<{
+      phase: string
+      status: string
+      duration_seconds?: number
+      summary?: string
+    }>
+    current_phase?: string
+    cost_so_far_usd: number
+    elapsed_seconds: number
+    signal_id?: string
+    entities_stored?: Record<string, number>
+    total_cost_usd?: number
+    drivers_count?: number
+    competitors_count?: number
+  }>(`/projects/${projectId}/discover/progress/${jobId}`)

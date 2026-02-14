@@ -1,0 +1,167 @@
+"""Phase 2: Company Intelligence — PDL enrichment + Firecrawl scraping + Haiku extraction.
+
+Builds a structured company profile from real data sources.
+"""
+
+import asyncio
+import json
+import logging
+from typing import Any
+
+from app.core.config import get_settings
+from app.core.firecrawl_service import scrape_website_safe
+from app.core.pdl_service import enrich_company_safe
+
+logger = logging.getLogger(__name__)
+
+COMPANY_EXTRACTION_PROMPT = """You are extracting structured company information from scraped web pages.
+Extract ONLY facts that appear in the provided text. Do NOT generate or infer information.
+
+For each fact, note the source URL it came from.
+
+Return a JSON object with these fields (use null for anything not found):
+{{
+    "tagline": "Company's tagline or value prop",
+    "description": "What the company does (1-2 sentences)",
+    "target_market": "Who they sell to",
+    "key_products": ["product1", "product2"],
+    "pricing_model": "How they charge (freemium, subscription, etc.)",
+    "pricing_tiers": ["tier1: $X/mo", "tier2: $Y/mo"],
+    "tech_mentions": ["technology1", "technology2"],
+    "evidence": [
+        {{"source_url": "...", "quote": "exact quote from text", "source_type": "firecrawl"}}
+    ]
+}}
+
+SCRAPED CONTENT:
+{scraped_content}
+"""
+
+
+async def _extract_with_haiku(scraped_content: str, cost_entries: list[dict]) -> dict[str, Any]:
+    """Use Haiku to extract structured company info from scraped text."""
+    from anthropic import AsyncAnthropic
+
+    settings = get_settings()
+    if not settings.ANTHROPIC_API_KEY:
+        return {}
+
+    # Truncate to fit context
+    content = scraped_content[:12000]
+
+    client = AsyncAnthropic(api_key=settings.ANTHROPIC_API_KEY)
+    response = await client.messages.create(
+        model="claude-3-5-haiku-20241022",
+        max_tokens=2000,
+        messages=[{
+            "role": "user",
+            "content": COMPANY_EXTRACTION_PROMPT.format(scraped_content=content),
+        }],
+    )
+
+    cost_entries.append({
+        "phase": "company_intel",
+        "service": "anthropic_haiku",
+        "cost_usd": 0.02,
+    })
+
+    text = response.content[0].text if response.content else "{}"
+    # Extract JSON from response
+    try:
+        # Handle markdown code blocks
+        if "```json" in text:
+            text = text.split("```json")[1].split("```")[0]
+        elif "```" in text:
+            text = text.split("```")[1].split("```")[0]
+        return json.loads(text.strip())
+    except (json.JSONDecodeError, IndexError):
+        logger.warning("Failed to parse Haiku company extraction response")
+        return {}
+
+
+async def run_company_intelligence(
+    company_name: str,
+    company_website: str | None,
+    source_registry: dict[str, list[dict[str, Any]]],
+) -> tuple[dict[str, Any], list[dict[str, Any]]]:
+    """Execute Phase 2: Company Intelligence.
+
+    Returns:
+        Tuple of (company_profile, cost_entries)
+    """
+    cost_entries: list[dict[str, Any]] = []
+    company_profile: dict[str, Any] = {"name": company_name}
+
+    # 1. PDL enrichment
+    pdl_data = await enrich_company_safe(
+        name=company_name,
+        website=company_website,
+    )
+    if pdl_data:
+        company_profile.update({
+            "employee_count": pdl_data.get("employee_count"),
+            "employee_count_range": pdl_data.get("employee_count_range"),
+            "revenue_range": pdl_data.get("revenue_range"),
+            "funding_total": pdl_data.get("funding_total"),
+            "funding_last_round": pdl_data.get("funding_last_round"),
+            "founded_year": pdl_data.get("founded_year"),
+            "industries": pdl_data.get("industries"),
+            "tech_stack": pdl_data.get("tech_stack", []),
+            "linkedin_url": pdl_data.get("linkedin_url"),
+        })
+        cost_entries.append({
+            "phase": "company_intel",
+            "service": "pdl",
+            "cost_usd": 0.03,
+        })
+
+    # 2. Firecrawl scrape (homepage + about + pricing from source_registry)
+    company_urls = source_registry.get("company", [])
+    scrape_urls = []
+
+    # Always try the company website
+    if company_website:
+        scrape_urls.append(company_website)
+
+    # Add top source_registry company URLs (max 3 total)
+    for src in company_urls[:3]:
+        if src["url"] not in scrape_urls:
+            scrape_urls.append(src["url"])
+            if len(scrape_urls) >= 3:
+                break
+
+    scrape_tasks = [scrape_website_safe(url) for url in scrape_urls[:3]]
+    scrape_results = await asyncio.gather(*scrape_tasks)
+
+    scraped_content_parts = []
+    for url, result in zip(scrape_urls, scrape_results):
+        if result and result.get("markdown"):
+            scraped_content_parts.append(
+                f"--- Source: {url} ---\n{result['markdown'][:4000]}"
+            )
+            cost_entries.append({
+                "phase": "company_intel",
+                "service": "firecrawl",
+                "url": url,
+                "cost_usd": 0.01,
+            })
+
+    # 3. Haiku extraction from scraped content
+    if scraped_content_parts:
+        combined = "\n\n".join(scraped_content_parts)
+        extracted = await _extract_with_haiku(combined, cost_entries)
+        if extracted:
+            company_profile["tagline"] = extracted.get("tagline")
+            company_profile["description"] = extracted.get("description")
+            company_profile["target_market"] = extracted.get("target_market")
+            company_profile["key_products"] = extracted.get("key_products", [])
+            company_profile["pricing_model"] = extracted.get("pricing_model")
+            company_profile["pricing_tiers"] = extracted.get("pricing_tiers", [])
+            company_profile["evidence"] = extracted.get("evidence", [])
+
+    logger.info(
+        f"Company intelligence complete for '{company_name}': "
+        f"{company_profile.get('employee_count', '?')} employees"
+    )
+
+    return company_profile, cost_entries

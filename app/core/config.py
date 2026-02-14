@@ -199,6 +199,17 @@ class Settings(BaseSettings):
     FIRECRAWL_API_KEY: str = Field(default="", description="Firecrawl API key for website scraping")
     FIRECRAWL_TIMEOUT: int = Field(default=30, description="Timeout for Firecrawl requests")
 
+    # Discovery Pipeline API keys
+    SERPAPI_API_KEY: str = Field(default="", description="SerpAPI key for Google search")
+    PDL_API_KEY: str = Field(default="", description="People Data Labs API key for company enrichment")
+    BRIGHTDATA_API_KEY: str = Field(default="", description="Bright Data API key for anti-bot scraping")
+    BRIGHTDATA_ZONE: str = Field(default="unlocker", description="Bright Data zone name")
+
+    # Discovery Pipeline limits
+    DISCOVERY_MAX_COST_USD: float = Field(default=1.25, description="Hard cost cap for discovery pipeline")
+    DISCOVERY_MAX_COMPETITORS: int = Field(default=5, description="Max competitors to profile")
+    DISCOVERY_SCRAPE_TIMEOUT: int = Field(default=30, description="Timeout for scrape requests in discovery")
+
     # Prototype Refinement configuration
     PROTOTYPE_PROMPT_MODEL: str = Field(
         default="claude-opus-4-5-20251101",

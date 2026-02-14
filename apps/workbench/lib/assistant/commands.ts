@@ -175,6 +175,158 @@ registerCommand({
   },
 })
 
+// /discover - Run data-first discovery intelligence pipeline
+registerCommand({
+  name: 'discover',
+  description: 'Run parallelized discovery: company intel, competitors, market data, user reviews, and business drivers',
+  aliases: ['discovery'],
+  args: [
+    {
+      name: 'focus',
+      type: 'string',
+      required: false,
+      description: 'Optional focus areas (e.g., "competitor pricing")',
+    },
+  ],
+  examples: ['/discover', '/discover "user pain points"'],
+  execute: async (args, context): Promise<CommandResult> => {
+    const { projectId, projectData } = context
+    const focus = args.focus as string | undefined
+
+    if (!projectId) {
+      return {
+        success: false,
+        message: 'No project selected. Please select a project first.',
+      }
+    }
+
+    const { runDiscovery } = await import('@/lib/api')
+
+    try {
+      const focusAreas = focus ? [focus] : []
+      const result = await runDiscovery(projectId, { focus_areas: focusAreas })
+
+      const projectName = projectData?.name || 'your project'
+
+      let message = `## Discovery Pipeline Started\n\n`
+      message += `Researching **${projectName}** with data-first intelligence:\n\n`
+      message += `1. Source Mapping (SerpAPI)\n`
+      message += `2. Company Intel (PDL + Firecrawl)\n`
+      message += `3. Competitor Intel (PDL + Firecrawl)\n`
+      message += `4. Market Evidence (Firecrawl)\n`
+      message += `5. User Voice (Bright Data + Firecrawl)\n`
+      message += `6. Feature Analysis\n`
+      message += `7. Business Drivers (Sonnet synthesis)\n`
+      message += `8. Persist & Link\n`
+      if (focus) {
+        message += `\n**Focus:** ${focus}\n`
+      }
+      message += `\n---\n`
+      message += `Budget: ~$1.05 | Time: ~60-90s\n\n`
+      message += `Run \`/discover-status\` to check progress.`
+
+      return {
+        success: true,
+        message,
+        data: {
+          jobId: result.job_id,
+          action: 'discovery_started',
+        },
+      }
+    } catch (error) {
+      return {
+        success: false,
+        message: `Failed to start discovery: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      }
+    }
+  },
+})
+
+// /discover-status - Check on running discovery pipeline
+registerCommand({
+  name: 'discover-status',
+  description: 'Check the status of the running discovery pipeline',
+  aliases: ['check-discover'],
+  examples: ['/discover-status'],
+  execute: async (_args, context): Promise<CommandResult> => {
+    const { projectId } = context
+
+    if (!projectId) {
+      return {
+        success: false,
+        message: 'No project selected. Please select a project first.',
+      }
+    }
+
+    const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null
+
+    try {
+      // Get recent discovery jobs
+      const response = await fetch(`${API_BASE}/v1/jobs?project_id=${projectId}&job_type=discovery_pipeline&limit=1`, {
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch discovery status')
+      }
+
+      const jobs = await response.json()
+      if (!jobs || jobs.length === 0) {
+        return {
+          success: true,
+          message: 'No discovery pipeline runs found. Run `/discover` to start one.',
+        }
+      }
+
+      const job = jobs[0]
+      const { getDiscoveryProgress } = await import('@/lib/api')
+      const progress = await getDiscoveryProgress(projectId, job.id)
+
+      const statusIcons: Record<string, string> = {
+        completed: 'Done',
+        running: 'Running...',
+        failed: 'Failed',
+        skipped: 'Skipped',
+        pending: 'Pending',
+      }
+
+      let message = `## Discovery Pipeline Status\n\n`
+      for (const phase of progress.phases) {
+        const icon = statusIcons[phase.status] || phase.status
+        const summary = phase.summary ? ` — ${phase.summary}` : ''
+        const duration = phase.duration_seconds ? ` (${phase.duration_seconds.toFixed(1)}s)` : ''
+        message += `- **${icon}** ${phase.phase}${summary}${duration}\n`
+      }
+      message += `\n---\n`
+      message += `Cost: $${progress.cost_so_far_usd.toFixed(2)} | Elapsed: ${progress.elapsed_seconds.toFixed(0)}s`
+
+      if (progress.status === 'completed') {
+        message += `\n\nPipeline complete!`
+        if (progress.drivers_count) {
+          message += ` ${progress.drivers_count} business drivers created.`
+        }
+        if (progress.competitors_count) {
+          message += ` ${progress.competitors_count} competitors profiled.`
+        }
+      }
+
+      return {
+        success: true,
+        message,
+        data: { jobId: job.id, status: progress.status },
+      }
+    } catch (error) {
+      return {
+        success: false,
+        message: `Failed to check discovery status: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      }
+    }
+  },
+})
+
 // /research-status - Check on running research
 registerCommand({
   name: 'research-status',
