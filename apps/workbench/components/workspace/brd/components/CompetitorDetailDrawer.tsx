@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { X, Globe, Target, Shield, Sparkles, ExternalLink, FileText, Swords, Loader2, ToggleLeft, ToggleRight } from 'lucide-react'
 import { getCompetitorAnalysis, analyzeCompetitor, toggleDesignReference } from '@/lib/api'
 import { ConfirmActions } from './ConfirmActions'
+import { EvidenceBlock } from './EvidenceBlock'
 import type { CompetitorBRDSummary, CompetitorDeepAnalysis } from '@/types/workspace'
 
 interface CompetitorDetailDrawerProps {
@@ -244,7 +245,7 @@ export function CompetitorDetailDrawer({
           )}
 
           {activeTab === 'evidence' && (
-            <EvidenceTab scrapedPages={scrapedPages} />
+            <CompetitorEvidenceTab scrapedPages={scrapedPages} evidence={competitor.evidence || []} />
           )}
         </div>
       </div>
@@ -265,6 +266,8 @@ function OverviewTab({ competitor }: { competitor: CompetitorBRDSummary }) {
     { label: 'Target Audience', value: competitor.target_audience },
   ].filter((f) => f.value)
 
+  const evidence = competitor.evidence || []
+
   return (
     <div className="space-y-4">
       {fields.map((field) => (
@@ -273,10 +276,16 @@ function OverviewTab({ competitor }: { competitor: CompetitorBRDSummary }) {
           <dd className="mt-1 text-[13px] text-[#333333]">{field.value}</dd>
         </div>
       ))}
-      {fields.length === 0 && (
+      {fields.length === 0 && evidence.length === 0 && (
         <p className="text-[13px] text-[#999999] text-center py-8">
           No details available yet. Analyze this competitor to generate insights.
         </p>
+      )}
+      {evidence.length > 0 && (
+        <div className="pt-2">
+          <h4 className="text-[11px] font-medium text-[#999999] uppercase tracking-wider mb-2">Source Evidence</h4>
+          <EvidenceBlock evidence={evidence} maxItems={5} />
+        </div>
       )}
     </div>
   )
@@ -496,35 +505,58 @@ function StrategicTab({ analysis, loading, status }: {
   )
 }
 
-function EvidenceTab({ scrapedPages }: { scrapedPages: { url: string; title: string; scraped_at: string }[] }) {
-  if (scrapedPages.length === 0) {
+function CompetitorEvidenceTab({
+  scrapedPages,
+  evidence,
+}: {
+  scrapedPages: { url: string; title: string; scraped_at: string }[]
+  evidence: import('@/types/workspace').BRDEvidence[]
+}) {
+  if (scrapedPages.length === 0 && evidence.length === 0) {
     return (
       <div className="text-center py-12">
         <FileText className="w-8 h-8 text-[#E5E5E5] mx-auto mb-2" />
-        <p className="text-[13px] text-[#999999]">No scraped pages yet. Run analysis to gather evidence.</p>
+        <p className="text-[13px] text-[#999999]">No evidence yet. Run analysis to gather evidence.</p>
       </div>
     )
   }
 
   return (
-    <div className="space-y-3">
-      <h4 className="text-[13px] font-semibold text-[#333333]">Scraped Pages</h4>
-      {scrapedPages.map((page, i) => (
-        <div key={i} className="p-3 border border-[#E5E5E5] rounded-lg">
-          <a
-            href={page.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-[12px] font-medium text-[#3FAF7A] hover:underline flex items-center gap-1"
-          >
-            {page.title}
-            <ExternalLink className="w-3 h-3" />
-          </a>
-          <p className="text-[11px] text-[#999999] mt-1">
-            Scraped {new Date(page.scraped_at).toLocaleDateString()}
-          </p>
+    <div className="space-y-6">
+      {evidence.length > 0 && (
+        <div>
+          <h4 className="text-[11px] font-medium text-[#999999] uppercase tracking-wider mb-2">
+            Signal Evidence
+          </h4>
+          <EvidenceBlock evidence={evidence} maxItems={100} />
         </div>
-      ))}
+      )}
+
+      {scrapedPages.length > 0 && (
+        <div>
+          <h4 className="text-[11px] font-medium text-[#999999] uppercase tracking-wider mb-2">
+            Scraped Pages
+          </h4>
+          <div className="space-y-2">
+            {scrapedPages.map((page, i) => (
+              <div key={i} className="p-3 border border-[#E5E5E5] rounded-lg">
+                <a
+                  href={page.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-[12px] font-medium text-[#3FAF7A] hover:underline flex items-center gap-1"
+                >
+                  {page.title}
+                  <ExternalLink className="w-3 h-3" />
+                </a>
+                <p className="text-[11px] text-[#999999] mt-1">
+                  Scraped {new Date(page.scraped_at).toLocaleDateString()}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

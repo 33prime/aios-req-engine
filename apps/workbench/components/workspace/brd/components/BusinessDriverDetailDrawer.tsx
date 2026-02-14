@@ -7,7 +7,6 @@ import {
   Target,
   BarChart3,
   FileText,
-  Clock,
   Users,
   Puzzle,
   Link2,
@@ -26,9 +25,7 @@ import { ConfirmActions } from './ConfirmActions'
 import { EvidenceBlock } from './EvidenceBlock'
 import { WhoHasTheData } from './WhoHasTheData'
 import { FinancialImpactCard } from './FinancialImpactCard'
-import { FinancialImpactChat } from './FinancialImpactChat'
 import { getBRDDriverDetail, updateDriverFinancials } from '@/lib/api'
-import type { FinancialValues } from '@/lib/useFinancialImpactChat'
 import { getTopicsForDriverType, inferTopicsFromText } from '@/lib/topic-role-map'
 import type {
   BusinessDriver,
@@ -40,7 +37,7 @@ import type {
 } from '@/types/workspace'
 
 type DriverType = 'pain' | 'goal' | 'kpi'
-type TabId = 'intelligence' | 'who_has_data' | 'evidence' | 'connections' | 'history'
+type TabId = 'intelligence' | 'who_has_data' | 'evidence_history' | 'connections'
 
 interface BusinessDriverDetailDrawerProps {
   driverId: string
@@ -62,9 +59,8 @@ const TYPE_CONFIG: Record<DriverType, { icon: typeof AlertTriangle; color: strin
 const TABS: { id: TabId; label: string; icon: typeof FileText }[] = [
   { id: 'intelligence', label: 'Intelligence', icon: Sparkles },
   { id: 'who_has_data', label: 'Who Has Data', icon: Users },
-  { id: 'evidence', label: 'Evidence', icon: FileText },
+  { id: 'evidence_history', label: 'Evidence', icon: FileText },
   { id: 'connections', label: 'Connections', icon: Link2 },
-  { id: 'history', label: 'History', icon: Clock },
 ]
 
 export function BusinessDriverDetailDrawer({
@@ -178,11 +174,6 @@ export function BusinessDriverDetailDrawer({
                       {connectionCount}
                     </span>
                   )}
-                  {tab.id === 'history' && detail && detail.revision_count > 0 && (
-                    <span className="ml-1 text-[10px] bg-[#F0F0F0] text-[#666666] px-1.5 py-0.5 rounded-full">
-                      {detail.revision_count}
-                    </span>
-                  )}
                 </button>
               )
             })}
@@ -212,9 +203,10 @@ export function BusinessDriverDetailDrawer({
               evidence={detail?.evidence || initialData.evidence || []}
             />
           )}
-          {activeTab === 'evidence' && (
-            <EvidenceTab
+          {activeTab === 'evidence_history' && (
+            <EvidenceHistoryTab
               evidence={detail?.evidence || initialData.evidence || []}
+              revisions={detail?.revisions || []}
               loading={loading}
             />
           )}
@@ -222,12 +214,6 @@ export function BusinessDriverDetailDrawer({
             <ConnectionsTab
               detail={detail}
               initialData={initialData}
-              loading={loading}
-            />
-          )}
-          {activeTab === 'history' && (
-            <HistoryTab
-              revisions={detail?.revisions || []}
               loading={loading}
             />
           )}
@@ -259,25 +245,8 @@ function IntelligenceTab({
   onDetailUpdate: (d: BusinessDriverDetail) => void
 }) {
   const d = detail || initialData
-  const [showFinancialChat, setShowFinancialChat] = useState(false)
-
-  const handleSaveFinancial = async (values: FinancialValues) => {
-    try {
-      await updateDriverFinancials(projectId, driverId, {
-        monetary_value_low: values.monetary_value_low,
-        monetary_value_high: values.monetary_value_high,
-        monetary_type: values.monetary_type,
-        monetary_timeframe: values.monetary_timeframe,
-        monetary_confidence: values.monetary_confidence,
-        monetary_source: values.monetary_source,
-      })
-      const updated = await getBRDDriverDetail(projectId, driverId)
-      onDetailUpdate(updated)
-      setShowFinancialChat(false)
-    } catch (err) {
-      console.error('Failed to save financial impact:', err)
-    }
-  }
+  const [editingFinancial, setEditingFinancial] = useState(false)
+  const [savingFinancial, setSavingFinancial] = useState(false)
 
   // Build narrative from available data
   const narrative = useMemo(() => buildNarrative(driverType, d), [driverType, d])
@@ -305,6 +274,30 @@ function IntelligenceTab({
 
   return (
     <div className="space-y-6">
+      {/* Financial Impact Overview (KPI only — top position) */}
+      {driverType === 'kpi' && (
+        <FinancialOverview
+          d={d}
+          editing={editingFinancial}
+          saving={savingFinancial}
+          onEdit={() => setEditingFinancial(true)}
+          onCancel={() => setEditingFinancial(false)}
+          onSave={async (values) => {
+            setSavingFinancial(true)
+            try {
+              await updateDriverFinancials(projectId, driverId, values)
+              const updated = await getBRDDriverDetail(projectId, driverId)
+              onDetailUpdate(updated)
+              setEditingFinancial(false)
+            } catch (err) {
+              console.error('Failed to save financial impact:', err)
+            } finally {
+              setSavingFinancial(false)
+            }
+          }}
+        />
+      )}
+
       {/* AI Narrative */}
       {narrative && (
         <div className="bg-[#F4F4F4] border border-[#E5E5E5] rounded-xl px-4 py-3">
@@ -382,58 +375,6 @@ function IntelligenceTab({
           </div>
         )}
 
-        {/* Financial Impact (KPI only) */}
-        {driverType === 'kpi' && (
-          <div className="mt-4">
-            <h4 className="text-[11px] font-medium text-[#999999] uppercase tracking-wide mb-3">
-              Financial Impact
-            </h4>
-            {showFinancialChat ? (
-              <FinancialImpactChat
-                existingValues={
-                  (d.monetary_value_low || d.monetary_value_high)
-                    ? {
-                        monetary_type: d.monetary_type ?? null,
-                        monetary_value_low: d.monetary_value_low ?? null,
-                        monetary_value_high: d.monetary_value_high ?? null,
-                        monetary_timeframe: d.monetary_timeframe ?? null,
-                        monetary_confidence: d.monetary_confidence ?? null,
-                        monetary_source: d.monetary_source ?? null,
-                      }
-                    : undefined
-                }
-                onSave={handleSaveFinancial}
-                onCancel={() => setShowFinancialChat(false)}
-              />
-            ) : (d.monetary_value_low || d.monetary_value_high) ? (
-              <div className="space-y-2">
-                <FinancialImpactCard
-                  monetaryValueLow={d.monetary_value_low}
-                  monetaryValueHigh={d.monetary_value_high}
-                  monetaryType={d.monetary_type}
-                  monetaryTimeframe={d.monetary_timeframe}
-                  monetaryConfidence={d.monetary_confidence}
-                  monetarySource={d.monetary_source}
-                />
-                <button
-                  onClick={() => setShowFinancialChat(true)}
-                  className="flex items-center gap-1.5 text-[12px] font-medium text-[#666666] hover:text-[#25785A] transition-colors"
-                >
-                  <Pencil className="w-3 h-3" />
-                  Edit estimate
-                </button>
-              </div>
-            ) : (
-              <button
-                onClick={() => setShowFinancialChat(true)}
-                className="flex items-center gap-2 w-full px-3 py-2.5 text-[12px] font-medium text-[#25785A] bg-white border border-[#3FAF7A] border-dashed rounded-lg hover:bg-[#E8F5E9] transition-colors"
-              >
-                <DollarSign className="w-3.5 h-3.5" />
-                Add Financial Impact
-              </button>
-            )}
-          </div>
-        )}
       </div>
 
       {loading && !detail && (
@@ -442,6 +383,222 @@ function IntelligenceTab({
           <p className="text-[12px] text-[#999999] mt-2">Loading details...</p>
         </div>
       )}
+    </div>
+  )
+}
+
+// ============================================================================
+// Financial Overview (inline at top of KPI Intelligence tab)
+// ============================================================================
+
+const IMPACT_TYPES = [
+  { id: 'cost_reduction', label: 'Cost Reduction' },
+  { id: 'revenue_increase', label: 'Revenue Increase' },
+  { id: 'revenue_new', label: 'New Revenue' },
+  { id: 'risk_avoidance', label: 'Risk Avoidance' },
+  { id: 'productivity_gain', label: 'Productivity Gain' },
+] as const
+
+const TIMEFRAMES = [
+  { id: 'annual', label: 'Annual' },
+  { id: 'monthly', label: 'Monthly' },
+  { id: 'quarterly', label: 'Quarterly' },
+  { id: 'one_time', label: 'One-time' },
+] as const
+
+function FinancialOverview({
+  d,
+  editing,
+  saving,
+  onEdit,
+  onCancel,
+  onSave,
+}: {
+  d: BusinessDriver | BusinessDriverDetail
+  editing: boolean
+  saving: boolean
+  onEdit: () => void
+  onCancel: () => void
+  onSave: (values: {
+    monetary_type?: string | null
+    monetary_value_low?: number | null
+    monetary_value_high?: number | null
+    monetary_timeframe?: string | null
+    monetary_confidence?: number | null
+    monetary_source?: string | null
+  }) => void
+}) {
+  const hasValues = d.monetary_value_low || d.monetary_value_high
+  const [type, setType] = useState(d.monetary_type || '')
+  const [low, setLow] = useState(d.monetary_value_low?.toString() || '')
+  const [high, setHigh] = useState(d.monetary_value_high?.toString() || '')
+  const [timeframe, setTimeframe] = useState(d.monetary_timeframe || 'annual')
+  const [confidence, setConfidence] = useState(d.monetary_confidence != null ? Math.round(d.monetary_confidence * 100) : 50)
+  const [source, setSource] = useState(d.monetary_source || '')
+
+  if (!editing && !hasValues) {
+    return (
+      <button
+        onClick={onEdit}
+        className="flex items-center gap-2 w-full px-3 py-2.5 text-[12px] font-medium text-[#25785A] bg-white border border-[#3FAF7A] border-dashed rounded-lg hover:bg-[#E8F5E9] transition-colors"
+      >
+        <DollarSign className="w-3.5 h-3.5" />
+        Add Financial Impact
+      </button>
+    )
+  }
+
+  if (!editing) {
+    return (
+      <div className="space-y-2">
+        <FinancialImpactCard
+          monetaryValueLow={d.monetary_value_low}
+          monetaryValueHigh={d.monetary_value_high}
+          monetaryType={d.monetary_type}
+          monetaryTimeframe={d.monetary_timeframe}
+          monetaryConfidence={d.monetary_confidence}
+          monetarySource={d.monetary_source}
+        />
+        <button
+          onClick={onEdit}
+          className="flex items-center gap-1.5 text-[12px] font-medium text-[#666666] hover:text-[#25785A] transition-colors"
+        >
+          <Pencil className="w-3 h-3" />
+          Edit estimate
+        </button>
+      </div>
+    )
+  }
+
+  return (
+    <div className="border border-[#E5E5E5] rounded-xl overflow-hidden bg-white">
+      <div className="px-4 py-3 bg-[#F4F4F4] border-b border-[#E5E5E5]">
+        <div className="flex items-center gap-2">
+          <DollarSign className="w-4 h-4 text-[#3FAF7A]" />
+          <span className="text-[13px] font-semibold text-[#333333]">Financial Impact</span>
+        </div>
+      </div>
+      <div className="p-4 space-y-3">
+        {/* Impact Type */}
+        <div>
+          <span className="text-[11px] font-medium text-[#999999] uppercase tracking-wide block mb-1.5">Type</span>
+          <div className="flex flex-wrap gap-1.5">
+            {IMPACT_TYPES.map((t) => (
+              <button
+                key={t.id}
+                onClick={() => setType(t.id)}
+                className={`px-2.5 py-1 text-[11px] font-medium rounded-lg transition-colors ${
+                  type === t.id
+                    ? 'bg-[#3FAF7A] text-white'
+                    : 'bg-white border border-[#E5E5E5] text-[#666666] hover:border-[#3FAF7A]'
+                }`}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Range */}
+        <div>
+          <span className="text-[11px] font-medium text-[#999999] uppercase tracking-wide block mb-1.5">Value Range</span>
+          <div className="flex items-center gap-2">
+            <div className="relative flex-1">
+              <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[12px] text-[#999999]">$</span>
+              <input
+                type="text"
+                value={low}
+                onChange={(e) => setLow(e.target.value)}
+                placeholder="Low"
+                className="w-full pl-6 pr-3 py-1.5 text-[12px] border border-[#E5E5E5] rounded-lg bg-white text-[#333333] placeholder:text-[#999999] focus:outline-none focus:border-[#3FAF7A]"
+              />
+            </div>
+            <span className="text-[12px] text-[#999999]">—</span>
+            <div className="relative flex-1">
+              <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[12px] text-[#999999]">$</span>
+              <input
+                type="text"
+                value={high}
+                onChange={(e) => setHigh(e.target.value)}
+                placeholder="High"
+                className="w-full pl-6 pr-3 py-1.5 text-[12px] border border-[#E5E5E5] rounded-lg bg-white text-[#333333] placeholder:text-[#999999] focus:outline-none focus:border-[#3FAF7A]"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Timeframe */}
+        <div>
+          <span className="text-[11px] font-medium text-[#999999] uppercase tracking-wide block mb-1.5">Timeframe</span>
+          <div className="flex gap-1">
+            {TIMEFRAMES.map((tf) => (
+              <button
+                key={tf.id}
+                onClick={() => setTimeframe(tf.id)}
+                className={`flex-1 px-2 py-1.5 text-[11px] font-medium rounded-lg transition-colors ${
+                  timeframe === tf.id
+                    ? 'bg-[#3FAF7A] text-white'
+                    : 'bg-white border border-[#E5E5E5] text-[#666666] hover:border-[#3FAF7A]'
+                }`}
+              >
+                {tf.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Confidence */}
+        <div>
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-[11px] font-medium text-[#999999] uppercase tracking-wide">Confidence</span>
+            <span className="text-[12px] font-semibold text-[#333333]">{confidence}%</span>
+          </div>
+          <input
+            type="range"
+            min={0}
+            max={100}
+            value={confidence}
+            onChange={(e) => setConfidence(parseInt(e.target.value))}
+            className="w-full h-1.5 bg-[#E5E5E5] rounded-full appearance-none cursor-pointer accent-[#3FAF7A]"
+          />
+        </div>
+
+        {/* Source */}
+        <div>
+          <span className="text-[11px] font-medium text-[#999999] uppercase tracking-wide block mb-1.5">Source (optional)</span>
+          <input
+            type="text"
+            value={source}
+            onChange={(e) => setSource(e.target.value)}
+            placeholder="e.g. CFO estimate, industry benchmark..."
+            className="w-full px-3 py-1.5 text-[12px] border border-[#E5E5E5] rounded-lg bg-white text-[#333333] placeholder:text-[#999999] focus:outline-none focus:border-[#3FAF7A]"
+          />
+        </div>
+
+        {/* Actions */}
+        <div className="flex items-center justify-end gap-2 pt-1">
+          <button
+            onClick={onCancel}
+            className="px-3 py-1.5 text-[12px] font-medium text-[#666666] hover:text-[#333333] rounded-lg hover:bg-[#F0F0F0] transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={() => onSave({
+              monetary_type: type || null,
+              monetary_value_low: parseFloat(low.replace(/[^0-9.]/g, '')) || null,
+              monetary_value_high: parseFloat(high.replace(/[^0-9.]/g, '')) || null,
+              monetary_timeframe: timeframe || null,
+              monetary_confidence: confidence / 100,
+              monetary_source: source || null,
+            })}
+            disabled={saving}
+            className="px-4 py-1.5 text-[12px] font-medium rounded-lg bg-[#3FAF7A] text-white hover:bg-[#25785A] transition-colors disabled:opacity-50"
+          >
+            {saving ? 'Saving...' : 'Save'}
+          </button>
+        </div>
+      </div>
     </div>
   )
 }
@@ -690,65 +847,54 @@ function ConnectionItem({
 }
 
 // ============================================================================
-// Evidence Tab
+// Evidence & History Tab (combined)
 // ============================================================================
 
-function EvidenceTab({
+function EvidenceHistoryTab({
   evidence,
-  loading,
-}: {
-  evidence: import('@/types/workspace').BRDEvidence[]
-  loading: boolean
-}) {
-  if (loading && evidence.length === 0) {
-    return (
-      <div className="text-center py-8">
-        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-[#3FAF7A] mx-auto" />
-        <p className="text-[12px] text-[#999999] mt-2">Loading evidence...</p>
-      </div>
-    )
-  }
-
-  if (evidence.length === 0) {
-    return (
-      <p className="text-[13px] text-[#999999] italic py-4">No evidence sources linked to this item.</p>
-    )
-  }
-
-  return <EvidenceBlock evidence={evidence} maxItems={100} />
-}
-
-// ============================================================================
-// History Tab
-// ============================================================================
-
-function HistoryTab({
   revisions,
   loading,
 }: {
+  evidence: import('@/types/workspace').BRDEvidence[]
   revisions: RevisionEntry[]
   loading: boolean
 }) {
-  if (loading && revisions.length === 0) {
+  if (loading && evidence.length === 0 && revisions.length === 0) {
     return (
       <div className="text-center py-8">
         <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-[#3FAF7A] mx-auto" />
-        <p className="text-[12px] text-[#999999] mt-2">Loading history...</p>
+        <p className="text-[12px] text-[#999999] mt-2">Loading...</p>
       </div>
-    )
-  }
-
-  if (revisions.length === 0) {
-    return (
-      <p className="text-[13px] text-[#999999] italic py-4">No revision history available.</p>
     )
   }
 
   return (
-    <div className="space-y-3">
-      {revisions.map((rev, idx) => (
-        <RevisionCard key={idx} revision={rev} />
-      ))}
+    <div className="space-y-6">
+      {/* Evidence */}
+      <div>
+        <h4 className="text-[11px] font-medium text-[#999999] uppercase tracking-wide mb-2">
+          Evidence Sources
+        </h4>
+        {evidence.length > 0 ? (
+          <EvidenceBlock evidence={evidence} maxItems={100} />
+        ) : (
+          <p className="text-[13px] text-[#999999] italic">No evidence sources linked.</p>
+        )}
+      </div>
+
+      {/* History */}
+      {revisions.length > 0 && (
+        <div>
+          <h4 className="text-[11px] font-medium text-[#999999] uppercase tracking-wide mb-2">
+            Change History
+          </h4>
+          <div className="space-y-3">
+            {revisions.map((rev, idx) => (
+              <RevisionCard key={idx} revision={rev} />
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

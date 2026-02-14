@@ -1,7 +1,7 @@
 'use client'
 
-import { useMemo, useState } from 'react'
-import { Brain, ChevronRight, AlertTriangle, RefreshCw, Loader2 } from 'lucide-react'
+import { useMemo } from 'react'
+import { Brain, AlertTriangle, RefreshCw, Loader2 } from 'lucide-react'
 import type { BRDWorkspaceData, ScopeAlert, BRDHealthData } from '@/types/workspace'
 
 interface IntelligenceSectionProps {
@@ -46,21 +46,6 @@ function MetricCard({
 // ============================================================================
 // Gap item
 // ============================================================================
-
-function GapItem({ message, count }: { message: string; count: number }) {
-  if (count === 0) return null
-  return (
-    <div className="flex items-center gap-2 py-1.5">
-      <span className="w-1.5 h-1.5 rounded-full bg-[#999999] shrink-0" />
-      <span className="text-[12px] text-[#666666]">{message}</span>
-      <span className="ml-auto text-[11px] font-medium text-[#999999] bg-[#F0F0F0] px-1.5 py-0.5 rounded">
-        {count}
-      </span>
-    </div>
-  )
-}
-
-// ============================================================================
 // Alert pill (restyled from HealthPanel)
 // ============================================================================
 
@@ -84,8 +69,6 @@ export function IntelligenceSection({
   onRefreshAll,
   isRefreshing,
 }: IntelligenceSectionProps) {
-  const [gapsExpanded, setGapsExpanded] = useState(false)
-
   // Compute metrics from BRD data
   const metrics = useMemo(() => {
     const allFeatures = [
@@ -145,57 +128,6 @@ export function IntelligenceSection({
     }
   }, [data, health])
 
-  // Compute gaps from BRD data
-  const gaps = useMemo(() => {
-    const allFeatures = [
-      ...data.requirements.must_have,
-      ...data.requirements.should_have,
-      ...data.requirements.could_have,
-    ]
-
-    // Features without VP step mapping
-    const featuresWithoutVpStep = allFeatures.filter((f) => !f.vp_step_id).length
-
-    // VP steps without actor
-    const stepsWithoutActor = data.workflows.filter((s) => !s.actor_persona_id).length
-
-    // Personas without features (not referenced in any feature or VP step)
-    const referencedPersonaIds = new Set<string>()
-    data.workflows.forEach((s) => {
-      if (s.actor_persona_id) referencedPersonaIds.add(s.actor_persona_id)
-    })
-    const orphanedPersonas = data.actors.filter((p) => !referencedPersonaIds.has(p.id)).length
-
-    // Data entities without workflow links
-    const unlinkedDataEntities = data.data_entities.filter((e) => e.workflow_step_count === 0).length
-
-    // Unconfirmed by type
-    const unconfirmedFeatures = allFeatures.filter(
-      (f) => f.confirmation_status === 'ai_generated' || !f.confirmation_status
-    ).length
-    const unconfirmedPersonas = data.actors.filter(
-      (a) => a.confirmation_status === 'ai_generated' || !a.confirmation_status
-    ).length
-
-    const hasGaps =
-      featuresWithoutVpStep > 0 ||
-      stepsWithoutActor > 0 ||
-      orphanedPersonas > 0 ||
-      unlinkedDataEntities > 0 ||
-      unconfirmedFeatures > 0 ||
-      unconfirmedPersonas > 0
-
-    return {
-      featuresWithoutVpStep,
-      stepsWithoutActor,
-      orphanedPersonas,
-      unlinkedDataEntities,
-      unconfirmedFeatures,
-      unconfirmedPersonas,
-      hasGaps,
-    }
-  }, [data])
-
   return (
     <section className="mb-8">
       <div className="flex items-center justify-between mb-4">
@@ -246,55 +178,6 @@ export function IntelligenceSection({
           accent={metrics.riskScore === 'High' ? 'orange' : 'default'}
         />
       </div>
-
-      {/* Gaps section (collapsible) */}
-      {gaps.hasGaps && (
-        <div className="bg-white rounded-2xl shadow-md border border-[#E5E5E5] overflow-hidden mb-4">
-          <button
-            onClick={() => setGapsExpanded(!gapsExpanded)}
-            className="w-full flex items-center gap-2 px-5 py-3 hover:bg-gray-50/50 transition-colors"
-          >
-            <ChevronRight
-              className={`w-4 h-4 text-[#999999] transition-transform ${gapsExpanded ? 'rotate-90' : ''}`}
-            />
-            <span className="text-[13px] font-semibold text-[#333333]">Coverage Gaps</span>
-            <span className="text-[11px] text-[#999999]">
-              Areas that need attention
-            </span>
-          </button>
-
-          {gapsExpanded && (
-            <div className="px-5 pb-4 pt-0 border-t border-[#E5E5E5]">
-              <div className="py-1">
-                <GapItem
-                  message="Features without workflow step mapping"
-                  count={gaps.featuresWithoutVpStep}
-                />
-                <GapItem
-                  message="Workflow steps without actor persona"
-                  count={gaps.stepsWithoutActor}
-                />
-                <GapItem
-                  message="Personas not referenced in any workflow"
-                  count={gaps.orphanedPersonas}
-                />
-                <GapItem
-                  message="Data entities without workflow links"
-                  count={gaps.unlinkedDataEntities}
-                />
-                <GapItem
-                  message="Features pending confirmation"
-                  count={gaps.unconfirmedFeatures}
-                />
-                <GapItem
-                  message="Personas pending confirmation"
-                  count={gaps.unconfirmedPersonas}
-                />
-              </div>
-            </div>
-          )}
-        </div>
-      )}
 
       {/* Scope alerts */}
       {health && health.scope_alerts.length > 0 && (

@@ -880,7 +880,7 @@ async def get_brd_workspace_data(project_id: UUID) -> BRDWorkspaceData:
             comp_result = client.table("competitor_references").select(
                 "id, name, url, category, market_position, key_differentiator, "
                 "pricing_model, target_audience, confirmation_status, "
-                "deep_analysis_status, deep_analysis_at, is_design_reference"
+                "deep_analysis_status, deep_analysis_at, is_design_reference, evidence"
             ).eq("project_id", str(project_id)).eq(
                 "reference_type", "competitor"
             ).order("created_at").execute()
@@ -899,6 +899,7 @@ async def get_brd_workspace_data(project_id: UUID) -> BRDWorkspaceData:
                     deep_analysis_status=c.get("deep_analysis_status"),
                     deep_analysis_at=c.get("deep_analysis_at"),
                     is_design_reference=c.get("is_design_reference", False),
+                    evidence=_parse_evidence(c.get("evidence")),
                 ))
         except Exception:
             logger.debug(f"Could not load competitors for project {project_id}")

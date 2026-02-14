@@ -203,6 +203,7 @@ class CompetitorBRDSummary(BaseModel):
     is_design_reference: bool = False
     is_stale: bool = False
     stale_reason: str | None = None
+    evidence: list[EvidenceItem] = []
 
 
 class BusinessContextSection(BaseModel):

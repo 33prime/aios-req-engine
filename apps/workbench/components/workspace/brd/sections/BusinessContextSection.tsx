@@ -24,9 +24,9 @@ interface BusinessContextSectionProps {
   stakeholders?: StakeholderBRDSummary[]
 }
 
-const SHOW_MAX_PAINS = 4
-const SHOW_MAX_GOALS = 4
-const SHOW_MAX_METRICS = 4
+const SHOW_MAX_PAINS = 8
+const SHOW_MAX_GOALS = 8
+const SHOW_MAX_METRICS = 8
 
 type SortKey = 'relevance' | 'linked' | 'confirmed' | 'newest'
 type FilterKey = 'all' | 'linked' | 'orphaned'

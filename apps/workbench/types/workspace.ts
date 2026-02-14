@@ -1183,6 +1183,7 @@ export interface CompetitorBRDSummary {
   is_design_reference: boolean
   is_stale?: boolean
   stale_reason?: string | null
+  evidence?: BRDEvidence[]
 }
 
 export interface FeatureComparison {
