@@ -37,16 +37,24 @@ Rules:
   "medium" = moderate improvement
   "low" = minor convenience
 
-For each step, also include 1-2 "unlocks" — strategic transformations this step enables.
-These are NOT just "saves time" or "reduces errors" — those are efficiency.
-Real unlocks are:
-- "capability": Something that was literally impossible before (new ability)
-- "scale": Can now handle 10x/100x volume or reach
-- "insight": Surfaces knowledge or patterns that didn't exist before
-- "speed": Time compression so dramatic it changes behavior or decisions
+For each step, include 1-3 "unlocks" — BONUS value this step enables IN ADDITION to
+solving the core problem. These are the "wow" factor — surprising additional capabilities
+that weren't originally contemplated but become possible because this step exists.
 
-Also include a "transformation_narrative" — one sentence describing the before→after
-shift this step creates. Frame it as: "Instead of X, now Y — which means Z."
+Think of it as: "Not only does this solve [the pain], it ALSO lets you..."
+
+Unlock types:
+- "capability": A completely new ability the business gains (couldn't do this before!)
+- "scale": Can now handle dramatically more volume, users, or reach
+- "insight": Surfaces data, patterns, or intelligence that didn't exist before
+- "speed": So fast it fundamentally changes how decisions are made
+
+For unlocks, also consider non-MVP features (should_have/could_have) that become
+naturally available once this step is built. Reference these by name when relevant —
+they're the "while we're here, we could also..." opportunities.
+
+DO NOT frame unlocks as before→after or pain→goal. Those belong in the step itself.
+Unlocks are the EXTRA, UNEXPECTED value on top of solving the stated problem.
 
 Return valid JSON with this exact structure:
 {
@@ -67,13 +75,13 @@ Return valid JSON with this exact structure:
       "roi_impact": "high|medium|low",
       "unlocks": [
         {
-          "description": "What becomes possible",
+          "description": "What ADDITIONAL thing becomes possible (the 'wow' factor)",
           "unlock_type": "capability|scale|insight|speed",
-          "enabled_by": "What feature/automation enables this",
-          "strategic_value": "Why this matters strategically"
+          "enabled_by": "What feature or capability enables this bonus",
+          "strategic_value": "Why this extra value matters to the business",
+          "suggested_feature": "Name of a non-MVP feature this could power, or empty string"
         }
-      ],
-      "transformation_narrative": "Instead of X, now Y — which means Z."
+      ]
     }
   ],
   "synthesis_rationale": "Brief explanation of why this path was chosen",
@@ -88,6 +96,7 @@ def _build_synthesis_prompt(
     must_have_features: list[dict],
     business_drivers: list[dict],
     data_entities: list[dict],
+    non_mvp_features: list[dict] | None = None,
 ) -> str:
     """Build the user prompt with full project context."""
     sections = []
@@ -175,6 +184,20 @@ def _build_synthesis_prompt(
             de_lines.append(f"- {de['name']} ({de.get('entity_category', 'domain')})")
         sections.append(f"## Data Entities\n" + "\n".join(de_lines))
 
+    # Non-MVP features (for unlock suggestions)
+    if non_mvp_features:
+        nmvp_lines = []
+        for f in non_mvp_features:
+            pg = f.get("priority_group", "unset")
+            desc = f.get("overview") or f.get("description") or ""
+            desc_short = desc[:100] + "..." if len(desc) > 100 else desc
+            nmvp_lines.append(f"- {f['name']} [{pg}]: {desc_short}")
+        sections.append(
+            f"## Non-MVP Features (for unlock suggestions)\n"
+            f"These are NOT in scope for the golden path, but consider them for unlock ideas.\n"
+            + "\n".join(nmvp_lines)
+        )
+
     prompt = (
         "Synthesize the optimal value path for this project's prototype.\n\n"
         + "\n\n".join(sections)
@@ -224,6 +247,12 @@ async def synthesize_value_path(project_id: UUID) -> dict:
     ).eq("project_id", str(project_id)).eq("priority_group", "must_have").execute()
     must_have_features = features_result.data or []
 
+    # 3b. Load non-MVP features (for unlock suggestions)
+    non_mvp_result = client.table("features").select(
+        "id, name, overview, category, priority_group"
+    ).eq("project_id", str(project_id)).neq("priority_group", "must_have").execute()
+    non_mvp_features = [f for f in (non_mvp_result.data or []) if f.get("priority_group") != "out_of_scope"]
+
     # 4. Load business drivers
     drivers_result = client.table("business_drivers").select(
         "id, description, driver_type, severity"
@@ -243,6 +272,7 @@ async def synthesize_value_path(project_id: UUID) -> dict:
         must_have_features=must_have_features,
         business_drivers=business_drivers,
         data_entities=data_entities,
+        non_mvp_features=non_mvp_features,
     )
 
     # 7. Call LLM

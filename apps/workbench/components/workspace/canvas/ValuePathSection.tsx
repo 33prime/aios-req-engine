@@ -126,8 +126,8 @@ export function ValuePathSection({
                 The Journey
               </span>
             </div>
-            {/* Separator */}
-            <div className="w-[1px] bg-[#E5E5E5]" />
+            {/* Gap between columns */}
+            <div className="w-4 bg-[#F4F4F4] border-x border-[#E5E5E5]" />
             <div className="flex-1 px-5 py-2.5 bg-[#E8F5E9]">
               <span className="text-[11px] font-semibold text-[#25785A] uppercase tracking-wide">
                 What This Unlocks
@@ -195,7 +195,6 @@ function ValuePathRow({
   onUnlockClick?: (unlock: ValuePathUnlock) => void
 }) {
   const unlocks = step.unlocks || []
-  const narrative = step.transformation_narrative || ''
 
   return (
     <div className={`flex transition-all ${
@@ -266,8 +265,8 @@ function ValuePathRow({
         </div>
       </div>
 
-      {/* Vertical separator */}
-      <div className="w-[1px] bg-[#E5E5E5] shrink-0" />
+      {/* Gap between columns */}
+      <div className="w-4 bg-[#F4F4F4] border-x border-[#E5E5E5] shrink-0" />
 
       {/* RIGHT: Unlocks */}
       <div className="flex-1 px-5 py-3.5">
@@ -280,11 +279,6 @@ function ValuePathRow({
                 onClick={onUnlockClick ? () => onUnlockClick(unlock) : undefined}
               />
             ))}
-            {narrative && (
-              <p className="text-[11px] text-[#666666] italic leading-relaxed border-t border-[#E5E5E5] pt-2">
-                {narrative}
-              </p>
-            )}
           </div>
         ) : (
           <div className="flex items-start gap-2 py-1">
@@ -293,12 +287,7 @@ function ValuePathRow({
                 <div className="w-5 h-5 rounded-full bg-[#E8F5E9] flex items-center justify-center shrink-0 mt-0.5">
                   <Zap className="w-3 h-3 text-[#25785A]" />
                 </div>
-                <div>
-                  <p className="text-[12px] text-[#25785A] font-medium">{step.goal_served}</p>
-                  {narrative && (
-                    <p className="text-[11px] text-[#666666] italic mt-1">{narrative}</p>
-                  )}
-                </div>
+                <p className="text-[12px] text-[#25785A] font-medium">{step.goal_served}</p>
               </>
             ) : (
               <p className="text-[12px] text-[#999999] italic">

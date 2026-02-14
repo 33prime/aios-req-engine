@@ -15,10 +15,14 @@ import {
   Puzzle,
   Cpu,
   Target,
+  Unlock,
+  Lightbulb,
 } from 'lucide-react'
 import { getValuePathStepDetail } from '@/lib/api'
 import type {
   ValuePathStepDetail,
+  ValuePathUnlock,
+  UnlockType,
   StepActor,
   StepDataOperation,
   StepLinkedFeature,
@@ -33,13 +37,14 @@ interface ValuePathStepDrawerProps {
   onClose: () => void
 }
 
-type TabId = 'actors' | 'system_flow' | 'business_calcs' | 'components'
+type TabId = 'actors' | 'system_flow' | 'business_calcs' | 'components' | 'unlocks'
 
-const TABS: { id: TabId; label: string }[] = [
+const TABS: { id: TabId; label: string; accent?: boolean }[] = [
   { id: 'actors', label: 'Actors' },
   { id: 'system_flow', label: 'System Flow' },
-  { id: 'business_calcs', label: 'Business Calculations' },
+  { id: 'business_calcs', label: 'Calculations' },
   { id: 'components', label: 'Components' },
+  { id: 'unlocks', label: 'Unlocks', accent: true },
 ]
 
 export function ValuePathStepDrawer({
@@ -119,17 +124,28 @@ export function ValuePathStepDrawer({
           <div className="flex gap-0 mt-4 -mb-4 border-b-0">
             {TABS.map((tab) => {
               const isActive = activeTab === tab.id
+              const unlockCount = tab.id === 'unlocks' && detail ? detail.unlocks.length : 0
               return (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`px-3 py-2 text-[12px] font-medium border-b-2 transition-colors ${
-                    isActive
-                      ? 'border-[#3FAF7A] text-[#25785A]'
-                      : 'border-transparent text-[#999999] hover:text-[#666666]'
+                  className={`px-3 py-2 text-[12px] font-medium border-b-2 transition-colors flex items-center gap-1 ${
+                    isActive && tab.accent
+                      ? 'border-[#3FAF7A] text-[#25785A] bg-[#E8F5E9]/40 rounded-t-lg'
+                      : isActive
+                        ? 'border-[#3FAF7A] text-[#25785A]'
+                        : tab.accent
+                          ? 'border-transparent text-[#3FAF7A] hover:text-[#25785A]'
+                          : 'border-transparent text-[#999999] hover:text-[#666666]'
                   }`}
                 >
+                  {tab.accent && <Sparkles className="w-3 h-3" />}
                   {tab.label}
+                  {tab.id === 'unlocks' && unlockCount > 0 && (
+                    <span className="text-[9px] font-bold bg-[#3FAF7A] text-white px-1 py-0.5 rounded-full min-w-[16px] text-center">
+                      {unlockCount}
+                    </span>
+                  )}
                 </button>
               )
             })}
@@ -148,6 +164,7 @@ export function ValuePathStepDrawer({
               {activeTab === 'system_flow' && <SystemFlowTab detail={detail} />}
               {activeTab === 'business_calcs' && <BusinessCalculationsTab logic={detail.business_logic} />}
               {activeTab === 'components' && <ComponentsTab detail={detail} />}
+              {activeTab === 'unlocks' && <UnlocksTab unlocks={detail.unlocks} />}
             </>
           ) : (
             <div className="text-center py-8">
@@ -533,6 +550,132 @@ function BusinessCalculationsTab({ logic }: { logic: StepBusinessLogic }) {
           </div>
         </div>
       )}
+    </div>
+  )
+}
+
+// ============================================================================
+// Tab 5: Unlocks — bonus value this step enables
+// ============================================================================
+
+const UNLOCK_ICON_MAP: Record<string, typeof Unlock> = {
+  capability: Unlock,
+  scale: TrendingUp,
+  insight: Lightbulb,
+  speed: Zap,
+}
+
+const UNLOCK_DESCRIPTIONS: Record<string, string> = {
+  capability: 'A completely new ability the business gains',
+  scale: 'Can now handle dramatically more volume or reach',
+  insight: 'Surfaces data or intelligence that didn\'t exist before',
+  speed: 'So fast it fundamentally changes how decisions are made',
+}
+
+function UnlocksTab({ unlocks }: { unlocks: ValuePathUnlock[] }) {
+  if (unlocks.length === 0) {
+    return (
+      <div className="text-center py-10">
+        <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-[#E8F5E9] flex items-center justify-center">
+          <Sparkles className="w-6 h-6 text-[#3FAF7A]" />
+        </div>
+        <p className="text-[13px] text-[#666666] mb-1">No unlocks yet</p>
+        <p className="text-[12px] text-[#999999]">
+          Regenerate the value path to discover bonus capabilities this step enables.
+        </p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Header callout */}
+      <div className="bg-[#E8F5E9] border border-[#3FAF7A]/20 rounded-xl p-4">
+        <div className="flex items-start gap-2.5">
+          <Sparkles className="w-4 h-4 text-[#3FAF7A] flex-shrink-0 mt-0.5" />
+          <div>
+            <p className="text-[13px] font-medium text-[#25785A]">
+              Not only does this step solve the core problem...
+            </p>
+            <p className="text-[12px] text-[#333333] mt-0.5">
+              It also enables {unlocks.length} additional capabilit{unlocks.length === 1 ? 'y' : 'ies'} that weren&apos;t originally contemplated.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Unlock cards */}
+      {unlocks.map((unlock, i) => (
+        <UnlockDetailCard key={i} unlock={unlock} index={i} />
+      ))}
+    </div>
+  )
+}
+
+function UnlockDetailCard({ unlock, index }: { unlock: ValuePathUnlock; index: number }) {
+  const Icon = UNLOCK_ICON_MAP[unlock.unlock_type] || Unlock
+  const typeLabel = unlock.unlock_type.charAt(0).toUpperCase() + unlock.unlock_type.slice(1)
+  const typeDesc = UNLOCK_DESCRIPTIONS[unlock.unlock_type] || ''
+
+  return (
+    <div className="bg-white border border-[#3FAF7A]/20 rounded-xl overflow-hidden">
+      {/* Type header bar */}
+      <div className="bg-[#E8F5E9] px-4 py-2.5 flex items-center gap-2">
+        <div className="w-6 h-6 rounded-full bg-white flex items-center justify-center">
+          <Icon className="w-3.5 h-3.5 text-[#25785A]" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <span className="text-[12px] font-semibold text-[#25785A]">{typeLabel}</span>
+          {typeDesc && (
+            <span className="text-[11px] text-[#25785A]/70 ml-2">{typeDesc}</span>
+          )}
+        </div>
+      </div>
+
+      {/* Content */}
+      <div className="px-4 py-3.5 space-y-3">
+        <p className="text-[13px] text-[#333333] leading-relaxed">
+          {unlock.description}
+        </p>
+
+        {unlock.strategic_value && (
+          <div className="flex items-start gap-2">
+            <Target className="w-3.5 h-3.5 text-[#999999] flex-shrink-0 mt-0.5" />
+            <div>
+              <span className="text-[10px] font-semibold text-[#999999] uppercase tracking-wide">
+                Strategic Value
+              </span>
+              <p className="text-[12px] text-[#666666] mt-0.5">{unlock.strategic_value}</p>
+            </div>
+          </div>
+        )}
+
+        {unlock.enabled_by && (
+          <div className="flex items-start gap-2">
+            <Zap className="w-3.5 h-3.5 text-[#999999] flex-shrink-0 mt-0.5" />
+            <div>
+              <span className="text-[10px] font-semibold text-[#999999] uppercase tracking-wide">
+                Enabled By
+              </span>
+              <p className="text-[12px] text-[#666666] mt-0.5">{unlock.enabled_by}</p>
+            </div>
+          </div>
+        )}
+
+        {unlock.suggested_feature && (
+          <div className="bg-[#F8FFF8] border border-[#3FAF7A]/10 rounded-lg px-3 py-2.5">
+            <div className="flex items-start gap-2">
+              <Lightbulb className="w-3.5 h-3.5 text-[#3FAF7A] flex-shrink-0 mt-0.5" />
+              <div>
+                <span className="text-[10px] font-semibold text-[#25785A] uppercase tracking-wide">
+                  Feature Idea
+                </span>
+                <p className="text-[12px] text-[#333333] mt-0.5 font-medium">{unlock.suggested_feature}</p>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   )
 }

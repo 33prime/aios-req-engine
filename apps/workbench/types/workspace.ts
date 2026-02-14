@@ -961,6 +961,7 @@ export interface ValuePathUnlock {
   unlock_type: UnlockType
   enabled_by: string
   strategic_value: string
+  suggested_feature: string
 }
 
 export interface ValuePathStep {
@@ -978,7 +979,6 @@ export interface ValuePathStep {
   time_minutes?: number | null
   roi_impact: 'high' | 'medium' | 'low'
   unlocks: ValuePathUnlock[]
-  transformation_narrative: string
 }
 
 export interface CanvasViewData {
@@ -1077,6 +1077,8 @@ export interface ValuePathStepDetail {
   linked_features: StepLinkedFeature[]
   ai_suggestions: string[]
   effort_level: string
+  // Tab 5: Unlocks
+  unlocks: ValuePathUnlock[]
 }
 
 // ============================================

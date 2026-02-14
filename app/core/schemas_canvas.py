@@ -11,11 +11,12 @@ from pydantic import BaseModel
 
 
 class ValuePathUnlock(BaseModel):
-    """A strategic unlock enabled by a value path step."""
+    """A bonus capability unlocked by a value path step — the 'wow' factor."""
     description: str
     unlock_type: str = "capability"  # capability, scale, insight, speed
     enabled_by: str = ""
     strategic_value: str = ""
+    suggested_feature: str = ""  # non-MVP feature this could power
 
 
 class ValuePathStep(BaseModel):
@@ -34,7 +35,6 @@ class ValuePathStep(BaseModel):
     time_minutes: int | None = None
     roi_impact: str = "medium"  # high, medium, low
     unlocks: list[ValuePathUnlock] = []
-    transformation_narrative: str = ""
 
 
 class CanvasSynthesis(BaseModel):
@@ -136,7 +136,7 @@ class StepBusinessLogic(BaseModel):
 
 
 class ValuePathStepDetail(BaseModel):
-    """Full detail for a single value path step — powers the 4-tab drawer."""
+    """Full detail for a single value path step — powers the 5-tab drawer."""
     # Core step data
     step_index: int
     title: str
@@ -164,3 +164,6 @@ class ValuePathStepDetail(BaseModel):
     linked_features: list[StepLinkedFeature] = []
     ai_suggestions: list[str] = []
     effort_level: str = "medium"  # light, medium, heavy
+
+    # Tab 5: Unlocks — bonus value this step enables
+    unlocks: list[ValuePathUnlock] = []

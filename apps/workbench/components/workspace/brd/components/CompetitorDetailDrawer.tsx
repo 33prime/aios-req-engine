@@ -257,7 +257,39 @@ export function CompetitorDetailDrawer({
 // Tab Components
 // ============================================================================
 
+function buildOverviewNarrative(c: CompetitorBRDSummary): string | null {
+  const parts: string[] = []
+  const pos = c.market_position?.replace(/_/g, ' ')
+
+  // Sentence 1: who they are
+  if (pos && c.category) {
+    parts.push(`${c.name} is a${pos === 'established' || pos === 'emerging' ? 'n' : ''} ${pos} in the ${c.category} space.`)
+  } else if (c.category) {
+    parts.push(`${c.name} operates in the ${c.category} space.`)
+  } else if (pos) {
+    parts.push(`${c.name} is positioned as a${pos === 'established' || pos === 'emerging' ? 'n' : ''} ${pos} in the market.`)
+  }
+
+  // Sentence 2: differentiator
+  if (c.key_differentiator) {
+    parts.push(`Their key differentiator is ${c.key_differentiator.charAt(0).toLowerCase()}${c.key_differentiator.slice(1)}${c.key_differentiator.endsWith('.') ? '' : '.'}`)
+  }
+
+  // Sentence 3: target audience + pricing
+  if (c.target_audience && c.pricing_model) {
+    parts.push(`They target ${c.target_audience.toLowerCase()} with a ${c.pricing_model.toLowerCase()} pricing model.`)
+  } else if (c.target_audience) {
+    parts.push(`Their target audience is ${c.target_audience.toLowerCase()}.`)
+  } else if (c.pricing_model) {
+    parts.push(`They use a ${c.pricing_model.toLowerCase()} pricing model.`)
+  }
+
+  return parts.length > 0 ? parts.join(' ') : null
+}
+
 function OverviewTab({ competitor }: { competitor: CompetitorBRDSummary }) {
+  const narrative = buildOverviewNarrative(competitor)
+
   const fields = [
     { label: 'Category', value: competitor.category },
     { label: 'Market Position', value: competitor.market_position?.replace(/_/g, ' ') },
@@ -266,26 +298,27 @@ function OverviewTab({ competitor }: { competitor: CompetitorBRDSummary }) {
     { label: 'Target Audience', value: competitor.target_audience },
   ].filter((f) => f.value)
 
-  const evidence = competitor.evidence || []
-
   return (
-    <div className="space-y-4">
-      {fields.map((field) => (
-        <div key={field.label}>
-          <dt className="text-[11px] font-medium text-[#999999] uppercase tracking-wider">{field.label}</dt>
-          <dd className="mt-1 text-[13px] text-[#333333]">{field.value}</dd>
+    <div className="space-y-5">
+      {narrative && (
+        <p className="text-[13px] text-[#333333] leading-relaxed">
+          {narrative}
+        </p>
+      )}
+      {fields.length > 0 && (
+        <div className="grid grid-cols-2 gap-3">
+          {fields.map((field) => (
+            <div key={field.label} className="p-3 bg-[#F4F4F4] rounded-xl">
+              <dt className="text-[11px] font-medium text-[#999999] uppercase tracking-wider">{field.label}</dt>
+              <dd className="mt-1 text-[13px] text-[#333333]">{field.value}</dd>
+            </div>
+          ))}
         </div>
-      ))}
-      {fields.length === 0 && evidence.length === 0 && (
+      )}
+      {!narrative && fields.length === 0 && (
         <p className="text-[13px] text-[#999999] text-center py-8">
           No details available yet. Analyze this competitor to generate insights.
         </p>
-      )}
-      {evidence.length > 0 && (
-        <div className="pt-2">
-          <h4 className="text-[11px] font-medium text-[#999999] uppercase tracking-wider mb-2">Source Evidence</h4>
-          <EvidenceBlock evidence={evidence} maxItems={5} />
-        </div>
       )}
     </div>
   )

@@ -14,6 +14,7 @@ from app.core.schemas_canvas import (
     StepDataOperation,
     StepLinkedFeature,
     ValuePathStepDetail,
+    ValuePathUnlock,
 )
 
 logger = get_logger(__name__)
@@ -118,7 +119,18 @@ async def get_value_path_step_detail(
     # 6. Build combined value from available data
     combined_value = _build_combined_value(step_data, actors, linked_features)
 
-    # 7. Assemble the full detail
+    # 7. Extract unlocks from synthesis data
+    unlocks: list[ValuePathUnlock] = []
+    for u in (step_data.get("unlocks") or []):
+        unlocks.append(ValuePathUnlock(
+            description=u.get("description", ""),
+            unlock_type=u.get("unlock_type", "capability"),
+            enabled_by=u.get("enabled_by", ""),
+            strategic_value=u.get("strategic_value", ""),
+            suggested_feature=u.get("suggested_feature", ""),
+        ))
+
+    # 8. Assemble the full detail
     return ValuePathStepDetail(
         step_index=step_data["step_index"],
         title=step_data["title"],
@@ -142,6 +154,8 @@ async def get_value_path_step_detail(
         linked_features=linked_features,
         ai_suggestions=[],
         effort_level=_estimate_effort(step_data, data_operations, linked_features),
+        # Tab 5: Unlocks
+        unlocks=unlocks,
     )
 
 

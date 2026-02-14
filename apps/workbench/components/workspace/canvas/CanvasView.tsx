@@ -83,6 +83,38 @@ export function CanvasView({ projectId, onRefresh }: CanvasViewProps) {
     loadContext()
   }, [loadData, loadContext])
 
+  // Auto-generate missing data after initial load
+  const [autoGenTriggered, setAutoGenTriggered] = useState(false)
+
+  useEffect(() => {
+    if (isLoading || autoGenTriggered) return
+    if (!data) return
+
+    let triggered = false
+
+    // Auto-generate project context if missing
+    if (!projectContext && !isGeneratingContext) {
+      setIsGeneratingContext(true)
+      triggered = true
+      generateProjectContext(projectId)
+        .then((ctx) => setProjectContext(ctx))
+        .catch((err) => console.error('Auto-generate context failed:', err))
+        .finally(() => setIsGeneratingContext(false))
+    }
+
+    // Auto-synthesize value path if we have actors but no path
+    if (data.actors.length > 0 && data.value_path.length === 0 && !isSynthesizing) {
+      triggered = true
+      setIsSynthesizing(true)
+      triggerValuePathSynthesis(projectId)
+        .then(() => loadData())
+        .catch((err) => console.error('Auto-synthesize value path failed:', err))
+        .finally(() => setIsSynthesizing(false))
+    }
+
+    if (triggered) setAutoGenTriggered(true)
+  }, [isLoading, data, projectContext, autoGenTriggered, projectId, isGeneratingContext, isSynthesizing, loadData])
+
   const handleSynthesize = useCallback(async () => {
     try {
       setIsSynthesizing(true)
