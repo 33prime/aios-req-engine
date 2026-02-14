@@ -434,6 +434,100 @@ registerCommand({
   },
 })
 
+// /analyze-client - Client Intelligence Agent
+registerCommand({
+  name: 'analyze-client',
+  description: 'Run deep client intelligence analysis: firmographics, stakeholders, constraints, vision, data landscape',
+  aliases: ['client-intel', 'client-analysis'],
+  examples: ['/analyze-client'],
+  execute: async (_args, context): Promise<CommandResult> => {
+    const { projectId } = context
+
+    if (!projectId) {
+      return {
+        success: false,
+        message: 'No project selected. Please select a project first.',
+      }
+    }
+
+    // Look up the client_id from the project
+    const { getProjectDetails, getClientIntelligence, analyzeClient } = await import('@/lib/api')
+
+    try {
+      const project = await getProjectDetails(projectId)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const clientId = (project as any).client_id as string | undefined
+
+      if (!clientId) {
+        return {
+          success: false,
+          message: '**No client linked to this project.**\n\nLink a client first via the project settings or `/link-client` command.',
+        }
+      }
+
+      // Show current intelligence before running
+      let message = ''
+      try {
+        const intel = await getClientIntelligence(clientId)
+        const filled = Math.floor(intel.profile_completeness / 10)
+        const empty = 10 - filled
+        const scoreBar = '\u2588'.repeat(filled) + '\u2591'.repeat(empty)
+
+        message += `## Client Intelligence: ${intel.name}\n\n`
+        message += `**Profile:** ${scoreBar} ${intel.profile_completeness}%`
+        if (intel.last_analyzed_at) {
+          message += ` | Last analyzed: ${intel.last_analyzed_at.slice(0, 10)}`
+        }
+        message += '\n\n'
+
+        // Show section highlights
+        if (intel.sections.firmographics.company_summary) {
+          message += `**Company:** ${intel.sections.firmographics.company_summary.slice(0, 150)}...\n`
+        }
+        if (intel.sections.vision) {
+          message += `**Vision:** ${intel.sections.vision.slice(0, 150)}...\n`
+        }
+        if (intel.sections.constraints.length > 0) {
+          message += `**Constraints:** ${intel.sections.constraints.length} identified\n`
+        }
+        if (intel.sections.role_gaps.length > 0) {
+          message += `**Role Gaps:** ${intel.sections.role_gaps.map(g => g.role).join(', ')}\n`
+        }
+        message += '\n---\n\n'
+      } catch {
+        message += '## Client Intelligence\n\nNo intelligence gathered yet.\n\n---\n\n'
+      }
+
+      // Trigger analysis
+      await analyzeClient(clientId)
+      message += '**Analysis started.** The Client Intelligence Agent is now analyzing:\n'
+      message += '1. Firmographic profile (company, market, tech)\n'
+      message += '2. Stakeholder map & role gaps\n'
+      message += '3. Constraints (budget, timeline, regulatory, organizational)\n'
+      message += '4. Vision synthesis & clarity assessment\n'
+      message += '5. Data landscape & AI opportunities\n'
+      message += '6. Organizational context & dynamics\n\n'
+      message += '_Results will update the client profile. Run `/analyze-client` again to see results._'
+
+      const actions: QuickAction[] = [
+        {
+          id: 'refresh-intel',
+          label: 'Refresh Intelligence',
+          command: '/analyze-client',
+          variant: 'default',
+        },
+      ]
+
+      return { success: true, message, actions }
+    } catch (error) {
+      return {
+        success: false,
+        message: `Failed to analyze client: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      }
+    }
+  },
+})
+
 // /research-status - Check on running research
 registerCommand({
   name: 'research-status',

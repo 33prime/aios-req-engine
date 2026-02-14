@@ -1067,7 +1067,7 @@ def consolidate_data_entities(
     seen_names: set[str] = set()
 
     matcher = SimilarityMatcher(entity_type="feature")
-    important_fields = ["name", "description", "entity_category"]
+    important_fields = ["name", "description", "entity_category", "fields"]
 
     for entity in extracted:
         if entity.entity_type != "data_entity":
@@ -1112,9 +1112,26 @@ def consolidate_data_entities(
 
         elif match_result.matched_item:
             matched = match_result.matched_item
+            # Merge fields: combine existing + new, dedup by name
+            existing_fields = matched.get("fields") or []
+            extracted_fields = raw.get("fields") or []
+            if extracted_fields and existing_fields:
+                existing_names = {f.get("name", "").lower() for f in existing_fields if isinstance(f, dict)}
+                merged = list(existing_fields)
+                for f in extracted_fields:
+                    if isinstance(f, dict) and f.get("name", "").lower() not in existing_names:
+                        merged.append(f)
+                merged_fields = merged if len(merged) > len(existing_fields) else None
+            elif extracted_fields:
+                merged_fields = extracted_fields
+            else:
+                merged_fields = None
+
             new_data = {
                 "description": raw.get("detail") or raw.get("description"),
             }
+            if merged_fields is not None:
+                new_data["fields"] = merged_fields
 
             field_changes = detect_field_changes(matched, new_data, important_fields)
 

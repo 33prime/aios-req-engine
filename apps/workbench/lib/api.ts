@@ -2791,3 +2791,54 @@ export interface DiscoveryReadinessReport {
 
 export const getDiscoveryReadiness = (projectId: string) =>
   apiRequest<DiscoveryReadinessReport>(`/projects/${projectId}/discover/readiness`)
+
+// =============================================================================
+// Client Intelligence
+// =============================================================================
+
+export interface ClientIntelligenceProfile {
+  client_id: string
+  name: string
+  profile_completeness: number
+  last_analyzed_at: string | null
+  sections: {
+    firmographics: {
+      company_summary: string | null
+      market_position: string | null
+      technology_maturity: string | null
+      digital_readiness: string | null
+      revenue_range: string | null
+      employee_count: number | null
+      headquarters: string | null
+      tech_stack: string[]
+    }
+    constraints: Array<{
+      title: string
+      description: string
+      category: string
+      severity: string
+      source: string
+      source_detail?: string
+      impacts?: string[]
+    }>
+    role_gaps: Array<{
+      role: string
+      why_needed: string
+      urgency: string
+      which_areas?: string[]
+    }>
+    vision: string | null
+    organizational_context: Record<string, unknown>
+    competitors: Array<{ name: string; relationship?: string }>
+    growth_signals: Array<{ signal: string; type: string }>
+  }
+  enrichment_status: string
+}
+
+export const analyzeClient = (clientId: string) =>
+  apiRequest<{ success: boolean; message: string }>(`/clients/${clientId}/analyze`, {
+    method: 'POST',
+  })
+
+export const getClientIntelligence = (clientId: string) =>
+  apiRequest<ClientIntelligenceProfile>(`/clients/${clientId}/intelligence`)

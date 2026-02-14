@@ -128,6 +128,78 @@ async def enrich_client(client_id: UUID, background_tasks: BackgroundTasks):
     return {"success": True, "message": "Enrichment started", "client_id": str(client_id)}
 
 
+@router.post("/{client_id}/analyze")
+async def analyze_client(client_id: UUID, background_tasks: BackgroundTasks):
+    """Trigger full Client Intelligence Agent analysis."""
+    existing = clients_db.get_client(client_id)
+    if not existing:
+        raise HTTPException(status_code=404, detail="Client not found")
+
+    from app.agents.client_intelligence_agent import invoke_client_intelligence_agent
+
+    async def _run_analysis():
+        try:
+            await invoke_client_intelligence_agent(
+                client_id=client_id,
+                trigger="user_request",
+                specific_request="Full client analysis",
+            )
+        except Exception as e:
+            logger.error(f"Client analysis failed for {client_id}: {e}")
+
+    background_tasks.add_task(_run_analysis)
+
+    return {
+        "success": True,
+        "message": "Client intelligence analysis started",
+        "client_id": str(client_id),
+    }
+
+
+@router.get("/{client_id}/intelligence")
+def get_client_intelligence(client_id: UUID):
+    """Get the current client intelligence profile."""
+    existing = clients_db.get_client(client_id)
+    if not existing:
+        raise HTTPException(status_code=404, detail="Client not found")
+
+    import json as _json
+
+    def _safe_json(val):
+        if isinstance(val, str):
+            try:
+                return _json.loads(val)
+            except (ValueError, TypeError):
+                return val
+        return val
+
+    return {
+        "client_id": str(client_id),
+        "name": existing.get("name"),
+        "profile_completeness": existing.get("profile_completeness", 0),
+        "last_analyzed_at": existing.get("last_analyzed_at"),
+        "sections": {
+            "firmographics": {
+                "company_summary": existing.get("company_summary"),
+                "market_position": existing.get("market_position"),
+                "technology_maturity": existing.get("technology_maturity"),
+                "digital_readiness": existing.get("digital_readiness"),
+                "revenue_range": existing.get("revenue_range"),
+                "employee_count": existing.get("employee_count"),
+                "headquarters": existing.get("headquarters"),
+                "tech_stack": _safe_json(existing.get("tech_stack", [])),
+            },
+            "constraints": _safe_json(existing.get("constraint_summary", [])),
+            "role_gaps": _safe_json(existing.get("role_gaps", [])),
+            "vision": existing.get("vision_synthesis"),
+            "organizational_context": _safe_json(existing.get("organizational_context", {})),
+            "competitors": _safe_json(existing.get("competitors", [])),
+            "growth_signals": _safe_json(existing.get("growth_signals", [])),
+        },
+        "enrichment_status": existing.get("enrichment_status"),
+    }
+
+
 @router.post("/{client_id}/projects/{project_id}/link")
 def link_project(client_id: UUID, project_id: UUID):
     """Link a project to a client."""
