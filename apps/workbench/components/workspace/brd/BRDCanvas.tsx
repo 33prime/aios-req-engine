@@ -262,9 +262,18 @@ export function BRDCanvas({ projectId, onRefresh }: BRDCanvasProps) {
   }>({ open: false, entityType: '', entityId: '', entityName: '' })
 
   const handleOpenConfidence = useCallback((entityType: string, entityId: string, entityName: string, status?: string | null) => {
+    // For workflows, open the workflow detail drawer instead of the generic confidence drawer
+    if (entityType === 'workflow') {
+      setConfidenceDrawer((prev) => ({ ...prev, open: false }))
+      setStakeholderDrawer({ open: false, stakeholder: null })
+      setStepDetailDrawer({ open: false, stepId: '' })
+      setWorkflowDetailDrawer({ open: true, workflowId: entityId })
+      return
+    }
     // Close other drawers when opening confidence
     setStakeholderDrawer({ open: false, stakeholder: null })
     setStepDetailDrawer({ open: false, stepId: '' })
+    setWorkflowDetailDrawer({ open: false, workflowId: '' })
     setConfidenceDrawer({ open: true, entityType, entityId, entityName, initialStatus: status })
   }, [])
 
