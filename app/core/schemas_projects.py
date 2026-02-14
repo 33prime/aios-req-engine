@@ -73,6 +73,10 @@ class ProjectResponse(BaseModel):
     stage_eligible: bool | None = Field(
         None, description="Whether the project is eligible to advance to the next stage"
     )
+    cached_readiness_data: dict[str, Any] | None = Field(
+        None,
+        description="Full cached readiness data for instant display (dimensions, recommendations, etc.)",
+    )
 
 
 class ProjectDetailResponse(ProjectResponse):
@@ -81,10 +85,6 @@ class ProjectDetailResponse(ProjectResponse):
     counts: dict[str, int] = Field(
         ...,
         description="Entity counts (signals, prd_sections, vp_steps, features, insights, personas)",
-    )
-    cached_readiness_data: dict[str, Any] | None = Field(
-        None,
-        description="Full cached readiness data for instant display (dimensions, recommendations, etc.)",
     )
 
 

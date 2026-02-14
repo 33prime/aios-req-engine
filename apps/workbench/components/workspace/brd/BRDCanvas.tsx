@@ -57,12 +57,14 @@ import type { BRDWorkspaceData, BRDHealthData, MoSCoWGroup, StakeholderBRDSummar
 
 interface BRDCanvasProps {
   projectId: string
+  initialData?: BRDWorkspaceData | null
+  initialNextActions?: NextAction[] | null
   onRefresh?: () => void
 }
 
-export function BRDCanvas({ projectId, onRefresh }: BRDCanvasProps) {
-  const [data, setData] = useState<BRDWorkspaceData | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
+export function BRDCanvas({ projectId, initialData, initialNextActions, onRefresh }: BRDCanvasProps) {
+  const [data, setData] = useState<BRDWorkspaceData | null>(initialData ?? null)
+  const [isLoading, setIsLoading] = useState(!initialData)
   const [error, setError] = useState<string | null>(null)
 
   // Health data (lifted from HealthPanel for IntelligenceSection)
@@ -71,8 +73,8 @@ export function BRDCanvas({ projectId, onRefresh }: BRDCanvasProps) {
   const [isRefreshingHealth, setIsRefreshingHealth] = useState(false)
 
   // Next Best Actions
-  const [nextActions, setNextActions] = useState<NextAction[]>([])
-  const [nextActionsLoading, setNextActionsLoading] = useState(true)
+  const [nextActions, setNextActions] = useState<NextAction[]>(initialNextActions ?? [])
+  const [nextActionsLoading, setNextActionsLoading] = useState(!initialNextActions)
 
   const loadNextActions = useCallback(async () => {
     try {
@@ -125,10 +127,12 @@ export function BRDCanvas({ projectId, onRefresh }: BRDCanvasProps) {
   }, [projectId])
 
   useEffect(() => {
-    loadData()
+    // Skip BRD data + next actions fetch if parent already provided them
+    if (!initialData) loadData()
+    if (!initialNextActions) loadNextActions()
+    // Health is always loaded fresh (lightweight, not duplicated by parent)
     loadHealth()
-    loadNextActions()
-  }, [loadData, loadHealth, loadNextActions])
+  }, [loadData, loadHealth, loadNextActions, initialData, initialNextActions])
 
   // Optimistic confirm: update local state immediately, then sync
   const handleConfirm = useCallback(async (entityType: string, entityId: string) => {

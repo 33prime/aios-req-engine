@@ -16,6 +16,7 @@ import {
   Search,
   X,
   LayoutGrid,
+  SquareStack,
   List,
   ChevronDown,
   RefreshCw,
@@ -27,14 +28,14 @@ import {
 } from '@/components/ui/popover'
 
 interface ProjectsTopNavProps {
-  viewMode: 'table' | 'kanban'
+  viewMode: 'table' | 'kanban' | 'cards'
   searchQuery: string
   stageFilter: string
   clientFilter: string
   uniqueClients: string[]
   sortField: 'name' | 'updated_at' | 'readiness_score'
   sortOrder: 'asc' | 'desc'
-  onViewModeChange: (mode: 'table' | 'kanban') => void
+  onViewModeChange: (mode: 'table' | 'kanban' | 'cards') => void
   onSearchChange: (query: string) => void
   onStageFilterChange: (stage: string) => void
   onClientFilterChange: (client: string) => void
@@ -279,6 +280,17 @@ export function ProjectsTopNav({
             title="Table view"
           >
             <List className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => onViewModeChange('cards')}
+            className={`p-1.5 rounded-md transition-colors ${
+              viewMode === 'cards'
+                ? 'bg-white text-brand-teal shadow-sm'
+                : 'text-ui-supportText hover:text-ui-headingDark'
+            }`}
+            title="Cards view"
+          >
+            <SquareStack className="w-4 h-4" />
           </button>
           <button
             onClick={() => onViewModeChange('kanban')}

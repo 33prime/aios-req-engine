@@ -1,10 +1,13 @@
 /**
- * ReadinessCell - Compact readiness display for table view
+ * ReadinessCell - Compact readiness display for table/card views
  *
  * Shows:
- * - Colored dot + progress bar showing gate score
+ * - Colored dot + progress bar showing readiness progress
  * - Percentage displayed as XX%
  * - Em-dash when score is null (readiness not yet computed)
+ *
+ * Uses dimensional weighted score (actual work done) rather than
+ * gate-capped score, so projects with real progress show > 0%.
  */
 
 import React from 'react'
@@ -14,9 +17,28 @@ interface ReadinessCellProps {
   project: ProjectDetailWithDashboard
 }
 
+function computeDimensionalScore(
+  cached: ProjectDetailWithDashboard['cached_readiness_data']
+): number | null {
+  if (!cached?.dimensions) return null
+  const dims = cached.dimensions
+  let total = 0
+  for (const key of Object.keys(dims)) {
+    const d = dims[key]
+    if (d && typeof d.score === 'number' && typeof d.weight === 'number') {
+      total += d.score * d.weight
+    }
+  }
+  return total
+}
+
 export function ReadinessCell({ project }: ReadinessCellProps) {
-  // Use gate_score from cached readiness data, fallback to readiness_score
-  const rawScore = project.cached_readiness_data?.gate_score ?? project.readiness_score ?? null
+  const cached = project.cached_readiness_data
+
+  // Prefer dimensional score (actual progress), then gate_score, then readiness_score
+  const dimensionalScore = computeDimensionalScore(cached)
+  const rawScore = dimensionalScore ?? cached?.gate_score ?? project.readiness_score ?? null
+
   const hasScore = rawScore !== null
   const score = rawScore ?? 0
   const roundedScore = Math.round(score)
@@ -24,19 +46,24 @@ export function ReadinessCell({ project }: ReadinessCellProps) {
   // Color based on score
   const getColor = () => {
     if (roundedScore >= 80) return {
-      bar: 'bg-[#009b87]',
-      text: 'text-[#009b87]',
-      dot: 'bg-[#009b87]',
+      bar: 'bg-[#3FAF7A]',
+      text: 'text-[#3FAF7A]',
+      dot: 'bg-[#3FAF7A]',
     }
     if (roundedScore >= 50) return {
-      bar: 'bg-emerald-400',
+      bar: 'bg-[#4CC08C]',
+      text: 'text-[#25785A]',
+      dot: 'bg-[#4CC08C]',
+    }
+    if (roundedScore >= 20) return {
+      bar: 'bg-emerald-300',
       text: 'text-emerald-600',
-      dot: 'bg-emerald-400',
+      dot: 'bg-emerald-300',
     }
     return {
-      bar: 'bg-emerald-200',
-      text: 'text-emerald-500',
-      dot: 'bg-emerald-200',
+      bar: 'bg-gray-300',
+      text: 'text-[#999]',
+      dot: 'bg-gray-300',
     }
   }
 
@@ -44,7 +71,7 @@ export function ReadinessCell({ project }: ReadinessCellProps) {
 
   if (!hasScore) {
     return (
-      <span className="text-sm text-ui-supportText">&mdash;</span>
+      <span className="text-sm text-[#999]">&mdash;</span>
     )
   }
 

@@ -12,14 +12,22 @@
 
 import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { listProjects, getMyProfile } from '@/lib/api'
-import type { ProjectDetailWithDashboard, Profile } from '@/types/api'
+import {
+  listProjects,
+  getMyProfile,
+  getNextActions,
+  getTaskStats,
+  listUpcomingMeetings,
+} from '@/lib/api'
+import type { NextAction, TaskStatsResponse } from '@/lib/api'
+import type { ProjectDetailWithDashboard, Profile, Meeting } from '@/types/api'
 import { ProjectsTopNav } from './components/ProjectsTopNav'
 import { ProjectsTable } from './components/ProjectsTable'
 import { ProjectsKanban } from './components/ProjectsKanban'
+import { ProjectsCards } from './components/ProjectsCards'
 import { AppSidebar } from '@/components/workspace/AppSidebar'
 
-type ViewMode = 'table' | 'kanban'
+type ViewMode = 'table' | 'kanban' | 'cards'
 type SortField = 'name' | 'updated_at' | 'readiness_score'
 type SortOrder = 'asc' | 'desc'
 
@@ -29,8 +37,11 @@ export default function ProjectsPage() {
   const [ownerProfiles, setOwnerProfiles] = useState<Record<string, { first_name?: string; last_name?: string; photo_url?: string }>>({})
   const [currentUser, setCurrentUser] = useState<Profile | null>(null)
   const [loading, setLoading] = useState(true)
+  const [nextActionsMap, setNextActionsMap] = useState<Record<string, NextAction | null>>({})
+  const [taskStatsMap, setTaskStatsMap] = useState<Record<string, TaskStatsResponse | null>>({})
+  const [meetings, setMeetings] = useState<Meeting[]>([])
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
-  const [viewMode, setViewMode] = useState<ViewMode>('table')
+  const [viewMode, setViewMode] = useState<ViewMode>('cards')
   const [searchQuery, setSearchQuery] = useState('')
   const [stageFilter, setStageFilter] = useState<string>('all')
   const [clientFilter, setClientFilter] = useState<string>('all')
@@ -54,9 +65,41 @@ export default function ProjectsPage() {
   const loadProjects = async () => {
     try {
       setLoading(true)
-      const response = await listProjects('active')
+      const [response, meetingsRes] = await Promise.all([
+        listProjects('active'),
+        listUpcomingMeetings(30).catch(() => [] as Meeting[]),
+      ])
       setProjects(response.projects)
       setOwnerProfiles(response.owner_profiles || {})
+      setMeetings(meetingsRes)
+
+      // Load per-project supplementary data in parallel (non-blocking)
+      // Readiness uses cached_readiness_data from listProjects (no extra calls needed)
+      const loadedProjects = response.projects
+      const [actionResults, statsResults] = await Promise.all([
+        Promise.all(
+          loadedProjects.map((p) =>
+            getNextActions(p.id)
+              .then((res) => ({ id: p.id, action: res.actions[0] ?? null }))
+              .catch(() => ({ id: p.id, action: null }))
+          )
+        ),
+        Promise.all(
+          loadedProjects.map((p) =>
+            getTaskStats(p.id)
+              .then((stats) => ({ id: p.id, stats }))
+              .catch(() => ({ id: p.id, stats: null }))
+          )
+        ),
+      ])
+
+      const actionsMap: Record<string, NextAction | null> = {}
+      for (const r of actionResults) actionsMap[r.id] = r.action
+      setNextActionsMap(actionsMap)
+
+      const sMap: Record<string, TaskStatsResponse | null> = {}
+      for (const r of statsResults) sMap[r.id] = r.stats
+      setTaskStatsMap(sMap)
     } catch (error) {
       console.error('Failed to load projects:', error)
     } finally {
@@ -194,11 +237,22 @@ export default function ProjectsPage() {
               onSort={handleSort}
               onProjectClick={handleProjectClick}
             />
-          ) : (
+          ) : viewMode === 'kanban' ? (
             <ProjectsKanban
               projects={sortedProjects}
               ownerProfiles={ownerProfiles}
               currentUser={currentUser}
+              onProjectClick={handleProjectClick}
+              onRefresh={handleRefresh}
+            />
+          ) : (
+            <ProjectsCards
+              projects={sortedProjects}
+              ownerProfiles={ownerProfiles}
+              currentUser={currentUser}
+              nextActionsMap={nextActionsMap}
+              taskStatsMap={taskStatsMap}
+              meetings={meetings}
               onProjectClick={handleProjectClick}
               onRefresh={handleRefresh}
             />

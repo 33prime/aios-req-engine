@@ -6,8 +6,11 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from app.core.auth_middleware import AuthContext, require_auth
 from app.core.logging import get_logger
+from datetime import UTC, datetime
+
 from app.core.readiness import ReadinessScore, compute_readiness
 from app.core.readiness.gate_impact import get_entity_gate_impact_summary
+from app.db.supabase_client import get_supabase
 
 logger = get_logger(__name__)
 
@@ -41,6 +44,17 @@ async def get_project_readiness(
     """
     try:
         score = compute_readiness(project_id)
+
+        # Write-through: cache the computed result so list views show fresh scores
+        try:
+            supabase = get_supabase()
+            supabase.table("projects").update({
+                "cached_readiness_score": score.score / 100.0,
+                "cached_readiness_data": score.model_dump(mode="json"),
+                "readiness_calculated_at": datetime.now(UTC).isoformat(),
+            }).eq("id", str(project_id)).execute()
+        except Exception:
+            logger.warning(f"Failed to cache readiness for {project_id}, serving live result")
 
         logger.info(
             f"Computed readiness score for project {project_id}: {score.score}%",

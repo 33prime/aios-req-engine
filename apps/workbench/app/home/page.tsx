@@ -116,7 +116,18 @@ function ProjectCard({
 }) {
   const router = useRouter()
   const readiness = project.cached_readiness_data
-  const score = readiness?.score ?? project.readiness_score ?? 0
+  // Compute dimensional score (actual progress) instead of gate-capped score
+  let score = 0
+  if (readiness?.dimensions) {
+    for (const key of Object.keys(readiness.dimensions)) {
+      const d = readiness.dimensions[key]
+      if (d && typeof d.score === 'number' && typeof d.weight === 'number') {
+        score += d.score * d.weight
+      }
+    }
+  } else {
+    score = readiness?.gate_score ?? project.readiness_score ?? 0
+  }
   const stageLabel = STAGE_LABELS[project.stage] || project.stage
 
   return (
@@ -509,12 +520,13 @@ export default function HomeDashboard() {
             portalPending={totalPortalPending}
           />
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 mt-5">
+          <h2 className="text-sm font-semibold text-[#333] mt-5 mb-3">Your Projects</h2>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 items-start">
             {/* Left 2/3: Projects + Tasks */}
             <div className="lg:col-span-2 space-y-5">
-              {/* Project cards heading */}
+              {/* Project cards */}
               <div>
-                <h2 className="text-sm font-semibold text-[#333] mb-3">Your Projects</h2>
                 {filteredProjects.length === 0 ? (
                   <p className="text-xs text-[#999]">
                     {searchQuery ? 'No projects match your search' : 'No active projects'}

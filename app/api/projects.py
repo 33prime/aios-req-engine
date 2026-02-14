@@ -1397,4 +1397,5 @@ def _to_project_response(p: dict, signal_id: UUID | None = None, onboarding_job_
         status_narrative=status_narrative,
         readiness_score=readiness_score,
         stage_eligible=stage_eligible,
+        cached_readiness_data=cached_data,
     )

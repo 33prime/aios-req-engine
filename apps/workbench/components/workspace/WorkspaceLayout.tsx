@@ -108,16 +108,13 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
       setIsLoading(true)
       setError(null)
 
-      const [data, readiness, brd, actionsRes] = await Promise.all([
+      const [data, readiness, brd, actionsRes, proto] = await Promise.all([
         getWorkspaceData(projectId),
         getReadinessScore(projectId).catch(() => null),
         getBRDWorkspaceData(projectId).catch(() => null),
         getNextActions(projectId).catch(() => null),
+        getPrototypeForProject(projectId).catch(() => null),
       ])
-
-      // If there's an active prototype with a deploy_url, prefer it over the
-      // manually-entered projects.prototype_url
-      const proto = await getPrototypeForProject(projectId).catch(() => null)
       if (proto?.deploy_url) {
         data.prototype_url = proto.deploy_url
       }
@@ -432,7 +429,7 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
                 </div>
 
                 {discoveryViewMode === 'brd' ? (
-                  <BRDCanvas projectId={projectId} onRefresh={loadData} />
+                  <BRDCanvas projectId={projectId} initialData={brdData} initialNextActions={nextActions} onRefresh={loadData} />
                 ) : (
                   <CanvasView projectId={projectId} onRefresh={loadData} />
                 )}
