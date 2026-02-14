@@ -203,7 +203,7 @@ class Settings(BaseSettings):
     SERPAPI_API_KEY: str = Field(default="", description="SerpAPI key for Google search")
     PDL_API_KEY: str = Field(default="", description="People Data Labs API key for company enrichment")
     BRIGHTDATA_API_KEY: str = Field(default="", description="Bright Data API key for anti-bot scraping")
-    BRIGHTDATA_ZONE: str = Field(default="unlocker", description="Bright Data zone name")
+    BRIGHTDATA_ZONE: str = Field(default="", description="Bright Data Web Unlocker zone name (create at brightdata.com/cp/start)")
 
     # Discovery Pipeline limits
     DISCOVERY_MAX_COST_USD: float = Field(default=1.25, description="Hard cost cap for discovery pipeline")
