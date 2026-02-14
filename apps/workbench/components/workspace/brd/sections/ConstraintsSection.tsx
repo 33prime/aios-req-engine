@@ -1,11 +1,24 @@
 'use client'
 
-import { useState } from 'react'
-import { Shield, ChevronRight, AlertTriangle } from 'lucide-react'
+import { useState, useMemo } from 'react'
+import {
+  Shield,
+  ChevronRight,
+  DollarSign,
+  Clock,
+  Scale,
+  Building2,
+  Server,
+  Target,
+  Sparkles,
+  Check,
+  X,
+} from 'lucide-react'
 import { SectionHeader } from '../components/SectionHeader'
 import { BRDStatusBadge } from '../components/StatusBadge'
 import { ConfirmActions } from '../components/ConfirmActions'
-import type { ConstraintItem } from '@/types/workspace'
+import { EvidenceBlock } from '../components/EvidenceBlock'
+import type { ConstraintItem, SectionScore } from '@/types/workspace'
 
 interface ConstraintsSectionProps {
   constraints: ConstraintItem[]
@@ -13,17 +26,29 @@ interface ConstraintsSectionProps {
   onNeedsReview: (entityType: string, entityId: string) => void
   onConfirmAll: (entityType: string, ids: string[]) => void
   onStatusClick?: (entityType: string, entityId: string, entityName: string, status?: string | null) => void
+  onInferConstraints?: () => Promise<void>
+  sectionScore?: SectionScore | null
 }
 
-// Brand-appropriate severity indicators — no red/orange/yellow
-const SEVERITY_CONFIG: Record<string, { label: string; bg: string; text: string; dot: string }> = {
-  critical: { label: 'Critical', bg: 'bg-[#0A1E2F]', text: 'text-white', dot: '#0A1E2F' },
-  high: { label: 'High', bg: 'bg-[#25785A]', text: 'text-white', dot: '#25785A' },
-  medium: { label: 'Medium', bg: 'bg-[#E8F5E9]', text: 'text-[#25785A]', dot: '#3FAF7A' },
-  low: { label: 'Low', bg: 'bg-[#F0F0F0]', text: 'text-[#666666]', dot: '#999999' },
+// 6-category type config with icons
+const TYPE_CONFIG: Record<string, { icon: typeof DollarSign; label: string }> = {
+  budget: { icon: DollarSign, label: 'Budget' },
+  timeline: { icon: Clock, label: 'Timeline' },
+  regulatory: { icon: Scale, label: 'Regulatory' },
+  organizational: { icon: Building2, label: 'Organizational' },
+  technical: { icon: Server, label: 'Technical' },
+  strategic: { icon: Target, label: 'Strategic' },
 }
 
-function ConstraintAccordionCard({
+// Brand-appropriate severity indicators
+const SEVERITY_CONFIG: Record<string, { label: string; bg: string; text: string }> = {
+  critical: { label: 'Critical', bg: 'bg-[#0A1E2F]', text: 'text-white' },
+  high: { label: 'High', bg: 'bg-[#25785A]', text: 'text-white' },
+  medium: { label: 'Medium', bg: 'bg-[#E8F5E9]', text: 'text-[#25785A]' },
+  low: { label: 'Low', bg: 'bg-[#F0F0F0]', text: 'text-[#666666]' },
+}
+
+function ConstraintCard({
   constraint,
   onConfirm,
   onNeedsReview,
@@ -36,26 +61,41 @@ function ConstraintAccordionCard({
 }) {
   const [expanded, setExpanded] = useState(false)
   const sev = SEVERITY_CONFIG[constraint.severity] || SEVERITY_CONFIG.medium
+  const typeConfig = TYPE_CONFIG[constraint.constraint_type] || TYPE_CONFIG.technical
+  const TypeIcon = typeConfig.icon
+  const isAiInferred = constraint.source === 'ai_inferred'
 
   return (
-    <div className="bg-white rounded-2xl shadow-md border border-[#E5E5E5] overflow-hidden">
+    <div className={`bg-white rounded-2xl shadow-md overflow-hidden ${
+      isAiInferred
+        ? 'border-2 border-dashed border-[#3FAF7A]/40'
+        : 'border border-[#E5E5E5]'
+    }`}>
       {/* Header row */}
       <button
         onClick={() => setExpanded(!expanded)}
-        className="w-full flex items-center gap-3 px-5 py-4 text-left hover:bg-gray-50/50 transition-colors"
+        className="w-full flex items-center gap-3 px-5 py-3.5 text-left hover:bg-gray-50/50 transition-colors"
       >
         <ChevronRight
           className={`w-4 h-4 text-[#999999] shrink-0 transition-transform duration-200 ${expanded ? 'rotate-90' : ''}`}
         />
-        <Shield className="w-4 h-4 text-[#25785A] shrink-0" />
-        <span className="text-[14px] font-semibold text-[#333333] truncate">{constraint.title}</span>
-        {constraint.constraint_type && (
-          <span className="text-[12px] text-[#999999] shrink-0">({constraint.constraint_type})</span>
+        <TypeIcon className="w-4 h-4 text-[#25785A] shrink-0" />
+        <span className="text-[14px] font-semibold text-[#333333] truncate flex-1">{constraint.title}</span>
+        {isAiInferred && (
+          <span className="inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-[#E8F5E9] text-[#3FAF7A] shrink-0">
+            <Sparkles className="w-2.5 h-2.5" />
+            AI
+          </span>
+        )}
+        {constraint.confidence != null && isAiInferred && (
+          <span className="text-[10px] text-[#999999] shrink-0">
+            {Math.round(constraint.confidence * 100)}%
+          </span>
         )}
         <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full shrink-0 ${sev.bg} ${sev.text}`}>
           {sev.label}
         </span>
-        <span className="ml-auto shrink-0" onClick={(e) => e.stopPropagation()}>
+        <span className="shrink-0" onClick={(e) => e.stopPropagation()}>
           <BRDStatusBadge
             status={constraint.confirmation_status}
             onClick={onStatusClick ? () => onStatusClick('constraint', constraint.id, constraint.title, constraint.confirmation_status) : undefined}
@@ -65,52 +105,25 @@ function ConstraintAccordionCard({
 
       {/* Expanded body */}
       <div className={`overflow-hidden transition-all duration-200 ${expanded ? 'max-h-[2000px] opacity-100' : 'max-h-0 opacity-0'}`}>
-        <div className="px-5 pb-5 pt-1">
+        <div className="px-5 pb-5 pt-1 border-t border-[#E5E5E5]">
           {/* Description */}
           {constraint.description && (
-            <p className="text-[13px] text-[#666666] leading-relaxed mb-4">{constraint.description}</p>
+            <p className="text-[13px] text-[#666666] leading-relaxed mb-3">{constraint.description}</p>
           )}
 
-          {/* Constraint metadata */}
-          <div className="flex gap-6">
-            <div className="flex-1 min-w-0">
-              <div className="px-3 py-1.5 rounded-lg mb-3 bg-[#E8F5E9] text-[#25785A]">
-                <span className="text-[11px] font-semibold uppercase tracking-wider">Details</span>
-              </div>
-              <ul className="space-y-2">
-                <li className="flex items-start gap-2 text-[13px] text-[#666666]">
-                  <span className="text-[#3FAF7A] mt-0.5 shrink-0">&#8226;</span>
-                  <span>Severity: <span className="font-medium text-[#333333]">{sev.label}</span></span>
-                </li>
-                {constraint.constraint_type && (
-                  <li className="flex items-start gap-2 text-[13px] text-[#666666]">
-                    <span className="text-[#3FAF7A] mt-0.5 shrink-0">&#8226;</span>
-                    <span>Type: <span className="font-medium text-[#333333]">{constraint.constraint_type}</span></span>
-                  </li>
-                )}
-              </ul>
+          {/* Impact */}
+          {constraint.impact_description && (
+            <div className="bg-[#F9F9F9] rounded-lg p-3 mb-3">
+              <p className="text-[11px] font-medium text-[#999999] uppercase tracking-wide mb-1">Impact if Ignored</p>
+              <p className="text-[12px] text-[#666666]">{constraint.impact_description}</p>
             </div>
+          )}
 
-            {/* Evidence */}
-            {constraint.evidence && constraint.evidence.length > 0 && (
-              <div className="flex-1 min-w-0">
-                <div className="px-3 py-1.5 rounded-lg mb-3 bg-[#F0F0F0] text-[#666666]">
-                  <span className="text-[11px] font-semibold uppercase tracking-wider">Evidence</span>
-                </div>
-                <ul className="space-y-2">
-                  {constraint.evidence.slice(0, 3).map((ev, i) => (
-                    <li key={i} className="flex items-start gap-2 text-[13px] text-[#666666]">
-                      <span className="text-[#999999] mt-0.5 shrink-0">&#8226;</span>
-                      <span className="line-clamp-2">{ev.rationale || ev.excerpt || 'Source evidence'}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-          </div>
+          {/* Evidence */}
+          <EvidenceBlock evidence={constraint.evidence || []} maxItems={3} />
 
           {/* Actions */}
-          <div className="mt-4 pt-3 border-t border-[#E5E5E5]">
+          <div className="mt-3 pt-3 border-t border-[#E5E5E5]">
             <ConfirmActions
               status={constraint.confirmation_status}
               onConfirm={() => onConfirm('constraint', constraint.id)}
@@ -123,25 +136,119 @@ function ConstraintAccordionCard({
   )
 }
 
-export function ConstraintsSection({ constraints, onConfirm, onNeedsReview, onConfirmAll, onStatusClick }: ConstraintsSectionProps) {
+export function ConstraintsSection({
+  constraints,
+  onConfirm,
+  onNeedsReview,
+  onConfirmAll,
+  onStatusClick,
+  onInferConstraints,
+  sectionScore,
+}: ConstraintsSectionProps) {
+  const [inferring, setInferring] = useState(false)
+
   const confirmedCount = constraints.filter(
     (c) => c.confirmation_status === 'confirmed_consultant' || c.confirmation_status === 'confirmed_client'
   ).length
 
+  // Group constraints by type
+  const grouped = useMemo(() => {
+    const groups: Record<string, ConstraintItem[]> = {}
+    const order = ['budget', 'timeline', 'regulatory', 'organizational', 'technical', 'strategic']
+    for (const type of order) {
+      groups[type] = []
+    }
+    for (const c of constraints) {
+      const type = c.constraint_type || 'technical'
+      if (!groups[type]) groups[type] = []
+      groups[type].push(c)
+    }
+    return groups
+  }, [constraints])
+
+  const nonEmptyGroups = Object.entries(grouped).filter(([, items]) => items.length > 0)
+
+  const handleInfer = async () => {
+    if (!onInferConstraints) return
+    setInferring(true)
+    try {
+      await onInferConstraints()
+    } finally {
+      setInferring(false)
+    }
+  }
+
   return (
     <section>
-      <SectionHeader
-        title="Constraints"
-        count={constraints.length}
-        confirmedCount={confirmedCount}
-        onConfirmAll={() => onConfirmAll('constraint', constraints.map((c) => c.id))}
-      />
+      <div className="flex items-center justify-between mb-4">
+        <SectionHeader
+          title="Constraints"
+          count={constraints.length}
+          confirmedCount={confirmedCount}
+          onConfirmAll={() => onConfirmAll('constraint', constraints.map((c) => c.id))}
+          sectionScore={sectionScore}
+        />
+        {onInferConstraints && (
+          <button
+            onClick={handleInfer}
+            disabled={inferring}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-[#3FAF7A] bg-[#E8F5E9] rounded-xl hover:bg-[#d4edda] transition-colors disabled:opacity-50"
+          >
+            <Sparkles className={`w-3.5 h-3.5 ${inferring ? 'animate-spin' : ''}`} />
+            {inferring ? 'Analyzing...' : 'Suggest Constraints'}
+          </button>
+        )}
+      </div>
       {constraints.length === 0 ? (
-        <p className="text-[13px] text-[#999999] italic">No constraints identified yet</p>
+        <div className="text-center py-6">
+          <Shield className="w-6 h-6 text-[#999999] mx-auto mb-2" />
+          <p className="text-[13px] text-[#999999]">No constraints identified yet</p>
+          {onInferConstraints && (
+            <button
+              onClick={handleInfer}
+              disabled={inferring}
+              className="mt-3 inline-flex items-center gap-1.5 px-4 py-2 text-[12px] font-medium text-white bg-[#3FAF7A] rounded-xl hover:bg-[#25785A] transition-colors disabled:opacity-50"
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              {inferring ? 'Analyzing...' : 'Suggest Constraints with AI'}
+            </button>
+          )}
+        </div>
+      ) : nonEmptyGroups.length > 1 ? (
+        // Grouped view: show category headers
+        <div className="space-y-6">
+          {nonEmptyGroups.map(([type, items]) => {
+            const config = TYPE_CONFIG[type] || TYPE_CONFIG.technical
+            const Icon = config.icon
+            return (
+              <div key={type}>
+                <div className="flex items-center gap-2 mb-2">
+                  <Icon className="w-4 h-4 text-[#999999]" />
+                  <h3 className="text-[12px] font-semibold text-[#666666] uppercase tracking-wide">
+                    {config.label}
+                  </h3>
+                  <span className="text-[11px] text-[#999999]">({items.length})</span>
+                </div>
+                <div className="space-y-2">
+                  {items.map((constraint) => (
+                    <ConstraintCard
+                      key={constraint.id}
+                      constraint={constraint}
+                      onConfirm={onConfirm}
+                      onNeedsReview={onNeedsReview}
+                      onStatusClick={onStatusClick}
+                    />
+                  ))}
+                </div>
+              </div>
+            )
+          })}
+        </div>
       ) : (
-        <div className="space-y-3">
+        // Flat view for single category
+        <div className="space-y-2">
           {constraints.map((constraint) => (
-            <ConstraintAccordionCard
+            <ConstraintCard
               key={constraint.id}
               constraint={constraint}
               onConfirm={onConfirm}

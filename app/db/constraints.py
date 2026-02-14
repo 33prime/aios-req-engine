@@ -14,19 +14,17 @@ from app.db.supabase_client import get_supabase
 logger = get_logger(__name__)
 
 
-# Valid constraint types
+# Valid constraint types (6 categories — see migration 0120)
 CONSTRAINT_TYPES = {
-    "technical",      # "Must support 10k users"
-    "compliance",     # "HIPAA compliance required"
-    "integration",    # "Must sync with Salesforce"
-    "business",       # "Budget under $50k"
+    "budget",         # "Budget under $50k"
     "timeline",       # "Must launch by Q3"
-    "risk",           # "Risk of scope creep"
-    "kpi",            # "Reduce churn by 20%"
-    "assumption",     # "Users have modern browsers"
+    "regulatory",     # "HIPAA compliance required"
+    "organizational", # "Users have modern browsers"
+    "technical",      # "Must support 10k users"
+    "strategic",      # "Align with company growth plan"
 }
 
-SEVERITY_LEVELS = {"must_have", "should_have", "nice_to_have"}
+SEVERITY_LEVELS = {"critical", "high", "medium", "low"}
 
 
 def create_constraint(
@@ -34,7 +32,7 @@ def create_constraint(
     title: str,
     constraint_type: str,
     description: str | None = None,
-    severity: str = "should_have",
+    severity: str = "medium",
     evidence: list[dict] | None = None,
     extracted_from_signal_id: UUID | None = None,
     linked_feature_ids: list[UUID] | None = None,
@@ -68,7 +66,7 @@ def create_constraint(
 
     # Validate severity
     if severity not in SEVERITY_LEVELS:
-        severity = "should_have"
+        severity = "medium"
 
     data = {
         "project_id": str(project_id),

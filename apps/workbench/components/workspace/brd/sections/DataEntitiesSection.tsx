@@ -7,7 +7,7 @@ import { BRDStatusBadge } from '../components/StatusBadge'
 import { ConfirmActions } from '../components/ConfirmActions'
 import { StaleIndicator } from '../components/StaleIndicator'
 import { DataEntityERD } from '../components/DataEntityERD'
-import type { DataEntityBRDSummary, DataEntityField } from '@/types/workspace'
+import type { DataEntityBRDSummary, DataEntityField, SectionScore } from '@/types/workspace'
 
 interface DataEntitiesSectionProps {
   projectId: string
@@ -19,6 +19,8 @@ interface DataEntitiesSectionProps {
   onDeleteEntity: (entityId: string, entityName: string) => void
   onRefreshEntity?: (entityType: string, entityId: string) => void
   onStatusClick?: (entityType: string, entityId: string, entityName: string, status?: string | null) => void
+  onOpenDetail?: (entityId: string) => void
+  sectionScore?: SectionScore | null
 }
 
 /** Group fields by their `group` property. Ungrouped fields go under null key. */
@@ -39,6 +41,7 @@ function DataEntityCard({
   onDeleteEntity,
   onRefreshEntity,
   onStatusClick,
+  onOpenDetail,
 }: {
   entity: DataEntityBRDSummary
   onConfirm: (entityType: string, entityId: string) => void
@@ -46,13 +49,14 @@ function DataEntityCard({
   onDeleteEntity: (entityId: string, entityName: string) => void
   onRefreshEntity?: (entityType: string, entityId: string) => void
   onStatusClick?: (entityType: string, entityId: string, entityName: string, status?: string | null) => void
+  onOpenDetail?: (entityId: string) => void
 }) {
-  const fieldGroups = useMemo(() => groupFields(entity.fields || []), [entity.fields])
-  const hasGroups = fieldGroups.size > 1 || (fieldGroups.size === 1 && !fieldGroups.has(null))
+  const fields = entity.fields || []
+  const visibleFields = fields.slice(0, 3)
+  const remainingCount = fields.length - 3
 
   return (
     <div className="bg-white rounded-2xl shadow-md border border-[#E5E5E5] overflow-hidden group/card">
-      {/* Card content — always visible */}
       <div className="px-6 py-5">
         {/* Title row */}
         <div className="flex items-start gap-3 mb-1">
@@ -74,26 +78,16 @@ function DataEntityCard({
           )}
         </div>
 
-        {/* Fields display */}
-        {entity.fields && entity.fields.length > 0 ? (
-          hasGroups ? (
-            // Grouped fields — each group on its own line
-            <div className="mt-3 space-y-1.5">
-              {Array.from(fieldGroups.entries()).map(([group, fields]) => (
-                <p key={group || '_ungrouped'} className="text-[13px] text-[#666666] leading-relaxed">
-                  {group && (
-                    <span className="font-semibold text-[#333333]">{group}: </span>
-                  )}
-                  {fields.map(f => f.name).join(', ')}
-                </p>
-              ))}
-            </div>
-          ) : (
-            // Flat field list — comma-separated
-            <p className="mt-2 text-[13px] text-[#666666] leading-relaxed">
-              {entity.fields.map(f => f.name).join(', ')}
+        {/* Progressive fields: top 3 + "+N more" */}
+        {fields.length > 0 ? (
+          <div className="mt-2">
+            <p className="text-[13px] text-[#666666] leading-relaxed">
+              {visibleFields.map(f => f.name).join(', ')}
+              {remainingCount > 0 && (
+                <span className="text-[#999999]"> +{remainingCount} more</span>
+              )}
             </p>
-          )
+          </div>
         ) : entity.description ? (
           <p className="mt-2 text-[13px] text-[#666666] leading-relaxed">{entity.description}</p>
         ) : null}
@@ -112,13 +106,23 @@ function DataEntityCard({
             onConfirm={() => onConfirm('data_entity', entity.id)}
             onNeedsReview={() => onNeedsReview('data_entity', entity.id)}
           />
-          <button
-            onClick={() => onDeleteEntity(entity.id, entity.name)}
-            className="p-1.5 rounded-md text-[#999999] hover:text-red-500 hover:bg-red-50 transition-colors opacity-0 group-hover/card:opacity-100"
-            title="Delete data entity"
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-          </button>
+          <div className="flex items-center gap-2">
+            {onOpenDetail && (
+              <button
+                onClick={() => onOpenDetail(entity.id)}
+                className="text-[11px] text-[#999999] hover:text-[#3FAF7A] transition-colors"
+              >
+                View Details →
+              </button>
+            )}
+            <button
+              onClick={() => onDeleteEntity(entity.id, entity.name)}
+              className="p-1.5 rounded-md text-[#999999] hover:text-red-500 hover:bg-red-50 transition-colors opacity-0 group-hover/card:opacity-100"
+              title="Delete data entity"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -137,6 +141,8 @@ export function DataEntitiesSection({
   onDeleteEntity,
   onRefreshEntity,
   onStatusClick,
+  onOpenDetail,
+  sectionScore,
 }: DataEntitiesSectionProps) {
   const [viewMode, setViewMode] = useState<ViewMode>('cards')
 
@@ -152,6 +158,7 @@ export function DataEntitiesSection({
           count={dataEntities.length}
           confirmedCount={confirmedCount}
           onConfirmAll={() => onConfirmAll('data_entity', dataEntities.map((e) => e.id))}
+          sectionScore={sectionScore}
         />
         <div className="flex items-center gap-2">
           {/* Cards/Diagram toggle */}
@@ -206,6 +213,7 @@ export function DataEntitiesSection({
               onDeleteEntity={onDeleteEntity}
               onRefreshEntity={onRefreshEntity}
               onStatusClick={onStatusClick}
+              onOpenDetail={onOpenDetail}
             />
           ))}
         </div>

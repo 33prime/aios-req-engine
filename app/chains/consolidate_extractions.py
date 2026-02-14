@@ -633,19 +633,19 @@ def consolidate_constraints(
         raw = entity.raw_data
         fact_type = raw.get("fact_type", "constraint").lower()
 
-        # Map fact_type to constraint_type
+        # Map fact_type to constraint_type (6-category system — migration 0120)
         constraint_type_mapping = {
-            "risk": "risk",
-            "threat": "risk",
-            "kpi": "kpi",
-            "metric": "kpi",
-            "goal": "kpi",
-            "objective": "kpi",
-            "organizational_goal": "kpi",
-            "assumption": "assumption",
+            "risk": "strategic",
+            "threat": "strategic",
+            "kpi": "strategic",
+            "metric": "strategic",
+            "goal": "strategic",
+            "objective": "strategic",
+            "organizational_goal": "organizational",
+            "assumption": "organizational",
             "constraint": "technical",
             "requirement": "technical",
-            "integration": "integration",
+            "integration": "technical",
             "data_requirement": "technical",
         }
         constraint_type = constraint_type_mapping.get(fact_type, "technical")
@@ -667,7 +667,7 @@ def consolidate_constraints(
                     "title": title,
                     "description": raw.get("detail") or raw.get("description"),
                     "constraint_type": constraint_type,
-                    "severity": "should_have",  # Default severity
+                    "severity": "medium",  # Default severity
                 },
                 evidence=[
                     {"excerpt": exc, "source": "signal"}

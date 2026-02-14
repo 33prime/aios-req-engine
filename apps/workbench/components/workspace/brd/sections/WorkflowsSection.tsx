@@ -11,6 +11,7 @@ import type {
   WorkflowStepSummary,
   ROISummary,
   AutomationLevel,
+  SectionScore,
 } from '@/types/workspace'
 
 interface WorkflowsSectionProps {
@@ -32,6 +33,7 @@ interface WorkflowsSectionProps {
   onStatusClick?: (entityType: string, entityId: string, entityName: string, status?: string | null) => void
   onViewStepDetail?: (stepId: string) => void
   onViewWorkflowDetail?: (workflowId: string) => void
+  sectionScore?: SectionScore | null
 }
 
 // ============================================================================
@@ -449,6 +451,7 @@ export function WorkflowsSection({
   onStatusClick,
   onViewStepDetail,
   onViewWorkflowDetail,
+  sectionScore,
 }: WorkflowsSectionProps) {
   const hasWorkflowPairs = workflowPairs.length > 0
 
@@ -472,6 +475,7 @@ export function WorkflowsSection({
               ? onConfirmAll('workflow', workflowPairs.map((wp) => wp.id))
               : onConfirmAll('vp_step', workflows.map((w) => w.id))
           }
+          sectionScore={sectionScore}
         />
         {onCreateWorkflow && (
           <button

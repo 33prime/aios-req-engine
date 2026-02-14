@@ -4,7 +4,7 @@ import { Users, Star, Mail } from 'lucide-react'
 import { SectionHeader } from '../components/SectionHeader'
 import { CollapsibleCard } from '../components/CollapsibleCard'
 import { EvidenceBlock } from '../components/EvidenceBlock'
-import type { StakeholderBRDSummary } from '@/types/workspace'
+import type { StakeholderBRDSummary, SectionScore } from '@/types/workspace'
 
 interface StakeholdersSectionProps {
   stakeholders: StakeholderBRDSummary[]
@@ -14,6 +14,7 @@ interface StakeholdersSectionProps {
   onOpenDetail: (stakeholder: StakeholderBRDSummary) => void
   onRefreshEntity?: (entityType: string, entityId: string) => void
   onStatusClick?: (entityType: string, entityId: string, entityName: string, status?: string | null) => void
+  sectionScore?: SectionScore | null
 }
 
 const TYPE_CONFIG: Record<string, { bg: string; text: string; label: string }> = {
@@ -38,6 +39,7 @@ export function StakeholdersSection({
   onOpenDetail,
   onRefreshEntity,
   onStatusClick,
+  sectionScore,
 }: StakeholdersSectionProps) {
   const confirmedCount = stakeholders.filter(
     (s) => s.confirmation_status === 'confirmed_consultant' || s.confirmation_status === 'confirmed_client'
@@ -51,6 +53,7 @@ export function StakeholdersSection({
           count={stakeholders.length}
           confirmedCount={confirmedCount}
           onConfirmAll={() => onConfirmAll('stakeholder', stakeholders.map((s) => s.id))}
+          sectionScore={sectionScore}
         />
       </div>
       {stakeholders.length === 0 ? (

@@ -5,7 +5,7 @@ import { useState } from 'react'
 import { Package } from 'lucide-react'
 import { SectionHeader } from '../components/SectionHeader'
 import { PriorityGroup } from './PriorityGroup'
-import type { BRDWorkspaceData, FeatureBRDSummary, MoSCoWGroup } from '@/types/workspace'
+import type { BRDWorkspaceData, FeatureBRDSummary, MoSCoWGroup, SectionScore } from '@/types/workspace'
 
 interface RequirementsSectionProps {
   requirements: BRDWorkspaceData['requirements']
@@ -15,6 +15,7 @@ interface RequirementsSectionProps {
   onMovePriority: (featureId: string, targetGroup: MoSCoWGroup) => void
   onRefreshEntity?: (entityType: string, entityId: string) => void
   onStatusClick?: (entityType: string, entityId: string, entityName: string, status?: string | null) => void
+  sectionScore?: SectionScore | null
 }
 
 export function RequirementsSection({
@@ -25,6 +26,7 @@ export function RequirementsSection({
   onMovePriority,
   onRefreshEntity,
   onStatusClick,
+  sectionScore,
 }: RequirementsSectionProps) {
   const [activeDragFeature, setActiveDragFeature] = useState<FeatureBRDSummary | null>(null)
 
@@ -76,6 +78,7 @@ export function RequirementsSection({
         count={allFeatures.length}
         confirmedCount={allConfirmed}
         onConfirmAll={() => onConfirmAll('feature', confirmableFeatures.map((f) => f.id))}
+        sectionScore={sectionScore}
       />
 
       <DndContext

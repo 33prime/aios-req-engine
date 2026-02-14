@@ -7,7 +7,7 @@ import { BRDStatusBadge } from '../components/StatusBadge'
 import { ConfirmActions } from '../components/ConfirmActions'
 import { EvidenceBlock } from '../components/EvidenceBlock'
 import { BusinessDriverDetailDrawer } from '../components/BusinessDriverDetailDrawer'
-import type { BRDWorkspaceData, BusinessDriver, VisionAlignment } from '@/types/workspace'
+import type { BRDWorkspaceData, BusinessDriver, VisionAlignment, SectionScore } from '@/types/workspace'
 
 interface BusinessContextSectionProps {
   data: BRDWorkspaceData['business_context']
@@ -18,6 +18,9 @@ interface BusinessContextSectionProps {
   onUpdateVision: (vision: string) => void
   onUpdateBackground: (background: string) => void
   onStatusClick?: (entityType: string, entityId: string, entityName: string, status?: string | null) => void
+  sectionScore?: SectionScore | null
+  onOpenVisionDetail?: () => void
+  onOpenBackgroundDetail?: () => void
 }
 
 const SHOW_MAX_PAINS = 8
@@ -391,6 +394,9 @@ export function BusinessContextSection({
   onUpdateVision,
   onUpdateBackground,
   onStatusClick,
+  sectionScore,
+  onOpenVisionDetail,
+  onOpenBackgroundDetail,
 }: BusinessContextSectionProps) {
   const [editingVision, setEditingVision] = useState(false)
   const [visionDraft, setVisionDraft] = useState(data.vision || '')
@@ -494,13 +500,23 @@ export function BusinessContextSection({
               ) : (
                 <p className="text-[13px] text-[#999999] italic">No background description yet. Click to add one.</p>
               )}
-              <button
-                onClick={() => { setBackgroundDraft(data.background || ''); setEditingBackground(true) }}
-                className="mt-2 inline-flex items-center gap-1 text-[12px] text-[#999999] hover:text-[#3FAF7A] transition-colors opacity-0 group-hover:opacity-100"
-              >
-                <Pencil className="w-3 h-3" />
-                Edit
-              </button>
+              <div className="mt-2 flex items-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                <button
+                  onClick={() => { setBackgroundDraft(data.background || ''); setEditingBackground(true) }}
+                  className="inline-flex items-center gap-1 text-[12px] text-[#999999] hover:text-[#3FAF7A] transition-colors"
+                >
+                  <Pencil className="w-3 h-3" />
+                  Edit
+                </button>
+                {onOpenBackgroundDetail && (
+                  <button
+                    onClick={onOpenBackgroundDetail}
+                    className="text-[11px] text-[#999999] hover:text-[#3FAF7A] transition-colors"
+                  >
+                    View Details →
+                  </button>
+                )}
+              </div>
             </div>
           )}
         </div>
@@ -513,6 +529,7 @@ export function BusinessContextSection({
           count={data.pain_points.length}
           confirmedCount={confirmedPains}
           onConfirmAll={() => onConfirmAll('business_driver', data.pain_points.map((p) => p.id))}
+          sectionScore={sectionScore}
         />
         {data.pain_points.length === 0 ? (
           <p className="text-[13px] text-[#999999] italic">No pain points identified yet</p>
@@ -628,13 +645,23 @@ export function BusinessContextSection({
               ) : (
                 <p className="text-[13px] text-[#999999] italic">No vision statement yet. Click to add one.</p>
               )}
-              <button
-                onClick={() => { setVisionDraft(data.vision || ''); setEditingVision(true) }}
-                className="mt-2 inline-flex items-center gap-1 text-[12px] text-[#999999] hover:text-[#3FAF7A] transition-colors opacity-0 group-hover:opacity-100"
-              >
-                <Pencil className="w-3 h-3" />
-                Edit
-              </button>
+              <div className="mt-2 flex items-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                <button
+                  onClick={() => { setVisionDraft(data.vision || ''); setEditingVision(true) }}
+                  className="inline-flex items-center gap-1 text-[12px] text-[#999999] hover:text-[#3FAF7A] transition-colors"
+                >
+                  <Pencil className="w-3 h-3" />
+                  Edit
+                </button>
+                {onOpenVisionDetail && (
+                  <button
+                    onClick={onOpenVisionDetail}
+                    className="text-[11px] text-[#999999] hover:text-[#3FAF7A] transition-colors"
+                  >
+                    View Details →
+                  </button>
+                )}
+              </div>
             </div>
           )}
         </div>

@@ -59,3 +59,40 @@ class DataEntityWorkflowLinkCreate(BaseModel):
     vp_step_id: str
     operation_type: Literal["create", "read", "update", "delete", "validate", "notify", "transfer"]
     description: str = ""
+
+
+class DataEntityRelationshipSuggestion(BaseModel):
+    """AI-suggested relationship between data entities."""
+    target_entity: str = ""
+    relationship_type: str = ""
+    rationale: str = ""
+
+
+class DataEntityEnrichment(BaseModel):
+    """Structured enrichment result for a data entity."""
+    sensitivity_level: str | None = None
+    pii_fields: list[str] = []
+    ai_opportunities: list[str] = []
+    system_design_notes: str | None = None
+    relationship_suggestions: list[DataEntityRelationshipSuggestion] = []
+    validation_suggestions: list[str] = []
+
+
+class DataEntityDetail(BaseModel):
+    """Full data entity detail for drawer view."""
+    id: str
+    name: str
+    description: str | None = None
+    entity_category: str = "domain"
+    fields: list[dict[str, Any]] = []
+    field_count: int = 0
+    confirmation_status: str | None = None
+    evidence: list[dict[str, Any]] = []
+    is_stale: bool = False
+    stale_reason: str | None = None
+    workflow_links: list[DataEntityWorkflowLink] = []
+    enrichment_data: dict[str, Any] | None = None
+    enrichment_status: str | None = None
+    pii_flags: list[str] = []
+    relationships: list[dict[str, Any]] = []
+    revisions: list[dict[str, Any]] = []
