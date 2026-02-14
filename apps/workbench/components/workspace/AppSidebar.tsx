@@ -107,7 +107,7 @@ export function AppSidebar({ isCollapsed: controlledCollapsed, onToggleCollapse 
     user?.user_metadata?.picture
 
   const navItems = [
-    { href: '/', icon: <Home className="w-4 h-4" />, label: 'Home' },
+    { href: '/home', icon: <Home className="w-4 h-4" />, label: 'Home' },
     { href: '/projects', icon: <Folder className="w-4 h-4" />, label: 'Projects' },
     { href: '/clients', icon: <Building2 className="w-4 h-4" />, label: 'Clients' },
     { href: '/people', icon: <UserCircle className="w-4 h-4" />, label: 'People' },
