@@ -514,17 +514,25 @@ async def map_feature_to_step(
 
 
 def _parse_evidence(raw: list | None) -> list[EvidenceItem]:
-    """Parse raw evidence JSON into EvidenceItem models."""
+    """Parse raw evidence JSON into EvidenceItem models.
+
+    Evidence may be stored with either 'excerpt' (features) or 'text' (drivers)
+    as the key for the evidence text.
+    """
     if not raw:
         return []
     items = []
     for e in raw:
         if isinstance(e, dict):
+            # Drivers store text as 'text', features as 'excerpt'
+            excerpt = e.get("excerpt") or e.get("text") or ""
+            source_type = e.get("source_type") or e.get("fact_type") or "inferred"
+            rationale = e.get("rationale") or ""
             items.append(EvidenceItem(
                 chunk_id=e.get("chunk_id"),
-                excerpt=e.get("excerpt", ""),
-                source_type=e.get("source_type", "inferred"),
-                rationale=e.get("rationale", ""),
+                excerpt=excerpt,
+                source_type=source_type,
+                rationale=rationale,
             ))
     return items
 
@@ -1068,6 +1076,8 @@ async def get_brd_driver_detail(project_id: UUID, driver_id: UUID) -> BusinessDr
     )
     from app.db.change_tracking import count_entity_versions, get_entity_history
 
+    client = get_client()
+
     try:
         driver = get_business_driver(str(driver_id))
         if not driver:
@@ -1089,46 +1099,99 @@ async def get_brd_driver_detail(project_id: UUID, driver_id: UUID) -> BusinessDr
                 driver.get("measurement_method"),
             ] if not f)
 
-        # Fetch associations (with graceful fallback)
+        # Resolve explicit link arrays into association objects
         assoc_personas: list[AssociatedPersona] = []
-        try:
-            raw_personas = get_driver_associated_personas(str(driver_id))
-            for p in (raw_personas or []):
-                assoc_personas.append(AssociatedPersona(
-                    id=p.get("id", ""),
-                    name=p.get("name", ""),
-                    role=p.get("role"),
-                    association_reason=p.get("association_reason", ""),
-                ))
-        except Exception:
-            logger.debug(f"Could not fetch associated personas for driver {driver_id}")
+        linked_persona_ids = driver.get("linked_persona_ids") or []
+        if linked_persona_ids:
+            try:
+                persona_rows = client.table("personas").select(
+                    "id, name, role"
+                ).in_("id", [str(pid) for pid in linked_persona_ids]).execute()
+                for p in (persona_rows.data or []):
+                    assoc_personas.append(AssociatedPersona(
+                        id=p["id"],
+                        name=p.get("name", ""),
+                        role=p.get("role"),
+                        association_reason="Linked via enrichment analysis",
+                    ))
+            except Exception:
+                logger.debug(f"Could not resolve linked personas for driver {driver_id}")
+
+        # Fallback to old overlap method if no explicit links
+        if not assoc_personas:
+            try:
+                raw_personas = get_driver_associated_personas(str(driver_id))
+                for p in (raw_personas or []):
+                    assoc_personas.append(AssociatedPersona(
+                        id=p.get("id", ""),
+                        name=p.get("name", ""),
+                        role=p.get("role"),
+                        association_reason=p.get("association_reason", "Evidence overlap"),
+                    ))
+            except Exception:
+                pass
 
         assoc_features: list[AssociatedFeature] = []
-        try:
-            raw_features = get_driver_associated_features(str(driver_id))
-            for f in (raw_features or []):
-                assoc_features.append(AssociatedFeature(
-                    id=f.get("id", ""),
-                    name=f.get("name", ""),
-                    category=f.get("category"),
-                    confirmation_status=f.get("confirmation_status"),
-                    association_reason=f.get("association_reason", ""),
-                ))
-        except Exception:
-            logger.debug(f"Could not fetch associated features for driver {driver_id}")
+        linked_feature_ids = driver.get("linked_feature_ids") or []
+        if linked_feature_ids:
+            try:
+                feature_rows = client.table("features").select(
+                    "id, name, category, confirmation_status"
+                ).in_("id", [str(fid) for fid in linked_feature_ids]).execute()
+                for f in (feature_rows.data or []):
+                    assoc_features.append(AssociatedFeature(
+                        id=f["id"],
+                        name=f.get("name", ""),
+                        category=f.get("category"),
+                        confirmation_status=f.get("confirmation_status"),
+                        association_reason="Linked via enrichment analysis",
+                    ))
+            except Exception:
+                logger.debug(f"Could not resolve linked features for driver {driver_id}")
+
+        if not assoc_features:
+            try:
+                raw_features = get_driver_associated_features(str(driver_id))
+                for f in (raw_features or []):
+                    assoc_features.append(AssociatedFeature(
+                        id=f.get("id", ""),
+                        name=f.get("name", ""),
+                        category=f.get("category"),
+                        confirmation_status=f.get("confirmation_status"),
+                        association_reason=f.get("association_reason", "Evidence overlap"),
+                    ))
+            except Exception:
+                pass
 
         related: list[RelatedDriver] = []
-        try:
-            raw_related = get_driver_related_drivers(str(driver_id))
-            for r in (raw_related or []):
-                related.append(RelatedDriver(
-                    id=r.get("id", ""),
-                    description=r.get("description", ""),
-                    driver_type=r.get("driver_type", ""),
-                    relationship=r.get("relationship", ""),
-                ))
-        except Exception:
-            logger.debug(f"Could not fetch related drivers for driver {driver_id}")
+        linked_driver_ids = driver.get("linked_driver_ids") or []
+        if linked_driver_ids:
+            try:
+                driver_rows = client.table("business_drivers").select(
+                    "id, description, driver_type"
+                ).in_("id", [str(did) for did in linked_driver_ids]).execute()
+                for r in (driver_rows.data or []):
+                    related.append(RelatedDriver(
+                        id=r["id"],
+                        description=r.get("description", ""),
+                        driver_type=r.get("driver_type", ""),
+                        relationship="Linked via enrichment analysis",
+                    ))
+            except Exception:
+                logger.debug(f"Could not resolve linked drivers for driver {driver_id}")
+
+        if not related:
+            try:
+                raw_related = get_driver_related_drivers(str(driver_id))
+                for r in (raw_related or []):
+                    related.append(RelatedDriver(
+                        id=r.get("id", ""),
+                        description=r.get("description", ""),
+                        driver_type=r.get("driver_type", ""),
+                        relationship=r.get("relationship", ""),
+                    ))
+            except Exception:
+                pass
 
         # History
         revisions: list[RevisionEntry] = []
@@ -1147,6 +1210,17 @@ async def get_brd_driver_detail(project_id: UUID, driver_id: UUID) -> BusinessDr
             revision_count = count_entity_versions(str(driver_id))
         except Exception:
             logger.debug(f"Could not fetch history for driver {driver_id}")
+
+        # Compute relatability score
+        from app.core.relatability import compute_relatability_score
+        # Build minimal project_entities for scoring — use resolved associations
+        score_entities = {
+            "features": [{"id": f.id, "confirmation_status": f.confirmation_status} for f in assoc_features],
+            "personas": [{"id": p.id, "confirmation_status": None} for p in assoc_personas],
+            "vp_steps": [],
+            "drivers": [{"id": r.id, "confirmation_status": None} for r in related],
+        }
+        score = compute_relatability_score(driver, score_entities)
 
         return BusinessDriverDetail(
             id=driver["id"],
@@ -1179,6 +1253,7 @@ async def get_brd_driver_detail(project_id: UUID, driver_id: UUID) -> BusinessDr
             associated_features=assoc_features,
             related_drivers=related,
             # Relatability intelligence
+            relatability_score=score,
             linked_feature_count=len(driver.get("linked_feature_ids") or []),
             linked_persona_count=len(driver.get("linked_persona_ids") or []),
             linked_workflow_count=len(driver.get("linked_vp_step_ids") or []),
