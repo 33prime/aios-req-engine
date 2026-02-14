@@ -26,16 +26,17 @@ import {
   updatePrototypeUrl,
   mapFeatureToStep,
   getReadinessScore,
-  getStatusNarrative,
+  getBRDWorkspaceData,
+  getNextActions,
   getVpSteps,
   getPrototypeForProject,
   getPrototypeOverlays,
   createPrototypeSession,
   generatePrototype,
 } from '@/lib/api'
-import type { CanvasData } from '@/types/workspace'
-import type { ReadinessScore } from '@/lib/api'
-import type { StatusNarrative, VpStep } from '@/types/api'
+import type { CanvasData, BRDWorkspaceData } from '@/types/workspace'
+import type { ReadinessScore, NextAction } from '@/lib/api'
+import type { VpStep } from '@/types/api'
 import type { DesignSelection, FeatureOverlay, PrototypeSession, TourStep, SessionContext, RouteFeatureMap } from '@/types/prototype'
 import type { PrototypeFrameHandle } from '@/components/prototype/PrototypeFrame'
 
@@ -48,7 +49,8 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
   const [phase, setPhase] = useState<WorkspacePhase>('overview')
   const [canvasData, setCanvasData] = useState<CanvasData | null>(null)
   const [readinessData, setReadinessData] = useState<ReadinessScore | null>(null)
-  const [narrativeData, setNarrativeData] = useState<StatusNarrative | null>(null)
+  const [brdData, setBrdData] = useState<BRDWorkspaceData | null>(null)
+  const [nextActions, setNextActions] = useState<NextAction[] | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [collaborationState, setCollaborationState] = useState<PanelState>('normal')
@@ -106,10 +108,11 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
       setIsLoading(true)
       setError(null)
 
-      const [data, readiness, narrative] = await Promise.all([
+      const [data, readiness, brd, actionsRes] = await Promise.all([
         getWorkspaceData(projectId),
         getReadinessScore(projectId).catch(() => null),
-        getStatusNarrative(projectId).catch(() => null),
+        getBRDWorkspaceData(projectId).catch(() => null),
+        getNextActions(projectId).catch(() => null),
       ])
 
       // If there's an active prototype with a deploy_url, prefer it over the
@@ -121,7 +124,8 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
 
       setCanvasData(data)
       setReadinessData(readiness)
-      setNarrativeData(narrative)
+      setBrdData(brd)
+      setNextActions(actionsRes?.actions ?? null)
 
       // Auto-detect phase based on project state
       if (data.prototype_url) {
@@ -393,7 +397,8 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
                 projectId={projectId}
                 canvasData={canvasData}
                 readinessData={readinessData}
-                narrativeData={narrativeData}
+                brdData={brdData}
+                nextActions={nextActions}
                 onNavigateToPhase={(p) => setPhase(p)}
               />
             )}
