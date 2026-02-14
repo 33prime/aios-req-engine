@@ -642,6 +642,12 @@ async def get_brd_workspace_data(project_id: UUID) -> BRDWorkspaceData:
                     confirmation_status=d.get("confirmation_status"),
                     evidence=evidence,
                     version=d.get("version"),
+                    monetary_value_low=d.get("monetary_value_low"),
+                    monetary_value_high=d.get("monetary_value_high"),
+                    monetary_type=d.get("monetary_type"),
+                    monetary_timeframe=d.get("monetary_timeframe"),
+                    monetary_confidence=d.get("monetary_confidence"),
+                    monetary_source=d.get("monetary_source"),
                     is_stale=d.get("is_stale", False),
                     stale_reason=d.get("stale_reason"),
                 ))
@@ -871,7 +877,7 @@ async def get_brd_workspace_data(project_id: UUID) -> BRDWorkspaceData:
         competitors_list: list[CompetitorBRDSummary] = []
         try:
             comp_result = client.table("competitor_references").select(
-                "id, name, website, url, category, market_position, key_differentiator, "
+                "id, name, url, category, market_position, key_differentiator, "
                 "pricing_model, target_audience, confirmation_status, "
                 "deep_analysis_status, deep_analysis_at, is_design_reference"
             ).eq("project_id", str(project_id)).eq(
@@ -882,7 +888,6 @@ async def get_brd_workspace_data(project_id: UUID) -> BRDWorkspaceData:
                 competitors_list.append(CompetitorBRDSummary(
                     id=c["id"],
                     name=c["name"],
-                    website=c.get("website"),
                     url=c.get("url"),
                     category=c.get("category"),
                     market_position=c.get("market_position"),
@@ -1106,6 +1111,26 @@ async def update_vision(project_id: UUID, data: VisionUpdate) -> dict:
         raise
     except Exception as e:
         logger.exception(f"Failed to update vision for project {project_id}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+class VisionEnhanceRequest(BaseModel):
+    """Request body for enhancing vision."""
+    enhancement_type: str  # enhance, simplify, metrics, professional
+
+
+@router.post("/vision/enhance")
+async def enhance_vision_endpoint(project_id: UUID, data: VisionEnhanceRequest) -> dict:
+    """Enhance the project vision using AI."""
+    from app.chains.enhance_vision import enhance_vision
+
+    try:
+        suggestion = await enhance_vision(project_id, data.enhancement_type)
+        return {"suggestion": suggestion}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.exception(f"Failed to enhance vision for project {project_id}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -1530,6 +1555,13 @@ async def get_brd_driver_detail(project_id: UUID, driver_id: UUID) -> BusinessDr
             data_source=driver.get("data_source"),
             responsible_team=driver.get("responsible_team"),
             missing_field_count=missing,
+            # Monetary impact
+            monetary_value_low=driver.get("monetary_value_low"),
+            monetary_value_high=driver.get("monetary_value_high"),
+            monetary_type=driver.get("monetary_type"),
+            monetary_timeframe=driver.get("monetary_timeframe"),
+            monetary_confidence=driver.get("monetary_confidence"),
+            monetary_source=driver.get("monetary_source"),
             # Associations
             associated_personas=assoc_personas,
             associated_features=assoc_features,
@@ -1671,6 +1703,27 @@ async def get_brd_health(project_id: UUID) -> BRDHealthResponse:
 
     except Exception as e:
         logger.exception(f"Failed to get BRD health for project {project_id}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/brd/next-actions")
+async def get_next_actions(project_id: UUID) -> dict:
+    """Compute top 3 next best actions from BRD state."""
+    from app.core.next_actions import compute_next_actions
+
+    try:
+        # Load BRD data (reuse existing endpoint logic)
+        brd_data = await get_brd_workspace_data(project_id)
+        brd_dict = brd_data.model_dump() if hasattr(brd_data, 'model_dump') else brd_data
+
+        stakeholders = brd_dict.get("stakeholders", [])
+        completeness = brd_dict.get("completeness")
+
+        actions = compute_next_actions(brd_dict, stakeholders, completeness)
+        return {"actions": actions}
+
+    except Exception as e:
+        logger.exception(f"Failed to compute next actions for project {project_id}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -2567,6 +2620,19 @@ async def get_data_entity_detail_endpoint(project_id: UUID, entity_id: UUID) -> 
         if entity.get("project_id") != str(project_id):
             raise HTTPException(status_code=403, detail="Data entity does not belong to this project")
 
+        # Parse fields JSONB (same logic as list endpoint)
+        fields_data = entity.get("fields") or []
+        if isinstance(fields_data, str):
+            try:
+                import json as _json
+                fields_data = _json.loads(fields_data)
+            except Exception:
+                fields_data = []
+        if not isinstance(fields_data, list):
+            fields_data = []
+        entity["fields"] = fields_data
+        entity["field_count"] = len(fields_data)
+
         client = get_client()
 
         # Load enrichment columns
@@ -3301,6 +3367,90 @@ async def trigger_value_path_synthesis(project_id: UUID) -> dict:
         raise
     except Exception as e:
         logger.exception(f"Failed to synthesize value path for project {project_id}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================================
+# Project Context — living product specification
+# ============================================================================
+
+
+@router.get("/canvas/project-context")
+async def get_project_context(project_id: UUID) -> dict:
+    """Get the current project context (or empty shell if not generated)."""
+    try:
+        from app.db.canvas_synthesis import get_canvas_synthesis
+
+        synthesis = get_canvas_synthesis(project_id, synthesis_type="project_context")
+        if synthesis and synthesis.get("value_path"):
+            context_data = synthesis["value_path"]
+            # value_path stores the context as a single-item list
+            if isinstance(context_data, list) and len(context_data) > 0:
+                ctx = context_data[0]
+                ctx["version"] = synthesis.get("version", 1)
+                ctx["generated_at"] = synthesis.get("generated_at")
+                ctx["is_stale"] = synthesis.get("is_stale", False)
+                return ctx
+
+        # Return empty shell
+        return {
+            "product_vision": "",
+            "target_users": "",
+            "core_value_proposition": "",
+            "key_workflows": "",
+            "data_landscape": "",
+            "technical_boundaries": "",
+            "design_principles": "",
+            "assumptions": [],
+            "open_questions": [],
+            "source_count": 0,
+            "version": 0,
+            "generated_at": None,
+            "is_stale": False,
+        }
+
+    except Exception as e:
+        logger.exception(f"Failed to get project context for {project_id}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/canvas/project-context/generate")
+async def generate_project_context(project_id: UUID) -> dict:
+    """Generate or regenerate the project context from BRD data."""
+    try:
+        from app.chains.synthesize_project_context import synthesize_project_context
+
+        result = await synthesize_project_context(project_id)
+        return result
+
+    except Exception as e:
+        logger.exception(f"Failed to generate project context for {project_id}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================================
+# Value Path Step Detail — deep-dive drawer data
+# ============================================================================
+
+
+@router.get("/canvas/value-path-steps/{step_index}/detail")
+async def get_value_path_step_detail_endpoint(
+    project_id: UUID,
+    step_index: int,
+) -> dict:
+    """Get the full detail for a value path step (powers the drawer)."""
+    try:
+        from app.chains.analyze_value_path_step import get_value_path_step_detail
+
+        detail = await get_value_path_step_detail(project_id, step_index)
+        return detail.model_dump()
+
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.exception(
+            f"Failed to get VP step detail for project {project_id}, step {step_index}"
+        )
         raise HTTPException(status_code=500, detail=str(e))
 
 

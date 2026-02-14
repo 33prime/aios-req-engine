@@ -1,13 +1,14 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { Building2, AlertTriangle, Target, Eye, BarChart3, Pencil, ChevronDown, ChevronRight, Users, Puzzle, Zap, FileText, Link2 } from 'lucide-react'
+import { Building2, AlertTriangle, Target, Eye, BarChart3, Pencil, ChevronDown, ChevronRight, Users, Puzzle, Zap, FileText, Link2, Sparkles, Loader2, Check, X } from 'lucide-react'
 import { SectionHeader } from '../components/SectionHeader'
 import { BRDStatusBadge } from '../components/StatusBadge'
 import { ConfirmActions } from '../components/ConfirmActions'
 import { EvidenceBlock } from '../components/EvidenceBlock'
 import { BusinessDriverDetailDrawer } from '../components/BusinessDriverDetailDrawer'
-import type { BRDWorkspaceData, BusinessDriver, VisionAlignment, SectionScore } from '@/types/workspace'
+import { enhanceVision } from '@/lib/api'
+import type { BRDWorkspaceData, BusinessDriver, VisionAlignment, SectionScore, StakeholderBRDSummary } from '@/types/workspace'
 
 interface BusinessContextSectionProps {
   data: BRDWorkspaceData['business_context']
@@ -21,11 +22,12 @@ interface BusinessContextSectionProps {
   sectionScore?: SectionScore | null
   onOpenVisionDetail?: () => void
   onOpenBackgroundDetail?: () => void
+  stakeholders?: StakeholderBRDSummary[]
 }
 
-const SHOW_MAX_PAINS = 8
-const SHOW_MAX_GOALS = 8
-const SHOW_MAX_METRICS = 5
+const SHOW_MAX_PAINS = 4
+const SHOW_MAX_GOALS = 4
+const SHOW_MAX_METRICS = 4
 
 type SortKey = 'relevance' | 'linked' | 'confirmed' | 'newest'
 type FilterKey = 'all' | 'linked' | 'orphaned'
@@ -118,6 +120,11 @@ function MetricLine({ driver }: { driver: BusinessDriver }) {
       parts.push(`${driver.baseline_value} → ${driver.target_value}`)
     } else if (driver.target_value) {
       parts.push(`Target: ${driver.target_value}`)
+    }
+    if (driver.monetary_value_high) {
+      const val = driver.monetary_value_high
+      const formatted = val >= 1_000_000 ? `$${(val / 1_000_000).toFixed(1)}M` : val >= 1_000 ? `$${Math.round(val / 1_000)}K` : `$${val}`
+      parts.push(`~${formatted}/yr impact`)
     }
   }
 
@@ -397,6 +404,7 @@ export function BusinessContextSection({
   sectionScore,
   onOpenVisionDetail,
   onOpenBackgroundDetail,
+  stakeholders = [],
 }: BusinessContextSectionProps) {
   const [editingVision, setEditingVision] = useState(false)
   const [visionDraft, setVisionDraft] = useState(data.vision || '')
@@ -406,6 +414,42 @@ export function BusinessContextSection({
   const [showAllGoals, setShowAllGoals] = useState(false)
   const [showAllMetrics, setShowAllMetrics] = useState(false)
   const [selectedDriver, setSelectedDriver] = useState<{ id: string; type: 'pain' | 'goal' | 'kpi'; data: BusinessDriver } | null>(null)
+
+  // Vision AI Enhance state
+  const [showEnhanceMenu, setShowEnhanceMenu] = useState(false)
+  const [aiSuggestion, setAiSuggestion] = useState<string | null>(null)
+  const [isEnhancing, setIsEnhancing] = useState(false)
+  const [enhancementError, setEnhancementError] = useState<string | null>(null)
+
+  const handleEnhanceVision = async (type: string) => {
+    setShowEnhanceMenu(false)
+    setIsEnhancing(true)
+    setEnhancementError(null)
+    setAiSuggestion(null)
+    try {
+      const result = await enhanceVision(projectId, type)
+      setAiSuggestion(result.suggestion)
+    } catch (err) {
+      setEnhancementError(err instanceof Error ? err.message : 'Enhancement failed')
+    } finally {
+      setIsEnhancing(false)
+    }
+  }
+
+  const handleAcceptSuggestion = () => {
+    if (aiSuggestion) {
+      onUpdateVision(aiSuggestion)
+      setAiSuggestion(null)
+    }
+  }
+
+  const handleEditSuggestion = () => {
+    if (aiSuggestion) {
+      setVisionDraft(aiSuggestion)
+      setEditingVision(true)
+      setAiSuggestion(null)
+    }
+  }
 
   // Sort + filter state
   const [painSort, setPainSort] = useState<SortKey>('relevance')
@@ -522,6 +566,139 @@ export function BusinessContextSection({
         </div>
       </div>
 
+      {/* Vision */}
+      <div>
+        <h2 className="text-lg font-semibold text-[#333333] mb-3 flex items-center gap-2">
+          <Eye className="w-5 h-5 text-[#999999]" />
+          Vision
+        </h2>
+        <div className="bg-white rounded-2xl shadow-md border border-[#E5E5E5] p-5">
+          {editingVision ? (
+            <div className="space-y-3">
+              <textarea
+                value={visionDraft}
+                onChange={(e) => setVisionDraft(e.target.value)}
+                className="w-full p-3 text-[14px] text-[#333333] border border-[#E5E5E5] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#3FAF7A]/30 focus:border-[#3FAF7A] resize-y min-h-[80px]"
+                placeholder="Describe the product vision..."
+                autoFocus
+              />
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleSaveVision}
+                  className="px-3 py-1.5 text-[12px] font-medium text-white bg-[#3FAF7A] rounded-xl hover:bg-[#25785A] transition-colors"
+                >
+                  Save
+                </button>
+                <button
+                  onClick={() => { setEditingVision(false); setVisionDraft(data.vision || '') }}
+                  className="px-3 py-1.5 text-[12px] font-medium text-[#666666] bg-white border border-[#E5E5E5] rounded-xl hover:bg-gray-50 transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="group">
+              {data.vision ? (
+                <p className="text-[14px] text-[#666666] leading-relaxed">{data.vision}</p>
+              ) : (
+                <p className="text-[13px] text-[#999999] italic">No vision statement yet. Click to add one.</p>
+              )}
+              <div className="mt-2 flex items-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                <button
+                  onClick={() => { setVisionDraft(data.vision || ''); setEditingVision(true) }}
+                  className="inline-flex items-center gap-1 text-[12px] text-[#999999] hover:text-[#3FAF7A] transition-colors"
+                >
+                  <Pencil className="w-3 h-3" />
+                  Edit
+                </button>
+                {data.vision && (
+                  <div className="relative">
+                    <button
+                      onClick={() => setShowEnhanceMenu(!showEnhanceMenu)}
+                      className="inline-flex items-center gap-1 text-[12px] text-[#999999] hover:text-[#3FAF7A] transition-colors"
+                    >
+                      <Sparkles className="w-3 h-3" />
+                      AI Enhance
+                    </button>
+                    {showEnhanceMenu && (
+                      <div className="absolute left-0 top-full mt-1 w-48 bg-white border border-[#E5E5E5] rounded-xl shadow-lg z-10 py-1">
+                        {[
+                          { key: 'enhance', label: 'Enhance' },
+                          { key: 'simplify', label: 'Simplify' },
+                          { key: 'metrics', label: 'Add Metrics' },
+                          { key: 'professional', label: 'Make Professional' },
+                        ].map((opt) => (
+                          <button
+                            key={opt.key}
+                            onClick={() => handleEnhanceVision(opt.key)}
+                            className="w-full text-left px-3 py-2 text-[12px] text-[#333333] hover:bg-[#E8F5E9] transition-colors"
+                          >
+                            {opt.label}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+                {onOpenVisionDetail && (
+                  <button
+                    onClick={onOpenVisionDetail}
+                    className="text-[11px] text-[#999999] hover:text-[#3FAF7A] transition-colors"
+                  >
+                    View Details →
+                  </button>
+                )}
+              </div>
+
+              {/* AI Enhancement loading/result */}
+              {isEnhancing && (
+                <div className="mt-3 p-3 border border-[#E5E5E5] rounded-xl bg-[#F4F4F4]">
+                  <div className="flex items-center gap-2 text-[12px] text-[#666666]">
+                    <Loader2 className="w-3.5 h-3.5 animate-spin text-[#3FAF7A]" />
+                    Generating suggestion...
+                  </div>
+                </div>
+              )}
+              {enhancementError && (
+                <div className="mt-3 p-3 border border-red-200 rounded-xl bg-red-50">
+                  <p className="text-[12px] text-red-600">{enhancementError}</p>
+                </div>
+              )}
+              {aiSuggestion && (
+                <div className="mt-3 p-4 border border-[#3FAF7A]/30 rounded-xl bg-[#E8F5E9]/30">
+                  <p className="text-[11px] font-medium text-[#25785A] uppercase tracking-wide mb-2">AI Suggestion</p>
+                  <p className="text-[14px] text-[#333333] leading-relaxed">{aiSuggestion}</p>
+                  <div className="mt-3 flex items-center gap-2">
+                    <button
+                      onClick={handleAcceptSuggestion}
+                      className="inline-flex items-center gap-1 px-3 py-1.5 text-[12px] font-medium text-white bg-[#3FAF7A] rounded-xl hover:bg-[#25785A] transition-colors"
+                    >
+                      <Check className="w-3 h-3" />
+                      Accept
+                    </button>
+                    <button
+                      onClick={handleEditSuggestion}
+                      className="inline-flex items-center gap-1 px-3 py-1.5 text-[12px] font-medium text-[#666666] bg-white border border-[#E5E5E5] rounded-xl hover:bg-gray-50 transition-colors"
+                    >
+                      <Pencil className="w-3 h-3" />
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => setAiSuggestion(null)}
+                      className="inline-flex items-center gap-1 px-3 py-1.5 text-[12px] font-medium text-[#999999] hover:text-[#666666] transition-colors"
+                    >
+                      <X className="w-3 h-3" />
+                      Dismiss
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+
       {/* Pain Points */}
       <div>
         <SectionHeader
@@ -607,66 +784,6 @@ export function BusinessContextSection({
         )}
       </div>
 
-      {/* Vision */}
-      <div>
-        <h2 className="text-lg font-semibold text-[#333333] mb-3 flex items-center gap-2">
-          <Eye className="w-5 h-5 text-[#999999]" />
-          Vision
-        </h2>
-        <div className="bg-white rounded-2xl shadow-md border border-[#E5E5E5] p-5">
-          {editingVision ? (
-            <div className="space-y-3">
-              <textarea
-                value={visionDraft}
-                onChange={(e) => setVisionDraft(e.target.value)}
-                className="w-full p-3 text-[14px] text-[#333333] border border-[#E5E5E5] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#3FAF7A]/30 focus:border-[#3FAF7A] resize-y min-h-[80px]"
-                placeholder="Describe the product vision..."
-                autoFocus
-              />
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={handleSaveVision}
-                  className="px-3 py-1.5 text-[12px] font-medium text-white bg-[#3FAF7A] rounded-xl hover:bg-[#25785A] transition-colors"
-                >
-                  Save
-                </button>
-                <button
-                  onClick={() => { setEditingVision(false); setVisionDraft(data.vision || '') }}
-                  className="px-3 py-1.5 text-[12px] font-medium text-[#666666] bg-white border border-[#E5E5E5] rounded-xl hover:bg-gray-50 transition-colors"
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
-          ) : (
-            <div className="group">
-              {data.vision ? (
-                <p className="text-[14px] text-[#666666] leading-relaxed">{data.vision}</p>
-              ) : (
-                <p className="text-[13px] text-[#999999] italic">No vision statement yet. Click to add one.</p>
-              )}
-              <div className="mt-2 flex items-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
-                <button
-                  onClick={() => { setVisionDraft(data.vision || ''); setEditingVision(true) }}
-                  className="inline-flex items-center gap-1 text-[12px] text-[#999999] hover:text-[#3FAF7A] transition-colors"
-                >
-                  <Pencil className="w-3 h-3" />
-                  Edit
-                </button>
-                {onOpenVisionDetail && (
-                  <button
-                    onClick={onOpenVisionDetail}
-                    className="text-[11px] text-[#999999] hover:text-[#3FAF7A] transition-colors"
-                  >
-                    View Details →
-                  </button>
-                )}
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-
       {/* Success Metrics */}
       <div>
         <SectionHeader
@@ -716,6 +833,7 @@ export function BusinessContextSection({
           driverType={selectedDriver.type}
           projectId={projectId}
           initialData={selectedDriver.data}
+          stakeholders={stakeholders}
           onClose={() => setSelectedDriver(null)}
           onConfirm={onConfirm}
           onNeedsReview={onNeedsReview}

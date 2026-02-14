@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { X, Globe, Target, Shield, Sparkles, ExternalLink, FileText, Swords, Loader2, ToggleLeft, ToggleRight } from 'lucide-react'
 import { getCompetitorAnalysis, analyzeCompetitor, toggleDesignReference } from '@/lib/api'
+import { ConfirmActions } from './ConfirmActions'
 import type { CompetitorBRDSummary, CompetitorDeepAnalysis } from '@/types/workspace'
 
 interface CompetitorDetailDrawerProps {
@@ -159,6 +160,16 @@ export function CompetitorDetailDrawer({
           </div>
         </div>
 
+        {/* Confirm/Review actions */}
+        <div className="px-6 py-2 border-b border-[#E5E5E5]">
+          <ConfirmActions
+            status={competitor.confirmation_status}
+            onConfirm={() => onConfirm('competitor_reference', competitor.id)}
+            onNeedsReview={() => onNeedsReview('competitor_reference', competitor.id)}
+            size="md"
+          />
+        </div>
+
         {/* Design reference toggle + Analyze button */}
         <div className="flex items-center justify-between px-6 py-3 border-b border-[#E5E5E5] bg-[#F4F4F4]">
           <button
@@ -174,17 +185,21 @@ export function CompetitorDetailDrawer({
           </button>
 
           {analysisStatus !== 'completed' && (
-            <button
-              onClick={handleAnalyze}
-              disabled={analyzing}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-white bg-[#3FAF7A] rounded-lg hover:bg-[#25785A] transition-colors disabled:opacity-50"
-            >
-              {analyzing ? (
-                <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Analyzing...</>
-              ) : (
-                <><Sparkles className="w-3.5 h-3.5" /> Analyze</>
-              )}
-            </button>
+            competitor.confirmation_status === 'confirmed_consultant' || competitor.confirmation_status === 'confirmed_client' ? (
+              <button
+                onClick={handleAnalyze}
+                disabled={analyzing}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-white bg-[#3FAF7A] rounded-lg hover:bg-[#25785A] transition-colors disabled:opacity-50"
+              >
+                {analyzing ? (
+                  <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Analyzing...</>
+                ) : (
+                  <><Sparkles className="w-3.5 h-3.5" /> Analyze</>
+                )}
+              </button>
+            ) : (
+              <span className="text-[11px] text-[#999999] italic">Confirm this competitor before running analysis</span>
+            )
           )}
         </div>
 

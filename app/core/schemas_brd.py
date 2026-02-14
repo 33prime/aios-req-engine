@@ -75,6 +75,13 @@ class KPISummary(BaseModel):
     evidence: list[EvidenceItem] = []
     associated_persona_names: list[str] = []
     version: int | None = None
+    # Monetary impact
+    monetary_value_low: float | None = None
+    monetary_value_high: float | None = None
+    monetary_type: str | None = None
+    monetary_timeframe: str | None = None
+    monetary_confidence: float | None = None
+    monetary_source: str | None = None
     # Relatability intelligence
     relatability_score: float = 0.0
     linked_feature_count: int = 0
@@ -293,6 +300,13 @@ class BusinessDriverDetail(BaseModel):
     data_source: str | None = None
     responsible_team: str | None = None
     missing_field_count: int = 0
+    # Monetary impact (KPI)
+    monetary_value_low: float | None = None
+    monetary_value_high: float | None = None
+    monetary_type: str | None = None
+    monetary_timeframe: str | None = None
+    monetary_confidence: float | None = None
+    monetary_source: str | None = None
     # Associations
     associated_personas: list[AssociatedPersona] = []
     associated_features: list[AssociatedFeature] = []

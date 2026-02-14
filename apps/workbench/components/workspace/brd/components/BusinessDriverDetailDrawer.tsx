@@ -22,23 +22,28 @@ import {
 import { BRDStatusBadge } from './StatusBadge'
 import { ConfirmActions } from './ConfirmActions'
 import { EvidenceBlock } from './EvidenceBlock'
+import { WhoHasTheData } from './WhoHasTheData'
+import { FinancialImpactCard } from './FinancialImpactCard'
 import { getBRDDriverDetail } from '@/lib/api'
+import { getTopicsForDriverType, inferTopicsFromText } from '@/lib/topic-role-map'
 import type {
   BusinessDriver,
   BusinessDriverDetail,
   RevisionEntry,
   AssociatedPersona,
   VisionAlignment,
+  StakeholderBRDSummary,
 } from '@/types/workspace'
 
 type DriverType = 'pain' | 'goal' | 'kpi'
-type TabId = 'intelligence' | 'evidence' | 'connections' | 'history'
+type TabId = 'intelligence' | 'who_has_data' | 'evidence' | 'connections' | 'history'
 
 interface BusinessDriverDetailDrawerProps {
   driverId: string
   driverType: DriverType
   projectId: string
   initialData: BusinessDriver
+  stakeholders?: StakeholderBRDSummary[]
   onClose: () => void
   onConfirm: (entityType: string, entityId: string) => void
   onNeedsReview: (entityType: string, entityId: string) => void
@@ -52,6 +57,7 @@ const TYPE_CONFIG: Record<DriverType, { icon: typeof AlertTriangle; color: strin
 
 const TABS: { id: TabId; label: string; icon: typeof FileText }[] = [
   { id: 'intelligence', label: 'Intelligence', icon: Sparkles },
+  { id: 'who_has_data', label: 'Who Has Data', icon: Users },
   { id: 'evidence', label: 'Evidence', icon: FileText },
   { id: 'connections', label: 'Connections', icon: Link2 },
   { id: 'history', label: 'History', icon: Clock },
@@ -62,6 +68,7 @@ export function BusinessDriverDetailDrawer({
   driverType,
   projectId,
   initialData,
+  stakeholders = [],
   onClose,
   onConfirm,
   onNeedsReview,
@@ -186,6 +193,16 @@ export function BusinessDriverDetailDrawer({
               initialData={initialData}
               detail={detail}
               loading={loading}
+            />
+          )}
+          {activeTab === 'who_has_data' && (
+            <WhoHasTheData
+              topics={[
+                ...getTopicsForDriverType(driverType),
+                ...inferTopicsFromText(initialData.description),
+              ]}
+              stakeholders={stakeholders}
+              evidence={detail?.evidence || initialData.evidence || []}
             />
           )}
           {activeTab === 'evidence' && (
@@ -332,6 +349,30 @@ function IntelligenceTab({
             <KPIField label="Responsible Team" value={d.responsible_team} />
           </div>
         )}
+
+        {/* Financial Impact (KPI only) */}
+        {driverType === 'kpi' && (
+          (d.monetary_value_low || d.monetary_value_high) ? (
+            <div>
+              <h4 className="text-[11px] font-medium text-[#999999] uppercase tracking-wide mb-3">
+                Financial Impact
+              </h4>
+              <FinancialImpactCard
+                monetaryValueLow={d.monetary_value_low}
+                monetaryValueHigh={d.monetary_value_high}
+                monetaryType={d.monetary_type}
+                monetaryTimeframe={d.monetary_timeframe}
+                monetaryConfidence={d.monetary_confidence}
+                monetarySource={d.monetary_source}
+              />
+            </div>
+          ) : (
+            <div className="flex items-start gap-2 text-[12px] text-[#666666] bg-[#F4F4F4] border border-[#E5E5E5] rounded-lg px-3 py-2">
+              <Info className="w-3.5 h-3.5 mt-0.5 flex-shrink-0 text-[#999999]" />
+              No financial impact estimate — enrich to extract monetary values from signals
+            </div>
+          )
+        )}
       </div>
 
       {loading && !detail && (
@@ -373,6 +414,13 @@ function buildNarrative(driverType: DriverType, d: BusinessDriver | BusinessDriv
     if (d.measurement_method) parts.push(`measured via ${d.measurement_method}`)
     if (d.tracking_frequency) parts.push(`tracked ${d.tracking_frequency}`)
     if (d.responsible_team) parts.push(`by ${d.responsible_team}`)
+    if (d.monetary_value_low || d.monetary_value_high) {
+      const low = d.monetary_value_low ?? 0
+      const high = d.monetary_value_high ?? low
+      const fmt = (v: number) => v >= 1_000_000 ? `$${(v / 1_000_000).toFixed(1)}M` : v >= 1_000 ? `$${Math.round(v / 1_000)}K` : `$${v}`
+      const range = low > 0 && high > 0 && low !== high ? `${fmt(low)}-${fmt(high)}` : fmt(high || low)
+      parts.push(`with an estimated impact of ${range}/year`)
+    }
   }
 
   if (parts.length <= 1) return null

@@ -22,7 +22,12 @@ import { ClientIntelligenceDrawer } from './components/ClientIntelligenceDrawer'
 import { DataEntityDetailDrawer } from './components/DataEntityDetailDrawer'
 import { CompetitorDetailDrawer } from './components/CompetitorDetailDrawer'
 import { CompetitorSynthesisPanel } from './components/CompetitorSynthesisPanel'
+import { CompetitorSynthesisDrawer } from './components/CompetitorSynthesisDrawer'
+import { PersonaDrawer } from './components/PersonaDrawer'
+import { ConstraintDrawer } from './components/ConstraintDrawer'
+import { FeatureDrawer } from './components/FeatureDrawer'
 import { ConfidenceDrawer } from './components/ConfidenceDrawer'
+import { NextActionsBar } from './components/NextActionsBar'
 import { ImpactPreviewModal } from './components/ImpactPreviewModal'
 import {
   getBRDWorkspaceData,
@@ -44,7 +49,9 @@ import {
   refreshStaleEntity,
   updateCanvasRole,
   inferConstraints,
+  getNextActions,
 } from '@/lib/api'
+import type { NextAction } from '@/lib/api'
 import { CompletenessRing } from './components/CompletenessRing'
 import type { BRDWorkspaceData, BRDHealthData, MoSCoWGroup, StakeholderBRDSummary, CompetitorBRDSummary, AutomationLevel, SectionScore } from '@/types/workspace'
 
@@ -62,6 +69,22 @@ export function BRDCanvas({ projectId, onRefresh }: BRDCanvasProps) {
   const [health, setHealth] = useState<BRDHealthData | null>(null)
   const [healthLoading, setHealthLoading] = useState(true)
   const [isRefreshingHealth, setIsRefreshingHealth] = useState(false)
+
+  // Next Best Actions
+  const [nextActions, setNextActions] = useState<NextAction[]>([])
+  const [nextActionsLoading, setNextActionsLoading] = useState(true)
+
+  const loadNextActions = useCallback(async () => {
+    try {
+      setNextActionsLoading(true)
+      const result = await getNextActions(projectId)
+      setNextActions(result.actions)
+    } catch (err) {
+      console.error('Failed to load next actions:', err)
+    } finally {
+      setNextActionsLoading(false)
+    }
+  }, [projectId])
 
   const loadHealth = useCallback(async () => {
     try {
@@ -104,7 +127,8 @@ export function BRDCanvas({ projectId, onRefresh }: BRDCanvasProps) {
   useEffect(() => {
     loadData()
     loadHealth()
-  }, [loadData, loadHealth])
+    loadNextActions()
+  }, [loadData, loadHealth, loadNextActions])
 
   // Optimistic confirm: update local state immediately, then sync
   const handleConfirm = useCallback(async (entityType: string, entityId: string) => {
@@ -269,21 +293,103 @@ export function BRDCanvas({ projectId, onRefresh }: BRDCanvasProps) {
     initialStatus?: string | null
   }>({ open: false, entityType: '', entityId: '', entityName: '' })
 
-  const handleOpenConfidence = useCallback((entityType: string, entityId: string, entityName: string, status?: string | null) => {
-    // For workflows, open the workflow detail drawer instead of the generic confidence drawer
-    if (entityType === 'workflow') {
-      setConfidenceDrawer((prev) => ({ ...prev, open: false }))
-      setStakeholderDrawer({ open: false, stakeholder: null })
-      setStepDetailDrawer({ open: false, stepId: '' })
-      setWorkflowDetailDrawer({ open: true, workflowId: entityId })
-      return
-    }
-    // Close other drawers when opening confidence
+  // Helper to close all drawers
+  const closeAllDrawers = useCallback(() => {
     setStakeholderDrawer({ open: false, stakeholder: null })
     setStepDetailDrawer({ open: false, stepId: '' })
     setWorkflowDetailDrawer({ open: false, workflowId: '' })
-    setConfidenceDrawer({ open: true, entityType, entityId, entityName, initialStatus: status })
+    setConfidenceDrawer((prev) => ({ ...prev, open: false }))
+    setCompetitorDrawer({ open: false, competitor: null })
+    setPersonaDrawer({ open: false, persona: null })
+    setConstraintDrawer({ open: false, constraint: null })
+    setFeatureDrawer({ open: false, feature: null })
+    setVisionDrawer(false)
+    setClientIntelDrawer(false)
+    setDataEntityDrawer({ open: false, entityId: '' })
+    setShowSynthesisPanel(false)
   }, [])
+
+  const handleOpenConfidence = useCallback((entityType: string, entityId: string, entityName: string, status?: string | null) => {
+    if (!data) return
+
+    // Route to entity-specific drawers
+    if (entityType === 'workflow') {
+      closeAllDrawers()
+      setWorkflowDetailDrawer({ open: true, workflowId: entityId })
+      return
+    }
+    if (entityType === 'business_driver') {
+      // Look up driver type from BRD data
+      const allDrivers = [
+        ...data.business_context.pain_points.map(d => ({ ...d, _type: 'pain' as const })),
+        ...data.business_context.goals.map(d => ({ ...d, _type: 'goal' as const })),
+        ...data.business_context.success_metrics.map(d => ({ ...d, _type: 'kpi' as const })),
+      ]
+      const driver = allDrivers.find(d => d.id === entityId)
+      if (driver) {
+        // BusinessDriverDetailDrawer is already opened from BusinessContextSection
+        // via its own selectedDriver state — no routing needed from here
+        // But if status badge click comes through, open it via confidence drawer as fallback
+      }
+      setConfidenceDrawer({ open: true, entityType, entityId, entityName, initialStatus: status })
+      return
+    }
+    if (entityType === 'persona') {
+      const persona = data.actors.find(a => a.id === entityId)
+      if (persona) {
+        closeAllDrawers()
+        setPersonaDrawer({ open: true, persona })
+        return
+      }
+    }
+    if (entityType === 'constraint') {
+      const constraint = data.constraints.find(c => c.id === entityId)
+      if (constraint) {
+        closeAllDrawers()
+        setConstraintDrawer({ open: true, constraint })
+        return
+      }
+    }
+    if (entityType === 'feature') {
+      const allFeatures = [
+        ...data.requirements.must_have,
+        ...data.requirements.should_have,
+        ...data.requirements.could_have,
+        ...data.requirements.out_of_scope,
+      ]
+      const feature = allFeatures.find(f => f.id === entityId)
+      if (feature) {
+        closeAllDrawers()
+        setFeatureDrawer({ open: true, feature })
+        return
+      }
+    }
+    if (entityType === 'data_entity') {
+      closeAllDrawers()
+      setDataEntityDrawer({ open: true, entityId })
+      return
+    }
+    if (entityType === 'stakeholder') {
+      const stakeholder = data.stakeholders.find(s => s.id === entityId)
+      if (stakeholder) {
+        closeAllDrawers()
+        setStakeholderDrawer({ open: true, stakeholder })
+        return
+      }
+    }
+    if (entityType === 'competitor_reference') {
+      const comp = (data.competitors || []).find(c => c.id === entityId)
+      if (comp) {
+        closeAllDrawers()
+        setCompetitorDrawer({ open: true, competitor: comp })
+        return
+      }
+    }
+
+    // Fallback to generic confidence drawer
+    closeAllDrawers()
+    setConfidenceDrawer({ open: true, entityType, entityId, entityName, initialStatus: status })
+  }, [data, closeAllDrawers])
 
   // ============================================================================
   // Workflow Step Detail Drawer
@@ -330,13 +436,26 @@ export function BRDCanvas({ projectId, onRefresh }: BRDCanvasProps) {
 
   const [showSynthesisPanel, setShowSynthesisPanel] = useState(false)
 
+  // ============================================================================
+  // Entity-Specific Drawers
+  // ============================================================================
+
+  const [personaDrawer, setPersonaDrawer] = useState<{
+    open: boolean; persona: import('@/types/workspace').PersonaBRDSummary | null
+  }>({ open: false, persona: null })
+
+  const [constraintDrawer, setConstraintDrawer] = useState<{
+    open: boolean; constraint: import('@/types/workspace').ConstraintItem | null
+  }>({ open: false, constraint: null })
+
+  const [featureDrawer, setFeatureDrawer] = useState<{
+    open: boolean; feature: import('@/types/workspace').FeatureBRDSummary | null
+  }>({ open: false, feature: null })
+
   const handleOpenCompetitorDetail = useCallback((competitor: CompetitorBRDSummary) => {
-    setStakeholderDrawer({ open: false, stakeholder: null })
-    setConfidenceDrawer((prev) => ({ ...prev, open: false }))
-    setStepDetailDrawer({ open: false, stepId: '' })
-    setWorkflowDetailDrawer({ open: false, workflowId: '' })
+    closeAllDrawers()
     setCompetitorDrawer({ open: true, competitor })
-  }, [])
+  }, [closeAllDrawers])
 
   // ============================================================================
   // Vision Detail Drawer
@@ -772,6 +891,15 @@ export function BRDCanvas({ projectId, onRefresh }: BRDCanvasProps) {
         isRefreshing={isRefreshingHealth}
       />
 
+      {/* Next Best Actions */}
+      <NextActionsBar
+        actions={nextActions}
+        loading={nextActionsLoading}
+        onSendToCollab={(action) => {
+          console.log('Send to Collab:', action)
+        }}
+      />
+
       {/* BRD Sections */}
       <div className="space-y-10">
         <BusinessContextSection
@@ -786,6 +914,7 @@ export function BRDCanvas({ projectId, onRefresh }: BRDCanvasProps) {
           sectionScore={sectionScoreMap['vision'] || null}
           onOpenVisionDetail={handleOpenVisionDetail}
           onOpenBackgroundDetail={handleOpenBackgroundDetail}
+          stakeholders={data.stakeholders}
         />
 
         <div className="border-t border-[#e9e9e7]" />
@@ -972,6 +1101,7 @@ export function BRDCanvas({ projectId, onRefresh }: BRDCanvasProps) {
         <WorkflowDetailDrawer
           workflowId={workflowDetailDrawer.workflowId}
           projectId={projectId}
+          stakeholders={data?.stakeholders}
           onClose={() => setWorkflowDetailDrawer({ open: false, workflowId: '' })}
           onConfirm={handleConfirm}
           onNeedsReview={handleNeedsReview}
@@ -1028,15 +1158,24 @@ export function BRDCanvas({ projectId, onRefresh }: BRDCanvasProps) {
         />
       )}
 
-      {/* Competitor Synthesis Panel */}
-      {showSynthesisPanel && (
-        <CompetitorSynthesisPanel
+      {/* Competitor Synthesis Drawer */}
+      {showSynthesisPanel && data?.competitors && (
+        <CompetitorSynthesisDrawer
           projectId={projectId}
+          competitors={data.competitors}
+          features={[...data.requirements.must_have, ...data.requirements.should_have, ...data.requirements.could_have]}
+          painPoints={data.business_context.pain_points}
+          goals={data.business_context.goals}
+          roiSummary={data.roi_summary}
           onClose={() => setShowSynthesisPanel(false)}
+          onOpenDetail={(comp) => {
+            setShowSynthesisPanel(false)
+            setCompetitorDrawer({ open: true, competitor: comp })
+          }}
         />
       )}
 
-      {/* Confidence Drawer */}
+      {/* Confidence Drawer (fallback) */}
       {confidenceDrawer.open && (
         <ConfidenceDrawer
           entityType={confidenceDrawer.entityType}
@@ -1047,6 +1186,52 @@ export function BRDCanvas({ projectId, onRefresh }: BRDCanvasProps) {
           onClose={() => setConfidenceDrawer((prev) => ({ ...prev, open: false }))}
           onConfirm={(entityType, entityId) => handleConfirm(entityType, entityId)}
           onNeedsReview={(entityType, entityId) => handleNeedsReview(entityType, entityId)}
+        />
+      )}
+
+      {/* Persona Drawer */}
+      {personaDrawer.open && personaDrawer.persona && (
+        <PersonaDrawer
+          persona={personaDrawer.persona}
+          projectId={projectId}
+          stakeholders={data?.stakeholders}
+          features={data ? [
+            ...data.requirements.must_have,
+            ...data.requirements.should_have,
+            ...data.requirements.could_have,
+            ...data.requirements.out_of_scope,
+          ] : []}
+          onClose={() => setPersonaDrawer({ open: false, persona: null })}
+          onConfirm={handleConfirm}
+          onNeedsReview={handleNeedsReview}
+        />
+      )}
+
+      {/* Constraint Drawer */}
+      {constraintDrawer.open && constraintDrawer.constraint && (
+        <ConstraintDrawer
+          constraint={constraintDrawer.constraint}
+          projectId={projectId}
+          features={data ? [
+            ...data.requirements.must_have,
+            ...data.requirements.should_have,
+            ...data.requirements.could_have,
+            ...data.requirements.out_of_scope,
+          ] : []}
+          onClose={() => setConstraintDrawer({ open: false, constraint: null })}
+          onConfirm={handleConfirm}
+          onNeedsReview={handleNeedsReview}
+        />
+      )}
+
+      {/* Feature Drawer */}
+      {featureDrawer.open && featureDrawer.feature && (
+        <FeatureDrawer
+          feature={featureDrawer.feature}
+          projectId={projectId}
+          onClose={() => setFeatureDrawer({ open: false, feature: null })}
+          onConfirm={handleConfirm}
+          onNeedsReview={handleNeedsReview}
         />
       )}
     </div>

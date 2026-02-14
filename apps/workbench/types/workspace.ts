@@ -98,6 +98,13 @@ export interface BusinessDriver {
   data_source?: string | null
   responsible_team?: string | null
   missing_field_count?: number
+  // Monetary impact (KPI)
+  monetary_value_low?: number | null
+  monetary_value_high?: number | null
+  monetary_type?: 'cost_reduction' | 'revenue_increase' | 'revenue_new' | 'risk_avoidance' | 'productivity_gain' | null
+  monetary_timeframe?: 'annual' | 'monthly' | 'quarterly' | 'per_transaction' | 'one_time' | null
+  monetary_confidence?: number | null
+  monetary_source?: string | null
   // Relatability intelligence
   relatability_score?: number
   linked_feature_count?: number
@@ -721,6 +728,13 @@ export interface BusinessDriverDetail {
   data_source?: string | null
   responsible_team?: string | null
   missing_field_count: number
+  // Monetary impact (KPI)
+  monetary_value_low?: number | null
+  monetary_value_high?: number | null
+  monetary_type?: 'cost_reduction' | 'revenue_increase' | 'revenue_new' | 'risk_avoidance' | 'productivity_gain' | null
+  monetary_timeframe?: 'annual' | 'monthly' | 'quarterly' | 'per_transaction' | 'one_time' | null
+  monetary_confidence?: number | null
+  monetary_source?: string | null
   // Associations
   associated_personas: AssociatedPersona[]
   associated_features: AssociatedFeature[]
@@ -942,6 +956,13 @@ export interface EntityConfidenceData {
 // Canvas View Synthesis Types
 // ============================================
 
+export interface ValuePathUnlock {
+  description: string
+  unlock_type: UnlockType
+  enabled_by: string
+  strategic_value: string
+}
+
 export interface ValuePathStep {
   step_index: number
   title: string
@@ -956,6 +977,8 @@ export interface ValuePathStep {
   automation_level: AutomationLevel
   time_minutes?: number | null
   roi_impact: 'high' | 'medium' | 'low'
+  unlocks: ValuePathUnlock[]
+  transformation_narrative: string
 }
 
 export interface CanvasViewData {
@@ -965,6 +988,95 @@ export interface CanvasViewData {
   synthesis_stale: boolean
   mvp_features: FeatureBRDSummary[]
   workflow_pairs: WorkflowPair[]
+}
+
+// ============================================
+// Project Context — living product specification
+// ============================================
+
+export interface ProjectContext {
+  product_vision: string
+  target_users: string
+  core_value_proposition: string
+  key_workflows: string
+  data_landscape: string
+  technical_boundaries: string
+  design_principles: string
+  assumptions: string[]
+  open_questions: string[]
+  source_count: number
+  version: number
+  generated_at?: string | null
+  is_stale: boolean
+}
+
+// ============================================
+// Value Path Step Detail — powers the 4-tab drawer
+// ============================================
+
+export interface StepActor {
+  persona_id: string
+  persona_name: string
+  role?: string | null
+  pain_at_step?: string | null
+  goal_at_step?: string | null
+  is_primary: boolean
+}
+
+export interface StepDataOperation {
+  entity_id: string
+  entity_name: string
+  entity_category: string
+  operation: string
+  description?: string | null
+}
+
+export interface StepLinkedFeature {
+  feature_id: string
+  feature_name: string
+  category?: string | null
+  priority_group?: string | null
+  confirmation_status?: string | null
+}
+
+export interface RecommendedComponent {
+  name: string
+  description: string
+  priority: string
+  rationale: string
+}
+
+export interface StepBusinessLogic {
+  decision_points: string[]
+  validation_rules: string[]
+  edge_cases: string[]
+  success_criteria: string
+  error_states: string[]
+}
+
+export interface ValuePathStepDetail {
+  step_index: number
+  title: string
+  description: string
+  automation_level: string
+  time_minutes?: number | null
+  roi_impact: string
+  pain_addressed?: string | null
+  goal_served?: string | null
+  // Tab 1: Actors
+  actors: StepActor[]
+  combined_value: string
+  // Tab 2: System Flow
+  data_operations: StepDataOperation[]
+  input_dependencies: string[]
+  output_effects: string[]
+  // Tab 3: Business Logic
+  business_logic: StepBusinessLogic
+  // Tab 4: Components
+  recommended_components: RecommendedComponent[]
+  linked_features: StepLinkedFeature[]
+  ai_suggestions: string[]
+  effort_level: string
 }
 
 // ============================================

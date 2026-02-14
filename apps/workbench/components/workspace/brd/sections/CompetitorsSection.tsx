@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { Globe, ChevronRight, Target, Shield, Sparkles } from 'lucide-react'
 import { SectionHeader } from '../components/SectionHeader'
+import { ConfirmActions } from '../components/ConfirmActions'
 import type { CompetitorBRDSummary, SectionScore } from '@/types/workspace'
 
 interface CompetitorsSectionProps {
@@ -42,7 +43,7 @@ export function CompetitorsSection({
   sectionScore,
 }: CompetitorsSectionProps) {
   const [showAll, setShowAll] = useState(false)
-  const SHOW_MAX = 5
+  const SHOW_MAX = 4
 
   if (competitors.length === 0) return null
 
@@ -122,17 +123,14 @@ export function CompetitorsSection({
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  {comp.confirmation_status && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        onStatusClick?.('competitor_reference', comp.id, comp.name, comp.confirmation_status)
-                      }}
-                      className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-[#F0F0F0] text-[#666666] hover:bg-[#E5E5E5] transition-colors"
-                    >
-                      {comp.confirmation_status.replace(/_/g, ' ')}
-                    </button>
-                  )}
+                  <span onClick={(e) => e.stopPropagation()}>
+                    <ConfirmActions
+                      status={comp.confirmation_status}
+                      onConfirm={() => onConfirm('competitor_reference', comp.id)}
+                      onNeedsReview={() => onNeedsReview('competitor_reference', comp.id)}
+                      size="sm"
+                    />
+                  </span>
                   <ChevronRight className="w-4 h-4 text-[#E5E5E5] group-hover:text-[#3FAF7A] transition-colors" />
                 </div>
               </div>
@@ -145,6 +143,13 @@ export function CompetitorsSection({
           )
         })}
       </div>
+
+      {/* Max count note */}
+      {competitors.length >= 4 && (
+        <p className="mt-3 text-[11px] text-[#999999] italic">
+          Maximum 4 competitors tracked
+        </p>
+      )}
 
       {/* Show more/less */}
       {competitors.length > SHOW_MAX && (

@@ -71,6 +71,31 @@ class KPIEnrichment(BaseModel):
         None,
         description='If this KPI is very similar to another existing KPI, provide the ID of the KPI it should be merged with. Only suggest merging if they measure the exact same metric.',
     )
+    # Monetary impact fields
+    monetary_value_low: float | None = Field(
+        None,
+        description='Lower bound annual USD estimate for achieving this KPI target (e.g., 50000.0 for $50K)',
+    )
+    monetary_value_high: float | None = Field(
+        None,
+        description='Upper bound annual USD estimate for achieving this KPI target (e.g., 200000.0 for $200K)',
+    )
+    monetary_type: str | None = Field(
+        None,
+        description='Type of monetary impact: cost_reduction, revenue_increase, revenue_new, risk_avoidance, or productivity_gain',
+    )
+    monetary_timeframe: str | None = Field(
+        None,
+        description='Timeframe for the monetary value: annual, monthly, quarterly, per_transaction, or one_time',
+    )
+    monetary_confidence: float | None = Field(
+        None,
+        description='Confidence in the monetary estimate (0.0-1.0). 0.9+ for explicit amounts in signals, 0.3-0.5 for rough estimates',
+    )
+    monetary_source: str | None = Field(
+        None,
+        description='Brief explanation of how the monetary value was determined (e.g., "Delta between baseline $50K and target $200K MRR", "Estimated from pain point business impact")',
+    )
     confidence: float = Field(
         0.0,
         description="Confidence in this enrichment (0.0-1.0)",
@@ -232,6 +257,23 @@ async def enrich_kpi(
         except Exception:
             pass
 
+        # Load pain points with financial context for monetary estimation
+        pain_financial_context = ""
+        try:
+            pain_rows = _supabase.table("business_drivers").select(
+                "description, business_impact"
+            ).eq("project_id", str(project_id)).eq(
+                "driver_type", "pain"
+            ).not_.is_("business_impact", "null").execute()
+            if pain_rows.data:
+                pain_lines = [
+                    f"- {p['description'][:100]}: {p['business_impact']}"
+                    for p in pain_rows.data[:10]
+                ]
+                pain_financial_context = "\n**Pain Points with Financial Impact:**\n" + "\n".join(pain_lines) + "\n"
+        except Exception:
+            pass
+
         vision_section = f'\n**Project Vision:** "{project_vision}"\n' if project_vision else ""
         personas_section = f"\n**Known Personas:** {', '.join(persona_names_list)}\n" if persona_names_list else ""
         workflows_section = f"\n**Known Workflow Steps:** {', '.join(workflow_labels_list)}\n" if workflow_labels_list else ""
@@ -251,6 +293,13 @@ Given a KPI description and related signal context, extract:
 7. **Vision alignment**: Given the project vision, how strongly does this KPI relate to the vision? (high, medium, low, unrelated)
 8. **Related actors**: Which personas are responsible for or tracked by this KPI? Use exact names from the persona list.
 9. **Related workflows**: Which workflow steps does this KPI measure? Use exact labels from the workflow list.
+10. **Monetary impact**: Estimate the monetary value of achieving this KPI's target:
+   - Look for explicit $ amounts in signals (highest confidence)
+   - If baseline/target are monetary (e.g., "$50K MRR → $200K MRR"), compute the delta
+   - Cross-reference with pain point business_impact values for cost reduction estimates
+   - Set monetary_confidence appropriately: 0.9+ for explicit amounts, 0.5-0.7 for computed deltas, 0.3-0.5 for rough estimates
+   - Choose the best monetary_type: cost_reduction, revenue_increase, revenue_new, risk_avoidance, or productivity_gain
+   - Default to annual timeframe unless signals indicate otherwise
 
 **CRITICAL - Duplicate Detection:**
 - Review the list of existing KPIs carefully
@@ -273,12 +322,12 @@ Given a KPI description and related signal context, extract:
 **Current Measurement (if any):**
 {measurement if measurement else "Not specified"}
 {existing_kpis_str}
-{vision_section}{personas_section}{workflows_section}
+{vision_section}{personas_section}{workflows_section}{pain_financial_context}
 **Signal Context:**
 {signal_context_str}
 
 **Task:**
-Extract KPI enrichment details from the above context. Review existing KPIs and suggest merging if this is a duplicate. Assess vision alignment and identify related actors/workflows. If information is missing, leave those fields as null."""
+Extract KPI enrichment details from the above context. Review existing KPIs and suggest merging if this is a duplicate. Assess vision alignment and identify related actors/workflows. Estimate monetary impact where possible — look for explicit dollar amounts in signals, compute deltas from baseline/target if monetary, or cross-reference pain point business impacts. If information is missing, leave those fields as null."""
 
         # Call LLM with Claude Sonnet 4
         model = ChatAnthropic(
@@ -333,6 +382,31 @@ Extract KPI enrichment details from the above context. Review existing KPIs and 
         if enrichment.vision_alignment:
             updates["vision_alignment"] = enrichment.vision_alignment
             updated_fields.append("vision_alignment")
+
+        # Monetary impact fields (only write if values present and not already set)
+        if enrichment.monetary_value_low is not None and not driver.get("monetary_value_low"):
+            updates["monetary_value_low"] = enrichment.monetary_value_low
+            updated_fields.append("monetary_value_low")
+
+        if enrichment.monetary_value_high is not None and not driver.get("monetary_value_high"):
+            updates["monetary_value_high"] = enrichment.monetary_value_high
+            updated_fields.append("monetary_value_high")
+
+        if enrichment.monetary_type and not driver.get("monetary_type"):
+            updates["monetary_type"] = enrichment.monetary_type
+            updated_fields.append("monetary_type")
+
+        if enrichment.monetary_timeframe and not driver.get("monetary_timeframe"):
+            updates["monetary_timeframe"] = enrichment.monetary_timeframe
+            updated_fields.append("monetary_timeframe")
+
+        if enrichment.monetary_confidence is not None and not driver.get("monetary_confidence"):
+            updates["monetary_confidence"] = enrichment.monetary_confidence
+            updated_fields.append("monetary_confidence")
+
+        if enrichment.monetary_source and not driver.get("monetary_source"):
+            updates["monetary_source"] = enrichment.monetary_source
+            updated_fields.append("monetary_source")
 
         # Resolve actor names → persona IDs
         if enrichment.related_actor_names and persona_names_list:
