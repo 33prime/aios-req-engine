@@ -14,6 +14,8 @@ import { WorkflowCreateModal } from './components/WorkflowCreateModal'
 import { WorkflowStepEditor } from './components/WorkflowStepEditor'
 import { DataEntityCreateModal } from './components/DataEntityCreateModal'
 import { StakeholderDetailDrawer } from './components/StakeholderDetailDrawer'
+import { WorkflowStepDetailDrawer } from './components/WorkflowStepDetailDrawer'
+import { WorkflowDetailDrawer } from './components/WorkflowDetailDrawer'
 import { ConfidenceDrawer } from './components/ConfidenceDrawer'
 import { ImpactPreviewModal } from './components/ImpactPreviewModal'
 import {
@@ -262,7 +264,42 @@ export function BRDCanvas({ projectId, onRefresh }: BRDCanvasProps) {
   const handleOpenConfidence = useCallback((entityType: string, entityId: string, entityName: string, status?: string | null) => {
     // Close other drawers when opening confidence
     setStakeholderDrawer({ open: false, stakeholder: null })
+    setStepDetailDrawer({ open: false, stepId: '' })
     setConfidenceDrawer({ open: true, entityType, entityId, entityName, initialStatus: status })
+  }, [])
+
+  // ============================================================================
+  // Workflow Step Detail Drawer
+  // ============================================================================
+
+  const [stepDetailDrawer, setStepDetailDrawer] = useState<{
+    open: boolean
+    stepId: string
+  }>({ open: false, stepId: '' })
+
+  const handleViewStepDetail = useCallback((stepId: string) => {
+    // Close other drawers
+    setStakeholderDrawer({ open: false, stakeholder: null })
+    setConfidenceDrawer((prev) => ({ ...prev, open: false }))
+    setWorkflowDetailDrawer({ open: false, workflowId: '' })
+    setStepDetailDrawer({ open: true, stepId })
+  }, [])
+
+  // ============================================================================
+  // Workflow Detail Drawer
+  // ============================================================================
+
+  const [workflowDetailDrawer, setWorkflowDetailDrawer] = useState<{
+    open: boolean
+    workflowId: string
+  }>({ open: false, workflowId: '' })
+
+  const handleViewWorkflowDetail = useCallback((workflowId: string) => {
+    // Close other drawers
+    setStakeholderDrawer({ open: false, stakeholder: null })
+    setConfidenceDrawer((prev) => ({ ...prev, open: false }))
+    setStepDetailDrawer({ open: false, stepId: '' })
+    setWorkflowDetailDrawer({ open: true, workflowId })
   }, [])
 
   // ============================================================================
@@ -688,6 +725,8 @@ export function BRDCanvas({ projectId, onRefresh }: BRDCanvasProps) {
           onDeleteStep={handleDeleteStep}
           onRefreshEntity={handleRefreshEntity}
           onStatusClick={handleOpenConfidence}
+          onViewStepDetail={handleViewStepDetail}
+          onViewWorkflowDetail={handleViewWorkflowDetail}
         />
 
         <div className="border-t border-[#e9e9e7]" />
@@ -789,6 +828,32 @@ export function BRDCanvas({ projectId, onRefresh }: BRDCanvasProps) {
           onClose={() => setStakeholderDrawer({ open: false, stakeholder: null })}
           onConfirm={handleConfirm}
           onNeedsReview={handleNeedsReview}
+        />
+      )}
+
+      {/* Workflow Step Detail Drawer */}
+      {stepDetailDrawer.open && stepDetailDrawer.stepId && (
+        <WorkflowStepDetailDrawer
+          stepId={stepDetailDrawer.stepId}
+          projectId={projectId}
+          onClose={() => setStepDetailDrawer({ open: false, stepId: '' })}
+          onConfirm={handleConfirm}
+          onNeedsReview={handleNeedsReview}
+        />
+      )}
+
+      {/* Workflow Detail Drawer */}
+      {workflowDetailDrawer.open && workflowDetailDrawer.workflowId && (
+        <WorkflowDetailDrawer
+          workflowId={workflowDetailDrawer.workflowId}
+          projectId={projectId}
+          onClose={() => setWorkflowDetailDrawer({ open: false, workflowId: '' })}
+          onConfirm={handleConfirm}
+          onNeedsReview={handleNeedsReview}
+          onViewStepDetail={(stepId) => {
+            setWorkflowDetailDrawer({ open: false, workflowId: '' })
+            setStepDetailDrawer({ open: true, stepId })
+          }}
         />
       )}
 

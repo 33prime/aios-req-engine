@@ -213,6 +213,175 @@ export interface WorkflowPair {
 }
 
 // ============================================
+// Unlock Types (shared between step and workflow level)
+// ============================================
+
+export type UnlockType = 'capability' | 'scale' | 'insight' | 'speed'
+
+export interface StepUnlock {
+  description: string
+  unlock_type: UnlockType
+  enabled_by: string
+  strategic_value: string
+  linked_goal_id?: string | null
+}
+
+// ============================================
+// Workflow Detail Types (for workflow-level drawer)
+// ============================================
+
+export interface StepUnlockSummary {
+  description: string
+  unlock_type: UnlockType
+  enabled_by: string
+  strategic_value: string
+  linked_goal_id?: string | null
+  source_step_id?: string | null
+  source_step_label?: string | null
+}
+
+export interface WorkflowInsight {
+  insight_type: 'gap' | 'warning' | 'opportunity' | 'strength'
+  severity: 'info' | 'warning'
+  message: string
+  suggestion?: string | null
+}
+
+export interface WorkflowDetail {
+  id: string
+  name: string
+  description?: string
+  owner?: string | null
+  state_type?: string | null
+  confirmation_status?: string | null
+
+  current_workflow_id?: string | null
+  future_workflow_id?: string | null
+  current_steps: WorkflowStepSummary[]
+  future_steps: WorkflowStepSummary[]
+
+  roi?: ROISummary | null
+
+  actor_personas: LinkedPersona[]
+  business_drivers: LinkedBusinessDriver[]
+  features: LinkedFeature[]
+  data_entities: LinkedDataEntity[]
+
+  strategic_unlocks: StepUnlockSummary[]
+  insights: WorkflowInsight[]
+
+  revision_count: number
+  revisions: RevisionEntry[]
+
+  steps_without_actor: number
+  steps_without_time: number
+  steps_without_features: number
+  enriched_step_count: number
+  total_step_count: number
+}
+
+// ============================================
+// Workflow Step Detail Types (for detail drawer)
+// ============================================
+
+export interface LinkedBusinessDriver {
+  id: string
+  description: string
+  driver_type: string
+  severity?: string | null
+  vision_alignment?: string | null
+}
+
+export interface LinkedFeature {
+  id: string
+  name: string
+  category?: string | null
+  priority_group?: string | null
+  confirmation_status?: string | null
+}
+
+export interface LinkedDataEntity {
+  id: string
+  name: string
+  entity_category: string
+  operation_type: string
+}
+
+export interface LinkedPersona {
+  id: string
+  name: string
+  role?: string | null
+}
+
+export interface StepInsight {
+  insight_type: 'gap' | 'warning' | 'opportunity' | 'overlap'
+  severity: 'info' | 'warning'
+  message: string
+  suggestion?: string | null
+}
+
+export interface WorkflowStepDetail {
+  // Identity
+  id: string
+  step_index: number
+  label: string
+  description?: string | null
+  workflow_id?: string | null
+  workflow_name?: string | null
+  state_type?: string | null
+
+  // Step fields
+  time_minutes?: number | null
+  pain_description?: string | null
+  benefit_description?: string | null
+  automation_level: string
+  operation_type?: string | null
+  confirmation_status?: string | null
+
+  // Actor
+  actor?: LinkedPersona | null
+
+  // Connections
+  business_drivers: LinkedBusinessDriver[]
+  features: LinkedFeature[]
+  data_entities: LinkedDataEntity[]
+
+  // Counterpart comparison
+  counterpart_step?: WorkflowStepSummary | null
+  counterpart_state_type?: string | null
+  time_delta_minutes?: number | null
+  automation_delta?: string | null
+
+  // Evidence
+  evidence: Array<Record<string, unknown>>
+
+  // Intelligence
+  insights: StepInsight[]
+
+  // History
+  revision_count: number
+  revisions: RevisionEntry[]
+
+  // Staleness
+  is_stale: boolean
+  stale_reason?: string | null
+
+  // Enrichment
+  enrichment_status?: string | null
+  enrichment_data?: {
+    narrative?: string | null
+    optimization_suggestions?: string[]
+    risk_assessment?: string | null
+    automation_opportunity_score?: number
+    automation_approach?: string | null
+    unlocks?: StepUnlock[]
+    dependencies?: string[]
+    complexity?: string | null
+    confidence?: number
+  } | null
+}
+
+// ============================================
 // Data Entity Types
 // ============================================
 

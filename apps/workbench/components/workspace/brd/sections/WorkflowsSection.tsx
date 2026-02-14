@@ -30,6 +30,8 @@ interface WorkflowsSectionProps {
   onDeleteStep?: (workflowId: string, stepId: string) => void
   onRefreshEntity?: (entityType: string, entityId: string) => void
   onStatusClick?: (entityType: string, entityId: string, entityName: string, status?: string | null) => void
+  onViewStepDetail?: (stepId: string) => void
+  onViewWorkflowDetail?: (workflowId: string) => void
 }
 
 // ============================================================================
@@ -104,6 +106,7 @@ function StepCard({
   stateType,
   onEdit,
   onDelete,
+  onViewDetail,
 }: {
   step: WorkflowStepSummary
   index: number
@@ -111,6 +114,7 @@ function StepCard({
   stateType: 'current' | 'future'
   onEdit?: () => void
   onDelete?: () => void
+  onViewDetail?: () => void
 }) {
   return (
     <div className="flex gap-3 group/step">
@@ -126,7 +130,10 @@ function StepCard({
 
       {/* Right: step content */}
       <div className="flex-1 min-w-0 pb-4">
-        <div className="bg-white border border-[#E5E5E5] rounded-xl px-3.5 py-2.5 hover:shadow-sm transition-shadow">
+        <div
+          className={`bg-white border border-[#E5E5E5] rounded-xl px-3.5 py-2.5 hover:shadow-sm transition-shadow ${onViewDetail ? 'cursor-pointer' : ''}`}
+          onClick={onViewDetail}
+        >
           <div className="flex items-start justify-between gap-2">
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-1.5 flex-wrap">
@@ -146,7 +153,7 @@ function StepCard({
 
             {/* Hover actions */}
             {(onEdit || onDelete) && (
-              <div className="flex items-center gap-0.5 opacity-0 group-hover/step:opacity-100 transition-opacity shrink-0">
+              <div className="flex items-center gap-0.5 opacity-0 group-hover/step:opacity-100 transition-opacity shrink-0" onClick={(e) => e.stopPropagation()}>
                 {onEdit && (
                   <button onClick={onEdit} className="p-1 rounded hover:bg-gray-100 text-[#999999] hover:text-[#333333]" title="Edit step">
                     <Pencil className="w-3 h-3" />
@@ -208,6 +215,7 @@ function StepColumn({
   onCreateStep,
   onEditStep,
   onDeleteStep,
+  onViewStepDetail,
 }: {
   steps: WorkflowStepSummary[]
   stateType: 'current' | 'future'
@@ -215,6 +223,7 @@ function StepColumn({
   onCreateStep?: (stateType: 'current' | 'future') => void
   onEditStep?: (stepId: string) => void
   onDeleteStep?: (stepId: string) => void
+  onViewStepDetail?: (stepId: string) => void
 }) {
   const isCurrent = stateType === 'current'
   return (
@@ -242,6 +251,7 @@ function StepColumn({
               stateType={stateType}
               onEdit={onEditStep ? () => onEditStep(step.id) : undefined}
               onDelete={onDeleteStep ? () => onDeleteStep(step.id) : undefined}
+              onViewDetail={onViewStepDetail ? () => onViewStepDetail(step.id) : undefined}
             />
           ))}
         </div>
@@ -279,6 +289,8 @@ function WorkflowAccordionCard({
   onDeleteStep,
   onRefreshEntity,
   onStatusClick,
+  onViewStepDetail,
+  onViewWorkflowDetail,
 }: {
   pair: WorkflowPair
   onConfirm: (entityType: string, entityId: string) => void
@@ -291,6 +303,8 @@ function WorkflowAccordionCard({
   onDeleteStep?: (workflowId: string, stepId: string) => void
   onRefreshEntity?: (entityType: string, entityId: string) => void
   onStatusClick?: (entityType: string, entityId: string, entityName: string, status?: string | null) => void
+  onViewStepDetail?: (stepId: string) => void
+  onViewWorkflowDetail?: (workflowId: string) => void
 }) {
   const [expanded, setExpanded] = useState(false)
 
@@ -321,7 +335,12 @@ function WorkflowAccordionCard({
           className={`w-4 h-4 text-[#999999] shrink-0 transition-transform duration-200 ${expanded ? 'rotate-90' : ''}`}
         />
         <Workflow className="w-4 h-4 text-[#3FAF7A] shrink-0" />
-        <span className="text-[14px] font-semibold text-[#333333] truncate">{pair.name}</span>
+        <span
+          className={`text-[14px] font-semibold text-[#333333] truncate ${onViewWorkflowDetail ? 'hover:text-[#25785A] hover:underline cursor-pointer' : ''}`}
+          onClick={onViewWorkflowDetail ? (e) => { e.stopPropagation(); onViewWorkflowDetail(pair.id) } : undefined}
+        >
+          {pair.name}
+        </span>
         {/* Time summaries */}
         {currentMin > 0 && (
           <span className="text-[11px] text-[#999999] shrink-0">Current: {currentMin}min</span>
@@ -384,6 +403,7 @@ function WorkflowAccordionCard({
                   onCreateStep={createStepHandler}
                   onEditStep={editStepHandler}
                   onDeleteStep={deleteStepHandler}
+                  onViewStepDetail={onViewStepDetail}
                 />
               )}
               <StepColumn
@@ -393,6 +413,7 @@ function WorkflowAccordionCard({
                 onCreateStep={createStepHandler}
                 onEditStep={editStepHandler}
                 onDeleteStep={deleteStepHandler}
+                onViewStepDetail={onViewStepDetail}
               />
             </div>
           ) : (
@@ -426,6 +447,8 @@ export function WorkflowsSection({
   onDeleteStep,
   onRefreshEntity,
   onStatusClick,
+  onViewStepDetail,
+  onViewWorkflowDetail,
 }: WorkflowsSectionProps) {
   const hasWorkflowPairs = workflowPairs.length > 0
 
@@ -478,6 +501,8 @@ export function WorkflowsSection({
               onDeleteStep={onDeleteStep}
               onRefreshEntity={onRefreshEntity}
               onStatusClick={onStatusClick}
+              onViewStepDetail={onViewStepDetail}
+              onViewWorkflowDetail={onViewWorkflowDetail}
             />
           ))}
         </div>
