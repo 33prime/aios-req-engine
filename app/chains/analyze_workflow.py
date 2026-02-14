@@ -277,7 +277,7 @@ async def enrich_workflow(
     try:
         llm = ChatAnthropic(
             model="claude-sonnet-4-20250514",
-            api_key=settings.anthropic_api_key,
+            api_key=settings.ANTHROPIC_API_KEY,
             temperature=0.3,
             max_tokens=4000,
         )
