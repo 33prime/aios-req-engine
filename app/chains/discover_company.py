@@ -6,6 +6,7 @@ Builds a structured company profile from real data sources.
 import asyncio
 import json
 import logging
+import re
 from typing import Any
 
 from app.core.config import get_settings
@@ -13,6 +14,29 @@ from app.core.firecrawl_service import scrape_website_safe
 from app.core.pdl_service import enrich_company_safe
 
 logger = logging.getLogger(__name__)
+
+
+def _parse_json_response(text: str, context: str = "") -> dict[str, Any]:
+    """Robustly parse JSON from an LLM response, handling code blocks and raw JSON."""
+    try:
+        if "```json" in text:
+            text = text.split("```json")[1].split("```")[0]
+        elif "```" in text:
+            text = text.split("```")[1].split("```")[0]
+        return json.loads(text.strip())
+    except (json.JSONDecodeError, IndexError):
+        pass
+
+    # Fallback: find first { ... } block
+    match = re.search(r'\{[\s\S]*\}', text)
+    if match:
+        try:
+            return json.loads(match.group())
+        except json.JSONDecodeError:
+            pass
+
+    logger.warning(f"Failed to parse JSON from LLM response ({context})")
+    return {}
 
 COMPANY_EXTRACTION_PROMPT = """You are extracting structured company information from scraped web pages.
 Extract ONLY facts that appear in the provided text. Do NOT generate or infer information.
@@ -66,17 +90,7 @@ async def _extract_with_haiku(scraped_content: str, cost_entries: list[dict]) ->
     })
 
     text = response.content[0].text if response.content else "{}"
-    # Extract JSON from response
-    try:
-        # Handle markdown code blocks
-        if "```json" in text:
-            text = text.split("```json")[1].split("```")[0]
-        elif "```" in text:
-            text = text.split("```")[1].split("```")[0]
-        return json.loads(text.strip())
-    except (json.JSONDecodeError, IndexError):
-        logger.warning("Failed to parse Haiku company extraction response")
-        return {}
+    return _parse_json_response(text, "company extraction")
 
 
 async def run_company_intelligence(

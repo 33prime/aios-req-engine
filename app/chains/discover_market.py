@@ -6,6 +6,7 @@ Scrapes market/industry report pages and extracts structured data points.
 import asyncio
 import json
 import logging
+import re
 from typing import Any
 
 from app.core.config import get_settings
@@ -96,12 +97,16 @@ async def run_market_evidence(
         })
 
         text = response.content[0].text if response.content else "{}"
-        if "```json" in text:
-            text = text.split("```json")[1].split("```")[0]
-        elif "```" in text:
-            text = text.split("```")[1].split("```")[0]
-
-        parsed = json.loads(text.strip())
+        # Robust JSON parsing
+        try:
+            if "```json" in text:
+                text = text.split("```json")[1].split("```")[0]
+            elif "```" in text:
+                text = text.split("```")[1].split("```")[0]
+            parsed = json.loads(text.strip())
+        except (json.JSONDecodeError, IndexError):
+            match = re.search(r'\{[\s\S]*\}', text)
+            parsed = json.loads(match.group()) if match else {}
         data_points = parsed.get("data_points", [])
 
         logger.info(f"Market evidence complete: {len(data_points)} data points extracted")

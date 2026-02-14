@@ -113,18 +113,24 @@ async def start_discovery(
 
     # Get project
     project = supabase.table("projects").select(
-        "id, name, industry, company_name, company_website"
+        "id, name, client_name, metadata"
     ).eq("id", str(project_id)).maybe_single().execute()
 
     if not project.data:
         raise HTTPException(status_code=404, detail="Project not found")
 
     project_data = project.data
+    project_meta = project_data.get("metadata") or {}
 
     # Resolve company info — request overrides project defaults
-    company_name = request.company_name or project_data.get("company_name") or project_data.get("name", "Unknown")
-    company_website = request.company_website or project_data.get("company_website")
-    industry = request.industry or project_data.get("industry")
+    company_name = (
+        request.company_name
+        or project_meta.get("company_name")
+        or project_data.get("client_name")
+        or project_data.get("name", "Unknown")
+    )
+    company_website = request.company_website or project_meta.get("company_website")
+    industry = request.industry or project_meta.get("industry")
     focus_areas = request.focus_areas or []
 
     # Create job

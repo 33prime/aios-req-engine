@@ -6,6 +6,7 @@ Profiles up to N competitors with real firmographic and scraped data.
 import asyncio
 import json
 import logging
+import re
 from typing import Any
 
 from app.core.config import get_settings
@@ -13,6 +14,26 @@ from app.core.firecrawl_service import scrape_website_safe
 from app.core.pdl_service import enrich_company_safe
 
 logger = logging.getLogger(__name__)
+
+
+def _parse_json_response(text: str, context: str = "") -> dict[str, Any]:
+    """Robustly parse JSON from an LLM response."""
+    try:
+        if "```json" in text:
+            text = text.split("```json")[1].split("```")[0]
+        elif "```" in text:
+            text = text.split("```")[1].split("```")[0]
+        return json.loads(text.strip())
+    except (json.JSONDecodeError, IndexError):
+        pass
+    match = re.search(r'\{[\s\S]*\}', text)
+    if match:
+        try:
+            return json.loads(match.group())
+        except json.JSONDecodeError:
+            pass
+    logger.warning(f"Failed to parse JSON from LLM response ({context})")
+    return {}
 
 COMPETITOR_EXTRACTION_PROMPT = """You are extracting competitor information from scraped web pages.
 Extract ONLY facts that appear in the provided text. Never fabricate information.
@@ -158,12 +179,7 @@ async def _profile_one_competitor(
             })
 
             text = response.content[0].text if response.content else "{}"
-            if "```json" in text:
-                text = text.split("```json")[1].split("```")[0]
-            elif "```" in text:
-                text = text.split("```")[1].split("```")[0]
-
-            extracted = json.loads(text.strip())
+            extracted = _parse_json_response(text, f"competitor {name}")
             profile.update({
                 "key_features": extracted.get("key_features", []),
                 "pricing_tiers": extracted.get("pricing_tiers", []),

@@ -247,7 +247,7 @@ async def run_synthesis(
                         description=driver.get("description", ""),
                         source_signal_id=signal_id,
                         new_evidence=evidence,
-                        created_by="discovery_pipeline",
+                        created_by="system",
                         severity=driver.get("severity"),
                         business_impact=driver.get("business_impact"),
                         affected_users=driver.get("affected_users"),
@@ -346,7 +346,7 @@ async def run_synthesis(
                         name=comp.get("name", "Unknown"),
                         new_evidence=comp_evidence,
                         source_signal_id=signal_id,
-                        created_by="discovery_pipeline",
+                        created_by="system",
                         url=comp.get("website"),
                         strengths=comp.get("strengths"),
                         weaknesses=comp.get("weaknesses"),
@@ -369,19 +369,31 @@ async def run_synthesis(
             from app.db.supabase_client import get_supabase
             supabase = get_supabase()
 
-            profile_updates: dict[str, Any] = {}
+            # Store enriched company data in project metadata
+            project = supabase.table("projects").select(
+                "metadata"
+            ).eq("id", str(project_id)).maybe_single().execute()
+            existing_meta = (project.data or {}).get("metadata") or {}
+
+            meta_updates = dict(existing_meta)
             if company_profile.get("industries"):
-                profile_updates["industry"] = (
+                meta_updates["industry"] = (
                     company_profile["industries"] if isinstance(company_profile["industries"], str)
                     else company_profile["industries"]
                 )
             if company_profile.get("description"):
-                profile_updates["company_description"] = company_profile["description"][:500]
+                meta_updates["company_description"] = company_profile["description"][:500]
+            if company_profile.get("employee_count"):
+                meta_updates["employee_count"] = company_profile["employee_count"]
+            if company_profile.get("revenue_range"):
+                meta_updates["revenue_range"] = company_profile["revenue_range"]
+            if company_profile.get("tech_stack"):
+                meta_updates["tech_stack"] = company_profile["tech_stack"][:20]
+            meta_updates["company_name"] = company_name
 
-            if profile_updates:
-                supabase.table("projects").update(
-                    profile_updates
-                ).eq("id", str(project_id)).execute()
+            supabase.table("projects").update({
+                "metadata": meta_updates,
+            }).eq("id", str(project_id)).execute()
 
         except Exception as e:
             logger.warning(f"Failed to update project profile: {e}")

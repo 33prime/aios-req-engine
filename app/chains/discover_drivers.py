@@ -6,6 +6,7 @@ Produces drivers with relationship context for entity linking.
 
 import json
 import logging
+import re
 from typing import Any
 
 from app.core.config import get_settings
@@ -206,12 +207,15 @@ async def run_driver_synthesis(
         })
 
         text = response.content[0].text if response.content else "{}"
-        if "```json" in text:
-            text = text.split("```json")[1].split("```")[0]
-        elif "```" in text:
-            text = text.split("```")[1].split("```")[0]
-
-        parsed = json.loads(text.strip())
+        try:
+            if "```json" in text:
+                text = text.split("```json")[1].split("```")[0]
+            elif "```" in text:
+                text = text.split("```")[1].split("```")[0]
+            parsed = json.loads(text.strip())
+        except (json.JSONDecodeError, IndexError):
+            match = re.search(r'\{[\s\S]*\}', text)
+            parsed = json.loads(match.group()) if match else {}
         drivers = parsed.get("drivers", [])
 
         logger.info(

@@ -301,12 +301,13 @@ async def _execute_run_discover(project_id: UUID, args: dict) -> dict:
             # Try to get from project
             supabase = get_supabase()
             project = supabase.table("projects").select(
-                "name, company_name, company_website, industry"
+                "name, client_name, metadata"
             ).eq("id", str(project_id)).maybe_single().execute()
             if project.data:
-                company_name = project.data.get("company_name") or project.data.get("name", "Unknown")
-                company_website = company_website or project.data.get("company_website")
-                industry = industry or project.data.get("industry")
+                meta = project.data.get("metadata") or {}
+                company_name = meta.get("company_name") or project.data.get("client_name") or project.data.get("name", "Unknown")
+                company_website = company_website or meta.get("company_website")
+                industry = industry or meta.get("industry")
 
         run_id = uuid_mod.uuid4()
         job_id = create_job(

@@ -6,6 +6,7 @@ from competitor data collected in Phase 3.
 
 import json
 import logging
+import re
 from typing import Any
 
 from app.core.config import get_settings
@@ -94,9 +95,9 @@ async def run_feature_analysis(
 
     # Format company profile
     cp_text = (
-        f"Products: {', '.join(company_profile.get('key_products', []))}\n"
+        f"Products: {', '.join(company_profile.get('key_products') or [])}\n"
         f"Pricing: {company_profile.get('pricing_model', '?')}\n"
-        f"Tiers: {', '.join(company_profile.get('pricing_tiers', []))}\n"
+        f"Tiers: {', '.join(company_profile.get('pricing_tiers') or [])}\n"
     )
 
     client = AsyncAnthropic(api_key=settings.ANTHROPIC_API_KEY)
@@ -121,12 +122,15 @@ async def run_feature_analysis(
         })
 
         text = response.content[0].text if response.content else "{}"
-        if "```json" in text:
-            text = text.split("```json")[1].split("```")[0]
-        elif "```" in text:
-            text = text.split("```")[1].split("```")[0]
-
-        parsed = json.loads(text.strip())
+        try:
+            if "```json" in text:
+                text = text.split("```json")[1].split("```")[0]
+            elif "```" in text:
+                text = text.split("```")[1].split("```")[0]
+            parsed = json.loads(text.strip())
+        except (json.JSONDecodeError, IndexError):
+            match = re.search(r'\{[\s\S]*\}', text)
+            parsed = json.loads(match.group()) if match else {}
 
         feature_matrix = parsed.get("feature_matrix", {})
         pricing_comparison = parsed.get("pricing_comparison", [])
