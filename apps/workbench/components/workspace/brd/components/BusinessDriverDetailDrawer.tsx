@@ -18,13 +18,17 @@ import {
   CheckCircle2,
   Circle,
   Info,
+  DollarSign,
+  Pencil,
 } from 'lucide-react'
 import { BRDStatusBadge } from './StatusBadge'
 import { ConfirmActions } from './ConfirmActions'
 import { EvidenceBlock } from './EvidenceBlock'
 import { WhoHasTheData } from './WhoHasTheData'
 import { FinancialImpactCard } from './FinancialImpactCard'
-import { getBRDDriverDetail } from '@/lib/api'
+import { FinancialImpactChat } from './FinancialImpactChat'
+import { getBRDDriverDetail, updateDriverFinancials } from '@/lib/api'
+import type { FinancialValues } from '@/lib/useFinancialImpactChat'
 import { getTopicsForDriverType, inferTopicsFromText } from '@/lib/topic-role-map'
 import type {
   BusinessDriver,
@@ -190,9 +194,12 @@ export function BusinessDriverDetailDrawer({
           {activeTab === 'intelligence' && (
             <IntelligenceTab
               driverType={driverType}
+              projectId={projectId}
+              driverId={driverId}
               initialData={initialData}
               detail={detail}
               loading={loading}
+              onDetailUpdate={setDetail}
             />
           )}
           {activeTab === 'who_has_data' && (
@@ -236,16 +243,41 @@ export function BusinessDriverDetailDrawer({
 
 function IntelligenceTab({
   driverType,
+  projectId,
+  driverId,
   initialData,
   detail,
   loading,
+  onDetailUpdate,
 }: {
   driverType: DriverType
+  projectId: string
+  driverId: string
   initialData: BusinessDriver
   detail: BusinessDriverDetail | null
   loading: boolean
+  onDetailUpdate: (d: BusinessDriverDetail) => void
 }) {
   const d = detail || initialData
+  const [showFinancialChat, setShowFinancialChat] = useState(false)
+
+  const handleSaveFinancial = async (values: FinancialValues) => {
+    try {
+      await updateDriverFinancials(projectId, driverId, {
+        monetary_value_low: values.monetary_value_low,
+        monetary_value_high: values.monetary_value_high,
+        monetary_type: values.monetary_type,
+        monetary_timeframe: values.monetary_timeframe,
+        monetary_confidence: values.monetary_confidence,
+        monetary_source: values.monetary_source,
+      })
+      const updated = await getBRDDriverDetail(projectId, driverId)
+      onDetailUpdate(updated)
+      setShowFinancialChat(false)
+    } catch (err) {
+      console.error('Failed to save financial impact:', err)
+    }
+  }
 
   // Build narrative from available data
   const narrative = useMemo(() => buildNarrative(driverType, d), [driverType, d])
@@ -352,26 +384,55 @@ function IntelligenceTab({
 
         {/* Financial Impact (KPI only) */}
         {driverType === 'kpi' && (
-          (d.monetary_value_low || d.monetary_value_high) ? (
-            <div>
-              <h4 className="text-[11px] font-medium text-[#999999] uppercase tracking-wide mb-3">
-                Financial Impact
-              </h4>
-              <FinancialImpactCard
-                monetaryValueLow={d.monetary_value_low}
-                monetaryValueHigh={d.monetary_value_high}
-                monetaryType={d.monetary_type}
-                monetaryTimeframe={d.monetary_timeframe}
-                monetaryConfidence={d.monetary_confidence}
-                monetarySource={d.monetary_source}
+          <div className="mt-4">
+            <h4 className="text-[11px] font-medium text-[#999999] uppercase tracking-wide mb-3">
+              Financial Impact
+            </h4>
+            {showFinancialChat ? (
+              <FinancialImpactChat
+                existingValues={
+                  (d.monetary_value_low || d.monetary_value_high)
+                    ? {
+                        monetary_type: d.monetary_type ?? null,
+                        monetary_value_low: d.monetary_value_low ?? null,
+                        monetary_value_high: d.monetary_value_high ?? null,
+                        monetary_timeframe: d.monetary_timeframe ?? null,
+                        monetary_confidence: d.monetary_confidence ?? null,
+                        monetary_source: d.monetary_source ?? null,
+                      }
+                    : undefined
+                }
+                onSave={handleSaveFinancial}
+                onCancel={() => setShowFinancialChat(false)}
               />
-            </div>
-          ) : (
-            <div className="flex items-start gap-2 text-[12px] text-[#666666] bg-[#F4F4F4] border border-[#E5E5E5] rounded-lg px-3 py-2">
-              <Info className="w-3.5 h-3.5 mt-0.5 flex-shrink-0 text-[#999999]" />
-              No financial impact estimate — enrich to extract monetary values from signals
-            </div>
-          )
+            ) : (d.monetary_value_low || d.monetary_value_high) ? (
+              <div className="space-y-2">
+                <FinancialImpactCard
+                  monetaryValueLow={d.monetary_value_low}
+                  monetaryValueHigh={d.monetary_value_high}
+                  monetaryType={d.monetary_type}
+                  monetaryTimeframe={d.monetary_timeframe}
+                  monetaryConfidence={d.monetary_confidence}
+                  monetarySource={d.monetary_source}
+                />
+                <button
+                  onClick={() => setShowFinancialChat(true)}
+                  className="flex items-center gap-1.5 text-[12px] font-medium text-[#666666] hover:text-[#25785A] transition-colors"
+                >
+                  <Pencil className="w-3 h-3" />
+                  Edit estimate
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => setShowFinancialChat(true)}
+                className="flex items-center gap-2 w-full px-3 py-2.5 text-[12px] font-medium text-[#25785A] bg-white border border-[#3FAF7A] border-dashed rounded-lg hover:bg-[#E8F5E9] transition-colors"
+              >
+                <DollarSign className="w-3.5 h-3.5" />
+                Add Financial Impact
+              </button>
+            )}
+          </div>
         )}
       </div>
 

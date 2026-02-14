@@ -261,6 +261,7 @@ ENTITY_TABLE_MAP = {
     "business_driver": "business_drivers",
     "constraint": "constraints",
     "stakeholder": "stakeholders",
+    "competitor_reference": "competitor_references",
 }
 
 

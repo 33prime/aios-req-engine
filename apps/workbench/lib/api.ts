@@ -2078,6 +2078,15 @@ export const updateProjectVision = (projectId: string, vision: string) =>
   })
 
 /**
+ * Enhance project vision using AI.
+ */
+export const enhanceVision = (projectId: string, enhancementType: string) =>
+  apiRequest<{ suggestion: string }>(`/projects/${projectId}/workspace/vision/enhance`, {
+    method: 'POST',
+    body: JSON.stringify({ enhancement_type: enhancementType }),
+  })
+
+/**
  * Trigger AI constraint inference for a project.
  */
 export const inferConstraints = (projectId: string) =>
@@ -2134,6 +2143,23 @@ export const getEntityConfidence = (projectId: string, entityType: string, entit
 export const getBRDDriverDetail = (projectId: string, driverId: string) =>
   apiRequest<import('@/types/workspace').BusinessDriverDetail>(
     `/projects/${projectId}/workspace/brd/drivers/${driverId}/detail`
+  )
+
+export const updateDriverFinancials = (
+  projectId: string,
+  driverId: string,
+  data: {
+    monetary_value_low?: number | null
+    monetary_value_high?: number | null
+    monetary_type?: string | null
+    monetary_timeframe?: string | null
+    monetary_confidence?: number | null
+    monetary_source?: string | null
+  }
+) =>
+  apiRequest<Record<string, unknown>>(
+    `/projects/${projectId}/workspace/brd/drivers/${driverId}/financials`,
+    { method: 'PATCH', body: JSON.stringify(data) }
   )
 
 export const updateProjectBackground = (projectId: string, background: string) =>
@@ -2427,6 +2453,22 @@ export const getBRDHealth = (projectId: string) =>
     `/projects/${projectId}/workspace/brd/health`
   )
 
+export interface NextAction {
+  action_type: string
+  title: string
+  description: string
+  impact_score: number
+  target_entity_type: string
+  target_entity_id: string | null
+  suggested_stakeholder_role: string | null
+  suggested_artifact: string | null
+}
+
+export const getNextActions = (projectId: string) =>
+  apiRequest<{ actions: NextAction[] }>(
+    `/projects/${projectId}/workspace/brd/next-actions`
+  )
+
 export const getDataEntityGraph = (projectId: string) =>
   apiRequest<import('@/types/workspace').DataEntityGraphData>(
     `/projects/${projectId}/workspace/data-entity-graph`
@@ -2509,6 +2551,24 @@ export const updateCanvasRole = (projectId: string, personaId: string, canvasRol
 export const getCanvasActors = (projectId: string) =>
   apiRequest<import('@/types/workspace').PersonaBRDSummary[]>(
     `/projects/${projectId}/workspace/canvas-actors`
+  )
+
+// Canvas: Project Context
+export const getProjectContext = (projectId: string) =>
+  apiRequest<import('@/types/workspace').ProjectContext>(
+    `/projects/${projectId}/workspace/canvas/project-context`
+  )
+
+export const generateProjectContext = (projectId: string) =>
+  apiRequest<import('@/types/workspace').ProjectContext>(
+    `/projects/${projectId}/workspace/canvas/project-context/generate`,
+    { method: 'POST' }
+  )
+
+// Canvas: Value Path Step Detail
+export const getValuePathStepDetail = (projectId: string, stepIndex: number) =>
+  apiRequest<import('@/types/workspace').ValuePathStepDetail>(
+    `/projects/${projectId}/workspace/canvas/value-path-steps/${stepIndex}/detail`
   )
 
 // ============================================

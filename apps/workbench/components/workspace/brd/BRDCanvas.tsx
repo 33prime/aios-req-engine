@@ -319,19 +319,7 @@ export function BRDCanvas({ projectId, onRefresh }: BRDCanvasProps) {
       return
     }
     if (entityType === 'business_driver') {
-      // Look up driver type from BRD data
-      const allDrivers = [
-        ...data.business_context.pain_points.map(d => ({ ...d, _type: 'pain' as const })),
-        ...data.business_context.goals.map(d => ({ ...d, _type: 'goal' as const })),
-        ...data.business_context.success_metrics.map(d => ({ ...d, _type: 'kpi' as const })),
-      ]
-      const driver = allDrivers.find(d => d.id === entityId)
-      if (driver) {
-        // BusinessDriverDetailDrawer is already opened from BusinessContextSection
-        // via its own selectedDriver state — no routing needed from here
-        // But if status badge click comes through, open it via confidence drawer as fallback
-      }
-      setConfidenceDrawer({ open: true, entityType, entityId, entityName, initialStatus: status })
+      // Route to entity-specific drawer — don't fall through to ConfidenceDrawer
       return
     }
     if (entityType === 'persona') {

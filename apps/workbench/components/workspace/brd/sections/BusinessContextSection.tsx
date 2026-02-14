@@ -1,11 +1,10 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { Building2, AlertTriangle, Target, Eye, BarChart3, Pencil, ChevronDown, ChevronRight, Users, Puzzle, Zap, FileText, Link2, Sparkles, Loader2, Check, X } from 'lucide-react'
+import { Building2, AlertTriangle, Target, Eye, BarChart3, Pencil, ChevronDown, ChevronRight, Users, Puzzle, Zap, FileText, Sparkles, Loader2, Check, X } from 'lucide-react'
 import { SectionHeader } from '../components/SectionHeader'
 import { BRDStatusBadge } from '../components/StatusBadge'
 import { ConfirmActions } from '../components/ConfirmActions'
-import { EvidenceBlock } from '../components/EvidenceBlock'
 import { BusinessDriverDetailDrawer } from '../components/BusinessDriverDetailDrawer'
 import { enhanceVision } from '@/lib/api'
 import type { BRDWorkspaceData, BusinessDriver, VisionAlignment, SectionScore, StakeholderBRDSummary } from '@/types/workspace'
@@ -199,67 +198,11 @@ function DriverCard({
         </div>
       </button>
 
-      {/* Expanded view */}
-      <div className={`overflow-hidden transition-all duration-200 ${expanded ? 'max-h-[3000px] opacity-100' : 'max-h-0 opacity-0'}`}>
-        <div className="px-5 pb-5 pt-1 border-t border-[#E5E5E5]">
-          {/* Section 1: Type-specific fields */}
-          <div className="space-y-2 text-[13px] text-[#666666] mb-4">
-            {driver.driver_type === 'pain' && (
-              <>
-                {driver.severity && <div><span className="font-medium text-[#333333]">Severity:</span> {driver.severity}</div>}
-                {driver.business_impact && <div><span className="font-medium text-[#333333]">Impact:</span> {driver.business_impact}</div>}
-                {driver.affected_users && <div><span className="font-medium text-[#333333]">Affected Users:</span> {driver.affected_users}</div>}
-                {driver.current_workaround && <div><span className="font-medium text-[#333333]">Workaround:</span> {driver.current_workaround}</div>}
-              </>
-            )}
-            {driver.driver_type === 'goal' && (
-              <>
-                {driver.success_criteria && <div><span className="font-medium text-[#333333]">Success Criteria:</span> {driver.success_criteria}</div>}
-                {driver.owner && <div><span className="font-medium text-[#333333]">Owner:</span> {driver.owner}</div>}
-                {driver.goal_timeframe && <div><span className="font-medium text-[#333333]">Timeframe:</span> {driver.goal_timeframe}</div>}
-              </>
-            )}
-            {driver.driver_type === 'kpi' && (
-              <>
-                {driver.baseline_value && <div><span className="font-medium text-[#333333]">Current:</span> {driver.baseline_value}</div>}
-                {driver.target_value && <div><span className="font-medium text-[#333333]">Target:</span> {driver.target_value}</div>}
-                {driver.measurement_method && <div><span className="font-medium text-[#333333]">Measurement:</span> {driver.measurement_method}</div>}
-              </>
-            )}
-          </div>
-
-          {/* Section 2: Connections (mini graph) */}
-          {((driver.associated_persona_names?.length ?? 0) > 0 || (driver.linked_feature_count ?? 0) > 0 || (driver.linked_workflow_count ?? 0) > 0) && (
-            <div className="mb-4">
-              <h4 className="text-[11px] font-medium text-[#999999] uppercase tracking-wide mb-2 flex items-center gap-1">
-                <Link2 className="w-3 h-3" />
-                Connections
-              </h4>
-              <div className="flex flex-wrap gap-1.5">
-                {driver.associated_persona_names?.map((name) => (
-                  <span key={name} className="px-2 py-0.5 text-[10px] font-medium bg-[#E8F5E9] text-[#25785A] rounded-full">
-                    {name}
-                  </span>
-                ))}
-                {(driver.linked_feature_count ?? 0) > 0 && (
-                  <span className="px-2 py-0.5 text-[10px] font-medium bg-[#F0F0F0] text-[#666666] rounded-full">
-                    {driver.linked_feature_count} feature{(driver.linked_feature_count ?? 0) !== 1 ? 's' : ''}
-                  </span>
-                )}
-                {(driver.linked_workflow_count ?? 0) > 0 && (
-                  <span className="px-2 py-0.5 text-[10px] font-medium bg-[#F0F0F0] text-[#666666] rounded-full">
-                    {driver.linked_workflow_count} workflow{(driver.linked_workflow_count ?? 0) !== 1 ? 's' : ''}
-                  </span>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Section 3: Evidence trail (max 3 inline) */}
-          <EvidenceBlock evidence={driver.evidence || []} maxItems={3} />
-
+      {/* Expanded view — lightweight, detail is in the drawer */}
+      <div className={`overflow-hidden transition-all duration-200 ${expanded ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'}`}>
+        <div className="px-5 pb-4 pt-2 border-t border-[#E5E5E5]">
           {/* Actions row */}
-          <div className="mt-3 pt-3 border-t border-[#E5E5E5] flex items-center justify-between">
+          <div className="flex items-center justify-between">
             <ConfirmActions status={driver.confirmation_status} onConfirm={onConfirm} onNeedsReview={onNeedsReview} />
             <button
               onClick={onDetailClick}

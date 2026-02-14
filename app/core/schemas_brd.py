@@ -126,6 +126,16 @@ class StakeholderBRDSummary(BaseModel):
     evidence: list[EvidenceItem] = []
 
 
+class BusinessDriverFinancialUpdate(BaseModel):
+    """Request body for updating a KPI driver's financial impact fields."""
+    monetary_value_low: float | None = None
+    monetary_value_high: float | None = None
+    monetary_type: str | None = None
+    monetary_timeframe: str | None = None
+    monetary_confidence: float | None = None
+    monetary_source: str | None = None
+
+
 class CanvasRoleUpdate(BaseModel):
     """Request body for updating a persona's canvas role."""
     canvas_role: str | None = None  # 'primary', 'secondary', or None to clear

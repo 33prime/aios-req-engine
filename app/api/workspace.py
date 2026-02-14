@@ -14,6 +14,7 @@ from app.core.schemas_brd import (
     BRDWorkspaceData,
     BusinessContextSection,
     BusinessDriverDetail,
+    BusinessDriverFinancialUpdate,
     CanvasRoleUpdate,
     CompetitorBRDSummary,
     ConstraintSummary,
@@ -1582,6 +1583,62 @@ async def get_brd_driver_detail(project_id: UUID, driver_id: UUID) -> BusinessDr
         raise
     except Exception as e:
         logger.exception(f"Failed to get driver detail for {driver_id}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.patch("/brd/drivers/{driver_id}/financials")
+async def update_driver_financials(
+    project_id: UUID,
+    driver_id: UUID,
+    data: BusinessDriverFinancialUpdate,
+) -> dict:
+    """Update financial impact fields on a KPI business driver."""
+    from app.db.business_drivers import get_business_driver
+
+    client = get_client()
+
+    try:
+        driver = get_business_driver(str(driver_id))
+        if not driver:
+            raise HTTPException(status_code=404, detail="Business driver not found")
+
+        if driver.get("project_id") != str(project_id):
+            raise HTTPException(status_code=403, detail="Driver does not belong to this project")
+
+        # Build update dict from non-None fields
+        update_fields: dict = {}
+        for field in [
+            "monetary_value_low",
+            "monetary_value_high",
+            "monetary_type",
+            "monetary_timeframe",
+            "monetary_confidence",
+            "monetary_source",
+        ]:
+            val = getattr(data, field)
+            if val is not None:
+                update_fields[field] = val
+
+        if not update_fields:
+            raise HTTPException(status_code=400, detail="No fields to update")
+
+        update_fields["updated_at"] = "now()"
+
+        result = (
+            client.table("business_drivers")
+            .update(update_fields)
+            .eq("id", str(driver_id))
+            .execute()
+        )
+
+        if result.data:
+            return result.data[0]
+        raise HTTPException(status_code=500, detail="Update returned no data")
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"Failed to update driver financials for {driver_id}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
