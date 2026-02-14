@@ -706,9 +706,32 @@ def consolidate_constraints(
     return changes
 
 
+def _resolve_name_to_id(
+    name: str | None,
+    entities: list[dict],
+    text_field: str = "name",
+) -> str | None:
+    """Resolve a string name to an entity UUID using similarity matching."""
+    if not name or not entities:
+        return None
+    matcher = SimilarityMatcher(entity_type="feature")
+    result = matcher.find_best_match(
+        candidate=name,
+        corpus=entities,
+        text_field=text_field,
+        id_field="id",
+    )
+    if result.is_match and result.matched_item:
+        return result.matched_item["id"]
+    return None
+
+
 def consolidate_business_drivers(
     extracted: list[ExtractedEntity],
     existing_drivers: list[dict],
+    existing_personas: list[dict] | None = None,
+    existing_features: list[dict] | None = None,
+    existing_vp_steps: list[dict] | None = None,
 ) -> list[ConsolidatedChange]:
     """
     Consolidate extracted business drivers (KPIs, pains, goals).
@@ -717,6 +740,9 @@ def consolidate_business_drivers(
     - kpi, metric → kpi
     - pain → pain
     - goal, objective → goal
+
+    Also resolves extraction relationship hints (related_actor, related_process,
+    addresses_feature) into linked_persona_ids, linked_vp_step_ids, linked_feature_ids.
     """
     changes = []
     seen_descriptions: set[str] = set()
@@ -758,18 +784,49 @@ def consolidate_business_drivers(
             id_field="id",
         )
 
+        # Resolve relationship hints to entity IDs
+        linked_persona_ids: list[str] = []
+        linked_feature_ids: list[str] = []
+        linked_vp_step_ids: list[str] = []
+
+        related_actor = raw.get("related_actor")
+        if related_actor and existing_personas:
+            pid = _resolve_name_to_id(related_actor, existing_personas, "name")
+            if pid:
+                linked_persona_ids.append(pid)
+
+        addresses_feature = raw.get("addresses_feature")
+        if addresses_feature and existing_features:
+            fid = _resolve_name_to_id(addresses_feature, existing_features, "name")
+            if fid:
+                linked_feature_ids.append(fid)
+
+        related_process = raw.get("related_process")
+        if related_process and existing_vp_steps:
+            vid = _resolve_name_to_id(related_process, existing_vp_steps, "label")
+            if vid:
+                linked_vp_step_ids.append(vid)
+
         if not match_result.is_match:
+            after_data: dict = {
+                "driver_type": driver_type,
+                "description": description,
+                "measurement": raw.get("measurement") or raw.get("detail"),
+                "timeframe": raw.get("timeframe"),
+                "priority": 3,  # Default medium priority
+            }
+            if linked_persona_ids:
+                after_data["linked_persona_ids"] = linked_persona_ids
+            if linked_feature_ids:
+                after_data["linked_feature_ids"] = linked_feature_ids
+            if linked_vp_step_ids:
+                after_data["linked_vp_step_ids"] = linked_vp_step_ids
+
             changes.append(ConsolidatedChange(
                 entity_type="business_driver",
                 operation="create",
                 entity_name=description[:50],
-                after={
-                    "driver_type": driver_type,
-                    "description": description,
-                    "measurement": raw.get("measurement") or raw.get("detail"),
-                    "timeframe": raw.get("timeframe"),
-                    "priority": 3,  # Default medium priority
-                },
+                after=after_data,
                 evidence=[
                     {"excerpt": exc, "source": "signal"}
                     for exc in entity.evidence_excerpts
@@ -780,13 +837,27 @@ def consolidate_business_drivers(
 
         elif match_result.matched_item:
             matched = match_result.matched_item
-            new_data = {
+            new_data: dict[str, Any] = {
                 "measurement": raw.get("measurement") or raw.get("detail"),
                 "timeframe": raw.get("timeframe"),
             }
+            # Merge link arrays with existing
+            if linked_persona_ids:
+                existing_pids = matched.get("linked_persona_ids") or []
+                merged_pids = list(set([str(p) for p in existing_pids] + linked_persona_ids))
+                new_data["linked_persona_ids"] = merged_pids
+            if linked_feature_ids:
+                existing_fids = matched.get("linked_feature_ids") or []
+                merged_fids = list(set([str(f) for f in existing_fids] + linked_feature_ids))
+                new_data["linked_feature_ids"] = merged_fids
+            if linked_vp_step_ids:
+                existing_vids = matched.get("linked_vp_step_ids") or []
+                merged_vids = list(set([str(v) for v in existing_vids] + linked_vp_step_ids))
+                new_data["linked_vp_step_ids"] = merged_vids
 
             field_changes = detect_field_changes(
-                matched, new_data, ["description", "measurement", "timeframe"]
+                matched, new_data, ["description", "measurement", "timeframe",
+                                    "linked_persona_ids", "linked_feature_ids", "linked_vp_step_ids"]
             )
 
             if field_changes:
@@ -1178,6 +1249,10 @@ def facts_to_entities(facts: list[dict]) -> list[ExtractedEntity]:
                 # For business drivers
                 "measurement": fact.get("measurement"),
                 "timeframe": fact.get("timeframe"),
+                # Relationship hints from extraction (for link resolution)
+                "related_actor": fact.get("related_actor"),
+                "related_process": fact.get("related_process"),
+                "addresses_feature": fact.get("addresses_feature"),
                 # For competitor refs
                 "url": fact.get("url"),
                 "category": fact.get("category"),
@@ -1253,7 +1328,16 @@ def consolidate_extractions(
         "vp_steps": (consolidate_vp_steps, entities_by_type["vp_step"], existing["vp_steps"]),
         "stakeholders": (consolidate_stakeholders, entities_by_type["stakeholder"], existing["stakeholders"]),
         "constraints": (consolidate_constraints, entities_by_type["constraint"], existing.get("constraints", [])),
-        "business_drivers": (consolidate_business_drivers, entities_by_type["business_driver"], existing.get("business_drivers", [])),
+        "business_drivers": (
+            lambda ents, exist: consolidate_business_drivers(
+                ents, exist,
+                existing_personas=existing.get("personas", []),
+                existing_features=existing.get("features", []),
+                existing_vp_steps=existing.get("vp_steps", []),
+            ),
+            entities_by_type["business_driver"],
+            existing.get("business_drivers", []),
+        ),
         "competitor_refs": (consolidate_competitor_refs, entities_by_type["competitor_ref"], existing.get("competitor_refs", [])),
         "company_info": (consolidate_company_info, all_entities, existing.get("company_info")),
         "data_entities": (consolidate_data_entities, entities_by_type["data_entity"], existing.get("data_entities", [])),

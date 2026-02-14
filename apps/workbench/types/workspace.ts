@@ -69,6 +69,8 @@ export interface BRDEvidence {
   rationale: string
 }
 
+export type VisionAlignment = 'high' | 'medium' | 'low' | 'unrelated'
+
 export interface BusinessDriver {
   id: string
   description: string
@@ -96,6 +98,14 @@ export interface BusinessDriver {
   data_source?: string | null
   responsible_team?: string | null
   missing_field_count?: number
+  // Relatability intelligence
+  relatability_score?: number
+  linked_feature_count?: number
+  linked_persona_count?: number
+  linked_workflow_count?: number
+  vision_alignment?: VisionAlignment | null
+  is_stale?: boolean
+  stale_reason?: string | null
 }
 
 export interface ConstraintItem {
@@ -483,6 +493,14 @@ export interface BusinessDriverDetail {
   associated_personas: AssociatedPersona[]
   associated_features: AssociatedFeature[]
   related_drivers: RelatedDriver[]
+  // Relatability intelligence
+  relatability_score?: number
+  linked_feature_count?: number
+  linked_persona_count?: number
+  linked_workflow_count?: number
+  vision_alignment?: VisionAlignment | null
+  is_stale?: boolean
+  stale_reason?: string | null
   // History
   revision_count: number
   revisions: RevisionEntry[]
@@ -639,5 +657,89 @@ export interface CanvasViewData {
   synthesis_stale: boolean
   mvp_features: FeatureBRDSummary[]
   workflow_pairs: WorkflowPair[]
+}
+
+// ============================================
+// Client Organization Types
+// ============================================
+
+export interface ClientSummary {
+  id: string
+  name: string
+  website?: string | null
+  industry?: string | null
+  stage?: string | null
+  size?: string | null
+  description?: string | null
+  logo_url?: string | null
+  revenue_range?: string | null
+  employee_count?: number | null
+  founding_year?: number | null
+  headquarters?: string | null
+  tech_stack: string[]
+  growth_signals: { signal: string; type: string }[]
+  competitors: { name: string; relationship: string }[]
+  innovation_score?: number | null
+  company_summary?: string | null
+  market_position?: string | null
+  technology_maturity?: string | null
+  digital_readiness?: string | null
+  enrichment_status: string
+  enriched_at?: string | null
+  enrichment_source?: string | null
+  organization_id?: string | null
+  created_by?: string | null
+  created_at?: string | null
+  updated_at?: string | null
+  project_count: number
+  stakeholder_count: number
+}
+
+export interface ClientDetail extends ClientSummary {
+  projects: {
+    id: string
+    name: string
+    stage?: string | null
+    status?: string | null
+    created_at?: string | null
+    updated_at?: string | null
+  }[]
+}
+
+export interface ClientCreatePayload {
+  name: string
+  website?: string
+  industry?: string
+  stage?: string
+  size?: string
+  description?: string
+  logo_url?: string
+  organization_id?: string
+}
+
+// =============================================================================
+// Discovery Pipeline Types
+// =============================================================================
+
+export interface DiscoveryPhaseStatus {
+  phase: string
+  status: 'pending' | 'running' | 'completed' | 'failed' | 'skipped'
+  duration_seconds?: number
+  summary?: string
+}
+
+export interface DiscoveryProgress {
+  job_id: string
+  status: string
+  phases: DiscoveryPhaseStatus[]
+  current_phase?: string
+  cost_so_far_usd: number
+  elapsed_seconds: number
+  // Available when completed
+  signal_id?: string
+  entities_stored?: Record<string, number>
+  total_cost_usd?: number
+  drivers_count?: number
+  competitors_count?: number
 }
 

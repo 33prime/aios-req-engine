@@ -566,11 +566,15 @@ async def get_brd_workspace_data(project_id: UUID) -> BRDWorkspaceData:
             "*"
         ).eq("project_id", str(project_id)).execute()
 
-        pain_points = []
-        goals = []
-        success_metrics = []
+        # Build raw driver lookup for link resolution
+        all_drivers_raw = drivers_result.data or []
+        driver_data_by_id: dict[str, dict] = {d["id"]: d for d in all_drivers_raw}
 
-        for d in (drivers_result.data or []):
+        pain_points: list[PainPointSummary] = []
+        goals: list[GoalSummary] = []
+        success_metrics: list[KPISummary] = []
+
+        for d in all_drivers_raw:
             dtype = d.get("driver_type")
             evidence = _parse_evidence(d.get("evidence"))
 
@@ -586,6 +590,8 @@ async def get_brd_workspace_data(project_id: UUID) -> BRDWorkspaceData:
                     confirmation_status=d.get("confirmation_status"),
                     evidence=evidence,
                     version=d.get("version"),
+                    is_stale=d.get("is_stale", False),
+                    stale_reason=d.get("stale_reason"),
                 ))
             elif dtype == "goal":
                 goals.append(GoalSummary(
@@ -598,6 +604,8 @@ async def get_brd_workspace_data(project_id: UUID) -> BRDWorkspaceData:
                     confirmation_status=d.get("confirmation_status"),
                     evidence=evidence,
                     version=d.get("version"),
+                    is_stale=d.get("is_stale", False),
+                    stale_reason=d.get("stale_reason"),
                 ))
             elif dtype == "kpi":
                 # Count missing fields among baseline_value, target_value, measurement_method
@@ -615,6 +623,8 @@ async def get_brd_workspace_data(project_id: UUID) -> BRDWorkspaceData:
                     confirmation_status=d.get("confirmation_status"),
                     evidence=evidence,
                     version=d.get("version"),
+                    is_stale=d.get("is_stale", False),
+                    stale_reason=d.get("stale_reason"),
                 ))
 
         # 4. Personas
@@ -639,31 +649,50 @@ async def get_brd_workspace_data(project_id: UUID) -> BRDWorkspaceData:
             for p in (personas_result.data or [])
         ]
 
-        # 4b. Build persona association for drivers (simple text overlap)
+        # 4b. Resolve explicit links for driver summaries
+        persona_lookup = {p.id: p.name for p in actors}
+
+        for driver_list in [pain_points, goals, success_metrics]:
+            for driver_summary in driver_list:
+                raw = driver_data_by_id.get(driver_summary.id, {})
+
+                # Persona names from linked_persona_ids
+                for pid in raw.get("linked_persona_ids") or []:
+                    name = persona_lookup.get(str(pid))
+                    if name and name not in driver_summary.associated_persona_names:
+                        driver_summary.associated_persona_names.append(name)
+
+                # Counts for display
+                driver_summary.linked_feature_count = len(raw.get("linked_feature_ids") or [])
+                driver_summary.linked_persona_count = len(raw.get("linked_persona_ids") or [])
+                driver_summary.linked_workflow_count = len(raw.get("linked_vp_step_ids") or [])
+                driver_summary.vision_alignment = raw.get("vision_alignment")
+
+        # 4c. Fallback: text-overlap association if no explicit links
         for pain in pain_points:
-            desc_lower = pain.description.lower()
-            for actor in actors:
-                for pp_text in actor.pain_points:
-                    if pp_text and (pp_text.lower() in desc_lower or desc_lower in pp_text.lower()):
-                        if actor.name not in pain.associated_persona_names:
-                            pain.associated_persona_names.append(actor.name)
-                        break
+            if not pain.associated_persona_names:
+                desc_lower = pain.description.lower()
+                for actor in actors:
+                    for pp_text in actor.pain_points:
+                        if pp_text and (pp_text.lower() in desc_lower or desc_lower in pp_text.lower()):
+                            if actor.name not in pain.associated_persona_names:
+                                pain.associated_persona_names.append(actor.name)
+                            break
 
         for goal in goals:
-            desc_lower = goal.description.lower()
-            for actor in actors:
-                for g_text in actor.goals:
-                    if g_text and (g_text.lower() in desc_lower or desc_lower in g_text.lower()):
-                        if actor.name not in goal.associated_persona_names:
-                            goal.associated_persona_names.append(actor.name)
-                        break
+            if not goal.associated_persona_names:
+                desc_lower = goal.description.lower()
+                for actor in actors:
+                    for g_text in actor.goals:
+                        if g_text and (g_text.lower() in desc_lower or desc_lower in g_text.lower()):
+                            if actor.name not in goal.associated_persona_names:
+                                goal.associated_persona_names.append(actor.name)
+                            break
 
         # 5. VP Steps
         vp_result = client.table("vp_steps").select(
             "*"
         ).eq("project_id", str(project_id)).order("step_index").execute()
-
-        persona_lookup = {p.id: p.name for p in actors}
 
         # We'll populate feature_ids/feature_names after loading features below
         raw_vp_steps = vp_result.data or []
@@ -854,6 +883,42 @@ async def get_brd_workspace_data(project_id: UUID) -> BRDWorkspaceData:
             if pair.roi:
                 roi_summary_list.append(pair.roi)
 
+        # 10. Compute relatability scores and sort drivers
+        from app.core.relatability import compute_relatability_score
+
+        # Build entity lookup for scoring
+        features_flat = [
+            {"id": f["id"], "name": f["name"], "confirmation_status": f.get("confirmation_status")}
+            for f in (features_result.data or [])
+        ]
+        personas_flat = [
+            {"id": p.id, "confirmation_status": p.confirmation_status}
+            for p in actors
+        ]
+        vp_steps_flat = [
+            {"id": s["id"], "confirmation_status": s.get("confirmation_status")}
+            for s in raw_vp_steps
+        ]
+        project_entities = {
+            "features": features_flat,
+            "personas": personas_flat,
+            "vp_steps": vp_steps_flat,
+            "drivers": [
+                {"id": d["id"], "confirmation_status": d.get("confirmation_status")}
+                for d in all_drivers_raw
+            ],
+        }
+
+        for driver_list in [pain_points, goals, success_metrics]:
+            for driver_summary in driver_list:
+                raw = driver_data_by_id.get(driver_summary.id, {})
+                driver_summary.relatability_score = compute_relatability_score(raw, project_entities)
+
+        # Sort by relatability score descending
+        pain_points.sort(key=lambda d: d.relatability_score, reverse=True)
+        goals.sort(key=lambda d: d.relatability_score, reverse=True)
+        success_metrics.sort(key=lambda d: d.relatability_score, reverse=True)
+
         return BRDWorkspaceData(
             business_context=BusinessContextSection(
                 background=company_info.get("description") if company_info else None,
@@ -959,6 +1024,28 @@ async def update_feature_priority_endpoint(
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         logger.exception(f"Failed to update feature {feature_id} priority")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================================
+# Driver Links Backfill Endpoint
+# ============================================================================
+
+
+@router.post("/brd/drivers/backfill-links")
+async def backfill_driver_links_endpoint(project_id: UUID) -> dict:
+    """Backfill linked_*_ids arrays for all business drivers in a project.
+
+    Uses evidence overlap for feature links, text matching for persona/workflow links.
+    Safe to run multiple times (idempotent).
+    """
+    from app.db.business_drivers import backfill_driver_links
+
+    try:
+        stats = backfill_driver_links(project_id)
+        return {"success": True, **stats}
+    except Exception as e:
+        logger.exception(f"Failed to backfill driver links for project {project_id}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -1091,6 +1178,13 @@ async def get_brd_driver_detail(project_id: UUID, driver_id: UUID) -> BusinessDr
             associated_personas=assoc_personas,
             associated_features=assoc_features,
             related_drivers=related,
+            # Relatability intelligence
+            linked_feature_count=len(driver.get("linked_feature_ids") or []),
+            linked_persona_count=len(driver.get("linked_persona_ids") or []),
+            linked_workflow_count=len(driver.get("linked_vp_step_ids") or []),
+            vision_alignment=driver.get("vision_alignment"),
+            is_stale=driver.get("is_stale", False),
+            stale_reason=driver.get("stale_reason"),
             revision_count=revision_count,
             revisions=revisions,
         )

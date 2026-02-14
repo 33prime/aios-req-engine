@@ -73,6 +73,11 @@ KPI: A measurable business success metric.
   - Quantifiable targets with numbers
   - Examples: "Response time under 30 seconds", "Reduce manual lookup by 80%", "Process 180 members per team"
 
+For PAIN, GOAL, and KPI facts, also include these optional fields:
+  - "related_actor": Name of the persona/role who experiences this pain or benefits from this goal. Use the exact name you used in persona facts. null if unclear.
+  - "related_process": Name of the workflow step or process where this pain occurs or this goal applies. Use the exact title you used in process facts. null if unclear.
+  - "addresses_feature": For goals/KPIs, name of the feature/capability that addresses this. For pains, the feature that would solve it. null if unclear.
+
 CONSTRAINT: A requirement limiting HOW features must be built.
   - Technical: "Must support 10k concurrent users", "Response time under 200ms"
   - Compliance: "Must be HIPAA compliant", "Solution must live within existing system"

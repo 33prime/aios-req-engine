@@ -844,6 +844,107 @@ def auto_link_feature_to_drivers(feature_id: UUID, project_id: UUID) -> int:
     return linked_count
 
 
+def backfill_driver_links(project_id: UUID) -> dict[str, int]:
+    """Backfill linked_*_ids arrays for all drivers in a project.
+
+    Uses evidence overlap to populate linked_feature_ids and linked_persona_ids,
+    and pain_description/benefit_description matching for linked_vp_step_ids.
+
+    Args:
+        project_id: Project UUID
+
+    Returns:
+        Dict with counts: drivers_updated, features_linked, personas_linked, workflows_linked
+    """
+    supabase = get_supabase()
+
+    drivers = list_business_drivers(project_id, limit=200)
+    if not drivers:
+        return {"drivers_updated": 0, "features_linked": 0, "personas_linked": 0, "workflows_linked": 0}
+
+    # Load all features with evidence
+    features_result = supabase.table("features").select(
+        "id, name, confirmation_status, evidence"
+    ).eq("project_id", str(project_id)).execute()
+    features = features_result.data or []
+
+    # Load all personas
+    personas_result = supabase.table("personas").select(
+        "id, name, role, pain_points, goals"
+    ).eq("project_id", str(project_id)).execute()
+    personas = personas_result.data or []
+
+    # Load all vp_steps
+    vp_result = supabase.table("vp_steps").select(
+        "id, label, pain_description, benefit_description"
+    ).eq("project_id", str(project_id)).execute()
+    vp_steps = vp_result.data or []
+
+    stats = {"drivers_updated": 0, "features_linked": 0, "personas_linked": 0, "workflows_linked": 0}
+
+    for driver in drivers:
+        driver_id = driver["id"]
+        driver_evidence = driver.get("evidence") or []
+        driver_chunk_ids = {ev.get("chunk_id") for ev in driver_evidence if ev.get("chunk_id")}
+        driver_desc = (driver.get("description") or "").lower()
+        driver_type = driver.get("driver_type", "")
+
+        updates: dict[str, Any] = {}
+
+        # Feature links via evidence overlap
+        if driver_chunk_ids:
+            linked_fids = []
+            for f in features:
+                f_evidence = f.get("evidence") or []
+                f_chunks = {ev.get("chunk_id") for ev in f_evidence if ev.get("chunk_id")}
+                if driver_chunk_ids & f_chunks:
+                    linked_fids.append(f["id"])
+            if linked_fids:
+                updates["linked_feature_ids"] = linked_fids
+                stats["features_linked"] += len(linked_fids)
+
+        # Persona links via text matching
+        linked_pids = []
+        for p in personas:
+            if driver_type == "pain":
+                for pp in (p.get("pain_points") or []):
+                    if isinstance(pp, str) and driver_desc[:30] in pp.lower():
+                        linked_pids.append(p["id"])
+                        break
+            elif driver_type == "goal":
+                for g in (p.get("goals") or []):
+                    if isinstance(g, str) and driver_desc[:30] in g.lower():
+                        linked_pids.append(p["id"])
+                        break
+        if linked_pids:
+            updates["linked_persona_ids"] = linked_pids
+            stats["personas_linked"] += len(linked_pids)
+
+        # Workflow links via pain_description/benefit_description matching
+        linked_vids = []
+        for step in vp_steps:
+            pain_desc = (step.get("pain_description") or "").lower()
+            benefit_desc = (step.get("benefit_description") or "").lower()
+            if driver_desc and (
+                (pain_desc and driver_desc[:30] in pain_desc) or
+                (benefit_desc and driver_desc[:30] in benefit_desc)
+            ):
+                linked_vids.append(step["id"])
+        if linked_vids:
+            updates["linked_vp_step_ids"] = linked_vids
+            stats["workflows_linked"] += len(linked_vids)
+
+        if updates:
+            supabase.table("business_drivers").update(updates).eq("id", driver_id).execute()
+            stats["drivers_updated"] += 1
+
+    logger.info(
+        f"Backfilled driver links for project {project_id}: {stats}",
+        extra={"project_id": str(project_id)},
+    )
+    return stats
+
+
 def get_driver_associated_features(driver_id: UUID) -> list[dict[str, Any]]:
     """
     Get features associated with a business driver.

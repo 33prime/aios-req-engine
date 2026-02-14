@@ -25,6 +25,9 @@ class GoalEnrichment(BaseModel):
     success_criteria: str | None = Field(None, description='Concrete success criteria (e.g., "50+ paying customers", "NPS > 40", "$100K ARR")')
     dependencies: str | None = Field(None, description='Prerequisites (e.g., "Payment integration", "Hire DevOps", "Beta testing complete")')
     owner: str | None = Field(None, description='Who owns delivery (e.g., "VP Sales", "Engineering team", "Product Manager")')
+    vision_alignment: str | None = Field(None, description='How strongly this goal relates to the project vision: high, medium, low, or unrelated. null if no vision provided.')
+    related_actor_names: list[str] = Field(default_factory=list, description='Names of personas/roles who benefit from this goal. Use exact names from the provided persona list.')
+    related_workflow_labels: list[str] = Field(default_factory=list, description='Labels of workflow steps this goal applies to. Use exact labels from the provided workflow list.')
     should_merge_with: str | None = Field(None, description='If this goal is very similar/duplicate to another existing goal, provide the ID of the goal it should be merged with. Only suggest merging if they describe the exact same objective.')
     confidence: float = Field(0.0, description="Confidence (0.0-1.0)")
     reasoning: str | None = Field(None, description="How values were determined")
@@ -82,8 +85,38 @@ async def enrich_goal(driver_id: UUID, project_id: UUID, depth: str = "standard"
         else:
             existing_goals_str = "\n**No other goals exist yet.**\n"
 
+        # Gather project context for relationship assessment
+        from app.db.supabase_client import get_supabase as _get_supabase
+        _supabase = _get_supabase()
+
+        project_vision = ""
+        try:
+            proj = _supabase.table("projects").select("vision").eq("id", str(project_id)).maybe_single().execute()
+            if proj and proj.data:
+                project_vision = proj.data.get("vision") or ""
+        except Exception:
+            pass
+
+        persona_names_list: list[str] = []
+        try:
+            personas_res = _supabase.table("personas").select("name").eq("project_id", str(project_id)).execute()
+            persona_names_list = [p["name"] for p in (personas_res.data or [])]
+        except Exception:
+            pass
+
+        workflow_labels_list: list[str] = []
+        try:
+            vp_res = _supabase.table("vp_steps").select("label").eq("project_id", str(project_id)).order("step_index").execute()
+            workflow_labels_list = [s["label"] for s in (vp_res.data or []) if s.get("label")]
+        except Exception:
+            pass
+
+        vision_section = f'\n**Project Vision:** "{project_vision}"\n' if project_vision else ""
+        personas_section = f"\n**Known Personas:** {', '.join(persona_names_list)}\n" if persona_names_list else ""
+        workflows_section = f"\n**Known Workflow Steps:** {', '.join(workflow_labels_list)}\n" if workflow_labels_list else ""
+
         parser = PydanticOutputParser(pydantic_object=GoalEnrichment)
-        system_prompt = f"""Extract goal achievement details: timeframe, success criteria, dependencies, and owner.
+        system_prompt = f"""Extract goal achievement details: timeframe, success criteria, dependencies, owner, vision alignment, and related actors/workflows.
 
 **CRITICAL - Duplicate Detection:**
 - Review the list of existing goals carefully
@@ -91,18 +124,27 @@ async def enrich_goal(driver_id: UUID, project_id: UUID, depth: str = "standard"
 - Only suggest merging if they are truly duplicates (same outcome, same target)
 - Related but distinct goals (e.g., "Launch MVP" vs "Reach 1000 users") should NOT be merged
 
+**Vision Alignment**: Given the project vision, how strongly does this goal support the vision?
+- high: Directly addresses the core vision
+- medium: Supports the vision indirectly
+- low: Tangential connection
+- unrelated: No clear connection
+
+**Related Actors**: Which personas benefit from this goal? Use exact names from the persona list.
+**Related Workflows**: Which workflow steps does this goal apply to? Use exact labels from the workflow list.
+
 Only include explicit information. If not found, leave null.
 {parser.get_format_instructions()}"""
 
         user_prompt = f"""**Goal to Enrich:**
 {description}
 {existing_goals_str}
-
+{vision_section}{personas_section}{workflows_section}
 **Context:**
 {context_str}
 
 **Task:**
-Extract goal enrichment details. Review existing goals and suggest merging if this is a duplicate."""
+Extract goal enrichment details. Review existing goals and suggest merging if this is a duplicate. Assess vision alignment and identify related actors/workflows."""
 
         model = ChatAnthropic(model="claude-sonnet-4-20250514", temperature=0.1, api_key=settings.ANTHROPIC_API_KEY)
         messages = [SystemMessage(content=system_prompt), HumanMessage(content=user_prompt)]
@@ -124,6 +166,42 @@ Extract goal enrichment details. Review existing goals and suggest merging if th
         if enrichment.owner and not driver.get("owner"):
             updates["owner"] = enrichment.owner
             updated_fields.append("owner")
+
+        if enrichment.vision_alignment:
+            updates["vision_alignment"] = enrichment.vision_alignment
+            updated_fields.append("vision_alignment")
+
+        # Resolve actor names → persona IDs
+        if enrichment.related_actor_names and persona_names_list:
+            from app.core.similarity import SimilarityMatcher
+            persona_matcher = SimilarityMatcher(entity_type="persona")
+            personas_data = _supabase.table("personas").select("id, name").eq("project_id", str(project_id)).execute().data or []
+            existing_pids = list(driver.get("linked_persona_ids") or [])
+            for actor_name in enrichment.related_actor_names:
+                match = persona_matcher.find_best_match(actor_name, personas_data, "name", "id")
+                if match.is_match and match.matched_item:
+                    pid = match.matched_item["id"]
+                    if pid not in existing_pids:
+                        existing_pids.append(pid)
+            if existing_pids:
+                updates["linked_persona_ids"] = existing_pids
+                updated_fields.append("linked_persona_ids")
+
+        # Resolve workflow labels → vp_step IDs
+        if enrichment.related_workflow_labels and workflow_labels_list:
+            from app.core.similarity import SimilarityMatcher
+            wf_matcher = SimilarityMatcher(entity_type="feature")
+            steps_data = _supabase.table("vp_steps").select("id, label").eq("project_id", str(project_id)).execute().data or []
+            existing_vids = list(driver.get("linked_vp_step_ids") or [])
+            for wf_label in enrichment.related_workflow_labels:
+                match = wf_matcher.find_best_match(wf_label, steps_data, "label", "id")
+                if match.is_match and match.matched_item:
+                    vid = match.matched_item["id"]
+                    if vid not in existing_vids:
+                        existing_vids.append(vid)
+            if existing_vids:
+                updates["linked_vp_step_ids"] = existing_vids
+                updated_fields.append("linked_vp_step_ids")
 
         if updates:
             updates["enrichment_status"] = "enriched"

@@ -50,6 +50,18 @@ class PainPointEnrichment(BaseModel):
         None,
         description='How users currently work around this pain (e.g., "Manual Excel exports via email", "Call support for each order", "None - feature gap")',
     )
+    vision_alignment: Literal["high", "medium", "low", "unrelated"] | None = Field(
+        None,
+        description='How strongly this pain relates to the project vision: high (directly addresses core vision), medium (supports indirectly), low (tangential), unrelated (no connection)',
+    )
+    related_actor_names: list[str] = Field(
+        default_factory=list,
+        description='Names of personas/roles most affected by this pain. Use exact names from the provided persona list.',
+    )
+    related_workflow_labels: list[str] = Field(
+        default_factory=list,
+        description='Labels of workflow steps where this pain occurs. Use exact labels from the provided workflow list.',
+    )
     should_merge_with: str | None = Field(
         None,
         description='If this pain point is very similar/duplicate to another existing pain, provide the ID of the pain it should be merged with. Only suggest merging if they describe the exact same problem.',
@@ -186,10 +198,40 @@ async def enrich_pain_point(
         else:
             existing_pains_str = "\n**No other pain points exist yet.**\n"
 
+        # Gather project context for relationship assessment
+        from app.db.supabase_client import get_supabase as _get_supabase
+        _supabase = _get_supabase()
+
+        project_vision = ""
+        try:
+            proj = _supabase.table("projects").select("vision").eq("id", str(project_id)).maybe_single().execute()
+            if proj and proj.data:
+                project_vision = proj.data.get("vision") or ""
+        except Exception:
+            pass
+
+        persona_names_list: list[str] = []
+        try:
+            personas_res = _supabase.table("personas").select("name").eq("project_id", str(project_id)).execute()
+            persona_names_list = [p["name"] for p in (personas_res.data or [])]
+        except Exception:
+            pass
+
+        workflow_labels_list: list[str] = []
+        try:
+            vp_res = _supabase.table("vp_steps").select("label").eq("project_id", str(project_id)).order("step_index").execute()
+            workflow_labels_list = [s["label"] for s in (vp_res.data or []) if s.get("label")]
+        except Exception:
+            pass
+
+        vision_section = f'\n**Project Vision:** "{project_vision}"\n' if project_vision else ""
+        personas_section = f"\n**Known Personas:** {', '.join(persona_names_list)}\n" if persona_names_list else ""
+        workflows_section = f"\n**Known Workflow Steps:** {', '.join(workflow_labels_list)}\n" if workflow_labels_list else ""
+
         # Build the enrichment prompt
         parser = PydanticOutputParser(pydantic_object=PainPointEnrichment)
 
-        system_prompt = f"""You are a pain point analysis specialist. Your job is to assess the severity and impact of user/business pain points and detect duplicates.
+        system_prompt = f"""You are a pain point analysis specialist. Your job is to assess the severity and impact of user/business pain points, assess their relationship to the project, and detect duplicates.
 
 Given a pain point description and related context, extract:
 
@@ -220,6 +262,17 @@ Given a pain point description and related context, extract:
    - Be specific about the workaround process
    - If no workaround exists, state "None - feature gap" or "None - users give up"
 
+6. **Vision alignment**: Given the project vision, how strongly does this pain relate to the vision?
+   - high: Directly addresses the core vision
+   - medium: Supports the vision indirectly
+   - low: Tangential connection
+   - unrelated: No clear connection
+   - Leave null if no vision is provided
+
+7. **Related actors**: Which personas/roles are most affected? List exact names from the provided persona list.
+
+8. **Related workflows**: Which workflow steps does this pain occur in? List exact labels from the provided workflow list.
+
 **CRITICAL - Duplicate Detection:**
 - Review the list of existing pain points carefully
 - If this pain describes the EXACT SAME problem as an existing pain (same user frustration, same root cause), set `should_merge_with` to the ID of that existing pain
@@ -238,12 +291,12 @@ Given a pain point description and related context, extract:
         user_prompt = f"""**Pain Point to Enrich:**
 {description}
 {existing_pains_str}
-
+{vision_section}{personas_section}{workflows_section}
 **Signal Context:**
 {signal_context_str}
 
 **Task:**
-Extract pain point enrichment details from the above context. Review existing pains and suggest merging if this is a duplicate. Be objective in assessing severity and frequency."""
+Extract pain point enrichment details from the above context. Review existing pains and suggest merging if this is a duplicate. Be objective in assessing severity and frequency. Assess vision alignment and identify related actors/workflows."""
 
         # Call LLM with Claude Sonnet 4
         model = ChatAnthropic(
@@ -289,6 +342,42 @@ Extract pain point enrichment details from the above context. Review existing pa
         if enrichment.current_workaround and not driver.get("current_workaround"):
             updates["current_workaround"] = enrichment.current_workaround
             updated_fields.append("current_workaround")
+
+        if enrichment.vision_alignment:
+            updates["vision_alignment"] = enrichment.vision_alignment
+            updated_fields.append("vision_alignment")
+
+        # Resolve actor names → persona IDs and merge with existing
+        if enrichment.related_actor_names and persona_names_list:
+            from app.core.similarity import SimilarityMatcher
+            persona_matcher = SimilarityMatcher(entity_type="persona")
+            personas_data = _supabase.table("personas").select("id, name").eq("project_id", str(project_id)).execute().data or []
+            existing_pids = list(driver.get("linked_persona_ids") or [])
+            for actor_name in enrichment.related_actor_names:
+                match = persona_matcher.find_best_match(actor_name, personas_data, "name", "id")
+                if match.is_match and match.matched_item:
+                    pid = match.matched_item["id"]
+                    if pid not in existing_pids:
+                        existing_pids.append(pid)
+            if existing_pids:
+                updates["linked_persona_ids"] = existing_pids
+                updated_fields.append("linked_persona_ids")
+
+        # Resolve workflow labels → vp_step IDs and merge
+        if enrichment.related_workflow_labels and workflow_labels_list:
+            from app.core.similarity import SimilarityMatcher
+            wf_matcher = SimilarityMatcher(entity_type="feature")
+            steps_data = _supabase.table("vp_steps").select("id, label").eq("project_id", str(project_id)).execute().data or []
+            existing_vids = list(driver.get("linked_vp_step_ids") or [])
+            for wf_label in enrichment.related_workflow_labels:
+                match = wf_matcher.find_best_match(wf_label, steps_data, "label", "id")
+                if match.is_match and match.matched_item:
+                    vid = match.matched_item["id"]
+                    if vid not in existing_vids:
+                        existing_vids.append(vid)
+            if existing_vids:
+                updates["linked_vp_step_ids"] = existing_vids
+                updated_fields.append("linked_vp_step_ids")
 
         if updates:
             updates["enrichment_status"] = "enriched"

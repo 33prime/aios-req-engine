@@ -27,6 +27,14 @@ class PainPointSummary(BaseModel):
     evidence: list[EvidenceItem] = []
     associated_persona_names: list[str] = []
     version: int | None = None
+    # Relatability intelligence
+    relatability_score: float = 0.0
+    linked_feature_count: int = 0
+    linked_persona_count: int = 0
+    linked_workflow_count: int = 0
+    vision_alignment: str | None = None
+    is_stale: bool = False
+    stale_reason: str | None = None
 
 
 class GoalSummary(BaseModel):
@@ -41,6 +49,14 @@ class GoalSummary(BaseModel):
     evidence: list[EvidenceItem] = []
     associated_persona_names: list[str] = []
     version: int | None = None
+    # Relatability intelligence
+    relatability_score: float = 0.0
+    linked_feature_count: int = 0
+    linked_persona_count: int = 0
+    linked_workflow_count: int = 0
+    vision_alignment: str | None = None
+    is_stale: bool = False
+    stale_reason: str | None = None
 
 
 class KPISummary(BaseModel):
@@ -58,6 +74,14 @@ class KPISummary(BaseModel):
     evidence: list[EvidenceItem] = []
     associated_persona_names: list[str] = []
     version: int | None = None
+    # Relatability intelligence
+    relatability_score: float = 0.0
+    linked_feature_count: int = 0
+    linked_persona_count: int = 0
+    linked_workflow_count: int = 0
+    vision_alignment: str | None = None
+    is_stale: bool = False
+    stale_reason: str | None = None
 
 
 class ConstraintSummary(BaseModel):
@@ -243,6 +267,14 @@ class BusinessDriverDetail(BaseModel):
     associated_personas: list[AssociatedPersona] = []
     associated_features: list[AssociatedFeature] = []
     related_drivers: list[RelatedDriver] = []
+    # Relatability intelligence
+    relatability_score: float = 0.0
+    linked_feature_count: int = 0
+    linked_persona_count: int = 0
+    linked_workflow_count: int = 0
+    vision_alignment: str | None = None
+    is_stale: bool = False
+    stale_reason: str | None = None
     # History
     revision_count: int = 0
     revisions: list[RevisionEntry] = []
