@@ -2,6 +2,7 @@
 
 from pydantic import BaseModel, Field
 
+from app.core.brd_completeness import BRDCompleteness
 from app.core.schemas_data_entities import DataEntityBRDSummary
 from app.core.schemas_workflows import ROISummary, WorkflowPair
 
@@ -93,6 +94,12 @@ class ConstraintSummary(BaseModel):
     severity: str = "medium"
     confirmation_status: str | None = None
     evidence: list[EvidenceItem] = []
+    source: str = "extracted"
+    confidence: float | None = None
+    linked_feature_ids: list[str] = []
+    linked_vp_step_ids: list[str] = []
+    linked_data_entity_ids: list[str] = []
+    impact_description: str | None = None
 
 
 class StakeholderBRDSummary(BaseModel):
@@ -162,6 +169,25 @@ class FeatureBRDSummary(BaseModel):
     stale_reason: str | None = None
 
 
+class CompetitorBRDSummary(BaseModel):
+    """Competitor reference summary for BRD canvas."""
+    id: str
+    name: str
+    website: str | None = None
+    url: str | None = None
+    category: str | None = None
+    market_position: str | None = None
+    key_differentiator: str | None = None
+    pricing_model: str | None = None
+    target_audience: str | None = None
+    confirmation_status: str | None = None
+    deep_analysis_status: str | None = None
+    deep_analysis_at: str | None = None
+    is_design_reference: bool = False
+    is_stale: bool = False
+    stale_reason: str | None = None
+
+
 class BusinessContextSection(BaseModel):
     """Business context section of the BRD."""
     background: str | None = None
@@ -170,6 +196,8 @@ class BusinessContextSection(BaseModel):
     pain_points: list[PainPointSummary] = []
     goals: list[GoalSummary] = []
     vision: str | None = None
+    vision_updated_at: str | None = None
+    vision_analysis: dict | None = None
     success_metrics: list[KPISummary] = []
 
 
@@ -190,10 +218,12 @@ class BRDWorkspaceData(BaseModel):
     constraints: list[ConstraintSummary] = []
     data_entities: list[DataEntityBRDSummary] = []
     stakeholders: list[StakeholderBRDSummary] = []
+    competitors: list[CompetitorBRDSummary] = []
     readiness_score: float = 0.0
     pending_count: int = 0
     workflow_pairs: list[WorkflowPair] = []
     roi_summary: list[ROISummary] = []
+    completeness: BRDCompleteness | None = None
 
 
 # ============================================================================

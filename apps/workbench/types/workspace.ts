@@ -116,6 +116,12 @@ export interface ConstraintItem {
   severity: string
   confirmation_status?: string | null
   evidence?: BRDEvidence[]
+  source?: 'extracted' | 'manual' | 'ai_inferred'
+  confidence?: number | null
+  linked_feature_ids?: string[]
+  linked_vp_step_ids?: string[]
+  linked_data_entity_ids?: string[]
+  impact_description?: string | null
 }
 
 export interface PersonaBRDSummary {
@@ -423,6 +429,40 @@ export interface DataEntityWorkflowLink {
   description?: string
 }
 
+export interface DataEntityRelationshipSuggestion {
+  target_entity: string
+  relationship_type: string
+  rationale: string
+}
+
+export interface DataEntityEnrichment {
+  sensitivity_level?: string | null
+  pii_fields?: string[]
+  ai_opportunities?: string[]
+  system_design_notes?: string | null
+  relationship_suggestions?: DataEntityRelationshipSuggestion[]
+  validation_suggestions?: string[]
+}
+
+export interface DataEntityDetail {
+  id: string
+  name: string
+  description?: string | null
+  entity_category: string
+  fields: DataEntityField[]
+  field_count: number
+  confirmation_status?: string | null
+  evidence?: BRDEvidence[]
+  is_stale?: boolean
+  stale_reason?: string | null
+  workflow_links: DataEntityWorkflowLink[]
+  enrichment_data?: DataEntityEnrichment | null
+  enrichment_status?: string | null
+  pii_flags?: string[]
+  relationships?: Record<string, unknown>[]
+  revisions: RevisionEntry[]
+}
+
 // ============================================
 // Stakeholder Types
 // ============================================
@@ -570,6 +610,25 @@ export interface StakeholderCreatePayload {
   notes?: string
 }
 
+// ============================================
+// BRD Completeness Types
+// ============================================
+
+export interface SectionScore {
+  section: string
+  score: number
+  max_score: number
+  label: 'Poor' | 'Fair' | 'Good' | 'Excellent'
+  gaps: string[]
+}
+
+export interface BRDCompleteness {
+  overall_score: number
+  overall_label: 'Poor' | 'Fair' | 'Good' | 'Excellent'
+  sections: SectionScore[]
+  top_gaps: string[]
+}
+
 export interface BRDWorkspaceData {
   business_context: {
     background?: string | null
@@ -578,6 +637,8 @@ export interface BRDWorkspaceData {
     pain_points: BusinessDriver[]
     goals: BusinessDriver[]
     vision?: string | null
+    vision_updated_at?: string | null
+    vision_analysis?: Record<string, unknown> | null
     success_metrics: BusinessDriver[]
   }
   actors: PersonaBRDSummary[]
@@ -591,10 +652,12 @@ export interface BRDWorkspaceData {
   constraints: ConstraintItem[]
   data_entities: DataEntityBRDSummary[]
   stakeholders: StakeholderBRDSummary[]
+  competitors: CompetitorBRDSummary[]
   readiness_score: number
   pending_count: number
   workflow_pairs: WorkflowPair[]
   roi_summary: ROISummary[]
+  completeness?: BRDCompleteness | null
 }
 
 // ============================================
@@ -673,6 +736,82 @@ export interface BusinessDriverDetail {
   // History
   revision_count: number
   revisions: RevisionEntry[]
+}
+
+// ============================================
+// Vision Detail Types
+// ============================================
+
+export interface VisionAnalysis {
+  conciseness: number
+  measurability: number
+  completeness: number
+  alignment: number
+  overall_score: number
+  suggestions: string[]
+  summary: string
+}
+
+export interface VisionDetailData {
+  vision: string | null
+  vision_analysis: VisionAnalysis | null
+  vision_updated_at: string | null
+  total_features: number
+  revisions: RevisionEntry[]
+}
+
+// ============================================
+// Client Intelligence Types
+// ============================================
+
+export interface ClientIntelligenceData {
+  company_profile: {
+    name?: string | null
+    description?: string | null
+    industry?: string | null
+    website?: string | null
+    stage?: string | null
+    size?: string | null
+    revenue?: string | null
+    employee_count?: string | null
+    location?: string | null
+    unique_selling_point?: string | null
+    company_type?: string | null
+    industry_display?: string | null
+    enrichment_source?: string | null
+    enriched_at?: string | null
+  }
+  client_data: {
+    name?: string | null
+    company_summary?: string | null
+    market_position?: string | null
+    technology_maturity?: string | null
+    digital_readiness?: string | null
+    tech_stack?: string[] | null
+    growth_signals?: string[] | null
+    competitors?: string[] | null
+    innovation_score?: number | null
+    constraint_summary?: Record<string, unknown>[] | null
+    role_gaps?: Record<string, unknown>[] | null
+    vision_synthesis?: string | null
+    organizational_context?: Record<string, unknown> | null
+    profile_completeness?: number | null
+    last_analyzed_at?: string | null
+    enrichment_status?: string | null
+    enriched_at?: string | null
+  }
+  strategic_context: {
+    executive_summary?: string | null
+    opportunity?: Record<string, unknown> | null
+    risks?: Record<string, unknown>[] | null
+    investment_case?: Record<string, unknown> | null
+    success_metrics?: Record<string, unknown>[] | null
+    constraints?: Record<string, unknown> | null
+    confirmation_status?: string | null
+    enrichment_status?: string | null
+  }
+  open_questions: Record<string, unknown>[]
+  has_client: boolean
 }
 
 // ============================================
@@ -910,5 +1049,74 @@ export interface DiscoveryProgress {
   total_cost_usd?: number
   drivers_count?: number
   competitors_count?: number
+}
+
+// =============================================================================
+// Competitor Intelligence Types
+// =============================================================================
+
+export interface CompetitorBRDSummary {
+  id: string
+  name: string
+  website?: string | null
+  url?: string | null
+  category?: string | null
+  market_position?: string | null
+  key_differentiator?: string | null
+  pricing_model?: string | null
+  target_audience?: string | null
+  confirmation_status?: string | null
+  deep_analysis_status?: string | null
+  deep_analysis_at?: string | null
+  is_design_reference: boolean
+  is_stale?: boolean
+  stale_reason?: string | null
+}
+
+export interface FeatureComparison {
+  feature_name: string
+  our_approach?: string | null
+  their_approach?: string | null
+  advantage: 'us' | 'them' | 'neutral'
+}
+
+export interface FeatureNote {
+  feature_name: string
+  description: string
+  strategic_relevance: 'high' | 'medium' | 'low'
+}
+
+export interface CompetitorDeepAnalysis {
+  feature_overlap: FeatureComparison[]
+  unique_to_them: FeatureNote[]
+  unique_to_us: FeatureNote[]
+  inferred_pains: string[]
+  inferred_benefits: string[]
+  positioning_summary: string
+  threat_level: 'low' | 'medium' | 'high' | 'critical'
+  threat_reasoning: string
+  differentiation_opportunities: string[]
+  gaps_to_address: string[]
+}
+
+export interface FeatureHeatmapRow {
+  feature_area: string
+  competitors: Record<string, string>
+  our_status: string
+}
+
+export interface CompetitorThreat {
+  competitor_name: string
+  threat_level: string
+  key_risk: string
+}
+
+export interface CompetitorSynthesis {
+  market_landscape: string
+  feature_heatmap: FeatureHeatmapRow[]
+  common_themes: string[]
+  market_gaps: string[]
+  positioning_recommendation: string
+  threat_summary: CompetitorThreat[]
 }
 

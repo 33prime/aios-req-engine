@@ -7,6 +7,7 @@ from uuid import UUID
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
+from app.core.brd_completeness import compute_brd_completeness
 from app.core.schemas_brd import (
     AssociatedFeature,
     AssociatedPersona,
@@ -14,6 +15,7 @@ from app.core.schemas_brd import (
     BusinessContextSection,
     BusinessDriverDetail,
     CanvasRoleUpdate,
+    CompetitorBRDSummary,
     ConstraintSummary,
     EvidenceItem,
     FeatureBRDSummary,
@@ -784,6 +786,12 @@ async def get_brd_workspace_data(project_id: UUID) -> BRDWorkspaceData:
                 severity=c.get("severity", "medium"),
                 confirmation_status=c.get("confirmation_status"),
                 evidence=_parse_evidence(c.get("evidence")),
+                source=c.get("source", "extracted"),
+                confidence=c.get("confidence"),
+                linked_feature_ids=c.get("linked_feature_ids") or [],
+                linked_vp_step_ids=c.get("linked_vp_step_ids") or [],
+                linked_data_entity_ids=[str(x) for x in (c.get("linked_data_entity_ids") or [])],
+                impact_description=c.get("impact_description"),
             )
             for c in (constraints_result.data or [])
         ]
@@ -858,6 +866,36 @@ async def get_brd_workspace_data(project_id: UUID) -> BRDWorkspaceData:
                 ))
         except Exception:
             logger.debug(f"Could not load stakeholders for project {project_id}")
+
+        # 8c. Competitors
+        competitors_list: list[CompetitorBRDSummary] = []
+        try:
+            comp_result = client.table("competitor_references").select(
+                "id, name, website, url, category, market_position, key_differentiator, "
+                "pricing_model, target_audience, confirmation_status, "
+                "deep_analysis_status, deep_analysis_at, is_design_reference"
+            ).eq("project_id", str(project_id)).eq(
+                "reference_type", "competitor"
+            ).order("created_at").execute()
+
+            for c in (comp_result.data or []):
+                competitors_list.append(CompetitorBRDSummary(
+                    id=c["id"],
+                    name=c["name"],
+                    website=c.get("website"),
+                    url=c.get("url"),
+                    category=c.get("category"),
+                    market_position=c.get("market_position"),
+                    key_differentiator=c.get("key_differentiator"),
+                    pricing_model=c.get("pricing_model"),
+                    target_audience=c.get("target_audience"),
+                    confirmation_status=c.get("confirmation_status"),
+                    deep_analysis_status=c.get("deep_analysis_status"),
+                    deep_analysis_at=c.get("deep_analysis_at"),
+                    is_design_reference=c.get("is_design_reference", False),
+                ))
+        except Exception:
+            logger.debug(f"Could not load competitors for project {project_id}")
 
         # 9. Readiness score + pending count
         readiness_score = 0.0
@@ -936,6 +974,54 @@ async def get_brd_workspace_data(project_id: UUID) -> BRDWorkspaceData:
         goals.sort(key=lambda d: d.relatability_score, reverse=True)
         success_metrics.sort(key=lambda d: d.relatability_score, reverse=True)
 
+        # 11. Compute BRD completeness score
+        all_features_flat = []
+        for group_name in ["must_have", "should_have", "could_have", "out_of_scope"]:
+            for f in getattr(requirements, group_name):
+                all_features_flat.append({
+                    "id": f.id,
+                    "name": f.name,
+                    "description": f.description,
+                    "priority_group": f.priority_group,
+                    "confirmation_status": f.confirmation_status,
+                })
+
+        completeness = compute_brd_completeness(
+            vision=project.get("vision"),
+            pain_points=[{"id": p.id} for p in pain_points],
+            goals=[{"id": g.id} for g in goals],
+            kpis=[{"id": m.id} for m in success_metrics],
+            constraints=[
+                {"id": c.id, "constraint_type": c.constraint_type, "confirmation_status": c.confirmation_status}
+                for c in constraints
+            ],
+            data_entities=[
+                {"id": d.id, "fields": d.fields, "workflow_step_count": d.workflow_step_count, "confirmation_status": d.confirmation_status}
+                for d in data_entities_list
+            ],
+            entity_workflow_counts=None,
+            stakeholders=[
+                {"id": s.id, "stakeholder_type": s.stakeholder_type, "confirmation_status": s.confirmation_status}
+                for s in stakeholders_list
+            ],
+            workflow_pairs=[
+                {
+                    "id": wp.id,
+                    "current_workflow_id": wp.current_workflow_id,
+                    "future_workflow_id": wp.future_workflow_id,
+                    "current_steps": [{"time_minutes": s.time_minutes} for s in wp.current_steps],
+                    "future_steps": [{"time_minutes": s.time_minutes} for s in wp.future_steps],
+                }
+                for wp in workflow_pairs_out
+            ],
+            legacy_steps=[
+                {"id": w.id, "confirmation_status": w.confirmation_status}
+                for w in workflows
+            ] if not workflow_pairs_out else [],
+            roi_summaries=[{"workflow_name": r.workflow_name} for r in roi_summary_list],
+            features=all_features_flat,
+        )
+
         return BRDWorkspaceData(
             business_context=BusinessContextSection(
                 background=company_info.get("description") if company_info else None,
@@ -944,6 +1030,8 @@ async def get_brd_workspace_data(project_id: UUID) -> BRDWorkspaceData:
                 pain_points=pain_points,
                 goals=goals,
                 vision=project.get("vision"),
+                vision_updated_at=project.get("vision_updated_at"),
+                vision_analysis=project.get("vision_analysis"),
                 success_metrics=success_metrics,
             ),
             actors=actors,
@@ -952,10 +1040,12 @@ async def get_brd_workspace_data(project_id: UUID) -> BRDWorkspaceData:
             constraints=constraints,
             data_entities=data_entities_list,
             stakeholders=stakeholders_list,
+            competitors=competitors_list,
             readiness_score=readiness_score,
             pending_count=pending_count,
             workflow_pairs=workflow_pairs_out,
             roi_summary=roi_summary_list,
+            completeness=completeness,
         )
 
     except HTTPException:
@@ -978,10 +1068,37 @@ async def update_vision(project_id: UUID, data: VisionUpdate) -> dict:
     try:
         result = client.table("projects").update({
             "vision": data.vision,
+            "vision_updated_at": "now()",
         }).eq("id", str(project_id)).execute()
 
         if not result.data:
             raise HTTPException(status_code=404, detail="Project not found")
+
+        # Track vision change for revision history
+        try:
+            from app.core.change_tracking import track_entity_change
+            track_entity_change(
+                project_id=project_id,
+                entity_type="vision",
+                entity_id=project_id,
+                entity_label="Vision Statement",
+                old_entity={"vision": result.data[0].get("vision", "")},
+                new_entity={"vision": data.vision},
+                trigger_event="manual_edit",
+                created_by="consultant",
+            )
+        except Exception:
+            logger.debug("Could not track vision change — revision tracking may not be set up")
+
+        # Trigger async vision analysis (fire and forget)
+        import asyncio
+        try:
+            from app.chains.analyze_vision import analyze_vision_clarity
+            asyncio.get_event_loop().create_task(
+                analyze_vision_clarity(project_id, data.vision)
+            )
+        except Exception:
+            logger.debug("Could not trigger async vision analysis")
 
         return {"success": True, "vision": data.vision}
 
@@ -989,6 +1106,162 @@ async def update_vision(project_id: UUID, data: VisionUpdate) -> dict:
         raise
     except Exception as e:
         logger.exception(f"Failed to update vision for project {project_id}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/vision/detail")
+async def get_vision_detail(project_id: UUID) -> dict:
+    """
+    Get vision detail including analysis scores and revision history.
+    Used by the VisionDetailDrawer.
+    """
+    client = get_client()
+
+    try:
+        project = client.table("projects").select(
+            "vision, vision_analysis, vision_updated_at"
+        ).eq("id", str(project_id)).single().execute()
+
+        if not project.data:
+            raise HTTPException(status_code=404, detail="Project not found")
+
+        # Count features for alignment context
+        features_result = client.table("features").select(
+            "id", count="exact"
+        ).eq("project_id", str(project_id)).execute()
+        total_features = features_result.count or 0
+
+        # Load revision history for vision
+        revisions: list[dict] = []
+        try:
+            from app.db.revisions_enrichment import list_entity_revisions
+            rev_data = list_entity_revisions("vision", project_id, limit=20)
+            revisions = [
+                {
+                    "revision_number": r.get("revision_number", 0),
+                    "revision_type": r.get("revision_type", ""),
+                    "diff_summary": r.get("diff_summary", ""),
+                    "changes": r.get("changes"),
+                    "created_at": r.get("created_at", ""),
+                    "created_by": r.get("created_by"),
+                }
+                for r in (rev_data or [])
+            ]
+        except Exception:
+            logger.debug("Could not load vision revisions")
+
+        return {
+            "vision": project.data.get("vision"),
+            "vision_analysis": project.data.get("vision_analysis"),
+            "vision_updated_at": project.data.get("vision_updated_at"),
+            "total_features": total_features,
+            "revisions": revisions,
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"Failed to get vision detail for project {project_id}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/client-intelligence")
+async def get_client_intelligence(project_id: UUID) -> dict:
+    """
+    Get merged background intelligence from company_info, clients, strategic_context, and project_memory.
+    Used by the ClientIntelligenceDrawer.
+    """
+    client = get_client()
+
+    try:
+        # Load project (for client_id link)
+        project = client.table("projects").select(
+            "id, client_id"
+        ).eq("id", str(project_id)).single().execute()
+
+        if not project.data:
+            raise HTTPException(status_code=404, detail="Project not found")
+
+        # 1. Company info (project-level)
+        company_profile: dict = {}
+        try:
+            ci_result = client.table("company_info").select(
+                "name, description, industry, website, stage, size, revenue, "
+                "employee_count, location, unique_selling_point, company_type, "
+                "industry_display, enrichment_source, enriched_at"
+            ).eq("project_id", str(project_id)).maybe_single().execute()
+            if ci_result and ci_result.data:
+                company_profile = ci_result.data
+        except Exception:
+            pass
+
+        # 2. Client data (if project linked to a client)
+        client_data: dict = {}
+        client_id = project.data.get("client_id")
+        if client_id:
+            try:
+                cl_result = client.table("clients").select(
+                    "name, industry, stage, size, description, website, "
+                    "company_summary, market_position, technology_maturity, digital_readiness, "
+                    "tech_stack, growth_signals, competitors, innovation_score, "
+                    "constraint_summary, role_gaps, vision_synthesis, organizational_context, "
+                    "profile_completeness, last_analyzed_at, enrichment_status, enriched_at"
+                ).eq("id", str(client_id)).maybe_single().execute()
+                if cl_result and cl_result.data:
+                    client_data = cl_result.data
+            except Exception:
+                pass
+
+        # 3. Strategic context
+        strategic: dict = {}
+        try:
+            sc_result = client.table("strategic_context").select(
+                "executive_summary, opportunity, risks, investment_case, "
+                "success_metrics, constraints, confirmation_status, enrichment_status"
+            ).eq("project_id", str(project_id)).maybe_single().execute()
+            if sc_result and sc_result.data:
+                strategic = sc_result.data
+        except Exception:
+            pass
+
+        # 4. Open questions from project memory
+        open_questions: list = []
+        try:
+            pm_result = client.table("project_memory").select(
+                "open_questions, project_understanding"
+            ).eq("project_id", str(project_id)).maybe_single().execute()
+            if pm_result and pm_result.data:
+                open_questions = pm_result.data.get("open_questions") or []
+        except Exception:
+            pass
+
+        return {
+            "company_profile": company_profile,
+            "client_data": client_data,
+            "strategic_context": strategic,
+            "open_questions": open_questions,
+            "has_client": bool(client_id),
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"Failed to get client intelligence for project {project_id}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/constraints/infer")
+async def infer_constraints_endpoint(project_id: UUID) -> dict:
+    """
+    Trigger AI constraint inference based on project context.
+    Returns the list of suggested constraints (already persisted with source='ai_inferred').
+    """
+    try:
+        from app.chains.infer_constraints import infer_constraints
+        suggestions = await infer_constraints(project_id)
+        return {"suggestions": suggestions, "count": len(suggestions)}
+    except Exception as e:
+        logger.exception(f"Failed to infer constraints for project {project_id}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -2284,7 +2557,7 @@ async def list_data_entities_endpoint(project_id: UUID) -> list[DataEntityBRDSum
 
 @router.get("/data-entities/{entity_id}")
 async def get_data_entity_detail_endpoint(project_id: UUID, entity_id: UUID) -> dict:
-    """Get a data entity with its workflow links."""
+    """Get a data entity with workflow links, enrichment data, and revision history."""
     from app.db.data_entities import get_data_entity_detail
 
     try:
@@ -2293,6 +2566,42 @@ async def get_data_entity_detail_endpoint(project_id: UUID, entity_id: UUID) -> 
             raise HTTPException(status_code=404, detail="Data entity not found")
         if entity.get("project_id") != str(project_id):
             raise HTTPException(status_code=403, detail="Data entity does not belong to this project")
+
+        client = get_client()
+
+        # Load enrichment columns
+        try:
+            enrich_result = client.table("data_entities").select(
+                "enrichment_data, enrichment_status, pii_flags, relationships"
+            ).eq("id", str(entity_id)).single().execute()
+            if enrich_result and enrich_result.data:
+                entity["enrichment_data"] = enrich_result.data.get("enrichment_data")
+                entity["enrichment_status"] = enrich_result.data.get("enrichment_status")
+                entity["pii_flags"] = enrich_result.data.get("pii_flags") or []
+                entity["relationships"] = enrich_result.data.get("relationships") or []
+        except Exception:
+            pass
+
+        # Load revision history
+        revisions: list[dict] = []
+        try:
+            from app.db.revisions_enrichment import list_entity_revisions
+            rev_data = list_entity_revisions("data_entity", entity_id, limit=20)
+            revisions = [
+                {
+                    "revision_number": r.get("revision_number", 0),
+                    "revision_type": r.get("revision_type", ""),
+                    "diff_summary": r.get("diff_summary", ""),
+                    "changes": r.get("changes"),
+                    "created_at": r.get("created_at", ""),
+                    "created_by": r.get("created_by"),
+                }
+                for r in (rev_data or [])
+            ]
+        except Exception:
+            pass
+        entity["revisions"] = revisions
+
         return entity
     except HTTPException:
         raise
@@ -2320,6 +2629,48 @@ async def update_data_entity_endpoint(project_id: UUID, entity_id: UUID, data: D
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         logger.exception(f"Failed to update data entity {entity_id}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/data-entities/{entity_id}/analyze")
+async def analyze_data_entity_endpoint(project_id: UUID, entity_id: UUID) -> dict:
+    """Trigger AI analysis for a data entity."""
+    try:
+        from app.chains.analyze_data_entity import analyze_data_entity
+        result = await analyze_data_entity(entity_id, project_id)
+        return {"success": bool(result), "enrichment_data": result}
+    except Exception as e:
+        logger.exception(f"Failed to analyze data entity {entity_id}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+class DataEntityFieldsUpdate(BaseModel):
+    """Request body for field-only update."""
+    fields: list[dict]
+
+
+@router.patch("/data-entities/{entity_id}/fields")
+async def update_data_entity_fields_endpoint(
+    project_id: UUID, entity_id: UUID, data: DataEntityFieldsUpdate,
+) -> dict:
+    """Update only the fields of a data entity."""
+    client = get_client()
+    try:
+        # Verify ownership
+        existing = client.table("data_entities").select("project_id").eq(
+            "id", str(entity_id)
+        ).single().execute()
+        if not existing.data or existing.data.get("project_id") != str(project_id):
+            raise HTTPException(status_code=404, detail="Data entity not found")
+
+        result = client.table("data_entities").update({
+            "fields": data.fields,
+        }).eq("id", str(entity_id)).execute()
+        return {"success": True, "field_count": len(data.fields)}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"Failed to update data entity fields {entity_id}")
         raise HTTPException(status_code=500, detail=str(e))
 
 

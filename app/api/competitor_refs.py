@@ -3,7 +3,7 @@
 from typing import Any, Literal
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, Path, Query
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Path, Query
 from pydantic import BaseModel, Field
 
 from app.core.logging import get_logger
@@ -94,6 +94,13 @@ class CompetitorRefOut(BaseModel):
     enrichment_status: str | None = None
     enrichment_attempted_at: str | None = None
     enrichment_error: str | None = None
+
+    # Deep analysis fields
+    deep_analysis: dict[str, Any] | None = None
+    deep_analysis_status: str | None = None
+    deep_analysis_at: str | None = None
+    scraped_pages: list[dict[str, Any]] | None = None
+    is_design_reference: bool = False
 
     # Standard fields
     source_type: str | None = None
@@ -334,4 +341,164 @@ async def delete_competitor_ref(
         raise
     except Exception as e:
         logger.error(f"Error deleting competitor ref: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+# ============================================================================
+# Competitor Intelligence Endpoints
+# ============================================================================
+
+
+class DesignReferenceToggle(BaseModel):
+    is_design_reference: bool
+
+
+@router.post("/{ref_id}/analyze")
+async def trigger_deep_analysis(
+    background_tasks: BackgroundTasks,
+    project_id: UUID = Path(..., description="Project UUID"),
+    ref_id: UUID = Path(..., description="Competitor reference UUID"),
+) -> dict[str, Any]:
+    """
+    Trigger deep analysis for a confirmed competitor.
+
+    Runs in the background: scrapes website, runs LLM analysis, creates signal.
+    """
+    try:
+        ref = refs_db.get_competitor_ref(ref_id)
+        if not ref:
+            raise HTTPException(status_code=404, detail="Competitor reference not found")
+        if str(ref.get("project_id")) != str(project_id):
+            raise HTTPException(status_code=404, detail="Competitor reference not found in this project")
+
+        from app.chains.analyze_competitor import analyze_competitor
+
+        background_tasks.add_task(analyze_competitor, ref_id, project_id)
+
+        return {"status": "analyzing", "competitor_id": str(ref_id)}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error triggering analysis: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.get("/{ref_id}/analysis")
+async def get_deep_analysis(
+    project_id: UUID = Path(..., description="Project UUID"),
+    ref_id: UUID = Path(..., description="Competitor reference UUID"),
+) -> dict[str, Any]:
+    """Get the deep analysis results for a competitor."""
+    try:
+        ref = refs_db.get_competitor_ref(ref_id)
+        if not ref:
+            raise HTTPException(status_code=404, detail="Competitor reference not found")
+        if str(ref.get("project_id")) != str(project_id):
+            raise HTTPException(status_code=404, detail="Competitor reference not found in this project")
+
+        if not ref.get("deep_analysis"):
+            status = ref.get("deep_analysis_status", "pending")
+            if status == "analyzing":
+                return {"status": "analyzing", "deep_analysis": None}
+            raise HTTPException(status_code=404, detail="No analysis available yet")
+
+        return {
+            "status": ref.get("deep_analysis_status"),
+            "deep_analysis": ref["deep_analysis"],
+            "deep_analysis_at": ref.get("deep_analysis_at"),
+            "scraped_pages": ref.get("scraped_pages", []),
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting analysis: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.post("/synthesize")
+async def trigger_synthesis(
+    project_id: UUID = Path(..., description="Project UUID"),
+) -> dict[str, Any]:
+    """
+    Trigger aggregate synthesis across all analyzed competitors.
+
+    Runs synchronously and returns the synthesis result.
+    """
+    try:
+        from app.chains.synthesize_competitors import synthesize_competitors
+
+        synthesis = await synthesize_competitors(project_id)
+        return synthesis.model_dump()
+
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    except Exception as e:
+        logger.error(f"Error synthesizing competitors: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.get("/synthesis")
+async def get_synthesis(
+    project_id: UUID = Path(..., description="Project UUID"),
+) -> dict[str, Any]:
+    """Get the latest competitor synthesis for a project."""
+    try:
+        from app.db.supabase_client import get_supabase
+
+        supabase = get_supabase()
+        result = supabase.table("signals").select(
+            "raw_text, metadata, created_at"
+        ).eq(
+            "project_id", str(project_id)
+        ).eq(
+            "source", "competitor_intelligence_synthesis"
+        ).order(
+            "created_at", desc=True
+        ).limit(1).execute()
+
+        if not result.data:
+            raise HTTPException(status_code=404, detail="No synthesis available yet")
+
+        signal = result.data[0]
+        metadata = signal.get("metadata", {})
+
+        return {
+            "raw_text": signal["raw_text"],
+            "created_at": signal["created_at"],
+            "competitor_count": metadata.get("competitor_count", 0),
+            "competitor_names": metadata.get("competitor_names", []),
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting synthesis: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.patch("/{ref_id}/design-reference")
+async def toggle_design_reference(
+    project_id: UUID = Path(..., description="Project UUID"),
+    ref_id: UUID = Path(..., description="Competitor reference UUID"),
+    body: DesignReferenceToggle = ...,
+) -> dict[str, Any]:
+    """Toggle whether a competitor is also used as a design reference."""
+    try:
+        ref = refs_db.get_competitor_ref(ref_id)
+        if not ref:
+            raise HTTPException(status_code=404, detail="Competitor reference not found")
+        if str(ref.get("project_id")) != str(project_id):
+            raise HTTPException(status_code=404, detail="Competitor reference not found in this project")
+
+        updated = refs_db.update_competitor_ref(
+            ref_id, project_id, is_design_reference=body.is_design_reference
+        )
+        return {"success": True, "is_design_reference": body.is_design_reference, "id": str(ref_id)}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error toggling design reference: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e)) from e

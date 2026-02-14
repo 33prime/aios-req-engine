@@ -28,7 +28,7 @@ import {
 import PrototypeFrame from '@/components/prototype/PrototypeFrame'
 import type { PrototypeFrameHandle } from '@/components/prototype/PrototypeFrame'
 import TourController from '@/components/prototype/TourController'
-import { DesignSelectionModal } from '@/components/prototype/DesignSelectionModal'
+import { DesignSelectionChat } from '@/components/prototype/DesignSelectionChat'
 import type {
   FeatureOverlay,
   PrototypeSession,
@@ -388,8 +388,8 @@ export function BuildPhaseView({
         )}
       </div>
 
-      {/* Design Selection Modal */}
-      <DesignSelectionModal
+      {/* Design Selection Chat */}
+      <DesignSelectionChat
         isOpen={showDesignModal}
         onClose={() => setShowDesignModal(false)}
         onGenerate={handleGeneratePrototype}

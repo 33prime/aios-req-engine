@@ -9,6 +9,7 @@ import { RequirementsSection } from './sections/RequirementsSection'
 import { ConstraintsSection } from './sections/ConstraintsSection'
 import { DataEntitiesSection } from './sections/DataEntitiesSection'
 import { StakeholdersSection } from './sections/StakeholdersSection'
+import { CompetitorsSection } from './sections/CompetitorsSection'
 import { IntelligenceSection } from './sections/IntelligenceSection'
 import { WorkflowCreateModal } from './components/WorkflowCreateModal'
 import { WorkflowStepEditor } from './components/WorkflowStepEditor'
@@ -16,6 +17,11 @@ import { DataEntityCreateModal } from './components/DataEntityCreateModal'
 import { StakeholderDetailDrawer } from './components/StakeholderDetailDrawer'
 import { WorkflowStepDetailDrawer } from './components/WorkflowStepDetailDrawer'
 import { WorkflowDetailDrawer } from './components/WorkflowDetailDrawer'
+import { VisionDetailDrawer } from './components/VisionDetailDrawer'
+import { ClientIntelligenceDrawer } from './components/ClientIntelligenceDrawer'
+import { DataEntityDetailDrawer } from './components/DataEntityDetailDrawer'
+import { CompetitorDetailDrawer } from './components/CompetitorDetailDrawer'
+import { CompetitorSynthesisPanel } from './components/CompetitorSynthesisPanel'
 import { ConfidenceDrawer } from './components/ConfidenceDrawer'
 import { ImpactPreviewModal } from './components/ImpactPreviewModal'
 import {
@@ -37,8 +43,10 @@ import {
   deleteDataEntity,
   refreshStaleEntity,
   updateCanvasRole,
+  inferConstraints,
 } from '@/lib/api'
-import type { BRDWorkspaceData, BRDHealthData, MoSCoWGroup, StakeholderBRDSummary, AutomationLevel } from '@/types/workspace'
+import { CompletenessRing } from './components/CompletenessRing'
+import type { BRDWorkspaceData, BRDHealthData, MoSCoWGroup, StakeholderBRDSummary, CompetitorBRDSummary, AutomationLevel, SectionScore } from '@/types/workspace'
 
 interface BRDCanvasProps {
   projectId: string
@@ -309,6 +317,71 @@ export function BRDCanvas({ projectId, onRefresh }: BRDCanvasProps) {
     setConfidenceDrawer((prev) => ({ ...prev, open: false }))
     setStepDetailDrawer({ open: false, stepId: '' })
     setWorkflowDetailDrawer({ open: true, workflowId })
+  }, [])
+
+  // ============================================================================
+  // Competitor Detail Drawer + Synthesis Panel
+  // ============================================================================
+
+  const [competitorDrawer, setCompetitorDrawer] = useState<{
+    open: boolean
+    competitor: CompetitorBRDSummary | null
+  }>({ open: false, competitor: null })
+
+  const [showSynthesisPanel, setShowSynthesisPanel] = useState(false)
+
+  const handleOpenCompetitorDetail = useCallback((competitor: CompetitorBRDSummary) => {
+    setStakeholderDrawer({ open: false, stakeholder: null })
+    setConfidenceDrawer((prev) => ({ ...prev, open: false }))
+    setStepDetailDrawer({ open: false, stepId: '' })
+    setWorkflowDetailDrawer({ open: false, workflowId: '' })
+    setCompetitorDrawer({ open: true, competitor })
+  }, [])
+
+  // ============================================================================
+  // Vision Detail Drawer
+  // ============================================================================
+
+  const [visionDrawer, setVisionDrawer] = useState(false)
+  const [clientIntelDrawer, setClientIntelDrawer] = useState(false)
+
+  const handleOpenVisionDetail = useCallback(() => {
+    // Close other drawers
+    setStakeholderDrawer({ open: false, stakeholder: null })
+    setConfidenceDrawer((prev) => ({ ...prev, open: false }))
+    setStepDetailDrawer({ open: false, stepId: '' })
+    setWorkflowDetailDrawer({ open: false, workflowId: '' })
+    setClientIntelDrawer(false)
+    setVisionDrawer(true)
+  }, [])
+
+  const handleOpenBackgroundDetail = useCallback(() => {
+    // Close other drawers
+    setStakeholderDrawer({ open: false, stakeholder: null })
+    setConfidenceDrawer((prev) => ({ ...prev, open: false }))
+    setStepDetailDrawer({ open: false, stepId: '' })
+    setWorkflowDetailDrawer({ open: false, workflowId: '' })
+    setVisionDrawer(false)
+    setClientIntelDrawer(true)
+  }, [])
+
+  // ============================================================================
+  // Data Entity Detail Drawer
+  // ============================================================================
+
+  const [dataEntityDrawer, setDataEntityDrawer] = useState<{
+    open: boolean
+    entityId: string
+  }>({ open: false, entityId: '' })
+
+  const handleOpenDataEntityDetail = useCallback((entityId: string) => {
+    setStakeholderDrawer({ open: false, stakeholder: null })
+    setConfidenceDrawer((prev) => ({ ...prev, open: false }))
+    setStepDetailDrawer({ open: false, stepId: '' })
+    setWorkflowDetailDrawer({ open: false, workflowId: '' })
+    setVisionDrawer(false)
+    setClientIntelDrawer(false)
+    setDataEntityDrawer({ open: true, entityId })
   }, [])
 
   // ============================================================================
@@ -637,6 +710,14 @@ export function BRDCanvas({ projectId, onRefresh }: BRDCanvasProps) {
   // Determine whether step editor is in create or edit mode
   const isStepEdit = !!stepEditorState.stepId
 
+  // Build section score map from completeness data
+  const sectionScoreMap: Record<string, SectionScore> = {}
+  if (data.completeness?.sections) {
+    for (const s of data.completeness.sections) {
+      sectionScoreMap[s.section] = s
+    }
+  }
+
   return (
     <div className="max-w-4xl mx-auto py-8 px-6">
       {/* Document header */}
@@ -645,6 +726,9 @@ export function BRDCanvas({ projectId, onRefresh }: BRDCanvasProps) {
           <div className="flex items-center gap-3">
             <FileText className="w-6 h-6 text-[rgba(55,53,47,0.45)]" />
             <h1 className="text-[28px] font-bold text-[#37352f]">Business Requirements Document</h1>
+            {data.completeness && (
+              <CompletenessRing score={data.completeness.overall_score} size="md" />
+            )}
           </div>
           <button
             onClick={() => { loadData(); onRefresh?.() }}
@@ -699,6 +783,9 @@ export function BRDCanvas({ projectId, onRefresh }: BRDCanvasProps) {
           onUpdateVision={handleUpdateVision}
           onUpdateBackground={handleUpdateBackground}
           onStatusClick={handleOpenConfidence}
+          sectionScore={sectionScoreMap['vision'] || null}
+          onOpenVisionDetail={handleOpenVisionDetail}
+          onOpenBackgroundDetail={handleOpenBackgroundDetail}
         />
 
         <div className="border-t border-[#e9e9e7]" />
@@ -736,6 +823,7 @@ export function BRDCanvas({ projectId, onRefresh }: BRDCanvasProps) {
           onStatusClick={handleOpenConfidence}
           onViewStepDetail={handleViewStepDetail}
           onViewWorkflowDetail={handleViewWorkflowDetail}
+          sectionScore={sectionScoreMap['workflows'] || null}
         />
 
         <div className="border-t border-[#e9e9e7]" />
@@ -748,6 +836,7 @@ export function BRDCanvas({ projectId, onRefresh }: BRDCanvasProps) {
           onMovePriority={handleMovePriority}
           onRefreshEntity={handleRefreshEntity}
           onStatusClick={handleOpenConfidence}
+          sectionScore={sectionScoreMap['features'] || null}
         />
 
         <div className="border-t border-[#e9e9e7]" />
@@ -762,6 +851,8 @@ export function BRDCanvas({ projectId, onRefresh }: BRDCanvasProps) {
           onDeleteEntity={handleDeleteDataEntityWithPreview}
           onRefreshEntity={handleRefreshEntity}
           onStatusClick={handleOpenConfidence}
+          onOpenDetail={handleOpenDataEntityDetail}
+          sectionScore={sectionScoreMap['data_entities'] || null}
         />
 
         <div className="border-t border-[#e9e9e7]" />
@@ -777,7 +868,23 @@ export function BRDCanvas({ projectId, onRefresh }: BRDCanvasProps) {
           }}
           onRefreshEntity={handleRefreshEntity}
           onStatusClick={handleOpenConfidence}
+          sectionScore={sectionScoreMap['stakeholders'] || null}
         />
+
+        {data.competitors && data.competitors.length > 0 && (
+          <>
+            <div className="border-t border-[#e9e9e7]" />
+            <CompetitorsSection
+              competitors={data.competitors}
+              onConfirm={handleConfirm}
+              onNeedsReview={handleNeedsReview}
+              onConfirmAll={handleConfirmAll}
+              onOpenDetail={handleOpenCompetitorDetail}
+              onOpenSynthesis={() => setShowSynthesisPanel(true)}
+              onStatusClick={handleOpenConfidence}
+            />
+          </>
+        )}
 
         <div className="border-t border-[#e9e9e7]" />
 
@@ -787,6 +894,15 @@ export function BRDCanvas({ projectId, onRefresh }: BRDCanvasProps) {
           onNeedsReview={handleNeedsReview}
           onConfirmAll={handleConfirmAll}
           onStatusClick={handleOpenConfidence}
+          onInferConstraints={async () => {
+            try {
+              await inferConstraints(projectId)
+              loadData()
+            } catch (err) {
+              console.error('Failed to infer constraints:', err)
+            }
+          }}
+          sectionScore={sectionScoreMap['constraints'] || null}
         />
       </div>
 
@@ -863,6 +979,60 @@ export function BRDCanvas({ projectId, onRefresh }: BRDCanvasProps) {
             setWorkflowDetailDrawer({ open: false, workflowId: '' })
             setStepDetailDrawer({ open: true, stepId })
           }}
+        />
+      )}
+
+      {/* Vision Detail Drawer */}
+      {visionDrawer && (
+        <VisionDetailDrawer
+          projectId={projectId}
+          initialVision={data.business_context.vision}
+          onClose={() => setVisionDrawer(false)}
+          onVisionUpdated={(vision) => {
+            setData((prev) => prev ? {
+              ...prev,
+              business_context: { ...prev.business_context, vision },
+            } : prev)
+          }}
+        />
+      )}
+
+      {/* Client Intelligence Drawer */}
+      {clientIntelDrawer && (
+        <ClientIntelligenceDrawer
+          projectId={projectId}
+          onClose={() => setClientIntelDrawer(false)}
+        />
+      )}
+
+      {/* Data Entity Detail Drawer */}
+      {dataEntityDrawer.open && dataEntityDrawer.entityId && (
+        <DataEntityDetailDrawer
+          entityId={dataEntityDrawer.entityId}
+          projectId={projectId}
+          onClose={() => setDataEntityDrawer({ open: false, entityId: '' })}
+          onConfirm={handleConfirm}
+          onNeedsReview={handleNeedsReview}
+        />
+      )}
+
+      {/* Competitor Detail Drawer */}
+      {competitorDrawer.open && competitorDrawer.competitor && (
+        <CompetitorDetailDrawer
+          competitor={competitorDrawer.competitor}
+          projectId={projectId}
+          onClose={() => setCompetitorDrawer({ open: false, competitor: null })}
+          onConfirm={handleConfirm}
+          onNeedsReview={handleNeedsReview}
+          onUpdate={loadData}
+        />
+      )}
+
+      {/* Competitor Synthesis Panel */}
+      {showSynthesisPanel && (
+        <CompetitorSynthesisPanel
+          projectId={projectId}
+          onClose={() => setShowSynthesisPanel(false)}
         />
       )}
 
@@ -947,6 +1117,10 @@ function applyConfirmationUpdate(
     update.stakeholders = update.stakeholders.map((s) =>
       s.id === entityId ? { ...s, confirmation_status: status } : s
     )
+  } else if (entityType === 'competitor_reference') {
+    update.competitors = (update.competitors || []).map((c) =>
+      c.id === entityId ? { ...c, confirmation_status: status } : c
+    )
   }
 
   return update
@@ -991,7 +1165,8 @@ function countEntities(data: BRDWorkspaceData): number {
     data.requirements.could_have.length +
     data.constraints.length +
     data.data_entities.length +
-    data.stakeholders.length
+    data.stakeholders.length +
+    (data.competitors || []).length
   )
 }
 
@@ -1010,7 +1185,8 @@ function countConfirmed(data: BRDWorkspaceData): number {
     data.requirements.could_have.filter((f) => isConfirmed(f.confirmation_status)).length +
     data.constraints.filter((c) => isConfirmed(c.confirmation_status)).length +
     data.data_entities.filter((d) => isConfirmed(d.confirmation_status)).length +
-    data.stakeholders.filter((s) => isConfirmed(s.confirmation_status)).length
+    data.stakeholders.filter((s) => isConfirmed(s.confirmation_status)).length +
+    (data.competitors || []).filter((c) => isConfirmed(c.confirmation_status)).length
   )
 }
 

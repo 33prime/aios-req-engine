@@ -2053,6 +2053,22 @@ export const getBRDWorkspaceData = (projectId: string) =>
   apiRequest<BRDWorkspaceData>(`/projects/${projectId}/workspace/brd`)
 
 /**
+ * Get vision detail including analysis scores and revision history.
+ */
+export const getVisionDetail = (projectId: string) =>
+  apiRequest<import('@/types/workspace').VisionDetailData>(
+    `/projects/${projectId}/workspace/vision/detail`
+  )
+
+/**
+ * Get merged client intelligence: company_info + clients + strategic_context + project_memory.
+ */
+export const getProjectClientIntelligence = (projectId: string) =>
+  apiRequest<import('@/types/workspace').ClientIntelligenceData>(
+    `/projects/${projectId}/workspace/client-intelligence`
+  )
+
+/**
  * Update the project's vision statement.
  */
 export const updateProjectVision = (projectId: string, vision: string) =>
@@ -2060,6 +2076,15 @@ export const updateProjectVision = (projectId: string, vision: string) =>
     method: 'PATCH',
     body: JSON.stringify({ vision }),
   })
+
+/**
+ * Trigger AI constraint inference for a project.
+ */
+export const inferConstraints = (projectId: string) =>
+  apiRequest<{ suggestions: import('@/types/workspace').ConstraintItem[]; count: number }>(
+    `/projects/${projectId}/workspace/constraints/infer`,
+    { method: 'POST' }
+  )
 
 /**
  * Update a feature's MoSCoW priority group.
@@ -2279,8 +2304,23 @@ export const deleteDataEntity = (projectId: string, entityId: string) =>
   )
 
 export const getDataEntityDetail = (projectId: string, entityId: string) =>
-  apiRequest<Record<string, unknown>>(
+  apiRequest<import('@/types/workspace').DataEntityDetail>(
     `/projects/${projectId}/workspace/data-entities/${entityId}`
+  )
+
+export const analyzeDataEntity = (projectId: string, entityId: string) =>
+  apiRequest<{ success: boolean; enrichment_data: import('@/types/workspace').DataEntityEnrichment }>(
+    `/projects/${projectId}/workspace/data-entities/${entityId}/analyze`,
+    { method: 'POST' }
+  )
+
+export const updateDataEntityFields = (projectId: string, entityId: string, fields: Record<string, unknown>[]) =>
+  apiRequest<{ success: boolean; field_count: number }>(
+    `/projects/${projectId}/workspace/data-entities/${entityId}/fields`,
+    {
+      method: 'PATCH',
+      body: JSON.stringify({ fields }),
+    }
   )
 
 export const linkDataEntityToStep = (
@@ -2842,3 +2882,39 @@ export const analyzeClient = (clientId: string) =>
 
 export const getClientIntelligence = (clientId: string) =>
   apiRequest<ClientIntelligenceProfile>(`/clients/${clientId}/intelligence`)
+
+// ============================================================================
+// Competitor Intelligence
+// ============================================================================
+
+export const analyzeCompetitor = (projectId: string, refId: string) =>
+  apiRequest<{ status: string; competitor_id: string }>(`/projects/${projectId}/competitors/${refId}/analyze`, {
+    method: 'POST',
+  })
+
+export const getCompetitorAnalysis = (projectId: string, refId: string) =>
+  apiRequest<{
+    status: string
+    deep_analysis: import('@/types/workspace').CompetitorDeepAnalysis | null
+    deep_analysis_at?: string
+    scraped_pages?: { url: string; title: string; scraped_at: string }[]
+  }>(`/projects/${projectId}/competitors/${refId}/analysis`)
+
+export const synthesizeCompetitors = (projectId: string) =>
+  apiRequest<import('@/types/workspace').CompetitorSynthesis>(`/projects/${projectId}/competitors/synthesize`, {
+    method: 'POST',
+  })
+
+export const getCompetitorSynthesis = (projectId: string) =>
+  apiRequest<{
+    raw_text: string
+    created_at: string
+    competitor_count: number
+    competitor_names: string[]
+  }>(`/projects/${projectId}/competitors/synthesis`)
+
+export const toggleDesignReference = (projectId: string, refId: string, isDesignRef: boolean) =>
+  apiRequest<{ success: boolean; is_design_reference: boolean }>(`/projects/${projectId}/competitors/${refId}/design-reference`, {
+    method: 'PATCH',
+    body: JSON.stringify({ is_design_reference: isDesignRef }),
+  })
