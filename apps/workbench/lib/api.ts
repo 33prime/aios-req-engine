@@ -2425,9 +2425,9 @@ export const getWorkflowStepDetail = (projectId: string, stepId: string) =>
     `/projects/${projectId}/workspace/workflows/steps/${stepId}/detail`
   )
 
-export const enrichWorkflowStep = (projectId: string, stepId: string) =>
-  apiRequest<{ success: boolean; enrichment_data: Record<string, unknown> }>(
-    `/projects/${projectId}/workspace/workflows/steps/${stepId}/enrich`,
+export const enrichWorkflow = (projectId: string, workflowId: string) =>
+  apiRequest<{ success: boolean; enriched_step_count: number; unlock_count: number }>(
+    `/projects/${projectId}/workspace/workflows/${workflowId}/enrich`,
     { method: 'POST' }
   )
 

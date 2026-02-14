@@ -1824,13 +1824,11 @@ async def get_workflow_detail(project_id: UUID, workflow_id: UUID) -> WorkflowDe
             for p in persona_map.values()
         ]
 
-        # 7. Aggregate strategic unlocks from enriched steps
+        # 7. Read strategic unlocks from workflow-level enrichment_data
         strategic_unlocks: list[StepUnlockSummary] = []
-        for s in current_steps_raw + future_steps_raw:
-            edata = s.get("enrichment_data")
-            if not edata or not isinstance(edata, dict):
-                continue
-            for u in (edata.get("unlocks") or []):
+        wf_enrichment = workflow.get("enrichment_data")
+        if isinstance(wf_enrichment, dict):
+            for u in (wf_enrichment.get("strategic_unlocks") or []):
                 if isinstance(u, dict) and u.get("description"):
                     strategic_unlocks.append(StepUnlockSummary(
                         description=u["description"],
@@ -1838,8 +1836,6 @@ async def get_workflow_detail(project_id: UUID, workflow_id: UUID) -> WorkflowDe
                         enabled_by=u.get("enabled_by", ""),
                         strategic_value=u.get("strategic_value", ""),
                         linked_goal_id=u.get("linked_goal_id"),
-                        source_step_id=s["id"],
-                        source_step_label=s.get("label", ""),
                     ))
 
         # 8. Workflow-level insights
@@ -2203,30 +2199,33 @@ async def get_workflow_step_detail(project_id: UUID, step_id: UUID) -> WorkflowS
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.post("/workflows/steps/{step_id}/enrich")
-async def enrich_workflow_step_endpoint(project_id: UUID, step_id: UUID) -> dict:
+@router.post("/workflows/{workflow_id}/enrich")
+async def enrich_workflow_endpoint(project_id: UUID, workflow_id: UUID) -> dict:
     """
-    Run on-demand AI enrichment for a workflow step.
-    Generates narrative, optimization suggestions, and automation scoring.
-    """
-    from app.chains.analyze_workflow import enrich_workflow_step
+    Batch-enrich a full workflow in one LLM call.
 
-    # Verify step ownership
+    Analyzes all current/future steps together, producing per-step enrichments
+    and workflow-level strategic unlocks. One call per workflow instead of one
+    per step.
+    """
+    from app.chains.analyze_workflow import enrich_workflow
+
+    # Verify workflow ownership
     client = get_client()
-    step_result = client.table("vp_steps").select(
+    wf_result = client.table("workflows").select(
         "id, project_id"
-    ).eq("id", str(step_id)).maybe_single().execute()
-    step = step_result.data if step_result else None
-    if not step:
-        raise HTTPException(status_code=404, detail="Workflow step not found")
-    if step.get("project_id") != str(project_id):
-        raise HTTPException(status_code=403, detail="Step does not belong to this project")
+    ).eq("id", str(workflow_id)).maybe_single().execute()
+    wf = wf_result.data if wf_result else None
+    if not wf:
+        raise HTTPException(status_code=404, detail="Workflow not found")
+    if wf.get("project_id") != str(project_id):
+        raise HTTPException(status_code=403, detail="Workflow does not belong to this project")
 
     try:
-        enrichment_data = await enrich_workflow_step(step_id, project_id)
-        return {"success": True, "enrichment_data": enrichment_data}
+        result = await enrich_workflow(workflow_id, project_id)
+        return {"success": True, **result}
     except Exception as e:
-        logger.exception(f"Failed to enrich step {step_id}")
+        logger.exception(f"Failed to enrich workflow {workflow_id}")
         raise HTTPException(status_code=500, detail=str(e))
 
 

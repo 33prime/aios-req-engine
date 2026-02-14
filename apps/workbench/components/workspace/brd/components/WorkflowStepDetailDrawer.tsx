@@ -17,16 +17,14 @@ import {
   Database,
   ArrowRight,
   Layers,
-  Rocket,
 } from 'lucide-react'
 import { BRDStatusBadge } from './StatusBadge'
 import { ConfirmActions } from './ConfirmActions'
-import { getWorkflowStepDetail, enrichWorkflowStep } from '@/lib/api'
+import { getWorkflowStepDetail } from '@/lib/api'
 import type {
   WorkflowStepDetail,
   WorkflowStepSummary,
   StepInsight,
-  StepUnlock,
   LinkedBusinessDriver,
   LinkedFeature,
   LinkedDataEntity,
@@ -66,7 +64,6 @@ export function WorkflowStepDetailDrawer({
   const [activeTab, setActiveTab] = useState<TabId>('overview')
   const [detail, setDetail] = useState<WorkflowStepDetail | null>(null)
   const [loading, setLoading] = useState(true)
-  const [enriching, setEnriching] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -93,20 +90,6 @@ export function WorkflowStepDetailDrawer({
   }, [detail])
 
   const insightCount = detail?.insights?.length || 0
-
-  const handleEnrich = async () => {
-    setEnriching(true)
-    try {
-      await enrichWorkflowStep(projectId, stepId)
-      // Reload detail to get enrichment data
-      const refreshed = await getWorkflowStepDetail(projectId, stepId)
-      setDetail(refreshed)
-    } catch (err) {
-      console.error('Failed to enrich step:', err)
-    } finally {
-      setEnriching(false)
-    }
-  }
 
   return (
     <>
@@ -225,7 +208,7 @@ export function WorkflowStepDetailDrawer({
           ) : detail ? (
             <>
               {activeTab === 'overview' && (
-                <OverviewTab detail={detail} onEnrich={handleEnrich} enriching={enriching} />
+                <OverviewTab detail={detail} />
               )}
               {activeTab === 'connections' && <ConnectionsTab detail={detail} />}
               {activeTab === 'insights' && <InsightsTab insights={detail.insights} />}
@@ -267,12 +250,8 @@ function AutomationBadge({ level }: { level: string }) {
 
 function OverviewTab({
   detail,
-  onEnrich,
-  enriching,
 }: {
   detail: WorkflowStepDetail
-  onEnrich: () => void
-  enriching: boolean
 }) {
   // Build narrative
   const narrative = useMemo(() => {
@@ -422,31 +401,6 @@ function OverviewTab({
         </div>
       )}
 
-      {/* Unlocks — shown when enrichment has them */}
-      {hasEnrichment && enrichment.unlocks && enrichment.unlocks.length > 0 && (
-        <UnlocksCard unlocks={enrichment.unlocks} />
-      )}
-
-      {/* Enrich button — shown when not yet enriched */}
-      {!hasEnrichment && (
-        <button
-          onClick={onEnrich}
-          disabled={enriching}
-          className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-[13px] font-medium text-white bg-[#3FAF7A] hover:bg-[#25785A] rounded-xl transition-colors disabled:opacity-50"
-        >
-          {enriching ? (
-            <>
-              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
-              Analyzing...
-            </>
-          ) : (
-            <>
-              <Sparkles className="w-4 h-4" />
-              Enrich with AI
-            </>
-          )}
-        </button>
-      )}
     </div>
   )
 }
@@ -512,64 +466,6 @@ function TimeComparison({
           </span>
         </div>
       )}
-    </div>
-  )
-}
-
-// ============================================================================
-// Unlocks Card — "What This Unlocks"
-// ============================================================================
-
-const UNLOCK_TYPE_CONFIG: Record<string, { icon: typeof Rocket; label: string }> = {
-  capability: { icon: Rocket, label: 'New Capability' },
-  scale: { icon: Layers, label: 'Scale Unlock' },
-  insight: { icon: Sparkles, label: 'New Insight' },
-  speed: { icon: Zap, label: 'Speed Unlock' },
-}
-
-function UnlocksCard({ unlocks }: { unlocks: StepUnlock[] }) {
-  return (
-    <div className="border border-[#3FAF7A]/30 rounded-xl overflow-hidden">
-      <div className="px-4 py-3 bg-[#E8F5E9]/50 border-b border-[#3FAF7A]/20">
-        <div className="flex items-center gap-1.5">
-          <Rocket className="w-3.5 h-3.5 text-[#25785A]" />
-          <span className="text-[11px] font-semibold text-[#25785A] uppercase tracking-wide">
-            What This Unlocks
-          </span>
-        </div>
-        <p className="text-[11px] text-[#666666] mt-0.5">
-          Beyond time savings — what becomes possible
-        </p>
-      </div>
-      <div className="divide-y divide-[#E5E5E5]">
-        {unlocks.map((unlock, i) => {
-          const config = UNLOCK_TYPE_CONFIG[unlock.unlock_type] || UNLOCK_TYPE_CONFIG.capability
-          const TypeIcon = config.icon
-          return (
-            <div key={i} className="px-4 py-3">
-              <div className="flex items-start gap-2.5">
-                <TypeIcon className="w-4 h-4 mt-0.5 text-[#3FAF7A] flex-shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-0.5">
-                    <span className="text-[10px] font-medium uppercase px-1.5 py-0.5 rounded bg-[#E8F5E9] text-[#25785A]">
-                      {config.label}
-                    </span>
-                  </div>
-                  <p className="text-[13px] text-[#333333] leading-relaxed font-medium">
-                    {unlock.description}
-                  </p>
-                  <p className="text-[12px] text-[#666666] mt-1 leading-relaxed">
-                    {unlock.enabled_by}
-                  </p>
-                  <p className="text-[11px] text-[#999999] mt-1 italic">
-                    {unlock.strategic_value}
-                  </p>
-                </div>
-              </div>
-            </div>
-          )
-        })}
-      </div>
     </div>
   )
 }

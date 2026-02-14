@@ -23,7 +23,7 @@ import {
 } from 'lucide-react'
 import { BRDStatusBadge } from './StatusBadge'
 import { ConfirmActions } from './ConfirmActions'
-import { getWorkflowDetail } from '@/lib/api'
+import { getWorkflowDetail, enrichWorkflow } from '@/lib/api'
 import type {
   WorkflowDetail,
   WorkflowInsight,
@@ -65,6 +65,15 @@ export function WorkflowDetailDrawer({
   const [activeTab, setActiveTab] = useState<TabId>('overview')
   const [detail, setDetail] = useState<WorkflowDetail | null>(null)
   const [loading, setLoading] = useState(true)
+  const [enriching, setEnriching] = useState(false)
+
+  const loadDetail = () => {
+    setLoading(true)
+    return getWorkflowDetail(projectId, workflowId)
+      .then((data) => setDetail(data))
+      .catch((err) => console.error('Failed to load workflow detail:', err))
+      .finally(() => setLoading(false))
+  }
 
   useEffect(() => {
     let cancelled = false
@@ -81,6 +90,18 @@ export function WorkflowDetailDrawer({
       })
     return () => { cancelled = true }
   }, [projectId, workflowId])
+
+  const handleEnrich = async () => {
+    setEnriching(true)
+    try {
+      await enrichWorkflow(projectId, workflowId)
+      await loadDetail()
+    } catch (err) {
+      console.error('Failed to enrich workflow:', err)
+    } finally {
+      setEnriching(false)
+    }
+  }
 
   const connectionCount = useMemo(() => {
     if (!detail) return 0
@@ -202,7 +223,7 @@ export function WorkflowDetailDrawer({
           ) : detail ? (
             <>
               {activeTab === 'overview' && (
-                <OverviewTab detail={detail} onViewStepDetail={onViewStepDetail} />
+                <OverviewTab detail={detail} onViewStepDetail={onViewStepDetail} onEnrich={handleEnrich} enriching={enriching} />
               )}
               {activeTab === 'connections' && <ConnectionsTab detail={detail} />}
               {activeTab === 'insights' && <InsightsTab insights={detail.insights} />}
@@ -226,11 +247,16 @@ export function WorkflowDetailDrawer({
 function OverviewTab({
   detail,
   onViewStepDetail,
+  onEnrich,
+  enriching,
 }: {
   detail: WorkflowDetail
   onViewStepDetail?: (stepId: string) => void
+  onEnrich: () => void
+  enriching: boolean
 }) {
   const totalSteps = detail.current_steps.length + detail.future_steps.length
+  const hasEnrichment = detail.enriched_step_count > 0 || detail.strategic_unlocks.length > 0
 
   return (
     <div className="space-y-6">
@@ -261,6 +287,27 @@ function OverviewTab({
       {/* Strategic Unlocks */}
       {detail.strategic_unlocks.length > 0 && (
         <StrategicUnlocksCard unlocks={detail.strategic_unlocks} />
+      )}
+
+      {/* Enrich with AI button */}
+      {!hasEnrichment && (
+        <button
+          onClick={onEnrich}
+          disabled={enriching}
+          className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-[13px] font-medium text-white bg-[#3FAF7A] hover:bg-[#25785A] rounded-xl transition-colors disabled:opacity-50"
+        >
+          {enriching ? (
+            <>
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
+              Analyzing workflow...
+            </>
+          ) : (
+            <>
+              <Sparkles className="w-4 h-4" />
+              Enrich with AI
+            </>
+          )}
+        </button>
       )}
     </div>
   )
