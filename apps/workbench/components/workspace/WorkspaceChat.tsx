@@ -1,7 +1,7 @@
 /**
- * WorkspaceChat - Full chat adapted for sidebar context
+ * WorkspaceChat - Premium AI Command Center
  *
- * Ports all ChatPanel functionality into a narrow sidebar:
+ * Full chat adapted for sidebar context:
  * - Message list with streaming
  * - Slash command autocomplete
  * - File drag-and-drop
@@ -9,6 +9,7 @@
  * - Proactive message cards
  * - Quick action row (scrollable)
  * - Inline prompts for /create-task, /create-stakeholder, /remember
+ * - Next best actions integration
  */
 
 'use client'
@@ -19,25 +20,27 @@ import {
   Loader2,
   X,
   Sparkles,
-  ChevronRight,
-  AlertCircle,
-  Info,
-  Zap,
   CheckCircle2,
   Layers,
   Upload,
   Paperclip,
+  Zap,
+  Lightbulb,
+  ArrowRight,
+  Target,
+  Users,
+  FileText,
+  ChevronDown,
 } from 'lucide-react'
 import { Markdown } from '../../components/ui/Markdown'
 import {
   useAssistant,
-  type Message,
   type QuickAction,
   type ProactiveMessage,
   type CommandDefinition,
   getModeConfig,
 } from '@/lib/assistant'
-import { uploadDocument, processDocument } from '@/lib/api'
+import { uploadDocument, processDocument, getNextActions, type NextAction } from '@/lib/api'
 
 // =============================================================================
 // Types
@@ -70,6 +73,37 @@ interface WorkspaceChatProps {
 }
 
 // =============================================================================
+// Constants
+// =============================================================================
+
+const ACTION_ICONS: Record<string, typeof Target> = {
+  confirm_critical: Target,
+  stakeholder_gap: Users,
+  section_gap: FileText,
+  missing_evidence: FileText,
+  validate_pains: Target,
+  missing_vision: Lightbulb,
+  missing_metrics: Target,
+}
+
+const ACTION_COMMANDS: Record<string, (a: NextAction) => string> = {
+  confirm_critical: () => 'Help me review and confirm the must-have features',
+  stakeholder_gap: (a) => `Help me identify a ${a.suggested_stakeholder_role} for this project`,
+  section_gap: (a) => `Help me improve the ${a.target_entity_type?.replace(/_/g, ' ')} section`,
+  missing_evidence: () => 'What evidence do we need to gather for unsupported features?',
+  validate_pains: () => 'Help me validate the high-severity pain points with stakeholders',
+  missing_vision: () => 'Help me draft a vision statement for this project',
+  missing_metrics: () => 'Help me define success metrics and KPIs for this project',
+}
+
+const STARTER_CARDS = [
+  { icon: Target, label: 'Review features', hint: 'Confirm must-have priorities', command: '/status' },
+  { icon: Users, label: 'Add stakeholder', hint: 'Track key people', command: '/create-stakeholder' },
+  { icon: FileText, label: 'Upload document', hint: 'Feed in signals', command: null },
+  { icon: Lightbulb, label: 'Discover gaps', hint: 'Find what\'s missing', command: '/discover-check' },
+]
+
+// =============================================================================
 // Main Component
 // =============================================================================
 
@@ -92,10 +126,12 @@ export function WorkspaceChat({
   } | null>(null)
   const [promptInput, setPromptInput] = useState('')
   const [promptSubmitting, setPromptSubmitting] = useState(false)
+  const [nextActions, setNextActions] = useState<NextAction[]>([])
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const promptInputRef = useRef<HTMLInputElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const prevLoading = useRef(externalLoading)
 
   // Assistant hook
   const {
@@ -110,6 +146,19 @@ export function WorkspaceChat({
   } = useAssistant()
 
   const modeConfig = useMemo(() => getModeConfig(context.mode), [context.mode])
+
+  // Fetch next actions on mount
+  useEffect(() => {
+    getNextActions(projectId).then(r => setNextActions(r.actions)).catch(() => {})
+  }, [projectId])
+
+  // Re-fetch when streaming completes (isLoading transitions true→false)
+  useEffect(() => {
+    if (prevLoading.current && !externalLoading) {
+      getNextActions(projectId).then(r => setNextActions(r.actions)).catch(() => {})
+    }
+    prevLoading.current = externalLoading
+  }, [externalLoading, projectId])
 
   // Command suggestions
   const commandSuggestions = useMemo(() => {
@@ -204,6 +253,16 @@ export function WorkspaceChat({
     setShowCommandSuggestions(false)
     inputRef.current?.focus()
   }, [])
+
+  // Next action click handler
+  const handleNextAction = useCallback(
+    (action: NextAction) => {
+      const commandFn = ACTION_COMMANDS[action.action_type]
+      const message = commandFn ? commandFn(action) : action.title
+      externalSendMessage(message)
+    },
+    [externalSendMessage]
+  )
 
   // Inline prompt
   const handlePromptSubmit = useCallback(async () => {
@@ -346,6 +405,10 @@ export function WorkspaceChat({
     return combined
   }, [externalMessages, context.messages])
 
+  // Determine if thinking (loading but no streamed content yet)
+  const lastMessage = allMessages[allMessages.length - 1]
+  const isThinking = externalLoading && (!lastMessage || lastMessage.role === 'user' || !lastMessage.isStreaming)
+
   return (
     <div
       className="flex flex-col h-full"
@@ -356,11 +419,11 @@ export function WorkspaceChat({
     >
       {/* Drag overlay */}
       {isDragging && (
-        <div className="absolute inset-0 z-50 bg-brand-teal/5 border-2 border-dashed border-brand-teal rounded-lg flex items-center justify-center pointer-events-none">
+        <div className="absolute inset-0 z-50 bg-[#3FAF7A]/5 border-2 border-dashed border-[#3FAF7A] rounded-2xl flex items-center justify-center pointer-events-none">
           <div className="text-center p-4">
-            <Upload className="h-8 w-8 text-brand-teal mx-auto mb-2" />
-            <p className="text-sm font-medium text-brand-teal">Drop files here</p>
-            <p className="text-xs text-ui-supportText mt-0.5">PDF, DOCX, XLSX, PPTX, images (max 5)</p>
+            <Upload className="h-8 w-8 text-[#3FAF7A] mx-auto mb-2" />
+            <p className="text-sm font-medium text-[#3FAF7A]">Drop files here</p>
+            <p className="text-xs text-[#666666] mt-0.5">PDF, DOCX, XLSX, PPTX, images (max 5)</p>
           </div>
         </div>
       )}
@@ -369,15 +432,15 @@ export function WorkspaceChat({
       {uploadingFiles && (
         <div className="absolute inset-0 z-50 bg-white/90 flex items-center justify-center">
           <div className="text-center p-4">
-            <Loader2 className="h-8 w-8 text-brand-teal mx-auto mb-2 animate-spin" />
-            <p className="text-sm font-medium text-ui-bodyText">Uploading...</p>
+            <Loader2 className="h-8 w-8 text-[#3FAF7A] mx-auto mb-2 animate-spin" />
+            <p className="text-sm font-medium text-[#333333]">Uploading...</p>
           </div>
         </div>
       )}
 
       {/* Proactive Messages */}
       {context.pendingProactiveMessages.length > 0 && (
-        <div className="px-3 py-2 space-y-1.5 bg-amber-50 border-b border-amber-200 flex-shrink-0">
+        <div className="px-3 py-2 space-y-1.5 bg-white border-b border-[#E5E5E5] flex-shrink-0">
           {context.pendingProactiveMessages.map((msg, index) => (
             <ProactiveCard
               key={index}
@@ -390,20 +453,18 @@ export function WorkspaceChat({
       )}
 
       {/* Quick Actions — scrollable row */}
-      <div className="px-3 py-2 border-b border-ui-cardBorder bg-ui-background flex-shrink-0">
+      <div className="px-3 py-2 border-b border-[#E5E5E5] bg-[#F4F4F4] flex-shrink-0">
         <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-hide">
-          <Sparkles className="h-3 w-3 text-ui-supportText flex-shrink-0" />
+          <Sparkles className="h-3 w-3 text-[#999999] flex-shrink-0" />
           {modeConfig.quickActions.slice(0, 5).map((action) => (
             <button
               key={action.id}
               onClick={() => handleQuickAction(action)}
               disabled={action.disabled}
-              className={`px-2.5 py-1 text-xs font-medium rounded-full whitespace-nowrap transition-colors flex-shrink-0 ${
+              className={`px-2.5 py-1 text-xs font-medium rounded-xl whitespace-nowrap transition-colors flex-shrink-0 ${
                 action.variant === 'primary'
-                  ? 'bg-brand-teal text-white hover:bg-brand-tealDark'
-                  : action.variant === 'warning'
-                    ? 'bg-amber-100 text-amber-800 hover:bg-amber-200'
-                    : 'bg-white text-ui-bodyText border border-ui-cardBorder hover:bg-ui-buttonGray'
+                  ? 'bg-[#E8F5E9] text-[#25785A] hover:bg-[#3FAF7A] hover:text-white'
+                  : 'bg-white text-[#333333] border border-[#E5E5E5] hover:bg-[#F4F4F4]'
               } disabled:opacity-50`}
             >
               {action.label}
@@ -415,22 +476,71 @@ export function WorkspaceChat({
       {/* Messages Area */}
       <div className="flex-1 overflow-y-auto px-3 py-3 space-y-3">
         {allMessages.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full px-4 text-center">
-            <Sparkles className="h-8 w-8 text-ui-supportText/50 mb-2" />
-            <p className="text-sm text-ui-supportText mb-3">
-              Type a message or use /commands
-            </p>
-            <div className="flex flex-wrap justify-center gap-1.5">
-              {modeConfig.suggestedCommands.slice(0, 3).map((cmd) => (
-                <button
-                  key={cmd}
-                  onClick={() => setInput(cmd)}
-                  className="px-2.5 py-1 bg-ui-background text-ui-bodyText rounded-full text-xs font-mono hover:bg-ui-buttonGrayHover transition-colors"
-                >
-                  {cmd}
-                </button>
-              ))}
+          <div className="flex flex-col items-center justify-center h-full px-4">
+            {/* Branded empty state */}
+            <div className="w-14 h-14 rounded-2xl bg-[#E8F5E9] flex items-center justify-center mb-3">
+              <Sparkles className="h-7 w-7 text-[#3FAF7A]" />
             </div>
+            <p className="text-[14px] font-semibold text-[#333333] mb-1">AIOS Assistant</p>
+            <p className="text-[12px] text-[#666666] text-center mb-4">
+              Your AI partner for requirements engineering
+            </p>
+
+            {/* Starter cards */}
+            <div className="w-full space-y-2 mb-4">
+              {STARTER_CARDS.map((card) => {
+                const Icon = card.icon
+                return (
+                  <button
+                    key={card.label}
+                    onClick={() => {
+                      if (card.command) {
+                        setInput(card.command)
+                        inputRef.current?.focus()
+                      } else {
+                        fileInputRef.current?.click()
+                      }
+                    }}
+                    className="w-full flex items-center gap-3 p-3 bg-white border border-[#E5E5E5] rounded-2xl hover:border-[#3FAF7A] hover:shadow-sm transition-all text-left group"
+                  >
+                    <div className="w-8 h-8 rounded-xl bg-[#F4F4F4] flex items-center justify-center flex-shrink-0 group-hover:bg-[#E8F5E9] transition-colors">
+                      <Icon className="h-4 w-4 text-[#666666] group-hover:text-[#3FAF7A] transition-colors" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[12px] font-medium text-[#333333]">{card.label}</p>
+                      <p className="text-[11px] text-[#999999]">{card.hint}</p>
+                    </div>
+                    <ArrowRight className="h-3.5 w-3.5 text-[#E5E5E5] group-hover:text-[#3FAF7A] transition-colors flex-shrink-0" />
+                  </button>
+                )
+              })}
+            </div>
+
+            {/* Next actions in empty state */}
+            {nextActions.length > 0 && (
+              <div className="w-full">
+                <p className="text-[11px] font-medium text-[#999999] uppercase tracking-wide mb-2">Start Here</p>
+                {nextActions.slice(0, 2).map((action, idx) => {
+                  const Icon = ACTION_ICONS[action.action_type] || Target
+                  return (
+                    <button
+                      key={idx}
+                      onClick={() => handleNextAction(action)}
+                      className="w-full flex items-center gap-3 p-3 bg-white border border-[#E5E5E5] rounded-2xl hover:border-[#3FAF7A] hover:shadow-sm transition-all text-left group mb-2"
+                    >
+                      <span className="flex items-center justify-center w-6 h-6 rounded-full bg-[#E8F5E9] text-[11px] font-semibold text-[#25785A] flex-shrink-0">
+                        {idx + 1}
+                      </span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[12px] font-medium text-[#333333]">{action.title}</p>
+                        <p className="text-[11px] text-[#999999] truncate">{action.description}</p>
+                      </div>
+                      <ArrowRight className="h-3.5 w-3.5 text-[#E5E5E5] group-hover:text-[#3FAF7A] transition-colors flex-shrink-0" />
+                    </button>
+                  )
+                })}
+              </div>
+            )}
           </div>
         ) : (
           <>
@@ -441,13 +551,25 @@ export function WorkspaceChat({
                 onSendMessage={externalSendMessage}
               />
             ))}
+
+            {/* Thinking indicator */}
+            {isThinking && <ThinkingIndicator />}
+
+            {/* Next actions after last message */}
+            {!externalLoading && nextActions.length > 0 && (
+              <NextActionsSuggestion
+                actions={nextActions.slice(0, 2)}
+                onAction={handleNextAction}
+              />
+            )}
+
             <div ref={messagesEndRef} />
           </>
         )}
       </div>
 
       {/* Input Area */}
-      <div className="border-t border-ui-cardBorder bg-white px-3 py-2.5 flex-shrink-0">
+      <div className="border-t border-[#E5E5E5] bg-white px-3 py-2.5 flex-shrink-0">
         {/* Hidden file input */}
         <input
           ref={fileInputRef}
@@ -460,7 +582,7 @@ export function WorkspaceChat({
 
         {/* Inline Prompt */}
         {activePrompt && (
-          <div className="mb-2 p-2.5 bg-ui-background rounded-lg border border-ui-cardBorder">
+          <div className="mb-2 p-2.5 bg-[#F4F4F4] rounded-2xl border border-[#E5E5E5]">
             {activePrompt.type === 'create-task' && (
               <InlinePrompt
                 icon="task"
@@ -491,12 +613,12 @@ export function WorkspaceChat({
             )}
             {activePrompt.type === 'remember' && activePrompt.step === 'type' && (
               <div>
-                <p className="text-xs font-medium text-ui-bodyText mb-2">Add to Memory</p>
+                <p className="text-xs font-medium text-[#333333] mb-2">Add to Memory</p>
                 <div className="flex items-center gap-1.5">
-                  <button onClick={() => handleMemoryTypeSelect('decision')} className="px-2 py-1 bg-blue-100 text-blue-800 text-xs font-medium rounded-lg hover:bg-blue-200">Decision</button>
-                  <button onClick={() => handleMemoryTypeSelect('learning')} className="px-2 py-1 bg-green-100 text-green-800 text-xs font-medium rounded-lg hover:bg-green-200">Learning</button>
-                  <button onClick={() => handleMemoryTypeSelect('question')} className="px-2 py-1 bg-amber-100 text-amber-800 text-xs font-medium rounded-lg hover:bg-amber-200">Question</button>
-                  <button onClick={handlePromptCancel} className="ml-auto text-xs text-ui-supportText hover:text-ui-bodyText">Cancel</button>
+                  <button onClick={() => handleMemoryTypeSelect('decision')} className="px-2 py-1 bg-[#E8F5E9] text-[#25785A] text-xs font-medium rounded-xl hover:bg-[#3FAF7A] hover:text-white transition-colors">Decision</button>
+                  <button onClick={() => handleMemoryTypeSelect('learning')} className="px-2 py-1 bg-[#E8F5E9] text-[#25785A] text-xs font-medium rounded-xl hover:bg-[#3FAF7A] hover:text-white transition-colors">Learning</button>
+                  <button onClick={() => handleMemoryTypeSelect('question')} className="px-2 py-1 bg-[#E8F5E9] text-[#25785A] text-xs font-medium rounded-xl hover:bg-[#3FAF7A] hover:text-white transition-colors">Question</button>
+                  <button onClick={handlePromptCancel} className="ml-auto text-xs text-[#999999] hover:text-[#333333]">Cancel</button>
                 </div>
               </div>
             )}
@@ -525,7 +647,7 @@ export function WorkspaceChat({
           <button
             type="button"
             onClick={handleFileSelect}
-            className="p-2 text-ui-supportText hover:text-ui-bodyText hover:bg-ui-background rounded-lg transition-colors flex-shrink-0"
+            className="p-2 text-[#999999] hover:text-[#3FAF7A] hover:bg-[#E8F5E9] rounded-xl transition-colors flex-shrink-0"
             title="Attach file"
           >
             <Paperclip className="h-4 w-4" />
@@ -542,27 +664,27 @@ export function WorkspaceChat({
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Message or /command..."
+              placeholder="Ask anything or type / for commands..."
               disabled={externalLoading}
               rows={1}
-              className="w-full px-3 py-2 border border-ui-cardBorder rounded-lg resize-none focus:outline-none focus:ring-1 focus:ring-brand-teal focus:border-brand-teal disabled:bg-ui-background disabled:text-ui-supportText text-sm"
+              className="w-full px-3 py-2 bg-[#F4F4F4] focus:bg-white border border-[#E5E5E5] rounded-2xl resize-none focus:outline-none focus:ring-2 focus:ring-[#3FAF7A]/20 focus:border-[#3FAF7A] disabled:bg-[#F4F4F4] disabled:text-[#999999] text-[13px]"
               style={{ minHeight: '36px', maxHeight: '80px' }}
             />
             {input.startsWith('/') && (
               <div className="absolute right-2 top-1/2 -translate-y-1/2">
-                <Zap className="h-3.5 w-3.5 text-brand-teal" />
+                <Zap className="h-3.5 w-3.5 text-[#3FAF7A]" />
               </div>
             )}
           </div>
           <button
             type="submit"
             disabled={!input.trim() || externalLoading}
-            className="p-2 bg-brand-teal hover:bg-brand-tealDark text-white rounded-lg disabled:opacity-50 transition-colors flex-shrink-0"
+            className="p-2 bg-[#3FAF7A] hover:bg-[#25785A] text-white rounded-2xl shadow-sm disabled:opacity-50 transition-colors flex-shrink-0"
           >
             {externalLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
           </button>
         </form>
-        <p className="text-[11px] text-ui-supportText mt-1.5">
+        <p className="text-[11px] text-[#999999] mt-1.5">
           Enter to send &middot; / for commands &middot; Tab to complete
         </p>
       </div>
@@ -571,8 +693,65 @@ export function WorkspaceChat({
 }
 
 // =============================================================================
-// Sub-components — compact for sidebar
+// Sub-components
 // =============================================================================
+
+function ThinkingIndicator() {
+  return (
+    <div className="flex justify-start">
+      <div className="flex items-center gap-2 px-4 py-3 bg-white border border-[#E5E5E5] rounded-2xl rounded-bl-md shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+        <div className="flex gap-1">
+          <div className="w-1.5 h-1.5 rounded-full bg-[#3FAF7A] animate-bounce" />
+          <div className="w-1.5 h-1.5 rounded-full bg-[#3FAF7A] animate-bounce [animation-delay:150ms]" />
+          <div className="w-1.5 h-1.5 rounded-full bg-[#3FAF7A] animate-bounce [animation-delay:300ms]" />
+        </div>
+        <span className="text-[12px] text-[#999999]">Thinking...</span>
+      </div>
+    </div>
+  )
+}
+
+function NextActionsSuggestion({
+  actions,
+  onAction,
+}: {
+  actions: NextAction[]
+  onAction: (action: NextAction) => void
+}) {
+  return (
+    <div className="border border-[#E5E5E5] rounded-2xl bg-white shadow-sm overflow-hidden">
+      {/* Header */}
+      <div className="px-3 py-2 bg-[#F4F4F4] border-b border-[#E5E5E5]">
+        <div className="flex items-center gap-2">
+          <div className="w-5 h-5 rounded-lg bg-[#E8F5E9] flex items-center justify-center">
+            <Lightbulb className="w-3 h-3 text-[#3FAF7A]" />
+          </div>
+          <span className="text-[12px] font-semibold text-[#333333]">Suggested Next</span>
+        </div>
+      </div>
+
+      {/* Action items */}
+      <div className="divide-y divide-[#E5E5E5]">
+        {actions.map((action, idx) => (
+          <button
+            key={idx}
+            onClick={() => onAction(action)}
+            className="w-full px-3 py-2.5 flex items-start gap-2.5 hover:bg-[#F4F4F4]/50 transition-colors text-left group"
+          >
+            <span className="flex items-center justify-center w-5 h-5 rounded-full bg-[#E8F5E9] text-[10px] font-semibold text-[#25785A] flex-shrink-0 mt-0.5">
+              {idx + 1}
+            </span>
+            <div className="flex-1 min-w-0">
+              <p className="text-[12px] font-medium text-[#333333]">{action.title}</p>
+              <p className="text-[11px] text-[#999999] truncate">{action.description}</p>
+            </div>
+            <ArrowRight className="h-3.5 w-3.5 text-[#E5E5E5] group-hover:text-[#3FAF7A] transition-colors flex-shrink-0 mt-0.5" />
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}
 
 function InlinePrompt({
   icon,
@@ -599,7 +778,7 @@ function InlinePrompt({
 }) {
   return (
     <div>
-      <p className="text-xs font-medium text-ui-bodyText mb-1.5">{label}</p>
+      <p className="text-xs font-medium text-[#333333] mb-1.5">{label}</p>
       <div className="flex items-center gap-1.5">
         <input
           ref={inputRef}
@@ -611,17 +790,17 @@ function InlinePrompt({
             if (e.key === 'Escape') onCancel()
           }}
           placeholder={placeholder}
-          className="flex-1 px-2.5 py-1.5 border border-ui-cardBorder rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-brand-teal"
+          className="flex-1 px-2.5 py-1.5 border border-[#E5E5E5] rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-[#3FAF7A]/20 focus:border-[#3FAF7A]"
           disabled={submitting}
         />
         <button
           onClick={onSubmit}
           disabled={!value.trim() || submitting}
-          className="px-2.5 py-1.5 bg-brand-teal text-white text-xs font-medium rounded-lg disabled:opacity-50 hover:bg-brand-tealDark transition-colors"
+          className="px-2.5 py-1.5 bg-[#3FAF7A] text-white text-xs font-medium rounded-xl disabled:opacity-50 hover:bg-[#25785A] transition-colors"
         >
           {submitting ? <Loader2 className="h-3 w-3 animate-spin" /> : submitLabel}
         </button>
-        <button onClick={onCancel} disabled={submitting} className="text-xs text-ui-supportText hover:text-ui-bodyText">
+        <button onClick={onCancel} disabled={submitting} className="text-xs text-[#999999] hover:text-[#333333]">
           Cancel
         </button>
       </div>
@@ -638,33 +817,20 @@ function ProactiveCard({
   onDismiss: () => void
   onAction: (action: QuickAction) => void
 }) {
-  const styles = {
-    high: 'border-red-200 bg-red-50',
-    medium: 'border-amber-200 bg-amber-50',
-    low: 'border-blue-200 bg-blue-50',
-  }
-  const icons = {
-    high: <AlertCircle className="h-3.5 w-3.5 text-red-600 flex-shrink-0" />,
-    medium: <Info className="h-3.5 w-3.5 text-amber-600 flex-shrink-0" />,
-    low: <Info className="h-3.5 w-3.5 text-blue-600 flex-shrink-0" />,
-  }
-
   return (
-    <div className={`flex items-start gap-2 p-2 rounded-lg border ${styles[message.priority]}`}>
-      {icons[message.priority]}
+    <div className="flex items-start gap-2 p-2.5 rounded-2xl border border-[#E5E5E5] bg-white shadow-sm">
+      <div className="w-6 h-6 rounded-lg bg-[#E8F5E9] flex items-center justify-center flex-shrink-0">
+        <Lightbulb className="h-3.5 w-3.5 text-[#3FAF7A]" />
+      </div>
       <div className="flex-1 min-w-0">
-        <p className="text-xs text-gray-800">{message.message}</p>
+        <p className="text-xs text-[#333333]">{message.message}</p>
         {message.actions && message.actions.length > 0 && (
           <div className="flex items-center gap-1.5 mt-1.5">
             {message.actions.map((action) => (
               <button
                 key={action.id}
                 onClick={() => onAction(action)}
-                className={`px-2 py-0.5 text-[11px] font-medium rounded transition-colors ${
-                  action.variant === 'primary'
-                    ? 'bg-brand-teal text-white hover:bg-brand-tealDark'
-                    : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
-                }`}
+                className="px-2 py-0.5 text-[11px] font-medium rounded-lg bg-[#E8F5E9] text-[#25785A] hover:bg-[#3FAF7A] hover:text-white transition-colors"
               >
                 {action.label}
               </button>
@@ -673,8 +839,8 @@ function ProactiveCard({
         )}
       </div>
       {message.dismissable !== false && (
-        <button onClick={onDismiss} className="p-0.5 hover:bg-black/5 rounded flex-shrink-0">
-          <X className="h-3 w-3 text-gray-500" />
+        <button onClick={onDismiss} className="p-0.5 hover:bg-[#F4F4F4] rounded flex-shrink-0">
+          <X className="h-3 w-3 text-[#999999]" />
         </button>
       )}
     </div>
@@ -689,21 +855,24 @@ function SidebarCommandAutocomplete({
   onSelect: (cmd: CommandDefinition) => void
 }) {
   return (
-    <div className="absolute bottom-full left-0 right-0 mb-1 bg-white border border-ui-cardBorder rounded-lg shadow-lg overflow-hidden z-50">
-      <div className="p-1.5 text-[11px] text-ui-supportText bg-ui-background border-b border-ui-cardBorder font-medium">
-        Commands (Tab to complete)
+    <div className="absolute bottom-full left-0 right-0 mb-1 bg-white border border-[#E5E5E5] rounded-2xl shadow-md overflow-hidden z-50">
+      <div className="px-3 py-1.5 text-[10px] text-[#999999] bg-[#F4F4F4] border-b border-[#E5E5E5] font-medium uppercase tracking-wide">
+        Commands
       </div>
       <div className="max-h-48 overflow-y-auto">
         {suggestions.map((cmd) => (
           <button
             key={cmd.name}
             onClick={() => onSelect(cmd)}
-            className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-ui-background text-left transition-colors"
+            className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-[#F4F4F4] text-left transition-colors"
           >
-            <span className="font-mono text-xs text-brand-teal">/{cmd.name}</span>
-            <span className="text-xs text-ui-supportText truncate">{cmd.description}</span>
+            <span className="font-mono text-[12px] text-[#3FAF7A]">/{cmd.name}</span>
+            <span className="text-[12px] text-[#666666] truncate">{cmd.description}</span>
           </button>
         ))}
+      </div>
+      <div className="px-3 py-1.5 text-[10px] text-[#999999] bg-[#F4F4F4] border-t border-[#E5E5E5]">
+        Tab to complete &middot; Esc to close
       </div>
     </div>
   )
@@ -726,6 +895,7 @@ function SidebarMessageBubble({
   )?.result
 
   const hasRunningTools = message.toolCalls?.some((t) => t.status === 'running')
+  const completedToolCount = message.toolCalls?.filter((t) => t.status === 'complete').length || 0
 
   if (isSystem) return null
 
@@ -735,11 +905,11 @@ function SidebarMessageBubble({
         {/* Message Content */}
         {message.content && (
           <div
-            className={`px-3 py-2 rounded-lg ${
+            className={
               isUser
-                ? 'bg-brand-teal text-white ml-auto'
-                : 'bg-ui-background text-ui-bodyText'
-            }`}
+                ? 'bg-[#0A1E2F] text-white rounded-2xl rounded-br-md px-4 py-3 shadow-sm ml-auto'
+                : 'bg-white border border-[#E5E5E5] rounded-2xl rounded-bl-md px-4 py-3 shadow-[0_1px_2px_rgba(0,0,0,0.04)] text-[#333333]'
+            }
           >
             {isUser ? (
               <p className="text-xs whitespace-pre-wrap break-words">{message.content}</p>
@@ -747,43 +917,57 @@ function SidebarMessageBubble({
               <>
                 <Markdown content={message.content} className="text-xs" />
                 {message.isStreaming && (
-                  <span className="inline-block w-1 h-3 ml-0.5 bg-current animate-pulse" />
+                  <span className="inline-block w-1.5 h-4 ml-0.5 bg-[#3FAF7A] rounded-full animate-pulse" />
                 )}
               </>
             )}
           </div>
         )}
 
-        {/* Tool Calls — compact single-line */}
+        {/* Tool Calls — compact */}
         {!isUser && message.toolCalls && message.toolCalls.length > 0 && (
-          <div className="mt-1">
-            <button
-              onClick={() => setShowToolDetails(!showToolDetails)}
-              className="flex items-center gap-1.5 text-[11px] text-ui-supportText hover:text-ui-bodyText transition-colors"
-            >
-              {hasRunningTools ? (
-                <Loader2 className="h-3 w-3 animate-spin text-brand-teal" />
-              ) : (
-                <Sparkles className="h-3 w-3" />
-              )}
-              <span>{hasRunningTools ? 'Running...' : `${message.toolCalls.length} tool${message.toolCalls.length > 1 ? 's' : ''}`}</span>
-              <ChevronRight className={`h-2.5 w-2.5 transition-transform ${showToolDetails ? 'rotate-90' : ''}`} />
-            </button>
+          <div className="mt-1.5">
+            {hasRunningTools ? (
+              /* Running state — inline card */
+              <div className="flex items-center gap-2 px-3 py-2 bg-[#F4F4F4] rounded-xl border border-[#E5E5E5]">
+                <Loader2 className="h-3.5 w-3.5 animate-spin text-[#3FAF7A]" />
+                <span className="text-[11px] text-[#333333]">
+                  {getToolDisplayName(message.toolCalls.find((t) => t.status === 'running')?.tool_name || '')}
+                </span>
+              </div>
+            ) : (
+              /* Completed state — collapsed line */
+              <button
+                onClick={() => setShowToolDetails(!showToolDetails)}
+                className="flex items-center gap-1.5 text-[11px] text-[#999999] hover:text-[#333333] transition-colors"
+              >
+                <CheckCircle2 className="h-3 w-3 text-[#3FAF7A]" />
+                <span>{completedToolCount} action{completedToolCount !== 1 ? 's' : ''} completed</span>
+                <ChevronDown className={`h-2.5 w-2.5 transition-transform ${showToolDetails ? 'rotate-180' : ''}`} />
+              </button>
+            )}
 
             {showToolDetails && (
-              <div className="mt-1 space-y-1 pl-3 border-l-2 border-ui-cardBorder">
+              <div className="mt-1.5 space-y-1 pl-3 border-l-2 border-[#E5E5E5]">
                 {message.toolCalls.map((tool, idx) => (
                   <div
                     key={idx}
-                    className={`text-[11px] px-2 py-1 rounded ${
-                      tool.status === 'running' ? 'bg-brand-teal/5 text-brand-teal' :
-                      tool.status === 'error' ? 'bg-red-50 text-red-600' :
-                      'bg-ui-background text-ui-supportText'
-                    }`}
+                    className="flex items-center gap-1.5 text-[11px] px-2 py-1 rounded-lg"
                   >
-                    {getToolDisplayName(tool.tool_name)}
+                    {tool.status === 'running' ? (
+                      <Loader2 className="h-2.5 w-2.5 animate-spin text-[#3FAF7A]" />
+                    ) : tool.status === 'error' ? (
+                      <div className="w-2.5 h-2.5 rounded-full bg-red-400" />
+                    ) : tool.status === 'complete' ? (
+                      <CheckCircle2 className="h-2.5 w-2.5 text-[#3FAF7A]" />
+                    ) : (
+                      <div className="w-2.5 h-2.5 rounded-full bg-[#E5E5E5]" />
+                    )}
+                    <span className={tool.status === 'error' ? 'text-red-600' : 'text-[#666666]'}>
+                      {getToolDisplayName(tool.tool_name)}
+                    </span>
                     {tool.status === 'error' && tool.error && (
-                      <span className="ml-1 text-red-500">- {tool.error}</span>
+                      <span className="text-red-500">- {tool.error}</span>
                     )}
                   </div>
                 ))}
@@ -792,26 +976,26 @@ function SidebarMessageBubble({
           </div>
         )}
 
-        {/* Signal Result Card — compact */}
+        {/* Signal Result Card */}
         {signalResult && signalResult.proposal_id && (
-          <div className="mt-1.5 p-2 bg-amber-50 border border-amber-200 rounded-lg">
-            <div className="flex items-center gap-2 mb-1.5">
-              <Layers className="h-3.5 w-3.5 text-amber-600" />
-              <span className="text-xs font-medium text-amber-900">
+          <div className="mt-1.5 border border-[#E5E5E5] rounded-2xl bg-white shadow-sm overflow-hidden">
+            <div className="flex items-center gap-2 px-3 py-2 bg-[#F4F4F4] border-b border-[#E5E5E5]">
+              <Layers className="h-3.5 w-3.5 text-[#3FAF7A]" />
+              <span className="text-xs font-medium text-[#333333]">
                 Proposal: {signalResult.total_changes || 0} changes
               </span>
             </div>
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1.5 px-3 py-2">
               <button
                 onClick={() => onSendMessage?.(`Apply proposal ${signalResult.proposal_id}`)}
-                className="px-2 py-1 bg-amber-600 hover:bg-amber-700 text-white text-[11px] font-medium rounded transition-colors flex items-center gap-1"
+                className="px-3 py-1.5 bg-[#3FAF7A] hover:bg-[#25785A] text-white text-[11px] font-medium rounded-xl transition-colors flex items-center gap-1"
               >
                 <CheckCircle2 className="h-3 w-3" />
                 Apply
               </button>
               <button
                 onClick={() => onSendMessage?.(`Discard proposal ${signalResult.proposal_id}`)}
-                className="px-2 py-1 bg-white text-gray-700 text-[11px] font-medium rounded border border-gray-300 hover:bg-gray-50 transition-colors"
+                className="px-3 py-1.5 bg-[#F0F0F0] hover:bg-[#E5E5E5] text-[#666666] text-[11px] font-medium rounded-xl transition-colors"
               >
                 Discard
               </button>
@@ -821,7 +1005,7 @@ function SidebarMessageBubble({
 
         {/* Timestamp */}
         {message.timestamp && (
-          <p className="text-[10px] text-ui-supportText mt-0.5">
+          <p className="text-[10px] text-[#999999] mt-0.5">
             {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
           </p>
         )}
