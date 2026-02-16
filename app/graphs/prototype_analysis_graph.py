@@ -10,7 +10,6 @@ from dataclasses import dataclass, field
 from typing import Any
 from uuid import UUID
 
-from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import END, StateGraph
 
 from app.chains.analyze_feature_overlay import analyze_feature_overlay, build_cached_blocks
@@ -262,4 +261,4 @@ def build_prototype_analysis_graph() -> StateGraph:
 
     graph.set_entry_point("load_context")
 
-    return graph.compile(checkpointer=MemorySaver())
+    return graph.compile()
