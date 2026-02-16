@@ -78,9 +78,9 @@ function ActorAccordionCard({
           className={`w-4 h-4 text-[#999999] shrink-0 transition-transform duration-200 ${expanded ? 'rotate-90' : ''}`}
         />
         <Users className="w-4 h-4 text-[#3FAF7A] shrink-0" />
-        <span className="text-[14px] font-semibold text-[#333333] truncate">{actor.name}</span>
+        <span className="text-[14px] font-semibold text-[#333333] shrink-0">{actor.name}</span>
         {actor.role && (
-          <span className="text-[12px] text-[#999999] shrink-0">({actor.role})</span>
+          <span className="text-[12px] text-[#999999] truncate">({actor.role})</span>
         )}
         {onCanvasRoleUpdate && (
           <span className="shrink-0" onClick={(e) => e.stopPropagation()}>
