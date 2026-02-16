@@ -1,14 +1,23 @@
 'use client'
 
-import { useState } from 'react'
-import { X, FileText, Link2, Trash2 } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { X, FileText, Link2, Trash2, Sparkles, ExternalLink, Loader2 } from 'lucide-react'
 import type { KnowledgeItem } from '@/types/workspace'
+import { generateProcessDocument } from '@/lib/api'
+
+interface ClientProject {
+  id: string
+  name: string
+}
 
 interface KnowledgeItemDetailDrawerProps {
   item: KnowledgeItem
   category: 'business_processes' | 'sops' | 'tribal_knowledge'
   onClose: () => void
   onDelete?: (itemId: string) => void
+  clientId?: string
+  clientProjects?: ClientProject[]
+  onProcessDocGenerated?: () => void
 }
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -37,9 +46,16 @@ export function KnowledgeItemDetailDrawer({
   category,
   onClose,
   onDelete,
+  clientId,
+  clientProjects,
+  onProcessDocGenerated,
 }: KnowledgeItemDetailDrawerProps) {
   const [activeTab, setActiveTab] = useState<TabId>('overview')
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [generating, setGenerating] = useState(false)
+  const [existingDocId, setExistingDocId] = useState<string | null>(null)
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null)
+  const [showProjectPicker, setShowProjectPicker] = useState(false)
 
   const conf = CONFIDENCE_STYLES[item.confidence] || CONFIDENCE_STYLES.medium
   const tabs: { id: TabId; label: string }[] = [
@@ -47,6 +63,52 @@ export function KnowledgeItemDetailDrawer({
     { id: 'evidence', label: 'Evidence' },
     { id: 'related', label: 'Related' },
   ]
+
+  const projects = clientProjects || []
+
+  // Auto-select project if only one
+  useEffect(() => {
+    if (projects.length === 1) {
+      setSelectedProjectId(projects[0].id)
+    }
+  }, [projects])
+
+  const canGenerate = category === 'business_processes' || category === 'sops'
+
+  const handleGenerate = async (projectId: string) => {
+    setGenerating(true)
+    setShowProjectPicker(false)
+    try {
+      const doc = await generateProcessDocument({
+        project_id: projectId,
+        client_id: clientId,
+        source_kb_category: category,
+        source_kb_item_id: item.id,
+      })
+      setExistingDocId(doc.id)
+      onProcessDocGenerated?.()
+    } catch (err: unknown) {
+      // If 409, doc already exists
+      if (err && typeof err === 'object' && 'message' in err) {
+        const msg = (err as { message: string }).message
+        if (msg.includes('409') || msg.includes('already exists')) {
+          // Try to find the existing doc
+          console.warn('Process doc already exists for this KB item')
+        }
+      }
+      console.error('Failed to generate process document:', err)
+    } finally {
+      setGenerating(false)
+    }
+  }
+
+  const handleGenerateClick = () => {
+    if (selectedProjectId) {
+      handleGenerate(selectedProjectId)
+    } else if (projects.length > 1) {
+      setShowProjectPicker(true)
+    }
+  }
 
   return (
     <>
@@ -214,35 +276,83 @@ export function KnowledgeItemDetailDrawer({
         </div>
 
         {/* Footer Actions */}
-        {onDelete && (
-          <div className="border-t border-[#E5E5E5] px-6 py-4">
-            {confirmDelete ? (
-              <div className="flex items-center gap-3">
-                <p className="text-[12px] text-[#666] flex-1">Delete this item?</p>
-                <button
-                  onClick={() => setConfirmDelete(false)}
-                  className="px-3 py-1.5 text-[12px] text-[#666] hover:text-[#333] transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={() => onDelete(item.id)}
-                  className="px-3 py-1.5 text-[12px] font-medium text-red-600 bg-red-50 rounded-lg hover:bg-red-100 transition-colors"
-                >
-                  Confirm Delete
-                </button>
+        <div className="border-t border-[#E5E5E5] px-6 py-4">
+          <div className="flex items-center justify-between">
+            {/* Generate / View Process Doc */}
+            {canGenerate && projects.length > 0 && (
+              <div className="flex-1">
+                {existingDocId ? (
+                  <button
+                    onClick={() => onProcessDocGenerated?.()}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-[#25785A] bg-[#E8F5E9] rounded-lg hover:bg-[#D0EDD9] transition-colors"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5" />
+                    View Document
+                  </button>
+                ) : generating ? (
+                  <div className="flex items-center gap-2 text-[12px] text-[#666]">
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    Generating document...
+                  </div>
+                ) : showProjectPicker ? (
+                  <div className="space-y-2">
+                    <p className="text-[11px] text-[#999]">Select project for context:</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {projects.map((p) => (
+                        <button
+                          key={p.id}
+                          onClick={() => handleGenerate(p.id)}
+                          className="px-2.5 py-1 text-[11px] font-medium text-[#666] bg-[#F0F0F0] rounded-lg hover:bg-[#E8F5E9] hover:text-[#25785A] transition-colors"
+                        >
+                          {p.name}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    onClick={handleGenerateClick}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-white bg-[#3FAF7A] rounded-lg hover:bg-[#25785A] transition-colors"
+                  >
+                    <Sparkles className="w-3.5 h-3.5" />
+                    Generate Document
+                  </button>
+                )}
               </div>
-            ) : (
-              <button
-                onClick={() => setConfirmDelete(true)}
-                className="flex items-center gap-1.5 text-[12px] text-[#999] hover:text-red-500 transition-colors"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-                Delete Item
-              </button>
+            )}
+
+            {/* Delete */}
+            {onDelete && (
+              <div>
+                {confirmDelete ? (
+                  <div className="flex items-center gap-3">
+                    <p className="text-[12px] text-[#666]">Delete?</p>
+                    <button
+                      onClick={() => setConfirmDelete(false)}
+                      className="px-3 py-1.5 text-[12px] text-[#666] hover:text-[#333] transition-colors"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={() => onDelete(item.id)}
+                      className="px-3 py-1.5 text-[12px] font-medium text-red-600 bg-red-50 rounded-lg hover:bg-red-100 transition-colors"
+                    >
+                      Confirm
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setConfirmDelete(true)}
+                    className="flex items-center gap-1.5 text-[12px] text-[#999] hover:text-red-500 transition-colors"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    Delete
+                  </button>
+                )}
+              </div>
             )}
           </div>
-        )}
+        </div>
       </div>
     </>
   )

@@ -11,12 +11,16 @@ from fastapi import APIRouter, HTTPException
 
 from app.core.logging import get_logger
 from app.core.schemas_prototypes import (
+    ApplySynthesisResponse,
     ChatResponse,
     CreateSessionRequest,
     FeedbackResponse,
     SessionResponse,
     SubmitFeedbackRequest,
     SessionChatRequest,
+    StatusChange,
+    CreatedFeature,
+    SkippedFeature,
 )
 from app.db.prototype_sessions import (
     create_feedback,
@@ -330,6 +334,157 @@ async def synthesize_endpoint(session_id: UUID) -> dict:
     except Exception as e:
         logger.exception(f"Failed to synthesize feedback for session {session_id}")
         raise HTTPException(status_code=500, detail="Failed to synthesize feedback")
+
+
+@router.post("/{session_id}/apply-synthesis", response_model=ApplySynthesisResponse)
+async def apply_synthesis_endpoint(session_id: UUID) -> ApplySynthesisResponse:
+    """Apply feedback synthesis results to AIOS feature entities.
+
+    Reads the session's synthesis, then for each feature:
+    - Updates confirmation_status to the recommended_status
+    - Stores confirmed_requirements, new_requirements, code_changes as ai_notes
+    - Creates new features from new_features_discovered
+    """
+    try:
+        from app.db.features import get_feature, update_feature, update_feature_status
+
+        session = get_session(session_id)
+        if not session:
+            raise HTTPException(status_code=404, detail="Session not found")
+
+        synthesis_data = session.get("synthesis")
+        if not synthesis_data:
+            raise HTTPException(
+                status_code=400,
+                detail="No synthesis available — run synthesize first",
+            )
+
+        prototype = get_prototype(UUID(session["prototype_id"]))
+        if not prototype:
+            raise HTTPException(status_code=404, detail="Prototype not found")
+
+        project_id = UUID(prototype["project_id"])
+
+        # Valid confirmation statuses from frozen contract
+        valid_statuses = {
+            "ai_generated",
+            "confirmed_consultant",
+            "confirmed_client",
+            "needs_client",
+        }
+
+        status_changes: list[StatusChange] = []
+        skipped: list[SkippedFeature] = []
+
+        # Apply per-feature synthesis
+        by_feature = synthesis_data.get("by_feature", {})
+        for feature_id, synth in by_feature.items():
+            recommended = synth.get("recommended_status")
+            if not recommended or recommended not in valid_statuses:
+                skipped.append(SkippedFeature(
+                    feature_id=feature_id,
+                    reason=f"Invalid recommended_status: {recommended}",
+                ))
+                continue
+
+            try:
+                feature = get_feature(UUID(feature_id))
+            except (ValueError, Exception):
+                skipped.append(SkippedFeature(
+                    feature_id=feature_id,
+                    reason="Feature not found in database",
+                ))
+                continue
+
+            old_status = feature.get("confirmation_status", "ai_generated")
+
+            # Skip if status unchanged
+            if old_status == recommended:
+                skipped.append(SkippedFeature(
+                    feature_id=feature_id,
+                    reason=f"Status already {old_status}",
+                ))
+                continue
+
+            # Apply status change
+            update_feature_status(UUID(feature_id), recommended)
+
+            # Store synthesis notes on the feature
+            ai_notes = {
+                "source": f"prototype_session_{session_id}",
+                "session_number": session.get("session_number"),
+                "confirmed_requirements": synth.get("confirmed_requirements", []),
+                "new_requirements": synth.get("new_requirements", []),
+                "code_changes": synth.get("code_changes", []),
+                "contradictions": synth.get("contradictions", []),
+            }
+            update_feature(
+                UUID(feature_id),
+                {"ai_notes": ai_notes},
+                trigger_event="prototype_synthesis",
+            )
+
+            status_changes.append(StatusChange(
+                feature_id=feature_id,
+                feature_name=feature.get("name", "Unknown"),
+                old_status=old_status,
+                new_status=recommended,
+            ))
+
+        # Create new features discovered during session
+        features_created: list[CreatedFeature] = []
+        new_features = synthesis_data.get("new_features_discovered", [])
+
+        if new_features:
+            from app.db.supabase_client import get_supabase
+
+            supabase = get_supabase()
+            for nf in new_features:
+                name = nf.get("name", "").strip()
+                if not name:
+                    continue
+
+                row = {
+                    "project_id": str(project_id),
+                    "name": name,
+                    "overview": nf.get("description", ""),
+                    "confirmation_status": "ai_generated",
+                    "status": "ai_generated",
+                    "evidence": [
+                        {
+                            "source": f"prototype_session_{session_id}",
+                            "content": nf.get("source", "Discovered during prototype review"),
+                        }
+                    ],
+                }
+                try:
+                    supabase.table("features").insert(row).execute()
+                    features_created.append(CreatedFeature(
+                        name=name,
+                        description=nf.get("description", ""),
+                    ))
+                except Exception as e:
+                    logger.warning(f"Failed to create new feature '{name}': {e}")
+
+        logger.info(
+            f"Applied synthesis for session {session_id}: "
+            f"{len(status_changes)} updated, {len(features_created)} created, "
+            f"{len(skipped)} skipped"
+        )
+
+        return ApplySynthesisResponse(
+            applied_count=len(status_changes),
+            created_count=len(features_created),
+            status_changes=status_changes,
+            features_created=features_created,
+            skipped=skipped,
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"Failed to apply synthesis for session {session_id}")
+        raise HTTPException(status_code=500, detail="Failed to apply synthesis")
 
 
 @router.post("/{session_id}/update-code")

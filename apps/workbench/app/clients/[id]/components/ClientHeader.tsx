@@ -111,18 +111,20 @@ export function ClientHeader({ client, enriching, analyzing, intelligence, onBac
             )}
             {analyzing ? 'Analyzing...' : 'Analyze'}
           </button>
-          <button
-            onClick={onEnrich}
-            disabled={enriching}
-            className="inline-flex items-center gap-1.5 px-4 py-2 text-[13px] font-medium text-white bg-[#3FAF7A] rounded-xl hover:bg-[#25785A] transition-colors disabled:opacity-50"
-          >
-            {enriching ? (
-              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-            ) : (
-              <Sparkles className="w-3.5 h-3.5" />
-            )}
-            {enriching ? 'Enriching...' : 'Enrich'}
-          </button>
+          {client.enrichment_status !== 'completed' && (
+            <button
+              onClick={onEnrich}
+              disabled={enriching}
+              className="inline-flex items-center gap-1.5 px-4 py-2 text-[13px] font-medium text-white bg-[#3FAF7A] rounded-xl hover:bg-[#25785A] transition-colors disabled:opacity-50"
+            >
+              {enriching ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <Sparkles className="w-3.5 h-3.5" />
+              )}
+              {enriching ? 'Enriching...' : 'Enrich'}
+            </button>
+          )}
         </div>
       </div>
 

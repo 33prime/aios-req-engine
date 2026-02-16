@@ -27,6 +27,7 @@ interface ClientOverviewTabProps {
   intelligence: ClientIntelligenceProfile | null
   knowledgeBase?: ClientKnowledgeBase | null
   onKnowledgeBaseChange?: () => void
+  onProcessDocGenerated?: () => void
 }
 
 function InfoRow({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
@@ -160,7 +161,7 @@ function KnowledgeSection({
   )
 }
 
-export function ClientOverviewTab({ client, intelligence, knowledgeBase, onKnowledgeBaseChange }: ClientOverviewTabProps) {
+export function ClientOverviewTab({ client, intelligence, knowledgeBase, onKnowledgeBaseChange, onProcessDocGenerated }: ClientOverviewTabProps) {
   const [selectedKBItem, setSelectedKBItem] = useState<KnowledgeItem | null>(null)
   const [selectedKBCategory, setSelectedKBCategory] = useState<'business_processes' | 'sops' | 'tribal_knowledge'>('business_processes')
 
@@ -293,6 +294,12 @@ export function ClientOverviewTab({ client, intelligence, knowledgeBase, onKnowl
               category={selectedKBCategory}
               onClose={() => setSelectedKBItem(null)}
               onDelete={handleDeleteKBItem}
+              clientId={client.id}
+              clientProjects={client.projects}
+              onProcessDocGenerated={() => {
+                setSelectedKBItem(null)
+                onProcessDocGenerated?.()
+              }}
             />
           )}
         </div>

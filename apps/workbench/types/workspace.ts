@@ -1206,6 +1206,98 @@ export interface ClientKnowledgeBase {
   tribal_knowledge: KnowledgeItem[]
 }
 
+// =============================================================================
+// Process Document Types
+// =============================================================================
+
+export interface ProcessDocumentStep {
+  step_index: number
+  label: string
+  description?: string | null
+  actor_persona_id?: string | null
+  actor_persona_name?: string | null
+  vp_step_id?: string | null
+  time_minutes?: number | null
+  decision_points?: string[]
+  exceptions?: string[]
+  evidence?: Array<{ signal_id?: string; excerpt?: string }>
+}
+
+export interface ProcessDocumentRole {
+  persona_id?: string | null
+  persona_name: string
+  responsibilities?: string[]
+  authority_level?: string | null
+  evidence?: Array<{ signal_id?: string; excerpt?: string }>
+}
+
+export interface ProcessDocumentDataFlow {
+  data_entity_id?: string | null
+  data_entity_name: string
+  operation: string
+  step_indices?: number[]
+  description?: string | null
+  evidence?: Array<{ signal_id?: string; excerpt?: string }>
+}
+
+export interface ProcessDocumentDecisionPoint {
+  label: string
+  description?: string | null
+  criteria?: string[]
+  outcomes?: string[]
+  owner_persona_id?: string | null
+  step_index?: number | null
+  evidence?: Array<{ signal_id?: string; excerpt?: string }>
+}
+
+export interface ProcessDocumentException {
+  label: string
+  description?: string | null
+  handling_procedure?: string | null
+  escalation_path?: string | null
+  frequency?: string | null
+  evidence?: Array<{ signal_id?: string; excerpt?: string }>
+}
+
+export interface ProcessDocumentTribalCallout {
+  text: string
+  stakeholder_name?: string | null
+  context?: string | null
+  importance?: 'critical' | 'important' | 'nice_to_know'
+  evidence?: Array<{ signal_id?: string; excerpt?: string }>
+}
+
+export interface ProcessDocumentSummary {
+  id: string
+  title: string
+  status: 'draft' | 'review' | 'confirmed' | 'archived'
+  confirmation_status?: string | null
+  generation_scenario?: 'reconstruct' | 'generate' | 'tribal_capture' | null
+  step_count: number
+  role_count: number
+  source_kb_category?: string | null
+  source_kb_item_id?: string | null
+  project_id?: string | null
+  created_at?: string | null
+}
+
+export interface ProcessDocument extends ProcessDocumentSummary {
+  client_id?: string | null
+  purpose?: string | null
+  trigger_event?: string | null
+  frequency?: string | null
+  steps: ProcessDocumentStep[]
+  roles: ProcessDocumentRole[]
+  data_flow: ProcessDocumentDataFlow[]
+  decision_points: ProcessDocumentDecisionPoint[]
+  exceptions: ProcessDocumentException[]
+  tribal_knowledge_callouts: ProcessDocumentTribalCallout[]
+  evidence: Array<{ signal_id?: string; excerpt?: string; section?: string }>
+  generation_model?: string | null
+  generation_duration_ms?: number | null
+  updated_at?: string | null
+}
+
 export interface ClientCreatePayload {
   name: string
   website?: string

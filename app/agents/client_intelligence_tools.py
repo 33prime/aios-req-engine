@@ -51,6 +51,13 @@ async def execute_ci_tool(
             return await _execute_assess_portfolio_health(client_id)
         elif tool_name == "update_profile_completeness":
             return await _execute_update_profile_completeness(client_id)
+        elif tool_name == "generate_process_document":
+            return await _execute_generate_process_document(
+                client_id,
+                tool_args.get("project_id", ""),
+                tool_args.get("kb_category", ""),
+                tool_args.get("kb_item_id", ""),
+            )
         elif tool_name == "stop_with_guidance":
             return {"success": True, "data": tool_args}
         else:
@@ -661,6 +668,84 @@ async def _execute_update_profile_completeness(client_id: UUID) -> dict:
             "score": total,
             "label": label,
             "sections": sections,
+        },
+    }
+
+
+async def _execute_generate_process_document(
+    client_id: UUID, project_id: str, kb_category: str, kb_item_id: str
+) -> dict:
+    """Generate a process document from a KB item."""
+    from app.chains.generate_process_document import generate_process_document
+    from app.db.process_documents import (
+        create_process_document,
+        get_process_document_by_kb_item,
+    )
+    from app.db.supabase_client import get_supabase
+
+    # Check if already exists
+    existing = get_process_document_by_kb_item(kb_item_id)
+    if existing:
+        return {
+            "success": True,
+            "data": {
+                "doc_id": existing["id"],
+                "title": existing["title"],
+                "message": "Process document already exists for this KB item",
+            },
+        }
+
+    # Find KB item text — stored as JSONB array directly on clients table column
+    supabase = get_supabase()
+    client_resp = (
+        supabase.table("clients")
+        .select(f"{kb_category}")
+        .eq("id", str(client_id))
+        .maybe_single()
+        .execute()
+    )
+    if not client_resp or not client_resp.data:
+        return {"success": False, "data": {}, "error": "Client not found"}
+
+    items = client_resp.data.get(kb_category, [])
+    if isinstance(items, str):
+        try:
+            items = json.loads(items)
+        except (json.JSONDecodeError, TypeError):
+            items = []
+    kb_item_text = None
+    for item in items:
+        if isinstance(item, dict) and item.get("id") == kb_item_id:
+            kb_item_text = item.get("text")
+            break
+
+    if not kb_item_text:
+        return {"success": False, "data": {}, "error": "KB item not found"}
+
+    # Generate
+    doc_data = generate_process_document(
+        kb_item_text=kb_item_text,
+        kb_category=kb_category,
+        project_id=project_id,
+        client_id=str(client_id),
+    )
+
+    doc_data["source_kb_category"] = kb_category
+    doc_data["source_kb_item_id"] = kb_item_id
+    if not doc_data.get("title"):
+        doc_data["title"] = kb_item_text[:80]
+
+    from uuid import UUID as _UUID
+    doc = create_process_document(project_id=_UUID(project_id), data=doc_data)
+
+    return {
+        "success": True,
+        "data": {
+            "doc_id": doc["id"],
+            "title": doc["title"],
+            "step_count": len(doc.get("steps") or []),
+            "role_count": len(doc.get("roles") or []),
+            "scenario": doc.get("generation_scenario"),
         },
     }
 

@@ -1,11 +1,11 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { Building2, Users, FolderKanban, Brain, FileText, Loader2 } from 'lucide-react'
-import { getClient, enrichClient, analyzeClient, getClientIntelligence, getClientKnowledgeBase } from '@/lib/api'
+import { Building2, Users, FolderKanban, Brain, FileText, Loader2, ClipboardList } from 'lucide-react'
+import { getClient, enrichClient, analyzeClient, getClientIntelligence, getClientKnowledgeBase, listClientProcessDocuments } from '@/lib/api'
 import type { ClientIntelligenceProfile } from '@/lib/api'
-import type { ClientDetail, ClientKnowledgeBase } from '@/types/workspace'
+import type { ClientDetail, ClientKnowledgeBase, ProcessDocumentSummary } from '@/types/workspace'
 import { AppSidebar } from '@/components/workspace/AppSidebar'
 import { ClientHeader } from './components/ClientHeader'
 import { ClientOverviewTab } from './components/ClientOverviewTab'
@@ -13,8 +13,9 @@ import { ClientProjectsTab } from './components/ClientProjectsTab'
 import { ClientPeopleTab } from './components/ClientPeopleTab'
 import { ClientIntelligenceTab } from './components/ClientIntelligenceTab'
 import { ClientSourcesTab } from './components/ClientSourcesTab'
+import { ClientDocumentsTab } from './components/ClientDocumentsTab'
 
-type TabId = 'overview' | 'people' | 'projects' | 'intelligence' | 'sources'
+type TabId = 'overview' | 'people' | 'projects' | 'intelligence' | 'sources' | 'documents'
 
 export default function ClientDetailPage() {
   const params = useParams()
@@ -30,7 +31,13 @@ export default function ClientDetailPage() {
   const [activeTab, setActiveTab] = useState<TabId>('overview')
   const [enriching, setEnriching] = useState(false)
   const [analyzing, setAnalyzing] = useState(false)
+  const [processDocs, setProcessDocs] = useState<ProcessDocumentSummary[]>([])
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  const loadProcessDocs = useCallback(() => {
+    if (!clientId) return
+    listClientProcessDocuments(clientId).then(setProcessDocs).catch(() => {})
+  }, [clientId])
 
   const loadClient = useCallback(async () => {
     if (!clientId) return
@@ -55,10 +62,11 @@ export default function ClientDetailPage() {
 
   useEffect(() => {
     loadClient()
+    loadProcessDocs()
     return () => {
       if (pollRef.current) clearInterval(pollRef.current)
     }
-  }, [loadClient])
+  }, [loadClient, loadProcessDocs])
 
   const handleEnrich = async () => {
     if (!clientId || enriching) return
@@ -111,13 +119,19 @@ export default function ClientDetailPage() {
 
   const sidebarWidth = sidebarCollapsed ? 64 : 224
 
-  const tabs: { id: TabId; label: string; icon: React.ReactNode }[] = [
-    { id: 'overview', label: 'Overview', icon: <Building2 className="w-3.5 h-3.5" /> },
-    { id: 'people', label: 'People', icon: <Users className="w-3.5 h-3.5" /> },
-    { id: 'projects', label: 'Projects', icon: <FolderKanban className="w-3.5 h-3.5" /> },
-    { id: 'intelligence', label: 'Intelligence', icon: <Brain className="w-3.5 h-3.5" /> },
-    { id: 'sources', label: 'Sources', icon: <FileText className="w-3.5 h-3.5" /> },
-  ]
+  const tabs = useMemo(() => {
+    const base: { id: TabId; label: string; icon: React.ReactNode }[] = [
+      { id: 'overview', label: 'Overview', icon: <Building2 className="w-3.5 h-3.5" /> },
+      { id: 'people', label: 'People', icon: <Users className="w-3.5 h-3.5" /> },
+      { id: 'projects', label: 'Projects', icon: <FolderKanban className="w-3.5 h-3.5" /> },
+      { id: 'intelligence', label: 'Intelligence', icon: <Brain className="w-3.5 h-3.5" /> },
+      { id: 'sources', label: 'Sources', icon: <FileText className="w-3.5 h-3.5" /> },
+    ]
+    if (processDocs.length > 0) {
+      base.push({ id: 'documents', label: `Documents (${processDocs.length})`, icon: <ClipboardList className="w-3.5 h-3.5" /> })
+    }
+    return base
+  }, [processDocs.length])
 
   if (loading) {
     return (
@@ -194,6 +208,10 @@ export default function ClientDetailPage() {
               intelligence={intelligence}
               knowledgeBase={knowledgeBase}
               onKnowledgeBaseChange={() => getClientKnowledgeBase(clientId).then(setKnowledgeBase).catch(() => {})}
+              onProcessDocGenerated={() => {
+                loadProcessDocs()
+                setActiveTab('documents')
+              }}
             />
           )}
           {activeTab === 'people' && <ClientPeopleTab clientId={clientId} roleGaps={client.role_gaps ?? []} />}
@@ -205,6 +223,9 @@ export default function ClientDetailPage() {
           )}
           {activeTab === 'sources' && (
             <ClientSourcesTab clientId={clientId} projects={client.projects} />
+          )}
+          {activeTab === 'documents' && (
+            <ClientDocumentsTab docs={processDocs} />
           )}
         </div>
       </div>

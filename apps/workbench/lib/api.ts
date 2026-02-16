@@ -3053,3 +3053,34 @@ export const toggleDesignReference = (projectId: string, refId: string, isDesign
     method: 'PATCH',
     body: JSON.stringify({ is_design_reference: isDesignRef }),
   })
+
+// ============================================================================
+// Process Documents
+// ============================================================================
+
+export const listClientProcessDocuments = (clientId: string) =>
+  apiRequest<import('@/types/workspace').ProcessDocumentSummary[]>(
+    `/process-documents/client/${clientId}`
+  )
+
+export const getProcessDocument = (docId: string) =>
+  apiRequest<import('@/types/workspace').ProcessDocument>(
+    `/process-documents/${docId}`
+  )
+
+export const generateProcessDocument = (data: {
+  project_id: string
+  client_id?: string
+  source_kb_category: string
+  source_kb_item_id: string
+}) =>
+  apiRequest<import('@/types/workspace').ProcessDocument>(
+    '/process-documents/generate',
+    { method: 'POST', body: JSON.stringify(data) }
+  )
+
+export const deleteProcessDocument = (docId: string) =>
+  apiRequest<{ success: boolean }>(
+    `/process-documents/${docId}`,
+    { method: 'DELETE' }
+  )

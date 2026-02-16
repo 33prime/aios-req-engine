@@ -227,6 +227,28 @@ CI_AGENT_TOOLS = [
     },
 
     # =========================================================================
+    # Process Document Generation
+    # =========================================================================
+    {
+        "name": "generate_process_document",
+        "description": "Generate a structured process document from a knowledge base item. Expands a short KB snippet into a full document with steps, roles, data flow, decision points, exceptions, and tribal knowledge callouts. Links to existing personas, VP steps, and data entities.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "client_id": {"type": "string", "description": "Client UUID"},
+                "project_id": {"type": "string", "description": "Project UUID to use for context"},
+                "kb_category": {
+                    "type": "string",
+                    "description": "KB category: business_processes, sops, or tribal_knowledge",
+                    "enum": ["business_processes", "sops", "tribal_knowledge"],
+                },
+                "kb_item_id": {"type": "string", "description": "ID of the KB item to expand"},
+            },
+            "required": ["client_id", "project_id", "kb_category", "kb_item_id"],
+        },
+    },
+
+    # =========================================================================
     # Stop / Guidance
     # =========================================================================
     {

@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter
 
-from app.api import activity, admin, agents, analytics, auth, baseline, business_drivers, chat, client_packages, client_portal, clients, collaboration, communications, competitor_refs, confirmations, creative_brief, di_agent, discovery, discovery_prep, document_uploads, enrich_all, enrich_features, enrich_personas, enrich_vp, entity_cascades, evidence, jobs, meetings, n8n_research, organizations, outreach, phase0, project_creation, projects, proposals, prototype_sessions, prototypes, readiness, research, research_agent, revisions, risks, signals, signal_stream, sources, stakeholders, state, strategic_analytics, tasks, workspace
+from app.api import activity, admin, agents, analytics, auth, baseline, business_drivers, chat, client_packages, client_portal, clients, collaboration, communications, competitor_refs, confirmations, creative_brief, di_agent, discovery, discovery_prep, document_uploads, enrich_all, enrich_features, enrich_personas, enrich_vp, entity_cascades, evidence, jobs, meetings, n8n_research, organizations, outreach, phase0, process_documents, project_creation, projects, proposals, prototype_sessions, prototypes, readiness, research, research_agent, revisions, risks, signals, signal_stream, sources, stakeholders, state, strategic_analytics, tasks, workspace
 
 router = APIRouter()
 
@@ -156,3 +156,6 @@ router.include_router(clients.router, tags=["clients"])
 
 # Include Discovery Pipeline routes (data-first intelligence)
 router.include_router(discovery.router, tags=["discovery"])
+
+# Include Process Documents routes (expanded KB items)
+router.include_router(process_documents.router, tags=["process_documents"])

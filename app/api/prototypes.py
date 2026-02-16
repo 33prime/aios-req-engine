@@ -3,6 +3,7 @@
 Handles prototype generation, ingestion, audit, and overlay retrieval.
 """
 
+import re
 import uuid
 from uuid import UUID
 
@@ -31,6 +32,102 @@ from app.db.prototypes import (
 
 logger = get_logger(__name__)
 router = APIRouter(prefix="/prototypes", tags=["prototypes"])
+
+# UUID v4 pattern for validation
+_UUID_RE = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", re.I)
+
+
+def _parse_handoff_features(handoff_content: str) -> list[dict[str, str]]:
+    """Parse the feature inventory table from HANDOFF.md content.
+
+    Expects a markdown table with columns:
+        | Feature Name | UUID | File Path | Component Name | Pages Where Used |
+
+    Returns list of dicts with keys: feature_name, feature_id, file_path, component_name, pages.
+    Gracefully returns [] if table not found or malformed.
+    """
+    features: list[dict[str, str]] = []
+    lines = handoff_content.split("\n")
+
+    # Find the table header row
+    header_idx = None
+    for i, line in enumerate(lines):
+        stripped = line.strip()
+        # Match header containing Feature Name and UUID columns
+        if (
+            stripped.startswith("|")
+            and "Feature Name" in stripped
+            and "UUID" in stripped
+        ):
+            header_idx = i
+            break
+
+    if header_idx is None:
+        logger.warning("No feature inventory table found in HANDOFF.md")
+        return features
+
+    # Parse column positions from header
+    header = lines[header_idx]
+    cols = [c.strip() for c in header.strip().strip("|").split("|")]
+    col_map = {c.lower().replace(" ", "_"): idx for idx, c in enumerate(cols)}
+
+    # Required columns
+    uuid_col = col_map.get("uuid")
+    name_col = col_map.get("feature_name")
+    path_col = col_map.get("file_path")
+    comp_col = col_map.get("component_name")
+    pages_col = col_map.get("pages_where_used")
+
+    if uuid_col is None or name_col is None:
+        logger.warning(f"HANDOFF.md table missing required columns. Found: {cols}")
+        return features
+
+    # Skip header + separator row(s)
+    data_start = header_idx + 1
+    while data_start < len(lines):
+        row = lines[data_start].strip()
+        # Skip separator rows like |---|---|...|
+        if row.startswith("|") and set(row.replace("|", "").replace("-", "").replace(" ", "")) <= {":", ""}:
+            data_start += 1
+            continue
+        break
+
+    # Parse data rows
+    for line in lines[data_start:]:
+        stripped = line.strip()
+        if not stripped.startswith("|"):
+            break  # End of table
+        if not stripped.endswith("|"):
+            continue  # Malformed row
+
+        cells = [c.strip().strip("`") for c in stripped.strip("|").split("|")]
+        if len(cells) < max(filter(None, [uuid_col, name_col, path_col]), default=0) + 1:
+            continue  # Not enough columns
+
+        feature_id = cells[uuid_col] if uuid_col < len(cells) else ""
+        feature_name = cells[name_col] if name_col < len(cells) else ""
+
+        # Validate UUID format
+        if not _UUID_RE.match(feature_id):
+            continue
+
+        entry: dict[str, str] = {
+            "feature_id": feature_id,
+            "feature_name": feature_name,
+        }
+        if path_col is not None and path_col < len(cells):
+            fp = cells[path_col]
+            # Strip leading slash so paths are relative to repo root
+            entry["file_path"] = fp.lstrip("/")
+        if comp_col is not None and comp_col < len(cells):
+            entry["component_name"] = cells[comp_col]
+        if pages_col is not None and pages_col < len(cells):
+            entry["pages"] = cells[pages_col]
+
+        features.append(entry)
+
+    logger.info(f"Parsed {len(features)} features from HANDOFF.md inventory table")
+    return features
 
 
 @router.post("/generate", status_code=201)
@@ -147,9 +244,10 @@ async def ingest_prototype_endpoint(
         handoff_parsed = {}
         try:
             handoff_content = git.read_file(local_path, "HANDOFF.md")
-            handoff_parsed = {"raw": handoff_content, "features": []}
-            # Basic parsing — extract feature entries
-            # A real implementation would parse the markdown structure
+            handoff_parsed = {
+                "raw": handoff_content,
+                "features": _parse_handoff_features(handoff_content),
+            }
             update_prototype(prototype_id, handoff_parsed=handoff_parsed)
         except FileNotFoundError:
             logger.warning("No HANDOFF.md found in prototype repo")

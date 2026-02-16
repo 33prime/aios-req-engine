@@ -555,3 +555,39 @@ class UpdatePlan(BaseModel):
     execution_order: list[int] = Field(default_factory=list, description="Task execution order indices")
     estimated_files_changed: int = Field(0, description="Number of files to change")
     risk_assessment: str = Field("", description="Overall risk assessment")
+
+
+# === Apply-synthesis schemas ===
+
+
+class StatusChange(BaseModel):
+    """A single feature status change from synthesis application."""
+
+    feature_id: str = Field(..., description="Feature UUID")
+    feature_name: str = Field(..., description="Feature name")
+    old_status: str = Field(..., description="Previous confirmation status")
+    new_status: str = Field(..., description="New confirmation status")
+
+
+class CreatedFeature(BaseModel):
+    """A feature created from synthesis new_features_discovered."""
+
+    name: str = Field(..., description="Feature name")
+    description: str = Field("", description="Feature description")
+
+
+class SkippedFeature(BaseModel):
+    """A feature that was skipped during synthesis application."""
+
+    feature_id: str = Field(..., description="Feature UUID")
+    reason: str = Field(..., description="Why it was skipped")
+
+
+class ApplySynthesisResponse(BaseModel):
+    """Response from applying session synthesis to AIOS features."""
+
+    applied_count: int = Field(0, description="Number of features whose status was updated")
+    created_count: int = Field(0, description="Number of new features created")
+    status_changes: list[StatusChange] = Field(default_factory=list, description="Details of each status change")
+    features_created: list[CreatedFeature] = Field(default_factory=list, description="New features created")
+    skipped: list[SkippedFeature] = Field(default_factory=list, description="Features skipped")

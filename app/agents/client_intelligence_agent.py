@@ -461,6 +461,10 @@ def _generate_action_summary(tools_called: list) -> str:
             parts.append(f"Score: {score}/100" if score else "Updated completeness")
         elif tool_name == "extract_knowledge_base":
             parts.append("Extracted knowledge base")
+        elif tool_name == "generate_process_document":
+            title = result.get("title", "")
+            steps = result.get("step_count", 0)
+            parts.append(f"Generated process doc '{title}' ({steps} steps)" if title else "Generated process doc")
         else:
             parts.append(tool_name.replace("_", " "))
 
@@ -479,6 +483,7 @@ def _tool_to_sections(tool_name: str) -> list[str]:
         "assess_organizational_context": ["organizational_context"],
         "assess_portfolio_health": ["portfolio_health"],
         "update_profile_completeness": [],
+        "generate_process_document": ["organizational_context"],
     }
     return mapping.get(tool_name, [])
 
