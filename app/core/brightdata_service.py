@@ -6,6 +6,7 @@ If BRIGHTDATA_API_KEY or BRIGHTDATA_ZONE is empty, scrape_url_safe() returns Non
 and the discovery pipeline falls back to Firecrawl.
 """
 
+import asyncio
 import logging
 from typing import Any
 
@@ -124,4 +125,159 @@ async def scrape_url_safe(
         return None
     except Exception as e:
         logger.warning(f"Bright Data error for {url}: {e}")
+        return None
+
+
+# ---------------------------------------------------------------------------
+# LinkedIn Profile Scraper (adapted from Forge stakeholder_enrichment module)
+# ---------------------------------------------------------------------------
+
+# BrightData LinkedIn People dataset ID
+_LINKEDIN_DATASET_ID = "gd_l1viktl72bvl7bjuj0"
+
+
+async def scrape_linkedin_profile(
+    linkedin_url: str,
+    timeout: int = 120,
+    poll_interval: int = 5,
+) -> dict[str, Any]:
+    """
+    Scrape a LinkedIn profile using Bright Data's dataset API.
+
+    Uses trigger+poll pattern: POST to start scrape, then poll snapshot.
+    Gotchas from Forge module:
+    - BD uses 'position' (not 'headline'), 'followers' (not 'followers_count')
+    - Posts have 'title' + 'attribution' (not 'text')
+
+    Args:
+        linkedin_url: Full LinkedIn profile URL
+        timeout: Max time to wait for results (seconds)
+        poll_interval: Seconds between poll attempts
+
+    Returns:
+        Parsed profile dict with headline, about, posts, experience, etc.
+
+    Raises:
+        ValueError: If Bright Data not configured
+        RuntimeError: If scrape fails or times out
+    """
+    settings = get_settings()
+
+    if not settings.BRIGHTDATA_API_KEY:
+        raise ValueError("BRIGHTDATA_API_KEY not configured")
+
+    auth_headers = {
+        "Authorization": f"Bearer {settings.BRIGHTDATA_API_KEY}",
+        "Content-Type": "application/json",
+    }
+
+    async with httpx.AsyncClient(timeout=30) as client:
+        # 1. Trigger the scrape
+        trigger_res = await client.post(
+            f"{BRIGHTDATA_BASE_URL}/datasets/v3/trigger",
+            params={"dataset_id": _LINKEDIN_DATASET_ID, "include_errors": "true"},
+            headers=auth_headers,
+            json=[{"url": linkedin_url}],
+        )
+        if trigger_res.status_code != 200:
+            raise RuntimeError(
+                f"Bright Data LinkedIn trigger error {trigger_res.status_code}: {trigger_res.text}"
+            )
+
+        snapshot_id = trigger_res.json().get("snapshot_id")
+        if not snapshot_id:
+            raise RuntimeError(
+                f"Bright Data: no snapshot_id returned: {trigger_res.text}"
+            )
+
+        logger.info(f"Bright Data LinkedIn scrape started: {snapshot_id}")
+
+        # 2. Poll for results
+        max_attempts = timeout // poll_interval
+        for attempt in range(max_attempts):
+            await asyncio.sleep(poll_interval)
+            poll_res = await client.get(
+                f"{BRIGHTDATA_BASE_URL}/datasets/v3/snapshot/{snapshot_id}",
+                params={"format": "json"},
+                headers={"Authorization": f"Bearer {settings.BRIGHTDATA_API_KEY}"},
+                timeout=15,
+            )
+            if poll_res.status_code == 200:
+                results = poll_res.json()
+                if isinstance(results, list) and len(results) > 0:
+                    profile = results[0]
+                    if profile.get("error"):
+                        raise RuntimeError(
+                            f"Bright Data profile error: {profile.get('error')}"
+                        )
+                    logger.info(
+                        f"Bright Data LinkedIn scrape complete after {(attempt + 1) * poll_interval}s"
+                    )
+                    return _parse_linkedin_profile(profile)
+            elif poll_res.status_code != 202:
+                raise RuntimeError(
+                    f"Bright Data poll error {poll_res.status_code}: {poll_res.text}"
+                )
+
+        raise RuntimeError(
+            f"Bright Data: timed out waiting for LinkedIn scrape ({timeout}s)"
+        )
+
+
+def _parse_linkedin_profile(profile: dict) -> dict[str, Any]:
+    """Extract structured fields from raw Bright Data LinkedIn response."""
+    headline = profile.get("position") or profile.get("headline")
+
+    raw_posts = (profile.get("posts") or [])[:5]
+    posts = []
+    for p in raw_posts:
+        if isinstance(p, dict):
+            text = p.get("title", "")
+            if p.get("attribution"):
+                text += f" — {p['attribution']}"
+            posts.append({
+                "text": text,
+                "link": p.get("link"),
+                "created_at": p.get("created_at"),
+                "interaction": p.get("interaction"),
+            })
+
+    return {
+        "headline": headline,
+        "about": profile.get("about"),
+        "name": profile.get("name"),
+        "posts": posts,
+        "recommendations": profile.get("recommendations"),
+        "certifications": profile.get("honors_and_awards"),
+        "follower_count": profile.get("followers"),
+        "connections": profile.get("connections"),
+        "experience": profile.get("experience"),
+        "education": profile.get("education"),
+        "current_company": profile.get("current_company"),
+        "activity": (profile.get("activity") or [])[:5],
+    }
+
+
+async def scrape_linkedin_profile_safe(
+    linkedin_url: str,
+    timeout: int = 120,
+) -> dict[str, Any] | None:
+    """Scrape LinkedIn profile with error handling — returns None on failure."""
+    if not _is_configured():
+        logger.info("Bright Data not configured — skipping LinkedIn scrape")
+        return None
+
+    try:
+        return await scrape_linkedin_profile(linkedin_url, timeout)
+    except ValueError as e:
+        logger.warning(f"Bright Data LinkedIn config issue: {e}")
+        return None
+    except RuntimeError as e:
+        logger.warning(f"Bright Data LinkedIn scrape failed: {e}")
+        return None
+    except httpx.TimeoutException:
+        logger.warning(f"Bright Data LinkedIn timeout for {linkedin_url}")
+        return None
+    except Exception as e:
+        logger.warning(f"Bright Data LinkedIn error: {e}")
         return None

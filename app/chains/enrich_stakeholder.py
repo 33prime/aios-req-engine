@@ -1,5 +1,11 @@
 """
 Stakeholder Enrichment Chain - Analyzes stakeholder engagement and strategy.
+
+DEPRECATED: This chain uses a no-overwrite policy and only enriches 6 of 19
+fields. The Stakeholder Intelligence Agent (app/agents/stakeholder_intelligence_agent.py)
+replaces this with progressive enrichment of all fields, re-enrichment on new
+evidence, and CI cross-referencing. This chain is kept functional for backward
+compatibility with the existing enrichment pipeline.
 """
 
 from typing import Any, Literal

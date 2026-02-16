@@ -1343,3 +1343,66 @@ def smart_upsert_stakeholder(
 
         invalidate_snapshot(project_id)
         return (stakeholder_id, "created")
+
+
+# ============================================================================
+# Stakeholder Intelligence Functions
+# ============================================================================
+
+
+def get_stakeholder_intelligence_logs(
+    stakeholder_id: UUID,
+    limit: int = 20,
+    offset: int = 0,
+) -> list[dict]:
+    """
+    Get intelligence logs for a stakeholder.
+
+    Args:
+        stakeholder_id: Stakeholder UUID
+        limit: Max logs to return
+        offset: Pagination offset
+
+    Returns:
+        List of log dicts
+    """
+    supabase = get_supabase()
+
+    response = (
+        supabase.table("stakeholder_intelligence_logs")
+        .select("*")
+        .eq("stakeholder_id", str(stakeholder_id))
+        .order("created_at", desc=True)
+        .range(offset, offset + limit - 1)
+        .execute()
+    )
+
+    return response.data or []
+
+
+def update_stakeholder_intelligence(
+    stakeholder_id: UUID,
+    updates: dict,
+) -> dict:
+    """
+    Update stakeholder with intelligence fields and bump version.
+
+    Args:
+        stakeholder_id: Stakeholder UUID
+        updates: Fields to update
+
+    Returns:
+        Updated stakeholder dict
+    """
+    stakeholder = get_stakeholder(stakeholder_id)
+    if not stakeholder:
+        raise ValueError(f"Stakeholder not found: {stakeholder_id}")
+
+    current_version = stakeholder.get("version", 1)
+    intel_version = stakeholder.get("intelligence_version", 0)
+
+    updates["version"] = current_version + 1
+    updates["intelligence_version"] = intel_version + 1
+    updates["last_intelligence_at"] = "now()"
+
+    return update_stakeholder(stakeholder_id, updates)

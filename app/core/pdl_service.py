@@ -1,4 +1,4 @@
-"""People Data Labs service for company enrichment."""
+"""People Data Labs service for company and person enrichment."""
 
 import logging
 from typing import Any
@@ -80,6 +80,116 @@ async def enrich_company(
         )
 
         return result
+
+
+# ---------------------------------------------------------------------------
+# Person Enrichment (adapted from Forge stakeholder_enrichment module)
+# ---------------------------------------------------------------------------
+
+
+async def enrich_person(
+    linkedin_url: str | None = None,
+    email: str | None = None,
+    timeout: int = 15,
+) -> dict[str, Any]:
+    """
+    Enrich a person using People Data Labs /v5/person/enrich.
+
+    Accepts a LinkedIn URL or email. LinkedIn URL takes priority.
+
+    Args:
+        linkedin_url: LinkedIn profile URL
+        email: Person's email address
+        timeout: Request timeout in seconds
+
+    Returns:
+        Dict with job_title, company, industry, skills, experience, education, etc.
+
+    Raises:
+        ValueError: If PDL_API_KEY not configured or no identifier provided
+        httpx.HTTPStatusError: If the API request fails
+    """
+    settings = get_settings()
+
+    if not settings.PDL_API_KEY:
+        raise ValueError("PDL_API_KEY not configured")
+
+    if not linkedin_url and not email:
+        raise ValueError("Either linkedin_url or email must be provided")
+
+    payload: dict[str, Any] = {}
+    if linkedin_url:
+        payload["profile"] = linkedin_url
+    if email:
+        payload["email"] = email
+
+    async with httpx.AsyncClient(timeout=timeout) as client:
+        response = await client.post(
+            f"{PDL_BASE_URL}/person/enrich",
+            headers={
+                "Content-Type": "application/json",
+                "X-Api-Key": settings.PDL_API_KEY,
+            },
+            json=payload,
+        )
+        if response.status_code == 404:
+            logger.info(f"PDL person not found: {linkedin_url or email}")
+            return {}
+        response.raise_for_status()
+
+        data = response.json()
+
+        result = {
+            "full_name": data.get("full_name"),
+            "job_title": data.get("job_title"),
+            "job_title_levels": data.get("job_title_levels"),
+            "company_name": data.get("job_company_name"),
+            "company_industry": data.get("job_company_industry"),
+            "company_size": data.get("job_company_size"),
+            "location": data.get("location_metro"),
+            "skills": (data.get("skills") or [])[:20],
+            "experience": (data.get("experience") or [])[:5],
+            "education": (data.get("education") or [])[:3],
+            "linkedin_url": data.get("linkedin_url"),
+            "emails": (data.get("emails") or [])[:3],
+            "phone_numbers": (data.get("phone_numbers") or [])[:2],
+        }
+
+        identifier = linkedin_url or email
+        logger.info(
+            f"PDL person enriched '{identifier}': "
+            f"{result['job_title'] or '?'} at {result['company_name'] or '?'}"
+        )
+
+        return result
+
+
+async def enrich_person_safe(
+    linkedin_url: str | None = None,
+    email: str | None = None,
+    timeout: int = 15,
+) -> dict[str, Any] | None:
+    """Enrich a person with error handling — returns None on failure."""
+    try:
+        result = await enrich_person(linkedin_url, email, timeout)
+        return result if result else None
+    except ValueError as e:
+        logger.warning(f"PDL person not configured or bad input: {e}")
+        return None
+    except httpx.HTTPStatusError as e:
+        logger.warning(f"PDL person HTTP error: {e.response.status_code}")
+        return None
+    except httpx.TimeoutException:
+        logger.warning(f"PDL person timeout for '{linkedin_url or email}'")
+        return None
+    except Exception as e:
+        logger.warning(f"PDL person error: {e}")
+        return None
+
+
+# ---------------------------------------------------------------------------
+# Company Enrichment (existing)
+# ---------------------------------------------------------------------------
 
 
 async def enrich_company_safe(

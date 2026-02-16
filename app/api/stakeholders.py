@@ -3,7 +3,7 @@
 from typing import Any
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, Path, Query
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Path, Query
 from pydantic import BaseModel, Field, field_validator
 
 from app.core.logging import get_logger
@@ -674,6 +674,227 @@ async def who_would_know(
 
     except Exception as e:
         logger.error(f"Error in who-would-know: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+# ============================================================================
+# Stakeholder Intelligence Endpoints
+# ============================================================================
+
+
+class StakeholderAnalyzeRequest(BaseModel):
+    """Request to trigger SI Agent analysis."""
+
+    trigger: str = Field("user_request", description="Trigger type")
+    context: str | None = Field(None, description="Additional context")
+    specific_request: str | None = Field(None, description="Specific request")
+    focus_areas: list[str] | None = Field(None, description="Sections to focus on")
+
+
+class IntelligenceSectionScore(BaseModel):
+    """Score for a single profile section."""
+
+    section: str
+    score: int
+    max_score: int
+
+
+class StakeholderIntelligenceOut(BaseModel):
+    """Response for stakeholder intelligence profile."""
+
+    stakeholder_id: UUID
+    name: str
+    role: str | None = None
+    profile_completeness: int = 0
+    completeness_label: str = "Poor"
+    intelligence_version: int = 0
+    last_intelligence_at: str | None = None
+    sections: list[IntelligenceSectionScore] = []
+    enrichment_fields: dict = {}
+
+
+class IntelligenceLogOut(BaseModel):
+    """Response for a single intelligence log entry."""
+
+    id: UUID
+    trigger: str
+    action_type: str
+    action_summary: str | None = None
+    profile_completeness_before: int | None = None
+    profile_completeness_after: int | None = None
+    fields_affected: list[str] = []
+    stop_reason: str | None = None
+    execution_time_ms: int | None = None
+    success: bool = True
+    created_at: str
+
+
+class IntelligenceLogsResponse(BaseModel):
+    """Response for intelligence logs listing."""
+
+    logs: list[IntelligenceLogOut]
+    total: int
+
+
+@router.post("/{stakeholder_id}/analyze")
+async def analyze_stakeholder(
+    background_tasks: BackgroundTasks,
+    project_id: UUID = Path(..., description="Project UUID"),
+    stakeholder_id: UUID = Path(..., description="Stakeholder UUID"),
+    body: StakeholderAnalyzeRequest = StakeholderAnalyzeRequest(),
+) -> dict[str, Any]:
+    """Trigger SI Agent analysis for a stakeholder (runs in background)."""
+    try:
+        existing = stakeholders_db.get_stakeholder(stakeholder_id)
+        if not existing:
+            raise HTTPException(status_code=404, detail="Stakeholder not found")
+        if str(existing.get("project_id")) != str(project_id):
+            raise HTTPException(status_code=404, detail="Stakeholder not found in this project")
+
+        async def run_analysis():
+            from app.agents.stakeholder_intelligence_agent import invoke_stakeholder_intelligence_agent
+            try:
+                await invoke_stakeholder_intelligence_agent(
+                    stakeholder_id=stakeholder_id,
+                    project_id=project_id,
+                    trigger=body.trigger,
+                    trigger_context=body.context,
+                    specific_request=body.specific_request,
+                    focus_areas=body.focus_areas,
+                )
+            except Exception as e:
+                logger.error(f"SI Agent background task failed: {e}", exc_info=True)
+
+        background_tasks.add_task(run_analysis)
+
+        return {
+            "success": True,
+            "message": "Stakeholder intelligence analysis started",
+            "stakeholder_id": str(stakeholder_id),
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error triggering SI analysis: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.get("/{stakeholder_id}/intelligence", response_model=StakeholderIntelligenceOut)
+async def get_stakeholder_intelligence(
+    project_id: UUID = Path(..., description="Project UUID"),
+    stakeholder_id: UUID = Path(..., description="Stakeholder UUID"),
+) -> StakeholderIntelligenceOut:
+    """Get current intelligence profile and completeness breakdown for a stakeholder."""
+    try:
+        stakeholder = stakeholders_db.get_stakeholder(stakeholder_id)
+        if not stakeholder:
+            raise HTTPException(status_code=404, detail="Stakeholder not found")
+        if str(stakeholder.get("project_id")) != str(project_id):
+            raise HTTPException(status_code=404, detail="Stakeholder not found in this project")
+
+        # Compute live completeness
+        from app.agents.stakeholder_intelligence_tools import _execute_update_profile_completeness
+        import asyncio
+        completeness_result = await _execute_update_profile_completeness(stakeholder_id, project_id)
+        completeness = completeness_result.get("data", {})
+
+        sections = []
+        max_scores = {
+            "core_identity": 10,
+            "engagement_profile": 20,
+            "decision_authority": 20,
+            "relationships": 20,
+            "communication": 10,
+            "win_conditions_concerns": 15,
+            "evidence_depth": 5,
+        }
+        for section_name, section_score in completeness.get("sections", {}).items():
+            sections.append(IntelligenceSectionScore(
+                section=section_name,
+                score=section_score,
+                max_score=max_scores.get(section_name, 10),
+            ))
+
+        enrichment_fields = {
+            "engagement_level": stakeholder.get("engagement_level"),
+            "engagement_strategy": stakeholder.get("engagement_strategy"),
+            "risk_if_disengaged": stakeholder.get("risk_if_disengaged"),
+            "decision_authority": stakeholder.get("decision_authority"),
+            "approval_required_for": stakeholder.get("approval_required_for"),
+            "veto_power_over": stakeholder.get("veto_power_over"),
+            "reports_to_id": str(stakeholder["reports_to_id"]) if stakeholder.get("reports_to_id") else None,
+            "allies": stakeholder.get("allies"),
+            "potential_blockers": stakeholder.get("potential_blockers"),
+            "preferred_channel": stakeholder.get("preferred_channel"),
+            "communication_preferences": stakeholder.get("communication_preferences"),
+            "last_interaction_date": stakeholder.get("last_interaction_date"),
+            "win_conditions": stakeholder.get("win_conditions"),
+            "key_concerns": stakeholder.get("key_concerns"),
+        }
+
+        return StakeholderIntelligenceOut(
+            stakeholder_id=stakeholder_id,
+            name=stakeholder.get("name", ""),
+            role=stakeholder.get("role"),
+            profile_completeness=completeness.get("score", 0),
+            completeness_label=completeness.get("label", "Poor"),
+            intelligence_version=stakeholder.get("intelligence_version", 0),
+            last_intelligence_at=str(stakeholder["last_intelligence_at"]) if stakeholder.get("last_intelligence_at") else None,
+            sections=sections,
+            enrichment_fields=enrichment_fields,
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting stakeholder intelligence: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.get("/{stakeholder_id}/intelligence-logs", response_model=IntelligenceLogsResponse)
+async def get_stakeholder_intelligence_logs(
+    project_id: UUID = Path(..., description="Project UUID"),
+    stakeholder_id: UUID = Path(..., description="Stakeholder UUID"),
+    limit: int = Query(20, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+) -> IntelligenceLogsResponse:
+    """Get analysis history for a stakeholder (paginated)."""
+    try:
+        existing = stakeholders_db.get_stakeholder(stakeholder_id)
+        if not existing:
+            raise HTTPException(status_code=404, detail="Stakeholder not found")
+        if str(existing.get("project_id")) != str(project_id):
+            raise HTTPException(status_code=404, detail="Stakeholder not found in this project")
+
+        logs = stakeholders_db.get_stakeholder_intelligence_logs(
+            stakeholder_id=stakeholder_id,
+            limit=limit,
+            offset=offset,
+        )
+
+        log_items = []
+        for log in logs:
+            log_items.append(IntelligenceLogOut(
+                id=log["id"],
+                trigger=log["trigger"],
+                action_type=log["action_type"],
+                action_summary=log.get("action_summary"),
+                profile_completeness_before=log.get("profile_completeness_before"),
+                profile_completeness_after=log.get("profile_completeness_after"),
+                fields_affected=log.get("fields_affected") or [],
+                stop_reason=log.get("stop_reason"),
+                execution_time_ms=log.get("execution_time_ms"),
+                success=log.get("success", True),
+                created_at=str(log["created_at"]),
+            ))
+
+        return IntelligenceLogsResponse(logs=log_items, total=len(log_items))
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting intelligence logs: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
