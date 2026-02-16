@@ -15,15 +15,15 @@ const STATUS_STYLES = {
   unknown: 'bg-gray-100 text-gray-600',
 }
 
-const PRIORITY_DOT = {
-  high: 'bg-brand-primary',
-  medium: 'bg-brand-accent',
-  low: 'bg-gray-300',
+const IMPL_STATUS_LABELS: Record<string, string> = {
+  functional: 'Functional',
+  partial: 'Partial',
+  placeholder: 'Placeholder',
 }
 
 /**
  * Right sidebar showing feature overlays during prototype review.
- * Expandable cards with analysis data, questions, and personas.
+ * Expandable cards with overview delta, gaps, and persona impact.
  */
 export default function FeatureOverlayPanel({
   overlays,
@@ -114,117 +114,75 @@ export default function FeatureOverlayPanel({
               {/* Expanded content */}
               {isExpanded && content && (
                 <div className="px-4 pb-4 space-y-3 border-t border-ui-cardBorder/50">
-                  {/* Confidence + gaps */}
+                  {/* Confidence + implementation status */}
                   <div className="flex items-center gap-4 pt-3 text-support text-ui-supportText">
                     <span>Confidence: {Math.round(content.confidence * 100)}%</span>
-                    <span>{content.gaps_count} gaps remaining</span>
+                    {content.overview?.implementation_status && (
+                      <span>{IMPL_STATUS_LABELS[content.overview.implementation_status] || content.overview.implementation_status}</span>
+                    )}
                   </div>
 
-                  {/* Triggers */}
-                  {content.triggers.length > 0 && (
+                  {/* Delta */}
+                  {content.overview?.delta && content.overview.delta.length > 0 && (
                     <div>
                       <h4 className="text-xs font-semibold text-ui-headingDark uppercase tracking-wide mb-1">
-                        Triggers
+                        Spec vs Code Gaps
                       </h4>
                       <ul className="space-y-0.5">
-                        {content.triggers.map((t, i) => (
+                        {content.overview.delta.map((d, i) => (
                           <li key={i} className="text-sm text-ui-bodyText flex items-start gap-1.5">
                             <span className="text-ui-supportText mt-1">&bull;</span>
-                            {t}
+                            {d}
                           </li>
                         ))}
                       </ul>
                     </div>
                   )}
 
-                  {/* Questions */}
-                  {content.questions.length > 0 && (
+                  {/* Gap questions */}
+                  {content.gaps && content.gaps.length > 0 && (
                     <div>
                       <h4 className="text-xs font-semibold text-ui-headingDark uppercase tracking-wide mb-1">
-                        Questions ({content.questions.length})
+                        Gap Questions ({content.gaps.length})
                       </h4>
                       <ul className="space-y-1">
-                        {content.questions.map((q, i) => (
+                        {content.gaps.map((g, i) => (
                           <li key={i} className="flex items-start gap-2 text-sm text-ui-bodyText">
-                            <span
-                              className={`mt-1.5 w-2 h-2 rounded-full flex-shrink-0 ${
-                                PRIORITY_DOT[q.priority as keyof typeof PRIORITY_DOT] || PRIORITY_DOT.low
-                              }`}
-                            />
-                            <span className={q.answer ? 'line-through text-ui-supportText' : ''}>
-                              {q.question}
-                            </span>
-                            <span className="text-badge text-ui-supportText ml-auto flex-shrink-0">
-                              {q.priority[0].toUpperCase()}
-                            </span>
+                            <span className="mt-1.5 w-2 h-2 rounded-full flex-shrink-0 bg-brand-primary" />
+                            <span>{g.question}</span>
                           </li>
                         ))}
                       </ul>
                     </div>
                   )}
 
-                  {/* Personas */}
-                  {content.personas.length > 0 && (
+                  {/* Personas affected */}
+                  {content.impact?.personas_affected && content.impact.personas_affected.length > 0 && (
                     <div>
                       <h4 className="text-xs font-semibold text-ui-headingDark uppercase tracking-wide mb-1">
-                        Used by
+                        Personas Affected
                       </h4>
                       <div className="flex flex-wrap gap-1.5">
-                        {content.personas.map((p) => (
+                        {content.impact.personas_affected.map((p, i) => (
                           <span
-                            key={p.persona_id}
+                            key={i}
                             className="text-support bg-ui-buttonGray px-2 py-0.5 rounded"
+                            title={p.how_affected}
                           >
-                            {p.persona_name}
+                            {p.name}
                           </span>
                         ))}
                       </div>
                     </div>
                   )}
 
-                  {/* Dependencies */}
-                  {content.dependencies.length > 0 && (
+                  {/* Downstream risk */}
+                  {content.impact?.downstream_risk && (
                     <div>
                       <h4 className="text-xs font-semibold text-ui-headingDark uppercase tracking-wide mb-1">
-                        Dependencies
+                        Downstream Risk
                       </h4>
-                      <ul className="space-y-0.5">
-                        {content.dependencies.map((d, i) => (
-                          <li key={i} className="text-sm text-ui-bodyText">
-                            {d.direction === 'upstream' ? '\u2192' : '\u2190'} {d.feature_name}
-                            {d.relationship && (
-                              <span className="text-ui-supportText"> ({d.relationship})</span>
-                            )}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-
-                  {/* Business rules */}
-                  {content.business_rules.length > 0 && (
-                    <div>
-                      <h4 className="text-xs font-semibold text-ui-headingDark uppercase tracking-wide mb-1">
-                        Business Rules
-                      </h4>
-                      <ul className="space-y-0.5">
-                        {content.business_rules.map((br, i) => (
-                          <li key={i} className="text-sm text-ui-bodyText flex items-start gap-1.5">
-                            <span
-                              className={`text-badge mt-0.5 ${
-                                br.source === 'confirmed'
-                                  ? 'text-emerald-700'
-                                  : br.source === 'aios'
-                                    ? 'text-brand-primary'
-                                    : 'text-ui-supportText'
-                              }`}
-                            >
-                              [{br.source}]
-                            </span>
-                            <span>{br.rule}</span>
-                          </li>
-                        ))}
-                      </ul>
+                      <p className="text-sm text-ui-bodyText">{content.impact.downstream_risk}</p>
                     </div>
                   )}
                 </div>

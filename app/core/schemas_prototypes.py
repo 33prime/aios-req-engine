@@ -343,48 +343,40 @@ class PrototypeResponse(BaseModel):
     updated_at: str = Field(..., description="Last update timestamp")
 
 
-class PersonaRef(BaseModel):
-    """Reference to a persona that uses a feature."""
+class FeatureOverview(BaseModel):
+    """Spec vs code comparison for a feature."""
 
-    persona_id: str = Field(..., description="Persona UUID")
-    persona_name: str = Field(..., description="Persona display name")
-    role: str = Field("primary", description="How this persona relates to the feature")
-
-
-class Dependency(BaseModel):
-    """A dependency between features."""
-
-    feature_id: str = Field(..., description="Dependent feature UUID")
-    feature_name: str = Field(..., description="Dependent feature name")
-    direction: Literal["upstream", "downstream"] = Field(..., description="Dependency direction")
-    relationship: str = Field("", description="Nature of the dependency")
+    spec_summary: str = Field("", description="What AIOS says (2-3 sentences)")
+    prototype_summary: str = Field("", description="What code does (2-3 sentences)")
+    delta: list[str] = Field(default_factory=list, description="Concrete gaps between spec and code")
+    implementation_status: Literal["functional", "partial", "placeholder"] = Field(
+        "placeholder", description="How complete the implementation is"
+    )
 
 
-class UploadSuggestion(BaseModel):
-    """A suggested document upload to fill a knowledge gap."""
+class PersonaImpact(BaseModel):
+    """How a persona is affected by a feature."""
 
-    title: str = Field(..., description="What to upload")
-    description: str = Field(..., description="Why it would help")
-    priority: Literal["high", "medium", "low"] = Field("medium", description="Urgency")
-
-
-class BusinessRule(BaseModel):
-    """A business rule associated with a feature."""
-
-    rule: str = Field(..., description="The business rule")
-    source: Literal["aios", "inferred", "confirmed"] = Field("inferred", description="Where this rule came from")
-    confidence: float = Field(0.5, description="Confidence in this rule (0-1)")
+    name: str = Field(..., description="Persona name")
+    how_affected: str = Field(..., description="How this persona is affected")
 
 
-class OverlayQuestion(BaseModel):
-    """A question about a feature from the overlay."""
+class FeatureImpact(BaseModel):
+    """Impact analysis for a feature."""
 
-    id: str = Field(..., description="Question UUID")
+    personas_affected: list[PersonaImpact] = Field(default_factory=list, description="Personas affected")
+    value_path_position: str | None = Field(None, description="e.g. 'Step 3 of 7: User completes assessment'")
+    downstream_risk: str = Field("", description="Names specific OTHER features at risk")
+
+
+class FeatureGap(BaseModel):
+    """A focused question about a feature gap."""
+
     question: str = Field(..., description="The question text")
-    category: str = Field("", description="Question category")
-    priority: Literal["high", "medium", "low"] = Field("medium", description="Priority level")
-    answer: str | None = Field(None, description="Answer if provided")
-    answered_in_session: int | None = Field(None, description="Session number where answered")
+    why_it_matters: str = Field("", description="Why this gap matters for requirements")
+    requirement_area: Literal[
+        "business_rules", "data_handling", "user_flow", "permissions", "integration"
+    ] = Field("business_rules", description="Which requirement area this gap falls in")
 
 
 class OverlayContent(BaseModel):
@@ -392,19 +384,11 @@ class OverlayContent(BaseModel):
 
     feature_id: str | None = Field(None, description="Matched AIOS feature UUID")
     feature_name: str = Field(..., description="Feature display name")
+    overview: FeatureOverview = Field(default_factory=FeatureOverview, description="Spec vs code comparison")
+    impact: FeatureImpact = Field(default_factory=FeatureImpact, description="Impact analysis")
+    gaps: list[FeatureGap] = Field(default_factory=list, description="Exactly 3 focused gap questions")
     status: Literal["understood", "partial", "unknown"] = Field("unknown", description="Understanding status")
     confidence: float = Field(0, description="Confidence score (0-1)")
-    gaps_count: int = Field(0, description="Number of remaining gaps")
-    triggers: list[str] = Field(default_factory=list, description="What triggers this feature")
-    actions: list[str] = Field(default_factory=list, description="What actions the feature performs")
-    data_requirements: list[str] = Field(default_factory=list, description="Data needed by this feature")
-    personas: list[PersonaRef] = Field(default_factory=list, description="Personas that use this feature")
-    flow_position: dict[str, Any] | None = Field(None, description="Position in the value path")
-    dependencies: list[Dependency] = Field(default_factory=list, description="Feature dependencies")
-    questions: list[OverlayQuestion] = Field(default_factory=list, description="Outstanding questions")
-    business_rules: list[BusinessRule] = Field(default_factory=list, description="Business rules")
-    implementation_notes: str = Field("", description="Implementation notes from analysis")
-    upload_suggestions: list[UploadSuggestion] = Field(default_factory=list, description="Suggested uploads")
 
 
 class FeatureOverlayResponse(BaseModel):
@@ -418,7 +402,6 @@ class FeatureOverlayResponse(BaseModel):
     handoff_feature_name: str | None = Field(None, description="Name from HANDOFF.md")
     status: str = Field("unknown", description="Analysis status")
     confidence: float = Field(0, description="Confidence score")
-    gaps_count: int = Field(0, description="Number of gaps")
     overlay_content: OverlayContent | None = Field(None, description="Full overlay card content")
     created_at: str = Field(..., description="Creation timestamp")
 
@@ -477,7 +460,9 @@ class V0PromptOutput(BaseModel):
 
 
 class FeatureAnalysis(BaseModel):
-    """Analysis of a single feature's code vs AIOS metadata."""
+    """DEPRECATED: Used by old 3-chain pipeline. See analyze_feature_overlay.py for replacement.
+
+    Analysis of a single feature's code vs AIOS metadata."""
 
     triggers: list[str] = Field(default_factory=list, description="What triggers this feature")
     actions: list[str] = Field(default_factory=list, description="What actions the feature performs")
@@ -494,7 +479,9 @@ class FeatureAnalysis(BaseModel):
 
 
 class GeneratedQuestion(BaseModel):
-    """A question generated about a feature."""
+    """DEPRECATED: Used by old 3-chain pipeline. See FeatureGap for replacement.
+
+    A question generated about a feature."""
 
     question: str = Field(..., description="The question text")
     category: Literal[

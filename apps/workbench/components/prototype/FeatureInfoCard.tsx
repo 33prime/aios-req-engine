@@ -1,26 +1,39 @@
 'use client'
 
 import { useState } from 'react'
-import type { FeatureOverlay, OverlayContent, TourStep } from '@/types/prototype'
+import type { FeatureOverlay, OverlayContent, TourStep, FeatureGap } from '@/types/prototype'
 
 interface FeatureInfoCardProps {
   overlay: FeatureOverlay | null
   tourStep: TourStep | null
 }
 
-type InfoTab = 'overview' | 'impact' | 'gaps' | 'flow'
+type InfoTab = 'overview' | 'impact' | 'gaps'
 
 const TAB_CONFIG: { key: InfoTab; label: string }[] = [
   { key: 'overview', label: 'Overview' },
   { key: 'impact', label: 'Impact' },
   { key: 'gaps', label: 'Gaps' },
-  { key: 'flow', label: 'Flow' },
 ]
 
 const CONFIDENCE_COLORS: Record<string, string> = {
   high: 'bg-emerald-400',
   medium: 'bg-brand-accent',
   low: 'bg-red-400',
+}
+
+const IMPL_STATUS_STYLES: Record<string, string> = {
+  functional: 'bg-emerald-100 text-emerald-800',
+  partial: 'bg-amber-100 text-amber-800',
+  placeholder: 'bg-gray-100 text-gray-600',
+}
+
+const AREA_STYLES: Record<string, string> = {
+  business_rules: 'bg-ui-background text-ui-bodyText',
+  data_handling: 'bg-ui-background text-ui-bodyText',
+  user_flow: 'bg-ui-background text-ui-bodyText',
+  permissions: 'bg-ui-background text-ui-bodyText',
+  integration: 'bg-ui-background text-ui-bodyText',
 }
 
 function confidenceLevel(score: number): string {
@@ -34,10 +47,9 @@ function confidenceLevel(score: number): string {
  * Displays rich context about the current feature from overlay data.
  *
  * Tabs:
- * - Overview: what it does, personas, triggers, confidence
- * - Impact: business rules, actions, data requirements
- * - Gaps: questions, upload suggestions, confidence bar
- * - Flow: dependencies, flow position, connected features
+ * - Overview: spec vs code delta, implementation status, confidence
+ * - Impact: personas affected, value path position, downstream risk
+ * - Gaps: exactly 3 focused gap questions with requirement area badges
  */
 export default function FeatureInfoCard({ overlay, tourStep }: FeatureInfoCardProps) {
   const [activeTab, setActiveTab] = useState<InfoTab>('overview')
@@ -56,7 +68,7 @@ export default function FeatureInfoCard({ overlay, tourStep }: FeatureInfoCardPr
   }
 
   const content = overlay.overlay_content
-  const gapsCount = content.questions.filter((q) => !q.answer).length
+  const gapsCount = content.gaps?.length ?? 0
 
   return (
     <div className="flex flex-col h-full">
@@ -103,7 +115,6 @@ export default function FeatureInfoCard({ overlay, tourStep }: FeatureInfoCardPr
         {activeTab === 'overview' && <OverviewTab content={content} tourStep={tourStep} />}
         {activeTab === 'impact' && <ImpactTab content={content} />}
         {activeTab === 'gaps' && <GapsTab content={content} />}
-        {activeTab === 'flow' && <FlowTab content={content} />}
       </div>
     </div>
   )
@@ -127,10 +138,12 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 // =============================================================================
-// Overview Tab
+// Overview Tab — spec vs code delta
 // =============================================================================
 
 function OverviewTab({ content, tourStep }: { content: OverlayContent; tourStep: TourStep | null }) {
+  const overview = content.overview
+
   return (
     <div className="space-y-4">
       {/* Confidence + role */}
@@ -160,47 +173,37 @@ function OverviewTab({ content, tourStep }: { content: OverlayContent; tourStep:
         )}
       </div>
 
-      {/* Implementation notes */}
-      {content.implementation_notes && (
-        <Section title="What it does">
-          <p className="text-xs text-ui-bodyText leading-relaxed">{content.implementation_notes}</p>
+      {/* Implementation status */}
+      {overview?.implementation_status && (
+        <div className="flex items-center gap-2">
+          <span className="text-[11px] text-ui-supportText">Implementation:</span>
+          <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${IMPL_STATUS_STYLES[overview.implementation_status] || IMPL_STATUS_STYLES.placeholder}`}>
+            {overview.implementation_status}
+          </span>
+        </div>
+      )}
+
+      {/* Spec summary */}
+      {overview?.spec_summary && (
+        <Section title="What AIOS says">
+          <p className="text-xs text-ui-bodyText leading-relaxed">{overview.spec_summary}</p>
         </Section>
       )}
 
-      {/* Personas */}
-      {content.personas.length > 0 && (
-        <Section title="Used by">
-          <div className="flex flex-wrap gap-1.5">
-            {content.personas.map((p) => (
-              <span key={p.persona_id} className="text-[11px] bg-ui-background px-2 py-0.5 rounded-full text-ui-bodyText">
-                {p.persona_name}
-                {p.role && <span className="text-ui-supportText ml-1">({p.role})</span>}
-              </span>
-            ))}
-          </div>
+      {/* Prototype summary */}
+      {overview?.prototype_summary && (
+        <Section title="What code does">
+          <p className="text-xs text-ui-bodyText leading-relaxed">{overview.prototype_summary}</p>
         </Section>
       )}
 
-      {/* Triggers */}
-      {content.triggers.length > 0 && (
-        <Section title="Triggers">
+      {/* Delta */}
+      {overview?.delta && overview.delta.length > 0 && (
+        <Section title="Gaps between spec & code">
           <ul className="space-y-1">
-            {content.triggers.map((t, i) => (
+            {overview.delta.map((d, i) => (
               <li key={i} className="text-xs text-ui-bodyText flex items-start gap-1.5">
-                <span className="text-brand-primary mt-0.5">&#x2022;</span>{t}
-              </li>
-            ))}
-          </ul>
-        </Section>
-      )}
-
-      {/* Actions */}
-      {content.actions.length > 0 && (
-        <Section title="Actions">
-          <ul className="space-y-1">
-            {content.actions.map((a, i) => (
-              <li key={i} className="text-xs text-ui-bodyText flex items-start gap-1.5">
-                <span className="text-brand-accent mt-0.5">&#x25B8;</span>{a}
+                <span className="text-brand-primary mt-0.5">&#x2022;</span>{d}
               </li>
             ))}
           </ul>
@@ -211,53 +214,49 @@ function OverviewTab({ content, tourStep }: { content: OverlayContent; tourStep:
 }
 
 // =============================================================================
-// Impact Tab
+// Impact Tab — personas, value path, downstream risk
 // =============================================================================
 
 function ImpactTab({ content }: { content: OverlayContent }) {
+  const impact = content.impact
+
   return (
     <div className="space-y-4">
-      {/* Business rules */}
-      {content.business_rules.length > 0 && (
-        <Section title="Business Rules">
+      {/* Personas affected */}
+      {impact?.personas_affected && impact.personas_affected.length > 0 && (
+        <Section title="Personas Affected">
           <div className="space-y-2">
-            {content.business_rules.map((br, i) => (
+            {impact.personas_affected.map((p, i) => (
               <div key={i} className="bg-ui-background rounded-lg p-2.5">
-                <p className="text-xs text-ui-bodyText">{br.rule}</p>
-                <div className="flex items-center gap-2 mt-1.5">
-                  <span className={`text-[10px] font-medium ${
-                    br.source === 'confirmed' ? 'text-emerald-700' : br.source === 'aios' ? 'text-brand-primary' : 'text-ui-supportText'
-                  }`}>
-                    {br.source}
-                  </span>
-                  <span className="text-[10px] text-ui-supportText">
-                    {Math.round(br.confidence * 100)}% confidence
-                  </span>
-                </div>
+                <span className="text-xs font-medium text-ui-headingDark">{p.name}</span>
+                <p className="text-xs text-ui-bodyText mt-1">{p.how_affected}</p>
               </div>
             ))}
           </div>
         </Section>
       )}
 
-      {/* Data requirements */}
-      {content.data_requirements.length > 0 && (
-        <Section title="Data Requirements">
-          <ul className="space-y-1">
-            {content.data_requirements.map((d, i) => (
-              <li key={i} className="text-xs text-ui-bodyText flex items-start gap-1.5">
-                <span className="text-ui-supportText mt-0.5">&#x25CB;</span>{d}
-              </li>
-            ))}
-          </ul>
+      {/* Value path position */}
+      {impact?.value_path_position && (
+        <Section title="Value Path Position">
+          <div className="bg-brand-primary/5 rounded-lg p-3 border border-brand-primary/10">
+            <span className="text-xs font-medium text-brand-primary">{impact.value_path_position}</span>
+          </div>
         </Section>
       )}
 
-      {/* Placeholder for future pipeline enrichment */}
-      {content.business_rules.length === 0 && content.data_requirements.length === 0 && (
+      {/* Downstream risk */}
+      {impact?.downstream_risk && (
+        <Section title="Downstream Risk">
+          <div className="bg-amber-50 rounded-lg p-2.5 border border-amber-100">
+            <p className="text-xs text-amber-800">{impact.downstream_risk}</p>
+          </div>
+        </Section>
+      )}
+
+      {(!impact?.personas_affected?.length && !impact?.value_path_position && !impact?.downstream_risk) && (
         <div className="text-center py-6">
           <p className="text-xs text-ui-supportText">Impact analysis not yet available for this feature.</p>
-          <p className="text-[11px] text-ui-supportText mt-1">Business rules and requirements will appear here once analyzed.</p>
         </div>
       )}
     </div>
@@ -265,12 +264,11 @@ function ImpactTab({ content }: { content: OverlayContent }) {
 }
 
 // =============================================================================
-// Gaps Tab
+// Gaps Tab — exactly 3 focused questions
 // =============================================================================
 
 function GapsTab({ content }: { content: OverlayContent }) {
-  const unanswered = content.questions.filter((q) => !q.answer)
-  const answered = content.questions.filter((q) => !!q.answer)
+  const gaps = content.gaps || []
 
   return (
     <div className="space-y-4">
@@ -286,159 +284,45 @@ function GapsTab({ content }: { content: OverlayContent }) {
             style={{ width: `${content.confidence * 100}%` }}
           />
         </div>
-        <p className="text-[10px] text-ui-supportText mt-1">
-          {content.gaps_count} gaps remaining
-        </p>
       </div>
 
-      {/* Unanswered questions */}
-      {unanswered.length > 0 && (
-        <Section title={`Open Questions (${unanswered.length})`}>
+      {/* Gap cards */}
+      {gaps.length > 0 && (
+        <Section title={`Gap Questions (${gaps.length})`}>
           <div className="space-y-2.5">
-            {unanswered.map((q, i) => (
-              <QuestionCard key={q.id} question={q} index={i + 1} />
+            {gaps.map((gap, i) => (
+              <GapCard key={i} gap={gap} index={i + 1} />
             ))}
           </div>
         </Section>
       )}
 
-      {/* Answered questions */}
-      {answered.length > 0 && (
-        <Section title={`Answered (${answered.length})`}>
-          <div className="space-y-2">
-            {answered.map((q, i) => (
-              <div key={q.id} className="bg-emerald-50/50 rounded-lg p-2.5 border border-emerald-100">
-                <p className="text-xs text-ui-supportText">{q.question}</p>
-                <p className="text-xs text-emerald-700 mt-1 flex items-start gap-1">
-                  <svg className="w-3 h-3 mt-0.5 flex-shrink-0" viewBox="0 0 16 16" fill="none">
-                    <path d="M3 8L6.5 11.5L13 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                  {q.answer}
-                </p>
-              </div>
-            ))}
-          </div>
-        </Section>
-      )}
-
-      {/* Upload suggestions */}
-      {content.upload_suggestions.length > 0 && (
-        <Section title="Helpful Uploads">
-          <div className="space-y-1.5">
-            {content.upload_suggestions.map((us, i) => (
-              <div key={i} className="flex items-start gap-2 text-xs">
-                <span className="text-brand-primary mt-0.5">&#x2191;</span>
-                <div>
-                  <span className="font-medium text-ui-bodyText">{us.title}</span>
-                  <p className="text-ui-supportText">{us.description}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </Section>
-      )}
-
-      {content.questions.length === 0 && (
+      {gaps.length === 0 && (
         <div className="text-center py-6">
-          <p className="text-xs text-ui-supportText">No questions for this feature.</p>
+          <p className="text-xs text-ui-supportText">No gap questions for this feature.</p>
         </div>
       )}
     </div>
   )
 }
 
-function QuestionCard({ question, index }: { question: { id: string; question: string; category: string; priority: string }; index: number }) {
-  const priorityColors: Record<string, string> = {
-    high: 'bg-brand-primary text-white',
-    medium: 'bg-brand-accent text-white',
-    low: 'bg-gray-200 text-gray-600',
-  }
-
+function GapCard({ gap, index }: { gap: FeatureGap; index: number }) {
   return (
     <div className="bg-ui-background rounded-lg p-3">
       <div className="flex items-start gap-2">
-        <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0 ${priorityColors[question.priority] || priorityColors.low}`}>
+        <span className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0 bg-brand-primary text-white">
           {index}
         </span>
         <div className="flex-1 min-w-0">
-          <p className="text-xs text-ui-bodyText leading-relaxed">{question.question}</p>
-          <span className="text-[10px] text-ui-supportText mt-1 inline-block">{question.category}</span>
+          <p className="text-xs text-ui-bodyText leading-relaxed">{gap.question}</p>
+          {gap.why_it_matters && (
+            <p className="text-[11px] text-ui-supportText mt-1.5 italic">{gap.why_it_matters}</p>
+          )}
+          <span className={`text-[10px] mt-1.5 inline-block px-1.5 py-0.5 rounded ${AREA_STYLES[gap.requirement_area] || AREA_STYLES.business_rules}`}>
+            {gap.requirement_area.replace('_', ' ')}
+          </span>
         </div>
       </div>
-    </div>
-  )
-}
-
-// =============================================================================
-// Flow Tab
-// =============================================================================
-
-function FlowTab({ content }: { content: OverlayContent }) {
-  const upstream = content.dependencies.filter((d) => d.direction === 'upstream')
-  const downstream = content.dependencies.filter((d) => d.direction === 'downstream')
-
-  return (
-    <div className="space-y-4">
-      {/* Flow position */}
-      {content.flow_position && (
-        <div className="bg-brand-primary/5 rounded-lg p-3 border border-brand-primary/10">
-          <div className="flex items-center gap-2 mb-1">
-            <span className="w-6 h-6 rounded-full bg-brand-primary text-white text-[10px] font-bold flex items-center justify-center">
-              {content.flow_position.vp_step_index}
-            </span>
-            <span className="text-xs font-medium text-brand-primary">{content.flow_position.vp_step_label}</span>
-          </div>
-          <p className="text-[11px] text-ui-supportText">Value path step position</p>
-        </div>
-      )}
-
-      {/* Upstream dependencies */}
-      {upstream.length > 0 && (
-        <Section title="Depends On">
-          <div className="space-y-1.5">
-            {upstream.map((d, i) => (
-              <DependencyRow key={i} dep={d} />
-            ))}
-          </div>
-        </Section>
-      )}
-
-      {/* Current feature indicator */}
-      <div className="flex items-center gap-2 py-2">
-        <div className="flex-1 h-px bg-ui-cardBorder" />
-        <span className="text-[10px] font-medium text-brand-primary px-2 py-0.5 bg-brand-primary/5 rounded">
-          {content.feature_name}
-        </span>
-        <div className="flex-1 h-px bg-ui-cardBorder" />
-      </div>
-
-      {/* Downstream dependencies */}
-      {downstream.length > 0 && (
-        <Section title="Enables">
-          <div className="space-y-1.5">
-            {downstream.map((d, i) => (
-              <DependencyRow key={i} dep={d} />
-            ))}
-          </div>
-        </Section>
-      )}
-
-      {content.dependencies.length === 0 && !content.flow_position && (
-        <div className="text-center py-6">
-          <p className="text-xs text-ui-supportText">No flow data available for this feature.</p>
-          <p className="text-[11px] text-ui-supportText mt-1">Dependencies and flow position will appear once mapped.</p>
-        </div>
-      )}
-    </div>
-  )
-}
-
-function DependencyRow({ dep }: { dep: { feature_name: string; relationship: string; direction: string } }) {
-  return (
-    <div className="flex items-center gap-2 text-xs bg-ui-background rounded px-2.5 py-1.5">
-      <span className="text-ui-supportText">{dep.direction === 'upstream' ? '\u2190' : '\u2192'}</span>
-      <span className="text-ui-bodyText font-medium">{dep.feature_name}</span>
-      {dep.relationship && <span className="text-ui-supportText ml-auto text-[10px]">{dep.relationship}</span>}
     </div>
   )
 }
@@ -449,7 +333,7 @@ function DependencyRow({ dep }: { dep: { feature_name: string; relationship: str
 
 export function FeatureInfoTabs({ content, tourStep }: { content: OverlayContent; tourStep: TourStep | null }) {
   const [activeTab, setActiveTab] = useState<InfoTab>('overview')
-  const gapsCount = content.questions.filter((q) => !q.answer).length
+  const gapsCount = content.gaps?.length ?? 0
 
   return (
     <div>
@@ -477,7 +361,6 @@ export function FeatureInfoTabs({ content, tourStep }: { content: OverlayContent
         {activeTab === 'overview' && <OverviewTab content={content} tourStep={tourStep} />}
         {activeTab === 'impact' && <ImpactTab content={content} />}
         {activeTab === 'gaps' && <GapsTab content={content} />}
-        {activeTab === 'flow' && <FlowTab content={content} />}
       </div>
     </div>
   )

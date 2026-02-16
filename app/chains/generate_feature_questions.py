@@ -1,4 +1,7 @@
-"""Generate questions about unknowns for a feature.
+"""DEPRECATED: Replaced by analyze_feature_overlay.py which generates
+exactly 3 gap questions per feature as part of the single-call pipeline.
+
+Generate questions about unknowns for a feature.
 
 Takes analysis results and AIOS context to produce targeted questions
 that consultants should ask during review sessions.

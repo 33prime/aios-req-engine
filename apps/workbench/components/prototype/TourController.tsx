@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useReducer, useRef } from 'react'
-import type { FeatureOverlay, TourPlan, TourPhase, TourStep, TourStepGroup, RouteFeatureMap } from '@/types/prototype'
+import type { FeatureOverlay, TourPlan, TourPhase, TourStep, TourStepGroup, RouteFeatureMap, FeatureGap } from '@/types/prototype'
 import type { VpStep } from '@/types/api'
 import type { PrototypeFrameHandle } from './PrototypeFrame'
 
@@ -94,20 +94,27 @@ export function buildTourPlan(
     if (!content) continue
 
     const featureId = overlay.feature_id || overlay.id
-    const vpIndex = content.flow_position?.vp_step_index ?? null
-    const vpLabel = content.flow_position?.vp_step_label ?? null
+
+    // Parse VP step index from value_path_position string (e.g. "Step 3 of 7: ...")
+    let vpIndex: number | null = null
+    let vpLabel: string | null = null
+    if (content.impact?.value_path_position) {
+      const match = content.impact.value_path_position.match(/Step (\d+)/)
+      if (match) vpIndex = parseInt(match[1], 10)
+      vpLabel = content.impact.value_path_position
+    }
     const role = vpFeatureRoles.get(featureId) || (vpIndex !== null ? 'supporting' : 'unmapped')
 
     const step: TourStep = {
       featureId,
       featureName: content.feature_name,
-      description: content.implementation_notes || content.triggers.join(', '),
+      description: content.overview?.prototype_summary || '',
       route: inferRouteFromFeature(content.feature_name, overlay.code_file_path, routeFeatureMap, featureId),
       vpStepIndex: vpIndex,
       vpStepLabel: vpLabel,
       overlayId: overlay.id,
       featureRole: role,
-      questions: content.questions,
+      gaps: content.gaps || [],
     }
 
     if (vpIndex === null) {
@@ -158,7 +165,7 @@ export function buildTourPlan(
     ...unmapped,
   ]
 
-  const totalQuestions = flatSteps.reduce((sum, s) => sum + s.questions.length, 0)
+  const totalQuestions = flatSteps.reduce((sum, s) => sum + s.gaps.length, 0)
 
   return { phases, flatSteps, totalSteps: flatSteps.length, totalQuestions }
 }

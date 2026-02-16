@@ -173,6 +173,8 @@ def upsert_overlay(
     if feature_id:
         existing = get_overlay_for_feature(prototype_id, feature_id)
         if existing:
+            # Clear stale questions before updating
+            delete_questions_for_overlay(UUID(existing["id"]))
             response = (
                 supabase.table("prototype_feature_overlays")
                 .update(data)
@@ -191,6 +193,21 @@ def upsert_overlay(
 
 
 # === Questions ===
+
+
+def delete_questions_for_overlay(overlay_id: UUID) -> int:
+    """Delete all questions for an overlay (used when re-analyzing)."""
+    supabase = get_supabase()
+    response = (
+        supabase.table("prototype_questions")
+        .delete()
+        .eq("overlay_id", str(overlay_id))
+        .execute()
+    )
+    count = len(response.data) if response.data else 0
+    if count > 0:
+        logger.info(f"Deleted {count} questions for overlay {overlay_id}")
+    return count
 
 
 def create_question(

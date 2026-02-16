@@ -1,4 +1,7 @@
-"""Synthesize analysis + questions + AIOS context into overlay card content.
+"""DEPRECATED: Replaced by analyze_feature_overlay.py which produces
+OverlayContent directly from a single LLM call with prompt caching.
+
+Synthesize analysis + questions + AIOS context into overlay card content.
 
 Combines feature analysis, generated questions, and AIOS context into the
 final OverlayContent object shown in the feature overlay panel.

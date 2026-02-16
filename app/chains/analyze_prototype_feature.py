@@ -1,4 +1,7 @@
-"""Analyze a single feature's prototype code against AIOS metadata.
+"""DEPRECATED: Replaced by analyze_feature_overlay.py which uses prompt caching
+and produces the new OverlayContent schema (overview/impact/gaps).
+
+Analyze a single feature's prototype code against AIOS metadata.
 
 Extracts triggers, actions, data requirements, business rules, and
 integration points from the code and compares with known feature data.

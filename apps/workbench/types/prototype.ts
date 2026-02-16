@@ -98,61 +98,42 @@ export interface FeatureOverlay {
   handoff_feature_name: string | null
   status: 'understood' | 'partial' | 'unknown'
   confidence: number
-  gaps_count: number
   overlay_content: OverlayContent | null
   created_at: string
+}
+
+export interface FeatureOverview {
+  spec_summary: string
+  prototype_summary: string
+  delta: string[]
+  implementation_status: 'functional' | 'partial' | 'placeholder'
+}
+
+export interface PersonaImpact {
+  name: string
+  how_affected: string
+}
+
+export interface FeatureImpact {
+  personas_affected: PersonaImpact[]
+  value_path_position: string | null
+  downstream_risk: string
+}
+
+export interface FeatureGap {
+  question: string
+  why_it_matters: string
+  requirement_area: 'business_rules' | 'data_handling' | 'user_flow' | 'permissions' | 'integration'
 }
 
 export interface OverlayContent {
   feature_id: string | null
   feature_name: string
+  overview: FeatureOverview
+  impact: FeatureImpact
+  gaps: FeatureGap[]
   status: 'understood' | 'partial' | 'unknown'
   confidence: number
-  gaps_count: number
-  triggers: string[]
-  actions: string[]
-  data_requirements: string[]
-  personas: PersonaRef[]
-  flow_position: { vp_step_index: number; vp_step_label: string } | null
-  dependencies: Dependency[]
-  questions: OverlayQuestion[]
-  business_rules: BusinessRule[]
-  implementation_notes: string
-  upload_suggestions: UploadSuggestion[]
-}
-
-export interface PersonaRef {
-  persona_id: string
-  persona_name: string
-  role: string
-}
-
-export interface Dependency {
-  feature_id: string
-  feature_name: string
-  direction: 'upstream' | 'downstream'
-  relationship: string
-}
-
-export interface OverlayQuestion {
-  id: string
-  question: string
-  category: string
-  priority: 'high' | 'medium' | 'low'
-  answer: string | null
-  answered_in_session: number | null
-}
-
-export interface BusinessRule {
-  rule: string
-  source: 'aios' | 'inferred' | 'confirmed'
-  confidence: number
-}
-
-export interface UploadSuggestion {
-  title: string
-  description: string
-  priority: 'high' | 'medium' | 'low'
 }
 
 export interface PageVisit {
@@ -278,7 +259,7 @@ export interface TourStep {
   vpStepLabel: string | null
   overlayId: string
   featureRole: 'core' | 'supporting' | 'unmapped'
-  questions: OverlayQuestion[]
+  gaps: FeatureGap[]
 }
 
 export interface TourStepGroup {

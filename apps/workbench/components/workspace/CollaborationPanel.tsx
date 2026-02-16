@@ -284,7 +284,7 @@ interface FeatureQuestionGroup {
   featureId: string
   status: string
   confidence: number
-  questions: Array<{ id: string; question: string; category: string; priority: string; answer: string | null }>
+  questions: Array<{ id: string; question: string; category: string; priority: string }>
 }
 
 function ReviewPanel({
@@ -304,45 +304,48 @@ function ReviewPanel({
 
   // Build question groups: single feature during tour, all visible features otherwise
   const questionGroups: FeatureQuestionGroup[] = (() => {
+    // Helper: convert gaps to question-like objects for the UI
+    const gapsToQuestions = (gaps: Array<{ question: string; why_it_matters: string; requirement_area: string }>, featureId: string) =>
+      gaps.map((g, i) => ({
+        id: `${featureId}-gap-${i}`,
+        question: g.question,
+        category: g.requirement_area,
+        priority: 'high' as const,
+      }))
+
     if (isTourActive && overlay?.overlay_content) {
-      // Tour mode: single feature, top 3 questions
+      // Tour mode: single feature, all 3 gaps
       const content = overlay.overlay_content
-      const unanswered = content.questions
-        .filter((q) => !q.answer && !answeredQuestionIds?.has(q.id))
-        .sort((a, b) => {
-          const prio: Record<string, number> = { high: 0, medium: 1, low: 2 }
-          return (prio[a.priority] ?? 2) - (prio[b.priority] ?? 2)
-        })
+      const fid = overlay.feature_id || overlay.id
+      const questions = gapsToQuestions(content.gaps || [], fid)
+        .filter((q) => !answeredQuestionIds?.has(q.id))
         .slice(0, MAX_QUESTIONS_PER_FEATURE)
       return [{
         featureName: content.feature_name,
-        featureId: overlay.feature_id || overlay.id,
+        featureId: fid,
         status: content.status,
         confidence: content.confidence,
-        questions: unanswered,
+        questions,
       }]
     }
 
     if (overlay?.overlay_content && !isTourActive) {
-      // Radar dot clicked: show that feature's top 3 questions
+      // Radar dot clicked: show that feature's gaps
       const content = overlay.overlay_content
-      const unanswered = content.questions
-        .filter((q) => !q.answer && !answeredQuestionIds?.has(q.id))
-        .sort((a, b) => {
-          const prio: Record<string, number> = { high: 0, medium: 1, low: 2 }
-          return (prio[a.priority] ?? 2) - (prio[b.priority] ?? 2)
-        })
+      const fid = overlay.feature_id || overlay.id
+      const questions = gapsToQuestions(content.gaps || [], fid)
+        .filter((q) => !answeredQuestionIds?.has(q.id))
         .slice(0, MAX_QUESTIONS_PER_FEATURE)
       return [{
         featureName: content.feature_name,
-        featureId: overlay.feature_id || overlay.id,
+        featureId: fid,
         status: content.status,
         confidence: content.confidence,
-        questions: unanswered,
+        questions,
       }]
     }
 
-    // No specific feature: show all visible features' questions
+    // No specific feature: show all visible features' gaps
     const groups: FeatureQuestionGroup[] = []
     for (const ov of allOverlays) {
       if (!ov.overlay_content) continue
@@ -350,20 +353,16 @@ function ReviewPanel({
       // Show all overlays when no visible features tracked yet, otherwise filter
       if (visibleFeatureIds.length > 0 && !visibleFeatureIds.includes(fid)) continue
       const content = ov.overlay_content
-      const unanswered = content.questions
-        .filter((q) => !q.answer && !answeredQuestionIds?.has(q.id))
-        .sort((a, b) => {
-          const prio: Record<string, number> = { high: 0, medium: 1, low: 2 }
-          return (prio[a.priority] ?? 2) - (prio[b.priority] ?? 2)
-        })
+      const questions = gapsToQuestions(content.gaps || [], fid)
+        .filter((q) => !answeredQuestionIds?.has(q.id))
         .slice(0, MAX_QUESTIONS_PER_FEATURE)
-      if (unanswered.length > 0) {
+      if (questions.length > 0) {
         groups.push({
           featureName: content.feature_name,
           featureId: fid,
           status: content.status,
           confidence: content.confidence,
-          questions: unanswered,
+          questions,
         })
       }
     }
