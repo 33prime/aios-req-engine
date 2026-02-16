@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { X, Palette, Sparkles, ArrowRight, Loader2, Check } from 'lucide-react'
+import { X, Palette, Sparkles, Loader2, Check } from 'lucide-react'
 import { DesignCard } from './DesignCard'
 import { getDesignProfile } from '@/lib/api'
 import { useDesignChat } from '@/lib/useDesignChat'
@@ -87,10 +87,10 @@ export function DesignSelectionChat({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-md">
       <div className="max-w-2xl w-full h-[66vh] bg-white rounded-2xl shadow-2xl flex flex-col overflow-hidden">
         {/* Header */}
-        <div className="relative bg-gradient-to-r from-[#25785A] to-[#3FAF7A] px-4 py-3.5 text-white flex-shrink-0">
+        <div className="relative bg-gradient-to-r from-[#0A1E2F] to-[#0D2A35] px-4 py-3.5 text-white flex-shrink-0">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-full bg-white bg-opacity-20 backdrop-blur-sm flex items-center justify-center">
+              <div className="w-10 h-10 rounded-2xl bg-white/10 backdrop-blur-sm flex items-center justify-center">
                 <Palette className="w-4.5 h-4.5" />
               </div>
               <h2 className="text-base font-bold">Design Assistant</h2>
@@ -102,7 +102,7 @@ export function DesignSelectionChat({
         </div>
 
         {/* Messages area */}
-        <div className="flex-1 overflow-y-auto px-4 py-4 space-y-2.5 bg-gray-50">
+        <div className="flex-1 overflow-y-auto px-4 py-4 space-y-2.5 bg-[#F4F4F4]">
           {loading ? (
             <div className="flex items-center justify-center py-12">
               <Loader2 className="w-6 h-6 animate-spin text-[#3FAF7A]" />
@@ -125,16 +125,14 @@ export function DesignSelectionChat({
               {/* Typing indicator */}
               {chat.isTyping && (
                 <div className="flex items-start">
-                  <div className="bg-[#E8F5E9] rounded-xl px-3.5 py-3 shadow-sm border border-[#3FAF7A]/20">
-                    <div className="flex items-start gap-2.5">
-                      <div className="w-6 h-6 rounded-full bg-white flex items-center justify-center flex-shrink-0">
-                        <Sparkles className="w-3.5 h-3.5 text-[#3FAF7A]" />
-                      </div>
-                      <div className="flex gap-1 pt-1.5">
+                  <div className="bg-white border border-[#E5E5E5] rounded-2xl rounded-bl-md px-4 py-3 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+                    <div className="flex items-center gap-2">
+                      <div className="flex gap-1">
                         <div className="w-1.5 h-1.5 bg-[#3FAF7A] rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
                         <div className="w-1.5 h-1.5 bg-[#3FAF7A] rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
                         <div className="w-1.5 h-1.5 bg-[#3FAF7A] rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
                       </div>
+                      <span className="text-[12px] text-[#999999]">Thinking...</span>
                     </div>
                   </div>
                 </div>
@@ -146,20 +144,20 @@ export function DesignSelectionChat({
         </div>
 
         {/* Footer */}
-        <div className="border-t border-gray-200 px-4 py-3.5 bg-white flex-shrink-0">
+        <div className="border-t border-[#E5E5E5] px-4 py-3.5 bg-white flex-shrink-0">
           {chat.isComplete ? (
             <div className="flex items-center justify-end gap-2.5">
               <button
                 onClick={onClose}
                 disabled={isGenerating}
-                className="px-4 py-2.5 text-[13px] font-medium text-[#666666] bg-[#F0F0F0] rounded-lg hover:bg-[#E5E5E5] transition-colors disabled:opacity-50"
+                className="px-4 py-2.5 text-[13px] font-medium text-[#666666] bg-[#F0F0F0] rounded-2xl hover:bg-[#E5E5E5] transition-colors disabled:opacity-50"
               >
                 Cancel
               </button>
               <button
                 onClick={handleGenerate}
                 disabled={isGenerating}
-                className="px-4 py-2.5 text-[13px] font-medium text-white bg-[#3FAF7A] rounded-lg hover:bg-[#25785A] transition-colors disabled:opacity-50 flex items-center gap-1.5"
+                className="px-4 py-2.5 text-[13px] font-medium text-white bg-[#3FAF7A] rounded-2xl hover:bg-[#25785A] transition-colors disabled:opacity-50 flex items-center gap-1.5"
               >
                 {isGenerating ? (
                   <><Loader2 className="w-4 h-4 animate-spin" /> Generating...</>
@@ -205,8 +203,8 @@ function MessageBubble({
   if (message.role === 'user') {
     return (
       <div className="flex items-start justify-end">
-        <div className="bg-white rounded-xl px-3.5 py-3 shadow-sm border border-gray-200 max-w-[80%]">
-          <p className="text-[13px] leading-relaxed text-[#333333]">{message.content}</p>
+        <div className="bg-[#0A1E2F] text-white rounded-2xl rounded-br-md px-4 py-3 shadow-sm max-w-[80%]">
+          <p className="text-[13px] leading-relaxed">{message.content}</p>
         </div>
       </div>
     )
@@ -214,29 +212,22 @@ function MessageBubble({
 
   return (
     <div className="flex items-start">
-      <div className="bg-[#E8F5E9] rounded-xl px-3.5 py-3 shadow-sm border border-[#3FAF7A]/20 max-w-[90%]">
-        <div className="flex items-start gap-2.5">
-          <div className="w-6 h-6 rounded-full bg-white flex items-center justify-center flex-shrink-0">
-            <Sparkles className="w-3.5 h-3.5 text-[#3FAF7A]" />
-          </div>
-          <div className="flex-1">
-            <div className="text-[13px] leading-relaxed text-[#333333]">
-              {renderMarkdown(message.content)}
-            </div>
-            {message.component && (
-              <div className="mt-3">
-                <InlineChatComponent
-                  component={message.component}
-                  onSelectBrandSource={onSelectBrandSource}
-                  onSelectStyle={onSelectStyle}
-                  onSelectReferences={onSelectReferences}
-                  onUpdateTokens={onUpdateTokens}
-                  onConfirmTokens={onConfirmTokens}
-                />
-              </div>
-            )}
-          </div>
+      <div className="bg-white border border-[#E5E5E5] rounded-2xl rounded-bl-md px-4 py-3 shadow-[0_1px_2px_rgba(0,0,0,0.04)] max-w-[90%]">
+        <div className="text-[13px] leading-relaxed text-[#333333]">
+          {renderMarkdown(message.content)}
         </div>
+        {message.component && (
+          <div className="mt-3">
+            <InlineChatComponent
+              component={message.component}
+              onSelectBrandSource={onSelectBrandSource}
+              onSelectStyle={onSelectStyle}
+              onSelectReferences={onSelectReferences}
+              onUpdateTokens={onUpdateTokens}
+              onConfirmTokens={onConfirmTokens}
+            />
+          </div>
+        )}
       </div>
     </div>
   )

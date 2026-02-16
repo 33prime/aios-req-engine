@@ -83,10 +83,10 @@ export default function SessionChat({
 
   if (isCollapsed) {
     return (
-      <div className="border-t border-ui-cardBorder bg-white">
+      <div className="border-t border-[#E5E5E5] bg-white">
         <button
           onClick={() => setIsCollapsed(false)}
-          className="w-full px-4 py-2 text-sm text-ui-supportText hover:text-ui-headingDark flex items-center justify-between transition-colors"
+          className="w-full px-4 py-2 text-sm text-[#999999] hover:text-[#333333] flex items-center justify-between transition-colors"
         >
           <span>Session Chat ({messages.filter((m) => m.role !== 'system').length} messages)</span>
           <span className="text-xs">{'\u25B2'} Expand</span>
@@ -96,21 +96,21 @@ export default function SessionChat({
   }
 
   return (
-    <div className="border-t border-ui-cardBorder bg-white flex flex-col h-[240px]">
+    <div className="border-t border-[#E5E5E5] bg-white flex flex-col h-[240px]">
       {/* Context bar + collapse */}
-      <div className="px-4 py-2 bg-ui-background text-support text-ui-supportText flex items-center justify-between border-b border-ui-cardBorder/50">
+      <div className="px-4 py-2 bg-[#F4F4F4] text-support text-[#999999] flex items-center justify-between border-b border-[#E5E5E5]">
         <div className="flex items-center gap-3 truncate">
           <span>Page: {context.current_page || '/'}</span>
           {context.active_feature_name && (
             <>
-              <span className="text-ui-cardBorder">|</span>
+              <span className="text-[#E5E5E5]">|</span>
               <span>Feature: {context.active_feature_name}</span>
             </>
           )}
         </div>
         <button
           onClick={() => setIsCollapsed(true)}
-          className="text-xs text-ui-supportText hover:text-ui-headingDark ml-2 flex-shrink-0"
+          className="text-xs text-[#999999] hover:text-[#333333] ml-2 flex-shrink-0"
         >
           {'\u25BC'} Collapse
         </button>
@@ -121,10 +121,10 @@ export default function SessionChat({
         {messages.map((msg, i) => {
           if (msg.role === 'system') {
             return (
-              <div key={i} className="text-center text-support text-ui-supportText my-2 flex items-center gap-2">
-                <div className="flex-1 border-t border-dashed border-ui-cardBorder" />
+              <div key={i} className="text-center text-support text-[#999999] my-2 flex items-center gap-2">
+                <div className="flex-1 border-t border-dashed border-[#E5E5E5]" />
                 <span className="px-2">{msg.content}</span>
-                <div className="flex-1 border-t border-dashed border-ui-cardBorder" />
+                <div className="flex-1 border-t border-dashed border-[#E5E5E5]" />
               </div>
             )
           }
@@ -135,10 +135,10 @@ export default function SessionChat({
               className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
             >
               <div
-                className={`max-w-[80%] rounded-lg px-3 py-2 text-sm ${
+                className={`max-w-[80%] text-sm ${
                   msg.role === 'user'
-                    ? 'bg-brand-primary text-white'
-                    : 'bg-ui-background text-ui-bodyText'
+                    ? 'bg-[#0A1E2F] text-white rounded-2xl rounded-br-md px-4 py-3 shadow-sm'
+                    : 'bg-white border border-[#E5E5E5] rounded-2xl rounded-bl-md px-4 py-3 shadow-[0_1px_2px_rgba(0,0,0,0.04)] text-[#333333]'
                 }`}
               >
                 {msg.content}
@@ -149,8 +149,15 @@ export default function SessionChat({
 
         {isLoading && (
           <div className="flex justify-start">
-            <div className="bg-ui-background text-ui-supportText rounded-lg px-3 py-2 text-sm">
-              Thinking...
+            <div className="bg-white border border-[#E5E5E5] rounded-2xl rounded-bl-md px-4 py-3 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+              <div className="flex items-center gap-2">
+                <div className="flex gap-1">
+                  <div className="w-1.5 h-1.5 bg-[#3FAF7A] rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                  <div className="w-1.5 h-1.5 bg-[#3FAF7A] rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                  <div className="w-1.5 h-1.5 bg-[#3FAF7A] rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                </div>
+                <span className="text-[12px] text-[#999999]">Thinking...</span>
+              </div>
             </div>
           </div>
         )}
@@ -159,7 +166,7 @@ export default function SessionChat({
       </div>
 
       {/* Input */}
-      <form onSubmit={handleSubmit} className="px-4 py-3 border-t border-ui-cardBorder/50">
+      <form onSubmit={handleSubmit} className="px-4 py-3 border-t border-[#E5E5E5]">
         <div className="flex gap-2">
           <input
             type="text"
@@ -167,12 +174,12 @@ export default function SessionChat({
             onChange={(e) => setInput(e.target.value)}
             placeholder="Ask about this feature, report observations..."
             disabled={isLoading}
-            className="flex-1 px-3 py-2 text-sm border border-ui-cardBorder rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary disabled:opacity-50"
+            className="flex-1 px-4 py-3 text-sm bg-[#F4F4F4] focus:bg-white border border-[#E5E5E5] rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#3FAF7A]/20 focus:border-[#3FAF7A] disabled:opacity-50 transition-all"
           />
           <button
             type="submit"
             disabled={isLoading || !input.trim()}
-            className="px-4 py-2 bg-brand-primary text-white text-sm font-medium rounded-lg hover:bg-[#033344] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-4 py-3 bg-[#3FAF7A] text-white text-sm font-medium rounded-2xl hover:bg-[#25785A] transition-all duration-200 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Send
           </button>
