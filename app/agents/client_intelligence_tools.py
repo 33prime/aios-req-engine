@@ -102,8 +102,8 @@ async def _execute_analyze_stakeholder_map(client_id: UUID) -> dict:
         resp = (
             supabase.table("stakeholders")
             .select("id, name, first_name, last_name, role, email, stakeholder_type, "
-                    "influence_level, is_primary_contact, decision_maker, domain_expertise, "
-                    "goals, concerns, project_id")
+                    "influence_level, is_primary_contact, decision_authority, domain_expertise, "
+                    "concerns, project_id")
             .eq("project_id", pid)
             .execute()
         )
@@ -442,14 +442,14 @@ async def _execute_assess_organizational_context(client_id: UUID) -> dict:
     stakeholders = []
     for p in projects:
         s = (supabase.table("signals")
-             .select("content, signal_type, source_type")
+             .select("raw_text, signal_type, source")
              .eq("project_id", p["id"])
              .order("created_at", desc=True)
              .limit(5)
              .execute())
         for sig in s.data:
-            signals.append({"content": (sig.get("content") or "")[:500], "type": sig.get("signal_type")})
-        sh = supabase.table("stakeholders").select("name, role, stakeholder_type, influence_level, concerns, goals").eq("project_id", p["id"]).execute()
+            signals.append({"content": (sig.get("raw_text") or "")[:500], "type": sig.get("signal_type")})
+        sh = supabase.table("stakeholders").select("name, role, stakeholder_type, influence_level, concerns").eq("project_id", p["id"]).execute()
         stakeholders.extend(sh.data)
 
     prompt = f"""Assess the organizational context for client "{client_data.get('name')}".
