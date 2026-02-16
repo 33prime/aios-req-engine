@@ -1,5 +1,6 @@
 """Workspace API endpoints for the new canvas-based UI."""
 
+import json
 import logging
 from datetime import UTC
 from uuid import UUID
@@ -1236,6 +1237,15 @@ async def get_client_intelligence(project_id: UUID) -> dict:
                 ).eq("id", str(client_id)).maybe_single().execute()
                 if cl_result and cl_result.data:
                     client_data = cl_result.data
+                    # Parse JSONB fields that may be double-encoded as strings
+                    for key in ("role_gaps", "constraint_summary", "organizational_context",
+                                "tech_stack", "growth_signals", "competitors"):
+                        val = client_data.get(key)
+                        if isinstance(val, str):
+                            try:
+                                client_data[key] = json.loads(val)
+                            except (json.JSONDecodeError, TypeError):
+                                pass
             except Exception:
                 pass
 
@@ -1248,6 +1258,15 @@ async def get_client_intelligence(project_id: UUID) -> dict:
             ).eq("project_id", str(project_id)).maybe_single().execute()
             if sc_result and sc_result.data:
                 strategic = sc_result.data
+                # Parse JSONB fields that may be double-encoded as strings
+                for key in ("opportunity", "risks", "investment_case",
+                            "success_metrics", "constraints"):
+                    val = strategic.get(key)
+                    if isinstance(val, str):
+                        try:
+                            strategic[key] = json.loads(val)
+                        except (json.JSONDecodeError, TypeError):
+                            pass
         except Exception:
             pass
 

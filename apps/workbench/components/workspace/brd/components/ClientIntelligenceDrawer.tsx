@@ -18,6 +18,17 @@ import {
 import { getProjectClientIntelligence } from '@/lib/api'
 import type { ClientIntelligenceData } from '@/types/workspace'
 
+/** Safely parse a value that might be a JSON string instead of a parsed object/array. */
+function safeParse<T>(val: unknown, fallback: T): T {
+  if (val == null) return fallback
+  if (typeof val !== 'string') return val as T
+  try {
+    return JSON.parse(val) as T
+  } catch {
+    return fallback
+  }
+}
+
 interface ClientIntelligenceDrawerProps {
   projectId: string
   onClose: () => void
@@ -151,9 +162,28 @@ export function ClientIntelligenceDrawer({
   }, [projectId])
 
   const cp = data?.company_profile || {}
-  const cd = data?.client_data || {}
-  const sc = data?.strategic_context || {}
+  const rawCd = data?.client_data || {}
+  const rawSc = data?.strategic_context || {}
   const oq = data?.open_questions || []
+
+  // Safely parse JSONB fields that may arrive as strings
+  const cd = {
+    ...rawCd,
+    role_gaps: safeParse<Record<string, unknown>[]>(rawCd.role_gaps, []),
+    constraint_summary: safeParse<Record<string, unknown>[]>(rawCd.constraint_summary, []),
+    organizational_context: safeParse<Record<string, unknown>>(rawCd.organizational_context, {}),
+    tech_stack: safeParse<string[]>(rawCd.tech_stack, []),
+    growth_signals: safeParse<string[]>(rawCd.growth_signals, []),
+    competitors: safeParse<string[]>(rawCd.competitors, []),
+  }
+  const sc = {
+    ...rawSc,
+    opportunity: safeParse<Record<string, unknown>>(rawSc.opportunity, {}),
+    risks: safeParse<Record<string, unknown>[]>(rawSc.risks, []),
+    investment_case: safeParse<Record<string, unknown>>(rawSc.investment_case, {}),
+    success_metrics: safeParse<Record<string, unknown>[]>(rawSc.success_metrics, []),
+    constraints: safeParse<Record<string, unknown>>(rawSc.constraints, {}),
+  }
 
   return (
     <>
@@ -281,11 +311,11 @@ export function ClientIntelligenceDrawer({
                     )}
                     <FieldRow label="Digital Readiness" value={cd.digital_readiness} />
                     <FieldRow label="Tech Maturity" value={cd.technology_maturity} />
-                    {cd.role_gaps && (cd.role_gaps as Record<string, unknown>[]).length > 0 && (
+                    {cd.role_gaps.length > 0 && (
                       <div>
                         <p className="text-[11px] font-medium text-[#999999] uppercase tracking-wide mb-1">Role Gaps</p>
                         <div className="space-y-1">
-                          {(cd.role_gaps as Record<string, unknown>[]).map((gap, i) => (
+                          {cd.role_gaps.map((gap, i) => (
                             <div key={i} className="text-[12px] text-[#666666] bg-[#F9F9F9] rounded-lg px-3 py-2">
                               {typeof gap === 'string' ? gap : (gap.title || gap.role || JSON.stringify(gap)) as string}
                             </div>
@@ -358,23 +388,23 @@ export function ClientIntelligenceDrawer({
                       <p className="text-[13px] text-[#666666]">{cd.vision_synthesis}</p>
                     </div>
                   )}
-                  {cd.growth_signals && (cd.growth_signals as string[]).length > 0 && (
+                  {cd.growth_signals.length > 0 && (
                     <div>
                       <p className="text-[11px] font-medium text-[#999999] uppercase tracking-wide mb-1">Growth Signals</p>
                       <TagList items={cd.growth_signals} />
                     </div>
                   )}
-                  {cd.competitors && (cd.competitors as string[]).length > 0 && (
+                  {cd.competitors.length > 0 && (
                     <div>
                       <p className="text-[11px] font-medium text-[#999999] uppercase tracking-wide mb-1">Competitors</p>
                       <TagList items={cd.competitors} />
                     </div>
                   )}
-                  {sc.risks && (sc.risks as Record<string, unknown>[]).length > 0 && (
+                  {sc.risks.length > 0 && (
                     <div>
                       <p className="text-[11px] font-medium text-[#999999] uppercase tracking-wide mb-1">Risks</p>
                       <div className="space-y-1.5">
-                        {(sc.risks as Record<string, unknown>[]).slice(0, 5).map((risk, i) => (
+                        {sc.risks.slice(0, 5).map((risk, i) => (
                           <div key={i} className="flex items-start gap-2 text-[12px] bg-[#F9F9F9] rounded-lg px-3 py-2">
                             <Shield className="w-3 h-3 text-[#999999] mt-0.5 flex-shrink-0" />
                             <div>
