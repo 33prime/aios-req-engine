@@ -200,6 +200,59 @@ def get_client_intelligence(client_id: UUID):
     }
 
 
+@router.get("/{client_id}/stakeholders")
+def get_client_stakeholders(
+    client_id: UUID,
+    stakeholder_type: str | None = Query(None, description="Filter by stakeholder type"),
+    limit: int = Query(100, ge=1, le=500),
+    offset: int = Query(0, ge=0),
+):
+    """Get all stakeholders across client projects."""
+    existing = clients_db.get_client(client_id)
+    if not existing:
+        raise HTTPException(status_code=404, detail="Client not found")
+
+    stakeholders, total = clients_db.get_client_stakeholders(
+        client_id, stakeholder_type=stakeholder_type, limit=limit, offset=offset
+    )
+    return {"stakeholders": stakeholders, "total": total}
+
+
+@router.get("/{client_id}/signals")
+def get_client_signals(
+    client_id: UUID,
+    signal_type: str | None = Query(None, description="Filter by signal type"),
+    limit: int = Query(50, ge=1, le=200),
+    offset: int = Query(0, ge=0),
+):
+    """Get all signals across client projects."""
+    existing = clients_db.get_client(client_id)
+    if not existing:
+        raise HTTPException(status_code=404, detail="Client not found")
+
+    signals, total = clients_db.get_client_signals(
+        client_id, signal_type=signal_type, limit=limit, offset=offset
+    )
+    return {"signals": signals, "total": total}
+
+
+@router.get("/{client_id}/intelligence-logs")
+def get_client_intelligence_logs(
+    client_id: UUID,
+    limit: int = Query(20, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+):
+    """Get intelligence analysis history for a client."""
+    existing = clients_db.get_client(client_id)
+    if not existing:
+        raise HTTPException(status_code=404, detail="Client not found")
+
+    logs, total = clients_db.get_client_intelligence_logs(
+        client_id, limit=limit, offset=offset
+    )
+    return {"logs": logs, "total": total}
+
+
 @router.post("/{client_id}/projects/{project_id}/link")
 def link_project(client_id: UUID, project_id: UUID):
     """Link a project to a client."""

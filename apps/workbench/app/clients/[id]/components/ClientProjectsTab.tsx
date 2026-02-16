@@ -1,14 +1,91 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { FolderKanban, Link2, Unlink, Plus } from 'lucide-react'
+import { FolderKanban, Plus, Unlink } from 'lucide-react'
 import { listProjects, linkProjectToClient, unlinkProjectFromClient } from '@/lib/api'
-import type { ClientDetail } from '@/types/workspace'
+import type { ClientDetail, ClientDetailProject } from '@/types/workspace'
 
 interface ClientProjectsTabProps {
   client: ClientDetail
   onRefresh: () => void
+}
+
+function formatTimeAgo(dateStr: string): string {
+  const diff = Date.now() - new Date(dateStr).getTime()
+  const mins = Math.floor(diff / 60000)
+  if (mins < 60) return `${mins}m ago`
+  const hours = Math.floor(mins / 60)
+  if (hours < 24) return `${hours}h ago`
+  const days = Math.floor(hours / 24)
+  return `${days}d ago`
+}
+
+function ProjectCard({ project, onView, onUnlink }: { project: ClientDetailProject; onView: () => void; onUnlink: () => void }) {
+  const counts = project.counts
+  const readiness = project.cached_readiness_score ?? 0
+
+  return (
+    <div
+      className="bg-white rounded-2xl border border-[#E5E5E5] shadow-md p-5 hover:shadow-lg transition-shadow cursor-pointer"
+      onClick={onView}
+    >
+      <div className="flex items-start justify-between mb-3">
+        <h4 className="text-[14px] font-semibold text-[#333]">{project.name}</h4>
+        {project.stage && (
+          <span className="px-2 py-0.5 text-[11px] font-medium text-[#666] bg-[#F0F0F0] rounded-md flex-shrink-0">
+            {project.stage}
+          </span>
+        )}
+      </div>
+
+      {/* Entity counts grid */}
+      {counts && (
+        <div className="grid grid-cols-3 gap-2 mb-3">
+          {[
+            { label: 'Features', count: counts.features ?? 0 },
+            { label: 'Personas', count: counts.personas ?? 0 },
+            { label: 'Steps', count: counts.vp_steps ?? 0 },
+            { label: 'Signals', count: counts.signals ?? 0 },
+            { label: 'Drivers', count: counts.business_drivers ?? 0 },
+          ].map((item) => (
+            <div key={item.label} className="bg-[#F4F4F4] rounded-lg px-2 py-1.5 text-center">
+              <span className="text-[13px] font-semibold text-[#333]">{item.count}</span>
+              <span className="text-[11px] text-[#999] ml-1">{item.label}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Readiness bar + footer */}
+      <div className="flex items-center justify-between mt-2">
+        <div className="flex items-center gap-2 flex-1 mr-3">
+          <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+            <div
+              className="h-full bg-[#3FAF7A] rounded-full transition-all"
+              style={{ width: `${readiness}%` }}
+            />
+          </div>
+          <span className="text-[11px] font-medium text-[#666] flex-shrink-0">{readiness}% Ready</span>
+        </div>
+        <div className="flex items-center gap-2">
+          {project.updated_at && (
+            <span className="text-[11px] text-[#999]">{formatTimeAgo(project.updated_at)}</span>
+          )}
+          <button
+            onClick={(e) => {
+              e.stopPropagation()
+              onUnlink()
+            }}
+            className="p-1.5 text-[#999] hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+            title="Unlink project"
+          >
+            <Unlink className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      </div>
+    </div>
+  )
 }
 
 export function ClientProjectsTab({ client, onRefresh }: ClientProjectsTabProps) {
@@ -104,7 +181,7 @@ export function ClientProjectsTab({ client, onRefresh }: ClientProjectsTabProps)
         </div>
       </div>
 
-      {/* Projects table */}
+      {/* Projects grid */}
       {client.projects.length === 0 ? (
         <div className="text-center py-12 bg-white rounded-2xl border border-[#E5E5E5] shadow-md">
           <FolderKanban className="w-8 h-8 text-[#CCC] mx-auto mb-2" />
@@ -112,64 +189,15 @@ export function ClientProjectsTab({ client, onRefresh }: ClientProjectsTabProps)
           <p className="text-[12px] text-[#999]">Link existing projects to this client</p>
         </div>
       ) : (
-        <div className="bg-white rounded-2xl border border-[#E5E5E5] shadow-md overflow-hidden">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-[#E5E5E5]">
-                <th className="text-left px-4 py-3 text-[11px] font-medium text-[#999] uppercase tracking-wide">
-                  Project
-                </th>
-                <th className="text-left px-4 py-3 text-[11px] font-medium text-[#999] uppercase tracking-wide">
-                  Stage
-                </th>
-                <th className="text-left px-4 py-3 text-[11px] font-medium text-[#999] uppercase tracking-wide">
-                  Last Updated
-                </th>
-                <th className="text-right px-4 py-3 text-[11px] font-medium text-[#999] uppercase tracking-wide">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {client.projects.map((project) => (
-                <tr
-                  key={project.id}
-                  className="border-b border-[#F0F0F0] last:border-0 hover:bg-[#FAFAFA] transition-colors cursor-pointer"
-                  onClick={() => router.push(`/projects/${project.id}`)}
-                >
-                  <td className="px-4 py-3">
-                    <span className="text-[13px] font-medium text-[#333] hover:text-[#3FAF7A] transition-colors">
-                      {project.name}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3">
-                    {project.stage && (
-                      <span className="px-2 py-0.5 text-[11px] font-medium text-[#666] bg-[#F0F0F0] rounded-md">
-                        {project.stage}
-                      </span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-[12px] text-[#999]">
-                    {project.updated_at
-                      ? new Date(project.updated_at).toLocaleDateString()
-                      : '-'}
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        handleUnlink(project.id)
-                      }}
-                      className="p-1.5 text-[#999] hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                      title="Unlink project"
-                    >
-                      <Unlink className="w-3.5 h-3.5" />
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {client.projects.map((project) => (
+            <ProjectCard
+              key={project.id}
+              project={project}
+              onView={() => router.push(`/projects/${project.id}`)}
+              onUnlink={() => handleUnlink(project.id)}
+            />
+          ))}
         </div>
       )}
     </div>

@@ -90,16 +90,27 @@ def delete_client(client_id: UUID) -> bool:
 
 
 def get_client_projects(client_id: UUID) -> list[dict]:
-    """Get all projects linked to a client."""
+    """Get all projects linked to a client with entity counts."""
     supabase = get_supabase()
 
     response = (
         supabase.table("projects")
-        .select("id, name, stage, status, created_at, updated_at")
+        .select("id, name, stage, status, cached_readiness_score, created_at, updated_at")
         .eq("client_id", str(client_id))
         .order("updated_at", desc=True)
         .execute()
     )
+
+    # Attach entity counts per project
+    for project in response.data:
+        try:
+            counts_resp = supabase.rpc(
+                "get_project_entity_counts",
+                {"p_project_id": project["id"]},
+            ).execute()
+            project["counts"] = counts_resp.data if counts_resp.data else {}
+        except Exception:
+            project["counts"] = {}
 
     return response.data
 
@@ -170,6 +181,105 @@ def unlink_project_from_client(project_id: UUID) -> dict | None:
     )
 
     return response.data[0] if response.data else None
+
+
+def get_client_stakeholders(
+    client_id: UUID,
+    stakeholder_type: str | None = None,
+    limit: int = 100,
+    offset: int = 0,
+) -> tuple[list[dict], int]:
+    """Get stakeholders across all projects for a client."""
+    supabase = get_supabase()
+
+    projects_response = (
+        supabase.table("projects")
+        .select("id, name")
+        .eq("client_id", str(client_id))
+        .execute()
+    )
+    project_ids = [p["id"] for p in projects_response.data]
+    if not project_ids:
+        return [], 0
+
+    project_name_map = {p["id"]: p["name"] for p in projects_response.data}
+
+    query = (
+        supabase.table("stakeholders")
+        .select("*", count="exact")
+        .in_("project_id", project_ids)
+    )
+
+    if stakeholder_type:
+        query = query.eq("stakeholder_type", stakeholder_type)
+
+    query = query.order("created_at", desc=True).range(offset, offset + limit - 1)
+    response = query.execute()
+
+    # Attach project_name
+    for row in response.data:
+        row["project_name"] = project_name_map.get(row.get("project_id"), "Unknown")
+
+    return response.data, response.count or 0
+
+
+def get_client_signals(
+    client_id: UUID,
+    signal_type: str | None = None,
+    limit: int = 50,
+    offset: int = 0,
+) -> tuple[list[dict], int]:
+    """Get signals across all projects for a client."""
+    supabase = get_supabase()
+
+    projects_response = (
+        supabase.table("projects")
+        .select("id, name")
+        .eq("client_id", str(client_id))
+        .execute()
+    )
+    project_ids = [p["id"] for p in projects_response.data]
+    if not project_ids:
+        return [], 0
+
+    project_name_map = {p["id"]: p["name"] for p in projects_response.data}
+
+    query = (
+        supabase.table("signals")
+        .select("id, project_id, source, signal_type, raw_text, created_at", count="exact")
+        .in_("project_id", project_ids)
+    )
+
+    if signal_type:
+        query = query.eq("signal_type", signal_type)
+
+    query = query.order("created_at", desc=True).range(offset, offset + limit - 1)
+    response = query.execute()
+
+    for row in response.data:
+        row["project_name"] = project_name_map.get(row.get("project_id"), "Unknown")
+
+    return response.data, response.count or 0
+
+
+def get_client_intelligence_logs(
+    client_id: UUID,
+    limit: int = 20,
+    offset: int = 0,
+) -> tuple[list[dict], int]:
+    """Get intelligence analysis logs for a client."""
+    supabase = get_supabase()
+
+    query = (
+        supabase.table("client_intelligence_logs")
+        .select("*", count="exact")
+        .eq("client_id", str(client_id))
+        .order("created_at", desc=True)
+        .range(offset, offset + limit - 1)
+    )
+    response = query.execute()
+
+    return response.data, response.count or 0
 
 
 def update_client_enrichment(client_id: UUID, enrichment_data: dict) -> dict | None:

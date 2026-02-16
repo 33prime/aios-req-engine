@@ -1,16 +1,20 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { Building2, FolderKanban, Loader2 } from 'lucide-react'
-import { getClient, enrichClient } from '@/lib/api'
+import { Building2, Users, FolderKanban, Brain, FileText, Loader2 } from 'lucide-react'
+import { getClient, enrichClient, analyzeClient, getClientIntelligence } from '@/lib/api'
+import type { ClientIntelligenceProfile } from '@/lib/api'
 import type { ClientDetail } from '@/types/workspace'
 import { AppSidebar } from '@/components/workspace/AppSidebar'
 import { ClientHeader } from './components/ClientHeader'
 import { ClientOverviewTab } from './components/ClientOverviewTab'
 import { ClientProjectsTab } from './components/ClientProjectsTab'
+import { ClientPeopleTab } from './components/ClientPeopleTab'
+import { ClientIntelligenceTab } from './components/ClientIntelligenceTab'
+import { ClientSourcesTab } from './components/ClientSourcesTab'
 
-type TabId = 'overview' | 'projects'
+type TabId = 'overview' | 'people' | 'projects' | 'intelligence' | 'sources'
 
 export default function ClientDetailPage() {
   const params = useParams()
@@ -18,18 +22,25 @@ export default function ClientDetailPage() {
   const clientId = params.id as string
 
   const [client, setClient] = useState<ClientDetail | null>(null)
+  const [intelligence, setIntelligence] = useState<ClientIntelligenceProfile | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [activeTab, setActiveTab] = useState<TabId>('overview')
   const [enriching, setEnriching] = useState(false)
+  const [analyzing, setAnalyzing] = useState(false)
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const loadClient = useCallback(async () => {
     if (!clientId) return
     try {
       setLoading(true)
-      const data = await getClient(clientId)
+      const [data, intel] = await Promise.all([
+        getClient(clientId),
+        getClientIntelligence(clientId).catch(() => null),
+      ])
       setClient(data)
+      setIntelligence(intel)
       setError(null)
     } catch (err) {
       console.error('Failed to load client:', err)
@@ -41,6 +52,9 @@ export default function ClientDetailPage() {
 
   useEffect(() => {
     loadClient()
+    return () => {
+      if (pollRef.current) clearInterval(pollRef.current)
+    }
   }, [loadClient])
 
   const handleEnrich = async () => {
@@ -48,7 +62,6 @@ export default function ClientDetailPage() {
     setEnriching(true)
     try {
       await enrichClient(clientId)
-      // Poll for completion
       setTimeout(() => {
         loadClient()
         setEnriching(false)
@@ -59,11 +72,48 @@ export default function ClientDetailPage() {
     }
   }
 
+  const handleAnalyze = async () => {
+    if (!clientId || analyzing) return
+    setAnalyzing(true)
+    const startedAt = intelligence?.last_analyzed_at
+    try {
+      await analyzeClient(clientId)
+      // Poll every 3s until last_analyzed_at changes or 60s timeout
+      let elapsed = 0
+      pollRef.current = setInterval(async () => {
+        elapsed += 3000
+        if (elapsed > 60000) {
+          if (pollRef.current) clearInterval(pollRef.current)
+          setAnalyzing(false)
+          loadClient()
+          return
+        }
+        try {
+          const intel = await getClientIntelligence(clientId)
+          if (intel.last_analyzed_at && intel.last_analyzed_at !== startedAt) {
+            if (pollRef.current) clearInterval(pollRef.current)
+            setIntelligence(intel)
+            setAnalyzing(false)
+            loadClient()
+          }
+        } catch {
+          // keep polling
+        }
+      }, 3000)
+    } catch (err) {
+      console.error('Failed to analyze client:', err)
+      setAnalyzing(false)
+    }
+  }
+
   const sidebarWidth = sidebarCollapsed ? 64 : 224
 
   const tabs: { id: TabId; label: string; icon: React.ReactNode }[] = [
     { id: 'overview', label: 'Overview', icon: <Building2 className="w-3.5 h-3.5" /> },
+    { id: 'people', label: 'People', icon: <Users className="w-3.5 h-3.5" /> },
     { id: 'projects', label: 'Projects', icon: <FolderKanban className="w-3.5 h-3.5" /> },
+    { id: 'intelligence', label: 'Intelligence', icon: <Brain className="w-3.5 h-3.5" /> },
+    { id: 'sources', label: 'Sources', icon: <FileText className="w-3.5 h-3.5" /> },
   ]
 
   if (loading) {
@@ -107,8 +157,11 @@ export default function ClientDetailPage() {
           <ClientHeader
             client={client}
             enriching={enriching}
+            analyzing={analyzing}
+            intelligence={intelligence}
             onBack={() => router.push('/clients')}
             onEnrich={handleEnrich}
+            onAnalyze={handleAnalyze}
           />
 
           {/* Tabs */}
@@ -132,9 +185,16 @@ export default function ClientDetailPage() {
           </div>
 
           {/* Tab Content */}
-          {activeTab === 'overview' && <ClientOverviewTab client={client} />}
+          {activeTab === 'overview' && <ClientOverviewTab client={client} intelligence={intelligence} />}
+          {activeTab === 'people' && <ClientPeopleTab clientId={clientId} roleGaps={client.role_gaps ?? []} />}
           {activeTab === 'projects' && (
             <ClientProjectsTab client={client} onRefresh={loadClient} />
+          )}
+          {activeTab === 'intelligence' && (
+            <ClientIntelligenceTab clientId={clientId} client={client} intelligence={intelligence} />
+          )}
+          {activeTab === 'sources' && (
+            <ClientSourcesTab clientId={clientId} projects={client.projects} />
           )}
         </div>
       </div>

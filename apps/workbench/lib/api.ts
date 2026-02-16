@@ -2943,6 +2943,47 @@ export const analyzeClient = (clientId: string) =>
 export const getClientIntelligence = (clientId: string) =>
   apiRequest<ClientIntelligenceProfile>(`/clients/${clientId}/intelligence`)
 
+export const getClientStakeholders = (
+  clientId: string,
+  params?: { stakeholder_type?: string; limit?: number; offset?: number }
+) => {
+  const qp = new URLSearchParams()
+  if (params?.stakeholder_type) qp.set('stakeholder_type', params.stakeholder_type)
+  if (params?.limit) qp.set('limit', params.limit.toString())
+  if (params?.offset) qp.set('offset', params.offset.toString())
+  const query = qp.toString()
+  return apiRequest<{ stakeholders: Array<Record<string, unknown>>; total: number }>(
+    `/clients/${clientId}/stakeholders${query ? `?${query}` : ''}`
+  )
+}
+
+export const getClientSignals = (
+  clientId: string,
+  params?: { signal_type?: string; limit?: number; offset?: number }
+) => {
+  const qp = new URLSearchParams()
+  if (params?.signal_type) qp.set('signal_type', params.signal_type)
+  if (params?.limit) qp.set('limit', params.limit.toString())
+  if (params?.offset) qp.set('offset', params.offset.toString())
+  const query = qp.toString()
+  return apiRequest<{ signals: import('@/types/workspace').ClientSignalSummary[]; total: number }>(
+    `/clients/${clientId}/signals${query ? `?${query}` : ''}`
+  )
+}
+
+export const getClientIntelligenceLogs = (
+  clientId: string,
+  params?: { limit?: number; offset?: number }
+) => {
+  const qp = new URLSearchParams()
+  if (params?.limit) qp.set('limit', params.limit.toString())
+  if (params?.offset) qp.set('offset', params.offset.toString())
+  const query = qp.toString()
+  return apiRequest<{ logs: import('@/types/workspace').ClientIntelligenceLog[]; total: number }>(
+    `/clients/${clientId}/intelligence-logs${query ? `?${query}` : ''}`
+  )
+}
+
 // ============================================================================
 // Competitor Intelligence
 // ============================================================================

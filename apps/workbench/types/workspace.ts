@@ -1115,17 +1115,53 @@ export interface ClientSummary {
   updated_at?: string | null
   project_count: number
   stakeholder_count: number
+  profile_completeness?: number | null
+  constraint_summary?: Array<{ title: string; description: string; category: string; severity: string; source: string; impacts?: string[] }> | null
+  role_gaps?: Array<{ role: string; why_needed: string; urgency: string; which_areas?: string[] }> | null
+  vision_synthesis?: string | null
+  organizational_context?: Record<string, unknown> | null
+  last_analyzed_at?: string | null
+}
+
+export interface ClientDetailProject {
+  id: string
+  name: string
+  stage?: string | null
+  status?: string | null
+  cached_readiness_score?: number | null
+  counts?: { signals: number; features: number; personas: number; vp_steps: number; business_drivers: number } | null
+  created_at?: string | null
+  updated_at?: string | null
 }
 
 export interface ClientDetail extends ClientSummary {
-  projects: {
-    id: string
-    name: string
-    stage?: string | null
-    status?: string | null
-    created_at?: string | null
-    updated_at?: string | null
-  }[]
+  projects: ClientDetailProject[]
+}
+
+export interface ClientSignalSummary {
+  id: string
+  project_id: string
+  project_name: string
+  source: string
+  signal_type: string
+  raw_text?: string | null
+  created_at: string
+}
+
+export interface ClientIntelligenceLog {
+  id: string
+  client_id: string
+  trigger: string
+  status: string
+  profile_completeness_before?: number | null
+  profile_completeness_after?: number | null
+  tools_called?: Array<{ tool: string; result_summary?: string }> | null
+  observation?: string | null
+  thinking?: string | null
+  decision?: string | null
+  action_summary?: string | null
+  error_message?: string | null
+  created_at: string
 }
 
 export interface ClientCreatePayload {

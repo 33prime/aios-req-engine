@@ -58,6 +58,12 @@ class ClientResponse(BaseModel):
     updated_at: str | None = None
     project_count: int = 0
     stakeholder_count: int = 0
+    profile_completeness: int = 0
+    constraint_summary: list = []
+    role_gaps: list = []
+    vision_synthesis: str | None = None
+    organizational_context: dict = {}
+    last_analyzed_at: str | None = None
 
 
 class ClientDetailResponse(ClientResponse):

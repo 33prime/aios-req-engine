@@ -10,11 +10,16 @@ import {
   TrendingUp,
   Swords,
   Sparkles,
+  AlertTriangle,
+  BookOpen,
 } from 'lucide-react'
 import type { ClientDetail } from '@/types/workspace'
+import type { ClientIntelligenceProfile } from '@/lib/api'
+import { CompletenessRing } from '@/components/workspace/brd/components/CompletenessRing'
 
 interface ClientOverviewTabProps {
   client: ClientDetail
+  intelligence: ClientIntelligenceProfile | null
 }
 
 function InfoRow({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
@@ -42,124 +47,204 @@ function MaturityBadge({ label, value }: { label: string; value: string | null |
   )
 }
 
-export function ClientOverviewTab({ client }: ClientOverviewTabProps) {
+export function ClientOverviewTab({ client, intelligence }: ClientOverviewTabProps) {
   const hasEnrichment = client.enrichment_status === 'completed'
+  const completeness = intelligence?.profile_completeness ?? 0
+  const constraints = intelligence?.sections?.constraints ?? []
+  const vision = intelligence?.sections?.vision
+  const orgContext = intelligence?.sections?.organizational_context as Record<string, string> | undefined
 
   return (
     <div className="space-y-6">
       {/* Two-column layout */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Left: Company Details */}
-        <div className="bg-white rounded-2xl border border-[#E5E5E5] shadow-md p-6">
-          <h3 className="text-[14px] font-semibold text-[#333] mb-4">Company Details</h3>
-          <div className="space-y-1">
-            {client.website && (
-              <InfoRow
-                icon={<Globe className="w-3.5 h-3.5" />}
-                label="Website"
-                value={client.website}
-              />
-            )}
-            {client.headquarters && (
-              <InfoRow
-                icon={<MapPin className="w-3.5 h-3.5" />}
-                label="Headquarters"
-                value={client.headquarters}
-              />
-            )}
-            {client.founding_year && (
-              <InfoRow
-                icon={<Calendar className="w-3.5 h-3.5" />}
-                label="Founded"
-                value={String(client.founding_year)}
-              />
-            )}
-            {client.employee_count && (
-              <InfoRow
-                icon={<Users className="w-3.5 h-3.5" />}
-                label="Employees"
-                value={client.employee_count.toLocaleString()}
-              />
-            )}
-            {client.revenue_range && (
-              <InfoRow
-                icon={<DollarSign className="w-3.5 h-3.5" />}
-                label="Revenue"
-                value={client.revenue_range}
-              />
-            )}
-            {client.size && (
-              <InfoRow
-                icon={<Users className="w-3.5 h-3.5" />}
-                label="Size"
-                value={`${client.size} employees`}
-              />
-            )}
-            {client.description && (
-              <div className="pt-3 mt-2 border-t border-[#E5E5E5]">
-                <p className="text-[11px] text-[#999] font-medium uppercase tracking-wide mb-1">Description</p>
-                <p className="text-[13px] text-[#666] leading-relaxed">{client.description}</p>
-              </div>
-            )}
+        <div className="space-y-6">
+          <div className="bg-white rounded-2xl border border-[#E5E5E5] shadow-md p-6">
+            <h3 className="text-[14px] font-semibold text-[#333] mb-4">Company Details</h3>
+            <div className="space-y-1">
+              {client.website && (
+                <InfoRow
+                  icon={<Globe className="w-3.5 h-3.5" />}
+                  label="Website"
+                  value={client.website}
+                />
+              )}
+              {client.headquarters && (
+                <InfoRow
+                  icon={<MapPin className="w-3.5 h-3.5" />}
+                  label="Headquarters"
+                  value={client.headquarters}
+                />
+              )}
+              {client.founding_year && (
+                <InfoRow
+                  icon={<Calendar className="w-3.5 h-3.5" />}
+                  label="Founded"
+                  value={String(client.founding_year)}
+                />
+              )}
+              {client.employee_count && (
+                <InfoRow
+                  icon={<Users className="w-3.5 h-3.5" />}
+                  label="Employees"
+                  value={client.employee_count.toLocaleString()}
+                />
+              )}
+              {client.revenue_range && (
+                <InfoRow
+                  icon={<DollarSign className="w-3.5 h-3.5" />}
+                  label="Revenue"
+                  value={client.revenue_range}
+                />
+              )}
+              {client.size && (
+                <InfoRow
+                  icon={<Users className="w-3.5 h-3.5" />}
+                  label="Size"
+                  value={`${client.size} employees`}
+                />
+              )}
+              {client.description && (
+                <div className="pt-3 mt-2 border-t border-[#E5E5E5]">
+                  <p className="text-[11px] text-[#999] font-medium uppercase tracking-wide mb-1">Description</p>
+                  <p className="text-[13px] text-[#666] leading-relaxed">{client.description}</p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Knowledge Base */}
+          <div className="bg-white rounded-2xl border border-[#E5E5E5] shadow-md p-6">
+            <div className="flex items-center gap-2 mb-4">
+              <BookOpen className="w-4 h-4 text-[#666]" />
+              <h3 className="text-[14px] font-semibold text-[#333]">Knowledge Base</h3>
+            </div>
+            <div className="space-y-3">
+              {['Business Processes', 'SOPs & Standards', 'Tribal Knowledge'].map((section) => (
+                <div key={section} className="bg-[#F4F4F4] rounded-lg px-4 py-3">
+                  <p className="text-[12px] font-medium text-[#666]">{section}</p>
+                  <p className="text-[11px] text-[#999] mt-0.5">
+                    Will appear as the CI agent identifies them from signals
+                  </p>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
 
-        {/* Right: AI Intelligence */}
-        <div className="bg-white rounded-2xl border border-[#E5E5E5] shadow-md p-6">
-          <div className="flex items-center gap-2 mb-4">
-            <Sparkles className="w-4 h-4 text-[#3FAF7A]" />
-            <h3 className="text-[14px] font-semibold text-[#333]">AI Intelligence</h3>
+        {/* Right: AI Intelligence + CI Data */}
+        <div className="space-y-6">
+          <div className="bg-white rounded-2xl border border-[#E5E5E5] shadow-md p-6">
+            <div className="flex items-center gap-2 mb-4">
+              <Sparkles className="w-4 h-4 text-[#3FAF7A]" />
+              <h3 className="text-[14px] font-semibold text-[#333]">AI Intelligence</h3>
+              {completeness > 0 && (
+                <div className="ml-auto">
+                  <CompletenessRing score={completeness} size="lg" />
+                </div>
+              )}
+            </div>
+
+            {!hasEnrichment ? (
+              <div className="text-center py-8">
+                <Sparkles className="w-8 h-8 text-[#CCC] mx-auto mb-2" />
+                <p className="text-[13px] text-[#666] mb-1">No enrichment data yet</p>
+                <p className="text-[12px] text-[#999]">
+                  Enrich this client to get AI-powered insights
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {client.company_summary && (
+                  <div>
+                    <p className="text-[11px] text-[#999] font-medium uppercase tracking-wide mb-1">Summary</p>
+                    <p className="text-[13px] text-[#333] leading-relaxed">{client.company_summary}</p>
+                  </div>
+                )}
+                {client.market_position && (
+                  <div className="pt-2">
+                    <p className="text-[11px] text-[#999] font-medium uppercase tracking-wide mb-1">Market Position</p>
+                    <p className="text-[13px] text-[#666] leading-relaxed">{client.market_position}</p>
+                  </div>
+                )}
+                <div className="pt-2 border-t border-[#E5E5E5]">
+                  <MaturityBadge label="Technology Maturity" value={client.technology_maturity} />
+                  <MaturityBadge label="Digital Readiness" value={client.digital_readiness} />
+                </div>
+                {client.innovation_score != null && (
+                  <div className="pt-2 border-t border-[#E5E5E5]">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[12px] text-[#666]">Innovation Score</span>
+                      <span className="text-[13px] font-semibold text-[#3FAF7A]">
+                        {Math.round(client.innovation_score * 100)}%
+                      </span>
+                    </div>
+                    <div className="mt-1 h-2 bg-[#F0F0F0] rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-[#3FAF7A] rounded-full transition-all"
+                        style={{ width: `${client.innovation_score * 100}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
-          {!hasEnrichment ? (
-            <div className="text-center py-8">
-              <Sparkles className="w-8 h-8 text-[#CCC] mx-auto mb-2" />
-              <p className="text-[13px] text-[#666] mb-1">No enrichment data yet</p>
-              <p className="text-[12px] text-[#999]">
-                Enrich this client to get AI-powered insights
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {/* Summary */}
-              {client.company_summary && (
-                <div>
-                  <p className="text-[11px] text-[#999] font-medium uppercase tracking-wide mb-1">Summary</p>
-                  <p className="text-[13px] text-[#333] leading-relaxed">{client.company_summary}</p>
-                </div>
-              )}
-
-              {/* Market Position */}
-              {client.market_position && (
-                <div className="pt-2">
-                  <p className="text-[11px] text-[#999] font-medium uppercase tracking-wide mb-1">Market Position</p>
-                  <p className="text-[13px] text-[#666] leading-relaxed">{client.market_position}</p>
-                </div>
-              )}
-
-              {/* Maturity badges */}
-              <div className="pt-2 border-t border-[#E5E5E5]">
-                <MaturityBadge label="Technology Maturity" value={client.technology_maturity} />
-                <MaturityBadge label="Digital Readiness" value={client.digital_readiness} />
+          {/* Vision Synthesis */}
+          {vision && (
+            <div className="bg-white rounded-2xl border border-[#E5E5E5] shadow-md p-6">
+              <div className="flex items-center gap-2 mb-3">
+                <Sparkles className="w-4 h-4 text-[#3FAF7A]" />
+                <h3 className="text-[14px] font-semibold text-[#333]">Vision Synthesis</h3>
               </div>
+              <p className="text-[13px] text-[#666] leading-relaxed">{vision}</p>
+            </div>
+          )}
 
-              {/* Innovation score */}
-              {client.innovation_score != null && (
-                <div className="pt-2 border-t border-[#E5E5E5]">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[12px] text-[#666]">Innovation Score</span>
-                    <span className="text-[13px] font-semibold text-[#3FAF7A]">
-                      {Math.round(client.innovation_score * 100)}%
-                    </span>
+          {/* Top Constraints preview */}
+          {constraints.length > 0 && (
+            <div className="bg-white rounded-2xl border border-[#E5E5E5] shadow-md p-6">
+              <div className="flex items-center gap-2 mb-3">
+                <AlertTriangle className="w-4 h-4 text-[#666]" />
+                <h3 className="text-[14px] font-semibold text-[#333]">Top Constraints</h3>
+              </div>
+              <div className="space-y-2">
+                {constraints.slice(0, 3).map((c, i) => (
+                  <div key={i} className="bg-[#F4F4F4] rounded-lg px-3 py-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[13px] font-medium text-[#333]">{c.title}</span>
+                      <span className="px-1.5 py-0.5 text-[10px] font-medium text-[#666] bg-[#E5E5E5] rounded">
+                        {c.severity}
+                      </span>
+                    </div>
+                    <p className="text-[12px] text-[#666] mt-0.5 line-clamp-1">{c.description}</p>
                   </div>
-                  <div className="mt-1 h-2 bg-[#F0F0F0] rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-[#3FAF7A] rounded-full transition-all"
-                      style={{ width: `${client.innovation_score * 100}%` }}
-                    />
-                  </div>
-                </div>
+                ))}
+              </div>
+              {constraints.length > 3 && (
+                <p className="text-[12px] text-[#3FAF7A] mt-2 font-medium">
+                  View all {constraints.length} in Intelligence tab
+                </p>
               )}
+            </div>
+          )}
+
+          {/* Org Context */}
+          {orgContext && Object.keys(orgContext).length > 0 && (
+            <div className="bg-white rounded-2xl border border-[#E5E5E5] shadow-md p-6">
+              <h3 className="text-[14px] font-semibold text-[#333] mb-3">Organizational Context</h3>
+              <div className="grid grid-cols-1 gap-2">
+                {Object.entries(orgContext).map(([key, val]) => (
+                  <div key={key} className="bg-[#F4F4F4] rounded-lg px-3 py-2">
+                    <p className="text-[11px] text-[#999] font-medium uppercase tracking-wide">
+                      {key.replace(/_/g, ' ')}
+                    </p>
+                    <p className="text-[13px] text-[#333] mt-0.5">{String(val)}</p>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
         </div>
