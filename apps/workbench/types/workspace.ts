@@ -1126,9 +1126,17 @@ export interface ClientSummary {
 export interface ClientDetailProject {
   id: string
   name: string
+  description?: string | null
   stage?: string | null
   status?: string | null
+  client_name?: string | null
   cached_readiness_score?: number | null
+  cached_readiness_data?: {
+    score: number
+    dimensions?: Record<string, { score: number; weight: number; weighted_score: number }>
+    confirmed_entities?: number
+    total_entities?: number
+  } | null
   counts?: { signals: number; features: number; personas: number; vp_steps: number; business_drivers: number } | null
   created_at?: string | null
   updated_at?: string | null

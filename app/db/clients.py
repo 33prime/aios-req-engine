@@ -95,7 +95,7 @@ def get_client_projects(client_id: UUID) -> list[dict]:
 
     response = (
         supabase.table("projects")
-        .select("id, name, stage, status, cached_readiness_score, created_at, updated_at")
+        .select("id, name, description, stage, status, cached_readiness_score, cached_readiness_data, client_name, created_at, updated_at")
         .eq("client_id", str(client_id))
         .order("updated_at", desc=True)
         .execute()
