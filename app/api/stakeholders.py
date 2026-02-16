@@ -753,17 +753,51 @@ async def analyze_stakeholder(
 
         async def run_analysis():
             from app.agents.stakeholder_intelligence_agent import invoke_stakeholder_intelligence_agent
-            try:
-                await invoke_stakeholder_intelligence_agent(
-                    stakeholder_id=stakeholder_id,
-                    project_id=project_id,
-                    trigger=body.trigger,
-                    trigger_context=body.context,
-                    specific_request=body.specific_request,
-                    focus_areas=body.focus_areas,
-                )
-            except Exception as e:
-                logger.error(f"SI Agent background task failed: {e}", exc_info=True)
+
+            MAX_ITERATIONS = 6
+            prev_score: int | None = None
+
+            for iteration in range(MAX_ITERATIONS):
+                try:
+                    result = await invoke_stakeholder_intelligence_agent(
+                        stakeholder_id=stakeholder_id,
+                        project_id=project_id,
+                        trigger=body.trigger if iteration == 0 else "user_request",
+                        trigger_context=body.context if iteration == 0 else f"Auto-iteration {iteration + 1}/{MAX_ITERATIONS}",
+                        specific_request=body.specific_request if iteration == 0 else "Continue enriching the weakest profile section",
+                        focus_areas=body.focus_areas,
+                    )
+
+                    # Stop if agent chose to stop or returned guidance-only
+                    if result.action_type in ("stop", "guidance"):
+                        logger.info(
+                            f"SI Agent stopped at iteration {iteration + 1}: {result.action_type}",
+                            extra={"stakeholder_id": str(stakeholder_id)},
+                        )
+                        break
+
+                    # Stop if completeness plateaued (no improvement)
+                    current_score = result.profile_completeness_after
+                    if current_score is not None and current_score == prev_score:
+                        logger.info(
+                            f"SI Agent plateaued at {current_score}% after {iteration + 1} iterations",
+                            extra={"stakeholder_id": str(stakeholder_id)},
+                        )
+                        break
+
+                    prev_score = current_score
+
+                    # Stop if we've reached high completeness
+                    if current_score is not None and current_score >= 85:
+                        logger.info(
+                            f"SI Agent reached {current_score}% — good enough",
+                            extra={"stakeholder_id": str(stakeholder_id)},
+                        )
+                        break
+
+                except Exception as e:
+                    logger.error(f"SI Agent iteration {iteration + 1} failed: {e}", exc_info=True)
+                    break
 
         background_tasks.add_task(run_analysis)
 

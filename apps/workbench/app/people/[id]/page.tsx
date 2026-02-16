@@ -76,44 +76,56 @@ export default function PersonDetailPage() {
     try {
       await analyzeStakeholder(projectId, stakeholderId)
 
-      // Capture initial intelligence timestamp for comparison
-      const initialAt = intelligence?.last_intelligence_at
-
-      // Poll for updated intelligence every 3s for up to 60s
+      // The agent loops through multiple enrichment tools in one run.
+      // Poll every 5s, keep going while completeness is still increasing.
+      // Stop after 2 consecutive polls with no change, or after 180s max.
       let elapsed = 0
+      let lastScore: number | null = null
+      let stableCount = 0
+
       pollRef.current = setInterval(async () => {
-        elapsed += 3000
+        elapsed += 5000
         try {
           const updated = await getStakeholderIntelligence(projectId, stakeholderId)
-          if (updated && updated.last_intelligence_at !== initialAt) {
-            // Intelligence updated — stop polling
-            if (pollRef.current) clearInterval(pollRef.current)
-            pollRef.current = null
+          if (updated) {
             setIntelligence(updated)
-            setAnalyzing(false)
 
-            // Reload stakeholder data too (enrichment fields may have changed)
+            if (lastScore !== null && updated.profile_completeness === lastScore) {
+              stableCount++
+            } else {
+              stableCount = 0
+            }
+            lastScore = updated.profile_completeness
+
+            // Reload stakeholder data on each poll (enrichment fields change)
             getStakeholder(projectId, stakeholderId, true)
               .then(setStakeholder)
               .catch(() => {})
+
+            // Stop if score hasn't changed for 2 consecutive polls (10s stable)
+            if (stableCount >= 2) {
+              if (pollRef.current) clearInterval(pollRef.current)
+              pollRef.current = null
+              setAnalyzing(false)
+              return
+            }
           }
         } catch {
           // Keep polling on transient errors
         }
 
-        if (elapsed >= 60000) {
+        if (elapsed >= 180000) {
           if (pollRef.current) clearInterval(pollRef.current)
           pollRef.current = null
           setAnalyzing(false)
-          // One final reload attempt
           loadIntelligence()
         }
-      }, 3000)
+      }, 5000)
     } catch (err) {
       console.error('Failed to trigger analysis:', err)
       setAnalyzing(false)
     }
-  }, [projectId, stakeholderId, analyzing, intelligence?.last_intelligence_at, loadIntelligence])
+  }, [projectId, stakeholderId, analyzing, loadIntelligence])
 
   const sidebarWidth = sidebarCollapsed ? 64 : 224
 
