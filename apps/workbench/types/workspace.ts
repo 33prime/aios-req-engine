@@ -1298,6 +1298,42 @@ export interface ProcessDocument extends ProcessDocumentSummary {
   updated_at?: string | null
 }
 
+// ============================================
+// Stakeholder Intelligence Types
+// ============================================
+
+export interface StakeholderIntelligenceSectionScore {
+  section: string
+  score: number
+  max_score: number
+}
+
+export interface StakeholderIntelligenceProfile {
+  stakeholder_id: string
+  name: string
+  role: string | null
+  profile_completeness: number
+  completeness_label: string
+  intelligence_version: number
+  last_intelligence_at: string | null
+  sections: StakeholderIntelligenceSectionScore[]
+  enrichment_fields: Record<string, unknown>
+}
+
+export interface StakeholderIntelligenceLog {
+  id: string
+  trigger: string
+  action_type: string
+  action_summary: string | null
+  profile_completeness_before: number | null
+  profile_completeness_after: number | null
+  fields_affected: string[]
+  stop_reason: string | null
+  execution_time_ms: number | null
+  success: boolean
+  created_at: string
+}
+
 export interface ClientCreatePayload {
   name: string
   website?: string

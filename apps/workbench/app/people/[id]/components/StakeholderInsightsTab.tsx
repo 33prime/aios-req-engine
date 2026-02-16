@@ -1,10 +1,32 @@
 'use client'
 
-import { Brain } from 'lucide-react'
-import type { StakeholderDetail, ResolvedStakeholderRef } from '@/types/workspace'
+import { useState, useEffect } from 'react'
+import { Brain, ChevronRight, Clock, Loader2 } from 'lucide-react'
+import { getStakeholderIntelligenceLogs } from '@/lib/api'
+import type { StakeholderDetail, ResolvedStakeholderRef, StakeholderIntelligenceProfile, StakeholderIntelligenceLog } from '@/types/workspace'
+import { CompletenessRing } from '@/components/workspace/brd/components/CompletenessRing'
 
 interface StakeholderInsightsTabProps {
   stakeholder: StakeholderDetail
+  intelligence: StakeholderIntelligenceProfile | null
+  projectId: string
+  stakeholderId: string
+}
+
+const PROFILE_SECTIONS = [
+  { key: 'core_identity', label: 'Core Identity', max: 10 },
+  { key: 'engagement_profile', label: 'Engagement', max: 20 },
+  { key: 'decision_authority', label: 'Decision Authority', max: 20 },
+  { key: 'relationships', label: 'Relationships', max: 20 },
+  { key: 'communication', label: 'Communication', max: 10 },
+  { key: 'win_conditions_concerns', label: 'Win Conditions', max: 15 },
+  { key: 'evidence_depth', label: 'Evidence', max: 5 },
+] as const
+
+const ENGAGEMENT_STYLE: Record<string, { bg: string; text: string }> = {
+  high: { bg: 'bg-[#3FAF7A]/10', text: 'text-[#3FAF7A]' },
+  medium: { bg: 'bg-[#3FAF7A]/10', text: 'text-[#25785A]' },
+  low: { bg: 'bg-[#0A1E2F]/10', text: 'text-[#0A1E2F]' },
 }
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
@@ -13,12 +35,6 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
       {children}
     </h3>
   )
-}
-
-const ENGAGEMENT_STYLE: Record<string, { bg: string; text: string }> = {
-  high: { bg: 'bg-[#3FAF7A]/10', text: 'text-[#3FAF7A]' },
-  medium: { bg: 'bg-[#3FAF7A]/10', text: 'text-[#25785A]' },
-  low: { bg: 'bg-[#0A1E2F]/10', text: 'text-[#0A1E2F]' },
 }
 
 function PersonCard({ person, variant = 'default' }: { person: ResolvedStakeholderRef; variant?: 'default' | 'blocker' }) {
@@ -39,31 +55,222 @@ function PersonCard({ person, variant = 'default' }: { person: ResolvedStakehold
   )
 }
 
-export function StakeholderInsightsTab({ stakeholder }: StakeholderInsightsTabProps) {
-  const s = stakeholder
-  const hasEnrichment = s.engagement_level || s.decision_authority || s.engagement_strategy ||
-    s.risk_if_disengaged || (s.win_conditions && s.win_conditions.length > 0) ||
-    (s.key_concerns && s.key_concerns.length > 0)
+function formatTimeAgo(dateStr: string): string {
+  const diff = Date.now() - new Date(dateStr).getTime()
+  const mins = Math.floor(diff / 60000)
+  if (mins < 60) return `${mins}m ago`
+  const hours = Math.floor(mins / 60)
+  if (hours < 24) return `${hours}h ago`
+  const days = Math.floor(hours / 24)
+  return `${days}d ago`
+}
 
-  if (!hasEnrichment) {
+function completenessLabel(score: number): string {
+  if (score >= 80) return 'Excellent'
+  if (score >= 60) return 'Good'
+  if (score >= 30) return 'Fair'
+  return 'Poor'
+}
+
+function getSectionScore(intelligence: StakeholderIntelligenceProfile, sectionKey: string, max: number): number {
+  const match = intelligence.sections.find(s => s.section === sectionKey)
+  if (match) return Math.min(match.score, max)
+  return 0
+}
+
+export function AnalysisHistoryTimeline({
+  projectId,
+  stakeholderId,
+}: {
+  projectId: string
+  stakeholderId: string
+}) {
+  const [logs, setLogs] = useState<StakeholderIntelligenceLog[]>([])
+  const [logsLoading, setLogsLoading] = useState(true)
+  const [expandedLog, setExpandedLog] = useState<string | null>(null)
+
+  useEffect(() => {
+    setLogsLoading(true)
+    getStakeholderIntelligenceLogs(projectId, stakeholderId, { limit: 20 })
+      .then((result) => setLogs(result.logs))
+      .catch((err) => console.error('Failed to load intelligence logs:', err))
+      .finally(() => setLogsLoading(false))
+  }, [projectId, stakeholderId])
+
+  if (logsLoading) {
     return (
-      <div className="bg-white border border-[#E5E5E5] rounded-2xl shadow-sm p-12 text-center">
-        <div className="w-16 h-16 rounded-2xl bg-[#F4F4F4] flex items-center justify-center mx-auto mb-4">
-          <Brain className="w-7 h-7 text-[#BBB]" />
-        </div>
-        <h3 className="text-[18px] font-semibold text-[#333] mb-1">AI Insights</h3>
-        <p className="text-[14px] text-[#666] max-w-md mx-auto">
-          No enrichment data available yet. Insights are generated when the AI analyzes signals mentioning this stakeholder.
-        </p>
+      <div className="flex items-center justify-center py-8">
+        <Loader2 className="w-5 h-5 text-[#3FAF7A] animate-spin" />
       </div>
     )
   }
 
+  if (logs.length === 0) {
+    return (
+      <div className="bg-[#F4F4F4] rounded-lg px-4 py-6 text-center">
+        <p className="text-[13px] text-[#666]">No analysis runs yet</p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="relative pl-6">
+      <div className="absolute left-[15px] top-0 bottom-0 w-px bg-gray-200" />
+      <div className="space-y-4">
+        {logs.map((log) => {
+          const isExpanded = expandedLog === log.id
+          const dotColor = log.success ? 'bg-[#3FAF7A]' : 'bg-red-400'
+
+          return (
+            <div key={log.id} className="relative">
+              <div className={`absolute -left-6 top-1 w-[14px] h-[14px] rounded-full border-2 border-white ${dotColor}`} />
+
+              <div
+                className="bg-[#F4F4F4] rounded-lg px-3 py-2 cursor-pointer hover:bg-[#ECECEC] transition-colors"
+                onClick={() => setExpandedLog(isExpanded ? null : log.id)}
+              >
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-[12px] text-[#999]">{formatTimeAgo(log.created_at)}</span>
+                  <span className="px-1.5 py-0.5 text-[10px] font-medium text-[#666] bg-[#E5E5E5] rounded">
+                    {log.trigger?.replace(/_/g, ' ')}
+                  </span>
+                  {log.action_summary && (
+                    <span className="text-[12px] text-[#333]">{log.action_summary}</span>
+                  )}
+                  <span className="flex-1" />
+                  {log.execution_time_ms != null && (
+                    <span className="text-[11px] text-[#999] flex items-center gap-0.5">
+                      <Clock className="w-3 h-3" />
+                      {log.execution_time_ms < 1000
+                        ? `${log.execution_time_ms}ms`
+                        : `${(log.execution_time_ms / 1000).toFixed(1)}s`}
+                    </span>
+                  )}
+                  {log.profile_completeness_before != null && log.profile_completeness_after != null && (
+                    <span className={`text-[12px] font-semibold ${
+                      log.profile_completeness_after! > log.profile_completeness_before! ? 'text-[#3FAF7A]' : 'text-[#999]'
+                    }`}>
+                      {log.profile_completeness_before}% &rarr; {log.profile_completeness_after}%
+                    </span>
+                  )}
+                  <ChevronRight className={`w-3.5 h-3.5 text-[#999] transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
+                </div>
+
+                {/* Fields affected chips (collapsed) */}
+                {!isExpanded && log.fields_affected && log.fields_affected.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mt-1.5">
+                    {log.fields_affected.map((f, i) => (
+                      <span key={i} className="px-1.5 py-0.5 text-[10px] text-[#25785A] bg-[#E8F5E9] rounded">
+                        {f.replace(/_/g, ' ')}
+                      </span>
+                    ))}
+                  </div>
+                )}
+
+                {/* Expanded details */}
+                {isExpanded && (
+                  <div className="mt-3 pt-3 border-t border-[#E5E5E5] space-y-3">
+                    {log.action_type && (
+                      <div>
+                        <p className="text-[11px] text-[#999] font-medium uppercase tracking-wide">Action Type</p>
+                        <p className="text-[12px] text-[#666] mt-0.5">{log.action_type.replace(/_/g, ' ')}</p>
+                      </div>
+                    )}
+                    {log.fields_affected && log.fields_affected.length > 0 && (
+                      <div>
+                        <p className="text-[11px] text-[#999] font-medium uppercase tracking-wide mb-1">Fields Affected</p>
+                        <div className="flex flex-wrap gap-1">
+                          {log.fields_affected.map((f, i) => (
+                            <span key={i} className="px-1.5 py-0.5 text-[10px] text-[#25785A] bg-[#E8F5E9] rounded">
+                              {f.replace(/_/g, ' ')}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {log.stop_reason && (
+                      <div>
+                        <p className="text-[11px] text-[#999] font-medium uppercase tracking-wide">Stop Reason</p>
+                        <p className="text-[12px] text-[#666] mt-0.5">{log.stop_reason}</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+export function StakeholderInsightsTab({ stakeholder, intelligence, projectId, stakeholderId }: StakeholderInsightsTabProps) {
+  const s = stakeholder
+
+  // Empty state — no intelligence data yet
+  if (!intelligence) {
+    const hasEnrichment = s.engagement_level || s.decision_authority || s.engagement_strategy ||
+      s.risk_if_disengaged || (s.win_conditions && s.win_conditions.length > 0) ||
+      (s.key_concerns && s.key_concerns.length > 0)
+
+    if (!hasEnrichment) {
+      return (
+        <div className="bg-white border border-[#E5E5E5] rounded-2xl shadow-sm p-12 text-center">
+          <div className="w-16 h-16 rounded-2xl bg-[#F4F4F4] flex items-center justify-center mx-auto mb-4">
+            <Brain className="w-7 h-7 text-[#BBB]" />
+          </div>
+          <h3 className="text-[18px] font-semibold text-[#333] mb-1">Stakeholder Intelligence</h3>
+          <p className="text-[14px] text-[#666] max-w-md mx-auto">
+            Run the Analyze action to generate a stakeholder intelligence profile
+          </p>
+        </div>
+      )
+    }
+  }
+
+  const completeness = intelligence?.profile_completeness ?? 0
   const engStyle = ENGAGEMENT_STYLE[s.engagement_level?.toLowerCase() || ''] || ENGAGEMENT_STYLE.medium
 
   return (
     <div className="space-y-6">
-      {/* 2x2 Grid */}
+      {/* Profile Completeness */}
+      {intelligence && (
+        <div className="bg-white rounded-2xl border border-[#E5E5E5] shadow-md p-5">
+          <div className="flex items-center gap-4 mb-5">
+            <CompletenessRing score={completeness} size="lg" />
+            <div>
+              <p className="text-[16px] font-bold text-[#333]">{completeness}%</p>
+              <p className="text-[12px] text-[#999]">{completenessLabel(completeness)}</p>
+              {intelligence.last_intelligence_at && (
+                <p className="text-[11px] text-[#999] mt-0.5">
+                  Last analyzed {formatTimeAgo(intelligence.last_intelligence_at)}
+                </p>
+              )}
+            </div>
+          </div>
+          <div className="space-y-3">
+            {PROFILE_SECTIONS.map(({ key, label, max }) => {
+              const score = getSectionScore(intelligence, key, max)
+              const pct = max > 0 ? (score / max) * 100 : 0
+              return (
+                <div key={key} className="flex items-center gap-3">
+                  <span className="w-36 text-[12px] text-[#666] flex-shrink-0">{label}</span>
+                  <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-[#3FAF7A] rounded-full transition-all"
+                      style={{ width: `${pct}%` }}
+                    />
+                  </div>
+                  <span className="text-[11px] text-[#999] w-10 text-right flex-shrink-0">{score}/{max}</span>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* 2x2 Enrichment Grid */}
       <div className="grid grid-cols-2 gap-4">
         {/* Engagement Assessment */}
         <div className="bg-white border border-[#E5E5E5] rounded-2xl shadow-sm p-6">
@@ -214,6 +421,12 @@ export function StakeholderInsightsTab({ stakeholder }: StakeholderInsightsTabPr
           </div>
         </div>
       )}
+
+      {/* Analysis History */}
+      <div className="bg-white rounded-2xl border border-[#E5E5E5] shadow-md p-5">
+        <h3 className="text-[14px] font-semibold text-[#333] mb-4">Analysis History</h3>
+        <AnalysisHistoryTimeline projectId={projectId} stakeholderId={stakeholderId} />
+      </div>
     </div>
   )
 }

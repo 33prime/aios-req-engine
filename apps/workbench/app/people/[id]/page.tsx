@@ -1,10 +1,10 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useParams, useSearchParams, useRouter } from 'next/navigation'
 import { Loader2, User, Activity, FileSearch, Sparkles } from 'lucide-react'
-import { getStakeholder } from '@/lib/api'
-import type { StakeholderDetail } from '@/types/workspace'
+import { getStakeholder, getStakeholderIntelligence, analyzeStakeholder } from '@/lib/api'
+import type { StakeholderDetail, StakeholderIntelligenceProfile } from '@/types/workspace'
 import { AppSidebar } from '@/components/workspace/AppSidebar'
 import { StakeholderHeader } from './components/StakeholderHeader'
 import { StakeholderOverviewTab } from './components/StakeholderOverviewTab'
@@ -22,17 +22,37 @@ export default function PersonDetailPage() {
   const projectId = searchParams.get('project_id') || ''
 
   const [stakeholder, setStakeholder] = useState<StakeholderDetail | null>(null)
+  const [intelligence, setIntelligence] = useState<StakeholderIntelligenceProfile | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [activeTab, setActiveTab] = useState<TabId>('overview')
+  const [analyzing, setAnalyzing] = useState(false)
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  const loadIntelligence = useCallback(async () => {
+    if (!projectId || !stakeholderId) return null
+    try {
+      const data = await getStakeholderIntelligence(projectId, stakeholderId)
+      setIntelligence(data)
+      return data
+    } catch {
+      // No intelligence data yet — that's fine
+      return null
+    }
+  }, [projectId, stakeholderId])
 
   useEffect(() => {
     if (!stakeholderId || !projectId) return
     setLoading(true)
-    getStakeholder(projectId, stakeholderId, true)
-      .then((data) => {
-        setStakeholder(data)
+
+    Promise.all([
+      getStakeholder(projectId, stakeholderId, true),
+      getStakeholderIntelligence(projectId, stakeholderId).catch(() => null),
+    ])
+      .then(([stakeholderData, intelligenceData]) => {
+        setStakeholder(stakeholderData)
+        setIntelligence(intelligenceData)
         setError(null)
       })
       .catch((err) => {
@@ -41,6 +61,59 @@ export default function PersonDetailPage() {
       })
       .finally(() => setLoading(false))
   }, [stakeholderId, projectId])
+
+  // Cleanup polling on unmount
+  useEffect(() => {
+    return () => {
+      if (pollRef.current) clearInterval(pollRef.current)
+    }
+  }, [])
+
+  const handleAnalyze = useCallback(async () => {
+    if (!projectId || !stakeholderId || analyzing) return
+    setAnalyzing(true)
+
+    try {
+      await analyzeStakeholder(projectId, stakeholderId)
+
+      // Capture initial intelligence timestamp for comparison
+      const initialAt = intelligence?.last_intelligence_at
+
+      // Poll for updated intelligence every 3s for up to 60s
+      let elapsed = 0
+      pollRef.current = setInterval(async () => {
+        elapsed += 3000
+        try {
+          const updated = await getStakeholderIntelligence(projectId, stakeholderId)
+          if (updated && updated.last_intelligence_at !== initialAt) {
+            // Intelligence updated — stop polling
+            if (pollRef.current) clearInterval(pollRef.current)
+            pollRef.current = null
+            setIntelligence(updated)
+            setAnalyzing(false)
+
+            // Reload stakeholder data too (enrichment fields may have changed)
+            getStakeholder(projectId, stakeholderId, true)
+              .then(setStakeholder)
+              .catch(() => {})
+          }
+        } catch {
+          // Keep polling on transient errors
+        }
+
+        if (elapsed >= 60000) {
+          if (pollRef.current) clearInterval(pollRef.current)
+          pollRef.current = null
+          setAnalyzing(false)
+          // One final reload attempt
+          loadIntelligence()
+        }
+      }, 3000)
+    } catch (err) {
+      console.error('Failed to trigger analysis:', err)
+      setAnalyzing(false)
+    }
+  }, [projectId, stakeholderId, analyzing, intelligence?.last_intelligence_at, loadIntelligence])
 
   const sidebarWidth = sidebarCollapsed ? 64 : 224
 
@@ -92,6 +165,9 @@ export default function PersonDetailPage() {
           <StakeholderHeader
             stakeholder={stakeholder}
             onBack={() => router.push('/people')}
+            completeness={intelligence?.profile_completeness}
+            analyzing={analyzing}
+            onAnalyze={handleAnalyze}
           />
 
           {/* Tabs */}
@@ -116,9 +192,16 @@ export default function PersonDetailPage() {
 
           {/* Tab Content */}
           {activeTab === 'overview' && <StakeholderOverviewTab stakeholder={stakeholder} />}
-          {activeTab === 'activity' && <StakeholderActivityTab />}
+          {activeTab === 'activity' && <StakeholderActivityTab projectId={projectId} stakeholderId={stakeholderId} />}
           {activeTab === 'evidence' && <StakeholderEvidenceTab projectId={projectId} stakeholderId={stakeholderId} />}
-          {activeTab === 'insights' && <StakeholderInsightsTab stakeholder={stakeholder} />}
+          {activeTab === 'insights' && (
+            <StakeholderInsightsTab
+              stakeholder={stakeholder}
+              intelligence={intelligence}
+              projectId={projectId}
+              stakeholderId={stakeholderId}
+            />
+          )}
         </div>
       </div>
     </>

@@ -2444,6 +2444,32 @@ export const listProjectStakeholders = (projectId: string) =>
     `/projects/${projectId}/stakeholders`
   )
 
+// Stakeholder Intelligence
+export const analyzeStakeholder = (projectId: string, stakeholderId: string) =>
+  apiRequest<{ success: boolean; message: string }>(
+    `/projects/${projectId}/stakeholders/${stakeholderId}/analyze`,
+    { method: 'POST' }
+  )
+
+export const getStakeholderIntelligence = (projectId: string, stakeholderId: string) =>
+  apiRequest<import('@/types/workspace').StakeholderIntelligenceProfile>(
+    `/projects/${projectId}/stakeholders/${stakeholderId}/intelligence`
+  )
+
+export const getStakeholderIntelligenceLogs = (
+  projectId: string,
+  stakeholderId: string,
+  params?: { limit?: number; offset?: number }
+) => {
+  const qp = new URLSearchParams()
+  if (params?.limit) qp.set('limit', params.limit.toString())
+  if (params?.offset) qp.set('offset', params.offset.toString())
+  const query = qp.toString()
+  return apiRequest<{ logs: import('@/types/workspace').StakeholderIntelligenceLog[]; total: number }>(
+    `/projects/${projectId}/stakeholders/${stakeholderId}/intelligence-logs${query ? `?${query}` : ''}`
+  )
+}
+
 // ============================================
 // Cascading Intelligence APIs
 // ============================================
