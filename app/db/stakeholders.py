@@ -1062,7 +1062,7 @@ def smart_upsert_stakeholder(
     name: str,
     stakeholder_type: str,
     new_evidence: list[dict],
-    source_signal_id: UUID,
+    source_signal_id: UUID | None,
     created_by: str = "system",
     similarity_threshold: float = 0.75,
     # Optional core fields
@@ -1281,7 +1281,7 @@ def smart_upsert_stakeholder(
             "stakeholder_type": stakeholder_type,
             "influence_level": influence_level,
             "evidence": new_evidence,
-            "source_signal_ids": [str(source_signal_id)],
+            "source_signal_ids": [str(source_signal_id)] if source_signal_id else [],
             "version": 1,
             "created_by": created_by,
             "priorities": priorities or [],

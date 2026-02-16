@@ -285,7 +285,7 @@ def upsert_constraint(
         .execute()
     )
 
-    if existing.data:
+    if existing and existing.data:
         # Update existing
         return update_constraint(UUID(existing.data["id"]), kwargs)
     else:

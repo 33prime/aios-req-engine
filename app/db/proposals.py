@@ -350,6 +350,35 @@ def apply_proposal(proposal_id: UUID, applied_by: str | None = None) -> dict[str
         applied_count = 0
         errors = []
 
+        # Derive signal_id: check proposal field, then evidence, then most recent signal
+        _signal_id_str = proposal.get("signal_id")
+        if not _signal_id_str:
+            # Try to find from changes evidence
+            for ch in changes:
+                for ev in ch.get("evidence", []):
+                    sid = ev.get("signal_id")
+                    if sid and sid != "None":
+                        _signal_id_str = sid
+                        break
+                if _signal_id_str:
+                    break
+        if not _signal_id_str:
+            # Fallback: most recent signal for this project
+            try:
+                recent_sig = (
+                    supabase.table("signals")
+                    .select("id")
+                    .eq("project_id", str(project_id))
+                    .order("created_at", desc=True)
+                    .limit(1)
+                    .execute()
+                )
+                if recent_sig.data:
+                    _signal_id_str = recent_sig.data[0]["id"]
+            except Exception:
+                pass
+        _source_signal_id = UUID(_signal_id_str) if _signal_id_str else None
+
         # Import database functions
         from app.db.features import bulk_replace_features, list_features
         from app.db.vp import upsert_vp_step
@@ -692,20 +721,19 @@ def apply_proposal(proposal_id: UUID, applied_by: str | None = None) -> dict[str
                     new_evidence = []
                     for ev in evidence:
                         new_evidence.append({
-                            "signal_id": ev.get("signal_id", str(proposal["signal_id"]) if "signal_id" in proposal else None),
+                            "signal_id": str(_source_signal_id) if _source_signal_id else ev.get("signal_id"),
                             "chunk_id": ev.get("chunk_id"),
                             "text": ev.get("text", ev.get("excerpt", "")),
                             "confidence": ev.get("confidence", 0.8),
                         })
 
                     driver_type = after.get("driver_type", "goal")
-                    signal_id = proposal.get("signal_id")
                     _, action = smart_upsert_business_driver(
                         project_id=project_id,
                         driver_type=driver_type,
                         description=after["description"],
                         new_evidence=new_evidence if new_evidence else [],
-                        source_signal_id=UUID(signal_id) if signal_id else None,
+                        source_signal_id=_source_signal_id,
                         created_by="system",
                         measurement=after.get("measurement"),
                         priority=after.get("priority", 3),
@@ -767,24 +795,28 @@ def apply_proposal(proposal_id: UUID, applied_by: str | None = None) -> dict[str
                     new_evidence = []
                     for ev in evidence:
                         new_evidence.append({
-                            "signal_id": ev.get("signal_id", str(proposal["signal_id"]) if "signal_id" in proposal else None),
+                            "signal_id": str(_source_signal_id) if _source_signal_id else ev.get("signal_id"),
                             "chunk_id": ev.get("chunk_id"),
                             "text": ev.get("text", ev.get("excerpt", "")),
                             "confidence": ev.get("confidence", 0.8),
                         })
 
-                    signal_id = proposal.get("signal_id")
+                    # Validate stakeholder_type against allowed values
+                    VALID_STAKEHOLDER_TYPES = {"champion", "sponsor", "blocker", "influencer", "end_user"}
+                    raw_type = after.get("stakeholder_type")
+                    stakeholder_type = raw_type if raw_type in VALID_STAKEHOLDER_TYPES else "influencer"
+
                     _, action = smart_upsert_stakeholder(
                         project_id=project_id,
                         name=after["name"],
                         role=after.get("role"),
                         email=after.get("email"),
-                        stakeholder_type=after.get("stakeholder_type"),
+                        stakeholder_type=stakeholder_type,
                         influence_level=after.get("influence_level"),
                         engagement_level=after.get("engagement_status") or after.get("engagement_level"),
                         notes=after.get("notes"),
                         new_evidence=new_evidence if new_evidence else [],
-                        source_signal_id=UUID(signal_id) if signal_id else None,
+                        source_signal_id=_source_signal_id,
                         created_by="system",
                     )
                     applied_count += 1

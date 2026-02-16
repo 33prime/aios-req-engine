@@ -335,7 +335,7 @@ def smart_upsert_business_driver(
     driver_type: DriverType,
     description: str,
     new_evidence: list[dict[str, Any]],
-    source_signal_id: UUID,
+    source_signal_id: UUID | None,
     created_by: str = "system",
     similarity_threshold: float = 0.75,
     # Optional enrichment fields (type-specific)
@@ -568,7 +568,7 @@ def smart_upsert_business_driver(
             "description": description,
             "priority": priority,
             "evidence": new_evidence,
-            "source_signal_ids": [str(source_signal_id)],
+            "source_signal_ids": [str(source_signal_id)] if source_signal_id else [],
             "version": 1,
             "created_by": created_by,
         }

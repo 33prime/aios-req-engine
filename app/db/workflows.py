@@ -110,13 +110,16 @@ def create_workflow_step(
 ) -> dict[str, Any]:
     """Insert a vp_step linked to a workflow."""
     supabase = get_supabase()
+    step_index = data["step_index"]
     row = {
         "project_id": str(project_id),
         "workflow_id": str(workflow_id),
-        "step_index": data["step_index"],
+        "step_index": step_index,
+        "sort_order": data.get("sort_order", step_index * 10),
         "label": data["label"],
         "description": data.get("description", data["label"]),
         "actor_persona_id": data.get("actor_persona_id"),
+        "actor_persona_name": data.get("actor_persona_name"),
         "time_minutes": data.get("time_minutes"),
         "pain_description": data.get("pain_description"),
         "benefit_description": data.get("benefit_description"),
