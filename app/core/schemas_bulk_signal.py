@@ -23,7 +23,8 @@ class ExtractedEntity(BaseModel):
 
     entity_type: Literal[
         "feature", "persona", "vp_step", "stakeholder", "constraint",
-        "business_driver", "competitor_ref", "company_info", "data_entity"
+        "business_driver", "competitor_ref", "company_info", "data_entity",
+        "workflow"
     ]
     raw_data: dict[str, Any]  # Raw extraction output
 
@@ -65,7 +66,8 @@ class ConsolidatedChange(BaseModel):
 
     entity_type: Literal[
         "feature", "persona", "vp_step", "stakeholder", "constraint",
-        "business_driver", "competitor_ref", "company_info", "data_entity"
+        "business_driver", "competitor_ref", "company_info", "data_entity",
+        "workflow"
     ]
     operation: Literal["create", "update"]
 
@@ -100,6 +102,7 @@ class ConsolidationResult(BaseModel):
     competitor_refs: list[ConsolidatedChange] = Field(default_factory=list)
     company_info: list[ConsolidatedChange] = Field(default_factory=list)
     data_entities: list[ConsolidatedChange] = Field(default_factory=list)
+    workflows: list[ConsolidatedChange] = Field(default_factory=list)
 
     # Summary
     total_creates: int = 0
@@ -179,6 +182,7 @@ class BulkSignalProposal(BaseModel):
     business_drivers_count: int = 0
     competitor_refs_count: int = 0
     company_info_count: int = 0
+    workflows_count: int = 0
 
     # Recommendations
     requires_review: bool = True

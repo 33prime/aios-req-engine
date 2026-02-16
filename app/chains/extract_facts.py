@@ -102,14 +102,22 @@ STAKEHOLDER: A named person involved in the project.
   - Example: "Susan Cordts - Client stakeholder, decision maker on technical requirements"
 
 CURRENT_PROCESS: A step describing how things work TODAY (existing workflow, manual step, current pain).
+  - REQUIRED: workflow_name (group name, e.g. "Client Onboarding", "Data Entry")
+  - OPTIONAL: time_minutes, pain_description, automation_level, related_actor
+  - state_type is auto-set to "current" based on fact_type
   - Signals: "Today we manually...", "Currently the process is...", "Right now they have to..."
   - Examples: "Staff manually reviews PDF logs before each visit", "Admin copies data between three spreadsheets"
 
 FUTURE_PROCESS: A step describing how the PROPOSED SYSTEM will work (automated step, future benefit).
+  - REQUIRED: workflow_name (SAME name as matching current steps)
+  - OPTIONAL: time_minutes, benefit_description, automation_level, related_actor
+  - state_type is auto-set to "future" based on fact_type
   - Signals: "The system will...", "Users will be able to...", "This automates..."
   - Examples: "System auto-imports member data from CRM", "Dashboard shows real-time alerts"
 
 VP_STEP / PROCESS: A general process step when current/future state is unclear.
+  - REQUIRED: workflow_name (assign a meaningful group name)
+  - OPTIONAL: time_minutes, automation_level, related_actor
   - Part of a sequence with clear trigger and outcome
   - Examples: "Staff reviews member data before weekly meeting", "User asks question via chat interface", "System generates SQL query from natural language"
 
@@ -143,7 +151,16 @@ You MUST output ONLY valid JSON matching this exact schema:
           "excerpt": "string - verbatim text from chunk OR '[Inferred from context]' for AI suggestions",
           "rationale": "string - why this supports the fact"
         }
-      ]
+      ],
+      "workflow_name": "string or null - REQUIRED for current_process/future_process/process facts. Group name (e.g. 'Client Onboarding')",
+      "state_type": "current|future or null - auto-set from fact_type",
+      "time_minutes": "number or null - estimated duration in minutes",
+      "pain_description": "string or null - pain/frustration for current_process steps",
+      "benefit_description": "string or null - benefit for future_process steps",
+      "automation_level": "manual|semi_automated|fully_automated or null",
+      "related_actor": "string or null - persona/role who performs this step",
+      "related_process": "string or null - related process name",
+      "addresses_feature": "string or null - feature this step relates to"
     }
   ],
   "open_questions": [
@@ -182,7 +199,12 @@ You MUST output ONLY valid JSON matching this exact schema:
 8. Extract EVERY user role/type mentioned as PERSONA facts.
 9. Be AGGRESSIVE - extract everything mentioned. Over-extraction is better than under-extraction.
 10. ALWAYS look for client_info: company name, industry, website, and competitors.
-11. When you detect both current and future process steps for the same workflow, extract BOTH separately with the correct fact_type."""
+11. When you detect both current and future process steps for the same workflow, extract BOTH separately with the correct fact_type.
+12. For CURRENT_PROCESS, FUTURE_PROCESS, and VP_STEP/PROCESS facts, ALWAYS include workflow_name to group steps.
+    Use the SAME workflow_name for matching current and future steps of the same workflow.
+    Include time_minutes when duration is mentioned or estimable from context.
+    Set automation_level: manual (human does it), semi_automated (human + system), fully_automated (system only).
+    Set state_type: "current" for current_process, "future" for future_process."""
 
 
 FIX_SCHEMA_PROMPT = """The previous output was invalid. Here is the error:

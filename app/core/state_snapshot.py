@@ -404,6 +404,40 @@ def _build_state_section(supabase, project_id: UUID) -> str:
     except Exception:
         pass
 
+    # Workflows
+    try:
+        workflows = (
+            supabase.table("workflows")
+            .select("id, name, state_type, description")
+            .eq("project_id", str(project_id))
+            .order("created_at")
+            .execute()
+        ).data or []
+        if workflows:
+            has_any_content = True
+            lines.append(f"Workflows ({len(workflows)} total):")
+            for w in workflows[:6]:
+                lines.append(f"  [{w.get('state_type', 'future')}] {w.get('name', 'Untitled')}")
+    except Exception:
+        pass
+
+    # Data Entities
+    try:
+        data_entities = (
+            supabase.table("data_entities")
+            .select("id, name, entity_category")
+            .eq("project_id", str(project_id))
+            .limit(10)
+            .execute()
+        ).data or []
+        if data_entities:
+            has_any_content = True
+            lines.append(f"Data Entities ({len(data_entities)} total):")
+            for de in data_entities[:5]:
+                lines.append(f"  {de.get('name', 'Untitled')} [{de.get('entity_category', 'domain')}]")
+    except Exception:
+        pass
+
     # Add overall status if no content
     if not has_any_content:
         lines.append("")

@@ -47,6 +47,9 @@ def upsert_vp_step(
         "kpi_impact", "needed", "sources", "evidence", "enrichment",
         "enrichment_updated_at", "created_at", "updated_at",
         "confirmation_status",  # ai_generated, confirmed_consultant, needs_client, confirmed_client
+        # Workflow-related columns
+        "workflow_id", "time_minutes", "pain_description", "benefit_description",
+        "automation_level", "operation_type", "actor_persona_name",
     }
 
     try:

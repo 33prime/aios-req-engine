@@ -122,6 +122,17 @@ def get_existing_entities(project_id: UUID) -> dict[str, list[dict]]:
         except Exception:
             data_entities = []
 
+        # Fetch workflows
+        try:
+            workflows = (
+                supabase.table("workflows")
+                .select("id, name, state_type, description, paired_workflow_id")
+                .eq("project_id", str(project_id))
+                .execute()
+            ).data or []
+        except Exception:
+            workflows = []
+
         return {
             "features": features,
             "personas": personas,
@@ -132,6 +143,7 @@ def get_existing_entities(project_id: UUID) -> dict[str, list[dict]]:
             "competitor_refs": competitor_refs,
             "company_info": company_info,
             "data_entities": data_entities,
+            "workflows": workflows,
         }
 
     except Exception as e:
@@ -146,6 +158,7 @@ def get_existing_entities(project_id: UUID) -> dict[str, list[dict]]:
             "competitor_refs": [],
             "company_info": None,
             "data_entities": [],
+            "workflows": [],
         }
 
 
@@ -429,6 +442,10 @@ def consolidate_vp_steps(
 
     for entity in extracted:
         if entity.entity_type != "vp_step":
+            continue
+
+        # Skip workflow-tagged entities — handled by consolidate_workflows()
+        if entity.raw_data.get("workflow_name"):
             continue
 
         name = extract_name_from_entity(entity)
@@ -1156,6 +1173,168 @@ def consolidate_data_entities(
     return changes
 
 
+def consolidate_workflows(
+    extracted: list[ExtractedEntity],
+    existing_workflows: list[dict],
+    existing_steps: list[dict],
+) -> tuple[list[ConsolidatedChange], list[ConsolidatedChange]]:
+    """
+    Group workflow-tagged vp_step entities into workflow + step changes.
+
+    Returns:
+        (workflow_changes, step_changes) — workflow creates must be applied first
+    """
+    workflow_changes: list[ConsolidatedChange] = []
+    step_changes: list[ConsolidatedChange] = []
+
+    # Filter for vp_step entities with workflow_name
+    workflow_entities = [
+        e for e in extracted
+        if e.entity_type == "vp_step" and e.raw_data.get("workflow_name")
+    ]
+
+    if not workflow_entities:
+        return workflow_changes, step_changes
+
+    # Group by workflow_name
+    groups: dict[str, list[ExtractedEntity]] = {}
+    for entity in workflow_entities:
+        wf_name = entity.raw_data["workflow_name"]
+        groups.setdefault(wf_name, []).append(entity)
+
+    matcher = SimilarityMatcher(entity_type="feature")
+
+    # Track workflow names to detect pairs
+    created_workflows: dict[str, dict] = {}  # name -> {state_type, ...}
+
+    for wf_name, entities in groups.items():
+        # Determine state_type from entities in this group
+        fact_types = [e.raw_data.get("fact_type", "") for e in entities]
+        has_current = any(ft == "current_process" for ft in fact_types)
+        has_future = any(ft == "future_process" for ft in fact_types)
+
+        if has_current and not has_future:
+            state_type = "current"
+        elif has_future and not has_current:
+            state_type = "future"
+        elif has_current and has_future:
+            # Mixed — split into two workflow groups
+            state_type = "current"  # Process current first, future below
+        else:
+            state_type = "future"  # Default
+
+        # Match against existing workflows by name
+        match_result = matcher.find_best_match(
+            candidate=wf_name,
+            corpus=existing_workflows,
+            text_field="name",
+            id_field="id",
+        )
+
+        if not match_result.is_match:
+            # If mixed, create both current and future workflows
+            if has_current and has_future:
+                current_name = wf_name
+                future_name = wf_name
+
+                workflow_changes.append(ConsolidatedChange(
+                    entity_type="workflow",
+                    operation="create",
+                    entity_name=current_name,
+                    after={
+                        "name": current_name,
+                        "state_type": "current",
+                        "description": f"Current state: {current_name}",
+                        "pair_with_name": future_name,
+                        "pair_state": "future",
+                    },
+                    rationale=f"New current-state workflow: {current_name}",
+                    confidence=0.75,
+                ))
+                created_workflows[f"{current_name}::current"] = {"state_type": "current"}
+
+                workflow_changes.append(ConsolidatedChange(
+                    entity_type="workflow",
+                    operation="create",
+                    entity_name=future_name,
+                    after={
+                        "name": future_name,
+                        "state_type": "future",
+                        "description": f"Future state: {future_name}",
+                        "pair_with_name": current_name,
+                        "pair_state": "current",
+                    },
+                    rationale=f"New future-state workflow: {future_name}",
+                    confidence=0.75,
+                ))
+                created_workflows[f"{future_name}::future"] = {"state_type": "future"}
+            else:
+                workflow_changes.append(ConsolidatedChange(
+                    entity_type="workflow",
+                    operation="create",
+                    entity_name=wf_name,
+                    after={
+                        "name": wf_name,
+                        "state_type": state_type,
+                        "description": f"{'Current' if state_type == 'current' else 'Future'} state: {wf_name}",
+                    },
+                    rationale=f"New {state_type}-state workflow: {wf_name}",
+                    confidence=0.75,
+                ))
+                created_workflows[f"{wf_name}::{state_type}"] = {"state_type": state_type}
+
+        # Create step changes for each entity in this group
+        step_index_counter = len(existing_steps)
+        for entity in entities:
+            raw = entity.raw_data
+            name = extract_name_from_entity(entity)
+            if not name:
+                continue
+
+            # Determine step's state_type from its fact_type
+            ft = raw.get("fact_type", "")
+            if ft == "current_process":
+                step_state = "current"
+            elif ft == "future_process":
+                step_state = "future"
+            else:
+                step_state = state_type
+
+            step_index_counter += 1
+
+            step_data = {
+                "label": name,
+                "step_index": raw.get("step_index", step_index_counter),
+                "description": raw.get("detail") or raw.get("description") or name,
+                "workflow_name": wf_name,
+                "state_type": step_state,
+                "time_minutes": raw.get("time_minutes"),
+                "pain_description": raw.get("pain_description"),
+                "benefit_description": raw.get("benefit_description"),
+                "automation_level": raw.get("automation_level", "manual"),
+                "actor_persona_name": raw.get("related_actor"),
+            }
+
+            step_changes.append(ConsolidatedChange(
+                entity_type="vp_step",
+                operation="create",
+                entity_name=name,
+                after=step_data,
+                evidence=[
+                    {"excerpt": exc, "source": "signal"}
+                    for exc in entity.evidence_excerpts
+                ],
+                rationale=f"Workflow step ({step_state}): {name}",
+                confidence=0.7,
+            ))
+
+    logger.info(
+        f"Workflow consolidation: {len(workflow_changes)} workflows, {len(step_changes)} steps",
+    )
+
+    return workflow_changes, step_changes
+
+
 def facts_to_entities(facts: list[dict]) -> list[ExtractedEntity]:
     """
     Convert extracted facts to typed entities for consolidation.
@@ -1273,6 +1452,13 @@ def facts_to_entities(facts: list[dict]) -> list[ExtractedEntity]:
                 # For competitor refs
                 "url": fact.get("url"),
                 "category": fact.get("category"),
+                # Workflow-aware fields
+                "workflow_name": fact.get("workflow_name"),
+                "state_type": fact.get("state_type"),
+                "time_minutes": fact.get("time_minutes"),
+                "pain_description": fact.get("pain_description"),
+                "benefit_description": fact.get("benefit_description"),
+                "automation_level": fact.get("automation_level"),
             },
             evidence_excerpts=evidence_excerpts,
             source_chunk_ids=[
@@ -1390,10 +1576,20 @@ def consolidate_extractions(
     company_info = results["company_info"]
     data_entities = results["data_entities"]
 
+    # Workflow consolidation (runs after parallel block — needs vp_step entities)
+    workflow_changes, workflow_step_changes = consolidate_workflows(
+        entities_by_type["vp_step"],
+        existing.get("workflows", []),
+        existing["vp_steps"],
+    )
+    workflows = workflow_changes
+    vp_steps = vp_steps + workflow_step_changes
+
     # Calculate summary
     all_changes = (
         features + personas + vp_steps + stakeholders + constraints +
-        business_drivers + competitor_refs + company_info + data_entities
+        business_drivers + competitor_refs + company_info + data_entities +
+        workflows
     )
     total_creates = sum(1 for c in all_changes if c.operation == "create")
     total_updates = sum(1 for c in all_changes if c.operation == "update")
@@ -1412,6 +1608,7 @@ def consolidate_extractions(
         competitor_refs=competitor_refs,
         company_info=company_info,
         data_entities=data_entities,
+        workflows=workflows,
         total_creates=total_creates,
         total_updates=total_updates,
         duplicates_merged=duplicates_merged,
@@ -1431,6 +1628,7 @@ def consolidate_extractions(
             "competitor_refs": len(competitor_refs),
             "company_info": len(company_info),
             "data_entities": len(data_entities),
+            "workflows": len(workflows),
         },
     )
 

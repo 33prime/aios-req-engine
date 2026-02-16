@@ -525,8 +525,53 @@ def apply_proposal(proposal_id: UUID, applied_by: str | None = None) -> dict[str
                         logger.warning(f"Failed to delete feature: {entity_id} - not found or already deleted")
                         # Don't add to errors - might just be already deleted
 
+            # Apply workflow changes (MUST run before vp_step block)
+            workflow_name_to_id: dict[str, str] = {}
+            if "workflow" in changes_by_type:
+                from app.db.workflows import create_workflow, pair_workflows
+
+                workflow_changes = changes_by_type["workflow"]
+                pair_requests: list[tuple[str, str, str]] = []  # (name, pair_name, pair_state)
+
+                for change in workflow_changes["creates"]:
+                    after = change.get("after")
+                    if not after or "name" not in after:
+                        continue
+
+                    try:
+                        wf = create_workflow(project_id, after)
+                        wf_key = f"{after['name']}::{after.get('state_type', 'future')}"
+                        workflow_name_to_id[wf_key] = wf["id"]
+                        # Also store by bare name for step lookups
+                        workflow_name_to_id[f"{after['name']}::{after.get('state_type', 'future')}::bare"] = wf["id"]
+                        applied_count += 1
+                        logger.info(f"Created workflow: {after['name']} ({after.get('state_type', 'future')})")
+
+                        if after.get("pair_with_name"):
+                            pair_requests.append((
+                                f"{after['name']}::{after.get('state_type', 'future')}",
+                                f"{after['pair_with_name']}::{after.get('pair_state', 'future')}",
+                                after.get("pair_state", "future"),
+                            ))
+                    except Exception as wf_err:
+                        logger.warning(f"Failed to create workflow '{after.get('name')}': {wf_err}")
+                        errors.append(f"Failed to create workflow: {after.get('name')}")
+
+                # Pair workflows after all are created
+                for wf_key, pair_key, _pair_state in pair_requests:
+                    wf_id = workflow_name_to_id.get(wf_key)
+                    pair_id = workflow_name_to_id.get(pair_key)
+                    if wf_id and pair_id:
+                        try:
+                            pair_workflows(UUID(wf_id), UUID(pair_id))
+                            logger.info(f"Paired workflows: {wf_key} <-> {pair_key}")
+                        except Exception as pair_err:
+                            logger.warning(f"Failed to pair workflows: {pair_err}")
+
             # Apply VP step changes
             if "vp_step" in changes_by_type:
+                from app.db.workflows import create_workflow_step
+
                 vp_changes = changes_by_type["vp_step"]
 
                 for change in vp_changes["creates"] + vp_changes["updates"]:
@@ -535,12 +580,51 @@ def apply_proposal(proposal_id: UUID, applied_by: str | None = None) -> dict[str
                     if not after or "step_index" not in after:
                         continue
 
-                    upsert_vp_step(
-                        project_id=project_id,
-                        step_index=after["step_index"],
-                        payload=after,
-                    )
-                    applied_count += 1
+                    # Check if this step belongs to a workflow
+                    wf_name = after.pop("workflow_name", None)
+                    step_state = after.pop("state_type", None)
+
+                    workflow_id = None
+                    if wf_name:
+                        # Look up by name + state_type in created workflows
+                        wf_key = f"{wf_name}::{step_state or 'future'}"
+                        workflow_id = workflow_name_to_id.get(wf_key)
+
+                        if not workflow_id:
+                            # Try existing workflows by querying DB
+                            try:
+                                existing_wf = (
+                                    supabase.table("workflows")
+                                    .select("id")
+                                    .eq("project_id", str(project_id))
+                                    .eq("name", wf_name)
+                                    .eq("state_type", step_state or "future")
+                                    .maybe_single()
+                                    .execute()
+                                )
+                                if existing_wf.data:
+                                    workflow_id = existing_wf.data["id"]
+                            except Exception:
+                                pass
+
+                    if workflow_id:
+                        try:
+                            create_workflow_step(
+                                workflow_id=UUID(workflow_id),
+                                project_id=project_id,
+                                data=after,
+                            )
+                            applied_count += 1
+                        except Exception as step_err:
+                            logger.warning(f"Failed to create workflow step: {step_err}")
+                            errors.append(f"Failed to create workflow step: {after.get('label')}")
+                    else:
+                        upsert_vp_step(
+                            project_id=project_id,
+                            step_index=after["step_index"],
+                            payload=after,
+                        )
+                        applied_count += 1
 
             # Apply persona changes
             if "persona" in changes_by_type:
@@ -705,6 +789,48 @@ def apply_proposal(proposal_id: UUID, applied_by: str | None = None) -> dict[str
                     )
                     applied_count += 1
                     logger.info(f"{action.capitalize()} stakeholder: {after['name']}")
+
+            # Apply data entity changes
+            if "data_entity" in changes_by_type:
+                from app.db.data_entities import create_data_entity, update_data_entity
+
+                de_changes = changes_by_type["data_entity"]
+
+                for change in de_changes["creates"]:
+                    after = change.get("after")
+                    if not after or "name" not in after:
+                        continue
+
+                    try:
+                        create_data_entity(
+                            project_id=project_id,
+                            data={
+                                "name": after["name"],
+                                "description": after.get("description", ""),
+                                "entity_category": after.get("entity_category", "domain"),
+                                "fields": after.get("fields", []),
+                                "confirmation_status": "ai_generated",
+                            },
+                        )
+                        applied_count += 1
+                        logger.info(f"Created data entity: {after['name']}")
+                    except Exception as de_err:
+                        logger.warning(f"Failed to create data entity '{after.get('name')}': {de_err}")
+                        errors.append(f"Failed to create data entity: {after.get('name')}")
+
+                for change in de_changes["updates"]:
+                    entity_id = change.get("entity_id")
+                    after = change.get("after")
+                    if not entity_id or not after:
+                        continue
+
+                    try:
+                        update_data_entity(UUID(entity_id), after)
+                        applied_count += 1
+                        logger.info(f"Updated data entity: {entity_id}")
+                    except Exception as de_err:
+                        logger.warning(f"Failed to update data entity '{entity_id}': {de_err}")
+                        errors.append(f"Failed to update data entity: {entity_id}")
 
         except Exception as apply_error:
             error_msg = f"Failed to apply changes: {str(apply_error)}"

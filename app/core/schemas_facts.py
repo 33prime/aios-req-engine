@@ -34,6 +34,17 @@ class FactItem(BaseModel):
         ..., min_length=1, description="Supporting evidence (at least one required)"
     )
 
+    # Workflow-aware fields (optional, populated for process facts)
+    workflow_name: str | None = None
+    state_type: Literal["current", "future"] | None = None
+    time_minutes: float | None = None
+    pain_description: str | None = None
+    benefit_description: str | None = None
+    automation_level: Literal["manual", "semi_automated", "fully_automated"] | None = None
+    related_actor: str | None = None
+    related_process: str | None = None
+    addresses_feature: str | None = None
+
 
 class OpenQuestion(BaseModel):
     """An open question identified during extraction."""

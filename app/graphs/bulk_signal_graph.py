@@ -442,6 +442,8 @@ def generate_proposal(state: BulkProcessingState) -> dict[str, Any]:
         summary_parts.append(f"{len(state.consolidation.business_drivers)} business drivers")
     if state.consolidation.competitor_refs:
         summary_parts.append(f"{len(state.consolidation.competitor_refs)} competitors")
+    if state.consolidation.workflows:
+        summary_parts.append(f"{len(state.consolidation.workflows)} workflows")
 
     summary = f"Detected {total_changes} changes: {', '.join(summary_parts)}" if summary_parts else "No changes detected"
 
@@ -489,6 +491,7 @@ def generate_proposal(state: BulkProcessingState) -> dict[str, Any]:
         stakeholders_count=len(state.consolidation.stakeholders),
         business_drivers_count=len(state.consolidation.business_drivers),
         competitor_refs_count=len(state.consolidation.competitor_refs),
+        workflows_count=len(state.consolidation.workflows),
         requires_review=requires_review,
         auto_apply_safe=auto_apply_safe,
         review_notes=review_notes,
@@ -587,6 +590,30 @@ def save_proposal(state: BulkProcessingState) -> dict[str, Any]:
     for change in state.consolidation.competitor_refs:
         changes.append({
             "entity_type": "competitor_ref",
+            "operation": change.operation,
+            "entity_id": str(change.entity_id) if change.entity_id else None,
+            "before": change.before,
+            "after": change.after,
+            "evidence": change.evidence,
+            "rationale": change.rationale,
+        })
+
+    # Workflows
+    for change in (state.consolidation.workflows or []):
+        changes.append({
+            "entity_type": "workflow",
+            "operation": change.operation,
+            "entity_id": str(change.entity_id) if change.entity_id else None,
+            "before": change.before,
+            "after": change.after,
+            "evidence": change.evidence,
+            "rationale": change.rationale,
+        })
+
+    # Data entities
+    for change in (state.consolidation.data_entities or []):
+        changes.append({
+            "entity_type": "data_entity",
             "operation": change.operation,
             "entity_id": str(change.entity_id) if change.entity_id else None,
             "before": change.before,
