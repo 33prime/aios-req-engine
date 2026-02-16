@@ -1,19 +1,19 @@
 'use client'
 
 import { useState } from 'react'
-import type { FeatureOverlay, OverlayContent, TourStep, FeatureGap } from '@/types/prototype'
+import type { FeatureOverlay, OverlayContent, TourStep } from '@/types/prototype'
 
 interface FeatureInfoCardProps {
   overlay: FeatureOverlay | null
   tourStep: TourStep | null
 }
 
-type InfoTab = 'overview' | 'impact' | 'gaps'
+type InfoTab = 'overview' | 'impact' | 'question'
 
 const TAB_CONFIG: { key: InfoTab; label: string }[] = [
   { key: 'overview', label: 'Overview' },
   { key: 'impact', label: 'Impact' },
-  { key: 'gaps', label: 'Gaps' },
+  { key: 'question', label: 'Question' },
 ]
 
 const CONFIDENCE_COLORS: Record<string, string> = {
@@ -49,7 +49,7 @@ function confidenceLevel(score: number): string {
  * Tabs:
  * - Overview: spec vs code delta, implementation status, confidence
  * - Impact: personas affected, value path position, downstream risk
- * - Gaps: exactly 3 focused gap questions with requirement area badges
+ * - Question: single validation question with requirement area badge
  */
 export default function FeatureInfoCard({ overlay, tourStep }: FeatureInfoCardProps) {
   const [activeTab, setActiveTab] = useState<InfoTab>('overview')
@@ -68,7 +68,7 @@ export default function FeatureInfoCard({ overlay, tourStep }: FeatureInfoCardPr
   }
 
   const content = overlay.overlay_content
-  const gapsCount = content.gaps?.length ?? 0
+  const hasQuestion = content.gaps && content.gaps.length > 0
 
   return (
     <div className="flex flex-col h-full">
@@ -100,9 +100,9 @@ export default function FeatureInfoCard({ overlay, tourStep }: FeatureInfoCardPr
               }`}
             >
               {label}
-              {key === 'gaps' && gapsCount > 0 && (
+              {key === 'question' && hasQuestion && (
                 <span className="ml-1 px-1 py-px bg-brand-primary text-white text-[9px] rounded-full">
-                  {gapsCount}
+                  1
                 </span>
               )}
             </button>
@@ -114,7 +114,7 @@ export default function FeatureInfoCard({ overlay, tourStep }: FeatureInfoCardPr
       <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
         {activeTab === 'overview' && <OverviewTab content={content} tourStep={tourStep} />}
         {activeTab === 'impact' && <ImpactTab content={content} />}
-        {activeTab === 'gaps' && <GapsTab content={content} />}
+        {activeTab === 'question' && <QuestionTab content={content} />}
       </div>
     </div>
   )
@@ -264,11 +264,11 @@ function ImpactTab({ content }: { content: OverlayContent }) {
 }
 
 // =============================================================================
-// Gaps Tab — exactly 3 focused questions
+// Question Tab — single validation question
 // =============================================================================
 
-function GapsTab({ content }: { content: OverlayContent }) {
-  const gaps = content.gaps || []
+function QuestionTab({ content }: { content: OverlayContent }) {
+  const gap = content.gaps?.[0]
 
   return (
     <div className="space-y-4">
@@ -286,43 +286,38 @@ function GapsTab({ content }: { content: OverlayContent }) {
         </div>
       </div>
 
-      {/* Gap cards */}
-      {gaps.length > 0 && (
-        <Section title={`Gap Questions (${gaps.length})`}>
-          <div className="space-y-2.5">
-            {gaps.map((gap, i) => (
-              <GapCard key={i} gap={gap} index={i + 1} />
-            ))}
-          </div>
-        </Section>
-      )}
-
-      {gaps.length === 0 && (
-        <div className="text-center py-6">
-          <p className="text-xs text-ui-supportText">No gap questions for this feature.</p>
-        </div>
-      )}
-    </div>
-  )
-}
-
-function GapCard({ gap, index }: { gap: FeatureGap; index: number }) {
-  return (
-    <div className="bg-ui-background rounded-lg p-3">
-      <div className="flex items-start gap-2">
-        <span className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0 bg-brand-primary text-white">
-          {index}
-        </span>
-        <div className="flex-1 min-w-0">
-          <p className="text-xs text-ui-bodyText leading-relaxed">{gap.question}</p>
-          {gap.why_it_matters && (
-            <p className="text-[11px] text-ui-supportText mt-1.5 italic">{gap.why_it_matters}</p>
-          )}
-          <span className={`text-[10px] mt-1.5 inline-block px-1.5 py-0.5 rounded ${AREA_STYLES[gap.requirement_area] || AREA_STYLES.business_rules}`}>
-            {gap.requirement_area.replace('_', ' ')}
+      {/* AI suggested verdict */}
+      {content.suggested_verdict && (
+        <div className="flex items-center gap-2">
+          <span className="text-[11px] text-ui-supportText">AI Verdict:</span>
+          <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${
+            content.suggested_verdict === 'aligned' ? 'bg-emerald-100 text-emerald-800' :
+            content.suggested_verdict === 'needs_adjustment' ? 'bg-amber-100 text-amber-800' :
+            'bg-red-100 text-red-800'
+          }`}>
+            {content.suggested_verdict.replace('_', ' ')}
           </span>
         </div>
-      </div>
+      )}
+
+      {/* Validation question */}
+      {gap ? (
+        <Section title="Validation Question">
+          <div className="bg-ui-background rounded-lg p-3">
+            <p className="text-xs text-ui-bodyText leading-relaxed">&ldquo;{gap.question}&rdquo;</p>
+            {gap.why_it_matters && (
+              <p className="text-[11px] text-ui-supportText mt-1.5 italic">{gap.why_it_matters}</p>
+            )}
+            <span className={`text-[10px] mt-1.5 inline-block px-1.5 py-0.5 rounded ${AREA_STYLES[gap.requirement_area] || AREA_STYLES.business_rules}`}>
+              {gap.requirement_area.replace('_', ' ')}
+            </span>
+          </div>
+        </Section>
+      ) : (
+        <div className="text-center py-6">
+          <p className="text-xs text-ui-supportText">No validation question — feature appears well-aligned.</p>
+        </div>
+      )}
     </div>
   )
 }
@@ -333,7 +328,7 @@ function GapCard({ gap, index }: { gap: FeatureGap; index: number }) {
 
 export function FeatureInfoTabs({ content, tourStep }: { content: OverlayContent; tourStep: TourStep | null }) {
   const [activeTab, setActiveTab] = useState<InfoTab>('overview')
-  const gapsCount = content.gaps?.length ?? 0
+  const hasQuestion = content.gaps && content.gaps.length > 0
 
   return (
     <div>
@@ -349,9 +344,9 @@ export function FeatureInfoTabs({ content, tourStep }: { content: OverlayContent
             }`}
           >
             {label}
-            {key === 'gaps' && gapsCount > 0 && (
+            {key === 'question' && hasQuestion && (
               <span className="ml-1 px-1 py-px bg-brand-primary text-white text-[9px] rounded-full">
-                {gapsCount}
+                1
               </span>
             )}
           </button>
@@ -360,7 +355,7 @@ export function FeatureInfoTabs({ content, tourStep }: { content: OverlayContent
       <div className="px-3 pb-3">
         {activeTab === 'overview' && <OverviewTab content={content} tourStep={tourStep} />}
         {activeTab === 'impact' && <ImpactTab content={content} />}
-        {activeTab === 'gaps' && <GapsTab content={content} />}
+        {activeTab === 'question' && <QuestionTab content={content} />}
       </div>
     </div>
   )

@@ -387,9 +387,12 @@ class OverlayContent(BaseModel):
     feature_name: str = Field(..., description="Feature display name")
     overview: FeatureOverview = Field(default_factory=FeatureOverview, description="Spec vs code comparison")
     impact: FeatureImpact = Field(default_factory=FeatureImpact, description="Impact analysis")
-    gaps: list[FeatureGap] = Field(default_factory=list, description="Exactly 3 focused gap questions")
+    gaps: list[FeatureGap] = Field(default_factory=list, description="Validation question (0-1 items)")
     status: Literal["understood", "partial", "unknown"] = Field("unknown", description="Understanding status")
     confidence: float = Field(0, description="Confidence score (0-1)")
+    suggested_verdict: Literal["aligned", "needs_adjustment", "off_track"] | None = Field(
+        None, description="AI-suggested verdict for this feature"
+    )
 
 
 class FeatureOverlayResponse(BaseModel):
@@ -404,7 +407,23 @@ class FeatureOverlayResponse(BaseModel):
     status: str = Field("unknown", description="Analysis status")
     confidence: float = Field(0, description="Confidence score")
     overlay_content: OverlayContent | None = Field(None, description="Full overlay card content")
+    consultant_verdict: str | None = Field(None, description="Consultant verdict: aligned/needs_adjustment/off_track")
+    consultant_notes: str | None = Field(None, description="Consultant free-form notes")
+    client_verdict: str | None = Field(None, description="Client verdict: aligned/needs_adjustment/off_track")
+    client_notes: str | None = Field(None, description="Client free-form notes")
     created_at: str = Field(..., description="Creation timestamp")
+
+
+class SubmitVerdictRequest(BaseModel):
+    """Request body for submitting a feature verdict."""
+
+    verdict: Literal["aligned", "needs_adjustment", "off_track"] = Field(
+        ..., description="Verdict value"
+    )
+    notes: str | None = Field(None, description="Optional free-form notes")
+    source: Literal["consultant", "client"] = Field(
+        ..., description="Who is submitting the verdict"
+    )
 
 
 class SessionResponse(BaseModel):

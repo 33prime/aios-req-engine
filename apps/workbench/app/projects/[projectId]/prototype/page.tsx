@@ -346,6 +346,7 @@ export default function PrototypeSessionPage() {
             currentStep={currentTourStep}
             visibleFeatures={sessionContext.visible_features}
             sessionId={session.id}
+            prototypeId={prototypeId || ''}
             onAnswerSubmit={handleAnswerSubmit}
             answeredQuestionIds={answeredQuestionIds}
           />

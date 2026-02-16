@@ -18,15 +18,18 @@ from app.core.schemas_prototypes import (
     IngestPrototypeRequest,
     PromptAuditResult,
     PrototypeResponse,
+    SubmitVerdictRequest,
     V0MetadataRequest,
     VpFollowupRequest,
     VpFollowupResponse,
 )
 from app.db.prototypes import (
     create_prototype,
+    get_overlay,
     get_prototype,
     get_prototype_for_project,
     list_overlays,
+    update_overlay_verdict,
     update_prototype,
 )
 
@@ -593,3 +596,43 @@ async def retry_prototype_endpoint(prototype_id: UUID) -> dict:
     except Exception:
         logger.exception(f"Failed to retry prototype {prototype_id}")
         raise HTTPException(status_code=500, detail="Failed to retry prototype generation")
+
+
+@router.put("/{prototype_id}/overlays/{overlay_id}/verdict")
+async def submit_overlay_verdict_endpoint(
+    prototype_id: UUID,
+    overlay_id: UUID,
+    request: SubmitVerdictRequest,
+) -> dict:
+    """Submit a consultant or client verdict for a feature overlay."""
+    try:
+        overlay = get_overlay(overlay_id)
+        if not overlay:
+            raise HTTPException(status_code=404, detail="Overlay not found")
+        if overlay["prototype_id"] != str(prototype_id):
+            raise HTTPException(status_code=400, detail="Overlay does not belong to this prototype")
+
+        updated = update_overlay_verdict(
+            overlay_id=overlay_id,
+            verdict=request.verdict,
+            notes=request.notes,
+            source=request.source,
+        )
+
+        logger.info(
+            f"Verdict submitted for overlay {overlay_id}: "
+            f"source={request.source}, verdict={request.verdict}"
+        )
+
+        return {
+            "overlay_id": str(overlay_id),
+            "source": request.source,
+            "verdict": request.verdict,
+            "notes": request.notes,
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"Failed to submit verdict for overlay {overlay_id}: {e}")
+        raise HTTPException(status_code=500, detail="Failed to submit verdict")

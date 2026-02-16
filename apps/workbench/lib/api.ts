@@ -2016,6 +2016,7 @@ import type {
   PromptAuditResult,
   DesignProfile,
   DesignSelection,
+  FeatureVerdict,
 } from '../types/prototype'
 
 /**
@@ -2706,7 +2707,36 @@ export const getPrototypeClientData = (sessionId: string, token: string) =>
     session_number: number
     features_analyzed: number
     questions: Array<{ id: string; question: string; category: string; priority: string }>
+    feature_reviews: Array<{
+      feature_name: string
+      overlay_id: string
+      consultant_verdict: FeatureVerdict | null
+      consultant_notes: string | null
+      suggested_verdict: FeatureVerdict | null
+      validation_question: string | null
+      validation_why: string | null
+      validation_area: string | null
+      spec_summary: string | null
+      implementation_status: string | null
+      confidence: number
+      status: string
+    }>
   }>(`/prototype-sessions/${sessionId}/client-data?token=${token}`)
+
+export const submitFeatureVerdict = (
+  prototypeId: string,
+  overlayId: string,
+  verdict: FeatureVerdict,
+  source: 'consultant' | 'client',
+  notes?: string
+) =>
+  apiRequest<{ overlay_id: string; source: string; verdict: string; notes: string | null }>(
+    `/prototypes/${prototypeId}/overlays/${overlayId}/verdict`,
+    {
+      method: 'PUT',
+      body: JSON.stringify({ verdict, source, notes: notes || null }),
+    }
+  )
 
 /**
  * Map a feature to a value path step (or unmap if stepId is null).

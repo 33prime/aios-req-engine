@@ -89,6 +89,8 @@ export interface PromptGap {
   feature_ids: string[]
 }
 
+export type FeatureVerdict = 'aligned' | 'needs_adjustment' | 'off_track'
+
 export interface FeatureOverlay {
   id: string
   prototype_id: string
@@ -99,6 +101,10 @@ export interface FeatureOverlay {
   status: 'understood' | 'partial' | 'unknown'
   confidence: number
   overlay_content: OverlayContent | null
+  consultant_verdict: FeatureVerdict | null
+  consultant_notes: string | null
+  client_verdict: FeatureVerdict | null
+  client_notes: string | null
   created_at: string
 }
 
@@ -134,6 +140,7 @@ export interface OverlayContent {
   gaps: FeatureGap[]
   status: 'understood' | 'partial' | 'unknown'
   confidence: number
+  suggested_verdict: FeatureVerdict | null
 }
 
 export interface PageVisit {

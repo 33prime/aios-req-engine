@@ -267,17 +267,38 @@ async def get_client_data_endpoint(session_id: UUID, token: str) -> dict:
 
         overlays = list_overlays(UUID(session["prototype_id"]))
 
-        # Get unanswered high-priority questions for client
+        # Get unanswered high-priority questions for client (legacy compat)
         from app.db.prototypes import get_unanswered_questions
 
         questions = get_unanswered_questions(UUID(session["prototype_id"]))
         client_questions = [q for q in questions if q.get("priority") in ("high", "medium")]
 
+        # Build per-feature review context for client
+        feature_reviews = []
+        for o in overlays:
+            content = o.get("overlay_content") or {}
+            gaps = content.get("gaps", [])
+            feature_reviews.append({
+                "feature_name": content.get("feature_name", o.get("handoff_feature_name", "Unknown")),
+                "overlay_id": o["id"],
+                "consultant_verdict": o.get("consultant_verdict"),
+                "consultant_notes": o.get("consultant_notes"),
+                "suggested_verdict": content.get("suggested_verdict"),
+                "validation_question": gaps[0].get("question") if gaps else None,
+                "validation_why": gaps[0].get("why_it_matters") if gaps else None,
+                "validation_area": gaps[0].get("requirement_area") if gaps else None,
+                "spec_summary": (content.get("overview") or {}).get("spec_summary"),
+                "implementation_status": (content.get("overview") or {}).get("implementation_status"),
+                "confidence": content.get("confidence", 0),
+                "status": content.get("status", "unknown"),
+            })
+
         return {
             "deploy_url": prototype.get("deploy_url"),
             "session_number": session["session_number"],
             "features_analyzed": len(overlays),
-            "questions": client_questions[:20],  # Top 20 for client
+            "questions": client_questions[:20],  # Legacy compat
+            "feature_reviews": feature_reviews,
         }
 
     except HTTPException:

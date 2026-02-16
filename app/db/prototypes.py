@@ -267,6 +267,40 @@ def get_questions_for_overlay(overlay_id: UUID) -> list[dict[str, Any]]:
     return response.data or []
 
 
+def update_overlay_verdict(
+    overlay_id: UUID,
+    verdict: str,
+    notes: str | None,
+    source: str,
+) -> dict[str, Any]:
+    """Update consultant or client verdict on a feature overlay.
+
+    Args:
+        overlay_id: Overlay UUID
+        verdict: One of 'aligned', 'needs_adjustment', 'off_track'
+        notes: Optional free-form notes
+        source: 'consultant' or 'client' — determines which columns to update
+    """
+    supabase = get_supabase()
+    if source == "consultant":
+        data = {"consultant_verdict": verdict, "consultant_notes": notes}
+    elif source == "client":
+        data = {"client_verdict": verdict, "client_notes": notes}
+    else:
+        raise ValueError(f"Invalid verdict source: {source}")
+
+    response = (
+        supabase.table("prototype_feature_overlays")
+        .update(data)
+        .eq("id", str(overlay_id))
+        .execute()
+    )
+    if not response.data:
+        raise ValueError(f"Failed to update verdict for overlay {overlay_id}")
+    logger.info(f"Updated {source} verdict for overlay {overlay_id}: {verdict}")
+    return response.data[0]
+
+
 def get_unanswered_questions(prototype_id: UUID) -> list[dict[str, Any]]:
     """Get all unanswered questions across a prototype's overlays."""
     supabase = get_supabase()

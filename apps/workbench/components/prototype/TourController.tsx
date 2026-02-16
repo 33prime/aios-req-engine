@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useReducer, useRef } from 'react'
-import type { FeatureOverlay, TourPlan, TourPhase, TourStep, TourStepGroup, RouteFeatureMap, FeatureGap } from '@/types/prototype'
+import type { FeatureOverlay, TourPlan, TourPhase, TourStep, TourStepGroup, RouteFeatureMap } from '@/types/prototype'
 import type { VpStep } from '@/types/api'
 import type { PrototypeFrameHandle } from './PrototypeFrame'
 
@@ -383,7 +383,7 @@ export default function TourController({
       <div className="bg-white border-b border-ui-cardBorder px-6 py-2 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <span className="text-sm text-ui-bodyText">
-            {plan.totalSteps} features to review &middot; {plan.totalQuestions} questions
+            {plan.totalSteps} features to review
           </span>
         </div>
         <button

@@ -31,8 +31,8 @@ logger = get_logger(__name__)
 SYSTEM_PROMPT = """\
 You are a senior requirements analyst examining a prototype feature. Your job is to \
 compare what the AIOS specification says against what the prototype code actually does, \
-identify who is affected, and surface exactly 3 focused questions that will improve the \
-requirements specification.
+identify who is affected, surface the ONE most important validation question, and provide \
+an overall verdict on alignment.
 
 ## Rules
 
@@ -50,12 +50,18 @@ explain HOW they are affected (1 sentence).
 (e.g. "Step 3 of 7: User completes assessment"). null if unmapped.
 7. **downstream_risk**: Name specific OTHER features from the project context that would \
 break or degrade if this feature's gaps are not resolved. Be specific.
-8. **gaps**: EXACTLY 3 questions. Each must be specific to THIS feature (not generic). \
-Each must help the consultant improve requirements. Include why_it_matters and \
-requirement_area (one of: business_rules, data_handling, user_flow, permissions, integration).
-9. **status**: "understood" if confidence >= 0.7 and delta is empty/minor. \
+8. **validation_question**: Surface the ONE most important question that a consultant \
+should validate about this feature. It must be specific to THIS feature (not generic), \
+and help confirm or correct the requirements. Include why_it_matters and \
+requirement_area (one of: business_rules, data_handling, user_flow, permissions, integration). \
+Omit this field entirely if the feature is fully aligned with no meaningful gaps.
+9. **suggested_verdict**: Your overall assessment: \
+"aligned" = code faithfully represents the spec with only minor cosmetic differences, \
+"needs_adjustment" = generally correct direction but has meaningful gaps or missing behaviors, \
+"off_track" = significant mismatch between spec and implementation.
+10. **status**: "understood" if confidence >= 0.7 and delta is empty/minor. \
 "partial" if 0.4-0.7. "unknown" if < 0.4.
-10. **confidence**: 0.0-1.0 based on how well the code matches the spec.
+11. **confidence**: 0.0-1.0 based on how well the code matches the spec.
 
 Output ONLY valid JSON matching this schema:
 {
@@ -72,11 +78,8 @@ Output ONLY valid JSON matching this schema:
     "value_path_position": "Step X of Y: label" or null,
     "downstream_risk": "..."
   },
-  "gaps": [
-    {"question": "...", "why_it_matters": "...", "requirement_area": "business_rules|data_handling|user_flow|permissions|integration"},
-    {"question": "...", "why_it_matters": "...", "requirement_area": "..."},
-    {"question": "...", "why_it_matters": "...", "requirement_area": "..."}
-  ],
+  "validation_question": {"question": "...", "why_it_matters": "...", "requirement_area": "business_rules|data_handling|user_flow|permissions|integration"},
+  "suggested_verdict": "aligned|needs_adjustment|off_track",
   "status": "understood|partial|unknown",
   "confidence": 0.0-1.0
 }
@@ -263,14 +266,26 @@ def analyze_feature_overlay(
         downstream_risk=impact_data.get("downstream_risk", ""),
     )
 
-    gaps = [
-        FeatureGap(
-            question=g.get("question", ""),
-            why_it_matters=g.get("why_it_matters", ""),
-            requirement_area=g.get("requirement_area", "business_rules"),
-        )
-        for g in parsed.get("gaps", [])[:3]  # Enforce max 3
-    ]
+    # Parse single validation question (new format) or fall back to legacy gaps array
+    vq = parsed.get("validation_question")
+    if vq and isinstance(vq, dict) and vq.get("question"):
+        gaps = [FeatureGap(
+            question=vq.get("question", ""),
+            why_it_matters=vq.get("why_it_matters", ""),
+            requirement_area=vq.get("requirement_area", "business_rules"),
+        )]
+    elif parsed.get("gaps"):
+        # Backward compat: accept legacy gaps array, take first one
+        gaps = [
+            FeatureGap(
+                question=g.get("question", ""),
+                why_it_matters=g.get("why_it_matters", ""),
+                requirement_area=g.get("requirement_area", "business_rules"),
+            )
+            for g in parsed.get("gaps", [])[:1]
+        ]
+    else:
+        gaps = []
 
     overlay = OverlayContent(
         feature_id=feature_id,
@@ -280,6 +295,7 @@ def analyze_feature_overlay(
         gaps=gaps,
         status=parsed.get("status", "unknown"),
         confidence=parsed.get("confidence", 0.0),
+        suggested_verdict=parsed.get("suggested_verdict"),
     )
 
     logger.info(

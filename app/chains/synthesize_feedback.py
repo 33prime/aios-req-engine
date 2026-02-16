@@ -18,15 +18,24 @@ logger = get_logger(__name__)
 
 SYSTEM_PROMPT = """\
 You are synthesizing feedback from a prototype review session into actionable changes. \
-You have consultant observations/requirements, client responses, and current feature state.
+You have consultant observations/requirements, client responses, verdict data, and current feature state.
 
-For each feature with feedback, produce:
+For each feature with feedback or verdicts, produce:
 1. confirmed_requirements: Things both consultant and client agree on
 2. new_requirements: New things discovered during the session
 3. contradictions: Where consultant and client disagree (with suggested resolution)
 4. questions_resolved: Which overlay questions were answered
 5. code_changes: Specific code changes needed (file, what, why, priority)
 6. recommended_status: Updated confirmation status for AIOS
+
+## Verdict-to-Status Mapping
+
+Use verdicts to inform recommended_status:
+- Both aligned → confirmed_client
+- Consultant aligned + client needs_adjustment → needs_client
+- Either off_track → needs_client
+- Consultant only (no client verdict) → confirmed_consultant
+- No verdicts → use feedback signals as before
 
 Also identify:
 - new_features_discovered: Features not in AIOS that emerged from feedback
@@ -91,6 +100,22 @@ def synthesize_session_feedback(
         o.get("feature_id"): o for o in overlays if o.get("feature_id")
     }
 
+    # Build verdict context from overlays
+    verdict_context = []
+    for o in overlays:
+        content = o.get("overlay_content") or {}
+        verdict_entry = {
+            "feature_id": o.get("feature_id"),
+            "suggested_verdict": content.get("suggested_verdict"),
+            "consultant_verdict": o.get("consultant_verdict"),
+            "consultant_notes": o.get("consultant_notes"),
+            "client_verdict": o.get("client_verdict"),
+            "client_notes": o.get("client_notes"),
+        }
+        # Only include if there's at least one verdict
+        if any(v for k, v in verdict_entry.items() if k.endswith("_verdict") and v):
+            verdict_context.append(verdict_entry)
+
     user_message = f"""## Session Feedback ({len(feedback_items)} items)
 
 ### Feedback by Feature
@@ -99,13 +124,16 @@ def synthesize_session_feedback(
 ### General Feedback (not tied to a feature)
 {json.dumps([{"source": fb["source"], "type": fb.get("feedback_type"), "content": fb["content"]} for fb in general_feedback], indent=2, default=str)}
 
+### Feature Verdicts
+{json.dumps(verdict_context, indent=2, default=str) if verdict_context else "No verdicts submitted yet."}
+
 ### Current Feature State
 {json.dumps([{"id": f["id"], "name": f["name"], "confirmation_status": f.get("confirmation_status")} for f in features], indent=2, default=str)}
 
 ### Current Overlay Data
 {json.dumps([{"feature_id": o.get("feature_id"), "status": o.get("status"), "gaps_count": o.get("gaps_count")} for o in overlays], indent=2, default=str)}
 
-Synthesize this feedback into actionable changes.
+Synthesize this feedback and verdicts into actionable changes.
 """
 
     client = Anthropic(api_key=settings.ANTHROPIC_API_KEY)

@@ -195,7 +195,7 @@ def analyze_and_save(state: PrototypeAnalysisState) -> dict[str, Any]:
             gaps_count=len(overlay_content.gaps),
         )
 
-        # Save exactly 3 questions (one per gap)
+        # Save validation question (0-1 per feature)
         for gap in overlay_content.gaps:
             create_question(
                 overlay_id=UUID(overlay["id"]),
