@@ -195,9 +195,37 @@ async def run_company_intelligence(
             company_profile["pricing_tiers"] = extracted.get("pricing_tiers", [])
             company_profile["evidence"] = extracted.get("evidence", [])
 
+    # 4. Verify extracted profile matches the target company
+    desc = company_profile.get("description") or ""
+    if desc and not _verify_company_match(company_name, desc):
+        logger.warning(
+            f"Company profile description does NOT match '{company_name}': {desc[:200]}. "
+            f"Clearing unreliable fields."
+        )
+        # Keep only PDL structural data (employee count etc.), clear narrative fields
+        company_profile.pop("description", None)
+        company_profile.pop("tagline", None)
+        company_profile.pop("target_market", None)
+        company_profile.pop("key_products", None)
+        company_profile.pop("pricing_model", None)
+        company_profile.pop("pricing_tiers", None)
+
     logger.info(
         f"Company intelligence complete for '{company_name}': "
         f"{company_profile.get('employee_count', '?')} employees"
     )
 
     return company_profile, cost_entries
+
+
+def _verify_company_match(company_name: str, text: str) -> bool:
+    """Check that extracted text plausibly describes the target company."""
+    text_lower = text[:500].lower()
+    skip_words = {"the", "inc", "llc", "ltd", "co", "corp", "company", "group", "and", "of", "for"}
+    name_words = [
+        w for w in company_name.lower().split()
+        if len(w) > 2 and w not in skip_words
+    ]
+    if not name_words:
+        return True
+    return any(w in text_lower for w in name_words)

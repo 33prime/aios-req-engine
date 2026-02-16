@@ -120,9 +120,15 @@ PERSONA: A user archetype with specific goals and pain points.
   - GOOD title: "Leadership" with detail: "defines standardized queries, needs visibility into staff patterns"
   - BAD title: "Care Staff - needs quick member summaries" (description in title)
 
-STAKEHOLDER: A named person involved in the project.
-  - Include name, role/title, and relationship to project
-  - Example: "Susan Cordts - Client stakeholder, decision maker on technical requirements"
+STAKEHOLDER: A named INDIVIDUAL PERSON involved in the project — NEVER an organization or company.
+  - title MUST be a person's name (first and last name when available)
+  - Include role/title and relationship to project in the detail field
+  - Example: "Susan Cordts" with detail: "Client stakeholder, decision maker on technical requirements"
+  - NEVER extract an organization, company, department, or team as a stakeholder
+  - WRONG: "Stardust Building Supplies" (this is a company, not a person)
+  - WRONG: "Finance Department" (this is a department, not a person)
+  - RIGHT: "Jim Rodriguez" with detail: "CFO, key budget decision maker"
+  - If no individual people are named in the signal, extract ZERO stakeholders
 
 CURRENT_PROCESS: A step describing how things work TODAY (existing workflow, manual step, current pain).
   - REQUIRED: workflow_name (group name, e.g. "Client Onboarding", "Data Entry")

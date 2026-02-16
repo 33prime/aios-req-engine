@@ -87,13 +87,19 @@ async def invoke_client_intelligence_agent(
 
         user_prompt = f"""# CLIENT STATE
 
-## Profile Overview
+## Profile Overview (GROUND TRUTH — all research must match THIS company)
 - **Name:** {client.get('name', 'Unknown')}
 - **Industry:** {client.get('industry', 'Not set')}
 - **Size:** {client.get('size', 'Not set')}
 - **Website:** {client.get('website', 'Not set')}
+- **Location:** {client.get('headquarters') or client.get('location') or 'Not set'}
+- **Org Type:** {client.get('org_type') or client.get('organization_type') or 'Not set'}
+- **Description:** {(client.get('description') or 'Not set')[:200]}
 - **Enrichment:** {client.get('enrichment_status', 'pending')}
 - **Profile Completeness:** {completeness.get('score', 0)}/100 ({completeness.get('label', 'Unknown')})
+
+IMPORTANT: All enrichment and research tools MUST return data about THIS specific company.
+If a tool returns data about a different company with a similar name, that data must be rejected.
 
 ## Section Scores
 {_format_sections(completeness.get('sections', {}))}

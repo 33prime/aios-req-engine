@@ -1,5 +1,6 @@
 """Database operations for stakeholders table."""
 
+import re
 from datetime import datetime, timezone
 from uuid import UUID
 
@@ -7,6 +8,77 @@ from app.core.logging import get_logger
 from app.db.supabase_client import get_supabase
 
 logger = get_logger(__name__)
+
+# Words that indicate an organization, not an individual person
+_ORG_INDICATORS = {
+    # Legal suffixes
+    "inc", "llc", "ltd", "corp", "corporation", "company", "co",
+    # Org structure words
+    "group", "foundation", "association", "institute", "university",
+    "department", "team", "division", "committee", "board", "agency",
+    # Business type words
+    "partners", "consulting", "services", "solutions", "systems",
+    "technologies", "enterprises", "holdings", "international",
+    "supplies", "supply", "industries", "logistics", "network",
+    "labs", "studio", "studios", "media", "digital", "analytics",
+    "healthcare", "financial", "insurance", "management", "capital",
+    "ventures", "investments", "realty", "properties", "construction",
+    "manufacturing", "distributors", "distribution", "wholesale",
+    "retail", "communications", "telecom", "nonprofit", "npo",
+}
+
+# Common first name patterns — these confirm a person (not exhaustive, just quick check)
+_COMMON_TITLES = {"mr", "mrs", "ms", "dr", "prof", "sir", "rev"}
+
+
+def is_likely_organization(name: str) -> bool:
+    """Check if a name looks like an organization rather than an individual person.
+
+    Returns True if the name contains organization indicator words,
+    is a single long word, or fails person-name heuristics.
+    """
+    if not name or not name.strip():
+        return True
+
+    words = name.strip().lower().split()
+
+    # If starts with a title (Mr., Dr., etc.), it's a person
+    if words[0].rstrip('.') in _COMMON_TITLES:
+        return False
+
+    # Single word names > 10 chars are suspicious
+    if len(words) == 1 and len(words[0]) > 10:
+        return True
+
+    # Check for org indicator words
+    for word in words:
+        clean = re.sub(r'[^\w]', '', word)
+        if clean in _ORG_INDICATORS:
+            return True
+
+    # 4+ words is very unlikely to be a person's name (most are 2-3)
+    if len(words) >= 4:
+        return True
+
+    # ALL CAPS name with 2+ words is likely an org (e.g., "STARDUST MRDS")
+    if len(words) >= 2 and name == name.upper():
+        return True
+
+    return False
+
+
+def parse_first_last_name(name: str) -> tuple[str | None, str | None]:
+    """Parse a full name into first_name and last_name.
+
+    Returns (first_name, last_name). If only one word, returns (word, None).
+    """
+    if not name or not name.strip():
+        return None, None
+
+    parts = name.strip().split(None, 1)  # Split on first whitespace
+    first_name = parts[0]
+    last_name = parts[1] if len(parts) > 1 else None
+    return first_name, last_name
 
 
 def list_stakeholders(project_id: UUID) -> list[dict]:
@@ -766,6 +838,17 @@ def create_stakeholder_from_signal(
 
         return update_stakeholder(UUID(existing.data["id"]), updates)
 
+    # Reject organizations — stakeholders must be individual people
+    if is_likely_organization(name):
+        logger.warning(
+            f"Rejecting stakeholder '{name}' — appears to be an organization, not a person",
+            extra={"project_id": str(project_id)},
+        )
+        raise ValueError(f"Stakeholder name '{name}' appears to be an organization, not an individual person")
+
+    # Auto-parse first/last name
+    first_name, last_name = parse_first_last_name(name)
+
     # Create new stakeholder
     stakeholder_data = {
         "project_id": str(project_id),
@@ -780,6 +863,10 @@ def create_stakeholder_from_signal(
         "stakeholder_type": "influencer",  # Default type
         "influence_level": "medium",
     }
+    if first_name:
+        stakeholder_data["first_name"] = first_name
+    if last_name:
+        stakeholder_data["last_name"] = last_name
 
     response = supabase.table("stakeholders").insert(stakeholder_data).execute()
 
@@ -1089,6 +1176,8 @@ def smart_upsert_stakeholder(
     reports_to_id: UUID | None = None,
     allies: list[UUID] | None = None,
     potential_blockers: list[UUID] | None = None,
+    first_name: str | None = None,
+    last_name: str | None = None,
 ) -> tuple[UUID, str]:
     """
     Smart upsert for stakeholders with evidence merging.
@@ -1101,12 +1190,18 @@ def smart_upsert_stakeholder(
         source_signal_id: Signal this extraction came from
         created_by: Who created this
         similarity_threshold: Threshold for finding similar stakeholders
+        first_name: Parsed first name (auto-parsed from name if not provided)
+        last_name: Parsed last name (auto-parsed from name if not provided)
         ... (other optional fields)
 
     Returns:
         Tuple of (stakeholder_id, action) where action is "created", "updated", or "merged"
     """
     from app.core.state_snapshot import invalidate_snapshot
+
+    # Auto-parse first/last name if not provided
+    if not first_name:
+        first_name, last_name = parse_first_last_name(name)
 
     supabase = get_supabase()
 
@@ -1287,6 +1382,12 @@ def smart_upsert_stakeholder(
             "priorities": priorities or [],
             "concerns": concerns or [],
         }
+
+        # Add first/last name
+        if first_name:
+            data["first_name"] = first_name
+        if last_name:
+            data["last_name"] = last_name
 
         # Add optional fields
         if email is not None:

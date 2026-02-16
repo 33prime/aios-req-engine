@@ -16,9 +16,9 @@ from app.db.stakeholders import create_stakeholder_from_signal, update_topic_men
 logger = get_logger(__name__)
 
 
-SYSTEM_PROMPT = """You are an expert at identifying stakeholders from business communications.
+SYSTEM_PROMPT = """You are an expert at identifying individual people (stakeholders) from business communications.
 
-Analyze the provided content and extract ALL people mentioned. For each person, determine:
+Analyze the provided content and extract ALL individual PEOPLE mentioned. For each person, determine:
 
 1. **name**: Full name if available, or best identifier (e.g., "Jim from Finance")
 2. **role**: Job title, function, or department (e.g., "CFO", "Product Manager", "Dev Lead")
@@ -30,7 +30,13 @@ Analyze the provided content and extract ALL people mentioned. For each person, 
    - "mentioned": They are referenced by someone else (e.g., "Jim said that...")
 6. **topics_discussed**: What topics/subjects did they discuss or get mentioned in relation to?
 
-IMPORTANT RULES:
+CRITICAL RULES:
+- ONLY extract individual people — NEVER organizations, companies, departments, or teams
+- WRONG: "Stardust Building Supplies" — this is a company name, NOT a stakeholder
+- WRONG: "The Finance Team" — this is a department, NOT a stakeholder
+- RIGHT: "Susan Cordts" — this is an individual person
+- RIGHT: "Jim from Finance" — this is an individual person (partial name is OK)
+- If no individual people are named in the content, return an empty stakeholders array
 - Extract ALL people, even those mentioned briefly
 - For transcripts: speakers are "direct_participant", people they reference are "mentioned"
 - For emails: sender/recipients are "direct_participant", people referenced in body are "mentioned"

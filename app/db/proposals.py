@@ -780,7 +780,7 @@ def apply_proposal(proposal_id: UUID, applied_by: str | None = None) -> dict[str
 
             # Apply stakeholder changes
             if "stakeholder" in changes_by_type:
-                from app.db.stakeholders import smart_upsert_stakeholder
+                from app.db.stakeholders import smart_upsert_stakeholder, is_likely_organization, parse_first_last_name
 
                 stakeholder_changes = changes_by_type["stakeholder"]
 
@@ -788,6 +788,11 @@ def apply_proposal(proposal_id: UUID, applied_by: str | None = None) -> dict[str
                     after = change.get("after")
 
                     if not after or "name" not in after:
+                        continue
+
+                    # Reject organizations — stakeholders must be individual people
+                    if is_likely_organization(after["name"]):
+                        logger.warning(f"Skipping stakeholder '{after['name']}' — appears to be an organization")
                         continue
 
                     # Build evidence from change
@@ -806,6 +811,12 @@ def apply_proposal(proposal_id: UUID, applied_by: str | None = None) -> dict[str
                     raw_type = after.get("stakeholder_type")
                     stakeholder_type = raw_type if raw_type in VALID_STAKEHOLDER_TYPES else "influencer"
 
+                    # Auto-parse first/last name if not provided
+                    first_name = after.get("first_name")
+                    last_name = after.get("last_name")
+                    if not first_name:
+                        first_name, last_name = parse_first_last_name(after["name"])
+
                     _, action = smart_upsert_stakeholder(
                         project_id=project_id,
                         name=after["name"],
@@ -818,6 +829,8 @@ def apply_proposal(proposal_id: UUID, applied_by: str | None = None) -> dict[str
                         new_evidence=new_evidence if new_evidence else [],
                         source_signal_id=_source_signal_id,
                         created_by="system",
+                        first_name=first_name,
+                        last_name=last_name,
                     )
                     applied_count += 1
                     logger.info(f"{action.capitalize()} stakeholder: {after['name']}")

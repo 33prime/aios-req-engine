@@ -12,6 +12,23 @@ logger = logging.getLogger(__name__)
 PDL_BASE_URL = "https://api.peopledatalabs.com/v5"
 
 
+def _names_match(input_name: str, returned_name: str) -> bool:
+    """Check if a PDL-returned company name plausibly matches the input name.
+
+    Compares significant words (ignoring common suffixes like Inc, LLC, etc.).
+    At least one significant word from the input must appear in the returned name.
+    """
+    skip_words = {
+        "the", "inc", "llc", "ltd", "co", "corp", "company", "corporation",
+        "group", "and", "of", "for", "international", "global",
+    }
+    input_words = {w for w in input_name.lower().split() if len(w) > 2 and w not in skip_words}
+    returned_words = {w for w in returned_name.lower().split() if len(w) > 2 and w not in skip_words}
+    if not input_words:
+        return True
+    return bool(input_words & returned_words)
+
+
 async def enrich_company(
     name: str | None = None,
     website: str | None = None,
@@ -72,6 +89,28 @@ async def enrich_company(
             "linkedin_url": data.get("linkedin_url"),
             "summary": data.get("summary"),
         }
+
+        # Validate: PDL returned name should resemble the input name
+        pdl_name = (data.get("name") or "").lower()
+        input_name = (name or "").lower()
+        if name and pdl_name and not _names_match(input_name, pdl_name):
+            logger.warning(
+                f"PDL returned '{data.get('name')}' but we asked for '{name}' — "
+                f"possible wrong company match. Discarding PDL result."
+            )
+            return {}
+
+        # Validate: if we provided a website, PDL website should match domain
+        if website:
+            pdl_website = (data.get("website") or "").lower()
+            input_domain = website.lower().replace("https://", "").replace("http://", "").split("/")[0]
+            pdl_domain = pdl_website.replace("https://", "").replace("http://", "").split("/")[0]
+            if pdl_domain and input_domain and pdl_domain != input_domain:
+                logger.warning(
+                    f"PDL returned website '{pdl_website}' but we asked for '{website}' — "
+                    f"possible wrong company match. Discarding PDL result."
+                )
+                return {}
 
         logger.info(
             f"PDL enriched '{name or website}': "

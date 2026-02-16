@@ -18,16 +18,50 @@ from app.db.clients import get_client, update_client_enrichment
 
 logger = logging.getLogger(__name__)
 
+
+def _verify_scraped_content(company_name: str, scraped_text: str) -> bool:
+    """Check that scraped website content plausibly matches the target company.
+
+    Returns True if ANY significant word from the company name appears in the
+    first 2000 chars of scraped content. This catches cases where a scrape
+    returns content about a completely different company.
+    """
+    text_lower = scraped_text[:2000].lower()
+    # Split company name into significant words (skip short/common words)
+    skip_words = {"the", "inc", "llc", "ltd", "co", "corp", "company", "group", "and", "of", "for"}
+    name_words = [
+        w for w in company_name.lower().split()
+        if len(w) > 2 and w not in skip_words
+    ]
+    if not name_words:
+        return True  # Can't verify, assume OK
+
+    # At least one significant word must appear
+    matches = sum(1 for w in name_words if w in text_lower)
+    return matches >= 1
+
 CLIENT_ENRICHMENT_PROMPT = '''You are a business analyst providing company intelligence for a consulting engagement.
 
-Input Data:
+CRITICAL: You MUST provide intelligence about the SPECIFIC company described below.
+Do NOT confuse this company with similarly-named companies.
+
+## Company Identity (GROUND TRUTH — use this to verify all data)
 Name: {name}
 Website: {website}
-Scraped website data:
-{scraped_data}
-
+Location: {location}
+Organization type: {org_type}
 Industry hint: {industry}
 Description: {description}
+
+## Website Data
+{scraped_data}
+
+## Verification Rules
+1. If scraped website data is available, base your analysis PRIMARILY on that data.
+2. If the scraped data does NOT match the company identity above (wrong industry, wrong name, wrong location), IGNORE the scraped data and note the mismatch.
+3. NEVER substitute data from a different company with a similar name.
+4. If you cannot find reliable information, return null for that field — do NOT guess or use data from a different company.
+5. Include a "verification_status" field: "verified" (data matches company identity), "partial" (some data unverified), "low_confidence" (mostly inferred).
 
 Generate a JSON object with these fields:
 
@@ -63,6 +97,8 @@ Generate a JSON object with these fields:
 
 12. "innovation_score": Float 0.0-1.0 rating of how innovative/forward-thinking the company appears.
 
+13. "verification_status": One of "verified", "partial", "low_confidence"
+
 Return ONLY valid JSON. Do not include any explanation or markdown code fences.
 '''
 
@@ -89,6 +125,8 @@ async def enrich_client(client_id: UUID) -> dict[str, Any]:
     website = client.get("website")
     industry = client.get("industry")
     description = client.get("description")
+    location = client.get("headquarters") or client.get("location") or "Not specified"
+    org_type = client.get("org_type") or client.get("organization_type") or "Not specified"
 
     # Mark as in_progress
     update_client_enrichment(client_id, {"enrichment_status": "in_progress"})
@@ -101,15 +139,26 @@ async def enrich_client(client_id: UUID) -> dict[str, Any]:
         logger.info(f"Scraping website: {website}")
         scrape_result = await scrape_website_safe(website)
         if scrape_result:
-            scraped_data = scrape_result.get("markdown", "")[:8000]
-            enrichment_source = "website_scrape"
-            logger.info(f"Scraped {len(scraped_data)} chars from {website}")
+            raw_scraped = scrape_result.get("markdown", "")[:8000]
+            # Verify scraped content is about the right company
+            if raw_scraped and _verify_scraped_content(name, raw_scraped):
+                scraped_data = raw_scraped
+                enrichment_source = "website_scrape"
+                logger.info(f"Scraped {len(scraped_data)} chars from {website} (verified)")
+            elif raw_scraped:
+                logger.warning(
+                    f"Scraped content from {website} does NOT appear to match client '{name}' — discarding"
+                )
+                scraped_data = ""
+                enrichment_source = "ai_inference"
 
-    # 2. Build prompt
+    # 2. Build prompt with disambiguation context
     prompt = CLIENT_ENRICHMENT_PROMPT.format(
         name=name,
         website=website or "Not provided",
-        scraped_data=scraped_data or "Not available - no website provided or scraping failed",
+        location=location,
+        org_type=org_type,
+        scraped_data=scraped_data or "Not available - no website provided or scraping failed. Use ONLY the company identity above. Do NOT substitute data from a similarly-named company.",
         industry=industry or "Not specified",
         description=description or "Not provided",
     )
@@ -144,7 +193,28 @@ async def enrich_client(client_id: UUID) -> dict[str, Any]:
         update_client_enrichment(client_id, {"enrichment_status": "failed"})
         return {"success": False, "error": f"JSON parse error: {e}"}
 
-    # 5. Store enrichment
+    # 5. Verify enrichment matches the target company
+    verification_status = enrichment.get("verification_status", "partial")
+    if verification_status == "low_confidence":
+        logger.warning(
+            f"Enrichment returned low_confidence for client '{name}' — "
+            f"summary: {enrichment.get('company_summary', '')[:100]}"
+        )
+
+    # Cross-check: if the summary mentions a completely different company, reject
+    summary = enrichment.get("company_summary", "") or ""
+    if summary and not _verify_scraped_content(name, summary):
+        logger.error(
+            f"Enrichment summary does NOT mention '{name}' — likely wrong company. "
+            f"Summary: {summary[:200]}"
+        )
+        update_client_enrichment(client_id, {"enrichment_status": "failed"})
+        return {
+            "success": False,
+            "error": f"Enrichment returned data for wrong company. Summary: {summary[:200]}",
+        }
+
+    # 6. Store enrichment
     enrichment_data = {
         "company_summary": enrichment.get("company_summary"),
         "market_position": enrichment.get("market_position"),

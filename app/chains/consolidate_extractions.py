@@ -546,6 +546,12 @@ def consolidate_stakeholders(
         if not name:
             continue
 
+        # Reject organizations — stakeholders must be individual people
+        from app.db.stakeholders import is_likely_organization
+        if is_likely_organization(name):
+            logger.info(f"Skipping stakeholder '{name}' — appears to be an organization, not a person")
+            continue
+
         name_lower = name.lower().strip()
         if name_lower in seen_names:
             continue
