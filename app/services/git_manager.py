@@ -45,15 +45,19 @@ class GitManager:
         except subprocess.TimeoutExpired as e:
             raise GitError(f"git {args[0]} timed out after 120s") from e
 
-    def clone(self, repo_url: str, project_id: str) -> str:
+    def clone(self, repo_url: str, project_id: str, branch: str | None = None) -> str:
         """Clone a repo to {base_dir}/{project_id}. Returns local path."""
         local_path = str(self.base_dir / project_id)
         if Path(local_path).exists():
             logger.info(f"Repo already exists at {local_path}, pulling latest")
             self._run(["pull", "--ff-only"], cwd=local_path, check=False)
             return local_path
-        self._run(["clone", repo_url, local_path])
-        logger.info(f"Cloned {repo_url} to {local_path}")
+        cmd = ["clone"]
+        if branch:
+            cmd.extend(["-b", branch])
+        cmd.extend([repo_url, local_path])
+        self._run(cmd)
+        logger.info(f"Cloned {repo_url} to {local_path}" + (f" (branch: {branch})" if branch else ""))
         return local_path
 
     def create_branch(self, local_path: str, branch_name: str) -> None:
@@ -65,16 +69,33 @@ class GitManager:
         """Checkout an existing branch."""
         self._run(["checkout", branch_name], cwd=local_path)
 
+    def configure_author(self, local_path: str, name: str, email: str) -> None:
+        """Set local git config for author in this repo."""
+        self._run(["config", "user.name", name], cwd=local_path)
+        self._run(["config", "user.email", email], cwd=local_path)
+        logger.info(f"Configured git author: {name} <{email}>")
+
     def commit(
-        self, local_path: str, message: str, files: list[str] | None = None
+        self,
+        local_path: str,
+        message: str,
+        files: list[str] | None = None,
+        author: str | None = None,
     ) -> str:
-        """Stage files and commit. Returns commit SHA."""
+        """Stage files and commit. Returns commit SHA.
+
+        If author is provided, uses --author flag (e.g. "Name <email>").
+        Otherwise uses the repo's local git config.
+        """
         if files:
             for f in files:
                 self._run(["add", f], cwd=local_path)
         else:
             self._run(["add", "-A"], cwd=local_path)
-        self._run(["commit", "-m", message], cwd=local_path)
+        cmd = ["commit", "-m", message]
+        if author:
+            cmd.extend(["--author", author])
+        self._run(cmd, cwd=local_path)
         result = self._run(["rev-parse", "HEAD"], cwd=local_path)
         sha = result.stdout.strip()
         logger.info(f"Committed {sha[:8]}: {message}")

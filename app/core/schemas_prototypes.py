@@ -185,6 +185,7 @@ class IngestPrototypeRequest(BaseModel):
     project_id: UUID = Field(..., description="Project UUID")
     repo_url: str = Field(..., description="Git repo URL for the prototype")
     deploy_url: str | None = Field(None, description="Live deployment URL")
+    branch: str | None = Field(None, description="Branch to clone (defaults to repo default)")
 
 
 class RetryPrototypeRequest(BaseModel):

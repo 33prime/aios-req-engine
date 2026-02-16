@@ -12,16 +12,12 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react'
 import {
-  ExternalLink,
   Layers,
   RefreshCw,
   Maximize2,
   Minimize2,
-  Edit3,
   Check,
   X,
-  Link as LinkIcon,
-  AlertCircle,
   Square,
   Sparkles,
 } from 'lucide-react'
@@ -167,12 +163,6 @@ export function BuildPhaseView({
     }
   }
 
-  const formatDate = (dateStr?: string | null) => {
-    if (!dateStr) return null
-    const date = new Date(dateStr)
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
-  }
-
   return (
     <div
       className={`h-full flex flex-col ${isFullscreen ? 'fixed top-0 left-0 bottom-0 z-[100] bg-white' : ''}`}
@@ -213,15 +203,6 @@ export function BuildPhaseView({
                   <RefreshCw className="w-4 h-4" />
                 </button>
               )}
-              <a
-                href={prototypeUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="p-2 text-ui-supportText hover:text-ui-headingDark hover:bg-ui-background rounded-lg transition-colors"
-                title="Open in new tab"
-              >
-                <ExternalLink className="w-4 h-4" />
-              </a>
               <button
                 onClick={() => setIsFullscreen(!isFullscreen)}
                 className="p-2 text-ui-supportText hover:text-ui-headingDark hover:bg-ui-background rounded-lg transition-colors"
@@ -253,43 +234,27 @@ export function BuildPhaseView({
         </div>
       </div>
 
-      {/* URL Bar — hidden during review */}
-      {!isReviewActive && (
+      {/* Inline URL input — only visible when actively editing (e.g. from empty state "paste URL" button) */}
+      {!isReviewActive && isEditing && (
         <div className="px-4 py-2 bg-ui-background border-b border-ui-cardBorder">
-          {isEditing ? (
-            <div className="flex items-center gap-2">
-              <LinkIcon className="w-4 h-4 text-ui-supportText flex-shrink-0" />
-              <input
-                ref={inputRef}
-                type="url"
-                value={urlValue}
-                onChange={(e) => setUrlValue(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder="https://your-prototype.vercel.app"
-                className="flex-1 px-3 py-1.5 text-sm bg-white border border-ui-cardBorder rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-teal/20 focus:border-brand-teal"
-                disabled={isSaving}
-              />
-              <button onClick={handleCancel} className="p-1.5 text-ui-supportText hover:text-ui-bodyText rounded transition-colors" disabled={isSaving}>
-                <X className="w-4 h-4" />
-              </button>
-              <button onClick={handleSave} className="p-1.5 text-brand-teal hover:bg-brand-teal/10 rounded transition-colors" disabled={isSaving}>
-                <Check className="w-4 h-4" />
-              </button>
-            </div>
-          ) : (
-            <div onClick={() => setIsEditing(true)} className="flex items-center gap-2 cursor-pointer group">
-              <LinkIcon className="w-4 h-4 text-ui-supportText flex-shrink-0" />
-              {prototypeUrl ? (
-                <span className="text-sm text-ui-bodyText truncate flex-1">{prototypeUrl}</span>
-              ) : (
-                <span className="text-sm text-ui-supportText italic">Click to add prototype URL...</span>
-              )}
-              <Edit3 className="w-3.5 h-3.5 text-ui-supportText opacity-0 group-hover:opacity-100 transition-opacity" />
-              {prototypeUpdatedAt && (
-                <span className="text-support text-ui-supportText ml-auto">Updated {formatDate(prototypeUpdatedAt)}</span>
-              )}
-            </div>
-          )}
+          <div className="flex items-center gap-2">
+            <input
+              ref={inputRef}
+              type="url"
+              value={urlValue}
+              onChange={(e) => setUrlValue(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="https://your-prototype.vercel.app"
+              className="flex-1 px-3 py-1.5 text-sm bg-white border border-ui-cardBorder rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-teal/20 focus:border-brand-teal"
+              disabled={isSaving}
+            />
+            <button onClick={handleCancel} className="p-1.5 text-ui-supportText hover:text-ui-bodyText rounded transition-colors" disabled={isSaving}>
+              <X className="w-4 h-4" />
+            </button>
+            <button onClick={handleSave} className="p-1.5 text-brand-teal hover:bg-brand-teal/10 rounded transition-colors" disabled={isSaving}>
+              <Check className="w-4 h-4" />
+            </button>
+          </div>
         </div>
       )}
 
@@ -364,28 +329,6 @@ export function BuildPhaseView({
           </div>
         )}
 
-        {/* X-Frame-Options Warning — only in normal mode */}
-        {!isReviewActive && prototypeUrl && (
-          <div className="absolute bottom-4 left-4 right-4">
-            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 flex items-start gap-3 shadow-sm">
-              <AlertCircle className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
-              <div className="flex-1">
-                <p className="text-sm text-amber-800">
-                  Some sites block embedding. If the preview doesn't load,{' '}
-                  <a href={prototypeUrl} target="_blank" rel="noopener noreferrer" className="underline hover:text-amber-900">
-                    open in a new tab
-                  </a>.
-                </p>
-              </div>
-              <button
-                onClick={(e) => { const p = e.currentTarget.parentElement; if (p) p.style.display = 'none' }}
-                className="text-amber-500 hover:text-amber-700"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-        )}
       </div>
 
       {/* Design Selection Chat */}

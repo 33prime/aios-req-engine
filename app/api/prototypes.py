@@ -237,8 +237,11 @@ async def ingest_prototype_endpoint(
 
         # Clone repo
         git = GitManager(base_dir=settings.PROTOTYPE_TEMP_DIR)
-        local_path = git.clone(request.repo_url, str(request.project_id))
+        local_path = git.clone(request.repo_url, str(request.project_id), branch=request.branch)
         update_prototype(prototype_id, local_path=local_path)
+
+        # Configure git author so Vercel accepts the commits
+        git.configure_author(local_path, "readytogoai", "matt@readytogo.ai")
 
         # Parse HANDOFF.md if present
         handoff_parsed = {}
@@ -254,6 +257,9 @@ async def ingest_prototype_endpoint(
 
         # Inject bridge
         inject_bridge(git, local_path)
+
+        # Push bridge commit so Vercel auto-deploys
+        git.push(local_path)
 
         # Update status
         update_prototype(prototype_id, status="ingested")

@@ -459,12 +459,76 @@ BRIDGE_SCRIPT = """\
 """
 
 
+IFRAME_HEADERS_SNIPPET = """\
+  async headers() {
+    return [
+      {
+        source: '/(.*)',
+        headers: [
+          {
+            key: 'X-Frame-Options',
+            value: 'ALLOWALL',
+          },
+          {
+            key: 'Content-Security-Policy',
+            value: 'frame-ancestors *',
+          },
+        ],
+      },
+    ];
+  },"""
+
+
+def _inject_iframe_headers(local_path: str) -> bool:
+    """Add iframe-permissive headers to next.config.mjs so the prototype can be embedded."""
+    for config_name in ("next.config.mjs", "next.config.js", "next.config.ts"):
+        config_path = Path(local_path) / config_name
+        if not config_path.exists():
+            continue
+
+        content = config_path.read_text(encoding="utf-8")
+
+        # Skip if already has frame-ancestors or headers()
+        if "frame-ancestors" in content or "async headers()" in content:
+            logger.info(f"iframe headers already present in {config_name}")
+            return True
+
+        # Insert headers() before the closing brace of nextConfig object.
+        # Look for the pattern: a closing `}` that sits before `export default`
+        # or before `module.exports`.
+        import re
+
+        # Find the last `}` before `export default` or `module.exports`
+        match = re.search(
+            r"(}\s*)\n\s*(export\s+default|module\.exports)", content
+        )
+        if match:
+            # Insert headers snippet before the closing brace
+            closing_brace_start = match.start(1)
+            content = (
+                content[:closing_brace_start]
+                + IFRAME_HEADERS_SNIPPET
+                + "\n}\n\n"
+                + content[match.start(2) :]
+            )
+            config_path.write_text(content, encoding="utf-8")
+            logger.info(f"Injected iframe headers into {config_name}")
+            return True
+
+        logger.warning(f"Could not find insertion point in {config_name}")
+        return False
+
+    logger.warning("No next.config.{mjs,js,ts} found — skipping iframe headers")
+    return False
+
+
 def inject_bridge(git_manager: GitManager, local_path: str) -> None:
     """Inject the AIOS bridge script into a prototype repo and commit.
 
     1. Writes public/aios-bridge.js
     2. Finds the root HTML/layout file and adds the script tag
-    3. Commits the changes
+    3. Adds iframe-permissive headers to next.config
+    4. Commits the changes
     """
     # Write bridge script
     git_manager.write_file(local_path, "public/aios-bridge.js", BRIDGE_SCRIPT)
@@ -525,6 +589,9 @@ def inject_bridge(git_manager: GitManager, local_path: str) -> None:
 
     if not injected:
         logger.warning("Could not find entry point to inject bridge script tag")
+
+    # Inject iframe-permissive headers into next.config
+    _inject_iframe_headers(local_path)
 
     # Commit
     git_manager.commit(local_path, "Add AIOS overlay bridge")
