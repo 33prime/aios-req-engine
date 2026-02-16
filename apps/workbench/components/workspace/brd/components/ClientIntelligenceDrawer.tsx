@@ -29,6 +29,22 @@ function safeParse<T>(val: unknown, fallback: T): T {
   }
 }
 
+/** Convert any value to a displayable string — handles objects, arrays, primitives. */
+function toLabel(val: unknown): string {
+  if (val == null) return ''
+  if (typeof val === 'string') return val
+  if (typeof val === 'number' || typeof val === 'boolean') return String(val)
+  if (typeof val === 'object') {
+    const obj = val as Record<string, unknown>
+    // Try common label keys
+    for (const key of ['name', 'title', 'label', 'description', 'text', 'role', 'value']) {
+      if (typeof obj[key] === 'string' && obj[key]) return obj[key] as string
+    }
+    return JSON.stringify(val)
+  }
+  return String(val)
+}
+
 interface ClientIntelligenceDrawerProps {
   projectId: string
   onClose: () => void
@@ -112,18 +128,20 @@ function AccordionSection({
   )
 }
 
-function FieldRow({ label, value }: { label: string; value?: string | null }) {
-  if (!value) return null
+function FieldRow({ label, value }: { label: string; value?: unknown }) {
+  if (value == null || value === '') return null
+  const display = toLabel(value)
+  if (!display) return null
   return (
     <div className="flex items-start gap-2 text-[13px]">
       <span className="text-[#999999] min-w-[120px] flex-shrink-0">{label}</span>
-      <span className="text-[#333333]">{value}</span>
+      <span className="text-[#333333]">{display}</span>
     </div>
   )
 }
 
-function TagList({ items, emptyText }: { items?: (string | null)[] | null; emptyText?: string }) {
-  const filtered = (items || []).filter(Boolean) as string[]
+function TagList({ items, emptyText }: { items?: unknown[] | null; emptyText?: string }) {
+  const filtered = (items || []).filter(Boolean)
   if (filtered.length === 0) {
     return emptyText ? <p className="text-[12px] text-[#999999] italic">{emptyText}</p> : null
   }
@@ -131,7 +149,7 @@ function TagList({ items, emptyText }: { items?: (string | null)[] | null; empty
     <div className="flex flex-wrap gap-1.5">
       {filtered.map((item, i) => (
         <span key={i} className="px-2 py-0.5 text-[11px] bg-[#F0F0F0] text-[#666666] rounded-full">
-          {item}
+          {toLabel(item)}
         </span>
       ))}
     </div>
@@ -239,7 +257,7 @@ export function ClientIntelligenceDrawer({
             </div>
           ) : (
             <div className="space-y-3">
-              {/* Company Profile */}
+              {/* Company Profile — merge company_info (cp) with client data (cd) fallback */}
               <AccordionSection
                 title="Company Profile"
                 icon={Building2}
@@ -247,30 +265,30 @@ export function ClientIntelligenceDrawer({
                 badge={
                   <div className="flex items-center gap-1.5">
                     <SourceBadge source={cp.enrichment_source} />
-                    <FreshnessBadge dateStr={cp.enriched_at} />
+                    <FreshnessBadge dateStr={cp.enriched_at || cd.enriched_at} />
                   </div>
                 }
               >
                 <div className="space-y-2">
-                  <FieldRow label="Industry" value={cp.industry_display || cp.industry} />
+                  <FieldRow label="Industry" value={cp.industry_display || cp.industry || cd.industry} />
                   <FieldRow label="Company Type" value={cp.company_type} />
-                  <FieldRow label="Stage" value={cp.stage} />
-                  <FieldRow label="Size" value={cp.size} />
+                  <FieldRow label="Stage" value={cp.stage || cd.stage} />
+                  <FieldRow label="Size" value={cp.size || cd.size} />
                   <FieldRow label="Revenue" value={cp.revenue} />
                   <FieldRow label="Employees" value={cp.employee_count} />
                   <FieldRow label="Location" value={cp.location} />
-                  {cp.website && (
+                  {(cp.website || cd.website) && (
                     <div className="flex items-start gap-2 text-[13px]">
                       <span className="text-[#999999] min-w-[120px] flex-shrink-0">Website</span>
                       <span className="text-[#3FAF7A] flex items-center gap-1">
                         <Globe className="w-3 h-3" />
-                        {cp.website}
+                        {cp.website || cd.website}
                       </span>
                     </div>
                   )}
-                  {cp.description && (
+                  {(cp.description || cd.description) && (
                     <div className="mt-2">
-                      <p className="text-[13px] text-[#666666] leading-relaxed">{cp.description}</p>
+                      <p className="text-[13px] text-[#666666] leading-relaxed">{cp.description || cd.description}</p>
                     </div>
                   )}
                   {cp.unique_selling_point && (
@@ -299,13 +317,49 @@ export function ClientIntelligenceDrawer({
                     {cd.organizational_context && Object.keys(cd.organizational_context).length > 0 && (
                       <div>
                         <p className="text-[11px] font-medium text-[#999999] uppercase tracking-wide mb-1">Org Context</p>
-                        <div className="bg-[#F9F9F9] rounded-lg p-3 space-y-1">
-                          {Object.entries(cd.organizational_context).map(([key, val]) => (
-                            <div key={key} className="text-[12px]">
-                              <span className="text-[#999999]">{key.replace(/_/g, ' ')}:</span>{' '}
-                              <span className="text-[#333333]">{typeof val === 'string' ? val : JSON.stringify(val)}</span>
-                            </div>
-                          ))}
+                        <div className="bg-[#F9F9F9] rounded-lg p-3 space-y-2">
+                          {Object.entries(cd.organizational_context).map(([key, val]) => {
+                            // For nested objects (e.g. assessment, stakeholder_analysis), render their sub-fields
+                            if (val && typeof val === 'object' && !Array.isArray(val)) {
+                              const sub = val as Record<string, unknown>
+                              const subEntries = Object.entries(sub).filter(([, v]) =>
+                                v != null && v !== '' && typeof v !== 'object'
+                              )
+                              if (subEntries.length === 0) return null
+                              return (
+                                <div key={key}>
+                                  <p className="text-[11px] font-medium text-[#666666] capitalize mb-1">{key.replace(/_/g, ' ')}</p>
+                                  <div className="space-y-0.5 pl-2">
+                                    {subEntries.map(([sk, sv]) => (
+                                      <div key={sk} className="text-[12px]">
+                                        <span className="text-[#999999] capitalize">{sk.replace(/_/g, ' ')}:</span>{' '}
+                                        <span className="text-[#333333]">{toLabel(sv)}</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                  {/* Render array sub-fields (e.g. watch_out_for) */}
+                                  {Object.entries(sub).filter(([, v]) => Array.isArray(v)).map(([sk, sv]) => (
+                                    <div key={sk} className="mt-1">
+                                      <span className="text-[11px] text-[#999999] capitalize">{sk.replace(/_/g, ' ')}:</span>
+                                      <div className="flex flex-wrap gap-1 mt-0.5">
+                                        {(sv as unknown[]).map((item, idx) => (
+                                          <span key={idx} className="px-2 py-0.5 text-[11px] bg-[#F0F0F0] text-[#666666] rounded-full">
+                                            {toLabel(item)}
+                                          </span>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              )
+                            }
+                            return (
+                              <div key={key} className="text-[12px]">
+                                <span className="text-[#999999] capitalize">{key.replace(/_/g, ' ')}:</span>{' '}
+                                <span className="text-[#333333]">{toLabel(val)}</span>
+                              </div>
+                            )
+                          })}
                         </div>
                       </div>
                     )}
@@ -329,7 +383,7 @@ export function ClientIntelligenceDrawer({
                         <TagList items={cd.tech_stack} emptyText="No tech stack data" />
                       </div>
                     )}
-                    {!cd.company_summary && !cd.organizational_context && (
+                    {!cd.company_summary && Object.keys(cd.organizational_context).length === 0 && (
                       <p className="text-[12px] text-[#999999] italic">
                         Run the Client Intelligence Agent to populate this section.
                       </p>
@@ -361,15 +415,15 @@ export function ClientIntelligenceDrawer({
                       <p className="text-[13px] text-[#666666] leading-relaxed">{sc.executive_summary}</p>
                     </div>
                   )}
-                  {sc.opportunity && (
+                  {sc.opportunity && Object.keys(sc.opportunity).length > 0 && (
                     <div>
                       <p className="text-[11px] font-medium text-[#999999] uppercase tracking-wide mb-1">Opportunity</p>
                       <div className="bg-[#F9F9F9] rounded-lg p-3 space-y-1 text-[12px]">
                         {Object.entries(sc.opportunity).map(([key, val]) => (
                           val ? (
                             <div key={key}>
-                              <span className="text-[#999999]">{key.replace(/_/g, ' ')}:</span>{' '}
-                              <span className="text-[#333333]">{typeof val === 'string' ? val : JSON.stringify(val)}</span>
+                              <span className="text-[#999999] capitalize">{key.replace(/_/g, ' ')}:</span>{' '}
+                              <span className="text-[#333333]">{toLabel(val)}</span>
                             </div>
                           ) : null
                         ))}
@@ -420,7 +474,7 @@ export function ClientIntelligenceDrawer({
                       </div>
                     </div>
                   )}
-                  {!sc.executive_summary && !sc.opportunity && !cd.market_position && (
+                  {!sc.executive_summary && Object.keys(sc.opportunity).length === 0 && !cd.market_position && (
                     <p className="text-[12px] text-[#999999] italic">
                       No strategic context available yet. Process more signals to build this section.
                     </p>
@@ -447,7 +501,7 @@ export function ClientIntelligenceDrawer({
                 ) : (
                   <div className="space-y-2">
                     {oq.map((q, i) => {
-                      const question = typeof q === 'string' ? q : (q.question || q.text || JSON.stringify(q)) as string
+                      const question = toLabel(q)
                       const answered = typeof q === 'object' && q !== null ? (q as Record<string, unknown>).answered : false
                       return (
                         <div

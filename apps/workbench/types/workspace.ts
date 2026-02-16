@@ -797,6 +797,11 @@ export interface ClientIntelligenceData {
   }
   client_data: {
     name?: string | null
+    industry?: string | null
+    stage?: string | null
+    size?: string | null
+    description?: string | null
+    website?: string | null
     company_summary?: string | null
     market_position?: string | null
     technology_maturity?: string | null
