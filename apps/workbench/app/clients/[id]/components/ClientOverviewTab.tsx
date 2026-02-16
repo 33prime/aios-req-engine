@@ -120,15 +120,48 @@ export function ClientOverviewTab({ client, intelligence }: ClientOverviewTabPro
               <BookOpen className="w-4 h-4 text-[#666]" />
               <h3 className="text-[14px] font-semibold text-[#333]">Knowledge Base</h3>
             </div>
-            <div className="space-y-3">
-              {['Business Processes', 'SOPs & Standards', 'Tribal Knowledge'].map((section) => (
-                <div key={section} className="bg-[#F4F4F4] rounded-lg px-4 py-3">
-                  <p className="text-[12px] font-medium text-[#666]">{section}</p>
-                  <p className="text-[11px] text-[#999] mt-0.5">
-                    Will appear as the CI agent identifies them from signals
-                  </p>
+            <div className="space-y-4">
+              <div>
+                <p className="text-[12px] font-semibold text-[#999] uppercase tracking-wide mb-2">Business Processes</p>
+                <div className="space-y-1.5">
+                  {[
+                    'User onboarding via guided self-assessment and pattern discovery',
+                    'Coach matching based on specialization and user goals',
+                    'Weekly reflection cycles with AI-prompted journaling',
+                  ].map((item, i) => (
+                    <div key={i} className="bg-[#F4F4F4] rounded-lg px-3 py-2">
+                      <p className="text-[12px] text-[#333]">{item}</p>
+                    </div>
+                  ))}
                 </div>
-              ))}
+              </div>
+              <div>
+                <p className="text-[12px] font-semibold text-[#999] uppercase tracking-wide mb-2">SOPs & Standards</p>
+                <div className="space-y-1.5">
+                  {[
+                    'GDPR/CCPA compliant data handling for personal reflections',
+                    'Coach certification requirements before platform access',
+                  ].map((item, i) => (
+                    <div key={i} className="bg-[#F4F4F4] rounded-lg px-3 py-2">
+                      <p className="text-[12px] text-[#333]">{item}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <p className="text-[12px] font-semibold text-[#999] uppercase tracking-wide mb-2">Tribal Knowledge</p>
+                <div className="space-y-1.5">
+                  {[
+                    'Users who complete the first 3 reflections have 4x retention (Brandi)',
+                    'Evening push notifications convert 2x better than morning (Marcus)',
+                    'Coaches prefer async check-ins over scheduled video calls (Sarah)',
+                  ].map((item, i) => (
+                    <div key={i} className="bg-[#F4F4F4] rounded-lg px-3 py-2">
+                      <p className="text-[12px] text-[#333]">{item}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
         </div>

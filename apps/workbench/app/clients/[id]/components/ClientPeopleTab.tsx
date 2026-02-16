@@ -23,7 +23,7 @@ interface Stakeholder {
   email?: string | null
   project_id?: string | null
   project_name?: string | null
-  reports_to?: string | null
+  reports_to_id?: string | null
   allies?: string[] | null
 }
 
@@ -87,12 +87,12 @@ export function ClientPeopleTab({ clientId, roleGaps }: ClientPeopleTabProps) {
       })
     : stakeholders
 
-  // Build org chart data
-  const topLevel = stakeholders.filter((s) => !s.reports_to)
+  // Build org chart data — keyed by parent stakeholder ID
+  const topLevel = stakeholders.filter((s) => !s.reports_to_id)
   const byReportsTo = stakeholders.reduce<Record<string, Stakeholder[]>>((acc, s) => {
-    if (s.reports_to) {
-      if (!acc[s.reports_to]) acc[s.reports_to] = []
-      acc[s.reports_to].push(s)
+    if (s.reports_to_id) {
+      if (!acc[s.reports_to_id]) acc[s.reports_to_id] = []
+      acc[s.reports_to_id].push(s)
     }
     return acc
   }, {})

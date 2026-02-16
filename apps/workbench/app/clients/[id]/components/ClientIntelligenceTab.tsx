@@ -279,90 +279,104 @@ export function ClientIntelligenceTab({ clientId, client, intelligence }: Client
           <div className="bg-[#F4F4F4] rounded-lg px-4 py-6 text-center">
             <p className="text-[13px] text-[#666]">No analysis runs yet</p>
           </div>
-        ) : (
-          <div className="relative pl-6">
-            {/* Vertical line */}
-            <div className="absolute left-[15px] top-0 bottom-0 w-px bg-gray-200" />
+        ) : (() => {
+          // Only show entries where completeness changed or had an error
+          const meaningful = logs.filter((log) => {
+            if (log.status === 'error') return true
+            if (log.profile_completeness_before != null && log.profile_completeness_after != null) {
+              return log.profile_completeness_before !== log.profile_completeness_after
+            }
+            return true
+          })
+          const skipped = logs.length - meaningful.length
 
-            <div className="space-y-4">
-              {logs.map((log) => {
-                const isExpanded = expandedLog === log.id
-                const dotColor = log.status === 'completed' ? 'bg-[#3FAF7A]'
-                  : log.status === 'error' ? 'bg-red-400'
-                  : 'bg-[#999]'
+          return (
+            <div className="relative pl-6">
+              <div className="absolute left-[15px] top-0 bottom-0 w-px bg-gray-200" />
 
-                return (
-                  <div key={log.id} className="relative">
-                    {/* Dot */}
-                    <div className={`absolute -left-6 top-1 w-[14px] h-[14px] rounded-full border-2 border-white ${dotColor}`} />
+              <div className="space-y-4">
+                {meaningful.map((log) => {
+                  const isExpanded = expandedLog === log.id
+                  const dotColor = log.status === 'completed' ? 'bg-[#3FAF7A]'
+                    : log.status === 'error' ? 'bg-red-400'
+                    : 'bg-[#999]'
 
-                    {/* Card */}
-                    <div
-                      className="bg-[#F4F4F4] rounded-lg px-3 py-2 cursor-pointer hover:bg-[#ECECEC] transition-colors"
-                      onClick={() => setExpandedLog(isExpanded ? null : log.id)}
-                    >
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="px-1.5 py-0.5 text-[10px] font-medium text-[#666] bg-[#E5E5E5] rounded">
-                          {log.trigger}
-                        </span>
-                        <span className="text-[12px] text-[#999]">{formatTimeAgo(log.created_at)}</span>
-                        {log.action_summary && (
-                          <span className="text-[12px] text-[#333] flex-1">{log.action_summary}</span>
-                        )}
-                        {log.profile_completeness_before != null && log.profile_completeness_after != null && (
-                          <span className="text-[11px] font-medium text-[#3FAF7A]">
-                            {log.profile_completeness_before}% → {log.profile_completeness_after}%
-                          </span>
-                        )}
-                        <ChevronRight className={`w-3.5 h-3.5 text-[#999] transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
-                      </div>
+                  // Extract tool name from tools_called or action_summary
+                  const toolName = log.tools_called?.[0]?.tool?.replace(/_/g, ' ') || log.action_summary || ''
 
-                      {isExpanded && (
-                        <div className="mt-3 pt-3 border-t border-[#E5E5E5] space-y-2">
-                          {log.observation && (
-                            <div>
-                              <p className="text-[11px] text-[#999] font-medium uppercase tracking-wide">Observation</p>
-                              <p className="text-[12px] text-[#666] mt-0.5">{log.observation}</p>
-                            </div>
+                  return (
+                    <div key={log.id} className="relative">
+                      <div className={`absolute -left-6 top-1 w-[14px] h-[14px] rounded-full border-2 border-white ${dotColor}`} />
+
+                      <div
+                        className="bg-[#F4F4F4] rounded-lg px-3 py-2 cursor-pointer hover:bg-[#ECECEC] transition-colors"
+                        onClick={() => setExpandedLog(isExpanded ? null : log.id)}
+                      >
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-[12px] text-[#999]">{formatTimeAgo(log.created_at)}</span>
+                          {toolName && (
+                            <span className="text-[12px] text-[#333] capitalize">{toolName}</span>
                           )}
-                          {log.thinking && (
-                            <div>
-                              <p className="text-[11px] text-[#999] font-medium uppercase tracking-wide">Thinking</p>
-                              <p className="text-[12px] text-[#666] mt-0.5">{log.thinking}</p>
-                            </div>
+                          <span className="flex-1" />
+                          {log.profile_completeness_before != null && log.profile_completeness_after != null && (
+                            <span className="text-[12px] font-semibold text-[#3FAF7A]">
+                              {log.profile_completeness_before}% → {log.profile_completeness_after}%
+                            </span>
                           )}
-                          {log.decision && (
-                            <div>
-                              <p className="text-[11px] text-[#999] font-medium uppercase tracking-wide">Decision</p>
-                              <p className="text-[12px] text-[#666] mt-0.5">{log.decision}</p>
-                            </div>
-                          )}
-                          {log.tools_called && log.tools_called.length > 0 && (
-                            <div>
-                              <p className="text-[11px] text-[#999] font-medium uppercase tracking-wide mb-1">Tools Called</p>
-                              <div className="flex flex-wrap gap-1">
-                                {log.tools_called.map((tc, j) => (
-                                  <span key={j} className="bg-white rounded-lg px-2 py-1 text-[11px] text-[#666] border border-[#E5E5E5]">
-                                    {tc.tool}
-                                  </span>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-                          {log.error_message && (
-                            <div>
-                              <p className="text-[11px] text-red-500 font-medium">Error: {log.error_message}</p>
-                            </div>
-                          )}
+                          <ChevronRight className={`w-3.5 h-3.5 text-[#999] transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
                         </div>
-                      )}
+
+                        {isExpanded && (
+                          <div className="mt-3 pt-3 border-t border-[#E5E5E5] space-y-2">
+                            {log.observation && (
+                              <div>
+                                <p className="text-[11px] text-[#999] font-medium uppercase tracking-wide">Observation</p>
+                                <p className="text-[12px] text-[#666] mt-0.5">{log.observation}</p>
+                              </div>
+                            )}
+                            {log.thinking && (
+                              <div>
+                                <p className="text-[11px] text-[#999] font-medium uppercase tracking-wide">Thinking</p>
+                                <p className="text-[12px] text-[#666] mt-0.5">{log.thinking}</p>
+                              </div>
+                            )}
+                            {log.decision && (
+                              <div>
+                                <p className="text-[11px] text-[#999] font-medium uppercase tracking-wide">Decision</p>
+                                <p className="text-[12px] text-[#666] mt-0.5">{log.decision}</p>
+                              </div>
+                            )}
+                            {log.tools_called && log.tools_called.length > 0 && (
+                              <div>
+                                <p className="text-[11px] text-[#999] font-medium uppercase tracking-wide mb-1">Tools Called</p>
+                                <div className="flex flex-wrap gap-1">
+                                  {log.tools_called.map((tc, j) => (
+                                    <span key={j} className="bg-white rounded-lg px-2 py-1 text-[11px] text-[#666] border border-[#E5E5E5]">
+                                      {tc.tool}
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                            {log.error_message && (
+                              <p className="text-[11px] text-red-500 font-medium">Error: {log.error_message}</p>
+                            )}
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                )
-              })}
+                  )
+                })}
+              </div>
+
+              {skipped > 0 && (
+                <p className="text-[11px] text-[#999] mt-3 pl-2">
+                  {skipped} unchanged run{skipped > 1 ? 's' : ''} hidden
+                </p>
+              )}
             </div>
-          </div>
-        )}
+          )
+        })()}
       </div>
     </div>
   )

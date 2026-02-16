@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { formatDistanceToNow } from 'date-fns'
 import { FolderKanban, Plus, Unlink } from 'lucide-react'
 import { listProjects, linkProjectToClient, unlinkProjectFromClient } from '@/lib/api'
 import type { ClientDetail, ClientDetailProject } from '@/types/workspace'
@@ -11,78 +12,111 @@ interface ClientProjectsTabProps {
   onRefresh: () => void
 }
 
-function formatTimeAgo(dateStr: string): string {
-  const diff = Date.now() - new Date(dateStr).getTime()
-  const mins = Math.floor(diff / 60000)
-  if (mins < 60) return `${mins}m ago`
-  const hours = Math.floor(mins / 60)
-  if (hours < 24) return `${hours}h ago`
-  const days = Math.floor(hours / 24)
-  return `${days}d ago`
+const STAGE_LABELS: Record<string, string> = {
+  discovery: 'Discovery',
+  validation: 'Validation',
+  prototype: 'Prototype',
+  prototype_refinement: 'Refinement',
+  proposal: 'Proposal',
+  build: 'Build',
+  live: 'Live',
 }
 
-function ProjectCard({ project, onView, onUnlink }: { project: ClientDetailProject; onView: () => void; onUnlink: () => void }) {
-  const counts = project.counts
+function ProjectCard({ project, clientName, onView, onUnlink }: {
+  project: ClientDetailProject
+  clientName: string
+  onView: () => void
+  onUnlink: () => void
+}) {
   const readiness = project.cached_readiness_score ?? 0
+  const stageLabel = STAGE_LABELS[project.stage || ''] || project.stage || ''
+
+  // Generate initials from client name
+  const initials = clientName
+    .split(' ')
+    .map((w) => w[0])
+    .join('')
+    .toUpperCase()
+    .slice(0, 2)
+
+  const readinessColor = readiness >= 80
+    ? { bar: 'bg-[#3FAF7A]', dot: 'bg-[#3FAF7A]', text: 'text-[#3FAF7A]' }
+    : readiness >= 50
+      ? { bar: 'bg-[#4CC08C]', dot: 'bg-[#4CC08C]', text: 'text-[#25785A]' }
+      : readiness >= 20
+        ? { bar: 'bg-emerald-300', dot: 'bg-emerald-300', text: 'text-emerald-600' }
+        : { bar: 'bg-gray-300', dot: 'bg-gray-300', text: 'text-[#999]' }
 
   return (
     <div
-      className="bg-white rounded-2xl border border-[#E5E5E5] shadow-md p-5 hover:shadow-lg transition-shadow cursor-pointer"
+      className="bg-white rounded-2xl shadow-md border border-[#E5E5E5] p-5 hover:shadow-lg cursor-pointer transition-shadow flex flex-col"
       onClick={onView}
     >
-      <div className="flex items-start justify-between mb-3">
-        <h4 className="text-[14px] font-semibold text-[#333]">{project.name}</h4>
-        {project.stage && (
-          <span className="px-2 py-0.5 text-[11px] font-medium text-[#666] bg-[#F0F0F0] rounded-md flex-shrink-0">
-            {project.stage}
+      {/* Top: Avatar + name + stage badge */}
+      <div className="flex items-start gap-3">
+        <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-emerald-400 to-teal-500 text-white flex items-center justify-center text-[10px] font-semibold flex-shrink-0 shadow-sm">
+          {initials}
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-[13px] font-semibold text-[#333] truncate">{project.name}</p>
+          <p className="text-[11px] text-[#999] truncate">{clientName}</p>
+        </div>
+        {stageLabel && (
+          <span className="flex-shrink-0 text-[10px] px-2 py-0.5 rounded-full bg-[#F0F0F0] text-[#666]">
+            {stageLabel}
           </span>
         )}
       </div>
 
-      {/* Entity counts grid */}
-      {counts && (
-        <div className="grid grid-cols-3 gap-2 mb-3">
+      {/* Readiness bar */}
+      <div className="mt-3 flex items-center gap-2">
+        <span className={`w-2 h-2 rounded-full flex-shrink-0 ${readinessColor.dot}`} />
+        <div className="w-20 h-1.5 bg-gray-200 rounded-full overflow-hidden">
+          <div
+            className={`h-full rounded-full transition-all duration-500 ${readinessColor.bar}`}
+            style={{ width: `${readiness}%` }}
+          />
+        </div>
+        <span className={`text-sm font-semibold tabular-nums ${readinessColor.text}`}>
+          {readiness}%
+        </span>
+      </div>
+
+      {/* Entity counts */}
+      {project.counts && (
+        <div className="mt-3 flex items-center gap-3 flex-wrap">
           {[
-            { label: 'Features', count: counts.features ?? 0 },
-            { label: 'Personas', count: counts.personas ?? 0 },
-            { label: 'Steps', count: counts.vp_steps ?? 0 },
-            { label: 'Signals', count: counts.signals ?? 0 },
-            { label: 'Drivers', count: counts.business_drivers ?? 0 },
-          ].map((item) => (
-            <div key={item.label} className="bg-[#F4F4F4] rounded-lg px-2 py-1.5 text-center">
-              <span className="text-[13px] font-semibold text-[#333]">{item.count}</span>
-              <span className="text-[11px] text-[#999] ml-1">{item.label}</span>
-            </div>
+            { label: 'features', count: project.counts.features ?? 0 },
+            { label: 'personas', count: project.counts.personas ?? 0 },
+            { label: 'signals', count: project.counts.signals ?? 0 },
+          ].filter(item => item.count > 0).map((item) => (
+            <span key={item.label} className="text-[11px] text-[#999]">
+              <strong className="text-[#666]">{item.count}</strong> {item.label}
+            </span>
           ))}
         </div>
       )}
 
-      {/* Readiness bar + footer */}
-      <div className="flex items-center justify-between mt-2">
-        <div className="flex items-center gap-2 flex-1 mr-3">
-          <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-            <div
-              className="h-full bg-[#3FAF7A] rounded-full transition-all"
-              style={{ width: `${readiness}%` }}
-            />
-          </div>
-          <span className="text-[11px] font-medium text-[#666] flex-shrink-0">{readiness}% Ready</span>
-        </div>
-        <div className="flex items-center gap-2">
-          {project.updated_at && (
-            <span className="text-[11px] text-[#999]">{formatTimeAgo(project.updated_at)}</span>
-          )}
-          <button
-            onClick={(e) => {
-              e.stopPropagation()
-              onUnlink()
-            }}
-            className="p-1.5 text-[#999] hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-            title="Unlink project"
-          >
-            <Unlink className="w-3.5 h-3.5" />
-          </button>
-        </div>
+      {/* Spacer */}
+      <div className="flex-1" />
+
+      {/* Footer */}
+      <div className="flex items-center justify-between mt-3 pt-3 border-t border-[#E5E5E5]">
+        <span className="text-[11px] text-[#999]">
+          {project.updated_at
+            ? formatDistanceToNow(new Date(project.updated_at), { addSuffix: true })
+            : '—'}
+        </span>
+        <button
+          onClick={(e) => {
+            e.stopPropagation()
+            onUnlink()
+          }}
+          className="p-1.5 text-[#999] hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+          title="Unlink project"
+        >
+          <Unlink className="w-3.5 h-3.5" />
+        </button>
       </div>
     </div>
   )
@@ -189,11 +223,12 @@ export function ClientProjectsTab({ client, onRefresh }: ClientProjectsTabProps)
           <p className="text-[12px] text-[#999]">Link existing projects to this client</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {client.projects.map((project) => (
             <ProjectCard
               key={project.id}
               project={project}
+              clientName={client.name}
               onView={() => router.push(`/projects/${project.id}`)}
               onUnlink={() => handleUnlink(project.id)}
             />

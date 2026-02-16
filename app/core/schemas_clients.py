@@ -1,6 +1,21 @@
 """Pydantic schemas for client organizations."""
 
-from pydantic import BaseModel
+import json
+
+from pydantic import BaseModel, field_validator
+
+
+def _parse_json(v, expected_type):
+    """Parse JSON string into expected type, or return default."""
+    if isinstance(v, str):
+        try:
+            parsed = json.loads(v)
+            if isinstance(parsed, expected_type):
+                return parsed
+        except (ValueError, TypeError):
+            pass
+        return expected_type()
+    return v if isinstance(v, expected_type) else expected_type()
 
 
 class ClientCreate(BaseModel):
@@ -64,6 +79,20 @@ class ClientResponse(BaseModel):
     vision_synthesis: str | None = None
     organizational_context: dict = {}
     last_analyzed_at: str | None = None
+
+    @field_validator(
+        "tech_stack", "growth_signals", "competitors",
+        "constraint_summary", "role_gaps",
+        mode="before",
+    )
+    @classmethod
+    def _parse_list_fields(cls, v):
+        return _parse_json(v, list)
+
+    @field_validator("organizational_context", mode="before")
+    @classmethod
+    def _parse_dict_fields(cls, v):
+        return _parse_json(v, dict)
 
 
 class ClientDetailResponse(ClientResponse):
