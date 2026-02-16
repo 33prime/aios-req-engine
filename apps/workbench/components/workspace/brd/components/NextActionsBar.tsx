@@ -1,6 +1,6 @@
 'use client'
 
-import { Lightbulb, ArrowRight, Users, FileText, Target, Loader2 } from 'lucide-react'
+import { Lightbulb, ArrowRight, Users, FileText, Target, Loader2, MessageCircle, RefreshCw, GitBranch, Link2, Clock } from 'lucide-react'
 import type { NextAction } from '@/lib/api'
 
 interface NextActionsBarProps {
@@ -17,6 +17,20 @@ const ACTION_ICONS: Record<string, typeof Target> = {
   validate_pains: Target,
   missing_vision: Lightbulb,
   missing_metrics: Target,
+  open_question_critical: MessageCircle,
+  open_question_blocking: MessageCircle,
+  stale_belief: RefreshCw,
+  revisit_decision: RefreshCw,
+  contradiction_unresolved: GitBranch,
+  cross_entity_gap: Link2,
+  temporal_stale: Clock,
+}
+
+const URGENCY_COLORS: Record<string, string> = {
+  critical: '#EF4444',
+  high: '#F97316',
+  normal: '#3FAF7A',
+  low: '#999999',
 }
 
 export function NextActionsBar({ actions, loading, onSendToCollab }: NextActionsBarProps) {
@@ -52,6 +66,8 @@ export function NextActionsBar({ actions, loading, onSendToCollab }: NextActions
       <div className="divide-y divide-[#E5E5E5]">
         {actions.map((action, idx) => {
           const Icon = ACTION_ICONS[action.action_type] || Target
+          const urgency = action.urgency || 'normal'
+          const urgencyColor = URGENCY_COLORS[urgency] || URGENCY_COLORS.normal
           return (
             <div key={idx} className="px-5 py-3 flex items-start gap-3 hover:bg-[#F4F4F4]/50 transition-colors">
               <span className="flex items-center justify-center w-5 h-5 rounded-full bg-[#F0F0F0] text-[11px] font-medium text-[#666666] flex-shrink-0 mt-0.5">
@@ -59,26 +75,37 @@ export function NextActionsBar({ actions, loading, onSendToCollab }: NextActions
               </span>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
+                  {(urgency === 'critical' || urgency === 'high') && (
+                    <span
+                      className="w-2 h-2 rounded-full flex-shrink-0"
+                      style={{ backgroundColor: urgencyColor }}
+                      title={`${urgency} urgency`}
+                    />
+                  )}
                   <Icon className="w-3.5 h-3.5 text-[#999999] flex-shrink-0" />
                   <p className="text-[13px] font-medium text-[#333333]">{action.title}</p>
                 </div>
                 <p className="text-[12px] text-[#666666] mt-0.5 ml-5.5">{action.description}</p>
-                {(action.suggested_stakeholder_role || action.suggested_artifact) && (
-                  <div className="flex items-center gap-2 mt-1.5 ml-5.5">
-                    {action.suggested_stakeholder_role && (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-medium bg-[#E8F5E9] text-[#25785A] rounded-full">
-                        <Users className="w-2.5 h-2.5" />
-                        {action.suggested_stakeholder_role}
-                      </span>
-                    )}
-                    {action.suggested_artifact && (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-medium bg-[#F0F0F0] text-[#666666] rounded-full">
-                        <FileText className="w-2.5 h-2.5" />
-                        {action.suggested_artifact}
-                      </span>
-                    )}
-                  </div>
-                )}
+                <div className="flex items-center gap-2 mt-1.5 ml-5.5 flex-wrap">
+                  {action.suggested_stakeholder_role && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-medium bg-[#E8F5E9] text-[#25785A] rounded-full">
+                      <Users className="w-2.5 h-2.5" />
+                      {action.suggested_stakeholder_role}
+                    </span>
+                  )}
+                  {action.suggested_artifact && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-medium bg-[#F0F0F0] text-[#666666] rounded-full">
+                      <FileText className="w-2.5 h-2.5" />
+                      {action.suggested_artifact}
+                    </span>
+                  )}
+                  {action.staleness_days && action.staleness_days > 0 && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-medium bg-[#F0F0F0] text-[#666666] rounded-full">
+                      <Clock className="w-2.5 h-2.5" />
+                      {action.staleness_days}d stale
+                    </span>
+                  )}
+                </div>
               </div>
               {onSendToCollab && (
                 <button

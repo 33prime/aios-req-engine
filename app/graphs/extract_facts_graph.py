@@ -192,6 +192,29 @@ def persist(state: ExtractFactsState) -> dict[str, Any]:
         extra={"run_id": str(state.run_id), "extracted_facts_id": str(extracted_facts_id)},
     )
 
+    # Dual-write: persist open questions to project_open_questions table
+    if state.llm_output.open_questions:
+        try:
+            from app.db.open_questions import create_open_question
+            signal_id = UUID(state.signal["id"])
+            for oq in state.llm_output.open_questions:
+                create_open_question(
+                    project_id=project_id,
+                    question=oq.question,
+                    why_it_matters=oq.why_it_matters,
+                    suggested_owner=oq.suggested_owner,
+                    source_type="fact_extraction",
+                    source_id=extracted_facts_id,
+                    source_signal_id=signal_id,
+                )
+            logger.info(
+                f"Persisted {len(state.llm_output.open_questions)} open questions",
+                extra={"run_id": str(state.run_id)},
+            )
+        except Exception as e:
+            # Non-fatal: questions are also in the JSONB, so no data loss
+            logger.warning(f"Failed to persist open questions (non-fatal): {e}")
+
     return {
         "extracted_facts_id": extracted_facts_id,
         "step_count": state.step_count,

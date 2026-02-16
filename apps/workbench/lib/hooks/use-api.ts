@@ -14,17 +14,21 @@ import {
   listProjects,
   getBRDWorkspaceData,
   getNextActions,
+  getUnifiedActions,
+  listOpenQuestions,
+  getQuestionCounts,
   batchGetDashboardData,
   listUpcomingMeetings,
   getWorkspaceData,
 } from '@/lib/api'
 import type {
   NextAction,
+  UnifiedActionsResult,
   TaskStatsResponse,
   BatchDashboardData,
 } from '@/lib/api'
 import type { Profile, ProjectDetailWithDashboard, Meeting } from '@/types/api'
-import type { BRDWorkspaceData, CanvasData } from '@/types/workspace'
+import type { BRDWorkspaceData, CanvasData, OpenQuestion, QuestionCounts } from '@/types/workspace'
 
 // --- Cache TTL presets (in milliseconds) ---
 const LONG_CACHE = 5 * 60 * 1000   // 5 min — stable data (profile)
@@ -141,6 +145,58 @@ export function useNextActions(
   return useSWR<{ actions: NextAction[] }>(
     projectId ? `next-actions:${projectId}` : null,
     () => getNextActions(projectId!),
+    {
+      dedupingInterval: MED_CACHE,
+      revalidateOnFocus: false,
+      ...config,
+    },
+  )
+}
+
+// --- Unified actions (per-project, enriched with phase/memory/questions) ---
+export function useUnifiedActions(
+  projectId: string | undefined,
+  config?: SWRConfiguration<UnifiedActionsResult>,
+) {
+  return useSWR<UnifiedActionsResult>(
+    projectId ? `unified-actions:${projectId}` : null,
+    () => getUnifiedActions(projectId!),
+    {
+      dedupingInterval: MED_CACHE,
+      revalidateOnFocus: false,
+      ...config,
+    },
+  )
+}
+
+// --- Open questions (per-project) ---
+export function useOpenQuestions(
+  projectId: string | undefined,
+  status?: string,
+  config?: SWRConfiguration<OpenQuestion[]>,
+) {
+  const key = projectId
+    ? `open-questions:${projectId}:${status || 'all'}`
+    : null
+  return useSWR<OpenQuestion[]>(
+    key,
+    () => listOpenQuestions(projectId!, { status }),
+    {
+      dedupingInterval: MED_CACHE,
+      revalidateOnFocus: false,
+      ...config,
+    },
+  )
+}
+
+// --- Question counts (per-project) ---
+export function useQuestionCounts(
+  projectId: string | undefined,
+  config?: SWRConfiguration<QuestionCounts>,
+) {
+  return useSWR<QuestionCounts>(
+    projectId ? `question-counts:${projectId}` : null,
+    () => getQuestionCounts(projectId!),
     {
       dedupingInterval: MED_CACHE,
       revalidateOnFocus: false,

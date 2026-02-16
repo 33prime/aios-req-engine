@@ -2489,11 +2489,37 @@ export interface NextAction {
   target_entity_id: string | null
   suggested_stakeholder_role: string | null
   suggested_artifact: string | null
+  // Unified action engine fields (optional for backward compat)
+  category?: string
+  rationale?: string | null
+  tool_hint?: string | null
+  related_question_id?: string | null
+  urgency?: 'low' | 'normal' | 'high' | 'critical'
+  staleness_days?: number | null
+}
+
+export interface UnifiedActionsResult {
+  actions: NextAction[]
+  open_questions: Array<{
+    id: string
+    question: string
+    priority: string
+    category: string
+  }>
+  phase: string
+  phase_progress: number
+  memory_signals_used: number
+  computed_at: string
 }
 
 export const getNextActions = (projectId: string) =>
   apiRequest<{ actions: NextAction[] }>(
     `/projects/${projectId}/workspace/brd/next-actions`
+  )
+
+export const getUnifiedActions = (projectId: string, maxActions = 5) =>
+  apiRequest<UnifiedActionsResult>(
+    `/projects/${projectId}/workspace/actions?max_actions=${maxActions}`
   )
 
 export interface BatchDashboardData {
@@ -3150,4 +3176,49 @@ export const deleteProcessDocument = (docId: string) =>
   apiRequest<{ success: boolean }>(
     `/process-documents/${docId}`,
     { method: 'DELETE' }
+  )
+
+// ============================================
+// Open Questions APIs
+// ============================================
+
+export const listOpenQuestions = (
+  projectId: string,
+  params?: { status?: string; priority?: string; category?: string; limit?: number }
+) => {
+  const qp = new URLSearchParams()
+  if (params?.status) qp.set('status', params.status)
+  if (params?.priority) qp.set('priority', params.priority)
+  if (params?.category) qp.set('category', params.category)
+  if (params?.limit) qp.set('limit', String(params.limit))
+  const query = qp.toString()
+  return apiRequest<import('@/types/workspace').OpenQuestion[]>(
+    `/projects/${projectId}/questions${query ? `?${query}` : ''}`
+  )
+}
+
+export const getQuestionCounts = (projectId: string) =>
+  apiRequest<import('@/types/workspace').QuestionCounts>(
+    `/projects/${projectId}/questions/counts`
+  )
+
+export const createOpenQuestion = (
+  projectId: string,
+  data: { question: string; why_it_matters?: string; priority?: string; category?: string }
+) =>
+  apiRequest<import('@/types/workspace').OpenQuestion>(
+    `/projects/${projectId}/questions`,
+    { method: 'POST', body: JSON.stringify(data) }
+  )
+
+export const answerQuestion = (projectId: string, questionId: string, answer: string) =>
+  apiRequest<import('@/types/workspace').OpenQuestion>(
+    `/projects/${projectId}/questions/${questionId}/answer`,
+    { method: 'POST', body: JSON.stringify({ answer }) }
+  )
+
+export const dismissQuestion = (projectId: string, questionId: string, reason?: string) =>
+  apiRequest<import('@/types/workspace').OpenQuestion>(
+    `/projects/${projectId}/questions/${questionId}/dismiss`,
+    { method: 'POST', body: JSON.stringify({ reason }) }
   )

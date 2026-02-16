@@ -250,88 +250,9 @@ def _compute_next_actions(
     metrics: dict,
     blockers: list[Blocker],
 ) -> list[NextAction]:
-    """Compute recommended next actions."""
-    actions = []
-    priority = 1
-
-    # First, add actions for blockers
-    for blocker in blockers:
-        if blocker.type == "no_personas":
-            actions.append(NextAction(
-                action="Add first persona to establish target users",
-                tool_hint="propose_features",
-                priority=priority,
-                rationale="Personas help focus feature development",
-            ))
-        elif blocker.type == "no_features":
-            actions.append(NextAction(
-                action="Identify core features from client signals",
-                tool_hint="propose_features",
-                priority=priority,
-                rationale="Features are the foundation of the product",
-            ))
-        elif blocker.type == "critical_insights":
-            actions.append(NextAction(
-                action="Review and resolve critical insights",
-                tool_hint="list_insights",
-                priority=priority,
-                rationale="Critical issues block progress to build-ready",
-            ))
-        elif blocker.type == "insufficient_mvp":
-            actions.append(NextAction(
-                action="Mark more features as MVP or propose new MVP features",
-                tool_hint="propose_features",
-                priority=priority,
-                rationale="Need 3+ MVP features for baseline",
-            ))
-        priority += 1
-
-    # Add phase-specific actions
-    if phase == ProjectPhase.DEFINITION:
-        if metrics["baseline_score"] < 0.75:
-            actions.append(NextAction(
-                action="Run gap analysis to identify missing elements",
-                tool_hint="analyze_gaps",
-                priority=priority,
-                rationale=f"Baseline at {int(metrics['baseline_score'] * 100)}%, need 75%",
-            ))
-            priority += 1
-
-    elif phase == ProjectPhase.VALIDATION:
-        if metrics["high_confidence_mvp_ratio"] < 0.5:
-            actions.append(NextAction(
-                action="Add evidence to low-confidence MVP features",
-                tool_hint="find_evidence_gaps",
-                priority=priority,
-                rationale="Need 50%+ MVP features at high confidence",
-            ))
-            priority += 1
-        if not metrics["baseline_finalized"]:
-            actions.append(NextAction(
-                action="Finalize baseline when validation criteria are met",
-                tool_hint=None,
-                priority=priority + 1,
-                rationale="Finalizing transitions to maintenance mode",
-            ))
-
-    elif phase == ProjectPhase.BUILD_READY:
-        actions.append(NextAction(
-            action="Run final readiness assessment",
-            tool_hint="assess_readiness",
-            priority=1,
-            rationale="Confirm all requirements for development handoff",
-        ))
-
-    # Always suggest checking readiness if not build-ready
-    if phase != ProjectPhase.BUILD_READY and len(actions) < 5:
-        actions.append(NextAction(
-            action="Check current prototype readiness score",
-            tool_hint="assess_readiness",
-            priority=5,
-            rationale="Track progress toward build-ready",
-        ))
-
-    return actions[:5]  # Max 5 actions
+    """Compute recommended next actions. Delegates to unified action engine."""
+    from app.core.action_engine import compute_state_frame_actions
+    return compute_state_frame_actions(phase.value, metrics, blockers)
 
 
 async def get_state_frame_summary(project_id: UUID) -> str:

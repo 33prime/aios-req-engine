@@ -1809,6 +1809,25 @@ async def get_next_actions(project_id: UUID) -> dict:
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.get("/actions")
+async def get_unified_actions(
+    project_id: UUID,
+    max_actions: int = Query(5, ge=1, le=10, description="Maximum actions to return"),
+) -> dict:
+    """Full unified action computation with phase, memory, and open questions.
+
+    Returns enriched actions with category, urgency, rationale, and staleness data.
+    """
+    from app.core.action_engine import compute_actions
+
+    try:
+        result = await compute_actions(project_id, max_actions=max_actions)
+        return result.model_dump(mode="json")
+    except Exception as e:
+        logger.exception(f"Failed to compute unified actions for project {project_id}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 # ============================================================================
 # Background Edit Endpoint
 # ============================================================================

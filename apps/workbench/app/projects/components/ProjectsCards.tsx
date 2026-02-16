@@ -5,6 +5,15 @@ import {
   ListTodo,
   CalendarDays,
   CheckCircle2,
+  Target,
+  Users,
+  FileText,
+  Lightbulb,
+  MessageCircle,
+  RefreshCw,
+  GitBranch,
+  Link2,
+  Clock,
 } from 'lucide-react'
 import type { ProjectDetailWithDashboard, Profile, Meeting } from '@/types/api'
 import type { NextAction, TaskStatsResponse } from '@/lib/api'
@@ -12,6 +21,23 @@ import { ProjectAvatar } from './ProjectAvatar'
 import { UserAvatar } from './UserAvatar'
 import { ReadinessCell } from './ReadinessCell'
 import { StageAdvancePopover } from './StageAdvancePopover'
+
+const ACTION_ICONS: Record<string, typeof Target> = {
+  confirm_critical: Target,
+  stakeholder_gap: Users,
+  section_gap: FileText,
+  missing_evidence: FileText,
+  validate_pains: Target,
+  missing_vision: Lightbulb,
+  missing_metrics: Target,
+  open_question_critical: MessageCircle,
+  open_question_blocking: MessageCircle,
+  stale_belief: RefreshCw,
+  revisit_decision: RefreshCw,
+  contradiction_unresolved: GitBranch,
+  cross_entity_gap: Link2,
+  temporal_stale: Clock,
+}
 
 interface ProjectsCardsProps {
   projects: ProjectDetailWithDashboard[]
@@ -109,14 +135,17 @@ export function ProjectsCards({
             </div>
 
             {/* Hero action */}
-            {nextAction && (
-              <div className="mt-3 flex items-start gap-2 bg-[#F0FAF5] rounded-lg px-3 py-2">
-                <ArrowRight className="w-3.5 h-3.5 text-[#3FAF7A] flex-shrink-0 mt-0.5" />
-                <span className="text-[12px] text-[#25785A] leading-snug line-clamp-2">
-                  {nextAction.title}
-                </span>
-              </div>
-            )}
+            {nextAction && (() => {
+              const ActionIcon = ACTION_ICONS[nextAction.action_type] || ArrowRight
+              return (
+                <div className="mt-3 flex items-start gap-2 bg-[#F0FAF5] rounded-lg px-3 py-2">
+                  <ActionIcon className="w-3.5 h-3.5 text-[#3FAF7A] flex-shrink-0 mt-0.5" />
+                  <span className="text-[12px] text-[#25785A] leading-snug line-clamp-2">
+                    {nextAction.title}
+                  </span>
+                </div>
+              )
+            })()}
 
             {/* Description */}
             {project.description && (

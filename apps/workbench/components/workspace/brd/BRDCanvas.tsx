@@ -28,6 +28,7 @@ import { ConstraintDrawer } from './components/ConstraintDrawer'
 import { FeatureDrawer } from './components/FeatureDrawer'
 import { ConfidenceDrawer } from './components/ConfidenceDrawer'
 import { NextActionsBar } from './components/NextActionsBar'
+import { OpenQuestionsPanel } from './components/OpenQuestionsPanel'
 import { ImpactPreviewModal } from './components/ImpactPreviewModal'
 import {
   getBRDWorkspaceData,
@@ -50,10 +51,11 @@ import {
   updateCanvasRole,
   inferConstraints,
   getNextActions,
+  listOpenQuestions,
 } from '@/lib/api'
 import type { NextAction } from '@/lib/api'
 import { CompletenessRing } from './components/CompletenessRing'
-import type { BRDWorkspaceData, BRDHealthData, MoSCoWGroup, StakeholderBRDSummary, CompetitorBRDSummary, AutomationLevel, SectionScore } from '@/types/workspace'
+import type { BRDWorkspaceData, BRDHealthData, MoSCoWGroup, StakeholderBRDSummary, CompetitorBRDSummary, AutomationLevel, SectionScore, OpenQuestion } from '@/types/workspace'
 
 interface BRDCanvasProps {
   projectId: string
@@ -76,6 +78,10 @@ export function BRDCanvas({ projectId, initialData, initialNextActions, onRefres
   const [nextActions, setNextActions] = useState<NextAction[]>(initialNextActions ?? [])
   const [nextActionsLoading, setNextActionsLoading] = useState(!initialNextActions)
 
+  // Open Questions
+  const [openQuestions, setOpenQuestions] = useState<OpenQuestion[]>([])
+  const [questionsLoading, setQuestionsLoading] = useState(true)
+
   const loadNextActions = useCallback(async () => {
     try {
       setNextActionsLoading(true)
@@ -85,6 +91,18 @@ export function BRDCanvas({ projectId, initialData, initialNextActions, onRefres
       console.error('Failed to load next actions:', err)
     } finally {
       setNextActionsLoading(false)
+    }
+  }, [projectId])
+
+  const loadOpenQuestions = useCallback(async () => {
+    try {
+      setQuestionsLoading(true)
+      const result = await listOpenQuestions(projectId, { status: 'open', limit: 20 })
+      setOpenQuestions(result)
+    } catch (err) {
+      console.error('Failed to load open questions:', err)
+    } finally {
+      setQuestionsLoading(false)
     }
   }, [projectId])
 
@@ -132,7 +150,8 @@ export function BRDCanvas({ projectId, initialData, initialNextActions, onRefres
     if (!initialNextActions) loadNextActions()
     // Health is always loaded fresh (lightweight, not duplicated by parent)
     loadHealth()
-  }, [loadData, loadHealth, loadNextActions, initialData, initialNextActions])
+    loadOpenQuestions()
+  }, [loadData, loadHealth, loadNextActions, loadOpenQuestions, initialData, initialNextActions])
 
   // Optimistic confirm: update local state immediately, then sync
   const handleConfirm = useCallback(async (entityType: string, entityId: string) => {
@@ -890,6 +909,14 @@ export function BRDCanvas({ projectId, initialData, initialNextActions, onRefres
         onSendToCollab={(action) => {
           console.log('Send to Collab:', action)
         }}
+      />
+
+      {/* Open Questions (collapsed by default) */}
+      <OpenQuestionsPanel
+        projectId={projectId}
+        questions={openQuestions}
+        loading={questionsLoading}
+        onMutate={loadOpenQuestions}
       />
 
       {/* BRD Sections */}

@@ -1446,3 +1446,45 @@ export interface CompetitorSynthesis {
   threat_summary: CompetitorThreat[]
 }
 
+// ============================================================================
+// Open Questions
+// ============================================================================
+
+export type QuestionPriority = 'critical' | 'high' | 'medium' | 'low'
+export type QuestionStatus = 'open' | 'answered' | 'dismissed' | 'converted'
+export type QuestionCategory = 'requirements' | 'stakeholder' | 'technical' | 'process' | 'scope' | 'validation' | 'general'
+
+export interface OpenQuestion {
+  id: string
+  project_id: string
+  question: string
+  why_it_matters?: string | null
+  context?: string | null
+  priority: QuestionPriority
+  category?: QuestionCategory | null
+  status: QuestionStatus
+  answer?: string | null
+  answered_by?: string | null
+  answered_at?: string | null
+  converted_to_type?: string | null
+  converted_to_id?: string | null
+  source_type: string
+  source_id?: string | null
+  source_signal_id?: string | null
+  target_entity_type?: string | null
+  target_entity_id?: string | null
+  suggested_owner?: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface QuestionCounts {
+  total: number
+  open: number
+  answered: number
+  dismissed: number
+  converted: number
+  critical_open: number
+  high_open: number
+}
+

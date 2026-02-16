@@ -1475,6 +1475,19 @@ async def _execute_add_open_question(project_id: UUID, args: dict) -> dict:
             updated_by="di_agent",
         )
 
+        # Dual-write to project_open_questions table
+        try:
+            from app.db.open_questions import create_open_question as create_oq
+            create_oq(
+                project_id=project_id,
+                question=question,
+                why_it_matters=why_important,
+                source_type="system",
+                suggested_owner="consultant",
+            )
+        except Exception as dual_err:
+            logger.warning(f"Dual-write to project_open_questions failed (non-fatal): {dual_err}")
+
         return {
             "success": True,
             "data": {

@@ -31,6 +31,11 @@ import {
   Users,
   FileText,
   ChevronDown,
+  MessageCircle,
+  RefreshCw,
+  GitBranch,
+  Link2,
+  Clock,
 } from 'lucide-react'
 import { Markdown } from '../../components/ui/Markdown'
 import {
@@ -84,6 +89,13 @@ const ACTION_ICONS: Record<string, typeof Target> = {
   validate_pains: Target,
   missing_vision: Lightbulb,
   missing_metrics: Target,
+  open_question_critical: MessageCircle,
+  open_question_blocking: MessageCircle,
+  stale_belief: RefreshCw,
+  revisit_decision: RefreshCw,
+  contradiction_unresolved: GitBranch,
+  cross_entity_gap: Link2,
+  temporal_stale: Clock,
 }
 
 const ACTION_COMMANDS: Record<string, (a: NextAction) => string> = {
@@ -94,6 +106,13 @@ const ACTION_COMMANDS: Record<string, (a: NextAction) => string> = {
   validate_pains: () => 'Help me validate the high-severity pain points with stakeholders',
   missing_vision: () => 'Help me draft a vision statement for this project',
   missing_metrics: () => 'Help me define success metrics and KPIs for this project',
+  open_question_critical: (a) => `Help me resolve this critical question: ${a.title}`,
+  open_question_blocking: (a) => `Help me answer this open question: ${a.title}`,
+  stale_belief: (a) => `Help me verify this assumption: ${a.title}`,
+  revisit_decision: (a) => `Help me revisit this decision: ${a.title}`,
+  contradiction_unresolved: () => 'Help me resolve the contradictions in our knowledge graph',
+  cross_entity_gap: (a) => `Help me find a ${a.suggested_stakeholder_role} to validate the evidence gap`,
+  temporal_stale: () => 'Help me review stale features that need updating',
 }
 
 const STARTER_CARDS = [

@@ -19,14 +19,20 @@ import {
   ArrowRight,
   Activity,
   CheckCircle,
+  MessageCircle,
+  RefreshCw,
+  GitBranch,
+  Link2,
+  Clock,
 } from 'lucide-react'
 import { TaskListCompact } from '@/components/tasks'
 import { CompletenessRing } from '@/components/workspace/brd/components/CompletenessRing'
 import {
   getTaskStats,
   getCollaborationHistory,
+  getQuestionCounts,
 } from '@/lib/api'
-import type { CanvasData, BRDWorkspaceData, SectionScore } from '@/types/workspace'
+import type { CanvasData, BRDWorkspaceData, SectionScore, QuestionCounts } from '@/types/workspace'
 import type { ReadinessScore, NextAction, TaskStatsResponse, CollaborationHistoryResponse } from '@/lib/api'
 
 interface OverviewPanelProps {
@@ -46,6 +52,13 @@ const ACTION_ICONS: Record<string, typeof Target> = {
   validate_pains: Target,
   missing_vision: Lightbulb,
   missing_metrics: Target,
+  open_question_critical: MessageCircle,
+  open_question_blocking: MessageCircle,
+  stale_belief: RefreshCw,
+  revisit_decision: RefreshCw,
+  contradiction_unresolved: GitBranch,
+  cross_entity_gap: Link2,
+  temporal_stale: Clock,
 }
 
 const SECTION_LABELS: Record<string, string> = {
@@ -68,15 +81,18 @@ export function OverviewPanel({
   const [taskStats, setTaskStats] = useState<TaskStatsResponse | null>(null)
   const [taskRefreshKey, setTaskRefreshKey] = useState(0)
   const [history, setHistory] = useState<CollaborationHistoryResponse | null>(null)
+  const [questionCounts, setQuestionCounts] = useState<QuestionCounts | null>(null)
 
   useEffect(() => {
     const load = async () => {
-      const [stats, hist] = await Promise.all([
+      const [stats, hist, qCounts] = await Promise.all([
         getTaskStats(projectId).catch(() => null),
         getCollaborationHistory(projectId).catch(() => null),
+        getQuestionCounts(projectId).catch(() => null),
       ])
       setTaskStats(stats)
       setHistory(hist)
+      setQuestionCounts(qCounts)
     }
     load()
   }, [projectId])
@@ -105,6 +121,7 @@ export function OverviewPanel({
           sections={completeness?.sections ?? []}
           prototypeReadiness={prototypeReadiness}
           hasReadinessData={!!readinessData}
+          questionCounts={questionCounts}
         />
 
         {/* Column 2: Next Best Actions */}
@@ -222,11 +239,13 @@ function ProjectPulseCard({
   sections,
   prototypeReadiness,
   hasReadinessData,
+  questionCounts,
 }: {
   completeness: BRDWorkspaceData['completeness'] | null
   sections: SectionScore[]
   prototypeReadiness: number
   hasReadinessData: boolean
+  questionCounts: QuestionCounts | null
 }) {
   const overallScore = completeness?.overall_score ?? 0
   const overallLabel = completeness?.overall_label ?? 'Poor'
@@ -260,11 +279,26 @@ function ProjectPulseCard({
         ))}
       </div>
 
-      {/* Gap count footer */}
-      {gapCount > 0 && (
-        <p className="text-[11px] text-[#999999] pt-2 border-t border-[#E5E5E5]">
-          {gapCount} gap{gapCount !== 1 ? 's' : ''} to address
-        </p>
+      {/* Gap count + question count footer */}
+      {(gapCount > 0 || (questionCounts && questionCounts.open > 0)) && (
+        <div className="flex items-center gap-3 pt-2 border-t border-[#E5E5E5]">
+          {gapCount > 0 && (
+            <p className="text-[11px] text-[#999999]">
+              {gapCount} gap{gapCount !== 1 ? 's' : ''} to address
+            </p>
+          )}
+          {questionCounts && questionCounts.open > 0 && (
+            <span className="inline-flex items-center gap-1 text-[11px] text-[#999999]">
+              <MessageCircle className="w-3 h-3" />
+              {questionCounts.open} open question{questionCounts.open !== 1 ? 's' : ''}
+              {questionCounts.critical_open > 0 && (
+                <span className="text-[10px] font-medium text-[#991B1B]">
+                  ({questionCounts.critical_open} critical)
+                </span>
+              )}
+            </span>
+          )}
+        </div>
       )}
 
       {/* Prototype readiness (secondary) */}
