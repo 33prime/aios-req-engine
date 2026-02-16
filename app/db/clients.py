@@ -90,7 +90,7 @@ def delete_client(client_id: UUID) -> bool:
 
 
 def get_client_projects(client_id: UUID) -> list[dict]:
-    """Get all projects linked to a client with entity counts."""
+    """Get all projects linked to a client with entity counts (batch)."""
     supabase = get_supabase()
 
     response = (
@@ -101,58 +101,79 @@ def get_client_projects(client_id: UUID) -> list[dict]:
         .execute()
     )
 
-    # Attach entity counts per project
+    if not response.data:
+        return []
+
+    # Batch-fetch entity counts for all projects in one RPC call
+    project_ids = [p["id"] for p in response.data]
+    counts_map = get_batch_project_entity_counts(project_ids)
+
     for project in response.data:
-        try:
-            counts_resp = supabase.rpc(
-                "get_project_entity_counts",
-                {"p_project_id": project["id"]},
-            ).execute()
-            project["counts"] = counts_resp.data if counts_resp.data else {}
-        except Exception:
-            project["counts"] = {}
+        project["counts"] = counts_map.get(project["id"], {})
 
     return response.data
 
 
+def get_batch_project_entity_counts(project_ids: list[str]) -> dict[str, dict]:
+    """Get entity counts for multiple projects in a single RPC call.
+
+    Returns:
+        Dict mapping project_id -> counts dict
+    """
+    if not project_ids:
+        return {}
+
+    supabase = get_supabase()
+    try:
+        resp = supabase.rpc(
+            "get_batch_project_entity_counts",
+            {"p_project_ids": project_ids},
+        ).execute()
+
+        return {row["project_id"]: row["counts"] for row in (resp.data or [])}
+    except Exception as e:
+        logger.warning(f"Batch entity counts RPC failed: {e}")
+        return {}
+
+
+def get_client_summary_counts_batch(client_ids: list[str]) -> dict[str, dict]:
+    """Get project_count + stakeholder_count for multiple clients in one RPC call.
+
+    Returns:
+        Dict mapping client_id -> {"project_count": int, "stakeholder_count": int}
+    """
+    if not client_ids:
+        return {}
+
+    supabase = get_supabase()
+    try:
+        resp = supabase.rpc(
+            "get_client_summary_counts",
+            {"p_client_ids": client_ids},
+        ).execute()
+
+        return {
+            row["client_id"]: {
+                "project_count": row["project_count"],
+                "stakeholder_count": row["stakeholder_count"],
+            }
+            for row in (resp.data or [])
+        }
+    except Exception as e:
+        logger.warning(f"Batch client counts RPC failed: {e}")
+        return {}
+
+
 def get_client_project_count(client_id: UUID) -> int:
     """Get count of projects linked to a client."""
-    supabase = get_supabase()
-
-    response = (
-        supabase.table("projects")
-        .select("id", count="exact")
-        .eq("client_id", str(client_id))
-        .execute()
-    )
-
-    return response.count or 0
+    counts = get_client_summary_counts_batch([str(client_id)])
+    return counts.get(str(client_id), {}).get("project_count", 0)
 
 
 def get_client_stakeholder_count(client_id: UUID) -> int:
     """Get count of unique stakeholders across all client projects."""
-    supabase = get_supabase()
-
-    # First get project IDs for this client
-    projects_response = (
-        supabase.table("projects")
-        .select("id")
-        .eq("client_id", str(client_id))
-        .execute()
-    )
-
-    project_ids = [p["id"] for p in projects_response.data]
-    if not project_ids:
-        return 0
-
-    response = (
-        supabase.table("stakeholders")
-        .select("id", count="exact")
-        .in_("project_id", project_ids)
-        .execute()
-    )
-
-    return response.count or 0
+    counts = get_client_summary_counts_batch([str(client_id)])
+    return counts.get(str(client_id), {}).get("stakeholder_count", 0)
 
 
 def link_project_to_client(project_id: UUID, client_id: UUID) -> dict | None:

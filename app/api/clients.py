@@ -24,8 +24,15 @@ logger = get_logger(__name__)
 router = APIRouter(prefix="/clients")
 
 
-def _build_client_response(client: dict) -> ClientResponse:
-    """Build a ClientResponse with aggregated counts."""
+def _build_client_response(client: dict, counts: dict | None = None) -> ClientResponse:
+    """Build a ClientResponse, optionally with pre-fetched counts."""
+    if counts:
+        return ClientResponse(
+            **client,
+            project_count=counts.get("project_count", 0),
+            stakeholder_count=counts.get("stakeholder_count", 0),
+        )
+    # Fallback for single-client calls (create, update)
     client_id = UUID(client["id"])
     project_count = clients_db.get_client_project_count(client_id)
     stakeholder_count = clients_db.get_client_stakeholder_count(client_id)
@@ -51,10 +58,14 @@ def list_clients(
         offset=offset,
     )
 
+    # Batch-fetch counts for ALL clients in one RPC call
+    client_ids = [row["id"] for row in rows]
+    counts_map = clients_db.get_client_summary_counts_batch(client_ids)
+
     clients = []
     for row in rows:
         try:
-            clients.append(_build_client_response(row))
+            clients.append(_build_client_response(row, counts=counts_map.get(row["id"])))
         except Exception as e:
             logger.warning(f"Failed to build client response for {row.get('id')}: {e}")
             continue
@@ -78,14 +89,15 @@ def get_client(client_id: UUID):
     if not row:
         raise HTTPException(status_code=404, detail="Client not found")
 
-    project_count = clients_db.get_client_project_count(client_id)
-    stakeholder_count = clients_db.get_client_stakeholder_count(client_id)
+    # Batch: counts + projects in 2 queries instead of N+1
+    counts_map = clients_db.get_client_summary_counts_batch([str(client_id)])
+    counts = counts_map.get(str(client_id), {})
     projects = clients_db.get_client_projects(client_id)
 
     return ClientDetailResponse(
         **row,
-        project_count=project_count,
-        stakeholder_count=stakeholder_count,
+        project_count=counts.get("project_count", 0),
+        stakeholder_count=counts.get("stakeholder_count", 0),
         projects=projects,
     )
 

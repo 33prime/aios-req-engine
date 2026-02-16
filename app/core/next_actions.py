@@ -166,6 +166,116 @@ def compute_next_actions(
     return actions[:3]
 
 
+def compute_next_actions_from_inputs(inputs: dict) -> list[dict]:
+    """Compute top action from pre-aggregated SQL inputs (lightweight).
+
+    Args:
+        inputs: Dict from get_batch_next_action_inputs RPC containing counts and flags.
+
+    Returns:
+        Top 3 actions sorted by impact_score.
+    """
+    actions: list[dict] = []
+
+    # 1. Unconfirmed must-have features
+    mh_count = inputs.get("must_have_unconfirmed", 0)
+    if mh_count > 0:
+        actions.append({
+            "action_type": "confirm_critical",
+            "title": f"Confirm {mh_count} Must-Have feature{'s' if mh_count > 1 else ''} with client",
+            "description": f"{mh_count} must-have features are unconfirmed. Schedule a client review session to validate priorities.",
+            "impact_score": 90,
+            "target_entity_type": "feature",
+            "target_entity_id": inputs.get("must_have_first_id"),
+            "suggested_stakeholder_role": "Business Sponsor",
+            "suggested_artifact": "Feature priority matrix",
+        })
+
+    # 2. Missing stakeholder coverage
+    existing_roles = inputs.get("stakeholder_roles") or []
+    if isinstance(existing_roles, str):
+        import json
+        try:
+            existing_roles = json.loads(existing_roles)
+        except Exception:
+            existing_roles = []
+    existing_roles_set = {(r or "").lower() for r in existing_roles}
+    missing_roles = []
+    for role in CRITICAL_ROLES:
+        if not any(role.lower() in er for er in existing_roles_set):
+            missing_roles.append(role)
+
+    if missing_roles:
+        top_role = missing_roles[0]
+        actions.append({
+            "action_type": "stakeholder_gap",
+            "title": f"Identify and engage {top_role}",
+            "description": f"No {top_role} is represented in the stakeholder list. This role typically provides critical input on {_role_domain(top_role)}.",
+            "impact_score": 80,
+            "target_entity_type": "stakeholder",
+            "target_entity_id": None,
+            "suggested_stakeholder_role": top_role,
+            "suggested_artifact": "Org chart or team directory",
+        })
+
+    # 3. Features without evidence
+    ne_count = inputs.get("features_no_evidence", 0)
+    if ne_count > 2:
+        actions.append({
+            "action_type": "missing_evidence",
+            "title": f"Gather evidence for {ne_count} unsupported features",
+            "description": "Multiple features lack supporting evidence. Request source documents or schedule discovery sessions.",
+            "impact_score": 65,
+            "target_entity_type": "feature",
+            "target_entity_id": inputs.get("features_no_evidence_first_id"),
+            "suggested_stakeholder_role": "Product Owner",
+            "suggested_artifact": "Requirements documents or meeting transcripts",
+        })
+
+    # 4. Unconfirmed high-severity pains
+    hp_count = inputs.get("high_pain_unconfirmed", 0)
+    if hp_count > 0:
+        actions.append({
+            "action_type": "validate_pains",
+            "title": f"Validate {hp_count} high-severity pain{'s' if hp_count > 1 else ''} with stakeholders",
+            "description": "High-severity pain points need validation. Request process maps or schedule observation sessions.",
+            "impact_score": 75,
+            "target_entity_type": "business_driver",
+            "target_entity_id": inputs.get("high_pain_first_id"),
+            "suggested_stakeholder_role": "Operations Manager",
+            "suggested_artifact": "Process maps or SOPs",
+        })
+
+    # 5. No vision statement
+    if not inputs.get("has_vision"):
+        actions.append({
+            "action_type": "missing_vision",
+            "title": "Draft a vision statement",
+            "description": "No vision statement has been defined. A clear vision aligns all requirements.",
+            "impact_score": 70,
+            "target_entity_type": "vision",
+            "target_entity_id": None,
+            "suggested_stakeholder_role": "Business Sponsor",
+            "suggested_artifact": None,
+        })
+
+    # 6. No success metrics
+    if inputs.get("kpi_count", 0) == 0:
+        actions.append({
+            "action_type": "missing_metrics",
+            "title": "Define success metrics",
+            "description": "No KPIs or success metrics defined. Measurable outcomes are essential for project success.",
+            "impact_score": 68,
+            "target_entity_type": "business_driver",
+            "target_entity_id": None,
+            "suggested_stakeholder_role": "Business Sponsor",
+            "suggested_artifact": "Analytics dashboard or KPI framework",
+        })
+
+    actions.sort(key=lambda a: a["impact_score"], reverse=True)
+    return actions[:3]
+
+
 def _role_domain(role: str) -> str:
     """Map role to knowledge domain description."""
     domains = {

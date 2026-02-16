@@ -5,6 +5,7 @@ from datetime import datetime
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Query
+from pydantic import BaseModel
 
 from app.core.logging import get_logger
 from app.core.readiness_cache import (
@@ -99,6 +100,67 @@ async def list_all_projects(
     except Exception as e:
         logger.exception("Failed to list projects")
         raise HTTPException(status_code=500, detail=f"Failed to list projects: {str(e)}") from e
+
+
+class BatchDashboardRequest(BaseModel):
+    """Request body for batch dashboard data."""
+    project_ids: list[str]
+
+
+@router.post("/batch/dashboard-data")
+async def batch_get_dashboard_data(request: BatchDashboardRequest) -> dict:
+    """Get task stats + next actions for multiple projects in one call.
+
+    Replaces N getTaskStats() + N getNextActions() calls from the projects list page.
+    Uses SQL RPCs so the entire operation is 2 DB queries regardless of project count.
+    """
+    from app.core.next_actions import compute_next_actions_from_inputs
+    from app.db.supabase_client import get_supabase
+
+    project_ids = request.project_ids
+    if not project_ids:
+        return {"task_stats": {}, "next_actions": {}}
+
+    supabase = get_supabase()
+
+    # Batch task stats (1 RPC call)
+    task_stats_map: dict[str, dict] = {}
+    try:
+        stats_resp = supabase.rpc(
+            "get_batch_task_stats",
+            {"p_project_ids": project_ids},
+        ).execute()
+
+        for row in (stats_resp.data or []):
+            task_stats_map[row["project_id"]] = {
+                "total": row["total"],
+                "by_status": row["by_status"] or {},
+                "by_type": row["by_type"] or {},
+                "client_relevant": row["client_relevant"],
+                "avg_priority": float(row["avg_priority"] or 0),
+            }
+    except Exception as e:
+        logger.warning(f"Batch task stats RPC failed: {e}")
+
+    # Batch next-action inputs (1 RPC call)
+    next_actions_map: dict[str, list[dict]] = {}
+    try:
+        inputs_resp = supabase.rpc(
+            "get_batch_next_action_inputs",
+            {"p_project_ids": project_ids},
+        ).execute()
+
+        for row in (inputs_resp.data or []):
+            inputs = row["inputs"] or {}
+            actions = compute_next_actions_from_inputs(inputs)
+            next_actions_map[row["project_id"]] = actions
+    except Exception as e:
+        logger.warning(f"Batch next-action inputs RPC failed: {e}")
+
+    return {
+        "task_stats": task_stats_map,
+        "next_actions": next_actions_map,
+    }
 
 
 @router.post("/", response_model=ProjectResponse)

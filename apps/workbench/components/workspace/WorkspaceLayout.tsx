@@ -111,7 +111,7 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
       const [data, readiness, brd, actionsRes, proto] = await Promise.all([
         getWorkspaceData(projectId),
         getReadinessScore(projectId).catch(() => null),
-        getBRDWorkspaceData(projectId).catch(() => null),
+        getBRDWorkspaceData(projectId, false).catch(() => null),
         getNextActions(projectId).catch(() => null),
         getPrototypeForProject(projectId).catch(() => null),
       ])

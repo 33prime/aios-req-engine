@@ -2049,8 +2049,8 @@ export const updatePrototypeUrl = (projectId: string, prototypeUrl: string) =>
 /**
  * Get aggregated BRD workspace data for the BRD canvas.
  */
-export const getBRDWorkspaceData = (projectId: string) =>
-  apiRequest<BRDWorkspaceData>(`/projects/${projectId}/workspace/brd`)
+export const getBRDWorkspaceData = (projectId: string, includeEvidence = true) =>
+  apiRequest<BRDWorkspaceData>(`/projects/${projectId}/workspace/brd?include_evidence=${includeEvidence}`)
 
 /**
  * Get vision detail including analysis scores and revision history.
@@ -2494,6 +2494,17 @@ export const getNextActions = (projectId: string) =>
   apiRequest<{ actions: NextAction[] }>(
     `/projects/${projectId}/workspace/brd/next-actions`
   )
+
+export interface BatchDashboardData {
+  task_stats: Record<string, TaskStatsResponse>
+  next_actions: Record<string, NextAction[]>
+}
+
+export const batchGetDashboardData = (projectIds: string[]) =>
+  apiRequest<BatchDashboardData>('/projects/batch/dashboard-data', {
+    method: 'POST',
+    body: JSON.stringify({ project_ids: projectIds }),
+  })
 
 export const getDataEntityGraph = (projectId: string) =>
   apiRequest<import('@/types/workspace').DataEntityGraphData>(

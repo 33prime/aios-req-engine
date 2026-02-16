@@ -15,8 +15,7 @@ import { useRouter } from 'next/navigation'
 import {
   listProjects,
   getMyProfile,
-  getNextActions,
-  getTaskStats,
+  batchGetDashboardData,
   listUpcomingMeetings,
 } from '@/lib/api'
 import type { NextAction, TaskStatsResponse } from '@/lib/api'
@@ -72,37 +71,31 @@ export default function ProjectsPage() {
       setProjects(response.projects)
       setOwnerProfiles(response.owner_profiles || {})
       setMeetings(meetingsRes)
+      setLoading(false)
 
-      // Load per-project supplementary data in parallel (non-blocking)
-      // Readiness uses cached_readiness_data from listProjects (no extra calls needed)
-      const loadedProjects = response.projects
-      const [actionResults, statsResults] = await Promise.all([
-        Promise.all(
-          loadedProjects.map((p) =>
-            getNextActions(p.id)
-              .then((res) => ({ id: p.id, action: res.actions[0] ?? null }))
-              .catch(() => ({ id: p.id, action: null }))
-          )
-        ),
-        Promise.all(
-          loadedProjects.map((p) =>
-            getTaskStats(p.id)
-              .then((stats) => ({ id: p.id, stats }))
-              .catch(() => ({ id: p.id, stats: null }))
-          )
-        ),
-      ])
+      // Non-blocking: batch load dashboard data after main content renders
+      const projectIds = response.projects.map((p) => p.id)
+      if (projectIds.length > 0) {
+        batchGetDashboardData(projectIds)
+          .then((data) => {
+            const actionsMap: Record<string, NextAction | null> = {}
+            for (const [pid, actions] of Object.entries(data.next_actions || {})) {
+              actionsMap[pid] = actions[0] ?? null
+            }
+            setNextActionsMap(actionsMap)
 
-      const actionsMap: Record<string, NextAction | null> = {}
-      for (const r of actionResults) actionsMap[r.id] = r.action
-      setNextActionsMap(actionsMap)
-
-      const sMap: Record<string, TaskStatsResponse | null> = {}
-      for (const r of statsResults) sMap[r.id] = r.stats
-      setTaskStatsMap(sMap)
+            const sMap: Record<string, TaskStatsResponse | null> = {}
+            for (const [pid, stats] of Object.entries(data.task_stats || {})) {
+              sMap[pid] = stats
+            }
+            setTaskStatsMap(sMap)
+          })
+          .catch((err) => {
+            console.error('Failed to load dashboard data:', err)
+          })
+      }
     } catch (error) {
       console.error('Failed to load projects:', error)
-    } finally {
       setLoading(false)
     }
   }
