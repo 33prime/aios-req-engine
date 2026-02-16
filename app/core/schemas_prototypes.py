@@ -270,6 +270,57 @@ class PromptAuditResult(BaseModel):
     recommendations: list[str] = Field(default_factory=list, description="Improvement recommendations")
 
 
+# === v0 integration schemas ===
+
+
+class V0MetadataRequest(BaseModel):
+    """Request body for storing v0 submission results on a prototype."""
+
+    v0_chat_id: str = Field(..., description="v0 chat ID from createChat")
+    v0_demo_url: str = Field(..., description="v0 demo URL for the generated prototype")
+    v0_model: str = Field("v0-1.5-lg", description="v0 model used for generation")
+    github_repo_url: str | None = Field(None, description="GitHub repo URL in our org")
+
+
+class AuditCodeRequest(BaseModel):
+    """Request body for auditing v0-generated code."""
+
+    file_tree: list[str] = Field(..., description="File paths from v0 output")
+    feature_scan: dict[str, list[str]] = Field(
+        ..., description="Map of feature_id to list of files containing it"
+    )
+    handoff_content: str | None = Field(None, description="HANDOFF.md content if found")
+    expected_features: list[dict[str, str]] = Field(
+        ..., description="Expected features: [{id, name}]"
+    )
+
+
+class AuditCodeResponse(BaseModel):
+    """Response from auditing v0-generated code."""
+
+    audit: PromptAuditResult = Field(..., description="Audit scores and gaps")
+    action: str = Field(..., description="Recommended action: accept, retry, or notify")
+    refined_prompt: str | None = Field(
+        None, description="Auto-generated refined prompt if action is retry"
+    )
+
+
+class VpFollowupRequest(BaseModel):
+    """Request body for generating a Turn 2 VP solidification prompt."""
+
+    turn1_summary: str | None = Field(
+        None, description="Summary of what v0 built in Turn 1"
+    )
+
+
+class VpFollowupResponse(BaseModel):
+    """Response from VP followup prompt generation."""
+
+    followup_prompt: str = Field(..., description="The follow-up prompt to send to v0")
+    vp_steps_count: int = Field(0, description="Number of VP steps included")
+    features_count: int = Field(0, description="Number of features referenced")
+
+
 class PrototypeResponse(BaseModel):
     """Response schema for a prototype."""
 
@@ -283,6 +334,11 @@ class PrototypeResponse(BaseModel):
     prompt_audit: PromptAuditResult | None = Field(None, description="Audit results")
     prompt_version: int = Field(1, description="Prompt version number")
     session_count: int = Field(0, description="Number of review sessions")
+    v0_chat_id: str | None = Field(None, description="v0 chat ID")
+    v0_demo_url: str | None = Field(None, description="v0 demo URL")
+    v0_model: str | None = Field(None, description="v0 model used")
+    audit_action: str | None = Field(None, description="Audit action: accept, retry, notify")
+    github_repo_url: str | None = Field(None, description="GitHub repo URL in our org")
     created_at: str = Field(..., description="Creation timestamp")
     updated_at: str = Field(..., description="Last update timestamp")
 

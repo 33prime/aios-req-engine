@@ -10,11 +10,16 @@ from fastapi import APIRouter, HTTPException
 
 from app.core.logging import get_logger
 from app.core.schemas_prototypes import (
+    AuditCodeRequest,
+    AuditCodeResponse,
     FeatureOverlayResponse,
     GeneratePrototypeRequest,
     IngestPrototypeRequest,
     PromptAuditResult,
     PrototypeResponse,
+    V0MetadataRequest,
+    VpFollowupRequest,
+    VpFollowupResponse,
 )
 from app.db.prototypes import (
     create_prototype,
@@ -280,6 +285,164 @@ async def trigger_analysis_endpoint(prototype_id: UUID) -> dict:
     except Exception:
         logger.exception(f"Failed to trigger analysis for prototype {prototype_id}")
         raise HTTPException(status_code=500, detail="Failed to trigger analysis")
+
+
+@router.post("/{prototype_id}/v0-metadata")
+async def store_v0_metadata_endpoint(
+    prototype_id: UUID,
+    request: V0MetadataRequest,
+) -> dict:
+    """Store v0 submission results on a prototype record."""
+    try:
+        prototype = get_prototype(prototype_id)
+        if not prototype:
+            raise HTTPException(status_code=404, detail="Prototype not found")
+
+        update_fields: dict = {
+            "v0_chat_id": request.v0_chat_id,
+            "v0_demo_url": request.v0_demo_url,
+            "v0_model": request.v0_model,
+        }
+        if request.github_repo_url:
+            update_fields["github_repo_url"] = request.github_repo_url
+
+        update_prototype(prototype_id, **update_fields)
+        logger.info(f"Stored v0 metadata for prototype {prototype_id}: chat={request.v0_chat_id}")
+
+        return {
+            "prototype_id": str(prototype_id),
+            "v0_chat_id": request.v0_chat_id,
+            "v0_demo_url": request.v0_demo_url,
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"Failed to store v0 metadata for prototype {prototype_id}: {e}")
+        raise HTTPException(status_code=500, detail="Failed to store v0 metadata")
+
+
+@router.post("/{prototype_id}/audit-code", response_model=AuditCodeResponse)
+async def audit_code_endpoint(
+    prototype_id: UUID,
+    request: AuditCodeRequest,
+) -> AuditCodeResponse:
+    """Run audit on v0-generated code extracted from chat response.
+
+    Compares what was requested (prompt) against what was generated (file tree,
+    feature scan, HANDOFF.md). Returns scores, action recommendation, and
+    optionally a refined prompt for retry.
+    """
+    try:
+        from app.chains.audit_v0_output import audit_v0_output, should_retry
+        from app.core.config import get_settings
+
+        settings = get_settings()
+        prototype = get_prototype(prototype_id)
+        if not prototype:
+            raise HTTPException(status_code=404, detail="Prototype not found")
+
+        original_prompt = prototype.get("prompt_text", "")
+        if not original_prompt:
+            raise HTTPException(status_code=400, detail="Prototype has no prompt text to audit against")
+
+        # Run audit
+        audit = audit_v0_output(
+            original_prompt=original_prompt,
+            handoff_content=request.handoff_content,
+            file_tree=request.file_tree,
+            feature_scan=request.feature_scan,
+            expected_features=request.expected_features,
+            settings=settings,
+        )
+
+        action = should_retry(audit)
+
+        # If retry recommended, generate a refined prompt
+        refined_prompt = None
+        if action == "retry":
+            from app.chains.refine_v0_prompt import refine_v0_prompt
+
+            refined_prompt = refine_v0_prompt(
+                original_prompt=original_prompt,
+                audit=audit,
+                settings=settings,
+            )
+
+        # Store audit results on prototype
+        update_prototype(
+            prototype_id,
+            prompt_audit=audit.model_dump(),
+            audit_action=action,
+        )
+
+        logger.info(
+            f"Audit complete for prototype {prototype_id}: "
+            f"score={audit.overall_score:.2f}, action={action}"
+        )
+
+        return AuditCodeResponse(
+            audit=audit,
+            action=action,
+            refined_prompt=refined_prompt,
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"Failed to audit code for prototype {prototype_id}: {e}")
+        raise HTTPException(status_code=500, detail="Failed to audit prototype code")
+
+
+@router.post("/{prototype_id}/vp-followup", response_model=VpFollowupResponse)
+async def generate_vp_followup_endpoint(
+    prototype_id: UUID,
+    request: VpFollowupRequest,
+) -> VpFollowupResponse:
+    """Generate a Turn 2 follow-up prompt to solidify value path flows.
+
+    Loads project features and VP steps, builds a structured template,
+    then uses Opus to enhance it into a v0 follow-up message.
+    """
+    try:
+        from app.chains.generate_vp_followup import generate_vp_followup
+        from app.core.config import get_settings
+        from app.db.features import list_features
+        from app.db.vp import list_vp_steps
+
+        settings = get_settings()
+        prototype = get_prototype(prototype_id)
+        if not prototype:
+            raise HTTPException(status_code=404, detail="Prototype not found")
+
+        project_id = UUID(prototype["project_id"])
+        features = list_features(project_id)
+        vp_steps = list_vp_steps(project_id)
+
+        if not vp_steps:
+            raise HTTPException(
+                status_code=400,
+                detail="No VP steps found for project — cannot generate flow followup",
+            )
+
+        followup = generate_vp_followup(
+            vp_steps=vp_steps,
+            features=features,
+            settings=settings,
+            turn1_summary=request.turn1_summary,
+        )
+
+        return VpFollowupResponse(
+            followup_prompt=followup,
+            vp_steps_count=len(vp_steps),
+            features_count=len(features),
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"Failed to generate VP followup for prototype {prototype_id}: {e}")
+        raise HTTPException(status_code=500, detail="Failed to generate VP followup prompt")
 
 
 @router.post("/{prototype_id}/retry")
