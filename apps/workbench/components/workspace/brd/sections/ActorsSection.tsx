@@ -65,12 +65,13 @@ function ActorAccordionCard({
   onCanvasRoleUpdate?: (personaId: string, role: 'primary' | 'secondary' | null) => void
 }) {
   const [expanded, setExpanded] = useState(false)
+  const [hasBeenExpanded, setHasBeenExpanded] = useState(false)
 
   return (
     <div className="bg-white rounded-2xl shadow-md border border-[#E5E5E5] overflow-hidden">
       {/* Header row */}
       <button
-        onClick={() => setExpanded(!expanded)}
+        onClick={() => { const next = !expanded; setExpanded(next); if (next && !hasBeenExpanded) setHasBeenExpanded(true) }}
         className="w-full flex items-center gap-3 px-5 py-4 text-left hover:bg-gray-50/50 transition-colors"
       >
         <ChevronRight
@@ -106,62 +107,64 @@ function ActorAccordionCard({
       </button>
 
       {/* Expanded body */}
-      <div className={`overflow-hidden transition-all duration-200 ${expanded ? 'max-h-[2000px] opacity-100' : 'max-h-0 opacity-0'}`}>
-        <div className="px-5 pb-5 pt-1">
-          {/* Description */}
-          {actor.description && (
-            <p className="text-[13px] text-[#666666] leading-relaxed mb-4">{actor.description}</p>
-          )}
+      {hasBeenExpanded && (
+        <div className={`overflow-hidden transition-all duration-200 ${expanded ? 'max-h-[2000px] opacity-100' : 'max-h-0 opacity-0'}`}>
+          <div className="px-5 pb-5 pt-1">
+            {/* Description */}
+            {actor.description && (
+              <p className="text-[13px] text-[#666666] leading-relaxed mb-4">{actor.description}</p>
+            )}
 
-          {/* Two-column: What they need / Why they need it */}
-          {((actor.goals && actor.goals.length > 0) || (actor.pain_points && actor.pain_points.length > 0)) && (
-            <div className="flex gap-6">
-              {/* What they need (goals) */}
-              {actor.goals && actor.goals.length > 0 && (
-                <div className="flex-1 min-w-0">
-                  <div className="px-3 py-1.5 rounded-lg mb-3 bg-[#E8F5E9] text-[#25785A]">
-                    <span className="text-[11px] font-semibold uppercase tracking-wider">What They Need</span>
+            {/* Two-column: What they need / Why they need it */}
+            {((actor.goals && actor.goals.length > 0) || (actor.pain_points && actor.pain_points.length > 0)) && (
+              <div className="flex gap-6">
+                {/* What they need (goals) */}
+                {actor.goals && actor.goals.length > 0 && (
+                  <div className="flex-1 min-w-0">
+                    <div className="px-3 py-1.5 rounded-lg mb-3 bg-[#E8F5E9] text-[#25785A]">
+                      <span className="text-[11px] font-semibold uppercase tracking-wider">What They Need</span>
+                    </div>
+                    <ul className="space-y-2">
+                      {actor.goals.map((goal, i) => (
+                        <li key={i} className="flex items-start gap-2 text-[13px] text-[#666666]">
+                          <span className="text-[#3FAF7A] mt-0.5 shrink-0">&#8226;</span>
+                          <span>{goal}</span>
+                        </li>
+                      ))}
+                    </ul>
                   </div>
-                  <ul className="space-y-2">
-                    {actor.goals.map((goal, i) => (
-                      <li key={i} className="flex items-start gap-2 text-[13px] text-[#666666]">
-                        <span className="text-[#3FAF7A] mt-0.5 shrink-0">&#8226;</span>
-                        <span>{goal}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
+                )}
 
-              {/* Why they need it (pain points) */}
-              {actor.pain_points && actor.pain_points.length > 0 && (
-                <div className="flex-1 min-w-0">
-                  <div className="px-3 py-1.5 rounded-lg mb-3 bg-[#F0F0F0] text-[#666666]">
-                    <span className="text-[11px] font-semibold uppercase tracking-wider">Why They Need It</span>
+                {/* Why they need it (pain points) */}
+                {actor.pain_points && actor.pain_points.length > 0 && (
+                  <div className="flex-1 min-w-0">
+                    <div className="px-3 py-1.5 rounded-lg mb-3 bg-[#F0F0F0] text-[#666666]">
+                      <span className="text-[11px] font-semibold uppercase tracking-wider">Why They Need It</span>
+                    </div>
+                    <ul className="space-y-2">
+                      {actor.pain_points.map((pain, i) => (
+                        <li key={i} className="flex items-start gap-2 text-[13px] text-[#666666]">
+                          <span className="text-[#999999] mt-0.5 shrink-0">&#8226;</span>
+                          <span>{pain}</span>
+                        </li>
+                      ))}
+                    </ul>
                   </div>
-                  <ul className="space-y-2">
-                    {actor.pain_points.map((pain, i) => (
-                      <li key={i} className="flex items-start gap-2 text-[13px] text-[#666666]">
-                        <span className="text-[#999999] mt-0.5 shrink-0">&#8226;</span>
-                        <span>{pain}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
+                )}
+              </div>
+            )}
+
+            {/* Confirm / Review actions */}
+            <div className="mt-4 pt-3 border-t border-[#E5E5E5]">
+              <ConfirmActions
+                status={actor.confirmation_status}
+                onConfirm={() => onConfirm('persona', actor.id)}
+                onNeedsReview={() => onNeedsReview('persona', actor.id)}
+              />
             </div>
-          )}
-
-          {/* Confirm / Review actions */}
-          <div className="mt-4 pt-3 border-t border-[#E5E5E5]">
-            <ConfirmActions
-              status={actor.confirmation_status}
-              onConfirm={() => onConfirm('persona', actor.id)}
-              onNeedsReview={() => onNeedsReview('persona', actor.id)}
-            />
           </div>
         </div>
-      </div>
+      )}
     </div>
   )
 }

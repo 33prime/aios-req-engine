@@ -164,6 +164,7 @@ function DriverCard({
   onDetailClick: () => void
 }) {
   const [expanded, setExpanded] = useState(false)
+  const [hasBeenExpanded, setHasBeenExpanded] = useState(false)
 
   return (
     <div className={`bg-white rounded-2xl shadow-md border overflow-hidden ${
@@ -171,7 +172,7 @@ function DriverCard({
     }`}>
       {/* Collapsed: 3-line display */}
       <button
-        onClick={() => setExpanded(!expanded)}
+        onClick={() => { const next = !expanded; setExpanded(next); if (next && !hasBeenExpanded) setHasBeenExpanded(true) }}
         className="w-full px-5 py-3.5 text-left hover:bg-gray-50/50 transition-colors"
       >
         {/* Line 1: Title + status + vision dot */}
@@ -199,20 +200,22 @@ function DriverCard({
       </button>
 
       {/* Expanded view — lightweight, detail is in the drawer */}
-      <div className={`overflow-hidden transition-all duration-200 ${expanded ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'}`}>
-        <div className="px-5 pb-4 pt-2 border-t border-[#E5E5E5]">
-          {/* Actions row */}
-          <div className="flex items-center justify-between">
-            <ConfirmActions status={driver.confirmation_status} onConfirm={onConfirm} onNeedsReview={onNeedsReview} />
-            <button
-              onClick={onDetailClick}
-              className="text-[11px] text-[#999999] hover:text-[#3FAF7A] transition-colors"
-            >
-              View details →
-            </button>
+      {hasBeenExpanded && (
+        <div className={`overflow-hidden transition-all duration-200 ${expanded ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'}`}>
+          <div className="px-5 pb-4 pt-2 border-t border-[#E5E5E5]">
+            {/* Actions row */}
+            <div className="flex items-center justify-between">
+              <ConfirmActions status={driver.confirmation_status} onConfirm={onConfirm} onNeedsReview={onNeedsReview} />
+              <button
+                onClick={onDetailClick}
+                className="text-[11px] text-[#999999] hover:text-[#3FAF7A] transition-colors"
+              >
+                View details →
+              </button>
+            </div>
           </div>
         </div>
-      </div>
+      )}
     </div>
   )
 }

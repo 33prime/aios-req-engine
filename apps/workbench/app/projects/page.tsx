@@ -10,16 +10,10 @@
 
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
-import {
-  listProjects,
-  getMyProfile,
-  batchGetDashboardData,
-  listUpcomingMeetings,
-} from '@/lib/api'
 import type { NextAction, TaskStatsResponse } from '@/lib/api'
-import type { ProjectDetailWithDashboard, Profile, Meeting } from '@/types/api'
+import { useProfile, useProjects, useUpcomingMeetings, useBatchDashboardData } from '@/lib/hooks/use-api'
 import { ProjectsTopNav } from './components/ProjectsTopNav'
 import { ProjectsTable } from './components/ProjectsTable'
 import { ProjectsKanban } from './components/ProjectsKanban'
@@ -32,13 +26,6 @@ type SortOrder = 'asc' | 'desc'
 
 export default function ProjectsPage() {
   const router = useRouter()
-  const [projects, setProjects] = useState<ProjectDetailWithDashboard[]>([])
-  const [ownerProfiles, setOwnerProfiles] = useState<Record<string, { first_name?: string; last_name?: string; photo_url?: string }>>({})
-  const [currentUser, setCurrentUser] = useState<Profile | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [nextActionsMap, setNextActionsMap] = useState<Record<string, NextAction | null>>({})
-  const [taskStatsMap, setTaskStatsMap] = useState<Record<string, TaskStatsResponse | null>>({})
-  const [meetings, setMeetings] = useState<Meeting[]>([])
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [viewMode, setViewMode] = useState<ViewMode>('cards')
   const [searchQuery, setSearchQuery] = useState('')
@@ -47,61 +34,46 @@ export default function ProjectsPage() {
   const [sortField, setSortField] = useState<SortField>('updated_at')
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc')
 
-  useEffect(() => {
-    loadProjects()
-    loadCurrentUser()
-  }, [])
+  // SWR hooks — cached, deduplicated, auto-revalidating
+  const { data: profileData } = useProfile()
+  const { data: projectsData, isLoading: projectsLoading, mutate: mutateProjects } = useProjects('active')
+  const { data: meetingsData } = useUpcomingMeetings(30)
 
-  const loadCurrentUser = async () => {
-    try {
-      const profile = await getMyProfile()
-      setCurrentUser(profile)
-    } catch (error) {
-      console.error('Failed to load current user profile:', error)
-    }
-  }
+  const projects = projectsData?.projects ?? []
+  const ownerProfiles = projectsData?.owner_profiles ?? {}
+  const currentUser = profileData ?? null
+  const meetings = meetingsData ?? []
 
-  const loadProjects = async () => {
-    try {
-      setLoading(true)
-      const [response, meetingsRes] = await Promise.all([
-        listProjects('active'),
-        listUpcomingMeetings(30).catch(() => [] as Meeting[]),
-      ])
-      setProjects(response.projects)
-      setOwnerProfiles(response.owner_profiles || {})
-      setMeetings(meetingsRes)
-      setLoading(false)
+  // Batch dashboard data loads once project IDs are available
+  const projectIds = useMemo(() => projects.map((p) => p.id), [projects])
+  const { data: dashboardData } = useBatchDashboardData(
+    projectIds.length > 0 ? projectIds : undefined,
+  )
 
-      // Non-blocking: batch load dashboard data after main content renders
-      const projectIds = response.projects.map((p) => p.id)
-      if (projectIds.length > 0) {
-        batchGetDashboardData(projectIds)
-          .then((data) => {
-            const actionsMap: Record<string, NextAction | null> = {}
-            for (const [pid, actions] of Object.entries(data.next_actions || {})) {
-              actionsMap[pid] = actions[0] ?? null
-            }
-            setNextActionsMap(actionsMap)
-
-            const sMap: Record<string, TaskStatsResponse | null> = {}
-            for (const [pid, stats] of Object.entries(data.task_stats || {})) {
-              sMap[pid] = stats
-            }
-            setTaskStatsMap(sMap)
-          })
-          .catch((err) => {
-            console.error('Failed to load dashboard data:', err)
-          })
+  const nextActionsMap = useMemo(() => {
+    const map: Record<string, NextAction | null> = {}
+    if (dashboardData?.next_actions) {
+      for (const [pid, actions] of Object.entries(dashboardData.next_actions)) {
+        map[pid] = actions[0] ?? null
       }
-    } catch (error) {
-      console.error('Failed to load projects:', error)
-      setLoading(false)
     }
-  }
+    return map
+  }, [dashboardData])
+
+  const taskStatsMap = useMemo(() => {
+    const map: Record<string, TaskStatsResponse | null> = {}
+    if (dashboardData?.task_stats) {
+      for (const [pid, stats] of Object.entries(dashboardData.task_stats)) {
+        map[pid] = stats
+      }
+    }
+    return map
+  }, [dashboardData])
+
+  const loading = projectsLoading
 
   const handleRefresh = () => {
-    loadProjects()
+    mutateProjects()
   }
 
   const handleProjectClick = (projectId: string) => {

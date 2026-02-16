@@ -14,13 +14,8 @@ import { formatDistanceToNow, isToday, isTomorrow, format } from 'date-fns'
 import { AppSidebar } from '@/components/workspace/AppSidebar'
 import { TaskListCompact } from '@/components/tasks'
 import { ProjectAvatar } from '@/app/projects/components/ProjectAvatar'
-import {
-  listProjects,
-  getMyProfile,
-  listUpcomingMeetings,
-  getNextActions,
-  getCollaborationCurrent,
-} from '@/lib/api'
+import { getCollaborationCurrent } from '@/lib/api'
+import { useProfile, useProjects, useUpcomingMeetings, useBatchDashboardData } from '@/lib/hooks/use-api'
 import type {
   ProjectDetailWithDashboard,
   Profile,
@@ -370,75 +365,60 @@ function PortalNotificationsPanel({ portals }: { portals: PortalInfo[] }) {
 // =============================================================================
 
 export default function HomeDashboard() {
-  const [projects, setProjects] = useState<ProjectDetailWithDashboard[]>([])
-  const [profile, setProfile] = useState<Profile | null>(null)
-  const [meetings, setMeetings] = useState<Meeting[]>([])
-  const [loading, setLoading] = useState(true)
-  const [nextActionsMap, setNextActionsMap] = useState<Record<string, NextAction | null>>({})
   const [portalSyncMap, setPortalSyncMap] = useState<Record<string, CollaborationCurrentResponse['portal_sync'] | null>>({})
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [activeTaskProject, setActiveTaskProject] = useState<string | null>(null)
 
-  // Phase 1: load projects, profile, meetings in parallel
+  // SWR hooks — cached, deduplicated, auto-revalidating
+  const { data: profile } = useProfile()
+  const { data: projectsData, isLoading: projectsLoading } = useProjects('active')
+  const { data: meetingsData } = useUpcomingMeetings(8)
+
+  const projects = projectsData?.projects ?? []
+  const meetings = meetingsData ?? []
+  const loading = projectsLoading
+
+  // Set initial active task project when projects first load
   useEffect(() => {
-    async function load() {
-      try {
-        const [projectsRes, profileRes, meetingsRes] = await Promise.allSettled([
-          listProjects('active'),
-          getMyProfile(),
-          listUpcomingMeetings(8),
-        ])
+    if (projects.length > 0 && activeTaskProject === null) {
+      setActiveTaskProject(projects[0].id)
+    }
+  }, [projects, activeTaskProject])
 
-        const loadedProjects =
-          projectsRes.status === 'fulfilled' ? projectsRes.value.projects : []
-        const loadedProfile =
-          profileRes.status === 'fulfilled' ? profileRes.value : null
-        const loadedMeetings =
-          meetingsRes.status === 'fulfilled' ? meetingsRes.value : []
+  // Batch next actions (replaces N per-project getNextActions calls)
+  const projectIds = useMemo(() => projects.map((p) => p.id), [projects])
+  const { data: dashboardData } = useBatchDashboardData(
+    projectIds.length > 0 ? projectIds : undefined,
+  )
 
-        setProjects(loadedProjects)
-        setProfile(loadedProfile)
-        setMeetings(loadedMeetings)
-
-        if (loadedProjects.length > 0) {
-          setActiveTaskProject(loadedProjects[0].id)
-        }
-
-        // Phase 2: per-project data (next actions + portal sync)
-        const actionPromises = loadedProjects.map((p) =>
-          getNextActions(p.id)
-            .then((res) => ({ id: p.id, action: res.actions[0] ?? null }))
-            .catch(() => ({ id: p.id, action: null }))
-        )
-
-        const portalProjects = loadedProjects.filter((p) => p.portal_enabled)
-        const portalPromises = portalProjects.map((p) =>
-          getCollaborationCurrent(p.id)
-            .then((res) => ({ id: p.id, sync: res.portal_sync }))
-            .catch(() => ({ id: p.id, sync: null }))
-        )
-
-        const [actionResults, portalResults] = await Promise.all([
-          Promise.all(actionPromises),
-          Promise.all(portalPromises),
-        ])
-
-        const actionsMap: Record<string, NextAction | null> = {}
-        for (const r of actionResults) actionsMap[r.id] = r.action
-
-        const syncMap: Record<string, CollaborationCurrentResponse['portal_sync'] | null> = {}
-        for (const r of portalResults) syncMap[r.id] = r.sync
-
-        setNextActionsMap(actionsMap)
-        setPortalSyncMap(syncMap)
-      } finally {
-        setLoading(false)
+  const nextActionsMap = useMemo(() => {
+    const map: Record<string, NextAction | null> = {}
+    if (dashboardData?.next_actions) {
+      for (const [pid, actions] of Object.entries(dashboardData.next_actions)) {
+        map[pid] = actions[0] ?? null
       }
     }
+    return map
+  }, [dashboardData])
 
-    load()
-  }, [])
+  // Portal sync — still per-project (no batch endpoint), non-blocking
+  useEffect(() => {
+    const portalProjects = projects.filter((p) => p.portal_enabled)
+    if (portalProjects.length === 0) return
+
+    Promise.all(
+      portalProjects.map((p) =>
+        getCollaborationCurrent(p.id)
+          .then((res) => ({ id: p.id, sync: res.portal_sync }))
+          .catch(() => ({ id: p.id, sync: null }))
+      )
+    ).then((results) => {
+      const syncMap: Record<string, CollaborationCurrentResponse['portal_sync'] | null> = {}
+      for (const r of results) syncMap[r.id] = r.sync
+      setPortalSyncMap(syncMap)
+    })
+  }, [projects])
 
   // Derived data
   const filteredProjects = useMemo(() => {
@@ -510,7 +490,7 @@ export default function HomeDashboard() {
       >
         <div className="max-w-[1400px] mx-auto px-6 py-5">
           <GreetingHeader
-            profile={profile}
+            profile={profile ?? null}
             searchQuery={searchQuery}
             onSearchChange={setSearchQuery}
           />

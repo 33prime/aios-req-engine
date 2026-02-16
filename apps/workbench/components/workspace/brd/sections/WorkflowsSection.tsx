@@ -309,6 +309,7 @@ function WorkflowAccordionCard({
   onViewWorkflowDetail?: (workflowId: string) => void
 }) {
   const [expanded, setExpanded] = useState(false)
+  const [hasBeenExpanded, setHasBeenExpanded] = useState(false)
 
   const currentMin = pair.current_steps.reduce((sum, s) => sum + (s.time_minutes || 0), 0)
   const futureMin = pair.future_steps.reduce((sum, s) => sum + (s.time_minutes || 0), 0)
@@ -330,7 +331,7 @@ function WorkflowAccordionCard({
     <div className="bg-white rounded-2xl shadow-md border border-[#E5E5E5] overflow-hidden">
       {/* Header row — clickable */}
       <button
-        onClick={() => setExpanded(!expanded)}
+        onClick={() => { const next = !expanded; setExpanded(next); if (next && !hasBeenExpanded) setHasBeenExpanded(true) }}
         className="w-full flex items-center gap-3 px-5 py-4 text-left hover:bg-gray-50/50 transition-colors"
       >
         <ChevronRight
@@ -386,45 +387,47 @@ function WorkflowAccordionCard({
       </button>
 
       {/* Expanded body */}
-      <div
-        className={`overflow-hidden transition-all duration-200 ${expanded ? 'max-h-[2000px] opacity-100' : 'max-h-0 opacity-0'}`}
-      >
-        <div className="px-5 pb-5 pt-1">
-          {pair.description && (
-            <p className="text-[12px] text-[#666666] mb-4">{pair.description}</p>
-          )}
+      {hasBeenExpanded && (
+        <div
+          className={`overflow-hidden transition-all duration-200 ${expanded ? 'max-h-[2000px] opacity-100' : 'max-h-0 opacity-0'}`}
+        >
+          <div className="px-5 pb-5 pt-1">
+            {pair.description && (
+              <p className="text-[12px] text-[#666666] mb-4">{pair.description}</p>
+            )}
 
-          {/* Side-by-side columns */}
-          {(pair.current_steps.length > 0 || pair.future_steps.length > 0) ? (
-            <div className="flex gap-6">
-              {(pair.current_steps.length > 0 || pair.current_workflow_id) && (
+            {/* Side-by-side columns */}
+            {(pair.current_steps.length > 0 || pair.future_steps.length > 0) ? (
+              <div className="flex gap-6">
+                {(pair.current_steps.length > 0 || pair.current_workflow_id) && (
+                  <StepColumn
+                    steps={pair.current_steps}
+                    stateType="current"
+                    workflowId={pair.current_workflow_id}
+                    onCreateStep={createStepHandler}
+                    onEditStep={editStepHandler}
+                    onDeleteStep={deleteStepHandler}
+                    onViewStepDetail={onViewStepDetail}
+                  />
+                )}
                 <StepColumn
-                  steps={pair.current_steps}
-                  stateType="current"
-                  workflowId={pair.current_workflow_id}
+                  steps={pair.future_steps}
+                  stateType="future"
+                  workflowId={pair.future_workflow_id}
                   onCreateStep={createStepHandler}
                   onEditStep={editStepHandler}
                   onDeleteStep={deleteStepHandler}
                   onViewStepDetail={onViewStepDetail}
                 />
-              )}
-              <StepColumn
-                steps={pair.future_steps}
-                stateType="future"
-                workflowId={pair.future_workflow_id}
-                onCreateStep={createStepHandler}
-                onEditStep={editStepHandler}
-                onDeleteStep={deleteStepHandler}
-                onViewStepDetail={onViewStepDetail}
-              />
-            </div>
-          ) : (
-            <p className="text-[12px] text-[#999999] italic py-2">No steps added yet</p>
-          )}
+              </div>
+            ) : (
+              <p className="text-[12px] text-[#999999] italic py-2">No steps added yet</p>
+            )}
 
-          {pair.roi && <ROIFooter roi={pair.roi} />}
+            {pair.roi && <ROIFooter roi={pair.roi} />}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   )
 }
@@ -558,11 +561,12 @@ function LegacyStepCard({
   onStatusClick?: () => void
 }) {
   const [expanded, setExpanded] = useState(false)
+  const [hasBeenExpanded, setHasBeenExpanded] = useState(false)
 
   return (
     <div className="bg-white rounded-2xl shadow-md border border-[#E5E5E5] overflow-hidden">
       <button
-        onClick={() => setExpanded(!expanded)}
+        onClick={() => { const next = !expanded; setExpanded(next); if (next && !hasBeenExpanded) setHasBeenExpanded(true) }}
         className="w-full flex items-center gap-3 px-5 py-4 text-left hover:bg-gray-50/50 transition-colors"
       >
         <ChevronRight
@@ -588,42 +592,44 @@ function LegacyStepCard({
         )}
       </button>
 
-      <div
-        className={`overflow-hidden transition-all duration-200 ${expanded ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'}`}
-      >
-        <div className="px-5 pb-4 pt-1 space-y-3">
-          {step.description && (
-            <p className="text-[13px] text-[#666666] leading-relaxed">
-              {step.description}
-            </p>
-          )}
+      {hasBeenExpanded && (
+        <div
+          className={`overflow-hidden transition-all duration-200 ${expanded ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'}`}
+        >
+          <div className="px-5 pb-4 pt-1 space-y-3">
+            {step.description && (
+              <p className="text-[13px] text-[#666666] leading-relaxed">
+                {step.description}
+              </p>
+            )}
 
-          {step.actor_persona_name && (
-            <div className="flex items-center gap-1.5">
-              <span className="text-[11px] text-[#999999]">Actor:</span>
-              <span className="px-2 py-0.5 text-[11px] font-medium bg-[#E8F5E9] text-[#25785A] rounded-full">
-                {step.actor_persona_name}
-              </span>
-            </div>
-          )}
-
-          {step.feature_names && step.feature_names.length > 0 && (
-            <div>
-              <span className="text-[11px] text-[#999999] block mb-1">Features:</span>
-              <div className="flex flex-wrap gap-1">
-                {step.feature_names.map((name, i) => (
-                  <span
-                    key={step.feature_ids?.[i] || i}
-                    className="px-2 py-0.5 text-[11px] font-medium bg-blue-50 text-blue-700 rounded-full"
-                  >
-                    {name}
-                  </span>
-                ))}
+            {step.actor_persona_name && (
+              <div className="flex items-center gap-1.5">
+                <span className="text-[11px] text-[#999999]">Actor:</span>
+                <span className="px-2 py-0.5 text-[11px] font-medium bg-[#E8F5E9] text-[#25785A] rounded-full">
+                  {step.actor_persona_name}
+                </span>
               </div>
-            </div>
-          )}
+            )}
+
+            {step.feature_names && step.feature_names.length > 0 && (
+              <div>
+                <span className="text-[11px] text-[#999999] block mb-1">Features:</span>
+                <div className="flex flex-wrap gap-1">
+                  {step.feature_names.map((name, i) => (
+                    <span
+                      key={step.feature_ids?.[i] || i}
+                      className="px-2 py-0.5 text-[11px] font-medium bg-blue-50 text-blue-700 rounded-full"
+                    >
+                      {name}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   )
 }

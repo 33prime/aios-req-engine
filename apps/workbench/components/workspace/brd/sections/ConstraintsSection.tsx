@@ -60,6 +60,7 @@ function ConstraintCard({
   onStatusClick?: (entityType: string, entityId: string, entityName: string, status?: string | null) => void
 }) {
   const [expanded, setExpanded] = useState(false)
+  const [hasBeenExpanded, setHasBeenExpanded] = useState(false)
   const sev = SEVERITY_CONFIG[constraint.severity] || SEVERITY_CONFIG.medium
   const typeConfig = TYPE_CONFIG[constraint.constraint_type] || TYPE_CONFIG.technical
   const TypeIcon = typeConfig.icon
@@ -73,7 +74,7 @@ function ConstraintCard({
     }`}>
       {/* Header row */}
       <button
-        onClick={() => setExpanded(!expanded)}
+        onClick={() => { const next = !expanded; setExpanded(next); if (next && !hasBeenExpanded) setHasBeenExpanded(true) }}
         className="w-full flex items-center gap-3 px-5 py-3.5 text-left hover:bg-gray-50/50 transition-colors"
       >
         <ChevronRight
@@ -104,34 +105,36 @@ function ConstraintCard({
       </button>
 
       {/* Expanded body */}
-      <div className={`overflow-hidden transition-all duration-200 ${expanded ? 'max-h-[2000px] opacity-100' : 'max-h-0 opacity-0'}`}>
-        <div className="px-5 pb-5 pt-1 border-t border-[#E5E5E5]">
-          {/* Description */}
-          {constraint.description && (
-            <p className="text-[13px] text-[#666666] leading-relaxed mb-3">{constraint.description}</p>
-          )}
+      {hasBeenExpanded && (
+        <div className={`overflow-hidden transition-all duration-200 ${expanded ? 'max-h-[2000px] opacity-100' : 'max-h-0 opacity-0'}`}>
+          <div className="px-5 pb-5 pt-1 border-t border-[#E5E5E5]">
+            {/* Description */}
+            {constraint.description && (
+              <p className="text-[13px] text-[#666666] leading-relaxed mb-3">{constraint.description}</p>
+            )}
 
-          {/* Impact */}
-          {constraint.impact_description && (
-            <div className="bg-[#F9F9F9] rounded-lg p-3 mb-3">
-              <p className="text-[11px] font-medium text-[#999999] uppercase tracking-wide mb-1">Impact if Ignored</p>
-              <p className="text-[12px] text-[#666666]">{constraint.impact_description}</p>
+            {/* Impact */}
+            {constraint.impact_description && (
+              <div className="bg-[#F9F9F9] rounded-lg p-3 mb-3">
+                <p className="text-[11px] font-medium text-[#999999] uppercase tracking-wide mb-1">Impact if Ignored</p>
+                <p className="text-[12px] text-[#666666]">{constraint.impact_description}</p>
+              </div>
+            )}
+
+            {/* Evidence */}
+            <EvidenceBlock evidence={constraint.evidence || []} maxItems={3} />
+
+            {/* Actions */}
+            <div className="mt-3 pt-3 border-t border-[#E5E5E5]">
+              <ConfirmActions
+                status={constraint.confirmation_status}
+                onConfirm={() => onConfirm('constraint', constraint.id)}
+                onNeedsReview={() => onNeedsReview('constraint', constraint.id)}
+              />
             </div>
-          )}
-
-          {/* Evidence */}
-          <EvidenceBlock evidence={constraint.evidence || []} maxItems={3} />
-
-          {/* Actions */}
-          <div className="mt-3 pt-3 border-t border-[#E5E5E5]">
-            <ConfirmActions
-              status={constraint.confirmation_status}
-              onConfirm={() => onConfirm('constraint', constraint.id)}
-              onNeedsReview={() => onNeedsReview('constraint', constraint.id)}
-            />
           </div>
         </div>
-      </div>
+      )}
     </div>
   )
 }

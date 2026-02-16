@@ -1,9 +1,10 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useRef } from 'react'
 import { User, Pencil, Save, X, Loader, Phone, Linkedin, Video, MapPin, FileText, Briefcase, LogOut, Camera } from 'lucide-react'
 import Image from 'next/image'
-import { getMyProfile, updateMyProfile } from '@/lib/api'
+import { updateMyProfile } from '@/lib/api'
+import { useProfile } from '@/lib/hooks/use-api'
 import { useAuth } from '@/components/auth/AuthProvider'
 import { supabase } from '@/lib/supabase'
 import type { Profile, ProfileUpdate } from '@/types/api'
@@ -14,33 +15,16 @@ interface ProfileTabProps {
 
 export default function ProfileTab({ onLogout }: ProfileTabProps) {
   const { user, signOut } = useAuth()
-  const [profile, setProfile] = useState<Profile | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const { data: profile, error: profileError, isLoading, mutate: mutateProfile } = useProfile()
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
-
-  useEffect(() => {
-    loadProfile()
-  }, [])
-
-  const loadProfile = async () => {
-    try {
-      const data = await getMyProfile()
-      setProfile(data)
-    } catch (err) {
-      console.error('Failed to load profile:', err)
-      setError('Failed to load profile')
-    } finally {
-      setIsLoading(false)
-    }
-  }
 
   const handleUpdateProfile = async (updates: ProfileUpdate) => {
     if (!profile) return
     try {
       const updated = await updateMyProfile(updates)
-      setProfile(updated)
+      // Update SWR cache so AppSidebar etc. see the change instantly
+      mutateProfile(updated, false)
     } catch (err) {
       console.error('Failed to update profile:', err)
       throw err
@@ -86,7 +70,7 @@ export default function ProfileTab({ onLogout }: ProfileTabProps) {
 
       // Update profile with new photo URL
       const updated = await updateMyProfile({ photo_url: publicUrl })
-      setProfile(updated)
+      mutateProfile(updated, false)
     } catch (err) {
       console.error('Failed to upload photo:', err)
       alert('Failed to upload photo. Please try again.')
@@ -120,12 +104,12 @@ export default function ProfileTab({ onLogout }: ProfileTabProps) {
     )
   }
 
-  if (error || !profile) {
+  if (profileError || !profile) {
     return (
       <div className="rounded-xl border border-zinc-200 bg-white shadow-sm p-8 text-center">
         <User className="w-10 h-10 text-zinc-300 mx-auto mb-4" />
         <h3 className="text-[14px] font-semibold text-zinc-900 mb-2">
-          {error || 'Profile not found'}
+          {profileError ? 'Failed to load profile' : 'Profile not found'}
         </h3>
       </div>
     )

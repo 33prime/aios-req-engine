@@ -10,7 +10,7 @@
 
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname, useRouter } from 'next/navigation'
@@ -27,9 +27,8 @@ import {
   Plus,
 } from 'lucide-react'
 import { useAuth } from '@/components/auth/AuthProvider'
-import { getMyProfile } from '@/lib/api'
+import { useProfile } from '@/lib/hooks/use-api'
 import { SmartProjectCreation } from '@/app/projects/components/SmartProjectCreation'
-import type { Profile } from '@/types/api'
 
 // =============================================================================
 // NavItem
@@ -78,21 +77,13 @@ export function AppSidebar({ isCollapsed: controlledCollapsed, onToggleCollapse 
   const pathname = usePathname()
   const router = useRouter()
   const { user } = useAuth()
-  const [profile, setProfile] = useState<Profile | null>(null)
+  const { data: profile } = useProfile()
   const [internalCollapsed, setInternalCollapsed] = useState(false)
   const [showCreateProject, setShowCreateProject] = useState(false)
 
   // Use controlled state if provided, otherwise internal
   const isCollapsed = controlledCollapsed ?? internalCollapsed
   const handleToggle = onToggleCollapse ?? (() => setInternalCollapsed(!internalCollapsed))
-
-  useEffect(() => {
-    if (user) {
-      getMyProfile()
-        .then(setProfile)
-        .catch(() => {})
-    }
-  }, [user])
 
   const displayName = profile?.first_name && profile?.last_name
     ? `${profile.first_name} ${profile.last_name}`

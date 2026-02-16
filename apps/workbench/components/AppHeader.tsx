@@ -1,27 +1,14 @@
 'use client'
 
-import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { Settings, User } from 'lucide-react'
 import { useAuth } from '@/components/auth/AuthProvider'
-import { getMyProfile } from '@/lib/api'
-import type { Profile } from '@/types/api'
+import { useProfile } from '@/lib/hooks/use-api'
 
 export default function AppHeader() {
   const { user } = useAuth()
-  const [profile, setProfile] = useState<Profile | null>(null)
-
-  // Fetch profile data on mount
-  useEffect(() => {
-    if (user) {
-      getMyProfile()
-        .then(setProfile)
-        .catch(() => {
-          // Silently fail - will fall back to user metadata
-        })
-    }
-  }, [user])
+  const { data: profile } = useProfile()
 
   // Get user's full name from profile or fallback to metadata/email
   const displayName = profile?.first_name && profile?.last_name

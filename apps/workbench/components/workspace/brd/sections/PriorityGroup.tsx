@@ -71,6 +71,7 @@ function FeatureAccordionCard({
   onStatusClick?: () => void
 }) {
   const [expanded, setExpanded] = useState(false)
+  const [hasBeenExpanded, setHasBeenExpanded] = useState(false)
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: `feature-${feature.id}`,
     data: { feature, sourceGroup: group },
@@ -88,7 +89,7 @@ function FeatureAccordionCard({
       <div className="bg-white rounded-2xl shadow-md border border-[#E5E5E5] overflow-hidden">
         {/* Header row */}
         <button
-          onClick={() => setExpanded(!expanded)}
+          onClick={() => { const next = !expanded; setExpanded(next); if (next && !hasBeenExpanded) setHasBeenExpanded(true) }}
           className="w-full flex items-center gap-3 px-5 py-4 text-left hover:bg-gray-50/50 transition-colors"
         >
           {/* Drag handle */}
@@ -122,59 +123,61 @@ function FeatureAccordionCard({
         </button>
 
         {/* Expanded body */}
-        <div className={`overflow-hidden transition-all duration-200 ${expanded ? 'max-h-[2000px] opacity-100' : 'max-h-0 opacity-0'}`}>
-          <div className="px-5 pb-5 pt-1">
-            {/* Description */}
-            {feature.description && (
-              <p className="text-[13px] text-[#666666] leading-relaxed mb-4">{feature.description}</p>
-            )}
+        {hasBeenExpanded && (
+          <div className={`overflow-hidden transition-all duration-200 ${expanded ? 'max-h-[2000px] opacity-100' : 'max-h-0 opacity-0'}`}>
+            <div className="px-5 pb-5 pt-1">
+              {/* Description */}
+              {feature.description && (
+                <p className="text-[13px] text-[#666666] leading-relaxed mb-4">{feature.description}</p>
+              )}
 
-            {/* Evidence */}
-            {feature.evidence && feature.evidence.length > 0 && (
-              <div className="mb-4">
-                <div className="px-3 py-1.5 rounded-lg mb-3 bg-[#F0F0F0] text-[#666666]">
-                  <span className="text-[11px] font-semibold uppercase tracking-wider">Evidence</span>
+              {/* Evidence */}
+              {feature.evidence && feature.evidence.length > 0 && (
+                <div className="mb-4">
+                  <div className="px-3 py-1.5 rounded-lg mb-3 bg-[#F0F0F0] text-[#666666]">
+                    <span className="text-[11px] font-semibold uppercase tracking-wider">Evidence</span>
+                  </div>
+                  <ul className="space-y-2">
+                    {feature.evidence.slice(0, 3).map((ev, i) => (
+                      <li key={i} className="flex items-start gap-2 text-[13px] text-[#666666]">
+                        <span className="text-[#999999] mt-0.5 shrink-0">&#8226;</span>
+                        <span className="line-clamp-2">{ev.rationale || ev.excerpt || 'Source evidence'}</span>
+                      </li>
+                    ))}
+                    {feature.evidence.length > 3 && (
+                      <li className="text-[12px] text-[#999999] ml-4">
+                        +{feature.evidence.length - 3} more
+                      </li>
+                    )}
+                  </ul>
                 </div>
-                <ul className="space-y-2">
-                  {feature.evidence.slice(0, 3).map((ev, i) => (
-                    <li key={i} className="flex items-start gap-2 text-[13px] text-[#666666]">
-                      <span className="text-[#999999] mt-0.5 shrink-0">&#8226;</span>
-                      <span className="line-clamp-2">{ev.rationale || ev.excerpt || 'Source evidence'}</span>
-                    </li>
-                  ))}
-                  {feature.evidence.length > 3 && (
-                    <li className="text-[12px] text-[#999999] ml-4">
-                      +{feature.evidence.length - 3} more
-                    </li>
-                  )}
-                </ul>
-              </div>
-            )}
+              )}
 
-            {/* Actions */}
-            <div className="mt-4 pt-3 border-t border-[#E5E5E5] flex items-center justify-between">
-              <ConfirmActions
-                status={feature.confirmation_status}
-                onConfirm={onConfirm}
-                onNeedsReview={onNeedsReview}
-              />
-              <span onClick={(e) => e.stopPropagation()}>
-                <select
-                  value=""
-                  onChange={(e) => {
-                    if (e.target.value) onMove(feature.id, e.target.value as MoSCoWGroup)
-                  }}
-                  className="text-[11px] text-[#999999] bg-transparent border border-[#E5E5E5] rounded-md px-2 py-1 hover:text-[#666666] hover:border-[#999999] focus:outline-none focus:ring-1 focus:ring-[#3FAF7A] cursor-pointer"
-                >
-                  <option value="">Move to...</option>
-                  {moveTargets.map((t) => (
-                    <option key={t} value={t}>{GROUP_CONFIG[t].label}</option>
-                  ))}
-                </select>
-              </span>
+              {/* Actions */}
+              <div className="mt-4 pt-3 border-t border-[#E5E5E5] flex items-center justify-between">
+                <ConfirmActions
+                  status={feature.confirmation_status}
+                  onConfirm={onConfirm}
+                  onNeedsReview={onNeedsReview}
+                />
+                <span onClick={(e) => e.stopPropagation()}>
+                  <select
+                    value=""
+                    onChange={(e) => {
+                      if (e.target.value) onMove(feature.id, e.target.value as MoSCoWGroup)
+                    }}
+                    className="text-[11px] text-[#999999] bg-transparent border border-[#E5E5E5] rounded-md px-2 py-1 hover:text-[#666666] hover:border-[#999999] focus:outline-none focus:ring-1 focus:ring-[#3FAF7A] cursor-pointer"
+                  >
+                    <option value="">Move to...</option>
+                    {moveTargets.map((t) => (
+                      <option key={t} value={t}>{GROUP_CONFIG[t].label}</option>
+                    ))}
+                  </select>
+                </span>
+              </div>
             </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   )

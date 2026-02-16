@@ -42,6 +42,17 @@ export function CollapsibleCard({
   dragHandle,
 }: CollapsibleCardProps) {
   const [expanded, setExpanded] = useState(defaultExpanded)
+  // Lazy mount: children are not rendered until first expanded.
+  // Once mounted, they stay mounted so collapse/expand animation is smooth.
+  const [hasBeenExpanded, setHasBeenExpanded] = useState(defaultExpanded)
+
+  const handleToggle = () => {
+    const next = !expanded
+    setExpanded(next)
+    if (next && !hasBeenExpanded) {
+      setHasBeenExpanded(true)
+    }
+  }
 
   return (
     <div
@@ -50,7 +61,7 @@ export function CollapsibleCard({
       {/* Header */}
       <div
         className="flex items-center gap-3 px-5 py-4 cursor-pointer hover:bg-gray-50/50 transition-colors"
-        onClick={() => setExpanded(!expanded)}
+        onClick={handleToggle}
       >
         {dragHandle}
         <ChevronRight
@@ -88,34 +99,36 @@ export function CollapsibleCard({
         )}
       </div>
 
-      {/* Expandable body */}
-      <div
-        className={`overflow-hidden transition-all duration-200 ${
-          expanded ? 'max-h-[4000px] opacity-100' : 'max-h-0 opacity-0'
-        }`}
-      >
-        <div className="px-5 pb-5 pt-1">
-          {/* Stale indicator */}
-          {isStale && (
-            <div className="mb-3">
-              <StaleIndicator reason={staleReason} onRefresh={onRefresh} />
-            </div>
-          )}
+      {/* Expandable body — children only mount after first expand */}
+      {hasBeenExpanded && (
+        <div
+          className={`overflow-hidden transition-all duration-200 ${
+            expanded ? 'max-h-[4000px] opacity-100' : 'max-h-0 opacity-0'
+          }`}
+        >
+          <div className="px-5 pb-5 pt-1">
+            {/* Stale indicator */}
+            {isStale && (
+              <div className="mb-3">
+                <StaleIndicator reason={staleReason} onRefresh={onRefresh} />
+              </div>
+            )}
 
-          {children}
+            {children}
 
-          {/* Confirm/Review actions */}
-          {(onConfirm || onNeedsReview) && (
-            <div className="mt-4 pt-3 border-t border-[#E5E5E5]">
-              <ConfirmActions
-                status={status}
-                onConfirm={onConfirm || (() => {})}
-                onNeedsReview={onNeedsReview || (() => {})}
-              />
-            </div>
-          )}
+            {/* Confirm/Review actions */}
+            {(onConfirm || onNeedsReview) && (
+              <div className="mt-4 pt-3 border-t border-[#E5E5E5]">
+                <ConfirmActions
+                  status={status}
+                  onConfirm={onConfirm || (() => {})}
+                  onNeedsReview={onNeedsReview || (() => {})}
+                />
+              </div>
+            )}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   )
 }

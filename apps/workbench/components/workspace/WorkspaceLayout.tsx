@@ -26,16 +26,15 @@ import {
   updatePrototypeUrl,
   mapFeatureToStep,
   getReadinessScore,
-  getBRDWorkspaceData,
-  getNextActions,
   getVpSteps,
   getPrototypeForProject,
   getPrototypeOverlays,
   createPrototypeSession,
   generatePrototype,
 } from '@/lib/api'
-import type { CanvasData, BRDWorkspaceData } from '@/types/workspace'
-import type { ReadinessScore, NextAction } from '@/lib/api'
+import { useBRDData, useNextActions } from '@/lib/hooks/use-api'
+import type { CanvasData } from '@/types/workspace'
+import type { ReadinessScore } from '@/lib/api'
 import type { VpStep } from '@/types/api'
 import type { DesignSelection, FeatureOverlay, PrototypeSession, TourStep, SessionContext, RouteFeatureMap } from '@/types/prototype'
 import type { PrototypeFrameHandle } from '@/components/prototype/PrototypeFrame'
@@ -49,10 +48,14 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
   const [phase, setPhase] = useState<WorkspacePhase>('overview')
   const [canvasData, setCanvasData] = useState<CanvasData | null>(null)
   const [readinessData, setReadinessData] = useState<ReadinessScore | null>(null)
-  const [brdData, setBrdData] = useState<BRDWorkspaceData | null>(null)
-  const [nextActions, setNextActions] = useState<NextAction[] | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+
+  // SWR hooks for read-only data (cached across page navigations)
+  const { data: brdSwr, mutate: mutateBrd } = useBRDData(projectId, false)
+  const { data: nextActionsSwr, mutate: mutateNextActions } = useNextActions(projectId)
+  const brdData = brdSwr ?? null
+  const nextActions = nextActionsSwr?.actions ?? null
   const [collaborationState, setCollaborationState] = useState<PanelState>('normal')
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true)
   const [activeBottomPanel, setActiveBottomPanel] = useState<'context' | 'evidence' | 'history' | null>(null)
@@ -102,17 +105,15 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
     },
   })
 
-  // Load workspace data
+  // Load workspace data (canvas + readiness are stateful; BRD + next-actions are SWR-managed)
   const loadData = useCallback(async () => {
     try {
       setIsLoading(true)
       setError(null)
 
-      const [data, readiness, brd, actionsRes, proto] = await Promise.all([
+      const [data, readiness, proto] = await Promise.all([
         getWorkspaceData(projectId),
         getReadinessScore(projectId).catch(() => null),
-        getBRDWorkspaceData(projectId, false).catch(() => null),
-        getNextActions(projectId).catch(() => null),
         getPrototypeForProject(projectId).catch(() => null),
       ])
       if (proto?.deploy_url) {
@@ -121,8 +122,10 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
 
       setCanvasData(data)
       setReadinessData(readiness)
-      setBrdData(brd)
-      setNextActions(actionsRes?.actions ?? null)
+
+      // Revalidate SWR-managed data
+      mutateBrd()
+      mutateNextActions()
 
       // Auto-detect phase based on project state
       if (data.prototype_url) {
@@ -134,7 +137,7 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
     } finally {
       setIsLoading(false)
     }
-  }, [projectId])
+  }, [projectId, mutateBrd, mutateNextActions])
 
   useEffect(() => {
     loadData()
