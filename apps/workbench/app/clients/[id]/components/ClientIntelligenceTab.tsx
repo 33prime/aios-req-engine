@@ -1,11 +1,13 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { ChevronRight, Sparkles, AlertTriangle, Users, Loader2 } from 'lucide-react'
+import { ChevronRight, Sparkles, AlertTriangle, Users, Loader2, Clock } from 'lucide-react'
 import { getClientIntelligenceLogs } from '@/lib/api'
 import type { ClientIntelligenceProfile } from '@/lib/api'
 import type { ClientDetail, ClientIntelligenceLog } from '@/types/workspace'
 import { CompletenessRing } from '@/components/workspace/brd/components/CompletenessRing'
+import { OrgContextDisplay } from './OrgContextDisplay'
+import { summarizeToolResult, getToolResultDetails } from './toolResultSummary'
 
 interface ClientIntelligenceTabProps {
   clientId: string
@@ -187,15 +189,11 @@ export function ClientIntelligenceTab({ clientId, client, intelligence }: Client
           title="Organizational Context"
           icon={<Users className="w-4 h-4 text-[#666]" />}
         >
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-2 pt-3">
-            {Object.entries(intelligence.sections.organizational_context).map(([key, val]) => (
-              <div key={key} className="bg-[#F4F4F4] rounded-lg px-3 py-2">
-                <p className="text-[11px] text-[#999] font-medium uppercase tracking-wide">
-                  {key.replace(/_/g, ' ')}
-                </p>
-                <p className="text-[13px] text-[#333] mt-0.5">{String(val)}</p>
-              </div>
-            ))}
+          <div className="pt-3">
+            <OrgContextDisplay
+              orgContext={intelligence.sections.organizational_context as Record<string, unknown>}
+              variant="full"
+            />
           </div>
         </CollapsibleSection>
       )}
@@ -279,104 +277,151 @@ export function ClientIntelligenceTab({ clientId, client, intelligence }: Client
           <div className="bg-[#F4F4F4] rounded-lg px-4 py-6 text-center">
             <p className="text-[13px] text-[#666]">No analysis runs yet</p>
           </div>
-        ) : (() => {
-          // Only show entries where completeness changed or had an error
-          const meaningful = logs.filter((log) => {
-            if (log.status === 'error') return true
-            if (log.profile_completeness_before != null && log.profile_completeness_after != null) {
-              return log.profile_completeness_before !== log.profile_completeness_after
-            }
-            return true
-          })
-          const skipped = logs.length - meaningful.length
+        ) : (
+          <div className="relative pl-6">
+            <div className="absolute left-[15px] top-0 bottom-0 w-px bg-gray-200" />
 
-          return (
-            <div className="relative pl-6">
-              <div className="absolute left-[15px] top-0 bottom-0 w-px bg-gray-200" />
+            <div className="space-y-4">
+              {logs.map((log) => {
+                const isExpanded = expandedLog === log.id
+                const hasError = log.error_message || log.status === 'error'
+                const dotColor = hasError ? 'bg-red-400' : 'bg-[#3FAF7A]'
 
-              <div className="space-y-4">
-                {meaningful.map((log) => {
-                  const isExpanded = expandedLog === log.id
-                  const dotColor = log.status === 'completed' ? 'bg-[#3FAF7A]'
-                    : log.status === 'error' ? 'bg-red-400'
-                    : 'bg-[#999]'
+                // Build summary line from tool results
+                const toolSummaries = (log.tools_called || []).map(tc =>
+                  summarizeToolResult(tc.tool_name, tc.result)
+                )
+                const summaryText = log.action_summary || toolSummaries.join('; ') || log.action_type || ''
 
-                  // Extract tool name from tools_called or action_summary
-                  const toolName = log.tools_called?.[0]?.tool?.replace(/_/g, ' ') || log.action_summary || ''
+                // Check if observation/thinking/decision are meaningful
+                const boilerplatePattern = /^(#|##)?\s*(observe|think|decide|act|proceeding)/i
+                const hasMeaningfulObservation = log.observation && !boilerplatePattern.test(log.observation.trim())
+                const hasMeaningfulThinking = log.thinking && !boilerplatePattern.test(log.thinking.trim())
+                const hasMeaningfulDecision = log.decision && !boilerplatePattern.test(log.decision.trim())
 
-                  return (
-                    <div key={log.id} className="relative">
-                      <div className={`absolute -left-6 top-1 w-[14px] h-[14px] rounded-full border-2 border-white ${dotColor}`} />
+                return (
+                  <div key={log.id} className="relative">
+                    <div className={`absolute -left-6 top-1 w-[14px] h-[14px] rounded-full border-2 border-white ${dotColor}`} />
 
-                      <div
-                        className="bg-[#F4F4F4] rounded-lg px-3 py-2 cursor-pointer hover:bg-[#ECECEC] transition-colors"
-                        onClick={() => setExpandedLog(isExpanded ? null : log.id)}
-                      >
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-[12px] text-[#999]">{formatTimeAgo(log.created_at)}</span>
-                          {toolName && (
-                            <span className="text-[12px] text-[#333] capitalize">{toolName}</span>
-                          )}
-                          <span className="flex-1" />
-                          {log.profile_completeness_before != null && log.profile_completeness_after != null && (
-                            <span className="text-[12px] font-semibold text-[#3FAF7A]">
-                              {log.profile_completeness_before}% → {log.profile_completeness_after}%
-                            </span>
-                          )}
-                          <ChevronRight className={`w-3.5 h-3.5 text-[#999] transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
-                        </div>
-
-                        {isExpanded && (
-                          <div className="mt-3 pt-3 border-t border-[#E5E5E5] space-y-2">
-                            {log.observation && (
-                              <div>
-                                <p className="text-[11px] text-[#999] font-medium uppercase tracking-wide">Observation</p>
-                                <p className="text-[12px] text-[#666] mt-0.5">{log.observation}</p>
-                              </div>
-                            )}
-                            {log.thinking && (
-                              <div>
-                                <p className="text-[11px] text-[#999] font-medium uppercase tracking-wide">Thinking</p>
-                                <p className="text-[12px] text-[#666] mt-0.5">{log.thinking}</p>
-                              </div>
-                            )}
-                            {log.decision && (
-                              <div>
-                                <p className="text-[11px] text-[#999] font-medium uppercase tracking-wide">Decision</p>
-                                <p className="text-[12px] text-[#666] mt-0.5">{log.decision}</p>
-                              </div>
-                            )}
-                            {log.tools_called && log.tools_called.length > 0 && (
-                              <div>
-                                <p className="text-[11px] text-[#999] font-medium uppercase tracking-wide mb-1">Tools Called</p>
-                                <div className="flex flex-wrap gap-1">
-                                  {log.tools_called.map((tc, j) => (
-                                    <span key={j} className="bg-white rounded-lg px-2 py-1 text-[11px] text-[#666] border border-[#E5E5E5]">
-                                      {tc.tool}
-                                    </span>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
-                            {log.error_message && (
-                              <p className="text-[11px] text-red-500 font-medium">Error: {log.error_message}</p>
-                            )}
-                          </div>
+                    <div
+                      className="bg-[#F4F4F4] rounded-lg px-3 py-2 cursor-pointer hover:bg-[#ECECEC] transition-colors"
+                      onClick={() => setExpandedLog(isExpanded ? null : log.id)}
+                    >
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-[12px] text-[#999]">{formatTimeAgo(log.created_at)}</span>
+                        <span className="px-1.5 py-0.5 text-[10px] font-medium text-[#666] bg-[#E5E5E5] rounded">
+                          {log.trigger?.replace(/_/g, ' ')}
+                        </span>
+                        {summaryText && (
+                          <span className="text-[12px] text-[#333]">{summaryText}</span>
                         )}
+                        <span className="flex-1" />
+                        {log.execution_time_ms != null && (
+                          <span className="text-[11px] text-[#999] flex items-center gap-0.5">
+                            <Clock className="w-3 h-3" />
+                            {log.execution_time_ms < 1000
+                              ? `${log.execution_time_ms}ms`
+                              : `${(log.execution_time_ms / 1000).toFixed(1)}s`}
+                          </span>
+                        )}
+                        {log.profile_completeness_before != null && log.profile_completeness_after != null && (
+                          <span className={`text-[12px] font-semibold ${
+                            log.profile_completeness_after! > log.profile_completeness_before! ? 'text-[#3FAF7A]' : 'text-[#999]'
+                          }`}>
+                            {log.profile_completeness_before}% → {log.profile_completeness_after}%
+                          </span>
+                        )}
+                        <ChevronRight className={`w-3.5 h-3.5 text-[#999] transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
                       </div>
-                    </div>
-                  )
-                })}
-              </div>
 
-              {skipped > 0 && (
-                <p className="text-[11px] text-[#999] mt-3 pl-2">
-                  {skipped} unchanged run{skipped > 1 ? 's' : ''} hidden
-                </p>
-              )}
+                      {/* Sections affected chips */}
+                      {!isExpanded && log.sections_affected && log.sections_affected.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-1.5">
+                          {log.sections_affected.map((s, i) => (
+                            <span key={i} className="px-1.5 py-0.5 text-[10px] text-[#25785A] bg-[#E8F5E9] rounded">
+                              {s.replace(/_/g, ' ')}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+
+                      {isExpanded && (
+                        <div className="mt-3 pt-3 border-t border-[#E5E5E5] space-y-3">
+                          {/* Tool results with details */}
+                          {log.tools_called && log.tools_called.length > 0 && (
+                            <div className="space-y-2">
+                              {log.tools_called.map((tc, j) => {
+                                const details = getToolResultDetails(tc.tool_name, tc.result)
+                                return (
+                                  <div key={j} className="bg-white rounded-lg p-2.5 border border-[#E5E5E5]">
+                                    <div className="flex items-center gap-2 mb-1">
+                                      <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${tc.success ? 'bg-[#3FAF7A]' : 'bg-red-400'}`} />
+                                      <span className="text-[12px] font-medium text-[#333]">
+                                        {summarizeToolResult(tc.tool_name, tc.result)}
+                                      </span>
+                                    </div>
+                                    {tc.error && (
+                                      <p className="text-[11px] text-red-500 ml-3.5">{tc.error}</p>
+                                    )}
+                                    {details.length > 0 && (
+                                      <div className="ml-3.5 mt-1 space-y-0.5">
+                                        {details.map((d, k) => (
+                                          <div key={k} className="flex gap-2">
+                                            <span className="text-[11px] text-[#999] flex-shrink-0">{d.label}:</span>
+                                            <span className="text-[11px] text-[#666] line-clamp-2">{d.value}</span>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
+                                )
+                              })}
+                            </div>
+                          )}
+
+                          {/* Sections affected */}
+                          {log.sections_affected && log.sections_affected.length > 0 && (
+                            <div className="flex flex-wrap gap-1">
+                              {log.sections_affected.map((s, i) => (
+                                <span key={i} className="px-1.5 py-0.5 text-[10px] text-[#25785A] bg-[#E8F5E9] rounded">
+                                  {s.replace(/_/g, ' ')}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+
+                          {/* Reasoning (only if meaningful) */}
+                          {hasMeaningfulDecision && (
+                            <div>
+                              <p className="text-[11px] text-[#999] font-medium uppercase tracking-wide">Decision</p>
+                              <p className="text-[12px] text-[#666] mt-0.5 line-clamp-3">{log.decision}</p>
+                            </div>
+                          )}
+                          {hasMeaningfulThinking && (
+                            <div>
+                              <p className="text-[11px] text-[#999] font-medium uppercase tracking-wide">Thinking</p>
+                              <p className="text-[12px] text-[#666] mt-0.5 line-clamp-3">{log.thinking}</p>
+                            </div>
+                          )}
+                          {hasMeaningfulObservation && (
+                            <div>
+                              <p className="text-[11px] text-[#999] font-medium uppercase tracking-wide">Observation</p>
+                              <p className="text-[12px] text-[#666] mt-0.5 line-clamp-3">{log.observation}</p>
+                            </div>
+                          )}
+
+                          {log.error_message && (
+                            <p className="text-[11px] text-red-500 font-medium">Error: {log.error_message}</p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
             </div>
-          )
-        })()}
+          </div>
+        )}
       </div>
     </div>
   )

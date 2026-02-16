@@ -528,16 +528,18 @@ async def _execute_assess_portfolio_health(client_id: UUID) -> dict:
             "signal_count": signals.count or 0,
         })
 
-    return {
-        "success": True,
-        "data": {
-            "project_count": len(projects),
-            "projects": project_summaries,
-            "summary": f"{len(projects)} projects, "
-                       f"{sum(p['feature_count'] for p in project_summaries)} total features, "
-                       f"{sum(p['signal_count'] for p in project_summaries)} total signals",
-        },
+    result_data = {
+        "project_count": len(projects),
+        "projects": project_summaries,
+        "summary": f"{len(projects)} projects, "
+                   f"{sum(p['feature_count'] for p in project_summaries)} total features, "
+                   f"{sum(p['signal_count'] for p in project_summaries)} total signals",
     }
+
+    # Update completeness after portfolio assessment to avoid agent re-selecting this tool
+    await _execute_update_profile_completeness(client_id)
+
+    return {"success": True, "data": result_data}
 
 
 async def _execute_update_profile_completeness(client_id: UUID) -> dict:

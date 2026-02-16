@@ -2985,6 +2985,40 @@ export const getClientIntelligenceLogs = (
 }
 
 // ============================================================================
+// Client Knowledge Base
+// ============================================================================
+
+export const getClientKnowledgeBase = (clientId: string) =>
+  apiRequest<import('@/types/workspace').ClientKnowledgeBase>(
+    `/clients/${clientId}/knowledge-base`
+  )
+
+export const addKnowledgeItem = (
+  clientId: string,
+  category: 'business_processes' | 'sops' | 'tribal_knowledge',
+  data: {
+    text: string
+    source?: 'signal' | 'stakeholder' | 'ai_inferred' | 'manual'
+    source_detail?: string
+    confidence?: 'high' | 'medium' | 'low'
+  }
+) =>
+  apiRequest<import('@/types/workspace').KnowledgeItem>(
+    `/clients/${clientId}/knowledge-base/${category}`,
+    { method: 'POST', body: JSON.stringify(data) }
+  )
+
+export const deleteKnowledgeItem = (
+  clientId: string,
+  category: 'business_processes' | 'sops' | 'tribal_knowledge',
+  itemId: string
+) =>
+  apiRequest<{ success: boolean }>(
+    `/clients/${clientId}/knowledge-base/${category}/${itemId}`,
+    { method: 'DELETE' }
+  )
+
+// ============================================================================
 // Competitor Intelligence
 // ============================================================================
 

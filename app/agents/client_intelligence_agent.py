@@ -425,6 +425,48 @@ def _extract_reasoning(text: str) -> tuple[str, str, str]:
     return observation, thinking, decision
 
 
+def _generate_action_summary(tools_called: list) -> str:
+    """Generate a one-line human-readable summary from tool results."""
+    if not tools_called:
+        return ""
+
+    parts = []
+    for tc in tools_called:
+        tool_name = tc.tool_name
+        result = tc.result or {}
+
+        if tool_name == "enrich_firmographics":
+            fields = result.get("fields_enriched", [])
+            parts.append(f"Enriched {len(fields)} fields" if fields else "Enriched firmographics")
+        elif tool_name == "analyze_stakeholder_map":
+            count = result.get("stakeholder_count")
+            parts.append(f"Mapped {count} stakeholders" if count else "Analyzed stakeholders")
+        elif tool_name == "identify_role_gaps":
+            missing = result.get("missing_roles", [])
+            parts.append(f"Found {len(missing)} role gaps" if missing else "Assessed roles")
+        elif tool_name == "synthesize_constraints":
+            constraints = result.get("constraints", [])
+            parts.append(f"Identified {len(constraints)} constraints" if constraints else "Synthesized constraints")
+        elif tool_name == "synthesize_vision":
+            clarity = result.get("clarity_score")
+            parts.append(f"Vision synthesized ({int(clarity * 100)}% clarity)" if clarity else "Synthesized vision")
+        elif tool_name == "assess_organizational_context":
+            style = result.get("decision_making_style", "")
+            parts.append(f"Assessed org context ({style.replace('_', ' ')})" if style else "Assessed org context")
+        elif tool_name == "assess_portfolio_health":
+            count = result.get("project_count")
+            parts.append(f"Portfolio health ({count} projects)" if count else "Assessed portfolio")
+        elif tool_name == "update_profile_completeness":
+            score = result.get("score")
+            parts.append(f"Score: {score}/100" if score else "Updated completeness")
+        elif tool_name == "extract_knowledge_base":
+            parts.append("Extracted knowledge base")
+        else:
+            parts.append(tool_name.replace("_", " "))
+
+    return "; ".join(parts)
+
+
 def _tool_to_sections(tool_name: str) -> list[str]:
     """Map tool name to affected profile sections."""
     mapping = {
@@ -453,6 +495,8 @@ def _log_invocation(
 
     supabase = get_supabase()
 
+    action_summary = _generate_action_summary(agent_response.tools_called or [])
+
     log_data = {
         "client_id": str(client_id),
         "trigger": trigger,
@@ -463,6 +507,7 @@ def _log_invocation(
         "action_type": agent_response.action_type,
         "tools_called": [tc.model_dump() for tc in (agent_response.tools_called or [])],
         "guidance": agent_response.guidance.model_dump() if agent_response.guidance else None,
+        "action_summary": action_summary or None,
         "profile_completeness_before": agent_response.profile_completeness_before,
         "profile_completeness_after": agent_response.profile_completeness_after,
         "sections_affected": agent_response.sections_affected,

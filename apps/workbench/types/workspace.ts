@@ -1152,16 +1152,50 @@ export interface ClientIntelligenceLog {
   id: string
   client_id: string
   trigger: string
-  status: string
+  action_type?: string | null
+  status?: string | null
   profile_completeness_before?: number | null
   profile_completeness_after?: number | null
-  tools_called?: Array<{ tool: string; result_summary?: string }> | null
+  tools_called?: Array<{
+    tool_name: string
+    tool_args: Record<string, unknown>
+    result?: Record<string, unknown> | null
+    success: boolean
+    error?: string | null
+  }> | null
   observation?: string | null
   thinking?: string | null
   decision?: string | null
   action_summary?: string | null
+  sections_affected?: string[] | null
+  trigger_context?: string | null
+  guidance?: Record<string, unknown> | null
+  execution_time_ms?: number | null
   error_message?: string | null
   created_at: string
+}
+
+// =============================================================================
+// Knowledge Base Types
+// =============================================================================
+
+export interface KnowledgeItem {
+  id: string
+  text: string
+  category?: string | null
+  source: 'signal' | 'stakeholder' | 'ai_inferred' | 'manual'
+  source_detail?: string | null
+  source_signal_id?: string | null
+  stakeholder_name?: string | null
+  confidence: 'high' | 'medium' | 'low'
+  captured_at: string
+  related_entity_ids?: string[] | null
+}
+
+export interface ClientKnowledgeBase {
+  business_processes: KnowledgeItem[]
+  sops: KnowledgeItem[]
+  tribal_knowledge: KnowledgeItem[]
 }
 
 export interface ClientCreatePayload {

@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import {
   Globe,
   MapPin,
@@ -12,14 +13,20 @@ import {
   Sparkles,
   AlertTriangle,
   BookOpen,
+  Plus,
 } from 'lucide-react'
-import type { ClientDetail } from '@/types/workspace'
+import type { ClientDetail, ClientKnowledgeBase, KnowledgeItem } from '@/types/workspace'
 import type { ClientIntelligenceProfile } from '@/lib/api'
+import { addKnowledgeItem, deleteKnowledgeItem } from '@/lib/api'
 import { CompletenessRing } from '@/components/workspace/brd/components/CompletenessRing'
+import { OrgContextDisplay } from './OrgContextDisplay'
+import { KnowledgeItemDetailDrawer } from './KnowledgeItemDetailDrawer'
 
 interface ClientOverviewTabProps {
   client: ClientDetail
   intelligence: ClientIntelligenceProfile | null
+  knowledgeBase?: ClientKnowledgeBase | null
+  onKnowledgeBaseChange?: () => void
 }
 
 function InfoRow({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
@@ -47,12 +54,138 @@ function MaturityBadge({ label, value }: { label: string; value: string | null |
   )
 }
 
-export function ClientOverviewTab({ client, intelligence }: ClientOverviewTabProps) {
+const SOURCE_LABELS: Record<string, string> = {
+  signal: 'Signal',
+  stakeholder: 'Stakeholder',
+  ai_inferred: 'AI Inferred',
+  manual: 'Manual',
+}
+
+const CONFIDENCE_STYLES: Record<string, string> = {
+  high: 'bg-[#E8F5E9] text-[#25785A]',
+  medium: 'bg-[#F0F0F0] text-[#666]',
+  low: 'bg-[#F0F0F0] text-[#999]',
+}
+
+function KnowledgeSection({
+  title,
+  items,
+  category,
+  clientId,
+  onItemClick,
+  onAdded,
+}: {
+  title: string
+  items: KnowledgeItem[]
+  category: 'business_processes' | 'sops' | 'tribal_knowledge'
+  clientId: string
+  onItemClick: (item: KnowledgeItem) => void
+  onAdded?: () => void
+}) {
+  const [adding, setAdding] = useState(false)
+  const [newText, setNewText] = useState('')
+
+  const handleAdd = async () => {
+    if (!newText.trim()) return
+    try {
+      await addKnowledgeItem(clientId, category, { text: newText.trim(), source: 'manual', confidence: 'medium' })
+      setNewText('')
+      setAdding(false)
+      onAdded?.()
+    } catch (err) {
+      console.error('Failed to add knowledge item:', err)
+    }
+  }
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-2">
+        <p className="text-[12px] font-semibold text-[#999] uppercase tracking-wide">{title}</p>
+        <button
+          onClick={() => setAdding(!adding)}
+          className="p-0.5 text-[#999] hover:text-[#3FAF7A] transition-colors"
+          title={`Add ${title.toLowerCase()}`}
+        >
+          <Plus className="w-3.5 h-3.5" />
+        </button>
+      </div>
+      {adding && (
+        <div className="flex gap-2 mb-2">
+          <input
+            type="text"
+            value={newText}
+            onChange={(e) => setNewText(e.target.value)}
+            placeholder={`Add ${title.toLowerCase()} item...`}
+            className="flex-1 px-2 py-1.5 text-[12px] border border-[#E5E5E5] rounded-lg focus:outline-none focus:border-[#3FAF7A]"
+            onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
+            autoFocus
+          />
+          <button
+            onClick={handleAdd}
+            className="px-3 py-1.5 text-[11px] font-medium text-white bg-[#3FAF7A] rounded-lg hover:bg-[#25785A] transition-colors"
+          >
+            Add
+          </button>
+        </div>
+      )}
+      {items.length === 0 ? (
+        <div className="bg-[#F4F4F4] rounded-lg px-3 py-2">
+          <p className="text-[12px] text-[#999] italic">No items yet</p>
+        </div>
+      ) : (
+        <div className="space-y-1.5">
+          {items.map((item) => (
+            <div
+              key={item.id}
+              className="bg-[#F4F4F4] rounded-lg px-3 py-2 cursor-pointer hover:bg-[#ECECEC] transition-colors"
+              onClick={() => onItemClick(item)}
+            >
+              <p className="text-[12px] text-[#333] line-clamp-2">{item.text}</p>
+              <div className="flex items-center gap-1.5 mt-1">
+                <span className="px-1.5 py-0.5 text-[9px] font-medium text-[#666] bg-[#E5E5E5] rounded">
+                  {SOURCE_LABELS[item.source] || item.source}
+                </span>
+                <span className={`px-1.5 py-0.5 text-[9px] font-medium rounded ${CONFIDENCE_STYLES[item.confidence] || CONFIDENCE_STYLES.medium}`}>
+                  {item.confidence}
+                </span>
+                {item.stakeholder_name && (
+                  <span className="text-[10px] text-[#999]">via {item.stakeholder_name}</span>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+export function ClientOverviewTab({ client, intelligence, knowledgeBase, onKnowledgeBaseChange }: ClientOverviewTabProps) {
+  const [selectedKBItem, setSelectedKBItem] = useState<KnowledgeItem | null>(null)
+  const [selectedKBCategory, setSelectedKBCategory] = useState<'business_processes' | 'sops' | 'tribal_knowledge'>('business_processes')
+
   const hasEnrichment = client.enrichment_status === 'completed'
   const completeness = intelligence?.profile_completeness ?? 0
   const constraints = intelligence?.sections?.constraints ?? []
   const vision = intelligence?.sections?.vision
-  const orgContext = intelligence?.sections?.organizational_context as Record<string, string> | undefined
+  const orgContext = intelligence?.sections?.organizational_context as Record<string, unknown> | undefined
+
+  const kb = knowledgeBase || { business_processes: [], sops: [], tribal_knowledge: [] }
+
+  const handleKBItemClick = (item: KnowledgeItem, category: 'business_processes' | 'sops' | 'tribal_knowledge') => {
+    setSelectedKBItem(item)
+    setSelectedKBCategory(category)
+  }
+
+  const handleDeleteKBItem = async (itemId: string) => {
+    try {
+      await deleteKnowledgeItem(client.id, selectedKBCategory, itemId)
+      setSelectedKBItem(null)
+      onKnowledgeBaseChange?.()
+    } catch (err) {
+      console.error('Failed to delete knowledge item:', err)
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -119,51 +252,49 @@ export function ClientOverviewTab({ client, intelligence }: ClientOverviewTabPro
             <div className="flex items-center gap-2 mb-4">
               <BookOpen className="w-4 h-4 text-[#666]" />
               <h3 className="text-[14px] font-semibold text-[#333]">Knowledge Base</h3>
+              {(kb.business_processes.length + kb.sops.length + kb.tribal_knowledge.length) > 0 && (
+                <span className="text-[11px] text-[#999]">
+                  {kb.business_processes.length + kb.sops.length + kb.tribal_knowledge.length} items
+                </span>
+              )}
             </div>
             <div className="space-y-4">
-              <div>
-                <p className="text-[12px] font-semibold text-[#999] uppercase tracking-wide mb-2">Business Processes</p>
-                <div className="space-y-1.5">
-                  {[
-                    'User onboarding via guided self-assessment and pattern discovery',
-                    'Coach matching based on specialization and user goals',
-                    'Weekly reflection cycles with AI-prompted journaling',
-                  ].map((item, i) => (
-                    <div key={i} className="bg-[#F4F4F4] rounded-lg px-3 py-2">
-                      <p className="text-[12px] text-[#333]">{item}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              <div>
-                <p className="text-[12px] font-semibold text-[#999] uppercase tracking-wide mb-2">SOPs & Standards</p>
-                <div className="space-y-1.5">
-                  {[
-                    'GDPR/CCPA compliant data handling for personal reflections',
-                    'Coach certification requirements before platform access',
-                  ].map((item, i) => (
-                    <div key={i} className="bg-[#F4F4F4] rounded-lg px-3 py-2">
-                      <p className="text-[12px] text-[#333]">{item}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              <div>
-                <p className="text-[12px] font-semibold text-[#999] uppercase tracking-wide mb-2">Tribal Knowledge</p>
-                <div className="space-y-1.5">
-                  {[
-                    'Users who complete the first 3 reflections have 4x retention (Brandi)',
-                    'Evening push notifications convert 2x better than morning (Marcus)',
-                    'Coaches prefer async check-ins over scheduled video calls (Sarah)',
-                  ].map((item, i) => (
-                    <div key={i} className="bg-[#F4F4F4] rounded-lg px-3 py-2">
-                      <p className="text-[12px] text-[#333]">{item}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
+              <KnowledgeSection
+                title="Business Processes"
+                items={kb.business_processes}
+                category="business_processes"
+                clientId={client.id}
+                onItemClick={(item) => handleKBItemClick(item, 'business_processes')}
+                onAdded={onKnowledgeBaseChange}
+              />
+              <KnowledgeSection
+                title="SOPs & Standards"
+                items={kb.sops}
+                category="sops"
+                clientId={client.id}
+                onItemClick={(item) => handleKBItemClick(item, 'sops')}
+                onAdded={onKnowledgeBaseChange}
+              />
+              <KnowledgeSection
+                title="Tribal Knowledge"
+                items={kb.tribal_knowledge}
+                category="tribal_knowledge"
+                clientId={client.id}
+                onItemClick={(item) => handleKBItemClick(item, 'tribal_knowledge')}
+                onAdded={onKnowledgeBaseChange}
+              />
             </div>
           </div>
+
+          {/* Knowledge Item Detail Drawer */}
+          {selectedKBItem && (
+            <KnowledgeItemDetailDrawer
+              item={selectedKBItem}
+              category={selectedKBCategory}
+              onClose={() => setSelectedKBItem(null)}
+              onDelete={handleDeleteKBItem}
+            />
+          )}
         </div>
 
         {/* Right: AI Intelligence + CI Data */}
@@ -268,16 +399,7 @@ export function ClientOverviewTab({ client, intelligence }: ClientOverviewTabPro
           {orgContext && Object.keys(orgContext).length > 0 && (
             <div className="bg-white rounded-2xl border border-[#E5E5E5] shadow-md p-6">
               <h3 className="text-[14px] font-semibold text-[#333] mb-3">Organizational Context</h3>
-              <div className="grid grid-cols-1 gap-2">
-                {Object.entries(orgContext).map(([key, val]) => (
-                  <div key={key} className="bg-[#F4F4F4] rounded-lg px-3 py-2">
-                    <p className="text-[11px] text-[#999] font-medium uppercase tracking-wide">
-                      {key.replace(/_/g, ' ')}
-                    </p>
-                    <p className="text-[13px] text-[#333] mt-0.5">{String(val)}</p>
-                  </div>
-                ))}
-              </div>
+              <OrgContextDisplay orgContext={orgContext} variant="compact" />
             </div>
           )}
         </div>

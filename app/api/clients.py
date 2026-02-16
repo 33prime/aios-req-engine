@@ -1,8 +1,13 @@
 """API endpoints for client organizations."""
 
+import json as _json
+import uuid as _uuid
+from datetime import datetime, timezone
+from typing import Literal
 from uuid import UUID
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Query
+from pydantic import BaseModel, Field
 
 from app.core.logging import get_logger
 from app.core.schemas_clients import (
@@ -275,3 +280,150 @@ def unlink_project(client_id: UUID, project_id: UUID):
         raise HTTPException(status_code=404, detail="Project not found")
 
     return {"success": True, "message": "Project unlinked", "project_id": str(project_id)}
+
+
+# =============================================================================
+# Knowledge Base CRUD
+# =============================================================================
+
+_KB_CATEGORIES = ("business_processes", "sops", "tribal_knowledge")
+
+
+class KnowledgeItemCreate(BaseModel):
+    text: str
+    category: str | None = None
+    source: Literal["signal", "stakeholder", "ai_inferred", "manual"] = "manual"
+    source_detail: str | None = None
+    source_signal_id: str | None = None
+    stakeholder_name: str | None = None
+    confidence: Literal["high", "medium", "low"] = "medium"
+    related_entity_ids: list[str] | None = None
+
+
+class KnowledgeItemUpdate(BaseModel):
+    text: str | None = None
+    category: str | None = None
+    confidence: Literal["high", "medium", "low"] | None = None
+    related_entity_ids: list[str] | None = None
+
+
+@router.get("/{client_id}/knowledge-base")
+def get_knowledge_base(client_id: UUID):
+    """Get the full knowledge base for a client."""
+    existing = clients_db.get_client(client_id)
+    if not existing:
+        raise HTTPException(status_code=404, detail="Client not found")
+
+    def _safe_list(val) -> list:
+        if isinstance(val, str):
+            try:
+                return _json.loads(val)
+            except (ValueError, TypeError):
+                return []
+        if isinstance(val, list):
+            return val
+        return []
+
+    return {
+        "business_processes": _safe_list(existing.get("business_processes", [])),
+        "sops": _safe_list(existing.get("sops", [])),
+        "tribal_knowledge": _safe_list(existing.get("tribal_knowledge", [])),
+    }
+
+
+@router.post("/{client_id}/knowledge-base/{kb_category}", status_code=201)
+def add_knowledge_item(client_id: UUID, kb_category: str, body: KnowledgeItemCreate):
+    """Add an item to a knowledge base category."""
+    if kb_category not in _KB_CATEGORIES:
+        raise HTTPException(status_code=400, detail=f"Invalid category. Must be one of: {', '.join(_KB_CATEGORIES)}")
+
+    existing = clients_db.get_client(client_id)
+    if not existing:
+        raise HTTPException(status_code=404, detail="Client not found")
+
+    # Read current items
+    current = existing.get(kb_category, [])
+    if isinstance(current, str):
+        try:
+            current = _json.loads(current)
+        except (ValueError, TypeError):
+            current = []
+    if not isinstance(current, list):
+        current = []
+
+    new_item = {
+        "id": str(_uuid.uuid4()),
+        "text": body.text,
+        "category": body.category,
+        "source": body.source,
+        "source_detail": body.source_detail,
+        "source_signal_id": body.source_signal_id,
+        "stakeholder_name": body.stakeholder_name,
+        "confidence": body.confidence,
+        "captured_at": datetime.now(timezone.utc).isoformat(),
+        "related_entity_ids": body.related_entity_ids or [],
+    }
+
+    current.append(new_item)
+    clients_db.update_client(client_id, {kb_category: _json.dumps(current)})
+
+    return new_item
+
+
+@router.patch("/{client_id}/knowledge-base/{kb_category}/{item_id}")
+def update_knowledge_item(client_id: UUID, kb_category: str, item_id: str, body: KnowledgeItemUpdate):
+    """Update a knowledge base item."""
+    if kb_category not in _KB_CATEGORIES:
+        raise HTTPException(status_code=400, detail=f"Invalid category. Must be one of: {', '.join(_KB_CATEGORIES)}")
+
+    existing = clients_db.get_client(client_id)
+    if not existing:
+        raise HTTPException(status_code=404, detail="Client not found")
+
+    current = existing.get(kb_category, [])
+    if isinstance(current, str):
+        try:
+            current = _json.loads(current)
+        except (ValueError, TypeError):
+            current = []
+
+    found = False
+    for item in current:
+        if isinstance(item, dict) and item.get("id") == item_id:
+            updates = body.model_dump(exclude_none=True)
+            item.update(updates)
+            found = True
+            break
+
+    if not found:
+        raise HTTPException(status_code=404, detail="Knowledge item not found")
+
+    clients_db.update_client(client_id, {kb_category: _json.dumps(current)})
+    return {"success": True}
+
+
+@router.delete("/{client_id}/knowledge-base/{kb_category}/{item_id}")
+def delete_knowledge_item(client_id: UUID, kb_category: str, item_id: str):
+    """Delete a knowledge base item."""
+    if kb_category not in _KB_CATEGORIES:
+        raise HTTPException(status_code=400, detail=f"Invalid category. Must be one of: {', '.join(_KB_CATEGORIES)}")
+
+    existing = clients_db.get_client(client_id)
+    if not existing:
+        raise HTTPException(status_code=404, detail="Client not found")
+
+    current = existing.get(kb_category, [])
+    if isinstance(current, str):
+        try:
+            current = _json.loads(current)
+        except (ValueError, TypeError):
+            current = []
+
+    original_len = len(current)
+    current = [item for item in current if not (isinstance(item, dict) and item.get("id") == item_id)]
+
+    if len(current) == original_len:
+        raise HTTPException(status_code=404, detail="Knowledge item not found")
+
+    clients_db.update_client(client_id, {kb_category: _json.dumps(current)})
+    return {"success": True}

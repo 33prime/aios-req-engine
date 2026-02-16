@@ -3,9 +3,9 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { Building2, Users, FolderKanban, Brain, FileText, Loader2 } from 'lucide-react'
-import { getClient, enrichClient, analyzeClient, getClientIntelligence } from '@/lib/api'
+import { getClient, enrichClient, analyzeClient, getClientIntelligence, getClientKnowledgeBase } from '@/lib/api'
 import type { ClientIntelligenceProfile } from '@/lib/api'
-import type { ClientDetail } from '@/types/workspace'
+import type { ClientDetail, ClientKnowledgeBase } from '@/types/workspace'
 import { AppSidebar } from '@/components/workspace/AppSidebar'
 import { ClientHeader } from './components/ClientHeader'
 import { ClientOverviewTab } from './components/ClientOverviewTab'
@@ -23,6 +23,7 @@ export default function ClientDetailPage() {
 
   const [client, setClient] = useState<ClientDetail | null>(null)
   const [intelligence, setIntelligence] = useState<ClientIntelligenceProfile | null>(null)
+  const [knowledgeBase, setKnowledgeBase] = useState<ClientKnowledgeBase | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
@@ -35,12 +36,14 @@ export default function ClientDetailPage() {
     if (!clientId) return
     try {
       setLoading(true)
-      const [data, intel] = await Promise.all([
+      const [data, intel, kb] = await Promise.all([
         getClient(clientId),
         getClientIntelligence(clientId).catch(() => null),
+        getClientKnowledgeBase(clientId).catch(() => null),
       ])
       setClient(data)
       setIntelligence(intel)
+      setKnowledgeBase(kb)
       setError(null)
     } catch (err) {
       console.error('Failed to load client:', err)
@@ -185,7 +188,14 @@ export default function ClientDetailPage() {
           </div>
 
           {/* Tab Content */}
-          {activeTab === 'overview' && <ClientOverviewTab client={client} intelligence={intelligence} />}
+          {activeTab === 'overview' && (
+            <ClientOverviewTab
+              client={client}
+              intelligence={intelligence}
+              knowledgeBase={knowledgeBase}
+              onKnowledgeBaseChange={() => getClientKnowledgeBase(clientId).then(setKnowledgeBase).catch(() => {})}
+            />
+          )}
           {activeTab === 'people' && <ClientPeopleTab clientId={clientId} roleGaps={client.role_gaps ?? []} />}
           {activeTab === 'projects' && (
             <ClientProjectsTab client={client} onRefresh={loadClient} />
