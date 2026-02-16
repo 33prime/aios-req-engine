@@ -442,7 +442,7 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
                   projectId={projectId}
                   prototypeUrl={canvasData.prototype_url}
                   prototypeUpdatedAt={canvasData.prototype_updated_at}
-                  readinessScore={readinessData?.score ?? canvasData.readiness_score}
+                  readinessScore={brdData?.completeness?.overall_score ?? readinessData?.score ?? canvasData.readiness_score}
                   onUpdatePrototypeUrl={handleUpdatePrototypeUrl}
                   onGeneratePrototype={handleGeneratePrototype}
                   isReviewActive={isReviewActive}
