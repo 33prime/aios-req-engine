@@ -97,6 +97,11 @@ class DocumentProcessingState:
     # Output
     signal_id: UUID | None = None
     chunk_ids: list[str] = field(default_factory=list)
+    extracted_image_ids: list[str] = field(default_factory=list)
+
+    # Clarification
+    needs_clarification: bool = False
+    clarification_question: str | None = None
 
     # Error tracking
     error: str | None = None
@@ -178,11 +183,13 @@ def extract_content(state: DocumentProcessingState) -> dict[str, Any]:
 
     try:
         # Run extraction (async operation)
+        # extract_images=True activates embedded image extraction in PDF/PPTX extractors
         result = _run_async(
             extractor.extract(
                 file_bytes=state.file_bytes,
                 filename=state.original_filename,
                 mime_type=state.mime_type,
+                extract_images=True,
             )
         )
 
@@ -198,6 +205,98 @@ def extract_content(state: DocumentProcessingState) -> dict[str, Any]:
     except Exception as e:
         logger.error(f"Extraction failed: {e}")
         return {"error": f"Extraction failed: {e}"}
+
+
+def process_embedded_images(state: DocumentProcessingState) -> dict[str, Any]:
+    """Persist embedded images to storage and DB."""
+    state = _check_max_steps(state)
+
+    if state.error or not state.extraction_result:
+        return {}
+
+    embedded_images = state.extraction_result.embedded_images
+    if not embedded_images:
+        return {}
+
+    if not state.project_id:
+        return {}
+
+    logger.info(
+        f"Processing {len(embedded_images)} embedded images from {state.original_filename}"
+    )
+
+    from app.db.document_extracted_images import create_extracted_image
+
+    supabase = get_supabase()
+    extracted_ids: list[str] = []
+
+    for idx, img_bytes in enumerate(embedded_images):
+        try:
+            # Detect MIME type from magic bytes
+            mime_type = _detect_image_mime(img_bytes)
+            ext = {
+                "image/png": "png",
+                "image/jpeg": "jpg",
+                "image/webp": "webp",
+                "image/gif": "gif",
+            }.get(mime_type, "png")
+
+            # Upload to storage
+            storage_path = (
+                f"extracted-images/{state.project_id}/"
+                f"{state.document_id}/{idx:03d}.{ext}"
+            )
+
+            supabase.storage.from_("project-files").upload(
+                path=storage_path,
+                file=img_bytes,
+                file_options={
+                    "content-type": mime_type,
+                    "upsert": "true",
+                },
+            )
+
+            # Determine source context from extraction metadata
+            source_context = None
+            page_number = None
+            # Try to map image index to a page/slide
+            metadata = state.extraction_result.metadata or {}
+            if "filename" in metadata:
+                source_context = f"Extracted from {metadata['filename']}"
+
+            # Save to DB
+            record = create_extracted_image(
+                document_upload_id=state.document_id,
+                project_id=state.project_id,
+                storage_path=storage_path,
+                mime_type=mime_type,
+                file_size_bytes=len(img_bytes),
+                image_index=idx,
+                page_number=page_number,
+                source_context=source_context,
+            )
+
+            extracted_ids.append(record["id"])
+
+        except Exception as e:
+            logger.warning(f"Failed to persist image {idx}: {e}")
+
+    logger.info(f"Persisted {len(extracted_ids)} images for document {state.document_id}")
+
+    return {"extracted_image_ids": extracted_ids}
+
+
+def _detect_image_mime(img_bytes: bytes) -> str:
+    """Detect image MIME type from magic bytes."""
+    if img_bytes[:8] == b"\x89PNG\r\n\x1a\n":
+        return "image/png"
+    elif img_bytes[:2] == b"\xff\xd8":
+        return "image/jpeg"
+    elif img_bytes[:4] == b"RIFF" and len(img_bytes) > 12 and img_bytes[8:12] == b"WEBP":
+        return "image/webp"
+    elif img_bytes[:6] in (b"GIF87a", b"GIF89a"):
+        return "image/gif"
+    return "image/png"
 
 
 def classify_content(state: DocumentProcessingState) -> dict[str, Any]:
@@ -226,10 +325,39 @@ def classify_content(state: DocumentProcessingState) -> dict[str, Any]:
         classify_time = time.time() - classify_start
         logger.info(
             f"Classified as {result.document_class} "
-            f"(quality={result.quality_score:.2f}) in {classify_time:.1f}s"
+            f"(quality={result.quality_score:.2f}, confidence={result.confidence:.2f}) "
+            f"in {classify_time:.1f}s"
         )
 
-        return {"classification": result}
+        # Check if clarification is needed
+        needs_clarification = False
+        clarification_question = None
+
+        if result.confidence < 0.6 or result.document_class == "generic":
+            needs_clarification = True
+            clarification_question = (
+                f"I processed **{state.original_filename}** but I'm not confident about "
+                f"what type of document this is (classified as '{result.document_class}' "
+                f"with {result.confidence:.0%} confidence).\n\n"
+                f"Could you tell me what kind of document this is? For example:\n"
+                f"- Meeting transcript\n"
+                f"- Requirements spec / PRD\n"
+                f"- Email thread\n"
+                f"- Research report\n"
+                f"- Presentation deck\n"
+                f"- Process documentation\n\n"
+                f"This helps me extract the right types of information from it."
+            )
+            logger.info(
+                f"Document {state.original_filename} needs clarification "
+                f"(class={result.document_class}, confidence={result.confidence:.2f})"
+            )
+
+        return {
+            "classification": result,
+            "needs_clarification": needs_clarification,
+            "clarification_question": clarification_question,
+        }
 
     except Exception as e:
         logger.error(f"Classification failed: {e}")
@@ -446,6 +574,17 @@ def finalize(state: DocumentProcessingState) -> dict[str, Any]:
         processing_duration_ms=duration_ms,
     )
 
+    # Persist clarification state if needed
+    if state.needs_clarification and state.clarification_question:
+        try:
+            supabase = get_supabase()
+            supabase.table("document_uploads").update({
+                "needs_clarification": True,
+                "clarification_question": state.clarification_question,
+            }).eq("id", str(state.document_id)).execute()
+        except Exception as e:
+            logger.warning(f"Failed to save clarification state: {e}")
+
     # Trigger signal pipeline to extract features/personas/etc. in background
     if state.signal_id and state.project_id:
         _trigger_signal_pipeline(
@@ -525,6 +664,7 @@ def build_document_processing_graph() -> StateGraph:
     workflow.add_node("load_document", load_document)
     workflow.add_node("download_file", download_file)
     workflow.add_node("extract_content", extract_content)
+    workflow.add_node("process_embedded_images", process_embedded_images)
     workflow.add_node("classify_content", classify_content)
     workflow.add_node("create_chunks", create_chunks)
     workflow.add_node("create_signal_and_embed", create_signal_and_embed)
@@ -541,8 +681,9 @@ def build_document_processing_graph() -> StateGraph:
     workflow.add_conditional_edges(
         "extract_content",
         should_continue,
-        {"continue": "classify_content", "finalize": "finalize"},
+        {"continue": "process_embedded_images", "finalize": "finalize"},
     )
+    workflow.add_edge("process_embedded_images", "classify_content")
     workflow.add_edge("classify_content", "create_chunks")
     workflow.add_conditional_edges(
         "create_chunks",

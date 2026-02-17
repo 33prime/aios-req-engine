@@ -309,6 +309,8 @@ async def get_document_status(document_id: UUID) -> dict:
         status_response["word_count"] = doc.get("word_count")
         status_response["total_chunks"] = doc.get("total_chunks")
         status_response["signal_id"] = doc.get("signal_id")
+        status_response["needs_clarification"] = doc.get("needs_clarification", False)
+        status_response["clarification_question"] = doc.get("clarification_question")
 
     elif doc["processing_status"] == "failed":
         status_response["message"] = "Document processing failed"
@@ -671,3 +673,77 @@ async def get_document_download_url(
     except Exception as e:
         logger.exception(f"Failed to generate download URL for document {document_id}")
         raise HTTPException(status_code=500, detail="Failed to generate download URL")
+
+
+# ============================================================================
+# Extracted Images
+# ============================================================================
+
+
+@router.get("/documents/{document_id}/images")
+async def list_document_extracted_images(document_id: UUID) -> dict:
+    """List extracted images for a document with signed URLs.
+
+    Args:
+        document_id: Document UUID
+
+    Returns:
+        Dict with images list
+
+    Raises:
+        HTTPException 404: If document not found
+    """
+    doc = get_document_upload(document_id)
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    from app.db.document_extracted_images import list_document_images
+
+    images = list_document_images(document_id)
+
+    # Generate signed URLs for each image
+    supabase = get_supabase()
+    for img in images:
+        try:
+            signed = supabase.storage.from_("project-files").create_signed_url(
+                img["storage_path"],
+                expires_in=3600,
+            )
+            img["signed_url"] = signed.get("signedURL")
+        except Exception:
+            img["signed_url"] = None
+
+    return {"images": images, "total": len(images)}
+
+
+@router.get("/documents/images/{image_id}")
+async def get_extracted_image_detail(image_id: UUID) -> dict:
+    """Get a single extracted image with signed download URL.
+
+    Args:
+        image_id: Image UUID
+
+    Returns:
+        Image record with signed_url
+
+    Raises:
+        HTTPException 404: If image not found
+    """
+    from app.db.document_extracted_images import get_extracted_image
+
+    image = get_extracted_image(image_id)
+    if not image:
+        raise HTTPException(status_code=404, detail="Image not found")
+
+    # Generate signed URL
+    supabase = get_supabase()
+    try:
+        signed = supabase.storage.from_("project-files").create_signed_url(
+            image["storage_path"],
+            expires_in=3600,
+        )
+        image["signed_url"] = signed.get("signedURL")
+    except Exception:
+        image["signed_url"] = None
+
+    return image

@@ -828,6 +828,49 @@ def get_tool_definitions() -> List[Dict[str, Any]]:
                 },
             },
         },
+        # Document Clarification Tools
+        {
+            "name": "check_document_clarifications",
+            "description": "Check if any uploaded documents need clarification about their type or content. Returns pending clarification questions. Use this when the user mentions a document upload or when you want to check for ambiguous documents.",
+            "input_schema": {
+                "type": "object",
+                "properties": {},
+            },
+        },
+        {
+            "name": "respond_to_document_clarification",
+            "description": "Respond to a document clarification question. After the user tells you what type a document is, use this to update the classification.",
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "document_id": {
+                        "type": "string",
+                        "description": "UUID of the document needing clarification",
+                    },
+                    "document_class": {
+                        "type": "string",
+                        "enum": [
+                            "prd",
+                            "transcript",
+                            "spec",
+                            "email",
+                            "presentation",
+                            "spreadsheet",
+                            "wireframe",
+                            "research",
+                            "process_doc",
+                            "generic",
+                        ],
+                        "description": "The correct document class based on user response",
+                    },
+                    "context": {
+                        "type": "string",
+                        "description": "Additional context from the user about the document",
+                    },
+                },
+                "required": ["document_id", "document_class"],
+            },
+        },
     ]
 
 
@@ -926,6 +969,11 @@ async def execute_tool(project_id: UUID, tool_name: str, tool_input: Dict[str, A
             return await _rebuild_dependencies(project_id, tool_input)
         elif tool_name == "process_cascades":
             return await _process_cascades(project_id, tool_input)
+        # Document Clarification Tools
+        elif tool_name == "check_document_clarifications":
+            return await _check_document_clarifications(project_id, tool_input)
+        elif tool_name == "respond_to_document_clarification":
+            return await _respond_to_document_clarification(project_id, tool_input)
         else:
             return {"error": f"Unknown tool: {tool_name}"}
 
@@ -2649,6 +2697,15 @@ Return JSON with:
             ],
         )
 
+        # Log usage
+        from app.core.llm_usage import log_llm_usage
+        log_llm_usage(
+            workflow="chat_assistant", chain="generate_client_email",
+            model=response.model, provider="openai",
+            tokens_input=response.usage.prompt_tokens, tokens_output=response.usage.completion_tokens,
+            project_id=project_id,
+        )
+
         raw = response.choices[0].message.content.strip()
 
         # Strip markdown if present
@@ -2775,6 +2832,15 @@ Return JSON with:
                 {"role": "system", "content": "You are a professional consultant creating meeting agendas. Return only valid JSON."},
                 {"role": "user", "content": prompt},
             ],
+        )
+
+        # Log usage
+        from app.core.llm_usage import log_llm_usage
+        log_llm_usage(
+            workflow="chat_assistant", chain="generate_meeting_agenda",
+            model=response.model, provider="openai",
+            tokens_input=response.usage.prompt_tokens, tokens_output=response.usage.completion_tokens,
+            project_id=project_id,
         )
 
         raw = response.choices[0].message.content.strip()
@@ -4076,3 +4142,88 @@ async def _process_cascades(project_id: UUID, params: Dict[str, Any]) -> Dict[st
             "error": str(e),
             "message": f"Failed to process cascades: {str(e)}",
         }
+
+
+async def _check_document_clarifications(
+    project_id: UUID, params: Dict[str, Any]
+) -> Dict[str, Any]:
+    """Check for documents that need clarification about their type."""
+    try:
+        supabase = get_supabase()
+
+        response = (
+            supabase.table("document_uploads")
+            .select("id, original_filename, clarification_question, document_class, created_at")
+            .eq("project_id", str(project_id))
+            .eq("needs_clarification", True)
+            .is_("clarification_response", "null")
+            .order("created_at", desc=True)
+            .execute()
+        )
+
+        docs = response.data or []
+
+        if not docs:
+            return {
+                "success": True,
+                "pending_clarifications": [],
+                "message": "No documents need clarification.",
+            }
+
+        return {
+            "success": True,
+            "pending_clarifications": docs,
+            "message": f"{len(docs)} document(s) need clarification about their type.",
+        }
+
+    except Exception as e:
+        logger.error(f"Error checking clarifications: {e}", exc_info=True)
+        return {"success": False, "error": str(e)}
+
+
+async def _respond_to_document_clarification(
+    project_id: UUID, params: Dict[str, Any]
+) -> Dict[str, Any]:
+    """Respond to a document clarification with the correct document class."""
+    document_id = params.get("document_id")
+    document_class = params.get("document_class")
+    context = params.get("context", "")
+
+    if not document_id or not document_class:
+        return {"success": False, "error": "document_id and document_class are required"}
+
+    try:
+        supabase = get_supabase()
+
+        # Update the document with clarification response
+        response = (
+            supabase.table("document_uploads")
+            .update({
+                "needs_clarification": False,
+                "clarification_response": context or document_class,
+                "clarified_document_class": document_class,
+                "clarified_at": "now()",
+                "document_class": document_class,
+            })
+            .eq("id", document_id)
+            .eq("project_id", str(project_id))
+            .execute()
+        )
+
+        if not response.data:
+            return {"success": False, "error": "Document not found or not in this project"}
+
+        doc = response.data[0]
+
+        return {
+            "success": True,
+            "message": (
+                f"Updated **{doc['original_filename']}** classification to "
+                f"'{document_class}'. The document's extracted content is already "
+                f"in the system and will be used with this corrected classification."
+            ),
+        }
+
+    except Exception as e:
+        logger.error(f"Error responding to clarification: {e}", exc_info=True)
+        return {"success": False, "error": str(e)}

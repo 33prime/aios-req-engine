@@ -1803,6 +1803,8 @@ export interface DocumentStatusResponse {
   total_chunks?: number
   signal_id?: string
   error?: string
+  needs_clarification?: boolean
+  clarification_question?: string
 }
 
 /**
@@ -1856,6 +1858,35 @@ export const getDocumentStatus = (documentId: string) =>
  */
 export const processDocument = (documentId: string) =>
   apiRequest<{ success: boolean }>(`/documents/${documentId}/process`, { method: 'POST' })
+
+// ============================================================================
+// Extracted Images
+// ============================================================================
+
+export interface ExtractedImage {
+  id: string
+  document_upload_id: string
+  project_id: string
+  storage_path: string
+  mime_type: string
+  file_size_bytes: number
+  page_number?: number
+  image_index: number
+  source_context?: string
+  vision_analysis?: string
+  vision_model?: string
+  vision_analyzed_at?: string
+  metadata: Record<string, unknown>
+  created_at: string
+  updated_at: string
+  signed_url?: string
+}
+
+export const listDocumentImages = (documentId: string) =>
+  apiRequest<{ images: ExtractedImage[]; total: number }>(`/documents/${documentId}/images`)
+
+export const getExtractedImage = (imageId: string) =>
+  apiRequest<ExtractedImage>(`/documents/images/${imageId}`)
 
 // ============================================================================
 // Sources Tab Redesign API Functions

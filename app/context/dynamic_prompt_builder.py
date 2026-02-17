@@ -142,6 +142,15 @@ Example: When user shares a transcript, use add_signal with signal_type="transcr
 `generate_client_email`: Draft client outreach emails
 `generate_meeting_agenda`: Structure client meetings
 """,
+    "documents": """
+## Document Clarification
+`check_document_clarifications`: Check for documents needing type clarification
+- Returns pending questions about ambiguous uploads
+- Use after document processing completes
+
+`respond_to_document_clarification`: Update a document's classification
+- Called after user identifies the document type
+""",
 }
 
 # Map intents to tool categories
@@ -156,7 +165,7 @@ INTENT_TO_TOOLS: dict[str, list[str]] = {
     "prd": ["proposal", "status"],
     "confirmation": ["status", "proposal"],
     "query": ["status", "proposal"],
-    "signal": ["signal", "proposal", "creative_brief"],
+    "signal": ["signal", "proposal", "creative_brief", "documents"],
     "enrichment": ["enrichment", "analysis"],
 }
 

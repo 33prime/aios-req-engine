@@ -40,7 +40,7 @@ import {
   type CommandDefinition,
   getModeConfig,
 } from '@/lib/assistant'
-import { uploadDocument, processDocument, getNextActions, type NextAction } from '@/lib/api'
+import { uploadDocument, processDocument, getDocumentStatus, getNextActions, type NextAction } from '@/lib/api'
 import { ACTION_ICONS } from '@/lib/action-constants'
 
 // =============================================================================
@@ -324,12 +324,15 @@ export function WorkspaceChat({
       setUploadingFiles(true)
       const results: { file: string; success: boolean; error?: string }[] = []
 
+      const documentIds: string[] = []
+
       for (const file of validFiles) {
         try {
           const response = await uploadDocument(projectId, file)
           results.push({ file: file.name, success: true })
           if (!response.is_duplicate) {
             processDocument(response.id).catch(() => {})
+            documentIds.push(response.id)
           }
         } catch (err) {
           results.push({ file: file.name, success: false, error: err instanceof Error ? err.message : 'Failed' })
@@ -351,6 +354,33 @@ export function WorkspaceChat({
       if (failedFiles.length > 0) {
         const errors = failedFiles.map((f) => `${f.file}: ${f.error}`).join('\n- ')
         onAddLocalMessage?.({ role: 'assistant', content: `Upload failed:\n- ${errors}` })
+      }
+
+      // Poll for clarification needs after upload
+      for (const docId of documentIds) {
+        let attempts = 0
+        const maxAttempts = 30
+        const poll = setInterval(async () => {
+          attempts++
+          if (attempts > maxAttempts) {
+            clearInterval(poll)
+            return
+          }
+          try {
+            const status = await getDocumentStatus(docId)
+            if (status.processing_status === 'completed' || status.processing_status === 'failed') {
+              clearInterval(poll)
+              if (status.needs_clarification && status.clarification_question) {
+                onAddLocalMessage?.({
+                  role: 'assistant',
+                  content: status.clarification_question,
+                })
+              }
+            }
+          } catch {
+            clearInterval(poll)
+          }
+        }, 1000)
       }
     },
     [projectId, onAddLocalMessage]
