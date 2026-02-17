@@ -202,7 +202,7 @@ export function ActorsSection({ actors, workflows = [], onConfirm, onNeedsReview
   const hasSplit = workflows.length > 0 && secondaryActors.length > 0
 
   return (
-    <section>
+    <section id="brd-section-personas">
       <SectionHeader
         title="Actors & Personas"
         count={actors.length}

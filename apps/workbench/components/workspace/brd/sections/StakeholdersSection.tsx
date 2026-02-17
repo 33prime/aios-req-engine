@@ -46,7 +46,7 @@ export function StakeholdersSection({
   ).length
 
   return (
-    <section>
+    <section id="brd-section-stakeholders">
       <div className="flex items-center justify-between mb-4">
         <SectionHeader
           title="Stakeholders"

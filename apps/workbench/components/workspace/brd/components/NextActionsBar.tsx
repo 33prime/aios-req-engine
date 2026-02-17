@@ -1,39 +1,16 @@
 'use client'
 
-import { Lightbulb, ArrowRight, Users, FileText, Target, Loader2, MessageCircle, RefreshCw, GitBranch, Link2, Clock } from 'lucide-react'
+import { Lightbulb, ArrowRight, Users, FileText, Target, Loader2, Clock } from 'lucide-react'
 import type { NextAction } from '@/lib/api'
+import { ACTION_ICONS, URGENCY_COLORS, getActionCTALabel } from '@/lib/action-constants'
 
 interface NextActionsBarProps {
   actions: NextAction[]
   loading: boolean
-  onSendToCollab?: (action: NextAction) => void
+  onExecute?: (action: NextAction) => void
 }
 
-const ACTION_ICONS: Record<string, typeof Target> = {
-  confirm_critical: Target,
-  stakeholder_gap: Users,
-  section_gap: FileText,
-  missing_evidence: FileText,
-  validate_pains: Target,
-  missing_vision: Lightbulb,
-  missing_metrics: Target,
-  open_question_critical: MessageCircle,
-  open_question_blocking: MessageCircle,
-  stale_belief: RefreshCw,
-  revisit_decision: RefreshCw,
-  contradiction_unresolved: GitBranch,
-  cross_entity_gap: Link2,
-  temporal_stale: Clock,
-}
-
-const URGENCY_COLORS: Record<string, string> = {
-  critical: '#EF4444',
-  high: '#F97316',
-  normal: '#3FAF7A',
-  low: '#999999',
-}
-
-export function NextActionsBar({ actions, loading, onSendToCollab }: NextActionsBarProps) {
+export function NextActionsBar({ actions, loading, onExecute }: NextActionsBarProps) {
   if (loading) {
     return (
       <div className="mb-8 border border-[#E5E5E5] rounded-2xl bg-white shadow-md p-5">
@@ -107,14 +84,14 @@ export function NextActionsBar({ actions, loading, onSendToCollab }: NextActions
                   )}
                 </div>
               </div>
-              {onSendToCollab && (
+              {onExecute && (
                 <button
-                  onClick={() => onSendToCollab(action)}
+                  onClick={() => onExecute(action)}
                   className="flex-shrink-0 inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-medium text-[#3FAF7A] border border-[#3FAF7A]/30 rounded-lg hover:bg-[#E8F5E9] transition-colors"
-                  title="Send to Collab"
+                  title={getActionCTALabel(action.action_type)}
                 >
                   <ArrowRight className="w-3 h-3" />
-                  Collab
+                  {getActionCTALabel(action.action_type)}
                 </button>
               )}
             </div>

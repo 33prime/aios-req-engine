@@ -31,11 +31,6 @@ import {
   Users,
   FileText,
   ChevronDown,
-  MessageCircle,
-  RefreshCw,
-  GitBranch,
-  Link2,
-  Clock,
 } from 'lucide-react'
 import { Markdown } from '../../components/ui/Markdown'
 import {
@@ -46,6 +41,7 @@ import {
   getModeConfig,
 } from '@/lib/assistant'
 import { uploadDocument, processDocument, getNextActions, type NextAction } from '@/lib/api'
+import { ACTION_ICONS } from '@/lib/action-constants'
 
 // =============================================================================
 // Types
@@ -80,23 +76,6 @@ interface WorkspaceChatProps {
 // =============================================================================
 // Constants
 // =============================================================================
-
-const ACTION_ICONS: Record<string, typeof Target> = {
-  confirm_critical: Target,
-  stakeholder_gap: Users,
-  section_gap: FileText,
-  missing_evidence: FileText,
-  validate_pains: Target,
-  missing_vision: Lightbulb,
-  missing_metrics: Target,
-  open_question_critical: MessageCircle,
-  open_question_blocking: MessageCircle,
-  stale_belief: RefreshCw,
-  revisit_decision: RefreshCw,
-  contradiction_unresolved: GitBranch,
-  cross_entity_gap: Link2,
-  temporal_stale: Clock,
-}
 
 const ACTION_COMMANDS: Record<string, (a: NextAction) => string> = {
   confirm_critical: () => 'Help me review and confirm the must-have features',

@@ -20,9 +20,6 @@ import {
   Activity,
   CheckCircle,
   MessageCircle,
-  RefreshCw,
-  GitBranch,
-  Link2,
   Clock,
 } from 'lucide-react'
 import { TaskListCompact } from '@/components/tasks'
@@ -34,6 +31,7 @@ import {
 } from '@/lib/api'
 import type { CanvasData, BRDWorkspaceData, SectionScore, QuestionCounts } from '@/types/workspace'
 import type { ReadinessScore, NextAction, TaskStatsResponse, CollaborationHistoryResponse } from '@/lib/api'
+import { ACTION_ICONS, URGENCY_COLORS, getActionCTALabel } from '@/lib/action-constants'
 
 interface OverviewPanelProps {
   projectId: string
@@ -45,23 +43,7 @@ interface OverviewPanelProps {
   initialHistory?: CollaborationHistoryResponse | null
   initialQuestionCounts?: QuestionCounts | null
   onNavigateToPhase: (phase: 'discovery' | 'build') => void
-}
-
-const ACTION_ICONS: Record<string, typeof Target> = {
-  confirm_critical: Target,
-  stakeholder_gap: Users,
-  section_gap: FileText,
-  missing_evidence: FileText,
-  validate_pains: Target,
-  missing_vision: Lightbulb,
-  missing_metrics: Target,
-  open_question_critical: MessageCircle,
-  open_question_blocking: MessageCircle,
-  stale_belief: RefreshCw,
-  revisit_decision: RefreshCw,
-  contradiction_unresolved: GitBranch,
-  cross_entity_gap: Link2,
-  temporal_stale: Clock,
+  onActionExecute?: (action: NextAction) => void
 }
 
 const SECTION_LABELS: Record<string, string> = {
@@ -83,6 +65,7 @@ export function OverviewPanel({
   initialHistory,
   initialQuestionCounts,
   onNavigateToPhase,
+  onActionExecute,
 }: OverviewPanelProps) {
   const [taskStats, setTaskStats] = useState<TaskStatsResponse | null>(initialTaskStats ?? null)
   const [taskRefreshKey, setTaskRefreshKey] = useState(0)
@@ -119,6 +102,7 @@ export function OverviewPanel({
       <HeroActionBanner
         action={heroAction}
         onNavigateToPhase={onNavigateToPhase}
+        onActionExecute={onActionExecute}
       />
 
       {/* Three-column grid */}
@@ -136,6 +120,7 @@ export function OverviewPanel({
         <NextActionsCard
           actions={remainingActions}
           startIndex={actions.length > 1 ? 2 : 1}
+          onActionExecute={onActionExecute}
         />
 
         {/* Column 3: Tasks */}
@@ -179,9 +164,11 @@ export function OverviewPanel({
 function HeroActionBanner({
   action,
   onNavigateToPhase,
+  onActionExecute,
 }: {
   action: NextAction | null
   onNavigateToPhase: (phase: 'discovery' | 'build') => void
+  onActionExecute?: (action: NextAction) => void
 }) {
   if (!action) {
     return (
@@ -232,10 +219,16 @@ function HeroActionBanner({
         )}
       </div>
       <button
-        onClick={() => onNavigateToPhase('discovery')}
+        onClick={() => {
+          if (onActionExecute && action) {
+            onActionExecute(action)
+          } else {
+            onNavigateToPhase('discovery')
+          }
+        }}
         className="flex-shrink-0 inline-flex items-center gap-1.5 px-4 py-2 text-[12px] font-medium text-white bg-[#3FAF7A] rounded-xl hover:bg-[#25785A] transition-colors"
       >
-        Go to Discovery
+        {action ? getActionCTALabel(action.action_type) : 'Go to Discovery'}
         <ArrowRight className="w-3.5 h-3.5" />
       </button>
     </div>
@@ -358,9 +351,11 @@ function SectionBar({
 function NextActionsCard({
   actions,
   startIndex,
+  onActionExecute,
 }: {
   actions: NextAction[]
   startIndex: number
+  onActionExecute?: (action: NextAction) => void
 }) {
   return (
     <div className="bg-white rounded-2xl border border-[#E5E5E5] shadow-md p-5">
@@ -375,7 +370,11 @@ function NextActionsCard({
             const Icon = ACTION_ICONS[action.action_type] || Target
             const displayNum = startIndex + idx
             return (
-              <div key={idx} className="p-3 bg-[#F4F4F4] rounded-xl">
+              <button
+                key={idx}
+                onClick={() => onActionExecute?.(action)}
+                className="w-full p-3 bg-[#F4F4F4] rounded-xl text-left hover:bg-[#EEEEEE] transition-colors cursor-pointer group"
+              >
                 <div className="flex items-start gap-2.5">
                   <span className="flex items-center justify-center w-5 h-5 rounded-full bg-[#F0F0F0] text-[11px] font-medium text-[#666666] flex-shrink-0 mt-0.5">
                     {displayNum}
@@ -403,8 +402,9 @@ function NextActionsCard({
                       </div>
                     )}
                   </div>
+                  <ArrowRight className="w-3.5 h-3.5 text-[#E5E5E5] group-hover:text-[#3FAF7A] transition-colors flex-shrink-0 mt-0.5" />
                 </div>
-              </div>
+              </button>
             )
           })}
         </div>

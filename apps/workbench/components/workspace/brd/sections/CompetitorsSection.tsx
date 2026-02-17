@@ -60,7 +60,7 @@ export function CompetitorsSection({
   const displayedCompetitors = showAll ? competitors : competitors.slice(0, SHOW_MAX)
 
   return (
-    <div>
+    <div id="brd-section-competitors">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <SectionHeader

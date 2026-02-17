@@ -72,7 +72,7 @@ export function RequirementsSection({
   ]
 
   return (
-    <section>
+    <section id="brd-section-features">
       <SectionHeader
         title="Requirements"
         count={allFeatures.length}

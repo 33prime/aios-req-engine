@@ -54,6 +54,7 @@ import {
 } from '@/lib/api'
 import type { NextAction } from '@/lib/api'
 import { CompletenessRing } from './components/CompletenessRing'
+import { ACTION_EXECUTION_MAP } from '@/lib/action-constants'
 import type { BRDWorkspaceData, BRDHealthData, MoSCoWGroup, StakeholderBRDSummary, CompetitorBRDSummary, AutomationLevel, SectionScore, OpenQuestion } from '@/types/workspace'
 
 interface BRDCanvasProps {
@@ -61,9 +62,12 @@ interface BRDCanvasProps {
   initialData?: BRDWorkspaceData | null
   initialNextActions?: NextAction[] | null
   onRefresh?: () => void
+  onSendToChat?: (action: NextAction) => void
+  pendingAction?: NextAction | null
+  onPendingActionConsumed?: () => void
 }
 
-export function BRDCanvas({ projectId, initialData, initialNextActions, onRefresh }: BRDCanvasProps) {
+export function BRDCanvas({ projectId, initialData, initialNextActions, onRefresh, onSendToChat, pendingAction, onPendingActionConsumed }: BRDCanvasProps) {
   const [data, setData] = useState<BRDWorkspaceData | null>(initialData ?? null)
   const [isLoading, setIsLoading] = useState(!initialData)
   const [error, setError] = useState<string | null>(null)
@@ -482,6 +486,94 @@ export function BRDCanvas({ projectId, initialData, initialNextActions, onRefres
   }, [])
 
   // ============================================================================
+  // Action Execution
+  // ============================================================================
+
+  const handleActionExecute = useCallback((action: NextAction) => {
+    const execType = ACTION_EXECUTION_MAP[action.action_type]
+
+    switch (action.action_type) {
+      case 'confirm_critical': {
+        if (!data) break
+        const unconfirmed = data.requirements.must_have
+          .filter(f => f.confirmation_status !== 'confirmed_consultant' && f.confirmation_status !== 'confirmed_client')
+          .map(f => f.id)
+        if (unconfirmed.length > 0) {
+          handleConfirmAll('feature', unconfirmed)
+        }
+        // Also open first unconfirmed feature if there's a target
+        if (action.target_entity_id) {
+          handleOpenConfidence('feature', action.target_entity_id, action.title)
+        }
+        break
+      }
+
+      case 'missing_vision':
+        closeAllDrawers()
+        setVisionDrawer(true)
+        break
+
+      case 'missing_evidence':
+      case 'temporal_stale':
+      case 'validate_pains':
+        if (action.target_entity_id && action.target_entity_type) {
+          handleOpenConfidence(action.target_entity_type, action.target_entity_id, action.title)
+        }
+        break
+
+      case 'section_gap': {
+        const sectionMap: Record<string, string> = {
+          feature: 'brd-section-features',
+          persona: 'brd-section-personas',
+          vp_step: 'brd-section-workflows',
+          constraint: 'brd-section-constraints',
+          data_entity: 'brd-section-data-entities',
+          stakeholder: 'brd-section-stakeholders',
+          competitor_reference: 'brd-section-competitors',
+        }
+        const sectionId = sectionMap[action.target_entity_type] || 'brd-section-business-context'
+        document.getElementById(sectionId)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        break
+      }
+
+      case 'stakeholder_gap':
+      case 'cross_entity_gap':
+        document.getElementById('brd-section-stakeholders')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        break
+
+      case 'missing_metrics':
+        document.getElementById('brd-section-business-context')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        break
+
+      case 'open_question_critical':
+      case 'open_question_blocking':
+        document.getElementById('brd-section-questions')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        break
+
+      case 'stale_belief':
+      case 'contradiction_unresolved':
+      case 'revisit_decision':
+        // These need AI reasoning — send to chat
+        onSendToChat?.(action)
+        break
+
+      default:
+        // Unknown action type — try chat fallback
+        if (execType === 'chat') {
+          onSendToChat?.(action)
+        }
+    }
+  }, [data, handleConfirmAll, handleOpenConfidence, closeAllDrawers, onSendToChat])
+
+  // Consume pending action from cross-view navigation (Overview → BRD)
+  useEffect(() => {
+    if (pendingAction && data) {
+      handleActionExecute(pendingAction)
+      onPendingActionConsumed?.()
+    }
+  }, [pendingAction, data, handleActionExecute, onPendingActionConsumed])
+
+  // ============================================================================
   // Data Entity Detail Drawer
   // ============================================================================
 
@@ -892,18 +984,18 @@ export function BRDCanvas({ projectId, initialData, initialNextActions, onRefres
       <NextActionsBar
         actions={nextActions}
         loading={nextActionsLoading}
-        onSendToCollab={(action) => {
-          console.log('Send to Collab:', action)
-        }}
+        onExecute={handleActionExecute}
       />
 
       {/* Open Questions (collapsed by default) */}
-      <OpenQuestionsPanel
-        projectId={projectId}
-        questions={openQuestions}
-        loading={questionsLoading}
-        onMutate={loadOpenQuestions}
-      />
+      <div id="brd-section-questions">
+        <OpenQuestionsPanel
+          projectId={projectId}
+          questions={openQuestions}
+          loading={questionsLoading}
+          onMutate={loadOpenQuestions}
+        />
+      </div>
 
       {/* BRD Sections */}
       <div className="space-y-10">

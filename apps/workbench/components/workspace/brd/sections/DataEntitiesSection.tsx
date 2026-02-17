@@ -147,7 +147,7 @@ export function DataEntitiesSection({
   ).length
 
   return (
-    <section>
+    <section id="brd-section-data-entities">
       <div className="flex items-center justify-between mb-4">
         <SectionHeader
           title="Data Entities"

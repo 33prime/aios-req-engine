@@ -467,7 +467,7 @@ export function WorkflowsSection({
       ).length
 
   return (
-    <section>
+    <section id="brd-section-workflows">
       <div className="flex items-center justify-between mb-4">
         <SectionHeader
           title="Key Workflows"

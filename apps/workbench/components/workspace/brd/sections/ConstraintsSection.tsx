@@ -182,7 +182,7 @@ export function ConstraintsSection({
   }
 
   return (
-    <section>
+    <section id="brd-section-constraints">
       <div className="flex items-center justify-between mb-4">
         <SectionHeader
           title="Constraints"

@@ -443,7 +443,7 @@ export function BusinessContextSection({
   const visibleMetrics = showAllMetrics ? processedMetrics : processedMetrics.slice(0, SHOW_MAX_METRICS)
 
   return (
-    <section className="space-y-8">
+    <section id="brd-section-business-context" className="space-y-8">
       {/* Background */}
       <div>
         <h2 className="text-lg font-semibold text-[#333333] mb-3 flex items-center gap-2">
