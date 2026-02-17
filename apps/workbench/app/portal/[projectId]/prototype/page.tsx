@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useParams, useSearchParams } from 'next/navigation'
 import PrototypeFrame from '@/components/prototype/PrototypeFrame'
-import { getPrototypeClientData, submitFeatureVerdict } from '@/lib/api'
+import { getPrototypeClientData, submitFeatureVerdict, completeClientReview } from '@/lib/api'
 import type { FeatureVerdict } from '@/types/prototype'
 
 interface FeatureReview {
@@ -62,6 +62,7 @@ export default function PortalPrototypePage() {
   const [clientVerdicts, setClientVerdicts] = useState<Record<string, FeatureVerdict>>({})
   const [clientNotes, setClientNotes] = useState<Record<string, string>>({})
   const [submitted, setSubmitted] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -75,6 +76,7 @@ export default function PortalPrototypePage() {
       }
       try {
         const data = await getPrototypeClientData(sessionId, token)
+        setPrototypeId(data.prototype_id)
         setDeployUrl(data.deploy_url)
         setFeatureReviews(data.feature_reviews || [])
         setLoading(false)
@@ -115,8 +117,15 @@ export default function PortalPrototypePage() {
     }
   }, [prototypeId, clientVerdicts, clientNotes])
 
-  const handleCompleteReview = () => {
+  const handleCompleteReview = async () => {
+    setSubmitting(true)
+    try {
+      await completeClientReview(sessionId, token)
+    } catch (err) {
+      console.error('Failed to complete client review:', err)
+    }
     setSubmitted(true)
+    setSubmitting(false)
   }
 
   const reviewedCount = Object.keys(clientVerdicts).length
@@ -301,9 +310,10 @@ export default function PortalPrototypePage() {
           <div className="pt-4 pb-8">
             <button
               onClick={handleCompleteReview}
-              className="w-full px-6 py-3 bg-[#3FAF7A] text-white font-medium rounded-xl hover:bg-[#25785A] transition-all duration-200 shadow-md"
+              disabled={submitting}
+              className="w-full px-6 py-3 bg-[#3FAF7A] text-white font-medium rounded-xl hover:bg-[#25785A] transition-all duration-200 shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Complete Review
+              {submitting ? 'Submitting...' : 'Complete Review'}
             </button>
           </div>
         </div>

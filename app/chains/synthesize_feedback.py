@@ -35,6 +35,8 @@ Use verdicts to inform recommended_status:
 - Consultant aligned + client needs_adjustment → needs_client
 - Either off_track → needs_client
 - Consultant only (no client verdict) → confirmed_consultant
+- Only AI suggested_verdict (no human verdicts): Use as weak signal. \
+If "aligned", keep as "ai_generated". If "needs_adjustment" or "off_track", set to "needs_client".
 - No verdicts → use feedback signals as before
 
 Also identify:
@@ -104,6 +106,7 @@ def synthesize_session_feedback(
     verdict_context = []
     for o in overlays:
         content = o.get("overlay_content") or {}
+        has_human = bool(o.get("consultant_verdict") or o.get("client_verdict"))
         verdict_entry = {
             "feature_id": o.get("feature_id"),
             "suggested_verdict": content.get("suggested_verdict"),
@@ -111,6 +114,7 @@ def synthesize_session_feedback(
             "consultant_notes": o.get("consultant_notes"),
             "client_verdict": o.get("client_verdict"),
             "client_notes": o.get("client_notes"),
+            "has_human_verdict": has_human,
         }
         # Only include if there's at least one verdict
         if any(v for k, v in verdict_entry.items() if k.endswith("_verdict") and v):

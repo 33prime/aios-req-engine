@@ -50,9 +50,17 @@ explain HOW they are affected (1 sentence).
 (e.g. "Step 3 of 7: User completes assessment"). null if unmapped.
 7. **downstream_risk**: Name specific OTHER features from the project context that would \
 break or degrade if this feature's gaps are not resolved. Be specific.
-8. **validation_question**: Surface the ONE most important question that a consultant \
-should validate about this feature. It must be specific to THIS feature (not generic), \
-and help confirm or correct the requirements. Include why_it_matters and \
+8. **validation_question**: Write ONE short question (max 15 words) for a NON-TECHNICAL \
+business stakeholder. Requirements:
+   - Answerable with yes/no + optional notes
+   - Plain business language — never mention code, components, APIs, or data models
+   - Focus on "does this match how your team works?" not technical edge cases
+   - Phrased from client perspective: "Does this...", "Would your team...", "Is this how..."
+   Good: "Does this form capture all the info your team needs?"
+   Good: "Would your team use this approval flow?"
+   Bad: "How should concurrent edits be handled?"
+   Bad: "What validation rules apply to this input field?"
+   Include why_it_matters (1 sentence, plain language) and \
 requirement_area (one of: business_rules, data_handling, user_flow, permissions, integration). \
 Omit this field entirely if the feature is fully aligned with no meaningful gaps.
 9. **suggested_verdict**: Your overall assessment: \

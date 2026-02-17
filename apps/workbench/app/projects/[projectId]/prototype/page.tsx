@@ -13,6 +13,7 @@ import {
   endConsultantReview,
   getPrototypeForProject,
   getPrototypeOverlays,
+  getPrototypeSession,
   getVpSteps,
   prototypeSessionChat,
   submitPrototypeFeedback,
@@ -22,7 +23,7 @@ import {
 import type { FeatureOverlay, PrototypeSession, SessionContext, TourStep, RouteFeatureMap } from '@/types/prototype'
 import type { VpStep } from '@/types/api'
 
-type SessionStatus = 'loading' | 'no_prototype' | 'ready' | 'reviewing' | 'synthesizing' | 'updating'
+type SessionStatus = 'loading' | 'no_prototype' | 'ready' | 'reviewing' | 'awaiting_client' | 'synthesizing' | 'updating'
 
 /**
  * Consultant prototype review session page.
@@ -55,6 +56,11 @@ export default function PrototypeSessionPage() {
     page_history: [],
     features_reviewed: [],
   })
+
+  // Client share state
+  const [clientShareData, setClientShareData] = useState<{
+    token: string; url: string
+  } | null>(null)
 
   // Tour state
   const [isTourActive, setIsTourActive] = useState(false)
@@ -207,32 +213,55 @@ export default function PrototypeSessionPage() {
     return result.response
   }
 
-  // End review
+  // End review — stop after generating client link
   const handleEndReview = async () => {
     if (!session) return
     try {
-      // End tour if active
       if (isTourActive) {
         frameRef.current?.sendMessage({ type: 'aios:clear-highlights' })
         setIsTourActive(false)
         setCurrentTourStep(null)
       }
 
-      await endConsultantReview(session.id)
-      setStatus('synthesizing')
-
-      // Auto-trigger synthesis
-      await synthesizePrototypeFeedback(session.id)
-      setStatus('updating')
-
-      // Auto-trigger code update
-      await triggerPrototypeCodeUpdate(session.id)
-      setStatus('ready')
+      const result = await endConsultantReview(session.id)
+      setClientShareData({ token: result.client_review_token, url: result.client_review_url })
+      setStatus('awaiting_client')
     } catch (e) {
       console.error('Failed to end review:', e)
-      setStatus('ready')
     }
   }
+
+  // Synthesis handler — used by all post-review paths
+  const handleRunSynthesis = async () => {
+    if (!session) return
+    try {
+      setStatus('synthesizing')
+      await synthesizePrototypeFeedback(session.id)
+      setStatus('updating')
+      await triggerPrototypeCodeUpdate(session.id)
+    } catch (e) {
+      console.error('Failed during synthesis/update:', e)
+    }
+    setStatus('ready')
+    setSession(null)
+    setClientShareData(null)
+  }
+
+  // Poll for client completion while awaiting_client
+  useEffect(() => {
+    if (status !== 'awaiting_client' || !session) return
+    const interval = setInterval(async () => {
+      try {
+        const fresh = await getPrototypeSession(session.id)
+        if (fresh.status === 'client_complete') {
+          clearInterval(interval)
+          handleRunSynthesis()
+        }
+      } catch { /* ignore polling errors */ }
+    }, 10000)
+    return () => clearInterval(interval)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status, session])
 
   // Loading state
   if (status === 'loading') {
@@ -251,6 +280,109 @@ export default function PrototypeSessionPage() {
           <h2 className="text-h2 text-ui-headingDark">No Prototype Yet</h2>
           <p className="text-body text-ui-bodyText max-w-md">
             Generate a prototype from your discovery data to begin the refinement process.
+          </p>
+        </div>
+      </div>
+    )
+  }
+
+  // Awaiting client — show share panel
+  if (status === 'awaiting_client' && clientShareData) {
+    const fullUrl = typeof window !== 'undefined'
+      ? `${window.location.origin}${clientShareData.url}`
+      : clientShareData.url
+
+    // Count verdicts from overlays
+    const verdictCounts = overlays.reduce(
+      (acc, o) => {
+        const v = o.consultant_verdict
+        if (v === 'aligned') acc.aligned++
+        else if (v === 'needs_adjustment') acc.needs_adjustment++
+        else if (v === 'off_track') acc.off_track++
+        return acc
+      },
+      { aligned: 0, needs_adjustment: 0, off_track: 0 }
+    )
+
+    return (
+      <div className="flex items-center justify-center h-full bg-[#F4F4F4]">
+        <div className="max-w-lg w-full space-y-6 px-6">
+          <div className="text-center">
+            <h2 className="text-lg font-semibold text-[#333333]">Review Complete</h2>
+            <p className="text-sm text-[#666666] mt-1">What would you like to do next?</p>
+          </div>
+
+          {/* Verdict summary */}
+          <div className="rounded-2xl border border-[#E5E5E5] bg-white p-5 shadow-md">
+            <p className="text-xs font-medium text-[#666666] uppercase tracking-wide mb-3">
+              Your Verdict Summary
+            </p>
+            <div className="flex gap-4">
+              <div className="flex-1 text-center">
+                <div className="text-xl font-bold text-[#25785A]">{verdictCounts.aligned}</div>
+                <div className="text-[10px] text-[#666666]">Aligned</div>
+              </div>
+              <div className="flex-1 text-center">
+                <div className="text-xl font-bold text-amber-700">{verdictCounts.needs_adjustment}</div>
+                <div className="text-[10px] text-[#666666]">Needs Adj.</div>
+              </div>
+              <div className="flex-1 text-center">
+                <div className="text-xl font-bold text-red-700">{verdictCounts.off_track}</div>
+                <div className="text-[10px] text-[#666666]">Off Track</div>
+              </div>
+            </div>
+          </div>
+
+          {/* Share link */}
+          <div className="rounded-2xl border border-[#E5E5E5] bg-white p-5 shadow-md">
+            <p className="text-xs font-medium text-[#666666] uppercase tracking-wide mb-2">
+              Client Review Link
+            </p>
+            <div className="flex items-center gap-2">
+              <input
+                readOnly
+                value={fullUrl}
+                className="flex-1 text-xs px-3 py-2 border border-[#E5E5E5] rounded-lg bg-[#F4F4F4] text-[#333333] truncate"
+              />
+              <button
+                onClick={() => navigator.clipboard.writeText(fullUrl)}
+                className="px-3 py-2 text-xs font-medium border border-[#E5E5E5] rounded-lg hover:bg-[#F4F4F4] transition-colors text-[#333333]"
+              >
+                Copy
+              </button>
+            </div>
+          </div>
+
+          {/* Action buttons */}
+          <div className="space-y-3">
+            <button
+              onClick={() => {
+                navigator.clipboard.writeText(fullUrl)
+              }}
+              className="w-full px-6 py-3 bg-[#3FAF7A] text-white font-medium rounded-xl hover:bg-[#25785A] transition-all duration-200 shadow-md"
+            >
+              Share with Client — All Good
+            </button>
+            <button
+              onClick={handleRunSynthesis}
+              className="w-full px-6 py-3 bg-white border border-[#E5E5E5] text-[#333333] font-medium rounded-xl hover:bg-[#F4F4F4] transition-all duration-200 shadow-md"
+            >
+              Fix First, Then Share
+            </button>
+            <button
+              onClick={() => {
+                setStatus('reviewing')
+                setClientShareData(null)
+              }}
+              className="w-full px-4 py-2 text-sm text-[#666666] hover:text-[#333333] transition-colors"
+            >
+              Not Ready — Keep Working
+            </button>
+          </div>
+
+          {/* Polling indicator */}
+          <p className="text-center text-[10px] text-[#999999]">
+            Listening for client feedback...
           </p>
         </div>
       </div>

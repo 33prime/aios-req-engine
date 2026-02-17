@@ -41,7 +41,7 @@ class PrototypeAnalysisState:
     personas: list[dict[str, Any]] = field(default_factory=list)
     vp_steps: list[dict[str, Any]] = field(default_factory=list)
     handoff_parsed: dict[str, Any] = field(default_factory=dict)
-    feature_file_map: dict[str, str] = field(default_factory=dict)
+    feature_file_map: dict[str, list[str]] = field(default_factory=dict)
 
     # Prompt caching state (set once in load_context)
     anthropic_client: Any = None
@@ -64,6 +64,31 @@ def _check_max_steps(state: PrototypeAnalysisState) -> PrototypeAnalysisState:
     if state.step_count > MAX_STEPS:
         raise RuntimeError(f"Analysis graph exceeded max steps ({MAX_STEPS})")
     return state
+
+
+def _resolve_pages_to_files(pages_str: str, file_tree_set: set[str]) -> list[str]:
+    """Resolve comma-separated page routes to actual file paths."""
+    if not pages_str:
+        return []
+    routes = [r.strip().strip("'\"") for r in pages_str.split(",")]
+    resolved = []
+    for route in routes:
+        slug = route.strip("/") or ""
+        candidates = (
+            ["app/page.tsx", "src/app/page.tsx"]
+            if slug == ""
+            else [
+                f"app/{slug}/page.tsx",
+                f"app/{slug}/page.jsx",
+                f"src/app/{slug}/page.tsx",
+                f"src/app/{slug}/page.jsx",
+            ]
+        )
+        for c in candidates:
+            if c in file_tree_set:
+                resolved.append(c)
+                break
+    return resolved
 
 
 def load_context(state: PrototypeAnalysisState) -> dict[str, Any]:
@@ -92,23 +117,37 @@ def load_context(state: PrototypeAnalysisState) -> dict[str, Any]:
     handoff_parsed = (prototype.get("handoff_parsed") or {}) if prototype else {}
 
     # Build feature -> file mapping from handoff or code scan
-    git.get_file_tree(state.local_path, extensions=[".tsx", ".jsx", ".ts", ".js"])
-    feature_file_map: dict[str, str] = {}
+    file_tree = git.get_file_tree(state.local_path, extensions=[".tsx", ".jsx", ".ts", ".js"])
+    file_tree_set = set(file_tree)
+    feature_file_map: dict[str, list[str]] = {}
 
-    # From handoff inventory
+    # From handoff inventory — primary file_path + resolved pages
     for entry in handoff_parsed.get("features", []):
         fid = entry.get("feature_id") or entry.get("id")
+        if not fid:
+            continue
+        files: list[str] = []
         fpath = entry.get("file_path") or entry.get("file")
-        if fid and fpath:
-            feature_file_map[fid] = fpath
+        if fpath:
+            files.append(fpath)
+        # Resolve page routes to files
+        pages_str = entry.get("pages", "")
+        if pages_str:
+            page_files = _resolve_pages_to_files(pages_str, file_tree_set)
+            for pf in page_files:
+                if pf not in files:
+                    files.append(pf)
+        if files:
+            feature_file_map[fid] = files
 
     # Build analyzable features list
     features_to_analyze = []
     for f in features:
-        file_path = feature_file_map.get(f["id"])
+        file_paths = feature_file_map.get(f["id"], [])
         features_to_analyze.append({
             "feature": f,
-            "file_path": file_path,
+            "file_path": file_paths[0] if file_paths else None,
+            "file_paths": file_paths,
         })
 
     # Initialize Anthropic client and build cached blocks
@@ -153,15 +192,22 @@ def analyze_and_save(state: PrototypeAnalysisState) -> dict[str, Any]:
     )
 
     try:
-        # Read code file if available
+        # Read code files if available (multi-file support)
         code_content = ""
-        if file_path:
+        file_paths = current.get("file_paths", [])
+        if not file_paths and file_path:
+            file_paths = [file_path]
+        if file_paths:
             from app.services.git_manager import GitManager
             git = GitManager(base_dir=settings.PROTOTYPE_TEMP_DIR)
-            try:
-                code_content = git.read_file(state.local_path, file_path)
-            except FileNotFoundError:
-                logger.warning(f"File not found: {file_path}")
+            code_parts = []
+            for fp in file_paths:
+                try:
+                    content = git.read_file(state.local_path, fp)
+                    code_parts.append(f"// === {fp} ===\n{content}")
+                except FileNotFoundError:
+                    logger.warning(f"File not found: {fp}")
+            code_content = "\n\n".join(code_parts)
 
         # Get handoff entry
         handoff_entry = None

@@ -240,10 +240,13 @@ async def end_review_endpoint(session_id: UUID) -> dict:
         token = generate_client_token(session_id)
         update_session(session_id, status="awaiting_client")
 
+        prototype = get_prototype(UUID(session["prototype_id"]))
+        project_id = prototype["project_id"] if prototype else "unknown"
+
         return {
             "session_id": str(session_id),
             "client_review_token": token,
-            "client_review_url": f"/portal/prototype?token={token}",
+            "client_review_url": f"/portal/{project_id}/prototype?token={token}&session={session_id}",
         }
 
     except HTTPException:
@@ -294,6 +297,7 @@ async def get_client_data_endpoint(session_id: UUID, token: str) -> dict:
             })
 
         return {
+            "prototype_id": str(session["prototype_id"]),
             "deploy_url": prototype.get("deploy_url"),
             "session_number": session["session_number"],
             "features_analyzed": len(overlays),
@@ -506,6 +510,25 @@ async def apply_synthesis_endpoint(session_id: UUID) -> ApplySynthesisResponse:
     except Exception as e:
         logger.exception(f"Failed to apply synthesis for session {session_id}")
         raise HTTPException(status_code=500, detail="Failed to apply synthesis")
+
+
+@router.post("/{session_id}/complete-client-review")
+async def complete_client_review_endpoint(session_id: UUID, token: str) -> dict:
+    """Mark client review as complete. Auth via client review token."""
+    try:
+        session = get_session_by_token(token)
+        if not session or session["id"] != str(session_id):
+            raise HTTPException(status_code=403, detail="Invalid token")
+
+        update_session(session_id, status="client_complete", client_completed_at="now()")
+
+        return {"session_id": str(session_id), "status": "client_complete"}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"Failed to complete client review for session {session_id}")
+        raise HTTPException(status_code=500, detail="Failed to complete client review")
 
 
 @router.post("/{session_id}/update-code")
