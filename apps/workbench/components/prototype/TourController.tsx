@@ -19,27 +19,6 @@ interface TourControllerProps {
 
 // --- Route inference from feature names + code paths ---
 
-// Map feature keywords to likely prototype routes
-const ROUTE_KEYWORD_MAP: Record<string, string> = {
-  dashboard: '/',
-  engagement: '/',
-  parishioner: '/parishioners',
-  member: '/parishioners',
-  segmentation: '/parishioners',
-  personalization: '/parishioners',
-  ministry: '/ministry',
-  planning: '/ministry',
-  cycle: '/ministry',
-  donor: '/reports',
-  report: '/reports',
-  giving: '/reports',
-  impact: '/reports',
-  outreach: '/outreach',
-  communication: '/outreach',
-  campaign: '/outreach',
-  setting: '/settings',
-}
-
 function inferRouteFromFeature(
   featureName: string,
   codePath: string | null,
@@ -50,7 +29,7 @@ function inferRouteFromFeature(
   // Level 0: persisted routes from HANDOFF.md (highest priority)
   if (handoffRoutes?.length) return handoffRoutes[0]
 
-  // Level 1: check runtime route-feature map
+  // Level 1: check runtime route-feature map (built from bridge page-change events)
   for (const [route, features] of routeFeatureMap.entries()) {
     if (features.includes(featureId)) return route
   }
@@ -59,12 +38,6 @@ function inferRouteFromFeature(
   if (codePath) {
     const routeMatch = codePath.match(/app\/(?:\([^)]+\)\/)?([^/]+)\//)
     if (routeMatch) return '/' + routeMatch[1]
-  }
-
-  // Level 3: keyword matching against feature name
-  const lower = featureName.toLowerCase()
-  for (const [keyword, route] of Object.entries(ROUTE_KEYWORD_MAP)) {
-    if (lower.includes(keyword)) return route
   }
 
   return null

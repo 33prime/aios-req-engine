@@ -173,7 +173,8 @@ export default function ReviewStartModal({
             </p>
 
             {/* Feature breakdown */}
-            <div className="rounded-xl border border-[#E5E5E5] bg-[#FAFAFA] px-4 py-3 mb-5">
+            <div className="rounded-2xl border border-[#E5E5E5] bg-[#FAFAFA] px-4 py-3 mb-5">
+              <p className="text-[11px] font-medium text-[#666666] uppercase tracking-wide mb-2">Tour Breakdown</p>
               <div className="flex items-center gap-3 text-xs text-[#666666]">
                 {primaryCount > 0 && (
                   <span>
@@ -204,7 +205,7 @@ export default function ReviewStartModal({
 
             {/* Resumable session */}
             {resumableSession && resumeVerdictCounts && (
-              <div className="rounded-xl border border-[#3FAF7A]/30 bg-[#E8F5E9]/30 px-4 py-4 mb-5">
+              <div className="rounded-2xl border border-[#3FAF7A]/30 bg-[#E8F5E9]/30 px-4 py-4 mb-5">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-xs font-medium text-[#333333]">
                     Session #{resumableSession.session_number} &mdash;{' '}

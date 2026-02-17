@@ -19,6 +19,7 @@ import {
   Check,
   X,
   Square,
+  CheckCircle2,
   Sparkles,
   Loader2,
 } from 'lucide-react'
@@ -217,27 +218,42 @@ export function BuildPhaseView({
               </button>
 
               {/* Review toggle button */}
-              {isReviewActive ? (
-                <button
-                  onClick={async () => {
-                    setIsEndingReview(true)
-                    try {
-                      await onEndReview()
-                    } finally {
-                      setIsEndingReview(false)
-                    }
-                  }}
-                  disabled={isEndingReview}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors disabled:opacity-50"
-                >
-                  {isEndingReview ? (
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  ) : (
+              {isReviewActive ? (() => {
+                const reviewedCount = overlays.filter(o => o.consultant_verdict).length
+                const totalCount = overlays.length
+                const allReviewed = totalCount > 0 && reviewedCount === totalCount
+
+                return allReviewed ? (
+                  <button
+                    onClick={async () => {
+                      setIsEndingReview(true)
+                      try {
+                        await onEndReview()
+                      } finally {
+                        setIsEndingReview(false)
+                      }
+                    }}
+                    disabled={isEndingReview}
+                    className="flex items-center gap-1.5 px-4 py-1.5 text-sm font-medium text-white bg-[#3FAF7A] hover:bg-[#25785A] rounded-xl transition-colors shadow-sm disabled:opacity-60"
+                  >
+                    {isEndingReview ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                    )}
+                    {isEndingReview ? 'Ending...' : 'End Review'}
+                  </button>
+                ) : (
+                  <button
+                    disabled
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-[#999999] bg-[#F0F0F0] rounded-xl cursor-not-allowed"
+                    title={`Review all features before ending (${reviewedCount}/${totalCount})`}
+                  >
                     <Square className="w-3.5 h-3.5" />
-                  )}
-                  {isEndingReview ? 'Ending...' : 'End Review'}
-                </button>
-              ) : (
+                    End Review ({reviewedCount}/{totalCount})
+                  </button>
+                )
+              })() : (
                 <button
                   onClick={onStartReview}
                   className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-brand-primary bg-brand-primary/5 hover:bg-brand-primary/10 rounded-lg transition-colors"

@@ -45,6 +45,7 @@ import type { VpStep } from '@/types/api'
 import type { DesignSelection, FeatureOverlay, FeatureVerdict, PrototypeSession, TourStep, SessionContext, RouteFeatureMap } from '@/types/prototype'
 import type { PrototypeFrameHandle } from '@/components/prototype/PrototypeFrame'
 import ReviewStartModal from '@/components/prototype/ReviewStartModal'
+import ReviewEndModal from '@/components/prototype/ReviewEndModal'
 
 interface WorkspaceLayoutProps {
   projectId: string
@@ -544,55 +545,40 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
             )}
 
             {phase === 'build' && canvasData && (
-              <div className="h-[calc(100vh-140px)] bg-white rounded-card border border-ui-cardBorder overflow-hidden">
-                {reviewPhase === 'awaiting_client' && clientShareData ? (
-                  <AwaitingClientPanel
-                    overlays={overlays}
-                    clientShareData={clientShareData}
-                    reviewPhase={reviewPhase}
-                    onShareWithClient={() => {
-                      const fullUrl = typeof window !== 'undefined'
-                        ? `${window.location.origin}${clientShareData.url}`
-                        : clientShareData.url
-                      navigator.clipboard.writeText(fullUrl)
-                    }}
-                    onFixFirst={handleRunSynthesis}
-                    onKeepWorking={handleKeepWorking}
-                  />
-                ) : reviewPhase === 'synthesizing' ? (
-                  <div className="flex items-center justify-center h-full bg-[#F4F4F4]">
-                    <div className="text-center">
-                      <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#3FAF7A] mx-auto mb-4" />
-                      <h3 className="text-sm font-semibold text-[#333333]">Synthesizing feedback...</h3>
-                      <p className="text-xs text-[#666666] mt-1">Generating code updates from review verdicts</p>
-                    </div>
+              <div className="h-[calc(100vh-140px)] bg-white rounded-card border border-ui-cardBorder overflow-hidden relative">
+                {/* Synthesizing banner — floats over prototype */}
+                {reviewPhase === 'synthesizing' && (
+                  <div className="absolute top-0 left-0 right-0 z-10 flex items-center justify-center gap-2 px-4 py-2 bg-[#3FAF7A]/10 border-b border-[#3FAF7A]/20 text-sm text-[#25785A]">
+                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-[#3FAF7A] border-t-transparent" />
+                    <span className="font-medium">Synthesizing feedback...</span>
+                    <span className="text-xs text-[#666666]">Generating code updates from review verdicts</span>
                   </div>
-                ) : (
-                  <BuildPhaseView
-                    projectId={projectId}
-                    prototypeUrl={canvasData.prototype_url}
-                    prototypeUpdatedAt={canvasData.prototype_updated_at}
-                    readinessScore={brdData?.completeness?.overall_score ?? readinessData?.score ?? canvasData.readiness_score}
-                    onUpdatePrototypeUrl={handleUpdatePrototypeUrl}
-                    onGeneratePrototype={handleGeneratePrototype}
-                    isReviewActive={isReviewActive}
-                    onStartReview={handleStartReview}
-                    onEndReview={handleEndReview}
-                    session={reviewSession}
-                    overlays={overlays}
-                    vpSteps={vpSteps}
-                    reviewTourMode={reviewTourMode}
-                    onFeatureClick={handleFeatureClick}
-                    onPageChange={handlePageChange}
-                    onTourStepChange={handleTourStepChange}
-                    onTourEnd={handleTourEnd}
-                    onFrameReady={handleFrameReady}
-                    routeFeatureMap={routeFeatureMap}
-                    isFrameReady={isFrameReady}
-                    frameRef={frameRef}
-                    collaborationWidth={collaborationWidth}
-                  />
                 )}
+
+                <BuildPhaseView
+                  projectId={projectId}
+                  prototypeUrl={canvasData.prototype_url}
+                  prototypeUpdatedAt={canvasData.prototype_updated_at}
+                  readinessScore={brdData?.completeness?.overall_score ?? readinessData?.score ?? canvasData.readiness_score}
+                  onUpdatePrototypeUrl={handleUpdatePrototypeUrl}
+                  onGeneratePrototype={handleGeneratePrototype}
+                  isReviewActive={isReviewActive}
+                  onStartReview={handleStartReview}
+                  onEndReview={handleEndReview}
+                  session={reviewSession}
+                  overlays={overlays}
+                  vpSteps={vpSteps}
+                  reviewTourMode={reviewTourMode}
+                  onFeatureClick={handleFeatureClick}
+                  onPageChange={handlePageChange}
+                  onTourStepChange={handleTourStepChange}
+                  onTourEnd={handleTourEnd}
+                  onFrameReady={handleFrameReady}
+                  routeFeatureMap={routeFeatureMap}
+                  isFrameReady={isFrameReady}
+                  frameRef={frameRef}
+                  collaborationWidth={collaborationWidth}
+                />
               </div>
             )}
 
@@ -632,6 +618,21 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
           onStartReview={handleReviewModalStart}
         />
 
+        {/* Review End Modal — overlay on top of prototype */}
+        <ReviewEndModal
+          isOpen={reviewPhase === 'awaiting_client' && !!clientShareData}
+          overlays={overlays}
+          clientShareData={clientShareData ?? { token: '', url: '' }}
+          onShareWithClient={() => {
+            const fullUrl = typeof window !== 'undefined'
+              ? `${window.location.origin}${clientShareData?.url ?? ''}`
+              : clientShareData?.url ?? ''
+            navigator.clipboard.writeText(fullUrl)
+          }}
+          onFixFirst={handleRunSynthesis}
+          onKeepWorking={handleKeepWorking}
+        />
+
         {/* Right Collaboration Panel */}
         <CollaborationPanel
           projectId={projectId}
@@ -657,120 +658,6 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
         />
       </div>
     </AssistantProvider>
-  )
-}
-
-// =============================================================================
-// AwaitingClientPanel — shown after consultant ends review
-// =============================================================================
-
-function AwaitingClientPanel({
-  overlays,
-  clientShareData,
-  reviewPhase,
-  onShareWithClient,
-  onFixFirst,
-  onKeepWorking,
-}: {
-  overlays: FeatureOverlay[]
-  clientShareData: { token: string; url: string }
-  reviewPhase: string
-  onShareWithClient: () => void
-  onFixFirst: () => void
-  onKeepWorking: () => void
-}) {
-  const fullUrl = typeof window !== 'undefined'
-    ? `${window.location.origin}${clientShareData.url}`
-    : clientShareData.url
-
-  const verdictCounts = overlays.reduce(
-    (acc, o) => {
-      const v = o.consultant_verdict
-      if (v === 'aligned') acc.aligned++
-      else if (v === 'needs_adjustment') acc.needs_adjustment++
-      else if (v === 'off_track') acc.off_track++
-      return acc
-    },
-    { aligned: 0, needs_adjustment: 0, off_track: 0 }
-  )
-
-  return (
-    <div className="flex items-center justify-center h-full bg-[#F4F4F4]">
-      <div className="max-w-lg w-full space-y-6 px-6">
-        <div className="text-center">
-          <h2 className="text-lg font-semibold text-[#333333]">Review Complete</h2>
-          <p className="text-sm text-[#666666] mt-1">What would you like to do next?</p>
-        </div>
-
-        {/* Verdict summary */}
-        <div className="rounded-2xl border border-[#E5E5E5] bg-white p-5 shadow-md">
-          <p className="text-xs font-medium text-[#666666] uppercase tracking-wide mb-3">
-            Your Verdict Summary
-          </p>
-          <div className="flex gap-4">
-            <div className="flex-1 text-center">
-              <div className="text-xl font-bold text-[#25785A]">{verdictCounts.aligned}</div>
-              <div className="text-[10px] text-[#666666]">Aligned</div>
-            </div>
-            <div className="flex-1 text-center">
-              <div className="text-xl font-bold text-amber-700">{verdictCounts.needs_adjustment}</div>
-              <div className="text-[10px] text-[#666666]">Needs Adj.</div>
-            </div>
-            <div className="flex-1 text-center">
-              <div className="text-xl font-bold text-red-700">{verdictCounts.off_track}</div>
-              <div className="text-[10px] text-[#666666]">Off Track</div>
-            </div>
-          </div>
-        </div>
-
-        {/* Share link */}
-        <div className="rounded-2xl border border-[#E5E5E5] bg-white p-5 shadow-md">
-          <p className="text-xs font-medium text-[#666666] uppercase tracking-wide mb-2">
-            Client Review Link
-          </p>
-          <div className="flex items-center gap-2">
-            <input
-              readOnly
-              value={fullUrl}
-              className="flex-1 text-xs px-3 py-2 border border-[#E5E5E5] rounded-lg bg-[#F4F4F4] text-[#333333] truncate"
-            />
-            <button
-              onClick={() => navigator.clipboard.writeText(fullUrl)}
-              className="px-3 py-2 text-xs font-medium border border-[#E5E5E5] rounded-lg hover:bg-[#F4F4F4] transition-colors text-[#333333]"
-            >
-              Copy
-            </button>
-          </div>
-        </div>
-
-        {/* Action buttons */}
-        <div className="space-y-3">
-          <button
-            onClick={onShareWithClient}
-            className="w-full px-6 py-3 bg-[#3FAF7A] text-white font-medium rounded-xl hover:bg-[#25785A] transition-all duration-200 shadow-md"
-          >
-            Share with Client — All Good
-          </button>
-          <button
-            onClick={onFixFirst}
-            className="w-full px-6 py-3 bg-white border border-[#E5E5E5] text-[#333333] font-medium rounded-xl hover:bg-[#F4F4F4] transition-all duration-200 shadow-md"
-          >
-            Fix First, Then Share
-          </button>
-          <button
-            onClick={onKeepWorking}
-            className="w-full px-4 py-2 text-sm text-[#666666] hover:text-[#333333] transition-colors"
-          >
-            Not Ready — Keep Working
-          </button>
-        </div>
-
-        {/* Polling indicator */}
-        <p className="text-center text-[10px] text-[#999999]">
-          Listening for client feedback...
-        </p>
-      </div>
-    </div>
   )
 }
 
