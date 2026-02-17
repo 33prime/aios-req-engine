@@ -41,6 +41,9 @@ interface OverviewPanelProps {
   readinessData: ReadinessScore | null
   brdData: BRDWorkspaceData | null
   nextActions: NextAction[] | null
+  initialTaskStats?: TaskStatsResponse | null
+  initialHistory?: CollaborationHistoryResponse | null
+  initialQuestionCounts?: QuestionCounts | null
   onNavigateToPhase: (phase: 'discovery' | 'build') => void
 }
 
@@ -76,14 +79,19 @@ export function OverviewPanel({
   readinessData,
   brdData,
   nextActions,
+  initialTaskStats,
+  initialHistory,
+  initialQuestionCounts,
   onNavigateToPhase,
 }: OverviewPanelProps) {
-  const [taskStats, setTaskStats] = useState<TaskStatsResponse | null>(null)
+  const [taskStats, setTaskStats] = useState<TaskStatsResponse | null>(initialTaskStats ?? null)
   const [taskRefreshKey, setTaskRefreshKey] = useState(0)
-  const [history, setHistory] = useState<CollaborationHistoryResponse | null>(null)
-  const [questionCounts, setQuestionCounts] = useState<QuestionCounts | null>(null)
+  const [history, setHistory] = useState<CollaborationHistoryResponse | null>(initialHistory ?? null)
+  const [questionCounts, setQuestionCounts] = useState<QuestionCounts | null>(initialQuestionCounts ?? null)
 
   useEffect(() => {
+    // Skip fetch if parent already prefetched (eliminates waterfall)
+    if (initialTaskStats !== undefined && initialHistory !== undefined && initialQuestionCounts !== undefined) return
     const load = async () => {
       const [stats, hist, qCounts] = await Promise.all([
         getTaskStats(projectId).catch(() => null),
@@ -95,7 +103,7 @@ export function OverviewPanel({
       setQuestionCounts(qCounts)
     }
     load()
-  }, [projectId])
+  }, [projectId, initialTaskStats, initialHistory, initialQuestionCounts])
 
   const pendingCount = taskStats?.by_status?.pending ?? 0
   const actions = nextActions ?? []

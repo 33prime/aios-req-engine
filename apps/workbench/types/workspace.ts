@@ -665,6 +665,7 @@ export interface BRDWorkspaceData {
   workflow_pairs: WorkflowPair[]
   roi_summary: ROISummary[]
   completeness?: BRDCompleteness | null
+  next_actions?: import('@/lib/api').NextAction[]
 }
 
 // ============================================

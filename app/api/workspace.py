@@ -1,5 +1,6 @@
 """Workspace API endpoints for the new canvas-based UI."""
 
+import asyncio
 import json
 import logging
 from datetime import UTC
@@ -150,25 +151,58 @@ async def get_workspace_data(project_id: UUID) -> WorkspaceData:
 
     Returns project info, personas, features, VP steps with features mapped,
     and collaboration status in a single request.
+
+    All independent database queries run in parallel via asyncio.gather().
     """
     client = get_client()
+    pid = str(project_id)
 
     try:
-        # Get project - use select("*") to avoid errors if migration hasn't run yet
-        project_result = client.table("projects").select(
-            "*"
-        ).eq("id", str(project_id)).single().execute()
+        # Fire all independent queries in parallel
+        def _q_project():
+            return client.table("projects").select("*").eq("id", pid).single().execute()
+
+        def _q_personas():
+            return client.table("personas").select("*").eq("project_id", pid).execute()
+
+        def _q_features():
+            return client.table("features").select("*").eq("project_id", pid).execute()
+
+        def _q_vp_steps():
+            return client.table("vp_steps").select("*").eq("project_id", pid).order("step_index").execute()
+
+        def _q_pending():
+            try:
+                return client.table("pending_items").select("id", count="exact").eq("project_id", pid).eq("status", "pending").execute()
+            except Exception:
+                return None
+
+        def _q_portal_clients():
+            try:
+                return client.table("project_members").select(
+                    "id, user_id, accepted_at, users(id, email, first_name, last_name)"
+                ).eq("project_id", pid).eq("role", "client").execute()
+            except Exception:
+                return None
+
+        (
+            project_result, personas_result, features_result,
+            vp_result, pending_result, members_result,
+        ) = await asyncio.gather(
+            asyncio.to_thread(_q_project),
+            asyncio.to_thread(_q_personas),
+            asyncio.to_thread(_q_features),
+            asyncio.to_thread(_q_vp_steps),
+            asyncio.to_thread(_q_pending),
+            asyncio.to_thread(_q_portal_clients),
+        )
 
         if not project_result.data:
             raise HTTPException(status_code=404, detail="Project not found")
 
         project = project_result.data
 
-        # Get personas
-        personas_result = client.table("personas").select(
-            "*"
-        ).eq("project_id", str(project_id)).execute()
-
+        # Process results (all in-memory)
         personas = [
             PersonaSummary(
                 id=p["id"],
@@ -180,11 +214,6 @@ async def get_workspace_data(project_id: UUID) -> WorkspaceData:
             )
             for p in (personas_result.data or [])
         ]
-
-        # Get features
-        features_result = client.table("features").select(
-            "*"
-        ).eq("project_id", str(project_id)).execute()
 
         all_features = [
             FeatureSummary(
@@ -198,19 +227,10 @@ async def get_workspace_data(project_id: UUID) -> WorkspaceData:
             for f in (features_result.data or [])
         ]
 
-        # Separate mapped and unmapped features
         mapped_features = [f for f in all_features if f.vp_step_id]
         unmapped_features = [f for f in all_features if not f.vp_step_id]
 
-        # Get VP steps
-        vp_result = client.table("vp_steps").select(
-            "*"
-        ).eq("project_id", str(project_id)).order("step_index").execute()
-
-        # Build persona lookup for actor names
         persona_lookup = {p.id: p.name for p in personas}
-
-        # Build VP steps with their features
         vp_steps = []
         for step in (vp_result.data or []):
             step_features = [f for f in mapped_features if f.vp_step_id == step["id"]]
@@ -227,40 +247,24 @@ async def get_workspace_data(project_id: UUID) -> WorkspaceData:
                 features=step_features,
             ))
 
-        # Get portal clients
+        # Portal clients (only use result if portal is enabled)
         portal_clients = []
-        if project.get("portal_enabled"):
-            try:
-                members_result = client.table("project_members").select(
-                    "id, user_id, accepted_at, users(id, email, first_name, last_name)"
-                ).eq("project_id", str(project_id)).eq("role", "client").execute()
+        if project.get("portal_enabled") and members_result:
+            for member in (members_result.data or []):
+                user = member.get("users", {})
+                if user:
+                    name_parts = [user.get("first_name"), user.get("last_name")]
+                    name = " ".join(p for p in name_parts if p) or None
+                    portal_clients.append(PortalClientSummary(
+                        id=user["id"],
+                        email=user.get("email", ""),
+                        name=name,
+                        status="active" if member.get("accepted_at") else "pending",
+                        last_activity=None,
+                    ))
 
-                for member in (members_result.data or []):
-                    user = member.get("users", {})
-                    if user:
-                        name_parts = [user.get("first_name"), user.get("last_name")]
-                        name = " ".join(p for p in name_parts if p) or None
-                        portal_clients.append(PortalClientSummary(
-                            id=user["id"],
-                            email=user.get("email", ""),
-                            name=name,
-                            status="active" if member.get("accepted_at") else "pending",
-                            last_activity=None,
-                        ))
-            except Exception:
-                pass  # Table or relationship might not exist
+        pending_count = pending_result.count or 0 if pending_result else 0
 
-        # Get pending count
-        pending_count = 0
-        try:
-            pending_result = client.table("pending_items").select(
-                "id", count="exact"
-            ).eq("project_id", str(project_id)).eq("status", "pending").execute()
-            pending_count = pending_result.count or 0
-        except Exception:
-            pass  # Table might not exist yet
-
-        # Get readiness score from the projects table (updated by refresh pipeline)
         readiness_score = 0.0
         if project.get("cached_readiness_score") is not None:
             readiness_score = float(project["cached_readiness_score"]) * 100
@@ -562,37 +566,136 @@ async def get_brd_workspace_data(
     actors, workflows, requirements (MoSCoW grouped), and constraints.
 
     Pass include_evidence=false for faster initial loads (30-40% smaller payload).
+
+    All independent database queries run in parallel via asyncio.gather().
     """
     client = get_client()
+    pid = str(project_id)
 
     try:
-        # 1. Project info
-        project_result = client.table("projects").select(
-            "*"
-        ).eq("id", str(project_id)).single().execute()
+        # ================================================================
+        # Phase 1: Fire all independent queries in parallel
+        # ================================================================
+        def _q_project():
+            return client.table("projects").select("*").eq("id", pid).single().execute()
 
+        def _q_company_info():
+            try:
+                r = client.table("company_info").select(
+                    "name, description, industry"
+                ).eq("project_id", pid).maybe_single().execute()
+                return r.data if r else None
+            except Exception:
+                return None
+
+        def _q_drivers():
+            return client.table("business_drivers").select("*").eq("project_id", pid).execute()
+
+        def _q_personas():
+            return client.table("personas").select(
+                "id, name, role, description, goals, pain_points, confirmation_status, is_stale, stale_reason, canvas_role"
+            ).eq("project_id", pid).execute()
+
+        def _q_vp_steps():
+            return client.table("vp_steps").select("*").eq("project_id", pid).order("step_index").execute()
+
+        def _q_features():
+            return client.table("features").select(
+                "id, name, category, is_mvp, priority_group, confirmation_status, vp_step_id, evidence, overview, is_stale, stale_reason"
+            ).eq("project_id", pid).execute()
+
+        def _q_constraints():
+            return client.table("constraints").select("*").eq("project_id", pid).execute()
+
+        def _q_data_entities():
+            try:
+                return client.table("data_entities").select(
+                    "id, name, description, entity_category, fields, confirmation_status, evidence, is_stale, stale_reason"
+                ).eq("project_id", pid).order("created_at").execute()
+            except Exception:
+                return None
+
+        def _q_stakeholders():
+            try:
+                return client.table("stakeholders").select(
+                    "id, name, first_name, last_name, role, email, organization, stakeholder_type, "
+                    "influence_level, is_primary_contact, domain_expertise, confirmation_status, evidence"
+                ).eq("project_id", pid).order("created_at").execute()
+            except Exception:
+                return None
+
+        def _q_competitors():
+            try:
+                return client.table("competitor_references").select(
+                    "id, name, url, category, market_position, key_differentiator, "
+                    "pricing_model, target_audience, confirmation_status, "
+                    "deep_analysis_status, deep_analysis_at, is_design_reference, evidence"
+                ).eq("project_id", pid).eq("reference_type", "competitor").order("created_at").execute()
+            except Exception:
+                return None
+
+        def _q_pending():
+            try:
+                return client.table("pending_items").select(
+                    "id", count="exact"
+                ).eq("project_id", pid).eq("status", "pending").execute()
+            except Exception:
+                return None
+
+        def _q_workflow_pairs():
+            try:
+                from app.db.workflows import get_workflow_pairs
+                return get_workflow_pairs(project_id)
+            except Exception:
+                return []
+
+        (
+            project_result, company_info, drivers_result,
+            personas_result, vp_result, features_result,
+            constraints_result, de_result, sh_result,
+            comp_result, pending_result, workflow_pairs_raw,
+        ) = await asyncio.gather(
+            asyncio.to_thread(_q_project),
+            asyncio.to_thread(_q_company_info),
+            asyncio.to_thread(_q_drivers),
+            asyncio.to_thread(_q_personas),
+            asyncio.to_thread(_q_vp_steps),
+            asyncio.to_thread(_q_features),
+            asyncio.to_thread(_q_constraints),
+            asyncio.to_thread(_q_data_entities),
+            asyncio.to_thread(_q_stakeholders),
+            asyncio.to_thread(_q_competitors),
+            asyncio.to_thread(_q_pending),
+            asyncio.to_thread(_q_workflow_pairs),
+        )
+
+        # Validate project exists
         if not project_result.data:
             raise HTTPException(status_code=404, detail="Project not found")
 
         project = project_result.data
 
-        # 2. Company info (background)
-        company_info = None
-        try:
-            ci_result = client.table("company_info").select(
-                "name, description, industry"
-            ).eq("project_id", str(project_id)).maybe_single().execute()
-            if ci_result and ci_result.data:
-                company_info = ci_result.data
-        except Exception:
-            pass
+        # ================================================================
+        # Phase 2: Data entity workflow links (depends on de_result)
+        # ================================================================
+        de_rows = (de_result.data or []) if de_result else []
+        de_link_counts: dict[str, int] = {}
+        if de_rows:
+            de_ids = [d["id"] for d in de_rows]
+            de_links_result = await asyncio.to_thread(
+                lambda: client.table("data_entity_workflow_steps").select(
+                    "data_entity_id"
+                ).in_("data_entity_id", de_ids).execute()
+            )
+            for link in (de_links_result.data or []):
+                eid = link["data_entity_id"]
+                de_link_counts[eid] = de_link_counts.get(eid, 0) + 1
 
-        # 3. Business drivers (pain points, goals, KPIs)
-        drivers_result = client.table("business_drivers").select(
-            "*"
-        ).eq("project_id", str(project_id)).execute()
+        # ================================================================
+        # Processing: all in-memory, no more DB calls
+        # ================================================================
 
-        # Build raw driver lookup for link resolution
+        # 1. Business drivers
         all_drivers_raw = drivers_result.data or []
         driver_data_by_id: dict[str, dict] = {d["id"]: d for d in all_drivers_raw}
 
@@ -634,7 +737,6 @@ async def get_brd_workspace_data(
                     stale_reason=d.get("stale_reason"),
                 ))
             elif dtype == "kpi":
-                # Count missing fields among baseline_value, target_value, measurement_method
                 missing = sum(1 for f in [d.get("baseline_value"), d.get("target_value"), d.get("measurement_method")] if not f)
                 success_metrics.append(KPISummary(
                     id=d["id"],
@@ -659,11 +761,7 @@ async def get_brd_workspace_data(
                     stale_reason=d.get("stale_reason"),
                 ))
 
-        # 4. Personas
-        personas_result = client.table("personas").select(
-            "id, name, role, description, goals, pain_points, confirmation_status, is_stale, stale_reason, canvas_role"
-        ).eq("project_id", str(project_id)).execute()
-
+        # 2. Personas
         actors = [
             PersonaBRDSummary(
                 id=p["id"],
@@ -681,26 +779,24 @@ async def get_brd_workspace_data(
             for p in (personas_result.data or [])
         ]
 
-        # 4b. Resolve explicit links for driver summaries
+        # 3. Resolve explicit links for driver summaries
         persona_lookup = {p.id: p.name for p in actors}
 
         for driver_list in [pain_points, goals, success_metrics]:
             for driver_summary in driver_list:
                 raw = driver_data_by_id.get(driver_summary.id, {})
 
-                # Persona names from linked_persona_ids
-                for pid in raw.get("linked_persona_ids") or []:
-                    name = persona_lookup.get(str(pid))
+                for linked_pid in raw.get("linked_persona_ids") or []:
+                    name = persona_lookup.get(str(linked_pid))
                     if name and name not in driver_summary.associated_persona_names:
                         driver_summary.associated_persona_names.append(name)
 
-                # Counts for display
                 driver_summary.linked_feature_count = len(raw.get("linked_feature_ids") or [])
                 driver_summary.linked_persona_count = len(raw.get("linked_persona_ids") or [])
                 driver_summary.linked_workflow_count = len(raw.get("linked_vp_step_ids") or [])
                 driver_summary.vision_alignment = raw.get("vision_alignment")
 
-        # 4c. Fallback: text-overlap association if no explicit links
+        # 3b. Fallback: text-overlap association if no explicit links
         for pain in pain_points:
             if not pain.associated_persona_names:
                 desc_lower = pain.description.lower()
@@ -721,18 +817,8 @@ async def get_brd_workspace_data(
                                 goal.associated_persona_names.append(actor.name)
                             break
 
-        # 5. VP Steps
-        vp_result = client.table("vp_steps").select(
-            "*"
-        ).eq("project_id", str(project_id)).order("step_index").execute()
-
-        # We'll populate feature_ids/feature_names after loading features below
+        # 4. VP Steps + Features
         raw_vp_steps = vp_result.data or []
-
-        # 6. Features grouped by priority_group
-        features_result = client.table("features").select(
-            "id, name, category, is_mvp, priority_group, confirmation_status, vp_step_id, evidence, overview, is_stale, stale_reason"
-        ).eq("project_id", str(project_id)).execute()
 
         requirements = RequirementsSection()
         for f in (features_result.data or []):
@@ -757,10 +843,8 @@ async def get_brd_workspace_data(
             elif group == "out_of_scope":
                 requirements.out_of_scope.append(summary)
             else:
-                # Default unset to should_have
                 requirements.should_have.append(summary)
 
-        # 6b. Build vp_step -> feature map and create workflows
         vp_step_feature_map: dict[str, list[tuple[str, str]]] = {}
         for f in (features_result.data or []):
             sid = f.get("vp_step_id")
@@ -785,11 +869,7 @@ async def get_brd_workspace_data(
                 stale_reason=step.get("stale_reason"),
             ))
 
-        # 7. Constraints
-        constraints_result = client.table("constraints").select(
-            "*"
-        ).eq("project_id", str(project_id)).execute()
-
+        # 5. Constraints
         constraints = [
             ConstraintSummary(
                 id=c["id"],
@@ -809,129 +889,78 @@ async def get_brd_workspace_data(
             for c in (constraints_result.data or [])
         ]
 
-        # 8. Data entities
+        # 6. Data entities
         data_entities_list: list[DataEntityBRDSummary] = []
-        try:
-            de_result = client.table("data_entities").select(
-                "id, name, description, entity_category, fields, confirmation_status, evidence, is_stale, stale_reason"
-            ).eq("project_id", str(project_id)).order("created_at").execute()
+        for d in de_rows:
+            fields_data = d.get("fields") or []
+            if isinstance(fields_data, str):
+                try:
+                    fields_data = json.loads(fields_data)
+                except Exception:
+                    fields_data = []
+            if not isinstance(fields_data, list):
+                fields_data = []
+            data_entities_list.append(DataEntityBRDSummary(
+                id=d["id"],
+                name=d["name"],
+                description=d.get("description"),
+                entity_category=d.get("entity_category", "domain"),
+                fields=fields_data,
+                field_count=len(fields_data),
+                workflow_step_count=de_link_counts.get(d["id"], 0),
+                confirmation_status=d.get("confirmation_status"),
+                evidence=_parse_evidence(d.get("evidence")) if include_evidence else [],
+                is_stale=d.get("is_stale", False),
+                stale_reason=d.get("stale_reason"),
+            ))
 
-            de_rows = de_result.data or []
-            if de_rows:
-                de_ids = [d["id"] for d in de_rows]
-                de_links_result = client.table("data_entity_workflow_steps").select(
-                    "data_entity_id"
-                ).in_("data_entity_id", de_ids).execute()
-                de_link_counts: dict[str, int] = {}
-                for link in (de_links_result.data or []):
-                    eid = link["data_entity_id"]
-                    de_link_counts[eid] = de_link_counts.get(eid, 0) + 1
-
-                for d in de_rows:
-                    fields_data = d.get("fields") or []
-                    if isinstance(fields_data, str):
-                        try:
-                            import json as _json
-                            fields_data = _json.loads(fields_data)
-                        except Exception:
-                            fields_data = []
-                    if not isinstance(fields_data, list):
-                        fields_data = []
-                    data_entities_list.append(DataEntityBRDSummary(
-                        id=d["id"],
-                        name=d["name"],
-                        description=d.get("description"),
-                        entity_category=d.get("entity_category", "domain"),
-                        fields=fields_data,
-                        field_count=len(fields_data),
-                        workflow_step_count=de_link_counts.get(d["id"], 0),
-                        confirmation_status=d.get("confirmation_status"),
-                        evidence=_parse_evidence(d.get("evidence")) if include_evidence else [],
-                        is_stale=d.get("is_stale", False),
-                        stale_reason=d.get("stale_reason"),
-                    ))
-        except Exception:
-            logger.debug(f"Could not load data entities for project {project_id}")
-
-        # 8b. Stakeholders
+        # 7. Stakeholders
         stakeholders_list: list[StakeholderBRDSummary] = []
-        try:
-            sh_result = client.table("stakeholders").select(
-                "id, name, first_name, last_name, role, email, organization, stakeholder_type, "
-                "influence_level, is_primary_contact, domain_expertise, confirmation_status, evidence"
-            ).eq("project_id", str(project_id)).order("created_at").execute()
+        for s in ((sh_result.data or []) if sh_result else []):
+            stakeholders_list.append(StakeholderBRDSummary(
+                id=s["id"],
+                name=s["name"],
+                first_name=s.get("first_name"),
+                last_name=s.get("last_name"),
+                role=s.get("role"),
+                email=s.get("email"),
+                organization=s.get("organization"),
+                stakeholder_type=s.get("stakeholder_type"),
+                influence_level=s.get("influence_level"),
+                is_primary_contact=s.get("is_primary_contact", False),
+                domain_expertise=s.get("domain_expertise") or [],
+                confirmation_status=s.get("confirmation_status"),
+                evidence=_parse_evidence(s.get("evidence")) if include_evidence else [],
+            ))
 
-            for s in (sh_result.data or []):
-                stakeholders_list.append(StakeholderBRDSummary(
-                    id=s["id"],
-                    name=s["name"],
-                    first_name=s.get("first_name"),
-                    last_name=s.get("last_name"),
-                    role=s.get("role"),
-                    email=s.get("email"),
-                    organization=s.get("organization"),
-                    stakeholder_type=s.get("stakeholder_type"),
-                    influence_level=s.get("influence_level"),
-                    is_primary_contact=s.get("is_primary_contact", False),
-                    domain_expertise=s.get("domain_expertise") or [],
-                    confirmation_status=s.get("confirmation_status"),
-                    evidence=_parse_evidence(s.get("evidence")) if include_evidence else [],
-                ))
-        except Exception:
-            logger.debug(f"Could not load stakeholders for project {project_id}")
-
-        # 8c. Competitors
+        # 8. Competitors
         competitors_list: list[CompetitorBRDSummary] = []
-        try:
-            comp_result = client.table("competitor_references").select(
-                "id, name, url, category, market_position, key_differentiator, "
-                "pricing_model, target_audience, confirmation_status, "
-                "deep_analysis_status, deep_analysis_at, is_design_reference, evidence"
-            ).eq("project_id", str(project_id)).eq(
-                "reference_type", "competitor"
-            ).order("created_at").execute()
+        for c in ((comp_result.data or []) if comp_result else []):
+            competitors_list.append(CompetitorBRDSummary(
+                id=c["id"],
+                name=c["name"],
+                url=c.get("url"),
+                category=c.get("category"),
+                market_position=c.get("market_position"),
+                key_differentiator=c.get("key_differentiator"),
+                pricing_model=c.get("pricing_model"),
+                target_audience=c.get("target_audience"),
+                confirmation_status=c.get("confirmation_status"),
+                deep_analysis_status=c.get("deep_analysis_status"),
+                deep_analysis_at=c.get("deep_analysis_at"),
+                is_design_reference=c.get("is_design_reference", False),
+                evidence=_parse_evidence(c.get("evidence")) if include_evidence else [],
+            ))
 
-            for c in (comp_result.data or []):
-                competitors_list.append(CompetitorBRDSummary(
-                    id=c["id"],
-                    name=c["name"],
-                    url=c.get("url"),
-                    category=c.get("category"),
-                    market_position=c.get("market_position"),
-                    key_differentiator=c.get("key_differentiator"),
-                    pricing_model=c.get("pricing_model"),
-                    target_audience=c.get("target_audience"),
-                    confirmation_status=c.get("confirmation_status"),
-                    deep_analysis_status=c.get("deep_analysis_status"),
-                    deep_analysis_at=c.get("deep_analysis_at"),
-                    is_design_reference=c.get("is_design_reference", False),
-                    evidence=_parse_evidence(c.get("evidence")) if include_evidence else [],
-                ))
-        except Exception:
-            logger.debug(f"Could not load competitors for project {project_id}")
-
-        # 9. Readiness score + pending count
+        # 9. Readiness + pending count
         readiness_score = 0.0
         if project.get("cached_readiness_score") is not None:
             readiness_score = float(project["cached_readiness_score"]) * 100
 
-        pending_count = 0
-        try:
-            pending_result = client.table("pending_items").select(
-                "id", count="exact"
-            ).eq("project_id", str(project_id)).eq("status", "pending").execute()
-            pending_count = pending_result.count or 0
-        except Exception:
-            pass
+        pending_count = pending_result.count or 0 if pending_result else 0
 
-        # 9. Workflow pairs (current/future state)
-        workflow_pairs_raw: list[dict] = []
+        # 10. Workflow pairs
         roi_summary_list: list[ROISummary] = []
-        try:
-            from app.db.workflows import get_workflow_pairs
-            workflow_pairs_raw = get_workflow_pairs(project_id)
-        except Exception:
-            logger.debug(f"Could not load workflow pairs for project {project_id}")
 
         workflow_pairs_out = []
         for wp in workflow_pairs_raw:
@@ -1035,7 +1064,10 @@ async def get_brd_workspace_data(
             features=all_features_flat,
         )
 
-        return BRDWorkspaceData(
+        # 12. Compute next actions inline (avoids separate API call + duplicate BRD load)
+        from app.core.next_actions import compute_next_actions
+
+        brd_result = BRDWorkspaceData(
             business_context=BusinessContextSection(
                 background=company_info.get("description") if company_info else None,
                 company_name=company_info.get("name") if company_info else None,
@@ -1060,6 +1092,19 @@ async def get_brd_workspace_data(
             roi_summary=roi_summary_list,
             completeness=completeness,
         )
+
+        try:
+            brd_dict = brd_result.model_dump()
+            next_actions = compute_next_actions(
+                brd_dict,
+                brd_dict.get("stakeholders", []),
+                brd_dict.get("completeness"),
+            )
+            brd_result.next_actions = next_actions
+        except Exception:
+            logger.warning(f"Failed to compute inline next-actions for project {project_id}")
+
+        return brd_result
 
     except HTTPException:
         raise

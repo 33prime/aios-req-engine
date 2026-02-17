@@ -50,7 +50,6 @@ import {
   refreshStaleEntity,
   updateCanvasRole,
   inferConstraints,
-  getNextActions,
   listOpenQuestions,
 } from '@/lib/api'
 import type { NextAction } from '@/lib/api'
@@ -74,25 +73,13 @@ export function BRDCanvas({ projectId, initialData, initialNextActions, onRefres
   const [healthLoading, setHealthLoading] = useState(true)
   const [isRefreshingHealth, setIsRefreshingHealth] = useState(false)
 
-  // Next Best Actions
-  const [nextActions, setNextActions] = useState<NextAction[]>(initialNextActions ?? [])
-  const [nextActionsLoading, setNextActionsLoading] = useState(!initialNextActions)
+  // Next Best Actions (derived from BRD data — no separate API call)
+  const nextActions: NextAction[] = data?.next_actions ?? initialNextActions ?? []
+  const nextActionsLoading = isLoading
 
   // Open Questions
   const [openQuestions, setOpenQuestions] = useState<OpenQuestion[]>([])
   const [questionsLoading, setQuestionsLoading] = useState(true)
-
-  const loadNextActions = useCallback(async () => {
-    try {
-      setNextActionsLoading(true)
-      const result = await getNextActions(projectId)
-      setNextActions(result.actions)
-    } catch (err) {
-      console.error('Failed to load next actions:', err)
-    } finally {
-      setNextActionsLoading(false)
-    }
-  }, [projectId])
 
   const loadOpenQuestions = useCallback(async () => {
     try {
@@ -145,13 +132,12 @@ export function BRDCanvas({ projectId, initialData, initialNextActions, onRefres
   }, [projectId])
 
   useEffect(() => {
-    // Skip BRD data + next actions fetch if parent already provided them
+    // Skip BRD data fetch if parent already provided it (next_actions are included in BRD response)
     if (!initialData) loadData()
-    if (!initialNextActions) loadNextActions()
     // Health is always loaded fresh (lightweight, not duplicated by parent)
     loadHealth()
     loadOpenQuestions()
-  }, [loadData, loadHealth, loadNextActions, loadOpenQuestions, initialData, initialNextActions])
+  }, [loadData, loadHealth, loadOpenQuestions, initialData])
 
   // Optimistic confirm: update local state immediately, then sync
   const handleConfirm = useCallback(async (entityType: string, entityId: string) => {

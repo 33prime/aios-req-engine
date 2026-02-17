@@ -31,8 +31,13 @@ import {
   getPrototypeOverlays,
   createPrototypeSession,
   generatePrototype,
+  getTaskStats,
+  getCollaborationHistory,
+  getQuestionCounts,
 } from '@/lib/api'
-import { useBRDData, useNextActions } from '@/lib/hooks/use-api'
+import type { TaskStatsResponse, CollaborationHistoryResponse } from '@/lib/api'
+import type { QuestionCounts } from '@/types/workspace'
+import { useBRDData } from '@/lib/hooks/use-api'
 import type { CanvasData } from '@/types/workspace'
 import type { ReadinessScore } from '@/lib/api'
 import type { VpStep } from '@/types/api'
@@ -48,14 +53,17 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
   const [phase, setPhase] = useState<WorkspacePhase>('overview')
   const [canvasData, setCanvasData] = useState<CanvasData | null>(null)
   const [readinessData, setReadinessData] = useState<ReadinessScore | null>(null)
+  const [taskStats, setTaskStats] = useState<TaskStatsResponse | null>(null)
+  const [collaborationHistory, setCollaborationHistory] = useState<CollaborationHistoryResponse | null>(null)
+  const [questionCounts, setQuestionCounts] = useState<QuestionCounts | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  // SWR hooks for read-only data (cached across page navigations)
+  // SWR hook for read-only BRD data (cached across page navigations)
+  // next_actions are included in the BRD response to avoid a separate API call
   const { data: brdSwr, mutate: mutateBrd } = useBRDData(projectId, false)
-  const { data: nextActionsSwr, mutate: mutateNextActions } = useNextActions(projectId)
   const brdData = brdSwr ?? null
-  const nextActions = nextActionsSwr?.actions ?? null
+  const nextActions = brdSwr?.next_actions ?? null
   const [collaborationState, setCollaborationState] = useState<PanelState>('normal')
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true)
   const [activeBottomPanel, setActiveBottomPanel] = useState<'context' | 'evidence' | 'history' | null>(null)
@@ -111,10 +119,13 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
       setIsLoading(true)
       setError(null)
 
-      const [data, readiness, proto] = await Promise.all([
+      const [data, readiness, proto, stats, history, qCounts] = await Promise.all([
         getWorkspaceData(projectId),
         getReadinessScore(projectId).catch(() => null),
         getPrototypeForProject(projectId).catch(() => null),
+        getTaskStats(projectId).catch(() => null),
+        getCollaborationHistory(projectId).catch(() => null),
+        getQuestionCounts(projectId).catch(() => null),
       ])
       if (proto?.deploy_url) {
         data.prototype_url = proto.deploy_url
@@ -122,10 +133,12 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
 
       setCanvasData(data)
       setReadinessData(readiness)
+      setTaskStats(stats)
+      setCollaborationHistory(history)
+      setQuestionCounts(qCounts)
 
-      // Revalidate SWR-managed data
+      // Revalidate SWR-managed BRD data (includes next_actions)
       mutateBrd()
-      mutateNextActions()
 
       // Auto-detect phase based on project state
       if (data.prototype_url) {
@@ -137,7 +150,7 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
     } finally {
       setIsLoading(false)
     }
-  }, [projectId, mutateBrd, mutateNextActions])
+  }, [projectId, mutateBrd])
 
   useEffect(() => {
     loadData()
@@ -399,6 +412,9 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
                 readinessData={readinessData}
                 brdData={brdData}
                 nextActions={nextActions}
+                initialTaskStats={taskStats}
+                initialHistory={collaborationHistory}
+                initialQuestionCounts={questionCounts}
                 onNavigateToPhase={(p) => setPhase(p)}
               />
             )}

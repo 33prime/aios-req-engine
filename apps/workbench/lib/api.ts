@@ -1054,8 +1054,8 @@ export interface ReadinessScore {
   build_gates_total?: number
 }
 
-export const getReadinessScore = (projectId: string) =>
-  apiRequest<ReadinessScore>(`/projects/${projectId}/readiness`)
+export const getReadinessScore = (projectId: string, forceRefresh = false) =>
+  apiRequest<ReadinessScore>(`/projects/${projectId}/readiness${forceRefresh ? '?force_refresh=true' : ''}`)
 
 // =============================================================================
 // DI Agent - Design Intelligence Agent
@@ -3252,4 +3252,19 @@ export const launchProject = (data: {
 export const getLaunchProgress = (projectId: string, launchId: string) =>
   apiRequest<import('@/types/workspace').LaunchProgressResponse>(
     `/projects/${projectId}/launch/${launchId}/progress`
+  )
+
+// ============================================================================
+// Consultant Enrichment
+// ============================================================================
+
+export const enrichConsultantProfile = (data: import('@/types/api').ConsultantEnrichRequest) =>
+  apiRequest<import('@/types/api').ConsultantEnrichResponse>(
+    '/consultant-enrichment/enrich',
+    { method: 'POST', body: JSON.stringify(data) }
+  )
+
+export const getConsultantEnrichmentStatus = () =>
+  apiRequest<import('@/types/api').ConsultantEnrichmentStatus>(
+    '/consultant-enrichment/status'
   )
