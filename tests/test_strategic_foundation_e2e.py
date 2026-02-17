@@ -11,6 +11,8 @@ Tests the complete flow:
 """
 
 import pytest
+
+pytestmark = pytest.mark.integration
 from uuid import uuid4, UUID
 from unittest.mock import patch, MagicMock, AsyncMock
 

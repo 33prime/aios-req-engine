@@ -17,44 +17,6 @@ def mock_build_state_output():
     """Create a mock BuildStateOutput for testing."""
     chunk_id = str(uuid4())
     return BuildStateOutput(
-        prd_sections=[
-            {
-                "slug": "personas",
-                "label": "Personas",
-                "required": True,
-                "status": "draft",
-                "fields": {"content": "Business consultants and end users"},
-                "client_needs": [],
-                "sources": [],
-                "evidence": [
-                    {
-                        "chunk_id": chunk_id,
-                        "excerpt": "Consultant must approve final recommendations",
-                        "rationale": "Shows consultant role",
-                    }
-                ],
-            },
-            {
-                "slug": "key_features",
-                "label": "Key Features",
-                "required": True,
-                "status": "draft",
-                "fields": {"content": "Diagnostic wizard, PDF generation"},
-                "client_needs": [],
-                "sources": [],
-                "evidence": [],
-            },
-            {
-                "slug": "happy_path",
-                "label": "Happy Path",
-                "required": True,
-                "status": "draft",
-                "fields": {"content": "User completes diagnostic, reviews results"},
-                "client_needs": [],
-                "sources": [],
-                "evidence": [],
-            },
-        ],
         vp_steps=[
             {
                 "step_index": 1,
@@ -138,6 +100,28 @@ def mock_build_state_output():
                 "evidence": [],
             },
         ],
+        personas=[
+            {
+                "slug": "consultant",
+                "name": "Business Consultant",
+                "role": "Consultant",
+                "demographics": {},
+                "psychographics": {},
+                "goals": ["Deliver value to clients"],
+                "pain_points": ["Manual analysis is slow"],
+                "description": "Business consultants who use the platform",
+            },
+            {
+                "slug": "end-user",
+                "name": "End User",
+                "role": "Client",
+                "demographics": {},
+                "psychographics": {},
+                "goals": ["Get actionable insights"],
+                "pain_points": ["Lack of visibility"],
+                "description": "End users who consume the diagnostic results",
+            },
+        ],
     )
 
 
@@ -154,7 +138,7 @@ def mock_all_deps(mock_build_state_output):
         mock_create_job.return_value = uuid4()
         mock_run_agent.return_value = (
             mock_build_state_output,
-            len(mock_build_state_output.prd_sections),
+            0,  # prd_count (deprecated, always 0)
             len(mock_build_state_output.vp_steps),
             len(mock_build_state_output.features),
         )
@@ -188,13 +172,11 @@ class TestBuildStateEndpoint:
         # Verify response structure
         assert "run_id" in data
         assert "job_id" in data
-        assert "prd_sections_upserted" in data
         assert "vp_steps_upserted" in data
         assert "features_written" in data
         assert "summary" in data
 
         # Verify counts
-        assert data["prd_sections_upserted"] == 3
         assert data["vp_steps_upserted"] == 3
         assert data["features_written"] == 5
 
@@ -330,7 +312,3 @@ class TestGetStateEndpoints:
             data = response.json()
             assert len(data) == 1
             assert data[0]["name"] == "Feature 1"
-
-
-
-

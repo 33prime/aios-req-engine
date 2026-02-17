@@ -152,7 +152,7 @@ These were intentionally removed:
 ## Known Debt
 
 See `docs/codebase-health-audit.md` for the full audit. Key items:
-- 112 broken backend tests (schema drift, stale imports from removed subsystems)
+- ~37 broken backend tests (DI agent drift, enrichment mock wiring, overlay pipeline drift)
 - ~80 TypeScript `any` types across frontend
 - `resendInvite` in `api.ts` calls a backend route that doesn't exist
 - `pytest-cov` is not installed (coverage commands will fail)

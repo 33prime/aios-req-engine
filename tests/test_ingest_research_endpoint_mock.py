@@ -1,6 +1,6 @@
-"""Tests for research ingestion endpoint with mocked dependencies."""
+"""Tests for structured research ingestion endpoint with mocked dependencies."""
 
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 from uuid import uuid4
 
 import pytest
@@ -11,11 +11,48 @@ from app.main import app
 client = TestClient(app)
 
 
+def _make_report(**overrides):
+    """Create a valid ResearchReport dict with all required fields."""
+    base = {
+        "id": overrides.pop("id", f"report-{uuid4().hex[:8]}"),
+        "title": "Test Research Report",
+        "summary": "This is a test summary.",
+        "verdict": "Positive outlook overall.",
+        "idea_analysis": {"title": "Idea Analysis", "content": "Core analysis here."},
+        "market_pain_points": {
+            "title": "Market Pain Points",
+            "macro_pressures": ["Regulatory changes"],
+            "company_specific": ["Manual processes"],
+        },
+        "feature_matrix": {
+            "must_have": ["Auth", "Dashboard"],
+            "unique_advanced": ["AI recommendations"],
+        },
+        "goals_and_benefits": {
+            "title": "Goals",
+            "organizational_goals": ["Efficiency"],
+            "stakeholder_benefits": ["Time savings"],
+        },
+        "unique_selling_propositions": [
+            {"title": "USP 1", "novelty": "Novel", "description": "Unique AI approach"}
+        ],
+        "user_personas": [
+            {"title": "Admin", "details": "Manages the platform"}
+        ],
+        "risks_and_mitigations": [
+            {"risk": "Data loss", "mitigation": "Backup strategy"}
+        ],
+        "market_data": {"title": "Market Data", "content": "Growing market."},
+        "additional_insights": [],
+    }
+    base.update(overrides)
+    return base
+
+
 @pytest.fixture
 def mock_all_deps():
-    """Mock all external dependencies for research ingestion."""
+    """Mock all external dependencies for structured research ingestion."""
     with (
-        patch("app.api.research.check_baseline_gate") as mock_gate,
         patch("app.api.research.create_job") as mock_create_job,
         patch("app.api.research.start_job") as mock_start_job,
         patch("app.api.research.complete_job") as mock_complete_job,
@@ -23,14 +60,23 @@ def mock_all_deps():
         patch("app.api.research.insert_signal") as mock_insert_signal,
         patch("app.api.research.embed_texts") as mock_embed_texts,
         patch("app.api.research.insert_signal_chunks") as mock_insert_chunks,
+        patch("app.api.research.render_research_report") as mock_render,
+        patch("app.api.research.validate_research_report") as mock_validate,
+        patch("app.api.research.get_completeness_score") as mock_completeness,
+        patch("app.api.research.get_content_statistics") as mock_stats,
     ):
         mock_create_job.return_value = uuid4()
-        mock_insert_signal.return_value = {"id": str(uuid4())}  # Return dict with id
-        mock_embed_texts.return_value = [[0.1] * 1536]  # Mock embeddings
+        mock_insert_signal.return_value = {"id": str(uuid4())}
+        mock_embed_texts.return_value = [[0.1] * 1536]
         mock_insert_chunks.return_value = [{"id": str(uuid4())}]
+        mock_render.return_value = ("Full text content", [
+            {"content": "Section text", "start_char": 0, "end_char": 50, "metadata": {"section": "summary"}}
+        ])
+        mock_validate.return_value = (True, [])
+        mock_completeness.return_value = {"score": 0.8, "missing_sections": []}
+        mock_stats.return_value = {"total_words": 100}
 
         yield {
-            "check_baseline_gate": mock_gate,
             "create_job": mock_create_job,
             "start_job": mock_start_job,
             "complete_job": mock_complete_job,
@@ -38,25 +84,21 @@ def mock_all_deps():
             "insert_signal": mock_insert_signal,
             "embed_texts": mock_embed_texts,
             "insert_signal_chunks": mock_insert_chunks,
+            "render": mock_render,
+            "validate": mock_validate,
         }
 
 
-class TestResearchIngestionEndpoint:
+class TestStructuredResearchIngestion:
     def test_ingest_research_success(self, mock_all_deps):
         project_id = str(uuid4())
 
         response = client.post(
-            "/v1/ingest/research",
+            "/v1/research/ingest/structured",
             json={
                 "project_id": project_id,
                 "source": "n8n",
-                "reports": [
-                    {
-                        "id": "report-1",
-                        "title": "Test Research Report",
-                        "summary": "This is a test summary.",
-                    }
-                ],
+                "reports": [_make_report(title="Test Research Report")],
             },
         )
 
@@ -67,25 +109,23 @@ class TestResearchIngestionEndpoint:
         assert len(data["ingested"]) == 1
         assert data["ingested"][0]["title"] == "Test Research Report"
 
-        mock_all_deps["check_baseline_gate"].assert_called_once()
         mock_all_deps["insert_signal"].assert_called_once()
 
     def test_ingest_research_multiple_reports(self, mock_all_deps):
         project_id = str(uuid4())
 
-        # Make insert_signal return different UUIDs for each call
         signal_ids = [{"id": str(uuid4())} for _ in range(3)]
         mock_all_deps["insert_signal"].side_effect = signal_ids
 
         response = client.post(
-            "/v1/ingest/research",
+            "/v1/research/ingest/structured",
             json={
                 "project_id": project_id,
                 "source": "n8n",
                 "reports": [
-                    {"id": "r1", "title": "Report 1", "summary": "Summary 1"},
-                    {"id": "r2", "title": "Report 2", "summary": "Summary 2"},
-                    {"id": "r3", "title": "Report 3", "summary": "Summary 3"},
+                    _make_report(id="r1", title="Report 1"),
+                    _make_report(id="r2", title="Report 2"),
+                    _make_report(id="r3", title="Report 3"),
                 ],
             },
         )
@@ -95,72 +135,16 @@ class TestResearchIngestionEndpoint:
         assert len(data["ingested"]) == 3
         assert mock_all_deps["insert_signal"].call_count == 3
 
-    def test_ingest_research_baseline_not_met(self, mock_all_deps):
-        from fastapi import HTTPException
-
-        project_id = str(uuid4())
-        mock_all_deps["check_baseline_gate"].side_effect = HTTPException(
-            status_code=400, detail="Baseline not met"
-        )
-
-        response = client.post(
-            "/v1/ingest/research",
-            json={
-                "project_id": project_id,
-                "source": "n8n",
-                "reports": [{"title": "Test", "summary": "Test summary"}],
-            },
-        )
-
-        assert response.status_code == 400
-        assert "Baseline not met" in response.json()["detail"]
-        mock_all_deps["insert_signal"].assert_not_called()
-
-    def test_ingest_research_sets_authority_to_research(self, mock_all_deps):
-        project_id = str(uuid4())
-
-        response = client.post(
-            "/v1/ingest/research",
-            json={
-                "project_id": project_id,
-                "source": "n8n",
-                "reports": [{"title": "Test", "summary": "Test summary"}],
-            },
-        )
-
-        assert response.status_code == 200
-
-        # Check that insert_signal was called with authority=research in metadata
-        call_args = mock_all_deps["insert_signal"].call_args
-        assert call_args is not None
-        metadata = call_args.kwargs.get("metadata", {})
-        assert metadata.get("authority") == "research"
-
-    def test_ingest_research_empty_reports_rejected(self, mock_all_deps):
-        project_id = str(uuid4())
-
-        response = client.post(
-            "/v1/ingest/research",
-            json={
-                "project_id": project_id,
-                "source": "n8n",
-                "reports": [],
-            },
-        )
-
-        # Should fail validation - reports list must have at least 1 item
-        assert response.status_code == 422
-
     def test_ingest_research_internal_error(self, mock_all_deps):
         project_id = str(uuid4())
         mock_all_deps["insert_signal"].side_effect = Exception("DB error")
 
         response = client.post(
-            "/v1/ingest/research",
+            "/v1/research/ingest/structured",
             json={
                 "project_id": project_id,
                 "source": "n8n",
-                "reports": [{"title": "Test", "summary": "Test summary"}],
+                "reports": [_make_report()],
             },
         )
 

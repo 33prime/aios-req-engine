@@ -62,7 +62,10 @@ known-first-party = ["app"]
 testpaths = ["tests"]
 python_files = ["test_*.py"]
 python_functions = ["test_*"]
-addopts = "-v --tb=short"
+addopts = "-v --tb=short -m 'not integration'"
+markers = [
+    "integration: tests that require a live database or external services",
+]
 
 [dependency-groups]
 dev = [

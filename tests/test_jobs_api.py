@@ -1,7 +1,6 @@
 """Tests for jobs API endpoints."""
 
-import pytest
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 from uuid import uuid4
 
 from app.db.jobs import create_job, get_job, list_jobs
@@ -15,15 +14,12 @@ def test_create_job():
     run_id = uuid4()
 
     with patch("app.db.jobs.get_supabase") as mock_supabase:
-        mock_response = {
-            "data": [{"id": str(uuid4())}]
-        }
+        mock_response = MagicMock(data=[{"id": str(uuid4())}])
         mock_supabase.return_value.table.return_value.insert.return_value.execute.return_value = mock_response
 
         job_id = create_job(project_id, job_type, input_json, run_id)
 
         assert job_id is not None
-        # Verify supabase was called correctly
         mock_supabase.return_value.table.assert_called_with("jobs")
 
 
@@ -37,7 +33,7 @@ def test_get_job():
     }
 
     with patch("app.db.jobs.get_supabase") as mock_supabase:
-        mock_response = {"data": [mock_job_data]}
+        mock_response = MagicMock(data=[mock_job_data])
         mock_supabase.return_value.table.return_value.select.return_value.eq.return_value.execute.return_value = mock_response
 
         job = get_job(job_id)
@@ -50,7 +46,7 @@ def test_get_job_not_found():
     job_id = uuid4()
 
     with patch("app.db.jobs.get_supabase") as mock_supabase:
-        mock_response = {"data": []}
+        mock_response = MagicMock(data=[])
         mock_supabase.return_value.table.return_value.select.return_value.eq.return_value.execute.return_value = mock_response
 
         job = get_job(job_id)
@@ -67,8 +63,9 @@ def test_list_jobs():
     ]
 
     with patch("app.db.jobs.get_supabase") as mock_supabase:
-        mock_response = {"data": mock_jobs}
-        mock_supabase.return_value.table.return_value.select.return_value.order.return_value.execute.return_value = mock_response
+        mock_response = MagicMock(data=mock_jobs)
+        # Chain: select() -> order() -> eq() -> range() -> execute()
+        mock_supabase.return_value.table.return_value.select.return_value.order.return_value.eq.return_value.range.return_value.execute.return_value = mock_response
 
         jobs = list_jobs(project_id)
 

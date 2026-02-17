@@ -9,29 +9,27 @@ from pydantic import ValidationError
 from app.core.schemas_state import BuildStateOutput
 
 
+def _make_personas(n=2):
+    """Helper to create n persona dicts for BuildStateOutput."""
+    return [
+        {
+            "slug": f"persona-{i}",
+            "name": f"Persona {i}",
+            "role": f"Role {i}",
+            "demographics": {},
+            "psychographics": {},
+            "goals": [f"Goal {i}"],
+            "pain_points": [f"Pain {i}"],
+            "description": f"Description {i}",
+        }
+        for i in range(1, n + 1)
+    ]
+
+
 class TestBuildStateOutputValidation:
     def test_valid_output(self):
         """Test parsing valid state builder output."""
-        chunk_id = str(uuid4())
         data = {
-            "prd_sections": [
-                {
-                    "slug": "personas",
-                    "label": "Personas",
-                    "required": True,
-                    "status": "draft",
-                    "fields": {"content": "Business consultants"},
-                    "client_needs": [],
-                    "sources": [],
-                    "evidence": [
-                        {
-                            "chunk_id": chunk_id,
-                            "excerpt": "Consultant approves recommendations",
-                            "rationale": "Shows consultant role",
-                        }
-                    ],
-                }
-            ],
             "vp_steps": [
                 {
                     "step_index": 1,
@@ -57,90 +55,57 @@ class TestBuildStateOutputValidation:
                     "evidence": [],
                 }
             ],
+            "personas": _make_personas(2),
         }
 
         output = BuildStateOutput.model_validate(data)
-        assert len(output.prd_sections) == 1
         assert len(output.vp_steps) == 1
         assert len(output.features) == 1
+        assert len(output.personas) == 2
 
     def test_valid_json_string(self):
         """Test parsing from JSON string."""
         json_str = json.dumps({
-            "prd_sections": [
-                {
-                    "slug": "key_features",
-                    "label": "Key Features",
-                    "required": True,
-                    "status": "draft",
-                    "fields": {},
-                    "client_needs": [],
-                    "sources": [],
-                    "evidence": [],
-                }
-            ],
             "vp_steps": [],
             "features": [],
+            "personas": _make_personas(2),
         })
 
         data = json.loads(json_str)
         output = BuildStateOutput.model_validate(data)
-        assert len(output.prd_sections) == 1
+        assert len(output.personas) == 2
 
     def test_missing_required_fields(self):
         """Test validation fails with missing required fields."""
         with pytest.raises(ValidationError):
             BuildStateOutput.model_validate({
-                "prd_sections": [],
-                # Missing vp_steps and features
+                "vp_steps": [],
+                # Missing features and personas
             })
 
-    def test_empty_arrays_valid(self):
-        """Test that empty arrays are valid."""
+    def test_personas_min_length_enforced(self):
+        """Test that personas requires at least 2 items."""
+        with pytest.raises(ValidationError):
+            BuildStateOutput.model_validate({
+                "vp_steps": [],
+                "features": [],
+                "personas": _make_personas(1),  # Only 1 — should fail
+            })
+
+    def test_empty_vp_and_features_valid(self):
+        """Test that empty vp_steps and features are valid."""
         output = BuildStateOutput.model_validate({
-            "prd_sections": [],
             "vp_steps": [],
             "features": [],
+            "personas": _make_personas(2),
         })
-        assert len(output.prd_sections) == 0
         assert len(output.vp_steps) == 0
         assert len(output.features) == 0
+        assert len(output.personas) == 2
 
     def test_multiple_items(self):
         """Test parsing output with multiple items."""
         data = {
-            "prd_sections": [
-                {
-                    "slug": "personas",
-                    "label": "Personas",
-                    "required": True,
-                    "status": "draft",
-                    "fields": {},
-                    "client_needs": [],
-                    "sources": [],
-                    "evidence": [],
-                },
-                {
-                    "slug": "key_features",
-                    "label": "Key Features",
-                    "required": True,
-                    "status": "draft",
-                    "fields": {},
-                    "client_needs": [],
-                    "sources": [],
-                    "evidence": [],
-                },
-                {
-                    "slug": "constraints",
-                    "label": "Constraints",
-                    "required": False,
-                    "status": "draft",
-                    "fields": {},
-                    "client_needs": [],
-                    "sources": [],
-                    "evidence": [],
-                },
-            ],
             "vp_steps": [
                 {
                     "step_index": 1,
@@ -187,40 +152,10 @@ class TestBuildStateOutputValidation:
                     "evidence": [],
                 },
             ],
+            "personas": _make_personas(3),
         }
 
         output = BuildStateOutput.model_validate(data)
-        assert len(output.prd_sections) == 3
         assert len(output.vp_steps) == 2
         assert len(output.features) == 2
-
-    def test_client_needs_structure(self):
-        """Test client_needs array structure."""
-        data = {
-            "prd_sections": [
-                {
-                    "slug": "personas",
-                    "label": "Personas",
-                    "required": True,
-                    "status": "draft",
-                    "fields": {},
-                    "client_needs": [
-                        {
-                            "key": "industry_support",
-                            "title": "Which industries to support?",
-                            "why": "Different industries have different needs",
-                            "ask": "Please specify target industries",
-                        }
-                    ],
-                    "sources": [],
-                    "evidence": [],
-                }
-            ],
-            "vp_steps": [],
-            "features": [],
-        }
-
-        output = BuildStateOutput.model_validate(data)
-        assert len(output.prd_sections[0]["client_needs"]) == 1
-        assert output.prd_sections[0]["client_needs"][0]["key"] == "industry_support"
-
+        assert len(output.personas) == 3
