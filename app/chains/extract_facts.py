@@ -377,6 +377,7 @@ def extract_facts_from_chunks(
     settings: Settings,
     model_override: str | None = None,
     project_context: dict[str, Any] | None = None,
+    consultant_context: dict[str, Any] | None = None,
 ) -> ExtractFactsOutput:
     """
     Extract structured facts from signal chunks using OpenAI or Anthropic.
@@ -387,6 +388,7 @@ def extract_facts_from_chunks(
         settings: Application settings
         model_override: Optional model name to use instead of settings.FACTS_MODEL
         project_context: Optional project context (name, domain, existing entities)
+        consultant_context: Optional consultant enrichment context for personalized extraction
 
     Returns:
         ExtractFactsOutput with validated extraction results
@@ -394,7 +396,7 @@ def extract_facts_from_chunks(
     Raises:
         ValueError: If model output cannot be validated after retry
     """
-    user_prompt = build_facts_prompt(signal, chunks, project_context)
+    user_prompt = build_facts_prompt(signal, chunks, project_context, consultant_context)
 
     # Use override if provided, else fall back to settings
     model = model_override or settings.FACTS_MODEL

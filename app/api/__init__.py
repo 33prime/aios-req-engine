@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter
 
-from app.api import activity, admin, agents, analytics, auth, baseline, business_drivers, chat, client_packages, client_portal, clients, collaboration, communications, competitor_refs, confirmations, creative_brief, di_agent, discovery, discovery_prep, document_uploads, enrich_all, enrich_features, enrich_personas, enrich_vp, entity_cascades, evidence, jobs, meetings, n8n_research, open_questions, organizations, outreach, phase0, process_documents, project_creation, project_launch, projects, proposals, prototype_sessions, prototypes, readiness, research, research_agent, revisions, risks, signals, signal_stream, sources, stakeholders, state, strategic_analytics, tasks, workspace
+from app.api import activity, admin, agents, analytics, auth, baseline, business_drivers, chat, client_packages, client_portal, clients, collaboration, communications, competitor_refs, confirmations, consultant_enrichment, creative_brief, di_agent, discovery, discovery_prep, document_uploads, enrich_all, enrich_features, enrich_personas, enrich_vp, entity_cascades, evidence, icp, jobs, meetings, n8n_research, open_questions, organizations, outreach, phase0, process_documents, project_creation, project_launch, projects, proposals, prototype_sessions, prototypes, readiness, research, research_agent, revisions, risks, signals, signal_stream, sources, stakeholders, state, strategic_analytics, tasks, workspace
 
 router = APIRouter()
 
@@ -165,3 +165,9 @@ router.include_router(open_questions.router, tags=["open_questions"])
 
 # Include Project Launch routes (smart project setup pipeline)
 router.include_router(project_launch.router, tags=["project_launch"])
+
+# Include Consultant Enrichment routes (profile synthesis from LinkedIn/website)
+router.include_router(consultant_enrichment.router, tags=["consultant_enrichment"])
+
+# Include ICP Signal Extraction routes (behavioral signal routing + scoring)
+router.include_router(icp.router, tags=["icp"])

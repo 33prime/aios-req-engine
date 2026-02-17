@@ -231,3 +231,57 @@ async def update_availability(
     if result.data:
         return Profile(**result.data[0])
     return None
+
+
+async def update_profile_enrichment(
+    user_id: UUID,
+    data: dict,
+) -> Optional[Profile]:
+    """Update enrichment-specific columns on a profile."""
+    client = get_client()
+    result = (
+        client.table("profiles")
+        .update(data)
+        .eq("user_id", str(user_id))
+        .execute()
+    )
+    if result.data:
+        return Profile(**result.data[0])
+    return None
+
+
+async def get_consultant_context(user_id: UUID) -> Optional[dict]:
+    """Get a slim consultant context dict for prompt injection.
+
+    Returns None if profile not found or not enriched.
+    """
+    client = get_client()
+    result = (
+        client.table("profiles")
+        .select(
+            "first_name, last_name, consultant_summary, "
+            "industry_expertise, methodology_expertise, "
+            "enriched_profile, enrichment_status"
+        )
+        .eq("user_id", str(user_id))
+        .execute()
+    )
+    if not result.data:
+        return None
+
+    row = result.data[0]
+    if row.get("enrichment_status") != "enriched":
+        return None
+
+    name_parts = [row.get("first_name"), row.get("last_name")]
+    name = " ".join(p for p in name_parts if p) or "Unknown"
+
+    enriched = row.get("enriched_profile") or {}
+    return {
+        "name": name,
+        "professional_summary": enriched.get("professional_summary", ""),
+        "domain_expertise": enriched.get("domain_expertise", []),
+        "industry_verticals": enriched.get("industry_verticals", []),
+        "methodology_expertise": row.get("methodology_expertise", []),
+        "consulting_approach": enriched.get("consulting_approach", {}),
+    }

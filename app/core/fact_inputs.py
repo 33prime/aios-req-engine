@@ -89,6 +89,7 @@ def build_facts_prompt(
     signal: dict[str, Any],
     selected_chunks: list[dict[str, Any]],
     project_context: dict[str, Any] | None = None,
+    consultant_context: dict[str, Any] | None = None,
 ) -> str:
     """
     Build the user prompt for fact extraction.
@@ -97,11 +98,46 @@ def build_facts_prompt(
         signal: Signal dict with project_id, signal_type, source, id
         selected_chunks: List of selected chunk dicts
         project_context: Optional project context with name, domain, existing entities, state_snapshot
+        consultant_context: Optional consultant enrichment context (name, expertise, style)
 
     Returns:
         Formatted prompt string for the LLM
     """
     lines: list[str] = []
+
+    # Consultant context — personalizes extraction priorities
+    if consultant_context:
+        lines.append("=== CONSULTANT CONTEXT ===")
+        name = consultant_context.get("name", "Unknown")
+        summary = consultant_context.get("professional_summary", "")
+        if summary:
+            lines.append(f"Consultant: {name} — {summary}")
+        else:
+            lines.append(f"Consultant: {name}")
+
+        domain_expertise = consultant_context.get("domain_expertise", [])
+        if domain_expertise:
+            domains = ", ".join(
+                d.get("domain", d) if isinstance(d, dict) else str(d)
+                for d in domain_expertise[:5]
+            )
+            lines.append(f"Domain expertise: {domains}")
+
+        industry_verticals = consultant_context.get("industry_verticals", [])
+        if industry_verticals:
+            industries = ", ".join(
+                iv.get("industry", iv) if isinstance(iv, dict) else str(iv)
+                for iv in industry_verticals[:5]
+            )
+            lines.append(f"Industry focus: {industries}")
+
+        methodology = consultant_context.get("methodology_expertise", [])
+        if methodology:
+            lines.append(f"Methodology: {', '.join(methodology[:5])}")
+
+        lines.append("")
+        lines.append("Use the consultant's expertise to weight extraction priorities.")
+        lines.append("")
 
     # State snapshot - comprehensive project context (~500 tokens)
     if project_context and project_context.get("state_snapshot"):

@@ -3,6 +3,7 @@ import { Inter, JetBrains_Mono, DM_Sans } from 'next/font/google'
 import './globals.css'
 import { ToastProvider } from '@/components/ui'
 import { AuthProvider } from '@/components/auth/AuthProvider'
+import { PostHogProvider } from '@/components/PostHogProvider'
 import { LayoutWrapper } from '@/components/LayoutWrapper'
 
 const inter = Inter({ subsets: ['latin'] })
@@ -34,11 +35,13 @@ export default function RootLayout({
     <html lang="en">
       <body className={`${inter.className} ${jetbrainsMono.variable} ${dmSans.variable}`}>
         <AuthProvider>
-          <ToastProvider>
-            <LayoutWrapper>
-              {children}
-            </LayoutWrapper>
-          </ToastProvider>
+          <PostHogProvider>
+            <ToastProvider>
+              <LayoutWrapper>
+                {children}
+              </LayoutWrapper>
+            </ToastProvider>
+          </PostHogProvider>
         </AuthProvider>
       </body>
     </html>

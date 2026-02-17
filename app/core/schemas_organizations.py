@@ -359,6 +359,19 @@ class Profile(ProfileBase):
     created_at: datetime
     updated_at: datetime
 
+    # Consultant enrichment fields
+    enrichment_status: str = "pending"
+    linkedin_raw_text: Optional[str] = None
+    website_raw_text: Optional[str] = None
+    enriched_profile: dict[str, Any] = Field(default_factory=dict)
+    industry_expertise: list[str] = Field(default_factory=list)
+    methodology_expertise: list[str] = Field(default_factory=list)
+    consulting_style: dict[str, Any] = Field(default_factory=dict)
+    consultant_summary: Optional[str] = None
+    profile_completeness: int = 0
+    enriched_at: Optional[datetime] = None
+    enrichment_source: Optional[str] = None
+
     class Config:
         from_attributes = True
 

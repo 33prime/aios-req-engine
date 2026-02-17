@@ -80,6 +80,9 @@ class BulkProcessingState:
     # Creative brief extraction result
     creative_brief_result: dict[str, Any] = field(default_factory=dict)
 
+    # Consultant context
+    consultant_user_id: UUID | None = None
+
     # Error tracking
     error: str | None = None
 
@@ -181,12 +184,24 @@ def run_fact_extraction(state: BulkProcessingState) -> dict[str, Any]:
         except Exception as e:
             logger.warning(f"Failed to fetch project context: {e}")
 
+        # Fetch consultant context for personalized extraction
+        consultant_context = None
+        if state.consultant_user_id:
+            try:
+                from app.db.profiles import get_consultant_context
+                consultant_context = asyncio.get_event_loop().run_until_complete(
+                    get_consultant_context(state.consultant_user_id)
+                )
+            except Exception as e:
+                logger.warning(f"Failed to fetch consultant context: {e}")
+
         # Extract facts
         result = extract_facts_from_chunks(
             signal=state.signal,
             chunks=state.chunks,
             settings=settings,
             project_context=project_context,
+            consultant_context=consultant_context,
         )
 
         # Convert facts to entities (convert Pydantic models to dicts first)
@@ -857,6 +872,7 @@ def run_bulk_signal_pipeline(
     signal_content: str,
     signal_type: str,
     signal_metadata: dict[str, Any] | None = None,
+    consultant_user_id: UUID | None = None,
 ) -> dict[str, Any]:
     """
     Run the bulk signal processing pipeline.
@@ -868,6 +884,7 @@ def run_bulk_signal_pipeline(
         signal_content: Signal content text
         signal_type: Type of signal (transcript, document, etc.)
         signal_metadata: Optional metadata
+        consultant_user_id: Optional user ID for consultant context injection
 
     Returns:
         Dict with pipeline results including proposal_id
@@ -891,6 +908,7 @@ def run_bulk_signal_pipeline(
         signal_content=signal_content,
         signal_type=signal_type,
         signal_metadata=signal_metadata or {},
+        consultant_user_id=consultant_user_id,
     )
 
     try:

@@ -31,6 +31,7 @@ class ExtractFactsState:
     job_id: UUID
     top_chunks: int | None = None
     model_override: str | None = None
+    consultant_user_id: UUID | None = None
 
     # Processing state
     step_count: int = 0
@@ -123,6 +124,20 @@ def call_llm(state: ExtractFactsState) -> dict[str, Any]:
     except Exception as e:
         logger.warning(f"Failed to fetch project context: {e}")
 
+    # Fetch consultant context for personalized extraction
+    consultant_context = None
+    if state.consultant_user_id:
+        try:
+            from app.db.profiles import get_consultant_context
+            import asyncio
+            consultant_context = asyncio.get_event_loop().run_until_complete(
+                get_consultant_context(state.consultant_user_id)
+            )
+            if consultant_context:
+                logger.debug(f"Loaded consultant context for {state.consultant_user_id}")
+        except Exception as e:
+            logger.warning(f"Failed to fetch consultant context: {e}")
+
     try:
         llm_output = extract_facts_from_chunks(
             signal=state.signal,
@@ -130,6 +145,7 @@ def call_llm(state: ExtractFactsState) -> dict[str, Any]:
             settings=settings,
             model_override=state.model_override,
             project_context=project_context,
+            consultant_context=consultant_context,
         )
 
         logger.info(
@@ -192,6 +208,19 @@ def persist(state: ExtractFactsState) -> dict[str, Any]:
         extra={"run_id": str(state.run_id), "extracted_facts_id": str(extracted_facts_id)},
     )
 
+    # Track server-side analytics event
+    if state.consultant_user_id:
+        try:
+            from app.core.analytics import track_server_event
+            track_server_event(str(state.consultant_user_id), "facts_extracted", {
+                "project_id": str(project_id),
+                "signal_id": str(state.signal["id"]),
+                "fact_count": len(state.llm_output.facts),
+                "question_count": len(state.llm_output.open_questions),
+            })
+        except Exception:
+            pass  # Analytics should never break extraction
+
     # Dual-write: persist open questions to project_open_questions table
     if state.llm_output.open_questions:
         try:
@@ -253,6 +282,7 @@ def run_extract_facts(
     run_id: UUID,
     top_chunks: int | None,
     model_override: str | None = None,
+    consultant_user_id: UUID | None = None,
 ) -> tuple[ExtractFactsOutput, UUID, UUID]:
     """
     Run the extract facts graph.
@@ -264,6 +294,7 @@ def run_extract_facts(
         run_id: Run tracking UUID
         top_chunks: Optional override for max chunks
         model_override: Optional model name to use instead of settings.FACTS_MODEL
+        consultant_user_id: Optional user ID for consultant context injection
 
     Returns:
         Tuple of (ExtractFactsOutput, extracted_facts_id, actual_project_id)
@@ -279,6 +310,7 @@ def run_extract_facts(
         job_id=job_id,
         top_chunks=top_chunks,
         model_override=model_override,
+        consultant_user_id=consultant_user_id,
     )
 
     logger.info(

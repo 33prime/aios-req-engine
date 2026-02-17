@@ -1,13 +1,14 @@
 'use client'
 
-import { useState, useRef } from 'react'
-import { User, Pencil, Save, X, Loader, Phone, Linkedin, Video, MapPin, FileText, Briefcase, LogOut, Camera } from 'lucide-react'
+import { useState, useRef, useEffect } from 'react'
+import { User, Pencil, Save, X, Loader, Phone, Linkedin, Video, MapPin, FileText, Briefcase, LogOut, Camera, Sparkles, CheckCircle, AlertCircle } from 'lucide-react'
 import Image from 'next/image'
-import { updateMyProfile } from '@/lib/api'
+import { updateMyProfile, enrichConsultantProfile, getConsultantEnrichmentStatus } from '@/lib/api'
 import { useProfile } from '@/lib/hooks/use-api'
 import { useAuth } from '@/components/auth/AuthProvider'
 import { supabase } from '@/lib/supabase'
-import type { Profile, ProfileUpdate } from '@/types/api'
+import { analytics } from '@/lib/analytics'
+import type { Profile, ProfileUpdate, ConsultantEnrichmentStatus } from '@/types/api'
 
 interface ProfileTabProps {
   onLogout?: () => void
@@ -188,6 +189,9 @@ export default function ProfileTab({ onLogout }: ProfileTabProps) {
 
       {/* Solution Consulting Background */}
       <ConsultingBackgroundCard profile={profile} onUpdate={handleUpdateProfile} />
+
+      {/* AI Profile Enrichment */}
+      <ConsultantEnrichmentCard profile={profile} onEnriched={() => mutateProfile()} />
     </div>
   )
 }
@@ -570,6 +574,202 @@ function ConsultingBackgroundCard({ profile, onUpdate }: CardProps) {
           )}
         </div>
       )}
+    </div>
+  )
+}
+
+// ============================================================================
+// Consultant AI Enrichment Card
+// ============================================================================
+
+interface EnrichmentCardProps {
+  profile: Profile
+  onEnriched: () => void
+}
+
+function ConsultantEnrichmentCard({ profile, onEnriched }: EnrichmentCardProps) {
+  const [linkedinText, setLinkedinText] = useState('')
+  const [websiteText, setWebsiteText] = useState('')
+  const [isEnriching, setIsEnriching] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [enrichmentData, setEnrichmentData] = useState<ConsultantEnrichmentStatus | null>(null)
+
+  // Load enrichment status on mount if already enriched
+  useEffect(() => {
+    if (profile.enrichment_status === 'enriched') {
+      getConsultantEnrichmentStatus()
+        .then(setEnrichmentData)
+        .catch(() => {})
+    }
+  }, [profile.enrichment_status])
+
+  const handleEnrich = async () => {
+    if (!linkedinText && !websiteText) return
+    setIsEnriching(true)
+    setError(null)
+    analytics.profileEnrichmentStarted()
+
+    try {
+      const result = await enrichConsultantProfile({
+        linkedin_text: linkedinText || undefined,
+        website_text: websiteText || undefined,
+      })
+      analytics.profileEnrichmentCompleted(result.profile_completeness)
+      // Refresh enrichment status
+      const status = await getConsultantEnrichmentStatus()
+      setEnrichmentData(status)
+      onEnriched()
+    } catch (err: any) {
+      setError(err.message || 'Enrichment failed')
+    } finally {
+      setIsEnriching(false)
+    }
+  }
+
+  const statusBadge = () => {
+    const status = profile.enrichment_status || 'pending'
+    switch (status) {
+      case 'enriched':
+        return (
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-[#E8F5E9] text-[#25785A]">
+            <CheckCircle className="w-3 h-3" /> Enriched
+          </span>
+        )
+      case 'enriching':
+        return (
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-[#F0F0F0] text-[#666666]">
+            <Loader className="w-3 h-3 animate-spin" /> Enriching...
+          </span>
+        )
+      case 'failed':
+        return (
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-red-50 text-red-600">
+            <AlertCircle className="w-3 h-3" /> Failed
+          </span>
+        )
+      default:
+        return (
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-[#F0F0F0] text-[#666666]">
+            Pending
+          </span>
+        )
+    }
+  }
+
+  return (
+    <div className="rounded-xl border border-zinc-200 bg-white shadow-sm p-6">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-3">
+          <div className="p-1.5 rounded-full bg-[#3FAF7A]/10 text-[#3FAF7A]">
+            <Sparkles className="w-4 h-4" />
+          </div>
+          <div>
+            <p className="text-[13px] text-zinc-800 font-semibold">AI Profile Enrichment</p>
+            <p className="text-[11px] text-zinc-500">Paste your LinkedIn profile or website bio for AI analysis</p>
+          </div>
+        </div>
+        {statusBadge()}
+      </div>
+
+      {/* Enrichment Results (if enriched) */}
+      {enrichmentData && enrichmentData.enrichment_status === 'enriched' && (
+        <div className="mb-6 space-y-3">
+          {/* Completeness Bar */}
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-[11px] text-zinc-500">Profile Completeness</span>
+              <span className="text-[11px] font-medium text-zinc-700">{enrichmentData.profile_completeness}%</span>
+            </div>
+            <div className="w-full h-1.5 bg-zinc-100 rounded-full">
+              <div
+                className="h-full bg-[#3FAF7A] rounded-full transition-all"
+                style={{ width: `${enrichmentData.profile_completeness}%` }}
+              />
+            </div>
+          </div>
+
+          {/* Summary */}
+          {enrichmentData.consultant_summary && (
+            <div className="p-3 bg-zinc-50 rounded-lg">
+              <p className="text-[11px] text-zinc-500 mb-1">Professional Summary</p>
+              <p className="text-[12px] text-zinc-700">{enrichmentData.consultant_summary}</p>
+            </div>
+          )}
+
+          {/* Expertise Tags */}
+          {enrichmentData.industry_expertise.length > 0 && (
+            <div>
+              <p className="text-[11px] text-zinc-500 mb-1.5">Industry Expertise</p>
+              <div className="flex flex-wrap gap-1.5">
+                {enrichmentData.industry_expertise.map((ind, i) => (
+                  <span key={i} className="px-2 py-0.5 bg-[#F0F0F0] text-[#666666] text-[11px] rounded-md">
+                    {ind}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {enrichmentData.methodology_expertise.length > 0 && (
+            <div>
+              <p className="text-[11px] text-zinc-500 mb-1.5">Methodology</p>
+              <div className="flex flex-wrap gap-1.5">
+                {enrichmentData.methodology_expertise.map((m, i) => (
+                  <span key={i} className="px-2 py-0.5 bg-[#E8F5E9] text-[#25785A] text-[11px] rounded-md">
+                    {m}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Input Areas */}
+      <div className="space-y-3">
+        <div>
+          <label className="text-[12px] text-zinc-600 block mb-1">LinkedIn Profile Text</label>
+          <textarea
+            value={linkedinText}
+            onChange={(e) => setLinkedinText(e.target.value)}
+            rows={3}
+            className="w-full text-[13px] text-zinc-700 border border-zinc-300 rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-[#3FAF7A] resize-none"
+            placeholder="Copy and paste your LinkedIn About section, Experience, etc..."
+          />
+        </div>
+        <div>
+          <label className="text-[12px] text-zinc-600 block mb-1">Website Bio (optional)</label>
+          <textarea
+            value={websiteText}
+            onChange={(e) => setWebsiteText(e.target.value)}
+            rows={3}
+            className="w-full text-[13px] text-zinc-700 border border-zinc-300 rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-[#3FAF7A] resize-none"
+            placeholder="Paste your website bio or about page content..."
+          />
+        </div>
+
+        {error && (
+          <p className="text-[12px] text-red-600">{error}</p>
+        )}
+
+        <button
+          onClick={handleEnrich}
+          disabled={isEnriching || (!linkedinText && !websiteText)}
+          className="flex items-center gap-2 px-4 py-2 bg-[#3FAF7A] hover:bg-[#25785A] text-white text-[13px] font-medium rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {isEnriching ? (
+            <>
+              <Loader className="w-4 h-4 animate-spin" />
+              Enriching...
+            </>
+          ) : (
+            <>
+              <Sparkles className="w-4 h-4" />
+              {profile.enrichment_status === 'enriched' ? 'Re-enrich Profile' : 'Enrich Profile'}
+            </>
+          )}
+        </button>
+      </div>
     </div>
   )
 }

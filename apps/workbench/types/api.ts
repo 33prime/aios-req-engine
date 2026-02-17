@@ -338,6 +338,42 @@ export interface Profile {
   preferences: Record<string, any>
   created_at: string
   updated_at: string
+
+  // Consultant enrichment fields
+  enrichment_status?: 'pending' | 'enriching' | 'enriched' | 'failed'
+  enriched_profile?: Record<string, any>
+  industry_expertise?: string[]
+  methodology_expertise?: string[]
+  consulting_style?: Record<string, any>
+  consultant_summary?: string
+  profile_completeness?: number
+  enriched_at?: string
+  enrichment_source?: string
+}
+
+export interface ConsultantEnrichRequest {
+  linkedin_text?: string
+  website_text?: string
+  additional_context?: string
+}
+
+export interface ConsultantEnrichResponse {
+  status: string
+  message: string
+  enriched_profile?: Record<string, any>
+  profile_completeness: number
+}
+
+export interface ConsultantEnrichmentStatus {
+  enrichment_status: string
+  profile_completeness: number
+  enriched_at?: string
+  enrichment_source?: string
+  enriched_profile: Record<string, any>
+  industry_expertise: string[]
+  methodology_expertise: string[]
+  consulting_style: Record<string, any>
+  consultant_summary?: string
 }
 
 export interface ProfileUpdate {

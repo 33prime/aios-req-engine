@@ -5,6 +5,7 @@ import { useRouter, usePathname } from 'next/navigation'
 import { User, Session } from '@supabase/supabase-js'
 import { supabase, isSupabaseConfigured } from '@/lib/supabase'
 import { setAccessToken, clearAuth } from '@/lib/api'
+import { analytics } from '@/lib/analytics'
 import { Loader } from 'lucide-react'
 
 interface AuthContextType {
@@ -115,6 +116,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
         // Handle specific events
         if (event === 'SIGNED_IN') {
+          analytics.signedIn(newSession?.user?.app_metadata?.provider || 'email')
           // Only redirect to /projects if coming from auth pages
           // This prevents unwanted redirects on page refresh (session restoration also triggers SIGNED_IN)
           const currentPath = typeof window !== 'undefined' ? window.location.pathname : pathname

@@ -278,6 +278,10 @@ class Settings(BaseSettings):
         default=None, description="AES-256 key for encrypting refresh tokens at rest"
     )
 
+    # PostHog analytics
+    POSTHOG_API_KEY: str | None = Field(default=None, description="PostHog project API key")
+    POSTHOG_HOST: str = Field(default="https://us.i.posthog.com", description="PostHog host URL")
+
     # Chat Assistant configuration
     CHAT_MODEL: str = Field(
         default="claude-sonnet-4-20250514",
