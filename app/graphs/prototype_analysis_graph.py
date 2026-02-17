@@ -209,11 +209,15 @@ def analyze_and_save(state: PrototypeAnalysisState) -> dict[str, Any]:
                     logger.warning(f"File not found: {fp}")
             code_content = "\n\n".join(code_parts)
 
-        # Get handoff entry
+        # Get handoff entry and extract routes
         handoff_entry = None
+        handoff_routes = None
         for entry in state.handoff_parsed.get("features", []):
             if entry.get("feature_id") == feature["id"] or entry.get("name") == feature_name:
                 handoff_entry = str(entry)
+                pages_str = entry.get("pages", "")
+                if pages_str:
+                    handoff_routes = [r.strip().strip("'\"") for r in pages_str.split(",") if r.strip()]
                 break
 
         # Single LLM call with prompt caching
@@ -239,6 +243,7 @@ def analyze_and_save(state: PrototypeAnalysisState) -> dict[str, Any]:
             component_name=None,
             handoff_feature_name=feature_name,
             gaps_count=len(overlay_content.gaps),
+            handoff_routes=handoff_routes,
         )
 
         # Save validation question (0-1 per feature)

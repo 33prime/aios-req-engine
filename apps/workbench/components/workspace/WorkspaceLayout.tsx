@@ -26,10 +26,7 @@ import {
   updatePrototypeUrl,
   mapFeatureToStep,
   getReadinessScore,
-  getVpSteps,
   getPrototypeForProject,
-  getPrototypeOverlays,
-  createPrototypeSession,
   generatePrototype,
   getTaskStats,
   getCollaborationHistory,
@@ -47,6 +44,7 @@ import type { ReadinessScore, NextAction } from '@/lib/api'
 import type { VpStep } from '@/types/api'
 import type { DesignSelection, FeatureOverlay, FeatureVerdict, PrototypeSession, TourStep, SessionContext, RouteFeatureMap } from '@/types/prototype'
 import type { PrototypeFrameHandle } from '@/components/prototype/PrototypeFrame'
+import ReviewStartModal from '@/components/prototype/ReviewStartModal'
 
 interface WorkspaceLayoutProps {
   projectId: string
@@ -81,7 +79,9 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
   // Pending action from cross-view navigation (e.g., Overview → BRD)
   const [pendingAction, setPendingAction] = useState<NextAction | null>(null)
 
-  // Review mode state
+  // Review modal + mode state
+  const [showReviewModal, setShowReviewModal] = useState(false)
+  const [reviewTourMode, setReviewTourMode] = useState<'tour' | 'explore'>('tour')
   const [isReviewActive, setIsReviewActive] = useState(false)
   const [reviewSession, setReviewSession] = useState<PrototypeSession | null>(null)
   const [overlays, setOverlays] = useState<FeatureOverlay[]>([])
@@ -193,40 +193,43 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
   }
 
   // Review mode handlers
-  const handleStartReview = useCallback(async () => {
-    try {
-      // Load prototype, overlays, and VP steps
-      const proto = await getPrototypeForProject(projectId)
-      const [ovls, steps] = await Promise.all([
-        getPrototypeOverlays(proto.id),
-        getVpSteps(projectId),
-      ])
+  const handleStartReview = useCallback(() => {
+    setShowReviewModal(true)
+  }, [])
+
+  const handleReviewModalStart = useCallback(
+    (
+      session: PrototypeSession,
+      ovls: FeatureOverlay[],
+      steps: VpStep[],
+      protoId: string,
+      deployUrlFromModal: string,
+      mode: 'tour' | 'explore'
+    ) => {
+      setShowReviewModal(false)
       setOverlays(ovls)
       setVpSteps(steps)
-
-      // Use the prototype's deploy_url as the canonical URL
-      if (proto.deploy_url) {
-        setCanvasData((prev) => prev ? { ...prev, prototype_url: proto.deploy_url } : prev)
-      }
-
-      // Create a new session
-      const session = await createPrototypeSession(proto.id)
       setReviewSession(session)
       setIsReviewActive(true)
-      setPrototypeId(proto.id)
+      setPrototypeId(protoId)
       setReviewPhase('active')
       setClientShareData(null)
       setRouteFeatureMap(new Map())
       setIsFrameReady(false)
+      setReviewTourMode(mode)
 
-      // Auto-expand collaboration panel to show review info
+      // Use the prototype's deploy_url as the canonical URL
+      if (deployUrlFromModal) {
+        setCanvasData((prev) => prev ? { ...prev, prototype_url: deployUrlFromModal } : prev)
+      }
+
+      // Auto-expand collaboration panel
       if (collaborationState === 'collapsed') {
         setCollaborationState('normal')
       }
-    } catch (err) {
-      console.error('Failed to start review:', err)
-    }
-  }, [projectId, collaborationState])
+    },
+    [collaborationState]
+  )
 
   const handleVerdictSubmit = useCallback((overlayId: string, verdict: FeatureVerdict) => {
     setOverlays(prev => prev.map(o =>
@@ -578,6 +581,7 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
                     session={reviewSession}
                     overlays={overlays}
                     vpSteps={vpSteps}
+                    reviewTourMode={reviewTourMode}
                     onFeatureClick={handleFeatureClick}
                     onPageChange={handlePageChange}
                     onTourStepChange={handleTourStepChange}
@@ -619,6 +623,14 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
             onPanelChange={setActiveBottomPanel}
           />
         </div>
+
+        {/* Review Start Modal */}
+        <ReviewStartModal
+          projectId={projectId}
+          isOpen={showReviewModal}
+          onClose={() => setShowReviewModal(false)}
+          onStartReview={handleReviewModalStart}
+        />
 
         {/* Right Collaboration Panel */}
         <CollaborationPanel

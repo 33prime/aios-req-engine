@@ -38,6 +38,17 @@ logger = get_logger(__name__)
 router = APIRouter(prefix="/prototype-sessions", tags=["prototype_sessions"])
 
 
+@router.get("/by-prototype/{prototype_id}", response_model=list[SessionResponse])
+async def list_sessions_endpoint(prototype_id: UUID) -> list[SessionResponse]:
+    """List all sessions for a prototype."""
+    try:
+        sessions = list_sessions(prototype_id)
+        return [SessionResponse(**s) for s in sessions]
+    except Exception as e:
+        logger.exception(f"Failed to list sessions for prototype {prototype_id}")
+        raise HTTPException(status_code=500, detail="Failed to list sessions")
+
+
 @router.post("", status_code=201, response_model=SessionResponse)
 async def create_session_endpoint(
     request: CreateSessionRequest,
@@ -145,8 +156,8 @@ async def session_chat_endpoint(
 ) -> ChatResponse:
     """Context-aware AI chat during a review session.
 
-    Uses the current session context (page, feature, component) to provide
-    relevant responses and extract structured feedback.
+    When a feature_id is provided, builds a verdict-aware prompt that asks
+    concise follow-up questions based on the consultant's verdict.
     """
     try:
         from anthropic import Anthropic
@@ -161,65 +172,101 @@ async def session_chat_endpoint(
         prototype = get_prototype(UUID(session["prototype_id"]))
         overlays = list_overlays(UUID(session["prototype_id"])) if prototype else []
 
-        # Build context-aware prompt
-        context_info = ""
-        if request.context:
-            ctx = request.context
-            context_info = f"""
-Current page: {ctx.current_page}
-Active feature: {ctx.active_feature_name or 'None'} ({ctx.active_feature_id or 'N/A'})
-Active component: {ctx.active_component or 'None'}
-Visible features: {', '.join(ctx.visible_features)}
-Pages visited: {len(ctx.page_history)}
-Features reviewed: {len(ctx.features_reviewed)}
-"""
+        # Resolve which feature overlay to use
+        target_feature_id = request.feature_id or (
+            request.context.active_feature_id if request.context else None
+        )
 
-        # Find overlay for active feature
         active_overlay = None
-        if request.context and request.context.active_feature_id:
+        if target_feature_id:
             for o in overlays:
-                if o.get("feature_id") == request.context.active_feature_id:
+                if o.get("feature_id") == target_feature_id:
                     active_overlay = o
                     break
 
-        system_prompt = f"""You are an AI requirements assistant helping a consultant review a prototype.
-You have access to feature analysis data and can help identify requirements gaps.
+        # Build context section
+        context_info = ""
+        if request.context:
+            ctx = request.context
+            context_info = f"Page: {ctx.current_page} | Feature: {ctx.active_feature_name or 'None'} | Reviewed: {len(ctx.features_reviewed)}/{len(overlays)}"
 
-Session Context:
-{context_info}
+        # Build verdict-aware system prompt
+        overlay_content = active_overlay.get("overlay_content", {}) if active_overlay else {}
+        feature_name = overlay_content.get("feature_name", "this feature")
+        consultant_verdict = active_overlay.get("consultant_verdict") if active_overlay else None
+        suggested_verdict = overlay_content.get("suggested_verdict")
+        gaps = overlay_content.get("gaps", [])
+        overview = overlay_content.get("overview", {})
+        spec_summary = overview.get("spec_summary", "")
+        proto_summary = overview.get("prototype_summary", "")
+        delta = overview.get("delta", [])
+        confidence = overlay_content.get("confidence", 0)
+        impl_status = overview.get("implementation_status", "unknown")
 
-{"Active Feature Overlay:" if active_overlay else "No active feature overlay."}
-{json.dumps(active_overlay.get("overlay_content", {}), indent=2, default=str)[:2000] if active_overlay else ""}
+        # Verdict-specific guidance
+        verdict_guidance = ""
+        if consultant_verdict == "aligned":
+            verdict_guidance = (
+                "The consultant marked this feature as ALIGNED. "
+                "Ask if there are edge cases, missing validation rules, or data handling nuances "
+                "that look correct but might break under real-world conditions. Be brief."
+            )
+        elif consultant_verdict == "needs_adjustment":
+            gap_text = "; ".join(g.get("question", "") for g in gaps[:2]) if gaps else "gaps found in analysis"
+            verdict_guidance = (
+                f"The consultant says this NEEDS ADJUSTMENT. "
+                f"Our analysis found these gaps: {gap_text}. "
+                f"Deltas: {'; '.join(delta[:3])}. "
+                "Ask what specifically needs to change — is it the spec, the implementation, or both?"
+            )
+        elif consultant_verdict == "off_track":
+            verdict_guidance = (
+                "The consultant says this is OFF TRACK — a fundamental disconnect. "
+                "Ask about the core misunderstanding: is the feature solving the wrong problem, "
+                "targeting the wrong persona, or missing the business intent entirely?"
+            )
+        else:
+            verdict_guidance = "No verdict set yet. Help the consultant understand the feature."
 
-Help the consultant by:
-1. Answering questions about the current feature/page
-2. Suggesting what to look for based on the overlay data
-3. Identifying when their observations match or conflict with existing requirements
-4. Extracting structured feedback from their messages
+        # Note if consultant disagrees with AI suggestion
+        disagreement = ""
+        if consultant_verdict and suggested_verdict and consultant_verdict != suggested_verdict:
+            disagreement = (
+                f"\nNote: AI suggested '{suggested_verdict}' but the consultant chose '{consultant_verdict}'. "
+                "This disagreement is interesting — gently explore why they see it differently."
+            )
 
-After responding, if the message contains feedback (observations, requirements, concerns),
-include it in the extracted_feedback array as JSON objects with keys:
-feedback_type, content, feature_id (if applicable), priority
-"""
+        system_prompt = f"""You are a concise requirements assistant helping a consultant review "{feature_name}" in a prototype.
+
+Context: {context_info}
+Implementation: {impl_status} | Confidence: {round(confidence * 100)}%
+Spec: {spec_summary[:200]}
+Prototype: {proto_summary[:200]}
+
+{verdict_guidance}{disagreement}
+
+RULES:
+- Be concise: 2-3 sentences max, then ask ONE follow-up question
+- Focus on requirements implications, not code quality
+- If the consultant's observation reveals a new requirement, acknowledge it
+- Never repeat information the consultant already knows"""
+
+        # Use verdict chat model (Haiku) by default, allow override
+        model = request.model_override or settings.VERDICT_CHAT_MODEL
 
         client = Anthropic(api_key=settings.ANTHROPIC_API_KEY)
         response = client.messages.create(
-            model=settings.CHAT_MODEL,
-            max_tokens=2048,
+            model=model,
+            max_tokens=512,
             system=system_prompt,
             messages=[{"role": "user", "content": request.message}],
         )
 
         response_text = response.content[0].text
 
-        # Try to extract feedback from the response
-        extracted_feedback: list[dict] = []
-        # If the AI included structured feedback in its response, we'd parse it here
-        # For now, return the response as-is
-
         return ChatResponse(
             response=response_text,
-            extracted_feedback=extracted_feedback,
+            extracted_feedback=[],
         )
 
     except HTTPException:

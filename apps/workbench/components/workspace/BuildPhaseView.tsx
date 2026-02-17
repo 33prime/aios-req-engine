@@ -20,6 +20,7 @@ import {
   X,
   Square,
   Sparkles,
+  Loader2,
 } from 'lucide-react'
 import PrototypeFrame from '@/components/prototype/PrototypeFrame'
 import type { PrototypeFrameHandle } from '@/components/prototype/PrototypeFrame'
@@ -45,10 +46,12 @@ interface BuildPhaseViewProps {
   // Review mode props
   isReviewActive: boolean
   onStartReview: () => void
-  onEndReview: () => void
+  onEndReview: () => Promise<void>
   session: PrototypeSession | null
   overlays: FeatureOverlay[]
   vpSteps: VpStep[]
+  /** When set to 'tour', auto-starts the guided tour once frame is ready */
+  reviewTourMode?: 'tour' | 'explore'
   // Bridge callbacks — lifted to parent so it can update shared state
   onFeatureClick: (featureId: string, componentName: string | null) => void
   onPageChange: (path: string, visibleFeatures: string[]) => void
@@ -75,6 +78,7 @@ export function BuildPhaseView({
   session,
   overlays,
   vpSteps,
+  reviewTourMode,
   onFeatureClick,
   onPageChange,
   onTourStepChange,
@@ -92,6 +96,7 @@ export function BuildPhaseView({
   const [iframeKey, setIframeKey] = useState(0)
   const [showDesignModal, setShowDesignModal] = useState(false)
   const [isGenerating, setIsGenerating] = useState(false)
+  const [isEndingReview, setIsEndingReview] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -214,11 +219,23 @@ export function BuildPhaseView({
               {/* Review toggle button */}
               {isReviewActive ? (
                 <button
-                  onClick={onEndReview}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors"
+                  onClick={async () => {
+                    setIsEndingReview(true)
+                    try {
+                      await onEndReview()
+                    } finally {
+                      setIsEndingReview(false)
+                    }
+                  }}
+                  disabled={isEndingReview}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors disabled:opacity-50"
                 >
-                  <Square className="w-3.5 h-3.5" />
-                  End Review
+                  {isEndingReview ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <Square className="w-3.5 h-3.5" />
+                  )}
+                  {isEndingReview ? 'Ending...' : 'End Review'}
                 </button>
               ) : (
                 <button
@@ -268,6 +285,7 @@ export function BuildPhaseView({
           isFrameReady={isFrameReady}
           onStepChange={onTourStepChange}
           onTourEnd={onTourEnd}
+          autoStart={reviewTourMode === 'tour'}
         />
       )}
 

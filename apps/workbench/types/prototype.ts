@@ -105,6 +105,7 @@ export interface FeatureOverlay {
   consultant_notes: string | null
   client_verdict: FeatureVerdict | null
   client_notes: string | null
+  handoff_routes: string[] | null
   created_at: string
 }
 

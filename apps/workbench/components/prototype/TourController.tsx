@@ -13,6 +13,8 @@ interface TourControllerProps {
   isFrameReady: boolean
   onStepChange: (step: TourStep | null) => void
   onTourEnd: () => void
+  /** When true, auto-start the tour once frame is ready */
+  autoStart?: boolean
 }
 
 // --- Route inference from feature names + code paths ---
@@ -42,20 +44,24 @@ function inferRouteFromFeature(
   featureName: string,
   codePath: string | null,
   routeFeatureMap: RouteFeatureMap,
-  featureId: string
+  featureId: string,
+  handoffRoutes?: string[] | null
 ): string | null {
-  // First: check runtime route-feature map
+  // Level 0: persisted routes from HANDOFF.md (highest priority)
+  if (handoffRoutes?.length) return handoffRoutes[0]
+
+  // Level 1: check runtime route-feature map
   for (const [route, features] of routeFeatureMap.entries()) {
     if (features.includes(featureId)) return route
   }
 
-  // Second: derive from code_file_path (e.g., "app/(dashboard)/reports/page.tsx" → "/reports")
+  // Level 2: derive from code_file_path (e.g., "app/(dashboard)/reports/page.tsx" → "/reports")
   if (codePath) {
     const routeMatch = codePath.match(/app\/(?:\([^)]+\)\/)?([^/]+)\//)
     if (routeMatch) return '/' + routeMatch[1]
   }
 
-  // Third: keyword matching against feature name
+  // Level 3: keyword matching against feature name
   const lower = featureName.toLowerCase()
   for (const [keyword, route] of Object.entries(ROUTE_KEYWORD_MAP)) {
     if (lower.includes(keyword)) return route
@@ -109,7 +115,7 @@ export function buildTourPlan(
       featureId,
       featureName: content.feature_name,
       description: content.overview?.prototype_summary || '',
-      route: inferRouteFromFeature(content.feature_name, overlay.code_file_path, routeFeatureMap, featureId),
+      route: inferRouteFromFeature(content.feature_name, overlay.code_file_path, routeFeatureMap, featureId, overlay.handoff_routes),
       vpStepIndex: vpIndex,
       vpStepLabel: vpLabel,
       overlayId: overlay.id,
@@ -263,6 +269,7 @@ export default function TourController({
   isFrameReady,
   onStepChange,
   onTourEnd,
+  autoStart = false,
 }: TourControllerProps) {
   const [state, dispatch] = useReducer(tourReducer, {
     status: 'idle',
@@ -342,6 +349,15 @@ export default function TourController({
   const handleStart = useCallback(() => {
     dispatch({ type: 'START', totalSteps: plan.totalSteps })
   }, [plan.totalSteps])
+
+  // Auto-start the tour when autoStart prop is set and frame is ready
+  const autoStartRef = useRef(false)
+  useEffect(() => {
+    if (autoStart && isFrameReady && state.status === 'idle' && plan.totalSteps > 0 && !autoStartRef.current) {
+      autoStartRef.current = true
+      dispatch({ type: 'START', totalSteps: plan.totalSteps })
+    }
+  }, [autoStart, isFrameReady, state.status, plan.totalSteps])
 
   const handleStop = useCallback(() => {
     frameRef.current?.sendMessage({ type: 'aios:clear-highlights' })

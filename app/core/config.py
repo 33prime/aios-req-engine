@@ -282,6 +282,12 @@ class Settings(BaseSettings):
     POSTHOG_API_KEY: str | None = Field(default=None, description="PostHog project API key")
     POSTHOG_HOST: str = Field(default="https://us.i.posthog.com", description="PostHog host URL")
 
+    # Verdict Chat configuration (Haiku for speed/cost)
+    VERDICT_CHAT_MODEL: str = Field(
+        default="claude-haiku-4-5-20251001",
+        description="Claude model for verdict chat during prototype review"
+    )
+
     # Chat Assistant configuration
     CHAT_MODEL: str = Field(
         default="claude-sonnet-4-20250514",

@@ -2688,18 +2688,32 @@ export const createPrototypeSession = (prototypeId: string) =>
 export const getPrototypeSession = (sessionId: string) =>
   apiRequest<PrototypeSession>(`/prototype-sessions/${sessionId}`)
 
+export const listPrototypeSessions = (prototypeId: string) =>
+  apiRequest<PrototypeSession[]>(`/prototype-sessions/by-prototype/${prototypeId}`)
+
 export const submitPrototypeFeedback = (sessionId: string, data: SubmitFeedbackRequest) =>
   apiRequest<PrototypeFeedback>(`/prototype-sessions/${sessionId}/feedback`, {
     method: 'POST',
     body: JSON.stringify(data),
   })
 
-export const prototypeSessionChat = (sessionId: string, message: string, context?: SessionContext) =>
+export const prototypeSessionChat = (
+  sessionId: string,
+  message: string,
+  context?: SessionContext,
+  modelOverride?: string,
+  featureId?: string
+) =>
   apiRequest<{ response: string; extracted_feedback: Record<string, unknown>[] }>(
     `/prototype-sessions/${sessionId}/chat`,
     {
       method: 'POST',
-      body: JSON.stringify({ message, context }),
+      body: JSON.stringify({
+        message,
+        context,
+        model_override: modelOverride || undefined,
+        feature_id: featureId || undefined,
+      }),
     }
   )
 
@@ -3268,3 +3282,44 @@ export const getConsultantEnrichmentStatus = () =>
   apiRequest<import('@/types/api').ConsultantEnrichmentStatus>(
     '/consultant-enrichment/status'
   )
+
+// =============================================================================
+// Super Admin
+// =============================================================================
+
+export const getAdminDashboard = () =>
+  apiRequest<import('@/types/api').AdminDashboardStats>('/super-admin/dashboard')
+
+export const listAdminUsers = (params?: { search?: string; role?: string }) => {
+  const qs = new URLSearchParams()
+  if (params?.search) qs.set('search', params.search)
+  if (params?.role) qs.set('role', params.role)
+  const query = qs.toString()
+  return apiRequest<import('@/types/api').AdminUserSummary[]>(`/super-admin/users${query ? `?${query}` : ''}`)
+}
+
+export const getAdminUserDetail = (userId: string) =>
+  apiRequest<import('@/types/api').AdminUserDetail>(`/super-admin/users/${userId}`)
+
+export const updateUserRole = (userId: string, role: string) =>
+  apiRequest<{ status: string }>(`/super-admin/users/${userId}/role`, {
+    method: 'PATCH',
+    body: JSON.stringify({ platform_role: role }),
+  })
+
+export const listAdminProjects = (params?: { search?: string; stage?: string }) => {
+  const qs = new URLSearchParams()
+  if (params?.search) qs.set('search', params.search)
+  if (params?.stage) qs.set('stage', params.stage)
+  const query = qs.toString()
+  return apiRequest<import('@/types/api').AdminProjectSummary[]>(`/super-admin/projects${query ? `?${query}` : ''}`)
+}
+
+export const getAdminCostAnalytics = () =>
+  apiRequest<import('@/types/api').AdminCostAnalytics>('/super-admin/cost')
+
+export const getICPLeaderboard = (profileId: string) =>
+  apiRequest<import('@/types/api').LeaderboardEntry[]>(`/super-admin/icp/leaderboard?profile_id=${profileId}`)
+
+export const getUserICPSignals = (userId: string) =>
+  apiRequest<any[]>(`/super-admin/users/${userId}/icp-signals`)

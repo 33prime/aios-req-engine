@@ -220,6 +220,8 @@ class SessionChatRequest(BaseModel):
 
     message: str = Field(..., min_length=1, description="Chat message")
     context: "SessionContext | None" = Field(None, description="Current session context snapshot")
+    model_override: str | None = Field(None, description="Model override for verdict chat")
+    feature_id: str | None = Field(None, description="Feature ID to look up overlay for")
 
 
 # === Shared context models ===
@@ -411,6 +413,7 @@ class FeatureOverlayResponse(BaseModel):
     consultant_notes: str | None = Field(None, description="Consultant free-form notes")
     client_verdict: str | None = Field(None, description="Client verdict: aligned/needs_adjustment/off_track")
     client_notes: str | None = Field(None, description="Client free-form notes")
+    handoff_routes: list[str] | None = Field(None, description="Page routes from HANDOFF.md")
     created_at: str = Field(..., description="Creation timestamp")
 
 

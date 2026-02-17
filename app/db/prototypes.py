@@ -153,10 +153,11 @@ def upsert_overlay(
     component_name: str | None = None,
     handoff_feature_name: str | None = None,
     gaps_count: int = 0,
+    handoff_routes: list[str] | None = None,
 ) -> dict[str, Any]:
     """Create or update a feature overlay."""
     supabase = get_supabase()
-    data = {
+    data: dict[str, Any] = {
         "prototype_id": str(prototype_id),
         "feature_id": str(feature_id) if feature_id else None,
         "analysis": analysis,
@@ -168,6 +169,8 @@ def upsert_overlay(
         "handoff_feature_name": handoff_feature_name,
         "gaps_count": gaps_count,
     }
+    if handoff_routes is not None:
+        data["handoff_routes"] = handoff_routes
 
     # Check if overlay exists for this feature
     if feature_id:
