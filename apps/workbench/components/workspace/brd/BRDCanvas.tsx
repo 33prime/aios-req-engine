@@ -26,6 +26,7 @@ import { CompetitorSynthesisDrawer } from './components/CompetitorSynthesisDrawe
 import { PersonaDrawer } from './components/PersonaDrawer'
 import { ConstraintDrawer } from './components/ConstraintDrawer'
 import { FeatureDrawer } from './components/FeatureDrawer'
+import { BusinessDriverDetailDrawer } from './components/BusinessDriverDetailDrawer'
 import { ConfidenceDrawer } from './components/ConfidenceDrawer'
 import { NextActionsBar } from './components/NextActionsBar'
 import { OpenQuestionsPanel } from './components/OpenQuestionsPanel'
@@ -192,7 +193,12 @@ export function BRDCanvas({ projectId, initialData, initialNextActions, onRefres
     })
 
     try {
-      await batchConfirmEntities(projectId, entityType, ids, 'confirmed_consultant')
+      const result = await batchConfirmEntities(projectId, entityType, ids, 'confirmed_consultant')
+      // If backend confirmed fewer than expected, reload to get truth
+      if (result.updated_count < ids.length) {
+        console.warn(`Batch confirm: only ${result.updated_count}/${ids.length} updated — reloading`)
+        loadData()
+      }
     } catch (err) {
       console.error('Failed to batch confirm:', err)
       loadData()
@@ -316,6 +322,7 @@ export function BRDCanvas({ projectId, initialData, initialNextActions, onRefres
     setPersonaDrawer({ open: false, persona: null })
     setConstraintDrawer({ open: false, constraint: null })
     setFeatureDrawer({ open: false, feature: null })
+    setDriverDrawer({ open: false, driverId: '', driverType: 'pain', initialData: null })
     setVisionDrawer(false)
     setClientIntelDrawer(false)
     setDataEntityDrawer({ open: false, entityId: '' })
@@ -332,7 +339,17 @@ export function BRDCanvas({ projectId, initialData, initialNextActions, onRefres
       return
     }
     if (entityType === 'business_driver') {
-      // Route to entity-specific drawer — don't fall through to ConfidenceDrawer
+      // Find the driver in pain_points, goals, or success_metrics
+      const allDrivers = [
+        ...data.business_context.pain_points.map(d => ({ ...d, _type: 'pain' as const })),
+        ...data.business_context.goals.map(d => ({ ...d, _type: 'goal' as const })),
+        ...data.business_context.success_metrics.map(d => ({ ...d, _type: 'kpi' as const })),
+      ]
+      const driver = allDrivers.find(d => d.id === entityId)
+      if (driver) {
+        closeAllDrawers()
+        setDriverDrawer({ open: true, driverId: entityId, driverType: driver._type, initialData: driver })
+      }
       return
     }
     if (entityType === 'persona') {
@@ -453,6 +470,10 @@ export function BRDCanvas({ projectId, initialData, initialNextActions, onRefres
     open: boolean; feature: import('@/types/workspace').FeatureBRDSummary | null
   }>({ open: false, feature: null })
 
+  const [driverDrawer, setDriverDrawer] = useState<{
+    open: boolean; driverId: string; driverType: 'pain' | 'goal' | 'kpi'; initialData: import('@/types/workspace').BusinessDriver | null
+  }>({ open: false, driverId: '', driverType: 'pain', initialData: null })
+
   const handleOpenCompetitorDetail = useCallback((competitor: CompetitorBRDSummary) => {
     closeAllDrawers()
     setCompetitorDrawer({ open: true, competitor })
@@ -501,10 +522,8 @@ export function BRDCanvas({ projectId, initialData, initialNextActions, onRefres
         if (unconfirmed.length > 0) {
           handleConfirmAll('feature', unconfirmed)
         }
-        // Also open first unconfirmed feature if there's a target
-        if (action.target_entity_id) {
-          handleOpenConfidence('feature', action.target_entity_id, action.title)
-        }
+        // Scroll to requirements section so user sees the update
+        document.getElementById('brd-section-features')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
         break
       }
 
@@ -523,6 +542,7 @@ export function BRDCanvas({ projectId, initialData, initialNextActions, onRefres
 
       case 'section_gap': {
         const sectionMap: Record<string, string> = {
+          // Singular keys (entity types)
           feature: 'brd-section-features',
           persona: 'brd-section-personas',
           vp_step: 'brd-section-workflows',
@@ -530,6 +550,14 @@ export function BRDCanvas({ projectId, initialData, initialNextActions, onRefres
           data_entity: 'brd-section-data-entities',
           stakeholder: 'brd-section-stakeholders',
           competitor_reference: 'brd-section-competitors',
+          // Plural keys (completeness section names from backend)
+          features: 'brd-section-features',
+          personas: 'brd-section-personas',
+          workflows: 'brd-section-workflows',
+          constraints: 'brd-section-constraints',
+          data_entities: 'brd-section-data-entities',
+          stakeholders: 'brd-section-stakeholders',
+          vision: 'brd-section-business-context',
         }
         const sectionId = sectionMap[action.target_entity_type] || 'brd-section-business-context'
         document.getElementById(sectionId)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
@@ -1327,6 +1355,20 @@ export function BRDCanvas({ projectId, initialData, initialNextActions, onRefres
           feature={featureDrawer.feature}
           projectId={projectId}
           onClose={() => setFeatureDrawer({ open: false, feature: null })}
+          onConfirm={handleConfirm}
+          onNeedsReview={handleNeedsReview}
+        />
+      )}
+
+      {/* Business Driver Detail Drawer */}
+      {driverDrawer.open && driverDrawer.initialData && (
+        <BusinessDriverDetailDrawer
+          driverId={driverDrawer.driverId}
+          driverType={driverDrawer.driverType}
+          projectId={projectId}
+          initialData={driverDrawer.initialData}
+          stakeholders={data?.stakeholders}
+          onClose={() => setDriverDrawer({ open: false, driverId: '', driverType: 'pain', initialData: null })}
           onConfirm={handleConfirm}
           onNeedsReview={handleNeedsReview}
         />
