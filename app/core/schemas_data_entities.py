@@ -40,7 +40,7 @@ class DataEntityBRDSummary(BaseModel):
     field_count: int = 0
     workflow_step_count: int = 0
     confirmation_status: str | None = None
-    evidence: list[dict[str, Any]] = []
+    evidence: list[Any] = []
     is_stale: bool = False
     stale_reason: str | None = None
 
@@ -87,7 +87,7 @@ class DataEntityDetail(BaseModel):
     fields: list[dict[str, Any]] = []
     field_count: int = 0
     confirmation_status: str | None = None
-    evidence: list[dict[str, Any]] = []
+    evidence: list[Any] = []
     is_stale: bool = False
     stale_reason: str | None = None
     workflow_links: list[DataEntityWorkflowLink] = []
