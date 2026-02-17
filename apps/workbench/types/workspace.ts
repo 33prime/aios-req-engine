@@ -1488,3 +1488,41 @@ export interface QuestionCounts {
   high_open: number
 }
 
+// Project Launch Types
+export interface LaunchStepStatus {
+  step_key: string
+  step_label: string
+  status: 'pending' | 'running' | 'completed' | 'failed' | 'skipped'
+  started_at?: string
+  completed_at?: string
+  result_summary?: string
+  error_message?: string
+}
+
+export interface ProjectLaunchResponse {
+  launch_id: string
+  project_id: string
+  client_id?: string
+  stakeholder_ids: string[]
+  status: string
+  steps: LaunchStepStatus[]
+}
+
+export interface LaunchProgressResponse {
+  launch_id: string
+  project_id: string
+  status: string
+  steps: LaunchStepStatus[]
+  progress_pct: number
+  can_navigate: boolean
+}
+
+export interface StakeholderLaunchInput {
+  first_name: string
+  last_name: string
+  email?: string
+  linkedin_url?: string
+  role?: string
+  stakeholder_type?: string
+}
+

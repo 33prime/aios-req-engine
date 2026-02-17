@@ -2729,6 +2729,7 @@ export const triggerPrototypeCodeUpdate = (sessionId: string) =>
 
 export const getPrototypeClientData = (sessionId: string, token: string) =>
   apiRequest<{
+    prototype_id: string
     deploy_url: string | null
     session_number: number
     features_analyzed: number
@@ -2762,6 +2763,12 @@ export const submitFeatureVerdict = (
       method: 'PUT',
       body: JSON.stringify({ verdict, source, notes: notes || null }),
     }
+  )
+
+export const completeClientReview = (sessionId: string, token: string) =>
+  apiRequest<{ session_id: string; status: string }>(
+    `/prototype-sessions/${sessionId}/complete-client-review?token=${token}`,
+    { method: 'POST' }
   )
 
 /**
@@ -3221,4 +3228,28 @@ export const dismissQuestion = (projectId: string, questionId: string, reason?: 
   apiRequest<import('@/types/workspace').OpenQuestion>(
     `/projects/${projectId}/questions/${questionId}/dismiss`,
     { method: 'POST', body: JSON.stringify({ reason }) }
+  )
+
+// =============================================================================
+// Project Launch
+// =============================================================================
+
+export const launchProject = (data: {
+  project_name: string
+  problem_description?: string
+  client_id?: string
+  client_name?: string
+  client_website?: string
+  client_industry?: string
+  stakeholders?: import('@/types/workspace').StakeholderLaunchInput[]
+  auto_discovery?: boolean
+}) =>
+  apiRequest<import('@/types/workspace').ProjectLaunchResponse>('/projects/launch', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+
+export const getLaunchProgress = (projectId: string, launchId: string) =>
+  apiRequest<import('@/types/workspace').LaunchProgressResponse>(
+    `/projects/${projectId}/launch/${launchId}/progress`
   )

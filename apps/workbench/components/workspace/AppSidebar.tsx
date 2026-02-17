@@ -5,7 +5,7 @@
  * - Smaller logo, icons, text
  * - Tighter spacing
  * - Green "+" button and notification bell (visible in collapsed state too)
- * - Launches SmartProjectCreation modal from "+" button
+ * - Launches ProjectLaunchWizard modal from "+" button
  */
 
 'use client'
@@ -28,7 +28,8 @@ import {
 } from 'lucide-react'
 import { useAuth } from '@/components/auth/AuthProvider'
 import { useProfile } from '@/lib/hooks/use-api'
-import { SmartProjectCreation } from '@/app/projects/components/SmartProjectCreation'
+import { ProjectLaunchWizard } from '@/app/projects/components/ProjectLaunchWizard'
+import type { ProjectLaunchResponse } from '@/types/workspace'
 
 // =============================================================================
 // NavItem
@@ -105,10 +106,10 @@ export function AppSidebar({ isCollapsed: controlledCollapsed, onToggleCollapse 
     { href: '/settings', icon: <Settings className="w-4 h-4" />, label: 'Admin Panel' },
   ]
 
-  // Handle project created
-  const handleProjectCreated = (response: { id: string; name: string; onboarding_job_id?: string }) => {
+  // Handle project launched
+  const handleProjectLaunched = (response: ProjectLaunchResponse) => {
     setShowCreateProject(false)
-    router.push(`/projects/${response.id}`)
+    router.push(`/projects/${response.project_id}?launch=${response.launch_id}`)
   }
 
   return (
@@ -233,11 +234,11 @@ export function AppSidebar({ isCollapsed: controlledCollapsed, onToggleCollapse 
         )}
       </aside>
 
-      {/* Smart Project Creation Modal */}
-      <SmartProjectCreation
+      {/* Project Launch Wizard */}
+      <ProjectLaunchWizard
         isOpen={showCreateProject}
         onClose={() => setShowCreateProject(false)}
-        onSuccess={handleProjectCreated}
+        onLaunched={handleProjectLaunched}
       />
     </>
   )
