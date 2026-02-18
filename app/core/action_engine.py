@@ -1,99 +1,63 @@
-"""Unified action engine: phase-aware, memory-informed, temporally-weighted.
+"""Relationship-aware action engine v2.
 
-Two entry points:
-1. compute_actions() — full context, for single-project views (async, queries DB)
-2. compute_actions_from_inputs() — lightweight sync, for batch dashboard
+Layer 1: Graph-walking skeleton builder — deterministic, no LLM, instant.
+Walks: workflows → steps → drivers → personas → cross-refs
+Produces 5 ActionSkeletons with rich relationship context.
 
-No LLM in the hot path. Pure logic for speed.
+Layer 2 (generate_action_narratives.py) wraps skeletons with Haiku narratives.
 """
 
+import hashlib
 import logging
 from datetime import datetime, timezone
 from uuid import UUID
 
-from app.core.schemas_actions import ActionCategory, ActionEngineResult, UnifiedAction
+from app.core.schemas_actions import (
+    ActionCategory,
+    ActionEngineResult,
+    ActionSkeleton,
+    GapDomain,
+    QuestionTarget,
+    SkeletonRelationship,
+    UnifiedAction,
+)
 
 logger = logging.getLogger(__name__)
 
 # ============================================================================
-# Constants
+# Phase multipliers
 # ============================================================================
 
-CRITICAL_ROLES = [
-    "CFO", "Finance Director",
-    "CTO", "Tech Lead",
-    "Operations Manager", "COO",
-    "Compliance Officer",
-    "Product Owner",
-]
-
-# Phase multipliers: (action_type, phase) → multiplier
-# Defaults to 1.0 for unlisted combos
+# (gap_domain, phase) → multiplier. Missing combos default to 1.0.
 PHASE_MULTIPLIERS: dict[tuple[str, str], float] = {
-    ("confirm_critical", "discovery"): 0.6,
-    ("confirm_critical", "definition"): 1.0,
-    ("confirm_critical", "validation"): 1.2,
-    ("confirm_critical", "build_ready"): 1.3,
-    ("stakeholder_gap", "discovery"): 1.2,
-    ("stakeholder_gap", "definition"): 1.0,
-    ("stakeholder_gap", "validation"): 0.7,
-    ("stakeholder_gap", "build_ready"): 0.5,
-    ("missing_evidence", "discovery"): 0.7,
-    ("missing_evidence", "definition"): 1.0,
-    ("missing_evidence", "validation"): 1.3,
-    ("missing_evidence", "build_ready"): 1.4,
-    ("open_question_critical", "discovery"): 0.9,
-    ("open_question_critical", "validation"): 1.4,
-    ("open_question_critical", "build_ready"): 1.5,
-    ("open_question_blocking", "validation"): 1.2,
-    ("stale_belief", "build_ready"): 1.5,
-    ("stale_belief", "validation"): 1.2,
-    ("revisit_decision", "validation"): 1.1,
-    ("contradiction_unresolved", "validation"): 1.3,
-    ("contradiction_unresolved", "build_ready"): 1.4,
-    ("temporal_stale", "definition"): 1.0,
-    ("temporal_stale", "validation"): 1.2,
-    ("temporal_stale", "build_ready"): 1.3,
-    ("cross_entity_gap", "discovery"): 1.1,
-    ("cross_entity_gap", "definition"): 1.0,
-}
-
-# Role → knowledge domain (for stakeholder gap descriptions)
-ROLE_DOMAINS: dict[str, str] = {
-    "CFO": "budget and financial constraints",
-    "Finance Director": "budget and financial constraints",
-    "CTO": "technical architecture and feasibility",
-    "Tech Lead": "technical implementation details",
-    "Operations Manager": "process workflows and operations",
-    "COO": "organizational operations",
-    "Compliance Officer": "regulatory and compliance requirements",
-    "Product Owner": "feature priorities and requirements",
-}
-
-# Role → feature keywords that role typically evidences
-ROLE_EVIDENCE_MAP: dict[str, list[str]] = {
-    "CFO": ["budget", "cost", "financ", "revenue", "roi"],
-    "Finance Director": ["budget", "cost", "financ", "revenue"],
-    "CTO": ["architect", "tech", "integrat", "api", "infrastructure"],
-    "Tech Lead": ["tech", "implement", "code", "system"],
-    "Operations Manager": ["process", "workflow", "operat", "efficien"],
-    "COO": ["operat", "process", "scale"],
-    "Compliance Officer": ["complian", "regulat", "audit", "security", "privacy"],
-    "Product Owner": ["feature", "user", "requirement", "priorit"],
+    # Workflows are always important, but peak in definition
+    ("workflow", "discovery"): 1.0,
+    ("workflow", "definition"): 1.3,
+    ("workflow", "validation"): 1.1,
+    ("workflow", "build_ready"): 0.8,
+    # Drivers matter most in discovery/definition
+    ("driver", "discovery"): 1.2,
+    ("driver", "definition"): 1.1,
+    ("driver", "validation"): 0.9,
+    ("driver", "build_ready"): 0.7,
+    # Personas matter in discovery, less later
+    ("persona", "discovery"): 1.1,
+    ("persona", "definition"): 1.0,
+    ("persona", "validation"): 0.8,
+    ("persona", "build_ready"): 0.6,
+    # Cross-refs and intelligence matter more in validation
+    ("cross_ref", "discovery"): 0.8,
+    ("cross_ref", "definition"): 1.0,
+    ("cross_ref", "validation"): 1.2,
+    ("cross_ref", "build_ready"): 1.3,
 }
 
 
-# ============================================================================
-# Scoring helpers
-# ============================================================================
-
-def _phase_multiplier(action_type: str, phase: str) -> float:
-    """Get phase multiplier for an action type."""
-    return PHASE_MULTIPLIERS.get((action_type, phase), 1.0)
+def _phase_mult(domain: str, phase: str) -> float:
+    return PHASE_MULTIPLIERS.get((domain, phase), 1.0)
 
 
-def _temporal_modifier(days_stale: int | None) -> float:
-    """Boost score for things that have been stale longer."""
+def _temporal_mod(days_stale: int | None) -> float:
     if not days_stale or days_stale < 7:
         return 1.0
     if days_stale < 14:
@@ -103,14 +67,7 @@ def _temporal_modifier(days_stale: int | None) -> float:
     return 1.3
 
 
-def _score(base: float, action_type: str, phase: str, days_stale: int | None = None) -> float:
-    """Compute final score: base × phase_multiplier × temporal_modifier, clamped to [0, 100]."""
-    raw = base * _phase_multiplier(action_type, phase) * _temporal_modifier(days_stale)
-    return min(100.0, max(0.0, round(raw, 1)))
-
-
-def _urgency_from_score(score: float) -> str:
-    """Map score to urgency level."""
+def _urgency(score: float) -> str:
     if score >= 90:
         return "critical"
     if score >= 80:
@@ -120,703 +77,897 @@ def _urgency_from_score(score: float) -> str:
     return "low"
 
 
+def _skeleton_id(gap_type: str, entity_id: str) -> str:
+    """Deterministic hash for caching."""
+    raw = f"{gap_type}:{entity_id}"
+    return hashlib.md5(raw.encode()).hexdigest()[:12]
+
+
 # ============================================================================
-# BRD gap actions (mirrors existing next_actions.py logic)
+# Data loading
 # ============================================================================
 
-def _compute_brd_gap_actions(
-    brd_data: dict,
-    stakeholders: list,
-    completeness: dict | None,
-    phase: str = "discovery",
-) -> list[UnifiedAction]:
-    """Compute actions from BRD gaps (same triggers as original, now with phase scoring)."""
-    actions: list[UnifiedAction] = []
 
-    business_context = brd_data.get("business_context", {})
-    requirements = brd_data.get("requirements", {})
+async def _load_project_data(project_id: UUID) -> dict:
+    """Load all project data needed for skeleton generation.
 
-    pains = business_context.get("pain_points", [])
-    metrics = business_context.get("success_metrics", [])
-
-    all_features = (
-        requirements.get("must_have", [])
-        + requirements.get("should_have", [])
-        + requirements.get("could_have", [])
+    Single async boundary — everything below is sync graph walking.
+    """
+    from app.context.phase_detector import (
+        calculate_phase_progress,
+        detect_project_phase,
     )
+    from app.db.business_drivers import list_business_drivers
+    from app.db.entity_dependencies import get_dependency_graph
+    from app.db.open_questions import list_open_questions
+    from app.db.personas import list_personas
+    from app.db.workflows import get_workflow_pairs
 
-    # 1. Unconfirmed must-have features
-    unconfirmed_must_have = [
-        f for f in requirements.get("must_have", [])
-        if f.get("confirmation_status") not in ("confirmed_consultant", "confirmed_client")
-    ]
-    if unconfirmed_must_have:
-        count = len(unconfirmed_must_have)
-        at = "confirm_critical"
-        actions.append(UnifiedAction(
-            action_type=at,
-            title=f"Confirm {count} Must-Have feature{'s' if count > 1 else ''} with client",
-            description=f"{count} must-have features are unconfirmed. Schedule a client review session to validate priorities.",
-            impact_score=_score(90, at, phase),
-            target_entity_type="feature",
-            target_entity_id=unconfirmed_must_have[0].get("id"),
-            suggested_stakeholder_role="Business Sponsor",
-            suggested_artifact="Feature priority matrix",
-            category=ActionCategory.CONFIRM,
-            rationale="Unconfirmed must-haves block validation sign-off",
-            urgency=_urgency_from_score(_score(90, at, phase)),
-        ))
+    # Phase
+    try:
+        detected_phase, metrics = await detect_project_phase(project_id)
+        phase = detected_phase.value
+        phase_progress = calculate_phase_progress(detected_phase, metrics)
+    except Exception as e:
+        logger.warning(f"Phase detection failed: {e}")
+        phase = "discovery"
+        phase_progress = 0.0
 
-    # 2. Missing stakeholder coverage
-    existing_roles = {(s.get("role") or "").lower() for s in stakeholders}
-    missing_roles = []
-    for role in CRITICAL_ROLES:
-        if not any(role.lower() in er for er in existing_roles):
-            missing_roles.append(role)
+    # Core data — all sync calls
+    workflow_pairs = get_workflow_pairs(project_id)
+    drivers = list_business_drivers(project_id, limit=200)
+    personas = list_personas(project_id)
+    dep_graph = get_dependency_graph(project_id)
+    questions = list_open_questions(project_id, status="open", limit=50)
 
-    if missing_roles:
-        top_role = missing_roles[0]
-        at = "stakeholder_gap"
-        domain = ROLE_DOMAINS.get(top_role, "domain-specific decisions")
-        actions.append(UnifiedAction(
-            action_type=at,
-            title=f"Identify and engage {top_role}",
-            description=f"No {top_role} is represented in the stakeholder list. This role typically provides critical input on {domain}.",
-            impact_score=_score(80, at, phase),
-            target_entity_type="stakeholder",
-            suggested_stakeholder_role=top_role,
-            suggested_artifact="Org chart or team directory",
-            category=ActionCategory.DISCOVER,
-            rationale=f"{top_role} coverage is essential for {domain}",
-            urgency=_urgency_from_score(_score(80, at, phase)),
-        ))
+    # Stakeholder names for question routing
+    stakeholder_names: list[str] = []
+    try:
+        from app.db.supabase_client import get_supabase
 
-    # 3. Empty BRD sections with low completeness
-    if completeness and completeness.get("sections"):
-        for section in completeness["sections"]:
-            if section.get("score", 0) < 30 and section.get("gaps"):
-                at = "section_gap"
-                actions.append(UnifiedAction(
-                    action_type=at,
-                    title=f"Improve {section['section'].replace('_', ' ').title()} section",
-                    description=section["gaps"][0] if section["gaps"] else f"The {section['section']} section needs more data.",
-                    impact_score=_score(60 + (30 - section.get("score", 0)), at, phase),
-                    target_entity_type=section["section"],
-                    category=ActionCategory.DEFINE,
-                    rationale="Low completeness blocks downstream analysis",
-                    urgency="normal",
-                ))
+        sb = get_supabase()
+        result = (
+            sb.table("stakeholders")
+            .select("id, first_name, last_name, name, role, stakeholder_type")
+            .eq("project_id", str(project_id))
+            .execute()
+        )
+        stakeholder_names = [
+            f"{s.get('first_name', '')} {s.get('last_name', '')}".strip()
+            or s.get("name", "")
+            for s in (result.data or [])
+        ]
+    except Exception as e:
+        logger.warning(f"Stakeholder load failed: {e}")
 
-    # 4. Features without evidence
-    no_evidence_features = [
-        f for f in all_features
-        if not f.get("evidence") or len(f.get("evidence", [])) == 0
-    ]
-    if len(no_evidence_features) > 2:
-        at = "missing_evidence"
-        actions.append(UnifiedAction(
-            action_type=at,
-            title=f"Gather evidence for {len(no_evidence_features)} unsupported features",
-            description="Multiple features lack supporting evidence. Request source documents or schedule discovery sessions.",
-            impact_score=_score(65, at, phase),
-            target_entity_type="feature",
-            target_entity_id=no_evidence_features[0].get("id"),
-            suggested_stakeholder_role="Product Owner",
-            suggested_artifact="Requirements documents or meeting transcripts",
-            category=ActionCategory.VALIDATE,
-            rationale="Evidence gaps weaken confidence in feature definitions",
-            urgency=_urgency_from_score(_score(65, at, phase)),
-        ))
-
-    # 5. Unconfirmed high-severity pains
-    unconfirmed_pains = [
-        p for p in pains
-        if p.get("severity") in ("critical", "high")
-        and p.get("confirmation_status") not in ("confirmed_consultant", "confirmed_client")
-    ]
-    if unconfirmed_pains:
-        at = "validate_pains"
-        actions.append(UnifiedAction(
-            action_type=at,
-            title=f"Validate {len(unconfirmed_pains)} high-severity pain{'s' if len(unconfirmed_pains) > 1 else ''} with stakeholders",
-            description="High-severity pain points need validation. Request process maps or schedule observation sessions.",
-            impact_score=_score(75, at, phase),
-            target_entity_type="business_driver",
-            target_entity_id=unconfirmed_pains[0].get("id"),
-            suggested_stakeholder_role="Operations Manager",
-            suggested_artifact="Process maps or SOPs",
-            category=ActionCategory.VALIDATE,
-            rationale="Unvalidated pains risk misaligned priorities",
-            urgency=_urgency_from_score(_score(75, at, phase)),
-        ))
-
-    # 6. No vision statement
-    if not business_context.get("vision"):
-        at = "missing_vision"
-        actions.append(UnifiedAction(
-            action_type=at,
-            title="Draft a vision statement",
-            description="No vision statement has been defined. A clear vision aligns all requirements.",
-            impact_score=_score(70, at, phase),
-            target_entity_type="vision",
-            category=ActionCategory.DEFINE,
-            suggested_stakeholder_role="Business Sponsor",
-            rationale="Vision anchors all downstream decisions",
-            urgency=_urgency_from_score(_score(70, at, phase)),
-        ))
-
-    # 7. No success metrics
-    if len(metrics) == 0:
-        at = "missing_metrics"
-        actions.append(UnifiedAction(
-            action_type=at,
-            title="Define success metrics",
-            description="No KPIs or success metrics defined. Measurable outcomes are essential for project success.",
-            impact_score=_score(68, at, phase),
-            target_entity_type="business_driver",
-            category=ActionCategory.DEFINE,
-            suggested_stakeholder_role="Business Sponsor",
-            suggested_artifact="Analytics dashboard or KPI framework",
-            rationale="Metrics define what success looks like",
-            urgency=_urgency_from_score(_score(68, at, phase)),
-        ))
-
-    return actions
+    return {
+        "phase": phase,
+        "phase_progress": phase_progress,
+        "workflow_pairs": workflow_pairs,
+        "drivers": drivers,
+        "personas": personas,
+        "dep_graph": dep_graph,
+        "questions": questions,
+        "stakeholder_names": stakeholder_names,
+    }
 
 
 # ============================================================================
-# Cross-entity gap actions
+# Step 1: Walk Workflows (highest priority)
 # ============================================================================
 
-def _who_could_evidence(feature: dict) -> list[str]:
-    """Determine which roles could typically provide evidence for a feature."""
-    name = (feature.get("name") or "").lower()
-    overview = (feature.get("overview") or "").lower()
-    text = f"{name} {overview}"
 
-    matching_roles = []
-    for role, keywords in ROLE_EVIDENCE_MAP.items():
-        if any(kw in text for kw in keywords):
-            matching_roles.append(role)
-    return matching_roles
-
-
-def _compute_cross_entity_actions(
-    brd_data: dict,
-    stakeholders: list,
+def _walk_workflows(
+    workflow_pairs: list[dict],
+    personas: list[dict],
+    dep_graph: dict,
     phase: str,
-) -> list[UnifiedAction]:
-    """Detect compound gaps: feature needs evidence + the role who provides it is missing."""
-    actions: list[UnifiedAction] = []
+) -> list[ActionSkeleton]:
+    """Walk each workflow → each step, looking for structural gaps."""
+    skeletons: list[ActionSkeleton] = []
+    persona_map = {str(p["id"]): p for p in personas}
 
-    requirements = brd_data.get("requirements", {})
-    all_features = (
-        requirements.get("must_have", [])
-        + requirements.get("should_have", [])
-        + requirements.get("could_have", [])
-    )
+    # Build a lookup: persona_id → list of workflow names they own
+    persona_workflow_count: dict[str, int] = {}
 
-    existing_roles = {(s.get("role") or "").lower() for s in stakeholders}
+    for pair in workflow_pairs:
+        wf_name = pair.get("name", "Unnamed Workflow")
+        wf_id = pair.get("id", "")
 
-    no_evidence_features = [
-        f for f in all_features
-        if not f.get("evidence") or len(f.get("evidence", [])) == 0
-    ]
+        # Check current vs future state completeness
+        current_steps = pair.get("current_steps") or []
+        future_steps = pair.get("future_steps") or []
 
-    for feature in no_evidence_features[:5]:  # Limit to avoid too many
-        matching_roles = _who_could_evidence(feature)
-        if matching_roles and not any(r.lower() in er for r in matching_roles for er in existing_roles):
-            top_role = matching_roles[0]
-            at = "cross_entity_gap"
-            actions.append(UnifiedAction(
-                action_type=at,
-                title=f"No {top_role} to validate '{feature.get('name', 'feature')}'",
-                description=f"Feature '{feature.get('name', 'unknown')}' lacks evidence, and the role who typically provides it ({top_role}) isn't in the stakeholder list.",
-                impact_score=_score(76, at, phase),
-                target_entity_type="feature",
-                target_entity_id=feature.get("id"),
-                suggested_stakeholder_role=top_role,
-                category=ActionCategory.DISCOVER,
-                rationale=f"Compound gap: missing evidence AND missing {top_role}",
-                urgency=_urgency_from_score(_score(76, at, phase)),
-            ))
+        # Track persona ownership
+        owner = pair.get("owner", "")
+        if owner:
+            # Find persona by name match
+            for p in personas:
+                if p.get("name", "").lower() == owner.lower():
+                    pid = str(p["id"])
+                    persona_workflow_count[pid] = (
+                        persona_workflow_count.get(pid, 0) + 1
+                    )
 
-    return actions[:2]  # Max 2 cross-entity actions
+        # Walk current state steps
+        for step in current_steps:
+            step_id = str(step.get("id", ""))
+            step_label = step.get("label", "step")
+
+            # Gap: step has no actor
+            if not step.get("actor_persona_id"):
+                base = 82
+                skeletons.append(
+                    ActionSkeleton(
+                        skeleton_id=_skeleton_id("step_no_actor", step_id),
+                        category=ActionCategory.GAP,
+                        gap_domain=GapDomain.WORKFLOW,
+                        gap_type="step_no_actor",
+                        gap_description=f"Step '{step_label}' in '{wf_name}' has no assigned actor — we don't know who does this today",
+                        primary_entity_type="vp_step",
+                        primary_entity_id=step_id,
+                        primary_entity_name=step_label,
+                        related_entities=[
+                            SkeletonRelationship(
+                                entity_type="workflow",
+                                entity_id=wf_id,
+                                entity_name=wf_name,
+                                relationship="belongs_to",
+                            )
+                        ],
+                        base_score=base,
+                        phase_multiplier=_phase_mult("workflow", phase),
+                        final_score=min(
+                            100, round(base * _phase_mult("workflow", phase), 1)
+                        ),
+                        suggested_question_target=QuestionTarget.CONSULTANT,
+                    )
+                )
+
+            # Gap: step has no pain description (current state)
+            if not step.get("pain_description"):
+                base = 78
+                actor_name = step.get("actor_persona_name") or "someone"
+                skeletons.append(
+                    ActionSkeleton(
+                        skeleton_id=_skeleton_id("step_no_pain", step_id),
+                        category=ActionCategory.GAP,
+                        gap_domain=GapDomain.WORKFLOW,
+                        gap_type="step_no_pain",
+                        gap_description=f"Step '{step_label}' in '{wf_name}' has no pain description — what's broken for {actor_name} here?",
+                        primary_entity_type="vp_step",
+                        primary_entity_id=step_id,
+                        primary_entity_name=step_label,
+                        related_entities=[
+                            SkeletonRelationship(
+                                entity_type="workflow",
+                                entity_id=wf_id,
+                                entity_name=wf_name,
+                                relationship="belongs_to",
+                            )
+                        ],
+                        base_score=base,
+                        phase_multiplier=_phase_mult("workflow", phase),
+                        final_score=min(
+                            100, round(base * _phase_mult("workflow", phase), 1)
+                        ),
+                        suggested_question_target=QuestionTarget.CONSULTANT,
+                    )
+                )
+
+            # Gap: step has no time estimate
+            if not step.get("time_minutes"):
+                base = 65
+                skeletons.append(
+                    ActionSkeleton(
+                        skeleton_id=_skeleton_id("step_no_time", step_id),
+                        category=ActionCategory.GAP,
+                        gap_domain=GapDomain.WORKFLOW,
+                        gap_type="step_no_time",
+                        gap_description=f"Step '{step_label}' in '{wf_name}' has no time estimate — needed for ROI calculation",
+                        primary_entity_type="vp_step",
+                        primary_entity_id=step_id,
+                        primary_entity_name=step_label,
+                        related_entities=[
+                            SkeletonRelationship(
+                                entity_type="workflow",
+                                entity_id=wf_id,
+                                entity_name=wf_name,
+                                relationship="belongs_to",
+                            )
+                        ],
+                        base_score=base,
+                        phase_multiplier=_phase_mult("workflow", phase),
+                        final_score=min(
+                            100, round(base * _phase_mult("workflow", phase), 1)
+                        ),
+                        suggested_question_target=QuestionTarget.CONSULTANT,
+                    )
+                )
+
+        # Walk future state steps
+        for step in future_steps:
+            step_id = str(step.get("id", ""))
+            step_label = step.get("label", "step")
+
+            # Gap: future step has no benefit description
+            if not step.get("benefit_description"):
+                base = 75
+                skeletons.append(
+                    ActionSkeleton(
+                        skeleton_id=_skeleton_id("step_no_benefit", step_id),
+                        category=ActionCategory.GAP,
+                        gap_domain=GapDomain.WORKFLOW,
+                        gap_type="step_no_benefit",
+                        gap_description=f"Future step '{step_label}' in '{wf_name}' has no benefit description — what improves here?",
+                        primary_entity_type="vp_step",
+                        primary_entity_id=step_id,
+                        primary_entity_name=step_label,
+                        related_entities=[
+                            SkeletonRelationship(
+                                entity_type="workflow",
+                                entity_id=wf_id,
+                                entity_name=wf_name,
+                                relationship="belongs_to",
+                            )
+                        ],
+                        base_score=base,
+                        phase_multiplier=_phase_mult("workflow", phase),
+                        final_score=min(
+                            100, round(base * _phase_mult("workflow", phase), 1)
+                        ),
+                        suggested_question_target=QuestionTarget.CONSULTANT,
+                    )
+                )
+
+        # Cross-step: current steps with pains but no corresponding future improvement
+        steps_with_pains = [
+            s for s in current_steps if s.get("pain_description")
+        ]
+        future_labels = {(s.get("label") or "").lower() for s in future_steps}
+
+        if steps_with_pains and not future_steps:
+            # Entire workflow has no future state
+            base = 88
+            skeletons.append(
+                ActionSkeleton(
+                    skeleton_id=_skeleton_id("wf_no_future", wf_id),
+                    category=ActionCategory.GAP,
+                    gap_domain=GapDomain.WORKFLOW,
+                    gap_type="workflow_no_future_state",
+                    gap_description=f"Workflow '{wf_name}' has {len(steps_with_pains)} current pain points but no future state defined — what does the improved process look like?",
+                    primary_entity_type="workflow",
+                    primary_entity_id=wf_id,
+                    primary_entity_name=wf_name,
+                    downstream_entity_count=len(steps_with_pains),
+                    base_score=base,
+                    phase_multiplier=_phase_mult("workflow", phase),
+                    final_score=min(
+                        100, round(base * _phase_mult("workflow", phase), 1)
+                    ),
+                    suggested_question_target=QuestionTarget.CONSULTANT,
+                )
+            )
+
+        # Check if workflow has no linked drivers via entity deps
+        wf_dep_key = f"workflow:{wf_id}"
+        wf_deps = dep_graph.get("by_source", {}).get(wf_dep_key, [])
+        driver_deps = [
+            d
+            for d in wf_deps
+            if d.get("target_entity_type") == "business_driver"
+        ]
+        if not driver_deps and (current_steps or future_steps):
+            base = 72
+            skeletons.append(
+                ActionSkeleton(
+                    skeleton_id=_skeleton_id("wf_no_drivers", wf_id),
+                    category=ActionCategory.GAP,
+                    gap_domain=GapDomain.WORKFLOW,
+                    gap_type="workflow_no_drivers",
+                    gap_description=f"Workflow '{wf_name}' isn't linked to any business drivers — why are we changing this process?",
+                    primary_entity_type="workflow",
+                    primary_entity_id=wf_id,
+                    primary_entity_name=wf_name,
+                    base_score=base,
+                    phase_multiplier=_phase_mult("workflow", phase),
+                    final_score=min(
+                        100, round(base * _phase_mult("workflow", phase), 1)
+                    ),
+                    suggested_question_target=QuestionTarget.CONSULTANT,
+                )
+            )
+
+    return skeletons
 
 
 # ============================================================================
-# Memory-informed actions
+# Step 2: Walk Business Drivers
 # ============================================================================
 
-def _compute_memory_actions(
-    beliefs: list[dict],
-    contradictions: list[dict],
-    decisions: list[dict],
+
+def _walk_drivers(
+    drivers: list[dict],
+    dep_graph: dict,
     phase: str,
-) -> list[UnifiedAction]:
-    """Generate actions from memory graph signals."""
-    actions: list[UnifiedAction] = []
+) -> list[ActionSkeleton]:
+    """Walk drivers looking for orphans, missing data, weak evidence."""
+    skeletons: list[ActionSkeleton] = []
 
-    # Stale beliefs: confidence between 0.3-0.7 (uncertain)
-    for belief in beliefs[:3]:
-        confidence = belief.get("confidence", 0.5)
-        content = belief.get("summary") or belief.get("content", "")
-        if not content:
-            continue
+    for d in drivers:
+        d_id = str(d.get("id", ""))
+        d_type = d.get("driver_type", "")
+        d_desc = d.get("description", "")[:80]
+        d_dep_key = f"business_driver:{d_id}"
 
-        days_old = None
-        updated = belief.get("updated_at")
-        if updated:
-            try:
-                if isinstance(updated, str):
-                    updated = datetime.fromisoformat(updated.replace("Z", "+00:00"))
-                days_old = (datetime.now(timezone.utc) - updated).days
-            except (ValueError, TypeError):
-                pass
+        # How many things depend on / are linked to this driver
+        inbound = dep_graph.get("by_target", {}).get(d_dep_key, [])
+        outbound = dep_graph.get("by_source", {}).get(d_dep_key, [])
+        all_links = inbound + outbound
 
-        at = "stale_belief"
-        actions.append(UnifiedAction(
-            action_type=at,
-            title=f"Verify uncertain belief: {content[:60]}{'...' if len(content) > 60 else ''}",
-            description=f"Belief has {confidence:.0%} confidence and may need re-validation with stakeholders.",
-            impact_score=_score(72, at, phase, days_old),
-            category=ActionCategory.MEMORY,
-            rationale=f"Confidence at {confidence:.0%} — neither confirmed nor dismissed",
-            urgency=_urgency_from_score(_score(72, at, phase, days_old)),
-            staleness_days=days_old,
-        ))
+        # Linked workflow steps
+        step_links = [
+            l
+            for l in all_links
+            if l.get("source_entity_type") == "vp_step"
+            or l.get("target_entity_type") == "vp_step"
+        ]
 
-    # Contradictions
-    for contradiction in contradictions[:2]:
-        from_content = contradiction.get("from_summary") or contradiction.get("from_content", "")
-        to_content = contradiction.get("to_summary") or contradiction.get("to_content", "")
+        # Pain with no linked workflow step
+        if d_type == "pain" and not step_links:
+            base = 76
+            skeletons.append(
+                ActionSkeleton(
+                    skeleton_id=_skeleton_id("pain_orphan", d_id),
+                    category=ActionCategory.GAP,
+                    gap_domain=GapDomain.DRIVER,
+                    gap_type="pain_no_workflow",
+                    gap_description=f"Pain '{d_desc}' isn't linked to any workflow step — where does this hurt in the process?",
+                    primary_entity_type="business_driver",
+                    primary_entity_id=d_id,
+                    primary_entity_name=d_desc,
+                    existing_evidence_count=len(d.get("evidence") or []),
+                    base_score=base,
+                    phase_multiplier=_phase_mult("driver", phase),
+                    final_score=min(
+                        100, round(base * _phase_mult("driver", phase), 1)
+                    ),
+                    suggested_question_target=QuestionTarget.CONSULTANT,
+                )
+            )
 
-        at = "contradiction_unresolved"
-        actions.append(UnifiedAction(
-            action_type=at,
-            title=f"Resolve contradiction in knowledge graph",
-            description=f"Conflicting beliefs: '{from_content[:50]}' vs '{to_content[:50]}'",
-            impact_score=_score(78, at, phase),
-            category=ActionCategory.RESOLVE,
-            rationale="Contradictions undermine requirements integrity",
-            urgency=_urgency_from_score(_score(78, at, phase)),
-        ))
+        # Goal with no linked features (via linked_feature_ids)
+        if d_type == "goal" and not d.get("linked_feature_ids"):
+            base = 70
+            skeletons.append(
+                ActionSkeleton(
+                    skeleton_id=_skeleton_id("goal_no_feature", d_id),
+                    category=ActionCategory.GAP,
+                    gap_domain=GapDomain.DRIVER,
+                    gap_type="goal_no_feature",
+                    gap_description=f"Goal '{d_desc}' has no features addressing it — how do we achieve this?",
+                    primary_entity_type="business_driver",
+                    primary_entity_id=d_id,
+                    primary_entity_name=d_desc,
+                    base_score=base,
+                    phase_multiplier=_phase_mult("driver", phase),
+                    final_score=min(
+                        100, round(base * _phase_mult("driver", phase), 1)
+                    ),
+                    suggested_question_target=QuestionTarget.CONSULTANT,
+                )
+            )
 
-    # Low-confidence or superseded decisions
-    for decision in decisions[:2]:
-        status = decision.get("status", "active")
-        if status != "active":
-            continue
-        confidence = decision.get("confidence")
-        if confidence and confidence < 0.6:
-            title_text = decision.get("title", "decision")
-            at = "revisit_decision"
-            actions.append(UnifiedAction(
-                action_type=at,
-                title=f"Revisit low-confidence decision: {title_text[:50]}",
-                description=f"Decision '{title_text}' was recorded with low confidence and may need revisiting.",
-                impact_score=_score(70, at, phase),
-                category=ActionCategory.MEMORY,
-                rationale="Low-confidence decisions may lead to rework",
-                urgency=_urgency_from_score(_score(70, at, phase)),
-            ))
+        # KPI with no baseline or target
+        if d_type == "kpi":
+            has_baseline = bool(d.get("baseline_value"))
+            has_target = bool(d.get("target_value"))
+            if not has_baseline or not has_target:
+                missing = []
+                if not has_baseline:
+                    missing.append("baseline")
+                if not has_target:
+                    missing.append("target")
+                base = 80
+                skeletons.append(
+                    ActionSkeleton(
+                        skeleton_id=_skeleton_id("kpi_no_numbers", d_id),
+                        category=ActionCategory.GAP,
+                        gap_domain=GapDomain.DRIVER,
+                        gap_type="kpi_no_numbers",
+                        gap_description=f"KPI '{d_desc}' is missing {' and '.join(missing)} — can't measure success without numbers",
+                        primary_entity_type="business_driver",
+                        primary_entity_id=d_id,
+                        primary_entity_name=d_desc,
+                        base_score=base,
+                        phase_multiplier=_phase_mult("driver", phase),
+                        final_score=min(
+                            100, round(base * _phase_mult("driver", phase), 1)
+                        ),
+                        suggested_question_target=QuestionTarget.CLIENT,
+                        suggested_contact_name=d.get("owner"),
+                    )
+                )
 
-    return actions
+        # Single-source evidence
+        evidence = d.get("evidence") or []
+        source_signals = d.get("source_signal_ids") or []
+        total_sources = max(len(evidence), len(source_signals))
+        if total_sources == 1 and d.get("confirmation_status") != "confirmed_client":
+            base = 62
+            skeletons.append(
+                ActionSkeleton(
+                    skeleton_id=_skeleton_id("driver_single_source", d_id),
+                    category=ActionCategory.GAP,
+                    gap_domain=GapDomain.DRIVER,
+                    gap_type="driver_single_source",
+                    gap_description=f"{d_type.title()} '{d_desc}' has only 1 evidence source — needs corroboration",
+                    primary_entity_type="business_driver",
+                    primary_entity_id=d_id,
+                    primary_entity_name=d_desc,
+                    existing_evidence_count=1,
+                    base_score=base,
+                    phase_multiplier=_phase_mult("driver", phase),
+                    final_score=min(
+                        100, round(base * _phase_mult("driver", phase), 1)
+                    ),
+                    suggested_question_target=QuestionTarget.CONSULTANT,
+                )
+            )
+
+    return skeletons
 
 
 # ============================================================================
-# Open question actions
+# Step 3: Walk Personas (as actors)
 # ============================================================================
 
-def _compute_question_actions(
+
+def _walk_personas(
+    personas: list[dict],
+    workflow_pairs: list[dict],
+    phase: str,
+) -> list[ActionSkeleton]:
+    """Walk personas looking for ownership gaps and unaddressed goals."""
+    skeletons: list[ActionSkeleton] = []
+
+    # Build persona → workflow ownership map
+    persona_workflows: dict[str, list[str]] = {}
+    for pair in workflow_pairs:
+        owner = (pair.get("owner") or "").lower()
+        for p in personas:
+            if p.get("name", "").lower() == owner:
+                pid = str(p["id"])
+                if pid not in persona_workflows:
+                    persona_workflows[pid] = []
+                persona_workflows[pid].append(pair.get("name", "workflow"))
+
+    for p in personas:
+        pid = str(p["id"])
+        p_name = p.get("name", "Persona")
+        is_primary = p.get("is_primary") or p.get("canvas_role") == "primary"
+
+        # Primary persona owns 0 workflows
+        if is_primary and pid not in persona_workflows:
+            base = 84
+            skeletons.append(
+                ActionSkeleton(
+                    skeleton_id=_skeleton_id("persona_no_workflow", pid),
+                    category=ActionCategory.GAP,
+                    gap_domain=GapDomain.PERSONA,
+                    gap_type="persona_no_workflow",
+                    gap_description=f"Primary persona '{p_name}' doesn't own any workflows — what do they actually do day-to-day?",
+                    primary_entity_type="persona",
+                    primary_entity_id=pid,
+                    primary_entity_name=p_name,
+                    base_score=base,
+                    phase_multiplier=_phase_mult("persona", phase),
+                    final_score=min(
+                        100, round(base * _phase_mult("persona", phase), 1)
+                    ),
+                    suggested_question_target=QuestionTarget.CONSULTANT,
+                )
+            )
+
+        # Pain points not tracked as business drivers
+        pain_points = p.get("pain_points") or []
+        if pain_points and len(pain_points) > 2:
+            # This is a softer signal — just note it
+            base = 55
+            skeletons.append(
+                ActionSkeleton(
+                    skeleton_id=_skeleton_id("persona_pains_informal", pid),
+                    category=ActionCategory.GAP,
+                    gap_domain=GapDomain.PERSONA,
+                    gap_type="persona_pains_not_drivers",
+                    gap_description=f"'{p_name}' has {len(pain_points)} pain points that aren't formalized as business drivers",
+                    primary_entity_type="persona",
+                    primary_entity_id=pid,
+                    primary_entity_name=p_name,
+                    base_score=base,
+                    phase_multiplier=_phase_mult("persona", phase),
+                    final_score=min(
+                        100, round(base * _phase_mult("persona", phase), 1)
+                    ),
+                    suggested_question_target=QuestionTarget.CONSULTANT,
+                )
+            )
+
+    return skeletons
+
+
+# ============================================================================
+# Step 4: Cross-reference (open questions, low-confidence beliefs)
+# ============================================================================
+
+
+def _walk_cross_refs(
     questions: list[dict],
     phase: str,
-) -> list[UnifiedAction]:
-    """Generate actions from open questions."""
-    actions: list[UnifiedAction] = []
+) -> list[ActionSkeleton]:
+    """Link open questions to gaps, boost urgency for entity-linked questions."""
+    skeletons: list[ActionSkeleton] = []
 
-    for q in questions[:5]:
+    for q in questions:
         priority = q.get("priority", "medium")
-        status = q.get("status", "open")
-        if status != "open":
+        if priority == "low":
             continue
 
+        q_id = str(q.get("id", ""))
+        q_text = q.get("question", "")[:80]
+        target_type = q.get("target_entity_type")
+        target_id = q.get("target_entity_id")
+
+        # Calculate staleness
         days_old = None
         created = q.get("created_at")
         if created:
             try:
                 if isinstance(created, str):
-                    created = datetime.fromisoformat(created.replace("Z", "+00:00"))
+                    created = datetime.fromisoformat(
+                        created.replace("Z", "+00:00")
+                    )
                 days_old = (datetime.now(timezone.utc) - created).days
             except (ValueError, TypeError):
                 pass
 
-        if priority in ("critical", "high"):
-            at = "open_question_critical"
-            base = 85 if priority == "critical" else 80
-        else:
-            # Only surface medium+ as actions
-            if priority == "low":
-                continue
-            at = "open_question_blocking"
-            base = 72
+        base = {"critical": 88, "high": 80, "medium": 68}.get(priority, 68)
 
-        # Boost if linked to an unconfirmed entity
-        if q.get("target_entity_id") and not q.get("answer"):
-            base += 3
+        # Boost if linked to an entity
+        if target_type and target_id:
+            base += 5
 
-        actions.append(UnifiedAction(
-            action_type=at,
-            title=q.get("question", "Unanswered question")[:80],
-            description=q.get("why_it_matters") or q.get("context") or "This question needs resolution.",
-            impact_score=_score(base, at, phase, days_old),
-            target_entity_type=q.get("target_entity_type"),
-            target_entity_id=q.get("target_entity_id"),
-            category=ActionCategory.RESOLVE,
-            rationale=q.get("why_it_matters"),
-            related_question_id=q.get("id"),
-            urgency=_urgency_from_score(_score(base, at, phase, days_old)),
-            staleness_days=days_old,
-        ))
+        related = []
+        if target_type and target_id:
+            related.append(
+                SkeletonRelationship(
+                    entity_type=target_type,
+                    entity_id=str(target_id),
+                    entity_name=f"linked {target_type}",
+                    relationship="targets",
+                )
+            )
 
-    return actions
+        pm = _phase_mult("cross_ref", phase)
+        tm = _temporal_mod(days_old)
+
+        skeletons.append(
+            ActionSkeleton(
+                skeleton_id=_skeleton_id("open_question", q_id),
+                category=ActionCategory.GAP,
+                gap_domain=GapDomain.CROSS_REF,
+                gap_type="open_question",
+                gap_description=q_text,
+                primary_entity_type="open_question",
+                primary_entity_id=q_id,
+                primary_entity_name=q_text,
+                related_entities=related,
+                base_score=base,
+                phase_multiplier=pm,
+                temporal_modifier=tm,
+                final_score=min(100, round(base * pm * tm, 1)),
+                suggested_question_target=(
+                    QuestionTarget.CLIENT
+                    if q.get("suggested_owner")
+                    else QuestionTarget.CONSULTANT
+                ),
+                suggested_contact_name=q.get("suggested_owner"),
+            )
+        )
+
+    return skeletons
 
 
 # ============================================================================
-# Temporal staleness actions
+# Skeleton assembly + ranking
 # ============================================================================
 
-def _compute_temporal_actions(
-    brd_data: dict,
-    phase: str,
-) -> list[UnifiedAction]:
-    """Flag entities not updated in >14 days during active phase."""
-    if phase in ("discovery",):  # Don't nag during early discovery
-        return []
 
-    actions: list[UnifiedAction] = []
-    now = datetime.now(timezone.utc)
+def _build_all_skeletons(data: dict) -> list[ActionSkeleton]:
+    """Run all walk functions and merge into a single ranked list."""
+    phase = data["phase"]
 
-    requirements = brd_data.get("requirements", {})
-    all_features = (
-        requirements.get("must_have", [])
-        + requirements.get("should_have", [])
-        + requirements.get("could_have", [])
+    all_skeletons: list[ActionSkeleton] = []
+
+    # Step 1: Workflows (highest priority)
+    all_skeletons.extend(
+        _walk_workflows(
+            data["workflow_pairs"],
+            data["personas"],
+            data["dep_graph"],
+            phase,
+        )
     )
 
-    stale_features = []
-    for f in all_features:
-        updated = f.get("updated_at")
-        if not updated:
-            continue
-        try:
-            if isinstance(updated, str):
-                updated = datetime.fromisoformat(updated.replace("Z", "+00:00"))
-            days = (now - updated).days
-            if days > 14:
-                stale_features.append((f, days))
-        except (ValueError, TypeError):
-            continue
+    # Step 2: Business drivers
+    all_skeletons.extend(
+        _walk_drivers(data["drivers"], data["dep_graph"], phase)
+    )
 
-    if stale_features:
-        stale_features.sort(key=lambda x: x[1], reverse=True)
-        worst = stale_features[0]
-        at = "temporal_stale"
-        actions.append(UnifiedAction(
-            action_type=at,
-            title=f"{len(stale_features)} feature{'s' if len(stale_features) > 1 else ''} not updated in 14+ days",
-            description=f"'{worst[0].get('name', 'feature')}' hasn't been updated in {worst[1]} days. Review for accuracy.",
-            impact_score=_score(73, at, phase, worst[1]),
-            target_entity_type="feature",
-            target_entity_id=worst[0].get("id"),
-            category=ActionCategory.TEMPORAL,
-            rationale="Stale requirements risk scope drift",
-            urgency=_urgency_from_score(_score(73, at, phase, worst[1])),
-            staleness_days=worst[1],
-        ))
+    # Step 3: Personas
+    all_skeletons.extend(
+        _walk_personas(data["personas"], data["workflow_pairs"], phase)
+    )
 
-    return actions
+    # Step 4: Cross-references (open questions)
+    all_skeletons.extend(_walk_cross_refs(data["questions"], phase))
+
+    # Inject stakeholder names into skeletons that need contacts
+    for sk in all_skeletons:
+        if not sk.known_contacts and data.get("stakeholder_names"):
+            sk.known_contacts = data["stakeholder_names"][:3]
+
+    # Sort by final_score descending
+    all_skeletons.sort(key=lambda s: s.final_score, reverse=True)
+
+    # Deduplicate: same entity shouldn't appear in multiple skeletons
+    # Keep highest-scored skeleton per primary entity
+    seen_entities: set[str] = set()
+    deduped: list[ActionSkeleton] = []
+    for sk in all_skeletons:
+        key = f"{sk.primary_entity_type}:{sk.primary_entity_id}"
+        if key not in seen_entities:
+            seen_entities.add(key)
+            deduped.append(sk)
+
+    return deduped
 
 
 # ============================================================================
-# Main entry points
+# Main entry point
 # ============================================================================
+
 
 async def compute_actions(
     project_id: UUID,
-    brd_data: dict | None = None,
-    phase: str | None = None,
-    max_actions: int = 5,
+    max_skeletons: int = 5,
+    include_narratives: bool = True,
 ) -> ActionEngineResult:
-    """Full unified action computation with phase, memory, and open questions.
+    """Full action computation: skeletons + optional Haiku narratives.
 
     Args:
         project_id: Project UUID
-        brd_data: Pre-loaded BRD data (if None, loads from DB)
-        phase: Override phase (if None, detects from DB)
-        max_actions: Maximum actions to return
+        max_skeletons: How many skeletons to produce (show 3, buffer 5)
+        include_narratives: If True, calls Haiku for narrative layer
     """
-    from app.context.phase_detector import detect_project_phase
+    # Load all data (single async boundary)
+    data = await _load_project_data(project_id)
 
-    # Detect phase if not provided
-    phase_progress = 0.0
-    if phase is None:
+    # Build skeletons (sync, instant)
+    all_skeletons = _build_all_skeletons(data)
+    total_skeleton_count = len(all_skeletons)
+    top_skeletons = all_skeletons[:max_skeletons]
+
+    # Layer 2: Haiku narratives (optional)
+    actions: list[UnifiedAction] = []
+    narrative_cached = False
+
+    if include_narratives and top_skeletons:
         try:
-            detected_phase, metrics = await detect_project_phase(project_id)
-            phase = detected_phase.value
-            from app.context.phase_detector import calculate_phase_progress
-            phase_progress = calculate_phase_progress(detected_phase, metrics)
+            from app.chains.generate_action_narratives import (
+                generate_narratives,
+            )
+            from app.core.state_snapshot import get_state_snapshot
+
+            snapshot = get_state_snapshot(project_id)
+            actions, narrative_cached = await generate_narratives(
+                skeletons=top_skeletons,
+                state_snapshot=snapshot,
+                project_id=str(project_id),
+            )
+        except ImportError:
+            logger.info(
+                "Narrative chain not available, returning skeleton-only actions"
+            )
+            actions = _skeletons_to_actions(top_skeletons)
         except Exception as e:
-            logger.warning(f"Phase detection failed, defaulting to discovery: {e}")
-            phase = "discovery"
+            logger.warning(f"Narrative generation failed, falling back: {e}")
+            actions = _skeletons_to_actions(top_skeletons)
+    else:
+        actions = _skeletons_to_actions(top_skeletons)
 
-    # Load BRD data if not provided
-    if brd_data is None:
-        try:
-            from app.api.workspace import get_brd_workspace_data
-            brd_obj = await get_brd_workspace_data(project_id)
-            brd_data = brd_obj.model_dump() if hasattr(brd_obj, "model_dump") else brd_obj
-        except Exception as e:
-            logger.warning(f"BRD data load failed: {e}")
-            brd_data = {}
-
-    stakeholders = brd_data.get("stakeholders", [])
-    completeness = brd_data.get("completeness")
-
-    # Gather all action sources
-    all_actions: list[UnifiedAction] = []
-
-    # 1. BRD gap actions (always available)
-    all_actions.extend(_compute_brd_gap_actions(brd_data, stakeholders, completeness, phase))
-
-    # 2. Cross-entity gap actions
-    all_actions.extend(_compute_cross_entity_actions(brd_data, stakeholders, phase))
-
-    # 3. Temporal staleness
-    all_actions.extend(_compute_temporal_actions(brd_data, phase))
-
-    # 4. Memory signals (optional — fail gracefully)
-    memory_signals_used = 0
-    try:
-        from app.db.memory_graph import get_active_beliefs, get_all_edges
-        from app.db.project_memory import get_recent_decisions
-
-        beliefs = get_active_beliefs(project_id, limit=5, min_confidence=0.3)
-        # Filter to uncertain range
-        uncertain_beliefs = [b for b in beliefs if (b.get("confidence") or 1.0) <= 0.7]
-
-        # Get contradiction edges
-        all_edges = get_all_edges(project_id, limit=100)
-        contradictions = [
-            e for e in all_edges
-            if e.get("edge_type") == "contradicts"
-        ]
-        # Enrich contradictions with node summaries
-        enriched_contradictions = []
-        for edge in contradictions[:3]:
-            enriched_contradictions.append({
-                "from_content": edge.get("from_node_id", ""),
-                "to_content": edge.get("to_node_id", ""),
-                "from_summary": edge.get("rationale", ""),
-                "to_summary": "",
-            })
-
-        decisions = get_recent_decisions(project_id, limit=5)
-
-        memory_actions = _compute_memory_actions(uncertain_beliefs, enriched_contradictions, decisions, phase)
-        all_actions.extend(memory_actions)
-        memory_signals_used = len(uncertain_beliefs) + len(contradictions) + len(decisions)
-    except Exception as e:
-        logger.warning(f"Memory signal query failed (non-fatal): {e}")
-
-    # 5. Open questions (optional — fail gracefully)
-    open_questions_summary: list[dict] = []
-    try:
-        from app.db.open_questions import list_open_questions, get_question_counts
-        questions = list_open_questions(project_id, status="open", limit=10)
-        question_actions = _compute_question_actions(questions, phase)
-        all_actions.extend(question_actions)
-
-        # Build summary for response
-        open_questions_summary = [
-            {
-                "id": q.get("id"),
-                "question": q.get("question"),
-                "priority": q.get("priority"),
-                "category": q.get("category"),
-            }
-            for q in questions[:3]
-        ]
-    except ImportError:
-        # open_questions module not yet created — skip gracefully
-        pass
-    except Exception as e:
-        logger.warning(f"Open questions query failed (non-fatal): {e}")
-
-    # Sort by impact and take top N
-    all_actions.sort(key=lambda a: a.impact_score, reverse=True)
-    top_actions = all_actions[:max_actions]
+    # Open questions summary
+    open_questions_summary = [
+        {
+            "id": q.get("id"),
+            "question": q.get("question"),
+            "priority": q.get("priority"),
+            "category": q.get("category"),
+        }
+        for q in data["questions"][:5]
+    ]
 
     return ActionEngineResult(
-        actions=top_actions,
+        actions=actions,
+        skeleton_count=total_skeleton_count,
         open_questions=open_questions_summary,
-        phase=phase,
-        phase_progress=phase_progress,
-        memory_signals_used=memory_signals_used,
+        phase=data["phase"],
+        phase_progress=data["phase_progress"],
+        narrative_cached=narrative_cached,
     )
 
 
-def compute_actions_from_inputs(inputs: dict, phase: str = "discovery") -> list[UnifiedAction]:
+def _skeletons_to_actions(skeletons: list[ActionSkeleton]) -> list[UnifiedAction]:
+    """Fallback: convert skeletons to actions without Haiku narratives."""
+    return [
+        UnifiedAction(
+            action_id=sk.skeleton_id,
+            category=sk.category,
+            gap_domain=sk.gap_domain,
+            narrative=sk.gap_description,
+            unlocks=f"Resolving this affects {sk.downstream_entity_count} downstream entities"
+            if sk.downstream_entity_count
+            else "Fills a structural gap in the project",
+            questions=[],
+            impact_score=sk.final_score,
+            urgency=_urgency(sk.final_score),
+            primary_entity_type=sk.primary_entity_type,
+            primary_entity_id=sk.primary_entity_id,
+            primary_entity_name=sk.primary_entity_name,
+            related_entity_ids=[
+                r.entity_id for r in sk.related_entities
+            ],
+            gates_affected=sk.gates_affected,
+            gap_type=sk.gap_type,
+            known_contacts=sk.known_contacts,
+            evidence_count=sk.existing_evidence_count,
+        )
+        for sk in skeletons
+    ]
+
+
+# ============================================================================
+# Lightweight sync entry point (for batch dashboard)
+# ============================================================================
+
+
+def compute_actions_from_inputs(
+    inputs: dict, phase: str = "discovery"
+) -> list[UnifiedAction]:
     """Lightweight sync computation from pre-aggregated SQL inputs.
 
-    Used by batch dashboard endpoint. No DB queries — everything comes from RPC.
+    Used by batch dashboard endpoint. Returns skeleton-only actions (no Haiku).
     """
-    actions: list[UnifiedAction] = []
+    skeletons: list[ActionSkeleton] = []
 
-    # 1. Unconfirmed must-have features
-    mh_count = inputs.get("must_have_unconfirmed", 0)
-    if mh_count > 0:
-        at = "confirm_critical"
-        actions.append(UnifiedAction(
-            action_type=at,
-            title=f"Confirm {mh_count} Must-Have feature{'s' if mh_count > 1 else ''} with client",
-            description=f"{mh_count} must-have features are unconfirmed.",
-            impact_score=_score(90, at, phase),
-            target_entity_type="feature",
-            target_entity_id=inputs.get("must_have_first_id"),
-            suggested_stakeholder_role="Business Sponsor",
-            suggested_artifact="Feature priority matrix",
-            category=ActionCategory.CONFIRM,
-            urgency=_urgency_from_score(_score(90, at, phase)),
-        ))
+    # Workflow gaps from RPC counts
+    wf_count = inputs.get("workflow_count", 0)
+    if wf_count == 0:
+        skeletons.append(
+            ActionSkeleton(
+                skeleton_id=_skeleton_id("no_workflows", "project"),
+                category=ActionCategory.GAP,
+                gap_domain=GapDomain.WORKFLOW,
+                gap_type="no_workflows",
+                gap_description="No workflows defined — workflows are the backbone of the project",
+                primary_entity_type="project",
+                primary_entity_id=inputs.get("project_id", ""),
+                primary_entity_name="Project",
+                base_score=95,
+                phase_multiplier=_phase_mult("workflow", phase),
+                final_score=min(
+                    100, round(95 * _phase_mult("workflow", phase), 1)
+                ),
+            )
+        )
 
-    # 2. Missing stakeholder coverage
-    existing_roles = inputs.get("stakeholder_roles") or []
-    if isinstance(existing_roles, str):
-        import json
-        try:
-            existing_roles = json.loads(existing_roles)
-        except Exception:
-            existing_roles = []
-    existing_roles_set = {(r or "").lower() for r in existing_roles}
-    missing_roles = []
-    for role in CRITICAL_ROLES:
-        if not any(role.lower() in er for er in existing_roles_set):
-            missing_roles.append(role)
+    # KPI gaps
+    kpi_count = inputs.get("kpi_count", 0)
+    if kpi_count == 0:
+        skeletons.append(
+            ActionSkeleton(
+                skeleton_id=_skeleton_id("no_kpis", "project"),
+                category=ActionCategory.GAP,
+                gap_domain=GapDomain.DRIVER,
+                gap_type="no_kpis",
+                gap_description="No KPIs defined — can't measure success without metrics",
+                primary_entity_type="project",
+                primary_entity_id=inputs.get("project_id", ""),
+                primary_entity_name="Project",
+                base_score=80,
+                phase_multiplier=_phase_mult("driver", phase),
+                final_score=min(
+                    100, round(80 * _phase_mult("driver", phase), 1)
+                ),
+            )
+        )
 
-    if missing_roles:
-        top_role = missing_roles[0]
-        at = "stakeholder_gap"
-        domain = ROLE_DOMAINS.get(top_role, "domain-specific decisions")
-        actions.append(UnifiedAction(
-            action_type=at,
-            title=f"Identify and engage {top_role}",
-            description=f"No {top_role} represented. Critical for {domain}.",
-            impact_score=_score(80, at, phase),
-            target_entity_type="stakeholder",
-            suggested_stakeholder_role=top_role,
-            suggested_artifact="Org chart or team directory",
-            category=ActionCategory.DISCOVER,
-            urgency=_urgency_from_score(_score(80, at, phase)),
-        ))
-
-    # 3. Features without evidence
-    ne_count = inputs.get("features_no_evidence", 0)
-    if ne_count > 2:
-        at = "missing_evidence"
-        actions.append(UnifiedAction(
-            action_type=at,
-            title=f"Gather evidence for {ne_count} unsupported features",
-            description="Multiple features lack supporting evidence.",
-            impact_score=_score(65, at, phase),
-            target_entity_type="feature",
-            target_entity_id=inputs.get("features_no_evidence_first_id"),
-            suggested_stakeholder_role="Product Owner",
-            suggested_artifact="Requirements documents or meeting transcripts",
-            category=ActionCategory.VALIDATE,
-            urgency=_urgency_from_score(_score(65, at, phase)),
-        ))
-
-    # 4. Unconfirmed high-severity pains
-    hp_count = inputs.get("high_pain_unconfirmed", 0)
-    if hp_count > 0:
-        at = "validate_pains"
-        actions.append(UnifiedAction(
-            action_type=at,
-            title=f"Validate {hp_count} high-severity pain{'s' if hp_count > 1 else ''} with stakeholders",
-            description="High-severity pain points need validation.",
-            impact_score=_score(75, at, phase),
-            target_entity_type="business_driver",
-            target_entity_id=inputs.get("high_pain_first_id"),
-            suggested_stakeholder_role="Operations Manager",
-            suggested_artifact="Process maps or SOPs",
-            category=ActionCategory.VALIDATE,
-            urgency=_urgency_from_score(_score(75, at, phase)),
-        ))
-
-    # 5. No vision statement
-    if not inputs.get("has_vision"):
-        at = "missing_vision"
-        actions.append(UnifiedAction(
-            action_type=at,
-            title="Draft a vision statement",
-            description="No vision statement defined.",
-            impact_score=_score(70, at, phase),
-            target_entity_type="vision",
-            suggested_stakeholder_role="Business Sponsor",
-            category=ActionCategory.DEFINE,
-            urgency=_urgency_from_score(_score(70, at, phase)),
-        ))
-
-    # 6. No success metrics
-    if inputs.get("kpi_count", 0) == 0:
-        at = "missing_metrics"
-        actions.append(UnifiedAction(
-            action_type=at,
-            title="Define success metrics",
-            description="No KPIs or success metrics defined.",
-            impact_score=_score(68, at, phase),
-            target_entity_type="business_driver",
-            suggested_stakeholder_role="Business Sponsor",
-            suggested_artifact="Analytics dashboard or KPI framework",
-            category=ActionCategory.DEFINE,
-            urgency=_urgency_from_score(_score(68, at, phase)),
-        ))
-
-    # 7. Open question counts (from extended RPC)
+    # Critical open questions
     crit_q = inputs.get("critical_question_count", 0)
     if crit_q > 0:
-        at = "open_question_critical"
-        actions.append(UnifiedAction(
-            action_type=at,
-            title=f"{crit_q} critical question{'s' if crit_q > 1 else ''} need resolution",
-            description="Critical open questions are blocking progress.",
-            impact_score=_score(85, at, phase),
-            category=ActionCategory.RESOLVE,
-            urgency=_urgency_from_score(_score(85, at, phase)),
-        ))
+        skeletons.append(
+            ActionSkeleton(
+                skeleton_id=_skeleton_id("crit_questions", "project"),
+                category=ActionCategory.GAP,
+                gap_domain=GapDomain.CROSS_REF,
+                gap_type="critical_questions",
+                gap_description=f"{crit_q} critical question{'s' if crit_q > 1 else ''} blocking progress",
+                primary_entity_type="project",
+                primary_entity_id=inputs.get("project_id", ""),
+                primary_entity_name="Project",
+                base_score=88,
+                phase_multiplier=_phase_mult("cross_ref", phase),
+                final_score=min(
+                    100, round(88 * _phase_mult("cross_ref", phase), 1)
+                ),
+            )
+        )
 
-    # 8. Temporal staleness from RPC
+    # No vision
+    if not inputs.get("has_vision"):
+        skeletons.append(
+            ActionSkeleton(
+                skeleton_id=_skeleton_id("no_vision", "project"),
+                category=ActionCategory.GAP,
+                gap_domain=GapDomain.DRIVER,
+                gap_type="no_vision",
+                gap_description="No vision statement — the project needs a clear north star",
+                primary_entity_type="project",
+                primary_entity_id=inputs.get("project_id", ""),
+                primary_entity_name="Project",
+                base_score=72,
+                phase_multiplier=_phase_mult("driver", phase),
+                final_score=min(
+                    100, round(72 * _phase_mult("driver", phase), 1)
+                ),
+            )
+        )
+
+    # Staleness
     days_since = inputs.get("days_since_last_signal")
-    if days_since and days_since > 14 and phase not in ("discovery",):
-        at = "temporal_stale"
-        actions.append(UnifiedAction(
-            action_type=at,
-            title=f"No new signals in {days_since} days",
-            description="Project may be stalling. Consider scheduling a discovery session.",
-            impact_score=_score(73, at, phase, days_since),
-            category=ActionCategory.TEMPORAL,
-            urgency=_urgency_from_score(_score(73, at, phase, days_since)),
-            staleness_days=days_since,
-        ))
+    if days_since and days_since > 14 and phase != "discovery":
+        tm = _temporal_mod(days_since)
+        base = 73
+        skeletons.append(
+            ActionSkeleton(
+                skeleton_id=_skeleton_id("project_stale", "project"),
+                category=ActionCategory.GAP,
+                gap_domain=GapDomain.CROSS_REF,
+                gap_type="project_stale",
+                gap_description=f"No new signals in {days_since} days — project may be stalling",
+                primary_entity_type="project",
+                primary_entity_id=inputs.get("project_id", ""),
+                primary_entity_name="Project",
+                base_score=base,
+                phase_multiplier=_phase_mult("cross_ref", phase),
+                temporal_modifier=tm,
+                final_score=min(
+                    100,
+                    round(
+                        base * _phase_mult("cross_ref", phase) * tm, 1
+                    ),
+                ),
+            )
+        )
 
-    actions.sort(key=lambda a: a.impact_score, reverse=True)
-    return actions[:3]
+    skeletons.sort(key=lambda s: s.final_score, reverse=True)
+    return _skeletons_to_actions(skeletons[:3])
 
 
 # ============================================================================
-# State frame delegation
+# State frame delegation (backward compat for chat context)
 # ============================================================================
+
 
 def compute_state_frame_actions(
     phase: str,
@@ -825,7 +976,7 @@ def compute_state_frame_actions(
 ) -> list:
     """Compute next actions for state frame (returns NextAction models).
 
-    This bridges the state_frame.py → action_engine delegation.
+    Bridges state_frame.py → action_engine delegation.
     Returns app.context.models.NextAction instances (not UnifiedAction).
     """
     from app.context.models import NextAction
@@ -833,83 +984,44 @@ def compute_state_frame_actions(
     actions = []
     priority = 1
 
-    # Blocker-driven actions (same logic as original state_frame.py)
     for blocker in blockers:
         if blocker.type == "no_personas":
-            actions.append(NextAction(
-                action="Add first persona to establish target users",
-                tool_hint="propose_features",
-                priority=priority,
-                rationale="Personas help focus feature development",
-            ))
+            actions.append(
+                NextAction(
+                    action="Add first persona to establish target users",
+                    tool_hint="propose_features",
+                    priority=priority,
+                    rationale="Personas help focus feature development",
+                )
+            )
         elif blocker.type == "no_features":
-            actions.append(NextAction(
-                action="Identify core features from client signals",
-                tool_hint="propose_features",
-                priority=priority,
-                rationale="Features are the foundation of the product",
-            ))
-        elif blocker.type == "critical_insights":
-            actions.append(NextAction(
-                action="Review and resolve critical insights",
-                tool_hint="list_insights",
-                priority=priority,
-                rationale="Critical issues block progress to build-ready",
-            ))
+            actions.append(
+                NextAction(
+                    action="Identify core features from client signals",
+                    tool_hint="propose_features",
+                    priority=priority,
+                    rationale="Features are the foundation of the product",
+                )
+            )
         elif blocker.type == "insufficient_mvp":
-            actions.append(NextAction(
-                action="Mark more features as MVP or propose new MVP features",
-                tool_hint="propose_features",
-                priority=priority,
-                rationale="Need 3+ MVP features for baseline",
-            ))
+            actions.append(
+                NextAction(
+                    action="Mark more features as MVP or propose new MVP features",
+                    tool_hint="propose_features",
+                    priority=priority,
+                    rationale="Need 3+ MVP features for baseline",
+                )
+            )
         priority += 1
 
-    # Phase-specific enrichment
-    if phase in ("definition",):
-        baseline = metrics.get("baseline_score", 0)
-        if baseline < 0.75:
-            actions.append(NextAction(
-                action="Run gap analysis to identify missing elements",
-                tool_hint="analyze_gaps",
-                priority=priority,
-                rationale=f"Baseline at {int(baseline * 100)}%, need 75%",
-            ))
-            priority += 1
-
-    elif phase in ("validation",):
-        mvp_ratio = metrics.get("high_confidence_mvp_ratio", 0)
-        if mvp_ratio < 0.5:
-            actions.append(NextAction(
-                action="Add evidence to low-confidence MVP features",
-                tool_hint="find_evidence_gaps",
-                priority=priority,
-                rationale="Need 50%+ MVP features at high confidence",
-            ))
-            priority += 1
-        if not metrics.get("baseline_finalized"):
-            actions.append(NextAction(
-                action="Finalize baseline when validation criteria are met",
-                tool_hint=None,
-                priority=priority + 1,
-                rationale="Finalizing transitions to maintenance mode",
-            ))
-
-    elif phase in ("build_ready",):
-        actions.append(NextAction(
-            action="Run final readiness assessment",
-            tool_hint="assess_readiness",
-            priority=1,
-            rationale="Confirm all requirements for development handoff",
-        ))
-
-    # Always suggest readiness check if not build-ready
-    if phase != "build_ready" and len(actions) < 5:
-        actions.append(NextAction(
-            action="Check current prototype readiness score",
-            tool_hint="assess_readiness",
-            priority=5,
-            rationale="Track progress toward build-ready",
-        ))
+    if phase == "build_ready" and len(actions) < 5:
+        actions.append(
+            NextAction(
+                action="Run final readiness assessment",
+                tool_hint="assess_readiness",
+                priority=5,
+                rationale="Confirm all requirements for development handoff",
+            )
+        )
 
     return actions[:5]

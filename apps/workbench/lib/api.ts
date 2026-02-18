@@ -2511,6 +2511,7 @@ export const getBRDHealth = (projectId: string) =>
     `/projects/${projectId}/workspace/brd/health`
   )
 
+// Legacy action type — used by batch dashboard, overview, projects cards
 export interface NextAction {
   action_type: string
   title: string
@@ -2520,7 +2521,6 @@ export interface NextAction {
   target_entity_id: string | null
   suggested_stakeholder_role: string | null
   suggested_artifact: string | null
-  // Unified action engine fields (optional for backward compat)
   category?: string
   rationale?: string | null
   tool_hint?: string | null
@@ -2529,6 +2529,70 @@ export interface NextAction {
   staleness_days?: number | null
 }
 
+// =============================================================================
+// Action Engine v2 types
+// =============================================================================
+
+export type ActionCategory = 'gap' | 'intelligence' | 'opportunity'
+export type GapDomain = 'workflow' | 'driver' | 'persona' | 'cross_ref'
+export type QuestionTarget = 'consultant' | 'client' | 'either'
+
+export interface ActionQuestion {
+  question: string
+  target: QuestionTarget
+  suggested_contact: string | null
+  unlocks: string
+}
+
+export interface IntelligenceAction {
+  action_id: string
+  category: ActionCategory
+  gap_domain: GapDomain | null
+  narrative: string
+  unlocks: string
+  questions: ActionQuestion[]
+  impact_score: number
+  urgency: 'low' | 'normal' | 'high' | 'critical'
+  primary_entity_type: string
+  primary_entity_id: string
+  primary_entity_name: string
+  related_entity_ids: string[]
+  gates_affected: string[]
+  gap_type: string
+  known_contacts: string[]
+  evidence_count: number
+}
+
+export interface IntelligenceActionsResult {
+  actions: IntelligenceAction[]
+  skeleton_count: number
+  open_questions: Array<{
+    id: string
+    question: string
+    priority: string
+    category: string
+  }>
+  phase: string
+  phase_progress: number
+  computed_at: string
+  narrative_cached: boolean
+  state_snapshot_tokens: number
+}
+
+export interface AnswerActionResponse {
+  ok: boolean
+  extractions: Array<{
+    operation: string
+    entity_type: string
+    entity_id: string | null
+    data: Record<string, unknown>
+  }>
+  entities_affected: number
+  cascade_triggered: boolean
+  summary: string
+}
+
+// Legacy result type (kept for backward compat)
 export interface UnifiedActionsResult {
   actions: NextAction[]
   open_questions: Array<{
@@ -2548,6 +2612,32 @@ export const getNextActions = (projectId: string) =>
     `/projects/${projectId}/workspace/brd/next-actions`
   )
 
+// v2 intelligence actions (with Haiku narratives + questions)
+export const getIntelligenceActions = (projectId: string, maxActions = 5) =>
+  apiRequest<IntelligenceActionsResult>(
+    `/projects/${projectId}/workspace/actions?max_actions=${maxActions}`
+  )
+
+// Answer an action question and trigger cascade
+export const answerActionQuestion = (
+  projectId: string,
+  actionId: string,
+  answerText: string,
+  questionIndex = 0,
+) =>
+  apiRequest<AnswerActionResponse>(
+    `/projects/${projectId}/workspace/actions/answer`,
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        action_id: actionId,
+        question_index: questionIndex,
+        answer_text: answerText,
+      }),
+    }
+  )
+
+// Keep legacy alias for existing callers
 export const getUnifiedActions = (projectId: string, maxActions = 5) =>
   apiRequest<UnifiedActionsResult>(
     `/projects/${projectId}/workspace/actions?max_actions=${maxActions}`

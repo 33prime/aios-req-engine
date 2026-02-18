@@ -47,9 +47,10 @@ import type { PrototypeFrameHandle } from '@/components/prototype/PrototypeFrame
 import ReviewStartModal from '@/components/prototype/ReviewStartModal'
 import ReviewEndModal from '@/components/prototype/ReviewEndModal'
 import { ProjectPulseOverlay } from './ProjectPulseOverlay'
-import { Activity } from 'lucide-react'
-import { getProjectPulse, dismissProjectPulse } from '@/lib/api'
+import { Activity, Settings, Loader2, CheckCircle2, XCircle, Clock } from 'lucide-react'
+import { getProjectPulse, dismissProjectPulse, getProjectDetails, getLaunchProgress } from '@/lib/api'
 import type { ProjectPulse } from '@/types/api'
+import type { LaunchProgressResponse } from '@/types/workspace'
 
 interface WorkspaceLayoutProps {
   projectId: string
@@ -81,11 +82,57 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
     return 'brd'
   })
 
+  // Project building state — blocks workspace until build completes
+  const [projectBuildStatus, setProjectBuildStatus] = useState<'loading' | 'building' | 'ready'>('loading')
+  const [buildProgress, setBuildProgress] = useState<LaunchProgressResponse | null>(null)
+  const buildPollRef = useRef<NodeJS.Timeout | null>(null)
+
+  useEffect(() => {
+    let active = true
+    getProjectDetails(projectId)
+      .then((project) => {
+        if (!active) return
+        if (project.launch_status === 'building') {
+          setProjectBuildStatus('building')
+          // Start polling launch progress
+          const launchId = project.active_launch_id
+          if (launchId) {
+            const poll = async () => {
+              try {
+                const progress = await getLaunchProgress(projectId, launchId)
+                if (!active) return
+                setBuildProgress(progress)
+                const terminal = ['completed', 'completed_with_errors', 'failed']
+                if (terminal.includes(progress.status)) {
+                  setProjectBuildStatus('ready')
+                  if (buildPollRef.current) clearInterval(buildPollRef.current)
+                }
+              } catch {
+                // Non-fatal
+              }
+            }
+            poll()
+            buildPollRef.current = setInterval(poll, 3000)
+          }
+        } else {
+          setProjectBuildStatus('ready')
+        }
+      })
+      .catch(() => {
+        if (active) setProjectBuildStatus('ready') // Fail open
+      })
+    return () => {
+      active = false
+      if (buildPollRef.current) clearInterval(buildPollRef.current)
+    }
+  }, [projectId])
+
   // Project Pulse overlay
   const [pulseData, setPulseData] = useState<ProjectPulse | null>(null)
   const [showPulse, setShowPulse] = useState(false)
 
   useEffect(() => {
+    if (projectBuildStatus !== 'ready') return
     getProjectPulse(projectId)
       .then((data) => {
         setPulseData(data)
@@ -100,7 +147,7 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
       .catch(() => {
         // Non-critical — pulse is optional
       })
-  }, [projectId])
+  }, [projectId, projectBuildStatus])
 
   const handleDismissPulse = useCallback(() => {
     setShowPulse(false)
@@ -444,6 +491,77 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
       }
     : undefined
 
+  // Show building overlay if project is still being built
+  if (projectBuildStatus === 'building' || projectBuildStatus === 'loading') {
+    const steps = buildProgress?.steps || []
+    const progressPct = buildProgress?.progress_pct || 0
+
+    return (
+      <div className="min-h-screen bg-[#F8F9FB]">
+        <AppSidebar
+          isCollapsed={sidebarCollapsed}
+          onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
+        />
+        <div
+          className="transition-all duration-300 flex items-center justify-center min-h-screen"
+          style={{ marginLeft: sidebarWidth }}
+        >
+          <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl border border-[#E5E5E5] p-8 text-center">
+            <Settings className="w-12 h-12 text-[#3FAF7A] animate-spin mx-auto mb-4" style={{ animationDuration: '3s' }} />
+            <h2 className="text-lg font-semibold text-[#333333] mb-2">Building Your Project</h2>
+            <p className="text-sm text-[#666666] mb-6">
+              We&apos;re setting up your project with personas, workflows, and requirements. This usually takes about a minute.
+            </p>
+
+            {/* Progress bar */}
+            <div className="mb-6">
+              <div className="h-2 bg-[#F0F0F0] rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-[#3FAF7A] rounded-full transition-all duration-500 ease-out"
+                  style={{ width: `${progressPct}%` }}
+                />
+              </div>
+              <p className="text-xs text-[#999999] mt-1.5 text-right">{progressPct}%</p>
+            </div>
+
+            {/* Steps */}
+            {steps.length > 0 && (
+              <div className="space-y-2 text-left">
+                {steps.map((step) => {
+                  const StepIcon = step.status === 'completed' ? CheckCircle2
+                    : step.status === 'running' ? Loader2
+                    : step.status === 'failed' ? XCircle
+                    : Clock
+                  const iconClass = step.status === 'completed' ? 'text-[#3FAF7A]'
+                    : step.status === 'running' ? 'text-[#3FAF7A] animate-spin'
+                    : step.status === 'failed' ? 'text-red-500'
+                    : 'text-[#999999]'
+
+                  return (
+                    <div key={step.step_key} className="flex items-center gap-3">
+                      <StepIcon className={`w-4 h-4 flex-shrink-0 ${iconClass}`} />
+                      <span className={`text-sm ${
+                        step.status === 'completed' || step.status === 'running'
+                          ? 'text-[#333333]'
+                          : 'text-[#999999]'
+                      }`}>
+                        {step.step_label}
+                      </span>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+
+            <p className="text-xs text-[#999999] mt-6">
+              We&apos;ll notify you when it&apos;s ready.
+            </p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-ui-background flex items-center justify-center">
@@ -549,9 +667,9 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
             )}
 
             {phase === 'discovery' && canvasData && (
-              <div>
+              <div className="flex flex-col h-[calc(100vh-140px)]">
                 {/* View mode toggle */}
-                <div className="flex items-center justify-end mb-2">
+                <div className="flex items-center justify-end mb-2 flex-shrink-0">
                   <div className="inline-flex items-center bg-gray-100 rounded-md p-0.5 text-[12px]">
                     <button
                       onClick={() => { setDiscoveryViewMode('brd'); localStorage.setItem('discovery-view-mode', 'brd') }}
@@ -577,15 +695,17 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
                 </div>
 
                 {discoveryViewMode === 'brd' ? (
-                  <BRDCanvas
-                    projectId={projectId}
-                    initialData={brdData}
-                    initialNextActions={nextActions}
-                    onRefresh={loadData}
-                    onSendToChat={handleSendActionToChat}
-                    pendingAction={pendingAction}
-                    onPendingActionConsumed={() => setPendingAction(null)}
-                  />
+                  <div className="flex-1 min-h-0 rounded-2xl border border-[#E5E5E5] bg-white shadow-md overflow-hidden">
+                    <BRDCanvas
+                      projectId={projectId}
+                      initialData={brdData}
+                      initialNextActions={nextActions}
+                      onRefresh={loadData}
+                      onSendToChat={handleSendActionToChat}
+                      pendingAction={pendingAction}
+                      onPendingActionConsumed={() => setPendingAction(null)}
+                    />
+                  </div>
                 ) : (
                   <CanvasView projectId={projectId} onRefresh={loadData} />
                 )}

@@ -28,7 +28,7 @@ import { ConstraintDrawer } from './components/ConstraintDrawer'
 import { FeatureDrawer } from './components/FeatureDrawer'
 import { BusinessDriverDetailDrawer } from './components/BusinessDriverDetailDrawer'
 import { ConfidenceDrawer } from './components/ConfidenceDrawer'
-import { NextActionsBar } from './components/NextActionsBar'
+import { IntelligencePanel } from './components/IntelligencePanel'
 import { OpenQuestionsPanel } from './components/OpenQuestionsPanel'
 import { ImpactPreviewModal } from './components/ImpactPreviewModal'
 import {
@@ -66,9 +66,11 @@ interface BRDCanvasProps {
   onSendToChat?: (action: NextAction) => void
   pendingAction?: NextAction | null
   onPendingActionConsumed?: () => void
+  /** Hide intelligence panel (e.g. when rendered in compact mode) */
+  hideIntelligence?: boolean
 }
 
-export function BRDCanvas({ projectId, initialData, initialNextActions, onRefresh, onSendToChat, pendingAction, onPendingActionConsumed }: BRDCanvasProps) {
+export function BRDCanvas({ projectId, initialData, initialNextActions, onRefresh, onSendToChat, pendingAction, onPendingActionConsumed, hideIntelligence }: BRDCanvasProps) {
   const [data, setData] = useState<BRDWorkspaceData | null>(initialData ?? null)
   const [isLoading, setIsLoading] = useState(!initialData)
   const [error, setError] = useState<string | null>(null)
@@ -78,9 +80,9 @@ export function BRDCanvas({ projectId, initialData, initialNextActions, onRefres
   const [healthLoading, setHealthLoading] = useState(true)
   const [isRefreshingHealth, setIsRefreshingHealth] = useState(false)
 
-  // Next Best Actions (derived from BRD data — no separate API call)
+  // Next Best Actions — now handled by IntelligencePanel (separate API call)
+  // Legacy: keep for pendingAction backward compat from OverviewPanel
   const nextActions: NextAction[] = data?.next_actions ?? initialNextActions ?? []
-  const nextActionsLoading = isLoading
 
   // Open Questions
   const [openQuestions, setOpenQuestions] = useState<OpenQuestion[]>([])
@@ -593,6 +595,24 @@ export function BRDCanvas({ projectId, initialData, initialNextActions, onRefres
     }
   }, [data, handleConfirmAll, handleOpenConfidence, closeAllDrawers, onSendToChat])
 
+  // Intelligence Panel navigation — scrolls BRD to the relevant section
+  const handleIntelligenceNavigate = useCallback((entityType: string, entityId: string | null) => {
+    const sectionMap: Record<string, string> = {
+      vp_step: 'brd-section-workflows',
+      workflow: 'brd-section-workflows',
+      business_driver: 'brd-section-business-context',
+      persona: 'brd-section-personas',
+      feature: 'brd-section-features',
+      data_entity: 'brd-section-data-entities',
+      stakeholder: 'brd-section-stakeholders',
+      constraint: 'brd-section-constraints',
+      open_question: 'brd-section-questions',
+      project: 'brd-section-business-context',
+    }
+    const sectionId = sectionMap[entityType] || 'brd-section-business-context'
+    document.getElementById(sectionId)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }, [])
+
   // Consume pending action from cross-view navigation (Overview → BRD)
   useEffect(() => {
     if (pendingAction && data) {
@@ -955,78 +975,85 @@ export function BRDCanvas({ projectId, initialData, initialNextActions, onRefres
   }
 
   return (
-    <div className="max-w-4xl mx-auto py-8 px-6">
-      {/* Document header */}
-      <div className="mb-8">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-3">
-            <FileText className="w-6 h-6 text-[rgba(55,53,47,0.45)]" />
-            <h1 className="text-[28px] font-bold text-[#37352f]">Business Requirements Document</h1>
-            {data.completeness && (
-              <CompletenessRing score={data.completeness.overall_score} size="md" />
+    <div className="flex h-full">
+      {/* Intelligence Panel — left 1/3 */}
+      {!hideIntelligence && (
+        <div className="w-[340px] min-w-[300px] flex-shrink-0 h-full overflow-hidden">
+          <IntelligencePanel
+            projectId={projectId}
+            onNavigate={handleIntelligenceNavigate}
+            onCascade={() => { loadData(); onRefresh?.() }}
+          />
+        </div>
+      )}
+
+      {/* BRD Content — right 2/3 */}
+      <div className={`flex-1 overflow-y-auto ${hideIntelligence ? '' : 'border-l border-[#E5E5E5]'}`}>
+        <div className="max-w-4xl mx-auto py-8 px-6">
+          {/* Document header */}
+          <div className="mb-8">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <FileText className="w-6 h-6 text-[rgba(55,53,47,0.45)]" />
+                <h1 className="text-[28px] font-bold text-[#37352f]">Business Requirements Document</h1>
+                {data.completeness && (
+                  <CompletenessRing score={data.completeness.overall_score} size="md" />
+                )}
+              </div>
+              <button
+                onClick={() => { loadData(); onRefresh?.() }}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-gray-500 bg-white border border-gray-200 rounded-md hover:bg-gray-50 transition-colors"
+              >
+                <RefreshCw className="w-3.5 h-3.5" />
+                Refresh
+              </button>
+            </div>
+
+            {/* Readiness bar */}
+            <div className="flex items-center gap-3">
+              <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-[#3FAF7A] rounded-full transition-all duration-300"
+                  style={{ width: `${readinessPercent}%` }}
+                />
+              </div>
+              <span className="text-[12px] font-medium text-[rgba(55,53,47,0.65)] whitespace-nowrap">
+                {confirmedEntities}/{totalEntities} confirmed ({readinessPercent}%)
+              </span>
+            </div>
+            {data.pending_count > 0 && (
+              <p className="mt-2 text-[12px] text-yellow-600">
+                {data.pending_count} items pending review
+              </p>
+            )}
+            {staleCount > 0 && (
+              <p className="mt-1 text-[12px] text-orange-600">
+                {staleCount} {staleCount === 1 ? 'item' : 'items'} may be outdated
+              </p>
             )}
           </div>
-          <button
-            onClick={() => { loadData(); onRefresh?.() }}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-gray-500 bg-white border border-gray-200 rounded-md hover:bg-gray-50 transition-colors"
-          >
-            <RefreshCw className="w-3.5 h-3.5" />
-            Refresh
-          </button>
-        </div>
 
-        {/* Readiness bar */}
-        <div className="flex items-center gap-3">
-          <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
-            <div
-              className="h-full bg-[#3FAF7A] rounded-full transition-all duration-300"
-              style={{ width: `${readinessPercent}%` }}
+          {/* Intelligence Dashboard */}
+          <IntelligenceSection
+            data={data}
+            health={health}
+            healthLoading={healthLoading}
+            onRefreshAll={handleRefreshHealth}
+            isRefreshing={isRefreshingHealth}
+          />
+
+          {/* Open Questions (collapsed by default) */}
+          <div id="brd-section-questions">
+            <OpenQuestionsPanel
+              projectId={projectId}
+              questions={openQuestions}
+              loading={questionsLoading}
+              onMutate={loadOpenQuestions}
             />
           </div>
-          <span className="text-[12px] font-medium text-[rgba(55,53,47,0.65)] whitespace-nowrap">
-            {confirmedEntities}/{totalEntities} confirmed ({readinessPercent}%)
-          </span>
-        </div>
-        {data.pending_count > 0 && (
-          <p className="mt-2 text-[12px] text-yellow-600">
-            {data.pending_count} items pending review
-          </p>
-        )}
-        {staleCount > 0 && (
-          <p className="mt-1 text-[12px] text-orange-600">
-            {staleCount} {staleCount === 1 ? 'item' : 'items'} may be outdated
-          </p>
-        )}
-      </div>
 
-      {/* Intelligence Dashboard */}
-      <IntelligenceSection
-        data={data}
-        health={health}
-        healthLoading={healthLoading}
-        onRefreshAll={handleRefreshHealth}
-        isRefreshing={isRefreshingHealth}
-      />
-
-      {/* Next Best Actions */}
-      <NextActionsBar
-        actions={nextActions}
-        loading={nextActionsLoading}
-        onExecute={handleActionExecute}
-      />
-
-      {/* Open Questions (collapsed by default) */}
-      <div id="brd-section-questions">
-        <OpenQuestionsPanel
-          projectId={projectId}
-          questions={openQuestions}
-          loading={questionsLoading}
-          onMutate={loadOpenQuestions}
-        />
-      </div>
-
-      {/* BRD Sections */}
-      <div className="space-y-10">
+          {/* BRD Sections */}
+          <div className="space-y-10">
         <BusinessContextSection
           data={data.business_context}
           projectId={projectId}
@@ -1159,6 +1186,8 @@ export function BRDCanvas({ projectId, initialData, initialNextActions, onRefres
           sectionScore={sectionScoreMap['constraints'] || null}
         />
       </div>
+        </div>{/* end max-w-4xl */}
+      </div>{/* end flex-1 overflow-y-auto (BRD content) */}
 
       {/* Data Entity Create Modal */}
       <DataEntityCreateModal

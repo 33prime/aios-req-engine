@@ -1,21 +1,27 @@
-"""Tests for the unified action engine."""
+"""Tests for the relationship-aware action engine v2."""
 
 import pytest
 
 from app.core.action_engine import (
-    _compute_brd_gap_actions,
-    _compute_cross_entity_actions,
-    _compute_memory_actions,
-    _compute_question_actions,
-    _compute_temporal_actions,
-    _phase_multiplier,
-    _score,
-    _temporal_modifier,
-    _urgency_from_score,
+    _build_all_skeletons,
+    _phase_mult,
+    _skeletons_to_actions,
+    _temporal_mod,
+    _urgency,
+    _walk_cross_refs,
+    _walk_drivers,
+    _walk_personas,
+    _walk_workflows,
     compute_actions_from_inputs,
     compute_state_frame_actions,
 )
-from app.core.schemas_actions import ActionCategory, ActionEngineResult, UnifiedAction
+from app.core.schemas_actions import (
+    ActionCategory,
+    ActionEngineResult,
+    ActionSkeleton,
+    GapDomain,
+    UnifiedAction,
+)
 
 
 # ============================================================================
@@ -24,309 +30,363 @@ from app.core.schemas_actions import ActionCategory, ActionEngineResult, Unified
 
 
 class TestPhaseMultiplier:
-    def test_listed_combo(self):
-        assert _phase_multiplier("confirm_critical", "validation") == 1.2
+    def test_workflow_boosted_in_definition(self):
+        assert _phase_mult("workflow", "definition") == 1.3
+
+    def test_workflow_reduced_in_build_ready(self):
+        assert _phase_mult("workflow", "build_ready") == 0.8
 
     def test_unlisted_combo_defaults_to_1(self):
-        assert _phase_multiplier("unknown_type", "discovery") == 1.0
+        assert _phase_mult("unknown", "discovery") == 1.0
 
-    def test_stakeholder_gap_boosted_in_discovery(self):
-        assert _phase_multiplier("stakeholder_gap", "discovery") == 1.2
-
-    def test_stakeholder_gap_reduced_in_validation(self):
-        assert _phase_multiplier("stakeholder_gap", "validation") == 0.7
+    def test_driver_boosted_in_discovery(self):
+        assert _phase_mult("driver", "discovery") == 1.2
 
 
 class TestTemporalModifier:
     def test_none_returns_1(self):
-        assert _temporal_modifier(None) == 1.0
+        assert _temporal_mod(None) == 1.0
 
     def test_under_7_days(self):
-        assert _temporal_modifier(3) == 1.0
+        assert _temporal_mod(3) == 1.0
 
     def test_7_to_14_days(self):
-        assert _temporal_modifier(10) == 1.1
+        assert _temporal_mod(10) == 1.1
 
     def test_14_to_30_days(self):
-        assert _temporal_modifier(20) == 1.2
+        assert _temporal_mod(20) == 1.2
 
     def test_over_30_days(self):
-        assert _temporal_modifier(45) == 1.3
-
-
-class TestScore:
-    def test_base_score_with_default_phase(self):
-        # unlisted combo → multiplier 1.0, no staleness → modifier 1.0
-        assert _score(80, "some_type", "discovery") == 80.0
-
-    def test_score_capped_at_100(self):
-        result = _score(95, "confirm_critical", "build_ready")
-        assert result <= 100.0
-
-    def test_score_with_phase_and_temporal(self):
-        # confirm_critical in validation = 1.2, 20 days = 1.2
-        result = _score(90, "confirm_critical", "validation", 20)
-        expected = min(100.0, round(90 * 1.2 * 1.2, 1))
-        assert result == expected
-
-    def test_same_input_different_phase_different_score(self):
-        # Phase multiplier effects: same action, different phase
-        discovery = _score(80, "stakeholder_gap", "discovery")
-        validation = _score(80, "stakeholder_gap", "validation")
-        assert discovery > validation  # 1.2 vs 0.7
+        assert _temporal_mod(45) == 1.3
 
 
 class TestUrgency:
     def test_critical(self):
-        assert _urgency_from_score(95) == "critical"
+        assert _urgency(95) == "critical"
 
     def test_high(self):
-        assert _urgency_from_score(85) == "high"
+        assert _urgency(85) == "high"
 
     def test_normal(self):
-        assert _urgency_from_score(70) == "normal"
+        assert _urgency(70) == "normal"
 
     def test_low(self):
-        assert _urgency_from_score(50) == "low"
+        assert _urgency(50) == "low"
 
 
 # ============================================================================
-# BRD gap actions
+# Workflow walking
 # ============================================================================
 
 
-class TestBRDGapActions:
-    def _make_brd(self, **overrides):
-        brd = {
-            "business_context": {
-                "vision": "We build great things",
-                "pain_points": [],
-                "goals": [],
-                "success_metrics": [{"id": "m1", "name": "Speed"}],
-            },
-            "requirements": {
-                "must_have": [],
-                "should_have": [],
-                "could_have": [],
-            },
-            "stakeholders": [],
+class TestWalkWorkflows:
+    def _make_pair(self, **overrides):
+        pair = {
+            "id": "wf-1",
+            "name": "Order Processing",
+            "owner": "Sales Rep",
+            "current_steps": [],
+            "future_steps": [],
         }
-        brd.update(overrides)
-        return brd
+        pair.update(overrides)
+        return pair
 
-    def test_no_actions_when_brd_complete(self):
-        brd = self._make_brd()
-        actions = _compute_brd_gap_actions(brd, [], None)
-        # Only stakeholder_gap (since stakeholders is empty) and possibly others
-        types = {a.action_type for a in actions}
-        assert "confirm_critical" not in types
-        assert "missing_evidence" not in types
+    def test_step_without_actor_generates_skeleton(self):
+        pair = self._make_pair(
+            current_steps=[
+                {"id": "s1", "label": "Review Order", "actor_persona_id": None,
+                 "pain_description": "Takes too long", "time_minutes": 15},
+            ]
+        )
+        skeletons = _walk_workflows([pair], [], {"by_source": {}, "by_target": {}}, "discovery")
+        no_actor = [s for s in skeletons if s.gap_type == "step_no_actor"]
+        assert len(no_actor) == 1
+        assert no_actor[0].primary_entity_name == "Review Order"
 
-    def test_unconfirmed_must_have_generates_confirm_critical(self):
-        brd = self._make_brd(requirements={
-            "must_have": [
-                {"id": "f1", "name": "Auth", "confirmation_status": "ai_generated"},
+    def test_step_without_pain_generates_skeleton(self):
+        pair = self._make_pair(
+            current_steps=[
+                {"id": "s1", "label": "Check Stock", "actor_persona_id": "p1",
+                 "actor_persona_name": "Warehouse Staff", "pain_description": None, "time_minutes": 10},
+            ]
+        )
+        skeletons = _walk_workflows([pair], [], {"by_source": {}, "by_target": {}}, "discovery")
+        no_pain = [s for s in skeletons if s.gap_type == "step_no_pain"]
+        assert len(no_pain) == 1
+
+    def test_step_without_time_generates_skeleton(self):
+        pair = self._make_pair(
+            current_steps=[
+                {"id": "s1", "label": "Approve Request", "actor_persona_id": "p1",
+                 "pain_description": "Manual", "time_minutes": None},
+            ]
+        )
+        skeletons = _walk_workflows([pair], [], {"by_source": {}, "by_target": {}}, "discovery")
+        no_time = [s for s in skeletons if s.gap_type == "step_no_time"]
+        assert len(no_time) == 1
+
+    def test_future_step_without_benefit_generates_skeleton(self):
+        pair = self._make_pair(
+            future_steps=[
+                {"id": "s2", "label": "Auto-Route", "benefit_description": None},
+            ]
+        )
+        skeletons = _walk_workflows([pair], [], {"by_source": {}, "by_target": {}}, "discovery")
+        no_benefit = [s for s in skeletons if s.gap_type == "step_no_benefit"]
+        assert len(no_benefit) == 1
+
+    def test_workflow_with_pains_but_no_future_state(self):
+        pair = self._make_pair(
+            current_steps=[
+                {"id": "s1", "label": "Manual Entry", "actor_persona_id": "p1",
+                 "pain_description": "Slow and error-prone", "time_minutes": 30},
             ],
-            "should_have": [],
-            "could_have": [],
-        })
-        actions = _compute_brd_gap_actions(brd, [], None)
-        confirm = [a for a in actions if a.action_type == "confirm_critical"]
-        assert len(confirm) == 1
-        assert confirm[0].category == ActionCategory.CONFIRM
+            future_steps=[],
+        )
+        skeletons = _walk_workflows([pair], [], {"by_source": {}, "by_target": {}}, "discovery")
+        no_future = [s for s in skeletons if s.gap_type == "workflow_no_future_state"]
+        assert len(no_future) == 1
 
-    def test_missing_vision_action(self):
-        brd = self._make_brd()
-        brd["business_context"]["vision"] = ""
-        actions = _compute_brd_gap_actions(brd, [], None)
-        vision = [a for a in actions if a.action_type == "missing_vision"]
-        assert len(vision) == 1
-
-    def test_no_metrics_action(self):
-        brd = self._make_brd()
-        brd["business_context"]["success_metrics"] = []
-        actions = _compute_brd_gap_actions(brd, [], None)
-        metrics = [a for a in actions if a.action_type == "missing_metrics"]
-        assert len(metrics) == 1
-
-    def test_phase_affects_scores(self):
-        brd = self._make_brd(requirements={
-            "must_have": [
-                {"id": "f1", "name": "Auth", "confirmation_status": "ai_generated"},
+    def test_complete_step_generates_no_gaps(self):
+        pair = self._make_pair(
+            current_steps=[
+                {"id": "s1", "label": "Good Step", "actor_persona_id": "p1",
+                 "actor_persona_name": "Admin", "pain_description": "Slow",
+                 "time_minutes": 20},
             ],
-            "should_have": [],
-            "could_have": [],
-        })
-        discovery_actions = _compute_brd_gap_actions(brd, [], None, phase="discovery")
-        validation_actions = _compute_brd_gap_actions(brd, [], None, phase="validation")
-
-        d_confirm = [a for a in discovery_actions if a.action_type == "confirm_critical"][0]
-        v_confirm = [a for a in validation_actions if a.action_type == "confirm_critical"][0]
-        assert v_confirm.impact_score > d_confirm.impact_score
-
-    def test_unified_action_has_all_fields(self):
-        brd = self._make_brd(requirements={
-            "must_have": [{"id": "f1", "name": "Auth", "confirmation_status": "ai_generated"}],
-            "should_have": [],
-            "could_have": [],
-        })
-        actions = _compute_brd_gap_actions(brd, [], None)
-        confirm = [a for a in actions if a.action_type == "confirm_critical"][0]
-        assert isinstance(confirm, UnifiedAction)
-        assert confirm.category == ActionCategory.CONFIRM
-        assert confirm.rationale is not None
-        assert confirm.urgency in ("low", "normal", "high", "critical")
-
-    def test_to_legacy_dict_shape(self):
-        brd = self._make_brd(requirements={
-            "must_have": [{"id": "f1", "name": "Auth", "confirmation_status": "ai_generated"}],
-            "should_have": [],
-            "could_have": [],
-        })
-        actions = _compute_brd_gap_actions(brd, [], None)
-        legacy = actions[0].to_legacy_dict()
-        assert set(legacy.keys()) == {
-            "action_type", "title", "description", "impact_score",
-            "target_entity_type", "target_entity_id",
-            "suggested_stakeholder_role", "suggested_artifact",
-        }
+            future_steps=[
+                {"id": "s2", "label": "Better Step", "benefit_description": "3x faster"},
+            ],
+        )
+        skeletons = _walk_workflows([pair], [], {"by_source": {}, "by_target": {}}, "discovery")
+        step_gaps = [s for s in skeletons if s.gap_type.startswith("step_")]
+        assert len(step_gaps) == 0
 
 
 # ============================================================================
-# Cross-entity actions
+# Driver walking
 # ============================================================================
 
 
-class TestCrossEntityActions:
-    def test_compound_gap_detected(self):
-        brd = {
-            "requirements": {
-                "must_have": [
-                    {"id": "f1", "name": "Budget tracking module", "overview": "Track budget and costs", "evidence": []},
-                ],
-                "should_have": [],
-                "could_have": [],
-            },
-        }
-        # No CFO/Finance Director in stakeholders
-        actions = _compute_cross_entity_actions(brd, [], "discovery")
-        if actions:  # May not match depending on keyword matching
-            assert actions[0].action_type == "cross_entity_gap"
-            assert actions[0].category == ActionCategory.DISCOVER
-
-    def test_no_gap_when_role_present(self):
-        brd = {
-            "requirements": {
-                "must_have": [
-                    {"id": "f1", "name": "Budget tracking", "overview": "Cost management", "evidence": []},
-                ],
-                "should_have": [],
-                "could_have": [],
-            },
-        }
-        stakeholders = [{"role": "CFO"}]
-        actions = _compute_cross_entity_actions(brd, stakeholders, "discovery")
-        # CFO covers budget keywords, so no compound gap
-        assert len(actions) == 0
-
-
-# ============================================================================
-# Memory actions
-# ============================================================================
-
-
-class TestMemoryActions:
-    def test_stale_belief_action(self):
-        beliefs = [
-            {"confidence": 0.45, "summary": "Client prefers cloud deployment", "updated_at": "2025-01-01T00:00:00Z"},
+class TestWalkDrivers:
+    def test_pain_without_workflow_link(self):
+        drivers = [
+            {"id": "d1", "driver_type": "pain", "description": "Manual data entry is slow",
+             "evidence": [{"signal_id": "s1"}], "confirmation_status": "ai_generated"},
         ]
-        actions = _compute_memory_actions(beliefs, [], [], "validation")
-        assert len(actions) == 1
-        assert actions[0].action_type == "stale_belief"
-        assert actions[0].category == ActionCategory.MEMORY
+        skeletons = _walk_drivers(drivers, {"by_source": {}, "by_target": {}}, "discovery")
+        orphan = [s for s in skeletons if s.gap_type == "pain_no_workflow"]
+        assert len(orphan) == 1
 
-    def test_contradiction_action(self):
-        contradictions = [
-            {"from_content": "n1", "to_content": "n2", "from_summary": "Prefers cloud", "to_summary": "Prefers on-prem"},
+    def test_kpi_without_baseline(self):
+        drivers = [
+            {"id": "d2", "driver_type": "kpi", "description": "Response time",
+             "baseline_value": None, "target_value": "< 2s",
+             "evidence": [], "confirmation_status": "ai_generated"},
         ]
-        actions = _compute_memory_actions([], contradictions, [], "validation")
-        assert len(actions) == 1
-        assert actions[0].action_type == "contradiction_unresolved"
-        assert actions[0].category == ActionCategory.RESOLVE
+        skeletons = _walk_drivers(drivers, {"by_source": {}, "by_target": {}}, "discovery")
+        kpi_gaps = [s for s in skeletons if s.gap_type == "kpi_no_numbers"]
+        assert len(kpi_gaps) == 1
+        assert "baseline" in kpi_gaps[0].gap_description
 
-    def test_empty_inputs_no_actions(self):
-        actions = _compute_memory_actions([], [], [], "discovery")
-        assert len(actions) == 0
+    def test_kpi_without_both_numbers(self):
+        drivers = [
+            {"id": "d3", "driver_type": "kpi", "description": "Throughput",
+             "baseline_value": None, "target_value": None,
+             "evidence": [], "confirmation_status": "ai_generated"},
+        ]
+        skeletons = _walk_drivers(drivers, {"by_source": {}, "by_target": {}}, "discovery")
+        kpi_gaps = [s for s in skeletons if s.gap_type == "kpi_no_numbers"]
+        assert "baseline and target" in kpi_gaps[0].gap_description
+
+    def test_single_source_evidence(self):
+        drivers = [
+            {"id": "d4", "driver_type": "pain", "description": "Compliance risk",
+             "evidence": [{"signal_id": "s1"}], "source_signal_ids": ["s1"],
+             "confirmation_status": "ai_generated"},
+        ]
+        # No workflow link → pain_no_workflow + single_source
+        skeletons = _walk_drivers(drivers, {"by_source": {}, "by_target": {}}, "discovery")
+        single = [s for s in skeletons if s.gap_type == "driver_single_source"]
+        assert len(single) == 1
+
+    def test_goal_without_features(self):
+        drivers = [
+            {"id": "d5", "driver_type": "goal", "description": "Improve onboarding speed",
+             "linked_feature_ids": [], "evidence": [],
+             "confirmation_status": "ai_generated"},
+        ]
+        skeletons = _walk_drivers(drivers, {"by_source": {}, "by_target": {}}, "discovery")
+        goal_gaps = [s for s in skeletons if s.gap_type == "goal_no_feature"]
+        assert len(goal_gaps) == 1
 
 
 # ============================================================================
-# Question actions
+# Persona walking
 # ============================================================================
 
 
-class TestQuestionActions:
-    def test_critical_question_generates_action(self):
+class TestWalkPersonas:
+    def test_primary_persona_without_workflow(self):
+        personas = [
+            {"id": "p1", "name": "HR Manager", "is_primary": True, "canvas_role": "primary",
+             "pain_points": ["Slow hiring"]},
+        ]
+        skeletons = _walk_personas(personas, [], "discovery")
+        no_wf = [s for s in skeletons if s.gap_type == "persona_no_workflow"]
+        assert len(no_wf) == 1
+
+    def test_persona_with_workflow_no_gap(self):
+        personas = [
+            {"id": "p1", "name": "HR Manager", "is_primary": True,
+             "pain_points": ["Slow"]},
+        ]
+        pairs = [{"name": "Hiring Flow", "owner": "HR Manager"}]
+        skeletons = _walk_personas(personas, pairs, "discovery")
+        no_wf = [s for s in skeletons if s.gap_type == "persona_no_workflow"]
+        assert len(no_wf) == 0
+
+    def test_informal_pains_detected(self):
+        personas = [
+            {"id": "p1", "name": "Admin", "is_primary": False,
+             "pain_points": ["A", "B", "C"]},
+        ]
+        skeletons = _walk_personas(personas, [], "discovery")
+        informal = [s for s in skeletons if s.gap_type == "persona_pains_not_drivers"]
+        assert len(informal) == 1
+
+
+# ============================================================================
+# Cross-ref walking
+# ============================================================================
+
+
+class TestWalkCrossRefs:
+    def test_critical_question_generates_skeleton(self):
         questions = [
-            {"id": "q1", "question": "What is the security model?", "priority": "critical",
-             "status": "open", "why_it_matters": "Affects architecture", "created_at": "2026-02-01T00:00:00Z"},
+            {"id": "q1", "question": "What's the security model?", "priority": "critical",
+             "status": "open", "created_at": "2026-02-01T00:00:00Z",
+             "target_entity_type": None, "target_entity_id": None, "suggested_owner": None},
         ]
-        actions = _compute_question_actions(questions, "validation")
-        assert len(actions) == 1
-        assert actions[0].action_type == "open_question_critical"
-        assert actions[0].related_question_id == "q1"
-
-    def test_answered_question_skipped(self):
-        questions = [
-            {"id": "q1", "question": "Resolved", "priority": "critical",
-             "status": "answered", "created_at": "2026-02-01T00:00:00Z"},
-        ]
-        actions = _compute_question_actions(questions, "validation")
-        assert len(actions) == 0
+        skeletons = _walk_cross_refs(questions, "validation")
+        assert len(skeletons) == 1
+        assert skeletons[0].gap_type == "open_question"
+        assert skeletons[0].final_score > 80
 
     def test_low_priority_skipped(self):
         questions = [
-            {"id": "q1", "question": "Nice to know", "priority": "low",
+            {"id": "q2", "question": "Nice to know", "priority": "low",
              "status": "open", "created_at": "2026-02-01T00:00:00Z"},
         ]
-        actions = _compute_question_actions(questions, "validation")
-        assert len(actions) == 0
+        skeletons = _walk_cross_refs(questions, "discovery")
+        assert len(skeletons) == 0
 
-    def test_medium_question_generates_blocking(self):
+    def test_entity_linked_question_boosted(self):
         questions = [
-            {"id": "q1", "question": "How many users?", "priority": "medium",
-             "status": "open", "why_it_matters": "Sizing", "created_at": "2026-02-01T00:00:00Z"},
+            {"id": "q3", "question": "How does auth work?", "priority": "high",
+             "status": "open", "created_at": "2026-02-01T00:00:00Z",
+             "target_entity_type": "feature", "target_entity_id": "f1", "suggested_owner": None},
         ]
-        actions = _compute_question_actions(questions, "validation")
-        assert len(actions) == 1
-        assert actions[0].action_type == "open_question_blocking"
+        skeletons = _walk_cross_refs(questions, "discovery")
+        assert len(skeletons) == 1
+        assert skeletons[0].final_score > 68  # base 80 + 5 boost
 
 
 # ============================================================================
-# Temporal actions
+# Full skeleton assembly
 # ============================================================================
 
 
-class TestTemporalActions:
-    def test_no_actions_in_discovery(self):
-        brd = {"requirements": {"must_have": [], "should_have": [], "could_have": []}}
-        actions = _compute_temporal_actions(brd, "discovery")
-        assert len(actions) == 0
-
-    def test_stale_feature_detected(self):
-        brd = {
-            "requirements": {
-                "must_have": [
-                    {"id": "f1", "name": "Old feature", "updated_at": "2025-01-01T00:00:00Z"},
-                ],
-                "should_have": [],
-                "could_have": [],
-            },
+class TestBuildAllSkeletons:
+    def test_deduplication(self):
+        data = {
+            "phase": "discovery",
+            "workflow_pairs": [
+                {"id": "wf-1", "name": "Flow", "owner": "",
+                 "current_steps": [
+                     {"id": "s1", "label": "Step 1", "actor_persona_id": None,
+                      "pain_description": None, "time_minutes": None},
+                 ],
+                 "future_steps": []},
+            ],
+            "drivers": [],
+            "personas": [],
+            "dep_graph": {"by_source": {}, "by_target": {}},
+            "questions": [],
+            "stakeholder_names": [],
         }
-        actions = _compute_temporal_actions(brd, "validation")
+        skeletons = _build_all_skeletons(data)
+        # Step s1 has 3 gaps (no actor, no pain, no time) but dedup keeps only 1
+        s1_skeletons = [s for s in skeletons if s.primary_entity_id == "s1"]
+        assert len(s1_skeletons) == 1
+
+    def test_sorted_by_score(self):
+        data = {
+            "phase": "discovery",
+            "workflow_pairs": [],
+            "drivers": [
+                {"id": "d1", "driver_type": "kpi", "description": "Speed",
+                 "baseline_value": None, "target_value": None,
+                 "evidence": [], "confirmation_status": "ai_generated"},
+                {"id": "d2", "driver_type": "pain", "description": "Slow process",
+                 "evidence": [], "confirmation_status": "ai_generated"},
+            ],
+            "personas": [],
+            "dep_graph": {"by_source": {}, "by_target": {}},
+            "questions": [],
+            "stakeholder_names": ["Alice", "Bob"],
+        }
+        skeletons = _build_all_skeletons(data)
+        scores = [s.final_score for s in skeletons]
+        assert scores == sorted(scores, reverse=True)
+
+
+# ============================================================================
+# Skeleton to action conversion
+# ============================================================================
+
+
+class TestSkeletonsToActions:
+    def test_converts_correctly(self):
+        skeleton = ActionSkeleton(
+            skeleton_id="test-123",
+            category=ActionCategory.GAP,
+            gap_domain=GapDomain.WORKFLOW,
+            gap_type="step_no_actor",
+            gap_description="Step needs an actor",
+            primary_entity_type="vp_step",
+            primary_entity_id="s1",
+            primary_entity_name="Review Order",
+            base_score=82,
+            phase_multiplier=1.0,
+            final_score=82.0,
+        )
+        actions = _skeletons_to_actions([skeleton])
         assert len(actions) == 1
-        assert actions[0].action_type == "temporal_stale"
-        assert actions[0].staleness_days is not None
-        assert actions[0].staleness_days > 14
+        a = actions[0]
+        assert a.action_id == "test-123"
+        assert a.category == ActionCategory.GAP
+        assert a.gap_type == "step_no_actor"
+        assert a.impact_score == 82.0
+
+    def test_legacy_dict_compat(self):
+        skeleton = ActionSkeleton(
+            skeleton_id="test-456",
+            category=ActionCategory.GAP,
+            gap_domain=GapDomain.DRIVER,
+            gap_type="kpi_no_numbers",
+            gap_description="KPI needs numbers",
+            primary_entity_type="business_driver",
+            primary_entity_id="d1",
+            primary_entity_name="Speed",
+            base_score=80,
+            final_score=80.0,
+        )
+        actions = _skeletons_to_actions([skeleton])
+        legacy = actions[0].to_legacy_dict()
+        assert "action_type" in legacy
+        assert legacy["action_type"] == "kpi_no_numbers"
+        assert "impact_score" in legacy
 
 
 # ============================================================================
@@ -335,51 +395,52 @@ class TestTemporalActions:
 
 
 class TestComputeFromInputs:
-    def test_basic_inputs(self):
-        inputs = {
-            "must_have_unconfirmed": 3,
-            "must_have_first_id": "f1",
-            "features_no_evidence": 5,
-            "has_vision": True,
-            "kpi_count": 2,
-            "stakeholder_roles": ["cfo", "product owner"],
-        }
+    def test_no_workflows_generates_action(self):
+        inputs = {"workflow_count": 0, "project_id": "p1"}
         actions = compute_actions_from_inputs(inputs)
-        types = [a.action_type for a in actions]
-        assert "confirm_critical" in types
-        assert "missing_evidence" in types
-        assert all(isinstance(a, UnifiedAction) for a in actions)
+        types = [a.gap_type for a in actions]
+        assert "no_workflows" in types
+
+    def test_no_kpis_generates_action(self):
+        inputs = {"kpi_count": 0, "project_id": "p1"}
+        actions = compute_actions_from_inputs(inputs)
+        types = [a.gap_type for a in actions]
+        assert "no_kpis" in types
 
     def test_legacy_compat_via_next_actions(self):
-        """Legacy wrapper should return same dict shape."""
         from app.core.next_actions import compute_next_actions_from_inputs
-        inputs = {"must_have_unconfirmed": 1, "must_have_first_id": "f1", "stakeholder_roles": []}
+
+        inputs = {"workflow_count": 0, "project_id": "p1"}
         actions = compute_next_actions_from_inputs(inputs)
         assert isinstance(actions, list)
         assert all(isinstance(a, dict) for a in actions)
         if actions:
             assert "action_type" in actions[0]
             assert "impact_score" in actions[0]
-            # Should NOT have new fields like 'category'
-            assert "category" not in actions[0]
 
-    def test_open_question_count_input(self):
+    def test_critical_questions_from_rpc(self):
         inputs = {
-            "critical_question_count": 2,
-            "stakeholder_roles": [],
+            "critical_question_count": 3,
+            "workflow_count": 5,
+            "kpi_count": 3,
+            "has_vision": True,
+            "project_id": "p1",
         }
         actions = compute_actions_from_inputs(inputs)
-        q_actions = [a for a in actions if a.action_type == "open_question_critical"]
+        q_actions = [a for a in actions if a.gap_type == "critical_questions"]
         assert len(q_actions) == 1
 
-    def test_temporal_stale_from_days_since(self):
+    def test_max_3_actions_returned(self):
         inputs = {
-            "days_since_last_signal": 20,
-            "stakeholder_roles": [],
+            "workflow_count": 0,
+            "kpi_count": 0,
+            "critical_question_count": 2,
+            "has_vision": False,
+            "days_since_last_signal": 30,
+            "project_id": "p1",
         }
         actions = compute_actions_from_inputs(inputs, phase="validation")
-        t_actions = [a for a in actions if a.action_type == "temporal_stale"]
-        assert len(t_actions) == 1
+        assert len(actions) <= 3
 
 
 # ============================================================================
@@ -390,27 +451,18 @@ class TestComputeFromInputs:
 class TestStateFrameActions:
     def test_returns_next_action_models(self):
         from app.context.models import Blocker, NextAction
+
         blockers = [
             Blocker(type="no_features", message="No features", severity="critical"),
         ]
-        metrics = {
-            "baseline_score": 0.1,
-            "baseline_finalized": False,
-            "high_confidence_mvp_ratio": 0.0,
-        }
+        metrics = {"baseline_score": 0.1}
         actions = compute_state_frame_actions("discovery", metrics, blockers)
         assert all(isinstance(a, NextAction) for a in actions)
         assert len(actions) >= 1
 
-    def test_validation_phase_actions(self):
-        from app.context.models import NextAction
-        metrics = {
-            "baseline_score": 0.8,
-            "baseline_finalized": False,
-            "high_confidence_mvp_ratio": 0.3,
-        }
-        actions = compute_state_frame_actions("validation", metrics, [])
-        assert any("evidence" in a.action.lower() for a in actions)
+    def test_build_ready_suggests_readiness(self):
+        actions = compute_state_frame_actions("build_ready", {}, [])
+        assert any("readiness" in a.action.lower() for a in actions)
 
 
 # ============================================================================
@@ -423,18 +475,25 @@ class TestSchemas:
         result = ActionEngineResult(
             actions=[
                 UnifiedAction(
-                    action_type="test",
-                    title="Test action",
-                    description="Testing",
+                    action_id="a1",
+                    category=ActionCategory.GAP,
+                    gap_domain=GapDomain.WORKFLOW,
+                    narrative="Test narrative",
+                    unlocks="Test unlock",
                     impact_score=80,
-                    category=ActionCategory.DISCOVER,
+                    primary_entity_type="vp_step",
+                    primary_entity_id="s1",
+                    primary_entity_name="Step 1",
+                    gap_type="step_no_actor",
                 ),
             ],
+            skeleton_count=10,
             phase="discovery",
             phase_progress=0.5,
         )
         data = result.model_dump(mode="json")
         assert data["phase"] == "discovery"
         assert len(data["actions"]) == 1
-        assert data["actions"][0]["category"] == "discover"
+        assert data["actions"][0]["category"] == "gap"
+        assert data["skeleton_count"] == 10
         assert "computed_at" in data

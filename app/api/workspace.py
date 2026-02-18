@@ -1859,18 +1859,86 @@ async def get_unified_actions(
     project_id: UUID,
     max_actions: int = Query(5, ge=1, le=10, description="Maximum actions to return"),
 ) -> dict:
-    """Full unified action computation with phase, memory, and open questions.
+    """Relationship-aware action engine v2.
 
-    Returns enriched actions with category, urgency, rationale, and staleness data.
+    Layer 1: Graph-walking skeleton builder (instant, no LLM).
+    Layer 2: Haiku 4.5 narrative generation (cached, ~200ms).
+    Returns 5 actions (show 3, buffer 5) with narratives, questions, and unlocks.
     """
     from app.core.action_engine import compute_actions
 
     try:
-        result = await compute_actions(project_id, max_actions=max_actions)
+        result = await compute_actions(
+            project_id,
+            max_skeletons=max_actions,
+            include_narratives=True,
+        )
         return result.model_dump(mode="json")
     except Exception as e:
-        logger.exception(f"Failed to compute unified actions for project {project_id}")
+        logger.exception(f"Failed to compute actions for project {project_id}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/actions/answer")
+async def answer_action_question(
+    project_id: UUID,
+    body: dict,
+) -> dict:
+    """Answer an action question and trigger the cascade.
+
+    Body: {action_id, question_index, answer_text, answered_by?}
+
+    Flow: answer → Haiku parse → entity create/enrich → rebuild deps → recompute.
+    """
+    from app.chains.parse_question_answer import apply_extractions, parse_answer
+    from app.core.action_engine import compute_actions
+
+    action_id = body.get("action_id", "")
+    question_index = body.get("question_index", 0)
+    answer_text = body.get("answer_text", "")
+
+    if not answer_text:
+        raise HTTPException(status_code=400, detail="answer_text is required")
+
+    # Get the current actions to find the skeleton context
+    current = await compute_actions(project_id, max_skeletons=5, include_narratives=False)
+    target_action = None
+    for a in current.actions:
+        if a.action_id == action_id:
+            target_action = a
+            break
+
+    if not target_action:
+        raise HTTPException(status_code=404, detail=f"Action {action_id} not found")
+
+    # Get the question text
+    question_text = ""
+    if target_action.questions and question_index < len(target_action.questions):
+        question_text = target_action.questions[question_index].question
+    elif target_action.narrative:
+        question_text = target_action.narrative
+
+    # Parse the answer
+    parse_result = await parse_answer(
+        question=question_text,
+        answer=answer_text,
+        gap_type=target_action.gap_type,
+        entity_type=target_action.primary_entity_type,
+        entity_id=target_action.primary_entity_id,
+        entity_name=target_action.primary_entity_name,
+        project_id=str(project_id),
+    )
+
+    # Apply extractions to DB
+    parse_result = await apply_extractions(str(project_id), parse_result)
+
+    return {
+        "ok": True,
+        "extractions": [e.model_dump() for e in parse_result.extractions],
+        "entities_affected": parse_result.entities_affected,
+        "cascade_triggered": parse_result.cascade_triggered,
+        "summary": parse_result.summary,
+    }
 
 
 # ============================================================================
