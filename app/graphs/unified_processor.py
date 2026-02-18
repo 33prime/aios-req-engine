@@ -880,3 +880,443 @@ async def process_signal_async(
             lambda: process_signal(signal_id, project_id, run_id)
         )
     return result
+
+
+# =============================================================================
+# V2 Pipeline — EntityPatch-based extraction with 3-layer context
+# =============================================================================
+# New pipeline: load_context → extract_patches → score_patches →
+#               apply_patches → generate_summary → trigger_memory
+
+from dataclasses import dataclass as _v2_dataclass, field as _v2_field
+
+
+@_v2_dataclass
+class V2ProcessorState:
+    """State for the v2 unified processor pipeline."""
+
+    # Input
+    signal_id: UUID
+    project_id: UUID
+    run_id: UUID
+
+    # Signal data
+    signal: dict[str, Any] | None = None
+    signal_text: str = ""
+    signal_type: str = "default"
+    source_authority: str = "research"
+
+    # Triage
+    triage_result: Any | None = None  # TriageResult
+
+    # Context
+    context_snapshot: Any | None = None
+
+    # Extraction
+    entity_patches: Any | None = None  # EntityPatchList
+
+    # Application
+    application_result: Any | None = None  # PatchApplicationResult
+
+    # Summary
+    chat_summary: str = ""
+
+    # Status
+    success: bool = True
+    error: str | None = None
+
+
+class V2ProcessingResult(BaseModel):
+    """Result of v2 signal processing."""
+    signal_id: str
+    project_id: str
+    patches_extracted: int = 0
+    patches_applied: int = 0
+    patches_escalated: int = 0
+    created_count: int = 0
+    merged_count: int = 0
+    updated_count: int = 0
+    staled_count: int = 0
+    deleted_count: int = 0
+    chat_summary: str = ""
+    success: bool = True
+    error: str | None = None
+
+
+# --- V2 Node Functions ---
+
+def v2_load_signal(state: V2ProcessorState) -> dict[str, Any]:
+    """Load signal data from database."""
+    logger.info(f"[v2] Loading signal {state.signal_id}")
+
+    supabase = get_supabase()
+    response = (
+        supabase.table("signals")
+        .select("*")
+        .eq("id", str(state.signal_id))
+        .single()
+        .execute()
+    )
+
+    if not response.data:
+        return {"error": f"Signal {state.signal_id} not found", "success": False}
+
+    signal = response.data
+    metadata = signal.get("metadata", {}) or {}
+
+    # Update processing status
+    try:
+        supabase.table("signals").update(
+            {"processing_status": "extracting"}
+        ).eq("id", str(state.signal_id)).execute()
+    except Exception:
+        pass
+
+    return {
+        "signal": signal,
+        "signal_text": signal.get("raw_text", ""),
+        "signal_type": metadata.get("source_type", signal.get("signal_type", "default")),
+        "source_authority": metadata.get("authority", "research"),
+    }
+
+
+def v2_triage_signal(state: V2ProcessorState) -> dict[str, Any]:
+    """Triage signal for source type, strategy, authority, priority."""
+    if not state.signal_text:
+        return {}
+
+    logger.info(f"[v2] Triaging signal {state.signal_id}")
+
+    try:
+        from app.chains.triage_signal import triage_signal
+
+        metadata = (state.signal.get("metadata", {}) or {}) if state.signal else {}
+        result = triage_signal(
+            signal_type=state.signal_type,
+            raw_text=state.signal_text,
+            metadata=metadata,
+        )
+
+        # Update signal type and authority from triage
+        updates = {
+            "triage_result": result,
+            "signal_type": result.strategy,
+            "source_authority": result.source_authority,
+        }
+
+        # Store triage metadata on signal
+        try:
+            supabase = get_supabase()
+            supabase.table("signals").update({
+                "triage_metadata": result.model_dump(),
+            }).eq("id", str(state.signal_id)).execute()
+        except Exception:
+            pass
+
+        return updates
+
+    except Exception as e:
+        logger.warning(f"[v2] Triage failed (using defaults): {e}")
+        return {}
+
+
+async def v2_load_context(state: V2ProcessorState) -> dict[str, Any]:
+    """Build 3-layer context snapshot for extraction."""
+    logger.info(f"[v2] Building context snapshot for project {state.project_id}")
+
+    try:
+        from app.core.context_snapshot import build_context_snapshot
+        snapshot = await build_context_snapshot(state.project_id)
+        return {"context_snapshot": snapshot}
+    except Exception as e:
+        logger.warning(f"[v2] Context snapshot build failed: {e}")
+        from app.core.context_snapshot import ContextSnapshot
+        return {"context_snapshot": ContextSnapshot()}
+
+
+async def v2_extract_patches(state: V2ProcessorState) -> dict[str, Any]:
+    """Extract EntityPatch[] from signal using Sonnet + context."""
+    if not state.signal_text:
+        logger.warning("[v2] No signal text to extract from")
+        return {"entity_patches": None}
+
+    logger.info(f"[v2] Extracting patches from signal {state.signal_id}")
+
+    try:
+        from app.chains.extract_entity_patches import extract_entity_patches
+
+        # Get chunk IDs for evidence references
+        chunk_ids = []
+        try:
+            from app.db.signals import list_signal_chunks
+            chunks = list_signal_chunks(state.signal_id)
+            chunk_ids = [str(c.get("id", "")) for c in chunks]
+        except Exception:
+            pass
+
+        patch_list = await extract_entity_patches(
+            signal_text=state.signal_text,
+            signal_type=state.signal_type,
+            context_snapshot=state.context_snapshot,
+            chunk_ids=chunk_ids,
+            source_authority=state.source_authority,
+            signal_id=str(state.signal_id),
+            run_id=str(state.run_id),
+        )
+
+        logger.info(f"[v2] Extracted {len(patch_list.patches)} patches")
+        return {"entity_patches": patch_list}
+
+    except Exception as e:
+        logger.error(f"[v2] Extraction failed: {e}", exc_info=True)
+        return {"entity_patches": None, "error": str(e)}
+
+
+async def v2_score_patches(state: V2ProcessorState) -> dict[str, Any]:
+    """Score patches against memory beliefs and open questions."""
+    if not state.entity_patches or not state.entity_patches.patches:
+        return {}
+
+    logger.info(f"[v2] Scoring {len(state.entity_patches.patches)} patches against memory")
+
+    try:
+        from app.chains.score_entity_patches import score_entity_patches
+
+        scored = await score_entity_patches(
+            patches=state.entity_patches.patches,
+            context_snapshot=state.context_snapshot,
+        )
+        # Patches are modified in-place; update the list reference
+        state.entity_patches.patches = scored
+        return {}
+
+    except Exception as e:
+        logger.warning(f"[v2] Patch scoring failed (continuing): {e}")
+        return {}
+
+
+async def v2_apply_patches(state: V2ProcessorState) -> dict[str, Any]:
+    """Apply extracted patches to the database."""
+    if not state.entity_patches or not state.entity_patches.patches:
+        return {"application_result": None}
+
+    logger.info(f"[v2] Applying {len(state.entity_patches.patches)} patches")
+
+    # Update processing status
+    try:
+        supabase = get_supabase()
+        supabase.table("signals").update(
+            {"processing_status": "applying"}
+        ).eq("id", str(state.signal_id)).execute()
+    except Exception:
+        pass
+
+    try:
+        from app.db.patch_applicator import apply_entity_patches
+
+        result = await apply_entity_patches(
+            project_id=state.project_id,
+            patches=state.entity_patches.patches,
+            run_id=state.run_id,
+            signal_id=state.signal_id,
+        )
+
+        logger.info(
+            f"[v2] Applied {result.total_applied} patches, "
+            f"escalated {result.total_escalated}"
+        )
+        return {"application_result": result}
+
+    except Exception as e:
+        logger.error(f"[v2] Patch application failed: {e}", exc_info=True)
+        return {"application_result": None, "error": str(e)}
+
+
+async def v2_generate_summary(state: V2ProcessorState) -> dict[str, Any]:
+    """Generate chat summary of processing results."""
+    if not state.application_result:
+        return {"chat_summary": "No changes from this signal."}
+
+    try:
+        from app.chains.generate_chat_summary import generate_chat_summary
+
+        patches = state.entity_patches.patches if state.entity_patches else []
+        signal_name = state.signal.get("title", "signal") if state.signal else "signal"
+
+        summary = await generate_chat_summary(
+            result=state.application_result,
+            patches=patches,
+            signal_name=signal_name,
+        )
+        return {"chat_summary": summary}
+
+    except Exception as e:
+        logger.warning(f"[v2] Summary generation failed: {e}")
+        return {"chat_summary": "Signal processed. Check the BRD for updates."}
+
+
+async def v2_trigger_memory(state: V2ProcessorState) -> dict[str, Any]:
+    """Fire MemoryWatcher for signal processing event."""
+    try:
+        from app.core.signal_pipeline import process_signal_for_memory
+
+        if state.signal and state.signal_text:
+            await process_signal_for_memory(
+                project_id=state.project_id,
+                signal_id=state.signal_id,
+                signal_text=state.signal_text,
+            )
+    except ImportError:
+        logger.debug("[v2] Memory processing not available")
+    except Exception as e:
+        logger.warning(f"[v2] Memory trigger failed: {e}")
+
+    # Mark signal processing complete
+    try:
+        supabase = get_supabase()
+        patch_summary = {}
+        if state.application_result:
+            r = state.application_result
+            patch_summary = {
+                "applied": r.total_applied,
+                "escalated": r.total_escalated,
+                "created": r.created_count,
+                "merged": r.merged_count,
+                "updated": r.updated_count,
+            }
+
+        supabase.table("signals").update({
+            "processing_status": "complete",
+            "patch_summary": patch_summary,
+        }).eq("id", str(state.signal_id)).execute()
+    except Exception:
+        pass
+
+    return {"success": True}
+
+
+# --- V2 Pipeline Orchestrator ---
+
+async def process_signal_v2(
+    signal_id: UUID,
+    project_id: UUID,
+    run_id: UUID,
+) -> V2ProcessingResult:
+    """Process a signal through the v2 EntityPatch pipeline.
+
+    Pipeline: load_signal → triage → load_context → extract_patches →
+              score_patches → apply_patches → generate_summary → trigger_memory
+
+    Args:
+        signal_id: Signal UUID
+        project_id: Project UUID
+        run_id: Run tracking UUID
+
+    Returns:
+        V2ProcessingResult with full pipeline results
+    """
+    logger.info(
+        f"[v2] Starting signal processing for {signal_id}",
+        extra={"run_id": str(run_id), "project_id": str(project_id)},
+    )
+
+    state = V2ProcessorState(
+        signal_id=signal_id,
+        project_id=project_id,
+        run_id=run_id,
+    )
+
+    try:
+        # Step 1: Load signal
+        updates = v2_load_signal(state)
+        _apply_state_updates(state, updates)
+        if not state.success:
+            return _make_v2_result(state)
+
+        # Step 2: Triage signal
+        updates = v2_triage_signal(state)
+        _apply_state_updates(state, updates)
+
+        # Step 3: Load context (async)
+        updates = await v2_load_context(state)
+        _apply_state_updates(state, updates)
+
+        # Step 4: Extract patches (async)
+        updates = await v2_extract_patches(state)
+        _apply_state_updates(state, updates)
+
+        # Step 5: Score patches against memory (async)
+        updates = await v2_score_patches(state)
+        _apply_state_updates(state, updates)
+
+        # Step 6: Apply patches (async)
+        updates = await v2_apply_patches(state)
+        _apply_state_updates(state, updates)
+
+        # Step 7: Generate summary (async)
+        updates = await v2_generate_summary(state)
+        _apply_state_updates(state, updates)
+
+        # Step 8: Trigger memory (async)
+        updates = await v2_trigger_memory(state)
+        _apply_state_updates(state, updates)
+
+        result = _make_v2_result(state)
+
+        logger.info(
+            f"[v2] Processing complete: {result.patches_extracted} extracted, "
+            f"{result.patches_applied} applied, {result.patches_escalated} escalated",
+            extra={"run_id": str(run_id)},
+        )
+
+        return result
+
+    except Exception as e:
+        logger.exception(f"[v2] Processing failed: {e}", extra={"run_id": str(run_id)})
+
+        # Mark signal as failed
+        try:
+            supabase = get_supabase()
+            supabase.table("signals").update(
+                {"processing_status": "failed"}
+            ).eq("id", str(signal_id)).execute()
+        except Exception:
+            pass
+
+        return V2ProcessingResult(
+            signal_id=str(signal_id),
+            project_id=str(project_id),
+            success=False,
+            error=str(e),
+        )
+
+
+def _apply_state_updates(state: V2ProcessorState, updates: dict[str, Any]) -> None:
+    """Apply dict updates to dataclass state."""
+    for key, value in updates.items():
+        if hasattr(state, key):
+            setattr(state, key, value)
+
+
+def _make_v2_result(state: V2ProcessorState) -> V2ProcessingResult:
+    """Build V2ProcessingResult from final state."""
+    patches_extracted = 0
+    if state.entity_patches:
+        patches_extracted = len(state.entity_patches.patches)
+
+    r = state.application_result
+    return V2ProcessingResult(
+        signal_id=str(state.signal_id),
+        project_id=str(state.project_id),
+        patches_extracted=patches_extracted,
+        patches_applied=r.total_applied if r else 0,
+        patches_escalated=r.total_escalated if r else 0,
+        created_count=r.created_count if r else 0,
+        merged_count=r.merged_count if r else 0,
+        updated_count=r.updated_count if r else 0,
+        staled_count=r.staled_count if r else 0,
+        deleted_count=r.deleted_count if r else 0,
+        chat_summary=state.chat_summary,
+        success=state.success,
+        error=state.error,
+    )

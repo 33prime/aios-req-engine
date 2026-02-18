@@ -258,6 +258,7 @@ def upsert_persona(
     slug: str,
     name: str,
     role: str | None = None,
+    # DEPRECATED: v2 pipeline uses app/db/patch_applicator.py for surgical EntityPatch CRUD
     demographics: dict | None = None,
     psychographics: dict | None = None,
     goals: list[str] | None = None,

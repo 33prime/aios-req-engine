@@ -15,6 +15,7 @@ def upsert_vp_step(
     step_index: int,
     payload: dict[str, Any],
 ) -> dict[str, Any]:
+    # DEPRECATED: v2 pipeline uses app/db/patch_applicator.py for surgical EntityPatch CRUD
     """
     Upsert a Value Path step for a project.
 

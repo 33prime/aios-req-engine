@@ -1,5 +1,8 @@
 """Signal classification for routing to appropriate processing pipelines.
 
+DEPRECATED: v2 pipeline uses app/chains/triage_signal.py for heuristic-only
+triage (no LLM classification). This file is kept for backward compatibility.
+
 Classifies signals as 'lightweight' or 'heavyweight' based on:
 - Source type (transcript, document, email, chat)
 - Content length

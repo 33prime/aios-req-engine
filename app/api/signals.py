@@ -1,5 +1,6 @@
 """API endpoints for signal and chunk details."""
 
+from typing import Any
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Query
@@ -18,6 +19,55 @@ from app.db.signals import (
 logger = get_logger(__name__)
 
 router = APIRouter()
+
+
+# =============================================================================
+# V2 signal processing status endpoint
+# =============================================================================
+
+
+class SignalStatusResponse(BaseModel):
+    """Response for signal processing status (v2 pipeline)."""
+
+    signal_id: str
+    processing_status: str = "pending"
+    triage_metadata: dict[str, Any] = {}
+    patch_summary: dict[str, Any] = {}
+
+
+@router.get("/signals/{signal_id}/status")
+async def get_signal_status(signal_id: UUID) -> SignalStatusResponse:
+    """Get v2 pipeline processing status for a signal.
+
+    Returns processing_status, triage_metadata, and patch_summary
+    from the signals table (added in migration 0136).
+
+    Args:
+        signal_id: Signal UUID
+
+    Returns:
+        SignalStatusResponse with processing progress
+
+    Raises:
+        HTTPException 404: If signal not found
+    """
+    try:
+        signal = get_signal(signal_id)
+        if not signal:
+            raise HTTPException(status_code=404, detail="Signal not found")
+
+        return SignalStatusResponse(
+            signal_id=str(signal_id),
+            processing_status=signal.get("processing_status", "pending"),
+            triage_metadata=signal.get("triage_metadata") or {},
+            patch_summary=signal.get("patch_summary") or {},
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"Failed to get status for signal {signal_id}")
+        raise HTTPException(status_code=500, detail="Failed to retrieve signal status")
 
 
 @router.get("/signals/{signal_id}")

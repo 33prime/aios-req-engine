@@ -1,4 +1,9 @@
-"""State builder LangGraph agent for canonical VP/Features/Personas generation."""
+"""State builder LangGraph agent for canonical VP/Features/Personas generation.
+
+DEPRECATED: v2 pipeline uses app/graphs/unified_processor.py:process_signal_v2()
+with EntityPatch-based extraction. This file is kept for backward compatibility
+and will be removed in Phase 6.
+"""
 
 from dataclasses import dataclass, field
 from datetime import datetime, timezone

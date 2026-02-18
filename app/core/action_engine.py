@@ -1263,6 +1263,79 @@ def _count_entities(data: dict) -> dict:
     }
 
 
+def _build_entity_inventory(data: dict) -> dict[str, list[dict]]:
+    """Build entity inventory from loaded project data.
+
+    Plucks {id, name, confirmation_status, is_stale} per entity type.
+    Used by the extraction pipeline for context-aware extraction.
+    """
+    inventory: dict[str, list[dict]] = {}
+
+    # Features
+    inventory["feature"] = [
+        {
+            "id": str(f.get("id", "")),
+            "name": f.get("name", ""),
+            "confirmation_status": f.get("confirmation_status", "ai_generated"),
+            "is_stale": f.get("is_stale", False),
+        }
+        for f in (data.get("features") or [])
+    ]
+
+    # Personas
+    inventory["persona"] = [
+        {
+            "id": str(p.get("id", "")),
+            "name": p.get("name", ""),
+            "confirmation_status": p.get("confirmation_status", "ai_generated"),
+            "is_stale": p.get("is_stale", False),
+        }
+        for p in (data.get("personas") or [])
+    ]
+
+    # Workflows + steps
+    workflows = []
+    workflow_steps = []
+    for pair in (data.get("workflow_pairs") or []):
+        wf_id = str(pair.get("id", ""))
+        wf_name = pair.get("name", "Unnamed")
+        workflows.append(
+            {
+                "id": wf_id,
+                "name": wf_name,
+                "confirmation_status": pair.get("confirmation_status", "ai_generated"),
+                "is_stale": pair.get("is_stale", False),
+            }
+        )
+        for step in (pair.get("current_steps") or []) + (pair.get("future_steps") or []):
+            workflow_steps.append(
+                {
+                    "id": str(step.get("id", "")),
+                    "name": step.get("label", ""),
+                    "confirmation_status": step.get("confirmation_status", "ai_generated"),
+                    "is_stale": step.get("is_stale", False),
+                    "workflow_name": wf_name,
+                }
+            )
+
+    inventory["workflow"] = workflows
+    inventory["workflow_step"] = workflow_steps
+
+    # Business drivers
+    inventory["business_driver"] = [
+        {
+            "id": str(d.get("id", "")),
+            "name": d.get("description", "")[:80],
+            "driver_type": d.get("driver_type", ""),
+            "confirmation_status": d.get("confirmation_status", "ai_generated"),
+            "is_stale": d.get("is_stale", False),
+        }
+        for d in (data.get("drivers") or [])
+    ]
+
+    return inventory
+
+
 async def compute_context_frame(
     project_id: UUID,
     max_actions: int = 5,
@@ -1404,6 +1477,7 @@ async def compute_context_frame(
         workflow_context=workflow_context,
         memory_hints=memory_hints,
         entity_counts=_count_entities(data),
+        entity_inventory=_build_entity_inventory(data),
         total_gap_count=total_gaps,
         open_questions=open_questions_summary,
     )

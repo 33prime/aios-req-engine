@@ -1,4 +1,8 @@
-"""LLM chain for building canonical state from facts and chunks."""
+"""LLM chain for building canonical state from facts and chunks.
+
+DEPRECATED: v2 pipeline uses app/chains/extract_entity_patches.py
+with 3-layer context injection. This file is kept for backward compatibility.
+"""
 
 import json
 from typing import Any

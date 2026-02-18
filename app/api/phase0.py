@@ -5,7 +5,7 @@ import uuid
 from typing import Any
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, UploadFile
 
 from app.core.auth_middleware import AuthContext, require_auth
 from app.core.chunking import chunk_text
@@ -66,6 +66,50 @@ async def process_signal_pipeline(
         result = await loop.run_in_executor(pool, run_processing)
 
     return result
+
+
+async def process_signal_v2_background(
+    project_id: UUID,
+    signal_id: UUID,
+    run_id: UUID,
+) -> None:
+    """Background task: process signal through v2 EntityPatch pipeline.
+
+    Non-blocking — fires and forgets. Signal status is tracked via
+    processing_status column (migration 0136).
+    """
+    try:
+        from app.graphs.unified_processor import process_signal_v2
+
+        result = await process_signal_v2(
+            signal_id=signal_id,
+            project_id=project_id,
+            run_id=run_id,
+        )
+
+        logger.info(
+            f"[v2] Background processing complete for {signal_id}: "
+            f"{result.patches_extracted} extracted, {result.patches_applied} applied",
+            extra={
+                "run_id": str(run_id),
+                "signal_id": str(signal_id),
+                "success": result.success,
+            },
+        )
+
+    except Exception as e:
+        logger.exception(
+            f"[v2] Background processing failed for {signal_id}: {e}",
+            extra={"run_id": str(run_id), "signal_id": str(signal_id)},
+        )
+        # Mark signal as failed
+        try:
+            from app.db.supabase_client import get_supabase
+            get_supabase().table("signals").update(
+                {"processing_status": "failed"}
+            ).eq("id", str(signal_id)).execute()
+        except Exception:
+            pass
 
 
 def _cap_text(text: str) -> str:

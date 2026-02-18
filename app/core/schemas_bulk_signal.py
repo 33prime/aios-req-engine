@@ -1,5 +1,8 @@
 """Schemas for bulk signal processing pipeline.
 
+DEPRECATED: v2 pipeline uses app/core/schemas_entity_patch.py for EntityPatch models.
+This file is kept for backward compatibility.
+
 Defines types for:
 - Extracted entities from signals
 - Consolidated changes with similarity matching

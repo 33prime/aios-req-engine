@@ -39,6 +39,7 @@ def bulk_replace_features(
     project_id: UUID,
     features: list[dict[str, Any]],
 ) -> tuple[int, list[dict[str, Any]]]:
+    # DEPRECATED: v2 pipeline uses app/db/patch_applicator.py for surgical EntityPatch CRUD
     """
     Smart replace features for a project - preserves confirmed features.
 

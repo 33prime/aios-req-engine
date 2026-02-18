@@ -309,6 +309,7 @@ class ProjectContextFrame(BaseModel):
 
     # Stats
     entity_counts: dict = Field(default_factory=dict)
+    entity_inventory: dict[str, list[dict]] = Field(default_factory=dict)  # {type: [{id, name, status, is_stale}]}
     total_gap_count: int = 0
     computed_at: datetime = Field(default_factory=datetime.utcnow)
 
