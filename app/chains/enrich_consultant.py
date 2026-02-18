@@ -81,6 +81,14 @@ def enrich_consultant_profile(
     duration_ms = int((time.time() - start_time) * 1000)
     tokens_used = response.usage.input_tokens + response.usage.output_tokens
 
+    # Log usage
+    from app.core.llm_usage import log_llm_usage
+    log_llm_usage(
+        workflow="enrich_consultant", model="claude-sonnet-4-20250514", provider="anthropic",
+        tokens_input=response.usage.input_tokens, tokens_output=response.usage.output_tokens,
+        duration_ms=duration_ms,
+    )
+
     metadata = {
         "model": "claude-sonnet-4-20250514",
         "tokens_used": tokens_used,

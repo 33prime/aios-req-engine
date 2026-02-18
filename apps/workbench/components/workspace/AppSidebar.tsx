@@ -109,10 +109,10 @@ export function AppSidebar({ isCollapsed: controlledCollapsed, onToggleCollapse 
       : []),
   ]
 
-  // Handle project launched
+  // Handle project launched — navigate to projects list so user sees the building card
   const handleProjectLaunched = (response: { project_id: string; launch_id: string }) => {
     setShowCreateProject(false)
-    router.push(`/projects/${response.project_id}?launch=${response.launch_id}`)
+    router.push('/projects')
   }
 
   return (

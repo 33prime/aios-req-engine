@@ -233,6 +233,15 @@ def generate_v0_prompt(
         messages=[{"role": "user", "content": user_message}],
     )
 
+    # Log usage
+    from app.core.llm_usage import log_llm_usage
+    log_llm_usage(
+        workflow="generate_v0_prompt", model=response.model, provider="anthropic",
+        tokens_input=response.usage.input_tokens, tokens_output=response.usage.output_tokens,
+        tokens_cache_read=getattr(response.usage, "cache_read_input_tokens", 0),
+        tokens_cache_create=getattr(response.usage, "cache_creation_input_tokens", 0),
+    )
+
     response_text = response.content[0].text.strip()
     if response_text.startswith("```json"):
         response_text = response_text[len("```json") :]

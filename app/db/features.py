@@ -86,6 +86,8 @@ def bulk_replace_features(
         "rules",
         "integrations",
         "enrichment_status",
+        # Priority grouping (MoSCoW)
+        "priority_group",
     }
 
     try:

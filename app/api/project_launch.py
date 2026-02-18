@@ -4,6 +4,7 @@ import asyncio
 import threading
 import time
 import uuid
+from typing import Any
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException
@@ -118,7 +119,6 @@ def _execute_entity_generation(context: dict) -> str:
         generate_project_entities,
         validate_onboarding_input,
     )
-    from app.db.business_drivers import smart_upsert_business_driver
     from app.db.features import bulk_replace_features
     from app.db.personas import create_persona
     from app.db.supabase_client import get_supabase
@@ -173,44 +173,43 @@ def _execute_entity_generation(context: dict) -> str:
         except Exception as e:
             logger.warning(f"Failed to create persona {p.name}: {e}")
 
-    # --- Save business drivers ---
+    # --- Save business drivers (direct insert — no dedup needed for fresh generation) ---
     driver_count = 0
     for d in result.drivers:
         try:
             status = "confirmed_consultant" if d.confidence >= 0.8 else "ai_generated"
-            driver_data = {
+            driver_row: dict[str, Any] = {
                 "project_id": project_id_str,
                 "driver_type": d.driver_type,
                 "description": d.description,
                 "priority": d.priority,
                 "confirmation_status": status,
-                "source": "entity_generation",
             }
             # Add type-specific fields
             if d.driver_type == "pain":
                 if d.severity:
-                    driver_data["severity"] = d.severity
+                    driver_row["severity"] = d.severity
                 if d.frequency:
-                    driver_data["frequency"] = d.frequency
+                    driver_row["frequency"] = d.frequency
                 if d.business_impact:
-                    driver_data["business_impact"] = d.business_impact
+                    driver_row["business_impact"] = d.business_impact
             elif d.driver_type == "goal":
                 if d.goal_timeframe:
-                    driver_data["goal_timeframe"] = d.goal_timeframe
+                    driver_row["goal_timeframe"] = d.goal_timeframe
                 if d.success_criteria:
-                    driver_data["success_criteria"] = d.success_criteria
+                    driver_row["success_criteria"] = d.success_criteria
             elif d.driver_type == "kpi":
                 if d.baseline_value:
-                    driver_data["baseline_value"] = d.baseline_value
+                    driver_row["baseline_value"] = d.baseline_value
                 if d.target_value:
-                    driver_data["target_value"] = d.target_value
+                    driver_row["target_value"] = d.target_value
                 if d.measurement_method:
-                    driver_data["measurement_method"] = d.measurement_method
+                    driver_row["measurement_method"] = d.measurement_method
 
-            smart_upsert_business_driver(driver_data)
+            supabase.table("business_drivers").insert(driver_row).execute()
             driver_count += 1
         except Exception as e:
-            logger.warning(f"Failed to create driver: {e}")
+            logger.error(f"Failed to create {d.driver_type} driver '{d.description[:60]}': {e}")
 
     # --- Save requirements as features ---
     feature_rows = []
@@ -220,6 +219,7 @@ def _execute_entity_generation(context: dict) -> str:
             "name": r.name,
             "overview": r.overview,
             "category": r.category,
+            "priority_group": r.priority_group,
             "confirmation_status": status,
             "confidence": r.confidence,
             "status": "proposed",
@@ -244,7 +244,7 @@ def _execute_entity_generation(context: dict) -> str:
                 "description": w.description,
                 "owner": w.owner,
                 "state_type": "current",
-                "source": "entity_generation",
+                "source": "ai_generated",
                 "confirmation_status": status,
             })
 
@@ -254,7 +254,7 @@ def _execute_entity_generation(context: dict) -> str:
                 "description": w.description,
                 "owner": w.owner,
                 "state_type": "future",
-                "source": "entity_generation",
+                "source": "ai_generated",
                 "confirmation_status": status,
             })
 
@@ -558,7 +558,7 @@ async def launch_project(request: ProjectLaunchRequest) -> ProjectLaunchResponse
     from app.db.clients import create_client, link_project_to_client
     from app.db.phase0 import insert_signal, insert_signal_chunks
     from app.db.projects import create_project
-    from app.db.stakeholders import create_stakeholder, update_stakeholder
+    from app.db.stakeholders import create_stakeholder
 
     # 1. Create project — MUST succeed
     try:
@@ -621,7 +621,6 @@ async def launch_project(request: ProjectLaunchRequest) -> ProjectLaunchResponse
         context["client_id"] = client_id
 
     # 3. Create stakeholders (non-fatal per stakeholder)
-    # LinkedIn URL is now included in the initial creation payload
     for s_input in request.stakeholders:
         try:
             create_kwargs: dict = {
@@ -634,22 +633,19 @@ async def launch_project(request: ProjectLaunchRequest) -> ProjectLaunchResponse
                 "first_name": s_input.first_name,
                 "last_name": s_input.last_name,
             }
+            if s_input.linkedin_url:
+                create_kwargs["linkedin_profile"] = s_input.linkedin_url
             stakeholder = create_stakeholder(**create_kwargs)
             s_id = stakeholder["id"]
             stakeholder_ids.append(s_id)
 
-            # Set LinkedIn profile via update (create_stakeholder doesn't accept it)
             s_context: dict = {"id": s_id}
             if s_input.linkedin_url:
-                try:
-                    update_stakeholder(UUID(s_id), {"linkedin_profile": s_input.linkedin_url})
-                    s_context["linkedin_url"] = s_input.linkedin_url
-                except Exception as e:
-                    logger.error(f"Failed to set LinkedIn for stakeholder {s_id}: {e}")
+                s_context["linkedin_url"] = s_input.linkedin_url
 
             context["stakeholders"].append(s_context)
         except Exception as e:
-            logger.warning(f"Stakeholder creation failed for {s_input.first_name} {s_input.last_name}: {e}")
+            logger.error(f"Stakeholder creation failed for {s_input.first_name} {s_input.last_name}: {e}")
 
     # 4. Signal ingestion — ingest chat transcript or problem description
     signal_id = None

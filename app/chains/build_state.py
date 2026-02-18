@@ -161,6 +161,13 @@ def run_build_state_chain(
             max_tokens=16384,  # Increased for larger outputs with 7+ VP steps, 8+ features, personas
         )
 
+        # Log usage
+        from app.core.llm_usage import log_llm_usage
+        log_llm_usage(
+            workflow="build_state", model=response.model, provider="openai",
+            tokens_input=response.usage.prompt_tokens, tokens_output=response.usage.completion_tokens,
+        )
+
         output_text = response.choices[0].message.content or ""
 
         # Log if output was truncated

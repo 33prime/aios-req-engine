@@ -89,6 +89,13 @@ async def _extract_with_haiku(scraped_content: str, cost_entries: list[dict]) ->
         "cost_usd": 0.02,
     })
 
+    # Log usage
+    from app.core.llm_usage import log_llm_usage
+    log_llm_usage(
+        workflow="discover_company", model=response.model, provider="anthropic",
+        tokens_input=response.usage.input_tokens, tokens_output=response.usage.output_tokens,
+    )
+
     text = response.content[0].text if response.content else "{}"
     return _parse_json_response(text, "company extraction")
 

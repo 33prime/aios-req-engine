@@ -178,6 +178,13 @@ async def _profile_one_competitor(
                 "cost_usd": 0.015,
             })
 
+            # Log usage
+            from app.core.llm_usage import log_llm_usage
+            log_llm_usage(
+                workflow="discover_competitors", model=response.model, provider="anthropic",
+                tokens_input=response.usage.input_tokens, tokens_output=response.usage.output_tokens,
+            )
+
             text = response.content[0].text if response.content else "{}"
             extracted = _parse_json_response(text, f"competitor {name}")
             profile.update({

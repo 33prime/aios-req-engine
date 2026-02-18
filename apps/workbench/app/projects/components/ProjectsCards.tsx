@@ -5,7 +5,6 @@ import {
   ListTodo,
   CalendarDays,
   CheckCircle2,
-  Settings,
 } from 'lucide-react'
 import type { ProjectDetailWithDashboard, Profile, Meeting } from '@/types/api'
 import type { NextAction, TaskStatsResponse } from '@/lib/api'
@@ -14,6 +13,7 @@ import { ProjectAvatar } from './ProjectAvatar'
 import { UserAvatar } from './UserAvatar'
 import { ReadinessCell } from './ReadinessCell'
 import { StageAdvancePopover } from './StageAdvancePopover'
+import { BuildingCardOverlay } from './BuildingCardOverlay'
 
 interface ProjectsCardsProps {
   projects: ProjectDetailWithDashboard[]
@@ -93,15 +93,12 @@ export function ProjectsCards({
               isBuilding ? 'border-[#3FAF7A]/30' : ''
             }`}
           >
-            {/* Building overlay */}
+            {/* Building overlay with live progress */}
             {isBuilding && (
-              <div className="absolute inset-0 z-10 bg-white/80 backdrop-blur-[2px] flex flex-col items-center justify-center gap-3 rounded-2xl">
-                <Settings className="w-8 h-8 text-[#3FAF7A] animate-spin" style={{ animationDuration: '3s' }} />
-                <p className="text-sm font-medium text-[#333333]">Building your project...</p>
-                <div className="w-32 h-1.5 bg-[#E5E5E5] rounded-full overflow-hidden">
-                  <div className="h-full bg-[#3FAF7A] rounded-full animate-pulse" style={{ width: '45%' }} />
-                </div>
-              </div>
+              <BuildingCardOverlay
+                projectId={project.id}
+                launchId={project.active_launch_id}
+              />
             )}
 
             {/* Top: Avatar + name + client + stage badge */}

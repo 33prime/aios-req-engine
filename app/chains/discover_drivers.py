@@ -220,6 +220,13 @@ async def run_driver_synthesis(
             "cost_usd": 0.12,
         })
 
+        # Log usage
+        from app.core.llm_usage import log_llm_usage
+        log_llm_usage(
+            workflow="discover_drivers", model=response.model, provider="anthropic",
+            tokens_input=response.usage.input_tokens, tokens_output=response.usage.output_tokens,
+        )
+
         text = response.content[0].text if response.content else "{}"
         try:
             if "```json" in text:

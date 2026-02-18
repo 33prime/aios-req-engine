@@ -351,6 +351,14 @@ def _call_llm_for_extraction(
             system=system_prompt,
             messages=[{"role": "user", "content": user_prompt}],
         )
+        # Log usage
+        from app.core.llm_usage import log_llm_usage
+        log_llm_usage(
+            workflow="extract_facts", model=response.model, provider="anthropic",
+            tokens_input=response.usage.input_tokens, tokens_output=response.usage.output_tokens,
+            tokens_cache_read=getattr(response.usage, "cache_read_input_tokens", 0),
+            tokens_cache_create=getattr(response.usage, "cache_creation_input_tokens", 0),
+        )
         # Extract text from response
         if response.content and len(response.content) > 0:
             return response.content[0].text
@@ -366,6 +374,12 @@ def _call_llm_for_extraction(
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt},
             ],
+        )
+        # Log usage
+        from app.core.llm_usage import log_llm_usage
+        log_llm_usage(
+            workflow="extract_facts", model=response.model, provider="openai",
+            tokens_input=response.usage.prompt_tokens, tokens_output=response.usage.completion_tokens,
         )
         return response.choices[0].message.content or ""
 

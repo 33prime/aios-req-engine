@@ -10,7 +10,7 @@
 
 'use client'
 
-import React, { useState, useMemo } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import type { NextAction, TaskStatsResponse } from '@/lib/api'
 import { useProfile, useProjects, useUpcomingMeetings, useBatchDashboardData } from '@/lib/hooks/use-api'
@@ -43,6 +43,14 @@ export default function ProjectsPage() {
   const ownerProfiles = projectsData?.owner_profiles ?? {}
   const currentUser = profileData ?? null
   const meetings = meetingsData ?? []
+
+  // Auto-poll when any project is building (to pick up status changes)
+  const hasBuilding = useMemo(() => projects.some((p) => p.launch_status === 'building'), [projects])
+  useEffect(() => {
+    if (!hasBuilding) return
+    const interval = setInterval(() => mutateProjects(), 8000)
+    return () => clearInterval(interval)
+  }, [hasBuilding, mutateProjects])
 
   // Batch dashboard data loads once project IDs are available
   const projectIds = useMemo(() => projects.map((p) => p.id), [projects])

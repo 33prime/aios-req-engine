@@ -18,9 +18,8 @@ from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
-# Models
+# Models — all phases use Sonnet 4.5 for speed
 SONNET_MODEL = "claude-sonnet-4-5-20250929"
-OPUS_MODEL = "claude-opus-4-6"
 
 
 # =============================================================================
@@ -57,6 +56,7 @@ class GeneratedRequirement(BaseModel):
     name: str
     overview: str
     category: str = "core"
+    priority_group: str = "must_have"  # must_have, should_have, could_have, out_of_scope
     confidence: float = 0.8
 
 
@@ -124,7 +124,7 @@ Produce a JSON object with:
   - At least 4 with driver_type "goal" — desired outcomes (include goal_timeframe, success_criteria)
   - At least 4 with driver_type "kpi" — measurable metrics (include baseline_value, target_value, measurement_method)
   - Each driver has: driver_type, description (specific, not generic), priority (1=highest, 5=lowest), confidence (0.0-1.0)
-- requirements: array of 5+ system requirements. Each has: name (short feature name), overview (starts with "The system must..." or "The system should..."), category (core/integration/reporting/ux), confidence (0.0-1.0)
+- requirements: array of 5+ system requirements. Each has: name (short feature name), overview (starts with "The system must..." or "The system should..."), category (core/integration/reporting/ux), priority_group (must_have/should_have/could_have — at least 60% should be must_have), confidence (0.0-1.0)
 
 Rules:
 - Drivers must be specific to this project — no generic "improve efficiency" without context
@@ -298,7 +298,7 @@ async def _run_phase2(
 ) -> dict:
     """Phase 2: Opus call for workflows using Phase 1 outputs."""
     return await _call_anthropic(
-        model=OPUS_MODEL,
+        model=SONNET_MODEL,
         system="You are an expert process analyst. Return valid JSON only.",
         user_message=WORKFLOWS_PROMPT.format(
             transcript=transcript,

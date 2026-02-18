@@ -4,6 +4,7 @@ import type { ProjectDetailWithDashboard, Profile } from '@/types/api'
 import { ProjectAvatar } from './ProjectAvatar'
 import { UserAvatar } from './UserAvatar'
 import { ReadinessCell } from './ReadinessCell'
+import { BuildingCardOverlay } from './BuildingCardOverlay'
 
 interface ProjectRowProps {
   project: ProjectDetailWithDashboard
@@ -33,8 +34,11 @@ const STAGE_LABELS = {
 }
 
 export function ProjectRow({ project, ownerProfile, currentUser, onClick }: ProjectRowProps) {
+  const isBuilding = project.launch_status === 'building'
   const stageLabel = STAGE_LABELS[project.stage as keyof typeof STAGE_LABELS] || project.stage
-  const stageColor = STAGE_COLORS[project.stage as keyof typeof STAGE_COLORS] || 'bg-gray-100 text-gray-700 border-gray-200'
+  const stageColor = isBuilding
+    ? 'bg-[#E8F5E9] text-[#25785A] border-[#3FAF7A]/30'
+    : STAGE_COLORS[project.stage as keyof typeof STAGE_COLORS] || 'bg-gray-100 text-gray-700 border-gray-200'
 
   // Owner display logic with current user fallback
   const ownerName = ownerProfile?.first_name || currentUser?.first_name || 'Unknown'
@@ -43,25 +47,25 @@ export function ProjectRow({ project, ownerProfile, currentUser, onClick }: Proj
   return (
     <tr
       onClick={onClick}
-      className="hover:bg-[#FAFAFA] cursor-pointer transition-colors"
+      className={`hover:bg-[#FAFAFA] cursor-pointer transition-colors ${isBuilding ? 'opacity-70' : ''}`}
     >
       <td className="px-3 py-2">
         <div className="flex items-center gap-2">
           <ProjectAvatar name={project.name} clientName={project.client_name} />
           <div className="min-w-0">
             <div className="text-xs font-medium text-ui-headingDark truncate">{project.name}</div>
-            {project.description && (
+            {isBuilding ? null : project.description ? (
               <div className="text-xs text-ui-supportText truncate max-w-md">
                 {project.description}
               </div>
-            )}
+            ) : null}
           </div>
         </div>
       </td>
 
       <td className="px-3 py-2">
         <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-medium border ${stageColor}`}>
-          {stageLabel}
+          {isBuilding ? 'Building' : stageLabel}
         </span>
       </td>
 
@@ -72,7 +76,15 @@ export function ProjectRow({ project, ownerProfile, currentUser, onClick }: Proj
       </td>
 
       <td className="px-3 py-2">
-        <ReadinessCell project={project} />
+        {isBuilding ? (
+          <BuildingCardOverlay
+            projectId={project.id}
+            launchId={project.active_launch_id}
+            compact
+          />
+        ) : (
+          <ReadinessCell project={project} />
+        )}
       </td>
 
       <td className="px-3 py-2">

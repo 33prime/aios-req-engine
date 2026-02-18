@@ -145,6 +145,14 @@ def enrich_vp_step(
         ],
     )
 
+    # Log usage
+    from app.core.llm_usage import log_llm_usage
+    log_llm_usage(
+        workflow="enrich_vp", model=response.model, provider="openai",
+        tokens_input=response.usage.prompt_tokens, tokens_output=response.usage.completion_tokens,
+        project_id=project_id,
+    )
+
     raw_output = response.choices[0].message.content or ""
 
     # Try to parse and validate

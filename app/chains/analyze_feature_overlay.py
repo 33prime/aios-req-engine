@@ -244,6 +244,14 @@ def analyze_feature_overlay(
         f"input_tokens={usage.input_tokens}, output_tokens={usage.output_tokens}"
     )
 
+    # Log usage
+    from app.core.llm_usage import log_llm_usage
+    log_llm_usage(
+        workflow="analyze_feature_overlay", model=response.model, provider="anthropic",
+        tokens_input=usage.input_tokens, tokens_output=usage.output_tokens,
+        tokens_cache_read=cache_read, tokens_cache_create=cache_create,
+    )
+
     # Parse response
     response_text = response.content[0].text.strip()
     if response_text.startswith("```json"):

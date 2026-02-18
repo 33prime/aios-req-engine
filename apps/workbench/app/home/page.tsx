@@ -14,6 +14,7 @@ import { formatDistanceToNow, isToday, isTomorrow, format } from 'date-fns'
 import { AppSidebar } from '@/components/workspace/AppSidebar'
 import { TaskListCompact } from '@/components/tasks'
 import { ProjectAvatar } from '@/app/projects/components/ProjectAvatar'
+import { BuildingCardOverlay } from '@/app/projects/components/BuildingCardOverlay'
 import { getCollaborationCurrent } from '@/lib/api'
 import { useProfile, useProjects, useUpcomingMeetings, useBatchDashboardData } from '@/lib/hooks/use-api'
 import type {
@@ -110,6 +111,7 @@ function ProjectCard({
   nextAction: NextAction | null
 }) {
   const router = useRouter()
+  const isBuilding = project.launch_status === 'building'
   const readiness = project.cached_readiness_data
   // Compute dimensional score (actual progress) instead of gate-capped score
   let score = 0
@@ -128,10 +130,20 @@ function ProjectCard({
   return (
     <div
       onClick={() => router.push(`/projects/${project.id}`)}
-      className="bg-white rounded-2xl shadow-md border border-[#E5E5E5] p-5 hover:shadow-lg cursor-pointer transition-shadow"
+      className={`bg-white rounded-2xl shadow-md border border-[#E5E5E5] p-5 hover:shadow-lg cursor-pointer transition-shadow relative overflow-hidden ${
+        isBuilding ? 'border-[#3FAF7A]/30' : ''
+      }`}
     >
+      {/* Building overlay with live progress */}
+      {isBuilding && (
+        <BuildingCardOverlay
+          projectId={project.id}
+          launchId={project.active_launch_id}
+        />
+      )}
+
       {/* Top row: avatar + name + stage */}
-      <div className="flex items-start gap-3">
+      <div className={`flex items-start gap-3 ${isBuilding ? 'opacity-30 blur-sm' : ''}`}>
         <ProjectAvatar name={project.name} clientName={project.client_name} />
         <div className="flex-1 min-w-0">
           <p className="text-[13px] font-semibold text-[#333] truncate">
@@ -142,12 +154,12 @@ function ProjectCard({
           )}
         </div>
         <span className="flex-shrink-0 text-[10px] px-2 py-0.5 rounded-full bg-[#F0F0F0] text-[#666]">
-          {stageLabel}
+          {isBuilding ? 'Building' : stageLabel}
         </span>
       </div>
 
       {/* Readiness bar */}
-      <div className="mt-3 flex items-center gap-2">
+      <div className={`mt-3 flex items-center gap-2 ${isBuilding ? 'opacity-30 blur-sm' : ''}`}>
         <div className="flex-1 h-1.5 bg-[#E5E5E5] rounded-full overflow-hidden">
           <div
             className="h-full bg-[#3FAF7A] rounded-full transition-all"
@@ -158,19 +170,21 @@ function ProjectCard({
       </div>
 
       {/* Next action */}
-      <div className="mt-3">
-        {nextAction ? (
-          <div className="flex items-center gap-1.5 text-[12px] text-[#3FAF7A]">
-            <ArrowRight className="w-3 h-3 flex-shrink-0" />
-            <span className="truncate">{nextAction.title}</span>
-          </div>
-        ) : (
-          <p className="text-[12px] text-[#999]">All caught up</p>
-        )}
-      </div>
+      {!isBuilding && (
+        <div className="mt-3">
+          {nextAction ? (
+            <div className="flex items-center gap-1.5 text-[12px] text-[#3FAF7A]">
+              <ArrowRight className="w-3 h-3 flex-shrink-0" />
+              <span className="truncate">{nextAction.title}</span>
+            </div>
+          ) : (
+            <p className="text-[12px] text-[#999]">All caught up</p>
+          )}
+        </div>
+      )}
 
       {/* Footer */}
-      {project.updated_at && (
+      {!isBuilding && project.updated_at && (
         <p className="text-[10px] text-[#999] mt-3">
           Updated {formatDistanceToNow(new Date(project.updated_at), { addSuffix: true })}
         </p>
@@ -372,12 +386,20 @@ export default function HomeDashboard() {
 
   // SWR hooks — cached, deduplicated, auto-revalidating
   const { data: profile } = useProfile()
-  const { data: projectsData, isLoading: projectsLoading } = useProjects('active')
+  const { data: projectsData, isLoading: projectsLoading, mutate: mutateProjects } = useProjects('active')
   const { data: meetingsData } = useUpcomingMeetings(8)
 
   const projects = projectsData?.projects ?? []
   const meetings = meetingsData ?? []
   const loading = projectsLoading
+
+  // Auto-poll when any project is building (to pick up status changes)
+  const hasBuilding = useMemo(() => projects.some((p) => p.launch_status === 'building'), [projects])
+  useEffect(() => {
+    if (!hasBuilding) return
+    const interval = setInterval(() => mutateProjects(), 8000)
+    return () => clearInterval(interval)
+  }, [hasBuilding, mutateProjects])
 
   // Set initial active task project when projects first load
   useEffect(() => {

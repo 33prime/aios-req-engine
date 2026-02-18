@@ -171,6 +171,7 @@ def create_stakeholder(
     confirmation_status: str = "ai_generated",
     first_name: str | None = None,
     last_name: str | None = None,
+    linkedin_profile: str | None = None,
 ) -> dict:
     """
     Create a new stakeholder.
@@ -216,6 +217,8 @@ def create_stakeholder(
         stakeholder_data["first_name"] = first_name
     if last_name is not None:
         stakeholder_data["last_name"] = last_name
+    if linkedin_profile:
+        stakeholder_data["linkedin_profile"] = linkedin_profile
 
     response = (
         supabase.table("stakeholders")
