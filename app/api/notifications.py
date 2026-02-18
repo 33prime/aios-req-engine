@@ -25,7 +25,7 @@ async def list_notifications(
 ):
     """List notifications for the current user."""
     return db_list_notifications(
-        user_id=user["id"],
+        user_id=user.user.id,
         unread_only=unread_only,
         limit=limit,
         offset=offset,
@@ -35,7 +35,7 @@ async def list_notifications(
 @router.get("/unread-count", response_model=UnreadCountResponse)
 async def get_unread_count(user=Depends(get_current_user)):
     """Get count of unread notifications."""
-    count = db_get_unread_count(user_id=user["id"])
+    count = db_get_unread_count(user_id=user.user.id)
     return UnreadCountResponse(count=count)
 
 
@@ -49,5 +49,5 @@ async def mark_read(notification_id: UUID, user=Depends(get_current_user)):
 @router.post("/read-all")
 async def mark_all_read(user=Depends(get_current_user)):
     """Mark all notifications as read."""
-    db_mark_all_read(user_id=user["id"])
+    db_mark_all_read(user_id=user.user.id)
     return {"ok": True}

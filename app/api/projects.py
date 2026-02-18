@@ -1460,4 +1460,6 @@ def _to_project_response(p: dict, signal_id: UUID | None = None, onboarding_job_
         readiness_score=readiness_score,
         stage_eligible=stage_eligible,
         cached_readiness_data=cached_data,
+        launch_status=p.get("launch_status"),
+        active_launch_id=UUID(p["active_launch_id"]) if p.get("active_launch_id") else None,
     )

@@ -77,6 +77,13 @@ class ProjectResponse(BaseModel):
         None,
         description="Full cached readiness data for instant display (dimensions, recommendations, etc.)",
     )
+    # Launch pipeline fields
+    launch_status: Literal["building", "ready", "failed"] | None = Field(
+        None, description="Current launch pipeline status"
+    )
+    active_launch_id: UUID | None = Field(
+        None, description="ID of the active launch pipeline run"
+    )
 
 
 class ProjectDetailResponse(ProjectResponse):

@@ -13,7 +13,7 @@ import { ProjectAvatar } from './ProjectAvatar'
 import { UserAvatar } from './UserAvatar'
 import { ReadinessCell } from './ReadinessCell'
 import { StageAdvancePopover } from './StageAdvancePopover'
-import { BuildingCardOverlay } from './BuildingCardOverlay'
+import { BuildingGearBadge } from './BuildingGearBadge'
 
 interface ProjectsCardsProps {
   projects: ProjectDetailWithDashboard[]
@@ -23,6 +23,7 @@ interface ProjectsCardsProps {
   taskStatsMap: Record<string, TaskStatsResponse | null>
   meetings: Meeting[]
   onProjectClick: (projectId: string) => void
+  onBuildingCardClick?: (projectId: string, launchId: string) => void
   onRefresh?: () => void
 }
 
@@ -44,6 +45,7 @@ export function ProjectsCards({
   taskStatsMap,
   meetings,
   onProjectClick,
+  onBuildingCardClick,
   onRefresh,
 }: ProjectsCardsProps) {
   // Group meetings by project
@@ -88,21 +90,26 @@ export function ProjectsCards({
         return (
           <div
             key={project.id}
-            onClick={() => onProjectClick(project.id)}
+            onClick={() => {
+              if (isBuilding && onBuildingCardClick && project.active_launch_id) {
+                onBuildingCardClick(project.id, project.active_launch_id)
+              } else {
+                onProjectClick(project.id)
+              }
+            }}
             className={`bg-white rounded-2xl shadow-md border border-[#E5E5E5] p-5 hover:shadow-lg cursor-pointer transition-shadow flex flex-col relative overflow-hidden ${
               isBuilding ? 'border-[#3FAF7A]/30' : ''
             }`}
           >
-            {/* Building overlay with live progress */}
-            {isBuilding && (
-              <BuildingCardOverlay
-                projectId={project.id}
-                launchId={project.active_launch_id}
+            {/* Gear badge for building cards */}
+            {isBuilding && project.active_launch_id && onBuildingCardClick && (
+              <BuildingGearBadge
+                onClick={() => onBuildingCardClick(project.id, project.active_launch_id!)}
               />
             )}
 
             {/* Top: Avatar + name + client + stage badge */}
-            <div className={`flex items-start gap-3 ${isBuilding ? 'opacity-30 blur-sm' : ''}`}>
+            <div className="flex items-start gap-3">
               <ProjectAvatar name={project.name} clientName={project.client_name} />
               <div className="flex-1 min-w-0">
                 <p className="text-[13px] font-semibold text-[#333] truncate">
@@ -118,7 +125,7 @@ export function ProjectsCards({
             </div>
 
             {/* Readiness */}
-            <div className={`mt-3 ${isBuilding ? 'opacity-30 blur-sm' : ''}`}>
+            <div className="mt-3">
               <ReadinessCell project={project} />
             </div>
 
@@ -173,7 +180,7 @@ export function ProjectsCards({
             <div className="flex-1" />
 
             {/* Footer: owner + time + stage advance */}
-            <div className={`flex items-center justify-between mt-3 pt-3 border-t border-[#E5E5E5] ${isBuilding ? 'opacity-30 blur-sm' : ''}`}>
+            <div className="flex items-center justify-between mt-3 pt-3 border-t border-[#E5E5E5]">
               <UserAvatar name={ownerName} photoUrl={ownerPhotoUrl} size="small" />
               <div className="flex items-center gap-1.5">
                 {project.stage_eligible === true && !isBuilding && (

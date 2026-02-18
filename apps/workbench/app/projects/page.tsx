@@ -6,26 +6,34 @@
  * - Search, filters (stage, client)
  * - Sorting (name, updated_at, readiness_score)
  * - Navigation to project detail pages
+ * - Page-level BuildingProgressModal for newly launched projects
  */
 
 'use client'
 
-import React, { useState, useEffect, useMemo } from 'react'
-import { useRouter } from 'next/navigation'
+import React, { useState, useEffect, useMemo, useCallback } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import type { NextAction, TaskStatsResponse } from '@/lib/api'
 import { useProfile, useProjects, useUpcomingMeetings, useBatchDashboardData } from '@/lib/hooks/use-api'
 import { ProjectsTopNav } from './components/ProjectsTopNav'
 import { ProjectsTable } from './components/ProjectsTable'
 import { ProjectsKanban } from './components/ProjectsKanban'
 import { ProjectsCards } from './components/ProjectsCards'
+import { BuildingProgressModal } from './components/BuildingProgressModal'
 import { AppSidebar } from '@/components/workspace/AppSidebar'
 
 type ViewMode = 'table' | 'kanban' | 'cards'
 type SortField = 'name' | 'updated_at' | 'readiness_score'
 type SortOrder = 'asc' | 'desc'
 
+interface ActiveBuild {
+  projectId: string
+  launchId: string
+}
+
 export default function ProjectsPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [viewMode, setViewMode] = useState<ViewMode>('cards')
   const [searchQuery, setSearchQuery] = useState('')
@@ -33,6 +41,10 @@ export default function ProjectsPage() {
   const [clientFilter, setClientFilter] = useState<string>('all')
   const [sortField, setSortField] = useState<SortField>('updated_at')
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc')
+
+  // Build modal state
+  const [activeBuild, setActiveBuild] = useState<ActiveBuild | null>(null)
+  const [showBuildModal, setShowBuildModal] = useState(false)
 
   // SWR hooks — cached, deduplicated, auto-revalidating
   const { data: profileData } = useProfile()
@@ -43,6 +55,30 @@ export default function ProjectsPage() {
   const ownerProfiles = projectsData?.owner_profiles ?? {}
   const currentUser = profileData ?? null
   const meetings = meetingsData ?? []
+
+  // Read URL params on mount to detect a fresh launch
+  useEffect(() => {
+    const buildingId = searchParams.get('building')
+    const launchId = searchParams.get('launch')
+    if (buildingId && launchId) {
+      setActiveBuild({ projectId: buildingId, launchId })
+      setShowBuildModal(true)
+      // Clean URL params
+      router.replace('/projects')
+    }
+  }, [searchParams, router])
+
+  // Fallback: if no activeBuild but a project is building, track it (don't auto-show modal)
+  useEffect(() => {
+    if (activeBuild) return
+    const buildingProject = projects.find((p) => p.launch_status === 'building')
+    if (buildingProject?.active_launch_id) {
+      setActiveBuild({
+        projectId: buildingProject.id,
+        launchId: buildingProject.active_launch_id,
+      })
+    }
+  }, [projects, activeBuild])
 
   // Auto-poll when any project is building (to pick up status changes)
   const hasBuilding = useMemo(() => projects.some((p) => p.launch_status === 'building'), [projects])
@@ -88,6 +124,22 @@ export default function ProjectsPage() {
     router.push(`/projects/${projectId}`)
   }
 
+  const handleBuildingCardClick = useCallback((projectId: string, launchId: string) => {
+    setActiveBuild({ projectId, launchId })
+    setShowBuildModal(true)
+  }, [])
+
+  const handleBuildModalClose = useCallback(() => {
+    setShowBuildModal(false)
+  }, [])
+
+  const handleBuildComplete = useCallback(() => {
+    mutateProjects()
+    // Clear activeBuild so gear badge disappears after next revalidation
+    setActiveBuild(null)
+    setShowBuildModal(false)
+  }, [mutateProjects])
+
   const handleSort = (field: SortField) => {
     if (sortField === field) {
       setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')
@@ -96,6 +148,11 @@ export default function ProjectsPage() {
       setSortOrder('desc')
     }
   }
+
+  // Get project name for the build modal
+  const buildingProjectName = activeBuild
+    ? projects.find((p) => p.id === activeBuild.projectId)?.name
+    : undefined
 
   // Filter projects
   const filteredProjects = projects.filter((project) => {
@@ -183,7 +240,11 @@ export default function ProjectsPage() {
         className="min-h-screen bg-[#FAFAFA] transition-all duration-300"
         style={{ marginLeft: sidebarWidth }}
       >
-        <div className="max-w-[1400px] mx-auto px-4 py-4">
+        <div
+          className={`max-w-[1400px] mx-auto px-4 py-4 transition-all duration-300 ${
+            showBuildModal ? 'blur-sm pointer-events-none' : ''
+          }`}
+        >
           <ProjectsTopNav
             viewMode={viewMode}
             searchQuery={searchQuery}
@@ -227,11 +288,24 @@ export default function ProjectsPage() {
               taskStatsMap={taskStatsMap}
               meetings={meetings}
               onProjectClick={handleProjectClick}
+              onBuildingCardClick={handleBuildingCardClick}
               onRefresh={handleRefresh}
             />
           )}
         </div>
       </div>
+
+      {/* Building Progress Modal — page-level overlay */}
+      {activeBuild && (
+        <BuildingProgressModal
+          isOpen={showBuildModal}
+          onClose={handleBuildModalClose}
+          projectId={activeBuild.projectId}
+          launchId={activeBuild.launchId}
+          projectName={buildingProjectName}
+          onBuildComplete={handleBuildComplete}
+        />
+      )}
     </>
   )
 }

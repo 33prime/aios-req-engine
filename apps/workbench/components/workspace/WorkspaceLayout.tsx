@@ -47,7 +47,8 @@ import type { PrototypeFrameHandle } from '@/components/prototype/PrototypeFrame
 import ReviewStartModal from '@/components/prototype/ReviewStartModal'
 import ReviewEndModal from '@/components/prototype/ReviewEndModal'
 import { ProjectPulseOverlay } from './ProjectPulseOverlay'
-import { Activity, Settings, Loader2, CheckCircle2, XCircle, Clock } from 'lucide-react'
+import { ProjectHealthOverlay } from './ProjectHealthOverlay'
+import { Activity, Settings, Loader2, CheckCircle2, XCircle, Clock, ArrowLeft } from 'lucide-react'
 import { getProjectPulse, dismissProjectPulse, getProjectDetails, getLaunchProgress } from '@/lib/api'
 import type { ProjectPulse } from '@/types/api'
 import type { LaunchProgressResponse } from '@/types/workspace'
@@ -127,20 +128,26 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
     }
   }, [projectId])
 
-  // Project Pulse overlay
+  // Project Pulse overlay (first-visit build summary)
   const [pulseData, setPulseData] = useState<ProjectPulse | null>(null)
   const [showPulse, setShowPulse] = useState(false)
+  // Project Health overlay (current state, opened via Activity icon)
+  const [showHealthOverlay, setShowHealthOverlay] = useState(false)
 
   useEffect(() => {
     if (projectBuildStatus !== 'ready') return
     getProjectPulse(projectId)
       .then((data) => {
         setPulseData(data)
-        // Auto-show on first visit or if user has toggled it on
+        // Check if the user has already seen the pulse for this project
+        const alreadySeen = typeof window !== 'undefined'
+          ? localStorage.getItem(`pulse-seen-${projectId}`) === 'true'
+          : false
+        // Check if user explicitly opted in to show on every open
         const showOnOpen = typeof window !== 'undefined'
-          ? localStorage.getItem(`pulse-show-on-open-${projectId}`) !== 'false'
-          : true
-        if (data.first_visit || showOnOpen) {
+          ? localStorage.getItem(`pulse-show-on-open-${projectId}`) === 'true'
+          : false
+        if ((!alreadySeen && data.first_visit) || showOnOpen) {
           setShowPulse(true)
         }
       })
@@ -151,6 +158,10 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
 
   const handleDismissPulse = useCallback(() => {
     setShowPulse(false)
+    // Mark as seen locally so it doesn't auto-show again
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(`pulse-seen-${projectId}`, 'true')
+    }
     if (pulseData?.first_visit) {
       dismissProjectPulse(projectId).catch(() => {})
     }
@@ -491,8 +502,8 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
       }
     : undefined
 
-  // Show building overlay if project is still being built
-  if (projectBuildStatus === 'building' || projectBuildStatus === 'loading') {
+  // Show building overlay ONLY if project is actively being built (not during initial load)
+  if (projectBuildStatus === 'building') {
     const steps = buildProgress?.steps || []
     const progressPct = buildProgress?.progress_pct || 0
 
@@ -509,6 +520,13 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
           <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl border border-[#E5E5E5] p-8 text-center">
             <Settings className="w-12 h-12 text-[#3FAF7A] animate-spin mx-auto mb-4" style={{ animationDuration: '3s' }} />
             <h2 className="text-lg font-semibold text-[#333333] mb-2">Building Your Project</h2>
+            <a
+              href="/projects"
+              className="inline-flex items-center gap-1.5 text-sm text-[#3FAF7A] hover:text-[#25785A] transition-colors mb-4"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" />
+              Back to Projects
+            </a>
             <p className="text-sm text-[#666666] mb-6">
               We&apos;re setting up your project with personas, workflows, and requirements. This usually takes about a minute.
             </p>
@@ -624,12 +642,12 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
                     </p>
                   )}
                 </div>
-                {/* Pulse health icon */}
+                {/* Health icon — opens current-state health overlay */}
                 {pulseData && (
                   <button
-                    onClick={() => setShowPulse(true)}
+                    onClick={() => setShowHealthOverlay(true)}
                     className="p-1.5 rounded-lg hover:bg-[#F4F4F4] transition-colors group"
-                    title={`Project Pulse — ${pulseData.score}%`}
+                    title={`Project Health — ${pulseData.score}%`}
                   >
                     <Activity
                       className={`w-4 h-4 ${
@@ -824,12 +842,19 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
           prototypeId={prototypeId}
           onVerdictSubmit={handleVerdictSubmit}
         />
-        {/* Project Pulse Overlay */}
+        {/* Project Pulse Overlay — build summary / first visit */}
         {showPulse && pulseData && (
           <ProjectPulseOverlay
             pulse={pulseData}
             projectId={projectId}
             onDismiss={handleDismissPulse}
+          />
+        )}
+        {/* Project Health Overlay — current state, via Activity icon */}
+        {showHealthOverlay && (
+          <ProjectHealthOverlay
+            projectId={projectId}
+            onDismiss={() => setShowHealthOverlay(false)}
           />
         )}
       </div>

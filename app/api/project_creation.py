@@ -131,6 +131,10 @@ async def project_creation_chat(request: ProjectCreationChatRequest) -> Streamin
 
             # Parse conversation state from full response
             messages_dict = [{"role": m.role, "content": m.content} for m in request.messages]
+
+            # Debug: log the raw response to see if markers are present
+            logger.info(f"Raw LLM response (last 300 chars): ...{full_response[-300:]}")
+
             state = parse_conversation_state(messages_dict, full_response)
 
             # Include full messages in state for storing complete conversation
