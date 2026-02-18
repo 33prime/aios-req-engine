@@ -18,7 +18,7 @@ import { BRDCanvas } from './brd/BRDCanvas'
 import { BuildPhaseView } from './BuildPhaseView'
 import { OverviewPanel } from './OverviewPanel'
 import { BottomDock } from './BottomDock'
-import { BrainBubble } from './BrainBubble'
+import { BrainBubble, BRAIN_PANEL_WIDTH } from './BrainBubble'
 import { useChat } from '@/lib/useChat'
 import { AssistantProvider } from '@/lib/assistant'
 import {
@@ -82,6 +82,9 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
     }
     return 'brd'
   })
+
+  // Brain panel open state — controls BRD compression
+  const [brainPanelOpen, setBrainPanelOpen] = useState(false)
 
   // Project building state — blocks workspace until build completes
   const [projectBuildStatus, setProjectBuildStatus] = useState<'loading' | 'building' | 'ready'>('loading')
@@ -450,10 +453,11 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
 
   // Calculate sidebar widths
   const sidebarWidth = sidebarCollapsed ? 64 : 224
-  // Discovery + Overview use floating BrainBubble — no right panel margin
-  const useBrainBubble = phase === 'discovery' || phase === 'overview'
+  // BrainBubble only in BRD/Canvas views (discovery phase with brd or canvas mode)
+  const useBrainBubble = (phase === 'discovery' || phase === 'overview') && (discoveryViewMode === 'brd' || discoveryViewMode === 'canvas')
+  // When brain panel is open, BRD compresses to make room
   const collaborationWidth = useBrainBubble
-    ? 0
+    ? (brainPanelOpen ? BRAIN_PANEL_WIDTH : 0)
     : collaborationState === 'collapsed' ? 48
     : collaborationState === 'wide' ? 400 : 320
 
@@ -797,6 +801,8 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
             isSavingAsSignal={isSavingAsSignal}
             onSaveAsSignal={async () => { await saveAsSignal(); mutateBrd(); mutateContextFrame() }}
             onDismissDetection={dismissDetection}
+            onOpenChange={setBrainPanelOpen}
+            contextActions={contextFrame?.actions}
           />
         ) : (
           <CollaborationPanel

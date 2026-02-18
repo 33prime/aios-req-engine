@@ -8,14 +8,8 @@ from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
-from app.chains.chat_context import build_smart_context
 from app.chains.chat_tools import execute_tool, get_tool_definitions
-from app.context.conversation_compressor import compress_conversation
-from app.context.dynamic_prompt_builder import build_dynamic_prompt, build_smart_chat_prompt
-from app.context.intent_classifier import classify_intent
-from app.context.models import ChatMessage as ContextChatMessage
-from app.context.state_frame import generate_state_frame
-from app.context.token_budget import get_budget_manager
+from app.context.dynamic_prompt_builder import build_smart_chat_prompt
 from app.context.tool_truncator import truncate_tool_result
 from app.core.action_engine import compute_context_frame
 from app.core.config import get_settings
@@ -108,14 +102,18 @@ async def chat_with_assistant(
             else:
                 raise HTTPException(status_code=500, detail="Failed to create conversation")
 
-        # Build smart context (still used for conversation compression)
-        context = await build_smart_context(project_id, request)
-
-        # Compute v3 context frame (replaces state_frame + intent classification)
+        # Compute v3 context frame (single source of truth for chat context)
         context_frame = await compute_context_frame(project_id, max_actions=5)
 
-        # Get project name for prompt
-        project_name = context.get("project", {}).get("name", "Unknown")
+        # Get project name from Supabase (single fast query)
+        project_row = (
+            supabase.table("projects")
+            .select("name")
+            .eq("id", str(project_id))
+            .single()
+            .execute()
+        )
+        project_name = project_row.data.get("name", "Unknown") if project_row.data else "Unknown"
 
         logger.info(
             f"Context frame: phase={context_frame.phase.value}, "
@@ -147,21 +145,14 @@ async def chat_with_assistant(
 
                 client = AsyncAnthropic(api_key=anthropic_api_key)
 
-                # Compress conversation history
-                history_messages = [
-                    ContextChatMessage(role=msg.role, content=msg.content)
-                    for msg in request.conversation_history
+                # Build messages from recent history (no compression LLM call needed)
+                # Keep last 10 messages — fits well within 80K token budget
+                recent_history = [
+                    {"role": msg.role, "content": msg.content}
+                    for msg in request.conversation_history[-10:]
                     if msg.content and msg.content.strip()
                 ]
-                compressed = await compress_conversation(
-                    messages=history_messages,
-                    recent_count=settings.CHAT_RECENT_MESSAGES,
-                    max_summary_tokens=settings.CHAT_MAX_SUMMARY_TOKENS,
-                )
-
-                # Build messages for Claude
-                messages = compressed.to_messages()
-                messages.append({"role": "user", "content": request.message})
+                messages = recent_history + [{"role": "user", "content": request.message}]
 
                 # Build v3 smart chat prompt from context frame
                 system_prompt = build_smart_chat_prompt(
@@ -175,7 +166,7 @@ async def chat_with_assistant(
                 logger.info(
                     f"Chat prompt: phase={context_frame.phase.value}, "
                     f"page={request.page_context or 'none'}, "
-                    f"history_summarized={compressed.total_messages_summarized}"
+                    f"history_msgs={len(recent_history)}"
                 )
 
                 # Tool use loop - handle multi-turn conversation with tools

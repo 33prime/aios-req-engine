@@ -1,14 +1,11 @@
 /**
- * WorkspaceChat - Premium AI Command Center
+ * WorkspaceChat - Smart Project Chat
  *
- * Full chat adapted for sidebar context:
+ * Full chat adapted for BrainBubble slide-over:
  * - Message list with streaming
- * - Slash command autocomplete
  * - File drag-and-drop
  * - Tool execution indicators (compact)
- * - Proactive message cards
- * - Quick action row (scrollable)
- * - Inline prompts for /create-task, /create-stakeholder, /remember
+ * - Dynamic starter cards from context frame actions
  * - Next best actions integration
  */
 
@@ -18,30 +15,24 @@ import { useState, useRef, useEffect, useCallback, useMemo } from 'react'
 import {
   Send,
   Loader2,
-  X,
   Sparkles,
   CheckCircle2,
   Layers,
   Upload,
   Paperclip,
-  Zap,
   Lightbulb,
   ArrowRight,
   Target,
+  ChevronDown,
+  MessageSquare,
   Users,
   FileText,
-  ChevronDown,
+  X,
 } from 'lucide-react'
 import { Markdown } from '../../components/ui/Markdown'
-import {
-  useAssistant,
-  type QuickAction,
-  type ProactiveMessage,
-  type CommandDefinition,
-  getModeConfig,
-} from '@/lib/assistant'
-import { uploadDocument, processDocument, getDocumentStatus, getNextActions, type NextAction } from '@/lib/api'
-import { ACTION_ICONS } from '@/lib/action-constants'
+import { uploadDocument, processDocument, getDocumentStatus, type NextAction } from '@/lib/api'
+import type { TerseAction } from '@/lib/api'
+import { ACTION_ICONS, GAP_SOURCE_ICONS } from '@/lib/action-constants'
 
 // =============================================================================
 // Types
@@ -71,35 +62,19 @@ interface WorkspaceChatProps {
   onSendMessage: (content: string) => Promise<void> | void
   onSendSignal?: (type: string, content: string, source: string) => Promise<void>
   onAddLocalMessage?: (msg: ChatMessage) => void
+  /** Dynamic actions from context frame for starter cards */
+  contextActions?: TerseAction[]
 }
 
 // =============================================================================
-// Constants
+// Constants — CTA type to icon mapping
 // =============================================================================
 
-const ACTION_COMMANDS: Record<string, (a: NextAction) => string> = {
-  confirm_critical: () => 'Help me review and confirm the must-have features',
-  stakeholder_gap: (a) => `Help me identify a ${a.suggested_stakeholder_role} for this project`,
-  section_gap: (a) => `Help me improve the ${a.target_entity_type?.replace(/_/g, ' ')} section`,
-  missing_evidence: () => 'What evidence do we need to gather for unsupported features?',
-  validate_pains: () => 'Help me validate the high-severity pain points with stakeholders',
-  missing_vision: () => 'Help me draft a vision statement for this project',
-  missing_metrics: () => 'Help me define success metrics and KPIs for this project',
-  open_question_critical: (a) => `Help me resolve this critical question: ${a.title}`,
-  open_question_blocking: (a) => `Help me answer this open question: ${a.title}`,
-  stale_belief: (a) => `Help me verify this assumption: ${a.title}`,
-  revisit_decision: (a) => `Help me revisit this decision: ${a.title}`,
-  contradiction_unresolved: () => 'Help me resolve the contradictions in our knowledge graph',
-  cross_entity_gap: (a) => `Help me find a ${a.suggested_stakeholder_role} to validate the evidence gap`,
-  temporal_stale: () => 'Help me review stale features that need updating',
+const CTA_ICONS: Record<string, typeof Target> = {
+  inline_answer: MessageSquare,
+  upload_doc: Upload,
+  discuss: Lightbulb,
 }
-
-const STARTER_CARDS = [
-  { icon: Target, label: 'Review features', hint: 'Confirm must-have priorities', command: '/status' },
-  { icon: Users, label: 'Add stakeholder', hint: 'Track key people', command: '/create-stakeholder' },
-  { icon: FileText, label: 'Upload document', hint: 'Feed in signals', command: null },
-  { icon: Lightbulb, label: 'Discover gaps', hint: 'Find what\'s missing', command: '/discover-check' },
-]
 
 // =============================================================================
 // Main Component
@@ -112,66 +87,19 @@ export function WorkspaceChat({
   onSendMessage: externalSendMessage,
   onSendSignal,
   onAddLocalMessage,
+  contextActions,
 }: WorkspaceChatProps) {
   const [input, setInput] = useState('')
-  const [showCommandSuggestions, setShowCommandSuggestions] = useState(false)
   const [isDragging, setIsDragging] = useState(false)
   const [uploadingFiles, setUploadingFiles] = useState(false)
-  const [activePrompt, setActivePrompt] = useState<{
-    type: 'create-task' | 'create-stakeholder' | 'remember'
-    step?: 'type' | 'content'
-    memoryType?: 'decision' | 'learning' | 'question'
-  } | null>(null)
-  const [promptInput, setPromptInput] = useState('')
-  const [promptSubmitting, setPromptSubmitting] = useState(false)
-  const [nextActions, setNextActions] = useState<NextAction[]>([])
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
-  const promptInputRef = useRef<HTMLInputElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const prevLoading = useRef(externalLoading)
-
-  // Assistant hook
-  const {
-    context,
-    sendMessage: assistantSendMessage,
-    isCommand,
-    getCommandSuggestions,
-    getQuickActions,
-    executeQuickAction,
-    dismissProactiveMessage,
-    setActiveTab: setAssistantTab,
-  } = useAssistant()
-
-  const modeConfig = useMemo(() => getModeConfig(context.mode), [context.mode])
-
-  // Fetch next actions on mount
-  useEffect(() => {
-    getNextActions(projectId).then(r => setNextActions(r.actions)).catch(() => {})
-  }, [projectId])
-
-  // Re-fetch when streaming completes (isLoading transitions true→false)
-  useEffect(() => {
-    if (prevLoading.current && !externalLoading) {
-      getNextActions(projectId).then(r => setNextActions(r.actions)).catch(() => {})
-    }
-    prevLoading.current = externalLoading
-  }, [externalLoading, projectId])
-
-  // Command suggestions
-  const commandSuggestions = useMemo(() => {
-    if (!input.startsWith('/')) return []
-    return getCommandSuggestions(input)
-  }, [input, getCommandSuggestions])
-
-  useEffect(() => {
-    setShowCommandSuggestions(input.startsWith('/') && commandSuggestions.length > 0)
-  }, [input, commandSuggestions])
 
   // Auto-scroll
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [externalMessages, context.messages])
+  }, [externalMessages])
 
   // Focus input on mount
   useEffect(() => {
@@ -183,34 +111,11 @@ export function WorkspaceChat({
     async (e: React.FormEvent) => {
       e.preventDefault()
       if (!input.trim() || externalLoading) return
-
       const trimmedInput = input.trim()
       setInput('')
-      setShowCommandSuggestions(false)
-
-      // Check for prompt-needing commands
-      const commandsNeedingPrompt = [
-        { pattern: /^\/(create-task|add-task|new-task)$/i, type: 'create-task' as const },
-        { pattern: /^\/(create-stakeholder|add-stakeholder)$/i, type: 'create-stakeholder' as const },
-        { pattern: /^\/(remember|add-to-memory)$/i, type: 'remember' as const },
-      ]
-
-      for (const cmd of commandsNeedingPrompt) {
-        if (cmd.pattern.test(trimmedInput)) {
-          setActivePrompt({ type: cmd.type, step: cmd.type === 'remember' ? 'type' : undefined })
-          setPromptInput('')
-          setTimeout(() => promptInputRef.current?.focus(), 100)
-          return
-        }
-      }
-
-      if (isCommand(trimmedInput)) {
-        await assistantSendMessage(trimmedInput)
-      } else {
-        externalSendMessage(trimmedInput)
-      }
+      externalSendMessage(trimmedInput)
     },
-    [input, externalLoading, isCommand, assistantSendMessage, externalSendMessage]
+    [input, externalLoading, externalSendMessage]
   )
 
   const handleKeyDown = useCallback(
@@ -219,83 +124,22 @@ export function WorkspaceChat({
         e.preventDefault()
         handleSubmit(e)
       }
-      if (e.key === 'Tab' && showCommandSuggestions && commandSuggestions.length > 0) {
-        e.preventDefault()
-        setInput('/' + commandSuggestions[0].name + ' ')
-        setShowCommandSuggestions(false)
-      }
-      if (e.key === 'Escape') {
-        setShowCommandSuggestions(false)
-      }
     },
-    [handleSubmit, showCommandSuggestions, commandSuggestions]
+    [handleSubmit]
   )
 
-  // Quick actions
-  const handleQuickAction = useCallback(
-    async (action: QuickAction) => {
-      if (action.command) {
-        setInput(action.command)
-        inputRef.current?.focus()
-      } else if (action.navigateTo?.tab) {
-        setAssistantTab(action.navigateTo.tab)
-      } else {
-        await executeQuickAction(action.id)
+  // Starter card click — turn action sentence into a chat message
+  const handleStarterAction = useCallback(
+    (action: TerseAction) => {
+      if (action.cta_type === 'upload_doc') {
+        fileInputRef.current?.click()
+        return
       }
-    },
-    [executeQuickAction, setAssistantTab]
-  )
-
-  const handleCommandSelect = useCallback((cmd: CommandDefinition) => {
-    setInput('/' + cmd.name + ' ')
-    setShowCommandSuggestions(false)
-    inputRef.current?.focus()
-  }, [])
-
-  // Next action click handler
-  const handleNextAction = useCallback(
-    (action: NextAction) => {
-      const commandFn = ACTION_COMMANDS[action.action_type]
-      const message = commandFn ? commandFn(action) : action.title
-      externalSendMessage(message)
+      // Send the action sentence as a natural language message
+      externalSendMessage(action.sentence)
     },
     [externalSendMessage]
   )
-
-  // Inline prompt
-  const handlePromptSubmit = useCallback(async () => {
-    if (!activePrompt || promptSubmitting) return
-    const value = promptInput.trim()
-    if (!value && activePrompt.type !== 'remember') return
-
-    setPromptSubmitting(true)
-    try {
-      if (activePrompt.type === 'create-task') {
-        await assistantSendMessage(`/create-task "${value}"`)
-      } else if (activePrompt.type === 'create-stakeholder') {
-        await assistantSendMessage(`/create-stakeholder "${value}"`)
-      } else if (activePrompt.type === 'remember' && activePrompt.step === 'content' && activePrompt.memoryType && value) {
-        await assistantSendMessage(`/remember ${activePrompt.memoryType} "${value}"`)
-      }
-    } finally {
-      setPromptSubmitting(false)
-      setActivePrompt(null)
-      setPromptInput('')
-      inputRef.current?.focus()
-    }
-  }, [activePrompt, promptInput, promptSubmitting, assistantSendMessage])
-
-  const handleMemoryTypeSelect = useCallback((type: 'decision' | 'learning' | 'question') => {
-    setActivePrompt({ type: 'remember', step: 'content', memoryType: type })
-    setPromptInput('')
-    setTimeout(() => promptInputRef.current?.focus(), 100)
-  }, [])
-
-  const handlePromptCancel = useCallback(() => {
-    setActivePrompt(null)
-    setPromptInput('')
-    inputRef.current?.focus()
-  }, [])
 
   // File upload
   const handleFileSelect = useCallback(() => {
@@ -323,7 +167,6 @@ export function WorkspaceChat({
 
       setUploadingFiles(true)
       const results: { file: string; success: boolean; error?: string }[] = []
-
       const documentIds: string[] = []
 
       for (const file of validFiles) {
@@ -412,30 +255,37 @@ export function WorkspaceChat({
     [processFiles]
   )
 
-  // Merged messages
-  const allMessages = useMemo(() => {
-    const combined = [
-      ...externalMessages.map((m) => ({
-        ...m,
-        id: m.id || `ext-${Math.random()}`,
-        timestamp: m.timestamp || new Date(),
-      })),
-      ...context.messages.map((m) => ({
-        id: m.id,
-        role: m.role as 'user' | 'assistant' | 'system',
-        content: m.content,
-        timestamp: m.timestamp,
-        metadata: m.metadata as Record<string, unknown> | undefined,
-        toolCalls: m.toolCalls,
-        isStreaming: m.isStreaming,
-      })),
-    ].sort((a, b) => (a.timestamp?.getTime() || 0) - (b.timestamp?.getTime() || 0))
-    return combined
-  }, [externalMessages, context.messages])
-
   // Determine if thinking (loading but no streamed content yet)
-  const lastMessage = allMessages[allMessages.length - 1]
+  const lastMessage = externalMessages[externalMessages.length - 1]
   const isThinking = externalLoading && (!lastMessage || lastMessage.role === 'user' || !lastMessage.isStreaming)
+
+  // Build starter cards from context actions
+  interface StarterCard {
+    sentence: string
+    cta_type: string
+    cta_label?: string
+    icon: typeof Target
+    isAction?: boolean
+    action?: TerseAction
+  }
+
+  const starterCards = useMemo((): StarterCard[] => {
+    if (!contextActions || contextActions.length === 0) {
+      // Fallback: minimal generic starters
+      return [
+        { sentence: 'Tell us about this project', cta_type: 'discuss', icon: MessageSquare },
+        { sentence: 'Upload existing documents', cta_type: 'upload_doc', icon: Upload },
+      ]
+    }
+    return contextActions.slice(0, 4).map((action) => ({
+      sentence: action.sentence,
+      cta_type: action.cta_type,
+      cta_label: action.cta_label,
+      icon: GAP_SOURCE_ICONS[action.gap_type] || GAP_SOURCE_ICONS[action.gap_source] || CTA_ICONS[action.cta_type] || Target,
+      isAction: true,
+      action,
+    }))
+  }, [contextActions])
 
   return (
     <div
@@ -466,44 +316,9 @@ export function WorkspaceChat({
         </div>
       )}
 
-      {/* Proactive Messages */}
-      {context.pendingProactiveMessages.length > 0 && (
-        <div className="px-3 py-2 space-y-1.5 bg-white border-b border-[#E5E5E5] flex-shrink-0">
-          {context.pendingProactiveMessages.map((msg, index) => (
-            <ProactiveCard
-              key={index}
-              message={msg}
-              onDismiss={() => dismissProactiveMessage(index)}
-              onAction={handleQuickAction}
-            />
-          ))}
-        </div>
-      )}
-
-      {/* Quick Actions — scrollable row */}
-      <div className="px-3 py-2 border-b border-[#E5E5E5] bg-[#F4F4F4] flex-shrink-0">
-        <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-hide">
-          <Sparkles className="h-3 w-3 text-[#999999] flex-shrink-0" />
-          {modeConfig.quickActions.slice(0, 5).map((action) => (
-            <button
-              key={action.id}
-              onClick={() => handleQuickAction(action)}
-              disabled={action.disabled}
-              className={`px-2.5 py-1 text-xs font-medium rounded-xl whitespace-nowrap transition-colors flex-shrink-0 ${
-                action.variant === 'primary'
-                  ? 'bg-[#E8F5E9] text-[#25785A] hover:bg-[#3FAF7A] hover:text-white'
-                  : 'bg-white text-[#333333] border border-[#E5E5E5] hover:bg-[#F4F4F4]'
-              } disabled:opacity-50`}
-            >
-              {action.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
       {/* Messages Area */}
       <div className="flex-1 overflow-y-auto px-3 py-3 space-y-3">
-        {allMessages.length === 0 ? (
+        {externalMessages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full px-4">
             {/* Branded empty state */}
             <div className="w-14 h-14 rounded-2xl bg-[#E8F5E9] flex items-center justify-center mb-3">
@@ -514,65 +329,39 @@ export function WorkspaceChat({
               Your AI partner for requirements engineering
             </p>
 
-            {/* Starter cards */}
+            {/* Dynamic starter cards from context frame actions */}
             <div className="w-full space-y-2 mb-4">
-              {STARTER_CARDS.map((card) => {
+              {starterCards.map((card, idx) => {
                 const Icon = card.icon
                 return (
                   <button
-                    key={card.label}
-                    onClick={() => {
-                      if (card.command) {
-                        setInput(card.command)
-                        inputRef.current?.focus()
-                      } else {
-                        fileInputRef.current?.click()
-                      }
-                    }}
+                    key={idx}
+                    onClick={() => card.action
+                      ? handleStarterAction(card.action)
+                      : card.cta_type === 'upload_doc'
+                        ? fileInputRef.current?.click()
+                        : externalSendMessage(card.sentence)
+                    }
                     className="w-full flex items-center gap-3 p-3 bg-white border border-[#E5E5E5] rounded-2xl hover:border-[#3FAF7A] hover:shadow-sm transition-all text-left group"
                   >
                     <div className="w-8 h-8 rounded-xl bg-[#F4F4F4] flex items-center justify-center flex-shrink-0 group-hover:bg-[#E8F5E9] transition-colors">
                       <Icon className="h-4 w-4 text-[#666666] group-hover:text-[#3FAF7A] transition-colors" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-[12px] font-medium text-[#333333]">{card.label}</p>
-                      <p className="text-[11px] text-[#999999]">{card.hint}</p>
+                      <p className="text-[12px] font-medium text-[#333333]">{card.sentence}</p>
+                      {card.cta_label && (
+                        <p className="text-[11px] text-[#999999]">{card.cta_label}</p>
+                      )}
                     </div>
                     <ArrowRight className="h-3.5 w-3.5 text-[#E5E5E5] group-hover:text-[#3FAF7A] transition-colors flex-shrink-0" />
                   </button>
                 )
               })}
             </div>
-
-            {/* Next actions in empty state */}
-            {nextActions.length > 0 && (
-              <div className="w-full">
-                <p className="text-[11px] font-medium text-[#999999] uppercase tracking-wide mb-2">Start Here</p>
-                {nextActions.slice(0, 2).map((action, idx) => {
-                  const Icon = ACTION_ICONS[action.action_type] || Target
-                  return (
-                    <button
-                      key={idx}
-                      onClick={() => handleNextAction(action)}
-                      className="w-full flex items-center gap-3 p-3 bg-white border border-[#E5E5E5] rounded-2xl hover:border-[#3FAF7A] hover:shadow-sm transition-all text-left group mb-2"
-                    >
-                      <span className="flex items-center justify-center w-6 h-6 rounded-full bg-[#E8F5E9] text-[11px] font-semibold text-[#25785A] flex-shrink-0">
-                        {idx + 1}
-                      </span>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-[12px] font-medium text-[#333333]">{action.title}</p>
-                        <p className="text-[11px] text-[#999999] truncate">{action.description}</p>
-                      </div>
-                      <ArrowRight className="h-3.5 w-3.5 text-[#E5E5E5] group-hover:text-[#3FAF7A] transition-colors flex-shrink-0" />
-                    </button>
-                  )
-                })}
-              </div>
-            )}
           </div>
         ) : (
           <>
-            {allMessages.map((message, index) => (
+            {externalMessages.map((message, index) => (
               <SidebarMessageBubble
                 key={message.id || `msg-${index}`}
                 message={message}
@@ -582,14 +371,6 @@ export function WorkspaceChat({
 
             {/* Thinking indicator */}
             {isThinking && <ThinkingIndicator />}
-
-            {/* Next actions after last message */}
-            {!externalLoading && nextActions.length > 0 && (
-              <NextActionsSuggestion
-                actions={nextActions.slice(0, 2)}
-                onAction={handleNextAction}
-              />
-            )}
 
             <div ref={messagesEndRef} />
           </>
@@ -608,69 +389,6 @@ export function WorkspaceChat({
           onChange={handleFileInputChange}
         />
 
-        {/* Inline Prompt */}
-        {activePrompt && (
-          <div className="mb-2 p-2.5 bg-[#F4F4F4] rounded-2xl border border-[#E5E5E5]">
-            {activePrompt.type === 'create-task' && (
-              <InlinePrompt
-                icon="task"
-                label="Create Task"
-                placeholder="e.g., Review persona updates"
-                value={promptInput}
-                onChange={setPromptInput}
-                onSubmit={handlePromptSubmit}
-                onCancel={handlePromptCancel}
-                submitLabel="Create"
-                submitting={promptSubmitting}
-                inputRef={promptInputRef}
-              />
-            )}
-            {activePrompt.type === 'create-stakeholder' && (
-              <InlinePrompt
-                icon="person"
-                label="Add Stakeholder"
-                placeholder="e.g., John Smith"
-                value={promptInput}
-                onChange={setPromptInput}
-                onSubmit={handlePromptSubmit}
-                onCancel={handlePromptCancel}
-                submitLabel="Add"
-                submitting={promptSubmitting}
-                inputRef={promptInputRef}
-              />
-            )}
-            {activePrompt.type === 'remember' && activePrompt.step === 'type' && (
-              <div>
-                <p className="text-xs font-medium text-[#333333] mb-2">Add to Memory</p>
-                <div className="flex items-center gap-1.5">
-                  <button onClick={() => handleMemoryTypeSelect('decision')} className="px-2 py-1 bg-[#E8F5E9] text-[#25785A] text-xs font-medium rounded-xl hover:bg-[#3FAF7A] hover:text-white transition-colors">Decision</button>
-                  <button onClick={() => handleMemoryTypeSelect('learning')} className="px-2 py-1 bg-[#E8F5E9] text-[#25785A] text-xs font-medium rounded-xl hover:bg-[#3FAF7A] hover:text-white transition-colors">Learning</button>
-                  <button onClick={() => handleMemoryTypeSelect('question')} className="px-2 py-1 bg-[#E8F5E9] text-[#25785A] text-xs font-medium rounded-xl hover:bg-[#3FAF7A] hover:text-white transition-colors">Question</button>
-                  <button onClick={handlePromptCancel} className="ml-auto text-xs text-[#999999] hover:text-[#333333]">Cancel</button>
-                </div>
-              </div>
-            )}
-            {activePrompt.type === 'remember' && activePrompt.step === 'content' && (
-              <InlinePrompt
-                icon="memory"
-                label={`Add ${activePrompt.memoryType}`}
-                placeholder={
-                  activePrompt.memoryType === 'decision' ? 'e.g., Chose mobile-first approach'
-                    : activePrompt.memoryType === 'learning' ? 'e.g., Client prefers visual mockups'
-                      : 'e.g., What is the budget timeline?'
-                }
-                value={promptInput}
-                onChange={setPromptInput}
-                onSubmit={handlePromptSubmit}
-                onCancel={handlePromptCancel}
-                submitLabel="Save"
-                submitting={promptSubmitting}
-                inputRef={promptInputRef}
-              />
-            )}
-          </div>
-        )}
-
         <form onSubmit={handleSubmit} className="flex items-end gap-1.5">
           <button
             type="button"
@@ -681,28 +399,17 @@ export function WorkspaceChat({
             <Paperclip className="h-4 w-4" />
           </button>
           <div className="relative flex-1">
-            {showCommandSuggestions && (
-              <SidebarCommandAutocomplete
-                suggestions={commandSuggestions}
-                onSelect={handleCommandSelect}
-              />
-            )}
             <textarea
               ref={inputRef}
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Ask anything or type / for commands..."
+              placeholder="Ask anything..."
               disabled={externalLoading}
               rows={1}
               className="w-full px-3 py-2 bg-[#F4F4F4] focus:bg-white border border-[#E5E5E5] rounded-2xl resize-none focus:outline-none focus:ring-2 focus:ring-[#3FAF7A]/20 focus:border-[#3FAF7A] disabled:bg-[#F4F4F4] disabled:text-[#999999] text-[13px]"
               style={{ minHeight: '36px', maxHeight: '80px' }}
             />
-            {input.startsWith('/') && (
-              <div className="absolute right-2 top-1/2 -translate-y-1/2">
-                <Zap className="h-3.5 w-3.5 text-[#3FAF7A]" />
-              </div>
-            )}
           </div>
           <button
             type="submit"
@@ -713,7 +420,7 @@ export function WorkspaceChat({
           </button>
         </form>
         <p className="text-[11px] text-[#999999] mt-1.5">
-          Enter to send &middot; / for commands &middot; Tab to complete
+          Enter to send &middot; Drop files to upload
         </p>
       </div>
     </div>
@@ -734,173 +441,6 @@ function ThinkingIndicator() {
           <div className="w-1.5 h-1.5 rounded-full bg-[#3FAF7A] animate-bounce [animation-delay:300ms]" />
         </div>
         <span className="text-[12px] text-[#999999]">Thinking...</span>
-      </div>
-    </div>
-  )
-}
-
-function NextActionsSuggestion({
-  actions,
-  onAction,
-}: {
-  actions: NextAction[]
-  onAction: (action: NextAction) => void
-}) {
-  return (
-    <div className="border border-[#E5E5E5] rounded-2xl bg-white shadow-sm overflow-hidden">
-      {/* Header */}
-      <div className="px-3 py-2 bg-[#F4F4F4] border-b border-[#E5E5E5]">
-        <div className="flex items-center gap-2">
-          <div className="w-5 h-5 rounded-lg bg-[#E8F5E9] flex items-center justify-center">
-            <Lightbulb className="w-3 h-3 text-[#3FAF7A]" />
-          </div>
-          <span className="text-[12px] font-semibold text-[#333333]">Suggested Next</span>
-        </div>
-      </div>
-
-      {/* Action items */}
-      <div className="divide-y divide-[#E5E5E5]">
-        {actions.map((action, idx) => (
-          <button
-            key={idx}
-            onClick={() => onAction(action)}
-            className="w-full px-3 py-2.5 flex items-start gap-2.5 hover:bg-[#F4F4F4]/50 transition-colors text-left group"
-          >
-            <span className="flex items-center justify-center w-5 h-5 rounded-full bg-[#E8F5E9] text-[10px] font-semibold text-[#25785A] flex-shrink-0 mt-0.5">
-              {idx + 1}
-            </span>
-            <div className="flex-1 min-w-0">
-              <p className="text-[12px] font-medium text-[#333333]">{action.title}</p>
-              <p className="text-[11px] text-[#999999] truncate">{action.description}</p>
-            </div>
-            <ArrowRight className="h-3.5 w-3.5 text-[#E5E5E5] group-hover:text-[#3FAF7A] transition-colors flex-shrink-0 mt-0.5" />
-          </button>
-        ))}
-      </div>
-    </div>
-  )
-}
-
-function InlinePrompt({
-  icon,
-  label,
-  placeholder,
-  value,
-  onChange,
-  onSubmit,
-  onCancel,
-  submitLabel,
-  submitting,
-  inputRef,
-}: {
-  icon: 'task' | 'person' | 'memory'
-  label: string
-  placeholder: string
-  value: string
-  onChange: (val: string) => void
-  onSubmit: () => void
-  onCancel: () => void
-  submitLabel: string
-  submitting: boolean
-  inputRef: React.RefObject<HTMLInputElement>
-}) {
-  return (
-    <div>
-      <p className="text-xs font-medium text-[#333333] mb-1.5">{label}</p>
-      <div className="flex items-center gap-1.5">
-        <input
-          ref={inputRef}
-          type="text"
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') { e.preventDefault(); onSubmit() }
-            if (e.key === 'Escape') onCancel()
-          }}
-          placeholder={placeholder}
-          className="flex-1 px-2.5 py-1.5 border border-[#E5E5E5] rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-[#3FAF7A]/20 focus:border-[#3FAF7A]"
-          disabled={submitting}
-        />
-        <button
-          onClick={onSubmit}
-          disabled={!value.trim() || submitting}
-          className="px-2.5 py-1.5 bg-[#3FAF7A] text-white text-xs font-medium rounded-xl disabled:opacity-50 hover:bg-[#25785A] transition-colors"
-        >
-          {submitting ? <Loader2 className="h-3 w-3 animate-spin" /> : submitLabel}
-        </button>
-        <button onClick={onCancel} disabled={submitting} className="text-xs text-[#999999] hover:text-[#333333]">
-          Cancel
-        </button>
-      </div>
-    </div>
-  )
-}
-
-function ProactiveCard({
-  message,
-  onDismiss,
-  onAction,
-}: {
-  message: ProactiveMessage
-  onDismiss: () => void
-  onAction: (action: QuickAction) => void
-}) {
-  return (
-    <div className="flex items-start gap-2 p-2.5 rounded-2xl border border-[#E5E5E5] bg-white shadow-sm">
-      <div className="w-6 h-6 rounded-lg bg-[#E8F5E9] flex items-center justify-center flex-shrink-0">
-        <Lightbulb className="h-3.5 w-3.5 text-[#3FAF7A]" />
-      </div>
-      <div className="flex-1 min-w-0">
-        <p className="text-xs text-[#333333]">{message.message}</p>
-        {message.actions && message.actions.length > 0 && (
-          <div className="flex items-center gap-1.5 mt-1.5">
-            {message.actions.map((action) => (
-              <button
-                key={action.id}
-                onClick={() => onAction(action)}
-                className="px-2 py-0.5 text-[11px] font-medium rounded-lg bg-[#E8F5E9] text-[#25785A] hover:bg-[#3FAF7A] hover:text-white transition-colors"
-              >
-                {action.label}
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
-      {message.dismissable !== false && (
-        <button onClick={onDismiss} className="p-0.5 hover:bg-[#F4F4F4] rounded flex-shrink-0">
-          <X className="h-3 w-3 text-[#999999]" />
-        </button>
-      )}
-    </div>
-  )
-}
-
-function SidebarCommandAutocomplete({
-  suggestions,
-  onSelect,
-}: {
-  suggestions: CommandDefinition[]
-  onSelect: (cmd: CommandDefinition) => void
-}) {
-  return (
-    <div className="absolute bottom-full left-0 right-0 mb-1 bg-white border border-[#E5E5E5] rounded-2xl shadow-md overflow-hidden z-50">
-      <div className="px-3 py-1.5 text-[10px] text-[#999999] bg-[#F4F4F4] border-b border-[#E5E5E5] font-medium uppercase tracking-wide">
-        Commands
-      </div>
-      <div className="max-h-48 overflow-y-auto">
-        {suggestions.map((cmd) => (
-          <button
-            key={cmd.name}
-            onClick={() => onSelect(cmd)}
-            className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-[#F4F4F4] text-left transition-colors"
-          >
-            <span className="font-mono text-[12px] text-[#3FAF7A]">/{cmd.name}</span>
-            <span className="text-[12px] text-[#666666] truncate">{cmd.description}</span>
-          </button>
-        ))}
-      </div>
-      <div className="px-3 py-1.5 text-[10px] text-[#999999] bg-[#F4F4F4] border-t border-[#E5E5E5]">
-        Tab to complete &middot; Esc to close
       </div>
     </div>
   )
@@ -1061,6 +601,8 @@ function getToolDisplayName(toolName: string): string {
     add_signal: 'Processing signal',
     generate_meeting_agenda: 'Meeting agenda',
     generate_client_email: 'Drafting email',
+    create_entity: 'Creating entity',
+    update_entity: 'Updating entity',
   }
   return names[toolName] || toolName.replace(/_/g, ' ')
 }

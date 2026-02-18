@@ -1,10 +1,9 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useCallback } from 'react'
 import {
   Sparkles,
   Send,
-  Users,
   Loader2,
   Check,
   ArrowRight,
@@ -12,7 +11,8 @@ import {
   MessageSquare,
 } from 'lucide-react'
 import type { ProjectContextFrame, TerseAction } from '@/lib/api'
-import { getContextFrame, answerTerseAction } from '@/lib/api'
+import { answerTerseAction } from '@/lib/api'
+import { useContextFrame } from '@/lib/hooks/use-api'
 import {
   GAP_SOURCE_ICONS,
   GAP_SOURCE_COLORS,
@@ -33,9 +33,9 @@ export function IntelligencePanel({
   onNavigate,
   onCascade,
 }: IntelligencePanelProps) {
-  const [frame, setFrame] = useState<ProjectContextFrame | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  // SWR-cached context frame — shared with WorkspaceLayout badge count
+  const { data: frame, error: swrError, isLoading: loading, mutate: revalidate } = useContextFrame(projectId)
+  const error = swrError ? 'Failed to load actions' : null
 
   // Inline answer state
   const [answerInputs, setAnswerInputs] = useState<Record<string, string>>({})
@@ -43,23 +43,9 @@ export function IntelligencePanel({
   const [cascadeResults, setCascadeResults] = useState<Record<string, string>>({})
   const [fadingIds, setFadingIds] = useState<Set<string>>(new Set())
 
-  const loadActions = useCallback(async () => {
-    try {
-      setLoading(true)
-      setError(null)
-      const data = await getContextFrame(projectId, 5)
-      setFrame(data)
-    } catch (err) {
-      setError('Failed to load actions')
-      console.error('Context frame load error:', err)
-    } finally {
-      setLoading(false)
-    }
-  }, [projectId])
-
-  useEffect(() => {
-    loadActions()
-  }, [loadActions])
+  const loadActions = useCallback(() => {
+    revalidate()
+  }, [revalidate])
 
   // Handle inline answer submission
   const handleAnswer = useCallback(async (action: TerseAction) => {
@@ -98,7 +84,7 @@ export function IntelligencePanel({
     }
   }, [projectId, answerInputs, loadActions, onCascade])
 
-  if (loading && !frame) {
+  if (loading && frame === undefined) {
     return (
       <div className="flex flex-col h-full">
         <PanelHeader phase={null} progress={0} gapCount={0} />

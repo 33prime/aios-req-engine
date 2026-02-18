@@ -1,11 +1,11 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { Sparkles, X, MessageSquare, Zap, FileText, Loader2 } from 'lucide-react'
+import { MessageSquare, X, Zap, FileText, Loader2 } from 'lucide-react'
 import type { ChatMessage } from './WorkspaceChat'
 import { WorkspaceChat } from './WorkspaceChat'
 import { IntelligencePanel } from './brd/components/IntelligencePanel'
-import type { ChatEntityDetectionResult } from '@/lib/api'
+import type { ChatEntityDetectionResult, TerseAction } from '@/lib/api'
 
 // =============================================================================
 // Types
@@ -39,10 +39,19 @@ interface BrainBubbleProps {
 
   /** Pre-select a tab when opening */
   defaultTab?: BrainTab
+
+  /** Notify parent of open state changes (for BRD compression) */
+  onOpenChange?: (isOpen: boolean) => void
+
+  /** Context frame actions for dynamic starter cards */
+  contextActions?: TerseAction[]
 }
 
+// Panel width constant — shared with WorkspaceLayout for margin calculation
+export const BRAIN_PANEL_WIDTH = 380
+
 // =============================================================================
-// BrainBubble — floating button + slide-over panel
+// BrainBubble — floating button + side panel that compresses BRD
 // =============================================================================
 
 export function BrainBubble({
@@ -61,6 +70,8 @@ export function BrainBubble({
   onSaveAsSignal,
   onDismissDetection,
   defaultTab,
+  onOpenChange,
+  contextActions,
 }: BrainBubbleProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [activeTab, setActiveTab] = useState<BrainTab>(() => {
@@ -71,6 +82,12 @@ export function BrainBubble({
   })
   const panelRef = useRef<HTMLDivElement>(null)
 
+  // Notify parent of open state changes
+  const updateOpen = useCallback((open: boolean) => {
+    setIsOpen(open)
+    onOpenChange?.(open)
+  }, [onOpenChange])
+
   // Persist tab preference
   useEffect(() => {
     localStorage.setItem('brain-panel-tab', activeTab)
@@ -80,38 +97,24 @@ export function BrainBubble({
   useEffect(() => {
     if (defaultTab) {
       setActiveTab(defaultTab)
-      setIsOpen(true)
+      updateOpen(true)
     }
-  }, [defaultTab])
+  }, [defaultTab, updateOpen])
 
   // Keyboard shortcuts: Escape to close, Cmd+J to toggle
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && isOpen) {
-        setIsOpen(false)
+        updateOpen(false)
       }
       if ((e.metaKey || e.ctrlKey) && e.key === 'j') {
         e.preventDefault()
-        setIsOpen(prev => !prev)
+        updateOpen(!isOpen)
       }
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [isOpen])
-
-  // Close on click outside
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (isOpen && panelRef.current && !panelRef.current.contains(e.target as Node)) {
-        // Don't close if clicking the bubble itself
-        const bubble = document.getElementById('brain-bubble-trigger')
-        if (bubble?.contains(e.target as Node)) return
-        setIsOpen(false)
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [isOpen])
+  }, [isOpen, updateOpen])
 
   // Handle "Discuss in chat →" from action cards
   const handleNavigate = useCallback((entityType: string, entityId: string | null) => {
@@ -125,52 +128,50 @@ export function BrainBubble({
 
   return (
     <>
-      {/* Floating Bubble */}
-      <button
-        id="brain-bubble-trigger"
-        onClick={() => setIsOpen(!isOpen)}
-        className={`
-          fixed bottom-6 right-6 z-50
-          w-12 h-12 rounded-full
-          bg-[#0A1E2F] hover:bg-[#0D2A35]
-          shadow-lg hover:shadow-xl
-          flex items-center justify-center
-          transition-all duration-200
-          ${isOpen ? 'scale-90 opacity-70' : 'scale-100'}
-          ${hasNewInsight && !isOpen ? 'animate-pulse' : ''}
-        `}
-        title="Open Brain Panel"
-      >
-        {isOpen ? (
-          <X className="w-5 h-5 text-white" />
-        ) : (
-          <Sparkles className="w-5 h-5 text-[#3FAF7A]" />
-        )}
+      {/* Floating Bubble — only visible when panel is closed */}
+      {!isOpen && (
+        <button
+          id="brain-bubble-trigger"
+          onClick={() => updateOpen(true)}
+          className={`
+            fixed bottom-6 right-6 z-50
+            w-12 h-12 rounded-full
+            bg-[#0A1E2F] hover:bg-[#0D2A35]
+            shadow-lg hover:shadow-xl
+            flex items-center justify-center
+            transition-all duration-200
+            ${hasNewInsight ? 'animate-pulse' : ''}
+          `}
+          title="Open assistant (⌘J)"
+        >
+          <MessageSquare className="w-5 h-5 text-[#3FAF7A]" />
 
-        {/* Badge — action count */}
-        {!isOpen && actionCount > 0 && (
-          <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full bg-[#3FAF7A] text-white text-[10px] font-bold">
-            {actionCount > 9 ? '9+' : actionCount}
-          </span>
-        )}
+          {/* Badge — action count */}
+          {actionCount > 0 && (
+            <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full bg-[#3FAF7A] text-white text-[10px] font-bold">
+              {actionCount > 9 ? '9+' : actionCount}
+            </span>
+          )}
 
-        {/* Green dot — new insight */}
-        {!isOpen && hasNewInsight && actionCount === 0 && (
-          <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-[#3FAF7A] ring-2 ring-white" />
-        )}
-      </button>
+          {/* Green dot — new insight */}
+          {hasNewInsight && actionCount === 0 && (
+            <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-[#3FAF7A] ring-2 ring-white" />
+          )}
+        </button>
+      )}
 
-      {/* Slide-over Panel */}
+      {/* Side Panel — fixed right, BRD compresses via marginRight */}
       <div
         ref={panelRef}
         className={`
           fixed top-0 right-0 h-screen z-40
-          w-[380px] bg-white border-l border-[#E5E5E5]
+          bg-white border-l border-[#E5E5E5]
           shadow-2xl
           flex flex-col
-          transition-transform duration-300 ease-in-out
+          transition-all duration-300 ease-in-out
           ${isOpen ? 'translate-x-0' : 'translate-x-full'}
         `}
+        style={{ width: BRAIN_PANEL_WIDTH }}
       >
         {/* Tab Header */}
         <div className="px-4 py-3 border-b border-[#E5E5E5] flex-shrink-0">
@@ -214,7 +215,7 @@ export function BrainBubble({
 
             {/* Close */}
             <button
-              onClick={() => setIsOpen(false)}
+              onClick={() => updateOpen(false)}
               className="p-1.5 rounded-lg hover:bg-[#F4F4F4] transition-colors"
               title="Close (Esc)"
             >
@@ -239,6 +240,7 @@ export function BrainBubble({
               onSendMessage={onSendMessage}
               onSendSignal={onSendSignal}
               onAddLocalMessage={onAddLocalMessage}
+              contextActions={contextActions}
             />
           )}
 
@@ -285,14 +287,6 @@ export function BrainBubble({
           )}
         </div>
       </div>
-
-      {/* Backdrop when panel is open */}
-      {isOpen && (
-        <div
-          className="fixed inset-0 z-30 bg-black/5"
-          onClick={() => setIsOpen(false)}
-        />
-      )}
     </>
   )
 }
