@@ -87,7 +87,7 @@ export function IntelligencePanel({
   if (loading && frame === undefined) {
     return (
       <div className="flex flex-col h-full">
-        <PanelHeader phase={null} progress={0} gapCount={0} />
+        <PanelHeader phase={null} progress={0} />
         <div className="flex-1 flex items-center justify-center p-6">
           <div className="flex items-center gap-2 text-[12px] text-[#999999]">
             <Loader2 className="w-4 h-4 animate-spin" />
@@ -101,7 +101,7 @@ export function IntelligencePanel({
   if (error) {
     return (
       <div className="flex flex-col h-full">
-        <PanelHeader phase={null} progress={0} gapCount={0} />
+        <PanelHeader phase={null} progress={0} />
         <div className="flex-1 flex items-center justify-center p-6">
           <div className="text-center">
             <p className="text-[12px] text-[#999999]">{error}</p>
@@ -125,7 +125,6 @@ export function IntelligencePanel({
       <PanelHeader
         phase={phase}
         progress={frame?.phase_progress ?? 0}
-        gapCount={frame?.total_gap_count ?? 0}
         onRefresh={loadActions}
         loading={loading}
       />
@@ -175,13 +174,11 @@ export function IntelligencePanel({
 function PanelHeader({
   phase,
   progress,
-  gapCount,
   onRefresh,
   loading,
 }: {
   phase: string | null
   progress: number
-  gapCount: number
   onRefresh?: () => void
   loading?: boolean
 }) {
@@ -218,11 +215,6 @@ function PanelHeader({
         </div>
         <span className="text-[11px] text-white/60">{progressPct}%</span>
       </div>
-      {gapCount > 0 && (
-        <p className="text-[10px] text-white/40 mt-1">
-          {gapCount} gap{gapCount !== 1 ? 's' : ''} detected
-        </p>
-      )}
     </div>
   )
 }

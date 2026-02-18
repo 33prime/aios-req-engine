@@ -22,17 +22,14 @@ import {
   Paperclip,
   Lightbulb,
   ArrowRight,
-  Target,
   ChevronDown,
   MessageSquare,
-  Users,
   FileText,
-  X,
 } from 'lucide-react'
 import { Markdown } from '../../components/ui/Markdown'
-import { uploadDocument, processDocument, getDocumentStatus, type NextAction } from '@/lib/api'
+import { uploadDocument, processDocument, getDocumentStatus } from '@/lib/api'
 import type { TerseAction } from '@/lib/api'
-import { ACTION_ICONS, GAP_SOURCE_ICONS } from '@/lib/action-constants'
+import { GAP_SOURCE_ICONS } from '@/lib/action-constants'
 
 // =============================================================================
 // Types
@@ -64,16 +61,6 @@ interface WorkspaceChatProps {
   onAddLocalMessage?: (msg: ChatMessage) => void
   /** Dynamic actions from context frame for starter cards */
   contextActions?: TerseAction[]
-}
-
-// =============================================================================
-// Constants — CTA type to icon mapping
-// =============================================================================
-
-const CTA_ICONS: Record<string, typeof Target> = {
-  inline_answer: MessageSquare,
-  upload_doc: Upload,
-  discuss: Lightbulb,
 }
 
 // =============================================================================
@@ -126,19 +113,6 @@ export function WorkspaceChat({
       }
     },
     [handleSubmit]
-  )
-
-  // Starter card click — turn action sentence into a chat message
-  const handleStarterAction = useCallback(
-    (action: TerseAction) => {
-      if (action.cta_type === 'upload_doc') {
-        fileInputRef.current?.click()
-        return
-      }
-      // Send the action sentence as a natural language message
-      externalSendMessage(action.sentence)
-    },
-    [externalSendMessage]
   )
 
   // File upload
@@ -259,32 +233,57 @@ export function WorkspaceChat({
   const lastMessage = externalMessages[externalMessages.length - 1]
   const isThinking = externalLoading && (!lastMessage || lastMessage.role === 'user' || !lastMessage.isStreaming)
 
-  // Build starter cards from context actions
+  // Build conversational starters — NOT the same as action cards
+  // These are chat prompts that help the user start a conversation
   interface StarterCard {
-    sentence: string
-    cta_type: string
-    cta_label?: string
-    icon: typeof Target
-    isAction?: boolean
-    action?: TerseAction
+    prompt: string
+    label: string
+    icon: typeof MessageSquare
   }
 
   const starterCards = useMemo((): StarterCard[] => {
+    const cards: StarterCard[] = []
+
     if (!contextActions || contextActions.length === 0) {
-      // Fallback: minimal generic starters
       return [
-        { sentence: 'Tell us about this project', cta_type: 'discuss', icon: MessageSquare },
-        { sentence: 'Upload existing documents', cta_type: 'upload_doc', icon: Upload },
+        { label: 'Describe the project', prompt: 'Let me tell you about this project...', icon: MessageSquare },
+        { label: 'Upload a document', prompt: '', icon: Upload },
+        { label: 'What should I focus on?', prompt: 'What should I focus on right now?', icon: Lightbulb },
       ]
     }
-    return contextActions.slice(0, 4).map((action) => ({
-      sentence: action.sentence,
-      cta_type: action.cta_type,
-      cta_label: action.cta_label,
-      icon: GAP_SOURCE_ICONS[action.gap_type] || GAP_SOURCE_ICONS[action.gap_source] || CTA_ICONS[action.cta_type] || Target,
-      isAction: true,
-      action,
-    }))
+
+    // Always include "what should I focus on" as first option
+    cards.push({
+      label: 'What should I focus on?',
+      prompt: 'What should I focus on right now?',
+      icon: Lightbulb,
+    })
+
+    // Convert top 2 actions into conversational prompts
+    for (const action of contextActions.slice(0, 2)) {
+      if (action.cta_type === 'upload_doc') {
+        cards.push({ label: 'Upload a document', prompt: '', icon: Upload })
+      } else if (action.cta_type === 'inline_answer') {
+        cards.push({
+          label: action.sentence.length > 50 ? action.sentence.slice(0, 47) + '...' : action.sentence,
+          prompt: `Help me with: ${action.sentence}`,
+          icon: GAP_SOURCE_ICONS[action.gap_type] || GAP_SOURCE_ICONS[action.gap_source] || MessageSquare,
+        })
+      } else {
+        cards.push({
+          label: action.sentence.length > 50 ? action.sentence.slice(0, 47) + '...' : action.sentence,
+          prompt: action.sentence,
+          icon: GAP_SOURCE_ICONS[action.gap_type] || GAP_SOURCE_ICONS[action.gap_source] || MessageSquare,
+        })
+      }
+    }
+
+    // Always include upload option if not already there
+    if (!cards.some(c => c.prompt === '')) {
+      cards.push({ label: 'Upload a document', prompt: '', icon: Upload })
+    }
+
+    return cards.slice(0, 4)
   }, [contextActions])
 
   return (
@@ -329,30 +328,23 @@ export function WorkspaceChat({
               Your AI partner for requirements engineering
             </p>
 
-            {/* Dynamic starter cards from context frame actions */}
+            {/* Conversational starters */}
             <div className="w-full space-y-2 mb-4">
               {starterCards.map((card, idx) => {
                 const Icon = card.icon
                 return (
                   <button
                     key={idx}
-                    onClick={() => card.action
-                      ? handleStarterAction(card.action)
-                      : card.cta_type === 'upload_doc'
-                        ? fileInputRef.current?.click()
-                        : externalSendMessage(card.sentence)
+                    onClick={() => card.prompt === ''
+                      ? fileInputRef.current?.click()
+                      : externalSendMessage(card.prompt)
                     }
                     className="w-full flex items-center gap-3 p-3 bg-white border border-[#E5E5E5] rounded-2xl hover:border-[#3FAF7A] hover:shadow-sm transition-all text-left group"
                   >
                     <div className="w-8 h-8 rounded-xl bg-[#F4F4F4] flex items-center justify-center flex-shrink-0 group-hover:bg-[#E8F5E9] transition-colors">
                       <Icon className="h-4 w-4 text-[#666666] group-hover:text-[#3FAF7A] transition-colors" />
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-[12px] font-medium text-[#333333]">{card.sentence}</p>
-                      {card.cta_label && (
-                        <p className="text-[11px] text-[#999999]">{card.cta_label}</p>
-                      )}
-                    </div>
+                    <p className="flex-1 text-[12px] font-medium text-[#333333] min-w-0">{card.label}</p>
                     <ArrowRight className="h-3.5 w-3.5 text-[#E5E5E5] group-hover:text-[#3FAF7A] transition-colors flex-shrink-0" />
                   </button>
                 )

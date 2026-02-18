@@ -290,8 +290,8 @@ class Settings(BaseSettings):
 
     # Chat Assistant configuration
     CHAT_MODEL: str = Field(
-        default="claude-sonnet-4-20250514",
-        description="Claude model for chat assistant (Sonnet 4)"
+        default="claude-haiku-4-5-20251001",
+        description="Claude model for chat assistant (Haiku 4.5 — fast + cheap)"
     )
     SUMMARIZATION_MODEL: str = Field(
         default="claude-3-5-haiku-20241022",

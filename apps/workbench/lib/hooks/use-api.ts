@@ -164,7 +164,8 @@ export function useContextFrame(
     projectId ? `context-frame:${projectId}` : null,
     () => getContextFrame(projectId!, 5),
     {
-      dedupingInterval: MED_CACHE,
+      dedupingInterval: SHORT_CACHE,
+      refreshInterval: 30_000,
       revalidateOnFocus: false,
       ...config,
     },
