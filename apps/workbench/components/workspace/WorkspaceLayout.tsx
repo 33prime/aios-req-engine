@@ -47,7 +47,8 @@ import type { DesignSelection, FeatureOverlay, FeatureVerdict, PrototypeSession,
 import type { PrototypeFrameHandle } from '@/components/prototype/PrototypeFrame'
 import ReviewStartModal from '@/components/prototype/ReviewStartModal'
 import ReviewEndModal from '@/components/prototype/ReviewEndModal'
-import { Settings, Loader2, CheckCircle2, XCircle, Clock, ArrowLeft } from 'lucide-react'
+import { ProjectHealthOverlay } from './ProjectHealthOverlay'
+import { Activity, Settings, Loader2, CheckCircle2, XCircle, Clock, ArrowLeft } from 'lucide-react'
 import { getProjectDetails, getLaunchProgress } from '@/lib/api'
 import type { LaunchProgressResponse } from '@/types/workspace'
 
@@ -131,6 +132,9 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
   }, [projectId])
 
 
+
+  // Project Health overlay
+  const [showHealthOverlay, setShowHealthOverlay] = useState(false)
 
   // Pending action from cross-view navigation (e.g., Overview → BRD)
   const [pendingAction, setPendingAction] = useState<NextAction | null>(null)
@@ -615,6 +619,14 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
                     </p>
                   )}
                 </div>
+                {/* Heartbeat icon — opens health modal */}
+                <button
+                  onClick={() => setShowHealthOverlay(true)}
+                  className="p-1.5 rounded-lg hover:bg-[#F4F4F4] transition-colors group"
+                  title="Project Health"
+                >
+                  <Activity className="w-4 h-4 text-[#3FAF7A] group-hover:text-[#25785A]" />
+                </button>
               </div>
 
               <PhaseSwitcher
@@ -639,6 +651,7 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
                 initialQuestionCounts={questionCounts}
                 onNavigateToPhase={(p) => setPhase(p)}
                 onActionExecute={handleActionExecuteFromOverview}
+                onOpenHealth={() => setShowHealthOverlay(true)}
               />
             )}
 
@@ -817,6 +830,14 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
             sessionContext={sessionContext}
             prototypeId={prototypeId}
             onVerdictSubmit={handleVerdictSubmit}
+          />
+        )}
+        {/* Project Health Overlay — unified pulse + health modal */}
+        {showHealthOverlay && (
+          <ProjectHealthOverlay
+            projectId={projectId}
+            completeness={brdData?.completeness}
+            onDismiss={() => setShowHealthOverlay(false)}
           />
         )}
       </div>

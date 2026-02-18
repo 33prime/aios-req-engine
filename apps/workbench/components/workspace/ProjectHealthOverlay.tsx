@@ -4,11 +4,22 @@ import { useState, useEffect } from 'react'
 import { Activity, X, AlertTriangle, RefreshCw, ArrowRight } from 'lucide-react'
 import { getProjectPulse, getBRDHealth } from '@/lib/api'
 import type { ProjectPulse } from '@/types/api'
-import type { BRDHealthData } from '@/types/workspace'
+import type { BRDHealthData, BRDCompleteness, SectionScore } from '@/types/workspace'
 
 interface ProjectHealthOverlayProps {
   projectId: string
+  /** Pre-loaded completeness data from BRD endpoint (avoids re-fetch) */
+  completeness?: BRDCompleteness | null
   onDismiss: () => void
+}
+
+const SECTION_LABELS: Record<string, string> = {
+  vision: 'Vision',
+  constraints: 'Constraints',
+  data_entities: 'Data Entities',
+  stakeholders: 'Stakeholders',
+  workflows: 'Workflows',
+  features: 'Features',
 }
 
 function ScoreCircle({ score }: { score: number }) {
@@ -35,14 +46,32 @@ function ScoreCircle({ score }: { score: number }) {
         />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className="text-xl font-bold text-[#333333]">{score}</span>
+        <span className="text-xl font-bold text-[#333333]">{Math.round(score)}</span>
         <span className="text-[10px] text-[#999999]">/100</span>
       </div>
     </div>
   )
 }
 
-export function ProjectHealthOverlay({ projectId, onDismiss }: ProjectHealthOverlayProps) {
+function SectionBar({ label, score, maxScore }: { label: string; score: number; maxScore: number }) {
+  const pct = maxScore > 0 ? Math.round((score / maxScore) * 100) : 0
+  const fillBg = pct >= 80 ? 'bg-[#25785A]' : pct >= 60 ? 'bg-[#3FAF7A]' : 'bg-[#999999]'
+
+  return (
+    <div className="flex items-center gap-2">
+      <span className="text-[11px] text-[#666666] w-24 truncate">{label}</span>
+      <div className="flex-1 h-1.5 bg-[#E5E5E5] rounded-full overflow-hidden">
+        <div
+          className={`h-full rounded-full transition-all duration-500 ${fillBg}`}
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+      <span className="text-[11px] font-medium text-[#666666] w-8 text-right tabular-nums">{pct}%</span>
+    </div>
+  )
+}
+
+export function ProjectHealthOverlay({ projectId, completeness, onDismiss }: ProjectHealthOverlayProps) {
   const [pulse, setPulse] = useState<ProjectPulse | null>(null)
   const [health, setHealth] = useState<BRDHealthData | null>(null)
   const [loading, setLoading] = useState(true)
@@ -62,6 +91,8 @@ export function ProjectHealthOverlay({ projectId, onDismiss }: ProjectHealthOver
   const totalStale = health?.stale_entities?.total_stale ?? 0
   const scopeAlerts = health?.scope_alerts ?? []
   const hasHealthIssues = totalStale > 0 || scopeAlerts.length > 0
+  const sections = completeness?.sections ?? []
+  const overallScore = completeness?.overall_score ?? pulse?.score ?? 0
 
   return (
     <div className="fixed inset-0 z-40 flex items-center justify-center">
@@ -88,25 +119,41 @@ export function ProjectHealthOverlay({ projectId, onDismiss }: ProjectHealthOver
         ) : (
           <>
             {/* Score */}
-            {pulse && (
-              <div className="flex justify-center mb-5">
-                <ScoreCircle score={pulse.score} />
-              </div>
-            )}
+            <div className="flex justify-center mb-4">
+              <ScoreCircle score={overallScore} />
+            </div>
 
             {/* Summary */}
             {pulse?.summary && (
               <p className="text-sm text-[#666666] text-center mb-6">{pulse.summary}</p>
             )}
 
+            {/* Section Scores */}
+            {sections.length > 0 && (
+              <div className="mb-5">
+                <h4 className="text-xs font-semibold text-[#999999] uppercase tracking-wide mb-3">
+                  Section Scores
+                </h4>
+                <div className="space-y-2">
+                  {sections.map((sec) => (
+                    <SectionBar
+                      key={sec.section}
+                      label={SECTION_LABELS[sec.section] || sec.section}
+                      score={sec.score}
+                      maxScore={sec.max_score}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Health Issues */}
             {hasHealthIssues && (
               <div className="mb-5">
                 <h4 className="text-xs font-semibold text-[#999999] uppercase tracking-wide mb-3">
-                  Health Issues
+                  Attention Needed
                 </h4>
 
-                {/* Stale entities */}
                 {totalStale > 0 && (
                   <div className="flex items-start gap-3 bg-[#FFF8F0] rounded-xl px-4 py-3 mb-2">
                     <RefreshCw className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
@@ -121,7 +168,6 @@ export function ProjectHealthOverlay({ projectId, onDismiss }: ProjectHealthOver
                   </div>
                 )}
 
-                {/* Scope alerts */}
                 {scopeAlerts.map((alert, i) => (
                   <div
                     key={i}
@@ -136,11 +182,11 @@ export function ProjectHealthOverlay({ projectId, onDismiss }: ProjectHealthOver
               </div>
             )}
 
-            {/* Next actions */}
+            {/* Focus areas */}
             {pulse && pulse.next_actions.length > 0 && (
               <div className="mb-5">
                 <h4 className="text-xs font-semibold text-[#999999] uppercase tracking-wide mb-3">
-                  Recommended Actions
+                  What to Focus On
                 </h4>
                 <div className="space-y-2">
                   {pulse.next_actions.slice(0, 3).map((action, i) => (
@@ -159,7 +205,7 @@ export function ProjectHealthOverlay({ projectId, onDismiss }: ProjectHealthOver
               </div>
             )}
 
-            {/* Dismiss button */}
+            {/* Dismiss */}
             <button
               onClick={onDismiss}
               className="w-full flex items-center justify-center gap-2 bg-[#3FAF7A] text-white font-medium py-3 rounded-xl hover:bg-[#25785A] transition-colors"

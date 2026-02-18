@@ -2,8 +2,8 @@
  * OverviewPanel - Project Dashboard
  *
  * Layout:
- *   Hero: Project name + vision + completeness ring + phase
- *   Row 1: Project Pulse (with health) | Next Best Actions (top 3) | Tasks
+ *   Hero: Welcome back + project name + clickable percentage + last updated
+ *   Row 1: Project Pulse | Next Best Actions (top 3) | Tasks
  *   Row 2: Recent Activity | Upcoming Meetings | Client Portal
  */
 
@@ -15,6 +15,7 @@ import {
   ArrowRight,
   Activity,
   CheckCircle,
+  Circle,
   MessageCircle,
   AlertTriangle,
   RefreshCw,
@@ -23,16 +24,17 @@ import {
   Sparkles,
 } from 'lucide-react'
 import { TaskListCompact } from '@/components/tasks'
-import { CompletenessRing } from '@/components/workspace/brd/components/CompletenessRing'
 import {
   getTaskStats,
   getCollaborationHistory,
   getQuestionCounts,
   getBRDHealth,
+  getProjectPulse,
 } from '@/lib/api'
 import type { CanvasData, BRDWorkspaceData, SectionScore, QuestionCounts, BRDHealthData } from '@/types/workspace'
 import type { ReadinessScore, NextAction, TaskStatsResponse, CollaborationHistoryResponse, TerseAction } from '@/lib/api'
-import { GAP_SOURCE_ICONS, GAP_SOURCE_COLORS, PHASE_LABELS } from '@/lib/action-constants'
+import type { ProjectPulse } from '@/types/api'
+import { GAP_SOURCE_ICONS, GAP_SOURCE_COLORS } from '@/lib/action-constants'
 
 interface OverviewPanelProps {
   projectId: string
@@ -46,6 +48,8 @@ interface OverviewPanelProps {
   initialQuestionCounts?: QuestionCounts | null
   onNavigateToPhase: (phase: 'discovery' | 'build') => void
   onActionExecute?: (action: NextAction) => void
+  /** Open the unified health modal (managed by WorkspaceLayout) */
+  onOpenHealth?: () => void
 }
 
 const SECTION_LABELS: Record<string, string> = {
@@ -66,21 +70,22 @@ export function OverviewPanel({
   initialHistory,
   initialQuestionCounts,
   onNavigateToPhase,
+  onOpenHealth,
 }: OverviewPanelProps) {
   const [taskStats, setTaskStats] = useState<TaskStatsResponse | null>(initialTaskStats ?? null)
   const [taskRefreshKey, setTaskRefreshKey] = useState(0)
   const [history, setHistory] = useState<CollaborationHistoryResponse | null>(initialHistory ?? null)
   const [questionCounts, setQuestionCounts] = useState<QuestionCounts | null>(initialQuestionCounts ?? null)
   const [healthData, setHealthData] = useState<BRDHealthData | null>(null)
+  const [pulse, setPulse] = useState<ProjectPulse | null>(null)
 
   useEffect(() => {
-    // Fetch data not prefetched by parent
     const promises: Promise<unknown>[] = []
     if (initialTaskStats === undefined) promises.push(getTaskStats(projectId).then(setTaskStats).catch(() => null))
     if (initialHistory === undefined) promises.push(getCollaborationHistory(projectId).then(setHistory).catch(() => null))
     if (initialQuestionCounts === undefined) promises.push(getQuestionCounts(projectId).then(setQuestionCounts).catch(() => null))
-    // Always fetch health data (not prefetched)
     promises.push(getBRDHealth(projectId).then(setHealthData).catch(() => null))
+    promises.push(getProjectPulse(projectId).then(setPulse).catch(() => null))
     Promise.all(promises)
   }, [projectId, initialTaskStats, initialHistory, initialQuestionCounts])
 
@@ -88,27 +93,27 @@ export function OverviewPanel({
   const completeness = brdData?.completeness ?? null
   const touchpoints = history?.touchpoints ?? []
   const overallScore = completeness?.overall_score ?? 0
-  const phase = canvasData.collaboration_phase || 'discovery'
-
-  // Use context frame actions (top 3) for the actions card
   const topActions = contextActions?.slice(0, 3) ?? []
+
+  // Last activity time from touchpoints
+  const lastActivityTime = touchpoints[0]?.completed_at || touchpoints[0]?.created_at || null
 
   return (
     <div className="space-y-4">
-      {/* Hero: Project Dashboard Header */}
+      {/* Hero: Welcome back */}
       <HeroDashboard
         projectName={canvasData.project_name}
-        pitchLine={canvasData.pitch_line}
         overallScore={overallScore}
         overallLabel={completeness?.overall_label ?? 'Getting Started'}
-        phase={phase}
+        summary={pulse?.summary ?? null}
+        lastActivity={lastActivityTime}
+        onClickScore={onOpenHealth}
         onNavigateToPhase={onNavigateToPhase}
       />
 
       {/* Row 1: Pulse | Actions | Tasks */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <ProjectPulseCard
-          completeness={completeness}
           sections={completeness?.sections ?? []}
           questionCounts={questionCounts}
           healthData={healthData}
@@ -157,33 +162,48 @@ export function OverviewPanel({
 }
 
 // ---------------------------------------------------------------------------
-// Hero Dashboard Header
+// Hero Dashboard — white card, welcome back, clickable score
 // ---------------------------------------------------------------------------
 
 function HeroDashboard({
   projectName,
-  pitchLine,
   overallScore,
   overallLabel,
-  phase,
+  summary,
+  lastActivity,
+  onClickScore,
   onNavigateToPhase,
 }: {
   projectName: string
-  pitchLine?: string | null
   overallScore: number
   overallLabel: string
-  phase: string
+  summary: string | null
+  lastActivity: string | null
+  onClickScore?: () => void
   onNavigateToPhase: (phase: 'discovery' | 'build') => void
 }) {
-  const phaseLabel = PHASE_LABELS[phase] || phase
+  const formatRelativeTime = (dateStr: string) => {
+    const diff = Date.now() - new Date(dateStr).getTime()
+    const mins = Math.floor(diff / 60000)
+    if (mins < 1) return 'just now'
+    if (mins < 60) return `${mins}m ago`
+    const hours = Math.floor(mins / 60)
+    if (hours < 24) return `${hours}h ago`
+    const days = Math.floor(hours / 24)
+    return `${days}d ago`
+  }
 
   return (
-    <div className="bg-[#0A1E2F] rounded-2xl shadow-md p-6 flex items-center gap-6">
-      {/* Completeness ring */}
-      <div className="flex-shrink-0">
+    <div className="bg-white rounded-2xl shadow-md border border-[#E5E5E5] p-6 flex items-center gap-6">
+      {/* Clickable completeness ring */}
+      <button
+        onClick={onClickScore}
+        className="flex-shrink-0 group"
+        title="View project health"
+      >
         <div className="relative w-20 h-20">
           <svg className="w-20 h-20 -rotate-90" viewBox="0 0 100 100">
-            <circle cx="50" cy="50" r="42" fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="6" />
+            <circle cx="50" cy="50" r="42" fill="none" stroke="#E5E5E5" strokeWidth="6" />
             <circle
               cx="50"
               cy="50"
@@ -198,29 +218,32 @@ function HeroDashboard({
             />
           </svg>
           <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <span className="text-[20px] font-bold text-white leading-none">{Math.round(overallScore)}%</span>
-            <span className="text-[10px] text-white/50 mt-0.5">{overallLabel}</span>
+            <span className="text-[20px] font-bold text-[#333333] leading-none group-hover:text-[#3FAF7A] transition-colors">
+              {Math.round(overallScore)}%
+            </span>
+            <span className="text-[10px] text-[#999999] mt-0.5">{overallLabel}</span>
           </div>
         </div>
-      </div>
+      </button>
 
       {/* Project info */}
       <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 mb-1">
-          <h1 className="text-[18px] font-bold text-white truncate">{projectName}</h1>
-          <span className="flex-shrink-0 px-2 py-0.5 text-[10px] font-medium text-[#3FAF7A] bg-[#3FAF7A]/10 rounded-full">
-            {phaseLabel}
-          </span>
-        </div>
-        {pitchLine && (
-          <p className="text-[13px] text-white/60 leading-relaxed line-clamp-2">{pitchLine}</p>
+        <p className="text-[12px] text-[#999999] mb-0.5">Welcome back</p>
+        <h1 className="text-[18px] font-bold text-[#333333] truncate">{projectName}</h1>
+        {summary && (
+          <p className="text-[13px] text-[#666666] mt-1 leading-relaxed line-clamp-2">{summary}</p>
+        )}
+        {lastActivity && (
+          <p className="text-[11px] text-[#999999] mt-1.5">
+            Last updated {formatRelativeTime(lastActivity)}
+          </p>
         )}
       </div>
 
       {/* CTA */}
       <button
         onClick={() => onNavigateToPhase('discovery')}
-        className="flex-shrink-0 inline-flex items-center gap-1.5 px-5 py-2.5 text-[13px] font-medium text-[#0A1E2F] bg-[#3FAF7A] rounded-xl hover:bg-[#4CC08C] transition-colors"
+        className="flex-shrink-0 inline-flex items-center gap-1.5 px-5 py-2.5 text-[13px] font-medium text-white bg-[#3FAF7A] rounded-xl hover:bg-[#25785A] transition-colors"
       >
         Open BRD
         <ArrowRight className="w-4 h-4" />
@@ -230,24 +253,25 @@ function HeroDashboard({
 }
 
 // ---------------------------------------------------------------------------
-// Project Pulse (merged with Health)
+// Project Pulse (section bars + strength/weakness footer)
 // ---------------------------------------------------------------------------
 
 function ProjectPulseCard({
-  completeness,
   sections,
   questionCounts,
   healthData,
 }: {
-  completeness: BRDWorkspaceData['completeness'] | null
   sections: SectionScore[]
   questionCounts: QuestionCounts | null
   healthData: BRDHealthData | null
 }) {
-  const gapCount = completeness?.top_gaps?.length ?? 0
   const totalStale = healthData?.stale_entities?.total_stale ?? 0
   const scopeAlerts = healthData?.scope_alerts ?? []
   const hasAlerts = totalStale > 0 || scopeAlerts.length > 0
+
+  // Build strength/weakness summary from sections
+  const strengths = sections.filter(s => s.max_score > 0 && (s.score / s.max_score) >= 0.6)
+  const needsWork = sections.filter(s => s.max_score > 0 && (s.score / s.max_score) < 0.6)
 
   return (
     <div className="bg-white rounded-2xl border border-[#E5E5E5] shadow-md p-5">
@@ -271,31 +295,42 @@ function ProjectPulseCard({
         )}
       </div>
 
-      {/* Gap + question counts */}
-      {(gapCount > 0 || (questionCounts && questionCounts.open > 0)) && (
-        <div className="flex items-center gap-3 pt-2 border-t border-[#E5E5E5] mb-3">
-          {gapCount > 0 && (
-            <p className="text-[11px] text-[#999999]">
-              {gapCount} gap{gapCount !== 1 ? 's' : ''} to address
-            </p>
-          )}
-          {questionCounts && questionCounts.open > 0 && (
-            <span className="inline-flex items-center gap-1 text-[11px] text-[#999999]">
-              <MessageCircle className="w-3 h-3" />
-              {questionCounts.open} open question{questionCounts.open !== 1 ? 's' : ''}
-              {questionCounts.critical_open > 0 && (
-                <span className="text-[10px] font-medium text-[#991B1B]">
-                  ({questionCounts.critical_open} critical)
-                </span>
-              )}
+      {/* Strength / Needs work one-liner */}
+      {sections.length > 0 && (
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pt-2 border-t border-[#E5E5E5] mb-2">
+          {strengths.map((s) => (
+            <span key={s.section} className="inline-flex items-center gap-1 text-[11px] text-[#25785A]">
+              <CheckCircle className="w-3 h-3" />
+              {SECTION_LABELS[s.section] || s.section}
             </span>
-          )}
+          ))}
+          {needsWork.map((s) => (
+            <span key={s.section} className="inline-flex items-center gap-1 text-[11px] text-[#999999]">
+              <Circle className="w-3 h-3" />
+              {SECTION_LABELS[s.section] || s.section}
+            </span>
+          ))}
         </div>
       )}
 
-      {/* Health alerts (merged from ProjectHealthOverlay) */}
+      {/* Open questions */}
+      {questionCounts && questionCounts.open > 0 && (
+        <div className="flex items-center gap-1 pt-1">
+          <span className="inline-flex items-center gap-1 text-[11px] text-[#999999]">
+            <MessageCircle className="w-3 h-3" />
+            {questionCounts.open} open question{questionCounts.open !== 1 ? 's' : ''}
+            {questionCounts.critical_open > 0 && (
+              <span className="text-[10px] font-medium text-[#991B1B] ml-0.5">
+                ({questionCounts.critical_open} critical)
+              </span>
+            )}
+          </span>
+        </div>
+      )}
+
+      {/* Health alerts */}
       {hasAlerts && (
-        <div className="space-y-1.5 pt-2 border-t border-[#E5E5E5]">
+        <div className="space-y-1.5 pt-2 mt-2 border-t border-[#E5E5E5]">
           {totalStale > 0 && (
             <div className="flex items-center gap-2 px-2.5 py-1.5 bg-[#FFF8F0] rounded-lg">
               <RefreshCw className="w-3 h-3 text-amber-500 flex-shrink-0" />
@@ -411,7 +446,7 @@ function ContextActionsCard({
 }
 
 // ---------------------------------------------------------------------------
-// Activity Card (resized from strip to card)
+// Activity Card
 // ---------------------------------------------------------------------------
 
 function ActivityCard({
