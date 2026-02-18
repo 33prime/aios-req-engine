@@ -3282,6 +3282,7 @@ export const dismissQuestion = (projectId: string, questionId: string, reason?: 
 export const launchProject = (data: {
   project_name: string
   problem_description?: string
+  chat_transcript?: string
   client_id?: string
   client_name?: string
   client_website?: string
@@ -3354,3 +3355,36 @@ export const getICPLeaderboard = (profileId: string) =>
 
 export const getUserICPSignals = (userId: string) =>
   apiRequest<any[]>(`/super-admin/users/${userId}/icp-signals`)
+
+// =============================================================================
+// Notifications
+// =============================================================================
+
+export const listNotifications = (unreadOnly = false, limit = 20) =>
+  apiRequest<import('@/types/api').Notification[]>(
+    `/notifications?unread_only=${unreadOnly}&limit=${limit}`
+  )
+
+export const getUnreadNotificationCount = () =>
+  apiRequest<{ count: number }>('/notifications/unread-count')
+
+export const markNotificationRead = (id: string) =>
+  apiRequest<{ ok: boolean }>(`/notifications/${id}/read`, { method: 'PATCH' })
+
+export const markAllNotificationsRead = () =>
+  apiRequest<{ ok: boolean }>('/notifications/read-all', { method: 'POST' })
+
+// =============================================================================
+// Project Pulse
+// =============================================================================
+
+export const getProjectPulse = (projectId: string) =>
+  apiRequest<import('@/types/api').ProjectPulse>(
+    `/projects/${projectId}/workspace/pulse`
+  )
+
+export const dismissProjectPulse = (projectId: string) =>
+  apiRequest<{ ok: boolean }>(
+    `/projects/${projectId}/workspace/pulse/dismiss`,
+    { method: 'POST' }
+  )

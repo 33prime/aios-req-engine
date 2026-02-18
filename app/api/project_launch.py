@@ -35,34 +35,24 @@ router = APIRouter()
 
 STEP_DEFINITIONS = [
     {
-        "key": "onboarding",
-        "label": "Extracting requirements",
+        "key": "company_research",
+        "label": "Researching company",
         "depends_on": [],
     },
     {
-        "key": "client_enrichment",
-        "label": "Enriching client profile",
-        "depends_on": [],
+        "key": "entity_generation",
+        "label": "Building project foundation",
+        "depends_on": ["company_research"],
     },
     {
         "key": "stakeholder_enrichment",
-        "label": "Building stakeholder profiles",
+        "label": "Enriching stakeholder profiles",
         "depends_on": [],
     },
     {
-        "key": "foundation",
-        "label": "Running foundation analysis",
-        "depends_on": ["onboarding"],
-    },
-    {
-        "key": "readiness_check",
-        "label": "Checking discovery readiness",
-        "depends_on": ["foundation", "client_enrichment"],
-    },
-    {
-        "key": "discovery",
-        "label": "Running discovery research",
-        "depends_on": ["readiness_check"],
+        "key": "quality_check",
+        "label": "Verifying output quality",
+        "depends_on": ["entity_generation"],
     },
 ]
 
@@ -74,13 +64,13 @@ STEP_DEFINITIONS = [
 
 def _should_run_step(step_key: str, context: dict) -> tuple[bool, str]:
     """Check if a step should run. Returns (should_run, skip_reason)."""
-    if step_key == "onboarding":
-        if not context.get("signal_id"):
-            return False, "No project description provided"
-        return True, ""
-    elif step_key == "client_enrichment":
+    if step_key == "company_research":
         if not context.get("client_website"):
             return False, "No client website provided"
+        return True, ""
+    elif step_key == "entity_generation":
+        if not context.get("chat_transcript") and not context.get("signal_id"):
+            return False, "No chat transcript or signal provided"
         return True, ""
     elif step_key == "stakeholder_enrichment":
         linkedin_stakeholders = [
@@ -89,13 +79,7 @@ def _should_run_step(step_key: str, context: dict) -> tuple[bool, str]:
         if not linkedin_stakeholders:
             return False, "No stakeholders with LinkedIn profiles"
         return True, ""
-    elif step_key == "foundation":
-        return True, ""
-    elif step_key == "readiness_check":
-        return True, ""
-    elif step_key == "discovery":
-        if not context.get("auto_discovery"):
-            return False, "Auto-discovery not enabled"
+    elif step_key == "quality_check":
         return True, ""
     return True, ""
 
@@ -105,37 +89,221 @@ def _should_run_step(step_key: str, context: dict) -> tuple[bool, str]:
 # =============================================================================
 
 
-def _execute_onboarding(context: dict) -> str:
-    """Run onboarding signal processing."""
-    from app.db.jobs import complete_job, create_job, fail_job, start_job
-    from app.graphs.onboarding_graph import run_onboarding
-
-    project_id = context["project_id"]
-    signal_id = context["signal_id"]
-    run_id = uuid.uuid4()
-    job_id = create_job(project_id, "onboarding", {"signal_id": str(signal_id)}, run_id)
-
-    start_job(job_id)
-    try:
-        result = run_onboarding(project_id, signal_id, job_id, run_id)
-        complete_job(job_id, output_json=result)
-        features = result.get("features", 0)
-        personas = result.get("personas", 0)
-        vp_steps = result.get("vp_steps", 0)
-        return f"{features} features, {personas} personas, {vp_steps} value path steps"
-    except Exception:
-        fail_job(job_id, "Onboarding failed")
-        raise
-
-
-def _execute_client_enrichment(context: dict) -> str:
-    """Run client enrichment from website."""
+def _execute_company_research(context: dict) -> str:
+    """Run company research via client enrichment."""
     from app.chains.enrich_client import enrich_client
 
-    client_id = UUID(context["client_id"])
-    result = asyncio.run(enrich_client(client_id))
+    client_id = context.get("client_id")
+    if not client_id:
+        return "Skipped — no client record"
+
+    result = asyncio.run(enrich_client(UUID(client_id)))
     fields_enriched = result.get("fields_enriched", 0) if isinstance(result, dict) else 0
+
+    # Store company context for entity generation
+    if isinstance(result, dict):
+        context["company_context"] = {
+            "name": context.get("client_name"),
+            "website": context.get("client_website"),
+            "industry": context.get("client_industry"),
+            "description": result.get("description", ""),
+        }
+
     return f"Enriched {fields_enriched} fields from website"
+
+
+def _execute_entity_generation(context: dict) -> str:
+    """Run the entity generation pipeline from chat transcript."""
+    from app.chains.generate_project_entities import (
+        generate_project_entities,
+        validate_onboarding_input,
+    )
+    from app.db.business_drivers import smart_upsert_business_driver
+    from app.db.features import bulk_replace_features
+    from app.db.personas import create_persona
+    from app.db.supabase_client import get_supabase
+    from app.db.workflows import create_workflow, create_workflow_step, pair_workflows
+
+    project_id = context["project_id"]
+    project_id_str = context["project_id_str"]
+
+    # Build transcript from chat_transcript or fall back to problem_description
+    transcript = context.get("chat_transcript") or context.get("problem_description", "")
+    is_valid, error = validate_onboarding_input(transcript)
+    if not is_valid:
+        raise Exception(error)
+
+    # Run the async generation pipeline
+    result = asyncio.run(
+        generate_project_entities(
+            chat_transcript=transcript,
+            company_context=context.get("company_context"),
+            project_id=project_id_str,
+        )
+    )
+
+    supabase = get_supabase()
+
+    # --- Save background + vision to project ---
+    project_update = {}
+    if result.background_statement:
+        project_update["description"] = result.background_statement
+    if result.vision_statement:
+        project_update["vision"] = result.vision_statement
+    if project_update:
+        supabase.table("projects").update(project_update).eq("id", project_id_str).execute()
+
+    # --- Save personas ---
+    persona_count = 0
+    for p in result.personas:
+        try:
+            slug = p.name.lower().replace(" ", "-")[:50]
+            status = "confirmed_consultant" if p.confidence >= 0.8 else "ai_generated"
+            create_persona(
+                project_id=project_id,
+                slug=slug,
+                name=p.name,
+                role=p.role,
+                description=p.description,
+                goals=p.goals,
+                pain_points=p.pain_points,
+                confirmation_status=status,
+            )
+            persona_count += 1
+        except Exception as e:
+            logger.warning(f"Failed to create persona {p.name}: {e}")
+
+    # --- Save business drivers ---
+    driver_count = 0
+    for d in result.drivers:
+        try:
+            status = "confirmed_consultant" if d.confidence >= 0.8 else "ai_generated"
+            driver_data = {
+                "project_id": project_id_str,
+                "driver_type": d.driver_type,
+                "description": d.description,
+                "priority": d.priority,
+                "confirmation_status": status,
+                "source": "entity_generation",
+            }
+            # Add type-specific fields
+            if d.driver_type == "pain":
+                if d.severity:
+                    driver_data["severity"] = d.severity
+                if d.frequency:
+                    driver_data["frequency"] = d.frequency
+                if d.business_impact:
+                    driver_data["business_impact"] = d.business_impact
+            elif d.driver_type == "goal":
+                if d.goal_timeframe:
+                    driver_data["goal_timeframe"] = d.goal_timeframe
+                if d.success_criteria:
+                    driver_data["success_criteria"] = d.success_criteria
+            elif d.driver_type == "kpi":
+                if d.baseline_value:
+                    driver_data["baseline_value"] = d.baseline_value
+                if d.target_value:
+                    driver_data["target_value"] = d.target_value
+                if d.measurement_method:
+                    driver_data["measurement_method"] = d.measurement_method
+
+            smart_upsert_business_driver(driver_data)
+            driver_count += 1
+        except Exception as e:
+            logger.warning(f"Failed to create driver: {e}")
+
+    # --- Save requirements as features ---
+    feature_rows = []
+    for r in result.requirements:
+        status = "confirmed_consultant" if r.confidence >= 0.8 else "ai_generated"
+        feature_rows.append({
+            "name": r.name,
+            "overview": r.overview,
+            "category": r.category,
+            "confirmation_status": status,
+            "confidence": r.confidence,
+            "status": "proposed",
+        })
+    feature_count = 0
+    if feature_rows:
+        try:
+            inserted, _ = bulk_replace_features(project_id, feature_rows)
+            feature_count = inserted
+        except Exception as e:
+            logger.warning(f"Failed to save features: {e}")
+
+    # --- Save workflows ---
+    workflow_count = 0
+    for w in result.workflows:
+        try:
+            status = "confirmed_consultant" if w.confidence >= 0.8 else "ai_generated"
+
+            # Create current state workflow
+            current_wf = create_workflow(project_id, {
+                "name": w.name,
+                "description": w.description,
+                "owner": w.owner,
+                "state_type": "current",
+                "source": "entity_generation",
+                "confirmation_status": status,
+            })
+
+            # Create future state workflow
+            future_wf = create_workflow(project_id, {
+                "name": w.name,
+                "description": w.description,
+                "owner": w.owner,
+                "state_type": "future",
+                "source": "entity_generation",
+                "confirmation_status": status,
+            })
+
+            # Pair them
+            pair_workflows(UUID(current_wf["id"]), UUID(future_wf["id"]))
+
+            # Create steps for current state
+            for step in w.current_state_steps:
+                create_workflow_step(
+                    workflow_id=UUID(current_wf["id"]),
+                    project_id=project_id,
+                    data={
+                        "step_index": step.step_index,
+                        "label": step.label,
+                        "description": step.description,
+                        "confirmation_status": status,
+                    },
+                )
+
+            # Create steps for future state
+            for step in w.future_state_steps:
+                create_workflow_step(
+                    workflow_id=UUID(future_wf["id"]),
+                    project_id=project_id,
+                    data={
+                        "step_index": step.step_index,
+                        "label": step.label,
+                        "description": step.description,
+                        "confirmation_status": status,
+                    },
+                )
+
+            workflow_count += 1
+        except Exception as e:
+            logger.warning(f"Failed to create workflow {w.name}: {e}")
+
+    # Store counts in context for quality check
+    context["entity_counts"] = {
+        "personas": persona_count,
+        "drivers": driver_count,
+        "features": feature_count,
+        "workflows": workflow_count,
+    }
+    context["validation_notes"] = result.validation_notes
+
+    return (
+        f"{persona_count} personas, {driver_count} drivers, "
+        f"{feature_count} features, {workflow_count} workflows"
+    )
 
 
 def _execute_stakeholder_enrichment(context: dict) -> str:
@@ -168,100 +336,38 @@ def _execute_stakeholder_enrichment(context: dict) -> str:
     return ", ".join(parts)
 
 
-def _execute_foundation(context: dict) -> str:
-    """Run strategic foundation analysis."""
-    from app.chains.run_strategic_foundation import run_strategic_foundation
+def _execute_quality_check(context: dict) -> str:
+    """Verify minimum entity counts and flag gaps."""
+    counts = context.get("entity_counts", {})
+    notes = context.get("validation_notes", [])
 
-    project_id = UUID(context["project_id_str"])
-    result = asyncio.run(run_strategic_foundation(project_id))
-    drivers = result.get("business_drivers_created", 0)
-    competitors = result.get("competitor_refs_created", 0)
-    return f"{drivers} business drivers, {competitors} competitor refs"
+    personas = counts.get("personas", 0)
+    workflows = counts.get("workflows", 0)
+    features = counts.get("features", 0)
+    drivers = counts.get("drivers", 0)
 
+    issues = []
+    if personas < 2:
+        issues.append(f"Only {personas} personas (min 2)")
+    if workflows < 2:
+        issues.append(f"Only {workflows} workflows (min 2)")
+    if features < 3:
+        issues.append(f"Only {features} features (min 3)")
+    if drivers < 4:
+        issues.append(f"Only {drivers} drivers (min 4)")
 
-def _execute_readiness_check(context: dict) -> str:
-    """Assess discovery readiness."""
-    from app.chains.assess_discovery_readiness import assess_discovery_readiness
+    if issues:
+        context["quality_issues"] = issues
+        return f"Gaps found: {'; '.join(issues)}"
 
-    project_id = UUID(context["project_id_str"])
-    result = assess_discovery_readiness(project_id)
-    score = result.get("overall_score", 0) if isinstance(result, dict) else 0
-    context["readiness_score"] = score
-    return f"Readiness: {score}/100"
-
-
-def _execute_discovery(context: dict) -> str:
-    """Run discovery research pipeline."""
-    from app.db.jobs import complete_job, create_job, fail_job, start_job
-    from app.db.supabase_client import get_supabase
-    from app.graphs.discovery_pipeline_graph import run_discovery_pipeline
-
-    project_id = UUID(context["project_id_str"])
-    readiness_score = context.get("readiness_score", 0)
-    if readiness_score < 60:
-        raise Exception(f"Readiness score {readiness_score} below threshold (60)")
-
-    # Get project info for discovery
-    supabase = get_supabase()
-    project = (
-        supabase.table("projects")
-        .select("id, name, client_name, metadata")
-        .eq("id", context["project_id_str"])
-        .maybe_single()
-        .execute()
-    )
-    project_data = project.data or {}
-    project_meta = project_data.get("metadata") or {}
-
-    company_name = (
-        project_meta.get("company_name")
-        or project_data.get("client_name")
-        or context.get("client_name")
-        or project_data.get("name", "Unknown")
-    )
-    company_website = project_meta.get("company_website") or context.get("client_website")
-    industry = project_meta.get("industry") or context.get("client_industry")
-
-    run_id = uuid.uuid4()
-    job_id = create_job(
-        project_id,
-        "discovery_pipeline",
-        {
-            "company_name": company_name,
-            "company_website": company_website,
-            "industry": industry,
-            "source": "project_launch",
-        },
-        run_id,
-    )
-
-    start_job(job_id)
-    try:
-        result = run_discovery_pipeline(
-            project_id=project_id,
-            run_id=run_id,
-            job_id=job_id,
-            company_name=company_name,
-            company_website=company_website,
-            industry=industry,
-            focus_areas=[],
-        )
-        complete_job(job_id, output_json=result)
-        drivers = result.get("business_drivers_count", 0)
-        competitors = result.get("competitors_count", 0)
-        return f"{drivers} drivers, {competitors} competitors found"
-    except Exception:
-        fail_job(job_id, "Discovery failed")
-        raise
+    return f"All checks passed: {personas}P, {workflows}W, {features}F, {drivers}D"
 
 
 STEP_EXECUTORS = {
-    "onboarding": _execute_onboarding,
-    "client_enrichment": _execute_client_enrichment,
+    "company_research": _execute_company_research,
+    "entity_generation": _execute_entity_generation,
     "stakeholder_enrichment": _execute_stakeholder_enrichment,
-    "foundation": _execute_foundation,
-    "readiness_check": _execute_readiness_check,
-    "discovery": _execute_discovery,
+    "quality_check": _execute_quality_check,
 }
 
 
@@ -272,7 +378,19 @@ STEP_EXECUTORS = {
 
 def _run_launch_pipeline(launch_id: UUID, context: dict) -> None:
     """Run the launch pipeline in a background thread."""
+    from app.db.notifications import create_notification
+    from app.db.supabase_client import get_supabase
+
+    project_id_str = context["project_id_str"]
+
     try:
+        # Set project building state
+        supabase = get_supabase()
+        supabase.table("projects").update({
+            "launch_status": "building",
+            "active_launch_id": str(launch_id),
+        }).eq("id", project_id_str).execute()
+
         update_launch_status(launch_id, "running")
         steps = get_launch_steps(launch_id)
         step_map = {s["step_key"]: s for s in steps}
@@ -303,11 +421,10 @@ def _run_launch_pipeline(launch_id: UUID, context: dict) -> None:
                 if not deps_resolved:
                     continue
 
-                # Check if any hard dependency failed (skip this step)
-                # For readiness_check: client_enrichment is soft (can fail)
+                # For entity_generation: company_research is soft (can fail)
                 hard_deps = deps
-                if step_key == "readiness_check":
-                    hard_deps = [d for d in deps if d != "client_enrichment"]
+                if step_key == "entity_generation":
+                    hard_deps = [d for d in deps if d != "company_research"]
 
                 failed_hard_deps = [
                     d for d in hard_deps if statuses.get(d) == "failed"
@@ -370,12 +487,41 @@ def _run_launch_pipeline(launch_id: UUID, context: dict) -> None:
         final_statuses = set(statuses.values())
         if final_statuses <= {"completed", "skipped"}:
             final = "completed"
-        elif "failed" in final_statuses and statuses.get("onboarding") != "failed":
+        elif "failed" in final_statuses and statuses.get("entity_generation") != "failed":
             final = "completed_with_errors"
         else:
             final = "failed"
 
         update_launch_status(launch_id, final, completed_at="now()")
+
+        # Update project launch status
+        project_launch_status = "ready" if final != "failed" else "failed"
+        supabase.table("projects").update({
+            "launch_status": project_launch_status,
+            "active_launch_id": None,
+        }).eq("id", project_id_str).execute()
+
+        # Create notification
+        project_name = context.get("project_name", "Your project")
+        user_id = context.get("user_id")
+        if user_id:
+            if project_launch_status == "ready":
+                create_notification(
+                    user_id=user_id,
+                    type="project_ready",
+                    title=f"{project_name} is ready to scope",
+                    body="Your project has been set up with personas, workflows, drivers, and requirements. Click to explore.",
+                    project_id=project_id_str,
+                )
+            else:
+                create_notification(
+                    user_id=user_id,
+                    type="project_failed",
+                    title=f"{project_name} setup encountered issues",
+                    body="Some steps failed during setup. You can still access the project and add data manually.",
+                    project_id=project_id_str,
+                )
+
         logger.info(
             f"Launch pipeline {launch_id} finished with status: {final}",
             extra={"statuses": statuses},
@@ -385,6 +531,11 @@ def _run_launch_pipeline(launch_id: UUID, context: dict) -> None:
         logger.error(f"Launch pipeline {launch_id} crashed: {e}", exc_info=True)
         try:
             update_launch_status(launch_id, "failed", completed_at="now()")
+            supabase = get_supabase()
+            supabase.table("projects").update({
+                "launch_status": "failed",
+                "active_launch_id": None,
+            }).eq("id", project_id_str).execute()
         except Exception:
             pass
 
@@ -400,7 +551,7 @@ async def launch_project(request: ProjectLaunchRequest) -> ProjectLaunchResponse
     Create a project and launch the automated setup pipeline.
 
     Synchronous phase: creates project, client, stakeholders, signal.
-    Async phase: runs onboarding, enrichment, foundation, discovery in background.
+    Async phase: runs entity generation, enrichment, quality check in background.
     """
     from app.core.chunking import chunk_text
     from app.core.embeddings import embed_texts
@@ -425,12 +576,18 @@ async def launch_project(request: ProjectLaunchRequest) -> ProjectLaunchResponse
     context: dict = {
         "project_id": project_id,
         "project_id_str": project_id_str,
+        "project_name": request.project_name,
         "auto_discovery": request.auto_discovery,
         "stakeholders": [],
         "client_name": request.client_name,
         "client_website": request.client_website,
         "client_industry": request.client_industry,
+        "problem_description": request.problem_description,
     }
+
+    # Store chat transcript for entity generation
+    if request.chat_transcript:
+        context["chat_transcript"] = request.chat_transcript
 
     client_id: str | None = None
     stakeholder_ids: list[str] = []
@@ -464,43 +621,47 @@ async def launch_project(request: ProjectLaunchRequest) -> ProjectLaunchResponse
         context["client_id"] = client_id
 
     # 3. Create stakeholders (non-fatal per stakeholder)
+    # LinkedIn URL is now included in the initial creation payload
     for s_input in request.stakeholders:
         try:
-            stakeholder = create_stakeholder(
-                project_id=project_id,
-                name=f"{s_input.first_name} {s_input.last_name}",
-                stakeholder_type=s_input.stakeholder_type,
-                email=s_input.email,
-                role=s_input.role,
-                confirmation_status="confirmed_consultant",
-                first_name=s_input.first_name,
-                last_name=s_input.last_name,
-            )
+            create_kwargs: dict = {
+                "project_id": project_id,
+                "name": f"{s_input.first_name} {s_input.last_name}",
+                "stakeholder_type": s_input.stakeholder_type,
+                "email": s_input.email,
+                "role": s_input.role,
+                "confirmation_status": "confirmed_consultant",
+                "first_name": s_input.first_name,
+                "last_name": s_input.last_name,
+            }
+            stakeholder = create_stakeholder(**create_kwargs)
             s_id = stakeholder["id"]
             stakeholder_ids.append(s_id)
 
-            s_context = {"id": s_id}
+            # Set LinkedIn profile via update (create_stakeholder doesn't accept it)
+            s_context: dict = {"id": s_id}
             if s_input.linkedin_url:
                 try:
                     update_stakeholder(UUID(s_id), {"linkedin_profile": s_input.linkedin_url})
                     s_context["linkedin_url"] = s_input.linkedin_url
                 except Exception as e:
-                    logger.warning(f"Failed to set LinkedIn for stakeholder {s_id}: {e}")
+                    logger.error(f"Failed to set LinkedIn for stakeholder {s_id}: {e}")
 
             context["stakeholders"].append(s_context)
         except Exception as e:
             logger.warning(f"Stakeholder creation failed for {s_input.first_name} {s_input.last_name}: {e}")
 
-    # 4. Signal ingestion (if description provided)
+    # 4. Signal ingestion — ingest chat transcript or problem description
     signal_id = None
-    if request.problem_description:
+    signal_text = request.chat_transcript or request.problem_description
+    if signal_text:
         try:
             run_id = uuid.uuid4()
             signal = insert_signal(
                 project_id=project_id,
                 signal_type="note",
                 source="project_launch",
-                raw_text=request.problem_description,
+                raw_text=signal_text,
                 metadata={"authority": "client", "auto_ingested": True},
                 run_id=run_id,
                 source_label=f"Project Launch: {request.project_name}",
@@ -508,7 +669,7 @@ async def launch_project(request: ProjectLaunchRequest) -> ProjectLaunchResponse
             signal_id = UUID(signal["id"])
 
             chunks = chunk_text(
-                request.problem_description,
+                signal_text,
                 metadata={"authority": "client"},
             )
             embeddings = embed_texts([c["content"] for c in chunks])
@@ -518,13 +679,24 @@ async def launch_project(request: ProjectLaunchRequest) -> ProjectLaunchResponse
         except Exception as e:
             logger.warning(f"Signal ingestion failed (non-fatal): {e}")
 
-    # 5. Create launch record + steps
+    # 5. Set building state immediately
+    from app.db.supabase_client import get_supabase
+
+    supabase = get_supabase()
+
+    # 6. Create launch record + steps
     launch = create_launch(
         project_id=project_id,
         client_id=UUID(client_id) if client_id else None,
         preferences={"auto_discovery": request.auto_discovery},
     )
     launch_id = UUID(launch["id"])
+
+    # Set building state with launch ID
+    supabase.table("projects").update({
+        "launch_status": "building",
+        "active_launch_id": str(launch_id),
+    }).eq("id", project_id_str).execute()
 
     for step_def in STEP_DEFINITIONS:
         create_launch_step(
@@ -544,14 +716,14 @@ async def launch_project(request: ProjectLaunchRequest) -> ProjectLaunchResponse
         for s in steps
     ]
 
-    # 6. Spawn background pipeline
+    # 7. Spawn background pipeline
     threading.Thread(
         target=_run_launch_pipeline,
         args=(launch_id, context),
         daemon=True,
     ).start()
 
-    # 7. Return response
+    # 8. Return response
     return ProjectLaunchResponse(
         launch_id=str(launch_id),
         project_id=project_id_str,

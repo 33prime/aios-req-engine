@@ -46,6 +46,10 @@ import type { DesignSelection, FeatureOverlay, FeatureVerdict, PrototypeSession,
 import type { PrototypeFrameHandle } from '@/components/prototype/PrototypeFrame'
 import ReviewStartModal from '@/components/prototype/ReviewStartModal'
 import ReviewEndModal from '@/components/prototype/ReviewEndModal'
+import { ProjectPulseOverlay } from './ProjectPulseOverlay'
+import { Activity } from 'lucide-react'
+import { getProjectPulse, dismissProjectPulse } from '@/lib/api'
+import type { ProjectPulse } from '@/types/api'
 
 interface WorkspaceLayoutProps {
   projectId: string
@@ -76,6 +80,34 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
     }
     return 'brd'
   })
+
+  // Project Pulse overlay
+  const [pulseData, setPulseData] = useState<ProjectPulse | null>(null)
+  const [showPulse, setShowPulse] = useState(false)
+
+  useEffect(() => {
+    getProjectPulse(projectId)
+      .then((data) => {
+        setPulseData(data)
+        // Auto-show on first visit or if user has toggled it on
+        const showOnOpen = typeof window !== 'undefined'
+          ? localStorage.getItem(`pulse-show-on-open-${projectId}`) !== 'false'
+          : true
+        if (data.first_visit || showOnOpen) {
+          setShowPulse(true)
+        }
+      })
+      .catch(() => {
+        // Non-critical — pulse is optional
+      })
+  }, [projectId])
+
+  const handleDismissPulse = useCallback(() => {
+    setShowPulse(false)
+    if (pulseData?.first_visit) {
+      dismissProjectPulse(projectId).catch(() => {})
+    }
+  }, [projectId, pulseData])
 
   // Pending action from cross-view navigation (e.g., Overview → BRD)
   const [pendingAction, setPendingAction] = useState<NextAction | null>(null)
@@ -474,6 +506,22 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
                     </p>
                   )}
                 </div>
+                {/* Pulse health icon */}
+                {pulseData && (
+                  <button
+                    onClick={() => setShowPulse(true)}
+                    className="p-1.5 rounded-lg hover:bg-[#F4F4F4] transition-colors group"
+                    title={`Project Pulse — ${pulseData.score}%`}
+                  >
+                    <Activity
+                      className={`w-4 h-4 ${
+                        pulseData.score >= 60
+                          ? 'text-[#3FAF7A] group-hover:text-[#25785A]'
+                          : 'text-amber-500 group-hover:text-amber-600'
+                      }`}
+                    />
+                  </button>
+                )}
               </div>
 
               <PhaseSwitcher
@@ -656,6 +704,14 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
           prototypeId={prototypeId}
           onVerdictSubmit={handleVerdictSubmit}
         />
+        {/* Project Pulse Overlay */}
+        {showPulse && pulseData && (
+          <ProjectPulseOverlay
+            pulse={pulseData}
+            projectId={projectId}
+            onDismiss={handleDismissPulse}
+          />
+        )}
       </div>
     </AssistantProvider>
   )

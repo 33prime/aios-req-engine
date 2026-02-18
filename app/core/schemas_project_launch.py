@@ -15,6 +15,7 @@ class StakeholderInput(BaseModel):
 class ProjectLaunchRequest(BaseModel):
     project_name: str = Field(..., min_length=1)
     problem_description: str | None = None
+    chat_transcript: str | None = None  # Full onboarding chat for entity generation
     client_id: str | None = None
     client_name: str | None = None
     client_website: str | None = None

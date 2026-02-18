@@ -5,7 +5,7 @@
  * - Smaller logo, icons, text
  * - Tighter spacing
  * - Green "+" button and notification bell (visible in collapsed state too)
- * - Launches ProjectLaunchWizard modal from "+" button
+ * - Launches HybridOnboardingModal from "+" button
  */
 
 'use client'
@@ -20,16 +20,16 @@ import {
   Building2,
   UserCircle,
   Settings,
+  Shield,
   ChevronLeft,
   ChevronRight,
   User,
-  Bell,
   Plus,
 } from 'lucide-react'
 import { useAuth } from '@/components/auth/AuthProvider'
 import { useProfile } from '@/lib/hooks/use-api'
-import { ProjectLaunchWizard } from '@/app/projects/components/ProjectLaunchWizard'
-import type { ProjectLaunchResponse } from '@/types/workspace'
+import { HybridOnboardingModal } from '@/app/projects/components/HybridOnboardingModal'
+import { NotificationBell } from './NotificationBell'
 
 // =============================================================================
 // NavItem
@@ -103,11 +103,14 @@ export function AppSidebar({ isCollapsed: controlledCollapsed, onToggleCollapse 
     { href: '/projects', icon: <Folder className="w-4 h-4" />, label: 'Projects' },
     { href: '/clients', icon: <Building2 className="w-4 h-4" />, label: 'Clients' },
     { href: '/people', icon: <UserCircle className="w-4 h-4" />, label: 'People' },
-    { href: '/settings', icon: <Settings className="w-4 h-4" />, label: 'Admin Panel' },
+    { href: '/settings', icon: <Settings className="w-4 h-4" />, label: 'Settings' },
+    ...(profile?.platform_role === 'super_admin'
+      ? [{ href: '/admin', icon: <Shield className="w-4 h-4" />, label: 'Admin' }]
+      : []),
   ]
 
   // Handle project launched
-  const handleProjectLaunched = (response: ProjectLaunchResponse) => {
+  const handleProjectLaunched = (response: { project_id: string; launch_id: string }) => {
     setShowCreateProject(false)
     router.push(`/projects/${response.project_id}?launch=${response.launch_id}`)
   }
@@ -148,13 +151,7 @@ export function AppSidebar({ isCollapsed: controlledCollapsed, onToggleCollapse 
           {/* Action buttons — always visible */}
           <div className={`flex items-center ${isCollapsed ? 'flex-col gap-1.5' : 'gap-1'}`}>
             {/* Notification bell */}
-            <button
-              className="relative p-1.5 rounded-lg text-[#999999] hover:bg-[#F4F4F4] hover:text-[#333333] transition-colors"
-              title="Notifications"
-            >
-              <Bell className="w-4 h-4" />
-              {/* Badge placeholder — will be wired later */}
-            </button>
+            <NotificationBell />
 
             {/* Green "+" button */}
             <button
@@ -175,7 +172,7 @@ export function AppSidebar({ isCollapsed: controlledCollapsed, onToggleCollapse 
               href={item.href}
               icon={item.icon}
               label={item.label}
-              isActive={pathname === item.href}
+              isActive={item.href === '/admin' ? pathname.startsWith('/admin') : pathname === item.href}
               isCollapsed={isCollapsed}
             />
           ))}
@@ -234,8 +231,8 @@ export function AppSidebar({ isCollapsed: controlledCollapsed, onToggleCollapse 
         )}
       </aside>
 
-      {/* Project Launch Wizard */}
-      <ProjectLaunchWizard
+      {/* Hybrid Onboarding Modal */}
+      <HybridOnboardingModal
         isOpen={showCreateProject}
         onClose={() => setShowCreateProject(false)}
         onLaunched={handleProjectLaunched}

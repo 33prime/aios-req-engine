@@ -138,15 +138,22 @@ async def project_creation_chat(request: ProjectCreationChatRequest) -> Streamin
 
             logger.info(f"Conversation state: {state}")
 
-            # Check if ready to create project
-            if state["ready_to_create"] and state["project_name"]:
+            # Check if summary is ready (new flow — chat collects, frontend launches)
+            if state.get("summary_ready") and state["project_name"]:
+                summary_data = {
+                    "name": state["project_name"],
+                    "problem": state.get("problem", ""),
+                    "users": state.get("users", ""),
+                    "features": state.get("features", ""),
+                    "org_fit": state.get("org_fit", ""),
+                }
+                yield f"data: {json.dumps({'type': 'summary_ready', 'summary': summary_data})}\n\n"
+
+            # Legacy: check if ready to create project (backwards compatible)
+            elif state["ready_to_create"] and state["project_name"]:
                 try:
-                    # Create the project
                     project_data = await _create_project_from_state(state)
-
-                    # Send project created event
                     yield f"data: {json.dumps({'type': 'project_created', 'project': project_data})}\n\n"
-
                 except Exception as e:
                     logger.error(f"Failed to create project: {e}")
                     yield f"data: {json.dumps({'type': 'error', 'message': f'Failed to create project: {str(e)}'})}\n\n"

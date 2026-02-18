@@ -30,9 +30,18 @@ export interface CreatedProject {
   signal_id?: string
 }
 
+export interface ChatSummaryData {
+  name: string
+  problem: string
+  users: string
+  features: string
+  org_fit: string
+}
+
 interface UseProjectCreationChatOptions {
   onError?: (error: Error) => void
   onProjectCreated?: (project: CreatedProject) => void
+  onSummaryReady?: (summary: ChatSummaryData) => void
 }
 
 interface UseProjectCreationChatReturn {
@@ -40,6 +49,7 @@ interface UseProjectCreationChatReturn {
   isLoading: boolean
   error: Error | null
   projectCreated: CreatedProject | null
+  chatSummary: ChatSummaryData | null
   sendMessage: (message: string) => Promise<void>
   initializeChat: () => Promise<void>
   reset: () => void
@@ -57,6 +67,7 @@ function stripMarkers(content: string): string {
   // Remove complete [[...]] markers
   let cleaned = content.replace(/\s*\[\[STEP:.*?\]\]/gs, '')
   cleaned = cleaned.replace(/\s*\[\[READY_TO_CREATE.*?\]\]/gs, '')
+  cleaned = cleaned.replace(/\s*\[\[SUMMARY_READY.*?\]\]/gs, '')
   cleaned = cleaned.replace(/\s*\[\[.*?\]\]/gs, '')
   // Remove incomplete markers (no closing ]])
   cleaned = cleaned.replace(/\s*\[\[[^\]]*$/g, '')
@@ -66,11 +77,13 @@ function stripMarkers(content: string): string {
 export function useProjectCreationChat({
   onError,
   onProjectCreated,
+  onSummaryReady,
 }: UseProjectCreationChatOptions = {}): UseProjectCreationChatReturn {
   const [messages, setMessages] = useState<ProjectCreationMessage[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<Error | null>(null)
   const [projectCreated, setProjectCreated] = useState<CreatedProject | null>(null)
+  const [chatSummary, setChatSummary] = useState<ChatSummaryData | null>(null)
   const abortControllerRef = useRef<AbortController | null>(null)
   const initializedRef = useRef(false)
 
@@ -223,8 +236,13 @@ export function useProjectCreationChat({
 
                     return newMessages
                   })
+                } else if (event.type === 'summary_ready') {
+                  // Chat has collected all info — summary is ready
+                  const summary: ChatSummaryData = event.summary
+                  setChatSummary(summary)
+                  onSummaryReady?.(summary)
                 } else if (event.type === 'project_created') {
-                  // Project was created
+                  // Project was created (legacy flow)
                   const project: CreatedProject = event.project
                   setProjectCreated(project)
                   onProjectCreated?.(project)
@@ -270,13 +288,14 @@ export function useProjectCreationChat({
         abortControllerRef.current = null
       }
     },
-    [messages, isLoading, onError, onProjectCreated]
+    [messages, isLoading, onError, onProjectCreated, onSummaryReady]
   )
 
   const reset = useCallback(() => {
     setMessages([])
     setError(null)
     setProjectCreated(null)
+    setChatSummary(null)
     initializedRef.current = false
     abortControllerRef.current?.abort()
     abortControllerRef.current = null
@@ -287,6 +306,7 @@ export function useProjectCreationChat({
     isLoading,
     error,
     projectCreated,
+    chatSummary,
     sendMessage,
     initializeChat,
     reset,

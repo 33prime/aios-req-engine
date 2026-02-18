@@ -3694,3 +3694,181 @@ async def get_data_entity_graph(project_id: UUID) -> DataEntityGraphResponse:
     except Exception as e:
         logger.exception(f"Failed to get data entity graph for project {project_id}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# =============================================================================
+# Project Pulse — readiness overlay
+# =============================================================================
+
+
+class PulseNextAction(BaseModel):
+    title: str
+    description: str
+    priority: str = "medium"
+
+
+class ProjectPulseResponse(BaseModel):
+    score: int = 0
+    summary: str = ""
+    background: str | None = None
+    vision: str | None = None
+    entity_counts: dict = {}
+    strengths: list[str] = []
+    next_actions: list[PulseNextAction] = []
+    first_visit: bool = True
+
+
+@router.get("/pulse", response_model=ProjectPulseResponse)
+async def get_project_pulse(project_id: UUID):
+    """Get the Project Pulse overview — readiness score, strengths, next actions."""
+    try:
+        supabase = get_client()
+
+        # Load project
+        project = (
+            supabase.table("projects")
+            .select("id, name, description, vision, metadata")
+            .eq("id", str(project_id))
+            .maybe_single()
+            .execute()
+        )
+        if not project.data:
+            raise HTTPException(status_code=404, detail="Project not found")
+        proj = project.data
+        metadata = proj.get("metadata") or {}
+
+        # Entity counts
+        personas = supabase.table("personas").select("id", count="exact").eq("project_id", str(project_id)).execute()
+        features = supabase.table("features").select("id", count="exact").eq("project_id", str(project_id)).execute()
+        workflows = supabase.table("workflows").select("id", count="exact").eq("project_id", str(project_id)).execute()
+        drivers = supabase.table("business_drivers").select("id", count="exact").eq("project_id", str(project_id)).execute()
+        vp_steps = supabase.table("vp_steps").select("id", count="exact").eq("project_id", str(project_id)).execute()
+        stakeholders = supabase.table("stakeholders").select("id", count="exact").eq("project_id", str(project_id)).execute()
+
+        counts = {
+            "personas": personas.count or 0,
+            "features": features.count or 0,
+            "workflows": workflows.count or 0,
+            "drivers": drivers.count or 0,
+            "vp_steps": vp_steps.count or 0,
+            "stakeholders": stakeholders.count or 0,
+        }
+
+        # Compute score (simple heuristic, no LLM)
+        score = 0
+        score += min(counts["personas"] * 10, 20)       # max 20 pts
+        score += min(counts["workflows"] * 5, 20)        # max 20 pts
+        score += min(counts["features"] * 4, 20)         # max 20 pts
+        score += min(counts["drivers"] * 2, 20)          # max 20 pts
+        score += min(counts["stakeholders"] * 5, 10)     # max 10 pts
+        if proj.get("vision"):
+            score += 5
+        if proj.get("description"):
+            score += 5
+        score = min(score, 100)
+
+        # Strengths
+        strengths = []
+        if counts["personas"] >= 2:
+            strengths.append(f"{counts['personas']} personas identified")
+        if counts["workflows"] >= 2:
+            strengths.append(f"{counts['workflows']} workflows mapped")
+        if counts["features"] >= 3:
+            strengths.append(f"{counts['features']} requirements captured")
+        if counts["drivers"] >= 4:
+            strengths.append(f"{counts['drivers']} business drivers defined")
+        if counts["stakeholders"] >= 1:
+            strengths.append(f"{counts['stakeholders']} stakeholder(s) recorded")
+
+        # Summary
+        if score >= 70:
+            summary = f"Strong start — {', '.join(strengths[:3])}."
+        elif score >= 40:
+            summary = f"Good foundation — {', '.join(strengths[:2])}. A few areas need attention."
+        else:
+            summary = "Early stage — let's build out the project scope together."
+
+        # Next actions
+        next_actions: list[PulseNextAction] = []
+        if counts["workflows"] < 2:
+            next_actions.append(PulseNextAction(
+                title="Map key workflows",
+                description="Add current and future state workflows to show process improvements.",
+                priority="high",
+            ))
+        if counts["personas"] < 2:
+            next_actions.append(PulseNextAction(
+                title="Define user personas",
+                description="Add at least 2 personas to anchor requirements around real users.",
+                priority="high",
+            ))
+        if counts["stakeholders"] < 1:
+            next_actions.append(PulseNextAction(
+                title="Add key stakeholders",
+                description="Record the key people involved — champions, sponsors, and decision-makers.",
+                priority="medium",
+            ))
+        if counts["features"] >= 3 and counts["workflows"] >= 2:
+            next_actions.append(PulseNextAction(
+                title="Review and confirm entities",
+                description="Walk through the generated requirements and workflows with your team.",
+                priority="medium",
+            ))
+        if not next_actions:
+            next_actions.append(PulseNextAction(
+                title="Upload a meeting transcript",
+                description="Feed in a recording or notes to extract more signals.",
+                priority="low",
+            ))
+
+        # First visit check
+        first_visit = not metadata.get("pulse_dismissed", False)
+
+        return ProjectPulseResponse(
+            score=score,
+            summary=summary,
+            background=proj.get("description"),
+            vision=proj.get("vision"),
+            entity_counts=counts,
+            strengths=strengths,
+            next_actions=next_actions[:3],
+            first_visit=first_visit,
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"Failed to get project pulse for {project_id}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/pulse/dismiss")
+async def dismiss_pulse(project_id: UUID):
+    """Mark the pulse overlay as dismissed for this project."""
+    try:
+        supabase = get_client()
+        # Get current metadata
+        result = (
+            supabase.table("projects")
+            .select("metadata")
+            .eq("id", str(project_id))
+            .maybe_single()
+            .execute()
+        )
+        if not result.data:
+            raise HTTPException(status_code=404, detail="Project not found")
+
+        metadata = result.data.get("metadata") or {}
+        metadata["pulse_dismissed"] = True
+
+        supabase.table("projects").update(
+            {"metadata": metadata}
+        ).eq("id", str(project_id)).execute()
+
+        return {"ok": True}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"Failed to dismiss pulse for {project_id}")
+        raise HTTPException(status_code=500, detail=str(e))

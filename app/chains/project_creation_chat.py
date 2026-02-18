@@ -18,24 +18,26 @@ class ConversationState(TypedDict):
     problem: str | None
     users: str | None
     features: str | None
+    org_fit: str | None
     has_client_info: bool
     client_info: str | None
     ready_to_create: bool
+    summary_ready: bool
 
 
 PROJECT_CREATION_SYSTEM_PROMPT = """You are helping a consultant create a new project. Be friendly, warm, and guide them through a structured conversation.
 
 ## Conversation Flow
 
-Follow this exact sequence:
+Collect exactly 5 things in this order:
 
 1. **Project Name** - Ask what they want to call the project
 2. **Problem Statement** - Ask what problem they're trying to solve
-3. **Summary + Users Question** - Briefly summarize what you've heard, then ask who the primary users/beneficiaries are
-4. **Summary + Features Question** - Summarize the users, then ask about 2-4 core features they're envisioning
-5. **Final Summary** - Provide a nice summary of everything gathered
-6. **Client Info Question** - In a NEW message, ask about client details (client name, website, why they want to build this now)
-7. **Create Project** - After they respond about client info, signal ready to create
+3. **Target Users** - Ask who the primary users/beneficiaries are
+4. **Key Features** - Ask about 2-4 core features or capabilities
+5. **Organizational Fit** - Ask how this fits into the organization (why now, what it replaces, strategic context)
+
+After collecting all 5, provide a concise summary and signal ready.
 
 ## Response Guidelines
 
@@ -52,8 +54,8 @@ After each response, include ONE of these markers on a new line:
 - `[[STEP:problem|NAME:<project name>]]` - Have name, waiting for problem
 - `[[STEP:users|NAME:<name>|PROBLEM:<brief summary>]]` - Have problem, waiting for users
 - `[[STEP:features|NAME:<name>|USERS:<brief summary>]]` - Have users, waiting for features
-- `[[STEP:client_info|NAME:<name>]]` - After summary, waiting for client info response
-- `[[READY_TO_CREATE|NAME:<name>|DESCRIPTION:<full context>]]` - Ready to create project
+- `[[STEP:org_fit|NAME:<name>]]` - Have features, waiting for org fit
+- `[[SUMMARY_READY|NAME:<name>|PROBLEM:<problem>|USERS:<users>|FEATURES:<features>|ORG_FIT:<org_fit>]]` - All 5 collected
 
 ## Example Conversation
 
@@ -78,33 +80,25 @@ You: Perfect! So we're building for:
 [[STEP:features|NAME:Auto Intelligence App|USERS:dealership managers and sales staff]]
 
 User: Real-time inventory tracking, automated pricing suggestions, and a mobile app for sales staff
-You: Excellent! Here's what we have so far:
+You: Those are solid features. Last question — **how does this fit into the organization?** What are they using today, and why is now the right time to build this?
+[[STEP:org_fit|NAME:Auto Intelligence App]]
+
+User: They're using spreadsheets and it's becoming unmanageable as they expand to 5 locations
+You: Here's a summary of everything:
 
 **Auto Intelligence App**
 - **Problem:** Efficient inventory management for car dealerships
 - **Users:** Dealership managers & sales staff
-- **Core Features:**
-  • Real-time inventory tracking
-  • Automated pricing suggestions
-  • Mobile app for sales staff
-
-Now for some quick client details - **what's the client's name, their website (if any), and why do they want to build this now?**
-[[STEP:client_info|NAME:Auto Intelligence App]]
-
-User: Acme Motors, acmemotors.com, they're losing sales due to inventory visibility issues
-You: Perfect! Creating your project now with all that context.
-[[READY_TO_CREATE|NAME:Auto Intelligence App|DESCRIPTION:Inventory management solution for car dealerships. Client: Acme Motors (acmemotors.com). Users: dealership managers and sales staff. Features: real-time inventory tracking, automated pricing suggestions, mobile app for sales staff. Motivation: losing sales due to inventory visibility issues.]]
-
-User: No, I don't have that info yet
-You: No problem! I'll create your project with what we have. You can always add client details later.
-[[READY_TO_CREATE|NAME:Auto Intelligence App|DESCRIPTION:Inventory management solution for car dealerships. Users: dealership managers and sales staff. Features: real-time inventory tracking, automated pricing suggestions, mobile app for sales staff.]]
+- **Features:** Real-time inventory tracking, automated pricing, mobile app
+- **Context:** Replacing spreadsheets as they scale to 5 locations
+[[SUMMARY_READY|NAME:Auto Intelligence App|PROBLEM:Efficient inventory management for car dealerships|USERS:Dealership managers and sales staff|FEATURES:Real-time inventory tracking, automated pricing suggestions, mobile app for sales staff|ORG_FIT:Replacing spreadsheets as they scale to 5 locations]]
 
 ## Important
 
 - ALWAYS include the marker at the end of EVERY response
 - Keep summaries brief in markers (under 100 chars each)
-- The DESCRIPTION in READY_TO_CREATE should capture all key info gathered
-- The client info question should be AFTER the summary, asking for: client name, website, and why now"""
+- The chat does NOT create the project — it collects info and signals summary_ready
+- After the summary, stop — the frontend handles the next steps (client card, stakeholder card, launch)"""
 
 
 def get_initial_greeting() -> str:
@@ -128,15 +122,31 @@ def parse_conversation_state(messages: list[dict], last_response: str) -> Conver
         "problem": None,
         "users": None,
         "features": None,
+        "org_fit": None,
         "has_client_info": False,
         "client_info": None,
         "ready_to_create": False,
+        "summary_ready": False,
     }
 
-    # Check for [[READY_TO_CREATE|NAME:<name>|DESCRIPTION:<desc>]] marker
+    # Check for [[SUMMARY_READY|NAME:...|PROBLEM:...|USERS:...|FEATURES:...|ORG_FIT:...]] marker
+    summary_match = re.search(
+        r"\[\[SUMMARY_READY\|NAME:([^|]+)\|PROBLEM:([^|]+)\|USERS:([^|]+)\|FEATURES:([^|]+)\|ORG_FIT:([^\]]+)\]\]",
+        last_response,
+    )
+    if summary_match:
+        state["project_name"] = summary_match.group(1).strip()
+        state["problem"] = summary_match.group(2).strip()
+        state["users"] = summary_match.group(3).strip()
+        state["features"] = summary_match.group(4).strip()
+        state["org_fit"] = summary_match.group(5).strip()
+        state["summary_ready"] = True
+        return state
+
+    # Legacy support: check for [[READY_TO_CREATE|NAME:<name>|DESCRIPTION:<desc>]] marker
     ready_match = re.search(
         r"\[\[READY_TO_CREATE\|NAME:([^|]+)\|DESCRIPTION:([^\]]+)\]\]",
-        last_response
+        last_response,
     )
     if ready_match:
         state["project_name"] = ready_match.group(1).strip()
@@ -149,11 +159,6 @@ def parse_conversation_state(messages: list[dict], last_response: str) -> Conver
     name_match = re.search(r"\[\[STEP:[^|]+\|NAME:([^|\]]+)", last_response)
     if name_match:
         state["project_name"] = name_match.group(1).strip()
-
-    # Look for client information in the last user message if we're at client_info step
-    if "[[STEP:client_info" in last_response or "STEP:client_info" in str(messages):
-        # The next user response after client_info step is the client info
-        pass
 
     return state
 
@@ -181,10 +186,13 @@ def strip_markers_from_response(response: str) -> str:
     cleaned = re.sub(r"\s*\[HAS_NAME:.*?\]", "", cleaned)
     cleaned = re.sub(r"\s*\[READY_TO_CREATE\]", "", cleaned)
 
+    # Remove complete [[SUMMARY_READY|...]] markers
+    cleaned = re.sub(r"\s*\[\[SUMMARY_READY.*?\]\]", "", cleaned, flags=re.DOTALL)
+
     # CRITICAL: Remove incomplete markers that are still being streamed
-    # This catches [[STEP:... or [[READY_TO_CREATE... without closing ]]
+    # This catches [[STEP:... or [[READY_TO_CREATE... or [[SUMMARY_READY... without closing ]]
     # The marker starts with [[ and goes to end of string
-    cleaned = re.sub(r"\s*\[\[(?:STEP|READY_TO_CREATE)[^\]]*$", "", cleaned)
+    cleaned = re.sub(r"\s*\[\[(?:STEP|READY_TO_CREATE|SUMMARY_READY)[^\]]*$", "", cleaned)
 
     # Even more aggressive: remove any [[ followed by anything to end of string
     # This catches any incomplete double-bracket marker

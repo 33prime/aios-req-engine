@@ -185,6 +185,8 @@ export interface Project {
   updated_at?: string
   signal_id?: string // ID of auto-ingested description signal
   onboarding_job_id?: string // ID of onboarding job (for polling progress)
+  launch_status?: 'building' | 'ready' | 'failed' | null
+  active_launch_id?: string | null
 }
 
 export interface ProjectDetail extends Project {
@@ -803,4 +805,140 @@ export interface PhaseProgressResponse {
   portal_enabled: boolean
   clients_count: number
   last_client_activity?: string
+}
+
+// =============================================================================
+// Admin Panel Types
+// =============================================================================
+
+export interface AdminDashboardStats {
+  total_users: number
+  active_users_7d: number
+  total_projects: number
+  active_projects: number
+  total_clients: number
+  total_signals: number
+  total_icp_signals: number
+  total_cost_usd: number
+  cost_7d_usd: number
+  total_tokens: number
+  projects_by_stage: Record<string, number>
+  users_by_role: Record<string, number>
+  recent_signups: Array<{ user_id: string; name?: string; email?: string; photo_url?: string; platform_role: string; created_at: string }>
+}
+
+export interface AdminUserSummary {
+  user_id: string
+  email: string
+  first_name?: string | null
+  last_name?: string | null
+  photo_url?: string | null
+  platform_role: string
+  enrichment_status?: string | null
+  profile_completeness: number
+  project_count: number
+  signal_count: number
+  total_cost_usd: number
+  total_tokens: number
+  last_active?: string | null
+  created_at: string
+}
+
+export interface AdminUserDetail {
+  profile: Record<string, any>
+  projects: Array<Record<string, any>>
+  total_signals_submitted: number
+  signals_by_type: Record<string, number>
+  total_entities_generated: number
+  icp_scores: Array<{ profile_name: string; score: number; signal_count: number; computed_at?: string }>
+  recent_signals: Array<Record<string, any>>
+  enriched_profile?: {
+    consultant_summary?: string
+    expertise_areas?: string[]
+    industry_expertise?: string[]
+    methodology_expertise?: string[]
+  } | null
+  total_cost_usd: number
+  total_tokens_input: number
+  total_tokens_output: number
+  cost_by_workflow: Record<string, number>
+  cost_by_model: Record<string, number>
+  cost_30d_usd: number
+  recent_llm_calls: Array<Record<string, any>>
+}
+
+export interface AdminCostAnalytics {
+  total_cost_usd: number
+  total_tokens_input: number
+  total_tokens_output: number
+  total_calls: number
+  cost_by_workflow: Array<{ workflow: string; cost: number; calls: number; tokens: number }>
+  cost_by_model: Array<{ model: string; provider: string; cost: number; calls: number; tokens: number }>
+  cost_by_user: Array<{ user_id: string; name: string; email: string; cost: number; calls: number }>
+  daily_cost: Array<{ date: string; cost: number; calls: number }>
+}
+
+export interface AdminProjectSummary {
+  id: string
+  name: string
+  stage?: string | null
+  status?: string | null
+  client_name?: string | null
+  owner_id?: string | null
+  owner_name?: string | null
+  owner_photo_url?: string | null
+  signal_count: number
+  feature_count: number
+  readiness_score?: number | null
+  created_at: string
+}
+
+export interface LeaderboardEntry {
+  rank: number
+  user_id: string
+  name: string
+  email: string
+  photo_url?: string | null
+  score: number
+  signal_count: number
+  computed_at?: string
+}
+
+// Notifications
+export interface Notification {
+  id: string
+  type: string
+  title: string
+  body: string | null
+  project_id: string | null
+  entity_type?: string | null
+  entity_id?: string | null
+  read: boolean
+  created_at: string
+  metadata: Record<string, unknown>
+}
+
+// Project Pulse
+export interface ProjectPulse {
+  score: number
+  summary: string
+  background: string | null
+  vision: string | null
+  entity_counts: Record<string, number>
+  strengths: string[]
+  next_actions: Array<{
+    title: string
+    description: string
+    priority: string
+  }>
+  first_visit: boolean
+}
+
+// Chat Summary (from onboarding chat)
+export interface ChatSummary {
+  name: string
+  problem: string
+  users: string
+  features: string
+  org_fit: string
 }
