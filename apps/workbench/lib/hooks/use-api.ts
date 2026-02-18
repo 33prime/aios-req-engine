@@ -15,6 +15,7 @@ import {
   getBRDWorkspaceData,
   getNextActions,
   getUnifiedActions,
+  getContextFrame,
   listOpenQuestions,
   getQuestionCounts,
   batchGetDashboardData,
@@ -23,6 +24,7 @@ import {
 } from '@/lib/api'
 import type {
   NextAction,
+  ProjectContextFrame,
   UnifiedActionsResult,
   TaskStatsResponse,
   BatchDashboardData,
@@ -145,6 +147,22 @@ export function useNextActions(
   return useSWR<{ actions: NextAction[] }>(
     projectId ? `next-actions:${projectId}` : null,
     () => getNextActions(projectId!),
+    {
+      dedupingInterval: MED_CACHE,
+      revalidateOnFocus: false,
+      ...config,
+    },
+  )
+}
+
+// --- Context frame (v3 — action count for BrainBubble badge) ---
+export function useContextFrame(
+  projectId: string | undefined,
+  config?: SWRConfiguration<ProjectContextFrame>,
+) {
+  return useSWR<ProjectContextFrame>(
+    projectId ? `context-frame:${projectId}` : null,
+    () => getContextFrame(projectId!, 5),
     {
       dedupingInterval: MED_CACHE,
       revalidateOnFocus: false,

@@ -28,7 +28,6 @@ import { ConstraintDrawer } from './components/ConstraintDrawer'
 import { FeatureDrawer } from './components/FeatureDrawer'
 import { BusinessDriverDetailDrawer } from './components/BusinessDriverDetailDrawer'
 import { ConfidenceDrawer } from './components/ConfidenceDrawer'
-import { IntelligencePanel } from './components/IntelligencePanel'
 import { OpenQuestionsPanel } from './components/OpenQuestionsPanel'
 import { ImpactPreviewModal } from './components/ImpactPreviewModal'
 import {
@@ -66,11 +65,9 @@ interface BRDCanvasProps {
   onSendToChat?: (action: NextAction) => void
   pendingAction?: NextAction | null
   onPendingActionConsumed?: () => void
-  /** Hide intelligence panel (e.g. when rendered in compact mode) */
-  hideIntelligence?: boolean
 }
 
-export function BRDCanvas({ projectId, initialData, initialNextActions, onRefresh, onSendToChat, pendingAction, onPendingActionConsumed, hideIntelligence }: BRDCanvasProps) {
+export function BRDCanvas({ projectId, initialData, initialNextActions, onRefresh, onSendToChat, pendingAction, onPendingActionConsumed }: BRDCanvasProps) {
   const [data, setData] = useState<BRDWorkspaceData | null>(initialData ?? null)
   const [isLoading, setIsLoading] = useState(!initialData)
   const [error, setError] = useState<string | null>(null)
@@ -80,7 +77,7 @@ export function BRDCanvas({ projectId, initialData, initialNextActions, onRefres
   const [healthLoading, setHealthLoading] = useState(true)
   const [isRefreshingHealth, setIsRefreshingHealth] = useState(false)
 
-  // Next Best Actions — now handled by IntelligencePanel (separate API call)
+  // Next Best Actions — now handled by BrainPanel (separate API call)
   // Legacy: keep for pendingAction backward compat from OverviewPanel
   const nextActions: NextAction[] = data?.next_actions ?? initialNextActions ?? []
 
@@ -595,24 +592,6 @@ export function BRDCanvas({ projectId, initialData, initialNextActions, onRefres
     }
   }, [data, handleConfirmAll, handleOpenConfidence, closeAllDrawers, onSendToChat])
 
-  // Intelligence Panel navigation — scrolls BRD to the relevant section
-  const handleIntelligenceNavigate = useCallback((entityType: string, entityId: string | null) => {
-    const sectionMap: Record<string, string> = {
-      vp_step: 'brd-section-workflows',
-      workflow: 'brd-section-workflows',
-      business_driver: 'brd-section-business-context',
-      persona: 'brd-section-personas',
-      feature: 'brd-section-features',
-      data_entity: 'brd-section-data-entities',
-      stakeholder: 'brd-section-stakeholders',
-      constraint: 'brd-section-constraints',
-      open_question: 'brd-section-questions',
-      project: 'brd-section-business-context',
-    }
-    const sectionId = sectionMap[entityType] || 'brd-section-business-context'
-    document.getElementById(sectionId)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-  }, [])
-
   // Consume pending action from cross-view navigation (Overview → BRD)
   useEffect(() => {
     if (pendingAction && data) {
@@ -976,19 +955,8 @@ export function BRDCanvas({ projectId, initialData, initialNextActions, onRefres
 
   return (
     <div className="flex h-full">
-      {/* Intelligence Panel — left 1/3 */}
-      {!hideIntelligence && (
-        <div className="w-[340px] min-w-[300px] flex-shrink-0 h-full overflow-hidden">
-          <IntelligencePanel
-            projectId={projectId}
-            onNavigate={handleIntelligenceNavigate}
-            onCascade={() => { loadData(); onRefresh?.() }}
-          />
-        </div>
-      )}
-
-      {/* BRD Content — right 2/3 */}
-      <div className={`flex-1 overflow-y-auto ${hideIntelligence ? '' : 'border-l border-[#E5E5E5]'}`}>
+      {/* BRD Content — full width */}
+      <div className="flex-1 overflow-y-auto">
         <div className="max-w-4xl mx-auto py-8 px-6">
           {/* Document header */}
           <div className="mb-8">

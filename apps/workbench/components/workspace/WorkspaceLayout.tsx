@@ -18,6 +18,7 @@ import { BRDCanvas } from './brd/BRDCanvas'
 import { BuildPhaseView } from './BuildPhaseView'
 import { OverviewPanel } from './OverviewPanel'
 import { BottomDock } from './BottomDock'
+import { BrainBubble } from './BrainBubble'
 import { useChat } from '@/lib/useChat'
 import { AssistantProvider } from '@/lib/assistant'
 import {
@@ -38,7 +39,7 @@ import {
 } from '@/lib/api'
 import type { TaskStatsResponse, CollaborationHistoryResponse } from '@/lib/api'
 import type { QuestionCounts } from '@/types/workspace'
-import { useBRDData } from '@/lib/hooks/use-api'
+import { useBRDData, useContextFrame } from '@/lib/hooks/use-api'
 import type { CanvasData } from '@/types/workspace'
 import type { ReadinessScore, NextAction } from '@/lib/api'
 import type { VpStep } from '@/types/api'
@@ -71,6 +72,7 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
   const { data: brdSwr, mutate: mutateBrd } = useBRDData(projectId, false)
   const brdData = brdSwr ?? null
   const nextActions = brdSwr?.next_actions ?? null
+  const { data: contextFrame, mutate: mutateContextFrame } = useContextFrame(projectId)
   const [collaborationState, setCollaborationState] = useState<PanelState>('normal')
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true)
   const [activeBottomPanel, setActiveBottomPanel] = useState<'context' | 'evidence' | 'history' | null>(null)
@@ -445,9 +447,12 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
 
   // Calculate sidebar widths
   const sidebarWidth = sidebarCollapsed ? 64 : 224
-  const collaborationWidth =
-    collaborationState === 'collapsed' ? 48 :
-    collaborationState === 'wide' ? 400 : 320
+  // Discovery + Overview use floating BrainBubble — no right panel margin
+  const useBrainBubble = phase === 'discovery' || phase === 'overview'
+  const collaborationWidth = useBrainBubble
+    ? 0
+    : collaborationState === 'collapsed' ? 48
+    : collaborationState === 'wide' ? 400 : 320
 
   // Build assistant project data
   const assistantProjectData = canvasData
@@ -774,29 +779,42 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
           onKeepWorking={handleKeepWorking}
         />
 
-        {/* Right Collaboration Panel */}
-        <CollaborationPanel
-          projectId={projectId}
-          projectName={canvasData?.project_name || 'Project'}
-          pendingCount={canvasData?.pending_count}
-          messages={messages}
-          isChatLoading={isChatLoading}
-          onSendMessage={sendMessage}
-          onSendSignal={sendSignal}
-          onAddLocalMessage={addLocalMessage}
-          panelState={collaborationState}
-          onPanelStateChange={setCollaborationState}
-          isReviewActive={isReviewActive}
-          isTourActive={isTourActive}
-          currentOverlay={currentOverlay}
-          currentTourStep={currentTourStep}
-          allOverlays={overlays}
-          visibleFeatureIds={sessionContext.visible_features}
-          session={reviewSession}
-          sessionContext={sessionContext}
-          prototypeId={prototypeId}
-          onVerdictSubmit={handleVerdictSubmit}
-        />
+        {/* Right Panel — BrainBubble for Discovery/Overview, CollaborationPanel for Build/Review */}
+        {useBrainBubble ? (
+          <BrainBubble
+            projectId={projectId}
+            actionCount={contextFrame?.actions?.length ?? 0}
+            messages={messages}
+            isChatLoading={isChatLoading}
+            onSendMessage={sendMessage}
+            onSendSignal={sendSignal}
+            onAddLocalMessage={addLocalMessage}
+            onCascade={() => { mutateBrd(); mutateContextFrame() }}
+          />
+        ) : (
+          <CollaborationPanel
+            projectId={projectId}
+            projectName={canvasData?.project_name || 'Project'}
+            pendingCount={canvasData?.pending_count}
+            messages={messages}
+            isChatLoading={isChatLoading}
+            onSendMessage={sendMessage}
+            onSendSignal={sendSignal}
+            onAddLocalMessage={addLocalMessage}
+            panelState={collaborationState}
+            onPanelStateChange={setCollaborationState}
+            isReviewActive={isReviewActive}
+            isTourActive={isTourActive}
+            currentOverlay={currentOverlay}
+            currentTourStep={currentTourStep}
+            allOverlays={overlays}
+            visibleFeatureIds={sessionContext.visible_features}
+            session={reviewSession}
+            sessionContext={sessionContext}
+            prototypeId={prototypeId}
+            onVerdictSubmit={handleVerdictSubmit}
+          />
+        )}
         {/* Project Health Overlay — current state, via Activity icon */}
         {showHealthOverlay && (
           <ProjectHealthOverlay
