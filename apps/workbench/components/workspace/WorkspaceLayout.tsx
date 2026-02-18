@@ -46,11 +46,9 @@ import type { DesignSelection, FeatureOverlay, FeatureVerdict, PrototypeSession,
 import type { PrototypeFrameHandle } from '@/components/prototype/PrototypeFrame'
 import ReviewStartModal from '@/components/prototype/ReviewStartModal'
 import ReviewEndModal from '@/components/prototype/ReviewEndModal'
-import { ProjectPulseOverlay } from './ProjectPulseOverlay'
 import { ProjectHealthOverlay } from './ProjectHealthOverlay'
 import { Activity, Settings, Loader2, CheckCircle2, XCircle, Clock, ArrowLeft } from 'lucide-react'
-import { getProjectPulse, dismissProjectPulse, getProjectDetails, getLaunchProgress } from '@/lib/api'
-import type { ProjectPulse } from '@/types/api'
+import { getProjectDetails, getLaunchProgress } from '@/lib/api'
 import type { LaunchProgressResponse } from '@/types/workspace'
 
 interface WorkspaceLayoutProps {
@@ -128,44 +126,8 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
     }
   }, [projectId])
 
-  // Project Pulse overlay (first-visit build summary)
-  const [pulseData, setPulseData] = useState<ProjectPulse | null>(null)
-  const [showPulse, setShowPulse] = useState(false)
   // Project Health overlay (current state, opened via Activity icon)
   const [showHealthOverlay, setShowHealthOverlay] = useState(false)
-
-  useEffect(() => {
-    if (projectBuildStatus !== 'ready') return
-    getProjectPulse(projectId)
-      .then((data) => {
-        setPulseData(data)
-        // Check if the user has already seen the pulse for this project
-        const alreadySeen = typeof window !== 'undefined'
-          ? localStorage.getItem(`pulse-seen-${projectId}`) === 'true'
-          : false
-        // Check if user explicitly opted in to show on every open
-        const showOnOpen = typeof window !== 'undefined'
-          ? localStorage.getItem(`pulse-show-on-open-${projectId}`) === 'true'
-          : false
-        if ((!alreadySeen && data.first_visit) || showOnOpen) {
-          setShowPulse(true)
-        }
-      })
-      .catch(() => {
-        // Non-critical — pulse is optional
-      })
-  }, [projectId, projectBuildStatus])
-
-  const handleDismissPulse = useCallback(() => {
-    setShowPulse(false)
-    // Mark as seen locally so it doesn't auto-show again
-    if (typeof window !== 'undefined') {
-      localStorage.setItem(`pulse-seen-${projectId}`, 'true')
-    }
-    if (pulseData?.first_visit) {
-      dismissProjectPulse(projectId).catch(() => {})
-    }
-  }, [projectId, pulseData])
 
   // Pending action from cross-view navigation (e.g., Overview → BRD)
   const [pendingAction, setPendingAction] = useState<NextAction | null>(null)
@@ -208,6 +170,7 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
   // Chat integration
   const { messages, isLoading: isChatLoading, sendMessage, sendSignal, addLocalMessage } = useChat({
     projectId,
+    pageContext: discoveryViewMode === 'canvas' ? 'canvas' : 'brd',
     onError: (error) => {
       console.error('Chat error:', error)
     },
@@ -643,21 +606,13 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
                   )}
                 </div>
                 {/* Health icon — opens current-state health overlay */}
-                {pulseData && (
-                  <button
-                    onClick={() => setShowHealthOverlay(true)}
-                    className="p-1.5 rounded-lg hover:bg-[#F4F4F4] transition-colors group"
-                    title={`Project Health — ${pulseData.score}%`}
-                  >
-                    <Activity
-                      className={`w-4 h-4 ${
-                        pulseData.score >= 60
-                          ? 'text-[#3FAF7A] group-hover:text-[#25785A]'
-                          : 'text-amber-500 group-hover:text-amber-600'
-                      }`}
-                    />
-                  </button>
-                )}
+                <button
+                  onClick={() => setShowHealthOverlay(true)}
+                  className="p-1.5 rounded-lg hover:bg-[#F4F4F4] transition-colors group"
+                  title="Project Health"
+                >
+                  <Activity className="w-4 h-4 text-[#3FAF7A] group-hover:text-[#25785A]" />
+                </button>
               </div>
 
               <PhaseSwitcher
@@ -842,14 +797,6 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
           prototypeId={prototypeId}
           onVerdictSubmit={handleVerdictSubmit}
         />
-        {/* Project Pulse Overlay — build summary / first visit */}
-        {showPulse && pulseData && (
-          <ProjectPulseOverlay
-            pulse={pulseData}
-            projectId={projectId}
-            onDismiss={handleDismissPulse}
-          />
-        )}
         {/* Project Health Overlay — current state, via Activity icon */}
         {showHealthOverlay && (
           <ProjectHealthOverlay

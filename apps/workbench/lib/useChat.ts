@@ -36,6 +36,8 @@ export interface ChatMessage {
 interface UseChatOptions {
   projectId: string
   conversationId?: string
+  pageContext?: string  // e.g., "brd:workflows", "canvas", "prototype"
+  focusedEntity?: { type: string; data: Record<string, string> } | null
   onError?: (error: Error) => void
 }
 
@@ -52,6 +54,8 @@ interface UseChatReturn {
 export function useChat({
   projectId,
   conversationId = 'default',
+  pageContext,
+  focusedEntity,
   onError,
 }: UseChatOptions): UseChatReturn {
   const [messages, setMessages] = useState<ChatMessage[]>([])
@@ -107,9 +111,9 @@ export function useChat({
               message: content,
               conversation_id: conversationId,
               conversation_history: messages.slice(-10), // Last 10 messages
-              context: {
-                // Optional: add any focused entity context
-              },
+              context: {},
+              page_context: pageContext || null,
+              focused_entity: focusedEntity || null,
             }),
             signal: abortControllerRef.current.signal,
           }
@@ -222,7 +226,7 @@ export function useChat({
         abortControllerRef.current = null
       }
     },
-    [projectId, conversationId, messages, isLoading, onError]
+    [projectId, conversationId, messages, isLoading, pageContext, focusedEntity, onError]
   )
 
   const sendSignal = useCallback(

@@ -871,6 +871,69 @@ def get_tool_definitions() -> List[Dict[str, Any]]:
                 "required": ["document_id", "document_class"],
             },
         },
+        # =============================================================================
+        # Unified Entity CRUD Tools (v3 smart chat)
+        # =============================================================================
+        {
+            "name": "create_entity",
+            "description": "Create a new entity in the project. Supports features, personas, workflow steps, stakeholders, data entities, and workflows. Use when the user asks to add/create something. Always confirm what was created.",
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "entity_type": {
+                        "type": "string",
+                        "enum": [
+                            "feature",
+                            "persona",
+                            "vp_step",
+                            "stakeholder",
+                            "data_entity",
+                            "workflow",
+                        ],
+                        "description": "Type of entity to create",
+                    },
+                    "name": {
+                        "type": "string",
+                        "description": "Name/title of the entity",
+                    },
+                    "fields": {
+                        "type": "object",
+                        "description": "Additional fields. Feature: category, is_mvp, overview, priority_group. Persona: role, goals(array), pain_points(array). VP Step: workflow_id, step_number, actor, pain_description, benefit_description, time_minutes, automation_level. Stakeholder: stakeholder_type(champion/sponsor/blocker/influencer/end_user), email, role, organization, influence_level. Data Entity: entity_type, fields(array of {name,type,description}). Workflow: workflow_type(current/future), description.",
+                    },
+                },
+                "required": ["entity_type", "name"],
+            },
+        },
+        {
+            "name": "update_entity",
+            "description": "Update an existing entity by ID. Supports all entity types. Use when the user asks to change, modify, rename, or update something specific. Always confirm what was changed.",
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "entity_type": {
+                        "type": "string",
+                        "enum": [
+                            "feature",
+                            "persona",
+                            "vp_step",
+                            "stakeholder",
+                            "data_entity",
+                            "workflow",
+                        ],
+                        "description": "Type of entity to update",
+                    },
+                    "entity_id": {
+                        "type": "string",
+                        "description": "UUID of the entity to update",
+                    },
+                    "fields": {
+                        "type": "object",
+                        "description": "Fields to update. Feature: name, category, overview, priority_group, is_mvp. Persona: name, role, goals, pain_points. VP Step: name, actor, pain_description, benefit_description, time_minutes. Stakeholder: name, stakeholder_type, email, role, influence_level. Data Entity: name, entity_type, fields. Workflow: name, description.",
+                    },
+                },
+                "required": ["entity_type", "entity_id", "fields"],
+            },
+        },
     ]
 
 
@@ -974,6 +1037,11 @@ async def execute_tool(project_id: UUID, tool_name: str, tool_input: Dict[str, A
             return await _check_document_clarifications(project_id, tool_input)
         elif tool_name == "respond_to_document_clarification":
             return await _respond_to_document_clarification(project_id, tool_input)
+        # Unified Entity CRUD Tools (v3)
+        elif tool_name == "create_entity":
+            return await _create_entity(project_id, tool_input)
+        elif tool_name == "update_entity":
+            return await _update_entity(project_id, tool_input)
         else:
             return {"error": f"Unknown tool: {tool_name}"}
 
@@ -4227,3 +4295,407 @@ async def _respond_to_document_clarification(
     except Exception as e:
         logger.error(f"Error responding to clarification: {e}", exc_info=True)
         return {"success": False, "error": str(e)}
+
+
+# =============================================================================
+# Unified Entity CRUD Tool Handlers (v3 smart chat)
+# =============================================================================
+
+
+async def _create_entity(project_id: UUID, params: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Create any entity type from a unified interface.
+
+    Supports: feature, persona, vp_step, stakeholder, data_entity, workflow.
+    """
+    entity_type = params.get("entity_type")
+    name = params.get("name")
+    fields = params.get("fields", {})
+
+    if not entity_type or not name:
+        return {
+            "success": False,
+            "error": "entity_type and name are required",
+        }
+
+    try:
+        if entity_type == "feature":
+            return await _create_feature_entity(project_id, name, fields)
+        elif entity_type == "persona":
+            return await _create_persona_entity(project_id, name, fields)
+        elif entity_type == "vp_step":
+            return await _create_vp_step_entity(project_id, name, fields)
+        elif entity_type == "stakeholder":
+            return await _create_stakeholder_entity(project_id, name, fields)
+        elif entity_type == "data_entity":
+            return await _create_data_entity_entity(project_id, name, fields)
+        elif entity_type == "workflow":
+            return await _create_workflow_entity(project_id, name, fields)
+        else:
+            return {"success": False, "error": f"Unsupported entity type: {entity_type}"}
+
+    except Exception as e:
+        logger.error(f"Error creating {entity_type}: {e}", exc_info=True)
+        return {"success": False, "error": str(e)}
+
+
+async def _update_entity(project_id: UUID, params: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Update any entity type from a unified interface.
+
+    Supports: feature, persona, vp_step, stakeholder, data_entity, workflow.
+    """
+    entity_type = params.get("entity_type")
+    entity_id = params.get("entity_id")
+    fields = params.get("fields", {})
+
+    if not entity_type or not entity_id:
+        return {
+            "success": False,
+            "error": "entity_type and entity_id are required",
+        }
+
+    if not fields:
+        return {
+            "success": False,
+            "error": "fields must contain at least one field to update",
+        }
+
+    try:
+        eid = UUID(entity_id)
+    except (ValueError, TypeError):
+        return {"success": False, "error": f"Invalid entity_id: {entity_id}"}
+
+    try:
+        if entity_type == "feature":
+            return await _update_feature_entity(eid, fields)
+        elif entity_type == "persona":
+            return await _update_persona_entity(eid, fields)
+        elif entity_type == "vp_step":
+            return await _update_vp_step_entity(eid, fields)
+        elif entity_type == "stakeholder":
+            return await _update_stakeholder_entity(eid, fields)
+        elif entity_type == "data_entity":
+            return await _update_data_entity_entity(eid, fields)
+        elif entity_type == "workflow":
+            return await _update_workflow_entity(eid, fields)
+        else:
+            return {"success": False, "error": f"Unsupported entity type: {entity_type}"}
+
+    except Exception as e:
+        logger.error(f"Error updating {entity_type} {entity_id}: {e}", exc_info=True)
+        return {"success": False, "error": str(e)}
+
+
+# --- Feature ---
+
+async def _create_feature_entity(project_id: UUID, name: str, fields: dict) -> Dict[str, Any]:
+    """Create a single feature via direct insert."""
+    supabase = get_supabase()
+
+    data = {
+        "project_id": str(project_id),
+        "name": name,
+        "category": fields.get("category", "core"),
+        "is_mvp": fields.get("is_mvp", True),
+        "confirmation_status": "ai_generated",
+        "status": "proposed",
+        "confidence": fields.get("confidence", 0.7),
+    }
+    if fields.get("overview"):
+        data["overview"] = fields["overview"]
+    if fields.get("priority_group"):
+        data["priority_group"] = fields["priority_group"]
+    if fields.get("evidence"):
+        data["evidence"] = fields["evidence"]
+
+    response = supabase.table("features").insert(data).execute()
+    if not response.data:
+        return {"success": False, "error": "Failed to insert feature"}
+
+    feature = response.data[0]
+    return {
+        "success": True,
+        "entity_type": "feature",
+        "entity_id": feature["id"],
+        "message": f"Created feature: **{name}**",
+    }
+
+
+async def _update_feature_entity(entity_id: UUID, fields: dict) -> Dict[str, Any]:
+    """Update a feature."""
+    supabase = get_supabase()
+
+    ALLOWED = {"name", "category", "overview", "priority_group", "is_mvp", "confidence", "status"}
+    updates = {k: v for k, v in fields.items() if k in ALLOWED}
+
+    if not updates:
+        return {"success": False, "error": f"No valid fields to update. Allowed: {', '.join(ALLOWED)}"}
+
+    updates["updated_at"] = "now()"
+    response = supabase.table("features").update(updates).eq("id", str(entity_id)).execute()
+
+    if not response.data:
+        return {"success": False, "error": "Feature not found"}
+
+    changed = ", ".join(f"{k}={v}" for k, v in updates.items() if k != "updated_at")
+    return {
+        "success": True,
+        "entity_type": "feature",
+        "entity_id": str(entity_id),
+        "message": f"Updated feature: {changed}",
+    }
+
+
+# --- Persona ---
+
+async def _create_persona_entity(project_id: UUID, name: str, fields: dict) -> Dict[str, Any]:
+    """Create a persona."""
+    from app.db.personas import create_persona
+
+    slug = name.lower().replace(" ", "_").replace("-", "_")[:50]
+
+    persona = create_persona(
+        project_id=project_id,
+        slug=slug,
+        name=name,
+        role=fields.get("role"),
+        goals=fields.get("goals"),
+        pain_points=fields.get("pain_points"),
+        description=fields.get("description"),
+        confirmation_status="ai_generated",
+    )
+
+    return {
+        "success": True,
+        "entity_type": "persona",
+        "entity_id": persona["id"],
+        "message": f"Created persona: **{name}**" + (f" ({fields['role']})" if fields.get("role") else ""),
+    }
+
+
+async def _update_persona_entity(entity_id: UUID, fields: dict) -> Dict[str, Any]:
+    """Update a persona."""
+    from app.db.personas import update_persona
+
+    ALLOWED = {"name", "role", "goals", "pain_points", "description", "demographics", "psychographics"}
+    updates = {k: v for k, v in fields.items() if k in ALLOWED}
+
+    if not updates:
+        return {"success": False, "error": f"No valid fields. Allowed: {', '.join(ALLOWED)}"}
+
+    persona = update_persona(persona_id=entity_id, updates=updates)
+    changed = ", ".join(updates.keys())
+    return {
+        "success": True,
+        "entity_type": "persona",
+        "entity_id": str(entity_id),
+        "message": f"Updated persona **{persona.get('name', '')}**: {changed}",
+    }
+
+
+# --- VP Step (workflow step) ---
+
+async def _create_vp_step_entity(project_id: UUID, name: str, fields: dict) -> Dict[str, Any]:
+    """Create a workflow step."""
+    from app.db.workflows import create_workflow_step
+
+    workflow_id = fields.get("workflow_id")
+    if not workflow_id:
+        return {"success": False, "error": "workflow_id is required for vp_step creation"}
+
+    step_data = {
+        "name": name,
+        "step_number": fields.get("step_number", 99),
+        "actor": fields.get("actor"),
+        "pain_description": fields.get("pain_description"),
+        "benefit_description": fields.get("benefit_description"),
+        "time_minutes": fields.get("time_minutes"),
+        "automation_level": fields.get("automation_level"),
+        "operation_type": fields.get("operation_type"),
+        "confirmation_status": "ai_generated",
+    }
+    # Remove None values
+    step_data = {k: v for k, v in step_data.items() if v is not None}
+
+    step = create_workflow_step(
+        workflow_id=UUID(workflow_id),
+        project_id=project_id,
+        data=step_data,
+    )
+
+    return {
+        "success": True,
+        "entity_type": "vp_step",
+        "entity_id": step["id"],
+        "message": f"Created step: **{name}**" + (f" (actor: {fields['actor']})" if fields.get("actor") else ""),
+    }
+
+
+async def _update_vp_step_entity(entity_id: UUID, fields: dict) -> Dict[str, Any]:
+    """Update a workflow step."""
+    from app.db.workflows import update_workflow_step
+
+    ALLOWED = {
+        "name", "step_number", "actor", "pain_description",
+        "benefit_description", "time_minutes", "automation_level", "operation_type",
+    }
+    updates = {k: v for k, v in fields.items() if k in ALLOWED}
+
+    if not updates:
+        return {"success": False, "error": f"No valid fields. Allowed: {', '.join(ALLOWED)}"}
+
+    step = update_workflow_step(step_id=entity_id, data=updates)
+    changed = ", ".join(updates.keys())
+    return {
+        "success": True,
+        "entity_type": "vp_step",
+        "entity_id": str(entity_id),
+        "message": f"Updated step **{step.get('name', '')}**: {changed}",
+    }
+
+
+# --- Stakeholder ---
+
+async def _create_stakeholder_entity(project_id: UUID, name: str, fields: dict) -> Dict[str, Any]:
+    """Create a stakeholder."""
+    from app.db.stakeholders import create_stakeholder
+
+    stakeholder_type = fields.get("stakeholder_type", "influencer")
+
+    stakeholder = create_stakeholder(
+        project_id=project_id,
+        name=name,
+        stakeholder_type=stakeholder_type,
+        email=fields.get("email"),
+        role=fields.get("role"),
+        organization=fields.get("organization"),
+        influence_level=fields.get("influence_level", "medium"),
+        priorities=fields.get("priorities", []),
+        concerns=fields.get("concerns", []),
+        confirmation_status="ai_generated",
+    )
+
+    type_labels = {
+        "champion": "Champion",
+        "sponsor": "Sponsor",
+        "blocker": "Blocker",
+        "influencer": "Influencer",
+        "end_user": "End User",
+    }
+
+    return {
+        "success": True,
+        "entity_type": "stakeholder",
+        "entity_id": stakeholder["id"],
+        "message": f"Created stakeholder: **{name}** ({type_labels.get(stakeholder_type, stakeholder_type)})",
+    }
+
+
+async def _update_stakeholder_entity(entity_id: UUID, fields: dict) -> Dict[str, Any]:
+    """Update a stakeholder."""
+    from app.db.stakeholders import update_stakeholder
+
+    ALLOWED = {
+        "name", "stakeholder_type", "email", "role", "organization",
+        "influence_level", "priorities", "concerns", "notes",
+    }
+    updates = {k: v for k, v in fields.items() if k in ALLOWED}
+
+    if not updates:
+        return {"success": False, "error": f"No valid fields. Allowed: {', '.join(ALLOWED)}"}
+
+    stakeholder = update_stakeholder(stakeholder_id=entity_id, updates=updates)
+    changed = ", ".join(updates.keys())
+    return {
+        "success": True,
+        "entity_type": "stakeholder",
+        "entity_id": str(entity_id),
+        "message": f"Updated stakeholder **{stakeholder.get('name', '')}**: {changed}",
+    }
+
+
+# --- Data Entity ---
+
+async def _create_data_entity_entity(project_id: UUID, name: str, fields: dict) -> Dict[str, Any]:
+    """Create a data entity."""
+    from app.db.data_entities import create_data_entity
+
+    data = {
+        "name": name,
+        "entity_type": fields.get("entity_type", "domain_object"),
+        "fields": fields.get("fields", []),
+        "description": fields.get("description"),
+        "confirmation_status": "ai_generated",
+    }
+
+    entity = create_data_entity(project_id=project_id, data=data)
+
+    return {
+        "success": True,
+        "entity_type": "data_entity",
+        "entity_id": entity["id"],
+        "message": f"Created data entity: **{name}**",
+    }
+
+
+async def _update_data_entity_entity(entity_id: UUID, fields: dict) -> Dict[str, Any]:
+    """Update a data entity."""
+    from app.db.data_entities import update_data_entity
+
+    ALLOWED = {"name", "entity_type", "fields", "description"}
+    updates = {k: v for k, v in fields.items() if k in ALLOWED}
+
+    if not updates:
+        return {"success": False, "error": f"No valid fields. Allowed: {', '.join(ALLOWED)}"}
+
+    entity = update_data_entity(entity_id=entity_id, data=updates)
+    changed = ", ".join(updates.keys())
+    return {
+        "success": True,
+        "entity_type": "data_entity",
+        "entity_id": str(entity_id),
+        "message": f"Updated data entity **{entity.get('name', '')}**: {changed}",
+    }
+
+
+# --- Workflow ---
+
+async def _create_workflow_entity(project_id: UUID, name: str, fields: dict) -> Dict[str, Any]:
+    """Create a workflow."""
+    from app.db.workflows import create_workflow
+
+    data = {
+        "name": name,
+        "workflow_type": fields.get("workflow_type", "current"),
+        "description": fields.get("description"),
+    }
+
+    workflow = create_workflow(project_id=project_id, data=data)
+
+    return {
+        "success": True,
+        "entity_type": "workflow",
+        "entity_id": workflow["id"],
+        "message": f"Created workflow: **{name}** ({data['workflow_type']})",
+    }
+
+
+async def _update_workflow_entity(entity_id: UUID, fields: dict) -> Dict[str, Any]:
+    """Update a workflow."""
+    from app.db.workflows import update_workflow
+
+    ALLOWED = {"name", "description", "workflow_type"}
+    updates = {k: v for k, v in fields.items() if k in ALLOWED}
+
+    if not updates:
+        return {"success": False, "error": f"No valid fields. Allowed: {', '.join(ALLOWED)}"}
+
+    workflow = update_workflow(workflow_id=entity_id, data=updates)
+    changed = ", ".join(updates.keys())
+    return {
+        "success": True,
+        "entity_type": "workflow",
+        "entity_id": str(entity_id),
+        "message": f"Updated workflow **{workflow.get('name', '')}**: {changed}",
+    }

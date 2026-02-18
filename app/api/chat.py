@@ -11,12 +11,13 @@ from pydantic import BaseModel
 from app.chains.chat_context import build_smart_context
 from app.chains.chat_tools import execute_tool, get_tool_definitions
 from app.context.conversation_compressor import compress_conversation
-from app.context.dynamic_prompt_builder import build_dynamic_prompt
+from app.context.dynamic_prompt_builder import build_dynamic_prompt, build_smart_chat_prompt
 from app.context.intent_classifier import classify_intent
 from app.context.models import ChatMessage as ContextChatMessage
 from app.context.state_frame import generate_state_frame
 from app.context.token_budget import get_budget_manager
 from app.context.tool_truncator import truncate_tool_result
+from app.core.action_engine import compute_context_frame
 from app.core.config import get_settings
 from app.core.logging import get_logger
 from app.core.rate_limiter import check_chat_rate_limit, get_chat_rate_limit_stats
@@ -41,6 +42,8 @@ class ChatRequest(BaseModel):
     conversation_id: str
     conversation_history: List[ChatMessage] = []
     context: Dict[str, Any] | None = None
+    page_context: str | None = None  # e.g., "brd:workflows", "canvas", "prototype"
+    focused_entity: Dict[str, Any] | None = None  # {type, data: {title/name}}
 
 
 @router.post("/chat")
@@ -105,15 +108,20 @@ async def chat_with_assistant(
             else:
                 raise HTTPException(status_code=500, detail="Failed to create conversation")
 
-        # Build smart context
+        # Build smart context (still used for conversation compression)
         context = await build_smart_context(project_id, request)
 
-        # Generate state frame for goal-based context
-        state_frame = await generate_state_frame(project_id, context)
+        # Compute v3 context frame (replaces state_frame + intent classification)
+        context_frame = await compute_context_frame(project_id, max_actions=5)
 
-        # Classify user intent for dynamic prompt building
-        intent = await classify_intent(request.message, context)
-        logger.info(f"Intent: {intent.primary} (confidence: {intent.confidence:.2f})")
+        # Get project name for prompt
+        project_name = context.get("project", {}).get("name", "Unknown")
+
+        logger.info(
+            f"Context frame: phase={context_frame.phase.value}, "
+            f"progress={context_frame.phase_progress:.0%}, "
+            f"gaps={context_frame.total_gap_count}"
+        )
 
         # Generate streaming response
         async def generate() -> AsyncGenerator[str, None]:
@@ -155,20 +163,18 @@ async def chat_with_assistant(
                 messages = compressed.to_messages()
                 messages.append({"role": "user", "content": request.message})
 
-                # Build dynamic system prompt with state frame
-                budget_manager = get_budget_manager()
-                system_prompt = build_dynamic_prompt(
-                    context=context,
-                    state_frame=state_frame,
-                    intent=intent,
-                    budget_manager=budget_manager,
+                # Build v3 smart chat prompt from context frame
+                system_prompt = build_smart_chat_prompt(
+                    context_frame=context_frame,
+                    project_name=project_name,
+                    page_context=request.page_context,
+                    focused_entity=request.focused_entity,
                 )
 
                 # Log context stats
                 logger.info(
-                    f"Context: phase={state_frame.current_phase.value}, "
-                    f"progress={state_frame.phase_progress:.0%}, "
-                    f"blockers={len(state_frame.blockers)}, "
+                    f"Chat prompt: phase={context_frame.phase.value}, "
+                    f"page={request.page_context or 'none'}, "
                     f"history_summarized={compressed.total_messages_summarized}"
                 )
 
