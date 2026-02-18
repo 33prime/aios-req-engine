@@ -331,6 +331,168 @@ async def list_conversations(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+# =============================================================================
+# Chat-as-Signal: Entity Detection + Extraction
+# =============================================================================
+
+
+class DetectEntitiesRequest(BaseModel):
+    """Request to detect entity-rich content in chat messages."""
+    messages: List[ChatMessage]
+
+
+class SaveAsSignalRequest(BaseModel):
+    """Request to save chat messages as a signal for entity extraction."""
+    messages: List[ChatMessage]
+
+
+@router.post("/detect-entities")
+async def detect_entities_in_chat(
+    request: DetectEntitiesRequest,
+    project_id: UUID = Query(..., description="Project UUID"),
+) -> Dict[str, Any]:
+    """
+    Lightweight Haiku check: do recent chat messages contain extractable requirements?
+
+    Returns entity hints without running full extraction.
+    """
+    from app.chains.detect_chat_entities import detect_chat_entities
+
+    try:
+        msg_dicts = [{"role": m.role, "content": m.content} for m in request.messages]
+        result = await detect_chat_entities(msg_dicts, project_id=str(project_id))
+        return result
+    except Exception as e:
+        logger.error(f"Error detecting chat entities: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/save-as-signal")
+async def save_chat_as_signal(
+    request: SaveAsSignalRequest,
+    project_id: UUID = Query(..., description="Project UUID"),
+) -> Dict[str, Any]:
+    """
+    Convert chat messages into a synthetic signal, extract facts, and save.
+
+    Pipeline: chat messages → signal record → chunks → extract_facts → consolidate → save.
+    Returns summary of what was extracted.
+    """
+    from uuid import uuid4
+
+    from app.chains.extract_facts import extract_facts_from_chunks
+    from app.core.state_snapshot import get_state_snapshot
+    from app.core.config import get_settings as _get_settings
+    from app.db.facts import insert_extracted_facts as _insert_facts
+
+    settings = _get_settings()
+    supabase = get_supabase()
+
+    try:
+        # Build the chat text from messages
+        chat_lines = []
+        for msg in request.messages:
+            if msg.content.strip():
+                chat_lines.append(f"[{msg.role}]: {msg.content}")
+
+        chat_text = "\n\n".join(chat_lines)
+
+        if not chat_text.strip():
+            return {"success": False, "error": "No message content to extract"}
+
+        run_id = str(uuid4())
+
+        # 1. Create synthetic signal
+        signal_data = {
+            "project_id": str(project_id),
+            "signal_type": "chat",
+            "source_type": "workspace_chat",
+            "source": f"chat_extraction_{run_id[:8]}",
+            "raw_text": chat_text[:50000],
+            "run_id": run_id,
+            "metadata": {
+                "message_count": len(request.messages),
+                "extraction_source": "chat_as_signal",
+            },
+        }
+        signal_response = supabase.table("signals").insert(signal_data).execute()
+        if not signal_response.data:
+            return {"success": False, "error": "Failed to create signal"}
+
+        signal = signal_response.data[0]
+        signal_id = signal["id"]
+
+        # 2. Create a single chunk from the chat text
+        chunk_data = {
+            "signal_id": signal_id,
+            "chunk_index": 0,
+            "content": chat_text[:10000],
+            "start_char": 0,
+            "end_char": min(len(chat_text), 10000),
+            "metadata": {"source": "chat_as_signal"},
+            "run_id": run_id,
+        }
+        chunk_response = supabase.table("signal_chunks").insert(chunk_data).execute()
+        if not chunk_response.data:
+            return {"success": False, "error": "Failed to create chunk"}
+
+        chunk = chunk_response.data[0]
+
+        # 3. Get project context for smarter extraction
+        project_context = None
+        try:
+            snapshot = get_state_snapshot(project_id)
+            if snapshot:
+                project_context = {"state_snapshot": snapshot}
+        except Exception:
+            pass
+
+        # 4. Run extract_facts
+        output = extract_facts_from_chunks(
+            signal=signal,
+            chunks=[chunk],
+            settings=settings,
+            project_context=project_context,
+        )
+
+        # 5. Save extracted facts
+        fact_count = 0
+        if output.facts:
+            _insert_facts(
+                project_id=project_id,
+                signal_id=UUID(signal_id),
+                run_id=UUID(run_id),
+                job_id=None,
+                model=settings.FACTS_MODEL if hasattr(settings, "FACTS_MODEL") else "claude-sonnet-4-5-20250929",
+                prompt_version="chat_as_signal_v1",
+                schema_version="v1",
+                facts=output.model_dump(),
+                summary=output.summary,
+            )
+            fact_count = len(output.facts)
+
+        # 6. Build summary
+        type_counts: Dict[str, int] = {}
+        for fact in output.facts:
+            ft = fact.fact_type
+            type_counts[ft] = type_counts.get(ft, 0) + 1
+
+        type_summary = ", ".join(f"{v} {k}{'s' if v > 1 else ''}" for k, v in type_counts.items())
+
+        return {
+            "success": True,
+            "signal_id": signal_id,
+            "facts_extracted": fact_count,
+            "type_summary": type_summary,
+            "open_questions": len(output.open_questions),
+            "summary": output.summary,
+        }
+
+    except Exception as e:
+        logger.error(f"Error saving chat as signal: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.get("/rate-limit-status")
 async def get_rate_limit_status(project_id: UUID = Query(..., description="Project UUID")) -> Dict[str, Any]:
     """

@@ -170,7 +170,10 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
       : null
 
   // Chat integration
-  const { messages, isLoading: isChatLoading, sendMessage, sendSignal, addLocalMessage } = useChat({
+  const {
+    messages, isLoading: isChatLoading, sendMessage, sendSignal, addLocalMessage,
+    entityDetection, isSavingAsSignal, saveAsSignal, dismissDetection,
+  } = useChat({
     projectId,
     pageContext: discoveryViewMode === 'canvas' ? 'canvas' : 'brd',
     onError: (error) => {
@@ -790,6 +793,10 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
             onSendSignal={sendSignal}
             onAddLocalMessage={addLocalMessage}
             onCascade={() => { mutateBrd(); mutateContextFrame() }}
+            entityDetection={entityDetection}
+            isSavingAsSignal={isSavingAsSignal}
+            onSaveAsSignal={async () => { await saveAsSignal(); mutateBrd(); mutateContextFrame() }}
+            onDismissDetection={dismissDetection}
           />
         ) : (
           <CollaborationPanel

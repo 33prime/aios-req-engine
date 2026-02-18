@@ -2742,6 +2742,51 @@ export const getUnifiedActions = (projectId: string, maxActions = 5) =>
     `/projects/${projectId}/workspace/actions?max_actions=${maxActions}`
   )
 
+// =============================================================================
+// Chat-as-Signal: Entity Detection + Extraction
+// =============================================================================
+
+export interface ChatEntityDetectionResult {
+  should_extract: boolean
+  entity_count: number
+  entity_hints: Array<{ type: string; name: string }>
+  reason: string
+}
+
+export interface ChatSaveAsSignalResult {
+  success: boolean
+  signal_id?: string
+  facts_extracted?: number
+  type_summary?: string
+  open_questions?: number
+  summary?: string
+  error?: string
+}
+
+export const detectChatEntities = (
+  projectId: string,
+  messages: Array<{ role: string; content: string }>,
+) =>
+  apiRequest<ChatEntityDetectionResult>(
+    `/v1/chat/detect-entities?project_id=${projectId}`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ messages }),
+    }
+  )
+
+export const saveChatAsSignal = (
+  projectId: string,
+  messages: Array<{ role: string; content: string }>,
+) =>
+  apiRequest<ChatSaveAsSignalResult>(
+    `/v1/chat/save-as-signal?project_id=${projectId}`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ messages }),
+    }
+  )
+
 export interface BatchDashboardData {
   task_stats: Record<string, TaskStatsResponse>
   next_actions: Record<string, NextAction[]>

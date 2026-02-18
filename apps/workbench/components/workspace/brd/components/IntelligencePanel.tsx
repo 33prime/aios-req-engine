@@ -117,7 +117,15 @@ export function IntelligencePanel({
       <div className="flex flex-col h-full">
         <PanelHeader phase={null} progress={0} gapCount={0} />
         <div className="flex-1 flex items-center justify-center p-6">
-          <p className="text-[12px] text-[#999999]">{error}</p>
+          <div className="text-center">
+            <p className="text-[12px] text-[#999999]">{error}</p>
+            <button
+              onClick={loadActions}
+              className="mt-2 text-[11px] font-medium text-[#3FAF7A] hover:underline"
+            >
+              Try again
+            </button>
+          </div>
         </div>
       </div>
     )

@@ -1,10 +1,11 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { Sparkles, X, MessageSquare, Zap } from 'lucide-react'
+import { Sparkles, X, MessageSquare, Zap, FileText, Loader2 } from 'lucide-react'
 import type { ChatMessage } from './WorkspaceChat'
 import { WorkspaceChat } from './WorkspaceChat'
 import { IntelligencePanel } from './brd/components/IntelligencePanel'
+import type { ChatEntityDetectionResult } from '@/lib/api'
 
 // =============================================================================
 // Types
@@ -30,6 +31,12 @@ interface BrainBubbleProps {
   onNavigate?: (entityType: string, entityId: string | null) => void
   onCascade?: () => void
 
+  // Chat-as-signal
+  entityDetection?: ChatEntityDetectionResult | null
+  isSavingAsSignal?: boolean
+  onSaveAsSignal?: () => Promise<void>
+  onDismissDetection?: () => void
+
   /** Pre-select a tab when opening */
   defaultTab?: BrainTab
 }
@@ -49,6 +56,10 @@ export function BrainBubble({
   onAddLocalMessage,
   onNavigate,
   onCascade,
+  entityDetection,
+  isSavingAsSignal,
+  onSaveAsSignal,
+  onDismissDetection,
   defaultTab,
 }: BrainBubbleProps) {
   const [isOpen, setIsOpen] = useState(false)
@@ -73,11 +84,15 @@ export function BrainBubble({
     }
   }, [defaultTab])
 
-  // Close on Escape
+  // Keyboard shortcuts: Escape to close, Cmd+J to toggle
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && isOpen) {
         setIsOpen(false)
+      }
+      if ((e.metaKey || e.ctrlKey) && e.key === 'j') {
+        e.preventDefault()
+        setIsOpen(prev => !prev)
       }
     }
     window.addEventListener('keydown', handleKeyDown)
@@ -209,7 +224,7 @@ export function BrainBubble({
         </div>
 
         {/* Tab Content */}
-        <div className="flex-1 overflow-hidden">
+        <div className="flex-1 overflow-hidden relative">
           {activeTab === 'actions' ? (
             <IntelligencePanel
               projectId={projectId}
@@ -225,6 +240,48 @@ export function BrainBubble({
               onSendSignal={onSendSignal}
               onAddLocalMessage={onAddLocalMessage}
             />
+          )}
+
+          {/* Chat-as-Signal Detection Card */}
+          {activeTab === 'chat' && entityDetection && entityDetection.should_extract && (
+            <div className="absolute bottom-2 left-2 right-2 z-10">
+              <div className="bg-white border border-[#E5E5E5] rounded-xl shadow-lg p-3">
+                <div className="flex items-start gap-2.5">
+                  <div className="w-8 h-8 rounded-lg bg-[#E8F5E9] flex items-center justify-center flex-shrink-0">
+                    <FileText className="w-4 h-4 text-[#25785A]" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[12px] font-medium text-[#333333]">
+                      Found requirements in our chat
+                    </p>
+                    <p className="text-[11px] text-[#666666] mt-0.5">
+                      {entityDetection.entity_count} entities: {entityDetection.entity_hints.slice(0, 3).map(h => h.name).join(', ')}
+                      {entityDetection.entity_hints.length > 3 && ` +${entityDetection.entity_hints.length - 3} more`}
+                    </p>
+                    <div className="flex items-center gap-2 mt-2">
+                      <button
+                        onClick={onSaveAsSignal}
+                        disabled={isSavingAsSignal}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-medium text-white bg-[#3FAF7A] hover:bg-[#25785A] rounded-lg transition-colors disabled:opacity-50"
+                      >
+                        {isSavingAsSignal ? (
+                          <Loader2 className="w-3 h-3 animate-spin" />
+                        ) : (
+                          <FileText className="w-3 h-3" />
+                        )}
+                        {isSavingAsSignal ? 'Saving...' : 'Save as Requirements'}
+                      </button>
+                      <button
+                        onClick={onDismissDetection}
+                        className="px-3 py-1.5 text-[11px] font-medium text-[#666666] hover:text-[#333333] transition-colors"
+                      >
+                        Keep Going
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           )}
         </div>
       </div>

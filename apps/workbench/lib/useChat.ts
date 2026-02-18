@@ -14,7 +14,8 @@
 
 'use client'
 
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
+import { detectChatEntities, saveChatAsSignal, type ChatEntityDetectionResult } from '@/lib/api'
 
 export interface ChatMessage {
   id?: string
@@ -49,6 +50,11 @@ interface UseChatReturn {
   sendSignal: (type: string, content: string, source: string) => Promise<void>
   clearMessages: () => void
   addLocalMessage: (message: ChatMessage) => void
+  // Chat-as-signal
+  entityDetection: ChatEntityDetectionResult | null
+  isSavingAsSignal: boolean
+  saveAsSignal: () => Promise<void>
+  dismissDetection: () => void
 }
 
 export function useChat({
@@ -381,6 +387,87 @@ export function useChat({
     setMessages((prev) => [...prev, { ...message, timestamp: message.timestamp || new Date() }])
   }, [])
 
+  // ==========================================================================
+  // Chat-as-Signal: Entity Detection
+  // ==========================================================================
+  const [entityDetection, setEntityDetection] = useState<ChatEntityDetectionResult | null>(null)
+  const [isSavingAsSignal, setIsSavingAsSignal] = useState(false)
+  const userMessageCountRef = useRef(0)
+  const lastDetectionCountRef = useRef(0)
+  const dismissedCountRef = useRef(0)
+
+  // Track user messages and trigger detection every 4 new user messages
+  useEffect(() => {
+    const userMessages = messages.filter(m => m.role === 'user')
+    userMessageCountRef.current = userMessages.length
+
+    // Only detect if: 4+ user messages since last detection, not loading, no pending detection
+    const sinceLast = userMessages.length - lastDetectionCountRef.current
+    if (sinceLast >= 4 && !isLoading && !entityDetection) {
+      // Don't over-prompt: if dismissed recently, wait longer
+      const threshold = dismissedCountRef.current > 0 ? 6 : 4
+      if (sinceLast < threshold) return
+
+      lastDetectionCountRef.current = userMessages.length
+      const recentUserMsgs = messages
+        .filter(m => m.role === 'user' && m.content.trim())
+        .slice(-5)
+        .map(m => ({ role: m.role, content: m.content }))
+
+      if (recentUserMsgs.length >= 3) {
+        detectChatEntities(projectId, recentUserMsgs)
+          .then(result => {
+            if (result.should_extract && result.entity_count >= 2) {
+              setEntityDetection(result)
+            }
+          })
+          .catch(err => console.error('Entity detection failed:', err))
+      }
+    }
+  }, [messages, isLoading, entityDetection, projectId])
+
+  const dismissDetection = useCallback(() => {
+    setEntityDetection(null)
+    dismissedCountRef.current += 1
+  }, [])
+
+  const saveAsSignal = useCallback(async () => {
+    if (!entityDetection) return
+
+    setIsSavingAsSignal(true)
+    try {
+      // Gather the last 5-8 user messages for extraction
+      const recentMsgs = messages
+        .filter(m => m.content.trim())
+        .slice(-10)
+        .map(m => ({ role: m.role, content: m.content }))
+
+      const result = await saveChatAsSignal(projectId, recentMsgs)
+
+      // Add confirmation message to chat
+      if (result.success) {
+        addLocalMessage({
+          role: 'system',
+          content: `📋 Saved ${result.facts_extracted} requirements from our conversation (${result.type_summary}). The BRD has been updated.`,
+          timestamp: new Date(),
+        })
+      } else {
+        addLocalMessage({
+          role: 'system',
+          content: `⚠️ Could not extract requirements: ${result.error || 'Unknown error'}`,
+          timestamp: new Date(),
+        })
+      }
+
+      setEntityDetection(null)
+      dismissedCountRef.current = 0 // Reset dismiss counter on successful save
+    } catch (err) {
+      console.error('Save as signal failed:', err)
+    } finally {
+      setIsSavingAsSignal(false)
+    }
+  }, [entityDetection, messages, projectId, addLocalMessage])
+
   return {
     messages,
     isLoading,
@@ -389,5 +476,10 @@ export function useChat({
     sendSignal,
     clearMessages,
     addLocalMessage,
+    // Chat-as-signal
+    entityDetection,
+    isSavingAsSignal,
+    saveAsSignal,
+    dismissDetection,
   }
 }
