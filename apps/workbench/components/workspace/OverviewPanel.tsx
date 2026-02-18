@@ -1,26 +1,26 @@
 /**
- * OverviewPanel - Hero Action + Pulse Grid dashboard
+ * OverviewPanel - Project Dashboard
  *
  * Layout:
- *   Hero Action Banner (full-width, top next action)
- *   Three-column grid: Project Pulse | Next Best Actions | Tasks
- *   Recent Activity strip (full-width)
+ *   Hero: Project name + vision + completeness ring + phase
+ *   Row 1: Project Pulse (with health) | Next Best Actions (top 3) | Tasks
+ *   Row 2: Recent Activity | Upcoming Meetings | Client Portal
  */
 
 'use client'
 
 import { useState, useEffect } from 'react'
 import {
-  Target,
-  Lightbulb,
-  Users,
-  FileText,
   ListTodo,
   ArrowRight,
   Activity,
   CheckCircle,
   MessageCircle,
-  Clock,
+  AlertTriangle,
+  RefreshCw,
+  Calendar,
+  Globe,
+  Sparkles,
 } from 'lucide-react'
 import { TaskListCompact } from '@/components/tasks'
 import { CompletenessRing } from '@/components/workspace/brd/components/CompletenessRing'
@@ -28,10 +28,11 @@ import {
   getTaskStats,
   getCollaborationHistory,
   getQuestionCounts,
+  getBRDHealth,
 } from '@/lib/api'
-import type { CanvasData, BRDWorkspaceData, SectionScore, QuestionCounts } from '@/types/workspace'
-import type { ReadinessScore, NextAction, TaskStatsResponse, CollaborationHistoryResponse } from '@/lib/api'
-import { ACTION_ICONS, URGENCY_COLORS, getActionCTALabel } from '@/lib/action-constants'
+import type { CanvasData, BRDWorkspaceData, SectionScore, QuestionCounts, BRDHealthData } from '@/types/workspace'
+import type { ReadinessScore, NextAction, TaskStatsResponse, CollaborationHistoryResponse, TerseAction } from '@/lib/api'
+import { GAP_SOURCE_ICONS, GAP_SOURCE_COLORS, PHASE_LABELS } from '@/lib/action-constants'
 
 interface OverviewPanelProps {
   projectId: string
@@ -39,6 +40,7 @@ interface OverviewPanelProps {
   readinessData: ReadinessScore | null
   brdData: BRDWorkspaceData | null
   nextActions: NextAction[] | null
+  contextActions?: TerseAction[]
   initialTaskStats?: TaskStatsResponse | null
   initialHistory?: CollaborationHistoryResponse | null
   initialQuestionCounts?: QuestionCounts | null
@@ -58,72 +60,65 @@ const SECTION_LABELS: Record<string, string> = {
 export function OverviewPanel({
   projectId,
   canvasData,
-  readinessData,
   brdData,
-  nextActions,
+  contextActions,
   initialTaskStats,
   initialHistory,
   initialQuestionCounts,
   onNavigateToPhase,
-  onActionExecute,
 }: OverviewPanelProps) {
   const [taskStats, setTaskStats] = useState<TaskStatsResponse | null>(initialTaskStats ?? null)
   const [taskRefreshKey, setTaskRefreshKey] = useState(0)
   const [history, setHistory] = useState<CollaborationHistoryResponse | null>(initialHistory ?? null)
   const [questionCounts, setQuestionCounts] = useState<QuestionCounts | null>(initialQuestionCounts ?? null)
+  const [healthData, setHealthData] = useState<BRDHealthData | null>(null)
 
   useEffect(() => {
-    // Skip fetch if parent already prefetched (eliminates waterfall)
-    if (initialTaskStats !== undefined && initialHistory !== undefined && initialQuestionCounts !== undefined) return
-    const load = async () => {
-      const [stats, hist, qCounts] = await Promise.all([
-        getTaskStats(projectId).catch(() => null),
-        getCollaborationHistory(projectId).catch(() => null),
-        getQuestionCounts(projectId).catch(() => null),
-      ])
-      setTaskStats(stats)
-      setHistory(hist)
-      setQuestionCounts(qCounts)
-    }
-    load()
+    // Fetch data not prefetched by parent
+    const promises: Promise<unknown>[] = []
+    if (initialTaskStats === undefined) promises.push(getTaskStats(projectId).then(setTaskStats).catch(() => null))
+    if (initialHistory === undefined) promises.push(getCollaborationHistory(projectId).then(setHistory).catch(() => null))
+    if (initialQuestionCounts === undefined) promises.push(getQuestionCounts(projectId).then(setQuestionCounts).catch(() => null))
+    // Always fetch health data (not prefetched)
+    promises.push(getBRDHealth(projectId).then(setHealthData).catch(() => null))
+    Promise.all(promises)
   }, [projectId, initialTaskStats, initialHistory, initialQuestionCounts])
 
   const pendingCount = taskStats?.by_status?.pending ?? 0
-  const actions = nextActions ?? []
-  const heroAction = actions[0] ?? null
-  const remainingActions = actions.length > 1 ? actions.slice(1, 3) : actions.length === 1 ? [actions[0]] : []
   const completeness = brdData?.completeness ?? null
   const touchpoints = history?.touchpoints ?? []
-  const prototypeReadiness = readinessData?.score ?? canvasData.readiness_score ?? 0
+  const overallScore = completeness?.overall_score ?? 0
+  const phase = canvasData.collaboration_phase || 'discovery'
+
+  // Use context frame actions (top 3) for the actions card
+  const topActions = contextActions?.slice(0, 3) ?? []
 
   return (
     <div className="space-y-4">
-      {/* Hero Action Banner */}
-      <HeroActionBanner
-        action={heroAction}
+      {/* Hero: Project Dashboard Header */}
+      <HeroDashboard
+        projectName={canvasData.project_name}
+        pitchLine={canvasData.pitch_line}
+        overallScore={overallScore}
+        overallLabel={completeness?.overall_label ?? 'Getting Started'}
+        phase={phase}
         onNavigateToPhase={onNavigateToPhase}
-        onActionExecute={onActionExecute}
       />
 
-      {/* Three-column grid */}
+      {/* Row 1: Pulse | Actions | Tasks */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {/* Column 1: Project Pulse */}
         <ProjectPulseCard
           completeness={completeness}
           sections={completeness?.sections ?? []}
-          prototypeReadiness={prototypeReadiness}
-          hasReadinessData={!!readinessData}
           questionCounts={questionCounts}
+          healthData={healthData}
         />
 
-        {/* Column 2: Next Best Actions */}
-        <NextActionsCard
-          actions={remainingActions}
-          startIndex={actions.length > 1 ? 2 : 1}
-          onActionExecute={onActionExecute}
+        <ContextActionsCard
+          actions={topActions}
+          onNavigateToPhase={onNavigateToPhase}
         />
 
-        {/* Column 3: Tasks */}
         <div className="bg-white rounded-2xl border border-[#E5E5E5] shadow-md p-5 overflow-hidden">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-1.5">
@@ -151,121 +146,114 @@ export function OverviewPanel({
         </div>
       </div>
 
-      {/* Recent Activity strip */}
-      <ActivityStrip touchpoints={touchpoints} />
+      {/* Row 2: Activity | Meetings | Portal */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <ActivityCard touchpoints={touchpoints} />
+        <UpcomingMeetingsCard />
+        <ClientPortalCard />
+      </div>
     </div>
   )
 }
 
 // ---------------------------------------------------------------------------
-// Sub-components (internal only)
+// Hero Dashboard Header
 // ---------------------------------------------------------------------------
 
-function HeroActionBanner({
-  action,
+function HeroDashboard({
+  projectName,
+  pitchLine,
+  overallScore,
+  overallLabel,
+  phase,
   onNavigateToPhase,
-  onActionExecute,
 }: {
-  action: NextAction | null
+  projectName: string
+  pitchLine?: string | null
+  overallScore: number
+  overallLabel: string
+  phase: string
   onNavigateToPhase: (phase: 'discovery' | 'build') => void
-  onActionExecute?: (action: NextAction) => void
 }) {
-  if (!action) {
-    return (
-      <div className="bg-white rounded-2xl shadow-md border border-[#E5E5E5] p-5 flex items-center gap-4">
-        <div className="flex items-center justify-center w-10 h-10 rounded-full bg-[#E8F5E9]">
-          <CheckCircle className="w-5 h-5 text-[#25785A]" />
-        </div>
-        <div className="flex-1">
-          <h2 className="text-[15px] font-semibold text-[#333333]">
-            Your BRD is looking great!
-          </h2>
-          <p className="text-[13px] text-[#666666] mt-0.5">
-            No recommended actions right now. Keep refining your discovery.
-          </p>
-        </div>
-      </div>
-    )
-  }
-
-  const Icon = ACTION_ICONS[action.action_type] || Target
+  const phaseLabel = PHASE_LABELS[phase] || phase
 
   return (
-    <div className="bg-white rounded-2xl shadow-md border border-[#E5E5E5] border-l-4 border-l-[#3FAF7A] p-5 flex items-start gap-4">
-      <span className="flex items-center justify-center w-7 h-7 rounded-full bg-[#E8F5E9] text-[13px] font-semibold text-[#25785A] flex-shrink-0 mt-0.5">
-        1
-      </span>
+    <div className="bg-[#0A1E2F] rounded-2xl shadow-md p-6 flex items-center gap-6">
+      {/* Completeness ring */}
+      <div className="flex-shrink-0">
+        <div className="relative w-20 h-20">
+          <svg className="w-20 h-20 -rotate-90" viewBox="0 0 100 100">
+            <circle cx="50" cy="50" r="42" fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="6" />
+            <circle
+              cx="50"
+              cy="50"
+              r="42"
+              fill="none"
+              stroke="#3FAF7A"
+              strokeWidth="6"
+              strokeLinecap="round"
+              strokeDasharray={2 * Math.PI * 42}
+              strokeDashoffset={2 * Math.PI * 42 - (overallScore / 100) * 2 * Math.PI * 42}
+              className="transition-all duration-1000 ease-out"
+            />
+          </svg>
+          <div className="absolute inset-0 flex flex-col items-center justify-center">
+            <span className="text-[20px] font-bold text-white leading-none">{Math.round(overallScore)}%</span>
+            <span className="text-[10px] text-white/50 mt-0.5">{overallLabel}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Project info */}
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 mb-1">
-          <Icon className="w-4 h-4 text-[#999999] flex-shrink-0" />
-          <h2 className="text-[15px] font-semibold text-[#333333]">{action.title}</h2>
+          <h1 className="text-[18px] font-bold text-white truncate">{projectName}</h1>
+          <span className="flex-shrink-0 px-2 py-0.5 text-[10px] font-medium text-[#3FAF7A] bg-[#3FAF7A]/10 rounded-full">
+            {phaseLabel}
+          </span>
         </div>
-        <p className="text-[13px] text-[#666666] leading-relaxed">{action.description}</p>
-        {(action.suggested_stakeholder_role || action.suggested_artifact) && (
-          <div className="flex items-center gap-2 mt-2">
-            {action.suggested_stakeholder_role && (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-medium bg-[#E8F5E9] text-[#25785A] rounded-full">
-                <Users className="w-2.5 h-2.5" />
-                {action.suggested_stakeholder_role}
-              </span>
-            )}
-            {action.suggested_artifact && (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-medium bg-[#F0F0F0] text-[#666666] rounded-full">
-                <FileText className="w-2.5 h-2.5" />
-                {action.suggested_artifact}
-              </span>
-            )}
-          </div>
+        {pitchLine && (
+          <p className="text-[13px] text-white/60 leading-relaxed line-clamp-2">{pitchLine}</p>
         )}
       </div>
+
+      {/* CTA */}
       <button
-        onClick={() => {
-          if (onActionExecute && action) {
-            onActionExecute(action)
-          } else {
-            onNavigateToPhase('discovery')
-          }
-        }}
-        className="flex-shrink-0 inline-flex items-center gap-1.5 px-4 py-2 text-[12px] font-medium text-white bg-[#3FAF7A] rounded-xl hover:bg-[#25785A] transition-colors"
+        onClick={() => onNavigateToPhase('discovery')}
+        className="flex-shrink-0 inline-flex items-center gap-1.5 px-5 py-2.5 text-[13px] font-medium text-[#0A1E2F] bg-[#3FAF7A] rounded-xl hover:bg-[#4CC08C] transition-colors"
       >
-        {action ? getActionCTALabel(action.action_type) : 'Go to Discovery'}
-        <ArrowRight className="w-3.5 h-3.5" />
+        Open BRD
+        <ArrowRight className="w-4 h-4" />
       </button>
     </div>
   )
 }
 
+// ---------------------------------------------------------------------------
+// Project Pulse (merged with Health)
+// ---------------------------------------------------------------------------
+
 function ProjectPulseCard({
   completeness,
   sections,
-  prototypeReadiness,
-  hasReadinessData,
   questionCounts,
+  healthData,
 }: {
   completeness: BRDWorkspaceData['completeness'] | null
   sections: SectionScore[]
-  prototypeReadiness: number
-  hasReadinessData: boolean
   questionCounts: QuestionCounts | null
+  healthData: BRDHealthData | null
 }) {
-  const overallScore = completeness?.overall_score ?? 0
-  const overallLabel = completeness?.overall_label ?? 'Poor'
   const gapCount = completeness?.top_gaps?.length ?? 0
+  const totalStale = healthData?.stale_entities?.total_stale ?? 0
+  const scopeAlerts = healthData?.scope_alerts ?? []
+  const hasAlerts = totalStale > 0 || scopeAlerts.length > 0
 
   return (
     <div className="bg-white rounded-2xl border border-[#E5E5E5] shadow-md p-5">
       <div className="flex items-center gap-1.5 mb-4">
-        <Target className="w-4 h-4 text-[#3FAF7A]" />
+        <Activity className="w-4 h-4 text-[#3FAF7A]" />
         <h2 className="text-[13px] font-semibold text-[#333333]">Project Pulse</h2>
-      </div>
-
-      {/* Ring + overall label */}
-      <div className="flex items-center gap-4 mb-4">
-        <CompletenessRing score={overallScore} size="lg" />
-        <div>
-          <p className="text-[22px] font-bold text-[#333333] leading-none">{Math.round(overallScore)}%</p>
-          <p className="text-[12px] text-[#666666] mt-0.5">{overallLabel}</p>
-        </div>
       </div>
 
       {/* Section bars */}
@@ -278,11 +266,14 @@ function ProjectPulseCard({
             maxScore={sec.max_score}
           />
         ))}
+        {sections.length === 0 && (
+          <p className="text-[11px] text-[#999999] py-2">No data yet — start uploading signals</p>
+        )}
       </div>
 
-      {/* Gap count + question count footer */}
+      {/* Gap + question counts */}
       {(gapCount > 0 || (questionCounts && questionCounts.open > 0)) && (
-        <div className="flex items-center gap-3 pt-2 border-t border-[#E5E5E5]">
+        <div className="flex items-center gap-3 pt-2 border-t border-[#E5E5E5] mb-3">
           {gapCount > 0 && (
             <p className="text-[11px] text-[#999999]">
               {gapCount} gap{gapCount !== 1 ? 's' : ''} to address
@@ -302,19 +293,23 @@ function ProjectPulseCard({
         </div>
       )}
 
-      {/* Prototype readiness (secondary) */}
-      {hasReadinessData && (
-        <div className="flex items-center gap-2 mt-2 pt-2 border-t border-[#E5E5E5]">
-          <span className="text-[10px] text-[#999999]">Prototype Readiness:</span>
-          <div className="flex-1 h-1 bg-[#E5E5E5] rounded-full overflow-hidden">
-            <div
-              className="h-full rounded-full bg-[#3FAF7A] transition-all duration-500"
-              style={{ width: `${Math.min(prototypeReadiness, 100)}%` }}
-            />
-          </div>
-          <span className="text-[10px] font-medium text-[#666666] tabular-nums">
-            {Math.round(prototypeReadiness)}%
-          </span>
+      {/* Health alerts (merged from ProjectHealthOverlay) */}
+      {hasAlerts && (
+        <div className="space-y-1.5 pt-2 border-t border-[#E5E5E5]">
+          {totalStale > 0 && (
+            <div className="flex items-center gap-2 px-2.5 py-1.5 bg-[#FFF8F0] rounded-lg">
+              <RefreshCw className="w-3 h-3 text-amber-500 flex-shrink-0" />
+              <p className="text-[11px] text-[#666666]">
+                {totalStale} stale {totalStale === 1 ? 'entity' : 'entities'} need refreshing
+              </p>
+            </div>
+          )}
+          {scopeAlerts.slice(0, 2).map((alert, i) => (
+            <div key={i} className="flex items-center gap-2 px-2.5 py-1.5 bg-[#FFF8F0] rounded-lg">
+              <AlertTriangle className="w-3 h-3 text-amber-500 flex-shrink-0" />
+              <p className="text-[11px] text-[#666666]">{alert.message}</p>
+            </div>
+          ))}
         </div>
       )}
     </div>
@@ -331,8 +326,7 @@ function SectionBar({
   maxScore: number
 }) {
   const pct = maxScore > 0 ? Math.round((score / maxScore) * 100) : 0
-  const barColor = pct >= 80 ? 'bg-[#25785A]' : pct >= 60 ? 'bg-[#3FAF7A]' : 'bg-[#E5E5E5]'
-  const fillBg = pct < 60 ? 'bg-[#999999]' : barColor
+  const fillBg = pct >= 80 ? 'bg-[#25785A]' : pct >= 60 ? 'bg-[#3FAF7A]' : 'bg-[#999999]'
 
   return (
     <div className="flex items-center gap-1.5">
@@ -348,79 +342,79 @@ function SectionBar({
   )
 }
 
-function NextActionsCard({
+// ---------------------------------------------------------------------------
+// Context Frame Actions (top 3)
+// ---------------------------------------------------------------------------
+
+function ContextActionsCard({
   actions,
-  startIndex,
-  onActionExecute,
+  onNavigateToPhase,
 }: {
-  actions: NextAction[]
-  startIndex: number
-  onActionExecute?: (action: NextAction) => void
+  actions: TerseAction[]
+  onNavigateToPhase: (phase: 'discovery' | 'build') => void
 }) {
   return (
-    <div className="bg-white rounded-2xl border border-[#E5E5E5] shadow-md p-5">
+    <div className="bg-white rounded-2xl border border-[#E5E5E5] shadow-md p-5 flex flex-col">
       <div className="flex items-center gap-1.5 mb-3">
-        <Lightbulb className="w-4 h-4 text-[#3FAF7A]" />
+        <Sparkles className="w-4 h-4 text-[#3FAF7A]" />
         <h2 className="text-[13px] font-semibold text-[#333333]">Next Best Actions</h2>
       </div>
 
       {actions.length > 0 ? (
-        <div className="space-y-2.5">
+        <div className="flex-1 flex flex-col gap-2">
           {actions.map((action, idx) => {
-            const Icon = ACTION_ICONS[action.action_type] || Target
-            const displayNum = startIndex + idx
+            const sourceColor = GAP_SOURCE_COLORS[action.gap_source] || '#999999'
+            const Icon = GAP_SOURCE_ICONS[action.gap_type] || GAP_SOURCE_ICONS[action.gap_source] || Sparkles
             return (
               <button
-                key={idx}
-                onClick={() => onActionExecute?.(action)}
-                className="w-full p-3 bg-[#F4F4F4] rounded-xl text-left hover:bg-[#EEEEEE] transition-colors cursor-pointer group"
+                key={action.action_id}
+                onClick={() => onNavigateToPhase('discovery')}
+                className="flex-1 flex items-start gap-3 p-3 bg-[#F4F4F4] rounded-xl text-left hover:bg-[#EEEEEE] transition-colors cursor-pointer group"
               >
-                <div className="flex items-start gap-2.5">
-                  <span className="flex items-center justify-center w-5 h-5 rounded-full bg-[#F0F0F0] text-[11px] font-medium text-[#666666] flex-shrink-0 mt-0.5">
-                    {displayNum}
-                  </span>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1.5">
-                      <Icon className="w-3.5 h-3.5 text-[#999999] flex-shrink-0" />
-                      <p className="text-[12px] font-medium text-[#333333]">{action.title}</p>
-                    </div>
-                    <p className="text-[11px] text-[#666666] mt-0.5 ml-5 leading-relaxed">{action.description}</p>
-                    {(action.suggested_stakeholder_role || action.suggested_artifact) && (
-                      <div className="flex items-center gap-1.5 mt-1.5 ml-5">
-                        {action.suggested_stakeholder_role && (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-medium bg-[#E8F5E9] text-[#25785A] rounded-full">
-                            <Users className="w-2.5 h-2.5" />
-                            {action.suggested_stakeholder_role}
-                          </span>
-                        )}
-                        {action.suggested_artifact && (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-medium bg-white text-[#666666] rounded-full">
-                            <FileText className="w-2.5 h-2.5" />
-                            {action.suggested_artifact}
-                          </span>
-                        )}
-                      </div>
-                    )}
+                <span
+                  className="flex items-center justify-center w-5 h-5 rounded-full text-[11px] font-semibold flex-shrink-0 mt-0.5"
+                  style={{
+                    backgroundColor: sourceColor + '18',
+                    color: sourceColor,
+                  }}
+                >
+                  {idx + 1}
+                </span>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1.5 mb-0.5">
+                    <Icon className="w-3 h-3 flex-shrink-0" style={{ color: sourceColor }} />
+                    <span
+                      className="text-[10px] font-medium uppercase tracking-wide"
+                      style={{ color: sourceColor }}
+                    >
+                      {action.gap_source}
+                    </span>
                   </div>
-                  <ArrowRight className="w-3.5 h-3.5 text-[#E5E5E5] group-hover:text-[#3FAF7A] transition-colors flex-shrink-0 mt-0.5" />
+                  <p className="text-[12px] text-[#333333] leading-relaxed">{action.sentence}</p>
                 </div>
+                <ArrowRight className="w-3.5 h-3.5 text-[#E5E5E5] group-hover:text-[#3FAF7A] transition-colors flex-shrink-0 mt-0.5" />
               </button>
             )
           })}
         </div>
       ) : (
-        <div className="text-center py-6">
-          <Lightbulb className="w-8 h-8 text-[#E5E5E5] mx-auto mb-2" />
-          <p className="text-[12px] text-[#999999]">
-            No recommendations — your BRD is well-defined
-          </p>
+        <div className="flex-1 flex flex-col items-center justify-center py-4">
+          <div className="w-10 h-10 rounded-full bg-[#E8F5E9] flex items-center justify-center mb-2">
+            <CheckCircle className="w-5 h-5 text-[#25785A]" />
+          </div>
+          <p className="text-[12px] font-medium text-[#333333]">Looking good</p>
+          <p className="text-[11px] text-[#999999] mt-0.5">No actions needed right now</p>
         </div>
       )}
     </div>
   )
 }
 
-function ActivityStrip({
+// ---------------------------------------------------------------------------
+// Activity Card (resized from strip to card)
+// ---------------------------------------------------------------------------
+
+function ActivityCard({
   touchpoints,
 }: {
   touchpoints: CollaborationHistoryResponse['touchpoints']
@@ -443,39 +437,88 @@ function ActivityStrip({
   }
 
   return (
-    <div className="bg-white rounded-2xl border border-[#E5E5E5] shadow-md p-4">
+    <div className="bg-white rounded-2xl border border-[#E5E5E5] shadow-md p-5">
       <div className="flex items-center gap-1.5 mb-3">
         <Activity className="w-4 h-4 text-[#3FAF7A]" />
         <h2 className="text-[13px] font-semibold text-[#333333]">Recent Activity</h2>
       </div>
 
       {items.length > 0 ? (
-        <div className="flex gap-3 overflow-x-auto pb-1">
+        <div className="space-y-2">
           {items.map((tp) => (
             <div
               key={tp.id}
-              className="flex-shrink-0 w-56 bg-[#F4F4F4] rounded-xl p-3"
+              className="flex items-center gap-2.5 p-2.5 bg-[#F4F4F4] rounded-xl"
             >
-              <div className="flex items-center gap-1.5 mb-1.5">
-                <Activity className="w-3 h-3 text-[#999999]" />
-                <span className="text-[11px] font-medium text-[#333333] truncate">{tp.title}</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <span className={`px-1.5 py-0.5 text-[10px] font-medium rounded-full ${statusBadgeClass(tp.status)}`}>
-                  {tp.status}
-                </span>
-                <span className="text-[10px] text-[#999999]">
-                  {formatRelativeTime(tp.completed_at || tp.created_at)}
-                </span>
+              <Activity className="w-3 h-3 text-[#999999] flex-shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-[11px] font-medium text-[#333333] truncate">{tp.title}</p>
+                <div className="flex items-center gap-1.5 mt-0.5">
+                  <span className={`px-1.5 py-0.5 text-[10px] font-medium rounded-full ${statusBadgeClass(tp.status)}`}>
+                    {tp.status}
+                  </span>
+                  <span className="text-[10px] text-[#999999]">
+                    {formatRelativeTime(tp.completed_at || tp.created_at)}
+                  </span>
+                </div>
               </div>
             </div>
           ))}
         </div>
       ) : (
-        <p className="text-[12px] text-[#999999] py-2">
-          No activity yet — process a signal to get started
-        </p>
+        <div className="flex flex-col items-center justify-center py-4">
+          <Activity className="w-6 h-6 text-[#E5E5E5] mb-2" />
+          <p className="text-[11px] text-[#999999]">No activity yet</p>
+        </div>
       )}
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Upcoming Meetings (placeholder)
+// ---------------------------------------------------------------------------
+
+function UpcomingMeetingsCard() {
+  return (
+    <div className="bg-white rounded-2xl border border-[#E5E5E5] shadow-md p-5">
+      <div className="flex items-center gap-1.5 mb-3">
+        <Calendar className="w-4 h-4 text-[#3FAF7A]" />
+        <h2 className="text-[13px] font-semibold text-[#333333]">Upcoming Meetings</h2>
+      </div>
+      <div className="flex flex-col items-center justify-center py-4">
+        <div className="w-10 h-10 rounded-full bg-[#F4F4F4] flex items-center justify-center mb-2">
+          <Calendar className="w-5 h-5 text-[#E5E5E5]" />
+        </div>
+        <p className="text-[12px] font-medium text-[#333333]">Coming soon</p>
+        <p className="text-[11px] text-[#999999] mt-0.5 text-center">
+          Calendar sync and meeting prep
+        </p>
+      </div>
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Client Portal (placeholder)
+// ---------------------------------------------------------------------------
+
+function ClientPortalCard() {
+  return (
+    <div className="bg-white rounded-2xl border border-[#E5E5E5] shadow-md p-5">
+      <div className="flex items-center gap-1.5 mb-3">
+        <Globe className="w-4 h-4 text-[#3FAF7A]" />
+        <h2 className="text-[13px] font-semibold text-[#333333]">Client Portal</h2>
+      </div>
+      <div className="flex flex-col items-center justify-center py-4">
+        <div className="w-10 h-10 rounded-full bg-[#F4F4F4] flex items-center justify-center mb-2">
+          <Globe className="w-5 h-5 text-[#E5E5E5]" />
+        </div>
+        <p className="text-[12px] font-medium text-[#333333]">Coming soon</p>
+        <p className="text-[11px] text-[#999999] mt-0.5 text-center">
+          Client review notifications
+        </p>
+      </div>
     </div>
   )
 }

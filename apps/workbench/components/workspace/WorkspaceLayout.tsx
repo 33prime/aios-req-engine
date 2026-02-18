@@ -47,8 +47,7 @@ import type { DesignSelection, FeatureOverlay, FeatureVerdict, PrototypeSession,
 import type { PrototypeFrameHandle } from '@/components/prototype/PrototypeFrame'
 import ReviewStartModal from '@/components/prototype/ReviewStartModal'
 import ReviewEndModal from '@/components/prototype/ReviewEndModal'
-import { ProjectHealthOverlay } from './ProjectHealthOverlay'
-import { Activity, Settings, Loader2, CheckCircle2, XCircle, Clock, ArrowLeft } from 'lucide-react'
+import { Settings, Loader2, CheckCircle2, XCircle, Clock, ArrowLeft } from 'lucide-react'
 import { getProjectDetails, getLaunchProgress } from '@/lib/api'
 import type { LaunchProgressResponse } from '@/types/workspace'
 
@@ -131,8 +130,7 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
     }
   }, [projectId])
 
-  // Project Health overlay (current state, opened via Activity icon)
-  const [showHealthOverlay, setShowHealthOverlay] = useState(false)
+
 
   // Pending action from cross-view navigation (e.g., Overview → BRD)
   const [pendingAction, setPendingAction] = useState<NextAction | null>(null)
@@ -617,14 +615,6 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
                     </p>
                   )}
                 </div>
-                {/* Health icon — opens current-state health overlay */}
-                <button
-                  onClick={() => setShowHealthOverlay(true)}
-                  className="p-1.5 rounded-lg hover:bg-[#F4F4F4] transition-colors group"
-                  title="Project Health"
-                >
-                  <Activity className="w-4 h-4 text-[#3FAF7A] group-hover:text-[#25785A]" />
-                </button>
               </div>
 
               <PhaseSwitcher
@@ -643,6 +633,7 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
                 readinessData={readinessData}
                 brdData={brdData}
                 nextActions={nextActions}
+                contextActions={contextFrame?.actions}
                 initialTaskStats={taskStats}
                 initialHistory={collaborationHistory}
                 initialQuestionCounts={questionCounts}
@@ -826,13 +817,6 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
             sessionContext={sessionContext}
             prototypeId={prototypeId}
             onVerdictSubmit={handleVerdictSubmit}
-          />
-        )}
-        {/* Project Health Overlay — current state, via Activity icon */}
-        {showHealthOverlay && (
-          <ProjectHealthOverlay
-            projectId={projectId}
-            onDismiss={() => setShowHealthOverlay(false)}
           />
         )}
       </div>
