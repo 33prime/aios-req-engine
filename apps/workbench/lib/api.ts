@@ -2607,18 +2607,95 @@ export interface UnifiedActionsResult {
   computed_at: string
 }
 
+// ===========================================
+// v3 Context Frame types
+// ===========================================
+
+export type ContextPhase = 'empty' | 'seeding' | 'building' | 'refining'
+export type CTAType = 'inline_answer' | 'upload_doc' | 'discuss'
+
+export interface StructuralGap {
+  gap_id: string
+  gap_type: string
+  sentence: string
+  entity_type: string
+  entity_id: string
+  entity_name: string
+  workflow_name: string | null
+  score: number
+  question_placeholder: string | null
+}
+
+export interface SignalGap {
+  gap_id: string
+  sentence: string
+  suggested_artifact: string
+  reasoning: string
+  related_workflow: string | null
+  cta_type: CTAType
+}
+
+export interface KnowledgeGap {
+  gap_id: string
+  sentence: string
+  reasoning: string
+  related_context: string | null
+}
+
+export interface TerseAction {
+  action_id: string
+  sentence: string
+  cta_type: CTAType
+  cta_label: string
+  gap_source: 'structural' | 'signal' | 'knowledge'
+  gap_type: string
+  entity_type: string | null
+  entity_id: string | null
+  entity_name: string | null
+  question_placeholder: string | null
+  priority: number
+  impact_score: number
+}
+
+export interface ProjectContextFrame {
+  phase: ContextPhase
+  phase_progress: number
+  structural_gaps: StructuralGap[]
+  signal_gaps: SignalGap[]
+  knowledge_gaps: KnowledgeGap[]
+  actions: TerseAction[]
+  state_snapshot: string
+  workflow_context: string
+  memory_hints: string[]
+  entity_counts: Record<string, number>
+  total_gap_count: number
+  computed_at: string
+  open_questions: Array<{
+    id: string
+    question: string
+    priority: string
+    category: string
+  }>
+}
+
 export const getNextActions = (projectId: string) =>
   apiRequest<{ actions: NextAction[] }>(
     `/projects/${projectId}/workspace/brd/next-actions`
   )
 
+// v3 context frame (terse actions with structural/signal/knowledge gaps)
+export const getContextFrame = (projectId: string, maxActions = 5) =>
+  apiRequest<ProjectContextFrame>(
+    `/projects/${projectId}/workspace/actions?max_actions=${maxActions}&version=v3`
+  )
+
 // v2 intelligence actions (with Haiku narratives + questions)
 export const getIntelligenceActions = (projectId: string, maxActions = 5) =>
   apiRequest<IntelligenceActionsResult>(
-    `/projects/${projectId}/workspace/actions?max_actions=${maxActions}`
+    `/projects/${projectId}/workspace/actions?max_actions=${maxActions}&version=v2`
   )
 
-// Answer an action question and trigger cascade
+// Answer an action question and trigger cascade (v2 compat)
 export const answerActionQuestion = (
   projectId: string,
   actionId: string,
@@ -2633,6 +2710,28 @@ export const answerActionQuestion = (
         action_id: actionId,
         question_index: questionIndex,
         answer_text: answerText,
+      }),
+    }
+  )
+
+// Answer a terse action (v3 — passes entity info directly)
+export const answerTerseAction = (
+  projectId: string,
+  action: TerseAction,
+  answerText: string,
+) =>
+  apiRequest<AnswerActionResponse>(
+    `/projects/${projectId}/workspace/actions/answer`,
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        action_id: action.action_id,
+        answer_text: answerText,
+        gap_type: action.gap_type,
+        entity_type: action.entity_type,
+        entity_id: action.entity_id,
+        entity_name: action.entity_name,
+        question_text: action.sentence,
       }),
     }
   )

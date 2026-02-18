@@ -165,3 +165,43 @@ export function getActionCTALabel(actionType: string): string {
 export function getActionIcon(gapType: string): LucideIcon {
   return GAP_TYPE_ICONS[gapType] || ACTION_ICONS[gapType] || Layers
 }
+
+// =============================================================================
+// v3 gap source constants
+// =============================================================================
+
+import { Upload, MessageSquare, type LucideIcon as LIcon } from 'lucide-react'
+
+/** Icons by gap source type (v3 terse actions) */
+export const GAP_SOURCE_ICONS: Record<string, LIcon> = {
+  structural: HelpCircle,
+  signal: Upload,
+  knowledge: MessageSquare,
+  // Also support specific gap_types
+  signal_gap: Upload,
+  knowledge_gap: MessageSquare,
+  ...GAP_TYPE_ICONS,
+}
+
+/** Colors by gap source (v3) */
+export const GAP_SOURCE_COLORS: Record<string, string> = {
+  structural: '#3FAF7A',  // brand green — answerable inline
+  signal: '#0A1E2F',      // navy — needs document
+  knowledge: '#666666',   // secondary — needs discussion
+}
+
+/** Phase display labels */
+export const PHASE_LABELS: Record<string, string> = {
+  empty: 'Getting Started',
+  seeding: 'Seeding',
+  building: 'Building',
+  refining: 'Refining',
+}
+
+/** Phase descriptions for empty states */
+export const PHASE_DESCRIPTIONS: Record<string, string> = {
+  empty: 'Tell us about the project to get started',
+  seeding: 'Upload documents or describe the current process',
+  building: 'Fill in the details to strengthen the BRD',
+  refining: 'Almost there — confirm and polish',
+}

@@ -99,6 +99,7 @@ async def _load_project_data(project_id: UUID) -> dict:
     )
     from app.db.business_drivers import list_business_drivers
     from app.db.entity_dependencies import get_dependency_graph
+    from app.db.features import list_features
     from app.db.open_questions import list_open_questions
     from app.db.personas import list_personas
     from app.db.workflows import get_workflow_pairs
@@ -117,6 +118,7 @@ async def _load_project_data(project_id: UUID) -> dict:
     workflow_pairs = get_workflow_pairs(project_id)
     drivers = list_business_drivers(project_id, limit=200)
     personas = list_personas(project_id)
+    features = list_features(project_id)
     dep_graph = get_dependency_graph(project_id)
     questions = list_open_questions(project_id, status="open", limit=50)
 
@@ -146,6 +148,7 @@ async def _load_project_data(project_id: UUID) -> dict:
         "workflow_pairs": workflow_pairs,
         "drivers": drivers,
         "personas": personas,
+        "features": features,
         "dep_graph": dep_graph,
         "questions": questions,
         "stakeholder_names": stakeholder_names,
@@ -1025,3 +1028,382 @@ def compute_state_frame_actions(
         )
 
     return actions[:5]
+
+
+# ============================================================================
+# v3: Context Frame Engine
+# ============================================================================
+
+
+def _detect_context_phase(data: dict) -> tuple:
+    """Detect 4-tier project phase from entity counts.
+
+    Returns:
+        (ContextPhase, progress float 0-1)
+    """
+    from app.core.schemas_actions import ContextPhase
+
+    workflow_pairs = data.get("workflow_pairs") or []
+    features = data.get("features") or []
+    personas = data.get("personas") or []
+    vp_steps_count = sum(
+        len(p.get("current_steps") or []) + len(p.get("future_steps") or [])
+        for p in workflow_pairs
+    )
+
+    total_entities = len(features) + len(personas) + vp_steps_count
+    workflow_count = len(workflow_pairs)
+
+    # Refining: >70% structural completeness
+    if total_entities >= 15 and workflow_count >= 2:
+        # Check completeness: count gaps vs total fields
+        total_fields = 0
+        filled_fields = 0
+        for p in workflow_pairs:
+            for step in p.get("current_steps") or []:
+                total_fields += 3  # actor, pain, time
+                if step.get("actor_persona_id"):
+                    filled_fields += 1
+                if step.get("pain_description"):
+                    filled_fields += 1
+                if step.get("time_minutes"):
+                    filled_fields += 1
+            for step in p.get("future_steps") or []:
+                total_fields += 1  # benefit
+                if step.get("benefit_description"):
+                    filled_fields += 1
+
+        completeness = filled_fields / max(total_fields, 1)
+        if completeness > 0.70:
+            return ContextPhase.REFINING, min(1.0, 0.75 + completeness * 0.25)
+
+        return ContextPhase.BUILDING, 0.4 + completeness * 0.35
+
+    # Seeding: 3-15 entities OR <2 workflows
+    if total_entities >= 3 or workflow_count >= 1:
+        progress = min(0.4, total_entities / 15 * 0.3 + workflow_count / 2 * 0.1)
+        return ContextPhase.SEEDING, progress
+
+    # Empty
+    progress = total_entities / 3 * 0.1
+    return ContextPhase.EMPTY, progress
+
+
+def _build_workflow_context(workflow_pairs: list[dict]) -> str:
+    """Build a terse workflow context string for Haiku (~300 tokens)."""
+    if not workflow_pairs:
+        return "No workflows defined yet."
+
+    lines = []
+    for p in workflow_pairs:
+        name = p.get("name", "Unnamed")
+        current = p.get("current_steps") or []
+        future = p.get("future_steps") or []
+        line = f"- {name}"
+        if current:
+            step_names = [s.get("label", "step") for s in current[:6]]
+            line += f" (current: {', '.join(step_names)})"
+        if future:
+            step_names = [s.get("label", "step") for s in future[:6]]
+            line += f" (future: {', '.join(step_names)})"
+        lines.append(line)
+    return "\n".join(lines)
+
+
+def _build_structural_gaps(
+    workflow_pairs: list[dict],
+    phase_str: str,
+) -> list:
+    """Walk workflows only, produce StructuralGap list (no drivers/personas)."""
+    from app.core.schemas_actions import StructuralGap
+
+    gaps = []
+
+    for pair in workflow_pairs:
+        wf_name = pair.get("name", "Unnamed Workflow")
+        wf_id = pair.get("id", "")
+
+        current_steps = pair.get("current_steps") or []
+        future_steps = pair.get("future_steps") or []
+
+        for step in current_steps:
+            step_id = str(step.get("id", ""))
+            step_label = step.get("label", "step")
+
+            if not step.get("actor_persona_id"):
+                gaps.append(
+                    StructuralGap(
+                        gap_id=_skeleton_id("step_no_actor", step_id),
+                        gap_type="step_no_actor",
+                        sentence=f"Who performs '{step_label}' in {wf_name}?",
+                        entity_type="vp_step",
+                        entity_id=step_id,
+                        entity_name=step_label,
+                        workflow_name=wf_name,
+                        score=82 * _phase_mult("workflow", phase_str),
+                        question_placeholder="Enter the person or role...",
+                    )
+                )
+
+            if not step.get("pain_description"):
+                gaps.append(
+                    StructuralGap(
+                        gap_id=_skeleton_id("step_no_pain", step_id),
+                        gap_type="step_no_pain",
+                        sentence=f"What's the pain point at '{step_label}' in {wf_name}?",
+                        entity_type="vp_step",
+                        entity_id=step_id,
+                        entity_name=step_label,
+                        workflow_name=wf_name,
+                        score=78 * _phase_mult("workflow", phase_str),
+                        question_placeholder="Describe the current frustration...",
+                    )
+                )
+
+            if not step.get("time_minutes"):
+                gaps.append(
+                    StructuralGap(
+                        gap_id=_skeleton_id("step_no_time", step_id),
+                        gap_type="step_no_time",
+                        sentence=f"How long does '{step_label}' take in {wf_name}?",
+                        entity_type="vp_step",
+                        entity_id=step_id,
+                        entity_name=step_label,
+                        workflow_name=wf_name,
+                        score=65 * _phase_mult("workflow", phase_str),
+                        question_placeholder="Estimated minutes...",
+                    )
+                )
+
+        for step in future_steps:
+            step_id = str(step.get("id", ""))
+            step_label = step.get("label", "step")
+
+            if not step.get("benefit_description"):
+                gaps.append(
+                    StructuralGap(
+                        gap_id=_skeleton_id("step_no_benefit", step_id),
+                        gap_type="step_no_benefit",
+                        sentence=f"What improves at '{step_label}' in {wf_name}?",
+                        entity_type="vp_step",
+                        entity_id=step_id,
+                        entity_name=step_label,
+                        workflow_name=wf_name,
+                        score=75 * _phase_mult("workflow", phase_str),
+                        question_placeholder="Describe the improvement...",
+                    )
+                )
+
+        # Workflow has current pains but no future state
+        steps_with_pains = [s for s in current_steps if s.get("pain_description")]
+        if steps_with_pains and not future_steps:
+            gaps.append(
+                StructuralGap(
+                    gap_id=_skeleton_id("wf_no_future", wf_id),
+                    gap_type="workflow_no_future_state",
+                    sentence=f"'{wf_name}' has {len(steps_with_pains)} pain points but no future state — what does the improved process look like?",
+                    entity_type="workflow",
+                    entity_id=wf_id,
+                    entity_name=wf_name,
+                    workflow_name=wf_name,
+                    score=88 * _phase_mult("workflow", phase_str),
+                )
+            )
+
+    # Sort by score descending, deduplicate by entity
+    gaps.sort(key=lambda g: g.score, reverse=True)
+    seen = set()
+    deduped = []
+    for g in gaps:
+        key = f"{g.entity_type}:{g.entity_id}"
+        if key not in seen:
+            seen.add(key)
+            deduped.append(g)
+
+    return deduped
+
+
+def _load_memory_hints(project_id: UUID) -> list[str]:
+    """Load low-confidence beliefs from memory_nodes."""
+    try:
+        from app.db.supabase_client import get_supabase
+
+        sb = get_supabase()
+        result = (
+            sb.table("memory_nodes")
+            .select("content, confidence")
+            .eq("project_id", str(project_id))
+            .lt("confidence", 0.6)
+            .order("confidence")
+            .limit(5)
+            .execute()
+        )
+        return [
+            f"{r['content']} (confidence: {r.get('confidence', 0):.0%})"
+            for r in (result.data or [])
+            if r.get("content")
+        ]
+    except Exception as e:
+        logger.debug(f"Memory hints load failed: {e}")
+        return []
+
+
+def _count_entities(data: dict) -> dict:
+    """Count entities by type for the context frame."""
+    workflow_pairs = data.get("workflow_pairs") or []
+    current_steps = sum(len(p.get("current_steps") or []) for p in workflow_pairs)
+    future_steps = sum(len(p.get("future_steps") or []) for p in workflow_pairs)
+    return {
+        "workflows": len(workflow_pairs),
+        "current_steps": current_steps,
+        "future_steps": future_steps,
+        "features": len(data.get("features") or []),
+        "personas": len(data.get("personas") or []),
+        "stakeholders": len(data.get("stakeholder_names") or []),
+    }
+
+
+async def compute_context_frame(
+    project_id: UUID,
+    max_actions: int = 5,
+) -> "ProjectContextFrame":
+    """Compute the ProjectContextFrame — v3 universal context engine.
+
+    Three-layer approach:
+    1. Deterministic structural gaps (instant, no LLM)
+    2. Haiku signal + knowledge gaps (fast, ~200ms)
+    3. Merge + rank into terse actions
+
+    Args:
+        project_id: Project UUID
+        max_actions: Max terse actions to return
+    """
+    from app.core.schemas_actions import (
+        CTAType,
+        ProjectContextFrame,
+        TerseAction,
+    )
+
+    # Load project data (single async boundary)
+    data = await _load_project_data(project_id)
+
+    # Phase detection (new 4-tier system)
+    phase, phase_progress = _detect_context_phase(data)
+
+    # Workflow context for Haiku
+    workflow_context = _build_workflow_context(data["workflow_pairs"])
+
+    # State snapshot (cached)
+    try:
+        from app.core.state_snapshot import get_state_snapshot
+        state_snapshot = get_state_snapshot(project_id)
+    except Exception:
+        state_snapshot = ""
+
+    # Layer 1: Structural gaps (deterministic, instant)
+    structural_gaps = _build_structural_gaps(
+        data["workflow_pairs"], phase.value
+    )
+
+    # Layer 2: Signal + knowledge gaps (Haiku)
+    signal_gaps = []
+    knowledge_gaps = []
+    try:
+        from app.chains.generate_gap_intelligence import generate_gap_intelligence
+        signal_gaps, knowledge_gaps = await generate_gap_intelligence(
+            phase=phase,
+            workflow_context=workflow_context,
+            state_snapshot=state_snapshot,
+            entity_counts=_count_entities(data),
+            project_id=str(project_id),
+        )
+    except ImportError:
+        logger.info("Gap intelligence chain not available")
+    except Exception as e:
+        logger.warning(f"Gap intelligence failed: {e}")
+
+    # Memory hints
+    memory_hints = _load_memory_hints(project_id)
+
+    # Merge all gaps into terse actions, ranked
+    actions: list[TerseAction] = []
+
+    # Structural gaps → inline answer actions
+    for g in structural_gaps:
+        actions.append(
+            TerseAction(
+                action_id=g.gap_id,
+                sentence=g.sentence,
+                cta_type=CTAType.INLINE_ANSWER,
+                cta_label="Answer",
+                gap_source="structural",
+                gap_type=g.gap_type,
+                entity_type=g.entity_type,
+                entity_id=g.entity_id,
+                entity_name=g.entity_name,
+                question_placeholder=g.question_placeholder,
+                impact_score=g.score,
+            )
+        )
+
+    # Signal gaps → upload doc or discuss
+    for g in signal_gaps:
+        actions.append(
+            TerseAction(
+                action_id=g.gap_id,
+                sentence=g.sentence,
+                cta_type=g.cta_type,
+                cta_label="Upload document" if g.cta_type == CTAType.UPLOAD_DOC else "Discuss in chat",
+                gap_source="signal",
+                gap_type="signal_gap",
+                impact_score=85.0,  # signal gaps are high priority
+            )
+        )
+
+    # Knowledge gaps → discuss
+    for g in knowledge_gaps:
+        actions.append(
+            TerseAction(
+                action_id=g.gap_id,
+                sentence=g.sentence,
+                cta_type=CTAType.DISCUSS,
+                cta_label="Discuss in chat",
+                gap_source="knowledge",
+                gap_type="knowledge_gap",
+                impact_score=80.0,
+            )
+        )
+
+    # Sort by impact score, assign priority ranks
+    actions.sort(key=lambda a: a.impact_score, reverse=True)
+    for i, a in enumerate(actions[:max_actions]):
+        a.priority = i + 1
+    actions = actions[:max_actions]
+
+    # Open questions
+    open_questions_summary = [
+        {
+            "id": q.get("id"),
+            "question": q.get("question"),
+            "priority": q.get("priority"),
+            "category": q.get("category"),
+        }
+        for q in data.get("questions", [])[:5]
+    ]
+
+    total_gaps = len(structural_gaps) + len(signal_gaps) + len(knowledge_gaps)
+
+    return ProjectContextFrame(
+        phase=phase,
+        phase_progress=phase_progress,
+        structural_gaps=structural_gaps[:10],
+        signal_gaps=signal_gaps,
+        knowledge_gaps=knowledge_gaps,
+        actions=actions,
+        state_snapshot=state_snapshot,
+        workflow_context=workflow_context,
+        memory_hints=memory_hints,
+        entity_counts=_count_entities(data),
+        total_gap_count=total_gaps,
+        open_questions=open_questions_summary,
+    )

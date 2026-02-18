@@ -1858,24 +1858,38 @@ async def get_next_actions(project_id: UUID) -> dict:
 async def get_unified_actions(
     project_id: UUID,
     max_actions: int = Query(5, ge=1, le=10, description="Maximum actions to return"),
+    version: str = Query("v3", description="Engine version: v2 (legacy) or v3 (context frame)"),
 ) -> dict:
-    """Relationship-aware action engine v2.
+    """Action engine — returns terse, stage-aware actions.
 
-    Layer 1: Graph-walking skeleton builder (instant, no LLM).
-    Layer 2: Haiku 4.5 narrative generation (cached, ~200ms).
-    Returns 5 actions (show 3, buffer 5) with narratives, questions, and unlocks.
+    v3 (default): ProjectContextFrame with structural/signal/knowledge gaps.
+    v2 (legacy): ActionEngineResult with Haiku narratives + questions.
     """
-    from app.core.action_engine import compute_actions
+    if version == "v2":
+        from app.core.action_engine import compute_actions
+
+        try:
+            result = await compute_actions(
+                project_id,
+                max_skeletons=max_actions,
+                include_narratives=True,
+            )
+            return result.model_dump(mode="json")
+        except Exception as e:
+            logger.exception(f"Failed to compute v2 actions for project {project_id}")
+            raise HTTPException(status_code=500, detail=str(e))
+
+    # v3: ProjectContextFrame
+    from app.core.action_engine import compute_context_frame
 
     try:
-        result = await compute_actions(
+        frame = await compute_context_frame(
             project_id,
-            max_skeletons=max_actions,
-            include_narratives=True,
+            max_actions=max_actions,
         )
-        return result.model_dump(mode="json")
+        return frame.model_dump(mode="json")
     except Exception as e:
-        logger.exception(f"Failed to compute actions for project {project_id}")
+        logger.exception(f"Failed to compute context frame for project {project_id}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -1886,12 +1900,12 @@ async def answer_action_question(
 ) -> dict:
     """Answer an action question and trigger the cascade.
 
-    Body: {action_id, question_index, answer_text, answered_by?}
+    Body: {action_id, answer_text, question_index?, answered_by?, gap_type?, entity_type?, entity_id?, entity_name?}
 
+    Supports both v2 (lookup action by ID) and v3 (entity info passed from frontend).
     Flow: answer → Haiku parse → entity create/enrich → rebuild deps → recompute.
     """
     from app.chains.parse_question_answer import apply_extractions, parse_answer
-    from app.core.action_engine import compute_actions
 
     action_id = body.get("action_id", "")
     question_index = body.get("question_index", 0)
@@ -1900,32 +1914,44 @@ async def answer_action_question(
     if not answer_text:
         raise HTTPException(status_code=400, detail="answer_text is required")
 
-    # Get the current actions to find the skeleton context
-    current = await compute_actions(project_id, max_skeletons=5, include_narratives=False)
-    target_action = None
-    for a in current.actions:
-        if a.action_id == action_id:
-            target_action = a
-            break
+    # v3 path: entity info passed directly from frontend
+    gap_type = body.get("gap_type", "")
+    entity_type = body.get("entity_type", "")
+    entity_id = body.get("entity_id", "")
+    entity_name = body.get("entity_name", "")
+    question_text = body.get("question_text", "")
 
-    if not target_action:
-        raise HTTPException(status_code=404, detail=f"Action {action_id} not found")
+    # v2 fallback: lookup action by ID
+    if not entity_type:
+        from app.core.action_engine import compute_actions
 
-    # Get the question text
-    question_text = ""
-    if target_action.questions and question_index < len(target_action.questions):
-        question_text = target_action.questions[question_index].question
-    elif target_action.narrative:
-        question_text = target_action.narrative
+        current = await compute_actions(project_id, max_skeletons=5, include_narratives=False)
+        target_action = None
+        for a in current.actions:
+            if a.action_id == action_id:
+                target_action = a
+                break
+
+        if not target_action:
+            raise HTTPException(status_code=404, detail=f"Action {action_id} not found")
+
+        gap_type = target_action.gap_type
+        entity_type = target_action.primary_entity_type
+        entity_id = target_action.primary_entity_id
+        entity_name = target_action.primary_entity_name
+        if target_action.questions and question_index < len(target_action.questions):
+            question_text = target_action.questions[question_index].question
+        elif target_action.narrative:
+            question_text = target_action.narrative
 
     # Parse the answer
     parse_result = await parse_answer(
-        question=question_text,
+        question=question_text or answer_text,
         answer=answer_text,
-        gap_type=target_action.gap_type,
-        entity_type=target_action.primary_entity_type,
-        entity_id=target_action.primary_entity_id,
-        entity_name=target_action.primary_entity_name,
+        gap_type=gap_type,
+        entity_type=entity_type,
+        entity_id=entity_id,
+        entity_name=entity_name,
         project_id=str(project_id),
     )
 

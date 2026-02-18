@@ -1,8 +1,13 @@
-"""Pydantic models for the relationship-aware action engine (v2).
+"""Pydantic models for the action engine.
 
-Two-layer architecture:
-  Layer 1 (ActionSkeleton): Deterministic graph-walking engine — instant, no LLM.
-  Layer 2 (UnifiedAction): Haiku 4.5 narrative wrapper — cached, ~200ms.
+Architecture:
+  v2 (legacy): ActionSkeleton → UnifiedAction (still used by answer cascade)
+  v3 (current): ProjectContextFrame — universal context engine powering actions + chat.
+
+v3 produces terse, stage-aware actions with three gap types:
+  - Structural gaps: deterministic graph walk (field is null)
+  - Signal gaps: Haiku-reasoned domain artifacts (implied by workflow context)
+  - Knowledge gaps: Haiku-reasoned insufficient context (what we don't know)
 """
 
 from datetime import datetime
@@ -39,6 +44,23 @@ class QuestionTarget(str, Enum):
     CONSULTANT = "consultant"  # Consultant can answer inline
     CLIENT = "client"  # Needs client stakeholder (flows to collab engine)
     EITHER = "either"  # Could go either way
+
+
+class ContextPhase(str, Enum):
+    """Four-tier project maturity phase for the context engine."""
+
+    EMPTY = "empty"  # 0-3 entities, no workflows
+    SEEDING = "seeding"  # 3-15 entities OR <2 workflows
+    BUILDING = "building"  # 15+ entities, 2+ workflows
+    REFINING = "refining"  # >70% completeness
+
+
+class CTAType(str, Enum):
+    """Call-to-action type for terse action cards."""
+
+    INLINE_ANSWER = "inline_answer"  # Structural gap — show text input
+    UPLOAD_DOC = "upload_doc"  # Signal gap — open file upload
+    DISCUSS = "discuss"  # Knowledge/signal gap — switch to chat tab
 
 
 # =============================================================================
@@ -190,6 +212,108 @@ class ActionEngineResult(BaseModel):
     computed_at: datetime = Field(default_factory=datetime.utcnow)
     narrative_cached: bool = False  # true if Haiku was skipped (cache hit)
     state_snapshot_tokens: int = 0  # size of cached context block
+
+
+# =============================================================================
+# v3: ProjectContextFrame — universal context engine
+# =============================================================================
+
+
+class StructuralGap(BaseModel):
+    """A deterministic gap from graph walking (field is null)."""
+
+    gap_id: str  # deterministic hash
+    gap_type: str  # step_no_actor, step_no_pain, step_no_time, etc.
+    sentence: str  # ONE sentence describing the gap
+    entity_type: str
+    entity_id: str
+    entity_name: str
+    workflow_name: str | None = None  # parent workflow if applicable
+    score: float = 0.0  # priority score (0-100)
+    question_placeholder: str | None = None  # hint for inline input
+
+
+class SignalGap(BaseModel):
+    """A Haiku-reasoned domain artifact gap (implied by workflow context)."""
+
+    gap_id: str
+    sentence: str  # ONE sentence: "Get the assessment rubric from the clinical team"
+    suggested_artifact: str  # what to upload: "question bank", "rubric", "flowchart"
+    reasoning: str  # why this is needed (terse)
+    related_workflow: str | None = None  # which workflow implies this
+    cta_type: CTAType = CTAType.UPLOAD_DOC  # upload or discuss
+
+
+class KnowledgeGap(BaseModel):
+    """A Haiku-reasoned insufficient context gap (what we don't know)."""
+
+    gap_id: str
+    sentence: str  # ONE sentence: "What regulations govern this certification?"
+    reasoning: str  # why we need this (terse)
+    related_context: str | None = None  # what triggered this gap
+
+
+class TerseAction(BaseModel):
+    """A single terse action card for the frontend.
+
+    One sentence + one CTA. No paragraphs. No narrative.
+    """
+
+    action_id: str
+    sentence: str  # ONE sentence
+    cta_type: CTAType
+    cta_label: str  # "Answer", "Upload document", "Discuss in chat"
+
+    # Source
+    gap_source: str  # "structural", "signal", "knowledge"
+    gap_type: str  # for icon mapping
+
+    # Entity targeting
+    entity_type: str | None = None
+    entity_id: str | None = None
+    entity_name: str | None = None
+
+    # For inline answers
+    question_placeholder: str | None = None
+
+    # Scoring
+    priority: int = 0  # 1-based rank
+    impact_score: float = 0.0
+
+
+class ProjectContextFrame(BaseModel):
+    """Universal context output powering actions + chat.
+
+    Replaces ActionEngineResult for the v3 action system.
+    Computed on: data change, signal processed, periodic refresh.
+    """
+
+    # Phase
+    phase: ContextPhase = ContextPhase.EMPTY
+    phase_progress: float = 0.0  # 0-1
+
+    # Three gap types
+    structural_gaps: list[StructuralGap] = Field(default_factory=list)
+    signal_gaps: list[SignalGap] = Field(default_factory=list)
+    knowledge_gaps: list[KnowledgeGap] = Field(default_factory=list)
+
+    # Terse actions (merged + ranked from all 3 gap types)
+    actions: list[TerseAction] = Field(default_factory=list)
+
+    # Context for chat injection
+    state_snapshot: str = ""  # ~500 tokens, project summary
+    workflow_context: str = ""  # ~300 tokens, workflow names + step summaries
+
+    # Memory
+    memory_hints: list[str] = Field(default_factory=list)  # low-confidence beliefs
+
+    # Stats
+    entity_counts: dict = Field(default_factory=dict)
+    total_gap_count: int = 0
+    computed_at: datetime = Field(default_factory=datetime.utcnow)
+
+    # Open questions (surfaced alongside actions)
+    open_questions: list[dict] = Field(default_factory=list)
 
 
 # =============================================================================
