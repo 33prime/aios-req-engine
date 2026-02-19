@@ -1,14 +1,15 @@
 /**
- * MemoryPanel - Memory & Intelligence view
+ * MemoryPanel — Intelligence Module (upgraded)
  *
- * 5 tabs: Overview, Knowledge Graph, Connections, Evolution, For AI
- * Replaces the old HistoryPanel with rich graph/belief visualization.
+ * 5 tabs: Overview, Knowledge, Evolution, Evidence, Sales
+ * Near-full-screen (95vw x 90vh) — managed by BottomDock.
+ * "For AI" overlay accessible via utility button.
  */
 
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { BarChart3, Share2, GitBranch, History, Code, RefreshCw } from 'lucide-react'
+import { BarChart3, Share2, History, FileSearch, DollarSign, Code, RefreshCw } from 'lucide-react'
 import {
   getMemoryVisualization,
   getUnifiedMemory,
@@ -16,23 +17,24 @@ import {
 } from '@/lib/api'
 import type { MemoryVisualizationResponse, UnifiedMemoryResponse } from '@/lib/api'
 import { OverviewTab } from './OverviewTab'
-import { GraphTab } from './GraphTab'
-import { ConnectionsTab } from './ConnectionsTab'
+import { KnowledgeTab } from './KnowledgeTab'
 import { EvolutionTab } from './EvolutionTab'
+import { EvidenceTab } from './EvidenceTab'
+import { SalesTab } from './SalesTab'
 import { ContextWindowTab } from './ContextWindowTab'
 
 interface MemoryPanelProps {
   projectId: string
 }
 
-type MemoryTab = 'overview' | 'graph' | 'connections' | 'evolution' | 'context'
+type MemoryTab = 'overview' | 'knowledge' | 'evolution' | 'evidence' | 'sales'
 
 const TABS = [
   { id: 'overview' as const, icon: BarChart3, label: 'Overview' },
-  { id: 'graph' as const, icon: Share2, label: 'Knowledge Graph' },
-  { id: 'connections' as const, icon: GitBranch, label: 'Connections' },
+  { id: 'knowledge' as const, icon: Share2, label: 'Knowledge' },
   { id: 'evolution' as const, icon: History, label: 'Evolution' },
-  { id: 'context' as const, icon: Code, label: 'For AI' },
+  { id: 'evidence' as const, icon: FileSearch, label: 'Evidence' },
+  { id: 'sales' as const, icon: DollarSign, label: 'Sales' },
 ]
 
 export function MemoryPanel({ projectId }: MemoryPanelProps) {
@@ -41,6 +43,7 @@ export function MemoryPanel({ projectId }: MemoryPanelProps) {
   const [isLoading, setIsLoading] = useState(true)
   const [isSynthesizing, setIsSynthesizing] = useState(false)
   const [unifiedMemory, setUnifiedMemory] = useState<UnifiedMemoryResponse | null>(null)
+  const [showForAI, setShowForAI] = useState(false)
 
   useEffect(() => {
     getMemoryVisualization(projectId)
@@ -48,15 +51,6 @@ export function MemoryPanel({ projectId }: MemoryPanelProps) {
       .catch(() => setVizData(null))
       .finally(() => setIsLoading(false))
   }, [projectId])
-
-  // Lazy-load unified memory when context tab is activated
-  useEffect(() => {
-    if (activeTab === 'context' && !unifiedMemory) {
-      getUnifiedMemory(projectId)
-        .then(setUnifiedMemory)
-        .catch(() => setUnifiedMemory(null))
-    }
-  }, [activeTab, projectId, unifiedMemory])
 
   const handleSynthesize = useCallback(async () => {
     setIsSynthesizing(true)
@@ -70,12 +64,19 @@ export function MemoryPanel({ projectId }: MemoryPanelProps) {
     }
   }, [projectId])
 
-  const freshnessLabel = unifiedMemory?.freshness?.age_human || null
+  // Lazy-load unified memory when For AI overlay opens
+  useEffect(() => {
+    if (showForAI && !unifiedMemory) {
+      getUnifiedMemory(projectId)
+        .then(setUnifiedMemory)
+        .catch(() => setUnifiedMemory(null))
+    }
+  }, [showForAI, projectId, unifiedMemory])
 
   return (
-    <div>
-      {/* Tab bar + header actions */}
-      <div className="flex items-center justify-between mb-4 -mt-1">
+    <div className="flex flex-col h-full">
+      {/* Tab bar + utility actions */}
+      <div className="flex items-center justify-between px-6 py-3 border-b border-ui-cardBorder bg-white shrink-0">
         <div className="flex gap-1">
           {TABS.map((tab) => {
             const Icon = tab.icon
@@ -83,9 +84,9 @@ export function MemoryPanel({ projectId }: MemoryPanelProps) {
             return (
               <button
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
+                onClick={() => { setActiveTab(tab.id); setShowForAI(false) }}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium transition-colors ${
-                  isActive
+                  isActive && !showForAI
                     ? 'bg-brand-teal/10 text-brand-teal'
                     : 'text-ui-supportText hover:text-ui-headingDark hover:bg-ui-background'
                 }`}
@@ -97,13 +98,19 @@ export function MemoryPanel({ projectId }: MemoryPanelProps) {
           })}
         </div>
 
-        {/* Header actions */}
+        {/* Utility actions */}
         <div className="flex items-center gap-2">
-          {freshnessLabel && (
-            <span className="text-[11px] text-ui-supportText">
-              Synthesized {freshnessLabel}
-            </span>
-          )}
+          <button
+            onClick={() => setShowForAI(!showForAI)}
+            className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-medium rounded-lg transition-colors ${
+              showForAI
+                ? 'bg-brand-teal/10 text-brand-teal'
+                : 'text-ui-supportText hover:text-ui-headingDark hover:bg-ui-background'
+            }`}
+          >
+            <Code className="w-3 h-3" />
+            For AI
+          </button>
           <button
             onClick={handleSynthesize}
             disabled={isSynthesizing}
@@ -115,27 +122,49 @@ export function MemoryPanel({ projectId }: MemoryPanelProps) {
         </div>
       </div>
 
-      {/* Loading state */}
-      {isLoading ? (
-        <div className="flex items-center justify-center py-12">
-          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-brand-teal" />
-        </div>
-      ) : (
-        <>
-          {activeTab === 'overview' && <OverviewTab projectId={projectId} data={vizData} />}
-          {activeTab === 'graph' && <GraphTab data={vizData} />}
-          {activeTab === 'connections' && <ConnectionsTab data={vizData} />}
-          {activeTab === 'evolution' && <EvolutionTab projectId={projectId} data={vizData} />}
-          {activeTab === 'context' && (
+      {/* Content area — flex-1 fills remaining space */}
+      <div className="flex-1 overflow-hidden">
+        {isLoading ? (
+          <div className="flex items-center justify-center h-full">
+            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-brand-teal" />
+          </div>
+        ) : showForAI ? (
+          <div className="h-full overflow-y-auto p-6">
             <ContextWindowTab
               projectId={projectId}
               unifiedMemory={unifiedMemory}
               onRefresh={handleSynthesize}
               isSynthesizing={isSynthesizing}
             />
-          )}
-        </>
-      )}
+          </div>
+        ) : (
+          <>
+            {activeTab === 'overview' && (
+              <div className="h-full overflow-y-auto p-6">
+                <OverviewTab projectId={projectId} data={vizData} />
+              </div>
+            )}
+            {activeTab === 'knowledge' && (
+              <KnowledgeTab projectId={projectId} data={vizData} />
+            )}
+            {activeTab === 'evolution' && (
+              <div className="h-full overflow-y-auto p-6">
+                <EvolutionTab projectId={projectId} data={vizData} />
+              </div>
+            )}
+            {activeTab === 'evidence' && (
+              <div className="h-full overflow-y-auto p-6">
+                <EvidenceTab projectId={projectId} />
+              </div>
+            )}
+            {activeTab === 'sales' && (
+              <div className="h-full overflow-y-auto p-6">
+                <SalesTab projectId={projectId} />
+              </div>
+            )}
+          </>
+        )}
+      </div>
     </div>
   )
 }

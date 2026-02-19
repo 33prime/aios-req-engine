@@ -1,315 +1,258 @@
 /**
- * EvolutionTab - Belief history timeline
+ * EvolutionTab — Unified timeline with event type filters + confidence curves header
  *
- * Lists all beliefs sorted by most recently changed.
- * Click to expand: lazy-loads belief history, shows CSS sparkline and
- * a vertical timeline of confidence changes.
+ * Shows beliefs, signals, entities, facts in a single chronological timeline.
+ * Top section: confidence curves for top beliefs.
+ * Filter by: All, Beliefs, Signals, Entities + time range (7d, 30d, 90d, All).
  */
 
 'use client'
 
-import { useState } from 'react'
-import { ChevronDown, ChevronUp, ArrowUp, ArrowDown, Minus } from 'lucide-react'
-import { getBeliefHistory } from '@/lib/api'
-import type { MemoryVisualizationResponse, MemoryNodeViz, BeliefHistoryEntry } from '@/lib/api'
+import { useState, useEffect, useCallback } from 'react'
+import {
+  TrendingUp,
+  TrendingDown,
+  Upload,
+  Lightbulb,
+  Zap,
+  RefreshCw,
+  ChevronDown,
+  ChevronUp,
+} from 'lucide-react'
+import { getIntelligenceEvolution, getConfidenceCurve } from '@/lib/api'
+import type { MemoryVisualizationResponse } from '@/lib/api'
+import type {
+  IntelEvolutionResponse,
+  IntelEvolutionEvent,
+  IntelConfidenceCurve,
+} from '@/types/workspace'
 
 interface EvolutionTabProps {
   projectId: string
   data: MemoryVisualizationResponse | null
 }
 
-export function EvolutionTab({ projectId, data }: EvolutionTabProps) {
-  const [domainFilter, setDomainFilter] = useState<string | null>(null)
+type EventFilter = 'all' | 'beliefs' | 'signals' | 'entities'
+type TimeRange = 7 | 30 | 90 | 365
 
-  if (!data || data.nodes.length === 0) {
-    return (
-      <div className="text-center py-8">
-        <p className="text-sm text-ui-supportText">No beliefs to track yet.</p>
-      </div>
-    )
-  }
+export function EvolutionTab({ projectId }: EvolutionTabProps) {
+  const [events, setEvents] = useState<IntelEvolutionEvent[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [eventFilter, setEventFilter] = useState<EventFilter>('all')
+  const [timeRange, setTimeRange] = useState<TimeRange>(30)
+  const [curves, setCurves] = useState<IntelConfidenceCurve[]>([])
+  const [showCurves, setShowCurves] = useState(true)
 
-  let beliefs = data.nodes
-    .filter((n) => n.node_type === 'belief')
-    .sort((a, b) => b.created_at.localeCompare(a.created_at))
+  useEffect(() => {
+    setIsLoading(true)
+    const filterMap: Record<EventFilter, string | undefined> = {
+      all: undefined,
+      beliefs: 'beliefs',
+      signals: 'signals',
+      entities: 'entities',
+    }
+    getIntelligenceEvolution(projectId, {
+      event_type: filterMap[eventFilter],
+      days: timeRange,
+      limit: 50,
+    })
+      .then((res) => setEvents(res.events))
+      .catch(() => setEvents([]))
+      .finally(() => setIsLoading(false))
+  }, [projectId, eventFilter, timeRange])
 
-  // Collect unique domains for filter
-  const domains = Array.from(new Set(beliefs.map((b) => b.belief_domain).filter(Boolean))) as string[]
+  // Load confidence curves for top beliefs
+  useEffect(() => {
+    const topBeliefIds = events
+      .filter((e) => e.entity_type === 'belief' && e.entity_id)
+      .map((e) => e.entity_id!)
+      .filter((id, idx, arr) => arr.indexOf(id) === idx)
+      .slice(0, 3)
 
-  if (domainFilter) {
-    beliefs = beliefs.filter((b) => b.belief_domain === domainFilter)
-  }
-
-  if (beliefs.length === 0) {
-    return (
-      <div className="text-center py-8">
-        <p className="text-sm text-ui-supportText">No beliefs formed yet.</p>
-      </div>
-    )
-  }
-
-  return (
-    <div className="space-y-3">
-      {/* Domain filter */}
-      {domains.length > 1 && (
-        <div className="flex items-center gap-2 mb-2">
-          <span className="text-[11px] text-ui-supportText">Filter:</span>
-          <button
-            onClick={() => setDomainFilter(null)}
-            className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-colors ${
-              !domainFilter ? 'bg-brand-teal/10 text-brand-teal' : 'text-ui-supportText hover:text-ui-headingDark'
-            }`}
-          >
-            All
-          </button>
-          {domains.map((domain) => (
-            <button
-              key={domain}
-              onClick={() => setDomainFilter(domainFilter === domain ? null : domain)}
-              className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-colors ${
-                domainFilter === domain ? 'bg-brand-teal/10 text-brand-teal' : 'text-ui-supportText hover:text-ui-headingDark'
-              }`}
-            >
-              {domain.replace('_', ' ')}
-            </button>
-          ))}
-        </div>
-      )}
-
-      {beliefs.map((belief) => (
-        <BeliefEvolutionCard
-          key={belief.id}
-          belief={belief}
-          projectId={projectId}
-          allNodes={data.nodes}
-        />
-      ))}
-    </div>
-  )
-}
-
-function BeliefEvolutionCard({ belief, projectId, allNodes }: {
-  belief: MemoryNodeViz
-  projectId: string
-  allNodes: MemoryNodeViz[]
-}) {
-  const [expanded, setExpanded] = useState(false)
-  const [history, setHistory] = useState<BeliefHistoryEntry[] | null>(null)
-  const [isLoading, setIsLoading] = useState(false)
-
-  const pct = Math.round(belief.confidence * 100)
-
-  const handleExpand = async () => {
-    if (expanded) {
-      setExpanded(false)
+    if (topBeliefIds.length === 0) {
+      setCurves([])
       return
     }
-    setExpanded(true)
-    if (!history) {
-      setIsLoading(true)
-      try {
-        const result = await getBeliefHistory(projectId, belief.id)
-        setHistory(result.history)
-      } catch {
-        setHistory([])
-      } finally {
-        setIsLoading(false)
-      }
-    }
-  }
+
+    Promise.all(
+      topBeliefIds.map((id) =>
+        getConfidenceCurve(projectId, id).catch(() => null),
+      ),
+    ).then((results) => {
+      setCurves(results.filter((r): r is IntelConfidenceCurve => r !== null && r.points.length > 1))
+    })
+  }, [projectId, events])
 
   return (
-    <div className="bg-ui-background rounded-lg overflow-hidden">
-      <button
-        onClick={handleExpand}
-        className="w-full text-left px-4 py-3 flex items-center gap-3"
-      >
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center justify-between mb-0.5">
-            <p className="text-sm text-ui-bodyText">{belief.summary}</p>
-            <div className="flex items-center gap-2 flex-shrink-0 ml-3">
-              <div className="w-16 h-1.5 rounded-full bg-gray-200 overflow-hidden">
-                <div
-                  className="h-full rounded-full bg-emerald-500"
-                  style={{ width: `${pct}%` }}
-                />
-              </div>
-              <span className="text-[11px] font-medium text-emerald-700">
-                {pct}%
-              </span>
+    <div className="space-y-4">
+      {/* Confidence Curves Header */}
+      {curves.length > 0 && (
+        <div className="bg-white rounded-2xl border border-[#E5E5E5] p-4 shadow-sm">
+          <button
+            onClick={() => setShowCurves(!showCurves)}
+            className="flex items-center gap-2 text-[12px] font-semibold text-[#333333] uppercase tracking-wide mb-2"
+          >
+            Confidence Curves
+            {showCurves ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+          </button>
+          {showCurves && (
+            <div className="flex gap-4">
+              {curves.map((c) => (
+                <div key={c.node_id} className="flex-1 min-w-0">
+                  <p className="text-[11px] text-[#666666] truncate mb-1">{c.summary}</p>
+                  <svg viewBox="0 0 200 40" className="w-full h-8">
+                    <polyline
+                      fill="none"
+                      stroke="#3FAF7A"
+                      strokeWidth="2"
+                      points={c.points.map((p, i) => {
+                        const x = (i / Math.max(c.points.length - 1, 1)) * 200
+                        const y = 40 - p.confidence * 40
+                        return `${x},${y}`
+                      }).join(' ')}
+                    />
+                  </svg>
+                  <div className="flex justify-between text-[9px] text-[#999999]">
+                    <span>{Math.round(c.points[0].confidence * 100)}%</span>
+                    <span>{Math.round(c.points[c.points.length - 1].confidence * 100)}%</span>
+                  </div>
+                </div>
+              ))}
             </div>
-          </div>
-          <div className="flex items-center gap-2 mt-0.5">
-            {belief.belief_domain && (
-              <span className="inline-flex px-2 py-0.5 rounded-full text-[10px] font-medium bg-teal-50 text-teal-700">
-                {belief.belief_domain.replace('_', ' ')}
-              </span>
-            )}
-          </div>
-        </div>
-        {expanded ? (
-          <ChevronUp className="w-4 h-4 text-ui-supportText flex-shrink-0" />
-        ) : (
-          <ChevronDown className="w-4 h-4 text-ui-supportText flex-shrink-0" />
-        )}
-      </button>
-
-      {expanded && (
-        <div className="px-4 pb-4">
-          {isLoading ? (
-            <div className="flex items-center justify-center py-4">
-              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-brand-teal" />
-            </div>
-          ) : history && history.length > 0 ? (
-            <>
-              {/* CSS Sparkline */}
-              <ConfidenceSparkline history={history} currentConfidence={belief.confidence} />
-
-              {/* Timeline entries */}
-              <div className="mt-3 space-y-0">
-                {history.map((entry) => (
-                  <HistoryEntryRow
-                    key={entry.id}
-                    entry={entry}
-                    allNodes={allNodes}
-                  />
-                ))}
-              </div>
-            </>
-          ) : (
-            <p className="text-[11px] text-ui-supportText py-2">
-              No history recorded for this belief yet.
-            </p>
           )}
         </div>
       )}
+
+      {/* Filters */}
+      <div className="flex items-center gap-4">
+        <div className="flex gap-1">
+          {(['all', 'beliefs', 'signals', 'entities'] as const).map((f) => (
+            <button
+              key={f}
+              onClick={() => setEventFilter(f)}
+              className={`px-3 py-1 rounded-lg text-[11px] font-medium transition-colors ${
+                eventFilter === f
+                  ? 'bg-[#E8F5E9] text-[#25785A]'
+                  : 'text-[#666666] hover:text-[#333333] hover:bg-[#F4F4F4]'
+              }`}
+            >
+              {f.charAt(0).toUpperCase() + f.slice(1)}
+            </button>
+          ))}
+        </div>
+        <div className="flex gap-1">
+          {([7, 30, 90, 365] as const).map((d) => (
+            <button
+              key={d}
+              onClick={() => setTimeRange(d)}
+              className={`px-2 py-1 rounded-lg text-[11px] font-medium transition-colors ${
+                timeRange === d
+                  ? 'bg-[#E8F5E9] text-[#25785A]'
+                  : 'text-[#666666] hover:text-[#333333] hover:bg-[#F4F4F4]'
+              }`}
+            >
+              {d === 365 ? 'All' : `${d}d`}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Timeline */}
+      {isLoading ? (
+        <div className="flex items-center justify-center py-8">
+          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-[#3FAF7A]" />
+        </div>
+      ) : events.length === 0 ? (
+        <div className="text-center py-8">
+          <p className="text-sm text-[#666666]">No events in this time range.</p>
+        </div>
+      ) : (
+        <div className="space-y-1">
+          {events.map((event, i) => (
+            <EventRow key={`${event.timestamp}-${i}`} event={event} />
+          ))}
+        </div>
+      )}
     </div>
   )
 }
 
-function ConfidenceSparkline({ history, currentConfidence }: {
-  history: BeliefHistoryEntry[]
-  currentConfidence: number
-}) {
-  // Build data points: oldest first, then current value
-  const reversed = [...history].reverse()
-  const points = reversed.map((h) => h.new_confidence)
-  points.push(currentConfidence)
+// ─── Event Row ───────────────────────────────────────────────────────────────
 
-  if (points.length < 2) return null
-
-  const width = 200
-  const height = 30
-  const padding = 4
-  const maxY = 1
-  const minY = 0
-
-  const xStep = (width - padding * 2) / (points.length - 1)
-  const yScale = (height - padding * 2) / (maxY - minY)
-
-  const pointCoords = points.map((p, i) => ({
-    x: padding + i * xStep,
-    y: height - padding - (p - minY) * yScale,
-  }))
-
-  const polylinePoints = pointCoords.map((c) => `${c.x},${c.y}`).join(' ')
+function EventRow({ event }: { event: IntelEvolutionEvent }) {
+  const icon = getEventIcon(event.event_type)
+  const Icon = icon.component
 
   return (
-    <div className="mb-2">
-      <svg width={width} height={height} className="overflow-visible">
-        <polyline
-          points={polylinePoints}
-          fill="none"
-          stroke="#10b981"
-          strokeWidth="1.5"
-          strokeLinejoin="round"
-        />
-        {pointCoords.map((c, i) => (
-          <circle
-            key={i}
-            cx={c.x}
-            cy={c.y}
-            r="2.5"
-            fill="#10b981"
-            stroke="white"
-            strokeWidth="1"
-          />
-        ))}
-      </svg>
-    </div>
-  )
-}
-
-const CHANGE_TYPE_BADGES: Record<string, { label: string; className: string }> = {
-  confidence_increase: { label: '\u2191 Increased', className: 'bg-emerald-50 text-emerald-700' },
-  confidence_decrease: { label: '\u2193 Decreased', className: 'bg-gray-100 text-gray-600' },
-  content_refined: { label: 'Refined', className: 'bg-teal-50 text-teal-700' },
-  content_changed: { label: 'Changed', className: 'bg-teal-50 text-teal-700' },
-  superseded: { label: 'Superseded', className: 'bg-gray-100 text-gray-500' },
-  archived: { label: 'Archived', className: 'bg-gray-100 text-gray-400' },
-}
-
-function HistoryEntryRow({ entry, allNodes }: {
-  entry: BeliefHistoryEntry
-  allNodes: MemoryNodeViz[]
-}) {
-  const badge = CHANGE_TYPE_BADGES[entry.change_type] || {
-    label: entry.change_type,
-    className: 'bg-gray-100 text-gray-600',
-  }
-
-  const prevPct = Math.round(entry.previous_confidence * 100)
-  const newPct = Math.round(entry.new_confidence * 100)
-  const isIncrease = entry.new_confidence > entry.previous_confidence
-  const isDecrease = entry.new_confidence < entry.previous_confidence
-
-  // Resolve triggered_by node summary
-  const triggeredByNode = entry.triggered_by_node_id
-    ? allNodes.find((n) => n.id === entry.triggered_by_node_id)
-    : null
-
-  const dateStr = new Date(entry.created_at).toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-  })
-
-  return (
-    <div className="flex items-start gap-3 py-2.5 border-b border-gray-100 last:border-0">
-      {/* Date pill */}
-      <span className="text-[10px] text-ui-supportText bg-white px-2 py-0.5 rounded-full flex-shrink-0 mt-0.5">
-        {dateStr}
-      </span>
-
+    <div className="flex items-start gap-3 bg-white rounded-xl border border-[#E5E5E5] px-4 py-3 shadow-sm">
+      <div className={`p-1.5 rounded-lg ${icon.bg} shrink-0 mt-0.5`}>
+        <Icon className={`w-3.5 h-3.5 ${icon.color}`} />
+      </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 mb-0.5">
-          {/* Change type badge */}
-          <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-medium ${badge.className}`}>
-            {badge.label}
+          <span className="text-[11px] font-medium text-[#333333]">
+            {formatEventType(event.event_type)}
           </span>
-
-          {/* Confidence delta */}
-          <span className="flex items-center gap-0.5 text-[11px]">
-            <span className="text-ui-supportText">{prevPct}%</span>
-            <span className="text-ui-supportText">&rarr;</span>
-            <span className={isIncrease ? 'text-emerald-600 font-medium' : isDecrease ? 'text-gray-500 font-medium' : 'text-ui-supportText'}>
-              {newPct}%
-            </span>
-            {isIncrease && <ArrowUp className="w-3 h-3 text-emerald-500" />}
-            {isDecrease && <ArrowDown className="w-3 h-3 text-gray-400" />}
-            {!isIncrease && !isDecrease && <Minus className="w-3 h-3 text-gray-300" />}
+          <span className="text-[10px] text-[#999999]">
+            {formatDate(event.timestamp)}
           </span>
         </div>
-
-        {/* Reason */}
-        <p className="text-[11px] text-ui-bodyText">{entry.change_reason}</p>
-
-        {/* Triggered by */}
-        {triggeredByNode && (
-          <p className="text-[10px] text-ui-supportText mt-0.5">
-            Triggered by: {triggeredByNode.summary}
+        <p className="text-[12px] text-[#666666] leading-relaxed">{event.summary}</p>
+        {event.confidence_delta !== null && event.confidence_delta !== 0 && (
+          <div className="flex items-center gap-2 mt-1">
+            {event.confidence_before !== null && event.confidence_after !== null && (
+              <span className="text-[10px] text-[#999999]">
+                {Math.round(event.confidence_before * 100)}% → {Math.round(event.confidence_after * 100)}%
+              </span>
+            )}
+            <span
+              className={`text-[10px] font-medium ${
+                event.confidence_delta > 0 ? 'text-[#3FAF7A]' : 'text-[#999999]'
+              }`}
+            >
+              ({event.confidence_delta > 0 ? '+' : ''}{Math.round(event.confidence_delta * 100)}%)
+            </span>
+          </div>
+        )}
+        {event.change_reason && event.change_reason !== event.summary && (
+          <p className="text-[11px] text-[#999999] mt-0.5">
+            Reason: {event.change_reason}
           </p>
         )}
       </div>
     </div>
   )
+}
+
+function getEventIcon(type: string) {
+  switch (type) {
+    case 'belief_strengthened':
+      return { component: TrendingUp, bg: 'bg-[#E8F5E9]', color: 'text-[#25785A]' }
+    case 'belief_weakened':
+      return { component: TrendingDown, bg: 'bg-gray-100', color: 'text-[#999999]' }
+    case 'belief_created':
+    case 'belief_updated':
+      return { component: Lightbulb, bg: 'bg-[#E8F5E9]', color: 'text-[#25785A]' }
+    case 'belief_superseded':
+      return { component: RefreshCw, bg: 'bg-gray-100', color: 'text-[#666666]' }
+    case 'signal_processed':
+      return { component: Upload, bg: 'bg-gray-100', color: 'text-[#666666]' }
+    case 'fact_added':
+      return { component: Zap, bg: 'bg-[#E8F5E9]', color: 'text-[#25785A]' }
+    default:
+      return { component: Zap, bg: 'bg-gray-100', color: 'text-[#666666]' }
+  }
+}
+
+function formatEventType(type: string): string {
+  return type
+    .split('_')
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(' ')
+}
+
+function formatDate(ts: string): string {
+  if (!ts) return ''
+  const d = new Date(ts)
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }

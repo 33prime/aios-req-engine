@@ -2,6 +2,7 @@
  * BottomDock - Fixed bottom-center bar with toggle buttons for panels
  *
  * Three panels: Strategy (foundation + business data), Evidence (sources), Memory (decisions + activity).
+ * Memory panel opens near-full-screen (95vw x 90vh); others keep max-w-5xl.
  */
 
 'use client'
@@ -28,13 +29,15 @@ const DOCK_BUTTONS = [
 const PANEL_TITLES: Record<string, string> = {
   context: 'Strategic Intelligence',
   evidence: 'Evidence & Sources',
-  history: 'Memory & Intelligence',
+  history: 'Intelligence',
 }
 
 export function BottomDock({ projectId, activePanel, onPanelChange }: BottomDockProps) {
   const handleToggle = (panel: 'context' | 'evidence' | 'history') => {
     onPanelChange(activePanel === panel ? null : panel)
   }
+
+  const isFullScreen = activePanel === 'history'
 
   return (
     <>
@@ -49,9 +52,15 @@ export function BottomDock({ projectId, activePanel, onPanelChange }: BottomDock
       {/* Centered modal */}
       {activePanel && (
         <div className="fixed inset-0 z-30 flex items-center justify-center p-8 pointer-events-none">
-          <div className="bg-white rounded-xl border border-ui-cardBorder shadow-xl w-full max-w-5xl max-h-[75vh] overflow-hidden flex flex-col pointer-events-auto">
+          <div
+            className={`bg-white rounded-xl border border-ui-cardBorder shadow-xl overflow-hidden flex flex-col pointer-events-auto ${
+              isFullScreen
+                ? 'w-[95vw] h-[90vh]'
+                : 'w-full max-w-5xl max-h-[75vh]'
+            }`}
+          >
             {/* Header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-ui-cardBorder bg-ui-background">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-ui-cardBorder bg-ui-background shrink-0">
               <h3 className="text-base font-semibold text-ui-headingDark">
                 {PANEL_TITLES[activePanel] || activePanel}
               </h3>
@@ -62,8 +71,8 @@ export function BottomDock({ projectId, activePanel, onPanelChange }: BottomDock
                 <X className="w-5 h-5" />
               </button>
             </div>
-            {/* Content — scrollable */}
-            <div className="flex-1 overflow-y-auto p-6">
+            {/* Content */}
+            <div className={`flex-1 overflow-hidden ${isFullScreen ? '' : 'overflow-y-auto p-6'}`}>
               {activePanel === 'context' && <ContextPanel projectId={projectId} />}
               {activePanel === 'evidence' && <EvidencePanel projectId={projectId} />}
               {activePanel === 'history' && <MemoryPanel projectId={projectId} />}

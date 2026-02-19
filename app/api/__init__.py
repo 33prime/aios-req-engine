@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter
 
-from app.api import activity, admin, agents, analytics, auth, baseline, business_drivers, chat, client_packages, client_portal, clients, collaboration, communications, competitor_refs, confirmations, consultant_enrichment, creative_brief, di_agent, discovery, discovery_prep, document_uploads, enrich_all, enrich_features, enrich_personas, enrich_vp, entity_cascades, evidence, icp, jobs, meetings, n8n_research, notifications, open_questions, organizations, outreach, phase0, process_documents, project_creation, project_launch, projects, proposals, prototype_sessions, prototypes, readiness, research, research_agent, revisions, risks, signals, signal_stream, sources, stakeholders, state, strategic_analytics, super_admin, tasks, workspace
+from app.api import activity, admin, agents, analytics, auth, baseline, business_drivers, chat, client_packages, client_portal, clients, collaboration, communications, competitor_refs, confirmations, consultant_enrichment, creative_brief, di_agent, discovery, discovery_prep, document_uploads, enrich_all, enrich_features, enrich_personas, enrich_vp, entity_cascades, evidence, icp, intelligence, jobs, meetings, n8n_research, notifications, open_questions, organizations, outreach, phase0, process_documents, project_creation, project_launch, projects, proposals, prototype_sessions, prototypes, readiness, research, research_agent, revisions, risks, signals, signal_stream, sources, stakeholders, state, strategic_analytics, super_admin, tasks, workspace
 
 router = APIRouter()
 
@@ -174,6 +174,9 @@ router.include_router(icp.router, tags=["icp"])
 
 # Include Notifications routes (in-app notification management)
 router.include_router(notifications.router, tags=["notifications"])
+
+# Include Intelligence Module routes (upgraded memory panel)
+router.include_router(intelligence.router, tags=["intelligence"])
 
 # Include Super Admin routes (platform management dashboard)
 router.include_router(super_admin.router, tags=["super_admin"])

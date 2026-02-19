@@ -3625,3 +3625,114 @@ export const dismissProjectPulse = (projectId: string) =>
     `/projects/${projectId}/workspace/pulse/dismiss`,
     { method: 'POST' }
   )
+
+// =============================================================================
+// Intelligence Briefing
+// =============================================================================
+
+export const getIntelligenceBriefing = (
+  projectId: string,
+  maxActions = 5,
+  forceRefresh = false,
+) =>
+  apiRequest<import('@/types/workspace').IntelligenceBriefing>(
+    `/projects/${projectId}/workspace/briefing?max_actions=${maxActions}&force_refresh=${forceRefresh}`
+  )
+
+export const getProjectHeartbeat = (projectId: string) =>
+  apiRequest<import('@/types/workspace').ProjectHeartbeat>(
+    `/projects/${projectId}/workspace/heartbeat`
+  )
+
+export const promoteHypothesis = (projectId: string, nodeId: string) =>
+  apiRequest<{ ok: boolean; node: Record<string, unknown> }>(
+    `/projects/${projectId}/workspace/hypotheses/${nodeId}/promote`,
+    { method: 'POST' }
+  )
+
+// =============================================================================
+// Intelligence Module
+// =============================================================================
+
+export const getIntelligenceOverview = (projectId: string) =>
+  apiRequest<import('@/types/workspace').IntelOverviewResponse>(
+    `/projects/${projectId}/intelligence/overview`
+  )
+
+export const getIntelligenceGraph = (projectId: string) =>
+  apiRequest<import('@/types/workspace').IntelGraphResponse>(
+    `/projects/${projectId}/intelligence/graph`
+  )
+
+export const getIntelligenceNodeDetail = (projectId: string, nodeId: string) =>
+  apiRequest<import('@/types/workspace').IntelNodeDetail>(
+    `/projects/${projectId}/intelligence/graph/${nodeId}`
+  )
+
+export const submitNodeFeedback = (
+  projectId: string,
+  nodeId: string,
+  action: 'confirm' | 'dispute' | 'archive',
+  note?: string,
+) =>
+  apiRequest<import('@/types/workspace').IntelGraphNode>(
+    `/projects/${projectId}/intelligence/graph/${nodeId}/feedback`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ action, note: note || null }),
+    }
+  )
+
+export const updateIntelligenceNode = (
+  projectId: string,
+  nodeId: string,
+  data: { content?: string; summary?: string; confidence?: number },
+) =>
+  apiRequest<import('@/types/workspace').IntelGraphNode>(
+    `/projects/${projectId}/intelligence/graph/${nodeId}`,
+    { method: 'PUT', body: JSON.stringify(data) }
+  )
+
+export const createBelief = (
+  projectId: string,
+  data: {
+    statement: string
+    domain?: string
+    confidence?: number
+    linked_entity_type?: string
+    linked_entity_id?: string
+  },
+) =>
+  apiRequest<import('@/types/workspace').IntelGraphNode>(
+    `/projects/${projectId}/intelligence/graph/nodes`,
+    { method: 'POST', body: JSON.stringify(data) }
+  )
+
+export const getIntelligenceEvolution = (
+  projectId: string,
+  params?: { event_type?: string; days?: number; limit?: number },
+) => {
+  const qp = new URLSearchParams()
+  if (params?.event_type) qp.set('event_type', params.event_type)
+  if (params?.days) qp.set('days', params.days.toString())
+  if (params?.limit) qp.set('limit', params.limit.toString())
+  const query = qp.toString()
+  return apiRequest<import('@/types/workspace').IntelEvolutionResponse>(
+    `/projects/${projectId}/intelligence/evolution${query ? `?${query}` : ''}`
+  )
+}
+
+export const getConfidenceCurve = (projectId: string, nodeId: string) =>
+  apiRequest<import('@/types/workspace').IntelConfidenceCurve>(
+    `/projects/${projectId}/intelligence/evolution/${nodeId}/curve`
+  )
+
+export const getEntityEvidence = (projectId: string, entityType: string, entityId: string) =>
+  apiRequest<import('@/types/workspace').IntelEvidenceResponse>(
+    `/projects/${projectId}/intelligence/evidence/${entityType}/${entityId}`
+  )
+
+export const getSalesIntelligence = (projectId: string) =>
+  apiRequest<import('@/types/workspace').IntelSalesResponse>(
+    `/projects/${projectId}/intelligence/sales`
+  )

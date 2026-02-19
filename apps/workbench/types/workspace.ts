@@ -2,6 +2,8 @@
  * TypeScript types for the workspace canvas UI
  */
 
+import type { TerseAction } from '@/lib/api'
+
 export interface PersonaSummary {
   id: string
   name: string
@@ -1526,5 +1528,281 @@ export interface StakeholderLaunchInput {
   linkedin_url?: string
   role?: string
   stakeholder_type?: string
+}
+
+// ============================================================================
+// Intelligence Briefing
+// ============================================================================
+
+export type ChangeType =
+  | 'belief_strengthened'
+  | 'belief_weakened'
+  | 'belief_created'
+  | 'entity_created'
+  | 'entity_updated'
+  | 'signal_processed'
+  | 'fact_added'
+  | 'insight_added'
+
+export type HypothesisStatus = 'proposed' | 'testing' | 'graduated' | 'rejected'
+
+export interface TemporalChange {
+  change_type: ChangeType
+  summary: string
+  entity_type?: string | null
+  entity_id?: string | null
+  entity_name?: string | null
+  confidence_delta?: number | null
+  timestamp?: string | null
+}
+
+export interface TemporalDiff {
+  since_timestamp?: string | null
+  since_label: string
+  changes: TemporalChange[]
+  change_summary: string
+  counts: Record<string, number>
+}
+
+export interface Tension {
+  tension_id: string
+  summary: string
+  side_a: string
+  side_b: string
+  involved_entities: Array<{ type: string; id: string; name: string }>
+  confidence: number
+}
+
+export interface Hypothesis {
+  hypothesis_id: string
+  statement: string
+  status: HypothesisStatus
+  confidence: number
+  evidence_for: number
+  evidence_against: number
+  test_suggestion?: string | null
+  domain?: string | null
+}
+
+export interface ProjectHeartbeat {
+  completeness_pct: number
+  confirmation_pct: number
+  days_since_last_signal?: number | null
+  memory_depth: number
+  stale_entity_count: number
+  scope_alerts: string[]
+  entity_counts: Record<string, number>
+}
+
+export interface BriefingSituation {
+  narrative: string
+  project_name: string
+  phase: string
+  phase_progress: number
+  key_stakeholders: string[]
+  entity_summary: Record<string, number>
+}
+
+export interface WhatYouShouldKnow {
+  narrative: string
+  bullets: string[]
+}
+
+export interface IntelligenceBriefing {
+  situation: BriefingSituation
+  what_changed: TemporalDiff
+  what_you_should_know: WhatYouShouldKnow
+  tensions: Tension[]
+  hypotheses: Hypothesis[]
+  heartbeat: ProjectHeartbeat
+  actions: TerseAction[]
+  computed_at: string
+  narrative_cached: boolean
+  phase: string
+}
+
+// =============================================================================
+// Intelligence Module Types
+// =============================================================================
+
+export interface IntelPulseStats {
+  total_nodes: number
+  total_edges: number
+  avg_confidence: number
+  hypotheses_count: number
+  tensions_count: number
+  confirmed_count: number
+  disputed_count: number
+  days_since_signal: number | null
+}
+
+export interface IntelRecentActivity {
+  event_type: string
+  summary: string
+  confidence_delta: number | null
+  timestamp: string
+}
+
+export interface IntelOverviewResponse {
+  narrative: string
+  what_you_should_know: Record<string, unknown>
+  tensions: Tension[]
+  hypotheses: Hypothesis[]
+  what_changed: Record<string, unknown>
+  pulse: IntelPulseStats
+  recent_activity: IntelRecentActivity[]
+}
+
+export interface IntelGraphNode {
+  id: string
+  node_type: string
+  summary: string
+  content: string
+  confidence: number
+  belief_domain: string | null
+  insight_type: string | null
+  source_type: string | null
+  linked_entity_type: string | null
+  linked_entity_id: string | null
+  is_active: boolean
+  consultant_status: string | null
+  consultant_note: string | null
+  consultant_status_at: string | null
+  hypothesis_status: string | null
+  created_at: string
+  support_count: number
+  contradict_count: number
+}
+
+export interface IntelGraphEdge {
+  id: string
+  from_node_id: string
+  to_node_id: string
+  edge_type: string
+  strength: number
+  rationale: string | null
+}
+
+export interface IntelGraphResponse {
+  nodes: IntelGraphNode[]
+  edges: IntelGraphEdge[]
+  stats: Record<string, number>
+}
+
+export interface IntelBeliefHistoryItem {
+  id: string
+  previous_confidence: number
+  new_confidence: number
+  change_type: string
+  change_reason: string
+  triggered_by_node_id: string | null
+  created_at: string
+}
+
+export interface IntelNodeDetail {
+  node: IntelGraphNode
+  edges_from: IntelGraphEdge[]
+  edges_to: IntelGraphEdge[]
+  supporting_facts: IntelGraphNode[]
+  contradicting_facts: IntelGraphNode[]
+  history: IntelBeliefHistoryItem[]
+}
+
+export interface IntelEvolutionEvent {
+  event_type: string
+  summary: string
+  entity_type: string | null
+  entity_id: string | null
+  entity_name: string | null
+  confidence_before: number | null
+  confidence_after: number | null
+  confidence_delta: number | null
+  change_reason: string | null
+  timestamp: string
+}
+
+export interface IntelEvolutionResponse {
+  events: IntelEvolutionEvent[]
+  total_count: number
+}
+
+export interface IntelConfidenceCurvePoint {
+  confidence: number
+  timestamp: string
+  change_reason: string | null
+}
+
+export interface IntelConfidenceCurve {
+  node_id: string
+  summary: string
+  points: IntelConfidenceCurvePoint[]
+}
+
+export interface IntelLinkedMemory {
+  id: string
+  node_type: string
+  summary: string
+  confidence: number
+  consultant_status: string | null
+}
+
+export interface IntelEntityRevision {
+  id: string
+  field_name: string | null
+  old_value: unknown
+  new_value: unknown
+  source_signal_id: string | null
+  created_at: string
+}
+
+export interface IntelSourceSignal {
+  id: string
+  signal_type: string | null
+  title: string | null
+  created_at: string
+}
+
+export interface IntelEvidenceResponse {
+  entity_type: string
+  entity_id: string
+  entity_name: string
+  linked_memory: IntelLinkedMemory[]
+  revisions: IntelEntityRevision[]
+  source_signals: IntelSourceSignal[]
+}
+
+export interface IntelDealReadinessComponent {
+  name: string
+  score: number
+  weight: number
+  details: string
+}
+
+export interface IntelStakeholderMapEntry {
+  id: string
+  name: string
+  stakeholder_type: string | null
+  influence_level: string | null
+  role: string | null
+  is_addressed: boolean
+}
+
+export interface IntelGapOrRisk {
+  severity: string
+  message: string
+}
+
+export interface IntelSalesResponse {
+  has_client: boolean
+  deal_readiness_score: number
+  components: IntelDealReadinessComponent[]
+  client_name: string | null
+  client_industry: string | null
+  client_size: string | null
+  profile_completeness: number | null
+  vision: string | null
+  constraints_summary: string | null
+  stakeholder_map: IntelStakeholderMapEntry[]
+  gaps_and_risks: IntelGapOrRisk[]
 }
 

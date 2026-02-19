@@ -311,6 +311,59 @@ def archive_node(node_id: UUID, reason: str) -> dict:
         raise
 
 
+def update_consultant_status(
+    node_id: UUID,
+    project_id: UUID,
+    consultant_status: str,
+    consultant_note: str | None = None,
+) -> dict:
+    """
+    Set consultant_status on a memory node (confirmed / disputed).
+
+    Orthogonal to hypothesis_status — a belief can be both 'testing' and 'confirmed'.
+    Also logs to belief_history if the node is a belief.
+    """
+    supabase = get_supabase()
+
+    payload: dict[str, Any] = {
+        "consultant_status": consultant_status,
+        "consultant_status_at": datetime.utcnow().isoformat(),
+    }
+    if consultant_note is not None:
+        payload["consultant_note"] = consultant_note
+
+    try:
+        response = (
+            supabase.table("memory_nodes")
+            .update(payload)
+            .eq("id", str(node_id))
+            .execute()
+        )
+        node = response.data[0] if response.data else {}
+
+        # Log to belief_history for audit trail
+        if node and node.get("node_type") == "belief":
+            reason = f"Consultant {consultant_status}"
+            if consultant_note:
+                reason += f": {consultant_note}"
+            _log_belief_change(
+                node_id=node_id,
+                project_id=project_id,
+                previous_content=node.get("content", ""),
+                previous_confidence=node.get("confidence", 0),
+                new_content=node.get("content", ""),
+                new_confidence=node.get("confidence", 0),
+                change_type="content_refined",
+                change_reason=reason,
+            )
+
+        logger.info(f"Set consultant_status={consultant_status} on node {node_id}")
+        return node
+    except Exception as e:
+        logger.error(f"Failed to update consultant status for {node_id}: {e}")
+        raise
+
+
 def get_nodes_for_entity(
     entity_type: EntityType,
     entity_id: UUID,
