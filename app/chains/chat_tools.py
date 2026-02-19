@@ -32,6 +32,36 @@ def get_tool_definitions() -> List[Dict[str, Any]]:
             },
         },
         {
+            "name": "list_entities",
+            "description": "List all entities of a given type from the BRD. Returns names, key fields, and status. Use this when the user asks to see, review, consolidate, or compare features, personas, workflows, constraints, stakeholders, data entities, or open questions. ALWAYS use this before analyzing or consolidating entities — never say you can't see the data.",
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "entity_type": {
+                        "type": "string",
+                        "enum": [
+                            "feature",
+                            "persona",
+                            "vp_step",
+                            "stakeholder",
+                            "constraint",
+                            "data_entity",
+                            "question",
+                            "workflow",
+                        ],
+                        "description": "Type of entities to list",
+                    },
+                    "filter": {
+                        "type": "string",
+                        "enum": ["all", "mvp", "confirmed", "draft"],
+                        "description": "Optional filter. 'mvp' for features only. 'confirmed' = client/consultant confirmed. 'draft' = ai_generated.",
+                        "default": "all",
+                    },
+                },
+                "required": ["entity_type"],
+            },
+        },
+        {
             "name": "create_confirmation",
             "description": "Create a confirmation item for the client. Use this when an insight or decision needs client input/approval.",
             "input_schema": {
@@ -491,6 +521,7 @@ def get_tool_definitions() -> List[Dict[str, Any]]:
 # Tools sent on every request regardless of page
 CORE_TOOLS = {
     "get_project_status",
+    "list_entities",
     "search",
     "create_entity",
     "update_entity",
@@ -615,6 +646,8 @@ async def execute_tool(project_id: UUID, tool_name: str, tool_input: Dict[str, A
 
         if tool_name == "get_project_status":
             return await _get_project_status(project_id, tool_input)
+        elif tool_name == "list_entities":
+            return await _list_entities(project_id, tool_input)
         elif tool_name == "create_confirmation":
             return await _create_confirmation(project_id, tool_input)
         elif tool_name == "search":
@@ -785,6 +818,148 @@ async def _get_project_status(project_id: UUID, params: Dict[str, Any]) -> Dict[
     status["message"] = f"Project has {status['counts']['features']} features, {status['counts']['personas']} personas, {status['counts']['vp_steps']} VP steps"
 
     return status
+
+
+async def _list_entities(project_id: UUID, params: Dict[str, Any]) -> Dict[str, Any]:
+    """List entities of a given type with key fields for chat reasoning."""
+    entity_type = params.get("entity_type")
+    filter_mode = params.get("filter", "all")
+
+    if not entity_type:
+        return {"error": "entity_type is required"}
+
+    supabase = get_supabase()
+    pid = str(project_id)
+
+    try:
+        if entity_type == "feature":
+            rows = supabase.table("features").select(
+                "id, name, overview, category, is_mvp, confirmation_status, priority_group"
+            ).eq("project_id", pid).order("created_at", desc=True).execute().data or []
+            if filter_mode == "mvp":
+                rows = [r for r in rows if r.get("is_mvp")]
+            elif filter_mode == "confirmed":
+                rows = [r for r in rows if r.get("confirmation_status") in ("confirmed_client", "confirmed_consultant")]
+            elif filter_mode == "draft":
+                rows = [r for r in rows if r.get("confirmation_status") == "ai_generated"]
+            items = []
+            for r in rows:
+                overview = (r.get("overview") or "")[:150]
+                items.append({
+                    "id": r["id"], "name": r.get("name", "?"),
+                    "overview": overview + ("..." if len(r.get("overview") or "") > 150 else ""),
+                    "category": r.get("category"), "is_mvp": r.get("is_mvp"),
+                    "status": r.get("confirmation_status"), "priority": r.get("priority_group"),
+                })
+
+        elif entity_type == "persona":
+            rows = supabase.table("personas").select(
+                "id, name, role, goals, pain_points, confirmation_status"
+            ).eq("project_id", pid).order("created_at").execute().data or []
+            items = []
+            for r in rows:
+                items.append({
+                    "id": r["id"], "name": r.get("name", "?"), "role": r.get("role"),
+                    "goals": (r.get("goals") or [])[:3],
+                    "pain_points": (r.get("pain_points") or [])[:3],
+                    "status": r.get("confirmation_status"),
+                })
+
+        elif entity_type == "vp_step":
+            rows = supabase.table("vp_steps").select(
+                "id, label, description, workflow_id, actor_persona_name, step_number, confirmation_status, time_minutes"
+            ).eq("project_id", pid).order("step_number").execute().data or []
+            items = []
+            for r in rows:
+                desc = (r.get("description") or "")[:120]
+                items.append({
+                    "id": r["id"], "name": r.get("label", "?"),
+                    "description": desc + ("..." if len(r.get("description") or "") > 120 else ""),
+                    "workflow_id": r.get("workflow_id"), "actor": r.get("actor_persona_name"),
+                    "step_number": r.get("step_number"), "time_min": r.get("time_minutes"),
+                    "status": r.get("confirmation_status"),
+                })
+
+        elif entity_type == "stakeholder":
+            rows = supabase.table("stakeholders").select(
+                "id, name, stakeholder_type, role, organization, influence_level, confirmation_status, email"
+            ).eq("project_id", pid).order("created_at").execute().data or []
+            items = []
+            for r in rows:
+                items.append({
+                    "id": r["id"], "name": r.get("name", "?"),
+                    "type": r.get("stakeholder_type"), "role": r.get("role"),
+                    "org": r.get("organization"), "influence": r.get("influence_level"),
+                    "email": r.get("email"), "status": r.get("confirmation_status"),
+                })
+
+        elif entity_type == "constraint":
+            rows = supabase.table("constraints").select(
+                "id, title, constraint_type, severity, description, confirmation_status"
+            ).eq("project_id", pid).order("created_at", desc=True).execute().data or []
+            items = []
+            for r in rows:
+                desc = (r.get("description") or "")[:120]
+                items.append({
+                    "id": r["id"], "name": r.get("title", "?"),
+                    "type": r.get("constraint_type"), "severity": r.get("severity"),
+                    "description": desc + ("..." if len(r.get("description") or "") > 120 else ""),
+                    "status": r.get("confirmation_status"),
+                })
+
+        elif entity_type == "data_entity":
+            rows = supabase.table("data_entities").select(
+                "id, name, description, entity_category, confirmation_status"
+            ).eq("project_id", pid).order("created_at").execute().data or []
+            items = []
+            for r in rows:
+                desc = (r.get("description") or "")[:120]
+                items.append({
+                    "id": r["id"], "name": r.get("name", "?"),
+                    "category": r.get("entity_category"),
+                    "description": desc + ("..." if len(r.get("description") or "") > 120 else ""),
+                    "status": r.get("confirmation_status"),
+                })
+
+        elif entity_type == "question":
+            rows = supabase.table("project_open_questions").select(
+                "id, question, status, priority, category, suggested_owner"
+            ).eq("project_id", pid).order("created_at", desc=True).execute().data or []
+            items = []
+            for r in rows:
+                items.append({
+                    "id": r["id"], "question": r.get("question", "?"),
+                    "status": r.get("status"), "priority": r.get("priority"),
+                    "category": r.get("category"), "owner": r.get("suggested_owner"),
+                })
+
+        elif entity_type == "workflow":
+            rows = supabase.table("workflows").select(
+                "id, name, workflow_type, description"
+            ).eq("project_id", pid).order("created_at").execute().data or []
+            items = []
+            for r in rows:
+                desc = (r.get("description") or "")[:150]
+                items.append({
+                    "id": r["id"], "name": r.get("name", "?"),
+                    "type": r.get("workflow_type"),
+                    "description": desc + ("..." if len(r.get("description") or "") > 150 else ""),
+                })
+
+        else:
+            return {"error": f"Unknown entity_type: {entity_type}"}
+
+        return {
+            "entity_type": entity_type,
+            "count": len(items),
+            "filter": filter_mode,
+            "items": items[:50],  # Hard cap at 50
+            "truncated": len(items) > 50,
+        }
+
+    except Exception as e:
+        logger.error(f"list_entities error: {e}", exc_info=True)
+        return {"error": str(e)}
 
 
 async def _create_confirmation(project_id: UUID, params: Dict[str, Any]) -> Dict[str, Any]:

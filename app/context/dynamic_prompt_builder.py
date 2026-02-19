@@ -43,6 +43,7 @@ Your text output must be 1-3 short sentences. STOP WRITING after that and call s
 
 SMART_CHAT_CAPABILITIES = """
 # What You Can Do
+- List entities: use list_entities to pull all features, personas, workflows, constraints, etc. from the BRD. ALWAYS use this when asked to review, consolidate, or compare entities — never say you can't see the data.
 - Create entities: features, personas, workflow steps, stakeholders, constraints, data entities
 - Update any entity field (name, description, actor, pain, time estimate, etc.)
 - Process signals (treat conversation content as requirements input)

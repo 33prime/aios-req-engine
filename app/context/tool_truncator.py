@@ -47,6 +47,13 @@ TOOL_CONFIGS: dict[str, dict] = {
         "truncate_fields": ["body", "quote", "resolution"],
         "truncate_length": 500,
     },
+    "list_entities": {
+        "max_tokens": 4000,
+        "max_items": 50,
+        "list_field": "items",
+        "truncate_fields": ["overview", "description"],
+        "truncate_length": 150,
+    },
 }
 
 DEFAULT_CONFIG = {
