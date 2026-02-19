@@ -147,7 +147,7 @@ class ImageExtractor(BaseExtractor):
             prompt = custom_prompt or VISION_ANALYSIS_PROMPT
 
             response = client.messages.create(
-                model="claude-3-5-haiku-20241022",  # Fast and cheap for vision
+                model="claude-haiku-4-5-20251001",  # Fast and cheap for vision
                 max_tokens=4096,
                 messages=[
                     {
@@ -201,7 +201,7 @@ class ImageExtractor(BaseExtractor):
                     "filename": filename,
                     "mime_type": mime_type,
                     "file_size": len(file_bytes),
-                    "model_used": "claude-3-5-haiku-20241022",
+                    "model_used": "claude-haiku-4-5-20251001",
                 },
                 warnings=[],
             )

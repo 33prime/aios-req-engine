@@ -169,7 +169,7 @@ async def enrich_client(client_id: UUID) -> dict[str, Any]:
 
     try:
         response = client_ai.messages.create(
-            model="claude-sonnet-4-20250514",
+            model="claude-sonnet-4-5-20250929",
             max_tokens=4096,
             temperature=0.3,
             messages=[{"role": "user", "content": prompt}],

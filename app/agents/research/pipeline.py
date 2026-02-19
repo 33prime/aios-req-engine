@@ -312,7 +312,7 @@ Output as JSON:
     client = Anthropic(api_key=settings.ANTHROPIC_API_KEY)
 
     response = client.messages.create(
-        model="claude-3-5-haiku-20241022",
+        model="claude-haiku-4-5-20251001",
         max_tokens=1500,
         messages=[{"role": "user", "content": prompt}]
     )
@@ -404,7 +404,7 @@ Be specific and strategic. Reference actual competitor names and features."""
     client = Anthropic(api_key=settings.ANTHROPIC_API_KEY)
 
     response = client.messages.create(
-        model="claude-sonnet-4-20250514",
+        model="claude-sonnet-4-5-20250929",
         max_tokens=2000,
         messages=[{"role": "user", "content": prompt}]
     )
@@ -446,7 +446,7 @@ Return only the JSON array, max {max_count} competitors."""
     client = Anthropic(api_key=settings.ANTHROPIC_API_KEY)
 
     response = client.messages.create(
-        model="claude-3-5-haiku-20241022",
+        model="claude-haiku-4-5-20251001",
         max_tokens=1500,
         messages=[{"role": "user", "content": prompt}]
     )
@@ -499,7 +499,7 @@ Return only JSON array."""
     client = Anthropic(api_key=settings.ANTHROPIC_API_KEY)
 
     response = client.messages.create(
-        model="claude-3-5-haiku-20241022",
+        model="claude-haiku-4-5-20251001",
         max_tokens=2000,
         messages=[{"role": "user", "content": prompt}]
     )
@@ -560,7 +560,7 @@ Return only JSON array."""
     client = Anthropic(api_key=settings.ANTHROPIC_API_KEY)
 
     response = client.messages.create(
-        model="claude-3-5-haiku-20241022",
+        model="claude-haiku-4-5-20251001",
         max_tokens=1500,
         messages=[{"role": "user", "content": prompt}]
     )

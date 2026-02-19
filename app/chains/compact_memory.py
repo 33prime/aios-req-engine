@@ -16,7 +16,7 @@ from app.core.logging import get_logger
 logger = get_logger(__name__)
 
 # Use Haiku for compaction - fast and cheap
-COMPACTION_MODEL = "claude-3-5-haiku-20241022"
+COMPACTION_MODEL = "claude-haiku-4-5-20251001"
 
 # Token thresholds
 MAX_MEMORY_TOKENS = 2000  # Trigger compaction above this

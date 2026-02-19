@@ -108,7 +108,7 @@ async def _summarize_messages(
     Args:
         messages: Messages to summarize
         max_tokens: Max tokens for response
-        model: Model to use (default: claude-3-5-haiku-20241022)
+        model: Model to use (default: claude-haiku-4-5-20251001)
 
     Returns:
         Summary string
@@ -143,7 +143,7 @@ async def _summarize_messages(
 
     # Get model from settings or use default
     summarization_model = model or getattr(
-        settings, "SUMMARIZATION_MODEL", "claude-3-5-haiku-20241022"
+        settings, "SUMMARIZATION_MODEL", "claude-haiku-4-5-20251001"
     )
 
     try:

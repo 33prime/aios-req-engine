@@ -328,7 +328,7 @@ class PPTXExtractor(BaseExtractor):
             return [], 0, 0
 
         client = Anthropic(api_key=settings.ANTHROPIC_API_KEY)
-        model = "claude-3-5-haiku-20241022"
+        model = "claude-haiku-4-5-20251001"
         sections: list[ExtractedSection] = []
         total_words = 0
         vision_calls = 0

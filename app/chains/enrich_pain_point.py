@@ -300,7 +300,7 @@ Extract pain point enrichment details from the above context. Review existing pa
 
         # Call LLM with Claude Sonnet 4
         model = ChatAnthropic(
-            model="claude-sonnet-4-20250514",
+            model="claude-sonnet-4-5-20250929",
             temperature=0.1,
             api_key=settings.ANTHROPIC_API_KEY,
         )

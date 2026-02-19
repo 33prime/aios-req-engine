@@ -27,9 +27,8 @@ logger = get_logger(__name__)
 
 router = APIRouter()
 
-# Claude Haiku 3.5 model ID for fast responses
-# Note: Using Haiku 3.5 as it's the current fast model available
-HAIKU_MODEL = "claude-3-5-haiku-20241022"
+# Claude Haiku 4.5 model ID for fast responses
+HAIKU_MODEL = "claude-haiku-4-5-20251001"
 
 
 class ChatMessage(BaseModel):

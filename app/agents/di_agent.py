@@ -218,7 +218,7 @@ What's your reasoning and recommended action?"""
 
         # Call Claude
         response = client.messages.create(
-            model=settings.DI_AGENT_MODEL or "claude-sonnet-4-20250514",
+            model=settings.DI_AGENT_MODEL or "claude-sonnet-4-5-20250929",
             max_tokens=4096,
             system=DI_AGENT_SYSTEM_PROMPT,
             tools=anthropic_tools,
@@ -331,7 +331,7 @@ What's your reasoning and recommended action?"""
                 readiness_after=agent_response.readiness_after,
                 gates_affected=agent_response.gates_affected,
                 execution_time_ms=execution_time_ms,
-                llm_model=settings.DI_AGENT_MODEL or "claude-sonnet-4-20250514",
+                llm_model=settings.DI_AGENT_MODEL or "claude-sonnet-4-5-20250929",
                 success=True,
             )
         except Exception as e:
@@ -369,7 +369,7 @@ What's your reasoning and recommended action?"""
                 trigger_context=trigger_context,
                 stop_reason=f"Error: {str(e)}",
                 execution_time_ms=execution_time_ms,
-                llm_model=settings.DI_AGENT_MODEL or "claude-sonnet-4-20250514",
+                llm_model=settings.DI_AGENT_MODEL or "claude-sonnet-4-5-20250929",
                 success=False,
                 error_message=str(e),
             )

@@ -26,7 +26,7 @@ from app.db.supabase_client import get_supabase
 logger = get_logger(__name__)
 
 # Model configuration
-SONNET_MODEL = "claude-sonnet-4-20250514"
+SONNET_MODEL = "claude-sonnet-4-5-20250929"
 
 
 # =============================================================================

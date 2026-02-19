@@ -131,7 +131,7 @@ async def classify_document(
 
     try:
         response = client.messages.create(
-            model="claude-3-5-haiku-20241022",  # Fast and cheap
+            model="claude-haiku-4-5-20251001",  # Fast and cheap
             max_tokens=1024,
             temperature=0.1,  # Low temperature for consistent classification
             messages=[{"role": "user", "content": prompt}],

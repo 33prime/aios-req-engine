@@ -56,8 +56,8 @@ from app.db.memory_graph import (
 logger = get_logger(__name__)
 
 # Model configuration
-HAIKU_MODEL = "claude-3-5-haiku-20241022"
-SONNET_MODEL = "claude-sonnet-4-20250514"
+HAIKU_MODEL = "claude-haiku-4-5-20251001"
+SONNET_MODEL = "claude-sonnet-4-5-20250929"
 
 # Thresholds
 IMPORTANCE_THRESHOLD_FOR_SYNTHESIS = 0.7

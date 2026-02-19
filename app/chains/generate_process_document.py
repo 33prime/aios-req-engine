@@ -269,7 +269,7 @@ Generate the full structured process document JSON."""
 
     client = Anthropic(api_key=settings.ANTHROPIC_API_KEY)
     response = client.messages.create(
-        model="claude-sonnet-4-20250514",
+        model="claude-sonnet-4-5-20250929",
         max_tokens=4000,
         temperature=0.3,
         system=SYSTEM_PROMPT,
@@ -282,7 +282,7 @@ Generate the full structured process document JSON."""
     duration_ms = int((time.time() - start_time) * 1000)
 
     # Add generation metadata
-    doc["generation_model"] = "claude-sonnet-4-20250514"
+    doc["generation_model"] = "claude-sonnet-4-5-20250929"
     doc["generation_duration_ms"] = duration_ms
     doc["project_id"] = project_id
     if client_id:

@@ -75,7 +75,7 @@ async def _extract_with_haiku(scraped_content: str, cost_entries: list[dict]) ->
 
     client = AsyncAnthropic(api_key=settings.ANTHROPIC_API_KEY)
     response = await client.messages.create(
-        model="claude-3-5-haiku-20241022",
+        model="claude-haiku-4-5-20251001",
         max_tokens=2000,
         messages=[{
             "role": "user",

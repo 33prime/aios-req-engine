@@ -183,7 +183,7 @@ async def run_deep_research_agent(
         try:
             # Call Claude
             response = client.messages.create(
-                model=settings.DEEP_RESEARCH_MODEL or "claude-sonnet-4-20250514",
+                model=settings.DEEP_RESEARCH_MODEL or "claude-sonnet-4-5-20250929",
                 max_tokens=4096,
                 system=system_prompt,
                 tools=TOOL_DEFINITIONS,

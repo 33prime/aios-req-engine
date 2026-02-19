@@ -269,7 +269,7 @@ def extract_strategic_entities_from_signals(project_id: UUID) -> dict[str, Any]:
                 signal=signal,
                 chunks=chunks,
                 settings=settings,
-                model_override="claude-sonnet-4-20250514",  # Claude excels at structured entity extraction
+                model_override="claude-sonnet-4-5-20250929",  # Claude excels at structured entity extraction
             )
 
             result["signals_processed"] += 1

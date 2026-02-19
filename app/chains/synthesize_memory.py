@@ -15,7 +15,7 @@ from app.core.logging import get_logger
 logger = get_logger(__name__)
 
 # Use Sonnet for quality memory synthesis
-MEMORY_MODEL = "claude-sonnet-4-20250514"
+MEMORY_MODEL = "claude-sonnet-4-5-20250929"
 
 
 MEMORY_SYNTHESIS_PROMPT = """You are synthesizing a persistent project memory document. This memory serves as the source of truth that helps AI assistants understand this project's context, intent, and history.

@@ -13,7 +13,7 @@ from uuid import UUID
 
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_core.output_parsers import PydanticOutputParser
-from langchain_openai import ChatOpenAI
+from langchain_anthropic import ChatAnthropic
 from pydantic import BaseModel, Field
 
 from app.core.logging import get_logger
@@ -86,7 +86,7 @@ Context:
 
 Extract stakeholder engagement analysis."""
 
-        model = ChatOpenAI(model="gpt-4o", temperature=0.1, api_key=settings.OPENAI_API_KEY)
+        model = ChatAnthropic(model="claude-sonnet-4-5-20250929", temperature=0.1, api_key=settings.ANTHROPIC_API_KEY)
         messages = [SystemMessage(content=system_prompt), HumanMessage(content=user_prompt)]
         response = await model.ainvoke(messages)
         enrichment = parser.parse(response.content)

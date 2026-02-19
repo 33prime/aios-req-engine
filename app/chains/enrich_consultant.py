@@ -71,7 +71,7 @@ def enrich_consultant_profile(
 
     client = Anthropic(api_key=settings.ANTHROPIC_API_KEY)
     response = client.messages.create(
-        model="claude-sonnet-4-20250514",
+        model="claude-sonnet-4-5-20250929",
         max_tokens=2000,
         system=SYSTEM_PROMPT,
         messages=[{"role": "user", "content": user_prompt}],
@@ -84,13 +84,13 @@ def enrich_consultant_profile(
     # Log usage
     from app.core.llm_usage import log_llm_usage
     log_llm_usage(
-        workflow="enrich_consultant", model="claude-sonnet-4-20250514", provider="anthropic",
+        workflow="enrich_consultant", model="claude-sonnet-4-5-20250929", provider="anthropic",
         tokens_input=response.usage.input_tokens, tokens_output=response.usage.output_tokens,
         duration_ms=duration_ms,
     )
 
     metadata = {
-        "model": "claude-sonnet-4-20250514",
+        "model": "claude-sonnet-4-5-20250929",
         "tokens_used": tokens_used,
         "duration_ms": duration_ms,
     }

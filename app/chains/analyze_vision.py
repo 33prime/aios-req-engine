@@ -64,7 +64,7 @@ Return JSON only:
 
         anthropic_client = AsyncAnthropic(api_key=settings.ANTHROPIC_API_KEY)
         response = await anthropic_client.messages.create(
-            model="claude-sonnet-4-20250514",
+            model="claude-sonnet-4-5-20250929",
             max_tokens=1500,
             temperature=0.3,
             messages=[{"role": "user", "content": prompt}],
