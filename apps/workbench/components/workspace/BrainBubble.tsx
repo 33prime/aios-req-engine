@@ -282,7 +282,6 @@ export function BrainBubble({
               projectId={projectId}
               onNavigate={handleNavigate}
               onCascade={onCascade}
-              onDiscussInChat={handleDiscussInChat}
               onStartConversation={handleStartConversation}
             />
           ) : (

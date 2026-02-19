@@ -11,7 +11,6 @@ import { SituationSummary } from './SituationSummary'
 import { WhatChangedSection } from './WhatChangedSection'
 import { ActiveTensionsSection } from './ActiveTensionsSection'
 import { HypothesesSection } from './HypothesesSection'
-import { TopActionsSection } from './TopActionsSection'
 import { ProjectHeartbeatSection } from './ProjectHeartbeatSection'
 import { ConversationStarterCard } from './ConversationStarterCard'
 
@@ -19,7 +18,6 @@ interface IntelligenceBriefingPanelProps {
   projectId: string
   onNavigate?: (entityType: string, entityId: string | null) => void
   onCascade?: () => void
-  onDiscussInChat?: (action: import('@/lib/api').TerseAction) => void
   onStartConversation?: (starter: ConversationStarter) => void
 }
 
@@ -27,7 +25,6 @@ export function IntelligenceBriefingPanel({
   projectId,
   onNavigate,
   onCascade,
-  onDiscussInChat,
   onStartConversation,
 }: IntelligenceBriefingPanelProps) {
   const {
@@ -80,10 +77,10 @@ export function IntelligenceBriefingPanel({
   const progress = briefing?.situation?.phase_progress ?? 0
   const hasContent = briefing && (
     briefing.situation.narrative ||
+    briefing.conversation_starter ||
     briefing.what_changed.changes.length > 0 ||
     briefing.tensions.length > 0 ||
-    briefing.hypotheses.length > 0 ||
-    briefing.actions.length > 0
+    briefing.hypotheses.length > 0
   )
 
   return (
@@ -133,18 +130,6 @@ export function IntelligenceBriefingPanel({
               <HypothesesSection
                 hypotheses={briefing.hypotheses}
                 projectId={projectId}
-              />
-            )}
-
-            {/* Next Actions */}
-            {briefing && briefing.actions.length > 0 && (
-              <TopActionsSection
-                projectId={projectId}
-                actions={briefing.actions}
-                onNavigate={onNavigate}
-                onCascade={onCascade}
-                onRefresh={handleRefresh}
-                onDiscussInChat={onDiscussInChat}
               />
             )}
 
