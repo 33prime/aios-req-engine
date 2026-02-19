@@ -34,20 +34,10 @@ import type {
   Entity,
   Message,
   QuickAction,
-  CommandResult,
-  CommandArgs,
   UseAssistantReturn,
   ProactiveMessage,
   ProjectContextData,
 } from './types'
-
-import {
-  isCommand,
-  parseCommand,
-  executeCommand,
-  findMatchingCommands,
-  getAllCommands,
-} from './commands'
 
 import {
   getModeForTab,
@@ -344,79 +334,18 @@ export function AssistantProvider({
 
       try {
         const currentContext = contextRef.current
-        // Check if it's a command
-        if (isCommand(trimmedContent)) {
-          const { name, args } = parseCommand(trimmedContent)
-          const result = await executeCommand(name, args, currentContext)
-
-          // Handle special command results
-          if (result.data && (result.data as { action?: string }).action === 'clear_messages') {
-            dispatch({ type: 'CLEAR_MESSAGES' })
-          }
-
-          // Add assistant response
+        if (onSendMessage) {
+          const response = await onSendMessage(trimmedContent, currentContext)
           const assistantMessage: Message = {
             id: generateId(),
             role: 'assistant',
-            content: result.message || (result.success ? 'Done.' : 'Command failed.'),
+            content: response,
             timestamp: new Date(),
             metadata: {
-              command: name,
-              commandArgs: JSON.stringify(args),
+              mode: currentContext.mode,
             },
           }
           dispatch({ type: 'ADD_MESSAGE', message: assistantMessage })
-
-          // Update quick actions if result includes them
-          if (result.actions) {
-            dispatch({ type: 'SET_QUICK_ACTIONS', actions: result.actions })
-          }
-
-          // Handle navigation
-          if (result.navigateTo?.tab) {
-            setActiveTab(result.navigateTo.tab)
-          }
-
-          // Refresh project data after DI Agent commands
-          const diAgentCommands = [
-            'analyze-project', 'di', 'analyze',
-            'extract-core-pain', 'core-pain', 'pain',
-            'extract-persona', 'persona', 'primary-persona',
-            'identify-wow', 'wow', 'wow-moment',
-            'extract-business-case',
-            'extract-budget-constraints'
-          ]
-          if (result.success && diAgentCommands.includes(name) && onProjectDataChanged) {
-            // Refresh project data in the background
-            onProjectDataChanged().catch(err =>
-              console.error('Failed to refresh project data:', err)
-            )
-          }
-        } else {
-          // Regular message - send to AI
-          if (onSendMessage) {
-            const response = await onSendMessage(trimmedContent, currentContext)
-            const assistantMessage: Message = {
-              id: generateId(),
-              role: 'assistant',
-              content: response,
-              timestamp: new Date(),
-              metadata: {
-                mode: currentContext.mode,
-              },
-            }
-            dispatch({ type: 'ADD_MESSAGE', message: assistantMessage })
-          } else {
-            // No handler provided, show default response
-            const modeConfig = getModeConfig(currentContext.mode)
-            const assistantMessage: Message = {
-              id: generateId(),
-              role: 'assistant',
-              content: `I'm here to help with ${currentContext.mode} tasks. Try using a slash command like ${modeConfig.suggestedCommands[0] || '/help'} or ask me a question.`,
-              timestamp: new Date(),
-            }
-            dispatch({ type: 'ADD_MESSAGE', message: assistantMessage })
-          }
         }
       } catch (error) {
         const errorMessage: Message = {
@@ -430,29 +359,13 @@ export function AssistantProvider({
         dispatch({ type: 'SET_LOADING', isLoading: false })
       }
     },
-    [onSendMessage, setActiveTab] // Removed context - uses contextRef
+    [onSendMessage]
   )
 
   // Clear messages handler
   const clearMessages = useCallback(() => {
     dispatch({ type: 'CLEAR_MESSAGES' })
   }, [])
-
-  // Execute command directly - uses contextRef to avoid [context] dependency
-  const executeCommandDirect = useCallback(
-    async (command: string, args?: CommandArgs): Promise<CommandResult> => {
-      return executeCommand(command, args || {}, contextRef.current)
-    },
-    [] // No dependencies - uses contextRef
-  )
-
-  // Parse and execute input
-  const parseAndExecute = useCallback(
-    async (input: string) => {
-      await sendMessage(input)
-    },
-    [sendMessage]
-  )
 
   // Get current quick actions
   const getQuickActions = useCallback((): QuickAction[] => {
@@ -479,17 +392,6 @@ export function AssistantProvider({
     dispatch({ type: 'DISMISS_PROACTIVE_MESSAGE', index })
   }, [])
 
-  // Check if input is a command
-  const isCommandCheck = useCallback((input: string): boolean => {
-    return isCommand(input)
-  }, [])
-
-  // Get command suggestions
-  const getCommandSuggestions = useCallback((input: string) => {
-    if (!input.startsWith('/')) return []
-    return findMatchingCommands(input.slice(1))
-  }, [])
-
   // Build the return value
   const value: UseAssistantReturn = {
     context,
@@ -498,13 +400,9 @@ export function AssistantProvider({
     selectEntity,
     sendMessage,
     clearMessages,
-    executeCommand: executeCommandDirect,
-    parseAndExecute,
     getQuickActions,
     executeQuickAction,
     dismissProactiveMessage,
-    isCommand: isCommandCheck,
-    getCommandSuggestions,
   }
 
   return (
@@ -561,15 +459,12 @@ export function useEntitySelection() {
  * Hook for messages and sending.
  */
 export function useAssistantChat() {
-  const { context, sendMessage, clearMessages, isCommand, getCommandSuggestions } =
-    useAssistant()
+  const { context, sendMessage, clearMessages } = useAssistant()
   return {
     messages: context.messages,
     isLoading: context.isLoading,
     sendMessage,
     clearMessages,
-    isCommand,
-    getCommandSuggestions,
   }
 }
 
@@ -596,8 +491,3 @@ export function useProactiveMessages() {
   }
 }
 
-// =============================================================================
-// Exports
-// =============================================================================
-
-export { getAllCommands }

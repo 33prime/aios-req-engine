@@ -22,12 +22,12 @@ TOOL_CONFIGS: dict[str, dict] = {
         "truncate_fields": ["finding", "why"],
         "truncate_length": 200,
     },
-    "search_research": {
-        "max_tokens": 1500,
-        "max_items": 5,
-        "list_field": "chunks",
-        "truncate_fields": ["full_text", "excerpt"],
-        "truncate_length": 200,
+    "search": {
+        "max_tokens": 2500,
+        "max_items": 10,
+        "list_field": "results",
+        "truncate_fields": ["content", "excerpt"],
+        "truncate_length": 300,
     },
     "get_project_status": {
         "max_tokens": 1000,
@@ -39,42 +39,6 @@ TOOL_CONFIGS: dict[str, dict] = {
         "max_items": 5,
         "list_field": "blockers",  # Also truncate warnings, recommendations
         "truncate_fields": [],
-    },
-    "analyze_gaps": {
-        "max_tokens": 2000,
-        "max_items": 5,
-        "list_field": None,  # Multiple list fields
-        "gap_list_fields": ["evidence", "personas", "features", "vp_steps", "confirmations"],
-    },
-    "semantic_search_research": {
-        "max_tokens": 2500,
-        "max_items": 10,
-        "list_field": "results",
-        "truncate_fields": ["content", "excerpt"],
-        "truncate_length": 300,
-    },
-    "propose_features": {
-        "max_tokens": 2000,
-        "max_items": None,
-        "list_field": None,
-    },
-    "preview_proposal": {
-        "max_tokens": 3000,
-        "max_items": 10,
-        "list_field": "changes",
-        "truncate_fields": ["rationale"],
-        "truncate_length": 150,
-    },
-    "find_evidence_gaps": {
-        "max_tokens": 2000,
-        "max_items": 10,
-        "list_field": "items",
-        "truncate_fields": ["suggested_queries"],
-    },
-    "bulk_apply_patches": {
-        "max_tokens": 2000,
-        "max_items": 10,
-        "list_field": "results",
     },
 }
 

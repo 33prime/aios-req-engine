@@ -27,7 +27,6 @@ import {
   ChevronRight,
   AlertCircle,
   Info,
-  Zap,
   CheckCircle2,
   Layers,
   Upload,
@@ -39,7 +38,6 @@ import {
   type Message,
   type QuickAction,
   type ProactiveMessage,
-  type CommandDefinition,
   type TabType,
   getModeConfig,
 } from '@/lib/assistant'
@@ -109,27 +107,15 @@ export function ChatPanel({
   onToggleMinimize,
 }: ChatPanelProps) {
   const [input, setInput] = useState('')
-  const [showCommandSuggestions, setShowCommandSuggestions] = useState(false)
   const [isDragging, setIsDragging] = useState(false)
   const [uploadingFiles, setUploadingFiles] = useState(false)
-  const [activePrompt, setActivePrompt] = useState<{
-    type: 'create-task' | 'create-stakeholder' | 'remember'
-    step?: 'type' | 'content' // for remember command
-    memoryType?: 'decision' | 'learning' | 'question'
-  } | null>(null)
-  const [promptInput, setPromptInput] = useState('')
-  const [promptSubmitting, setPromptSubmitting] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
-  const promptInputRef = useRef<HTMLInputElement>(null)
 
   // Use the assistant hook
   const {
     context,
     setActiveTab: setAssistantTab,
-    sendMessage: assistantSendMessage,
-    isCommand,
-    getCommandSuggestions,
     getQuickActions,
     executeQuickAction,
     dismissProactiveMessage,
@@ -144,17 +130,6 @@ export function ChatPanel({
 
   // Get mode-specific config
   const modeConfig = useMemo(() => getModeConfig(context.mode), [context.mode])
-
-  // Get command suggestions for autocomplete
-  const commandSuggestions = useMemo(() => {
-    if (!input.startsWith('/')) return []
-    return getCommandSuggestions(input)
-  }, [input, getCommandSuggestions])
-
-  // Show/hide command suggestions
-  useEffect(() => {
-    setShowCommandSuggestions(input.startsWith('/') && commandSuggestions.length > 0)
-  }, [input, commandSuggestions])
 
   // Context hint based on mode
   const getContextHint = useCallback(() => {
@@ -181,35 +156,9 @@ export function ChatPanel({
 
       const trimmedInput = input.trim()
       setInput('')
-      setShowCommandSuggestions(false)
-
-      // Check if it's a command that needs a prompt
-      const commandsNeedingPrompt = [
-        { pattern: /^\/(create-task|add-task|new-task)$/i, type: 'create-task' as const },
-        { pattern: /^\/(create-stakeholder|add-stakeholder)$/i, type: 'create-stakeholder' as const },
-        { pattern: /^\/(remember|add-to-memory)$/i, type: 'remember' as const },
-      ]
-
-      for (const cmd of commandsNeedingPrompt) {
-        if (cmd.pattern.test(trimmedInput)) {
-          setActivePrompt({ type: cmd.type, step: cmd.type === 'remember' ? 'type' : undefined })
-          setPromptInput('')
-          // Focus the prompt input after render
-          setTimeout(() => promptInputRef.current?.focus(), 100)
-          return
-        }
-      }
-
-      // Check if it's a slash command
-      if (isCommand(trimmedInput)) {
-        // Handle through assistant (local command execution)
-        await assistantSendMessage(trimmedInput)
-      } else {
-        // Send to external AI backend
-        externalSendMessage(trimmedInput)
-      }
+      externalSendMessage(trimmedInput)
     },
-    [input, externalLoading, isCommand, assistantSendMessage, externalSendMessage]
+    [input, externalLoading, externalSendMessage]
   )
 
   const handleKeyDown = useCallback(
@@ -218,18 +167,8 @@ export function ChatPanel({
         e.preventDefault()
         handleSubmit(e)
       }
-      // Tab to autocomplete command
-      if (e.key === 'Tab' && showCommandSuggestions && commandSuggestions.length > 0) {
-        e.preventDefault()
-        setInput('/' + commandSuggestions[0].name + ' ')
-        setShowCommandSuggestions(false)
-      }
-      // Escape to close suggestions
-      if (e.key === 'Escape') {
-        setShowCommandSuggestions(false)
-      }
     },
-    [handleSubmit, showCommandSuggestions, commandSuggestions]
+    [handleSubmit]
   )
 
   // Handle quick action click
@@ -246,59 +185,6 @@ export function ChatPanel({
     },
     [executeQuickAction, setAssistantTab]
   )
-
-  // Handle command suggestion click
-  const handleCommandSelect = useCallback((cmd: CommandDefinition) => {
-    setInput('/' + cmd.name + ' ')
-    setShowCommandSuggestions(false)
-    inputRef.current?.focus()
-  }, [])
-
-  // Handle inline prompt submission
-  const handlePromptSubmit = useCallback(async () => {
-    if (!activePrompt || promptSubmitting) return
-
-    const value = promptInput.trim()
-    if (!value && activePrompt.type !== 'remember') return
-
-    setPromptSubmitting(true)
-
-    try {
-      if (activePrompt.type === 'create-task') {
-        await assistantSendMessage(`/create-task "${value}"`)
-      } else if (activePrompt.type === 'create-stakeholder') {
-        await assistantSendMessage(`/create-stakeholder "${value}"`)
-      } else if (activePrompt.type === 'remember') {
-        if (activePrompt.step === 'type') {
-          // Should not reach here - type is selected via buttons
-          return
-        }
-        // Submit the memory content
-        if (activePrompt.memoryType && value) {
-          await assistantSendMessage(`/remember ${activePrompt.memoryType} "${value}"`)
-        }
-      }
-    } finally {
-      setPromptSubmitting(false)
-      setActivePrompt(null)
-      setPromptInput('')
-      inputRef.current?.focus()
-    }
-  }, [activePrompt, promptInput, promptSubmitting, assistantSendMessage])
-
-  // Handle memory type selection for /remember
-  const handleMemoryTypeSelect = useCallback((type: 'decision' | 'learning' | 'question') => {
-    setActivePrompt({ type: 'remember', step: 'content', memoryType: type })
-    setPromptInput('')
-    setTimeout(() => promptInputRef.current?.focus(), 100)
-  }, [])
-
-  // Cancel prompt
-  const handlePromptCancel = useCallback(() => {
-    setActivePrompt(null)
-    setPromptInput('')
-    inputRef.current?.focus()
-  }, [])
 
   // File drag and drop handlers
   const handleDragOver = useCallback((e: React.DragEvent) => {
@@ -407,7 +293,7 @@ export function ChatPanel({
         })
       }
     },
-    [projectId, onAddLocalMessage, assistantSendMessage]
+    [projectId, onAddLocalMessage]
   )
 
   // Combined messages (external + all context messages including command results)
@@ -590,211 +476,18 @@ export function ChatPanel({
 
         {/* Input Area */}
         <div className="border-t border-gray-200 bg-white px-4 sm:px-6 py-3 sm:py-4 flex-shrink-0 pb-safe">
-          {/* Inline Command Prompt */}
-          {activePrompt && (
-            <div className="mb-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
-              {activePrompt.type === 'create-task' && (
-                <>
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="text-lg">📝</span>
-                    <span className="text-sm font-medium text-ui-bodyText">Create Task</span>
-                  </div>
-                  <p className="text-xs text-ui-supportText mb-2">Enter a title for your task:</p>
-                  <div className="flex items-center gap-2">
-                    <input
-                      ref={promptInputRef}
-                      type="text"
-                      value={promptInput}
-                      onChange={(e) => setPromptInput(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault()
-                          handlePromptSubmit()
-                        }
-                        if (e.key === 'Escape') handlePromptCancel()
-                      }}
-                      placeholder="e.g., Review persona updates with client"
-                      className="flex-1 px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary"
-                      disabled={promptSubmitting}
-                    />
-                    <button
-                      onClick={handlePromptSubmit}
-                      disabled={!promptInput.trim() || promptSubmitting}
-                      className="px-3 py-1.5 bg-brand-primary hover:bg-brand-primaryHover text-white text-sm font-medium rounded-lg disabled:opacity-50 transition-colors flex items-center gap-1"
-                    >
-                      {promptSubmitting ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Create'}
-                    </button>
-                    <button
-                      onClick={handlePromptCancel}
-                      disabled={promptSubmitting}
-                      className="px-3 py-1.5 text-gray-600 hover:text-gray-800 text-sm font-medium"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </>
-              )}
-
-              {activePrompt.type === 'create-stakeholder' && (
-                <>
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="text-lg">👤</span>
-                    <span className="text-sm font-medium text-ui-bodyText">Add Stakeholder</span>
-                  </div>
-                  <p className="text-xs text-ui-supportText mb-2">Enter the stakeholder's name:</p>
-                  <div className="flex items-center gap-2">
-                    <input
-                      ref={promptInputRef}
-                      type="text"
-                      value={promptInput}
-                      onChange={(e) => setPromptInput(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault()
-                          handlePromptSubmit()
-                        }
-                        if (e.key === 'Escape') handlePromptCancel()
-                      }}
-                      placeholder="e.g., John Smith"
-                      className="flex-1 px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary"
-                      disabled={promptSubmitting}
-                    />
-                    <button
-                      onClick={handlePromptSubmit}
-                      disabled={!promptInput.trim() || promptSubmitting}
-                      className="px-3 py-1.5 bg-brand-primary hover:bg-brand-primaryHover text-white text-sm font-medium rounded-lg disabled:opacity-50 transition-colors flex items-center gap-1"
-                    >
-                      {promptSubmitting ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Add'}
-                    </button>
-                    <button
-                      onClick={handlePromptCancel}
-                      disabled={promptSubmitting}
-                      className="px-3 py-1.5 text-gray-600 hover:text-gray-800 text-sm font-medium"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </>
-              )}
-
-              {activePrompt.type === 'remember' && activePrompt.step === 'type' && (
-                <>
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="text-lg">🧠</span>
-                    <span className="text-sm font-medium text-ui-bodyText">Add to Memory</span>
-                  </div>
-                  <p className="text-xs text-ui-supportText mb-3">What type of memory?</p>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => handleMemoryTypeSelect('decision')}
-                      className="px-3 py-1.5 bg-blue-100 hover:bg-blue-200 text-blue-800 text-sm font-medium rounded-lg transition-colors"
-                    >
-                      Decision
-                    </button>
-                    <button
-                      onClick={() => handleMemoryTypeSelect('learning')}
-                      className="px-3 py-1.5 bg-green-100 hover:bg-green-200 text-green-800 text-sm font-medium rounded-lg transition-colors"
-                    >
-                      Learning
-                    </button>
-                    <button
-                      onClick={() => handleMemoryTypeSelect('question')}
-                      className="px-3 py-1.5 bg-amber-100 hover:bg-amber-200 text-amber-800 text-sm font-medium rounded-lg transition-colors"
-                    >
-                      Question
-                    </button>
-                    <button
-                      onClick={handlePromptCancel}
-                      className="ml-auto px-3 py-1.5 text-gray-600 hover:text-gray-800 text-sm font-medium"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </>
-              )}
-
-              {activePrompt.type === 'remember' && activePrompt.step === 'content' && (
-                <>
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="text-lg">🧠</span>
-                    <span className="text-sm font-medium text-ui-bodyText">
-                      Add {activePrompt.memoryType === 'decision' ? 'Decision' : activePrompt.memoryType === 'learning' ? 'Learning' : 'Question'}
-                    </span>
-                  </div>
-                  <p className="text-xs text-ui-supportText mb-2">
-                    {activePrompt.memoryType === 'decision' && 'Record the decision and its rationale:'}
-                    {activePrompt.memoryType === 'learning' && 'What did you learn?'}
-                    {activePrompt.memoryType === 'question' && 'What question needs to be answered?'}
-                  </p>
-                  <div className="flex items-center gap-2">
-                    <input
-                      ref={promptInputRef}
-                      type="text"
-                      value={promptInput}
-                      onChange={(e) => setPromptInput(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault()
-                          handlePromptSubmit()
-                        }
-                        if (e.key === 'Escape') handlePromptCancel()
-                      }}
-                      placeholder={
-                        activePrompt.memoryType === 'decision'
-                          ? 'e.g., We chose mobile-first because 70% of users are mobile'
-                          : activePrompt.memoryType === 'learning'
-                            ? 'e.g., Client prefers visual mockups over text specs'
-                            : 'e.g., What is the budget timeline?'
-                      }
-                      className="flex-1 px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary"
-                      disabled={promptSubmitting}
-                    />
-                    <button
-                      onClick={handlePromptSubmit}
-                      disabled={!promptInput.trim() || promptSubmitting}
-                      className="px-3 py-1.5 bg-brand-primary hover:bg-brand-primaryHover text-white text-sm font-medium rounded-lg disabled:opacity-50 transition-colors flex items-center gap-1"
-                    >
-                      {promptSubmitting ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Save'}
-                    </button>
-                    <button
-                      onClick={handlePromptCancel}
-                      disabled={promptSubmitting}
-                      className="px-3 py-1.5 text-gray-600 hover:text-gray-800 text-sm font-medium"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </>
-              )}
-            </div>
-          )}
-
           <form onSubmit={handleSubmit} className="flex gap-2">
-            <div className="relative flex-1">
-              {/* Command Autocomplete - positioned relative to input */}
-              {showCommandSuggestions && (
-                <CommandAutocomplete
-                  suggestions={commandSuggestions}
-                  onSelect={handleCommandSelect}
-                />
-              )}
-              <textarea
-                ref={inputRef}
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder="Type a message or /command..."
-                disabled={externalLoading}
-                rows={1}
-                className="w-full px-4 py-2 pr-10 border border-gray-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-brand-primary focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500 text-sm"
-                style={{ minHeight: '40px', maxHeight: '120px' }}
-              />
-              {input.startsWith('/') && (
-                <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                  <Zap className="h-4 w-4 text-brand-primary" />
-                </div>
-              )}
-            </div>
+            <textarea
+              ref={inputRef}
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="Ask about your project..."
+              disabled={externalLoading}
+              rows={1}
+              className="flex-1 px-4 py-2 border border-gray-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-brand-primary focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500 text-sm"
+              style={{ minHeight: '40px', maxHeight: '120px' }}
+            />
             <button
               type="submit"
               disabled={!input.trim() || externalLoading}
@@ -809,7 +502,7 @@ export function ChatPanel({
             </button>
           </form>
           <p className="text-xs text-ui-supportText mt-2">
-            Press Enter to send • Type / for commands • Tab to autocomplete
+            Press Enter to send • Shift+Enter for new line
           </p>
         </div>
       </div>
@@ -823,25 +516,17 @@ export function ChatPanel({
 
 /** Welcome screen shown when no messages */
 function WelcomeScreen({
-  suggestedCommands,
   onCommand,
-  activeTab,
 }: {
-  suggestedCommands: string[]
+  suggestedCommands?: string[]
   onCommand: (cmd: string) => void
   activeTab?: string
 }) {
-  const contextMessages: Record<string, string> = {
-    'strategic-context': 'Extract company info, business drivers, and competitors from your signals.',
-    'features': 'Analyze features, enrich with AI, or approve pending items.',
-    'value-path': 'Design and refine the user journey steps.',
-    'sources': 'Process signals and route claims to entities.',
-    'overview': 'Check project health and plan next steps.',
-    'personas': 'Develop and refine user personas with evidence.',
-    'research': 'Search research findings and identify gaps.',
-  }
-
-  const defaultMessage = 'Use commands to run AI agents or ask questions about your project.'
+  const starters = [
+    'What should I focus on next?',
+    'Summarize the current project status',
+    'What gaps exist in our requirements?',
+  ]
 
   return (
     <div className="flex-1 flex flex-col items-center justify-center px-6">
@@ -852,16 +537,16 @@ function WelcomeScreen({
         AI Assistant
       </h3>
       <p className="text-sm text-gray-500 text-center max-w-[280px] mb-5">
-        {contextMessages[activeTab || ''] || defaultMessage}
+        Ask questions, run analyses, or get help with your project requirements.
       </p>
       <div className="flex flex-wrap justify-center gap-2">
-        {suggestedCommands.map((cmd) => (
+        {starters.map((prompt) => (
           <button
-            key={cmd}
-            onClick={() => onCommand(cmd)}
-            className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-full text-xs font-mono transition-colors"
+            key={prompt}
+            onClick={() => onCommand(prompt)}
+            className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-full text-xs transition-colors"
           >
-            {cmd}
+            {prompt}
           </button>
         ))}
       </div>
@@ -923,36 +608,6 @@ function ProactiveMessageCard({
           <X className="h-4 w-4 text-gray-500" />
         </button>
       )}
-    </div>
-  )
-}
-
-/** Command autocomplete dropdown */
-function CommandAutocomplete({
-  suggestions,
-  onSelect,
-}: {
-  suggestions: CommandDefinition[]
-  onSelect: (cmd: CommandDefinition) => void
-}) {
-  return (
-    <div className="absolute bottom-full left-0 right-0 mb-2 bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden z-50">
-      <div className="p-2 text-xs text-ui-supportText bg-gray-50 border-b border-gray-200 font-medium">
-        💡 Available Commands (Tab to complete)
-      </div>
-      <div className="max-h-64 overflow-y-auto">
-        {suggestions.map((cmd) => (
-          <button
-            key={cmd.name}
-            onClick={() => onSelect(cmd)}
-            className="w-full flex items-center gap-3 px-4 py-2 hover:bg-gray-50 text-left transition-colors"
-          >
-            <span className="font-mono text-sm text-brand-primary">/{cmd.name}</span>
-            <span className="text-sm text-ui-supportText truncate">{cmd.description}</span>
-            <ChevronRight className="h-4 w-4 text-gray-400 ml-auto flex-shrink-0" />
-          </button>
-        ))}
-      </div>
     </div>
   )
 }
@@ -1195,35 +850,32 @@ function getToolDisplayName(toolName: string): string {
     // Strategic Foundation
     generate_strategic_context: 'Generating strategic context',
     get_strategic_context: 'Fetching strategic context',
+    update_strategic_context: 'Updating strategic context',
     identify_stakeholders: 'Identifying stakeholders',
-    add_stakeholder: 'Adding stakeholder',
     // Enrichment
     enrich_features: 'Enriching features',
     enrich_personas: 'Enriching personas',
-    generate_value_path: 'Generating value path',
     // Research
-    search_research: 'Searching research',
-    semantic_search_research: 'Semantic search',
-    find_evidence_gaps: 'Finding evidence gaps',
+    search: 'Searching knowledge base',
     attach_evidence: 'Attaching evidence',
-    // Proposals
-    propose_features: 'Generating proposal',
-    preview_proposal: 'Loading preview',
-    apply_proposal: 'Applying changes',
-    list_pending_proposals: 'Listing proposals',
+    query_entity_history: 'Querying entity history',
+    query_knowledge_graph: 'Querying knowledge graph',
     // Analysis
-    analyze_gaps: 'Analyzing gaps',
     analyze_impact: 'Analyzing impact',
     get_stale_entities: 'Finding stale entities',
     refresh_stale_entity: 'Refreshing entity',
     // Status
     get_project_status: 'Getting project status',
     list_pending_confirmations: 'Listing confirmations',
+    create_confirmation: 'Creating confirmation',
+    // Entities
+    create_entity: 'Creating entity',
+    update_entity: 'Updating entity',
     // Signals
     add_signal: 'Processing signal',
-    // Creative brief
-    get_creative_brief: 'Fetching creative brief',
-    update_creative_brief: 'Updating creative brief',
+    // Documents
+    check_document_clarifications: 'Checking clarifications',
+    respond_to_document_clarification: 'Responding to clarification',
     // Output
     generate_meeting_agenda: 'Generating meeting agenda',
     generate_client_email: 'Drafting email',

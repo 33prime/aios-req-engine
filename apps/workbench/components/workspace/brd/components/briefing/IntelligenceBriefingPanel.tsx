@@ -4,6 +4,7 @@ import { useCallback } from 'react'
 import { Loader2, Sparkles } from 'lucide-react'
 import { useIntelligenceBriefing } from '@/lib/hooks/use-api'
 import { PHASE_DESCRIPTIONS } from '@/lib/action-constants'
+import type { ConversationStarter } from '@/types/workspace'
 
 import { BriefingHeader } from './BriefingHeader'
 import { SituationSummary } from './SituationSummary'
@@ -12,12 +13,14 @@ import { ActiveTensionsSection } from './ActiveTensionsSection'
 import { HypothesesSection } from './HypothesesSection'
 import { TopActionsSection } from './TopActionsSection'
 import { ProjectHeartbeatSection } from './ProjectHeartbeatSection'
+import { ConversationStarterCard } from './ConversationStarterCard'
 
 interface IntelligenceBriefingPanelProps {
   projectId: string
   onNavigate?: (entityType: string, entityId: string | null) => void
   onCascade?: () => void
   onDiscussInChat?: (action: import('@/lib/api').TerseAction) => void
+  onStartConversation?: (starter: ConversationStarter) => void
 }
 
 export function IntelligenceBriefingPanel({
@@ -25,6 +28,7 @@ export function IntelligenceBriefingPanel({
   onNavigate,
   onCascade,
   onDiscussInChat,
+  onStartConversation,
 }: IntelligenceBriefingPanelProps) {
   const {
     data: briefing,
@@ -103,6 +107,14 @@ export function IntelligenceBriefingPanel({
               <SituationSummary
                 situation={briefing.situation}
                 whatYouShouldKnow={briefing.what_you_should_know}
+              />
+            )}
+
+            {/* Conversation Starter — THE primary action */}
+            {briefing?.conversation_starter && onStartConversation && (
+              <ConversationStarterCard
+                starter={briefing.conversation_starter}
+                onStartConversation={onStartConversation}
               />
             )}
 

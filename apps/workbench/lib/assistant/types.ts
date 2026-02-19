@@ -96,40 +96,6 @@ export interface QuickAction {
 }
 
 // =============================================================================
-// Command Types
-// =============================================================================
-
-export interface CommandDefinition {
-  name: string
-  description: string
-  aliases?: string[]
-  args?: CommandArg[]
-  execute: (args: CommandArgs, context: AssistantContext) => Promise<CommandResult>
-  examples?: string[]
-}
-
-export interface CommandArg {
-  name: string
-  type: 'string' | 'number' | 'boolean' | 'entity'
-  required?: boolean
-  description?: string
-}
-
-export type CommandArgs = Record<string, string | number | boolean | undefined>
-
-export interface CommandResult {
-  success: boolean
-  message?: string
-  data?: unknown
-  actions?: QuickAction[]  // Follow-up actions to suggest
-  navigateTo?: {
-    tab?: TabType
-    entityType?: string
-    entityId?: string
-  }
-}
-
-// =============================================================================
 // Mode Configuration Types
 // =============================================================================
 
@@ -259,18 +225,10 @@ export interface UseAssistantReturn {
   sendMessage: (content: string) => Promise<void>
   clearMessages: () => void
 
-  // Commands
-  executeCommand: (command: string, args?: CommandArgs) => Promise<CommandResult>
-  parseAndExecute: (input: string) => Promise<void>
-
   // Quick actions
   getQuickActions: () => QuickAction[]
   executeQuickAction: (actionId: string) => Promise<void>
 
   // Proactive
   dismissProactiveMessage: (index: number) => void
-
-  // Utilities
-  isCommand: (input: string) => boolean
-  getCommandSuggestions: (input: string) => CommandDefinition[]
 }

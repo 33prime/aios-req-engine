@@ -403,6 +403,7 @@ async def v2_trigger_memory(state: V2ProcessorState) -> dict[str, Any]:
             "created": r.created_count,
             "merged": r.merged_count,
             "updated": r.updated_count,
+            "chat_summary": state.chat_summary or "",
         }
 
     _update_signal_status(

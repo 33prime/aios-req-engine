@@ -6,6 +6,7 @@ import type { ChatMessage } from './WorkspaceChat'
 import { WorkspaceChat } from './WorkspaceChat'
 import { IntelligenceBriefingPanel } from './brd/components/briefing/IntelligenceBriefingPanel'
 import type { ChatEntityDetectionResult, TerseAction } from '@/lib/api'
+import type { ConversationStarter } from '@/types/workspace'
 
 // =============================================================================
 // Types
@@ -48,6 +49,9 @@ interface BrainBubbleProps {
 
   /** Start a new chat conversation */
   onNewChat?: () => void
+
+  /** Set conversation context for next chat message */
+  onSetConversationContext?: (context: string) => void
 }
 
 // Panel width constant — shared with WorkspaceLayout for margin calculation
@@ -76,6 +80,7 @@ export function BrainBubble({
   onOpenChange,
   contextActions,
   onNewChat,
+  onSetConversationContext,
 }: BrainBubbleProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [activeTab, setActiveTab] = useState<BrainTab>(() => {
@@ -144,6 +149,22 @@ export function BrainBubble({
       onSendMessage(message)
     }, 100)
   }, [isOpen, updateOpen, onSendMessage])
+
+  // Handle conversation starter → chat with context injection
+  const handleStartConversation = useCallback((starter: ConversationStarter) => {
+    // 1. Switch to chat tab
+    setActiveTab('chat')
+    // 2. Open panel if closed
+    if (!isOpen) updateOpen(true)
+    // 3. Store conversation context for the next message
+    if (starter.chat_context) {
+      onSetConversationContext?.(starter.chat_context)
+    }
+    // 4. Send the starter's question as the first user message
+    setTimeout(() => {
+      onSendMessage(starter.question)
+    }, 100)
+  }, [isOpen, updateOpen, onSendMessage, onSetConversationContext])
 
   return (
     <>
@@ -262,6 +283,7 @@ export function BrainBubble({
               onNavigate={handleNavigate}
               onCascade={onCascade}
               onDiscussInChat={handleDiscussInChat}
+              onStartConversation={handleStartConversation}
             />
           ) : (
             <WorkspaceChat

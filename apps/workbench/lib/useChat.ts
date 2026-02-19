@@ -15,7 +15,7 @@
 'use client'
 
 import { useState, useCallback, useRef, useEffect } from 'react'
-import { detectChatEntities, saveChatAsSignal, type ChatEntityDetectionResult } from '@/lib/api'
+import { detectChatEntities, saveChatAsSignal, getConversationMessages, type ChatEntityDetectionResult } from '@/lib/api'
 
 export interface ChatMessage {
   id?: string
@@ -50,16 +50,21 @@ interface UseChatReturn {
   sendSignal: (type: string, content: string, source: string) => Promise<void>
   clearMessages: () => void
   addLocalMessage: (message: ChatMessage) => void
+  // Conversation persistence
+  conversationId: string | null
+  startNewChat: () => void
   // Chat-as-signal
   entityDetection: ChatEntityDetectionResult | null
   isSavingAsSignal: boolean
   saveAsSignal: () => Promise<void>
   dismissDetection: () => void
+  // Conversation starter context
+  setConversationContext: (context: string) => void
 }
 
 export function useChat({
   projectId,
-  conversationId = 'default',
+  conversationId: initialConversationId,
   pageContext,
   focusedEntity,
   onError,
@@ -68,6 +73,32 @@ export function useChat({
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<Error | null>(null)
   const abortControllerRef = useRef<AbortController | null>(null)
+  const [conversationId, setConversationId] = useState<string | null>(initialConversationId ?? null)
+  const conversationContextRef = useRef<string | null>(null)
+
+  const setConversationContext = useCallback((context: string) => {
+    conversationContextRef.current = context
+  }, [])
+
+  // Load existing conversation messages on mount (when conversationId is provided)
+  useEffect(() => {
+    if (!conversationId || conversationId === 'default') return
+
+    getConversationMessages(conversationId)
+      .then(({ messages: dbMessages }) => {
+        if (dbMessages.length > 0) {
+          const loaded: ChatMessage[] = dbMessages.map((m) => ({
+            id: m.id,
+            role: m.role as ChatMessage['role'],
+            content: m.content,
+            timestamp: new Date(m.created_at),
+            metadata: m.metadata ?? undefined,
+          }))
+          setMessages(loaded)
+        }
+      })
+      .catch((err) => console.error('Failed to load conversation:', err))
+  }, []) // Only on mount
 
   const sendMessage = useCallback(
     async (content: string) => {
@@ -115,15 +146,19 @@ export function useChat({
             },
             body: JSON.stringify({
               message: content,
-              conversation_id: conversationId,
+              conversation_id: conversationId || undefined,
               conversation_history: messages.slice(-10), // Last 10 messages
               context: {},
               page_context: pageContext || null,
               focused_entity: focusedEntity || null,
+              conversation_context: conversationContextRef.current || undefined,
             }),
             signal: abortControllerRef.current.signal,
           }
         )
+
+        // Clear conversation context after sending (one-shot)
+        conversationContextRef.current = null
 
         if (!response.ok) {
           throw new Error(`HTTP ${response.status}: ${response.statusText}`)
@@ -156,7 +191,10 @@ export function useChat({
             try {
               const event = JSON.parse(data)
 
-              if (event.type === 'text') {
+              if (event.type === 'conversation_id') {
+                // Capture real conversation ID from backend
+                setConversationId(event.conversation_id)
+              } else if (event.type === 'text') {
                 // Append text to assistant message
                 assistantContent += event.content
 
@@ -277,7 +315,7 @@ export function useChat({
             },
             body: JSON.stringify({
               message: `Add this ${type} signal and process it:\n\n${content}\n\nSource: ${source}`,
-              conversation_id: conversationId,
+              conversation_id: conversationId || undefined,
               conversation_history: messages.slice(-5),
               context: {
                 hint: 'use_add_signal_tool',
@@ -314,7 +352,9 @@ export function useChat({
             try {
               const event = JSON.parse(data)
 
-              if (event.type === 'text') {
+              if (event.type === 'conversation_id') {
+                setConversationId(event.conversation_id)
+              } else if (event.type === 'text') {
                 assistantContent += event.content
                 setMessages((prev) => {
                   const newMessages = [...prev]
@@ -380,6 +420,13 @@ export function useChat({
   const clearMessages = useCallback(() => {
     setMessages([])
     setError(null)
+  }, [])
+
+  const startNewChat = useCallback(() => {
+    setMessages([])
+    setConversationId(null)
+    setError(null)
+    setEntityDetection(null)
   }, [])
 
   // Add a local message without triggering AI response
@@ -476,10 +523,15 @@ export function useChat({
     sendSignal,
     clearMessages,
     addLocalMessage,
+    // Conversation persistence
+    conversationId,
+    startNewChat,
     // Chat-as-signal
     entityDetection,
     isSavingAsSignal,
     saveAsSignal,
     dismissDetection,
+    // Conversation starter context
+    setConversationContext,
   }
 }

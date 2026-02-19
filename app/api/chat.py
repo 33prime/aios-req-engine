@@ -38,6 +38,7 @@ class ChatRequest(BaseModel):
     context: Dict[str, Any] | None = None
     page_context: str | None = None  # e.g., "brd:workflows", "canvas", "prototype"
     focused_entity: Dict[str, Any] | None = None  # {type, data: {title/name}}
+    conversation_context: str | None = None  # From conversation starter
 
 
 @router.post("/chat")
@@ -160,6 +161,7 @@ async def chat_with_assistant(
                     project_name=project_name,
                     page_context=request.page_context,
                     focused_entity=request.focused_entity,
+                    conversation_context=request.conversation_context,
                 )
 
                 # Log context stats
@@ -168,6 +170,10 @@ async def chat_with_assistant(
                     f"page={request.page_context or 'none'}, "
                     f"history_msgs={len(recent_history)}"
                 )
+
+                # Token tracking for cost logging
+                total_input = 0
+                total_output = 0
 
                 # Tool use loop - handle multi-turn conversation with tools
                 max_turns = 5  # Prevent infinite loops
@@ -193,6 +199,11 @@ async def chat_with_assistant(
 
                         # Get the final message to check for tool use
                         final_message = await stream.get_final_message()
+
+                        # Log LLM usage
+                        if hasattr(final_message, 'usage'):
+                            total_input += getattr(final_message.usage, 'input_tokens', 0)
+                            total_output += getattr(final_message.usage, 'output_tokens', 0)
 
                         # Check if Claude wants to use tools
                         tool_use_blocks = [block for block in final_message.content if block.type == "tool_use"]
@@ -251,12 +262,32 @@ async def chat_with_assistant(
 
                         # Continue loop to get Claude's response to the tool results
 
+                # Log LLM usage for cost tracking
+                if total_input or total_output:
+                    try:
+                        from app.core.llm_usage import log_llm_usage
+                        log_llm_usage(
+                            model=settings.CHAT_MODEL,
+                            input_tokens=total_input,
+                            output_tokens=total_output,
+                            operation="chat",
+                            project_id=str(project_id),
+                            metadata={"conversation_id": str(conversation_id)},
+                        )
+                    except Exception:
+                        pass  # Fire-and-forget
+
                 # Persist assistant message
                 if assistant_content or tool_calls_data:
                     assistant_msg_data = {
                         "conversation_id": str(conversation_id),
                         "role": "assistant",
                         "content": assistant_content,
+                        "metadata": {
+                            "model": settings.CHAT_MODEL,
+                            "input_tokens": total_input,
+                            "output_tokens": total_output,
+                        },
                     }
 
                     if tool_calls_data:
@@ -364,19 +395,15 @@ async def save_chat_as_signal(
     project_id: UUID = Query(..., description="Project UUID"),
 ) -> Dict[str, Any]:
     """
-    Convert chat messages into a synthetic signal, extract facts, and save.
+    Convert chat messages into a signal and run through V2 pipeline.
 
-    Pipeline: chat messages → signal record → chunks → extract_facts → consolidate → save.
-    Returns summary of what was extracted.
+    Pipeline: chat messages → signal record → chunk → process_signal_v2.
+    Returns V2 processing summary with patch counts.
     """
     from uuid import uuid4
 
-    from app.chains.extract_facts import extract_facts_from_chunks
-    from app.core.state_snapshot import get_state_snapshot
-    from app.core.config import get_settings as _get_settings
-    from app.db.facts import insert_extracted_facts as _insert_facts
+    from app.graphs.unified_processor import process_signal_v2
 
-    settings = _get_settings()
     supabase = get_supabase()
 
     try:
@@ -393,7 +420,7 @@ async def save_chat_as_signal(
 
         run_id = str(uuid4())
 
-        # 1. Create synthetic signal
+        # 1. Create synthetic signal (V2 pipeline needs this)
         signal_data = {
             "project_id": str(project_id),
             "signal_type": "chat",
@@ -413,7 +440,7 @@ async def save_chat_as_signal(
         signal = signal_response.data[0]
         signal_id = signal["id"]
 
-        # 2. Create a single chunk from the chat text
+        # 2. Create a single chunk (V2 pipeline reads from chunks)
         chunk_data = {
             "signal_id": signal_id,
             "chunk_index": 0,
@@ -423,60 +450,28 @@ async def save_chat_as_signal(
             "metadata": {"source": "chat_as_signal"},
             "run_id": run_id,
         }
-        chunk_response = supabase.table("signal_chunks").insert(chunk_data).execute()
-        if not chunk_response.data:
-            return {"success": False, "error": "Failed to create chunk"}
+        supabase.table("signal_chunks").insert(chunk_data).execute()
 
-        chunk = chunk_response.data[0]
-
-        # 3. Get project context for smarter extraction
-        project_context = None
-        try:
-            snapshot = get_state_snapshot(project_id)
-            if snapshot:
-                project_context = {"state_snapshot": snapshot}
-        except Exception:
-            pass
-
-        # 4. Run extract_facts
-        output = extract_facts_from_chunks(
-            signal=signal,
-            chunks=[chunk],
-            settings=settings,
-            project_context=project_context,
+        # 3. Run V2 pipeline
+        result = await process_signal_v2(
+            signal_id=signal_id,
+            project_id=str(project_id),
+            run_id=run_id,
         )
 
-        # 5. Save extracted facts
-        fact_count = 0
-        if output.facts:
-            _insert_facts(
-                project_id=project_id,
-                signal_id=UUID(signal_id),
-                run_id=UUID(run_id),
-                job_id=None,
-                model=settings.FACTS_MODEL if hasattr(settings, "FACTS_MODEL") else "claude-sonnet-4-6",
-                prompt_version="chat_as_signal_v1",
-                schema_version="v1",
-                facts=output.model_dump(),
-                summary=output.summary,
-            )
-            fact_count = len(output.facts)
+        # 4. Build summary from V2 result
+        patches_applied = result.get("patches_applied", 0) if result else 0
+        chat_summary = result.get("chat_summary", "") if result else ""
+        entity_types = result.get("entity_types_affected", []) if result else []
 
-        # 6. Build summary
-        type_counts: Dict[str, int] = {}
-        for fact in output.facts:
-            ft = fact.fact_type
-            type_counts[ft] = type_counts.get(ft, 0) + 1
-
-        type_summary = ", ".join(f"{v} {k}{'s' if v > 1 else ''}" for k, v in type_counts.items())
+        type_summary = ", ".join(entity_types) if entity_types else "no entities"
 
         return {
             "success": True,
             "signal_id": signal_id,
-            "facts_extracted": fact_count,
+            "patches_applied": patches_applied,
             "type_summary": type_summary,
-            "open_questions": len(output.open_questions),
-            "summary": output.summary,
+            "summary": chat_summary or f"Processed {patches_applied} patches from chat conversation.",
         }
 
     except Exception as e:
@@ -548,7 +543,7 @@ async def execute_chat_tool(
     Execute a chat tool directly without going through the full chat flow.
 
     This endpoint allows the frontend to execute specific tools like
-    semantic_search_research directly for the Research tab.
+    search directly for the Research tab.
 
     Args:
         request: Dict with project_id, tool_name, and tool_input
@@ -582,141 +577,3 @@ async def execute_chat_tool(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-def build_system_prompt(context: Dict[str, Any]) -> str:
-    """
-    Build the system prompt with project context.
-
-    Args:
-        context: Project context dictionary
-
-    Returns:
-        System prompt string
-    """
-    project = context.get("project", {})
-    summary = context.get("summary", {})
-    focused_entity = context.get("focused_entity")
-
-    mode_description = (
-        "Maintenance Mode (surgical updates via patches)"
-        if project.get("prd_mode") == "maintenance"
-        else "Initial Mode (generative baseline building)"
-    )
-
-    baseline_status = (
-        "✓ Finalized - research available"
-        if project.get("baseline_ready")
-        else "⏳ In progress - research not yet available"
-    )
-
-    # Build focused entity section if present
-    focused_section = ""
-    if focused_entity:
-        entity_type = focused_entity.get("type", "entity")
-        entity_data = focused_entity.get("data", {})
-        entity_title = entity_data.get("title") or entity_data.get("name") or entity_data.get("question", "Untitled")
-
-        focused_section = f"""
-
-# Currently Viewing
-The consultant is currently viewing: **{entity_type}** - "{entity_title}"
-
-When answering questions, prioritize information relevant to this focused entity.
-You can reference specific details from this entity in your responses.
-"""
-
-    # Get intent data and suggestions if available
-    intent_data = context.get("intent", {})
-    suggestions = context.get("suggestions", [])
-
-    # Build suggestions section
-    suggestions_section = ""
-    if suggestions:
-        suggestions_section = "\n\n# Proactive Suggestions\n"
-        suggestions_section += "Consider mentioning these suggestions in your response when appropriate:\n"
-        for suggestion in suggestions:
-            suggestions_section += f"- {suggestion}\n"
-
-    return f"""You are a **Project Command Center** - an AI helping consultants manage client-approved data and project evolution.
-
-# Your Philosophy
-- **Signal-driven updates** - Client signals (transcripts, emails, documents) are the source of truth
-- **Proposals, not patches** - Changes come as reviewable proposals for bulk apply/discard
-- **Client-approved data** - Focus on capturing what clients say, not generating content
-- **Command center** - Help navigate project state and pending decisions
-
-# Project Context
-Project: {project.get('name', 'Unknown')}
-Mode: {mode_description}
-Baseline: {baseline_status}
-
-# Current State
-- Features: {summary.get('features', 0)}
-- Personas: {summary.get('personas', 0)}
-- Value Path Steps: {summary.get('vp_steps', 0)}
-- Open Confirmations: {summary.get('confirmations_open', 0)}
-
-# Your Primary Capabilities
-
-## 1. Add Client Signals (PRIMARY WORKFLOW)
-Use `add_signal` when the user shares client data:
-- **signal_type**: "transcript", "email", "document", "note"
-- Automatically extracts: stakeholders, creative brief info, features, personas
-- Creates a **proposal** for review if significant changes detected
-- User reviews proposals in the Overview tab
-
-Example user input: "Here's the transcript from our discovery call..."
-→ Use `add_signal` with signal_type="transcript"
-
-## 2. Review Proposals
-Use `preview_proposal` and `apply_proposal` to manage pending changes:
-- `preview_proposal`: Show detailed before/after for a proposal
-- `apply_proposal`: Apply changes after user confirms
-- Proposals appear in the Overview tab's "Pending Proposals" section
-
-## 3. Project Status
-Use `get_project_status` to understand current state:
-- Shows counts for all entities
-- Highlights items needing attention
-
-## 4. Research & Evidence
-- `search_research`: Find evidence from ingested research
-- `semantic_search_research`: AI-powered concept search
-
-## 5. Client Communication
-- `list_pending_confirmations`: Questions needing client input
-- `generate_client_email`: Draft client outreach emails
-- `generate_meeting_agenda`: Structure client meetings
-
-# How to Help Effectively
-
-## When user shares client data (transcript, email, etc.):
-1. Use `add_signal` with appropriate signal_type
-2. Report what was extracted (stakeholders, features, etc.)
-3. If a proposal was created, mention it's in Overview tab for review
-4. NEVER use old tools like list_insights or bulk_apply_patches
-
-## When user asks about project state:
-1. Use `get_project_status` for current counts
-2. Point them to specific tabs for details
-3. Highlight any pending proposals or confirmations
-
-## When user wants to make changes:
-1. If they have new client data → `add_signal`
-2. If they want to propose features → `propose_features`
-3. If they want to apply a proposal → `apply_proposal`
-
-# Guidelines
-1. **Signal-first** - Client data via `add_signal` is the primary workflow
-2. **Proposals over patches** - Use proposal system, not old patch system
-3. **Be concise** - Use markdown for clarity
-4. **Point to UI** - Tell users where to find things (Overview tab for proposals)
-
-# Important
-- **DO NOT use**: list_insights, bulk_apply_patches, assess_readiness, apply_patch
-- **DO use**: add_signal, preview_proposal, apply_proposal, get_project_status
-- Changes from signals appear as proposals in the Overview tab
-- Value Path = user journey steps (not "value proposition")
-
-When the user asks about current state, use tools to get fresh data rather than relying on the context above (which may be stale).
-{suggestions_section}{focused_section}
-"""

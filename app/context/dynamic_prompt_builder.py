@@ -71,6 +71,7 @@ def build_smart_chat_prompt(
     project_name: str = "Unknown",
     page_context: str | None = None,
     focused_entity: dict | None = None,
+    conversation_context: str | None = None,
 ) -> str:
     """Build a terse, gap-aware system prompt from ProjectContextFrame.
 
@@ -79,6 +80,7 @@ def build_smart_chat_prompt(
         project_name: Project display name
         page_context: Current page (e.g., "brd:workflows", "canvas", "prototype")
         focused_entity: Entity the user is currently viewing
+        conversation_context: Optional context from a conversation starter
 
     Returns:
         Complete system prompt string (~2-3K tokens)
@@ -161,7 +163,16 @@ def build_smart_chat_prompt(
                 f"# Currently Viewing\n{etype}: \"{ename}\"\nPrioritize this entity in your responses."
             )
 
-    # 9. Capabilities
+    # 9. Conversation starter context
+    if conversation_context:
+        sections.append(
+            "# Active Discussion Context\n"
+            "The consultant opened chat from a conversation starter. Here's what prompted this:\n"
+            f"{conversation_context}\n"
+            "Use this to give specific, informed responses. Reference the same evidence."
+        )
+
+    # 10. Capabilities
     sections.append(SMART_CHAT_CAPABILITIES)
 
     # 10. Smart conversation patterns

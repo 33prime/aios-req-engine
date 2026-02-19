@@ -374,6 +374,17 @@ class MemorySynthesizer:
                 except Exception as stale_err:
                     logger.warning(f"Failed to mark synthesis stale (non-fatal): {stale_err}")
 
+            # Update hypothesis evidence counts for affected beliefs
+            if results["edges_created"] > 0:
+                try:
+                    from app.core.hypothesis_engine import update_hypothesis_evidence
+                    for action in actions:
+                        belief_id = action.get("belief_id") or action.get("to_id")
+                        if belief_id:
+                            update_hypothesis_evidence(UUID(belief_id))
+                except Exception as hyp_err:
+                    logger.warning(f"Failed to update hypothesis evidence (non-fatal): {hyp_err}")
+
             return results
 
         except Exception as e:

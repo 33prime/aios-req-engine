@@ -205,3 +205,67 @@ export const PHASE_DESCRIPTIONS: Record<string, string> = {
   building: 'Fill in the details to strengthen the BRD',
   refining: 'Almost there — confirm and polish',
 }
+
+// =============================================================================
+// Intelligence Briefing constants
+// =============================================================================
+
+import {
+  ArrowUpRight,
+  ArrowDownRight,
+  FileInput,
+  Brain,
+  Zap,
+  Activity,
+  FlaskConical,
+  Swords,
+} from 'lucide-react'
+
+/** Icons for temporal change types */
+export const CHANGE_TYPE_ICONS: Record<string, LucideIcon> = {
+  belief_strengthened: ArrowUpRight,
+  belief_weakened: ArrowDownRight,
+  belief_created: Brain,
+  entity_created: FileText,
+  entity_updated: RefreshCw,
+  signal_processed: FileInput,
+  fact_added: Zap,
+  insight_added: Lightbulb,
+}
+
+/** Colors for temporal change types */
+export const CHANGE_TYPE_COLORS: Record<string, string> = {
+  belief_strengthened: '#3FAF7A',
+  belief_weakened: '#999999',
+  belief_created: '#0A1E2F',
+  entity_created: '#3FAF7A',
+  entity_updated: '#666666',
+  signal_processed: '#0A1E2F',
+  fact_added: '#3FAF7A',
+  insight_added: '#25785A',
+}
+
+/** Icons for briefing sections */
+export const BRIEFING_SECTION_ICONS: Record<string, LucideIcon> = {
+  situation: Activity,
+  what_changed: Clock,
+  tensions: Swords,
+  hypotheses: FlaskConical,
+  heartbeat: Activity,
+  actions: Target,
+}
+
+/** Hypothesis status display */
+export const HYPOTHESIS_STATUS_LABELS: Record<string, string> = {
+  proposed: 'Proposed',
+  testing: 'Testing',
+  graduated: 'Confirmed',
+  rejected: 'Rejected',
+}
+
+export const HYPOTHESIS_STATUS_COLORS: Record<string, string> = {
+  proposed: '#666666',
+  testing: '#0A1E2F',
+  graduated: '#3FAF7A',
+  rejected: '#999999',
+}

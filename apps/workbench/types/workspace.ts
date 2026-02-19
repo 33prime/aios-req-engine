@@ -1608,6 +1608,25 @@ export interface WhatYouShouldKnow {
   bullets: string[]
 }
 
+export interface EvidenceAnchor {
+  excerpt: string
+  signal_label: string
+  signal_type: string
+  entity_name?: string | null
+}
+
+export interface ConversationStarter {
+  starter_id: string
+  hook: string
+  body: string
+  question: string
+  anchors: EvidenceAnchor[]
+  chat_context: string
+  topic_domain: string
+  is_fallback: boolean
+  generated_at?: string | null
+}
+
 export interface IntelligenceBriefing {
   situation: BriefingSituation
   what_changed: TemporalDiff
@@ -1616,6 +1635,7 @@ export interface IntelligenceBriefing {
   hypotheses: Hypothesis[]
   heartbeat: ProjectHeartbeat
   actions: TerseAction[]
+  conversation_starter?: ConversationStarter | null
   computed_at: string
   narrative_cached: boolean
   phase: string

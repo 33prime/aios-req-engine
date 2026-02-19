@@ -208,7 +208,7 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
   const {
     messages, isLoading: isChatLoading, sendMessage, sendSignal, addLocalMessage,
     entityDetection, isSavingAsSignal, saveAsSignal, dismissDetection,
-    startNewChat,
+    startNewChat, setConversationContext,
   } = useChat({
     projectId,
     pageContext,
@@ -840,6 +840,7 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
             onOpenChange={setBrainPanelOpen}
             contextActions={contextFrame?.actions}
             onNewChat={startNewChat}
+            onSetConversationContext={setConversationContext}
           />
         ) : (
           <CollaborationPanel

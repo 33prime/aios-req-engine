@@ -312,6 +312,20 @@ async def get_document_status(document_id: UUID) -> dict:
         status_response["needs_clarification"] = doc.get("needs_clarification", False)
         status_response["clarification_question"] = doc.get("clarification_question")
 
+        # Include V2 pipeline analysis summary from signal
+        signal_id = doc.get("signal_id")
+        if signal_id:
+            try:
+                sb = get_supabase()
+                signal_resp = sb.table("signals").select(
+                    "patch_summary, processing_status"
+                ).eq("id", signal_id).single().execute()
+                signal_data = signal_resp.data
+                if signal_data and signal_data.get("patch_summary"):
+                    status_response["analysis_summary"] = signal_data["patch_summary"]
+            except Exception:
+                pass  # Non-critical — don't fail status check
+
     elif doc["processing_status"] == "failed":
         status_response["message"] = "Document processing failed"
         status_response["error"] = doc.get("processing_error")

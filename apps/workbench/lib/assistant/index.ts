@@ -32,10 +32,6 @@ export type {
   MessageMetadata,
   ToolCall,
   QuickAction,
-  CommandDefinition,
-  CommandArg,
-  CommandArgs,
-  CommandResult,
   ModeConfig,
   ProactiveTrigger,
   ProactiveMessage,
@@ -56,17 +52,6 @@ export {
   useQuickActions,
   useProactiveMessages,
 } from './context'
-
-// Commands
-export {
-  registerCommand,
-  getCommand,
-  getAllCommands,
-  findMatchingCommands,
-  isCommand,
-  parseCommand,
-  executeCommand,
-} from './commands'
 
 // Modes
 export {
