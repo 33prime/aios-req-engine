@@ -8,7 +8,6 @@ import { MvpFeaturesSection } from './MvpFeaturesSection'
 import { AssumptionsSection } from './AssumptionsSection'
 import { ProjectContextSection } from './ProjectContextSection'
 import { ValuePathStepDrawer } from './ValuePathStepDrawer'
-import { UnlockDetailDrawer } from './UnlockDetailDrawer'
 import { FeatureDrawer } from '../brd/components/FeatureDrawer'
 import { PersonaDrawer } from '../brd/components/PersonaDrawer'
 import {
@@ -18,7 +17,7 @@ import {
   generateProjectContext,
   batchConfirmEntities,
 } from '@/lib/api'
-import type { CanvasViewData, ProjectContext, ValuePathUnlock, FeatureBRDSummary, PersonaBRDSummary } from '@/types/workspace'
+import type { CanvasViewData, ProjectContext, FeatureBRDSummary, PersonaBRDSummary } from '@/types/workspace'
 
 interface CanvasViewProps {
   projectId: string
@@ -39,13 +38,6 @@ export function CanvasView({ projectId, onRefresh }: CanvasViewProps) {
   const [selectedStep, setSelectedStep] = useState<{
     stepIndex: number
     stepTitle: string
-  } | null>(null)
-
-  // Unlock Detail Drawer state (click on an unlock)
-  const [selectedUnlock, setSelectedUnlock] = useState<{
-    stepIndex: number
-    stepTitle: string
-    unlock: ValuePathUnlock
   } | null>(null)
 
   // Feature Drawer state (click on an MVP feature)
@@ -144,16 +136,7 @@ export function CanvasView({ projectId, onRefresh }: CanvasViewProps) {
 
   const handleStepClick = useCallback(
     (stepIndex: number, stepTitle: string) => {
-      setSelectedUnlock(null) // close unlock drawer if open
       setSelectedStep({ stepIndex, stepTitle })
-    },
-    []
-  )
-
-  const handleUnlockClick = useCallback(
-    (stepIndex: number, stepTitle: string, unlock: ValuePathUnlock) => {
-      setSelectedStep(null) // close step drawer if open
-      setSelectedUnlock({ stepIndex, stepTitle, unlock })
     },
     []
   )
@@ -288,7 +271,7 @@ export function CanvasView({ projectId, onRefresh }: CanvasViewProps) {
             onActorClick={handleActorClick}
           />
 
-          {/* Value Path — side-by-side: Steps ↔ What This Unlocks */}
+          {/* Value Path — journey steps */}
           <ValuePathSection
             steps={data.value_path}
             rationale={data.synthesis_rationale}
@@ -296,7 +279,6 @@ export function CanvasView({ projectId, onRefresh }: CanvasViewProps) {
             onRegenerate={handleSynthesize}
             isSynthesizing={isSynthesizing}
             onStepClick={handleStepClick}
-            onUnlockClick={handleUnlockClick}
             selectedStepIndex={selectedStep?.stepIndex ?? null}
           />
 
@@ -320,16 +302,6 @@ export function CanvasView({ projectId, onRefresh }: CanvasViewProps) {
           stepIndex={selectedStep.stepIndex}
           stepTitle={selectedStep.stepTitle}
           onClose={() => setSelectedStep(null)}
-        />
-      )}
-
-      {/* Unlock Detail Drawer — opens on unlock click */}
-      {selectedUnlock && (
-        <UnlockDetailDrawer
-          stepIndex={selectedUnlock.stepIndex}
-          stepTitle={selectedUnlock.stepTitle}
-          unlock={selectedUnlock.unlock}
-          onClose={() => setSelectedUnlock(null)}
         />
       )}
 

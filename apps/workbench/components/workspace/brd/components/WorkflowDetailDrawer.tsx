@@ -16,7 +16,6 @@ import {
   Zap,
   Database,
   Layers,
-  Rocket,
   TrendingDown,
   BarChart3,
   Shield,
@@ -29,7 +28,6 @@ import { getWorkflowDetail, enrichWorkflow } from '@/lib/api'
 import type {
   WorkflowDetail,
   WorkflowInsight,
-  StepUnlockSummary,
   WorkflowStepSummary,
   LinkedBusinessDriver,
   LinkedFeature,
@@ -283,7 +281,7 @@ function OverviewTab({
   enriching: boolean
 }) {
   const totalSteps = detail.current_steps.length + detail.future_steps.length
-  const hasEnrichment = detail.enriched_step_count > 0 || detail.strategic_unlocks.length > 0
+  const hasEnrichment = detail.enriched_step_count > 0
 
   return (
     <div className="space-y-6">
@@ -309,11 +307,6 @@ function OverviewTab({
           futureSteps={detail.future_steps}
           onViewStepDetail={onViewStepDetail}
         />
-      )}
-
-      {/* Strategic Unlocks */}
-      {detail.strategic_unlocks.length > 0 && (
-        <StrategicUnlocksCard unlocks={detail.strategic_unlocks} />
       )}
 
       {/* Enrich with AI button */}
@@ -558,65 +551,6 @@ function StepRow({ step, onClick }: { step: WorkflowStepSummary; onClick?: () =>
 // ============================================================================
 // Strategic Unlocks Card
 // ============================================================================
-
-const UNLOCK_TYPE_CONFIG: Record<string, { icon: typeof Rocket; label: string }> = {
-  capability: { icon: Rocket, label: 'New Capability' },
-  scale: { icon: Layers, label: 'Scale Unlock' },
-  insight: { icon: Sparkles, label: 'New Insight' },
-  speed: { icon: Zap, label: 'Speed Unlock' },
-}
-
-function StrategicUnlocksCard({ unlocks }: { unlocks: StepUnlockSummary[] }) {
-  return (
-    <div className="border border-[#3FAF7A]/30 rounded-xl overflow-hidden">
-      <div className="px-4 py-3 bg-[#E8F5E9]/50 border-b border-[#3FAF7A]/20">
-        <div className="flex items-center gap-1.5">
-          <Rocket className="w-3.5 h-3.5 text-[#25785A]" />
-          <span className="text-[11px] font-semibold text-[#25785A] uppercase tracking-wide">
-            Strategic Unlocks
-          </span>
-        </div>
-        <p className="text-[11px] text-[#666666] mt-0.5">
-          What this workflow makes possible beyond time savings
-        </p>
-      </div>
-      <div className="divide-y divide-[#E5E5E5]">
-        {unlocks.map((unlock, i) => {
-          const config = UNLOCK_TYPE_CONFIG[unlock.unlock_type] || UNLOCK_TYPE_CONFIG.capability
-          const TypeIcon = config.icon
-          return (
-            <div key={i} className="px-4 py-3">
-              <div className="flex items-start gap-2.5">
-                <TypeIcon className="w-4 h-4 mt-0.5 text-[#3FAF7A] flex-shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-0.5">
-                    <span className="text-[10px] font-medium uppercase px-1.5 py-0.5 rounded bg-[#E8F5E9] text-[#25785A]">
-                      {config.label}
-                    </span>
-                    {unlock.source_step_label && (
-                      <span className="text-[10px] text-[#999999]">
-                        from: {unlock.source_step_label}
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-[13px] text-[#333333] leading-relaxed font-medium">
-                    {unlock.description}
-                  </p>
-                  <p className="text-[12px] text-[#666666] mt-1 leading-relaxed">
-                    {unlock.enabled_by}
-                  </p>
-                  <p className="text-[11px] text-[#999999] mt-1 italic">
-                    {unlock.strategic_value}
-                  </p>
-                </div>
-              </div>
-            </div>
-          )
-        })}
-      </div>
-    </div>
-  )
-}
 
 // ============================================================================
 // Evidence Tab

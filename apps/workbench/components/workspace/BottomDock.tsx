@@ -1,14 +1,14 @@
 /**
  * BottomDock - Fixed bottom-center bar with toggle buttons for panels
  *
- * Three panels: Strategy (foundation + business data), Evidence (sources), Memory (decisions + activity).
- * Memory panel opens near-full-screen (95vw x 90vh); others keep max-w-5xl.
+ * Three panels: Unlocks (strategic outcomes + competitors), Evidence (sources), Memory (decisions + activity).
+ * Unlocks and Memory panels open at 75vw x 75vh; Evidence keeps max-w-5xl.
  */
 
 'use client'
 
-import { BookOpen, Database, Brain, X } from 'lucide-react'
-import { ContextPanel } from './panels/ContextPanel'
+import { Zap, Database, Brain, X } from 'lucide-react'
+import { UnlocksPanel } from './panels/UnlocksPanel'
 import { EvidencePanel } from './panels/EvidencePanel'
 import { MemoryPanel } from './panels/memory/MemoryPanel'
 
@@ -21,13 +21,13 @@ interface BottomDockProps {
 }
 
 const DOCK_BUTTONS = [
-  { id: 'context' as const, icon: BookOpen, label: 'Strategy' },
+  { id: 'context' as const, icon: Zap, label: 'Unlocks' },
   { id: 'evidence' as const, icon: Database, label: 'Evidence' },
   { id: 'history' as const, icon: Brain, label: 'Memory' },
 ]
 
 const PANEL_TITLES: Record<string, string> = {
-  context: 'Strategic Intelligence',
+  context: 'Unlocks',
   evidence: 'Evidence & Sources',
   history: 'Intelligence',
 }
@@ -37,7 +37,7 @@ export function BottomDock({ projectId, activePanel, onPanelChange }: BottomDock
     onPanelChange(activePanel === panel ? null : panel)
   }
 
-  const isFullScreen = activePanel === 'history'
+  const isFullScreen = activePanel === 'history' || activePanel === 'context'
 
   return (
     <>
@@ -73,7 +73,7 @@ export function BottomDock({ projectId, activePanel, onPanelChange }: BottomDock
             </div>
             {/* Content */}
             <div className={`flex-1 overflow-hidden ${isFullScreen ? '' : 'overflow-y-auto p-6'}`}>
-              {activePanel === 'context' && <ContextPanel projectId={projectId} />}
+              {activePanel === 'context' && <UnlocksPanel projectId={projectId} />}
               {activePanel === 'evidence' && <EvidencePanel projectId={projectId} />}
               {activePanel === 'history' && <MemoryPanel projectId={projectId} />}
             </div>

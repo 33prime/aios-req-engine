@@ -9,7 +9,6 @@ import { RequirementsSection } from './sections/RequirementsSection'
 import { ConstraintsSection } from './sections/ConstraintsSection'
 import { DataEntitiesSection } from './sections/DataEntitiesSection'
 import { StakeholdersSection } from './sections/StakeholdersSection'
-import { CompetitorsSection } from './sections/CompetitorsSection'
 import { IntelligenceSection } from './sections/IntelligenceSection'
 import { WorkflowCreateModal } from './components/WorkflowCreateModal'
 import { WorkflowStepEditor } from './components/WorkflowStepEditor'
@@ -20,9 +19,6 @@ import { WorkflowDetailDrawer } from './components/WorkflowDetailDrawer'
 import { VisionDetailDrawer } from './components/VisionDetailDrawer'
 import { ClientIntelligenceDrawer } from './components/ClientIntelligenceDrawer'
 import { DataEntityDetailDrawer } from './components/DataEntityDetailDrawer'
-import { CompetitorDetailDrawer } from './components/CompetitorDetailDrawer'
-import { CompetitorSynthesisPanel } from './components/CompetitorSynthesisPanel'
-import { CompetitorSynthesisDrawer } from './components/CompetitorSynthesisDrawer'
 import { PersonaDrawer } from './components/PersonaDrawer'
 import { ConstraintDrawer } from './components/ConstraintDrawer'
 import { FeatureDrawer } from './components/FeatureDrawer'
@@ -55,7 +51,7 @@ import {
 import type { NextAction } from '@/lib/api'
 import { CompletenessRing } from './components/CompletenessRing'
 import { ACTION_EXECUTION_MAP } from '@/lib/action-constants'
-import type { BRDWorkspaceData, BRDHealthData, MoSCoWGroup, StakeholderBRDSummary, CompetitorBRDSummary, AutomationLevel, SectionScore, OpenQuestion } from '@/types/workspace'
+import type { BRDWorkspaceData, BRDHealthData, MoSCoWGroup, StakeholderBRDSummary, AutomationLevel, SectionScore, OpenQuestion } from '@/types/workspace'
 
 interface BRDCanvasProps {
   projectId: string
@@ -324,7 +320,6 @@ export function BRDCanvas({ projectId, initialData, initialNextActions, onRefres
     setStepDetailDrawer({ open: false, stepId: '' })
     setWorkflowDetailDrawer({ open: false, workflowId: '' })
     setConfidenceDrawer((prev) => ({ ...prev, open: false }))
-    setCompetitorDrawer({ open: false, competitor: null })
     setPersonaDrawer({ open: false, persona: null })
     setConstraintDrawer({ open: false, constraint: null })
     setFeatureDrawer({ open: false, feature: null })
@@ -332,7 +327,6 @@ export function BRDCanvas({ projectId, initialData, initialNextActions, onRefres
     setVisionDrawer(false)
     setClientIntelDrawer(false)
     setDataEntityDrawer({ open: false, entityId: '' })
-    setShowSynthesisPanel(false)
   }, [])
 
   const handleOpenConfidence = useCallback((entityType: string, entityId: string, entityName: string, status?: string | null) => {
@@ -401,15 +395,6 @@ export function BRDCanvas({ projectId, initialData, initialNextActions, onRefres
         return
       }
     }
-    if (entityType === 'competitor_reference') {
-      const comp = (data.competitors || []).find(c => c.id === entityId)
-      if (comp) {
-        closeAllDrawers()
-        setCompetitorDrawer({ open: true, competitor: comp })
-        return
-      }
-    }
-
     // Fallback to generic confidence drawer
     closeAllDrawers()
     setConfidenceDrawer({ open: true, entityType, entityId, entityName, initialStatus: status })
@@ -450,17 +435,6 @@ export function BRDCanvas({ projectId, initialData, initialNextActions, onRefres
   }, [])
 
   // ============================================================================
-  // Competitor Detail Drawer + Synthesis Panel
-  // ============================================================================
-
-  const [competitorDrawer, setCompetitorDrawer] = useState<{
-    open: boolean
-    competitor: CompetitorBRDSummary | null
-  }>({ open: false, competitor: null })
-
-  const [showSynthesisPanel, setShowSynthesisPanel] = useState(false)
-
-  // ============================================================================
   // Entity-Specific Drawers
   // ============================================================================
 
@@ -479,11 +453,6 @@ export function BRDCanvas({ projectId, initialData, initialNextActions, onRefres
   const [driverDrawer, setDriverDrawer] = useState<{
     open: boolean; driverId: string; driverType: 'pain' | 'goal' | 'kpi'; initialData: import('@/types/workspace').BusinessDriver | null
   }>({ open: false, driverId: '', driverType: 'pain', initialData: null })
-
-  const handleOpenCompetitorDetail = useCallback((competitor: CompetitorBRDSummary) => {
-    closeAllDrawers()
-    setCompetitorDrawer({ open: true, competitor })
-  }, [closeAllDrawers])
 
   // ============================================================================
   // Vision Detail Drawer
@@ -555,7 +524,6 @@ export function BRDCanvas({ projectId, initialData, initialNextActions, onRefres
           constraint: 'brd-section-constraints',
           data_entity: 'brd-section-data-entities',
           stakeholder: 'brd-section-stakeholders',
-          competitor_reference: 'brd-section-competitors',
           // Plural keys (completeness section names from backend)
           features: 'brd-section-features',
           personas: 'brd-section-personas',
@@ -1127,21 +1095,6 @@ export function BRDCanvas({ projectId, initialData, initialNextActions, onRefres
           sectionScore={sectionScoreMap['stakeholders'] || null}
         />
 
-        {data.competitors && data.competitors.length > 0 && (
-          <>
-            <div className="border-t border-[#e9e9e7]" />
-            <CompetitorsSection
-              competitors={data.competitors}
-              onConfirm={handleConfirm}
-              onNeedsReview={handleNeedsReview}
-              onConfirmAll={handleConfirmAll}
-              onOpenDetail={handleOpenCompetitorDetail}
-              onOpenSynthesis={() => setShowSynthesisPanel(true)}
-              onStatusClick={handleOpenConfidence}
-            />
-          </>
-        )}
-
         <div className="border-t border-[#e9e9e7]" />
 
         <ConstraintsSection
@@ -1272,35 +1225,6 @@ export function BRDCanvas({ projectId, initialData, initialNextActions, onRefres
           onClose={() => setDataEntityDrawer({ open: false, entityId: '' })}
           onConfirm={handleConfirm}
           onNeedsReview={handleNeedsReview}
-        />
-      )}
-
-      {/* Competitor Detail Drawer */}
-      {competitorDrawer.open && competitorDrawer.competitor && (
-        <CompetitorDetailDrawer
-          competitor={competitorDrawer.competitor}
-          projectId={projectId}
-          onClose={() => setCompetitorDrawer({ open: false, competitor: null })}
-          onConfirm={handleConfirm}
-          onNeedsReview={handleNeedsReview}
-          onUpdate={loadData}
-        />
-      )}
-
-      {/* Competitor Synthesis Drawer */}
-      {showSynthesisPanel && data?.competitors && (
-        <CompetitorSynthesisDrawer
-          projectId={projectId}
-          competitors={data.competitors}
-          features={[...data.requirements.must_have, ...data.requirements.should_have, ...data.requirements.could_have]}
-          painPoints={data.business_context.pain_points}
-          goals={data.business_context.goals}
-          roiSummary={data.roi_summary}
-          onClose={() => setShowSynthesisPanel(false)}
-          onOpenDetail={(comp) => {
-            setShowSynthesisPanel(false)
-            setCompetitorDrawer({ open: true, competitor: comp })
-          }}
         />
       )}
 
@@ -1445,10 +1369,6 @@ function applyConfirmationUpdate(
     update.stakeholders = update.stakeholders.map((s) =>
       s.id === entityId ? { ...s, confirmation_status: status } : s
     )
-  } else if (entityType === 'competitor_reference') {
-    update.competitors = (update.competitors || []).map((c) =>
-      c.id === entityId ? { ...c, confirmation_status: status } : c
-    )
   }
 
   return update
@@ -1493,8 +1413,7 @@ function countEntities(data: BRDWorkspaceData): number {
     data.requirements.could_have.length +
     data.constraints.length +
     data.data_entities.length +
-    data.stakeholders.length +
-    (data.competitors || []).length
+    data.stakeholders.length
   )
 }
 
@@ -1513,8 +1432,7 @@ function countConfirmed(data: BRDWorkspaceData): number {
     data.requirements.could_have.filter((f) => isConfirmed(f.confirmation_status)).length +
     data.constraints.filter((c) => isConfirmed(c.confirmation_status)).length +
     data.data_entities.filter((d) => isConfirmed(d.confirmation_status)).length +
-    data.stakeholders.filter((s) => isConfirmed(s.confirmation_status)).length +
-    (data.competitors || []).filter((c) => isConfirmed(c.confirmation_status)).length
+    data.stakeholders.filter((s) => isConfirmed(s.confirmation_status)).length
   )
 }
 

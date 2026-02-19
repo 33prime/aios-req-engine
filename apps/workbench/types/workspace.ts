@@ -1806,3 +1806,37 @@ export interface IntelSalesResponse {
   gaps_and_risks: IntelGapOrRisk[]
 }
 
+// ============================================
+// Unlocks Module
+// ============================================
+
+export type ImpactType = 'operational_scale' | 'talent_leverage' | 'risk_elimination' |
+    'revenue_expansion' | 'data_intelligence' | 'compliance' | 'speed_to_change'
+export type UnlockTier = 'implement_now' | 'after_feedback' | 'if_this_works'
+export type UnlockKind = 'new_capability' | 'feature_upgrade'
+export type UnlockStatus = 'generated' | 'curated' | 'promoted' | 'dismissed'
+
+export interface ProvenanceLink {
+    entity_type: string
+    entity_id: string
+    entity_name: string
+    relationship: 'enables' | 'solves' | 'serves' | 'validated_by'
+}
+
+export interface UnlockSummary {
+    id: string
+    title: string
+    narrative: string
+    impact_type: ImpactType
+    unlock_kind: UnlockKind
+    tier: UnlockTier
+    status: UnlockStatus
+    magnitude: string | null
+    why_now: string | null
+    non_obvious: string | null
+    provenance: ProvenanceLink[]
+    promoted_feature_id: string | null
+    confirmation_status: string
+    created_at: string
+}
+

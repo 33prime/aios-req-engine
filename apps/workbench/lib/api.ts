@@ -1808,6 +1808,14 @@ export interface DocumentStatusResponse {
   error?: string
   needs_clarification?: boolean
   clarification_question?: string
+  analysis_summary?: {
+    applied?: number
+    escalated?: number
+    created?: number
+    merged?: number
+    updated?: number
+    chat_summary?: string
+  }
 }
 
 /**
@@ -2790,6 +2798,14 @@ export const saveChatAsSignal = (
     }
   )
 
+export const getConversationMessages = (
+  conversationId: string,
+  limit = 100,
+) =>
+  apiRequest<{ messages: Array<{ id: string; role: string; content: string; created_at: string; metadata?: Record<string, unknown> }>; total: number }>(
+    `/v1/conversations/${conversationId}/messages?limit=${limit}`,
+  )
+
 export interface BatchDashboardData {
   task_stats: Record<string, TaskStatsResponse>
   next_actions: Record<string, NextAction[]>
@@ -3735,4 +3751,42 @@ export const getEntityEvidence = (projectId: string, entityType: string, entityI
 export const getSalesIntelligence = (projectId: string) =>
   apiRequest<import('@/types/workspace').IntelSalesResponse>(
     `/projects/${projectId}/intelligence/sales`
+  )
+
+// ============================================================================
+// Unlocks
+// ============================================================================
+
+export const listUnlocks = (projectId: string, filters?: { status?: string; tier?: string }) => {
+  const params = new URLSearchParams()
+  if (filters?.status) params.set('status', filters.status)
+  if (filters?.tier) params.set('tier', filters.tier)
+  const query = params.toString()
+  return apiRequest<import('@/types/workspace').UnlockSummary[]>(
+    `/projects/${projectId}/workspace/unlocks${query ? `?${query}` : ''}`
+  )
+}
+
+export const generateUnlocks = (projectId: string) =>
+  apiRequest<{ batch_id: string; status: string }>(
+    `/projects/${projectId}/workspace/unlocks/generate`,
+    { method: 'POST' }
+  )
+
+export const updateUnlock = (projectId: string, unlockId: string, updates: Record<string, unknown>) =>
+  apiRequest<import('@/types/workspace').UnlockSummary>(
+    `/projects/${projectId}/workspace/unlocks/${unlockId}`,
+    { method: 'PATCH', body: JSON.stringify(updates) }
+  )
+
+export const promoteUnlock = (projectId: string, unlockId: string, priorityGroup?: string) =>
+  apiRequest<{ unlock: import('@/types/workspace').UnlockSummary; feature: Record<string, unknown> }>(
+    `/projects/${projectId}/workspace/unlocks/${unlockId}/promote`,
+    { method: 'POST', body: JSON.stringify({ target_priority_group: priorityGroup || 'could_have' }) }
+  )
+
+export const dismissUnlock = (projectId: string, unlockId: string) =>
+  apiRequest<import('@/types/workspace').UnlockSummary>(
+    `/projects/${projectId}/workspace/unlocks/${unlockId}/dismiss`,
+    { method: 'POST' }
   )

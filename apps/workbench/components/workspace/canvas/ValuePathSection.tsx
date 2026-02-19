@@ -1,7 +1,7 @@
 'use client'
 
-import { Route, Clock, AlertTriangle, Info, Unlock, TrendingUp, Lightbulb, Zap } from 'lucide-react'
-import type { ValuePathStep, ValuePathUnlock, AutomationLevel, UnlockType } from '@/types/workspace'
+import { Route, Clock, AlertTriangle, Info } from 'lucide-react'
+import type { ValuePathStep, AutomationLevel } from '@/types/workspace'
 
 interface ValuePathSectionProps {
   steps: ValuePathStep[]
@@ -10,7 +10,6 @@ interface ValuePathSectionProps {
   onRegenerate: () => void
   isSynthesizing: boolean
   onStepClick?: (stepIndex: number, stepTitle: string) => void
-  onUnlockClick?: (stepIndex: number, stepTitle: string, unlock: ValuePathUnlock) => void
   selectedStepIndex?: number | null
 }
 
@@ -29,24 +28,6 @@ function AutomationBadge({ level }: { level: AutomationLevel }) {
   )
 }
 
-const UNLOCK_CONFIG: Record<UnlockType, { icon: typeof Unlock; color: string; bg: string; label: string }> = {
-  capability: { icon: Unlock, color: 'text-[#25785A]', bg: 'bg-[#E8F5E9]', label: 'Capability' },
-  scale: { icon: TrendingUp, color: 'text-[#25785A]', bg: 'bg-[#E8F5E9]', label: 'Scale' },
-  insight: { icon: Lightbulb, color: 'text-[#25785A]', bg: 'bg-[#E8F5E9]', label: 'Insight' },
-  speed: { icon: Zap, color: 'text-[#25785A]', bg: 'bg-[#E8F5E9]', label: 'Speed' },
-}
-
-function UnlockTypeBadge({ type }: { type: UnlockType }) {
-  const cfg = UNLOCK_CONFIG[type] || UNLOCK_CONFIG.capability
-  const Icon = cfg.icon
-  return (
-    <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-semibold ${cfg.bg} ${cfg.color} rounded-full`}>
-      <Icon className="w-3 h-3" />
-      {cfg.label}
-    </span>
-  )
-}
-
 export function ValuePathSection({
   steps,
   rationale,
@@ -54,20 +35,8 @@ export function ValuePathSection({
   onRegenerate,
   isSynthesizing,
   onStepClick,
-  onUnlockClick,
   selectedStepIndex,
 }: ValuePathSectionProps) {
-  const unlockCounts = steps.reduce(
-    (acc, step) => {
-      for (const u of step.unlocks || []) {
-        acc[u.unlock_type] = (acc[u.unlock_type] || 0) + 1
-        acc.total++
-      }
-      return acc
-    },
-    { total: 0 } as Record<string, number>
-  )
-
   return (
     <section>
       <div className="flex items-center justify-between mb-4">
@@ -76,11 +45,6 @@ export function ValuePathSection({
           <h2 className="text-[16px] font-semibold text-[#333333]">Value Path</h2>
           {steps.length > 0 && (
             <span className="text-[12px] text-[#999999]">({steps.length} steps)</span>
-          )}
-          {unlockCounts.total > 0 && (
-            <span className="text-[12px] text-[#25785A] font-medium">
-              {unlockCounts.total} unlock{unlockCounts.total !== 1 ? 's' : ''}
-            </span>
           )}
         </div>
         {isStale && steps.length > 0 && (
@@ -119,23 +83,16 @@ export function ValuePathSection({
             </div>
           )}
 
-          {/* Column headers */}
-          <div className="flex border-b border-[#E5E5E5]">
-            <div className="flex-1 px-5 py-2.5 bg-[#F0F0F0]">
+          {/* Column header */}
+          <div className="border-b border-[#E5E5E5]">
+            <div className="px-5 py-2.5 bg-[#F0F0F0]">
               <span className="text-[11px] font-semibold text-[#666666] uppercase tracking-wide">
                 The Journey
               </span>
             </div>
-            {/* Gap between columns */}
-            <div className="w-4 bg-[#F4F4F4] border-x border-[#E5E5E5]" />
-            <div className="flex-1 px-5 py-2.5 bg-[#E8F5E9]">
-              <span className="text-[11px] font-semibold text-[#25785A] uppercase tracking-wide">
-                What This Unlocks
-              </span>
-            </div>
           </div>
 
-          {/* Side-by-side rows */}
+          {/* Step rows */}
           {steps.map((step, idx) => (
             <ValuePathRow
               key={step.step_index}
@@ -144,35 +101,17 @@ export function ValuePathSection({
               isLast={idx === steps.length - 1}
               isSelected={selectedStepIndex === step.step_index}
               onStepClick={onStepClick ? () => onStepClick(step.step_index, step.title) : undefined}
-              onUnlockClick={onUnlockClick
-                ? (unlock: ValuePathUnlock) => onUnlockClick(step.step_index, step.title, unlock)
-                : undefined
-              }
             />
           ))}
 
           {/* Summary footer */}
-          {unlockCounts.total > 0 && (
-            <div className="px-5 py-3 bg-[#F4F4F4] border-t border-[#E5E5E5]">
-              <div className="flex items-center gap-4 text-[11px] text-[#666666]">
-                <span className="font-medium text-[#333333]">
-                  {steps.filter(s => s.roi_impact === 'high').length} high-impact steps
-                </span>
-                <span className="text-[#E5E5E5]">|</span>
-                {Object.entries(UNLOCK_CONFIG).map(([type, cfg]) => {
-                  const count = unlockCounts[type] || 0
-                  if (count === 0) return null
-                  const Icon = cfg.icon
-                  return (
-                    <span key={type} className="inline-flex items-center gap-1">
-                      <Icon className="w-3 h-3 text-[#25785A]" />
-                      {count} {cfg.label.toLowerCase()}
-                    </span>
-                  )
-                })}
-              </div>
+          <div className="px-5 py-3 bg-[#F4F4F4] border-t border-[#E5E5E5]">
+            <div className="flex items-center gap-4 text-[11px] text-[#666666]">
+              <span className="font-medium text-[#333333]">
+                {steps.filter(s => s.roi_impact === 'high').length} high-impact steps
+              </span>
             </div>
-          )}
+          </div>
         </div>
       )}
     </section>
@@ -185,24 +124,19 @@ function ValuePathRow({
   isLast,
   isSelected,
   onStepClick,
-  onUnlockClick,
 }: {
   step: ValuePathStep
   displayIndex: number
   isLast: boolean
   isSelected?: boolean
   onStepClick?: () => void
-  onUnlockClick?: (unlock: ValuePathUnlock) => void
 }) {
-  const unlocks = step.unlocks || []
-
   return (
-    <div className={`flex transition-all ${
+    <div className={`transition-all ${
       isSelected ? 'bg-[#F8FFF8]' : ''
     } ${!isLast ? 'border-b border-[#E5E5E5]' : ''}`}>
-      {/* LEFT: Step card */}
       <div
-        className={`flex-1 px-5 py-3.5 ${onStepClick ? 'cursor-pointer hover:bg-[#FAFAFA]' : ''}`}
+        className={`px-5 py-3.5 ${onStepClick ? 'cursor-pointer hover:bg-[#FAFAFA]' : ''}`}
         onClick={onStepClick}
         role={onStepClick ? 'button' : undefined}
         tabIndex={onStepClick ? 0 : undefined}
@@ -263,75 +197,6 @@ function ValuePathRow({
             )}
           </div>
         </div>
-      </div>
-
-      {/* Gap between columns */}
-      <div className="w-4 bg-[#F4F4F4] border-x border-[#E5E5E5] shrink-0" />
-
-      {/* RIGHT: Unlocks */}
-      <div className="flex-1 px-5 py-3.5">
-        {unlocks.length > 0 ? (
-          <div className="space-y-2.5">
-            {unlocks.map((unlock, i) => (
-              <UnlockCard
-                key={i}
-                unlock={unlock}
-                onClick={onUnlockClick ? () => onUnlockClick(unlock) : undefined}
-              />
-            ))}
-          </div>
-        ) : (
-          <div className="flex items-start gap-2 py-1">
-            {step.goal_served ? (
-              <>
-                <div className="w-5 h-5 rounded-full bg-[#E8F5E9] flex items-center justify-center shrink-0 mt-0.5">
-                  <Zap className="w-3 h-3 text-[#25785A]" />
-                </div>
-                <p className="text-[12px] text-[#25785A] font-medium">{step.goal_served}</p>
-              </>
-            ) : (
-              <p className="text-[12px] text-[#999999] italic">
-                Regenerate to see unlock insights
-              </p>
-            )}
-          </div>
-        )}
-      </div>
-    </div>
-  )
-}
-
-function UnlockCard({
-  unlock,
-  onClick,
-}: {
-  unlock: ValuePathUnlock
-  onClick?: () => void
-}) {
-  const cfg = UNLOCK_CONFIG[unlock.unlock_type as UnlockType] || UNLOCK_CONFIG.capability
-  const Icon = cfg.icon
-
-  return (
-    <div
-      className={`flex items-start gap-2 ${
-        onClick ? 'cursor-pointer hover:bg-[#F8FFF8] -mx-2 px-2 py-1 rounded-lg transition-colors' : ''
-      }`}
-      onClick={onClick}
-      role={onClick ? 'button' : undefined}
-      tabIndex={onClick ? 0 : undefined}
-      onKeyDown={onClick ? (e) => { if (e.key === 'Enter' || e.key === ' ') onClick() } : undefined}
-    >
-      <div className={`w-5 h-5 rounded-full ${cfg.bg} flex items-center justify-center shrink-0 mt-0.5`}>
-        <Icon className={`w-3 h-3 ${cfg.color}`} />
-      </div>
-      <div className="min-w-0">
-        <div className="flex items-center gap-1.5 mb-0.5">
-          <UnlockTypeBadge type={unlock.unlock_type as UnlockType} />
-        </div>
-        <p className="text-[12px] text-[#333333] leading-relaxed">{unlock.description}</p>
-        {unlock.strategic_value && (
-          <p className="text-[11px] text-[#666666] mt-0.5">{unlock.strategic_value}</p>
-        )}
       </div>
     </div>
   )

@@ -6,7 +6,7 @@ import logging
 from datetime import UTC
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Query
 from pydantic import BaseModel
 
 from app.core.brd_completeness import compute_brd_completeness
@@ -1989,6 +1989,68 @@ async def answer_action_question(
         "cascade_triggered": parse_result.cascade_triggered,
         "summary": parse_result.summary,
     }
+
+
+# ============================================================================
+# Intelligence Briefing Endpoints
+# ============================================================================
+
+
+@router.get("/briefing")
+async def get_intelligence_briefing(
+    project_id: UUID,
+    max_actions: int = Query(5, ge=1, le=10),
+    force_refresh: bool = Query(False),
+    user_id: UUID | None = Query(None, description="Optional user ID for temporal diff"),
+) -> dict:
+    """Full intelligence briefing — narrative + temporal diff + tensions + hypotheses.
+
+    Uses cached Sonnet narrative when available. Temporal diff is per-user.
+    Pass user_id query param to enable 'what changed since your last visit'.
+    """
+    from app.core.briefing_engine import compute_intelligence_briefing
+
+    try:
+        briefing = await compute_intelligence_briefing(
+            project_id=project_id,
+            user_id=user_id,
+            max_actions=max_actions,
+            force_refresh=force_refresh,
+        )
+        return briefing.model_dump(mode="json")
+    except Exception as e:
+        logger.exception(f"Failed to compute briefing for project {project_id}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/heartbeat")
+async def get_project_heartbeat(project_id: UUID) -> dict:
+    """Instant project health snapshot — no LLM, always fresh."""
+    from app.core.briefing_engine import compute_heartbeat_only
+
+    try:
+        heartbeat = compute_heartbeat_only(project_id)
+        return heartbeat.model_dump(mode="json")
+    except Exception as e:
+        logger.exception(f"Failed to compute heartbeat for project {project_id}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/hypotheses/{node_id}/promote")
+async def promote_hypothesis(project_id: UUID, node_id: UUID) -> dict:
+    """Promote a belief to testable hypothesis status."""
+    from app.core.hypothesis_engine import promote_to_hypothesis
+
+    try:
+        result = promote_to_hypothesis(node_id)
+        if not result:
+            raise HTTPException(status_code=404, detail=f"Node {node_id} not found or not a belief")
+        return {"ok": True, "node": result}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"Failed to promote hypothesis {node_id}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # ============================================================================
@@ -4064,3 +4126,117 @@ async def dismiss_pulse(project_id: UUID):
     except Exception as e:
         logger.exception(f"Failed to dismiss pulse for {project_id}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================================
+# Unlocks
+# ============================================================================
+
+
+@router.get("/unlocks")
+async def list_unlocks_endpoint(
+    project_id: UUID,
+    status: str | None = Query(None),
+    tier: str | None = Query(None),
+):
+    """List unlocks for a project, optionally filtered by status and tier."""
+    from app.db.unlocks import list_unlocks
+
+    try:
+        rows = list_unlocks(project_id, status_filter=status, tier_filter=tier)
+        return rows
+    except Exception as e:
+        logger.exception(f"Failed to list unlocks for {project_id}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/unlocks/generate")
+async def generate_unlocks_endpoint(
+    project_id: UUID,
+    background_tasks: BackgroundTasks,
+):
+    """Trigger async batch generation of strategic unlocks."""
+    import uuid as uuid_mod
+
+    batch_id = uuid_mod.uuid4()
+
+    async def _run():
+        from app.chains.generate_unlocks import generate_unlocks
+        from app.db.unlocks import bulk_create_unlocks
+
+        try:
+            unlocks = await generate_unlocks(project_id)
+            bulk_create_unlocks(project_id, unlocks, batch_id=batch_id)
+            logger.info(f"Unlock generation complete: {len(unlocks)} for {project_id}")
+        except Exception:
+            logger.exception(f"Unlock generation failed for {project_id}")
+
+    background_tasks.add_task(_run)
+    return {"batch_id": str(batch_id), "status": "generating"}
+
+
+@router.get("/unlocks/{unlock_id}")
+async def get_unlock_endpoint(project_id: UUID, unlock_id: UUID):
+    """Get a single unlock by ID."""
+    from app.db.unlocks import get_unlock
+
+    row = get_unlock(unlock_id)
+    if not row:
+        raise HTTPException(status_code=404, detail="Unlock not found")
+    return row
+
+
+@router.patch("/unlocks/{unlock_id}")
+async def update_unlock_endpoint(project_id: UUID, unlock_id: UUID, body: dict):
+    """Update an unlock (tier, status, narrative edits)."""
+    from app.db.unlocks import update_unlock
+
+    allowed = {"tier", "status", "title", "narrative", "confirmation_status"}
+    updates = {k: v for k, v in body.items() if k in allowed}
+
+    result = update_unlock(unlock_id, project_id, **updates)
+    if not result:
+        raise HTTPException(status_code=404, detail="Unlock not found")
+    return result
+
+
+@router.post("/unlocks/{unlock_id}/promote")
+async def promote_unlock_endpoint(project_id: UUID, unlock_id: UUID, body: dict | None = None):
+    """Promote an unlock to a feature."""
+    from app.db.unlocks import get_unlock, promote_unlock
+
+    unlock = get_unlock(unlock_id)
+    if not unlock:
+        raise HTTPException(status_code=404, detail="Unlock not found")
+
+    priority_group = (body or {}).get("target_priority_group", "could_have")
+
+    # Create feature from unlock
+    supabase = get_client()
+    feature_data = {
+        "project_id": str(project_id),
+        "name": unlock["title"],
+        "overview": unlock["narrative"],
+        "priority_group": priority_group,
+        "confirmation_status": "ai_generated",
+        "origin": "unlock",
+    }
+    feat_resp = supabase.table("features").insert(feature_data).execute()
+    if not feat_resp.data:
+        raise HTTPException(status_code=500, detail="Failed to create feature")
+
+    new_feature = feat_resp.data[0]
+    updated_unlock = promote_unlock(unlock_id, project_id, UUID(new_feature["id"]))
+
+    return {"unlock": updated_unlock, "feature": new_feature}
+
+
+@router.post("/unlocks/{unlock_id}/dismiss")
+async def dismiss_unlock_endpoint(project_id: UUID, unlock_id: UUID):
+    """Dismiss an unlock."""
+    from app.db.unlocks import dismiss_unlock
+
+    result = dismiss_unlock(unlock_id, project_id)
+    if not result:
+        raise HTTPException(status_code=404, detail="Unlock not found")
+    return result
