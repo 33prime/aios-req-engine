@@ -38,6 +38,7 @@ class UnlockSummary(BaseModel):
     id: str
     title: str
     narrative: str
+    feature_sketch: str | None = None
     impact_type: ImpactType
     unlock_kind: UnlockKind
     tier: UnlockTier
@@ -57,6 +58,7 @@ class UnlockDetail(BaseModel):
     id: str
     title: str
     narrative: str
+    feature_sketch: str | None = None
     impact_type: ImpactType
     unlock_kind: UnlockKind
     tier: UnlockTier

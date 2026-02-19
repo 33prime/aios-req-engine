@@ -362,6 +362,16 @@ function UnlockCard({
             {unlock.narrative}
           </p>
 
+          {/* Feature sketch — the key actionable output */}
+          {unlock.feature_sketch && (
+            <div className="mt-2 px-3 py-2 bg-[#F4F4F4] border border-[#E5E5E5] rounded-lg">
+              <span className="text-[10px] font-semibold text-[#999999] uppercase tracking-wide">Feature Sketch</span>
+              <p className="text-[12px] text-[#333333] mt-0.5 leading-relaxed">
+                {unlock.feature_sketch}
+              </p>
+            </div>
+          )}
+
           {/* Magnitude highlight */}
           {unlock.magnitude && (
             <p className="text-[12px] text-[#25785A] font-medium mt-1.5">

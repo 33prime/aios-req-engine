@@ -4211,12 +4211,13 @@ async def promote_unlock_endpoint(project_id: UUID, unlock_id: UUID, body: dict 
 
     priority_group = (body or {}).get("target_priority_group", "could_have")
 
-    # Create feature from unlock
+    # Create feature from unlock — use feature_sketch as overview if available
     supabase = get_client()
+    overview = unlock.get("feature_sketch") or unlock["narrative"]
     feature_data = {
         "project_id": str(project_id),
         "name": unlock["title"],
-        "overview": unlock["narrative"],
+        "overview": overview,
         "priority_group": priority_group,
         "confirmation_status": "ai_generated",
         "origin": "unlock",

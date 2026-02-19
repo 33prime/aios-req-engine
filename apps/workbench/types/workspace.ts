@@ -1827,6 +1827,7 @@ export interface UnlockSummary {
     id: string
     title: string
     narrative: string
+    feature_sketch: string | null
     impact_type: ImpactType
     unlock_kind: UnlockKind
     tier: UnlockTier

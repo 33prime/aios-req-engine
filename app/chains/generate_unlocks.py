@@ -1,7 +1,8 @@
-"""Generate strategic unlocks for a project using Sonnet.
+"""Generate capability unlocks for a project using Sonnet.
 
-Unlocks are strategic business outcomes that become possible when software
-automates work — not features, but shifts in what a business can do, be, or reach.
+Unlocks are concrete capabilities that become possible when the system is built —
+grounded in specific workflows, data entities, and user pains. Each unlock includes
+a feature sketch that makes it directly promotable to a feature.
 
 Uses Anthropic tool_use for forced structured output (same pattern as
 extract_entity_patches.py).
@@ -10,7 +11,6 @@ extract_entity_patches.py).
 from __future__ import annotations
 
 import asyncio
-import json
 import logging
 import time
 from typing import Any
@@ -28,7 +28,7 @@ _INITIAL_DELAY = 1.0
 
 UNLOCK_TOOL = {
     "name": "submit_unlocks",
-    "description": "Submit the generated strategic unlocks.",
+    "description": "Submit the generated capability unlocks.",
     "input_schema": {
         "type": "object",
         "properties": {
@@ -39,11 +39,15 @@ UNLOCK_TOOL = {
                     "properties": {
                         "title": {
                             "type": "string",
-                            "description": "One-sentence outcome statement",
+                            "description": "One-sentence capability statement — what the system could now do. Start with a verb.",
                         },
                         "narrative": {
                             "type": "string",
-                            "description": "2-3 sentences: why this is now possible and what changes",
+                            "description": "2-3 sentences: what specific data/workflow makes this possible and what changes for the user",
+                        },
+                        "feature_sketch": {
+                            "type": "string",
+                            "description": "One concrete feature description ready to become a backlog item. Format: 'Add a [component] that [does what] using [which data/workflow]'",
                         },
                         "impact_type": {
                             "type": "string",
@@ -71,15 +75,15 @@ UNLOCK_TOOL = {
                         },
                         "magnitude": {
                             "type": "string",
-                            "description": "Quantified impact where possible, e.g. '3x client volume without hiring'",
+                            "description": "Quantified impact: time saved, errors eliminated, capacity gained. Be specific.",
                         },
                         "why_now": {
                             "type": "string",
-                            "description": "What in the project enables this",
+                            "description": "Which specific workflow step or data entity makes this possible — reference by name",
                         },
                         "non_obvious": {
                             "type": "string",
-                            "description": "Why the client hasn't seen this yet — the consultant's superpower",
+                            "description": "Why the client hasn't thought of this — what cross-cutting insight the consultant sees",
                         },
                         "provenance": {
                             "type": "array",
@@ -124,6 +128,7 @@ UNLOCK_TOOL = {
                     "required": [
                         "title",
                         "narrative",
+                        "feature_sketch",
                         "impact_type",
                         "unlock_kind",
                         "tier",
@@ -146,41 +151,56 @@ UNLOCK_TOOL = {
 # System prompt
 # =============================================================================
 
-SYSTEM_PROMPT = """You are a senior strategy consultant analyzing what becomes STRATEGICALLY POSSIBLE for a business because of the system being built.
+SYSTEM_PROMPT = """You are a senior product consultant analyzing what concrete capabilities become possible because of the system being built.
 
 ## What Unlocks Are
-Unlocks are NOT features. They are business outcomes — what the organisation can now DO, BE, or REACH that was previously impossible, impractical, or invisible.
 
-Examples of good unlocks:
-- "Onboard new clients in hours instead of weeks" (operational_scale)
-- "Run 3x the campaigns with the same team" (talent_leverage)
-- "Eliminate manual reconciliation errors that cost $200k/year" (risk_elimination)
-- "Offer real-time pricing that competitors can't match" (revenue_expansion)
+Unlocks are CAPABILITIES — specific things the system could do that nobody has explicitly asked for yet. They emerge from looking at the workflows being automated, the data being collected, and the pain points being solved, then asking: "What else becomes possible now?"
 
-Examples of BAD unlocks (too generic):
-- "Better user experience" — too vague
-- "Faster processing" — too obvious
-- "Cost savings" — not specific to this project
+Think of unlocks as the consultant's superpower: the client asked for workflow automation, but you can see that the data flowing through those workflows enables capabilities they haven't imagined.
+
+## How to Find Good Unlocks
+
+1. **Look at the data entities** — what information is being captured? What could you DO with that data beyond its primary purpose?
+2. **Look at workflow transitions** — where a manual step becomes automated, what new speed or scale does that create?
+3. **Look at pain points** — the system solves the stated pain, but what ADJACENT pain does the same solution address?
+4. **Look across personas** — data captured for one user type often serves another user type in unexpected ways.
+
+## Examples of GOOD Unlocks (functionality-grounded)
+
+- "Auto-generate personalized study plans from assessment weak-spot data" → feature_sketch: "Add a 'My Study Plan' tab that maps weak topic areas to educational resources using QuestionAttempt performance data"
+- "Flag at-risk accounts before renewal by correlating usage drop-offs with support tickets" → feature_sketch: "Add an 'Account Health' dashboard widget that scores engagement trends against historical churn signals"
+- "Let managers clone a top performer's workflow template for new hires" → feature_sketch: "Add a 'Save as Template' action on completed workflows that extracts the step sequence and timing benchmarks"
+
+## Examples of BAD Unlocks (too abstract)
+
+- "Position the company as a market leader" — not a capability
+- "Improve operational efficiency" — too vague
+- "Enable data-driven decisions" — says nothing specific
+- "Reduce costs across the organization" — not grounded in a feature
 
 ## Your Task
+
 Generate EXACTLY 9 unlocks in 3 tiers of 3:
 
 **Tier 1: implement_now** (3 unlocks)
-Quick wins that ride the core build. These are outcomes that fall out naturally from the workflows already being automated.
+Low-hanging fruit that falls out of existing data and workflows with minimal extra build. The data is already there — you just need a view, a trigger, or a small integration.
 
 **Tier 2: after_feedback** (3 unlocks)
-Layer on once the solution is validated. These require the core to work first, then enable a step-change.
+Smart extensions that add a screen, report, or integration on top of the core. Requires the core to work first, then enables a meaningful new capability.
 
 **Tier 3: if_this_works** (3 unlocks)
-Strategic bets on platform success. Bigger, bolder outcomes that become possible if the system proves itself.
+Platform plays — bigger capabilities that require the system to prove itself first. These involve combining multiple data sources or workflows in ways that create compound value.
 
 ## Rules
-1. Every unlock MUST trace back to specific project entities with typed relationships (provenance).
-2. The non_obvious field explains why the client probably hasn't seen this yet — this is the consultant's superpower.
-3. DO NOT suggest generic improvements. Every unlock must be grounded in THIS project's specific workflows, data, and pains.
-4. Use a mix of impact_types across the 9 unlocks — don't repeat the same type more than 3 times.
-5. unlock_kind: "new_capability" = something that was never possible before; "feature_upgrade" = something that existed but gets dramatically better.
-6. magnitude should quantify where possible: time saved, revenue unlocked, risk eliminated, capacity multiplied.
+
+1. Every unlock MUST reference specific data entities, workflow steps, or features by name in the provenance AND in the why_now field.
+2. The feature_sketch MUST be concrete enough to become a backlog item. Format: "Add a [component] that [does what] using [which data/workflow]".
+3. At least 5 of the 9 unlocks must reference a data_entity in their provenance — data is where hidden capabilities live.
+4. DO NOT generate revenue projections or market positioning statements. Focus on what the SYSTEM can do.
+5. unlock_kind: "new_capability" = something the system couldn't do before; "feature_upgrade" = an existing feature that gets dramatically smarter or faster.
+6. The non_obvious field should explain the cross-cutting insight: what connection between entities/workflows/personas reveals this capability.
+7. magnitude should be specific: "reduces X from Y to Z", "eliminates N manual steps", "surfaces patterns across N records".
 """
 
 
@@ -286,7 +306,7 @@ async def _load_project_context(project_id: UUID) -> str:
                 lines.append(f"  Pains: {', '.join(str(pp) for pp in pains[:3])}")
         sections.append("\n".join(lines))
 
-    # Data entities
+    # Data entities — CRITICAL for capability discovery
     de_resp = (
         supabase.table("data_entities")
         .select("id, name, description, fields")
@@ -295,11 +315,15 @@ async def _load_project_context(project_id: UUID) -> str:
     )
     data_ents = de_resp.data or []
     if data_ents:
-        lines = ["## Data Entities"]
+        lines = ["## Data Entities (key source for capability discovery)"]
         for de in data_ents:
             lines.append(f"- **{de.get('name', '?')}** (id: {de['id']})")
             if de.get("description"):
-                lines.append(f"  {de['description'][:150]}")
+                lines.append(f"  {de['description'][:200]}")
+            fields = de.get("fields") or []
+            if fields and isinstance(fields, list):
+                field_names = [f.get("name", "?") if isinstance(f, dict) else str(f) for f in fields[:8]]
+                lines.append(f"  Fields: {', '.join(field_names)}")
         sections.append("\n".join(lines))
 
     # Competitors
@@ -343,7 +367,7 @@ async def _load_project_context(project_id: UUID) -> str:
 
 
 async def generate_unlocks(project_id: UUID) -> list[dict[str, Any]]:
-    """Generate 9 strategic unlocks for the given project.
+    """Generate 9 capability unlocks for the given project.
 
     Returns:
         List of unlock dicts ready for bulk_create_unlocks().
@@ -368,8 +392,9 @@ async def generate_unlocks(project_id: UUID) -> list[dict[str, Any]]:
     ]
 
     user_prompt = (
-        f"Analyze the following project and generate exactly 9 strategic unlocks "
-        f"(3 per tier).\n\n{context_text}"
+        f"Analyze the following project data. Focus on the data entities and workflow steps "
+        f"to discover hidden capabilities. Generate exactly 9 unlocks (3 per tier), each with "
+        f"a concrete feature_sketch.\n\n{context_text}"
     )
 
     last_error: Exception | None = None
