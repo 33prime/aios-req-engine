@@ -284,17 +284,17 @@ class Settings(BaseSettings):
 
     # Verdict Chat configuration (Haiku for speed/cost)
     VERDICT_CHAT_MODEL: str = Field(
-        default="claude-3-5-haiku-20241022",
+        default="claude-haiku-4-5-20251001",
         description="Claude model for verdict chat during prototype review"
     )
 
     # Chat Assistant configuration
     CHAT_MODEL: str = Field(
-        default="claude-3-5-haiku-20241022",
-        description="Claude model for chat assistant (Haiku 3.5 — fast + cheapest)"
+        default="claude-haiku-4-5-20251001",
+        description="Claude model for chat assistant (Haiku 4.5 — fast + capable)"
     )
     SUMMARIZATION_MODEL: str = Field(
-        default="claude-3-5-haiku-20241022",
+        default="claude-haiku-4-5-20251001",
         description="Claude model for conversation summarization"
     )
     CHAT_TOTAL_TOKEN_BUDGET: int = Field(
