@@ -125,10 +125,11 @@ async def enrich_company(project_id: UUID) -> dict[str, Any]:
     client = Anthropic(api_key=settings.ANTHROPIC_API_KEY)
 
     response = client.messages.create(
-        model="claude-sonnet-4-5-20250929",
+        model="claude-sonnet-4-6",
         max_tokens=4096,
         temperature=0.3,
         messages=[{"role": "user", "content": prompt}],
+        output_config={"effort": "medium"},
     )
     response_text = response.content[0].text if response.content else ""
 

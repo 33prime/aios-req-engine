@@ -100,10 +100,11 @@ async def extract_brand_from_website(project_id: UUID) -> dict[str, Any] | None:
 
     client = Anthropic(api_key=settings.ANTHROPIC_API_KEY)
     response = client.messages.create(
-        model="claude-sonnet-4-5-20250929",
+        model="claude-sonnet-4-6",
         max_tokens=2048,
         temperature=0.1,
         messages=[{"role": "user", "content": prompt}],
+        output_config={"effort": "medium"},
     )
 
     response_text = response.content[0].text if response.content else ""

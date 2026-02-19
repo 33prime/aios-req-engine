@@ -19,7 +19,7 @@ from app.core.logging import get_logger
 logger = get_logger(__name__)
 
 # Models — all phases use Sonnet 4.5 for speed
-SONNET_MODEL = "claude-sonnet-4-5-20250929"
+SONNET_MODEL = "claude-sonnet-4-6"
 
 
 # =============================================================================
@@ -203,6 +203,7 @@ async def _call_anthropic(
         temperature=temperature,
         system=system,
         messages=[{"role": "user", "content": user_message}],
+        output_config={"effort": "low"},
     )
     duration_ms = int((time.time() - start) * 1000)
 

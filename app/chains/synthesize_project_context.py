@@ -308,7 +308,7 @@ async def synthesize_project_context(project_id: UUID) -> dict:
     from langchain_core.messages import HumanMessage, SystemMessage
 
     model = ChatAnthropic(
-        model="claude-sonnet-4-5-20250929",
+        model="claude-sonnet-4-6",
         temperature=0.15,
         max_tokens=4096,
         api_key=settings.ANTHROPIC_API_KEY,

@@ -116,10 +116,11 @@ Return JSON array only:
 
         anthropic_client = AsyncAnthropic(api_key=settings.ANTHROPIC_API_KEY)
         response = await anthropic_client.messages.create(
-            model="claude-sonnet-4-5-20250929",
+            model="claude-sonnet-4-6",
             max_tokens=2000,
             temperature=0.4,
             messages=[{"role": "user", "content": prompt}],
+            output_config={"effort": "medium"},
         )
 
         text = response.content[0].text if response.content else "[]"

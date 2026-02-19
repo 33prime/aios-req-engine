@@ -203,7 +203,7 @@ class TestExtractEntityPatches:
         assert len(result.patches) == 2
         assert result.patches[0].entity_type == "feature"
         assert result.patches[1].entity_type == "business_driver"
-        assert result.extraction_model == "claude-sonnet-4-5-20250929"
+        assert result.extraction_model == "claude-sonnet-4-6"
         assert result.extraction_duration_ms >= 0
 
     @pytest.mark.asyncio

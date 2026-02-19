@@ -134,10 +134,11 @@ async def analyze_requirements_gaps(
         logger.info(f"Analyzing requirements gaps for project {project_id}")
 
         response = client.messages.create(
-            model="claude-sonnet-4-5-20250929",
+            model="claude-sonnet-4-6",
             max_tokens=4096,
             temperature=0.2,  # Lower temperature for more consistent analysis
             messages=[{"role": "user", "content": prompt}],
+            output_config={"effort": "medium"},
         )
 
         response_text = response.content[0].text if response.content else ""

@@ -194,7 +194,7 @@ async def run_driver_synthesis(
 
     try:
         response = await client.messages.create(
-            model="claude-sonnet-4-5-20250929",
+            model="claude-sonnet-4-6",
             max_tokens=4000,
             messages=[{
                 "role": "user",
@@ -213,6 +213,7 @@ async def run_driver_synthesis(
                     feature_analysis=feature_text,
                 ),
             }],
+            output_config={"effort": "medium"},
         )
         cost_entries.append({
             "phase": "business_drivers",

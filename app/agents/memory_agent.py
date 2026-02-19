@@ -57,7 +57,7 @@ logger = get_logger(__name__)
 
 # Model configuration
 HAIKU_MODEL = "claude-haiku-4-5-20251001"
-SONNET_MODEL = "claude-sonnet-4-5-20250929"
+SONNET_MODEL = "claude-sonnet-4-6"
 
 # Thresholds
 IMPORTANCE_THRESHOLD_FOR_SYNTHESIS = 0.7
@@ -340,6 +340,7 @@ class MemorySynthesizer:
                 model=SONNET_MODEL,
                 max_tokens=3000,
                 messages=[{"role": "user", "content": prompt}],
+                output_config={"effort": "low"},
             )
 
             # Parse and execute actions
@@ -659,6 +660,7 @@ class MemoryReflector:
                 model=SONNET_MODEL,
                 max_tokens=2500,
                 messages=[{"role": "user", "content": prompt}],
+                output_config={"effort": "low"},
             )
 
             # Parse and store insights

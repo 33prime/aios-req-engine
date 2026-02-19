@@ -169,10 +169,11 @@ async def enrich_client(client_id: UUID) -> dict[str, Any]:
 
     try:
         response = client_ai.messages.create(
-            model="claude-sonnet-4-5-20250929",
+            model="claude-sonnet-4-6",
             max_tokens=4096,
             temperature=0.3,
             messages=[{"role": "user", "content": prompt}],
+            output_config={"effort": "medium"},
         )
         response_text = response.content[0].text if response.content else ""
     except Exception as e:

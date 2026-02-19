@@ -152,11 +152,19 @@ What's your reasoning and recommended action?"""
         ]
 
         response = anthropic_client.messages.create(
-            model="claude-sonnet-4-5-20250929",
+            model="claude-sonnet-4-6",
             max_tokens=4096,
-            system=SI_AGENT_SYSTEM_PROMPT,
+            system=[
+                {
+                    "type": "text",
+                    "text": SI_AGENT_SYSTEM_PROMPT,
+                    "cache_control": {"type": "ephemeral"},
+                }
+            ],
             tools=anthropic_tools,
             messages=[{"role": "user", "content": user_prompt}],
+            output_config={"effort": "medium"},
+            thinking={"type": "adaptive"},
         )
 
         # ==================================================================
@@ -322,6 +330,8 @@ def _parse_response(
     tool_calls = []
 
     for block in llm_response.content:
+        if block.type == "thinking":
+            continue
         if hasattr(block, "text"):
             text_content += block.text + "\n"
         elif block.type == "tool_use":
@@ -510,7 +520,7 @@ def _log_invocation(
         "fields_affected": agent_response.fields_affected,
         "stop_reason": agent_response.stop_reason,
         "execution_time_ms": execution_time_ms,
-        "llm_model": "claude-sonnet-4-5-20250929",
+        "llm_model": "claude-sonnet-4-6",
         "success": True,
     }
 

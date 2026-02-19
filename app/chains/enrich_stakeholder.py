@@ -86,7 +86,7 @@ Context:
 
 Extract stakeholder engagement analysis."""
 
-        model = ChatAnthropic(model="claude-sonnet-4-5-20250929", temperature=0.1, api_key=settings.ANTHROPIC_API_KEY)
+        model = ChatAnthropic(model="claude-sonnet-4-6", temperature=0.1, api_key=settings.ANTHROPIC_API_KEY)
         messages = [SystemMessage(content=system_prompt), HumanMessage(content=user_prompt)]
         response = await model.ainvoke(messages)
         enrichment = parser.parse(response.content)

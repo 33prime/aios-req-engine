@@ -952,10 +952,11 @@ async def _call_sonnet(prompt: str, context: str = "") -> dict[str, Any]:
 
     try:
         response = await client.messages.create(
-            model="claude-sonnet-4-5-20250929",
+            model="claude-sonnet-4-6",
             max_tokens=3000,
             temperature=0.3,
             messages=[{"role": "user", "content": prompt}],
+            output_config={"effort": "low"},
         )
         text = response.content[0].text if response.content else "{}"
         return _parse_json_response(text, context)

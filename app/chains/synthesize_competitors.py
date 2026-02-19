@@ -135,10 +135,11 @@ Return ONLY valid JSON, no markdown fences."""
 
     client = Anthropic()
     response = client.messages.create(
-        model="claude-sonnet-4-5-20250929",
+        model="claude-sonnet-4-6",
         max_tokens=4000,
         temperature=0.2,
         messages=[{"role": "user", "content": prompt}],
+        output_config={"effort": "medium"},
     )
 
     raw_text = response.content[0].text.strip()

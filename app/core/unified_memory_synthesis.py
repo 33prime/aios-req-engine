@@ -26,7 +26,7 @@ from app.db.supabase_client import get_supabase
 logger = get_logger(__name__)
 
 # Model configuration
-SONNET_MODEL = "claude-sonnet-4-5-20250929"
+SONNET_MODEL = "claude-sonnet-4-6"
 
 
 # =============================================================================
@@ -226,6 +226,7 @@ def synthesize_unified_memory(project_id: UUID, data: dict[str, Any] | None = No
             model=SONNET_MODEL,
             max_tokens=3000,
             messages=[{"role": "user", "content": prompt}],
+            output_config={"effort": "medium"},
         )
 
         content = response.content[0].text if response.content else ""

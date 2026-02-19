@@ -134,7 +134,7 @@ EXTRACTION_TOOL = {
 # System prompt template
 # =============================================================================
 
-EXTRACTION_SYSTEM_PROMPT = """You are a senior requirements analyst extracting structured entity patches from project signals.
+EXTRACTION_SYSTEM_PROMPT_STATIC = """You are a senior requirements analyst extracting structured entity patches from project signals.
 
 Your output is EntityPatch[] — surgical create/merge/update operations targeting specific BRD entities.
 
@@ -207,8 +207,9 @@ update: {{statement}} — single vision statement for the project
 - Current vs future: "Today we..." → current steps, "System will..." → future steps
 - Stakeholders are INDIVIDUAL PEOPLE only, never organizations
 - Data entities are domain objects (Patient, Invoice, Order), not generic "data"
+"""
 
-{strategy_block}
+EXTRACTION_CONTEXT_TEMPLATE = """{strategy_block}
 
 ## CONTEXT
 
@@ -305,16 +306,28 @@ async def extract_entity_patches(
     """
     start = time.time()
 
-    # Build system prompt with 3-layer context
+    # Build system prompt with 3-layer context (static part cached, dynamic part not)
     strategy_key = signal_type if signal_type in STRATEGY_BLOCKS else "default"
     strategy_block = STRATEGY_BLOCKS[strategy_key]
 
-    system_prompt = EXTRACTION_SYSTEM_PROMPT.format(
+    dynamic_context = EXTRACTION_CONTEXT_TEMPLATE.format(
         strategy_block=strategy_block,
         entity_inventory=getattr(context_snapshot, "entity_inventory_prompt", "No entity inventory available."),
         memory=getattr(context_snapshot, "memory_prompt", "No memory available."),
         gaps=getattr(context_snapshot, "gaps_prompt", "No gap analysis available."),
     )
+
+    system_blocks = [
+        {
+            "type": "text",
+            "text": EXTRACTION_SYSTEM_PROMPT_STATIC,
+            "cache_control": {"type": "ephemeral"},
+        },
+        {
+            "type": "text",
+            "text": dynamic_context,
+        },
+    ]
 
     user_prompt = f"""## Signal Content ({signal_type})
 
@@ -325,7 +338,7 @@ Extract all EntityPatch objects from this signal. Use the submit_entity_patches 
 
     # Call LLM
     try:
-        patch_dicts = await _call_extraction_llm(system_prompt, user_prompt)
+        patch_dicts = await _call_extraction_llm(system_blocks, user_prompt)
         patches = _validate_patches(patch_dicts, chunk_ids, source_authority)
     except Exception as e:
         logger.error(f"Extraction failed: {e}", exc_info=True)
@@ -337,7 +350,7 @@ Extract all EntityPatch objects from this signal. Use the submit_entity_patches 
         patches=patches,
         signal_id=signal_id,
         run_id=run_id,
-        extraction_model="claude-sonnet-4-5-20250929",
+        extraction_model="claude-sonnet-4-6",
         extraction_duration_ms=duration_ms,
     )
 
@@ -347,12 +360,16 @@ Extract all EntityPatch objects from this signal. Use the submit_entity_patches 
 # =============================================================================
 
 
-async def _call_extraction_llm(system_prompt: str, user_prompt: str) -> list[dict]:
+async def _call_extraction_llm(system_blocks: list[dict], user_prompt: str) -> list[dict]:
     """Call Sonnet for extraction using tool_use for structured output.
 
     Uses Anthropic tool_use with forced tool_choice to guarantee structured
     JSON output matching the EXTRACTION_TOOL schema. Retries up to
     _MAX_RETRIES times with exponential backoff on transient API errors.
+
+    Args:
+        system_blocks: List of content blocks (with cache_control on static part).
+        user_prompt: User message with signal content.
 
     Returns:
         List of raw patch dicts (schema-validated by Anthropic API).
@@ -374,13 +391,14 @@ async def _call_extraction_llm(system_prompt: str, user_prompt: str) -> list[dic
     for attempt in range(_MAX_RETRIES + 1):
         try:
             response = await client.messages.create(
-                model="claude-sonnet-4-5-20250929",
+                model="claude-sonnet-4-6",
                 max_tokens=8000,
-                system=system_prompt,
+                system=system_blocks,
                 messages=[{"role": "user", "content": user_prompt}],
                 temperature=0.1,
                 tools=[EXTRACTION_TOOL],
                 tool_choice={"type": "tool", "name": "submit_entity_patches"},
+                output_config={"effort": "high"},
             )
 
             # Extract tool input from response

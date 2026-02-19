@@ -15,7 +15,7 @@ from app.core.logging import get_logger
 logger = get_logger(__name__)
 
 # Use Sonnet for quality memory synthesis
-MEMORY_MODEL = "claude-sonnet-4-5-20250929"
+MEMORY_MODEL = "claude-sonnet-4-6"
 
 
 MEMORY_SYNTHESIS_PROMPT = """You are synthesizing a persistent project memory document. This memory serves as the source of truth that helps AI assistants understand this project's context, intent, and history.
@@ -280,6 +280,7 @@ def synthesize_memory_with_llm(project_id: UUID) -> str:
         model=MEMORY_MODEL,
         max_tokens=3000,
         messages=[{"role": "user", "content": prompt}],
+        output_config={"effort": "medium"},
     )
 
     content = response.content[0].text if response.content else ""
@@ -368,6 +369,7 @@ Start with the markdown document:"""
         model=MEMORY_MODEL,
         max_tokens=2000,
         messages=[{"role": "user", "content": prompt}],
+        output_config={"effort": "medium"},
     )
 
     content = response.content[0].text if response.content else ""

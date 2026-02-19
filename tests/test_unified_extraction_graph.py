@@ -123,7 +123,7 @@ class TestProcessSignalV2:
                     source_authority="client",
                 ),
             ],
-            extraction_model="claude-sonnet-4-5-20250929",
+            extraction_model="claude-sonnet-4-6",
         )
 
         mock_apply_result = PatchApplicationResult(

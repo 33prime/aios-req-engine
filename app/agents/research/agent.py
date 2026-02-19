@@ -183,11 +183,19 @@ async def run_deep_research_agent(
         try:
             # Call Claude
             response = client.messages.create(
-                model=settings.DEEP_RESEARCH_MODEL or "claude-sonnet-4-5-20250929",
+                model=settings.DEEP_RESEARCH_MODEL or "claude-sonnet-4-6",
                 max_tokens=4096,
-                system=system_prompt,
+                system=[
+                    {
+                        "type": "text",
+                        "text": system_prompt,
+                        "cache_control": {"type": "ephemeral"},
+                    }
+                ],
                 tools=TOOL_DEFINITIONS,
                 messages=messages,
+                output_config={"effort": "medium"},
+                thinking={"type": "adaptive"},
             )
 
             # Check stop reason
@@ -198,6 +206,8 @@ async def run_deep_research_agent(
                 # Extract final text
                 final_text = ""
                 for block in response.content:
+                    if block.type == "thinking":
+                        continue
                     if hasattr(block, "text"):
                         final_text = block.text
 
@@ -209,6 +219,8 @@ async def run_deep_research_agent(
             phase_just_completed = None
 
             for block in assistant_content:
+                if block.type == "thinking":
+                    continue
                 if block.type == "tool_use":
                     tool_name = block.name
                     tool_input = block.input
@@ -270,6 +282,8 @@ async def run_deep_research_agent(
     for msg in reversed(messages):
         if isinstance(msg.get("content"), list):
             for block in msg["content"]:
+                if hasattr(block, "type") and block.type == "thinking":
+                    continue
                 if hasattr(block, "text"):
                     text = block.text
                     if "insight" in text.lower() or "recommend" in text.lower():

@@ -56,7 +56,7 @@ class Settings(BaseSettings):
     MAX_SIGNAL_CHARS: int = Field(default=200_000, description="Max signal text characters")
 
     # Phase 1: Facts extraction configuration
-    FACTS_MODEL: str = Field(default="claude-sonnet-4-5-20250929", description="Model for fact extraction")
+    FACTS_MODEL: str = Field(default="claude-sonnet-4-6", description="Model for fact extraction")
     FACTS_PROMPT_VERSION: str = Field(default="facts_v1", description="Prompt version for tracking")
     FACTS_SCHEMA_VERSION: str = Field(default="facts_v1", description="Schema version for tracking")
     MAX_FACT_CHUNKS: int = Field(default=15, description="Max chunks to send for fact extraction")
@@ -185,13 +185,13 @@ class Settings(BaseSettings):
 
     # Deep Research Agent configuration
     DEEP_RESEARCH_MODEL: str = Field(
-        default="claude-sonnet-4-5-20250929",
+        default="claude-sonnet-4-6",
         description="Claude model for deep research agent"
     )
 
     # Design Intelligence Agent configuration
     DI_AGENT_MODEL: str = Field(
-        default="claude-sonnet-4-5-20250929",
+        default="claude-sonnet-4-6",
         description="Claude model for DI Agent (gating and foundation)"
     )
 
@@ -216,7 +216,7 @@ class Settings(BaseSettings):
         description="Model for v0 prompt generation (Opus for quality)"
     )
     PROTOTYPE_ANALYSIS_MODEL: str = Field(
-        default="claude-sonnet-4-5-20250929",
+        default="claude-sonnet-4-6",
         description="Model for feature analysis"
     )
     PROTOTYPE_UPDATER_PLAN_MODEL: str = Field(
@@ -224,7 +224,7 @@ class Settings(BaseSettings):
         description="Model for code update planning"
     )
     PROTOTYPE_UPDATER_EXEC_MODEL: str = Field(
-        default="claude-sonnet-4-5-20250929",
+        default="claude-sonnet-4-6",
         description="Model for code update execution"
     )
     PROTOTYPE_TEMP_DIR: str = Field(

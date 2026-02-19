@@ -454,7 +454,7 @@ async def save_chat_as_signal(
                 signal_id=UUID(signal_id),
                 run_id=UUID(run_id),
                 job_id=None,
-                model=settings.FACTS_MODEL if hasattr(settings, "FACTS_MODEL") else "claude-sonnet-4-5-20250929",
+                model=settings.FACTS_MODEL if hasattr(settings, "FACTS_MODEL") else "claude-sonnet-4-6",
                 prompt_version="chat_as_signal_v1",
                 schema_version="v1",
                 facts=output.model_dump(),

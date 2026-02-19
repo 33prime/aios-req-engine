@@ -309,7 +309,7 @@ async def synthesize_value_path(project_id: UUID) -> dict:
     from langchain_core.messages import HumanMessage, SystemMessage
 
     model = ChatAnthropic(
-        model="claude-sonnet-4-5-20250929",
+        model="claude-sonnet-4-6",
         temperature=0.1,
         max_tokens=16384,
         api_key=settings.ANTHROPIC_API_KEY,

@@ -218,11 +218,19 @@ What's your reasoning and recommended action?"""
 
         # Call Claude
         response = client.messages.create(
-            model=settings.DI_AGENT_MODEL or "claude-sonnet-4-5-20250929",
+            model=settings.DI_AGENT_MODEL or "claude-sonnet-4-6",
             max_tokens=4096,
-            system=DI_AGENT_SYSTEM_PROMPT,
+            system=[
+                {
+                    "type": "text",
+                    "text": DI_AGENT_SYSTEM_PROMPT,
+                    "cache_control": {"type": "ephemeral"},
+                }
+            ],
             tools=anthropic_tools,
             messages=[{"role": "user", "content": user_prompt}],
+            output_config={"effort": "medium"},
+            thinking={"type": "adaptive"},
         )
 
         logger.debug(f"LLM response stop_reason: {response.stop_reason}")
@@ -331,7 +339,7 @@ What's your reasoning and recommended action?"""
                 readiness_after=agent_response.readiness_after,
                 gates_affected=agent_response.gates_affected,
                 execution_time_ms=execution_time_ms,
-                llm_model=settings.DI_AGENT_MODEL or "claude-sonnet-4-5-20250929",
+                llm_model=settings.DI_AGENT_MODEL or "claude-sonnet-4-6",
                 success=True,
             )
         except Exception as e:
@@ -369,7 +377,7 @@ What's your reasoning and recommended action?"""
                 trigger_context=trigger_context,
                 stop_reason=f"Error: {str(e)}",
                 execution_time_ms=execution_time_ms,
-                llm_model=settings.DI_AGENT_MODEL or "claude-sonnet-4-5-20250929",
+                llm_model=settings.DI_AGENT_MODEL or "claude-sonnet-4-6",
                 success=False,
                 error_message=str(e),
             )
@@ -610,6 +618,8 @@ def _parse_agent_response(
     tool_calls = []
 
     for block in llm_response.content:
+        if block.type == "thinking":
+            continue
         if hasattr(block, "text"):
             text_content += block.text + "\n"
         elif block.type == "tool_use":

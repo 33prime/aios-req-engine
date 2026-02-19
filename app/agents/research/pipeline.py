@@ -404,9 +404,10 @@ Be specific and strategic. Reference actual competitor names and features."""
     client = Anthropic(api_key=settings.ANTHROPIC_API_KEY)
 
     response = client.messages.create(
-        model="claude-sonnet-4-5-20250929",
+        model="claude-sonnet-4-6",
         max_tokens=2000,
-        messages=[{"role": "user", "content": prompt}]
+        messages=[{"role": "user", "content": prompt}],
+        output_config={"effort": "medium"},
     )
 
     synthesis = response.content[0].text

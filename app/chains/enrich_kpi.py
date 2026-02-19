@@ -331,7 +331,7 @@ Extract KPI enrichment details from the above context. Review existing KPIs and 
 
         # Call LLM with Claude Sonnet 4
         model = ChatAnthropic(
-            model="claude-sonnet-4-5-20250929",
+            model="claude-sonnet-4-6",
             temperature=0.1,
             api_key=settings.ANTHROPIC_API_KEY,
         )

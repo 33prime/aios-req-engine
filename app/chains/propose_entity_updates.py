@@ -185,10 +185,11 @@ async def propose_entity_updates(
         )
 
         response = client.messages.create(
-            model="claude-sonnet-4-5-20250929",
+            model="claude-sonnet-4-6",
             max_tokens=4096,
             temperature=0.3,  # Slightly more creative for proposals
             messages=[{"role": "user", "content": prompt}],
+            output_config={"effort": "medium"},
         )
 
         response_text = response.content[0].text if response.content else ""

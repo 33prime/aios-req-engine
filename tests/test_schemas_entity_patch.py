@@ -278,11 +278,11 @@ class TestEntityPatchList:
             patches=patches,
             signal_id="sig-1",
             run_id="run-1",
-            extraction_model="claude-sonnet-4-5-20250929",
+            extraction_model="claude-sonnet-4-6",
             extraction_duration_ms=1500,
         )
         assert len(pl.patches) == 2
-        assert pl.extraction_model == "claude-sonnet-4-5-20250929"
+        assert pl.extraction_model == "claude-sonnet-4-6"
 
 
 class TestPatchApplicationResult:
