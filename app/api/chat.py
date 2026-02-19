@@ -33,7 +33,7 @@ class ChatRequest(BaseModel):
     """Request to chat with the AI assistant."""
 
     message: str
-    conversation_id: str
+    conversation_id: str | None = None
     conversation_history: List[ChatMessage] = []
     context: Dict[str, Any] | None = None
     page_context: str | None = None  # e.g., "brd:workflows", "canvas", "prototype"
