@@ -157,38 +157,35 @@ async def upload_simple_research(request: SimpleResearchUploadRequest) -> Simple
             },
         )
 
-        # Auto-trigger processing using the new unified pipeline
-        # Routes to bulk pipeline automatically if heavyweight
+        # Auto-trigger V2 processing pipeline
         try:
-            from app.core.signal_pipeline import process_signal
+            from app.graphs.unified_processor import process_signal_v2
 
             logger.info(
-                f"Processing research signal {signal_id} through unified pipeline",
+                f"Processing research signal {signal_id} through V2 pipeline",
                 extra={"run_id": str(run_id), "signal_id": str(signal_id)},
             )
 
-            pipeline_result = await process_signal(
-                project_id=request.project_id,
+            pipeline_result = await process_signal_v2(
                 signal_id=signal_id,
+                project_id=request.project_id,
                 run_id=run_id,
-                signal_content=request.content,
-                signal_type="research",
-                signal_metadata={"doc_type": request.doc_type, "title": request.title},
             )
 
-            if pipeline_result.get("success"):
+            if pipeline_result.success:
                 logger.info(
-                    f"Processing completed for research signal {signal_id}: pipeline={pipeline_result.get('pipeline')}",
-                    extra={"run_id": str(run_id), "signal_id": str(signal_id), "result": pipeline_result},
+                    f"V2 processing completed for research signal {signal_id}: "
+                    f"patches_applied={pipeline_result.patches_applied}, created={pipeline_result.created_count}",
+                    extra={"run_id": str(run_id), "signal_id": str(signal_id)},
                 )
             else:
                 logger.warning(
-                    f"Processing failed for research signal {signal_id}: {pipeline_result.get('error')}",
+                    f"V2 processing failed for research signal {signal_id}: {pipeline_result.error}",
                     extra={"run_id": str(run_id), "signal_id": str(signal_id)},
                 )
         except Exception as processing_error:
             logger.exception(
-                f"Processing failed for research signal {signal_id}",
+                f"V2 processing failed for research signal {signal_id}",
                 extra={"run_id": str(run_id), "signal_id": str(signal_id)},
             )
             # Don't fail upload if processing fails

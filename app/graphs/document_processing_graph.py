@@ -603,10 +603,11 @@ def _trigger_signal_pipeline(
     signal_content: str,
     signal_type: str,
 ) -> None:
-    """Trigger signal pipeline in background to extract features/personas/etc.
+    """Trigger V2 signal pipeline in background to extract entities via EntityPatch.
 
-    Uses the full process_signal function to ensure documents go through the
-    complete pipeline including memory agent integration.
+    Uses threading because this is called from a sync LangGraph node.
+    V2 reads the signal from DB via signal_id, so signal_content/signal_type
+    are only used for logging.
     """
     import threading
     from uuid import uuid4
@@ -614,35 +615,32 @@ def _trigger_signal_pipeline(
     def run_pipeline():
         try:
             import asyncio
-            from app.core.signal_pipeline import process_signal
+            from app.graphs.unified_processor import process_signal_v2
 
             run_id = uuid4()
             logger.info(
-                f"Starting signal pipeline for document signal {signal_id}",
+                f"Starting V2 signal pipeline for document signal {signal_id}",
                 extra={"project_id": str(project_id), "run_id": str(run_id)},
             )
 
-            # Run full signal pipeline (includes build state + memory agent)
             result = asyncio.run(
-                process_signal(
-                    project_id=project_id,
+                process_signal_v2(
                     signal_id=signal_id,
+                    project_id=project_id,
                     run_id=run_id,
-                    signal_content=signal_content,
-                    signal_type=signal_type,
                 )
             )
 
             logger.info(
-                f"Signal pipeline completed for document: "
-                f"success={result.get('success')}, "
-                f"pipeline={result.get('pipeline')}, "
-                f"features={result.get('features_created', 0)}",
+                f"V2 signal pipeline completed for document: "
+                f"success={result.success}, "
+                f"patches_applied={result.patches_applied}, "
+                f"created={result.created_count}",
                 extra={"project_id": str(project_id), "signal_id": str(signal_id)},
             )
 
         except Exception as e:
-            logger.exception(f"Signal pipeline failed for document: {e}")
+            logger.exception(f"V2 signal pipeline failed for document: {e}")
 
     # Run in background thread
     thread = threading.Thread(target=run_pipeline, daemon=True)

@@ -762,27 +762,25 @@ async def _create_portal_response_signal(info_request: InfoRequest, user_id: UUI
         except Exception as cache_err:
             logger.warning(f"Failed to invalidate DI cache: {cache_err}")
 
-        # Trigger lightweight signal processing (entities, memory, readiness)
+        # Trigger V2 signal processing (entities, memory)
         if signal_id:
             try:
-                from app.core.signal_pipeline import process_signal_lightweight
-                processing_result = await process_signal_lightweight(
-                    project_id=info_request.project_id,
+                from uuid import uuid4 as _uuid4
+
+                from app.graphs.unified_processor import process_signal_v2
+
+                v2_result = await process_signal_v2(
                     signal_id=signal_id,
-                    signal_content=signal_content,
-                    signal_type="portal_response",
-                    signal_metadata={
-                        "authority": "client",
-                        "info_request_id": str(info_request.id),
-                    },
+                    project_id=info_request.project_id,
+                    run_id=_uuid4(),
                 )
                 logger.info(
-                    f"Signal processing completed for {signal_id}: "
-                    f"features={processing_result.get('features_created', 0)}, "
-                    f"personas={processing_result.get('personas_created', 0)}"
+                    f"V2 signal processing completed for {signal_id}: "
+                    f"patches_applied={v2_result.patches_applied}, "
+                    f"created={v2_result.created_count}"
                 )
             except Exception as proc_err:
-                logger.warning(f"Signal processing failed (non-fatal): {proc_err}")
+                logger.warning(f"V2 signal processing failed (non-fatal): {proc_err}")
 
             # Check if this resolves any open confirmation items
             try:

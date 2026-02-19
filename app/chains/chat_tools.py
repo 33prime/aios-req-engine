@@ -2604,58 +2604,36 @@ async def _add_signal(project_id: UUID, params: Dict[str, Any]) -> Dict[str, Any
             "chunks_created": chunks_created,
         }
 
-        # Process through the new unified pipeline if requested
+        # Process through V2 pipeline if requested
         if process_immediately:
             try:
-                from app.core.signal_pipeline import process_signal
+                from app.graphs.unified_processor import process_signal_v2
 
-                logger.info(f"Processing signal {signal_id} through new unified pipeline")
+                logger.info(f"Processing signal {signal_id} through V2 pipeline")
 
-                # Run the new unified pipeline
-                pipeline_result = await process_signal(
-                    project_id=project_id,
+                pipeline_result = await process_signal_v2(
                     signal_id=UUID(signal_id),
+                    project_id=project_id,
                     run_id=UUID(run_id),
-                    signal_content=content,
-                    signal_type=signal_type,
-                    signal_metadata={"source": source, "added_via": "chat_assistant", "title": signal_title},
                 )
 
-                if pipeline_result.get("success"):
+                if pipeline_result.success:
                     result["processed"] = True
-                    result["pipeline"] = pipeline_result.get("pipeline", "standard")
-
-                    # Build result message based on pipeline type
-                    if result["pipeline"] == "bulk":
-                        proposal_id = pipeline_result.get("proposal_id")
-                        total_changes = pipeline_result.get("total_changes", 0)
-                        if proposal_id:
-                            result["proposal_id"] = proposal_id
-                            result["total_changes"] = total_changes
-                            result["message"] = f"Heavyweight signal processed. Created bulk proposal with {total_changes} changes for review."
-                        else:
-                            result["message"] = f"Heavyweight signal processed but no changes detected."
-                    else:
-                        # Standard pipeline results
-                        features = pipeline_result.get("features_created", 0)
-                        personas = pipeline_result.get("personas_created", 0)
-                        vp_steps = pipeline_result.get("vp_steps_created", 0)
-                        result["features_created"] = features
-                        result["personas_created"] = personas
-                        result["vp_steps_created"] = vp_steps
-                        result["message"] = f"Created {signal_type} signal and processed: {features} features, {personas} personas, {vp_steps} VP steps"
-
-                    # Include classification info
-                    if pipeline_result.get("classification"):
-                        result["classification"] = pipeline_result["classification"]
-
+                    result["patches_applied"] = pipeline_result.patches_applied
+                    result["created_count"] = pipeline_result.created_count
+                    result["merged_count"] = pipeline_result.merged_count
+                    result["message"] = pipeline_result.chat_summary or (
+                        f"Created {signal_type} signal and processed: "
+                        f"{pipeline_result.patches_applied} patches applied, "
+                        f"{pipeline_result.created_count} created"
+                    )
                 else:
                     result["processed"] = False
-                    result["pipeline_error"] = pipeline_result.get("error", "Unknown error")
+                    result["pipeline_error"] = pipeline_result.error or "Unknown error"
                     result["message"] = f"Created {signal_type} signal but processing failed: {result['pipeline_error']}"
 
             except Exception as pipeline_error:
-                logger.warning(f"Pipeline processing failed: {pipeline_error}")
+                logger.warning(f"V2 pipeline processing failed: {pipeline_error}")
                 result["processed"] = False
                 result["pipeline_error"] = str(pipeline_error)
                 result["message"] = f"Created {signal_type} signal but processing failed: {str(pipeline_error)}"

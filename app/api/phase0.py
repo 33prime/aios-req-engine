@@ -254,151 +254,77 @@ def _auto_trigger_processing(
     run_id: UUID,
 ) -> None:
     """
-    Auto-trigger processing pipeline based on project mode.
+    Auto-trigger V2 signal processing pipeline.
 
-    - Initial mode: Run extract_facts (and optionally build_state)
-    - Maintenance mode: Run surgical_update + selective enrichment
+    V2 handles all modes uniformly (no prd_mode branching needed).
+    The pipeline reads signal data from DB via signal_id.
 
     Args:
         project_id: Project UUID
         signal_id: Signal UUID that was just ingested
         run_id: Run tracking UUID
     """
-    from app.db.supabase_client import get_supabase
+    from app.db.jobs import complete_job, create_job, fail_job, start_job
 
     logger.info(
-        f"Auto-triggering processing for signal {signal_id}",
+        f"Auto-triggering V2 processing for signal {signal_id}",
         extra={"run_id": str(run_id), "project_id": str(project_id)},
     )
 
-    # Get project mode
-    supabase = get_supabase()
-    project_response = supabase.table("projects").select("prd_mode").eq("id", str(project_id)).single().execute()
+    # Create job for visibility
+    agent_job_id = create_job(
+        project_id=project_id,
+        job_type="signal_processing_v2",
+        input_json={"signal_id": str(signal_id), "trigger": "auto"},
+        run_id=run_id,
+    )
+    start_job(agent_job_id)
 
-    if not project_response.data:
-        logger.warning(f"Project {project_id} not found, skipping auto-trigger")
-        return
+    try:
+        import asyncio
 
-    prd_mode = project_response.data.get("prd_mode", "initial")
+        from app.graphs.unified_processor import process_signal_v2
 
-    if prd_mode == "maintenance":
-        # Maintenance mode: Run surgical update
-        logger.info(
-            "Project in maintenance mode, triggering surgical update",
-            extra={"run_id": str(run_id), "project_id": str(project_id)},
-        )
-
-        # Create job for visibility
-        from app.db.jobs import complete_job, create_job, fail_job, start_job
-        agent_job_id = create_job(
+        result = asyncio.run(process_signal_v2(
+            signal_id=signal_id,
             project_id=project_id,
-            job_type="surgical_update",
-            input_json={"signal_id": str(signal_id), "trigger": "auto"},
             run_id=run_id,
-        )
-        start_job(agent_job_id)
+        ))
 
-        try:
-            from app.graphs.surgical_update_graph import run_surgical_update
-
-            result = run_surgical_update(
-                signal_id=signal_id,
-                project_id=project_id,
-                run_id=run_id,
-            )
+        if result.success:
             logger.info(
-                f"Surgical update completed: {result.patches_applied} applied, {result.patches_escalated} escalated",
-                extra={"run_id": str(run_id), "result": result.model_dump()},
+                f"V2 signal processing completed: "
+                f"patches_applied={result.patches_applied}, created={result.created_count}",
+                extra={
+                    "run_id": str(run_id),
+                    "patches_applied": result.patches_applied,
+                    "created_count": result.created_count,
+                    "merged_count": result.merged_count,
+                },
             )
 
-            complete_job(agent_job_id, output_json=result.model_dump())
+            complete_job(
+                agent_job_id,
+                output_json={
+                    "patches_applied": result.patches_applied,
+                    "patches_escalated": result.patches_escalated,
+                    "created": result.created_count,
+                    "merged": result.merged_count,
+                    "updated": result.updated_count,
+                },
+            )
+        else:
+            error_msg = result.error or "Unknown error"
+            logger.error(
+                f"V2 signal processing failed: {error_msg}",
+                extra={"run_id": str(run_id), "signal_id": str(signal_id)},
+            )
+            fail_job(agent_job_id, error_msg)
 
-            # Phase 3: Trigger selective enrichment for changed entities
-            if result.patches_applied > 0:
-                _trigger_selective_enrichment(project_id, result, run_id)
-
-        except Exception as e:
-            logger.exception("Surgical update failed", extra={"run_id": str(run_id)})
-            fail_job(agent_job_id, str(e))
-            # Don't raise - ingestion already succeeded
-
-    else:
-        # Initial mode: Run unified signal processing pipeline
-        logger.info(
-            "Project in initial mode, triggering unified signal pipeline",
-            extra={"run_id": str(run_id), "project_id": str(project_id)},
-        )
-
-        # Create job for visibility
-        from app.db.jobs import complete_job, create_job, fail_job, start_job
-        agent_job_id = create_job(
-            project_id=project_id,
-            job_type="signal_processing",
-            input_json={"signal_id": str(signal_id), "trigger": "auto"},
-            run_id=run_id,
-        )
-        start_job(agent_job_id)
-
-        try:
-            import asyncio
-
-            from app.core.signal_pipeline import process_signal
-            from app.db.signals import get_signal
-
-            # Get signal content
-            signal = get_signal(signal_id)
-            if not signal:
-                raise ValueError(f"Signal {signal_id} not found")
-
-            signal_content = signal.get("content", "")
-            signal_type = signal.get("signal_type", "signal")
-            signal_title = signal.get("title", "Untitled")
-
-            # Run unified pipeline (async wrapper)
-            result = asyncio.run(process_signal(
-                project_id=project_id,
-                signal_id=signal_id,
-                run_id=run_id,
-                signal_content=signal_content,
-                signal_type=signal_type,
-                signal_metadata={"title": signal_title},
-            ))
-
-            if result.get("success"):
-                logger.info(
-                    f"Signal processing completed: pipeline={result.get('pipeline')}",
-                    extra={
-                        "run_id": str(run_id),
-                        "features_created": result.get("features_created", 0),
-                        "personas_created": result.get("personas_created", 0),
-                        "vp_steps_created": result.get("vp_steps_created", 0),
-                        "proposal_id": result.get("proposal_id"),
-                    },
-                )
-
-                complete_job(
-                    agent_job_id,
-                    output_json={
-                        "pipeline": result.get("pipeline"),
-                        "features_created": result.get("features_created", 0),
-                        "personas_created": result.get("personas_created", 0),
-                        "vp_steps_created": result.get("vp_steps_created", 0),
-                        "proposal_id": result.get("proposal_id"),
-                        "message": result.get("message", "Processing completed"),
-                    },
-                )
-            else:
-                error_msg = result.get("error", "Unknown error")
-                logger.error(
-                    f"Signal processing failed: {error_msg}",
-                    extra={"run_id": str(run_id), "signal_id": str(signal_id)},
-                )
-                fail_job(agent_job_id, error_msg)
-
-        except Exception as e:
-            logger.exception("Extract facts failed", extra={"run_id": str(run_id)})
-            fail_job(agent_job_id, str(e))
-            # Don't raise - ingestion already succeeded
+    except Exception as e:
+        logger.exception("V2 signal processing failed", extra={"run_id": str(run_id)})
+        fail_job(agent_job_id, str(e))
+        # Don't raise - ingestion already succeeded
 
 
 def _auto_trigger_build_state(project_id: UUID, run_id: UUID) -> None:

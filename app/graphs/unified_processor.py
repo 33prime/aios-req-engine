@@ -1155,16 +1155,34 @@ async def v2_generate_summary(state: V2ProcessorState) -> dict[str, Any]:
         return {"chat_summary": "Signal processed. Check the BRD for updates."}
 
 
+def _build_entity_counts(result) -> dict:
+    """Extract entity counts from PatchApplicationResult for memory agent."""
+    if not result:
+        return {}
+    return {
+        "created": result.created_count,
+        "merged": result.merged_count,
+        "updated": result.updated_count,
+        "staled": result.staled_count,
+        "deleted": result.deleted_count,
+        "total_applied": result.total_applied,
+    }
+
+
 async def v2_trigger_memory(state: V2ProcessorState) -> dict[str, Any]:
     """Fire MemoryWatcher for signal processing event."""
     try:
-        from app.core.signal_pipeline import process_signal_for_memory
+        from app.agents.memory_agent import process_signal_for_memory
 
         if state.signal and state.signal_text:
+            entity_counts = _build_entity_counts(state.application_result)
+            signal_type = state.signal.get("signal_type", "signal") if state.signal else "signal"
             await process_signal_for_memory(
                 project_id=state.project_id,
                 signal_id=state.signal_id,
-                signal_text=state.signal_text,
+                signal_type=signal_type,
+                raw_text=state.signal_text,
+                entities_extracted=entity_counts,
             )
     except ImportError:
         logger.debug("[v2] Memory processing not available")

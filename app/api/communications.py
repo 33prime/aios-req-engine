@@ -6,7 +6,7 @@ Covers Google OAuth, email capture, meeting recording, and privacy endpoints.
 import logging
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 
 from app.core.auth_middleware import AuthContext, require_auth, require_super_admin
 from app.core.config import get_settings
@@ -146,6 +146,7 @@ async def update_my_integrations(
 async def submit_email(
     request: EmailSubmission,
     auth: AuthContext = Depends(require_auth),
+    background_tasks: BackgroundTasks = BackgroundTasks(),
 ):
     """
     Submit an email for ingestion as a signal.
@@ -166,6 +167,8 @@ async def submit_email(
             detail="Email body is empty after sanitization",
         )
 
+    run_id = uuid4()
+
     # Build signal metadata
     metadata = {
         "authority": "client",
@@ -183,7 +186,7 @@ async def submit_email(
         signal_type="email",
         raw_text=sanitized_body,
         metadata=metadata,
-        run_id=uuid4(),
+        run_id=run_id,
         source_label=f"Email: {request.subject}" if request.subject else "Email",
     )
 
@@ -194,7 +197,38 @@ async def submit_email(
         f"project={request.project_id}, sender={request.sender}"
     )
 
+    # Trigger V2 pipeline in background
+    if signal_id:
+        background_tasks.add_task(
+            _process_email_signal_v2,
+            signal_id=UUID(signal_id),
+            project_id=request.project_id,
+            run_id=run_id,
+        )
+
     return EmailSubmissionResponse(signal_id=signal_id)
+
+
+async def _process_email_signal_v2(
+    signal_id: UUID,
+    project_id: UUID,
+    run_id: UUID,
+) -> None:
+    """Process email signal through V2 pipeline (runs as background task)."""
+    try:
+        from app.graphs.unified_processor import process_signal_v2
+
+        result = await process_signal_v2(
+            signal_id=signal_id,
+            project_id=project_id,
+            run_id=run_id,
+        )
+        logger.info(
+            f"V2 email processing completed for {signal_id}: "
+            f"patches_applied={result.patches_applied}, created={result.created_count}"
+        )
+    except Exception as e:
+        logger.warning(f"V2 email processing failed for {signal_id} (non-fatal): {e}")
 
 
 # ============================================================================
