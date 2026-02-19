@@ -6,11 +6,11 @@ import { SectionHeader } from '../components/SectionHeader'
 import { BRDStatusBadge } from '../components/StatusBadge'
 import { ConfirmActions } from '../components/ConfirmActions'
 import { StaleIndicator } from '../components/StaleIndicator'
-import type { PersonaBRDSummary, VpStepBRDSummary } from '@/types/workspace'
+import type { PersonaBRDSummary } from '@/types/workspace'
 
 interface ActorsSectionProps {
   actors: PersonaBRDSummary[]
-  workflows?: VpStepBRDSummary[]
+  workflows?: unknown[]
   onConfirm: (entityType: string, entityId: string) => void
   onNeedsReview: (entityType: string, entityId: string) => void
   onConfirmAll: (entityType: string, ids: string[]) => void
@@ -174,17 +174,12 @@ export function ActorsSection({ actors, workflows = [], onConfirm, onNeedsReview
     (a) => a.confirmation_status === 'confirmed_consultant' || a.confirmation_status === 'confirmed_client'
   ).length
 
-  // Derive primary actors = those referenced as actor_persona_id in any workflow step
+  // Derive primary/secondary from canvas_role (set by user toggle)
   const { primaryActors, secondaryActors } = useMemo(() => {
-    const activeActorIds = new Set(
-      workflows
-        .map((w) => w.actor_persona_id)
-        .filter((id): id is string => !!id)
-    )
-    const primary = actors.filter((a) => activeActorIds.has(a.id))
-    const secondary = actors.filter((a) => !activeActorIds.has(a.id))
+    const primary = actors.filter((a) => a.canvas_role === 'primary')
+    const secondary = actors.filter((a) => a.canvas_role !== 'primary')
     return { primaryActors: primary, secondaryActors: secondary }
-  }, [actors, workflows])
+  }, [actors])
 
   const renderActorCard = (actor: PersonaBRDSummary) => (
     <ActorAccordionCard
@@ -198,8 +193,8 @@ export function ActorsSection({ actors, workflows = [], onConfirm, onNeedsReview
     />
   )
 
-  // If no workflows data or all actors are primary, render flat list
-  const hasSplit = workflows.length > 0 && secondaryActors.length > 0
+  // Show split view when at least one actor is marked primary and others aren't
+  const hasSplit = primaryActors.length > 0 && secondaryActors.length > 0
 
   return (
     <section id="brd-section-personas">

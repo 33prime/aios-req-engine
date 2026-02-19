@@ -62,21 +62,28 @@ function VisionDot({ alignment }: { alignment?: VisionAlignment | null }) {
 // ============================================================================
 
 function LinkSummary({ driver }: { driver: BusinessDriver }) {
+  const evidenceCount = driver.evidence?.length ?? 0
   const personaCount = driver.linked_persona_count ?? 0
   const featureCount = driver.linked_feature_count ?? 0
   const workflowCount = driver.linked_workflow_count ?? 0
   const totalLinks = personaCount + featureCount + workflowCount
 
-  if (totalLinks === 0) {
+  if (evidenceCount === 0 && totalLinks === 0) {
     return (
       <span className="text-[11px] text-[#999999] bg-[#F0F0F0] px-2 py-0.5 rounded-full">
-        Unlinked
+        No evidence yet
       </span>
     )
   }
 
   return (
     <div className="flex items-center gap-3 text-[11px] text-[#666666]">
+      {evidenceCount > 0 && (
+        <span className="flex items-center gap-1 text-[#25785A]">
+          <FileText className="w-3 h-3" />
+          {evidenceCount} source{evidenceCount !== 1 ? 's' : ''}
+        </span>
+      )}
       {driver.associated_persona_names && driver.associated_persona_names.length > 0 && (
         <span className="flex items-center gap-1">
           <Users className="w-3 h-3 text-[#999999]" />
@@ -105,7 +112,6 @@ function LinkSummary({ driver }: { driver: BusinessDriver }) {
 // ============================================================================
 
 function MetricLine({ driver }: { driver: BusinessDriver }) {
-  const evidenceCount = driver.evidence?.length ?? 0
   const parts: string[] = []
 
   if (driver.driver_type === 'pain') {
@@ -127,16 +133,20 @@ function MetricLine({ driver }: { driver: BusinessDriver }) {
     }
   }
 
-  if (parts.length === 0 && evidenceCount === 0) return null
+  // Show first evidence excerpt as a preview
+  const firstEvidence = driver.evidence?.[0]
+
+  if (parts.length === 0 && !firstEvidence) return null
 
   return (
-    <div className="flex items-center gap-2 text-[11px] text-[#999999]">
-      {parts.length > 0 && <span>{parts.join('  ·  ')}</span>}
-      {evidenceCount > 0 && (
-        <span className="flex items-center gap-0.5">
-          <FileText className="w-3 h-3" />
-          {evidenceCount} source{evidenceCount !== 1 ? 's' : ''}
-        </span>
+    <div className="space-y-1">
+      {parts.length > 0 && (
+        <div className="text-[11px] text-[#999999]">{parts.join('  ·  ')}</div>
+      )}
+      {firstEvidence && (
+        <div className="text-[11px] text-[#666666] italic line-clamp-1">
+          &ldquo;{firstEvidence.excerpt}&rdquo;
+        </div>
       )}
     </div>
   )
@@ -188,23 +198,45 @@ function DriverCard({
           </span>
         </div>
 
-        {/* Line 2: Actor chips + link counts */}
+        {/* Line 2: Evidence sources + entity links */}
         <div className="ml-[52px] mt-1.5">
           <LinkSummary driver={driver} />
         </div>
 
-        {/* Line 3: Key metrics + evidence count */}
+        {/* Line 3: Key metrics + first evidence excerpt */}
         <div className="ml-[52px] mt-1">
           <MetricLine driver={driver} />
         </div>
       </button>
 
-      {/* Expanded view — lightweight, detail is in the drawer */}
+      {/* Expanded view — evidence + actions */}
       {hasBeenExpanded && (
-        <div className={`overflow-hidden transition-all duration-200 ${expanded ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'}`}>
-          <div className="px-5 pb-4 pt-2 border-t border-[#E5E5E5]">
+        <div className={`overflow-hidden transition-all duration-200 ${expanded ? 'max-h-[800px] opacity-100' : 'max-h-0 opacity-0'}`}>
+          <div className="px-5 pb-4 pt-2 border-t border-[#E5E5E5] space-y-3">
+            {/* Evidence excerpts */}
+            {driver.evidence && driver.evidence.length > 0 && (
+              <div className="space-y-2">
+                <span className="text-[11px] font-semibold text-[#999999] uppercase tracking-wider">Evidence</span>
+                {driver.evidence.slice(0, 3).map((ev, i) => (
+                  <div key={i} className="flex items-start gap-2 pl-2 border-l-2 border-[#3FAF7A]/30">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[12px] text-[#333333] italic leading-relaxed">&ldquo;{ev.excerpt}&rdquo;</p>
+                      <p className="text-[10px] text-[#999999] mt-0.5">{ev.rationale}</p>
+                    </div>
+                    <span className="text-[10px] text-[#999999] bg-[#F0F0F0] px-1.5 py-0.5 rounded shrink-0">
+                      {ev.source_type}
+                    </span>
+                  </div>
+                ))}
+                {driver.evidence.length > 3 && (
+                  <button onClick={onDetailClick} className="text-[11px] text-[#999999] hover:text-[#3FAF7A] transition-colors pl-2">
+                    +{driver.evidence.length - 3} more source{driver.evidence.length - 3 !== 1 ? 's' : ''} →
+                  </button>
+                )}
+              </div>
+            )}
             {/* Actions row */}
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between pt-1">
               <ConfirmActions status={driver.confirmation_status} onConfirm={onConfirm} onNeedsReview={onNeedsReview} />
               <button
                 onClick={onDetailClick}
@@ -244,8 +276,8 @@ function SortFilterBar({
 
   const filterOptions: { key: FilterKey; label: string }[] = [
     { key: 'all', label: 'All' },
-    { key: 'linked', label: 'Linked' },
-    { key: 'orphaned', label: 'Orphaned' },
+    { key: 'linked', label: 'With Evidence' },
+    { key: 'orphaned', label: 'No Evidence' },
   ]
 
   return (
@@ -290,6 +322,10 @@ function SortFilterBar({
 // Sorting + Filtering Helpers
 // ============================================================================
 
+function getDriverLinkScore(d: BusinessDriver): number {
+  return (d.evidence?.length ?? 0) + (d.linked_feature_count ?? 0) + (d.linked_persona_count ?? 0) + (d.linked_workflow_count ?? 0)
+}
+
 function sortDrivers(drivers: BusinessDriver[], key: SortKey): BusinessDriver[] {
   const sorted = [...drivers]
   switch (key) {
@@ -297,11 +333,7 @@ function sortDrivers(drivers: BusinessDriver[], key: SortKey): BusinessDriver[] 
       sorted.sort((a, b) => (b.relatability_score ?? 0) - (a.relatability_score ?? 0))
       break
     case 'linked':
-      sorted.sort((a, b) => {
-        const aLinks = (a.linked_feature_count ?? 0) + (a.linked_persona_count ?? 0) + (a.linked_workflow_count ?? 0)
-        const bLinks = (b.linked_feature_count ?? 0) + (b.linked_persona_count ?? 0) + (b.linked_workflow_count ?? 0)
-        return bLinks - aLinks
-      })
+      sorted.sort((a, b) => getDriverLinkScore(b) - getDriverLinkScore(a))
       break
     case 'confirmed': {
       const confirmedSet = new Set(['confirmed_consultant', 'confirmed_client'])
@@ -313,7 +345,6 @@ function sortDrivers(drivers: BusinessDriver[], key: SortKey): BusinessDriver[] 
       break
     }
     case 'newest':
-      // Already sorted by newest if no explicit sort — keep as-is (backend default)
       break
   }
   return sorted
@@ -322,14 +353,10 @@ function sortDrivers(drivers: BusinessDriver[], key: SortKey): BusinessDriver[] 
 function filterDrivers(drivers: BusinessDriver[], key: FilterKey): BusinessDriver[] {
   if (key === 'all') return drivers
   if (key === 'linked') {
-    return drivers.filter((d) =>
-      (d.linked_feature_count ?? 0) + (d.linked_persona_count ?? 0) + (d.linked_workflow_count ?? 0) > 0
-    )
+    return drivers.filter((d) => getDriverLinkScore(d) > 0)
   }
   if (key === 'orphaned') {
-    return drivers.filter((d) =>
-      (d.linked_feature_count ?? 0) + (d.linked_persona_count ?? 0) + (d.linked_workflow_count ?? 0) === 0
-    )
+    return drivers.filter((d) => getDriverLinkScore(d) === 0)
   }
   return drivers
 }
