@@ -120,19 +120,30 @@ def _execute_company_research(context: dict) -> str:
     return f"Enriched {fields_enriched} fields from website"
 
 
+def _build_evidence_from_quotes(quotes: list[str]) -> list[dict]:
+    """Build evidence JSONB entries from LLM-generated evidence quotes."""
+    return [
+        {"excerpt": q, "source_type": "signal", "rationale": "From project launch transcript"}
+        for q in quotes
+        if q
+    ]
+
+
 def _execute_entity_generation(context: dict) -> str:
     """Run the entity generation pipeline from chat transcript."""
     from app.chains.generate_project_entities import (
         generate_project_entities,
         validate_onboarding_input,
     )
+    from app.core.change_tracking import track_bulk_changes, track_entity_change
     from app.db.features import bulk_replace_features
-    from app.db.personas import create_persona
     from app.db.supabase_client import get_supabase
     from app.db.workflows import create_workflow, create_workflow_step, pair_workflows
 
     project_id = context["project_id"]
     project_id_str = context["project_id_str"]
+    signal_id = context.get("signal_id")
+    signal_id_list = [str(signal_id)] if signal_id else []
 
     # Build transcript from chat_transcript or fall back to problem_description
     transcript = context.get("chat_transcript") or context.get("problem_description", "")
@@ -160,38 +171,72 @@ def _execute_entity_generation(context: dict) -> str:
     if project_update:
         supabase.table("projects").update(project_update).eq("id", project_id_str).execute()
 
-    # --- Save personas ---
+    # --- Save personas (direct insert for evidence + source_signal_ids control) ---
     persona_count = 0
+    persona_rows_created: list[dict] = []
     for p in result.personas:
         try:
             slug = p.name.lower().replace(" ", "-")[:50]
             status = "confirmed_consultant" if p.confidence >= 0.8 else "ai_generated"
-            create_persona(
-                project_id=project_id,
-                slug=slug,
-                name=p.name,
-                role=p.role,
-                description=p.description,
-                goals=p.goals,
-                pain_points=p.pain_points,
-                confirmation_status=status,
-            )
-            persona_count += 1
+            evidence = _build_evidence_from_quotes(p.evidence_quotes)
+            persona_data: dict[str, Any] = {
+                "project_id": project_id_str,
+                "slug": slug,
+                "name": p.name,
+                "role": p.role,
+                "description": p.description,
+                "goals": p.goals,
+                "pain_points": p.pain_points,
+                "demographics": {},
+                "psychographics": {},
+                "related_features": [],
+                "related_vp_steps": [],
+                "confirmation_status": status,
+                "evidence": evidence,
+            }
+            if signal_id_list:
+                persona_data["source_signal_ids"] = signal_id_list
+
+            resp = supabase.table("personas").insert(persona_data).execute()
+            if resp.data:
+                persona_rows_created.append(resp.data[0])
+                persona_count += 1
         except Exception as e:
             logger.warning(f"Failed to create persona {p.name}: {e}")
 
+    # Track persona revisions in bulk
+    if persona_rows_created:
+        try:
+            track_bulk_changes(
+                project_id=project_id,
+                entity_type="persona",
+                created_entities=persona_rows_created,
+                trigger_event="project_launch",
+                source_signal_id=signal_id,
+                created_by="project_launch",
+                label_field="name",
+            )
+        except Exception as e:
+            logger.debug(f"Persona revision tracking failed: {e}")
+
     # --- Save business drivers (direct insert — no dedup needed for fresh generation) ---
     driver_count = 0
+    driver_rows_created: list[dict] = []
     for d in result.drivers:
         try:
             status = "confirmed_consultant" if d.confidence >= 0.8 else "ai_generated"
+            evidence = _build_evidence_from_quotes(d.evidence_quotes)
             driver_row: dict[str, Any] = {
                 "project_id": project_id_str,
                 "driver_type": d.driver_type,
                 "description": d.description,
                 "priority": d.priority,
                 "confirmation_status": status,
+                "evidence": evidence,
             }
+            if signal_id_list:
+                driver_row["source_signal_ids"] = signal_id_list
+
             # Add type-specific fields
             if d.driver_type == "pain":
                 if d.severity:
@@ -213,16 +258,34 @@ def _execute_entity_generation(context: dict) -> str:
                 if d.measurement_method:
                     driver_row["measurement_method"] = d.measurement_method
 
-            supabase.table("business_drivers").insert(driver_row).execute()
-            driver_count += 1
+            resp = supabase.table("business_drivers").insert(driver_row).execute()
+            if resp.data:
+                driver_rows_created.append(resp.data[0])
+                driver_count += 1
         except Exception as e:
             logger.error(f"Failed to create {d.driver_type} driver '{d.description[:60]}': {e}")
+
+    # Track driver revisions in bulk
+    if driver_rows_created:
+        try:
+            track_bulk_changes(
+                project_id=project_id,
+                entity_type="business_driver",
+                created_entities=driver_rows_created,
+                trigger_event="project_launch",
+                source_signal_id=signal_id,
+                created_by="project_launch",
+                label_field="description",
+            )
+        except Exception as e:
+            logger.debug(f"Driver revision tracking failed: {e}")
 
     # --- Save requirements as features ---
     feature_rows = []
     for r in result.requirements:
         status = "confirmed_consultant" if r.confidence >= 0.8 else "ai_generated"
-        feature_rows.append({
+        evidence = _build_evidence_from_quotes(r.evidence_quotes)
+        row: dict[str, Any] = {
             "name": r.name,
             "overview": r.overview,
             "category": r.category,
@@ -230,12 +293,53 @@ def _execute_entity_generation(context: dict) -> str:
             "confirmation_status": status,
             "confidence": r.confidence,
             "status": "proposed",
-        })
+            "evidence": evidence,
+        }
+        if signal_id_list:
+            row["source_signal_ids"] = signal_id_list
+        feature_rows.append(row)
+
     feature_count = 0
     if feature_rows:
         try:
             inserted, _ = bulk_replace_features(project_id, feature_rows)
             feature_count = inserted
+
+            # Track feature revisions — query inserted features for revision data
+            if inserted > 0:
+                try:
+                    feat_resp = (
+                        supabase.table("features")
+                        .select("*")
+                        .eq("project_id", project_id_str)
+                        .eq("confirmation_status", "ai_generated")
+                        .order("created_at", desc=True)
+                        .limit(inserted)
+                        .execute()
+                    )
+                    # Also get confirmed_consultant features we just inserted
+                    feat_resp2 = (
+                        supabase.table("features")
+                        .select("*")
+                        .eq("project_id", project_id_str)
+                        .eq("confirmation_status", "confirmed_consultant")
+                        .order("created_at", desc=True)
+                        .limit(inserted)
+                        .execute()
+                    )
+                    all_new_features = (feat_resp.data or []) + (feat_resp2.data or [])
+                    if all_new_features:
+                        track_bulk_changes(
+                            project_id=project_id,
+                            entity_type="feature",
+                            created_entities=all_new_features[:inserted],
+                            trigger_event="project_launch",
+                            source_signal_id=signal_id,
+                            created_by="project_launch",
+                            label_field="name",
+                        )
+                except Exception as e:
+                    logger.debug(f"Feature revision tracking failed: {e}")
         except Exception as e:
             logger.warning(f"Failed to save features: {e}")
 
@@ -268,9 +372,26 @@ def _execute_entity_generation(context: dict) -> str:
             # Pair them
             pair_workflows(UUID(current_wf["id"]), UUID(future_wf["id"]))
 
+            # Track workflow revisions
+            for wf_row in [current_wf, future_wf]:
+                try:
+                    track_entity_change(
+                        project_id=project_id,
+                        entity_type="workflow",
+                        entity_id=UUID(wf_row["id"]),
+                        entity_label=wf_row.get("name", w.name),
+                        old_entity=None,
+                        new_entity=wf_row,
+                        trigger_event="project_launch",
+                        source_signal_id=signal_id,
+                        created_by="project_launch",
+                    )
+                except Exception:
+                    pass
+
             # Create steps for current state
             for step in w.current_state_steps:
-                create_workflow_step(
+                step_row = create_workflow_step(
                     workflow_id=UUID(current_wf["id"]),
                     project_id=project_id,
                     data={
@@ -280,10 +401,18 @@ def _execute_entity_generation(context: dict) -> str:
                         "confirmation_status": status,
                     },
                 )
+                # Add source_signal_ids to vp_step
+                if signal_id_list:
+                    try:
+                        supabase.table("vp_steps").update({
+                            "source_signal_ids": signal_id_list,
+                        }).eq("id", step_row["id"]).execute()
+                    except Exception:
+                        pass
 
             # Create steps for future state
             for step in w.future_state_steps:
-                create_workflow_step(
+                step_row = create_workflow_step(
                     workflow_id=UUID(future_wf["id"]),
                     project_id=project_id,
                     data={
@@ -293,6 +422,14 @@ def _execute_entity_generation(context: dict) -> str:
                         "confirmation_status": status,
                     },
                 )
+                # Add source_signal_ids to vp_step
+                if signal_id_list:
+                    try:
+                        supabase.table("vp_steps").update({
+                            "source_signal_ids": signal_id_list,
+                        }).eq("id", step_row["id"]).execute()
+                    except Exception:
+                        pass
 
             workflow_count += 1
         except Exception as e:
@@ -371,57 +508,17 @@ def _execute_quality_check(context: dict) -> str:
 
 
 def _execute_entity_linking(context: dict) -> str:
-    """Process launch signal through V2 pipeline and build dependency graph.
+    """Build entity dependency graph from generated entities.
 
-    Two operations:
-    1. V2 signal processing — enriches entities with evidence refs from the
-       launch signal chunks, seeds the memory knowledge graph with beliefs/facts.
-    2. Dependency rebuild — scans entity fields (target_personas, actor_persona_id,
-       features_used, evidence) to build the entity_dependencies graph.
-
-    V2 failure is non-fatal; dependency rebuild always runs.
+    Entity generation already handles evidence + source_signal_ids directly,
+    so this step only rebuilds the dependency graph.
     """
-    import uuid as uuid_module
-
     from app.db.entity_dependencies import rebuild_dependencies_for_project
 
     project_id = context["project_id"]
-    signal_id = context.get("signal_id")
     parts = []
 
-    # 1. Process launch signal through V2 pipeline
-    if signal_id:
-        try:
-            from app.graphs.unified_processor import process_signal_v2
-
-            run_id = uuid_module.uuid4()
-            logger.info(
-                f"Processing launch signal {signal_id} through V2 pipeline",
-                extra={"project_id": str(project_id), "signal_id": str(signal_id)},
-            )
-
-            v2_result = asyncio.run(process_signal_v2(
-                signal_id=signal_id,
-                project_id=project_id,
-                run_id=run_id,
-            ))
-
-            if v2_result.success:
-                parts.append(
-                    f"V2: {v2_result.patches_applied} patches applied "
-                    f"({v2_result.created_count} created, {v2_result.merged_count} merged)"
-                )
-            else:
-                parts.append(f"V2: failed ({v2_result.error})")
-                logger.warning(f"V2 processing failed for launch signal: {v2_result.error}")
-
-        except Exception as e:
-            parts.append(f"V2: error ({e})")
-            logger.warning(f"V2 processing error for launch signal (non-fatal): {e}")
-    else:
-        parts.append("V2: skipped (no launch signal)")
-
-    # 2. Rebuild entity dependency graph
+    # Rebuild entity dependency graph
     try:
         dep_stats = rebuild_dependencies_for_project(project_id)
         deps_created = dep_stats.get("dependencies_created", 0)

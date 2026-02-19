@@ -34,6 +34,7 @@ class GeneratedPersona(BaseModel):
     goals: list[str]
     pain_points: list[str]
     confidence: float = 0.8
+    evidence_quotes: list[str] = []
 
 
 class GeneratedDriver(BaseModel):
@@ -41,6 +42,7 @@ class GeneratedDriver(BaseModel):
     description: str
     priority: int = 3  # 1-5
     confidence: float = 0.8
+    evidence_quotes: list[str] = []
     # Type-specific fields
     severity: str | None = None
     frequency: str | None = None
@@ -58,6 +60,7 @@ class GeneratedRequirement(BaseModel):
     category: str = "core"
     priority_group: str = "must_have"  # must_have, should_have, could_have, out_of_scope
     confidence: float = 0.8
+    evidence_quotes: list[str] = []
 
 
 class GeneratedWorkflowStep(BaseModel):
@@ -73,6 +76,7 @@ class GeneratedWorkflow(BaseModel):
     current_state_steps: list[GeneratedWorkflowStep]
     future_state_steps: list[GeneratedWorkflowStep]
     confidence: float = 0.8
+    evidence_quotes: list[str] = []
 
 
 class ProjectEntitiesOutput(BaseModel):
@@ -100,13 +104,14 @@ FOUNDATION_PROMPT = """You are a senior business analyst. Extract the project fo
 Produce a JSON object with these fields:
 - background_statement: 2-3 sentences explaining WHY the client is building this (the problem, the trigger, the business context)
 - vision_statement: 1-2 sentences describing HOW the solution solves the problem (aspirational but grounded)
-- personas: array of 2-6 user personas. Each has: name (archetype name like "HR Manager"), role (job title), description (2-3 sentences), goals (3-5 items), pain_points (3-5 items), confidence (0.0-1.0)
+- personas: array of 2-6 user personas. Each has: name (archetype name like "HR Manager"), role (job title), description (2-3 sentences), goals (3-5 items), pain_points (3-5 items), confidence (0.0-1.0), evidence_quotes (1-3 exact verbatim quotes from the transcript that justify this persona)
 
 Rules:
 - Only include personas explicitly mentioned or strongly implied in the conversation
 - Goals and pain_points must be specific to this project, not generic
 - Confidence reflects how well-evidenced the persona is (0.8+ if directly discussed, 0.5-0.7 if inferred)
 - If company context is provided, use it to enrich descriptions but don't fabricate
+- For each entity, include 1-3 evidence_quotes — exact verbatim quotes from the transcript that justify this entity's existence
 
 Return ONLY valid JSON, no markdown fences."""
 
@@ -123,14 +128,15 @@ Produce a JSON object with:
   - At least 4 with driver_type "pain" — current problems (include severity, frequency, business_impact)
   - At least 4 with driver_type "goal" — desired outcomes (include goal_timeframe, success_criteria)
   - At least 4 with driver_type "kpi" — measurable metrics (include baseline_value, target_value, measurement_method)
-  - Each driver has: driver_type, description (specific, not generic), priority (1=highest, 5=lowest), confidence (0.0-1.0)
-- requirements: array of 5+ system requirements. Each has: name (short feature name), overview (starts with "The system must..." or "The system should..."), category (core/integration/reporting/ux), priority_group (must_have/should_have/could_have — at least 60% should be must_have), confidence (0.0-1.0)
+  - Each driver has: driver_type, description (specific, not generic), priority (1=highest, 5=lowest), confidence (0.0-1.0), evidence_quotes (1-3 exact verbatim quotes)
+- requirements: array of 5+ system requirements. Each has: name (short feature name), overview (starts with "The system must..." or "The system should..."), category (core/integration/reporting/ux), priority_group (must_have/should_have/could_have — at least 60% should be must_have), confidence (0.0-1.0), evidence_quotes (1-3 exact verbatim quotes)
 
 Rules:
 - Drivers must be specific to this project — no generic "improve efficiency" without context
 - KPI drivers should have realistic baselines and targets when inferable
 - Requirements should cover the core capabilities discussed, not every minor detail
 - Confidence reflects evidence quality (0.8+ if explicitly stated, 0.5-0.7 if inferred)
+- For each entity, include 1-3 evidence_quotes — exact verbatim quotes from the transcript that justify this entity's existence
 
 Return ONLY valid JSON, no markdown fences."""
 
@@ -164,6 +170,7 @@ Produce a JSON object with:
   - future_state_steps: array of 4-8 steps showing how this will work WITH the new system
     - Each step: step_index (1-based), label (short action), description (1 sentence)
   - confidence: 0.0-1.0
+  - evidence_quotes: 1-3 exact verbatim quotes from the transcript that justify this workflow
 
 Rules:
 - Every persona should own at least one workflow
@@ -171,6 +178,7 @@ Rules:
 - Future state steps should reflect the goals and requirements
 - Be conservative — only include workflows evidenced in the conversation
 - Steps should be concrete actions, not vague descriptions
+- For each workflow, include 1-3 evidence_quotes — exact verbatim quotes from the transcript
 
 Return ONLY valid JSON, no markdown fences."""
 

@@ -78,6 +78,12 @@ TABLES_WITH_SIGNAL_IDS = {
     "vp_steps", "constraints", "data_entities",
 }
 
+# Tables that have a version INTEGER column
+TABLES_WITH_VERSION = {
+    "features", "personas", "vp_steps", "constraints",
+    "business_drivers", "competitor_references", "data_entities", "stakeholders",
+}
+
 # Field name normalization: LLM-generated names → actual DB column names
 TABLE_FIELD_RENAMES: dict[str, dict[str, str]] = {
     "constraints": {"name": "title"},
@@ -122,7 +128,7 @@ async def apply_entity_patches(
             continue
 
         try:
-            applied = await _apply_single_patch(project_id, patch, signal_id)
+            applied = await _apply_single_patch(project_id, patch, signal_id, run_id)
             if applied:
                 result.applied.append(applied)
                 result.entity_ids_modified.append(applied["entity_id"])
@@ -184,6 +190,7 @@ async def _apply_single_patch(
     project_id: UUID,
     patch: EntityPatch,
     signal_id: UUID | None,
+    run_id: UUID | None = None,
 ) -> dict | None:
     """Apply a single EntityPatch. Returns applied dict or None."""
     operation = patch.operation
@@ -203,11 +210,11 @@ async def _apply_single_patch(
         patch = _resolve_target_entity_id(project_id, patch, table)
 
     if operation == "create":
-        return _apply_create(project_id, patch, table, signal_id)
+        return _apply_create(project_id, patch, table, signal_id, run_id)
     elif operation == "merge":
-        return _apply_merge(project_id, patch, table, signal_id)
+        return _apply_merge(project_id, patch, table, signal_id, run_id)
     elif operation == "update":
-        return _apply_update(project_id, patch, table)
+        return _apply_update(project_id, patch, table, signal_id, run_id)
     elif operation == "stale":
         return _apply_stale(patch, table)
     elif operation == "delete":
@@ -350,6 +357,7 @@ def _apply_create(
     patch: EntityPatch,
     table: str,
     signal_id: UUID | None,
+    run_id: UUID | None = None,
 ) -> dict | None:
     """Create a new entity from patch payload."""
     sb = get_supabase()
@@ -381,6 +389,10 @@ def _apply_create(
             })
         payload["evidence"] = existing_evidence
 
+    # Set initial version for tables that support it
+    if table in TABLES_WITH_VERSION:
+        payload.setdefault("version", 1)
+
     # Normalize payload fields to match actual DB columns
     payload = _normalize_payload(table, payload)
 
@@ -396,9 +408,24 @@ def _apply_create(
         response = sb.table(table).insert(payload).execute()
         if response.data:
             entity = response.data[0]
+            entity_id = str(entity.get("id", ""))
+
+            # Record revision (fire-and-forget)
+            _record_entity_revision(
+                project_id=project_id,
+                entity_type=patch.entity_type,
+                entity_id=entity_id,
+                entity_label=display_name,
+                old_entity=None,
+                new_entity=entity,
+                operation="create",
+                signal_id=signal_id,
+                run_id=run_id,
+            )
+
             return {
                 "entity_type": patch.entity_type,
-                "entity_id": str(entity.get("id", "")),
+                "entity_id": entity_id,
                 "operation": "create",
                 "name": display_name,
                 "confirmation_status": confirmation_status,
@@ -415,6 +442,7 @@ def _apply_merge(
     patch: EntityPatch,
     table: str,
     signal_id: UUID | None,
+    run_id: UUID | None = None,
 ) -> dict | None:
     """Merge new evidence/data into an existing entity."""
     if not patch.target_entity_id:
@@ -480,13 +508,34 @@ def _apply_merge(
     if CONFIRMATION_HIERARCHY.get(new_status, 0) > CONFIRMATION_HIERARCHY.get(existing_status, 0):
         updates["confirmation_status"] = new_status
 
+    # Increment version for tables that support it
+    if table in TABLES_WITH_VERSION:
+        updates["version"] = (existing.get("version") or 1) + 1
+
+    entity_name = existing.get("name", existing.get("label", existing.get("title", "")))
+
     try:
-        sb.table(table).update(updates).eq("id", patch.target_entity_id).execute()
+        update_response = sb.table(table).update(updates).eq("id", patch.target_entity_id).execute()
+        updated_row = update_response.data[0] if update_response.data else {**existing, **updates}
+
+        # Record revision (fire-and-forget)
+        _record_entity_revision(
+            project_id=project_id,
+            entity_type=patch.entity_type,
+            entity_id=patch.target_entity_id,
+            entity_label=entity_name,
+            old_entity=existing,
+            new_entity=updated_row,
+            operation="merge",
+            signal_id=signal_id,
+            run_id=run_id,
+        )
+
         return {
             "entity_type": patch.entity_type,
             "entity_id": patch.target_entity_id,
             "operation": "merge",
-            "name": existing.get("name", existing.get("label", existing.get("title", ""))),
+            "name": entity_name,
             "fields_merged": list(updates.keys()),
         }
     except Exception as e:
@@ -498,6 +547,8 @@ def _apply_update(
     project_id: UUID,
     patch: EntityPatch,
     table: str,
+    signal_id: UUID | None = None,
+    run_id: UUID | None = None,
 ) -> dict | None:
     """Update specific fields on an existing entity."""
     if not patch.target_entity_id:
@@ -546,13 +597,34 @@ def _apply_update(
             continue
         updates[field] = value
 
+    # Increment version for tables that support it
+    if table in TABLES_WITH_VERSION:
+        updates["version"] = (existing.get("version") or 1) + 1
+
+    entity_name = existing.get("name", existing.get("label", existing.get("title", "")))
+
     try:
-        sb.table(table).update(updates).eq("id", patch.target_entity_id).execute()
+        update_response = sb.table(table).update(updates).eq("id", patch.target_entity_id).execute()
+        updated_row = update_response.data[0] if update_response.data else {**existing, **updates}
+
+        # Record revision (fire-and-forget)
+        _record_entity_revision(
+            project_id=project_id,
+            entity_type=patch.entity_type,
+            entity_id=patch.target_entity_id,
+            entity_label=entity_name,
+            old_entity=existing,
+            new_entity=updated_row,
+            operation="update",
+            signal_id=signal_id,
+            run_id=run_id,
+        )
+
         return {
             "entity_type": patch.entity_type,
             "entity_id": patch.target_entity_id,
             "operation": "update",
-            "name": existing.get("name", existing.get("label", existing.get("title", ""))),
+            "name": entity_name,
             "fields_updated": list(normalized_payload.keys()),
         }
     except Exception as e:
@@ -716,6 +788,37 @@ def _record_state_revision(
             "entity_ids": result.entity_ids_modified,
         },
     )
+
+
+def _record_entity_revision(
+    project_id: UUID,
+    entity_type: str,
+    entity_id: str,
+    entity_label: str,
+    old_entity: dict | None,
+    new_entity: dict,
+    operation: str,
+    signal_id: UUID | None,
+    run_id: UUID | None,
+) -> None:
+    """Fire-and-forget revision tracking after patch application."""
+    try:
+        from app.core.change_tracking import track_entity_change
+
+        track_entity_change(
+            project_id=project_id,
+            entity_type=entity_type,
+            entity_id=UUID(entity_id),
+            entity_label=entity_label,
+            old_entity=old_entity,
+            new_entity=new_entity,
+            trigger_event=f"signal_pipeline_v2_{operation}",
+            source_signal_id=signal_id,
+            run_id=run_id,
+            created_by="signal_pipeline_v2",
+        )
+    except Exception as e:
+        logger.debug(f"Revision tracking failed for {entity_type} {entity_id}: {e}")
 
 
 def _record_evidence_links(

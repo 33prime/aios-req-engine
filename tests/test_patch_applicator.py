@@ -475,10 +475,11 @@ class TestNormalizePayload:
         result = _normalize_payload("features", payload)
         assert result == payload
 
-    def test_strips_source_signal_ids_from_constraints(self):
+    def test_keeps_source_signal_ids_for_constraints(self):
+        """constraints table now has source_signal_ids (migration 0137)."""
         payload = {"title": "Budget", "source_signal_ids": ["abc"]}
         result = _normalize_payload("constraints", payload)
-        assert "source_signal_ids" not in result
+        assert result["source_signal_ids"] == ["abc"]
 
     def test_keeps_source_signal_ids_for_features(self):
         payload = {"name": "SSO", "source_signal_ids": ["abc"]}
