@@ -93,10 +93,6 @@ async def _load_project_data(project_id: UUID) -> dict:
 
     Single async boundary — everything below is sync graph walking.
     """
-    from app.context.phase_detector import (
-        calculate_phase_progress,
-        detect_project_phase,
-    )
     from app.db.business_drivers import list_business_drivers
     from app.db.entity_dependencies import get_dependency_graph
     from app.db.features import list_features
@@ -104,15 +100,9 @@ async def _load_project_data(project_id: UUID) -> dict:
     from app.db.personas import list_personas
     from app.db.workflows import get_workflow_pairs
 
-    # Phase
-    try:
-        detected_phase, metrics = await detect_project_phase(project_id)
-        phase = detected_phase.value
-        phase_progress = calculate_phase_progress(detected_phase, metrics)
-    except Exception as e:
-        logger.warning(f"Phase detection failed: {e}")
-        phase = "discovery"
-        phase_progress = 0.0
+    # Phase — v3 re-detects via _detect_context_phase(); this is a v2 fallback
+    phase = "discovery"
+    phase_progress = 0.0
 
     # Core data — all sync calls
     workflow_pairs = get_workflow_pairs(project_id)
@@ -992,7 +982,7 @@ def compute_state_frame_actions(
             actions.append(
                 NextAction(
                     action="Add first persona to establish target users",
-                    tool_hint="propose_features",
+                    tool_hint="create_entity",
                     priority=priority,
                     rationale="Personas help focus feature development",
                 )
@@ -1001,7 +991,7 @@ def compute_state_frame_actions(
             actions.append(
                 NextAction(
                     action="Identify core features from client signals",
-                    tool_hint="propose_features",
+                    tool_hint="create_entity",
                     priority=priority,
                     rationale="Features are the foundation of the product",
                 )
@@ -1010,7 +1000,7 @@ def compute_state_frame_actions(
             actions.append(
                 NextAction(
                     action="Mark more features as MVP or propose new MVP features",
-                    tool_hint="propose_features",
+                    tool_hint="create_entity",
                     priority=priority,
                     rationale="Need 3+ MVP features for baseline",
                 )
@@ -1090,23 +1080,26 @@ def _detect_context_phase(data: dict) -> tuple:
 
 
 def _build_workflow_context(workflow_pairs: list[dict]) -> str:
-    """Build a terse workflow context string for Haiku (~300 tokens)."""
+    """Build a terse workflow context string with IDs for chat agent (~400 tokens)."""
     if not workflow_pairs:
         return "No workflows defined yet."
 
     lines = []
-    for p in workflow_pairs:
+    for p in workflow_pairs[:8]:
         name = p.get("name", "Unnamed")
+        wf_id = str(p.get("id", ""))[:8]
         current = p.get("current_steps") or []
         future = p.get("future_steps") or []
-        line = f"- {name}"
+        line = f"- {name} [wf:{wf_id}]"
         if current:
-            step_names = [s.get("label", "step") for s in current[:6]]
-            line += f" (current: {', '.join(step_names)})"
+            step_parts = [f"{s.get('label', 'step')} [s:{str(s.get('id', ''))[:8]}]" for s in current[:6]]
+            line += f" (current: {', '.join(step_parts)})"
         if future:
-            step_names = [s.get("label", "step") for s in future[:6]]
-            line += f" (future: {', '.join(step_names)})"
+            step_parts = [f"{s.get('label', 'step')} [s:{str(s.get('id', ''))[:8]}]" for s in future[:6]]
+            line += f" (future: {', '.join(step_parts)})"
         lines.append(line)
+    if len(workflow_pairs) > 8:
+        lines.append(f"  ... and {len(workflow_pairs) - 8} more workflows")
     return "\n".join(lines)
 
 

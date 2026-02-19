@@ -17,32 +17,6 @@ def get_tool_definitions() -> List[Dict[str, Any]]:
         List of tool definition dictionaries
     """
     return [
-        # NOTE: list_insights tool REMOVED - deprecated in favor of proposal system
-        {
-            "name": "search_research",
-            "description": "Search through research data, evidence chunks, and competitive analysis. Use this when the user asks about research, evidence, competitors, market data, or studies.",
-            "input_schema": {
-                "type": "object",
-                "properties": {
-                    "query": {
-                        "type": "string",
-                        "description": "Search query text",
-                    },
-                    "chunk_type": {
-                        "type": "string",
-                        "enum": ["all", "competitive", "market", "user_research", "technical"],
-                        "description": "Type of research chunks to search (optional)",
-                        "default": "all",
-                    },
-                    "limit": {
-                        "type": "integer",
-                        "description": "Maximum number of results to return",
-                        "default": 5,
-                    },
-                },
-                "required": ["query"],
-            },
-        },
         {
             "name": "get_project_status",
             "description": "Get a comprehensive status summary of the project including counts, recent activity, and items needing attention. Use this when the user asks about project status, overview, or what needs attention.",
@@ -57,21 +31,6 @@ def get_tool_definitions() -> List[Dict[str, Any]]:
                 },
             },
         },
-        {
-            "name": "list_pending_proposals",
-            "description": "List all pending proposals awaiting review. Shows what changes are queued from signal processing. Use this when the user asks about pending changes, proposals, or what needs review.",
-            "input_schema": {
-                "type": "object",
-                "properties": {
-                    "include_changes": {
-                        "type": "boolean",
-                        "description": "Include detailed change list for each proposal",
-                        "default": False,
-                    },
-                },
-            },
-        },
-        # NOTE: apply_patch and dismiss_insight tools REMOVED - deprecated in favor of proposal system
         {
             "name": "create_confirmation",
             "description": "Create a confirmation item for the client. Use this when an insight or decision needs client input/approval.",
@@ -94,150 +53,8 @@ def get_tool_definitions() -> List[Dict[str, Any]]:
                 "required": ["question"],
             },
         },
-        # NOTE: bulk_apply_patches tool REMOVED - deprecated in favor of proposal system
         {
-            "name": "request_confirmation",
-            "description": "Request user confirmation before performing a destructive or impactful action. Use this to ensure the user wants to proceed with bulk operations, deletions, or major changes.",
-            "input_schema": {
-                "type": "object",
-                "properties": {
-                    "action": {
-                        "type": "string",
-                        "description": "Brief description of the action requiring confirmation",
-                    },
-                    "details": {
-                        "type": "string",
-                        "description": "Detailed explanation of what will happen",
-                    },
-                    "impact": {
-                        "type": "object",
-                        "description": "Summary of impact (e.g., number of items affected)",
-                    },
-                },
-                "required": ["action", "details"],
-            },
-        },
-        {
-            "name": "create_signal_from_chat",
-            "description": "Create a signal (audit record) from this chat conversation. Use this to document important decisions, insights, or context discovered during the conversation.",
-            "input_schema": {
-                "type": "object",
-                "properties": {
-                    "signal_type": {
-                        "type": "string",
-                        "enum": ["note", "decision", "insight"],
-                        "description": "Type of signal to create",
-                    },
-                    "title": {
-                        "type": "string",
-                        "description": "Title for the signal",
-                    },
-                    "content": {
-                        "type": "string",
-                        "description": "Content extracted from conversation",
-                    },
-                    "context": {
-                        "type": "string",
-                        "description": "Additional context about this signal",
-                    },
-                },
-                "required": ["signal_type", "title", "content"],
-            },
-        },
-        {
-            "name": "propose_features",
-            "description": "Generate a batch proposal for new or updated features with evidence from research. Returns a proposal ID for preview/apply. Use this when the user wants to add or update features in a batch with intelligent context and evidence.",
-            "input_schema": {
-                "type": "object",
-                "properties": {
-                    "intent": {
-                        "type": "string",
-                        "description": "What the user wants (e.g., 'add dark mode support', 'update authentication features')",
-                    },
-                    "scope": {
-                        "type": "string",
-                        "enum": ["new_features", "update_existing", "both"],
-                        "description": "Scope of changes to propose",
-                        "default": "new_features",
-                    },
-                    "include_evidence": {
-                        "type": "boolean",
-                        "description": "Whether to search research for supporting evidence",
-                        "default": True,
-                    },
-                    "count_hint": {
-                        "type": "integer",
-                        "description": "Approximate number of features to propose (1-10)",
-                    },
-                },
-                "required": ["intent"],
-            },
-        },
-        {
-            "name": "preview_proposal",
-            "description": "Show a detailed preview of a batch proposal with before/after comparisons and evidence. Use this to let the user review a proposal before applying it.",
-            "input_schema": {
-                "type": "object",
-                "properties": {
-                    "proposal_id": {
-                        "type": "string",
-                        "description": "UUID of the proposal to preview",
-                    },
-                    "format": {
-                        "type": "string",
-                        "enum": ["summary", "detailed", "diff"],
-                        "description": "Level of detail in the preview",
-                        "default": "summary",
-                    },
-                },
-                "required": ["proposal_id"],
-            },
-        },
-        {
-            "name": "apply_proposal",
-            "description": "Apply a batch proposal atomically, updating all entities as specified. Use this after the user has previewed and approved a proposal.",
-            "input_schema": {
-                "type": "object",
-                "properties": {
-                    "proposal_id": {
-                        "type": "string",
-                        "description": "UUID of the proposal to apply",
-                    },
-                    "confirmed": {
-                        "type": "boolean",
-                        "description": "User has confirmed this action (required for >3 changes)",
-                        "default": False,
-                    },
-                },
-                "required": ["proposal_id"],
-            },
-        },
-        {
-            "name": "analyze_gaps",
-            "description": "Analyze the project for gaps in evidence, personas, features, or VP coverage. Use this to identify what's missing or needs attention in the prototype.",
-            "input_schema": {
-                "type": "object",
-                "properties": {
-                    "gap_types": {
-                        "type": "array",
-                        "items": {
-                            "type": "string",
-                            "enum": ["evidence", "personas", "features", "vp_steps", "confirmations"],
-                        },
-                        "description": "Types of gaps to analyze",
-                    },
-                    "scope": {
-                        "type": "string",
-                        "enum": ["all", "mvp", "critical"],
-                        "description": "Scope of analysis",
-                        "default": "mvp",
-                    },
-                },
-            },
-        },
-        # NOTE: assess_readiness tool REMOVED - deprecated in favor of proposal system
-        {
-            "name": "semantic_search_research",
+            "name": "search",
             "description": "Semantic search through research using AI embeddings. Better than keyword search for finding related concepts and contextual matches. Use this when you need intelligent research discovery based on meaning, not just keywords.",
             "input_schema": {
                 "type": "object",
@@ -294,131 +111,6 @@ def get_tool_definitions() -> List[Dict[str, Any]]:
                     },
                 },
                 "required": ["entity_type", "entity_id", "chunk_ids", "rationale"],
-            },
-        },
-        {
-            "name": "find_evidence_gaps",
-            "description": "Find entities that lack research evidence backing. Use this to identify decisions that need more research support or validation.",
-            "input_schema": {
-                "type": "object",
-                "properties": {
-                    "entity_types": {
-                        "type": "array",
-                        "items": {
-                            "type": "string",
-                            "enum": ["feature", "vp_step", "persona"],
-                        },
-                        "description": "Types of entities to check (defaults to all)",
-                    },
-                    "mvp_only": {
-                        "type": "boolean",
-                        "description": "Only check MVP features (default true)",
-                        "default": True,
-                    },
-                    "suggest_queries": {
-                        "type": "boolean",
-                        "description": "Generate suggested search queries for gaps",
-                        "default": True,
-                    },
-                },
-            },
-        },
-        {
-            "name": "orchestrate_agent",
-            "description": "Queue an agent to run in the background with optional scope filtering. Returns job ID immediately - use get_agent_status to check progress. Agents: red_team (finds issues), a_team (generates patches), research (gathers data).",
-            "input_schema": {
-                "type": "object",
-                "properties": {
-                    "agent_type": {
-                        "type": "string",
-                        "enum": ["red_team", "a_team", "research"],
-                        "description": "Type of agent to run",
-                    },
-                    "scope": {
-                        "type": "object",
-                        "description": "Optional scope to limit agent execution",
-                        "properties": {
-                            "feature_ids": {
-                                "type": "array",
-                                "items": {"type": "string"},
-                                "description": "Limit to specific feature UUIDs",
-                            },
-                            "categories": {
-                                "type": "array",
-                                "items": {"type": "string"},
-                                "description": "Limit to feature categories (e.g., 'Core', 'Security')",
-                            },
-                            "mvp_only": {
-                                "type": "boolean",
-                                "description": "Only process MVP features",
-                            },
-                        },
-                    },
-                    "include_research": {
-                        "type": "boolean",
-                        "description": "Include research context (for red_team)",
-                        "default": True,
-                    },
-                },
-                "required": ["agent_type"],
-            },
-        },
-        {
-            "name": "get_agent_status",
-            "description": "Check the status of a running or completed agent job. Returns status (queued/processing/completed/failed), output, and progress information.",
-            "input_schema": {
-                "type": "object",
-                "properties": {
-                    "job_id": {
-                        "type": "string",
-                        "description": "UUID of the agent job to check",
-                    },
-                },
-                "required": ["job_id"],
-            },
-        },
-        {
-            "name": "get_creative_brief",
-            "description": "Get the creative brief status for research. Shows client name, industry, website, competitors, and completeness. Use this to check what info is needed before running research.",
-            "input_schema": {
-                "type": "object",
-                "properties": {},
-            },
-        },
-        {
-            "name": "update_creative_brief",
-            "description": "Update the creative brief with client information for research. Use this to save client name, industry, website, competitors, focus areas, or custom questions.",
-            "input_schema": {
-                "type": "object",
-                "properties": {
-                    "client_name": {
-                        "type": "string",
-                        "description": "Name of the client company",
-                    },
-                    "industry": {
-                        "type": "string",
-                        "description": "Industry/vertical of the client",
-                    },
-                    "website": {
-                        "type": "string",
-                        "description": "Client website URL",
-                    },
-                    "competitors": {
-                        "type": "array",
-                        "items": {"type": "string"},
-                        "description": "Competitor names to add (appends to existing)",
-                    },
-                    "focus_areas": {
-                        "type": "array",
-                        "items": {"type": "string"},
-                        "description": "Focus areas for research (appends to existing)",
-                    },
-                    "custom_questions": {
-                        "type": "array",
-                        "items": {"type": "string"},
-                        "description": "Custom research questions (appends to existing)",
-                    },
-                },
             },
         },
         {
@@ -546,28 +238,6 @@ def get_tool_definitions() -> List[Dict[str, Any]]:
                 },
             },
         },
-        {
-            "name": "generate_value_path",
-            "description": "Generate or regenerate the Value Path - the 'golden path' narrative showing how the product creates value through a sequence of steps. This creates a consultant-friendly demo script with user narratives, system behaviors, evidence, and value created at each step. Use this when the user asks to create the value path, regenerate VP, or wants a demo script.",
-            "input_schema": {
-                "type": "object",
-                "properties": {
-                    "preserve_consultant_edits": {
-                        "type": "boolean",
-                        "description": "Whether to preserve steps that consultants have manually edited (default: true)",
-                        "default": True,
-                    },
-                },
-            },
-        },
-        {
-            "name": "process_vp_changes",
-            "description": "Process pending changes in the VP change queue. This determines whether to do surgical updates (if <50% of steps affected) or full regeneration (if >=50% affected). Use this after making changes to features/personas to update the Value Path.",
-            "input_schema": {
-                "type": "object",
-                "properties": {},
-            },
-        },
         # Strategic Context Tools
         {
             "name": "generate_strategic_context",
@@ -607,53 +277,6 @@ def get_tool_definitions() -> List[Dict[str, Any]]:
             },
         },
         {
-            "name": "add_stakeholder",
-            "description": "Add a stakeholder to the project. IMPORTANT: Before calling this tool, ask the user for any missing required information (name, role/title, and stakeholder type). If the user says 'add John as a stakeholder', ask: 'What is John's role/title, and what type of stakeholder are they (champion, sponsor, blocker, influencer, or end user)?'",
-            "input_schema": {
-                "type": "object",
-                "properties": {
-                    "name": {
-                        "type": "string",
-                        "description": "Stakeholder's full name (required)",
-                    },
-                    "role": {
-                        "type": "string",
-                        "description": "Job title or role (e.g., 'VP of Engineering', 'Product Manager') - ask if not provided",
-                    },
-                    "email": {
-                        "type": "string",
-                        "description": "Email address for the stakeholder",
-                    },
-                    "organization": {
-                        "type": "string",
-                        "description": "Company or department",
-                    },
-                    "stakeholder_type": {
-                        "type": "string",
-                        "enum": ["champion", "sponsor", "blocker", "influencer", "end_user"],
-                        "description": "Type of stakeholder (required): champion (internal advocate pushing for this), sponsor (decision maker with budget), blocker (has concerns/opposition), influencer (opinion leader), end_user (actual user of the software)",
-                    },
-                    "influence_level": {
-                        "type": "string",
-                        "enum": ["high", "medium", "low"],
-                        "description": "Level of influence on project decisions",
-                        "default": "medium",
-                    },
-                    "priorities": {
-                        "type": "array",
-                        "items": {"type": "string"},
-                        "description": "What matters to this stakeholder",
-                    },
-                    "concerns": {
-                        "type": "array",
-                        "items": {"type": "string"},
-                        "description": "Their worries or objections",
-                    },
-                },
-                "required": ["name", "stakeholder_type"],
-            },
-        },
-        {
             "name": "identify_stakeholders",
             "description": "Automatically identify stakeholders from signals and research. Use this to discover who the key people are based on conversation history.",
             "input_schema": {
@@ -662,61 +285,22 @@ def get_tool_definitions() -> List[Dict[str, Any]]:
             },
         },
         {
-            "name": "list_stakeholders",
-            "description": "List all stakeholders for the project grouped by type (champions, sponsors, blockers, influencers, end users).",
-            "input_schema": {
-                "type": "object",
-                "properties": {},
-            },
-        },
-        {
-            "name": "add_risk",
-            "description": "Add a business, technical, compliance, or competitive risk to the strategic context.",
+            "name": "update_strategic_context",
+            "description": "Update the strategic context by adding a risk, success metric, or updating a field. Use this when the user wants to add risks, KPIs, or modify strategic context fields.",
             "input_schema": {
                 "type": "object",
                 "properties": {
-                    "category": {
+                    "action": {
                         "type": "string",
-                        "enum": ["business", "technical", "compliance", "competitive"],
-                        "description": "Risk category",
+                        "enum": ["add_risk", "add_success_metric", "update_field"],
+                        "description": "The type of update to perform",
                     },
-                    "description": {
-                        "type": "string",
-                        "description": "Clear description of the risk",
-                    },
-                    "severity": {
-                        "type": "string",
-                        "enum": ["high", "medium", "low"],
-                        "description": "Severity level",
-                    },
-                    "mitigation": {
-                        "type": "string",
-                        "description": "Suggested mitigation strategy (optional)",
+                    "data": {
+                        "type": "object",
+                        "description": "Data for the action. For add_risk: {category(business/technical/compliance/competitive), description, severity(high/medium/low), mitigation(optional)}. For add_success_metric: {name, description, target, category, measurement_approach}. For update_field: {field_name, value}.",
                     },
                 },
-                "required": ["category", "description", "severity"],
-            },
-        },
-        {
-            "name": "add_success_metric",
-            "description": "Add a success metric or KPI to the strategic context.",
-            "input_schema": {
-                "type": "object",
-                "properties": {
-                    "metric": {
-                        "type": "string",
-                        "description": "What to measure",
-                    },
-                    "target": {
-                        "type": "string",
-                        "description": "Target value",
-                    },
-                    "current": {
-                        "type": "string",
-                        "description": "Current value if known (optional)",
-                    },
-                },
-                "required": ["metric", "target"],
+                "required": ["action", "data"],
             },
         },
         # Entity Cascade Tools
@@ -775,57 +359,6 @@ def get_tool_definitions() -> List[Dict[str, Any]]:
                     },
                 },
                 "required": ["entity_type", "entity_id"],
-            },
-        },
-        {
-            "name": "link_strategic_context",
-            "description": "Link a strategic context element (risk, success metric) to source entities (features, VP steps, personas). Creates traceability.",
-            "input_schema": {
-                "type": "object",
-                "properties": {
-                    "section": {
-                        "type": "string",
-                        "enum": ["risk", "success_metric", "stakeholder"],
-                        "description": "Section of strategic context to link",
-                    },
-                    "index": {
-                        "type": "integer",
-                        "description": "Index of the item in the array (0-based)",
-                    },
-                    "linked_entity_type": {
-                        "type": "string",
-                        "enum": ["feature", "vp_step", "persona"],
-                        "description": "Type of entities to link",
-                    },
-                    "linked_entity_ids": {
-                        "type": "array",
-                        "items": {"type": "string"},
-                        "description": "UUIDs of entities to link",
-                    },
-                },
-                "required": ["section", "index", "linked_entity_type", "linked_entity_ids"],
-            },
-        },
-        {
-            "name": "rebuild_dependencies",
-            "description": "Rebuild the entity dependency graph for the project. Use when relationships seem out of sync or after bulk imports.",
-            "input_schema": {
-                "type": "object",
-                "properties": {},
-            },
-        },
-        {
-            "name": "process_cascades",
-            "description": "Process pending entity changes and propagate staleness. Usually runs automatically but can be triggered manually.",
-            "input_schema": {
-                "type": "object",
-                "properties": {
-                    "auto_only": {
-                        "type": "boolean",
-                        "description": "Only process auto cascades (default: true)",
-                        "default": True,
-                    },
-                },
             },
         },
         # Document Clarification Tools
@@ -934,6 +467,84 @@ def get_tool_definitions() -> List[Dict[str, Any]]:
                 "required": ["entity_type", "entity_id", "fields"],
             },
         },
+        # Research / Evolution Tools
+        {
+            "name": "query_entity_history",
+            "description": "Show the evolution of a specific entity — when it was created, how it changed over time, which signals contributed to it, and linked beliefs. Use this when the user asks 'tell me about the evolution of this feature' or 'how did this persona change'.",
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "entity_type": {
+                        "type": "string",
+                        "enum": ["feature", "persona", "vp_step", "stakeholder", "data_entity", "workflow"],
+                        "description": "Type of entity to look up",
+                    },
+                    "entity_id_or_name": {
+                        "type": "string",
+                        "description": "UUID or name (fuzzy match) of the entity",
+                    },
+                },
+                "required": ["entity_type", "entity_id_or_name"],
+            },
+        },
+        {
+            "name": "query_knowledge_graph",
+            "description": "Search the project's knowledge graph for facts, beliefs, and relationships about a topic. Use when the user asks 'what do we know about X' or wants to explore connected concepts.",
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "topic": {
+                        "type": "string",
+                        "description": "Topic or keyword to search for in the knowledge graph",
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "description": "Maximum nodes to return",
+                        "default": 10,
+                    },
+                },
+                "required": ["topic"],
+            },
+        },
+        # Task Creation
+        {
+            "name": "create_task",
+            "description": "Create a project task for follow-ups, reviews, or action items. Use when the user says 'create a task', 'remind me to', 'follow up on', or any request to track an action item.",
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "title": {
+                        "type": "string",
+                        "description": "Task title — clear, actionable, starts with a verb",
+                    },
+                    "description": {
+                        "type": "string",
+                        "description": "Optional detailed description of the task",
+                    },
+                    "task_type": {
+                        "type": "string",
+                        "enum": ["manual", "gap", "enrichment", "validation", "research", "collaboration"],
+                        "description": "Type of task. Default: manual",
+                        "default": "manual",
+                    },
+                    "requires_client_input": {
+                        "type": "boolean",
+                        "description": "Whether the task needs client review or input",
+                        "default": False,
+                    },
+                    "anchored_entity_type": {
+                        "type": "string",
+                        "enum": ["business_driver", "feature", "persona", "vp_step", "stakeholder"],
+                        "description": "Optional entity type this task is anchored to",
+                    },
+                    "anchored_entity_id": {
+                        "type": "string",
+                        "description": "Optional UUID of the anchored entity",
+                    },
+                },
+                "required": ["title"],
+            },
+        },
     ]
 
 
@@ -952,40 +563,14 @@ async def execute_tool(project_id: UUID, tool_name: str, tool_input: Dict[str, A
     try:
         logger.info(f"Executing tool {tool_name} for project {project_id}")
 
-        if tool_name == "search_research":
-            return await _search_research(project_id, tool_input)
-        elif tool_name == "get_project_status":
+        if tool_name == "get_project_status":
             return await _get_project_status(project_id, tool_input)
-        elif tool_name == "list_pending_proposals":
-            return await _list_pending_proposals(project_id, tool_input)
         elif tool_name == "create_confirmation":
             return await _create_confirmation(project_id, tool_input)
-        elif tool_name == "request_confirmation":
-            return await _request_confirmation(project_id, tool_input)
-        elif tool_name == "create_signal_from_chat":
-            return await _create_signal_from_chat(project_id, tool_input)
-        elif tool_name == "propose_features":
-            return await _propose_features(project_id, tool_input)
-        elif tool_name == "preview_proposal":
-            return await _preview_proposal(project_id, tool_input)
-        elif tool_name == "apply_proposal":
-            return await _apply_proposal(project_id, tool_input)
-        elif tool_name == "analyze_gaps":
-            return await _analyze_gaps(project_id, tool_input)
-        elif tool_name == "semantic_search_research":
-            return await _semantic_search_research(project_id, tool_input)
+        elif tool_name == "search":
+            return await _search(project_id, tool_input)
         elif tool_name == "attach_evidence":
             return await _attach_evidence(project_id, tool_input)
-        elif tool_name == "find_evidence_gaps":
-            return await _find_evidence_gaps(project_id, tool_input)
-        elif tool_name == "orchestrate_agent":
-            return await _orchestrate_agent(project_id, tool_input)
-        elif tool_name == "get_agent_status":
-            return await _get_agent_status(project_id, tool_input)
-        elif tool_name == "get_creative_brief":
-            return await _get_creative_brief(project_id, tool_input)
-        elif tool_name == "update_creative_brief":
-            return await _update_creative_brief(project_id, tool_input)
         elif tool_name == "add_signal":
             return await _add_signal(project_id, tool_input)
         elif tool_name == "generate_client_email":
@@ -998,10 +583,6 @@ async def execute_tool(project_id: UUID, tool_name: str, tool_input: Dict[str, A
             return await _enrich_features(project_id, tool_input)
         elif tool_name == "enrich_personas":
             return await _enrich_personas(project_id, tool_input)
-        elif tool_name == "generate_value_path":
-            return await _generate_value_path(project_id, tool_input)
-        elif tool_name == "process_vp_changes":
-            return await _process_vp_changes(project_id, tool_input)
         # Strategic Context Tools
         elif tool_name == "generate_strategic_context":
             return await _generate_strategic_context(project_id, tool_input)
@@ -1009,16 +590,10 @@ async def execute_tool(project_id: UUID, tool_name: str, tool_input: Dict[str, A
             return await _get_strategic_context(project_id, tool_input)
         elif tool_name == "update_project_type":
             return await _update_project_type(project_id, tool_input)
-        elif tool_name == "add_stakeholder":
-            return await _add_stakeholder(project_id, tool_input)
         elif tool_name == "identify_stakeholders":
             return await _identify_stakeholders(project_id, tool_input)
-        elif tool_name == "list_stakeholders":
-            return await _list_stakeholders(project_id, tool_input)
-        elif tool_name == "add_risk":
-            return await _add_risk(project_id, tool_input)
-        elif tool_name == "add_success_metric":
-            return await _add_success_metric(project_id, tool_input)
+        elif tool_name == "update_strategic_context":
+            return await _update_strategic_context(project_id, tool_input)
         # Entity Cascade Tools
         elif tool_name == "analyze_impact":
             return await _analyze_impact(project_id, tool_input)
@@ -1026,12 +601,6 @@ async def execute_tool(project_id: UUID, tool_name: str, tool_input: Dict[str, A
             return await _get_stale_entities(project_id, tool_input)
         elif tool_name == "refresh_stale_entity":
             return await _refresh_stale_entity(project_id, tool_input)
-        elif tool_name == "link_strategic_context":
-            return await _link_strategic_context(project_id, tool_input)
-        elif tool_name == "rebuild_dependencies":
-            return await _rebuild_dependencies(project_id, tool_input)
-        elif tool_name == "process_cascades":
-            return await _process_cascades(project_id, tool_input)
         # Document Clarification Tools
         elif tool_name == "check_document_clarifications":
             return await _check_document_clarifications(project_id, tool_input)
@@ -1042,75 +611,20 @@ async def execute_tool(project_id: UUID, tool_name: str, tool_input: Dict[str, A
             return await _create_entity(project_id, tool_input)
         elif tool_name == "update_entity":
             return await _update_entity(project_id, tool_input)
+        # Research / Evolution Tools
+        elif tool_name == "query_entity_history":
+            return await _query_entity_history(project_id, tool_input)
+        elif tool_name == "query_knowledge_graph":
+            return await _query_knowledge_graph(project_id, tool_input)
+        # Task Creation
+        elif tool_name == "create_task":
+            return await _create_task(project_id, tool_input)
         else:
             return {"error": f"Unknown tool: {tool_name}"}
 
     except Exception as e:
         logger.error(f"Error executing tool {tool_name}: {e}", exc_info=True)
         return {"error": str(e)}
-
-
-async def _search_research(project_id: UUID, params: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Search research chunks.
-
-    Args:
-        project_id: Project UUID
-        params: Search parameters
-
-    Returns:
-        Matching research chunks
-    """
-    supabase = get_supabase()
-
-    query_text = params.get("query", "")
-    chunk_type = params.get("chunk_type", "all")
-    limit = params.get("limit", 5)
-
-    # First get signals for this project (signal_chunks doesn't have project_id)
-    signals_response = supabase.table("signals").select("id").eq("project_id", str(project_id)).execute()
-    signal_ids = [s["id"] for s in (signals_response.data or [])]
-
-    if not signal_ids:
-        return {
-            "count": 0,
-            "chunks": [],
-            "query": query_text,
-            "message": f"No signals found for project",
-        }
-
-    # Build query - search in content using ilike for case-insensitive match
-    query = supabase.table("signal_chunks").select("*").in_("signal_id", signal_ids)
-
-    # Text search in content field
-    query = query.ilike("content", f"%{query_text}%")
-
-    # Execute with limit
-    response = query.order("created_at", desc=True).limit(limit).execute()
-
-    chunks = response.data or []
-
-    # Format for readability
-    formatted = []
-    for chunk in chunks:
-        content = chunk.get("content", "")
-        formatted.append(
-            {
-                "id": chunk["id"],
-                "type": chunk.get("chunk_type", "unknown"),
-                "text": content[:200] + "..." if len(content) > 200 else content,
-                "full_text": content,
-                "source_url": chunk.get("source_url"),
-                "created_at": chunk["created_at"],
-            }
-        )
-
-    return {
-        "count": len(formatted),
-        "chunks": formatted,
-        "query": query_text,
-        "message": f"Found {len(formatted)} research chunks matching '{query_text}'",
-    }
 
 
 async def _get_project_status(project_id: UUID, params: Dict[str, Any]) -> Dict[str, Any]:
@@ -1225,93 +739,6 @@ async def _get_project_status(project_id: UUID, params: Dict[str, Any]) -> Dict[
     return status
 
 
-async def _list_pending_proposals(project_id: UUID, params: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    List pending proposals for review.
-
-    Args:
-        project_id: Project UUID
-        params: Parameters including include_changes
-
-    Returns:
-        List of pending proposals with summary
-    """
-    supabase = get_supabase()
-    include_changes = params.get("include_changes", False)
-
-    try:
-        # Fetch pending proposals
-        query = (
-            supabase.table("batch_proposals")
-            .select("id, title, description, proposal_type, status, changes, creates_count, updates_count, deletes_count, created_at")
-            .eq("project_id", str(project_id))
-            .eq("status", "pending")
-            .order("created_at", desc=True)
-            .limit(10)
-        )
-        response = query.execute()
-
-        proposals = response.data or []
-
-        if not proposals:
-            return {
-                "count": 0,
-                "proposals": [],
-                "message": "No pending proposals. Add a signal to generate proposals.",
-            }
-
-        # Build summary
-        summary = {
-            "count": len(proposals),
-            "proposals": [],
-        }
-
-        total_creates = 0
-        total_updates = 0
-
-        for p in proposals:
-            proposal_summary = {
-                "id": p["id"],
-                "title": p.get("title", "Untitled"),
-                "type": p.get("proposal_type", "mixed"),
-                "creates": p.get("creates_count", 0),
-                "updates": p.get("updates_count", 0),
-                "created_at": p.get("created_at"),
-            }
-
-            total_creates += p.get("creates_count", 0)
-            total_updates += p.get("updates_count", 0)
-
-            # Include detailed changes if requested
-            if include_changes and p.get("changes"):
-                changes = p["changes"] if isinstance(p["changes"], list) else []
-                proposal_summary["changes"] = [
-                    {
-                        "entity_type": c.get("entity_type"),
-                        "operation": c.get("operation"),
-                        "name": c.get("entity_name") or c.get("after", {}).get("name") or c.get("after", {}).get("title"),
-                    }
-                    for c in changes[:10]  # Limit to first 10 changes
-                ]
-
-            summary["proposals"].append(proposal_summary)
-
-        summary["total_creates"] = total_creates
-        summary["total_updates"] = total_updates
-        summary["message"] = f"Found {len(proposals)} pending proposal(s) with {total_creates} new items and {total_updates} updates. Say 'show proposal <id>' to review details or 'apply proposal <id>' to apply."
-
-        return summary
-
-    except Exception as e:
-        logger.error(f"Failed to list pending proposals: {e}", exc_info=True)
-        return {
-            "count": 0,
-            "proposals": [],
-            "message": f"Error fetching proposals: {str(e)}",
-            "error": str(e),
-        }
-
-
 async def _create_confirmation(project_id: UUID, params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Create a confirmation item for the client.
@@ -1382,552 +809,7 @@ async def _create_confirmation(project_id: UUID, params: Dict[str, Any]) -> Dict
         return {"success": False, "error": error_msg, "message": f"Failed to create confirmation: {error_msg}"}
 
 
-async def _request_confirmation(project_id: UUID, params: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Request user confirmation for an action.
-
-    This is a meta-tool that returns a structured confirmation request
-    for the LLM to present to the user.
-
-    Args:
-        project_id: Project UUID
-        params: Confirmation parameters
-
-    Returns:
-        Confirmation request structure
-    """
-    action = params.get("action")
-    details = params.get("details")
-    impact = params.get("impact", {})
-
-    return {
-        "requires_confirmation": True,
-        "action": action,
-        "details": details,
-        "impact": impact,
-        "message": f"⚠️ Confirmation required for: {action}",
-        "instruction": "Please respond with 'yes' or 'confirm' to proceed, or 'no' or 'cancel' to abort.",
-    }
-
-
-async def _create_signal_from_chat(project_id: UUID, params: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Create a signal (audit record) from chat conversation.
-
-    Args:
-        project_id: Project UUID
-        params: Signal parameters
-
-    Returns:
-        Created signal
-    """
-    import uuid as uuid_module
-    supabase = get_supabase()
-
-    signal_type = params.get("signal_type", "note")
-    title = params.get("title", "Chat Note")
-    content = params.get("content")
-    context = params.get("context", "")
-
-    if not content:
-        return {"error": "content is required"}
-
-    try:
-        # Create signal record using correct column names
-        # Format: title + content as raw_text since signals table uses raw_text
-        raw_text = f"# {title}\n\n{content}"
-        run_id = str(uuid_module.uuid4())
-
-        signal_data = {
-            "project_id": str(project_id),
-            "signal_type": signal_type,
-            "source": "chat_assistant",
-            "raw_text": raw_text,
-            "metadata": {"title": title, "source": "chat_assistant", "context": context},
-            "run_id": run_id,
-        }
-
-        response = supabase.table("signals").insert(signal_data).execute()
-
-        if response.data:
-            signal = response.data[0]
-
-            # Invalidate DI cache - new signal to analyze
-            try:
-                from app.db.di_cache import invalidate_cache
-                invalidate_cache(project_id, f"new {signal_type} signal")
-            except Exception as cache_err:
-                logger.warning(f"Failed to invalidate DI cache: {cache_err}")
-
-            return {
-                "success": True,
-                "signal_id": signal["id"],
-                "message": f"Created {signal_type} signal: {title}",
-                "signal": signal,
-            }
-        else:
-            return {"success": False, "error": "Failed to create signal"}
-
-    except Exception as e:
-        return {"success": False, "error": str(e), "message": f"Failed to create signal: {str(e)}"}
-
-
-# =======================
-# Batch Proposal Tools
-# =======================
-
-
-async def _propose_features(project_id: UUID, params: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Generate a batch proposal for features with evidence.
-
-    Args:
-        project_id: Project UUID
-        params: Proposal parameters
-
-    Returns:
-        Created proposal with summary and complexity assessment
-    """
-    from app.chains.proposal_generator import generate_feature_proposal, assess_proposal_complexity
-
-    intent = params.get("intent")
-    scope = params.get("scope", "new_features")
-    include_evidence = params.get("include_evidence", True)
-    count_hint = params.get("count_hint")
-
-    if not intent:
-        return {"error": "intent is required"}
-
-    try:
-        # Generate proposal
-        proposal = await generate_feature_proposal(
-            project_id=project_id,
-            intent=intent,
-            scope=scope,
-            include_evidence=include_evidence,
-            count_hint=count_hint,
-        )
-
-        # Build response
-        changes_count = len(proposal.get("changes", []))
-
-        # Assess complexity for smart auto-apply logic
-        complexity = assess_proposal_complexity(proposal)
-
-        response = {
-            "success": True,
-            "proposal_id": proposal["id"],
-            "title": proposal["title"],
-            "description": proposal.get("description"),
-            "proposal_type": proposal["proposal_type"],
-            "creates_count": proposal.get("creates_count", 0),
-            "updates_count": proposal.get("updates_count", 0),
-            "deletes_count": proposal.get("deletes_count", 0),
-            "total_changes": changes_count,
-            "complexity": complexity,
-            "message": f"✅ Generated proposal: {proposal['title']} ({changes_count} changes)",
-        }
-
-        # Always require user to review and apply from the UI
-        # Never auto-apply - proposals stay pending for user review
-        response["next_step"] = f"Proposal staged for review. User can apply from the Patches tab in the UI."
-        response["auto_apply_recommended"] = False
-
-        return response
-
-    except Exception as e:
-        logger.error(f"Error generating proposal: {e}", exc_info=True)
-        return {"success": False, "error": str(e), "message": f"Failed to generate proposal: {str(e)}"}
-
-
-async def _preview_proposal(project_id: UUID, params: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Preview a batch proposal with detailed changes.
-
-    Args:
-        project_id: Project UUID
-        params: Preview parameters
-
-    Returns:
-        Proposal preview with formatted changes
-    """
-    from app.db.proposals import get_proposal
-
-    proposal_id = params.get("proposal_id")
-    format_type = params.get("format", "summary")
-
-    if not proposal_id:
-        return {"error": "proposal_id is required"}
-
-    try:
-        # Get proposal
-        proposal = get_proposal(UUID(proposal_id))
-
-        if not proposal:
-            return {"error": f"Proposal {proposal_id} not found"}
-
-        # Build preview based on format
-        if format_type == "summary":
-            # High-level summary
-            preview = {
-                "proposal_id": proposal["id"],
-                "title": proposal["title"],
-                "description": proposal.get("description"),
-                "status": proposal["status"],
-                "creates": proposal.get("creates_count", 0),
-                "updates": proposal.get("updates_count", 0),
-                "deletes": proposal.get("deletes_count", 0),
-                "total_changes": len(proposal.get("changes", [])),
-            }
-
-            # Group changes by type
-            changes_by_type = {}
-            for change in proposal.get("changes", []):
-                entity_type = change.get("entity_type", "unknown")
-                if entity_type not in changes_by_type:
-                    changes_by_type[entity_type] = []
-                changes_by_type[entity_type].append({
-                    "operation": change.get("operation"),
-                    "summary": _summarize_change(change),
-                    "has_evidence": len(change.get("evidence", [])) > 0,
-                })
-
-            preview["changes_by_type"] = changes_by_type
-
-            return {
-                "success": True,
-                "preview": preview,
-                "message": f"Proposal: {proposal['title']} ({len(proposal.get('changes', []))} changes)",
-                "next_step": f"Use apply_proposal with proposal_id={proposal_id} to apply",
-            }
-
-        elif format_type == "detailed":
-            # Detailed view with all changes
-            changes_detailed = []
-            for i, change in enumerate(proposal.get("changes", []), 1):
-                changes_detailed.append({
-                    "index": i,
-                    "entity_type": change.get("entity_type"),
-                    "operation": change.get("operation"),
-                    "entity_id": change.get("entity_id"),
-                    "before": change.get("before"),
-                    "after": change.get("after"),
-                    "evidence_count": len(change.get("evidence", [])),
-                    "rationale": change.get("rationale"),
-                })
-
-            return {
-                "success": True,
-                "proposal_id": proposal["id"],
-                "title": proposal["title"],
-                "changes": changes_detailed,
-                "message": f"Detailed view: {len(changes_detailed)} changes",
-            }
-
-        elif format_type == "diff":
-            # Diff view focusing on before/after
-            diffs = []
-            for i, change in enumerate(proposal.get("changes", []), 1):
-                diff_entry = {
-                    "index": i,
-                    "operation": change.get("operation"),
-                    "entity_type": change.get("entity_type"),
-                }
-
-                if change.get("operation") == "create":
-                    diff_entry["after"] = change.get("after")
-                elif change.get("operation") == "update":
-                    diff_entry["before"] = change.get("before")
-                    diff_entry["after"] = change.get("after")
-                    # Calculate what changed
-                    before = change.get("before", {})
-                    after = change.get("after", {})
-                    changed_fields = []
-                    for key in after.keys():
-                        if before.get(key) != after.get(key):
-                            changed_fields.append(key)
-                    diff_entry["changed_fields"] = changed_fields
-                elif change.get("operation") == "delete":
-                    diff_entry["before"] = change.get("before")
-
-                diffs.append(diff_entry)
-
-            return {
-                "success": True,
-                "proposal_id": proposal["id"],
-                "diffs": diffs,
-                "message": f"Diff view: {len(diffs)} changes",
-            }
-
-        else:
-            return {"error": f"Invalid format: {format_type}"}
-
-    except Exception as e:
-        logger.error(f"Error previewing proposal: {e}", exc_info=True)
-        return {"success": False, "error": str(e), "message": f"Failed to preview proposal: {str(e)}"}
-
-
-async def _apply_proposal(project_id: UUID, params: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Apply a batch proposal atomically.
-
-    Args:
-        project_id: Project UUID
-        params: Apply parameters
-
-    Returns:
-        Application result
-    """
-    from app.db.proposals import apply_proposal, get_proposal, mark_previewed
-
-    proposal_id = params.get("proposal_id")
-    confirmed = params.get("confirmed", False)
-
-    if not proposal_id:
-        return {"error": "proposal_id is required"}
-
-    try:
-        # Get proposal
-        proposal = get_proposal(UUID(proposal_id))
-
-        if not proposal:
-            return {"error": f"Proposal {proposal_id} not found"}
-
-        changes_count = len(proposal.get("changes", []))
-
-        # Mark as previewed if not already
-        if proposal["status"] == "pending":
-            mark_previewed(UUID(proposal_id))
-
-        # Apply proposal
-        updated_proposal = apply_proposal(UUID(proposal_id), applied_by="chat_assistant")
-
-        return {
-            "success": True,
-            "proposal_id": updated_proposal["id"],
-            "status": updated_proposal["status"],
-            "applied_at": updated_proposal.get("applied_at"),
-            "message": f"✅ Applied proposal: {updated_proposal['title']} ({changes_count} changes)",
-            "creates": updated_proposal.get("creates_count", 0),
-            "updates": updated_proposal.get("updates_count", 0),
-            "deletes": updated_proposal.get("deletes_count", 0),
-        }
-
-    except ValueError as e:
-        # Validation error
-        return {"success": False, "error": str(e), "message": f"Cannot apply proposal: {str(e)}"}
-    except Exception as e:
-        logger.error(f"Error applying proposal: {e}", exc_info=True)
-        return {"success": False, "error": str(e), "message": f"Failed to apply proposal: {str(e)}"}
-
-
-async def _analyze_gaps(project_id: UUID, params: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Analyze project for gaps in evidence, personas, features, or VP coverage.
-
-    Args:
-        project_id: Project UUID
-        params: Gap analysis parameters
-
-    Returns:
-        Gap analysis results
-    """
-    from app.db.features import list_features
-    from app.db.personas import list_personas
-    from app.db.vp import list_vp_steps
-
-    gap_types = params.get("gap_types", ["evidence", "personas", "features", "vp_steps"])
-    scope = params.get("scope", "mvp")
-
-    try:
-        gaps = {}
-
-        # Analyze evidence gaps
-        if "evidence" in gap_types:
-            features = list_features(project_id)
-            vp_steps = list_vp_steps(project_id)
-
-            # Filter by scope
-            if scope == "mvp":
-                features = [f for f in features if f.get("is_mvp")]
-
-            # Count entities without evidence
-            features_without_evidence = [
-                f["name"] for f in features if not f.get("evidence") or len(f["evidence"]) == 0
-            ]
-            vp_without_evidence = [
-                f"Step {s['step_index']}" for s in vp_steps if not s.get("evidence") or len(s["evidence"]) == 0
-            ]
-
-            gaps["evidence"] = {
-                "features_count": len(features_without_evidence),
-                "features": features_without_evidence[:5],  # Show first 5
-                "vp_steps_count": len(vp_without_evidence),
-                "vp_steps": vp_without_evidence[:5],
-                "message": f"{len(features_without_evidence)} features and {len(vp_without_evidence)} VP steps lack evidence",
-            }
-
-        # Analyze persona gaps
-        if "personas" in gap_types:
-            personas = list_personas(project_id)
-
-            if len(personas) == 0:
-                gaps["personas"] = {
-                    "count": 0,
-                    "message": "No personas defined - critical gap for understanding users",
-                    "severity": "critical",
-                }
-            elif len(personas) < 2:
-                gaps["personas"] = {
-                    "count": len(personas),
-                    "message": "Only 1 persona defined - consider adding more for comprehensive coverage",
-                    "severity": "important",
-                }
-            else:
-                # Check for incomplete personas
-                incomplete = []
-                for persona in personas:
-                    missing_fields = []
-                    if not persona.get("demographics"):
-                        missing_fields.append("demographics")
-                    if not persona.get("psychographics"):
-                        missing_fields.append("psychographics")
-                    if not persona.get("goals") or len(persona["goals"]) == 0:
-                        missing_fields.append("goals")
-                    if not persona.get("pain_points") or len(persona["pain_points"]) == 0:
-                        missing_fields.append("pain_points")
-
-                    if missing_fields:
-                        incomplete.append({
-                            "name": persona["name"],
-                            "missing": missing_fields,
-                        })
-
-                gaps["personas"] = {
-                    "total_count": len(personas),
-                    "incomplete_count": len(incomplete),
-                    "incomplete": incomplete[:5],
-                    "message": f"{len(incomplete)} personas have missing details" if incomplete else "All personas are complete",
-                    "severity": "minor" if incomplete else "ok",
-                }
-
-        # Analyze feature gaps
-        if "features" in gap_types:
-            features = list_features(project_id)
-            mvp_features = [f for f in features if f.get("is_mvp")]
-
-            if len(features) == 0:
-                gaps["features"] = {
-                    "count": 0,
-                    "message": "No features defined - critical gap",
-                    "severity": "critical",
-                }
-            elif len(mvp_features) == 0:
-                gaps["features"] = {
-                    "total_count": len(features),
-                    "mvp_count": 0,
-                    "message": "Features exist but none marked as MVP",
-                    "severity": "important",
-                }
-            else:
-                # Check confidence distribution
-                low_confidence = [f for f in mvp_features if f.get("confidence") == "low"]
-
-                gaps["features"] = {
-                    "total_count": len(features),
-                    "mvp_count": len(mvp_features),
-                    "low_confidence_count": len(low_confidence),
-                    "low_confidence": [f["name"] for f in low_confidence[:5]],
-                    "message": f"{len(low_confidence)} MVP features have low confidence" if low_confidence else "All MVP features have medium-high confidence",
-                    "severity": "minor" if low_confidence else "ok",
-                }
-
-        # Analyze VP step gaps
-        if "vp_steps" in gap_types:
-            vp_steps = list_vp_steps(project_id)
-
-            if len(vp_steps) == 0:
-                gaps["vp_steps"] = {
-                    "count": 0,
-                    "message": "No Value Path steps defined - critical gap",
-                    "severity": "critical",
-                }
-            elif len(vp_steps) < 3:
-                gaps["vp_steps"] = {
-                    "count": len(vp_steps),
-                    "message": f"Only {len(vp_steps)} VP steps - workflows typically need 3-7 steps",
-                    "severity": "important",
-                }
-            else:
-                # Check for incomplete steps
-                incomplete = []
-                for step in vp_steps:
-                    missing_fields = []
-                    if not step.get("description"):
-                        missing_fields.append("description")
-                    if not step.get("user_benefit_pain"):
-                        missing_fields.append("user_benefit_pain")
-                    if not step.get("value_created"):
-                        missing_fields.append("value_created")
-
-                    if missing_fields:
-                        incomplete.append({
-                            "label": step["label"],
-                            "missing": missing_fields,
-                        })
-
-                gaps["vp_steps"] = {
-                    "total_count": len(vp_steps),
-                    "incomplete_count": len(incomplete),
-                    "incomplete": incomplete[:5],
-                    "message": f"{len(incomplete)} VP steps have missing details" if incomplete else "All VP steps are complete",
-                    "severity": "minor" if incomplete else "ok",
-                }
-
-        # Analyze confirmation gaps
-        if "confirmations" in gap_types:
-            supabase = get_supabase()
-            response = (
-                supabase.table("confirmation_items")
-                .select("id, ask, status")
-                .eq("project_id", str(project_id))
-                .eq("status", "open")
-                .execute()
-            )
-
-            open_confirmations = response.data or []
-
-            gaps["confirmations"] = {
-                "open_count": len(open_confirmations),
-                "confirmations": [c.get("ask") for c in open_confirmations[:5]],
-                "message": f"{len(open_confirmations)} open confirmations need client input" if open_confirmations else "No pending confirmations",
-                "severity": "important" if len(open_confirmations) > 5 else "minor" if open_confirmations else "ok",
-            }
-
-        # Calculate overall severity
-        severities = [gap.get("severity", "ok") for gap in gaps.values()]
-        overall_severity = "ok"
-        if "critical" in severities:
-            overall_severity = "critical"
-        elif "important" in severities:
-            overall_severity = "important"
-        elif "minor" in severities:
-            overall_severity = "minor"
-
-        return {
-            "success": True,
-            "gaps": gaps,
-            "overall_severity": overall_severity,
-            "message": f"Gap analysis complete: {len(gaps)} categories analyzed",
-            "scope": scope,
-        }
-
-    except Exception as e:
-        logger.error(f"Error analyzing gaps: {e}", exc_info=True)
-        return {"success": False, "error": str(e), "message": f"Failed to analyze gaps: {str(e)}"}
-
-
-async def _semantic_search_research(project_id: UUID, params: Dict[str, Any]) -> Dict[str, Any]:
+async def _search(project_id: UUID, params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Semantic search through research using AI embeddings.
 
@@ -2082,243 +964,6 @@ async def _attach_evidence(project_id: UUID, params: Dict[str, Any]) -> Dict[str
         }
 
 
-async def _find_evidence_gaps(project_id: UUID, params: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Find entities lacking research evidence.
-
-    Args:
-        project_id: Project UUID
-        params: Tool parameters (entity_types, mvp_only, suggest_queries)
-
-    Returns:
-        Entities with missing evidence and suggested queries
-    """
-    try:
-        supabase = get_supabase()
-
-        entity_types = params.get("entity_types", ["feature", "vp_step", "persona"])
-        mvp_only = params.get("mvp_only", True)
-        suggest_queries = params.get("suggest_queries", True)
-
-        gaps = {}
-
-        # Check features
-        if "feature" in entity_types:
-            query = supabase.table("features").select("*").eq("project_id", str(project_id))
-            if mvp_only:
-                query = query.eq("is_mvp", True)
-
-            features_response = query.execute()
-            features = features_response.data or []
-
-            features_without_evidence = []
-            for feature in features:
-                evidence = feature.get("evidence", [])
-                if not evidence or len(evidence) == 0:
-                    features_without_evidence.append({
-                        "id": feature["id"],
-                        "name": feature.get("name", "Untitled"),
-                        "category": feature.get("category", "Unknown"),
-                        "suggested_query": f"{feature.get('name', '')} {feature.get('category', '')}" if suggest_queries else None,
-                    })
-
-            gaps["features"] = {
-                "count": len(features_without_evidence),
-                "items": features_without_evidence[:10],  # Limit to 10
-                "message": f"{len(features_without_evidence)} features lack evidence",
-            }
-
-        # Check VP steps
-        if "vp_step" in entity_types:
-            vp_response = supabase.table("vp_steps").select("*").eq("project_id", str(project_id)).execute()
-            vp_steps = vp_response.data or []
-
-            vp_without_evidence = []
-            for step in vp_steps:
-                evidence = step.get("evidence", [])
-                if not evidence or len(evidence) == 0:
-                    vp_without_evidence.append({
-                        "id": step["id"],
-                        "label": step.get("label", "Untitled"),
-                        "step_index": step.get("step_index", 0),
-                        "suggested_query": f"{step.get('label', '')} user flow" if suggest_queries else None,
-                    })
-
-            gaps["vp_steps"] = {
-                "count": len(vp_without_evidence),
-                "items": vp_without_evidence[:10],
-                "message": f"{len(vp_without_evidence)} Value Path steps lack evidence",
-            }
-
-        # Calculate totals
-        total_gaps = sum(gap["count"] for gap in gaps.values())
-
-        return {
-            "success": True,
-            "total_gaps": total_gaps,
-            "gaps": gaps,
-            "message": f"Found {total_gaps} entities without research evidence",
-            "mvp_only": mvp_only,
-        }
-
-    except Exception as e:
-        logger.error(f"Error finding evidence gaps: {e}", exc_info=True)
-        return {
-            "success": False,
-            "error": str(e),
-            "message": f"Failed to find evidence gaps: {str(e)}",
-        }
-
-
-async def _orchestrate_agent(project_id: UUID, params: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Queue an agent to run in background with optional scope.
-
-    Args:
-        project_id: Project UUID
-        params: Tool parameters (agent_type, scope, include_research)
-
-    Returns:
-        Job information with job_id for tracking
-    """
-    try:
-        import uuid
-        from app.db.jobs import create_job, start_job
-
-        agent_type = params["agent_type"]
-        scope = params.get("scope")
-        include_research = params.get("include_research", True)
-
-        run_id = uuid.uuid4()
-
-        # Create job input
-        job_input = {"include_research": include_research}
-        if scope:
-            job_input["scope"] = scope
-
-        # Create and start job
-        job_id = create_job(
-            project_id=project_id,
-            job_type=agent_type,
-            input_json=job_input,
-            run_id=run_id,
-        )
-        start_job(job_id)
-
-        # Queue the background task
-        # Note: red_team and a_team agents have been removed
-        # Research and other agents can be added here as needed
-        if agent_type in ["red_team", "a_team"]:
-            return {
-                "success": False,
-                "error": f"{agent_type} agent has been removed",
-                "message": "Use add_signal for processing client data instead",
-            }
-        elif agent_type == "research":
-            # Research agent not implemented yet
-            return {
-                "success": False,
-                "error": "Research agent not yet implemented",
-            }
-
-        logger.info(f"Queued {agent_type} agent: job_id={job_id}")
-
-        return {
-            "success": True,
-            "agent_type": agent_type,
-            "job_id": str(job_id),
-            "run_id": str(run_id),
-            "status": "queued",
-            "message": f"{agent_type.replace('_', ' ').title()} agent queued - use get_agent_status to check progress",
-            "scope": scope if scope else "full project",
-        }
-
-    except Exception as e:
-        logger.error(f"Error orchestrating agent: {e}", exc_info=True)
-        return {
-            "success": False,
-            "error": str(e),
-            "message": f"Failed to queue agent: {str(e)}",
-        }
-
-
-async def _get_agent_status(project_id: UUID, params: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Get status of a running or completed agent job.
-
-    Args:
-        project_id: Project UUID
-        params: Tool parameters (job_id)
-
-    Returns:
-        Job status, output, and progress information
-    """
-    try:
-        from app.db.jobs import get_job
-
-        job_id_str = params["job_id"]
-        job_id = UUID(job_id_str)
-
-        job = get_job(job_id)
-
-        if not job:
-            return {
-                "success": False,
-                "error": "Job not found",
-                "message": f"No job found with ID: {job_id_str}",
-            }
-
-        # Format response
-        response = {
-            "success": True,
-            "job_id": str(job["id"]),
-            "agent_type": job.get("job_type", "unknown"),
-            "status": job.get("status", "unknown"),
-            "created_at": job.get("created_at"),
-            "started_at": job.get("started_at"),
-            "completed_at": job.get("completed_at"),
-        }
-
-        # Add output if completed
-        if job.get("status") == "completed":
-            output = job.get("output_json", {})
-            response["output"] = output
-            response["message"] = "Agent completed successfully"
-
-            # Format specific outputs
-            if job.get("job_type") == "red_team":
-                response["insights_count"] = output.get("insights_count", 0)
-                response["by_severity"] = output.get("by_severity", {})
-            elif job.get("job_type") == "a_team":
-                response["patches_count"] = output.get("patches_count", 0)
-
-        elif job.get("status") == "failed":
-            response["error"] = job.get("error")
-            response["message"] = f"Agent failed: {job.get('error', 'Unknown error')}"
-
-        elif job.get("status") == "processing":
-            response["message"] = "Agent is currently running..."
-
-        else:  # queued
-            response["message"] = "Agent is queued and will start soon"
-
-        return response
-
-    except ValueError as e:
-        return {
-            "success": False,
-            "error": "Invalid job ID format",
-            "message": f"Job ID must be a valid UUID: {str(e)}",
-        }
-    except Exception as e:
-        logger.error(f"Error getting agent status: {e}", exc_info=True)
-        return {
-            "success": False,
-            "error": str(e),
-            "message": f"Failed to get agent status: {str(e)}",
-        }
-
-
 def _summarize_change(change: Dict[str, Any]) -> str:
     """
     Create a one-line summary of a change.
@@ -2345,155 +990,6 @@ def _summarize_change(change: Dict[str, Any]) -> str:
         return f"Delete {entity_type}: {name}"
     else:
         return f"{operation} {entity_type}"
-
-
-# =======================
-# Creative Brief Tools
-# =======================
-
-
-async def _get_creative_brief(project_id: UUID, params: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Get the creative brief status for research.
-
-    Args:
-        project_id: Project UUID
-        params: Tool parameters (none required)
-
-    Returns:
-        Creative brief with completeness status
-    """
-    try:
-        from app.db.creative_briefs import get_creative_brief, is_brief_complete
-
-        brief = get_creative_brief(project_id)
-
-        if not brief:
-            return {
-                "success": True,
-                "exists": False,
-                "is_complete": False,
-                "missing_fields": ["client_name", "industry"],
-                "completeness_score": 0.0,
-                "message": "No creative brief yet. To run research, I need the client name and industry.",
-            }
-
-        is_complete, missing = is_brief_complete(project_id)
-
-        response = {
-            "success": True,
-            "exists": True,
-            "is_complete": is_complete,
-            "missing_fields": missing,
-            "completeness_score": brief.get("completeness_score", 0.0),
-            "client_name": brief.get("client_name"),
-            "industry": brief.get("industry"),
-            "website": brief.get("website"),
-            "competitors": brief.get("competitors", []),
-            "focus_areas": brief.get("focus_areas", []),
-            "custom_questions": brief.get("custom_questions", []),
-        }
-
-        if is_complete:
-            response["message"] = "Creative brief is complete. Ready for research!"
-        else:
-            response["message"] = f"Creative brief needs: {', '.join(missing)}"
-
-        return response
-
-    except Exception as e:
-        logger.error(f"Error getting creative brief: {e}", exc_info=True)
-        return {
-            "success": False,
-            "error": str(e),
-            "message": f"Failed to get creative brief: {str(e)}",
-        }
-
-
-async def _update_creative_brief(project_id: UUID, params: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Update the creative brief with client information.
-
-    Args:
-        project_id: Project UUID
-        params: Fields to update (client_name, industry, website, competitors, etc.)
-
-    Returns:
-        Updated creative brief with completeness status
-    """
-    try:
-        from app.db.creative_briefs import upsert_creative_brief, is_brief_complete
-
-        # Build update data from provided params
-        update_data = {}
-        updated_fields = []
-
-        if "client_name" in params and params["client_name"]:
-            update_data["client_name"] = params["client_name"]
-            updated_fields.append("client_name")
-
-        if "industry" in params and params["industry"]:
-            update_data["industry"] = params["industry"]
-            updated_fields.append("industry")
-
-        if "website" in params and params["website"]:
-            update_data["website"] = params["website"]
-            updated_fields.append("website")
-
-        if "competitors" in params and params["competitors"]:
-            update_data["competitors"] = params["competitors"]
-            updated_fields.append("competitors")
-
-        if "focus_areas" in params and params["focus_areas"]:
-            update_data["focus_areas"] = params["focus_areas"]
-            updated_fields.append("focus_areas")
-
-        if "custom_questions" in params and params["custom_questions"]:
-            update_data["custom_questions"] = params["custom_questions"]
-            updated_fields.append("custom_questions")
-
-        if not update_data:
-            return {
-                "success": False,
-                "error": "No fields to update",
-                "message": "Please provide at least one field to update (client_name, industry, website, competitors, focus_areas, or custom_questions)",
-            }
-
-        # Upsert the brief
-        updated_brief = upsert_creative_brief(
-            project_id=project_id,
-            data=update_data,
-            source="user",
-        )
-
-        # Check completeness
-        is_complete, missing = is_brief_complete(project_id)
-
-        response = {
-            "success": True,
-            "updated_fields": updated_fields,
-            "is_complete": is_complete,
-            "missing_fields": missing,
-            "completeness_score": updated_brief.get("completeness_score", 0.0),
-            "client_name": updated_brief.get("client_name"),
-            "industry": updated_brief.get("industry"),
-            "website": updated_brief.get("website"),
-        }
-
-        if is_complete:
-            response["message"] = f"Updated {', '.join(updated_fields)}. Creative brief is now complete - ready for research!"
-        else:
-            response["message"] = f"Updated {', '.join(updated_fields)}. Still need: {', '.join(missing)}"
-
-        return response
-
-    except Exception as e:
-        logger.error(f"Error updating creative brief: {e}", exc_info=True)
-        return {
-            "success": False,
-            "error": str(e),
-            "message": f"Failed to update creative brief: {str(e)}",
-        }
 
 
 async def _add_signal(project_id: UUID, params: Dict[str, Any]) -> Dict[str, Any]:
@@ -3165,137 +1661,6 @@ async def _enrich_personas(project_id: UUID, params: Dict[str, Any]) -> Dict[str
         }
 
 
-async def _generate_value_path(project_id: UUID, params: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Generate or regenerate the Value Path.
-
-    Args:
-        project_id: Project UUID
-        params: Generation parameters
-
-    Returns:
-        Generation results
-    """
-    try:
-        from app.chains.generate_value_path_v2 import generate_and_save_value_path
-
-        preserve_consultant_edits = params.get("preserve_consultant_edits", True)
-
-        # Run generation
-        result = generate_and_save_value_path(
-            project_id=project_id,
-            preserve_consultant_edited=preserve_consultant_edits,
-        )
-
-        steps_generated = result.get("steps_generated", 0)
-        steps_created = result.get("steps_created", 0)
-        steps_updated = result.get("steps_updated", 0)
-        steps_preserved = result.get("steps_preserved", 0)
-        gaps = result.get("gaps_identified", [])
-        summary = result.get("generation_summary", "")
-
-        # Build success message
-        message_parts = [f"✅ Generated Value Path with {steps_generated} steps:"]
-        message_parts.append(f"  • {steps_created} new steps created")
-        message_parts.append(f"  • {steps_updated} existing steps updated")
-        if steps_preserved > 0:
-            message_parts.append(f"  • {steps_preserved} consultant-edited steps preserved")
-
-        if summary:
-            message_parts.append(f"\n**Summary**: {summary}")
-
-        if gaps:
-            message_parts.append("\n**Gaps identified**:")
-            for gap in gaps[:5]:
-                message_parts.append(f"  ⚠️ {gap}")
-            if len(gaps) > 5:
-                message_parts.append(f"  ... and {len(gaps) - 5} more")
-
-        return {
-            "success": True,
-            "steps_generated": steps_generated,
-            "steps_created": steps_created,
-            "steps_updated": steps_updated,
-            "steps_preserved": steps_preserved,
-            "gaps_identified": gaps,
-            "message": "\n".join(message_parts),
-        }
-
-    except ValueError as e:
-        return {
-            "success": False,
-            "error": str(e),
-            "message": f"Cannot generate Value Path: {str(e)}",
-        }
-    except Exception as e:
-        logger.error(f"Error generating value path: {e}", exc_info=True)
-        return {
-            "success": False,
-            "error": str(e),
-            "message": f"Failed to generate Value Path: {str(e)}",
-        }
-
-
-async def _process_vp_changes(project_id: UUID, params: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Process pending VP changes (surgical updates or full regeneration).
-
-    Args:
-        project_id: Project UUID
-        params: Processing parameters
-
-    Returns:
-        Processing results
-    """
-    try:
-        from app.chains.update_vp_step import process_change_queue
-
-        # Process changes
-        result = process_change_queue(project_id)
-
-        if result.get("message") == "No pending changes":
-            return {
-                "success": True,
-                "action": "none",
-                "message": "✅ No pending changes to process. Value Path is up to date.",
-            }
-
-        action = result.get("action", "unknown")
-        changes_processed = result.get("changes_processed", 0)
-        affected_steps = result.get("affected_steps", 0)
-        impact_ratio = result.get("impact_ratio", 0)
-
-        # Build success message
-        message_parts = [f"✅ Processed {changes_processed} change(s):"]
-        message_parts.append(f"  • {affected_steps} VP steps affected ({impact_ratio:.0%} of total)")
-
-        if action == "surgical_update":
-            steps_updated = result.get("steps_updated", 0)
-            message_parts.append(f"  • Performed surgical updates on {steps_updated} steps")
-            message_parts.append("  • Other steps preserved unchanged")
-        elif action == "full_regeneration":
-            gen_result = result.get("generation_result", {})
-            message_parts.append(f"  • Impact >= 50%, triggered full regeneration")
-            message_parts.append(f"  • {gen_result.get('steps_generated', 0)} steps generated")
-
-        return {
-            "success": True,
-            "action": action,
-            "changes_processed": changes_processed,
-            "affected_steps": affected_steps,
-            "impact_ratio": impact_ratio,
-            "message": "\n".join(message_parts),
-        }
-
-    except Exception as e:
-        logger.error(f"Error processing VP changes: {e}", exc_info=True)
-        return {
-            "success": False,
-            "error": str(e),
-            "message": f"Failed to process VP changes: {str(e)}",
-        }
-
-
 # =============================================================================
 # Strategic Context Tools
 # =============================================================================
@@ -3540,67 +1905,6 @@ async def _update_project_type(project_id: UUID, params: Dict[str, Any]) -> Dict
         }
 
 
-async def _add_stakeholder(project_id: UUID, params: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Add a stakeholder.
-
-    Args:
-        project_id: Project UUID
-        params: Stakeholder data
-
-    Returns:
-        Creation result
-    """
-    try:
-        from app.db.stakeholders import create_stakeholder
-
-        name = params.get("name")
-        stakeholder_type = params.get("stakeholder_type")
-
-        if not name or not stakeholder_type:
-            return {
-                "success": False,
-                "error": "name and stakeholder_type are required",
-                "message": "Please provide stakeholder name and type (champion, sponsor, blocker, influencer, end_user)",
-            }
-
-        stakeholder = create_stakeholder(
-            project_id=project_id,
-            name=name,
-            stakeholder_type=stakeholder_type,
-            email=params.get("email"),
-            role=params.get("role"),
-            organization=params.get("organization"),
-            influence_level=params.get("influence_level", "medium"),
-            priorities=params.get("priorities", []),
-            concerns=params.get("concerns", []),
-            confirmation_status="ai_generated",
-        )
-
-        type_labels = {
-            "champion": "Champion (internal advocate)",
-            "sponsor": "Sponsor (decision maker)",
-            "blocker": "Blocker (opposition)",
-            "influencer": "Influencer (opinion leader)",
-            "end_user": "End User",
-        }
-        type_label = type_labels.get(stakeholder_type, stakeholder_type)
-
-        return {
-            "success": True,
-            "stakeholder": stakeholder,
-            "message": f"✅ Added stakeholder: {name} as {type_label}",
-        }
-
-    except Exception as e:
-        logger.error(f"Error adding stakeholder: {e}", exc_info=True)
-        return {
-            "success": False,
-            "error": str(e),
-            "message": f"Failed to add stakeholder: {str(e)}",
-        }
-
-
 async def _identify_stakeholders(project_id: UUID, params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Identify stakeholders from signals.
@@ -3658,182 +1962,124 @@ async def _identify_stakeholders(project_id: UUID, params: Dict[str, Any]) -> Di
         }
 
 
-async def _list_stakeholders(project_id: UUID, params: Dict[str, Any]) -> Dict[str, Any]:
+async def _update_strategic_context(project_id: UUID, params: Dict[str, Any]) -> Dict[str, Any]:
     """
-    List stakeholders grouped by type.
+    Update strategic context by adding a risk, success metric, or updating a field.
+
+    Routes to the same DB logic that _add_risk and _add_success_metric used.
 
     Args:
         project_id: Project UUID
-        params: Not used
+        params: Tool parameters (action, data)
 
     Returns:
-        Stakeholder list
+        Update result
     """
     try:
-        from app.db.stakeholders import get_stakeholders_grouped
+        from app.db.strategic_context import add_risk, add_success_metric, get_strategic_context
 
-        grouped = get_stakeholders_grouped(project_id)
+        action = params.get("action")
+        data = params.get("data", {})
 
-        total = sum(len(v) for v in grouped.values())
+        if not action:
+            return {
+                "success": False,
+                "error": "action is required",
+                "message": "Please specify action: add_risk, add_success_metric, or update_field",
+            }
 
-        if total == 0:
+        # Check if context exists
+        context = get_strategic_context(project_id)
+        if not context:
+            return {
+                "success": False,
+                "error": "No strategic context found",
+                "message": "No strategic context exists. Generate one first with `generate_strategic_context`.",
+            }
+
+        if action == "add_risk":
+            category = data.get("category")
+            description = data.get("description")
+            severity = data.get("severity")
+
+            if not category or not description or not severity:
+                return {
+                    "success": False,
+                    "error": "category, description, and severity are required in data",
+                    "message": "Please provide risk category (business/technical/compliance/competitive), description, and severity (high/medium/low)",
+                }
+
+            updated = add_risk(
+                project_id=project_id,
+                category=category,
+                description=description,
+                severity=severity,
+                mitigation=data.get("mitigation"),
+            )
+
             return {
                 "success": True,
-                "total": 0,
-                "grouped": grouped,
-                "message": "No stakeholders found. Use `add_stakeholder` or `identify_stakeholders` to add them.",
+                "risk_count": len(updated.get("risks", [])),
+                "message": f"Added {severity.upper()} {category} risk: {description[:80]}",
             }
 
-        # Build message
-        message_parts = [f"**Stakeholders** ({total} total)"]
+        elif action == "add_success_metric":
+            metric = data.get("name") or data.get("metric")
+            target = data.get("target")
 
-        type_labels = {
-            "champion": "Champions (Internal Advocates)",
-            "sponsor": "Sponsors (Decision Makers)",
-            "blocker": "Blockers (Opposition)",
-            "influencer": "Influencers (Opinion Leaders)",
-            "end_user": "End Users",
-        }
+            if not metric or not target:
+                return {
+                    "success": False,
+                    "error": "name/metric and target are required in data",
+                    "message": "Please provide metric name and target value",
+                }
 
-        for sh_type, label in type_labels.items():
-            stakeholders = grouped.get(sh_type, [])
-            if stakeholders:
-                message_parts.append(f"\n**{label}**:")
-                for sh in stakeholders:
-                    influence = sh.get("influence_level", "medium")
-                    role = sh.get("role", "")
-                    role_str = f" ({role})" if role else ""
-                    message_parts.append(f"  • {sh.get('name', 'Unknown')}{role_str} [{influence}]")
+            updated = add_success_metric(
+                project_id=project_id,
+                metric=metric,
+                target=target,
+                current=data.get("current"),
+            )
 
-        return {
-            "success": True,
-            "total": total,
-            "grouped": grouped,
-            "message": "\n".join(message_parts),
-        }
+            return {
+                "success": True,
+                "metric_count": len(updated.get("success_metrics", [])),
+                "message": f"Added success metric: {metric} -> Target: {target}",
+            }
+
+        elif action == "update_field":
+            field_name = data.get("field_name")
+            value = data.get("value")
+
+            if not field_name:
+                return {
+                    "success": False,
+                    "error": "field_name is required in data for update_field",
+                }
+
+            supabase = get_supabase()
+            supabase.table("strategic_context").update(
+                {field_name: value, "updated_at": "now()"}
+            ).eq("project_id", str(project_id)).execute()
+
+            return {
+                "success": True,
+                "message": f"Updated strategic context field: {field_name}",
+            }
+
+        else:
+            return {
+                "success": False,
+                "error": f"Unknown action: {action}",
+                "message": "Valid actions: add_risk, add_success_metric, update_field",
+            }
 
     except Exception as e:
-        logger.error(f"Error listing stakeholders: {e}", exc_info=True)
+        logger.error(f"Error updating strategic context: {e}", exc_info=True)
         return {
             "success": False,
             "error": str(e),
-            "message": f"Failed to list stakeholders: {str(e)}",
-        }
-
-
-async def _add_risk(project_id: UUID, params: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Add a risk to strategic context.
-
-    Args:
-        project_id: Project UUID
-        params: Risk data
-
-    Returns:
-        Addition result
-    """
-    try:
-        from app.db.strategic_context import add_risk, get_strategic_context
-
-        category = params.get("category")
-        description = params.get("description")
-        severity = params.get("severity")
-
-        if not category or not description or not severity:
-            return {
-                "success": False,
-                "error": "category, description, and severity are required",
-                "message": "Please provide risk category (business/technical/compliance/competitive), description, and severity (high/medium/low)",
-            }
-
-        # Check if context exists
-        context = get_strategic_context(project_id)
-        if not context:
-            return {
-                "success": False,
-                "error": "No strategic context found",
-                "message": "No strategic context exists. Generate one first with `generate_strategic_context`.",
-            }
-
-        # Add risk
-        updated = add_risk(
-            project_id=project_id,
-            category=category,
-            description=description,
-            severity=severity,
-            mitigation=params.get("mitigation"),
-        )
-
-        severity_emoji = {"high": "🔴", "medium": "🟡", "low": "🟢"}.get(severity, "⚪")
-
-        return {
-            "success": True,
-            "risk_count": len(updated.get("risks", [])),
-            "message": f"✅ Added {severity_emoji} {severity.upper()} {category} risk: {description[:80]}...",
-        }
-
-    except Exception as e:
-        logger.error(f"Error adding risk: {e}", exc_info=True)
-        return {
-            "success": False,
-            "error": str(e),
-            "message": f"Failed to add risk: {str(e)}",
-        }
-
-
-async def _add_success_metric(project_id: UUID, params: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Add a success metric to strategic context.
-
-    Args:
-        project_id: Project UUID
-        params: Metric data
-
-    Returns:
-        Addition result
-    """
-    try:
-        from app.db.strategic_context import add_success_metric, get_strategic_context
-
-        metric = params.get("metric")
-        target = params.get("target")
-
-        if not metric or not target:
-            return {
-                "success": False,
-                "error": "metric and target are required",
-                "message": "Please provide metric name and target value",
-            }
-
-        # Check if context exists
-        context = get_strategic_context(project_id)
-        if not context:
-            return {
-                "success": False,
-                "error": "No strategic context found",
-                "message": "No strategic context exists. Generate one first with `generate_strategic_context`.",
-            }
-
-        # Add metric
-        updated = add_success_metric(
-            project_id=project_id,
-            metric=metric,
-            target=target,
-            current=params.get("current"),
-        )
-
-        return {
-            "success": True,
-            "metric_count": len(updated.get("success_metrics", [])),
-            "message": f"✅ Added success metric: {metric} → Target: {target}",
-        }
-
-    except Exception as e:
-        logger.error(f"Error adding success metric: {e}", exc_info=True)
-        return {
-            "success": False,
-            "error": str(e),
-            "message": f"Failed to add success metric: {str(e)}",
+            "message": f"Failed to update strategic context: {str(e)}",
         }
 
 
@@ -4034,159 +2280,6 @@ async def _refresh_stale_entity(project_id: UUID, params: Dict[str, Any]) -> Dic
             "success": False,
             "error": str(e),
             "message": f"Failed to refresh entity: {str(e)}",
-        }
-
-
-async def _link_strategic_context(project_id: UUID, params: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Link strategic context elements to entities.
-
-    Args:
-        project_id: Project UUID
-        params: Section, index, and linked entity info
-
-    Returns:
-        Link result
-    """
-    try:
-        from app.chains.strategic_context_linker import (
-            link_risk_to_features,
-            link_stakeholder_to_persona,
-            link_success_metric_to_vp_steps,
-        )
-
-        section = params.get("section")
-        index = params.get("index")
-        linked_type = params.get("linked_entity_type")
-        linked_ids = params.get("linked_entity_ids", [])
-
-        if not all([section, index is not None, linked_type, linked_ids]):
-            return {
-                "success": False,
-                "error": "Missing required parameters",
-                "message": "Please provide section, index, linked_entity_type, and linked_entity_ids",
-            }
-
-        if section == "risk" and linked_type == "feature":
-            link_risk_to_features(project_id, index, [UUID(fid) for fid in linked_ids])
-            message = f"Linked risk {index} to {len(linked_ids)} features"
-
-        elif section == "success_metric" and linked_type == "vp_step":
-            link_success_metric_to_vp_steps(project_id, index, [UUID(sid) for sid in linked_ids])
-            message = f"Linked success metric {index} to {len(linked_ids)} VP steps"
-
-        elif section == "stakeholder" and linked_type == "persona":
-            if len(linked_ids) != 1:
-                return {
-                    "success": False,
-                    "error": "Stakeholder can only link to one persona",
-                    "message": "Please provide exactly one persona ID",
-                }
-            # For stakeholder, index is actually the stakeholder_id
-            link_stakeholder_to_persona(project_id, UUID(str(index)), UUID(linked_ids[0]))
-            message = "Linked stakeholder to persona"
-
-        else:
-            return {
-                "success": False,
-                "error": f"Invalid combination: {section} + {linked_type}",
-                "message": "Risks link to features, success metrics link to VP steps, stakeholders link to personas",
-            }
-
-        return {
-            "success": True,
-            "message": message,
-        }
-
-    except Exception as e:
-        logger.error(f"Error linking strategic context: {e}", exc_info=True)
-        return {
-            "success": False,
-            "error": str(e),
-            "message": f"Failed to link: {str(e)}",
-        }
-
-
-async def _rebuild_dependencies(project_id: UUID, params: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Rebuild the entity dependency graph.
-
-    Args:
-        project_id: Project UUID
-        params: (unused)
-
-    Returns:
-        Rebuild stats
-    """
-    try:
-        from app.db.entity_dependencies import rebuild_dependencies_for_project
-
-        stats = rebuild_dependencies_for_project(project_id)
-
-        message = (
-            f"Rebuilt dependency graph:\n"
-            f"  - Features processed: {stats['features_processed']}\n"
-            f"  - VP steps processed: {stats['vp_steps_processed']}\n"
-            f"  - Dependencies created: {stats['dependencies_created']}"
-        )
-
-        if stats.get("errors"):
-            message += f"\n  - Errors: {len(stats['errors'])}"
-
-        return {
-            "success": True,
-            "stats": stats,
-            "message": message,
-        }
-
-    except Exception as e:
-        logger.error(f"Error rebuilding dependencies: {e}", exc_info=True)
-        return {
-            "success": False,
-            "error": str(e),
-            "message": f"Failed to rebuild dependencies: {str(e)}",
-        }
-
-
-async def _process_cascades(project_id: UUID, params: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Process pending entity cascades.
-
-    Args:
-        project_id: Project UUID
-        params: Optional auto_only flag
-
-    Returns:
-        Processing stats
-    """
-    try:
-        from app.chains.entity_cascade import process_entity_changes
-
-        auto_only = params.get("auto_only", True)
-
-        stats = process_entity_changes(project_id, auto_only=auto_only)
-
-        message = (
-            f"Cascade processing complete:\n"
-            f"  - Changes processed: {stats['changes_processed']}\n"
-            f"  - Entities marked stale: {stats['entities_marked_stale']}"
-        )
-
-        if stats.get("errors"):
-            message += f"\n  - Errors: {len(stats['errors'])}"
-
-        return {
-            "success": True,
-            "stats": stats,
-            "message": message,
-        }
-
-    except Exception as e:
-        logger.error(f"Error processing cascades: {e}", exc_info=True)
-        return {
-            "success": False,
-            "error": str(e),
-            "message": f"Failed to process cascades: {str(e)}",
         }
 
 
@@ -4677,3 +2770,248 @@ async def _update_workflow_entity(entity_id: UUID, fields: dict) -> Dict[str, An
         "entity_id": str(entity_id),
         "message": f"Updated workflow **{workflow.get('name', '')}**: {changed}",
     }
+
+
+# ===========================
+# Research / Evolution Tools
+# ===========================
+
+
+async def _query_entity_history(project_id: UUID, params: Dict[str, Any]) -> Dict[str, Any]:
+    """Query the evolution history of an entity."""
+    supabase = get_supabase()
+    entity_type = params.get("entity_type", "feature")
+    id_or_name = params.get("entity_id_or_name", "")
+
+    # Table mapping
+    table_map = {
+        "feature": "features",
+        "persona": "personas",
+        "vp_step": "vp_steps",
+        "stakeholder": "stakeholders",
+        "data_entity": "data_entities",
+        "workflow": "workflows",
+    }
+    table = table_map.get(entity_type)
+    if not table:
+        return {"error": f"Unknown entity type: {entity_type}"}
+
+    # Resolve entity — try UUID first, then fuzzy name match
+    entity = None
+    entity_id = None
+    try:
+        UUID(id_or_name)
+        resp = supabase.table(table).select("*").eq("id", id_or_name).single().execute()
+        entity = resp.data
+        entity_id = id_or_name
+    except (ValueError, Exception):
+        # Fuzzy name match
+        resp = (
+            supabase.table(table)
+            .select("*")
+            .eq("project_id", str(project_id))
+            .ilike("name", f"%{id_or_name}%")
+            .limit(1)
+            .execute()
+        )
+        if resp.data:
+            entity = resp.data[0]
+            entity_id = entity["id"]
+
+    if not entity:
+        return {"error": f"No {entity_type} found matching '{id_or_name}'"}
+
+    result: Dict[str, Any] = {
+        "entity_type": entity_type,
+        "entity_id": entity_id,
+        "name": entity.get("name") or entity.get("title", ""),
+        "created_at": entity.get("created_at"),
+        "confirmation_status": entity.get("confirmation_status"),
+    }
+
+    # Load enrichment revisions (chronological field changes)
+    try:
+        rev_resp = (
+            supabase.table("enrichment_revisions")
+            .select("field_name, old_value, new_value, source, created_at")
+            .eq("entity_type", entity_type)
+            .eq("entity_id", entity_id)
+            .order("created_at")
+            .limit(20)
+            .execute()
+        )
+        result["revisions"] = rev_resp.data or []
+    except Exception:
+        result["revisions"] = []
+
+    # Load source signals
+    source_signal_ids = entity.get("source_signal_ids") or []
+    if source_signal_ids:
+        try:
+            sig_resp = (
+                supabase.table("signals")
+                .select("id, title, signal_type, created_at")
+                .in_("id", source_signal_ids[:10])
+                .order("created_at")
+                .execute()
+            )
+            result["source_signals"] = sig_resp.data or []
+        except Exception:
+            result["source_signals"] = []
+    else:
+        result["source_signals"] = []
+
+    # Load linked memory nodes
+    try:
+        mem_resp = (
+            supabase.table("memory_nodes")
+            .select("id, node_type, summary, confidence, created_at")
+            .eq("project_id", str(project_id))
+            .eq("linked_entity_type", entity_type)
+            .eq("linked_entity_id", entity_id)
+            .order("created_at", desc=True)
+            .limit(10)
+            .execute()
+        )
+        result["memory_nodes"] = mem_resp.data or []
+    except Exception:
+        result["memory_nodes"] = []
+
+    rev_count = len(result["revisions"])
+    sig_count = len(result["source_signals"])
+    mem_count = len(result["memory_nodes"])
+    result["message"] = (
+        f"**{result['name']}** ({entity_type}): "
+        f"{rev_count} revisions, {sig_count} source signals, {mem_count} linked facts"
+    )
+    return result
+
+
+async def _query_knowledge_graph(project_id: UUID, params: Dict[str, Any]) -> Dict[str, Any]:
+    """Search the knowledge graph for facts and beliefs about a topic."""
+    supabase = get_supabase()
+    topic = params.get("topic", "")
+    limit = min(params.get("limit", 10), 20)
+
+    if not topic:
+        return {"error": "topic is required"}
+
+    # Search memory nodes by summary
+    try:
+        nodes_resp = (
+            supabase.table("memory_nodes")
+            .select("id, node_type, summary, confidence, consultant_status, linked_entity_type, linked_entity_id, created_at")
+            .eq("project_id", str(project_id))
+            .ilike("summary", f"%{topic}%")
+            .order("confidence", desc=True)
+            .limit(limit)
+            .execute()
+        )
+        nodes = nodes_resp.data or []
+    except Exception as e:
+        logger.error(f"Knowledge graph search failed: {e}")
+        return {"error": str(e)}
+
+    if not nodes:
+        return {
+            "nodes": [],
+            "edges": [],
+            "message": f"No knowledge found about '{topic}'. Try uploading documents or discussing the topic in chat.",
+        }
+
+    node_ids = [n["id"] for n in nodes]
+
+    # Load edges for matching nodes
+    edges = []
+    try:
+        edges_resp = (
+            supabase.table("memory_edges")
+            .select("source_node_id, target_node_id, edge_type, weight")
+            .or_(f"source_node_id.in.({','.join(node_ids)}),target_node_id.in.({','.join(node_ids)})")
+            .limit(50)
+            .execute()
+        )
+        edges = edges_resp.data or []
+    except Exception:
+        pass
+
+    # Categorize nodes
+    facts = [n for n in nodes if n.get("node_type") == "fact"]
+    beliefs = [n for n in nodes if n.get("node_type") == "belief"]
+    other = [n for n in nodes if n.get("node_type") not in ("fact", "belief")]
+
+    result = {
+        "topic": topic,
+        "nodes": nodes,
+        "edges": edges,
+        "summary": {
+            "total_nodes": len(nodes),
+            "facts": len(facts),
+            "beliefs": len(beliefs),
+            "other": len(other),
+            "relationships": len(edges),
+        },
+    }
+
+    # Build message
+    parts = []
+    if facts:
+        parts.append(f"{len(facts)} facts")
+    if beliefs:
+        parts.append(f"{len(beliefs)} beliefs")
+    if edges:
+        parts.append(f"{len(edges)} relationships")
+    result["message"] = f"Knowledge about '{topic}': {', '.join(parts) if parts else 'no results'}"
+
+    return result
+
+
+async def _create_task(project_id: UUID, params: Dict[str, Any]) -> Dict[str, Any]:
+    """Create a project task from the chat assistant."""
+    from app.core.schemas_tasks import TaskCreate, TaskSourceType, TaskType, AnchoredEntityType
+    from app.db.tasks import create_task
+
+    title = params.get("title", "").strip()
+    if not title:
+        return {"error": "title is required"}
+
+    # Map task_type string to enum
+    task_type_str = params.get("task_type", "manual")
+    task_type_map = {t.value: t for t in TaskType}
+    task_type = task_type_map.get(task_type_str, TaskType.MANUAL)
+
+    # Map anchored_entity_type string to enum
+    anchored_type = None
+    anchored_type_str = params.get("anchored_entity_type")
+    if anchored_type_str:
+        entity_type_map = {t.value: t for t in AnchoredEntityType}
+        anchored_type = entity_type_map.get(anchored_type_str)
+
+    anchored_id = None
+    anchored_id_str = params.get("anchored_entity_id")
+    if anchored_id_str:
+        try:
+            anchored_id = UUID(anchored_id_str)
+        except (ValueError, TypeError):
+            pass
+
+    task_data = TaskCreate(
+        title=title,
+        description=params.get("description"),
+        task_type=task_type,
+        requires_client_input=params.get("requires_client_input", False),
+        anchored_entity_type=anchored_type,
+        anchored_entity_id=anchored_id,
+        source_type=TaskSourceType.AI_ASSISTANT,
+    )
+
+    try:
+        task = await create_task(project_id, task_data)
+        return {
+            "success": True,
+            "task_id": str(task.id),
+            "message": f"Task created: \"{title}\"",
+        }
+    except Exception as e:
+        logger.error(f"Failed to create task: {e}", exc_info=True)
+        return {"error": f"Failed to create task: {str(e)}"}

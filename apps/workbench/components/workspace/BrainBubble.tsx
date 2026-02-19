@@ -1,10 +1,10 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { MessageSquare, X, Zap, FileText, Loader2 } from 'lucide-react'
+import { MessageSquare, X, Zap, FileText, Loader2, Plus } from 'lucide-react'
 import type { ChatMessage } from './WorkspaceChat'
 import { WorkspaceChat } from './WorkspaceChat'
-import { IntelligencePanel } from './brd/components/IntelligencePanel'
+import { IntelligenceBriefingPanel } from './brd/components/briefing/IntelligenceBriefingPanel'
 import type { ChatEntityDetectionResult, TerseAction } from '@/lib/api'
 
 // =============================================================================
@@ -45,6 +45,9 @@ interface BrainBubbleProps {
 
   /** Context frame actions for dynamic starter cards */
   contextActions?: TerseAction[]
+
+  /** Start a new chat conversation */
+  onNewChat?: () => void
 }
 
 // Panel width constant — shared with WorkspaceLayout for margin calculation
@@ -72,6 +75,7 @@ export function BrainBubble({
   defaultTab,
   onOpenChange,
   contextActions,
+  onNewChat,
 }: BrainBubbleProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [activeTab, setActiveTab] = useState<BrainTab>(() => {
@@ -116,7 +120,7 @@ export function BrainBubble({
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [isOpen, updateOpen])
 
-  // Handle "Discuss in chat →" from action cards
+  // Handle "Discuss in chat →" from action cards (legacy — switches tab only)
   const handleNavigate = useCallback((entityType: string, entityId: string | null) => {
     if (entityType === 'chat') {
       setActiveTab('chat')
@@ -125,6 +129,21 @@ export function BrainBubble({
     // Forward navigation to parent
     onNavigate?.(entityType, entityId)
   }, [onNavigate])
+
+  // Handle "Discuss in chat" with full context injection
+  const handleDiscussInChat = useCallback((action: import('@/lib/api').TerseAction) => {
+    // 1. Switch to chat tab
+    setActiveTab('chat')
+    // 2. Open panel if closed
+    if (!isOpen) updateOpen(true)
+    // 3. Auto-send a contextual message
+    const entityContext = action.entity_name ? ` (${action.entity_name})` : ''
+    const message = `Let's discuss: ${action.sentence}${entityContext}`
+    // Small delay to allow tab switch to render before sending
+    setTimeout(() => {
+      onSendMessage(message)
+    }, 100)
+  }, [isOpen, updateOpen, onSendMessage])
 
   return (
     <>
@@ -190,7 +209,7 @@ export function BrainBubble({
                 `}
               >
                 <Zap className="w-3.5 h-3.5" />
-                Actions
+                Briefing
                 {actionCount > 0 && (
                   <span className="ml-1 min-w-[16px] h-[16px] px-1 flex items-center justify-center rounded-full bg-[#3FAF7A] text-white text-[9px] font-bold">
                     {actionCount}
@@ -213,6 +232,17 @@ export function BrainBubble({
               </button>
             </div>
 
+            {/* New Chat */}
+            {activeTab === 'chat' && messages.length > 0 && onNewChat && (
+              <button
+                onClick={onNewChat}
+                className="p-1.5 rounded-lg hover:bg-[#F4F4F4] transition-colors"
+                title="New conversation"
+              >
+                <Plus className="w-4 h-4 text-[#666666]" />
+              </button>
+            )}
+
             {/* Close */}
             <button
               onClick={() => updateOpen(false)}
@@ -227,10 +257,11 @@ export function BrainBubble({
         {/* Tab Content */}
         <div className="flex-1 overflow-hidden relative">
           {activeTab === 'actions' ? (
-            <IntelligencePanel
+            <IntelligenceBriefingPanel
               projectId={projectId}
               onNavigate={handleNavigate}
               onCascade={onCascade}
+              onDiscussInChat={handleDiscussInChat}
             />
           ) : (
             <WorkspaceChat

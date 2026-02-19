@@ -187,6 +187,28 @@ export function WorkspaceChat({
             const status = await getDocumentStatus(docId)
             if (status.processing_status === 'completed' || status.processing_status === 'failed') {
               clearInterval(poll)
+              if (status.processing_status === 'completed') {
+                // Show analysis feedback
+                const summary = status.analysis_summary as Record<string, unknown> | undefined
+                if (summary) {
+                  const applied = (summary.applied as number) || 0
+                  const created = (summary.created as number) || 0
+                  const merged = (summary.merged as number) || 0
+                  const updated = (summary.updated as number) || 0
+                  const chatSummary = (summary.chat_summary as string) || ''
+                  if (applied > 0) {
+                    const parts: string[] = []
+                    if (created > 0) parts.push(`${created} new`)
+                    if (merged > 0) parts.push(`${merged} merged`)
+                    if (updated > 0) parts.push(`${updated} updated`)
+                    const detail = parts.length > 0 ? ` (${parts.join(', ')})` : ''
+                    onAddLocalMessage?.({
+                      role: 'assistant',
+                      content: chatSummary || `Analyzed **${status.original_filename}**: ${applied} entities extracted${detail}. The BRD has been updated.`,
+                    })
+                  }
+                }
+              }
               if (status.needs_clarification && status.clarification_question) {
                 onAddLocalMessage?.({
                   role: 'assistant',
@@ -318,7 +340,7 @@ export function WorkspaceChat({
       {/* Messages Area */}
       <div className="flex-1 overflow-y-auto px-3 py-3 space-y-3">
         {externalMessages.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full px-4">
+          <div className="flex flex-col items-center justify-start pt-12 h-full px-4">
             {/* Branded empty state */}
             <div className="w-14 h-14 rounded-2xl bg-[#E8F5E9] flex items-center justify-center mb-3">
               <Sparkles className="h-7 w-7 text-[#3FAF7A]" />
@@ -344,7 +366,7 @@ export function WorkspaceChat({
                     <div className="w-8 h-8 rounded-xl bg-[#F4F4F4] flex items-center justify-center flex-shrink-0 group-hover:bg-[#E8F5E9] transition-colors">
                       <Icon className="h-4 w-4 text-[#666666] group-hover:text-[#3FAF7A] transition-colors" />
                     </div>
-                    <p className="flex-1 text-[12px] font-medium text-[#333333] min-w-0">{card.label}</p>
+                    <p className="flex-1 text-[13px] font-medium text-[#333333] min-w-0">{card.label}</p>
                     <ArrowRight className="h-3.5 w-3.5 text-[#E5E5E5] group-hover:text-[#3FAF7A] transition-colors flex-shrink-0" />
                   </button>
                 )
@@ -358,6 +380,7 @@ export function WorkspaceChat({
                 key={message.id || `msg-${index}`}
                 message={message}
                 onSendMessage={externalSendMessage}
+                isLast={index === externalMessages.length - 1}
               />
             ))}
 
@@ -442,9 +465,11 @@ function ThinkingIndicator() {
 function SidebarMessageBubble({
   message,
   onSendMessage,
+  isLast = false,
 }: {
   message: ChatMessage
   onSendMessage?: (msg: string) => void | Promise<void>
+  isLast?: boolean
 }) {
   const isUser = message.role === 'user'
   const isSystem = message.role === 'system'
@@ -460,7 +485,7 @@ function SidebarMessageBubble({
   if (isSystem) return null
 
   return (
-    <div className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
+    <div className={`flex ${isUser ? 'justify-end' : 'justify-start'} ${isLast ? 'message-enter' : ''}`}>
       <div className={isUser ? 'max-w-[90%]' : 'w-full'}>
         {/* Message Content */}
         {message.content && (
@@ -472,12 +497,12 @@ function SidebarMessageBubble({
             }
           >
             {isUser ? (
-              <p className="text-xs whitespace-pre-wrap break-words">{message.content}</p>
+              <p className="text-[13px] leading-relaxed whitespace-pre-wrap break-words">{message.content}</p>
             ) : (
               <>
-                <Markdown content={message.content} className="text-xs" />
+                <Markdown content={message.content} className="text-[13px] leading-relaxed" />
                 {message.isStreaming && (
-                  <span className="inline-block w-1.5 h-4 ml-0.5 bg-[#3FAF7A] rounded-full animate-pulse" />
+                  <span className="inline-block w-0.5 h-[18px] ml-0.5 bg-[#3FAF7A] rounded-full animate-pulse" />
                 )}
               </>
             )}
@@ -496,14 +521,19 @@ function SidebarMessageBubble({
                 </span>
               </div>
             ) : (
-              /* Completed state — collapsed line */
+              /* Completed state — inline summary with tool names */
               <button
                 onClick={() => setShowToolDetails(!showToolDetails)}
                 className="flex items-center gap-1.5 text-[11px] text-[#999999] hover:text-[#333333] transition-colors"
               >
-                <CheckCircle2 className="h-3 w-3 text-[#3FAF7A]" />
-                <span>{completedToolCount} action{completedToolCount !== 1 ? 's' : ''} completed</span>
-                <ChevronDown className={`h-2.5 w-2.5 transition-transform ${showToolDetails ? 'rotate-180' : ''}`} />
+                <CheckCircle2 className="h-3 w-3 text-[#3FAF7A] flex-shrink-0" />
+                <span className="truncate">
+                  {message.toolCalls!
+                    .filter(t => t.status === 'complete')
+                    .map(t => getToolDisplayName(t.tool_name))
+                    .join(', ')}
+                </span>
+                <ChevronDown className={`h-2.5 w-2.5 flex-shrink-0 transition-transform ${showToolDetails ? 'rotate-180' : ''}`} />
               </button>
             )}
 
@@ -579,22 +609,17 @@ function getToolDisplayName(toolName: string): string {
     generate_strategic_context: 'Strategic context',
     get_strategic_context: 'Fetching context',
     identify_stakeholders: 'Finding stakeholders',
-    add_stakeholder: 'Adding stakeholder',
     enrich_features: 'Enriching features',
     enrich_personas: 'Enriching personas',
-    generate_value_path: 'Generating VP',
-    search_research: 'Searching',
-    semantic_search_research: 'Semantic search',
-    find_evidence_gaps: 'Finding gaps',
-    propose_features: 'Creating proposal',
-    apply_proposal: 'Applying changes',
-    analyze_gaps: 'Analyzing gaps',
+    search: 'Searching',
     get_project_status: 'Project status',
     add_signal: 'Processing signal',
     generate_meeting_agenda: 'Meeting agenda',
     generate_client_email: 'Drafting email',
     create_entity: 'Creating entity',
     update_entity: 'Updating entity',
+    update_strategic_context: 'Updating context',
+    create_task: 'Creating task',
   }
   return names[toolName] || toolName.replace(/_/g, ' ')
 }

@@ -9,7 +9,7 @@
 
 'use client'
 
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { AppSidebar } from './AppSidebar'
 import { PhaseSwitcher, WorkspacePhase } from './PhaseSwitcher'
 import { CollaborationPanel, type PanelState } from './CollaborationPanel'
@@ -87,6 +87,34 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
 
   // Brain panel open state — controls BRD compression
   const [brainPanelOpen, setBrainPanelOpen] = useState(false)
+
+  // BRD scroll tracking — active section for page_context
+  const [activeBrdSection, setActiveBrdSection] = useState<string | null>(null)
+
+  // Dynamic page context for chat — tells the LLM what the user is looking at
+  const pageContext = useMemo(() => {
+    if (phase === 'overview') return 'overview'
+    if (phase === 'build') return 'prototype'
+    if (phase === 'discovery') {
+      if (discoveryViewMode === 'canvas') return 'canvas'
+      // BRD mode — map section to page_context
+      if (activeBrdSection) {
+        const sectionMap: Record<string, string> = {
+          'business-context': 'brd:business_context',
+          'personas': 'brd:personas',
+          'workflows': 'brd:workflows',
+          'features': 'brd:features',
+          'data-entities': 'brd:data_entities',
+          'stakeholders': 'brd:stakeholders',
+          'constraints': 'brd:constraints',
+          'questions': 'brd:questions',
+        }
+        return sectionMap[activeBrdSection] || 'brd'
+      }
+      return 'brd'
+    }
+    return 'brd'
+  }, [phase, discoveryViewMode, activeBrdSection])
 
   // Project building state — blocks workspace until build completes
   const [projectBuildStatus, setProjectBuildStatus] = useState<'loading' | 'building' | 'ready'>('loading')
@@ -180,9 +208,10 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
   const {
     messages, isLoading: isChatLoading, sendMessage, sendSignal, addLocalMessage,
     entityDetection, isSavingAsSignal, saveAsSignal, dismissDetection,
+    startNewChat,
   } = useChat({
     projectId,
-    pageContext: discoveryViewMode === 'canvas' ? 'canvas' : 'brd',
+    pageContext,
     onError: (error) => {
       console.error('Chat error:', error)
     },
@@ -695,6 +724,7 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
                       onSendToChat={handleSendActionToChat}
                       pendingAction={pendingAction}
                       onPendingActionConsumed={() => setPendingAction(null)}
+                      onActiveSectionChange={setActiveBrdSection}
                     />
                   </div>
                 ) : (
@@ -809,6 +839,7 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
             onDismissDetection={dismissDetection}
             onOpenChange={setBrainPanelOpen}
             contextActions={contextFrame?.actions}
+            onNewChat={startNewChat}
           />
         ) : (
           <CollaborationPanel

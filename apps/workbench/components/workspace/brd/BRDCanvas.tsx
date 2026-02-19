@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { FileText, RefreshCw } from 'lucide-react'
 import { BusinessContextSection } from './sections/BusinessContextSection'
 import { ActorsSection } from './sections/ActorsSection'
@@ -61,9 +61,10 @@ interface BRDCanvasProps {
   onSendToChat?: (action: NextAction) => void
   pendingAction?: NextAction | null
   onPendingActionConsumed?: () => void
+  onActiveSectionChange?: (sectionId: string) => void
 }
 
-export function BRDCanvas({ projectId, initialData, initialNextActions, onRefresh, onSendToChat, pendingAction, onPendingActionConsumed }: BRDCanvasProps) {
+export function BRDCanvas({ projectId, initialData, initialNextActions, onRefresh, onSendToChat, pendingAction, onPendingActionConsumed, onActiveSectionChange }: BRDCanvasProps) {
   const [data, setData] = useState<BRDWorkspaceData | null>(initialData ?? null)
   const [isLoading, setIsLoading] = useState(!initialData)
   const [error, setError] = useState<string | null>(null)
@@ -74,6 +75,51 @@ export function BRDCanvas({ projectId, initialData, initialNextActions, onRefres
       setData(initialData)
     }
   }, [initialData])
+
+  // Scroll tracking — report active BRD section via IntersectionObserver
+  const scrollContainerRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const container = scrollContainerRef.current
+    if (!container || !onActiveSectionChange) return
+
+    const sectionIds = [
+      'brd-section-questions', 'brd-section-business-context', 'brd-section-personas',
+      'brd-section-workflows', 'brd-section-features', 'brd-section-data-entities',
+      'brd-section-stakeholders', 'brd-section-constraints',
+    ]
+    const visibleRatios = new Map<string, number>()
+    let debounceTimer: ReturnType<typeof setTimeout> | null = null
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          visibleRatios.set(entry.target.id, entry.intersectionRatio)
+        }
+        if (debounceTimer) clearTimeout(debounceTimer)
+        debounceTimer = setTimeout(() => {
+          let maxRatio = 0
+          let maxId = ''
+          for (const [id, ratio] of visibleRatios) {
+            if (ratio > maxRatio) { maxRatio = ratio; maxId = id }
+          }
+          if (maxId && maxRatio > 0) {
+            onActiveSectionChange(maxId.replace('brd-section-', ''))
+          }
+        }, 200)
+      },
+      { root: container, threshold: [0, 0.1, 0.3, 0.5, 0.7, 1.0] }
+    )
+
+    for (const id of sectionIds) {
+      const el = document.getElementById(id)
+      if (el) observer.observe(el)
+    }
+
+    return () => {
+      observer.disconnect()
+      if (debounceTimer) clearTimeout(debounceTimer)
+    }
+  }, [onActiveSectionChange, data]) // re-observe when data loads
 
   // Health data (lifted from HealthPanel for IntelligenceSection)
   const [health, setHealth] = useState<BRDHealthData | null>(null)
@@ -931,7 +977,7 @@ export function BRDCanvas({ projectId, initialData, initialNextActions, onRefres
   return (
     <div className="flex h-full">
       {/* BRD Content — full width */}
-      <div className="flex-1 overflow-y-auto">
+      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto">
         <div className="max-w-4xl mx-auto py-8 px-6">
           {/* Document header */}
           <div className="mb-8">
@@ -997,6 +1043,7 @@ export function BRDCanvas({ projectId, initialData, initialNextActions, onRefres
 
           {/* BRD Sections */}
           <div className="space-y-10">
+        <div id="brd-section-business-context">
         <BusinessContextSection
           data={data.business_context}
           projectId={projectId}
@@ -1011,9 +1058,11 @@ export function BRDCanvas({ projectId, initialData, initialNextActions, onRefres
           onOpenBackgroundDetail={handleOpenBackgroundDetail}
           stakeholders={data.stakeholders}
         />
+        </div>
 
         <div className="border-t border-[#e9e9e7]" />
 
+        <div id="brd-section-personas">
         <ActorsSection
           actors={data.actors}
           workflows={data.workflows}
@@ -1024,9 +1073,11 @@ export function BRDCanvas({ projectId, initialData, initialNextActions, onRefres
           onStatusClick={handleOpenConfidence}
           onCanvasRoleUpdate={handleCanvasRoleUpdate}
         />
+        </div>
 
         <div className="border-t border-[#e9e9e7]" />
 
+        <div id="brd-section-workflows">
         <WorkflowsSection
           workflows={data.workflows}
           workflowPairs={data.workflow_pairs}
@@ -1049,9 +1100,11 @@ export function BRDCanvas({ projectId, initialData, initialNextActions, onRefres
           onViewWorkflowDetail={handleViewWorkflowDetail}
           sectionScore={sectionScoreMap['workflows'] || null}
         />
+        </div>
 
         <div className="border-t border-[#e9e9e7]" />
 
+        <div id="brd-section-features">
         <RequirementsSection
           requirements={data.requirements}
           onConfirm={handleConfirm}
@@ -1062,9 +1115,11 @@ export function BRDCanvas({ projectId, initialData, initialNextActions, onRefres
           onStatusClick={handleOpenConfidence}
           sectionScore={sectionScoreMap['features'] || null}
         />
+        </div>
 
         <div className="border-t border-[#e9e9e7]" />
 
+        <div id="brd-section-data-entities">
         <DataEntitiesSection
           projectId={projectId}
           dataEntities={data.data_entities}
@@ -1078,9 +1133,11 @@ export function BRDCanvas({ projectId, initialData, initialNextActions, onRefres
           onOpenDetail={handleOpenDataEntityDetail}
           sectionScore={sectionScoreMap['data_entities'] || null}
         />
+        </div>
 
         <div className="border-t border-[#e9e9e7]" />
 
+        <div id="brd-section-stakeholders">
         <StakeholdersSection
           stakeholders={data.stakeholders}
           onConfirm={handleConfirm}
@@ -1094,9 +1151,11 @@ export function BRDCanvas({ projectId, initialData, initialNextActions, onRefres
           onStatusClick={handleOpenConfidence}
           sectionScore={sectionScoreMap['stakeholders'] || null}
         />
+        </div>
 
         <div className="border-t border-[#e9e9e7]" />
 
+        <div id="brd-section-constraints">
         <ConstraintsSection
           constraints={data.constraints}
           onConfirm={handleConfirm}
@@ -1113,6 +1172,7 @@ export function BRDCanvas({ projectId, initialData, initialNextActions, onRefres
           }}
           sectionScore={sectionScoreMap['constraints'] || null}
         />
+        </div>
       </div>
         </div>{/* end max-w-4xl */}
       </div>{/* end flex-1 overflow-y-auto (BRD content) */}
