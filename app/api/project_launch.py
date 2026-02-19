@@ -391,15 +391,21 @@ def _execute_entity_generation(context: dict) -> str:
 
             # Create steps for current state
             for step in w.current_state_steps:
+                step_data: dict = {
+                    "step_index": step.step_index,
+                    "label": step.label,
+                    "description": step.description,
+                    "confirmation_status": status,
+                    "automation_level": "manual",
+                }
+                if step.time_minutes is not None:
+                    step_data["time_minutes"] = step.time_minutes
+                if step.pain_description:
+                    step_data["pain_description"] = step.pain_description
                 step_row = create_workflow_step(
                     workflow_id=UUID(current_wf["id"]),
                     project_id=project_id,
-                    data={
-                        "step_index": step.step_index,
-                        "label": step.label,
-                        "description": step.description,
-                        "confirmation_status": status,
-                    },
+                    data=step_data,
                 )
                 # Add source_signal_ids to vp_step
                 if signal_id_list:
@@ -412,15 +418,21 @@ def _execute_entity_generation(context: dict) -> str:
 
             # Create steps for future state
             for step in w.future_state_steps:
+                step_data = {
+                    "step_index": step.step_index,
+                    "label": step.label,
+                    "description": step.description,
+                    "confirmation_status": status,
+                    "automation_level": step.automation_level if step.automation_level != "manual" else "semi_automated",
+                }
+                if step.time_minutes is not None:
+                    step_data["time_minutes"] = step.time_minutes
+                if step.benefit_description:
+                    step_data["benefit_description"] = step.benefit_description
                 step_row = create_workflow_step(
                     workflow_id=UUID(future_wf["id"]),
                     project_id=project_id,
-                    data={
-                        "step_index": step.step_index,
-                        "label": step.label,
-                        "description": step.description,
-                        "confirmation_status": status,
-                    },
+                    data=step_data,
                 )
                 # Add source_signal_ids to vp_step
                 if signal_id_list:

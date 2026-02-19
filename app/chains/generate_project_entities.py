@@ -67,6 +67,10 @@ class GeneratedWorkflowStep(BaseModel):
     step_index: int
     label: str
     description: str
+    time_minutes: int | None = None
+    automation_level: str = "manual"  # manual, semi_automated, fully_automated
+    pain_description: str | None = None
+    benefit_description: str | None = None
 
 
 class GeneratedWorkflow(BaseModel):
@@ -166,16 +170,17 @@ Produce a JSON object with:
   - description: 1-2 sentences explaining the workflow
   - owner: name of the persona who primarily performs this workflow (must match a persona from above)
   - current_state_steps: array of 4-8 steps showing how this works TODAY (manual/broken process)
-    - Each step: step_index (1-based), label (short action), description (1 sentence)
+    - Each step: step_index (1-based), label (short action), description (1 sentence), time_minutes (estimated), automation_level ("manual"), pain_description (what makes this painful)
   - future_state_steps: array of 4-8 steps showing how this will work WITH the new system
-    - Each step: step_index (1-based), label (short action), description (1 sentence)
+    - Each step: step_index (1-based), label (short action), description (1 sentence), time_minutes (estimated, should be less than current), automation_level ("semi_automated" or "fully_automated"), benefit_description (what specifically improves)
   - confidence: 0.0-1.0
   - evidence_quotes: 1-3 exact verbatim quotes from the transcript that justify this workflow
 
 Rules:
 - Every persona should own at least one workflow
-- Current state steps should reflect the pain points from drivers
-- Future state steps should reflect the goals and requirements
+- Current state steps should reflect the pain points from drivers — always set automation_level to "manual"
+- Future state steps should reflect the goals and requirements — set automation_level to "semi_automated" (human triggers/reviews, system executes) or "fully_automated" (no human needed). NEVER set future steps to "manual" unless the step truly stays manual.
+- Include time_minutes estimates for every step. Future steps should generally take less time than their current-state counterparts.
 - Be conservative — only include workflows evidenced in the conversation
 - Steps should be concrete actions, not vague descriptions
 - For each workflow, include 1-3 evidence_quotes — exact verbatim quotes from the transcript

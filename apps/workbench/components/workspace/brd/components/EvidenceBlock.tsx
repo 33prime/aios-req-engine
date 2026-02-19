@@ -1,6 +1,7 @@
 'use client'
 
 import { FileText } from 'lucide-react'
+import { Markdown } from '@/components/ui/Markdown'
 import type { BRDEvidence } from '@/types/workspace'
 
 interface EvidenceBlockProps {
@@ -29,9 +30,11 @@ export function EvidenceBlock({ evidence, maxItems = 3 }: EvidenceBlockProps) {
       {displayed.map((item, idx) => (
         <div
           key={item.chunk_id || idx}
-          className="pl-3 border-l-2 border-gray-200 text-[13px] text-gray-600"
+          className="pl-3 border-l-2 border-gray-200"
         >
-          <p className="italic leading-relaxed">&ldquo;{item.excerpt}&rdquo;</p>
+          <div className="text-[13px] text-gray-600 italic leading-relaxed [&_p]:mb-1 [&_p:last-child]:mb-0 [&_ul]:my-1 [&_ol]:my-1 [&_li]:ml-2 [&_strong]:font-semibold [&_strong]:not-italic">
+            <Markdown content={`\u201C${item.excerpt}\u201D`} />
+          </div>
           <div className="flex items-center gap-2 mt-1 text-[11px] text-gray-400">
             <span className="px-1.5 py-0.5 bg-gray-50 rounded text-gray-500">
               {SOURCE_LABELS[item.source_type] || item.source_type}

@@ -530,6 +530,27 @@ async def map_feature_to_step(
 # ============================================================================
 
 
+def _clean_excerpt(text: str, max_length: int = 500) -> str:
+    """Clean up an evidence excerpt: trim whitespace, truncate at sentence boundary."""
+    text = text.strip()
+    if not text:
+        return text
+    if len(text) <= max_length:
+        return text
+    # Try to truncate at a sentence boundary
+    truncated = text[:max_length]
+    # Look for the last sentence-ending punctuation
+    for end_char in [". ", ".\n", "? ", "! "]:
+        last_idx = truncated.rfind(end_char)
+        if last_idx > max_length * 0.4:  # At least 40% of content preserved
+            return truncated[: last_idx + 1].rstrip()
+    # Fallback: truncate at last space
+    last_space = truncated.rfind(" ")
+    if last_space > max_length * 0.4:
+        return truncated[:last_space].rstrip() + "..."
+    return truncated.rstrip() + "..."
+
+
 def _parse_evidence(raw: list | None) -> list[EvidenceItem]:
     """Parse raw evidence JSON into EvidenceItem models.
 
@@ -543,8 +564,11 @@ def _parse_evidence(raw: list | None) -> list[EvidenceItem]:
         if isinstance(e, dict):
             # Evidence fields vary by source: 'excerpt' (project_launch), 'quote' (V2 pipeline), 'text' (legacy)
             excerpt = e.get("excerpt") or e.get("quote") or e.get("text") or ""
+            excerpt = _clean_excerpt(excerpt)
             source_type = e.get("source_type") or e.get("fact_type") or ("signal" if e.get("chunk_id") else "inferred")
             rationale = e.get("rationale") or ""
+            if not excerpt:
+                continue  # Skip empty evidence
             items.append(EvidenceItem(
                 chunk_id=e.get("chunk_id"),
                 excerpt=excerpt,
@@ -2226,6 +2250,7 @@ async def get_workflow_detail(project_id: UUID, workflow_id: UUID) -> WorkflowDe
     strategic unlocks, health insights, and ROI. Used by the workflow detail drawer.
     """
     from app.core.workflow_health import compute_workflow_insights
+    from app.db.change_tracking import count_entity_versions, get_entity_history
     from app.db.workflows import (
         calculate_workflow_roi,
         get_workflow,
@@ -2390,6 +2415,47 @@ async def get_workflow_detail(project_id: UUID, workflow_id: UUID) -> WorkflowDe
             for p in persona_map.values()
         ]
 
+        # 6b. Aggregate evidence from steps + linked drivers + features
+        workflow_evidence: list[dict] = []
+        try:
+            # From steps directly
+            for s in current_steps_raw + future_steps_raw:
+                for e in _parse_evidence(s.get("evidence") or []):
+                    workflow_evidence.append({
+                        "chunk_id": e.chunk_id,
+                        "excerpt": e.excerpt,
+                        "source_type": e.source_type,
+                        "rationale": e.rationale or f"Via step: {s.get('label', '')[:50]}",
+                    })
+            # From linked drivers
+            for d in linked_drivers:
+                driver_row = client.table("business_drivers").select(
+                    "evidence"
+                ).eq("id", d.id).maybe_single().execute()
+                if driver_row and driver_row.data:
+                    for e in _parse_evidence(driver_row.data.get("evidence") or []):
+                        workflow_evidence.append({
+                            "chunk_id": e.chunk_id,
+                            "excerpt": e.excerpt,
+                            "source_type": e.source_type,
+                            "rationale": f"Via driver: {d.description[:50]}",
+                        })
+            # From linked features
+            for f in linked_features:
+                feat_row = client.table("features").select(
+                    "evidence"
+                ).eq("id", f.id).maybe_single().execute()
+                if feat_row and feat_row.data:
+                    for e in _parse_evidence(feat_row.data.get("evidence") or []):
+                        workflow_evidence.append({
+                            "chunk_id": e.chunk_id,
+                            "excerpt": e.excerpt,
+                            "source_type": e.source_type,
+                            "rationale": f"Via feature: {f.name}",
+                        })
+        except Exception:
+            logger.debug(f"Could not gather evidence for workflow {workflow_id}")
+
         # 7. Read strategic unlocks from workflow-level enrichment_data
         strategic_unlocks: list[StepUnlockSummary] = []
         wf_enrichment = workflow.get("enrichment_data")
@@ -2425,6 +2491,24 @@ async def get_workflow_detail(project_id: UUID, workflow_id: UUID) -> WorkflowDe
             1 for s in all_steps_raw if s.get("enrichment_status") == "enriched"
         )
 
+        # 10. Fetch revision history
+        revisions: list[dict] = []
+        revision_count = 0
+        try:
+            raw_history = get_entity_history(str(workflow_id))
+            for h in (raw_history or []):
+                revisions.append({
+                    "revision_number": h.get("revision_number", 0),
+                    "revision_type": h.get("revision_type", ""),
+                    "diff_summary": h.get("diff_summary", ""),
+                    "changes": h.get("changes"),
+                    "created_at": h.get("created_at", ""),
+                    "created_by": h.get("created_by"),
+                })
+            revision_count = count_entity_versions(str(workflow_id))
+        except Exception:
+            logger.debug(f"Could not fetch history for workflow {workflow_id}")
+
         return WorkflowDetail(
             id=workflow["id"],
             name=workflow.get("name", ""),
@@ -2442,7 +2526,10 @@ async def get_workflow_detail(project_id: UUID, workflow_id: UUID) -> WorkflowDe
             features=linked_features,
             data_entities=linked_data_entities,
             strategic_unlocks=strategic_unlocks,
+            evidence=workflow_evidence,
             insights=insights_raw,
+            revision_count=revision_count,
+            revisions=revisions,
             steps_without_actor=steps_without_actor,
             steps_without_time=steps_without_time,
             steps_without_features=steps_without_features,
@@ -2664,10 +2751,19 @@ async def get_workflow_step_detail(project_id: UUID, step_id: UUID) -> WorkflowS
             except Exception:
                 logger.debug(f"Could not resolve counterpart for step {step_id}")
 
-        # 8. Gather evidence from linked drivers + features
+        # 8. Gather evidence — step's own evidence first, then linked entities
         evidence: list[dict] = []
         try:
-            # From drivers
+            # Step's own evidence (direct from V2 pipeline / project launch)
+            step_evidence_raw = step.get("evidence") or []
+            for e in _parse_evidence(step_evidence_raw):
+                evidence.append({
+                    "chunk_id": e.chunk_id,
+                    "excerpt": e.excerpt,
+                    "source_type": e.source_type,
+                    "rationale": e.rationale or "",
+                })
+            # From linked drivers
             for d in linked_drivers:
                 driver_row = client.table("business_drivers").select(
                     "evidence"
@@ -2676,11 +2772,12 @@ async def get_workflow_step_detail(project_id: UUID, step_id: UUID) -> WorkflowS
                     raw_ev = driver_row.data.get("evidence") or []
                     for e in _parse_evidence(raw_ev):
                         evidence.append({
-                            "source": f"Driver: {d.description[:60]}",
+                            "chunk_id": e.chunk_id,
                             "excerpt": e.excerpt,
                             "source_type": e.source_type,
+                            "rationale": f"Via driver: {d.description[:60]}",
                         })
-            # From features
+            # From linked features
             for f in linked_features:
                 feat_row = client.table("features").select(
                     "evidence"
@@ -2689,9 +2786,10 @@ async def get_workflow_step_detail(project_id: UUID, step_id: UUID) -> WorkflowS
                     raw_ev = feat_row.data.get("evidence") or []
                     for e in _parse_evidence(raw_ev):
                         evidence.append({
-                            "source": f"Feature: {f.name}",
+                            "chunk_id": e.chunk_id,
                             "excerpt": e.excerpt,
                             "source_type": e.source_type,
+                            "rationale": f"Via feature: {f.name}",
                         })
         except Exception:
             logger.debug(f"Could not gather evidence for step {step_id}")

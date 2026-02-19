@@ -237,6 +237,9 @@ class WorkflowDetail(BaseModel):
     # Strategic unlocks (aggregated from enriched steps)
     strategic_unlocks: list[StepUnlockSummary] = []
 
+    # Evidence (aggregated from steps + linked entities)
+    evidence: list[dict] = []
+
     # Workflow-level insights (heuristic)
     insights: list[WorkflowInsight] = []
 

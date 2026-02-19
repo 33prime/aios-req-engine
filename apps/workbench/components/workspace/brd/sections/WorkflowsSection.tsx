@@ -228,6 +228,25 @@ function StepColumn({
   onViewStepDetail?: (stepId: string) => void
 }) {
   const isCurrent = stateType === 'current'
+
+  // Derive automation summary from actual step data
+  const automationSummary = (() => {
+    if (steps.length === 0) return ''
+    const counts = { manual: 0, semi_automated: 0, fully_automated: 0 }
+    for (const s of steps) {
+      const level = s.automation_level || 'manual'
+      if (level in counts) counts[level as keyof typeof counts]++
+      else counts.manual++
+    }
+    if (counts.fully_automated === steps.length) return 'Automated'
+    if (counts.manual === steps.length) return 'Manual'
+    const parts: string[] = []
+    if (counts.fully_automated > 0) parts.push(`${counts.fully_automated} auto`)
+    if (counts.semi_automated > 0) parts.push(`${counts.semi_automated} semi`)
+    if (counts.manual > 0) parts.push(`${counts.manual} manual`)
+    return parts.join(', ')
+  })()
+
   return (
     <div className="flex-1 min-w-0">
       {/* Column header */}
@@ -237,7 +256,10 @@ function StepColumn({
           : 'bg-[#E8F5E9] text-[#25785A]'
       }`}>
         <span className="text-[11px] font-semibold uppercase tracking-wider">
-          {isCurrent ? 'Current (Manual)' : 'Future (Automated)'}
+          {isCurrent ? 'Current State' : 'Future State'}
+          {automationSummary && (
+            <span className="font-normal normal-case ml-1">({automationSummary})</span>
+          )}
         </span>
       </div>
 

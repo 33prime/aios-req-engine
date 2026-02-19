@@ -166,8 +166,9 @@ create: {{name, description}}
 merge/update: description update
 
 ### workflow_step
-create: {{label, description, workflow_name, state_type (current|future), time_minutes, pain_description, benefit_description, automation_level (manual|semi_automated|automated), operation_type}}
+create: {{label, description, workflow_name, state_type (current|future), time_minutes, pain_description, benefit_description, automation_level (manual|semi_automated|fully_automated), operation_type}}
 merge/update: any subset
+NOTE: Current-state steps should default to "manual". Future-state steps should default to "semi_automated" or "fully_automated" — only use "manual" for future steps that truly remain manual.
 
 ### data_entity
 create: {{name, entity_category (domain|reference|transactional|analytical), fields (list of {{name, type, required, description}})}}

@@ -20,9 +20,11 @@ import {
   TrendingDown,
   BarChart3,
   Shield,
+  FileText,
 } from 'lucide-react'
 import { BRDStatusBadge } from './StatusBadge'
 import { ConfirmActions } from './ConfirmActions'
+import { Markdown } from '@/components/ui/Markdown'
 import { getWorkflowDetail, enrichWorkflow } from '@/lib/api'
 import type {
   WorkflowDetail,
@@ -39,7 +41,7 @@ import type { StakeholderBRDSummary } from '@/types/workspace'
 import { WhoHasTheData } from './WhoHasTheData'
 import { inferTopicsFromText } from '@/lib/topic-role-map'
 
-type TabId = 'overview' | 'connections' | 'insights' | 'history' | 'who_knows'
+type TabId = 'overview' | 'evidence' | 'connections' | 'insights' | 'history' | 'who_knows'
 
 interface WorkflowDetailDrawerProps {
   workflowId: string
@@ -53,6 +55,7 @@ interface WorkflowDetailDrawerProps {
 
 const TABS: { id: TabId; label: string; icon: typeof Clock }[] = [
   { id: 'overview', label: 'Overview', icon: BarChart3 },
+  { id: 'evidence', label: 'Evidence', icon: FileText },
   { id: 'connections', label: 'Connections', icon: Link2 },
   { id: 'insights', label: 'Insights', icon: Sparkles },
   { id: 'history', label: 'History', icon: Clock },
@@ -108,6 +111,8 @@ export function WorkflowDetailDrawer({
       setEnriching(false)
     }
   }
+
+  const evidenceCount = detail?.evidence?.length || 0
 
   const connectionCount = useMemo(() => {
     if (!detail) return 0
@@ -198,6 +203,11 @@ export function WorkflowDetailDrawer({
                 >
                   <TabIcon className="w-3.5 h-3.5" />
                   {tab.label}
+                  {tab.id === 'evidence' && evidenceCount > 0 && (
+                    <span className="ml-1 text-[10px] bg-[#F0F0F0] text-[#666666] px-1.5 py-0.5 rounded-full">
+                      {evidenceCount}
+                    </span>
+                  )}
                   {tab.id === 'connections' && connectionCount > 0 && (
                     <span className="ml-1 text-[10px] bg-[#F0F0F0] text-[#666666] px-1.5 py-0.5 rounded-full">
                       {connectionCount}
@@ -231,6 +241,7 @@ export function WorkflowDetailDrawer({
               {activeTab === 'overview' && (
                 <OverviewTab detail={detail} onViewStepDetail={onViewStepDetail} onEnrich={handleEnrich} enriching={enriching} />
               )}
+              {activeTab === 'evidence' && <EvidenceTab evidence={detail.evidence} />}
               {activeTab === 'connections' && <ConnectionsTab detail={detail} />}
               {activeTab === 'insights' && <InsightsTab insights={detail.insights} />}
               {activeTab === 'history' && <HistoryTab revisions={detail.revisions} />}
@@ -603,6 +614,61 @@ function StrategicUnlocksCard({ unlocks }: { unlocks: StepUnlockSummary[] }) {
           )
         })}
       </div>
+    </div>
+  )
+}
+
+// ============================================================================
+// Evidence Tab
+// ============================================================================
+
+const SOURCE_LABELS: Record<string, string> = {
+  signal: 'Signal',
+  research: 'Research',
+  inferred: 'Inferred',
+}
+
+function EvidenceTab({ evidence }: { evidence: Array<Record<string, unknown>> }) {
+  if (!evidence || evidence.length === 0) {
+    return (
+      <div className="text-center py-8">
+        <FileText className="w-8 h-8 text-[#E5E5E5] mx-auto mb-3" />
+        <p className="text-[13px] text-[#666666] mb-1">No evidence sources</p>
+        <p className="text-[12px] text-[#999999]">
+          Process more signals to build evidence for this workflow.
+        </p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-3">
+      <p className="text-[11px] font-medium text-[#999999] uppercase tracking-wide">
+        {evidence.length} source{evidence.length !== 1 ? 's' : ''}
+      </p>
+      {evidence.map((item, idx) => {
+        const excerpt = (item.excerpt as string) || ''
+        const sourceType = (item.source_type as string) || 'inferred'
+        const rationale = (item.rationale as string) || ''
+        return (
+          <div
+            key={idx}
+            className="border border-[#E5E5E5] rounded-xl px-4 py-3"
+          >
+            <div className="text-[13px] text-[#333333] leading-relaxed italic [&_p]:mb-1 [&_p:last-child]:mb-0 [&_ul]:my-1 [&_ol]:my-1 [&_li]:ml-2 [&_strong]:font-semibold [&_strong]:not-italic">
+              <Markdown content={`\u201C${excerpt}\u201D`} />
+            </div>
+            <div className="flex items-center gap-2 mt-2">
+              <span className="text-[10px] font-medium uppercase px-1.5 py-0.5 rounded bg-[#F0F0F0] text-[#666666]">
+                {SOURCE_LABELS[sourceType] || sourceType}
+              </span>
+              {rationale && (
+                <span className="text-[11px] text-[#999999]">{rationale}</span>
+              )}
+            </div>
+          </div>
+        )
+      })}
     </div>
   )
 }

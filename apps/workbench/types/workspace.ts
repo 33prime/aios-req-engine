@@ -281,6 +281,7 @@ export interface WorkflowDetail {
   data_entities: LinkedDataEntity[]
 
   strategic_unlocks: StepUnlockSummary[]
+  evidence: Array<Record<string, unknown>>
   insights: WorkflowInsight[]
 
   revision_count: number
