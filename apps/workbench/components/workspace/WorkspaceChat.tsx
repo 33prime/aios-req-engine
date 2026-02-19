@@ -30,6 +30,7 @@ import { Markdown } from '../../components/ui/Markdown'
 import { uploadDocument, processDocument, getDocumentStatus } from '@/lib/api'
 import type { TerseAction } from '@/lib/api'
 import { GAP_SOURCE_ICONS } from '@/lib/action-constants'
+import { QuickActionCards } from './QuickActionCards'
 
 // =============================================================================
 // Types
@@ -160,23 +161,29 @@ export function WorkspaceChat({
 
       const successCount = results.filter((r) => r.success).length
       const failedFiles = results.filter((r) => !r.success)
+      const successNames = results.filter((r) => r.success).map((r) => r.file)
 
       if (successCount > 0) {
-        const names = results.filter((r) => r.success).map((r) => r.file).join(', ')
+        const bold = successNames.map((n) => `**${n}**`).join(', ')
         onAddLocalMessage?.({
           role: 'assistant',
-          content: `Uploaded: ${names}\n\nProcessing in background. Insights will be extracted automatically.`,
+          content: `Give me a minute to dig into ${bold} — I'll come back with some questions for you.`,
         })
       }
       if (failedFiles.length > 0) {
         const errors = failedFiles.map((f) => `${f.file}: ${f.error}`).join('\n- ')
-        onAddLocalMessage?.({ role: 'assistant', content: `Upload failed:\n- ${errors}` })
+        onAddLocalMessage?.({ role: 'assistant', content: `Hmm, had trouble with:\n- ${errors}\n\nThe other files are still processing.` })
       }
 
-      // Poll for clarification needs after upload
+      // Poll for processing completion, then auto-trigger follow-up questions
+      if (documentIds.length === 0) return
+
+      let completedCount = 0
+      const completedFiles: string[] = []
+
       for (const docId of documentIds) {
         let attempts = 0
-        const maxAttempts = 30
+        const maxAttempts = 60 // 2 minutes at 2s intervals
         const poll = setInterval(async () => {
           attempts++
           if (attempts > maxAttempts) {
@@ -187,42 +194,30 @@ export function WorkspaceChat({
             const status = await getDocumentStatus(docId)
             if (status.processing_status === 'completed' || status.processing_status === 'failed') {
               clearInterval(poll)
+              completedCount++
               if (status.processing_status === 'completed') {
-                // Show analysis feedback
-                const summary = status.analysis_summary as Record<string, unknown> | undefined
-                if (summary) {
-                  const applied = (summary.applied as number) || 0
-                  const created = (summary.created as number) || 0
-                  const merged = (summary.merged as number) || 0
-                  const updated = (summary.updated as number) || 0
-                  const chatSummary = (summary.chat_summary as string) || ''
-                  if (applied > 0) {
-                    const parts: string[] = []
-                    if (created > 0) parts.push(`${created} new`)
-                    if (merged > 0) parts.push(`${merged} merged`)
-                    if (updated > 0) parts.push(`${updated} updated`)
-                    const detail = parts.length > 0 ? ` (${parts.join(', ')})` : ''
-                    onAddLocalMessage?.({
-                      role: 'assistant',
-                      content: chatSummary || `Analyzed **${status.original_filename}**: ${applied} entities extracted${detail}. The BRD has been updated.`,
-                    })
-                  }
-                }
+                completedFiles.push(status.original_filename || 'document')
               }
-              if (status.needs_clarification && status.clarification_question) {
-                onAddLocalMessage?.({
-                  role: 'assistant',
-                  content: status.clarification_question,
-                })
+
+              // When all docs finish, auto-trigger the assistant to review & ask questions
+              if (completedCount >= documentIds.length && completedFiles.length > 0) {
+                const fileList = completedFiles.map((f) => `**${f}**`).join(', ')
+                // Small delay so the user sees the flow naturally
+                setTimeout(() => {
+                  externalSendMessage(
+                    `I just uploaded ${fileList}. The analysis is done — what did you find in there? Any follow-up questions for me?`
+                  )
+                }, 500)
               }
             }
           } catch {
             clearInterval(poll)
+            completedCount++
           }
-        }, 1000)
+        }, 2000)
       }
     },
-    [projectId, onAddLocalMessage]
+    [projectId, onAddLocalMessage, externalSendMessage]
   )
 
   const handleFileInputChange = useCallback(
@@ -396,6 +391,7 @@ export function WorkspaceChat({
       <div className="border-t border-[#E5E5E5] bg-white px-3 py-2.5 flex-shrink-0">
         {/* Hidden file input */}
         <input
+          id="workspace-chat-file-input"
           ref={fileInputRef}
           type="file"
           multiple
@@ -479,8 +475,17 @@ function SidebarMessageBubble({
     (t) => t.tool_name === 'add_signal' && t.status === 'complete' && t.result?.processed
   )?.result
 
+  // Quick Action Cards
+  const actionCards = message.toolCalls?.filter(
+    (t) => t.tool_name === 'suggest_actions' && t.status === 'complete' && t.result?.cards
+  )
+
   const hasRunningTools = message.toolCalls?.some((t) => t.status === 'running')
-  const completedToolCount = message.toolCalls?.filter((t) => t.status === 'complete').length || 0
+  // Filter suggest_actions from completed tool display when cards are rendered
+  const visibleToolCalls = actionCards?.length
+    ? message.toolCalls?.filter((t) => t.tool_name !== 'suggest_actions')
+    : message.toolCalls
+  const completedToolCount = visibleToolCalls?.filter((t) => t.status === 'complete').length || 0
 
   if (isSystem) return null
 
@@ -510,14 +515,14 @@ function SidebarMessageBubble({
         )}
 
         {/* Tool Calls — compact */}
-        {!isUser && message.toolCalls && message.toolCalls.length > 0 && (
+        {!isUser && visibleToolCalls && visibleToolCalls.length > 0 && (
           <div className="mt-1.5">
             {hasRunningTools ? (
               /* Running state — inline card */
               <div className="flex items-center gap-2 px-3 py-2 bg-[#F4F4F4] rounded-xl border border-[#E5E5E5]">
                 <Loader2 className="h-3.5 w-3.5 animate-spin text-[#3FAF7A]" />
                 <span className="text-[11px] text-[#333333]">
-                  {getToolDisplayName(message.toolCalls.find((t) => t.status === 'running')?.tool_name || '')}
+                  {getToolDisplayName(message.toolCalls?.find((t) => t.status === 'running')?.tool_name || '')}
                 </span>
               </div>
             ) : (
@@ -528,7 +533,7 @@ function SidebarMessageBubble({
               >
                 <CheckCircle2 className="h-3 w-3 text-[#3FAF7A] flex-shrink-0" />
                 <span className="truncate">
-                  {message.toolCalls!
+                  {visibleToolCalls
                     .filter(t => t.status === 'complete')
                     .map(t => getToolDisplayName(t.tool_name))
                     .join(', ')}
@@ -539,7 +544,7 @@ function SidebarMessageBubble({
 
             {showToolDetails && (
               <div className="mt-1.5 space-y-1 pl-3 border-l-2 border-[#E5E5E5]">
-                {message.toolCalls.map((tool, idx) => (
+                {visibleToolCalls.map((tool, idx) => (
                   <div
                     key={idx}
                     className="flex items-center gap-1.5 text-[11px] px-2 py-1 rounded-lg"
@@ -593,6 +598,15 @@ function SidebarMessageBubble({
           </div>
         )}
 
+        {/* Quick Action Cards */}
+        {actionCards?.map((tc, i) => (
+          <QuickActionCards
+            key={`actions-${i}`}
+            cards={tc.result.cards}
+            onAction={(command) => onSendMessage?.(command)}
+          />
+        ))}
+
         {/* Timestamp */}
         {message.timestamp && (
           <p className="text-[10px] text-[#999999] mt-0.5">
@@ -609,8 +623,6 @@ function getToolDisplayName(toolName: string): string {
     generate_strategic_context: 'Strategic context',
     get_strategic_context: 'Fetching context',
     identify_stakeholders: 'Finding stakeholders',
-    enrich_features: 'Enriching features',
-    enrich_personas: 'Enriching personas',
     search: 'Searching',
     get_project_status: 'Project status',
     add_signal: 'Processing signal',
@@ -620,6 +632,7 @@ function getToolDisplayName(toolName: string): string {
     update_entity: 'Updating entity',
     update_strategic_context: 'Updating context',
     create_task: 'Creating task',
+    suggest_actions: 'Suggesting actions',
   }
   return names[toolName] || toolName.replace(/_/g, ' ')
 }

@@ -40,6 +40,13 @@ TOOL_CONFIGS: dict[str, dict] = {
         "list_field": "blockers",  # Also truncate warnings, recommendations
         "truncate_fields": [],
     },
+    "suggest_actions": {
+        "max_tokens": 3000,
+        "max_items": 8,
+        "list_field": "cards",
+        "truncate_fields": ["body", "quote", "resolution"],
+        "truncate_length": 500,
+    },
 }
 
 DEFAULT_CONFIG = {

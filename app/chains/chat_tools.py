@@ -205,39 +205,6 @@ def get_tool_definitions() -> List[Dict[str, Any]]:
                 },
             },
         },
-        {
-            "name": "enrich_features",
-            "description": "Enrich features with detailed mini-spec information. This adds consultant-friendly details: overview, who uses it (target personas), user actions, system behaviors, UI requirements, business rules, and integrations. Use this when the user asks to enrich features, add feature details, or create mini-specs.",
-            "input_schema": {
-                "type": "object",
-                "properties": {
-                    "feature_ids": {
-                        "type": "array",
-                        "items": {"type": "string"},
-                        "description": "Specific feature UUIDs to enrich (optional - if empty, enriches all unenriched features)",
-                    },
-                    "include_research": {
-                        "type": "boolean",
-                        "description": "Include research signals in context (default: false)",
-                        "default": False,
-                    },
-                },
-            },
-        },
-        {
-            "name": "enrich_personas",
-            "description": "Enrich personas with detailed profiles and key workflows. This adds: detailed overview of who the persona is, and key workflows showing how they use features together. Use this when the user asks to enrich personas, add persona details, or create workflow documentation.",
-            "input_schema": {
-                "type": "object",
-                "properties": {
-                    "persona_ids": {
-                        "type": "array",
-                        "items": {"type": "string"},
-                        "description": "Specific persona UUIDs to enrich (optional - if empty, enriches all unenriched personas)",
-                    },
-                },
-            },
-        },
         # Strategic Context Tools
         {
             "name": "generate_strategic_context",
@@ -251,14 +218,6 @@ def get_tool_definitions() -> List[Dict[str, Any]]:
                         "default": False,
                     },
                 },
-            },
-        },
-        {
-            "name": "get_strategic_context",
-            "description": "Get the current strategic context for the project including executive summary, opportunity, risks, investment case, metrics, and constraints. Use this when the user asks about the business case, strategic overview, or project context.",
-            "input_schema": {
-                "type": "object",
-                "properties": {},
             },
         },
         {
@@ -301,64 +260,6 @@ def get_tool_definitions() -> List[Dict[str, Any]]:
                     },
                 },
                 "required": ["action", "data"],
-            },
-        },
-        # Entity Cascade Tools
-        {
-            "name": "analyze_impact",
-            "description": "Before making a change to a persona, feature, or VP step, analyze what other entities would be affected. Shows direct and indirect impacts with recommendations.",
-            "input_schema": {
-                "type": "object",
-                "properties": {
-                    "entity_type": {
-                        "type": "string",
-                        "enum": ["persona", "feature", "vp_step"],
-                        "description": "Type of entity to analyze",
-                    },
-                    "entity_id": {
-                        "type": "string",
-                        "description": "UUID of the entity",
-                    },
-                    "proposed_change": {
-                        "type": "string",
-                        "description": "Description of what would change (optional)",
-                    },
-                },
-                "required": ["entity_type", "entity_id"],
-            },
-        },
-        {
-            "name": "get_stale_entities",
-            "description": "Show all entities that are marked as stale and need review or regeneration. Use when user asks what needs updating or refreshing.",
-            "input_schema": {
-                "type": "object",
-                "properties": {
-                    "entity_type": {
-                        "type": "string",
-                        "enum": ["all", "persona", "feature", "vp_step", "strategic_context"],
-                        "description": "Filter by entity type (optional)",
-                        "default": "all",
-                    },
-                },
-            },
-        },
-        {
-            "name": "refresh_stale_entity",
-            "description": "Regenerate or update a stale entity based on its current dependencies. Use when user wants to refresh or update a specific stale entity.",
-            "input_schema": {
-                "type": "object",
-                "properties": {
-                    "entity_type": {
-                        "type": "string",
-                        "enum": ["persona", "feature", "vp_step", "strategic_context"],
-                        "description": "Type of entity to refresh",
-                    },
-                    "entity_id": {
-                        "type": "string",
-                        "description": "UUID of the entity to refresh",
-                    },
-                },
-                "required": ["entity_type", "entity_id"],
             },
         },
         # Document Clarification Tools
@@ -545,7 +446,156 @@ def get_tool_definitions() -> List[Dict[str, Any]]:
                 "required": ["title"],
             },
         },
+        # Interactive Action Cards
+        {
+            "name": "suggest_actions",
+            "description": "Present interactive action cards to the consultant. Use this when you can offer specific, one-click actions. Cards render as interactive UI in the chat. Types: gap_closer (close gaps), action_buttons (simple 1-2 buttons), choice (pick from options), proposal (approve/modify/skip), email_draft, meeting, smart_summary (batch save entities), evidence (tag document quotes).",
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "cards": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "card_type": {
+                                    "type": "string",
+                                    "enum": [
+                                        "gap_closer",
+                                        "action_buttons",
+                                        "choice",
+                                        "proposal",
+                                        "email_draft",
+                                        "meeting",
+                                        "smart_summary",
+                                        "evidence",
+                                    ],
+                                },
+                                "id": {"type": "string"},
+                                "data": {"type": "object"},
+                            },
+                            "required": ["card_type", "id", "data"],
+                        },
+                    }
+                },
+                "required": ["cards"],
+            },
+        },
     ]
+
+
+# =============================================================================
+# Page-Context Tool Filtering
+# =============================================================================
+
+# Tools sent on every request regardless of page
+CORE_TOOLS = {
+    "get_project_status",
+    "search",
+    "create_entity",
+    "update_entity",
+    "create_task",
+    "suggest_actions",
+    "add_signal",
+    "create_confirmation",
+}
+
+# Additional tools per page context
+PAGE_TOOLS: Dict[str, set] = {
+    "brd:features": {"attach_evidence", "query_entity_history"},
+    "brd:personas": {"query_entity_history"},
+    "brd:workflows": {"query_entity_history"},
+    "brd:stakeholders": {"identify_stakeholders", "query_entity_history"},
+    "brd:data_entities": {"query_entity_history"},
+    "brd:business_context": {
+        "generate_strategic_context",
+        "update_strategic_context",
+        "update_project_type",
+    },
+    "brd:constraints": {"update_strategic_context"},
+    "brd:questions": {"list_pending_confirmations", "generate_client_email"},
+    "overview": {
+        "generate_strategic_context",
+        "update_strategic_context",
+        "update_project_type",
+        "identify_stakeholders",
+        "list_pending_confirmations",
+    },
+    "prototype": {"attach_evidence", "query_entity_history"},
+}
+
+# Tools added when no specific page context (chat opened from sidebar, etc.)
+FALLBACK_EXTRAS = {
+    "generate_strategic_context",
+    "update_strategic_context",
+    "update_project_type",
+    "identify_stakeholders",
+    "list_pending_confirmations",
+    "generate_client_email",
+    "generate_meeting_agenda",
+    "attach_evidence",
+    "query_entity_history",
+    "query_knowledge_graph",
+    "check_document_clarifications",
+    "respond_to_document_clarification",
+}
+
+# Communication tools — added on any page that involves client interaction
+COMMUNICATION_TOOLS = {
+    "generate_client_email",
+    "generate_meeting_agenda",
+    "list_pending_confirmations",
+}
+
+# Document tools — added when documents may be discussed
+DOCUMENT_TOOLS = {
+    "check_document_clarifications",
+    "respond_to_document_clarification",
+}
+
+
+def get_tools_for_context(page_context: str | None = None) -> List[Dict[str, Any]]:
+    """Return filtered tool definitions based on current page context.
+
+    Args:
+        page_context: Current page (e.g., "brd:features", "overview", None)
+
+    Returns:
+        Filtered list of tool definitions
+    """
+    all_tools = get_tool_definitions()
+
+    if page_context is None:
+        # No page context — include core + fallback (all non-niche tools)
+        allowed = CORE_TOOLS | FALLBACK_EXTRAS
+    else:
+        # Core + page-specific + communication on BRD pages + document tools
+        page_extras = PAGE_TOOLS.get(page_context, set())
+
+        # For any brd: page, include communication and document tools
+        if page_context.startswith("brd"):
+            page_extras = page_extras | COMMUNICATION_TOOLS | DOCUMENT_TOOLS
+
+        # For the generic "brd" page (all sections), include everything BRD-related
+        if page_context == "brd":
+            page_extras = set()
+            for key, tools in PAGE_TOOLS.items():
+                if key.startswith("brd:"):
+                    page_extras |= tools
+            page_extras |= COMMUNICATION_TOOLS | DOCUMENT_TOOLS
+
+        allowed = CORE_TOOLS | page_extras
+
+    return [t for t in all_tools if t["name"] in allowed]
+
+
+# Tools that mutate project data — invalidate context frame cache after execution
+_MUTATING_TOOLS = {
+    "create_entity", "update_entity", "add_signal", "create_task",
+    "create_confirmation", "attach_evidence", "generate_strategic_context",
+    "update_strategic_context", "update_project_type", "identify_stakeholders",
+    "respond_to_document_clarification",
+}
 
 
 async def execute_tool(project_id: UUID, tool_name: str, tool_input: Dict[str, Any]) -> Dict[str, Any]:
@@ -579,28 +629,15 @@ async def execute_tool(project_id: UUID, tool_name: str, tool_input: Dict[str, A
             return await _generate_meeting_agenda(project_id, tool_input)
         elif tool_name == "list_pending_confirmations":
             return await _list_pending_confirmations(project_id, tool_input)
-        elif tool_name == "enrich_features":
-            return await _enrich_features(project_id, tool_input)
-        elif tool_name == "enrich_personas":
-            return await _enrich_personas(project_id, tool_input)
         # Strategic Context Tools
         elif tool_name == "generate_strategic_context":
             return await _generate_strategic_context(project_id, tool_input)
-        elif tool_name == "get_strategic_context":
-            return await _get_strategic_context(project_id, tool_input)
         elif tool_name == "update_project_type":
             return await _update_project_type(project_id, tool_input)
         elif tool_name == "identify_stakeholders":
             return await _identify_stakeholders(project_id, tool_input)
         elif tool_name == "update_strategic_context":
             return await _update_strategic_context(project_id, tool_input)
-        # Entity Cascade Tools
-        elif tool_name == "analyze_impact":
-            return await _analyze_impact(project_id, tool_input)
-        elif tool_name == "get_stale_entities":
-            return await _get_stale_entities(project_id, tool_input)
-        elif tool_name == "refresh_stale_entity":
-            return await _refresh_stale_entity(project_id, tool_input)
         # Document Clarification Tools
         elif tool_name == "check_document_clarifications":
             return await _check_document_clarifications(project_id, tool_input)
@@ -619,12 +656,23 @@ async def execute_tool(project_id: UUID, tool_name: str, tool_input: Dict[str, A
         # Task Creation
         elif tool_name == "create_task":
             return await _create_task(project_id, tool_input)
+        # Interactive Action Cards — pass-through (frontend renders)
+        elif tool_name == "suggest_actions":
+            return tool_input
         else:
             return {"error": f"Unknown tool: {tool_name}"}
 
     except Exception as e:
         logger.error(f"Error executing tool {tool_name}: {e}", exc_info=True)
         return {"error": str(e)}
+    finally:
+        # Invalidate context frame cache after mutating tools
+        if tool_name in _MUTATING_TOOLS:
+            try:
+                from app.core.action_engine import invalidate_context_frame
+                invalidate_context_frame(project_id)
+            except Exception:
+                pass  # Best-effort
 
 
 async def _get_project_status(project_id: UUID, params: Dict[str, Any]) -> Dict[str, Any]:
@@ -1518,149 +1566,6 @@ async def _list_pending_confirmations(project_id: UUID, params: Dict[str, Any]) 
         }
 
 
-async def _enrich_features(project_id: UUID, params: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Enrich features with consultant-friendly mini-spec details.
-
-    Args:
-        project_id: Project UUID
-        params: Enrichment parameters
-
-    Returns:
-        Enrichment results
-    """
-    try:
-        from app.chains.enrich_features_v2 import enrich_and_save_features
-
-        feature_ids_raw = params.get("feature_ids", [])
-        include_research = params.get("include_research", False)
-
-        # Convert string IDs to UUIDs
-        feature_ids = [UUID(fid) for fid in feature_ids_raw] if feature_ids_raw else None
-
-        # Run enrichment
-        result = enrich_and_save_features(
-            project_id=project_id,
-            feature_ids=feature_ids,
-            include_research=include_research,
-        )
-
-        enriched_count = result.get("enriched_count", 0)
-        enriched_names = result.get("enriched_features", [])
-
-        if enriched_count == 0:
-            return {
-                "success": True,
-                "enriched_count": 0,
-                "message": "✅ All features are already enriched! No features needed enrichment.",
-            }
-
-        # Build success message
-        message_parts = [f"✅ Successfully enriched {enriched_count} feature(s):"]
-        for name in enriched_names[:10]:
-            message_parts.append(f"  • {name}")
-        if len(enriched_names) > 10:
-            message_parts.append(f"  ... and {len(enriched_names) - 10} more")
-
-        message_parts.append("\nEach feature now has:")
-        message_parts.append("  • Overview (business description)")
-        message_parts.append("  • Target personas")
-        message_parts.append("  • User actions")
-        message_parts.append("  • System behaviors")
-        message_parts.append("  • UI requirements")
-        message_parts.append("  • Business rules")
-        message_parts.append("  • Integrations")
-
-        return {
-            "success": True,
-            "enriched_count": enriched_count,
-            "enriched_features": enriched_names,
-            "message": "\n".join(message_parts),
-        }
-
-    except ValueError as e:
-        return {
-            "success": False,
-            "error": str(e),
-            "message": f"No features to enrich: {str(e)}",
-        }
-    except Exception as e:
-        logger.error(f"Error enriching features: {e}", exc_info=True)
-        return {
-            "success": False,
-            "error": str(e),
-            "message": f"Failed to enrich features: {str(e)}",
-        }
-
-
-async def _enrich_personas(project_id: UUID, params: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Enrich personas with detailed profiles and key workflows.
-
-    Args:
-        project_id: Project UUID
-        params: Enrichment parameters
-
-    Returns:
-        Enrichment results
-    """
-    try:
-        from app.chains.enrich_personas_v2 import enrich_and_save_personas
-
-        persona_ids_raw = params.get("persona_ids", [])
-
-        # Convert string IDs to UUIDs
-        persona_ids = [UUID(pid) for pid in persona_ids_raw] if persona_ids_raw else None
-
-        # Run enrichment
-        result = enrich_and_save_personas(
-            project_id=project_id,
-            persona_ids=persona_ids,
-        )
-
-        enriched_count = result.get("enriched_count", 0)
-        enriched_names = result.get("enriched_personas", [])
-
-        if enriched_count == 0:
-            return {
-                "success": True,
-                "enriched_count": 0,
-                "message": "✅ All personas are already enriched! No personas needed enrichment.",
-            }
-
-        # Build success message
-        message_parts = [f"✅ Successfully enriched {enriched_count} persona(s):"]
-        for name in enriched_names[:10]:
-            message_parts.append(f"  • {name}")
-        if len(enriched_names) > 10:
-            message_parts.append(f"  ... and {len(enriched_names) - 10} more")
-
-        message_parts.append("\nEach persona now has:")
-        message_parts.append("  • Detailed overview")
-        message_parts.append("  • Key workflows with steps and features used")
-
-        return {
-            "success": True,
-            "enriched_count": enriched_count,
-            "enriched_personas": enriched_names,
-            "message": "\n".join(message_parts),
-        }
-
-    except ValueError as e:
-        return {
-            "success": False,
-            "error": str(e),
-            "message": f"No personas to enrich: {str(e)}",
-        }
-    except Exception as e:
-        logger.error(f"Error enriching personas: {e}", exc_info=True)
-        return {
-            "success": False,
-            "error": str(e),
-            "message": f"Failed to enrich personas: {str(e)}",
-        }
-
-
 # =============================================================================
 # Strategic Context Tools
 # =============================================================================
@@ -1761,91 +1666,6 @@ async def _generate_strategic_context(project_id: UUID, params: Dict[str, Any]) 
             "success": False,
             "error": str(e),
             "message": f"Failed to generate strategic context: {str(e)}",
-        }
-
-
-async def _get_strategic_context(project_id: UUID, params: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Get current strategic context.
-
-    Args:
-        project_id: Project UUID
-        params: Not used
-
-    Returns:
-        Strategic context data
-    """
-    try:
-        from app.db.strategic_context import get_strategic_context
-        from app.db.stakeholders import list_stakeholders
-
-        context = get_strategic_context(project_id)
-        stakeholders = list_stakeholders(project_id)
-
-        if not context:
-            return {
-                "success": True,
-                "exists": False,
-                "context": None,
-                "stakeholders": [],
-                "message": "No strategic context found. Use `generate_strategic_context` to create one.",
-            }
-
-        # Build display message
-        message_parts = ["**Strategic Context**"]
-
-        if context.get("executive_summary"):
-            message_parts.append(f"\n**Executive Summary**: {context['executive_summary']}")
-
-        message_parts.append(f"\n**Project Type**: {context.get('project_type', 'internal')}")
-
-        opportunity = context.get("opportunity", {})
-        if opportunity:
-            message_parts.append("\n**Opportunity**:")
-            if opportunity.get("problem_statement"):
-                message_parts.append(f"  • Problem: {opportunity['problem_statement']}")
-            if opportunity.get("business_opportunity"):
-                message_parts.append(f"  • Opportunity: {opportunity['business_opportunity']}")
-
-        risks = context.get("risks", [])
-        if risks:
-            message_parts.append(f"\n**Risks** ({len(risks)}):")
-            for risk in risks[:3]:
-                severity = risk.get("severity", "medium")
-                message_parts.append(f"  • [{severity.upper()}] {risk.get('description', '')[:80]}")
-            if len(risks) > 3:
-                message_parts.append(f"  ... and {len(risks) - 3} more")
-
-        metrics = context.get("success_metrics", [])
-        if metrics:
-            message_parts.append(f"\n**Success Metrics** ({len(metrics)}):")
-            for metric in metrics[:3]:
-                message_parts.append(f"  • {metric.get('metric', '')}: {metric.get('target', '')}")
-            if len(metrics) > 3:
-                message_parts.append(f"  ... and {len(metrics) - 3} more")
-
-        if stakeholders:
-            message_parts.append(f"\n**Stakeholders** ({len(stakeholders)}):")
-            for sh in stakeholders[:5]:
-                sh_type = sh.get("stakeholder_type", "")
-                message_parts.append(f"  • {sh.get('name', '')} ({sh_type})")
-            if len(stakeholders) > 5:
-                message_parts.append(f"  ... and {len(stakeholders) - 5} more")
-
-        return {
-            "success": True,
-            "exists": True,
-            "context": context,
-            "stakeholders": stakeholders,
-            "message": "\n".join(message_parts),
-        }
-
-    except Exception as e:
-        logger.error(f"Error getting strategic context: {e}", exc_info=True)
-        return {
-            "success": False,
-            "error": str(e),
-            "message": f"Failed to get strategic context: {str(e)}",
         }
 
 
@@ -2080,206 +1900,6 @@ async def _update_strategic_context(project_id: UUID, params: Dict[str, Any]) ->
             "success": False,
             "error": str(e),
             "message": f"Failed to update strategic context: {str(e)}",
-        }
-
-
-# =============================================================================
-# Entity Cascade Tool Handlers
-# =============================================================================
-
-
-async def _analyze_impact(project_id: UUID, params: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Analyze impact of changing an entity.
-
-    Args:
-        project_id: Project UUID
-        params: Entity type and ID
-
-    Returns:
-        Impact analysis result
-    """
-    try:
-        from app.chains.impact_analysis import analyze_change_impact, format_impact_analysis
-
-        entity_type = params.get("entity_type")
-        entity_id = params.get("entity_id")
-
-        if not entity_type or not entity_id:
-            return {
-                "success": False,
-                "error": "entity_type and entity_id are required",
-                "message": "Please specify the entity type and ID to analyze",
-            }
-
-        result = analyze_change_impact(
-            project_id=project_id,
-            entity_type=entity_type,
-            entity_id=UUID(entity_id),
-            proposed_change=params.get("proposed_change"),
-        )
-
-        return {
-            "success": True,
-            "entity_type": result.entity_type,
-            "entity_id": result.entity_id,
-            "entity_name": result.entity_name,
-            "total_affected": result.total_affected,
-            "recommendation": result.recommendation,
-            "direct_impacts": [
-                {
-                    "type": i.entity_type,
-                    "id": i.entity_id,
-                    "name": i.entity_name,
-                    "reason": i.reason,
-                }
-                for i in result.direct_impacts
-            ],
-            "indirect_impacts": [
-                {
-                    "type": i.entity_type,
-                    "id": i.entity_id,
-                    "name": i.entity_name,
-                    "reason": i.reason,
-                    "depth": len(i.path),
-                }
-                for i in result.indirect_impacts
-            ],
-            "message": format_impact_analysis(result),
-        }
-
-    except Exception as e:
-        logger.error(f"Error analyzing impact: {e}", exc_info=True)
-        return {
-            "success": False,
-            "error": str(e),
-            "message": f"Failed to analyze impact: {str(e)}",
-        }
-
-
-async def _get_stale_entities(project_id: UUID, params: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Get stale entities for the project.
-
-    Args:
-        project_id: Project UUID
-        params: Optional entity type filter
-
-    Returns:
-        Stale entities grouped by type
-    """
-    try:
-        from app.db.entity_dependencies import get_stale_entities
-
-        result = get_stale_entities(project_id)
-        entity_type_filter = params.get("entity_type", "all")
-
-        # Filter if requested
-        if entity_type_filter != "all":
-            type_map = {
-                "persona": "personas",
-                "feature": "features",
-                "vp_step": "vp_steps",
-                "strategic_context": "strategic_context",
-            }
-            key = type_map.get(entity_type_filter)
-            if key:
-                filtered = {key: result.get(key, [])}
-                filtered["total_stale"] = len(filtered[key])
-                result = filtered
-
-        # Format message
-        lines = ["Stale entities needing refresh:"]
-        if result.get("personas"):
-            lines.append(f"\nPersonas ({len(result['personas'])}):")
-            for p in result["personas"]:
-                lines.append(f"  - {p.get('name', 'Unknown')}: {p.get('stale_reason', 'Unknown reason')}")
-
-        if result.get("features"):
-            lines.append(f"\nFeatures ({len(result['features'])}):")
-            for f in result["features"]:
-                lines.append(f"  - {f.get('name', 'Unknown')}: {f.get('stale_reason', 'Unknown reason')}")
-
-        if result.get("vp_steps"):
-            lines.append(f"\nVP Steps ({len(result['vp_steps'])}):")
-            for s in result["vp_steps"]:
-                lines.append(f"  - {s.get('label', 'Unknown')}: {s.get('stale_reason', 'Unknown reason')}")
-
-        if result.get("strategic_context"):
-            lines.append(f"\nStrategic Context ({len(result['strategic_context'])}):")
-            for c in result["strategic_context"]:
-                lines.append(f"  - {c.get('stale_reason', 'Unknown reason')}")
-
-        if result.get("total_stale", 0) == 0:
-            lines = ["No stale entities found. All entities are up to date."]
-
-        return {
-            "success": True,
-            "stale_entities": result,
-            "total_stale": result.get("total_stale", 0),
-            "message": "\n".join(lines),
-        }
-
-    except Exception as e:
-        logger.error(f"Error getting stale entities: {e}", exc_info=True)
-        return {
-            "success": False,
-            "error": str(e),
-            "message": f"Failed to get stale entities: {str(e)}",
-        }
-
-
-async def _refresh_stale_entity(project_id: UUID, params: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Refresh a stale entity.
-
-    Args:
-        project_id: Project UUID
-        params: Entity type and ID
-
-    Returns:
-        Refresh result
-    """
-    try:
-        from app.chains.impact_analysis import refresh_stale_entity
-
-        entity_type = params.get("entity_type")
-        entity_id = params.get("entity_id")
-
-        if not entity_type or not entity_id:
-            return {
-                "success": False,
-                "error": "entity_type and entity_id are required",
-                "message": "Please specify the entity type and ID to refresh",
-            }
-
-        result = refresh_stale_entity(
-            project_id=project_id,
-            entity_type=entity_type,
-            entity_id=UUID(entity_id),
-        )
-
-        if result["status"] == "refreshed":
-            message = f"Successfully refreshed {entity_type}"
-        elif result["status"] == "no_changes":
-            message = f"No changes needed for {entity_type}"
-        elif result["status"] == "error":
-            message = f"Failed to refresh: {result.get('error', 'Unknown error')}"
-        else:
-            message = f"Refresh status: {result['status']}"
-
-        return {
-            "success": result["status"] in ["refreshed", "no_changes"],
-            "result": result,
-            "message": message,
-        }
-
-    except Exception as e:
-        logger.error(f"Error refreshing entity: {e}", exc_info=True)
-        return {
-            "success": False,
-            "error": str(e),
-            "message": f"Failed to refresh entity: {str(e)}",
         }
 
 
