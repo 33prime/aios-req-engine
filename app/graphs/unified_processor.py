@@ -368,7 +368,7 @@ def _build_entity_counts(result: PatchApplicationResult | None) -> dict:
 
 
 async def v2_trigger_memory(state: V2ProcessorState) -> dict[str, Any]:
-    """Step 8: Fire MemoryWatcher for signal processing event."""
+    """Step 8: Fire MemoryWatcher + Stakeholder Intelligence for signal processing event."""
     try:
         from app.agents.memory_agent import process_signal_for_memory
 
@@ -390,6 +390,9 @@ async def v2_trigger_memory(state: V2ProcessorState) -> dict[str, Any]:
             extra={"signal_id": str(state.signal_id)},
         )
 
+    # Trigger Stakeholder Intelligence for affected stakeholders (fire-and-forget)
+    await _trigger_stakeholder_intelligence(state)
+
     # Mark signal processing complete
     patch_summary: dict[str, Any] = {}
     if state.application_result:
@@ -409,6 +412,55 @@ async def v2_trigger_memory(state: V2ProcessorState) -> dict[str, Any]:
     )
 
     return {"success": True}
+
+
+async def _trigger_stakeholder_intelligence(state: V2ProcessorState) -> None:
+    """Trigger SI agent for stakeholders affected by this signal's patches.
+
+    Fires for stakeholders that were created, merged, or updated. Non-critical —
+    failures are logged, never fatal.
+    """
+    if not state.application_result or not state.application_result.applied:
+        return
+
+    # Find stakeholder entity IDs from applied patches
+    stakeholder_ids = [
+        entry["entity_id"]
+        for entry in state.application_result.applied
+        if entry.get("entity_type") == "stakeholder"
+        and entry.get("entity_id")
+        and entry.get("operation") in ("create", "merge", "update")
+    ]
+
+    if not stakeholder_ids:
+        return
+
+    logger.info(
+        f"[v2] Triggering SI agent for {len(stakeholder_ids)} affected stakeholders",
+        extra={"signal_id": str(state.signal_id), "stakeholder_ids": stakeholder_ids},
+    )
+
+    try:
+        from app.agents.stakeholder_intelligence_agent import invoke_stakeholder_intelligence_agent
+
+        for sid in stakeholder_ids[:3]:  # Cap at 3 per signal to limit LLM cost
+            try:
+                await invoke_stakeholder_intelligence_agent(
+                    stakeholder_id=UUID(sid),
+                    project_id=state.project_id,
+                    trigger="signal_processed",
+                    trigger_context=f"Signal {state.signal_id} applied patches to this stakeholder",
+                )
+            except Exception as e:
+                logger.debug(f"[v2] SI agent trigger failed for stakeholder {sid}: {e}")
+
+    except ImportError:
+        logger.debug("[v2] Stakeholder intelligence agent not available")
+    except Exception as e:
+        logger.warning(
+            f"[v2] SI agent trigger failed: {e}",
+            extra={"signal_id": str(state.signal_id)},
+        )
 
 
 # =============================================================================

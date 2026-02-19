@@ -958,6 +958,18 @@ async def _call_sonnet(prompt: str, context: str = "") -> dict[str, Any]:
             messages=[{"role": "user", "content": prompt}],
             output_config={"effort": "low"},
         )
+
+        # Log LLM usage for cost tracking
+        from app.core.llm_usage import log_llm_usage
+        log_llm_usage(
+            workflow="stakeholder_intelligence",
+            chain=context,
+            model=response.model,
+            provider="anthropic",
+            tokens_input=response.usage.input_tokens,
+            tokens_output=response.usage.output_tokens,
+        )
+
         text = response.content[0].text if response.content else "{}"
         return _parse_json_response(text, context)
     except Exception as e:

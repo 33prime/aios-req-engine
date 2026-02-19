@@ -11,6 +11,7 @@ concatenates them into the system prompt. Zero LLM cost, ~200ms to build.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from uuid import UUID
 
@@ -52,15 +53,25 @@ async def build_context_snapshot(project_id: UUID) -> ContextSnapshot:
     Returns:
         ContextSnapshot with pre-rendered prompt strings
     """
-    # --- Layer 1: Entity inventory ---
-    entity_inventory = await _build_entity_inventory(project_id)
+    # Load shared project data once (used by Layer 1 + Layer 3)
+    try:
+        from app.core.action_engine import _load_project_data
+
+        project_data = await _load_project_data(project_id)
+    except Exception as e:
+        logger.warning(f"Failed to load project data for context snapshot: {e}")
+        project_data = {}
+
+    # Run all 3 layers in parallel (independent of each other)
+    entity_inventory_task = _build_entity_inventory(project_id, project_data=project_data)
+    memory_task = _build_memory_layer(project_id)
+    gaps_task = _build_gaps_layer(project_id, project_data=project_data)
+
+    entity_inventory, (memory_prompt, beliefs, open_questions), gaps_prompt = (
+        await asyncio.gather(entity_inventory_task, memory_task, gaps_task)
+    )
+
     entity_prompt = _render_entity_inventory_prompt(entity_inventory)
-
-    # --- Layer 2: Memory ---
-    memory_prompt, beliefs, open_questions = await _build_memory_layer(project_id)
-
-    # --- Layer 3: Gaps ---
-    gaps_prompt = await _build_gaps_layer(project_id)
 
     return ContextSnapshot(
         entity_inventory_prompt=entity_prompt,
@@ -77,16 +88,25 @@ async def build_context_snapshot(project_id: UUID) -> ContextSnapshot:
 # =============================================================================
 
 
-async def _build_entity_inventory(project_id: UUID) -> dict[str, list[dict]]:
+async def _build_entity_inventory(
+    project_id: UUID,
+    project_data: dict | None = None,
+) -> dict[str, list[dict]]:
     """Load entity inventory from compute_context_frame() data.
 
     Plucks {id, name, confirmation_status, is_stale} per entity type.
     Reuses the same _load_project_data() as the action engine — zero new queries.
+
+    Args:
+        project_id: Project UUID
+        project_data: Pre-loaded project data (avoids duplicate DB call)
     """
     try:
-        from app.core.action_engine import _load_project_data
-
-        data = await _load_project_data(project_id)
+        if project_data is not None:
+            data = project_data
+        else:
+            from app.core.action_engine import _load_project_data
+            data = await _load_project_data(project_id)
     except Exception as e:
         logger.warning(f"Failed to load project data for inventory: {e}")
         return {}
@@ -375,12 +395,23 @@ async def _build_memory_layer(project_id: UUID) -> tuple[str, list[dict], list[d
 # =============================================================================
 
 
-async def _build_gaps_layer(project_id: UUID) -> str:
-    """Build gap summary from context frame structural_gaps + top_gaps."""
+async def _build_gaps_layer(
+    project_id: UUID,
+    project_data: dict | None = None,
+) -> str:
+    """Build gap summary from context frame structural_gaps + top_gaps.
+
+    Args:
+        project_id: Project UUID
+        project_data: Pre-loaded project data (avoids duplicate DB call)
+    """
     try:
         from app.core.action_engine import _build_structural_gaps, _detect_context_phase, _load_project_data
 
-        data = await _load_project_data(project_id)
+        if project_data is not None:
+            data = project_data
+        else:
+            data = await _load_project_data(project_id)
         phase, _ = _detect_context_phase(data)
 
         structural_gaps = _build_structural_gaps(data["workflow_pairs"], phase.value)

@@ -239,6 +239,9 @@ What's your reasoning and recommended action?"""
             extra={"client_id": str(client_id)},
         )
 
+        # Cascade: trigger SI agent for low-completeness stakeholders
+        await _cascade_to_stakeholder_intelligence(client_id, projects)
+
         return agent_response
 
     except Exception as e:
@@ -511,6 +514,65 @@ def _tool_to_sections(tool_name: str) -> list[str]:
         "generate_process_document": ["organizational_context"],
     }
     return mapping.get(tool_name, [])
+
+
+async def _cascade_to_stakeholder_intelligence(
+    client_id: UUID,
+    projects: list[dict],
+) -> None:
+    """Trigger SI agent for low-completeness stakeholders across client's projects.
+
+    Runs after CI agent completes to propagate organizational insights down to
+    individual stakeholder profiles. Non-critical — failures are logged, never fatal.
+    """
+    if not projects:
+        return
+
+    try:
+        from app.agents.stakeholder_intelligence_agent import invoke_stakeholder_intelligence_agent
+        from app.db.supabase_client import get_supabase
+
+        sb = get_supabase()
+        project_ids = [str(p.get("id", "")) for p in projects if p.get("id")]
+
+        if not project_ids:
+            return
+
+        # Find stakeholders with low profile completeness across client's projects
+        result = (
+            sb.table("stakeholders")
+            .select("id, project_id, name, profile_completeness")
+            .in_("project_id", project_ids)
+            .lt("profile_completeness", 50)
+            .order("profile_completeness")
+            .limit(5)  # Cap at 5 to limit LLM cost
+            .execute()
+        )
+
+        stakeholders = result.data or []
+        if not stakeholders:
+            return
+
+        logger.info(
+            f"CI→SI cascade: triggering SI for {len(stakeholders)} low-completeness stakeholders",
+            extra={"client_id": str(client_id)},
+        )
+
+        for s in stakeholders:
+            try:
+                await invoke_stakeholder_intelligence_agent(
+                    stakeholder_id=UUID(str(s["id"])),
+                    project_id=UUID(str(s["project_id"])),
+                    trigger="ci_agent_completed",
+                    trigger_context=f"Client Intelligence Agent completed for client {client_id}. Cross-reference organizational insights.",
+                )
+            except Exception as e:
+                logger.debug(f"CI→SI cascade failed for stakeholder {s.get('id')}: {e}")
+
+    except ImportError:
+        logger.debug("SI agent not available for CI→SI cascade")
+    except Exception as e:
+        logger.warning(f"CI→SI cascade failed: {e}", extra={"client_id": str(client_id)})
 
 
 def _log_invocation(

@@ -167,6 +167,19 @@ What's your reasoning and recommended action?"""
             thinking={"type": "adaptive"},
         )
 
+        # Log LLM usage
+        from app.core.llm_usage import log_llm_usage
+        log_llm_usage(
+            workflow="stakeholder_intelligence",
+            model=response.model,
+            provider="anthropic",
+            tokens_input=response.usage.input_tokens,
+            tokens_output=response.usage.output_tokens,
+            tokens_cache_read=getattr(response.usage, "cache_read_input_tokens", 0),
+            tokens_cache_create=getattr(response.usage, "cache_creation_input_tokens", 0),
+            project_id=project_id,
+        )
+
         # ==================================================================
         # 4. Parse response
         # ==================================================================
