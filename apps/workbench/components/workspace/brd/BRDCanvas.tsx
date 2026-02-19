@@ -72,6 +72,13 @@ export function BRDCanvas({ projectId, initialData, initialNextActions, onRefres
   const [isLoading, setIsLoading] = useState(!initialData)
   const [error, setError] = useState<string | null>(null)
 
+  // Sync from parent when SWR revalidates (e.g. triggered by Realtime)
+  useEffect(() => {
+    if (initialData) {
+      setData(initialData)
+    }
+  }, [initialData])
+
   // Health data (lifted from HealthPanel for IntelligenceSection)
   const [health, setHealth] = useState<BRDHealthData | null>(null)
   const [healthLoading, setHealthLoading] = useState(true)

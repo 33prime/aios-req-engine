@@ -17,6 +17,7 @@ import { ProjectAvatar } from '@/app/projects/components/ProjectAvatar'
 import { BuildingCardOverlay } from '@/app/projects/components/BuildingCardOverlay'
 import { getCollaborationCurrent } from '@/lib/api'
 import { useProfile, useProjects, useUpcomingMeetings, useBatchDashboardData } from '@/lib/hooks/use-api'
+import { useRealtimeDashboard } from '@/lib/realtime'
 import type {
   ProjectDetailWithDashboard,
   Profile,
@@ -383,6 +384,9 @@ export default function HomeDashboard() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [activeTaskProject, setActiveTaskProject] = useState<string | null>(null)
+
+  // Realtime: invalidate project caches when DB changes
+  useRealtimeDashboard()
 
   // SWR hooks — cached, deduplicated, auto-revalidating
   const { data: profile } = useProfile()

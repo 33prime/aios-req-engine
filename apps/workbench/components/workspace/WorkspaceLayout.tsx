@@ -40,6 +40,7 @@ import {
 import type { TaskStatsResponse, CollaborationHistoryResponse } from '@/lib/api'
 import type { QuestionCounts } from '@/types/workspace'
 import { useBRDData, useContextFrame } from '@/lib/hooks/use-api'
+import { useRealtimeBRD } from '@/lib/realtime'
 import type { CanvasData } from '@/types/workspace'
 import type { ReadinessScore, NextAction } from '@/lib/api'
 import type { VpStep } from '@/types/api'
@@ -73,6 +74,7 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
   const brdData = brdSwr ?? null
   const nextActions = brdSwr?.next_actions ?? null
   const { data: contextFrame, mutate: mutateContextFrame } = useContextFrame(projectId)
+  useRealtimeBRD(projectId)
   const [collaborationState, setCollaborationState] = useState<PanelState>('normal')
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true)
   const [activeBottomPanel, setActiveBottomPanel] = useState<'context' | 'evidence' | 'history' | null>(null)

@@ -16,6 +16,7 @@ import {
   getNextActions,
   getUnifiedActions,
   getContextFrame,
+  getIntelligenceBriefing,
   listOpenQuestions,
   getQuestionCounts,
   batchGetDashboardData,
@@ -30,7 +31,16 @@ import type {
   BatchDashboardData,
 } from '@/lib/api'
 import type { Profile, ProjectDetailWithDashboard, Meeting } from '@/types/api'
-import type { BRDWorkspaceData, CanvasData, OpenQuestion, QuestionCounts } from '@/types/workspace'
+import type { BRDWorkspaceData, CanvasData, IntelligenceBriefing, OpenQuestion, QuestionCounts } from '@/types/workspace'
+
+// --- SWR key constants (shared with realtime invalidation) ---
+export const SWR_KEYS = {
+  brd: (pid: string) => `brd:${pid}:evidence=true`,
+  workspace: (pid: string) => `workspace:${pid}`,
+  projects: (status: string) => `projects:${status}`,
+  contextFrame: (pid: string) => `context-frame:${pid}`,
+  briefing: (pid: string) => `briefing:${pid}`,
+} as const
 
 // --- Cache TTL presets (in milliseconds) ---
 const LONG_CACHE = 5 * 60 * 1000   // 5 min — stable data (profile)
@@ -60,7 +70,7 @@ export function useProjects(
 ) {
   const key = search
     ? `projects:${status}:${search}`
-    : `projects:${status}`
+    : SWR_KEYS.projects(status)
   return useSWR<ProjectsListResult>(key, () => listProjects(status, search), {
     dedupingInterval: MED_CACHE,
     ...config,
@@ -111,7 +121,7 @@ export function useWorkspaceData(
   config?: SWRConfiguration<CanvasData>,
 ) {
   return useSWR<CanvasData>(
-    projectId ? `workspace:${projectId}` : null,
+    projectId ? SWR_KEYS.workspace(projectId) : null,
     () => getWorkspaceData(projectId!),
     {
       dedupingInterval: SHORT_CACHE,
@@ -127,7 +137,7 @@ export function useBRDData(
   config?: SWRConfiguration<BRDWorkspaceData>,
 ) {
   const key = projectId
-    ? `brd:${projectId}:evidence=${includeEvidence}`
+    ? (includeEvidence ? SWR_KEYS.brd(projectId) : `brd:${projectId}:evidence=false`)
     : null
   return useSWR<BRDWorkspaceData>(
     key,
@@ -161,7 +171,7 @@ export function useContextFrame(
   config?: SWRConfiguration<ProjectContextFrame>,
 ) {
   return useSWR<ProjectContextFrame>(
-    projectId ? `context-frame:${projectId}` : null,
+    projectId ? SWR_KEYS.contextFrame(projectId) : null,
     () => getContextFrame(projectId!, 5),
     {
       dedupingInterval: SHORT_CACHE,
@@ -218,6 +228,23 @@ export function useQuestionCounts(
     () => getQuestionCounts(projectId!),
     {
       dedupingInterval: MED_CACHE,
+      revalidateOnFocus: false,
+      ...config,
+    },
+  )
+}
+
+// --- Intelligence briefing (per-project, per-user temporal diff) ---
+export function useIntelligenceBriefing(
+  projectId: string | undefined,
+  config?: SWRConfiguration<IntelligenceBriefing>,
+) {
+  return useSWR<IntelligenceBriefing>(
+    projectId ? SWR_KEYS.briefing(projectId) : null,
+    () => getIntelligenceBriefing(projectId!, 5),
+    {
+      dedupingInterval: SHORT_CACHE,
+      refreshInterval: 30_000,
       revalidateOnFocus: false,
       ...config,
     },
