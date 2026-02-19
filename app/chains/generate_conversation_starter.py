@@ -18,26 +18,32 @@ logger = get_logger(__name__)
 
 SONNET_MODEL = "claude-sonnet-4-5-20250929"
 
-CONVERSATION_STARTER_SYSTEM = """You are a curious, detail-oriented colleague who has carefully read all the project signals (meeting notes, emails, documents). You've noticed something specific and want to start a focused conversation about it.
+CONVERSATION_STARTER_SYSTEM = """You are a helpful colleague who has read all the project signals (meeting notes, emails, documents) and wants to help the consultant fill in what's needed to get this project to prototype.
 
 ## Your Goal
-Produce ONE conversation starter that shows you actually read the material. Reference SPECIFIC content — names, processes, numbers, artifacts mentioned in the signals.
+Produce ONE conversation starter that identifies a specific piece of information we need, connects it to something you saw in the signals, and proposes figuring it out together.
+
+## Tone
+- Collaborative and forward-looking, never urgent or alarming
+- You're helping gather info, not raising red flags
+- "To get this to prototype, we should nail down X — I saw it mentioned in your kickoff notes, want to pull that together?"
+- Like a smart colleague saying "hey, you probably have this already — let's get it documented"
 
 ## Rules
-- Start your hook with something specific you noticed ("In the kickoff notes, Sarah mentioned...", "The intake form references a 3-step review process...")
-- Explain WHY this matters for the project — connect it to a gap, opportunity, or contradiction
-- Ask a single, open-ended question that invites collaboration
-- Casual professional tone — like texting a smart colleague who's excited about the project
+- Reference SPECIFIC content from signals — names, processes, artifacts ("Sarah mentioned a 3-step review...", "The intake form has pictures and form questions...")
+- Connect to what's needed next: what info would move us closer to prototype?
+- The question should invite the consultant to share what they know — they're the expert
+- NEVER dire, urgent, or deadline-focused. No "critical gap" or "risk" language.
 - NEVER form-filling ("Who performs step X?"), NEVER generic ("Tell me about the project")
-- NEVER reference internal system concepts (signals, entities, workflows)
+- NEVER reference internal system concepts (signals, entities, workflows, phases)
 - Reference evidence by index number in anchor_indices
 
 ## Output
 Return a JSON object with exactly these fields:
 {
-  "hook": "I noticed... (1-2 sentences, specific to signal content)",
-  "body": "Why this matters... (2-4 sentences, connects to project goals/gaps)",
-  "question": "A conversational question to explore (1 sentence)",
+  "hook": "Specific thing you noticed in the signals (1-2 sentences)",
+  "body": "What we need to flesh out and why it helps get to prototype (2-3 sentences, helpful not dire)",
+  "question": "Collaborative question inviting the consultant to share what they know (1 sentence)",
   "topic_domain": "workflow|persona|process|data|integration|stakeholder|constraint",
   "anchor_indices": [0, 2],
   "chat_context_summary": "Brief summary of the topic + evidence for chat injection (~50 words)"
@@ -72,9 +78,9 @@ Generate ONE conversation starter based on the most interesting or important sig
 # Fallback for EMPTY phase (no LLM call)
 EMPTY_FALLBACK = ConversationStarter(
     starter_id="fallback_empty",
-    hook="Ready to dig in.",
-    body="Once you upload some project signals — meeting notes, emails, research docs — I'll read through everything and surface what matters most. The more context I have, the more specific I can be.",
-    question="What's the story behind this project?",
+    hook="Ready to get started.",
+    body="Upload some project signals — meeting notes, emails, research docs — and I'll read through everything to figure out what we need to flesh out for prototype.",
+    question="What materials do you have from the project so far?",
     anchors=[],
     chat_context="",
     topic_domain="general",
@@ -120,8 +126,8 @@ async def generate_conversation_starter(
         return ConversationStarter(
             starter_id="fallback_no_evidence",
             hook="I'm still getting familiar with the project.",
-            body="I don't see much signal content yet. Upload meeting notes, emails, or documents and I'll surface specific things to discuss.",
-            question="What signals or documents should I be looking at?",
+            body="I don't have much to work with yet. Upload meeting notes, emails, or documents and I'll figure out what we need to flesh out for prototype.",
+            question="What materials do you have that I should read through?",
             anchors=[],
             chat_context="",
             topic_domain="general",
@@ -236,9 +242,9 @@ async def generate_conversation_starter(
         logger.error(f"Failed to parse conversation starter JSON: {e}")
         return ConversationStarter(
             starter_id="fallback_parse_error",
-            hook="I've been looking through the project signals.",
-            body="There's a lot here to unpack. Let's start with what matters most to you right now.",
-            question="What's the most important thing we should nail down first?",
+            hook="I've been reading through the project materials.",
+            body="There's good stuff here. Let's figure out what to flesh out next to get closer to prototype.",
+            question="What area do you think we should focus on first?",
             anchors=[],
             chat_context="",
             topic_domain="general",
