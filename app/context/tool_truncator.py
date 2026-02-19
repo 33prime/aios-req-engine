@@ -54,6 +54,16 @@ TOOL_CONFIGS: dict[str, dict] = {
         "truncate_fields": ["overview", "description"],
         "truncate_length": 150,
     },
+    "add_belief": {
+        "max_tokens": 500,
+        "max_items": None,
+        "list_field": None,
+    },
+    "add_company_reference": {
+        "max_tokens": 500,
+        "max_items": None,
+        "list_field": None,
+    },
 }
 
 DEFAULT_CONFIG = {

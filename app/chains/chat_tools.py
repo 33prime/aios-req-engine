@@ -476,6 +476,69 @@ def get_tool_definitions() -> List[Dict[str, Any]]:
                 "required": ["title"],
             },
         },
+        # Knowledge & References
+        {
+            "name": "add_belief",
+            "description": "Record a belief or knowledge — 'remember that...', 'note that the client prefers...', 'keep in mind...'. Saves to the project knowledge graph for future reference.",
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "content": {
+                        "type": "string",
+                        "description": "The belief or knowledge to remember",
+                    },
+                    "domain": {
+                        "type": "string",
+                        "enum": [
+                            "client_priority",
+                            "technical",
+                            "market",
+                            "user_need",
+                            "constraint",
+                        ],
+                        "description": "Optional domain category for the belief",
+                    },
+                    "linked_entity_type": {
+                        "type": "string",
+                        "enum": ["feature", "persona", "vp_step", "stakeholder", "business_driver", "competitor"],
+                        "description": "Optional entity type this belief is about",
+                    },
+                    "linked_entity_id": {
+                        "type": "string",
+                        "description": "Optional UUID of the linked entity",
+                    },
+                },
+                "required": ["content"],
+            },
+        },
+        {
+            "name": "add_company_reference",
+            "description": "Add a competitor or design/feature inspiration — 'add X as a competitor', 'look at Y for design inspiration'. Tracks companies and products relevant to the project.",
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "description": "Name of the company or product",
+                    },
+                    "url": {
+                        "type": "string",
+                        "description": "URL to the company or product",
+                    },
+                    "reference_type": {
+                        "type": "string",
+                        "enum": ["competitor", "design_inspiration", "feature_inspiration"],
+                        "description": "Type of reference (default: competitor)",
+                        "default": "competitor",
+                    },
+                    "notes": {
+                        "type": "string",
+                        "description": "Optional notes about why this reference is relevant",
+                    },
+                },
+                "required": ["name", "url"],
+            },
+        },
         # Interactive Action Cards
         {
             "name": "suggest_actions",
@@ -529,6 +592,8 @@ CORE_TOOLS = {
     "suggest_actions",
     "add_signal",
     "create_confirmation",
+    "add_belief",
+    "add_company_reference",
 }
 
 # Additional tools per page context
@@ -625,7 +690,7 @@ _MUTATING_TOOLS = {
     "create_entity", "update_entity", "add_signal", "create_task",
     "create_confirmation", "attach_evidence", "generate_strategic_context",
     "update_strategic_context", "update_project_type", "identify_stakeholders",
-    "respond_to_document_clarification",
+    "respond_to_document_clarification", "add_belief", "add_company_reference",
 }
 
 
@@ -689,6 +754,11 @@ async def execute_tool(project_id: UUID, tool_name: str, tool_input: Dict[str, A
         # Task Creation
         elif tool_name == "create_task":
             return await _create_task(project_id, tool_input)
+        # Knowledge & References
+        elif tool_name == "add_belief":
+            return await _add_belief(project_id, tool_input)
+        elif tool_name == "add_company_reference":
+            return await _add_company_reference(project_id, tool_input)
         # Interactive Action Cards — pass-through (frontend renders)
         elif tool_name == "suggest_actions":
             return tool_input
@@ -2810,3 +2880,85 @@ async def _create_task(project_id: UUID, params: Dict[str, Any]) -> Dict[str, An
     except Exception as e:
         logger.error(f"Failed to create task: {e}", exc_info=True)
         return {"error": f"Failed to create task: {str(e)}"}
+
+
+# =============================================================================
+# Knowledge & Reference Handlers
+# =============================================================================
+
+
+async def _add_belief(project_id: UUID, params: Dict[str, Any]) -> Dict[str, Any]:
+    """Record a belief/knowledge in the project knowledge graph."""
+    from app.db.memory_graph import create_node
+
+    content = params.get("content", "").strip()
+    if not content:
+        return {"error": "content is required"}
+
+    domain = params.get("domain")
+    linked_entity_type = params.get("linked_entity_type")
+    linked_entity_id = params.get("linked_entity_id")
+
+    summary = content[:100] + ("..." if len(content) > 100 else "")
+
+    try:
+        node = create_node(
+            project_id=project_id,
+            node_type="belief",
+            content=content,
+            summary=summary,
+            confidence=0.8,
+            source_type="user",
+            belief_domain=domain,
+            linked_entity_type=linked_entity_type,
+            linked_entity_id=UUID(linked_entity_id) if linked_entity_id else None,
+        )
+        return {
+            "success": True,
+            "node_id": node.get("id"),
+            "message": f"Got it, I'll remember: {summary}",
+        }
+    except Exception as e:
+        logger.error(f"Failed to add belief: {e}", exc_info=True)
+        return {"error": f"Failed to record belief: {str(e)}"}
+
+
+async def _add_company_reference(project_id: UUID, params: Dict[str, Any]) -> Dict[str, Any]:
+    """Add a competitor or design/feature inspiration."""
+    from app.db.competitor_refs import create_competitor_ref
+
+    name = params.get("name", "").strip()
+    url = params.get("url", "").strip()
+    if not name:
+        return {"error": "name is required"}
+    if not url:
+        return {"error": "url is required"}
+
+    reference_type = params.get("reference_type", "competitor")
+    notes = params.get("notes")
+
+    try:
+        ref = create_competitor_ref(
+            project_id=project_id,
+            reference_type=reference_type,
+            name=name,
+            url=url,
+            research_notes=notes,
+        )
+        type_labels = {
+            "competitor": "competitor",
+            "design_inspiration": "design inspiration",
+            "feature_inspiration": "feature inspiration",
+        }
+        label = type_labels.get(reference_type, reference_type)
+        return {
+            "success": True,
+            "ref_id": ref.get("id"),
+            "message": f"Added {name} as a {label}.",
+            "name": name,
+            "url": url,
+            "reference_type": reference_type,
+        }
+    except Exception as e:
+        logger.error(f"Failed to add company reference: {e}", exc_info=True)
+        return {"error": f"Failed to add reference: {str(e)}"}

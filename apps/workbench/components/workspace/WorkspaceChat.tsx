@@ -175,7 +175,7 @@ export function WorkspaceChat({
         onAddLocalMessage?.({ role: 'assistant', content: `Hmm, had trouble with:\n- ${errors}\n\nThe other files are still processing.` })
       }
 
-      // Poll for processing completion, then auto-trigger follow-up questions
+      // Two-phase polling for processing completion
       if (documentIds.length === 0) return
 
       let completedCount = 0
@@ -183,31 +183,106 @@ export function WorkspaceChat({
 
       for (const docId of documentIds) {
         let attempts = 0
-        const maxAttempts = 60 // 2 minutes at 2s intervals
+        const maxAttempts = 90 // 3 minutes at 2s intervals
+        let phase: 'extraction' | 'entity_analysis' = 'extraction'
+        let shownPhase1Message = false
+
         const poll = setInterval(async () => {
           attempts++
           if (attempts > maxAttempts) {
             clearInterval(poll)
+            completedCount++
             return
           }
           try {
             const status = await getDocumentStatus(docId)
-            if (status.processing_status === 'completed' || status.processing_status === 'failed') {
+
+            if (status.processing_status === 'failed') {
               clearInterval(poll)
               completedCount++
-              if (status.processing_status === 'completed') {
-                completedFiles.push(status.original_filename || 'document')
-              }
+              return
+            }
 
-              // When all docs finish, auto-trigger the assistant to review & ask questions
-              if (completedCount >= documentIds.length && completedFiles.length > 0) {
-                const fileList = completedFiles.map((f) => `**${f}**`).join(', ')
-                // Small delay so the user sees the flow naturally
-                setTimeout(() => {
-                  externalSendMessage(
-                    `I just uploaded ${fileList}. The analysis is done — what did you find in there? Any follow-up questions for me?`
-                  )
-                }, 500)
+            // Phase 1: Wait for document extraction to complete
+            if (phase === 'extraction') {
+              if (status.processing_status === 'completed') {
+                // Check if clarification is needed — stop polling if so
+                if (status.needs_clarification) {
+                  clearInterval(poll)
+                  completedCount++
+                  onAddLocalMessage?.({
+                    role: 'assistant',
+                    content: status.clarification_question || 'I have a question about this document — what type of document is it?',
+                  })
+                  return
+                }
+
+                // Show warm intermediate message
+                if (!shownPhase1Message) {
+                  shownPhase1Message = true
+                  const docClass = status.document_class || 'document'
+                  const classLabels: Record<string, string> = {
+                    prd: 'product requirements doc', transcript: 'meeting transcript',
+                    spec: 'technical spec', email: 'email thread', presentation: 'presentation',
+                    research: 'research document', process_doc: 'process document',
+                  }
+                  const label = classLabels[docClass] || docClass
+                  onAddLocalMessage?.({
+                    role: 'assistant',
+                    content: `Got it — looks like a **${label}**. Running deeper analysis now...`,
+                  })
+                }
+
+                // If no signal_id or entity extraction not applicable, fall back to immediate trigger
+                if (!status.signal_id || status.entity_extraction_status === 'not_applicable') {
+                  clearInterval(poll)
+                  completedCount++
+                  completedFiles.push(status.original_filename || 'document')
+                  if (completedCount >= documentIds.length && completedFiles.length > 0) {
+                    const fileList = completedFiles.map((f) => `**${f}**`).join(', ')
+                    setTimeout(() => {
+                      externalSendMessage(
+                        `I just uploaded ${fileList}. What did you find in there? Any follow-up questions for me?`
+                      )
+                    }, 500)
+                  }
+                  return
+                }
+
+                // Transition to Phase 2
+                phase = 'entity_analysis'
+              }
+            }
+
+            // Phase 2: Wait for V2 entity extraction to complete
+            if (phase === 'entity_analysis') {
+              if (status.entity_extraction_status === 'completed') {
+                clearInterval(poll)
+                completedCount++
+                completedFiles.push(status.original_filename || 'document')
+
+                // When all docs finish, send context-rich message with entity counts
+                if (completedCount >= documentIds.length && completedFiles.length > 0) {
+                  const fileList = completedFiles.map((f) => `**${f}**`).join(', ')
+                  // Build entity count summary from the last completed doc
+                  const entities = status.extracted_entities
+                  let countParts: string[] = []
+                  if (entities) {
+                    if (entities.features.length > 0) countParts.push(`${entities.features.length} features`)
+                    if (entities.personas.length > 0) countParts.push(`${entities.personas.length} personas`)
+                    if (entities.vp_steps.length > 0) countParts.push(`${entities.vp_steps.length} workflow steps`)
+                    if (entities.constraints.length > 0) countParts.push(`${entities.constraints.length} constraints`)
+                    if (entities.stakeholders.length > 0) countParts.push(`${entities.stakeholders.length} stakeholders`)
+                  }
+                  const countSummary = countParts.length > 0
+                    ? ` Analysis complete — extracted ${countParts.join(', ')}.`
+                    : ''
+                  setTimeout(() => {
+                    externalSendMessage(
+                      `I just uploaded ${fileList}.${countSummary} Show me what was found and help me review them.`
+                    )
+                  }, 500)
+                }
               }
             }
           } catch {

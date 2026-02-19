@@ -1816,6 +1816,15 @@ export interface DocumentStatusResponse {
     updated?: number
     chat_summary?: string
   }
+  entity_extraction_status?: 'pending' | 'processing' | 'completed' | 'not_applicable' | 'unknown'
+  extracted_entities?: {
+    features: Array<{ name: string; id: string }>
+    personas: Array<{ name: string; id: string }>
+    vp_steps: Array<{ name: string; id: string }>
+    constraints: Array<{ name: string; id: string }>
+    stakeholders: Array<{ name: string; id: string }>
+    total_count: number
+  }
 }
 
 /**

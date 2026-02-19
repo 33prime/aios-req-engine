@@ -111,6 +111,53 @@ def _update_signal_status(signal_id: UUID, status: str, extra: dict[str, Any] | 
         logger.debug(f"Failed to update signal {signal_id} status to {status!r}: {e}")
 
 
+def _create_document_review_task(state: V2ProcessorState) -> None:
+    """Create a review task if this signal came from a document upload.
+
+    Non-critical — failures are logged, never fatal.
+    """
+    try:
+        # Check if there are entities to review
+        r = state.application_result
+        if not r or r.total_applied == 0:
+            return
+
+        sb = get_supabase()
+
+        # Look up document_uploads where signal_id matches
+        doc_resp = (
+            sb.table("document_uploads")
+            .select("id, original_filename")
+            .eq("signal_id", str(state.signal_id))
+            .limit(1)
+            .execute()
+        )
+
+        if not doc_resp.data:
+            return  # Not a document upload signal
+
+        filename = doc_resp.data[0].get("original_filename", "document")
+        entity_count = r.total_applied
+
+        sb.table("tasks").insert(
+            {
+                "project_id": str(state.project_id),
+                "title": f"Review {entity_count} entities extracted from {filename}",
+                "task_type": "validation",
+                "status": "pending",
+                "source_type": "signal_processing",
+                "priority_score": 80,
+            }
+        ).execute()
+
+        logger.info(
+            f"[v2] Created review task for {filename} ({entity_count} entities)",
+            extra={"signal_id": str(state.signal_id)},
+        )
+    except Exception as e:
+        logger.debug(f"[v2] Failed to create document review task: {e}")
+
+
 # =============================================================================
 # Pipeline Node Functions
 # =============================================================================
@@ -411,6 +458,9 @@ async def v2_trigger_memory(state: V2ProcessorState) -> dict[str, Any]:
         "complete",
         extra={"patch_summary": patch_summary},
     )
+
+    # Create review task if this signal came from a document upload
+    _create_document_review_task(state)
 
     return {"success": True}
 

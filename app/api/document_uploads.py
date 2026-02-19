@@ -264,6 +264,44 @@ async def get_document(document_id: UUID) -> dict:
     return doc
 
 
+def _build_extracted_entities(signal_id: str) -> dict:
+    """Build extracted entities summary from enrichment_revisions for a signal."""
+    type_map = {
+        "feature": "features",
+        "persona": "personas",
+        "vp_step": "vp_steps",
+        "constraint": "constraints",
+        "stakeholder": "stakeholders",
+    }
+    result: dict = {v: [] for v in type_map.values()}
+    result["total_count"] = 0
+
+    try:
+        sb = get_supabase()
+        revisions = (
+            sb.table("enrichment_revisions")
+            .select("entity_type, entity_label, entity_id, revision_type")
+            .eq("source_signal_id", signal_id)
+            .limit(50)
+            .execute()
+        )
+        seen: set[tuple[str, str]] = set()
+        for rev in revisions.data or []:
+            key = (rev.get("entity_type", ""), rev.get("entity_id", ""))
+            if key in seen:
+                continue
+            seen.add(key)
+            entry = {"name": rev.get("entity_label", "?"), "id": rev.get("entity_id")}
+            key_name = type_map.get(rev.get("entity_type", ""))
+            if key_name:
+                result[key_name].append(entry)
+        result["total_count"] = len(seen)
+    except Exception as e:
+        logger.debug(f"Failed to build extracted entities for signal {signal_id}: {e}")
+
+    return result
+
+
 @router.get("/documents/{document_id}/status")
 async def get_document_status(document_id: UUID) -> dict:
     """Get document processing status.
@@ -312,7 +350,7 @@ async def get_document_status(document_id: UUID) -> dict:
         status_response["needs_clarification"] = doc.get("needs_clarification", False)
         status_response["clarification_question"] = doc.get("clarification_question")
 
-        # Include V2 pipeline analysis summary from signal
+        # Include V2 pipeline analysis summary + entity extraction status from signal
         signal_id = doc.get("signal_id")
         if signal_id:
             try:
@@ -321,10 +359,23 @@ async def get_document_status(document_id: UUID) -> dict:
                     "patch_summary, processing_status"
                 ).eq("id", signal_id).single().execute()
                 signal_data = signal_resp.data
-                if signal_data and signal_data.get("patch_summary"):
-                    status_response["analysis_summary"] = signal_data["patch_summary"]
+                if signal_data:
+                    if signal_data.get("patch_summary"):
+                        status_response["analysis_summary"] = signal_data["patch_summary"]
+
+                    # Map signal processing_status to entity_extraction_status
+                    sig_status = signal_data.get("processing_status", "")
+                    if sig_status == "complete":
+                        status_response["entity_extraction_status"] = "completed"
+                        status_response["extracted_entities"] = _build_extracted_entities(signal_id)
+                    elif sig_status in ("extracting", "applying"):
+                        status_response["entity_extraction_status"] = "processing"
+                    else:
+                        status_response["entity_extraction_status"] = "pending"
             except Exception:
-                pass  # Non-critical — don't fail status check
+                status_response["entity_extraction_status"] = "unknown"
+        else:
+            status_response["entity_extraction_status"] = "not_applicable"
 
     elif doc["processing_status"] == "failed":
         status_response["message"] = "Document processing failed"
