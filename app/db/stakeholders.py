@@ -172,6 +172,7 @@ def create_stakeholder(
     first_name: str | None = None,
     last_name: str | None = None,
     linkedin_profile: str | None = None,
+    client_id: UUID | None = None,
 ) -> dict:
     """
     Create a new stakeholder.
@@ -219,6 +220,8 @@ def create_stakeholder(
         stakeholder_data["last_name"] = last_name
     if linkedin_profile:
         stakeholder_data["linkedin_profile"] = linkedin_profile
+    if client_id:
+        stakeholder_data["client_id"] = str(client_id)
 
     response = (
         supabase.table("stakeholders")

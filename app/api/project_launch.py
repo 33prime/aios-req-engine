@@ -4,11 +4,12 @@ import asyncio
 import threading
 import time
 import uuid
-from typing import Any
+from typing import Any, Optional
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 
+from app.core.auth_middleware import AuthContext, get_current_user
 from app.core.logging import get_logger
 from app.core.schemas_project_launch import (
     LaunchProgressResponse,
@@ -106,18 +107,29 @@ def _execute_company_research(context: dict) -> str:
         return "Skipped — no client record"
 
     result = asyncio.run(enrich_client(UUID(client_id)))
-    fields_enriched = result.get("fields_enriched", 0) if isinstance(result, dict) else 0
+    fields_enriched = result.get("fields_enriched", []) if isinstance(result, dict) else []
+    field_count = len(fields_enriched) if isinstance(fields_enriched, list) else 0
 
-    # Store company context for entity generation
-    if isinstance(result, dict):
+    # Read enriched client back from DB to get company_summary for entity generation
+    if isinstance(result, dict) and result.get("success"):
+        from app.db.clients import get_client
+
+        enriched_client = get_client(UUID(client_id))
         context["company_context"] = {
             "name": context.get("client_name"),
             "website": context.get("client_website"),
             "industry": context.get("client_industry"),
-            "description": result.get("description", ""),
+            "description": (enriched_client or {}).get("company_summary", ""),
+        }
+    else:
+        context["company_context"] = {
+            "name": context.get("client_name"),
+            "website": context.get("client_website"),
+            "industry": context.get("client_industry"),
+            "description": "",
         }
 
-    return f"Enriched {fields_enriched} fields from website"
+    return f"Enriched {field_count} fields from website"
 
 
 def _build_evidence_from_quotes(quotes: list[str]) -> list[dict]:
@@ -726,7 +738,10 @@ def _run_launch_pipeline(launch_id: UUID, context: dict) -> None:
 
 
 @router.post("/projects/launch", response_model=ProjectLaunchResponse)
-async def launch_project(request: ProjectLaunchRequest) -> ProjectLaunchResponse:
+async def launch_project(
+    request: ProjectLaunchRequest,
+    auth: Optional[AuthContext] = Depends(get_current_user),
+) -> ProjectLaunchResponse:
     """
     Create a project and launch the automated setup pipeline.
 
@@ -740,11 +755,14 @@ async def launch_project(request: ProjectLaunchRequest) -> ProjectLaunchResponse
     from app.db.projects import create_project
     from app.db.stakeholders import create_stakeholder
 
+    user_id = str(auth.user_id) if auth else None
+
     # 1. Create project — MUST succeed
     try:
         project = create_project(
             name=request.project_name,
             description=request.problem_description,
+            created_by=auth.user_id if auth else None,
         )
         project_id = UUID(project["id"])
         project_id_str = str(project_id)
@@ -763,6 +781,7 @@ async def launch_project(request: ProjectLaunchRequest) -> ProjectLaunchResponse
         "client_website": request.client_website,
         "client_industry": request.client_industry,
         "problem_description": request.problem_description,
+        "user_id": user_id,
     }
 
     # Store chat transcript for entity generation
@@ -815,6 +834,8 @@ async def launch_project(request: ProjectLaunchRequest) -> ProjectLaunchResponse
             }
             if s_input.linkedin_url:
                 create_kwargs["linkedin_profile"] = s_input.linkedin_url
+            if client_id:
+                create_kwargs["client_id"] = UUID(client_id)
             stakeholder = create_stakeholder(**create_kwargs)
             s_id = stakeholder["id"]
             stakeholder_ids.append(s_id)

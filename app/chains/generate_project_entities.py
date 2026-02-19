@@ -1,8 +1,8 @@
 """Entity generation chain — produces all project entities from onboarding chat transcript.
 
 Two-phase pipeline:
-  Phase 1 (parallel Sonnet 4.5): Foundation (background, vision, personas) + Drivers & Requirements
-  Phase 2 (sequential Opus 4.6): Workflows with current/future state steps
+  Phase 1 (parallel Sonnet 4.6): Foundation (background, vision, personas) + Drivers & Requirements
+  Phase 2 (sequential Sonnet 4.6): Workflows with current/future state steps
 """
 
 import asyncio
@@ -310,7 +310,7 @@ async def _run_phase2(
     requirements: list[dict],
     project_id: str | None,
 ) -> dict:
-    """Phase 2: Opus call for workflows using Phase 1 outputs."""
+    """Phase 2: Sonnet call for workflows using Phase 1 outputs."""
     return await _call_anthropic(
         model=SONNET_MODEL,
         system="You are an expert process analyst. Return valid JSON only.",
@@ -337,7 +337,7 @@ async def generate_project_entities(
 
     Two-phase pipeline:
       Phase 1 (parallel Sonnet): Foundation + Drivers/Requirements
-      Phase 2 (sequential Opus): Workflows using Phase 1 context
+      Phase 2 (sequential Sonnet): Workflows using Phase 1 context
     """
     company_ctx_str = _build_company_context(company_context)
 
