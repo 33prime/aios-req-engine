@@ -51,9 +51,14 @@ STEP_DEFINITIONS = [
         "depends_on": [],
     },
     {
+        "key": "entity_linking",
+        "label": "Linking entities and seeding memory",
+        "depends_on": ["entity_generation"],
+    },
+    {
         "key": "quality_check",
         "label": "Verifying output quality",
-        "depends_on": ["entity_generation"],
+        "depends_on": ["entity_linking"],
     },
 ]
 
@@ -79,6 +84,8 @@ def _should_run_step(step_key: str, context: dict) -> tuple[bool, str]:
         ]
         if not linkedin_stakeholders:
             return False, "No stakeholders with LinkedIn profiles"
+        return True, ""
+    elif step_key == "entity_linking":
         return True, ""
     elif step_key == "quality_check":
         return True, ""
@@ -363,10 +370,74 @@ def _execute_quality_check(context: dict) -> str:
     return f"All checks passed: {personas}P, {workflows}W, {features}F, {drivers}D"
 
 
+def _execute_entity_linking(context: dict) -> str:
+    """Process launch signal through V2 pipeline and build dependency graph.
+
+    Two operations:
+    1. V2 signal processing — enriches entities with evidence refs from the
+       launch signal chunks, seeds the memory knowledge graph with beliefs/facts.
+    2. Dependency rebuild — scans entity fields (target_personas, actor_persona_id,
+       features_used, evidence) to build the entity_dependencies graph.
+
+    V2 failure is non-fatal; dependency rebuild always runs.
+    """
+    import uuid as uuid_module
+
+    from app.db.entity_dependencies import rebuild_dependencies_for_project
+
+    project_id = context["project_id"]
+    signal_id = context.get("signal_id")
+    parts = []
+
+    # 1. Process launch signal through V2 pipeline
+    if signal_id:
+        try:
+            from app.graphs.unified_processor import process_signal_v2
+
+            run_id = uuid_module.uuid4()
+            logger.info(
+                f"Processing launch signal {signal_id} through V2 pipeline",
+                extra={"project_id": str(project_id), "signal_id": str(signal_id)},
+            )
+
+            v2_result = asyncio.run(process_signal_v2(
+                signal_id=signal_id,
+                project_id=project_id,
+                run_id=run_id,
+            ))
+
+            if v2_result.success:
+                parts.append(
+                    f"V2: {v2_result.patches_applied} patches applied "
+                    f"({v2_result.created_count} created, {v2_result.merged_count} merged)"
+                )
+            else:
+                parts.append(f"V2: failed ({v2_result.error})")
+                logger.warning(f"V2 processing failed for launch signal: {v2_result.error}")
+
+        except Exception as e:
+            parts.append(f"V2: error ({e})")
+            logger.warning(f"V2 processing error for launch signal (non-fatal): {e}")
+    else:
+        parts.append("V2: skipped (no launch signal)")
+
+    # 2. Rebuild entity dependency graph
+    try:
+        dep_stats = rebuild_dependencies_for_project(project_id)
+        deps_created = dep_stats.get("dependencies_created", 0)
+        parts.append(f"Dependencies: {deps_created} links created")
+    except Exception as e:
+        parts.append(f"Dependencies: error ({e})")
+        logger.warning(f"Dependency rebuild failed (non-fatal): {e}")
+
+    return "; ".join(parts)
+
+
 STEP_EXECUTORS = {
     "company_research": _execute_company_research,
     "entity_generation": _execute_entity_generation,
     "stakeholder_enrichment": _execute_stakeholder_enrichment,
+    "entity_linking": _execute_entity_linking,
     "quality_check": _execute_quality_check,
 }
 
