@@ -9,6 +9,7 @@ Layer 2 (generate_action_narratives.py) wraps skeletons with Haiku narratives.
 
 import hashlib
 import logging
+import time
 from datetime import datetime, timezone
 from uuid import UUID
 
@@ -1329,6 +1330,23 @@ def _build_entity_inventory(data: dict) -> dict[str, list[dict]]:
     return inventory
 
 
+# =============================================================================
+# Context Frame Cache (2-min TTL)
+# =============================================================================
+
+_context_frame_cache: dict[str, tuple[float, object]] = {}
+_CONTEXT_FRAME_TTL = 120  # seconds
+
+
+def invalidate_context_frame(project_id: UUID | str) -> None:
+    """Invalidate cached context frame for a project.
+
+    Call this after entity mutations (create/update/delete) to ensure
+    the next chat message gets fresh context.
+    """
+    _context_frame_cache.pop(str(project_id), None)
+
+
 async def compute_context_frame(
     project_id: UUID,
     max_actions: int = 5,
@@ -1340,10 +1358,23 @@ async def compute_context_frame(
     2. Haiku signal + knowledge gaps (fast, ~200ms)
     3. Merge + rank into terse actions
 
+    Results are cached for 2 minutes per project to avoid redundant
+    DB queries + LLM calls on rapid chat messages.
+
     Args:
         project_id: Project UUID
         max_actions: Max terse actions to return
     """
+    cache_key = str(project_id)
+    now = time.time()
+
+    # Check cache
+    if cache_key in _context_frame_cache:
+        cached_at, cached_frame = _context_frame_cache[cache_key]
+        if now - cached_at < _CONTEXT_FRAME_TTL:
+            logger.info(f"Context frame cache HIT for {cache_key} (age={now - cached_at:.0f}s)")
+            return cached_frame  # type: ignore
+
     from app.core.schemas_actions import (
         CTAType,
         ProjectContextFrame,
@@ -1459,7 +1490,7 @@ async def compute_context_frame(
 
     total_gaps = len(structural_gaps) + len(signal_gaps) + len(knowledge_gaps)
 
-    return ProjectContextFrame(
+    frame = ProjectContextFrame(
         phase=phase,
         phase_progress=phase_progress,
         structural_gaps=structural_gaps[:10],
@@ -1474,3 +1505,9 @@ async def compute_context_frame(
         total_gap_count=total_gaps,
         open_questions=open_questions_summary,
     )
+
+    # Cache the result
+    _context_frame_cache[cache_key] = (time.time(), frame)
+    logger.info(f"Context frame cache MISS for {cache_key} — computed and cached")
+
+    return frame

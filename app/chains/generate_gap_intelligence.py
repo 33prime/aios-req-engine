@@ -23,7 +23,7 @@ from app.core.schemas_actions import (
 
 logger = get_logger(__name__)
 
-HAIKU_MODEL = "claude-haiku-4-5-20251001"
+HAIKU_MODEL = "claude-3-5-haiku-20241022"
 
 GAP_INTELLIGENCE_SYSTEM = """You are a senior requirements intelligence engine. Your job is to identify MISSING information that a consultant needs to gather for a project.
 

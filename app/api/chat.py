@@ -8,7 +8,7 @@ from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
-from app.chains.chat_tools import execute_tool, get_tool_definitions
+from app.chains.chat_tools import execute_tool, get_tools_for_context
 from app.context.dynamic_prompt_builder import build_smart_chat_prompt
 from app.context.tool_truncator import truncate_tool_result
 from app.core.action_engine import compute_context_frame
@@ -175,6 +175,10 @@ async def chat_with_assistant(
                 total_input = 0
                 total_output = 0
 
+                # Build filtered tool set once (reused across turns)
+                chat_tools = get_tools_for_context(request.page_context)
+                logger.info(f"Chat tools: {len(chat_tools)} tools for page={request.page_context or 'none'}")
+
                 # Tool use loop - handle multi-turn conversation with tools
                 max_turns = 5  # Prevent infinite loops
                 for turn in range(max_turns):
@@ -184,7 +188,7 @@ async def chat_with_assistant(
                         max_tokens=settings.CHAT_RESPONSE_BUFFER,
                         messages=messages,
                         system=system_prompt,
-                        tools=get_tool_definitions(),
+                        tools=chat_tools,
                     ) as stream:
                         # Collect the final message
                         async for event in stream:
