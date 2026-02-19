@@ -723,18 +723,30 @@ async def process_document(
     try:
         # Run the graph with checkpointer config
         config = {"configurable": {"thread_id": str(run_id)}}
-        final_state = document_processing_graph.invoke(initial_state, config=config)
+        result = document_processing_graph.invoke(initial_state, config=config)
+
+        # LangGraph StateGraph.invoke() returns a dict, not the typed state object
+        if isinstance(result, dict):
+            error = result.get("error")
+            signal_id = result.get("signal_id")
+            chunk_ids = result.get("chunk_ids", [])
+            classification = result.get("classification")
+        else:
+            error = result.error
+            signal_id = result.signal_id
+            chunk_ids = result.chunk_ids
+            classification = result.classification
 
         return {
-            "success": not final_state.error,
+            "success": not error,
             "document_id": str(document_id),
             "run_id": str(run_id),
-            "signal_id": str(final_state.signal_id) if final_state.signal_id else None,
-            "chunks_created": len(final_state.chunk_ids),
-            "document_class": final_state.classification.document_class
-            if final_state.classification
-            else None,
-            "error": final_state.error,
+            "signal_id": str(signal_id) if signal_id else None,
+            "chunks_created": len(chunk_ids),
+            "document_class": classification.document_class
+            if classification and hasattr(classification, "document_class")
+            else (classification.get("document_class") if isinstance(classification, dict) else None),
+            "error": error,
         }
 
     except Exception as e:

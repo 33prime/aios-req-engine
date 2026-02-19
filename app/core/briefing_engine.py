@@ -163,14 +163,15 @@ async def compute_intelligence_briefing(
         except Exception as e:
             logger.warning(f"Test suggestions failed (non-fatal): {e}")
 
-    # ── Phase 4c: Conversation Starter (Sonnet, conditional) ──
-    conversation_starter = None
-    if cache_stale or not cached_sections or not cached_sections.get("conversation_starter"):
+    # ── Phase 4c: Conversation Starters (Sonnet, conditional) ──
+    conversation_starters: list[ConversationStarter] = []
+    starter_situation_summary = ""
+    if cache_stale or not cached_sections or not cached_sections.get("conversation_starters"):
         try:
-            from app.chains.generate_conversation_starter import generate_conversation_starter
+            from app.chains.generate_conversation_starter import generate_conversation_starters
 
             signal_evidence = _load_signal_evidence(project_id)
-            conversation_starter = await generate_conversation_starter(
+            cs_result = await generate_conversation_starters(
                 phase=phase.value,
                 phase_progress=phase_progress,
                 signal_evidence=signal_evidence,
@@ -179,30 +180,39 @@ async def compute_intelligence_briefing(
                 beliefs=beliefs[:3],
                 open_questions=data.get("questions", [])[:3],
                 project_id=str(project_id),
+                project_name=project_name,
             )
+            starter_situation_summary = cs_result.get("situation_summary", "")
+            conversation_starters = cs_result.get("starters", [])
             # Cache alongside narrative
             existing_cache = cached_sections or {}
             _cache_briefing_sections(project_id, {
                 **existing_cache,
-                "conversation_starter": conversation_starter.model_dump(mode="json") if conversation_starter else None,
+                "conversation_starters": [s.model_dump(mode="json") for s in conversation_starters],
+                "starter_situation_summary": starter_situation_summary,
             })
         except Exception as e:
-            logger.warning(f"Conversation starter failed (non-fatal): {e}")
+            logger.warning(f"Conversation starters failed (non-fatal): {e}")
     else:
         # Load from cache
-        cs_data = cached_sections.get("conversation_starter")
-        if cs_data:
+        cs_list = cached_sections.get("conversation_starters", [])
+        for cs_data in cs_list:
             try:
-                conversation_starter = ConversationStarter(**cs_data)
+                conversation_starters.append(ConversationStarter(**cs_data))
             except Exception:
                 pass
+        starter_situation_summary = cached_sections.get("starter_situation_summary", "")
 
     # ── Phase 5: Actions (reuse v3 context frame) ──
     actions = _build_terse_actions(structural_gaps, max_actions)
 
     # ── Phase 6: Assembly ──
+    # Use starter situation summary as the primary narrative (2 sentences)
+    # Fall back to the longer narrative if starters didn't produce one
+    final_narrative = starter_situation_summary or situation_narrative
+
     situation = BriefingSituation(
-        narrative=situation_narrative,
+        narrative=final_narrative,
         project_name=project_name,
         phase=phase,
         phase_progress=phase_progress,
@@ -218,7 +228,7 @@ async def compute_intelligence_briefing(
         hypotheses=hypotheses,
         heartbeat=heartbeat,
         actions=actions,
-        conversation_starter=conversation_starter,
+        conversation_starters=conversation_starters,
         computed_at=datetime.now(timezone.utc),
         narrative_cached=narrative_cached,
         phase=phase,

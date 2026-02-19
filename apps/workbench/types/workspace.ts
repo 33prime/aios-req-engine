@@ -1615,11 +1615,13 @@ export interface EvidenceAnchor {
   entity_name?: string | null
 }
 
+export type StarterActionType = 'deep_dive' | 'meeting_prep' | 'map_workflow' | 'batch_review' | 'quick_answers'
+
 export interface ConversationStarter {
   starter_id: string
   hook: string
-  body: string
   question: string
+  action_type: StarterActionType
   anchors: EvidenceAnchor[]
   chat_context: string
   topic_domain: string
@@ -1635,7 +1637,7 @@ export interface IntelligenceBriefing {
   hypotheses: Hypothesis[]
   heartbeat: ProjectHeartbeat
   actions: TerseAction[]
-  conversation_starter?: ConversationStarter | null
+  conversation_starters?: ConversationStarter[]
   computed_at: string
   narrative_cached: boolean
   phase: string

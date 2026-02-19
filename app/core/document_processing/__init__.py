@@ -49,6 +49,7 @@ from app.core.document_processing.chunker import (
 
 # Import extractors to register them
 from app.core.document_processing import pdf_extractor  # noqa: F401
+from app.core.document_processing import docx_extractor  # noqa: F401
 from app.core.document_processing import image_extractor  # noqa: F401
 from app.core.document_processing import pptx_extractor  # noqa: F401
 

@@ -150,6 +150,17 @@ export function BrainBubble({
     }, 100)
   }, [isOpen, updateOpen, onSendMessage])
 
+  // Handle "Upload a document" from briefing panel → switch to chat tab (which has file upload)
+  const handleUploadDocument = useCallback(() => {
+    setActiveTab('chat')
+    if (!isOpen) updateOpen(true)
+    // Trigger the file input in WorkspaceChat after tab switch renders
+    setTimeout(() => {
+      const chatFileInput = document.querySelector<HTMLInputElement>('#workspace-chat-file-input')
+      chatFileInput?.click()
+    }, 150)
+  }, [isOpen, updateOpen])
+
   // Handle conversation starter → chat with context injection
   const handleStartConversation = useCallback((starter: ConversationStarter) => {
     // 1. Switch to chat tab
@@ -283,6 +294,7 @@ export function BrainBubble({
               onNavigate={handleNavigate}
               onCascade={onCascade}
               onStartConversation={handleStartConversation}
+              onUploadDocument={handleUploadDocument}
             />
           ) : (
             <WorkspaceChat

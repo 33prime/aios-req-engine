@@ -446,21 +446,24 @@ def run_surgical_update(
 
     # Run graph with checkpointer config
     config = {"configurable": {"thread_id": str(run_id)}}
-    final_state = graph.invoke(initial_state, config=config)
+    fs = graph.invoke(initial_state, config=config)
+
+    # LangGraph StateGraph.invoke() returns a dict in v1.0+
+    _g = fs.get if isinstance(fs, dict) else lambda k, d=None: getattr(fs, k, d)
 
     # Build result
     result = SurgicalUpdateResult(
         signal_id=signal_id,
         project_id=project_id,
-        claims_extracted=len(final_state.claims),
-        patches_generated=len(final_state.patches),
-        patches_applied=final_state.applied_count,
-        patches_escalated=final_state.escalated_count,
-        applied_patches=final_state.applied_patches,
-        escalations=final_state.escalations,
-        new_proposals=final_state.new_proposals,
-        success=final_state.success,
-        error=final_state.error,
+        claims_extracted=len(_g("claims", [])),
+        patches_generated=len(_g("patches", [])),
+        patches_applied=_g("applied_count", 0),
+        patches_escalated=_g("escalated_count", 0),
+        applied_patches=_g("applied_patches", []),
+        escalations=_g("escalations", []),
+        new_proposals=_g("new_proposals", []),
+        success=_g("success", False),
+        error=_g("error", None),
     )
 
     logger.info(

@@ -207,6 +207,21 @@ export const PHASE_DESCRIPTIONS: Record<string, string> = {
 }
 
 // =============================================================================
+// Conversation Starter action types
+// =============================================================================
+
+import type { StarterActionType } from '@/types/workspace'
+
+/** Display labels for starter action types */
+export const STARTER_ACTION_LABELS: Record<StarterActionType, string> = {
+  deep_dive: 'Explore',
+  meeting_prep: 'Meeting',
+  map_workflow: 'Build',
+  batch_review: 'Review',
+  quick_answers: 'Quick fill',
+}
+
+// =============================================================================
 // Intelligence Briefing constants
 // =============================================================================
 
@@ -219,7 +234,20 @@ import {
   Activity,
   FlaskConical,
   Swords,
+  Search,
+  CalendarDays,
+  Route,
+  ListChecks,
 } from 'lucide-react'
+
+/** Icons for starter action types */
+export const STARTER_ACTION_ICONS: Record<StarterActionType, LucideIcon> = {
+  deep_dive: Search,
+  meeting_prep: CalendarDays,
+  map_workflow: Route,
+  batch_review: ListChecks,
+  quick_answers: Zap,
+}
 
 /** Icons for temporal change types */
 export const CHANGE_TYPE_ICONS: Record<string, LucideIcon> = {

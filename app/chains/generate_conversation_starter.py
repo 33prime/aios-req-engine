@@ -1,6 +1,6 @@
 """Sonnet-powered conversation starter generation.
 
-Reads signal evidence → produces ONE rich conversation starter.
+Reads signal evidence → produces a 2-sentence situation summary + 3 compact starters.
 Phase-aware: EMPTY returns hardcoded fallback (no LLM call).
 """
 
@@ -12,46 +12,89 @@ from datetime import datetime, timezone
 from app.core.config import get_settings
 from app.core.llm_usage import log_llm_usage
 from app.core.logging import get_logger
-from app.core.schemas_briefing import ConversationStarter, EvidenceAnchor
+from app.core.schemas_briefing import ConversationStarter, EvidenceAnchor, StarterActionType
 
 logger = get_logger(__name__)
 
 SONNET_MODEL = "claude-sonnet-4-5-20250929"
 
-CONVERSATION_STARTER_SYSTEM = """You are a helpful colleague who has read all the project signals (meeting notes, emails, documents) and wants to help the consultant fill in what's needed to get this project to prototype.
+CONVERSATION_STARTER_SYSTEM = """You are a helpful assistant working alongside a consultant who is brilliant at their craft — but building software is new territory. Your job is to help them capture the right information so we can get to a working prototype.
 
 ## Your Goal
-Produce ONE conversation starter that identifies a specific piece of information we need, connects it to something you saw in the signals, and proposes figuring it out together.
+Produce a 2-sentence situation summary and exactly 3 conversation starters. Each starter should be a DIFFERENT action type — never 3 of the same kind.
 
 ## Tone
-- Collaborative and forward-looking, never urgent or alarming
-- You're helping gather info, not raising red flags
-- "To get this to prototype, we should nail down X — I saw it mentioned in your kickoff notes, want to pull that together?"
-- Like a smart colleague saying "hey, you probably have this already — let's get it documented"
+- You 100% trust the consultant knows their domain — you're just helping them get it documented
+- Warm and forward-looking: "Here's what we should focus on next"
+- Like a sharp colleague saying "I read through everything — here's where I'd start"
+- NEVER urgent, alarming, or gap-focused. No "critical", "risk", "missing" language.
+- NEVER reference internal system concepts (signals, entities, workflows, phases, pipeline)
 
-## Rules
-- Reference SPECIFIC content from signals — names, processes, artifacts ("Sarah mentioned a 3-step review...", "The intake form has pictures and form questions...")
-- Connect to what's needed next: what info would move us closer to prototype?
-- The question should invite the consultant to share what they know — they're the expert
-- NEVER dire, urgent, or deadline-focused. No "critical gap" or "risk" language.
-- NEVER form-filling ("Who performs step X?"), NEVER generic ("Tell me about the project")
-- NEVER reference internal system concepts (signals, entities, workflows, phases)
-- Reference evidence by index number in anchor_indices
+## Rules for situation_summary
+- Exactly 2 sentences
+- First sentence: where the project stands (project name, what's been captured so far)
+- Second sentence: forward-looking framing of what to focus on next
+- Use concrete numbers when available (e.g., "4 workflows mapped", "3 personas identified")
+
+## The 5 Action Types (pick 3 different ones)
+
+### deep_dive
+Unpack a specific topic from the signals in a focused conversation.
+Hook pattern: "[Person] mentioned [thing] — *let's unpack what that means for the build*."
+Question: invites the consultant to explain/elaborate on the topic.
+
+### meeting_prep
+Build a meeting agenda around open questions for a stakeholder.
+Hook pattern: "There are [N] things to nail down with [person] — *want to build a meeting agenda*?"
+Question: asks what they'd want to cover in the meeting.
+
+### map_workflow
+Map out a workflow or process step by step from signal clues.
+Hook pattern: "The [document] mentions a [N]-step [process] — *let's map that out step by step*."
+Question: asks them to walk through the process.
+
+### batch_review
+Review and save entities the system found in their documents.
+Hook pattern: "I found [N] [things] in the [document] — *want to review and save them*?"
+Question: asks if they want to go through what was found.
+
+### quick_answers
+Rapid-fire fill in missing fields on existing entities.
+Hook pattern: "[N] [things] are missing [field] — *want to knock those out quickly*?"
+Question: asks if they want to do a quick fill session.
+
+## Rules for each starter
+- `action_type`: One of: deep_dive, meeting_prep, map_workflow, batch_review, quick_answers
+- `hook`: 1-2 sentences. Reference SPECIFIC content from signals — names, processes, artifacts. Use **bold** for entity names and *italic* for the action phrase.
+- `question`: The question sent to chat when clicked. Collaborative, inviting the consultant to share what they know.
+- `topic_domain`: One of: workflow, persona, process, data, integration, stakeholder, constraint
+- `anchor_indices`: Array of evidence index numbers referenced
+- `chat_context_summary`: Brief topic + evidence summary for chat injection (~50 words)
+
+CRITICAL: All 3 starters must have DIFFERENT action_type values. Never repeat the same type.
 
 ## Output
-Return a JSON object with exactly these fields:
+Return a JSON object:
 {
-  "hook": "Specific thing you noticed in the signals (1-2 sentences)",
-  "body": "What we need to flesh out and why it helps get to prototype (2-3 sentences, helpful not dire)",
-  "question": "Collaborative question inviting the consultant to share what they know (1 sentence)",
-  "topic_domain": "workflow|persona|process|data|integration|stakeholder|constraint",
-  "anchor_indices": [0, 2],
-  "chat_context_summary": "Brief summary of the topic + evidence for chat injection (~50 words)"
+  "situation_summary": "Two sentences about where we are and what's next.",
+  "starters": [
+    {
+      "action_type": "map_workflow",
+      "hook": "The intake form mentions a **3-step review** — *let's map that out step by step*.",
+      "question": "Can you walk me through the review process?",
+      "topic_domain": "workflow",
+      "anchor_indices": [0, 2],
+      "chat_context_summary": "Brief summary of topic and evidence for chat context"
+    }
+  ]
 }
 
-No markdown fences. Just the JSON."""
+No markdown fences. Just the JSON. Exactly 3 starters, each a different action_type."""
 
-CONVERSATION_STARTER_USER = """<project_phase>{phase} ({phase_progress:.0%} complete)</project_phase>
+CONVERSATION_STARTER_USER = """<project_name>{project_name}</project_name>
+<project_phase>{phase} ({phase_progress:.0%} complete)</project_phase>
+
+<entity_counts>{entity_counts}</entity_counts>
 
 <recent_signals>
 {signal_previews}
@@ -73,23 +116,10 @@ CONVERSATION_STARTER_USER = """<project_phase>{phase} ({phase_progress:.0%} comp
 {beliefs}
 </low_confidence_beliefs>
 
-Generate ONE conversation starter based on the most interesting or important signal content above."""
-
-# Fallback for EMPTY phase (no LLM call)
-EMPTY_FALLBACK = ConversationStarter(
-    starter_id="fallback_empty",
-    hook="Ready to get started.",
-    body="Upload some project signals — meeting notes, emails, research docs — and I'll read through everything to figure out what we need to flesh out for prototype.",
-    question="What materials do you have from the project so far?",
-    anchors=[],
-    chat_context="",
-    topic_domain="general",
-    is_fallback=True,
-    generated_at=None,
-)
+Generate a 2-sentence situation summary and exactly 3 conversation starters based on the evidence above."""
 
 
-async def generate_conversation_starter(
+async def generate_conversation_starters(
     phase: str,
     phase_progress: float,
     signal_evidence: dict,
@@ -98,8 +128,9 @@ async def generate_conversation_starter(
     beliefs: list[dict],
     open_questions: list[dict],
     project_id: str | None = None,
-) -> ConversationStarter:
-    """Generate a signal-informed conversation starter.
+    project_name: str = "Project",
+) -> dict:
+    """Generate a situation summary + 3 signal-informed conversation starters.
 
     Args:
         phase: Context phase (empty, seeding, building, refining)
@@ -110,30 +141,27 @@ async def generate_conversation_starter(
         beliefs: Top 3 low-confidence beliefs
         open_questions: Top 3 open questions
         project_id: For cost logging
+        project_name: Project name for situation summary
 
     Returns:
-        ConversationStarter with signal-grounded content
+        {"situation_summary": str, "starters": list[ConversationStarter]}
     """
-    # EMPTY phase: no signals, hardcoded fallback
+    # EMPTY phase: no signals, no starters
     if phase == "empty":
-        return EMPTY_FALLBACK
+        return {
+            "situation_summary": "",
+            "starters": [],
+        }
 
     signal_previews = signal_evidence.get("signal_previews", [])
     evidence_excerpts = signal_evidence.get("evidence_excerpts", [])
 
-    # If somehow no signal content, return fallback
+    # If somehow no signal content, return empty
     if not signal_previews and not evidence_excerpts:
-        return ConversationStarter(
-            starter_id="fallback_no_evidence",
-            hook="I'm still getting familiar with the project.",
-            body="I don't have much to work with yet. Upload meeting notes, emails, or documents and I'll figure out what we need to flesh out for prototype.",
-            question="What materials do you have that I should read through?",
-            anchors=[],
-            chat_context="",
-            topic_domain="general",
-            is_fallback=True,
-            generated_at=datetime.now(timezone.utc),
-        )
+        return {
+            "situation_summary": "",
+            "starters": [],
+        }
 
     # Build evidence items list for anchor mapping
     all_evidence_items = []
@@ -179,9 +207,18 @@ async def generate_conversation_starter(
         qt = q.get("question", "") if isinstance(q, dict) else str(q)
         question_lines.append(f"- {qt}")
 
+    # Format entity counts
+    count_parts = []
+    for k, v in entity_counts.items():
+        if v > 0:
+            count_parts.append(f"{v} {k}")
+    entity_counts_str = ", ".join(count_parts) if count_parts else "No entities yet."
+
     user_message = CONVERSATION_STARTER_USER.format(
+        project_name=project_name,
         phase=phase,
         phase_progress=phase_progress,
+        entity_counts=entity_counts_str,
         signal_previews="\n\n".join(signal_lines) if signal_lines else "No signals yet.",
         evidence_excerpts="\n".join(evidence_lines) if evidence_lines else "No entity evidence yet.",
         workflow_context=workflow_context or "No workflows defined yet.",
@@ -198,7 +235,7 @@ async def generate_conversation_starter(
     start = time.time()
     response = await client.messages.create(
         model=SONNET_MODEL,
-        max_tokens=512,
+        max_tokens=800,
         temperature=0.4,
         system=[
             {
@@ -222,7 +259,7 @@ async def generate_conversation_starter(
         tokens_input=usage.input_tokens,
         tokens_output=usage.output_tokens,
         duration_ms=duration_ms,
-        chain="generate_conversation_starter",
+        chain="generate_conversation_starters",
         project_id=project_id,
         tokens_cache_read=cache_read,
         tokens_cache_create=cache_create,
@@ -239,51 +276,57 @@ async def generate_conversation_starter(
     try:
         result = json.loads(text)
     except json.JSONDecodeError as e:
-        logger.error(f"Failed to parse conversation starter JSON: {e}")
-        return ConversationStarter(
-            starter_id="fallback_parse_error",
-            hook="I've been reading through the project materials.",
-            body="There's good stuff here. Let's figure out what to flesh out next to get closer to prototype.",
-            question="What area do you think we should focus on first?",
-            anchors=[],
-            chat_context="",
-            topic_domain="general",
-            is_fallback=True,
+        logger.error(f"Failed to parse conversation starters JSON: {e}")
+        return {
+            "situation_summary": "",
+            "starters": [],
+        }
+
+    situation_summary = result.get("situation_summary", "")
+    raw_starters = result.get("starters", [])
+
+    # Valid action types
+    valid_action_types = {e.value for e in StarterActionType}
+
+    starters = []
+    for s in raw_starters[:3]:
+        hook = s.get("hook", "")
+        question = s.get("question", "")
+        topic_domain = s.get("topic_domain", "general")
+        chat_context = s.get("chat_context_summary", "")
+        raw_action_type = s.get("action_type", "deep_dive")
+        action_type = raw_action_type if raw_action_type in valid_action_types else "deep_dive"
+
+        # Map anchor_indices to EvidenceAnchor objects
+        anchor_indices = s.get("anchor_indices", [])
+        anchors = []
+        for idx in anchor_indices[:3]:
+            if 0 <= idx < len(all_evidence_items):
+                item = all_evidence_items[idx]
+                anchors.append(EvidenceAnchor(
+                    excerpt=item.get("excerpt", ""),
+                    signal_label=item.get("signal_label", ""),
+                    signal_type=item.get("signal_type", ""),
+                    entity_name=item.get("entity_name"),
+                ))
+
+        content_hash = hashlib.md5(
+            f"{hook}{question}".encode()
+        ).hexdigest()[:12]
+
+        starters.append(ConversationStarter(
+            starter_id=f"cs_{content_hash}",
+            hook=hook,
+            question=question,
+            action_type=StarterActionType(action_type),
+            anchors=anchors,
+            chat_context=chat_context,
+            topic_domain=topic_domain,
+            is_fallback=False,
             generated_at=datetime.now(timezone.utc),
-        )
+        ))
 
-    # Map anchor_indices to EvidenceAnchor objects
-    anchor_indices = result.get("anchor_indices", [])
-    anchors = []
-    for idx in anchor_indices[:3]:
-        if 0 <= idx < len(all_evidence_items):
-            item = all_evidence_items[idx]
-            anchors.append(EvidenceAnchor(
-                excerpt=item.get("excerpt", ""),
-                signal_label=item.get("signal_label", ""),
-                signal_type=item.get("signal_type", ""),
-                entity_name=item.get("entity_name"),
-            ))
-
-    hook = result.get("hook", "")
-    body = result.get("body", "")
-    question = result.get("question", "")
-    topic_domain = result.get("topic_domain", "general")
-    chat_context = result.get("chat_context_summary", "")
-
-    # Build starter_id from content hash
-    content_hash = hashlib.md5(
-        f"{hook}{body}{question}".encode()
-    ).hexdigest()[:12]
-
-    return ConversationStarter(
-        starter_id=f"cs_{content_hash}",
-        hook=hook,
-        body=body,
-        question=question,
-        anchors=anchors,
-        chat_context=chat_context,
-        topic_domain=topic_domain,
-        is_fallback=False,
-        generated_at=datetime.now(timezone.utc),
-    )
+    return {
+        "situation_summary": situation_summary,
+        "starters": starters,
+    }

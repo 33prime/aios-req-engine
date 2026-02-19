@@ -31,13 +31,23 @@ class EvidenceAnchor(BaseModel):
     entity_name: str | None = None  # Entity this excerpt relates to
 
 
+class StarterActionType(str, Enum):
+    """The 5 action types a conversation starter can trigger."""
+
+    DEEP_DIVE = "deep_dive"  # Unpack a topic from signals
+    MEETING_PREP = "meeting_prep"  # Build a meeting agenda
+    MAP_WORKFLOW = "map_workflow"  # Map out a workflow step by step
+    BATCH_REVIEW = "batch_review"  # Review and save extracted entities
+    QUICK_ANSWERS = "quick_answers"  # Rapid-fire fill missing fields
+
+
 class ConversationStarter(BaseModel):
-    """ONE rich conversation proposal based on actual signal content."""
+    """Compact conversation starter — one clickable card in the briefing panel."""
 
     starter_id: str  # MD5 hash for cache key
-    hook: str  # "I noticed..." opener (1-2 sentences)
-    body: str  # Why this matters (2-4 sentences)
-    question: str  # Conversational question to explore
+    hook: str  # Card text (1-2 sentences, what we noticed + what to do)
+    question: str  # Sent to chat when clicked
+    action_type: StarterActionType = StarterActionType.DEEP_DIVE
     anchors: list[EvidenceAnchor] = Field(default_factory=list)  # 1-3 signal references
     chat_context: str = ""  # Injected into chat system prompt
     topic_domain: str = ""  # workflow, persona, process, data, etc.
@@ -178,8 +188,8 @@ class IntelligenceBriefing(BaseModel):
     # Actions (reuse existing v3 TerseAction)
     actions: list[TerseAction] = Field(default_factory=list)
 
-    # Conversation starter (signal-informed)
-    conversation_starter: ConversationStarter | None = None
+    # Conversation starters (signal-informed, up to 3)
+    conversation_starters: list[ConversationStarter] = Field(default_factory=list)
 
     # Metadata
     computed_at: datetime = Field(default_factory=datetime.utcnow)

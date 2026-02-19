@@ -1,17 +1,12 @@
 'use client'
 
-import { useCallback } from 'react'
-import { Loader2, Sparkles } from 'lucide-react'
+import { useCallback, useRef } from 'react'
+import { Loader2, Paperclip, Sparkles } from 'lucide-react'
 import { useIntelligenceBriefing } from '@/lib/hooks/use-api'
 import { PHASE_DESCRIPTIONS } from '@/lib/action-constants'
 import type { ConversationStarter } from '@/types/workspace'
 
 import { BriefingHeader } from './BriefingHeader'
-import { SituationSummary } from './SituationSummary'
-import { WhatChangedSection } from './WhatChangedSection'
-import { ActiveTensionsSection } from './ActiveTensionsSection'
-import { HypothesesSection } from './HypothesesSection'
-import { ProjectHeartbeatSection } from './ProjectHeartbeatSection'
 import { ConversationStarterCard } from './ConversationStarterCard'
 
 interface IntelligenceBriefingPanelProps {
@@ -19,6 +14,48 @@ interface IntelligenceBriefingPanelProps {
   onNavigate?: (entityType: string, entityId: string | null) => void
   onCascade?: () => void
   onStartConversation?: (starter: ConversationStarter) => void
+  onUploadDocument?: () => void
+}
+
+/**
+ * Render inline markdown: **bold** and *italic*
+ */
+function InlineMarkdown({ text }: { text: string }) {
+  const parts: Array<{ content: string; style: 'normal' | 'bold' | 'italic' }> = []
+  let remaining = text
+
+  while (remaining.length > 0) {
+    const boldMatch = remaining.match(/\*\*(.+?)\*\*/)
+    const italicMatch = remaining.match(/(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)/)
+
+    const boldIdx = boldMatch?.index ?? Infinity
+    const italicIdx = italicMatch?.index ?? Infinity
+
+    if (boldIdx === Infinity && italicIdx === Infinity) {
+      parts.push({ content: remaining, style: 'normal' })
+      break
+    }
+
+    if (boldIdx <= italicIdx) {
+      if (boldIdx > 0) parts.push({ content: remaining.slice(0, boldIdx), style: 'normal' })
+      parts.push({ content: boldMatch![1], style: 'bold' })
+      remaining = remaining.slice(boldIdx + boldMatch![0].length)
+    } else {
+      if (italicIdx > 0) parts.push({ content: remaining.slice(0, italicIdx), style: 'normal' })
+      parts.push({ content: italicMatch![1], style: 'italic' })
+      remaining = remaining.slice(italicIdx + italicMatch![0].length)
+    }
+  }
+
+  return (
+    <>
+      {parts.map((p, i) => {
+        if (p.style === 'bold') return <strong key={i} className="font-semibold">{p.content}</strong>
+        if (p.style === 'italic') return <em key={i} className="italic">{p.content}</em>
+        return <span key={i}>{p.content}</span>
+      })}
+    </>
+  )
 }
 
 export function IntelligenceBriefingPanel({
@@ -26,6 +63,7 @@ export function IntelligenceBriefingPanel({
   onNavigate,
   onCascade,
   onStartConversation,
+  onUploadDocument,
 }: IntelligenceBriefingPanelProps) {
   const {
     data: briefing,
@@ -34,9 +72,19 @@ export function IntelligenceBriefingPanel({
     mutate: revalidate,
   } = useIntelligenceBriefing(projectId)
 
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
   const handleRefresh = useCallback(() => {
     revalidate()
   }, [revalidate])
+
+  const handleUploadClick = useCallback(() => {
+    if (onUploadDocument) {
+      onUploadDocument()
+    } else {
+      fileInputRef.current?.click()
+    }
+  }, [onUploadDocument])
 
   // Loading state
   if (loading && briefing === undefined) {
@@ -75,13 +123,9 @@ export function IntelligenceBriefingPanel({
 
   const phase = briefing?.phase ?? 'empty'
   const progress = briefing?.situation?.phase_progress ?? 0
-  const hasContent = briefing && (
-    briefing.situation.narrative ||
-    briefing.conversation_starter ||
-    briefing.what_changed.changes.length > 0 ||
-    briefing.tensions.length > 0 ||
-    briefing.hypotheses.length > 0
-  )
+  const starters = briefing?.conversation_starters ?? []
+  const narrative = briefing?.situation?.narrative ?? ''
+  const hasContent = narrative || starters.length > 0
 
   return (
     <div className="flex flex-col h-full bg-white border-r border-[#E5E5E5]">
@@ -93,58 +137,59 @@ export function IntelligenceBriefingPanel({
         loading={loading}
       />
 
-      {/* Scrollable sections */}
+      {/* Scrollable content */}
       <div className="flex-1 overflow-y-auto">
         {!hasContent ? (
-          <PhaseEmptyState phase={phase} />
+          <PhaseEmptyState phase={phase} onUpload={handleUploadClick} />
         ) : (
           <>
-            {/* Situation + What You Should Know */}
-            {briefing && (
-              <SituationSummary
-                situation={briefing.situation}
-                whatYouShouldKnow={briefing.what_you_should_know}
-              />
+            {/* 2-sentence situation summary */}
+            {narrative && (
+              <p className="text-[13px] text-[#333333] leading-relaxed px-4 pt-4 pb-2">
+                <InlineMarkdown text={narrative} />
+              </p>
             )}
 
-            {/* Conversation Starter — THE primary action */}
-            {briefing?.conversation_starter && onStartConversation && (
-              <ConversationStarterCard
-                starter={briefing.conversation_starter}
-                onStartConversation={onStartConversation}
-              />
+            {/* Conversation starter cards — each a different action type */}
+            {starters.length > 0 && onStartConversation && (
+              <div className="mt-2 mx-4 mb-3 rounded-xl border border-[#E5E5E5] overflow-hidden bg-white">
+                {starters.map((starter) => (
+                  <ConversationStarterCard
+                    key={starter.starter_id}
+                    starter={starter}
+                    onStartConversation={onStartConversation}
+                  />
+                ))}
+              </div>
             )}
 
-            {/* What Changed */}
-            {briefing && (
-              <WhatChangedSection whatChanged={briefing.what_changed} />
-            )}
-
-            {/* Active Tensions */}
-            {briefing && briefing.tensions.length > 0 && (
-              <ActiveTensionsSection tensions={briefing.tensions} />
-            )}
-
-            {/* Hypotheses */}
-            {briefing && briefing.hypotheses.length > 0 && (
-              <HypothesesSection
-                hypotheses={briefing.hypotheses}
-                projectId={projectId}
-              />
-            )}
-
-            {/* Heartbeat */}
-            {briefing && (
-              <ProjectHeartbeatSection heartbeat={briefing.heartbeat} />
-            )}
+            {/* Upload document row */}
+            <div className="px-4 pb-4">
+              <button
+                onClick={handleUploadClick}
+                className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-[13px] text-[#666666] hover:text-[#333333] hover:bg-[#F8F8F8] transition-colors"
+              >
+                <Paperclip className="w-4 h-4 flex-shrink-0" />
+                Upload a document
+              </button>
+            </div>
           </>
         )}
       </div>
+
+      {/* Hidden file input fallback */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        multiple
+        accept=".pdf,.docx,.xlsx,.pptx,.png,.jpg,.jpeg,.webp,.gif"
+        className="hidden"
+      />
     </div>
   )
 }
 
-function PhaseEmptyState({ phase }: { phase: string }) {
+function PhaseEmptyState({ phase, onUpload }: { phase: string; onUpload: () => void }) {
   const description = PHASE_DESCRIPTIONS[phase] || 'No intelligence available yet'
 
   return (
@@ -153,7 +198,14 @@ function PhaseEmptyState({ phase }: { phase: string }) {
       <p className="text-[13px] font-medium text-[#333333]">
         {phase === 'refining' ? 'Looking good' : 'Ready when you are'}
       </p>
-      <p className="text-[12px] text-[#999999] mt-1">{description}</p>
+      <p className="text-[12px] text-[#999999] mt-1 mb-4">{description}</p>
+      <button
+        onClick={onUpload}
+        className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-[12px] font-medium text-[#3FAF7A] border border-[#3FAF7A] hover:bg-[#E8F5E9] transition-colors"
+      >
+        <Paperclip className="w-3.5 h-3.5" />
+        Upload a document
+      </button>
     </div>
   )
 }
