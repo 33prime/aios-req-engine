@@ -75,7 +75,7 @@ UNLOCK_TOOL = {
                         },
                         "magnitude": {
                             "type": "string",
-                            "description": "Quantified impact: time saved, errors eliminated, capacity gained. Be specific.",
+                            "description": "One short sentence: quantified impact using specific numbers. Reference entities by NAME only, never by UUID/ID. Example: 'Reduces resource selection from ~8 options to 1 personalized pick per user'",
                         },
                         "why_now": {
                             "type": "string",
@@ -200,7 +200,7 @@ Platform plays — bigger capabilities that require the system to prove itself f
 4. DO NOT generate revenue projections or market positioning statements. Focus on what the SYSTEM can do.
 5. unlock_kind: "new_capability" = something the system couldn't do before; "feature_upgrade" = an existing feature that gets dramatically smarter or faster.
 6. The non_obvious field should explain the cross-cutting insight: what connection between entities/workflows/personas reveals this capability.
-7. magnitude should be specific: "reduces X from Y to Z", "eliminates N manual steps", "surfaces patterns across N records".
+7. magnitude should be ONE short sentence with specific numbers: "reduces X from Y to Z", "eliminates N manual steps", "surfaces patterns across N records". NEVER include UUIDs or entity IDs — reference entities by NAME only.
 """
 
 

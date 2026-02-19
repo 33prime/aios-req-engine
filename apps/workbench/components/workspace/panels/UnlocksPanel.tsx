@@ -372,11 +372,14 @@ function UnlockCard({
             </div>
           )}
 
-          {/* Magnitude highlight */}
+          {/* Magnitude + KPI impact */}
           {unlock.magnitude && (
-            <p className="text-[12px] text-[#25785A] font-medium mt-1.5">
-              {unlock.magnitude}
-            </p>
+            <div className="flex items-start gap-2 mt-2 px-3 py-1.5 bg-[#E8F5E9] border border-[#3FAF7A]/20 rounded-lg">
+              <ChevronRight className="w-3.5 h-3.5 text-[#3FAF7A] mt-0.5 shrink-0" />
+              <p className="text-[12px] text-[#25785A] font-medium leading-relaxed">
+                {unlock.magnitude}
+              </p>
+            </div>
           )}
 
           {/* Provenance chips */}
