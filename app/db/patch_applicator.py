@@ -75,6 +75,7 @@ TABLES_WITH_SLUG = {"prd_sections", "personas"}
 TABLES_WITH_SIGNAL_IDS = {
     "features", "personas", "prd_sections", "stakeholders",
     "business_drivers", "competitor_references",
+    "vp_steps", "constraints", "data_entities",
 }
 
 # Field name normalization: LLM-generated names → actual DB column names
