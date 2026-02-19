@@ -475,15 +475,42 @@ function SidebarMessageBubble({
     (t) => t.tool_name === 'add_signal' && t.status === 'complete' && t.result?.processed
   )?.result
 
-  // Quick Action Cards
+  // Quick Action Cards (from suggest_actions tool)
   const actionCards = message.toolCalls?.filter(
     (t) => t.tool_name === 'suggest_actions' && t.status === 'complete' && t.result?.cards
   )
 
+  // Auto-convert generate_client_email results into email_draft cards
+  const emailResult = message.toolCalls?.find(
+    (t) => t.tool_name === 'generate_client_email' && t.status === 'complete' && t.result?.success && t.result?.subject
+  )?.result
+  const emailCards = emailResult ? [{
+    card_type: 'email_draft',
+    id: 'email-auto',
+    data: { to: emailResult.client_name || 'Client', subject: emailResult.subject, body: emailResult.body }
+  }] : null
+
+  // Auto-convert generate_meeting_agenda results into meeting cards
+  const meetingResult = message.toolCalls?.find(
+    (t) => t.tool_name === 'generate_meeting_agenda' && t.status === 'complete' && t.result?.success && t.result?.agenda
+  )?.result
+  const meetingCards = meetingResult ? [{
+    card_type: 'meeting',
+    id: 'meeting-auto',
+    data: {
+      topic: meetingResult.title || 'Client Meeting',
+      attendees: [],
+      agenda: (meetingResult.agenda || []).map((a: any) => `${a.topic} (${a.time_minutes}min)`)
+    }
+  }] : null
+
   const hasRunningTools = message.toolCalls?.some((t) => t.status === 'running')
-  // Filter suggest_actions from completed tool display when cards are rendered
-  const visibleToolCalls = actionCards?.length
-    ? message.toolCalls?.filter((t) => t.tool_name !== 'suggest_actions')
+  // Filter card-rendered tools from completed tool display
+  const cardToolNames = new Set(['suggest_actions'])
+  if (emailCards) cardToolNames.add('generate_client_email')
+  if (meetingCards) cardToolNames.add('generate_meeting_agenda')
+  const visibleToolCalls = cardToolNames.size > 1 || actionCards?.length
+    ? message.toolCalls?.filter((t) => !cardToolNames.has(t.tool_name))
     : message.toolCalls
   const completedToolCount = visibleToolCalls?.filter((t) => t.status === 'complete').length || 0
 
@@ -598,7 +625,7 @@ function SidebarMessageBubble({
           </div>
         )}
 
-        {/* Quick Action Cards */}
+        {/* Quick Action Cards (from suggest_actions + auto-converted tool results) */}
         {actionCards?.map((tc, i) => (
           <QuickActionCards
             key={`actions-${i}`}
@@ -606,6 +633,12 @@ function SidebarMessageBubble({
             onAction={(command) => onSendMessage?.(command)}
           />
         ))}
+        {emailCards && (
+          <QuickActionCards cards={emailCards} onAction={(command) => onSendMessage?.(command)} />
+        )}
+        {meetingCards && (
+          <QuickActionCards cards={meetingCards} onAction={(command) => onSendMessage?.(command)} />
+        )}
 
         {/* Timestamp */}
         {message.timestamp && (
