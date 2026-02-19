@@ -22,6 +22,12 @@ import {
   batchGetDashboardData,
   listUpcomingMeetings,
   getWorkspaceData,
+  getMemoryVisualization,
+  getIntelligenceOverview,
+  getIntelligenceGraph,
+  getIntelligenceEvolution,
+  getSalesIntelligence,
+  getUnifiedMemory,
 } from '@/lib/api'
 import type {
   NextAction,
@@ -29,9 +35,21 @@ import type {
   UnifiedActionsResult,
   TaskStatsResponse,
   BatchDashboardData,
+  MemoryVisualizationResponse,
+  UnifiedMemoryResponse,
 } from '@/lib/api'
 import type { Profile, ProjectDetailWithDashboard, Meeting } from '@/types/api'
-import type { BRDWorkspaceData, CanvasData, IntelligenceBriefing, OpenQuestion, QuestionCounts } from '@/types/workspace'
+import type {
+  BRDWorkspaceData,
+  CanvasData,
+  IntelligenceBriefing,
+  OpenQuestion,
+  QuestionCounts,
+  IntelOverviewResponse,
+  IntelGraphResponse,
+  IntelEvolutionResponse,
+  IntelSalesResponse,
+} from '@/types/workspace'
 
 // --- SWR key constants (shared with realtime invalidation) ---
 export const SWR_KEYS = {
@@ -40,6 +58,13 @@ export const SWR_KEYS = {
   projects: (status: string) => `projects:${status}`,
   contextFrame: (pid: string) => `context-frame:${pid}`,
   briefing: (pid: string) => `briefing:${pid}`,
+  memoryViz: (pid: string) => `memory-viz:${pid}`,
+  intelOverview: (pid: string) => `intel-overview:${pid}`,
+  intelGraph: (pid: string) => `intel-graph:${pid}`,
+  intelEvolution: (pid: string, filter?: string, days?: number) =>
+    `intel-evolution:${pid}:${filter || 'all'}:${days || 30}`,
+  salesIntel: (pid: string) => `sales-intel:${pid}`,
+  unifiedMemory: (pid: string) => `unified-memory:${pid}`,
 } as const
 
 // --- Cache TTL presets (in milliseconds) ---
@@ -245,6 +270,105 @@ export function useIntelligenceBriefing(
     {
       dedupingInterval: SHORT_CACHE,
       refreshInterval: 30_000,
+      revalidateOnFocus: false,
+      ...config,
+    },
+  )
+}
+
+// --- Memory visualization (per-project) ---
+export function useMemoryVisualization(
+  projectId: string | undefined,
+  config?: SWRConfiguration<MemoryVisualizationResponse>,
+) {
+  return useSWR<MemoryVisualizationResponse>(
+    projectId ? SWR_KEYS.memoryViz(projectId) : null,
+    () => getMemoryVisualization(projectId!),
+    {
+      dedupingInterval: MED_CACHE,
+      revalidateOnFocus: false,
+      ...config,
+    },
+  )
+}
+
+// --- Intelligence overview (per-project, expensive call) ---
+export function useIntelOverview(
+  projectId: string | undefined,
+  config?: SWRConfiguration<IntelOverviewResponse>,
+) {
+  return useSWR<IntelOverviewResponse>(
+    projectId ? SWR_KEYS.intelOverview(projectId) : null,
+    () => getIntelligenceOverview(projectId!),
+    {
+      dedupingInterval: MED_CACHE,
+      revalidateOnFocus: false,
+      ...config,
+    },
+  )
+}
+
+// --- Intelligence graph (per-project) ---
+export function useIntelGraph(
+  projectId: string | undefined,
+  config?: SWRConfiguration<IntelGraphResponse>,
+) {
+  return useSWR<IntelGraphResponse>(
+    projectId ? SWR_KEYS.intelGraph(projectId) : null,
+    () => getIntelligenceGraph(projectId!),
+    {
+      dedupingInterval: MED_CACHE,
+      revalidateOnFocus: false,
+      ...config,
+    },
+  )
+}
+
+// --- Intelligence evolution (per-project, parameterized) ---
+export function useIntelEvolution(
+  projectId: string | undefined,
+  params?: { event_type?: string; days?: number; limit?: number },
+  config?: SWRConfiguration<IntelEvolutionResponse>,
+) {
+  return useSWR<IntelEvolutionResponse>(
+    projectId
+      ? SWR_KEYS.intelEvolution(projectId, params?.event_type, params?.days)
+      : null,
+    () => getIntelligenceEvolution(projectId!, params),
+    {
+      dedupingInterval: MED_CACHE,
+      revalidateOnFocus: false,
+      ...config,
+    },
+  )
+}
+
+// --- Sales intelligence (per-project, rarely changes) ---
+export function useSalesIntel(
+  projectId: string | undefined,
+  config?: SWRConfiguration<IntelSalesResponse>,
+) {
+  return useSWR<IntelSalesResponse>(
+    projectId ? SWR_KEYS.salesIntel(projectId) : null,
+    () => getSalesIntelligence(projectId!),
+    {
+      dedupingInterval: LONG_CACHE,
+      revalidateOnFocus: false,
+      ...config,
+    },
+  )
+}
+
+// --- Unified memory (per-project, LLM-synthesized, expensive) ---
+export function useUnifiedMemory(
+  projectId: string | undefined,
+  config?: SWRConfiguration<UnifiedMemoryResponse>,
+) {
+  return useSWR<UnifiedMemoryResponse>(
+    projectId ? SWR_KEYS.unifiedMemory(projectId) : null,
+    () => getUnifiedMemory(projectId!),
+    {
+      dedupingInterval: LONG_CACHE,
       revalidateOnFocus: false,
       ...config,
     },

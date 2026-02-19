@@ -10,13 +10,12 @@ from uuid import UUID
 from app.core.logging import get_logger
 from app.db.memory_graph import (
     get_active_beliefs,
-    get_recent_facts,
-    get_insights,
     get_edges_to_node,
-    get_nodes,
     get_graph_stats,
+    get_insights,
+    get_recent_facts,
 )
-from app.db.project_memory import get_recent_decisions, get_mistakes_to_avoid
+from app.db.project_memory import get_mistakes_to_avoid, get_recent_decisions
 from app.db.supabase_client import get_supabase
 
 logger = get_logger(__name__)
@@ -59,8 +58,8 @@ async def render_memory_markdown(
     sections.append(f"# Project Memory: {project_name}")
     sections.append(f"*Generated from knowledge graph at {datetime.utcnow().strftime('%Y-%m-%d %H:%M')} UTC*\n")
 
-    # Current Understanding (high-confidence beliefs)
-    sections.append("## Current Understanding\n")
+    # The Story So Far (high-confidence beliefs)
+    sections.append("## The Story So Far\n")
     high_conf_beliefs = [b for b in beliefs if b["confidence"] >= 0.7]
 
     if high_conf_beliefs:
@@ -76,7 +75,7 @@ async def render_memory_markdown(
             if support_count > 0:
                 evidence_parts.append(f"{support_count} supporting")
             if contradict_count > 0:
-                evidence_parts.append(f"{contradict_count} contradicting")
+                evidence_parts.append(f"{contradict_count} alternative views")
             if evidence_parts:
                 sections.append(f"  *Evidence: {', '.join(evidence_parts)} facts*")
 
@@ -97,10 +96,10 @@ async def render_memory_markdown(
             sections.append(i['content'])
             sections.append(f"\n*Confidence: {i['confidence']:.0%}*\n")
 
-    # Open Questions (low-confidence beliefs)
+    # Open Threads (low-confidence beliefs)
     low_conf_beliefs = [b for b in beliefs if b["confidence"] < 0.7]
     if low_conf_beliefs:
-        sections.append("## Open Questions & Uncertainties\n")
+        sections.append("## Open Threads\n")
         for b in low_conf_beliefs[:5]:
             sections.append(f"- **{b['confidence']:.0%}** {b['summary']}")
         sections.append("")
@@ -116,11 +115,11 @@ async def render_memory_markdown(
                 sections.append(f"- *Why:* {d.get('rationale', '')[:100]}")
             sections.append("")
 
-    # Mistakes to Avoid
+    # Lessons Learned
     if mistakes:
-        sections.append("## Mistakes to Avoid\n")
+        sections.append("## Lessons Learned\n")
         for m in mistakes:
-            sections.append(f"- **{m.get('title', 'Mistake')}**: {m.get('learning', '')}")
+            sections.append(f"- **{m.get('title', 'Lesson')}**: {m.get('learning', '')}")
         sections.append("")
 
     # Recent Observations (facts)
@@ -361,10 +360,13 @@ def _insight_emoji(insight_type: str) -> str:
     """Get emoji for insight type."""
     return {
         "behavioral": "👤",
-        "contradiction": "⚡",
+        "tension": "🔄",
         "evolution": "📈",
-        "risk": "⚠️",
+        "watchpoint": "🔍",
         "opportunity": "💡",
+        # Legacy fallbacks
+        "contradiction": "🔄",
+        "risk": "🔍",
     }.get(insight_type, "📌")
 
 

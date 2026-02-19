@@ -1,12 +1,11 @@
 /**
- * SalesTab — Deal readiness score, client profile, stakeholder map, gaps & risks
+ * SalesTab — Deal readiness score, client profile, stakeholder map, opportunities
  *
  * Requires client_id on project. Empty state with "Link a client" CTA if none.
  */
 
 'use client'
 
-import { useState, useEffect } from 'react'
 import {
   Users,
   AlertTriangle,
@@ -15,24 +14,17 @@ import {
   Shield,
   Star,
   User,
+  Lightbulb,
 } from 'lucide-react'
-import { getSalesIntelligence } from '@/lib/api'
-import type { IntelSalesResponse, IntelStakeholderMapEntry, IntelGapOrRisk } from '@/types/workspace'
+import type { IntelStakeholderMapEntry, IntelGapOrRisk } from '@/types/workspace'
+import { useSalesIntel } from '@/lib/hooks/use-api'
 
 interface SalesTabProps {
   projectId: string
 }
 
 export function SalesTab({ projectId }: SalesTabProps) {
-  const [data, setData] = useState<IntelSalesResponse | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
-
-  useEffect(() => {
-    getSalesIntelligence(projectId)
-      .then(setData)
-      .catch(() => setData(null))
-      .finally(() => setIsLoading(false))
-  }, [projectId])
+  const { data, isLoading } = useSalesIntel(projectId)
 
   if (isLoading) {
     return (
@@ -154,11 +146,11 @@ export function SalesTab({ projectId }: SalesTabProps) {
         </div>
       </div>
 
-      {/* Gaps & Risks */}
+      {/* Opportunities & Next Steps (formerly "Gaps & Risks") */}
       {data.gaps_and_risks.length > 0 && (
         <div className="bg-white rounded-2xl border border-[#E5E5E5] p-5 shadow-sm">
           <h4 className="text-[12px] font-semibold text-[#333333] uppercase tracking-wide mb-3">
-            Gaps & Risks
+            Opportunities & Next Steps
           </h4>
           <div className="space-y-2">
             {data.gaps_and_risks.map((g, i) => (
@@ -195,7 +187,7 @@ function StakeholderRow({ stakeholder }: { stakeholder: IntelStakeholderMapEntry
         </div>
       </div>
       {!stakeholder.is_addressed && (
-        <AlertTriangle className="w-3.5 h-3.5 text-[#999999] shrink-0" />
+        <Lightbulb className="w-3.5 h-3.5 text-[#3FAF7A] shrink-0" />
       )}
     </div>
   )
@@ -216,7 +208,7 @@ function getStakeholderIcon(type: string | null) {
 
 function GapRow({ gap }: { gap: IntelGapOrRisk }) {
   const severityConfig = {
-    warning: { icon: AlertTriangle, bg: 'bg-gray-100', color: 'text-[#666666]' },
+    warning: { icon: Lightbulb, bg: 'bg-[#E8F5E9]', color: 'text-[#25785A]' },
     info: { icon: Info, bg: 'bg-gray-100', color: 'text-[#999999]' },
     success: { icon: CheckCircle, bg: 'bg-[#E8F5E9]', color: 'text-[#25785A]' },
   }

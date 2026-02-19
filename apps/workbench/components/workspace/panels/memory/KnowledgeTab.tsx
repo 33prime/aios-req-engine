@@ -25,12 +25,10 @@ import {
 import '@xyflow/react/dist/style.css'
 import dagre from 'dagre'
 import { Plus } from 'lucide-react'
-import type { MemoryVisualizationResponse, MemoryNodeViz, MemoryEdgeViz } from '@/lib/api'
-import {
-  getIntelligenceGraph,
-  submitNodeFeedback,
-} from '@/lib/api'
+import type { MemoryVisualizationResponse } from '@/lib/api'
+import { submitNodeFeedback } from '@/lib/api'
 import type { IntelGraphNode, IntelGraphResponse } from '@/types/workspace'
+import { useIntelGraph } from '@/lib/hooks/use-api'
 import { NodeDetailPanel } from './NodeDetailPanel'
 import { AddBeliefModal } from './AddBeliefModal'
 
@@ -180,39 +178,29 @@ function buildElements(
 // ─── KnowledgeTab ────────────────────────────────────────────────────────────
 
 export function KnowledgeTab({ projectId, data: vizData }: KnowledgeTabProps) {
-  const [graphData, setGraphData] = useState<IntelGraphResponse | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
+  const { data: swrGraphData, isLoading: swrLoading, mutate } = useIntelGraph(projectId)
   const [filter, setFilter] = useState<NodeFilter>('all')
   const [consultantFilter, setConsultantFilter] = useState<ConsultantFilter>('all')
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null)
   const [showAddBelief, setShowAddBelief] = useState(false)
 
-  // Load graph from intelligence API
-  useEffect(() => {
-    getIntelligenceGraph(projectId)
-      .then(setGraphData)
-      .catch(() => {
-        // Fallback to viz data if intelligence API not available
-        if (vizData) {
-          setGraphData({
-            nodes: vizData.nodes.map((n) => ({
-              ...n,
-              content: n.summary,
-              is_active: true,
-              consultant_status: null,
-              consultant_note: null,
-              consultant_status_at: null,
-              hypothesis_status: null,
-              linked_entity_type: n.linked_entity_type ?? null,
-              linked_entity_id: null,
-            })),
-            edges: vizData.edges,
-            stats: vizData.stats as unknown as Record<string, number>,
-          })
-        }
-      })
-      .finally(() => setIsLoading(false))
-  }, [projectId, vizData])
+  // Use SWR data, fallback to vizData
+  const graphData: IntelGraphResponse | null = swrGraphData ?? (vizData ? {
+    nodes: vizData.nodes.map((n) => ({
+      ...n,
+      content: n.summary,
+      is_active: true,
+      consultant_status: null,
+      consultant_note: null,
+      consultant_status_at: null,
+      hypothesis_status: null,
+      linked_entity_type: n.linked_entity_type ?? null,
+      linked_entity_id: null,
+    })),
+    edges: vizData.edges,
+    stats: vizData.stats as unknown as Record<string, number>,
+  } : null)
+  const isLoading = swrLoading && !vizData
 
   const { nodes: flowNodes, edges: flowEdges } = useMemo(
     () => buildElements(graphData, filter, consultantFilter),
@@ -234,39 +222,21 @@ export function KnowledgeTab({ projectId, data: vizData }: KnowledgeTabProps) {
   const handleFeedback = useCallback(
     async (nodeId: string, action: 'confirm' | 'dispute' | 'archive', note?: string) => {
       try {
-        const updated = await submitNodeFeedback(projectId, nodeId, action, note)
-        // Update local graph data
-        setGraphData((prev) => {
-          if (!prev) return prev
-          if (action === 'archive') {
-            return {
-              ...prev,
-              nodes: prev.nodes.filter((n) => n.id !== nodeId),
-            }
-          }
-          return {
-            ...prev,
-            nodes: prev.nodes.map((n) =>
-              n.id === nodeId ? { ...n, ...updated } : n,
-            ),
-          }
-        })
+        await submitNodeFeedback(projectId, nodeId, action, note)
+        mutate()
       } catch {
         // feedback failed silently
       }
     },
-    [projectId],
+    [projectId, mutate],
   )
 
   const handleBeliefCreated = useCallback(
-    (newNode: IntelGraphNode) => {
-      setGraphData((prev) => {
-        if (!prev) return prev
-        return { ...prev, nodes: [...prev.nodes, newNode] }
-      })
+    (_newNode: IntelGraphNode) => {
+      mutate()
       setShowAddBelief(false)
     },
-    [],
+    [mutate],
   )
 
   const selectedNode = graphData?.nodes.find((n) => n.id === selectedNodeId) ?? null

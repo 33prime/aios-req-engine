@@ -8,14 +8,10 @@
 
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useCallback } from 'react'
 import { BarChart3, Share2, History, FileSearch, DollarSign, Code, RefreshCw } from 'lucide-react'
-import {
-  getMemoryVisualization,
-  getUnifiedMemory,
-  refreshUnifiedMemory,
-} from '@/lib/api'
-import type { MemoryVisualizationResponse, UnifiedMemoryResponse } from '@/lib/api'
+import { refreshUnifiedMemory } from '@/lib/api'
+import { useMemoryVisualization, useUnifiedMemory } from '@/lib/hooks/use-api'
 import { OverviewTab } from './OverviewTab'
 import { KnowledgeTab } from './KnowledgeTab'
 import { EvolutionTab } from './EvolutionTab'
@@ -39,39 +35,25 @@ const TABS = [
 
 export function MemoryPanel({ projectId }: MemoryPanelProps) {
   const [activeTab, setActiveTab] = useState<MemoryTab>('overview')
-  const [vizData, setVizData] = useState<MemoryVisualizationResponse | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
   const [isSynthesizing, setIsSynthesizing] = useState(false)
-  const [unifiedMemory, setUnifiedMemory] = useState<UnifiedMemoryResponse | null>(null)
   const [showForAI, setShowForAI] = useState(false)
 
-  useEffect(() => {
-    getMemoryVisualization(projectId)
-      .then(setVizData)
-      .catch(() => setVizData(null))
-      .finally(() => setIsLoading(false))
-  }, [projectId])
+  const { data: vizData, isLoading } = useMemoryVisualization(projectId)
+  const { data: unifiedMemory, mutate: mutateUnifiedMemory } = useUnifiedMemory(
+    showForAI ? projectId : undefined,
+  )
 
   const handleSynthesize = useCallback(async () => {
     setIsSynthesizing(true)
     try {
       const result = await refreshUnifiedMemory(projectId)
-      setUnifiedMemory(result)
+      mutateUnifiedMemory(result, false)
     } catch {
       // Synthesis may fail if no data
     } finally {
       setIsSynthesizing(false)
     }
-  }, [projectId])
-
-  // Lazy-load unified memory when For AI overlay opens
-  useEffect(() => {
-    if (showForAI && !unifiedMemory) {
-      getUnifiedMemory(projectId)
-        .then(setUnifiedMemory)
-        .catch(() => setUnifiedMemory(null))
-    }
-  }, [showForAI, projectId, unifiedMemory])
+  }, [projectId, mutateUnifiedMemory])
 
   return (
     <div className="flex flex-col h-full">
@@ -132,7 +114,7 @@ export function MemoryPanel({ projectId }: MemoryPanelProps) {
           <div className="h-full overflow-y-auto p-6">
             <ContextWindowTab
               projectId={projectId}
-              unifiedMemory={unifiedMemory}
+              unifiedMemory={unifiedMemory ?? null}
               onRefresh={handleSynthesize}
               isSynthesizing={isSynthesizing}
             />
@@ -141,15 +123,15 @@ export function MemoryPanel({ projectId }: MemoryPanelProps) {
           <>
             {activeTab === 'overview' && (
               <div className="h-full overflow-y-auto p-6">
-                <OverviewTab projectId={projectId} data={vizData} />
+                <OverviewTab projectId={projectId} data={vizData ?? null} />
               </div>
             )}
             {activeTab === 'knowledge' && (
-              <KnowledgeTab projectId={projectId} data={vizData} />
+              <KnowledgeTab projectId={projectId} data={vizData ?? null} />
             )}
             {activeTab === 'evolution' && (
               <div className="h-full overflow-y-auto p-6">
-                <EvolutionTab projectId={projectId} data={vizData} />
+                <EvolutionTab projectId={projectId} data={vizData ?? null} />
               </div>
             )}
             {activeTab === 'evidence' && (

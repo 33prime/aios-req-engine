@@ -8,7 +8,7 @@
 
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import {
   TrendingUp,
   TrendingDown,
@@ -19,13 +19,13 @@ import {
   ChevronDown,
   ChevronUp,
 } from 'lucide-react'
-import { getIntelligenceEvolution, getConfidenceCurve } from '@/lib/api'
+import { getConfidenceCurve } from '@/lib/api'
 import type { MemoryVisualizationResponse } from '@/lib/api'
 import type {
-  IntelEvolutionResponse,
   IntelEvolutionEvent,
   IntelConfidenceCurve,
 } from '@/types/workspace'
+import { useIntelEvolution } from '@/lib/hooks/use-api'
 
 interface EvolutionTabProps {
   projectId: string
@@ -36,30 +36,25 @@ type EventFilter = 'all' | 'beliefs' | 'signals' | 'entities'
 type TimeRange = 7 | 30 | 90 | 365
 
 export function EvolutionTab({ projectId }: EvolutionTabProps) {
-  const [events, setEvents] = useState<IntelEvolutionEvent[]>([])
-  const [isLoading, setIsLoading] = useState(true)
   const [eventFilter, setEventFilter] = useState<EventFilter>('all')
   const [timeRange, setTimeRange] = useState<TimeRange>(30)
   const [curves, setCurves] = useState<IntelConfidenceCurve[]>([])
   const [showCurves, setShowCurves] = useState(true)
 
-  useEffect(() => {
-    setIsLoading(true)
-    const filterMap: Record<EventFilter, string | undefined> = {
-      all: undefined,
-      beliefs: 'beliefs',
-      signals: 'signals',
-      entities: 'entities',
-    }
-    getIntelligenceEvolution(projectId, {
-      event_type: filterMap[eventFilter],
-      days: timeRange,
-      limit: 50,
-    })
-      .then((res) => setEvents(res.events))
-      .catch(() => setEvents([]))
-      .finally(() => setIsLoading(false))
-  }, [projectId, eventFilter, timeRange])
+  const filterMap: Record<EventFilter, string | undefined> = {
+    all: undefined,
+    beliefs: 'beliefs',
+    signals: 'signals',
+    entities: 'entities',
+  }
+
+  const { data: evolutionData, isLoading } = useIntelEvolution(projectId, {
+    event_type: filterMap[eventFilter],
+    days: timeRange,
+    limit: 50,
+  })
+
+  const events = evolutionData?.events ?? []
 
   // Load confidence curves for top beliefs
   useEffect(() => {
@@ -202,7 +197,7 @@ function EventRow({ event }: { event: IntelEvolutionEvent }) {
           <div className="flex items-center gap-2 mt-1">
             {event.confidence_before !== null && event.confidence_after !== null && (
               <span className="text-[10px] text-[#999999]">
-                {Math.round(event.confidence_before * 100)}% → {Math.round(event.confidence_after * 100)}%
+                {Math.round(event.confidence_before * 100)}% &rarr; {Math.round(event.confidence_after * 100)}%
               </span>
             )}
             <span

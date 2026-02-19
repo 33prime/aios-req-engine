@@ -1,14 +1,14 @@
 /**
- * OverviewTab — Intelligence overview with briefing narrative, tensions,
+ * OverviewTab — Intelligence overview with briefing narrative, open threads,
  * hypotheses, pulse stats, and recent activity.
  *
- * Two-column layout: left 60% (narrative + tensions + hypotheses + changes),
+ * Two-column layout: left 60% (narrative + threads + hypotheses + changes),
  * right 40% (pulse stats + recent activity).
  */
 
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useCallback } from 'react'
 import {
   TrendingUp,
   TrendingDown,
@@ -17,10 +17,11 @@ import {
   Lightbulb,
   ThumbsUp,
   ThumbsDown,
-  AlertTriangle,
+  GitBranch,
+  ArrowLeftRight,
   FlaskConical,
 } from 'lucide-react'
-import { getIntelligenceOverview, submitNodeFeedback } from '@/lib/api'
+import { submitNodeFeedback, getIntelligenceOverview } from '@/lib/api'
 import type { MemoryVisualizationResponse } from '@/lib/api'
 import type {
   IntelOverviewResponse,
@@ -28,6 +29,7 @@ import type {
   Tension,
   Hypothesis,
 } from '@/types/workspace'
+import { useIntelOverview } from '@/lib/hooks/use-api'
 
 interface OverviewTabProps {
   projectId: string
@@ -35,27 +37,18 @@ interface OverviewTabProps {
 }
 
 export function OverviewTab({ projectId, data: vizData }: OverviewTabProps) {
-  const [overview, setOverview] = useState<IntelOverviewResponse | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
-
-  useEffect(() => {
-    getIntelligenceOverview(projectId)
-      .then(setOverview)
-      .catch(() => setOverview(null))
-      .finally(() => setIsLoading(false))
-  }, [projectId])
+  const { data: overview, isLoading, mutate } = useIntelOverview(projectId)
 
   const handleHypothesisFeedback = useCallback(
     async (nodeId: string, action: 'confirm' | 'dispute') => {
       try {
         await submitNodeFeedback(projectId, nodeId, action)
-        const updated = await getIntelligenceOverview(projectId)
-        setOverview(updated)
+        mutate()
       } catch {
         // Silent fail
       }
     },
-    [projectId],
+    [projectId, mutate],
   )
 
   if (isLoading) {
@@ -111,11 +104,11 @@ export function OverviewTab({ projectId, data: vizData }: OverviewTabProps) {
           </div>
         ) : null}
 
-        {/* Tensions */}
+        {/* Open Threads (formerly "Active Tensions") */}
         {tensions.length > 0 && (
           <div>
             <h4 className="text-[12px] font-semibold text-[#333333] uppercase tracking-wide mb-3">
-              Active Tensions
+              Open Threads
             </h4>
             <div className="space-y-2">
               {tensions.slice(0, 3).map((t, i) => (
@@ -124,14 +117,14 @@ export function OverviewTab({ projectId, data: vizData }: OverviewTabProps) {
                   className="bg-white rounded-xl border border-[#E5E5E5] px-4 py-3 shadow-sm"
                 >
                   <div className="flex items-center gap-2 mb-1">
-                    <AlertTriangle className="w-3.5 h-3.5 text-[#666666]" />
+                    <ArrowLeftRight className="w-3.5 h-3.5 text-[#666666]" />
                     <span className="text-[12px] font-medium text-[#333333]">
                       {t.summary}
                     </span>
                   </div>
                   <div className="flex items-center gap-3 text-[11px] text-[#999999]">
                     <span>{t.side_a}</span>
-                    <span>vs</span>
+                    <span className="text-[#CCCCCC]">&harr;</span>
                     <span>{t.side_b}</span>
                     <span className="ml-auto font-medium text-[#666666]">
                       {Math.round((t.confidence || 0) * 100)}% confidence
@@ -225,9 +218,9 @@ export function OverviewTab({ projectId, data: vizData }: OverviewTabProps) {
             <StatCell label="Edges" value={pulse.total_edges} />
             <StatCell label="Avg Confidence" value={`${Math.round(pulse.avg_confidence * 100)}%`} />
             <StatCell label="Hypotheses" value={pulse.hypotheses_count} />
-            <StatCell label="Tensions" value={pulse.tensions_count} />
+            <StatCell label="Open Threads" value={pulse.tensions_count} />
             <StatCell label="Confirmed" value={pulse.confirmed_count} color="green" />
-            <StatCell label="Disputed" value={pulse.disputed_count} />
+            <StatCell label="Under Review" value={pulse.disputed_count} />
             <StatCell
               label="Last Signal"
               value={pulse.days_since_signal !== null ? `${pulse.days_since_signal}d ago` : 'Never'}

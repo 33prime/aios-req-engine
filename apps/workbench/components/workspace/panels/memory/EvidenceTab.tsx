@@ -7,10 +7,11 @@
 
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import { ChevronRight, FileText, Brain, History, Upload } from 'lucide-react'
-import { getEntityEvidence, getBRDWorkspaceData } from '@/lib/api'
+import { getEntityEvidence } from '@/lib/api'
 import type { IntelEvidenceResponse } from '@/types/workspace'
+import { useBRDData } from '@/lib/hooks/use-api'
 
 interface EvidenceTabProps {
   projectId: string
@@ -29,51 +30,40 @@ interface EntityGroup {
 }
 
 export function EvidenceTab({ projectId }: EvidenceTabProps) {
-  const [groups, setGroups] = useState<EntityGroup[]>([])
+  const { data: brd, isLoading: isLoadingEntities } = useBRDData(projectId, false)
   const [selectedEntity, setSelectedEntity] = useState<EntityItem | null>(null)
   const [evidence, setEvidence] = useState<IntelEvidenceResponse | null>(null)
-  const [isLoadingEntities, setIsLoadingEntities] = useState(true)
   const [isLoadingEvidence, setIsLoadingEvidence] = useState(false)
 
-  // Load entity list from canvas data
-  useEffect(() => {
-    getBRDWorkspaceData(projectId, false)
-      .then((brd) => {
-        const entityGroups: EntityGroup[] = []
-        const data = brd as unknown as Record<string, unknown>
-
-        const features = data.features as Array<{ id: string; name: string }> | undefined
-        if (features?.length) {
-          entityGroups.push({
-            label: 'Features',
-            type: 'feature',
-            items: features.map((f) => ({ id: f.id, name: f.name, type: 'feature' })),
-          })
-        }
-
-        const personas = data.personas as Array<{ id: string; name: string }> | undefined
-        if (personas?.length) {
-          entityGroups.push({
-            label: 'Personas',
-            type: 'persona',
-            items: personas.map((p) => ({ id: p.id, name: p.name, type: 'persona' })),
-          })
-        }
-
-        const stakeholders = data.stakeholders as Array<{ id: string; name: string }> | undefined
-        if (stakeholders?.length) {
-          entityGroups.push({
-            label: 'Stakeholders',
-            type: 'stakeholder',
-            items: stakeholders.map((s) => ({ id: s.id, name: s.name, type: 'stakeholder' })),
-          })
-        }
-
-        setGroups(entityGroups)
+  // Build entity groups from BRD data
+  const groups: EntityGroup[] = []
+  if (brd) {
+    const data = brd as unknown as Record<string, unknown>
+    const features = data.features as Array<{ id: string; name: string }> | undefined
+    if (features?.length) {
+      groups.push({
+        label: 'Features',
+        type: 'feature',
+        items: features.map((f) => ({ id: f.id, name: f.name, type: 'feature' })),
       })
-      .catch(() => setGroups([]))
-      .finally(() => setIsLoadingEntities(false))
-  }, [projectId])
+    }
+    const personas = data.personas as Array<{ id: string; name: string }> | undefined
+    if (personas?.length) {
+      groups.push({
+        label: 'Personas',
+        type: 'persona',
+        items: personas.map((p) => ({ id: p.id, name: p.name, type: 'persona' })),
+      })
+    }
+    const stakeholders = data.stakeholders as Array<{ id: string; name: string }> | undefined
+    if (stakeholders?.length) {
+      groups.push({
+        label: 'Stakeholders',
+        type: 'stakeholder',
+        items: stakeholders.map((s) => ({ id: s.id, name: s.name, type: 'stakeholder' })),
+      })
+    }
+  }
 
   // Load evidence when entity is selected
   useEffect(() => {

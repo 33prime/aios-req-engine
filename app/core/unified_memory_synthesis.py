@@ -13,7 +13,7 @@ The unified view is:
 
 import hashlib
 import json
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Any
 from uuid import UUID
 
@@ -312,17 +312,17 @@ def _build_synthesis_prompt(data: dict[str, Any]) -> str:
 
     # Format learnings
     learnings_text = ""
-    for l in data.get("learnings", []):
-        ltype = l.get("learning_type", "insight")
-        times = l.get("times_applied", 0)
-        learnings_text += f"- [{ltype}] {l.get('title', '')}: {l.get('learning', '')}"
+    for lr in data.get("learnings", []):
+        ltype = lr.get("learning_type", "insight")
+        times = lr.get("times_applied", 0)
+        learnings_text += f"- [{ltype}] {lr.get('title', '')}: {lr.get('learning', '')}"
         if times > 0:
             learnings_text += f" (applied {times}x)"
         learnings_text += "\n"
     if not learnings_text:
         learnings_text = "(No learnings recorded yet)\n"
 
-    return f"""You are synthesizing project memory from two sources into a coherent document.
+    return f"""You are synthesizing project memory into a consultant's prep brief — the kind of document you'd scan before walking into a client meeting.
 
 ## Source 1: Knowledge Graph (AI-extracted)
 
@@ -354,38 +354,39 @@ def _build_synthesis_prompt(data: dict[str, Any]) -> str:
 
 ## Your Task
 
-Generate a coherent, well-structured markdown document that synthesizes this information.
-The document should be approximately 1000-1500 words and include:
+Generate a **consultant prep brief** — concise, scannable, warm. Target 800-1200 words.
 
-1. **Current Understanding** (2-3 paragraphs)
-   - Synthesize the high-confidence beliefs into a narrative
-   - What do we know about this project with high confidence?
-   - Focus on the "why" and "what matters"
+Structure it exactly like this:
 
-2. **Key Decisions** (bullet list)
-   - List the most important decisions made
-   - Include brief rationale for each
-   - Keep to top 5-7 decisions
+1. **The Story So Far** (2-3 paragraphs)
+   - Synthesize the high-confidence beliefs into a conversational narrative
+   - Use "we" language — you're part of the team
+   - What's the project about, what have we learned, where are we headed?
 
-3. **Strategic Insights** (bullet list)
-   - What patterns or opportunities have emerged?
-   - What risks or contradictions exist?
+2. **What Matters Right Now** (3-5 bullets)
+   - The quick-scan section — what to focus on today
+   - **Bold the key phrase** in each bullet for fast reading
+   - Include the most actionable insights and urgent items
 
-4. **Open Questions** (bullet list)
-   - What still needs to be resolved?
+3. **Decisions Made** (top 5-7 bullets)
+   - Brief: decision + rationale, one line each
+   - Most recent and impactful first
+
+4. **Open Threads** (3-5 bullets)
+   - Frame as opportunities, not problems
+   - e.g., "Worth exploring with [stakeholder]: ..." or "One more conversation would clarify..."
    - Include both explicit questions and uncertainties from low-confidence beliefs
-   - Prioritize the most impactful questions
 
-5. **Evidence Base** (brief summary)
-   - How much evidence supports this understanding?
-   - What areas have strong vs. weak evidence?
+5. **Evidence Confidence** (2-3 sentences)
+   - How solid is our understanding? Where are we well-covered?
+   - Frame gaps warmly: "One more conversation with X would round this out"
 
 Guidelines:
-- Write in a professional, clear tone
-- Avoid speculation beyond what the evidence supports
-- Highlight contradictions or tensions honestly
-- Use markdown formatting (headers, bullets, bold for emphasis)
-- Do NOT include a title - start directly with the first section
+- Write like a sharp teammate, not a textbook. Warm but concise.
+- Frame uncertainties as opportunities to learn more, not as risks.
+- **Bold key phrases** throughout for scanability.
+- Use markdown formatting (headers, bullets, bold)
+- Do NOT include a title — start directly with the first section.
 
 Output the markdown document only, no explanations."""
 

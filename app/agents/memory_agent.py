@@ -27,7 +27,6 @@ Usage:
 import json
 import re
 from datetime import datetime
-from typing import Any
 from uuid import UUID
 
 from anthropic import Anthropic
@@ -35,22 +34,21 @@ from anthropic import Anthropic
 from app.core.config import get_settings
 from app.core.logging import get_logger
 from app.db.memory_graph import (
-    create_node,
+    archive_low_confidence_beliefs,
+    archive_old_insights,
+    complete_synthesis_log,
     create_edge,
+    create_node,
+    fail_synthesis_log,
     get_active_beliefs,
-    get_recent_facts,
-    get_insights,
     get_all_edges,
     get_edges_to_node,
-    get_nodes,
+    get_insights,
+    get_recent_facts,
+    start_synthesis_log,
+    supersede_belief,
     update_belief_confidence,
     update_belief_content,
-    supersede_belief,
-    start_synthesis_log,
-    complete_synthesis_log,
-    fail_synthesis_log,
-    archive_old_insights,
-    archive_low_confidence_beliefs,
 )
 
 logger = get_logger(__name__)
@@ -796,21 +794,21 @@ Look for PATTERNS across the beliefs and facts that reveal deeper understanding:
 
 ### Insight Types
 
-1. **behavioral** - Client's actions vs stated intentions
-   - Do they say one thing but do another?
-   - What do they consistently prioritize?
+1. **behavioral** - What the client consistently prioritizes
+   - What patterns emerge from their actions and decisions?
+   - What do they consistently gravitate toward?
 
-2. **contradiction** - Unresolved tensions in the data
-   - Where do beliefs conflict?
-   - What can't both be true?
+2. **tension** - Tradeoffs that haven't been fully discussed
+   - Where do beliefs point in different directions?
+   - What tradeoffs deserve a conversation?
 
 3. **evolution** - How understanding has changed
    - What did we think before that we now know differently?
    - How have priorities shifted?
 
-4. **risk** - Potential problems or weak assumptions
-   - What beliefs have low confidence?
-   - Where might we be wrong?
+4. **watchpoint** - What's worth validating next
+   - What assumptions should we confirm in the next conversation?
+   - Where would one more data point change our direction?
 
 5. **opportunity** - Possibilities not yet explored
    - What adjacent ideas emerge?
@@ -831,7 +829,7 @@ Output valid JSON:
             "content": "Full insight with evidence and reasoning",
             "summary": "One-line summary",
             "confidence": 0.X,
-            "type": "behavioral|contradiction|evolution|risk|opportunity",
+            "type": "behavioral|tension|evolution|watchpoint|opportunity",
             "supported_by": ["belief_id1", "fact_id2"]
         }}
     ]
