@@ -55,7 +55,7 @@ export function BottomDock({ projectId, activePanel, onPanelChange }: BottomDock
           <div
             className={`bg-white rounded-xl border border-ui-cardBorder shadow-xl overflow-hidden flex flex-col pointer-events-auto ${
               isFullScreen
-                ? 'w-[95vw] h-[90vh]'
+                ? 'w-[75vw] h-[75vh]'
                 : 'w-full max-w-5xl max-h-[75vh]'
             }`}
           >
