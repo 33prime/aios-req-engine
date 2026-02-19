@@ -62,9 +62,12 @@ async def _sse_generator(signal_id: UUID, project_id: UUID, signal_content: str)
         yield f"data: {json.dumps(error_event)}\n\n"
 
 
-@router.post("/process-signal-stream")
+@router.post("/process-signal-stream", deprecated=True)
 async def process_signal_with_streaming(request: ProcessSignalStreamRequest):
     """
+    DEPRECATED: Uses V1 signal pipeline. All signal processing now uses V2
+    (process_signal_v2) which has zero frontend callers of this SSE endpoint.
+
     Process a signal through the complete pipeline with streaming progress.
 
     Returns SSE stream with events for each phase:

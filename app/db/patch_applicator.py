@@ -64,8 +64,22 @@ ENTITY_TABLE_MAP = {
     "data_entity": "data_entities",
     "business_driver": "business_drivers",
     "constraint": "constraints",
-    "competitor": "competitor_refs",
+    "competitor": "competitor_references",
     "vision": "projects",  # Vision is stored on the project itself
+}
+
+# Tables that have a slug column
+TABLES_WITH_SLUG = {"prd_sections", "personas"}
+
+# Tables that have source_signal_ids UUID[] column
+TABLES_WITH_SIGNAL_IDS = {
+    "features", "personas", "prd_sections", "stakeholders",
+    "business_drivers", "competitor_references",
+}
+
+# Field name normalization: LLM-generated names → actual DB column names
+TABLE_FIELD_RENAMES: dict[str, dict[str, str]] = {
+    "constraints": {"name": "title"},
 }
 
 
@@ -146,9 +160,9 @@ async def apply_entity_patches(
             logger.warning(f"State revision recording failed: {e}")
 
     # Record chunk impacts for evidence tracking
-    if signal_id and result.entity_ids_modified:
+    if signal_id and result.applied:
         try:
-            _record_evidence_links(patches, signal_id, result.entity_ids_modified)
+            _record_evidence_links(patches, result.applied)
         except Exception as e:
             logger.warning(f"Evidence link recording failed: {e}")
 
@@ -183,6 +197,10 @@ async def _apply_single_patch(
         logger.warning(f"Unknown entity type: {entity_type}")
         return None
 
+    # Resolve truncated UUIDs (LLM sometimes outputs only prefix)
+    if patch.target_entity_id and operation in ("merge", "update", "stale", "delete"):
+        patch = _resolve_target_entity_id(project_id, patch, table)
+
     if operation == "create":
         return _apply_create(project_id, patch, table, signal_id)
     elif operation == "merge":
@@ -196,6 +214,129 @@ async def _apply_single_patch(
     else:
         logger.warning(f"Unknown operation: {operation}")
         return None
+
+
+# =============================================================================
+# UUID resolution (prefix-matching fallback)
+# =============================================================================
+
+
+# Standard UUID length with dashes: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+_FULL_UUID_LEN = 36
+
+
+def _resolve_target_entity_id(
+    project_id: UUID,
+    patch: EntityPatch,
+    table: str,
+) -> EntityPatch:
+    """Resolve truncated target_entity_id to full UUID via prefix match.
+
+    LLMs sometimes output only the first 8 chars of a UUID. This queries the
+    project's entities to find the unique match. If ambiguous (multiple matches)
+    or not found, returns the patch unchanged (will fail naturally downstream).
+    """
+    target_id = patch.target_entity_id
+    if not target_id or len(target_id) >= _FULL_UUID_LEN:
+        return patch  # Already full UUID or missing
+
+    # Try to parse as a valid UUID first — if it works, it's already valid
+    try:
+        UUID(target_id)
+        return patch  # Valid UUID (e.g. 32 hex chars without dashes)
+    except ValueError:
+        pass  # Not a valid UUID, try prefix match
+
+    # Only attempt prefix matching for hex-like strings (UUID fragments)
+    # Skip obviously non-UUID strings like "feat-1", "my-entity", etc.
+    stripped = target_id.lower().replace("-", "")
+    if not stripped or not all(c in "0123456789abcdef" for c in stripped):
+        return patch  # Not a UUID prefix
+
+    sb = get_supabase()
+    prefix = stripped
+
+    try:
+        # Query entities in this project, filter by ID prefix using LIKE
+        # Postgres UUID cast to text for prefix matching
+        response = (
+            sb.table(table)
+            .select("id")
+            .eq("project_id", str(project_id))
+            .execute()
+        )
+        candidates = response.data or []
+
+        matches = [
+            str(c["id"]) for c in candidates
+            if str(c["id"]).replace("-", "").startswith(prefix)
+        ]
+
+        if len(matches) == 1:
+            resolved_id = matches[0]
+            logger.info(
+                f"Resolved truncated UUID {target_id!r} → {resolved_id} "
+                f"for {patch.entity_type} {patch.operation}"
+            )
+            # Return a new patch with the resolved ID
+            return EntityPatch(
+                operation=patch.operation,
+                entity_type=patch.entity_type,
+                target_entity_id=resolved_id,
+                payload=patch.payload,
+                evidence=patch.evidence,
+                confidence=patch.confidence,
+                confidence_reasoning=patch.confidence_reasoning,
+                source_authority=patch.source_authority,
+                mention_count=patch.mention_count,
+                belief_impact=patch.belief_impact,
+                answers_question=patch.answers_question,
+            )
+        elif len(matches) > 1:
+            logger.warning(
+                f"Ambiguous UUID prefix {target_id!r}: {len(matches)} matches in {table}"
+            )
+        else:
+            logger.warning(
+                f"No match for UUID prefix {target_id!r} in {table} (project {project_id})"
+            )
+    except Exception as e:
+        logger.warning(f"UUID prefix resolution failed: {e}")
+
+    return patch  # Return unchanged
+
+
+# =============================================================================
+# Payload normalization
+# =============================================================================
+
+
+def _normalize_payload(table: str, payload: dict) -> dict:
+    """Normalize LLM-generated payload fields to match actual DB columns.
+
+    - Renames fields per TABLE_FIELD_RENAMES (e.g. constraints.name → title)
+    - Strips slug for tables that don't have it
+    - Strips source_signal_ids for tables that don't have it
+    """
+    result = payload.copy()
+
+    # Apply field renames for this table
+    renames = TABLE_FIELD_RENAMES.get(table, {})
+    for old_name, new_name in renames.items():
+        if old_name in result and new_name not in result:
+            result[new_name] = result.pop(old_name)
+        elif old_name in result:
+            del result[old_name]  # new_name already set, drop duplicate
+
+    # Strip slug for tables that don't have it
+    if table not in TABLES_WITH_SLUG and "slug" in result:
+        del result["slug"]
+
+    # Strip source_signal_ids for tables that don't have it
+    if table not in TABLES_WITH_SIGNAL_IDS and "source_signal_ids" in result:
+        del result["source_signal_ids"]
+
+    return result
 
 
 # =============================================================================
@@ -218,13 +359,14 @@ def _apply_create(
     confirmation_status = AUTHORITY_TO_STATUS.get(patch.source_authority, "ai_generated")
     payload["confirmation_status"] = confirmation_status
 
-    # Generate slug if not provided
-    name = payload.get("name", payload.get("label", "unnamed"))
-    if "slug" not in payload and name:
-        payload["slug"] = re.sub(r"[^a-z0-9]+", "-", name.lower())[:50]
+    # Generate slug only for tables that have the column
+    if table in TABLES_WITH_SLUG:
+        name = payload.get("name", payload.get("label", "unnamed"))
+        if "slug" not in payload and name:
+            payload["slug"] = re.sub(r"[^a-z0-9]+", "-", name.lower())[:50]
 
-    # Add evidence from signal
-    if signal_id and "source_signal_ids" not in payload:
+    # Add evidence from signal (only for tables with source_signal_ids)
+    if signal_id and table in TABLES_WITH_SIGNAL_IDS and "source_signal_ids" not in payload:
         payload["source_signal_ids"] = [str(signal_id)]
 
     # Add evidence quotes to evidence field if entity supports it
@@ -238,6 +380,17 @@ def _apply_create(
             })
         payload["evidence"] = existing_evidence
 
+    # Normalize payload fields to match actual DB columns
+    payload = _normalize_payload(table, payload)
+
+    # Resolve display name for logging (check all common name columns)
+    display_name = (
+        payload.get("name")
+        or payload.get("label")
+        or payload.get("title")
+        or payload.get("description", "unnamed")
+    )
+
     try:
         response = sb.table(table).insert(payload).execute()
         if response.data:
@@ -246,7 +399,7 @@ def _apply_create(
                 "entity_type": patch.entity_type,
                 "entity_id": str(entity.get("id", "")),
                 "operation": "create",
-                "name": name,
+                "name": display_name,
                 "confirmation_status": confirmation_status,
             }
     except Exception as e:
@@ -305,8 +458,8 @@ def _apply_merge(
             })
         updates["evidence"] = existing_evidence
 
-    # Merge signal IDs
-    if signal_id:
+    # Merge signal IDs (only for tables that have the column)
+    if signal_id and table in TABLES_WITH_SIGNAL_IDS:
         existing_signals = existing.get("source_signal_ids") or []
         signal_str = str(signal_id)
         if signal_str not in existing_signals:
@@ -314,7 +467,8 @@ def _apply_merge(
             updates["source_signal_ids"] = existing_signals
 
     # Merge payload fields (only update non-confirmed fields)
-    for field, value in patch.payload.items():
+    normalized_payload = _normalize_payload(table, patch.payload)
+    for field, value in normalized_payload.items():
         if field in ("id", "project_id", "created_at", "updated_at"):
             continue
         existing_value = existing.get(field)
@@ -331,7 +485,7 @@ def _apply_merge(
             "entity_type": patch.entity_type,
             "entity_id": patch.target_entity_id,
             "operation": "merge",
-            "name": existing.get("name", existing.get("label", "")),
+            "name": existing.get("name", existing.get("label", existing.get("title", ""))),
             "fields_merged": list(updates.keys()),
         }
     except Exception as e:
@@ -355,7 +509,7 @@ def _apply_update(
     try:
         response = (
             sb.table(table)
-            .select("confirmation_status, name")
+            .select("*")
             .eq("id", patch.target_entity_id)
             .single()
             .execute()
@@ -382,8 +536,11 @@ def _apply_update(
         )
         return None
 
+    # Normalize payload fields to match actual DB columns
+    normalized_payload = _normalize_payload(table, patch.payload)
+
     updates: dict[str, Any] = {"updated_at": "now()"}
-    for field, value in patch.payload.items():
+    for field, value in normalized_payload.items():
         if field in ("id", "project_id", "created_at"):
             continue
         updates[field] = value
@@ -394,8 +551,8 @@ def _apply_update(
             "entity_type": patch.entity_type,
             "entity_id": patch.target_entity_id,
             "operation": "update",
-            "name": existing.get("name", ""),
-            "fields_updated": list(patch.payload.keys()),
+            "name": existing.get("name", existing.get("label", existing.get("title", ""))),
+            "fields_updated": list(normalized_payload.keys()),
         }
     except Exception as e:
         logger.error(f"Update failed for {patch.target_entity_id}: {e}")
@@ -521,7 +678,12 @@ def _apply_vision_patch(project_id: UUID, patch: EntityPatch) -> dict | None:
 
 def _summarize_patch(patch: EntityPatch) -> str:
     """Short summary of a patch for logging/escalation."""
-    name = patch.payload.get("name", patch.payload.get("label", ""))
+    name = (
+        patch.payload.get("name")
+        or patch.payload.get("label")
+        or patch.payload.get("title")
+        or patch.payload.get("description", "")
+    )
     return f"{patch.operation} {patch.entity_type}: {name}"[:100]
 
 
@@ -557,20 +719,44 @@ def _record_state_revision(
 
 def _record_evidence_links(
     patches: list[EntityPatch],
-    signal_id: UUID,
-    modified_ids: list[str],
+    applied_results: list[dict],
 ) -> None:
-    """Link chunk evidence to modified entities."""
+    """Link chunk evidence to modified entities.
+
+    Iterates applied patches and calls record_chunk_impacts per entity,
+    matching patches to their applied results by target_entity_id.
+    """
     from app.db.signals import record_chunk_impacts
 
-    chunk_ids = set()
-    for patch in patches:
-        for ev in patch.evidence:
-            chunk_ids.add(ev.chunk_id)
+    # Build map of entity_id → applied result (for merge/update/stale matches)
+    applied_map = {a["entity_id"]: a for a in applied_results}
 
-    if chunk_ids:
-        record_chunk_impacts(
-            signal_id=signal_id,
-            chunk_ids=list(chunk_ids),
-            entity_ids=modified_ids,
-        )
+    for patch in patches:
+        if not patch.evidence:
+            continue
+
+        chunk_ids = [ev.chunk_id for ev in patch.evidence if ev.chunk_id]
+        if not chunk_ids:
+            continue
+
+        # Find the entity_id — for merge/update it's target_entity_id,
+        # for create it's in the applied results
+        entity_id = patch.target_entity_id
+        if not entity_id:
+            # For creates, match by entity_type + name in applied results
+            for a in applied_results:
+                if a["entity_type"] == patch.entity_type and a["operation"] == "create":
+                    entity_id = a["entity_id"]
+                    break
+
+        if not entity_id or entity_id not in applied_map:
+            continue
+
+        try:
+            record_chunk_impacts(
+                chunk_ids=chunk_ids,
+                entity_type=patch.entity_type,
+                entity_id=UUID(entity_id),
+            )
+        except Exception as e:
+            logger.warning(f"Evidence link failed for {entity_id}: {e}")

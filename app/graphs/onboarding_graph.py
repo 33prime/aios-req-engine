@@ -100,6 +100,10 @@ def run_onboarding(
     run_id: UUID,
 ) -> dict:
     """
+    DEPRECATED: Uses V1 build_state_graph which destructively overwrites entities.
+    New projects should use project_launch.py (entity_generation + entity_linking with V2).
+    Only still called from legacy project creation paths (projects.py, project_creation.py).
+
     Run full onboarding: extract_facts then build_state.
 
     This is a convenience wrapper that chains the two agents together

@@ -327,63 +327,9 @@ def _auto_trigger_processing(
         # Don't raise - ingestion already succeeded
 
 
-def _auto_trigger_build_state(project_id: UUID, run_id: UUID) -> None:
-    """
-    Auto-trigger build_state agent to create features, personas, PRD, VP from facts.
-
-    This runs after extract_facts in initial mode to populate the project state.
-    After build_state completes, checks baseline and triggers research if ready.
-
-    Args:
-        project_id: Project UUID
-        run_id: Run tracking UUID
-    """
-    from app.db.jobs import complete_job, create_job, fail_job, start_job
-
-    logger.info(
-        f"Auto-triggering build_state for project {project_id}",
-        extra={"run_id": str(run_id), "project_id": str(project_id)},
-    )
-
-    # Create job for visibility
-    build_job_id = create_job(
-        project_id=project_id,
-        job_type="build_state",
-        input_json={"trigger": "auto_after_extract_facts"},
-        run_id=run_id,
-    )
-    start_job(build_job_id)
-
-    try:
-        from app.graphs.build_state_graph import run_build_state_agent
-
-        llm_output, vp_count, features_count = run_build_state_agent(
-            project_id=project_id,
-            job_id=build_job_id,
-            run_id=run_id,
-            include_research=False,  # No research yet in initial mode
-        )
-
-        result = {
-            "features_created": features_count,
-            "vp_steps_created": vp_count,
-            "summary": llm_output.summary if hasattr(llm_output, 'summary') else "State built successfully",
-        }
-
-        logger.info(
-            f"Build state completed: {features_count} features, {vp_count} VP steps",
-            extra={"run_id": str(run_id), "result": result},
-        )
-
-        complete_job(build_job_id, output_json=result)
-
-        # Check baseline readiness and trigger research if ready
-        _check_and_trigger_research(project_id, run_id)
-
-    except Exception as e:
-        logger.exception("Build state failed", extra={"run_id": str(run_id)})
-        fail_job(build_job_id, str(e))
-        # Don't raise - extract_facts already succeeded
+# REMOVED: _auto_trigger_build_state — was dead code (never called).
+# Used V1 build_state_graph which destructively overwrites entities.
+# All signal processing now uses V2 (process_signal_v2).
 
 
 def _check_and_trigger_research(project_id: UUID, run_id: UUID) -> None:

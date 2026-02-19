@@ -64,9 +64,16 @@ class UpdateStatusRequest(BaseModel):
     status: str
 
 
-@router.post("/state/build", response_model=BuildStateResponse)
+@router.post("/state/build", response_model=BuildStateResponse, deprecated=True)
 async def build_state(request: BuildStateRequest) -> BuildStateResponse:
     """
+    DEPRECATED: Use Signal Pipeline V2 (process_signal_v2) instead.
+
+    This V1 endpoint uses bulk_replace_features() which destructively overwrites
+    entities, losing V2's evidence tracking, confirmation hierarchy, and memory
+    connections. It only handles features/personas/vp_steps (not workflows,
+    data_entities, constraints, stakeholders, or other BRD entities).
+
     Build canonical state (VP steps, Features, Personas) from extracted facts and signals.
 
     This endpoint:
@@ -84,6 +91,12 @@ async def build_state(request: BuildStateRequest) -> BuildStateResponse:
     Raises:
         HTTPException 500: If state building fails
     """
+    logger.warning(
+        "DEPRECATED: POST /state/build called — uses V1 pipeline which "
+        "destructively overwrites entities. Use V2 signal pipeline instead.",
+        extra={"project_id": str(request.project_id)},
+    )
+
     run_id = uuid.uuid4()
     job_id: UUID | None = None
 

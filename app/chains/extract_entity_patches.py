@@ -9,6 +9,9 @@ The system prompt contains 3 injected layers:
   2. Memory beliefs + insights + open questions
   3. Gap summary + extraction rules
 
+Uses Anthropic tool_use for forced structured output (eliminates JSON parse
+failures) and retries with exponential backoff on transient API errors.
+
 Usage:
     from app.chains.extract_entity_patches import extract_entity_patches
 
@@ -22,6 +25,7 @@ Usage:
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import time
@@ -40,6 +44,93 @@ logger = logging.getLogger(__name__)
 
 
 # =============================================================================
+# Retry settings
+# =============================================================================
+
+_MAX_RETRIES = 2
+_INITIAL_DELAY = 1.0
+
+
+# =============================================================================
+# Tool schema for forced structured output
+# =============================================================================
+
+EXTRACTION_TOOL = {
+    "name": "submit_entity_patches",
+    "description": "Submit the extracted entity patches from the signal.",
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "patches": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "operation": {
+                            "type": "string",
+                            "enum": ["create", "merge", "update", "stale", "delete"],
+                        },
+                        "entity_type": {
+                            "type": "string",
+                            "enum": [
+                                "feature", "persona", "stakeholder", "workflow",
+                                "workflow_step", "data_entity", "business_driver",
+                                "constraint", "competitor", "vision",
+                            ],
+                        },
+                        "target_entity_id": {
+                            "type": "string",
+                            "description": "Full UUID of existing entity for merge/update/stale/delete",
+                        },
+                        "payload": {"type": "object"},
+                        "evidence": {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "chunk_id": {"type": "string"},
+                                    "quote": {"type": "string"},
+                                    "page_or_section": {"type": "string"},
+                                },
+                                "required": ["quote"],
+                            },
+                        },
+                        "confidence": {
+                            "type": "string",
+                            "enum": ["very_high", "high", "medium", "low"],
+                        },
+                        "confidence_reasoning": {"type": "string"},
+                        "source_authority": {
+                            "type": "string",
+                            "enum": ["client", "consultant", "research", "prototype"],
+                        },
+                        "mention_count": {"type": "integer"},
+                        "belief_impact": {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "belief_summary": {"type": "string"},
+                                    "impact": {
+                                        "type": "string",
+                                        "enum": ["supports", "contradicts", "refines"],
+                                    },
+                                    "new_evidence": {"type": "string"},
+                                },
+                            },
+                        },
+                        "answers_question": {"type": "string"},
+                    },
+                    "required": ["operation", "entity_type", "payload", "confidence"],
+                },
+            },
+        },
+        "required": ["patches"],
+    },
+}
+
+
+# =============================================================================
 # System prompt template
 # =============================================================================
 
@@ -49,11 +140,12 @@ Your output is EntityPatch[] — surgical create/merge/update operations targeti
 
 ## RULES
 1. Reference existing entity IDs for merge/update operations — NEVER create duplicates.
-2. For each patch, note if it supports or contradicts a memory belief.
-3. Flag any answers to open questions.
-4. Prioritize extraction of entities that fill the identified gaps.
-5. Every patch MUST have evidence quotes from the source text.
-6. Set confidence based on: explicit statement (high) vs implied/inferred (medium) vs ambiguous (low).
+2. CRITICAL: Use the COMPLETE entity ID from the inventory (full UUID, e.g. "aeb74d67-0bee-4eaa-b25c-6957a724b484"). Never truncate IDs.
+3. For each patch, note if it supports or contradicts a memory belief.
+4. Flag any answers to open questions.
+5. Prioritize extraction of entities that fill the identified gaps.
+6. Every patch MUST have evidence quotes from the source text.
+7. Set confidence based on: explicit statement (high) vs implied/inferred (medium) vs ambiguous (low).
 
 ## ENTITY TYPES & FIELDS
 
@@ -86,7 +178,7 @@ create: {{description, driver_type (pain|goal|kpi), business_impact, affected_us
 merge/update: any subset
 
 ### constraint
-create: {{name, constraint_type (technical|compliance|business|integration), description}}
+create: {{title, constraint_type (technical|compliance|business|integration), description}}
 merge/update: update description
 
 ### competitor
@@ -124,27 +216,7 @@ update: {{statement}} — single vision statement for the project
 
 {memory}
 
-{gaps}
-
-## OUTPUT FORMAT
-Return a JSON array of EntityPatch objects:
-```json
-[
-  {{
-    "operation": "create|merge|update|stale|delete",
-    "entity_type": "feature|persona|stakeholder|workflow|workflow_step|data_entity|business_driver|constraint|competitor|vision",
-    "target_entity_id": "existing-id or null for create",
-    "payload": {{}},
-    "evidence": [{{"chunk_id": "...", "quote": "exact text from source", "page_or_section": "optional"}}],
-    "confidence": "very_high|high|medium|low",
-    "confidence_reasoning": "why this confidence level",
-    "source_authority": "client|consultant|research|prototype",
-    "mention_count": 1,
-    "belief_impact": [{{"belief_summary": "...", "impact": "supports|contradicts|refines", "new_evidence": "..."}}],
-    "answers_question": "open-question-id or null"
-  }}
-]
-```"""
+{gaps}"""
 
 
 # =============================================================================
@@ -249,12 +321,12 @@ async def extract_entity_patches(
 {signal_text[:12000]}
 
 ## Task
-Extract all EntityPatch objects from this signal. Return JSON array only."""
+Extract all EntityPatch objects from this signal. Use the submit_entity_patches tool."""
 
     # Call LLM
     try:
-        raw_output = await _call_extraction_llm(system_prompt, user_prompt)
-        patches = _parse_patches(raw_output, chunk_ids, source_authority)
+        patch_dicts = await _call_extraction_llm(system_prompt, user_prompt)
+        patches = _validate_patches(patch_dicts, chunk_ids, source_authority)
     except Exception as e:
         logger.error(f"Extraction failed: {e}", exc_info=True)
         patches = []
@@ -271,28 +343,72 @@ Extract all EntityPatch objects from this signal. Return JSON array only."""
 
 
 # =============================================================================
-# LLM call
+# LLM call with tool_use + retry
 # =============================================================================
 
 
-async def _call_extraction_llm(system_prompt: str, user_prompt: str) -> str:
-    """Call Sonnet for extraction. Returns raw JSON string."""
-    from anthropic import AsyncAnthropic
+async def _call_extraction_llm(system_prompt: str, user_prompt: str) -> list[dict]:
+    """Call Sonnet for extraction using tool_use for structured output.
+
+    Uses Anthropic tool_use with forced tool_choice to guarantee structured
+    JSON output matching the EXTRACTION_TOOL schema. Retries up to
+    _MAX_RETRIES times with exponential backoff on transient API errors.
+
+    Returns:
+        List of raw patch dicts (schema-validated by Anthropic API).
+    """
+    from anthropic import (
+        APIConnectionError,
+        APITimeoutError,
+        AsyncAnthropic,
+        InternalServerError,
+        RateLimitError,
+    )
 
     from app.core.config import Settings
 
     settings = Settings()
     client = AsyncAnthropic(api_key=settings.ANTHROPIC_API_KEY)
 
-    response = await client.messages.create(
-        model="claude-sonnet-4-5-20250929",
-        max_tokens=8000,
-        system=system_prompt,
-        messages=[{"role": "user", "content": user_prompt}],
-        temperature=0.1,
-    )
+    last_error: Exception | None = None
+    for attempt in range(_MAX_RETRIES + 1):
+        try:
+            response = await client.messages.create(
+                model="claude-sonnet-4-5-20250929",
+                max_tokens=8000,
+                system=system_prompt,
+                messages=[{"role": "user", "content": user_prompt}],
+                temperature=0.1,
+                tools=[EXTRACTION_TOOL],
+                tool_choice={"type": "tool", "name": "submit_entity_patches"},
+            )
 
-    return response.content[0].text
+            # Extract tool input from response
+            for block in response.content:
+                if block.type == "tool_use":
+                    data = block.input
+                    return data.get("patches", [])
+
+            # Fallback: parse text if no tool_use block (shouldn't happen)
+            logger.warning("No tool_use block in extraction response, falling back to text")
+            for block in response.content:
+                if hasattr(block, "text"):
+                    return _parse_text_fallback(block.text)
+            return []
+
+        except (APIConnectionError, APITimeoutError, InternalServerError, RateLimitError) as e:
+            last_error = e
+            if attempt < _MAX_RETRIES:
+                delay = _INITIAL_DELAY * (2 ** attempt)
+                logger.warning(
+                    f"Extraction LLM attempt {attempt + 1}/{_MAX_RETRIES + 1} failed "
+                    f"({type(e).__name__}), retrying in {delay}s"
+                )
+                await asyncio.sleep(delay)
+            else:
+                raise
+
+    raise last_error  # unreachable but satisfies type checker
 
 
 # =============================================================================
@@ -300,36 +416,35 @@ async def _call_extraction_llm(system_prompt: str, user_prompt: str) -> str:
 # =============================================================================
 
 
-def _parse_patches(
-    raw_output: str,
-    chunk_ids: list[str] | None,
-    default_authority: str,
-) -> list[EntityPatch]:
-    """Parse LLM output into validated EntityPatch list."""
-    # Extract JSON from potential markdown code blocks
-    text = raw_output.strip()
+def _parse_text_fallback(raw: str) -> list[dict]:
+    """Parse JSON from raw text output. Fallback only — tool_use is the primary path."""
+    text = raw.strip()
     if text.startswith("```"):
         lines = text.split("\n")
-        # Remove first and last lines (```json and ```)
         lines = [l for l in lines if not l.strip().startswith("```")]
         text = "\n".join(lines)
 
     try:
         data = json.loads(text)
     except json.JSONDecodeError as e:
-        logger.error(f"JSON parse failed: {e}")
-        logger.debug(f"Raw output: {text[:500]}")
+        logger.error(f"Text fallback JSON parse failed: {e}")
         return []
 
-    if not isinstance(data, list):
-        # Maybe wrapped in an object
-        if isinstance(data, dict) and "patches" in data:
-            data = data["patches"]
-        else:
-            data = [data]
+    if isinstance(data, list):
+        return data
+    if isinstance(data, dict) and "patches" in data:
+        return data["patches"]
+    return [data] if isinstance(data, dict) else []
 
+
+def _validate_patches(
+    patch_dicts: list[dict],
+    chunk_ids: list[str] | None,
+    default_authority: str,
+) -> list[EntityPatch]:
+    """Validate raw patch dicts into EntityPatch objects."""
     patches = []
-    for item in data:
+    for item in patch_dicts:
         try:
             # Normalize evidence chunk_ids if not provided by LLM
             evidence = item.get("evidence", [])
@@ -345,7 +460,7 @@ def _parse_patches(
             patch = EntityPatch(**item)
             patches.append(patch)
         except (ValidationError, Exception) as e:
-            logger.warning(f"Failed to parse patch: {e}")
+            logger.warning(f"Failed to validate patch: {e}")
             logger.debug(f"Raw patch: {item}")
 
     return patches

@@ -108,7 +108,10 @@ export const getVpSteps = (projectId: string) =>
 export const getPersonas = (projectId: string) =>
   apiRequest<Persona[]>(`/state/personas?project_id=${projectId}`)
 
-// Agent APIs
+// DEPRECATED: V1 build_state endpoint — uses destructive bulk_replace_features.
+// All signal processing now uses V2 (process_signal_v2).
+// Kept for backwards compatibility but has zero active callers.
+/** @deprecated Use V2 signal pipeline instead */
 export const buildState = (projectId: string) =>
   apiRequest<{ run_id: string; job_id: string; changed_counts: Record<string, number>; summary: string }>(
     '/state/build',

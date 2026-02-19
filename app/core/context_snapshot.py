@@ -216,14 +216,14 @@ async def _build_entity_inventory(project_id: UUID) -> dict[str, list[dict]]:
         sb = get_supabase()
         result = (
             sb.table("constraints")
-            .select("id, name, constraint_type, confirmation_status")
+            .select("id, title, constraint_type, confirmation_status")
             .eq("project_id", str(project_id))
             .execute()
         )
         inventory["constraint"] = [
             {
                 "id": str(c.get("id", "")),
-                "name": c.get("name", ""),
+                "name": c.get("title", ""),
                 "constraint_type": c.get("constraint_type", ""),
                 "confirmation_status": c.get("confirmation_status", "ai_generated"),
             }
@@ -239,7 +239,7 @@ async def _build_entity_inventory(project_id: UUID) -> dict[str, list[dict]]:
 
         sb = get_supabase()
         result = (
-            sb.table("competitor_refs")
+            sb.table("competitor_references")
             .select("id, name, reference_type")
             .eq("project_id", str(project_id))
             .execute()
@@ -277,7 +277,7 @@ def _render_entity_inventory_prompt(inventory: dict[str, list[dict]]) -> str:
         lines.append(f"### {label} ({len(entities)})")
 
         for e in entities[:20]:  # Cap at 20 per type for prompt size
-            eid = e.get("id", "?")[:8]
+            eid = e.get("id", "?")  # Full UUID — LLM needs complete IDs for merge/update patches
             name = e.get("name", "unnamed")
             status = e.get("confirmation_status", "")
             stale = " [STALE]" if e.get("is_stale") else ""

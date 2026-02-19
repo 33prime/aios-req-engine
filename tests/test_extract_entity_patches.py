@@ -7,15 +7,16 @@ import pytest
 
 from app.chains.extract_entity_patches import (
     STRATEGY_BLOCKS,
-    _parse_patches,
+    _parse_text_fallback,
+    _validate_patches,
     extract_entity_patches,
 )
 from app.core.schemas_entity_patch import EntityPatch, EntityPatchList
 
 
-class TestParsePatches:
-    def test_valid_json_array(self):
-        raw = json.dumps([
+class TestValidatePatches:
+    def test_valid_patch_dicts(self):
+        data = [
             {
                 "operation": "create",
                 "entity_type": "feature",
@@ -35,37 +36,28 @@ class TestParsePatches:
                 "confidence": "medium",
                 "source_authority": "consultant",
             },
-        ])
+        ]
 
-        patches = _parse_patches(raw, ["c1", "c2"], "research")
+        patches = _validate_patches(data, ["c1", "c2"], "research")
         assert len(patches) == 2
         assert patches[0].entity_type == "feature"
         assert patches[0].operation == "create"
         assert patches[1].entity_type == "persona"
         assert patches[1].target_entity_id == "p-1"
 
-    def test_json_in_code_block(self):
-        raw = '```json\n[{"operation": "create", "entity_type": "feature", "payload": {"name": "test"}, "confidence": "high", "source_authority": "client"}]\n```'
-        patches = _parse_patches(raw, [], "client")
-        assert len(patches) == 1
-
-    def test_invalid_json(self):
-        patches = _parse_patches("not json at all", [], "research")
-        assert patches == []
-
     def test_invalid_entity_type_skipped(self):
-        raw = json.dumps([
+        data = [
             {"operation": "create", "entity_type": "invalid_type", "payload": {}, "confidence": "high", "source_authority": "client"},
             {"operation": "create", "entity_type": "feature", "payload": {"name": "valid"}, "confidence": "high", "source_authority": "client"},
-        ])
-        patches = _parse_patches(raw, [], "client")
+        ]
+        patches = _validate_patches(data, [], "client")
         assert len(patches) == 1  # Only valid one parsed
 
     def test_default_authority_applied(self):
-        raw = json.dumps([
+        data = [
             {"operation": "create", "entity_type": "feature", "payload": {"name": "test"}, "confidence": "high"},
-        ])
-        patches = _parse_patches(raw, [], "consultant")
+        ]
+        patches = _validate_patches(data, [], "consultant")
         assert patches[0].source_authority == "consultant"
 
     def test_all_11_entity_types_representable(self):
@@ -75,17 +67,17 @@ class TestParsePatches:
             "workflow_step", "data_entity", "business_driver",
             "constraint", "competitor", "vision",
         ]
-        raw = json.dumps([
+        data = [
             {"operation": "create", "entity_type": t, "payload": {"name": f"test_{t}"}, "confidence": "medium", "source_authority": "research"}
             for t in types
-        ])
-        patches = _parse_patches(raw, [], "research")
+        ]
+        patches = _validate_patches(data, [], "research")
         assert len(patches) == 10
         parsed_types = {p.entity_type for p in patches}
         assert parsed_types == set(types)
 
     def test_merge_update_have_target_id(self):
-        raw = json.dumps([
+        data = [
             {
                 "operation": "merge",
                 "entity_type": "feature",
@@ -103,14 +95,14 @@ class TestParsePatches:
                 "confidence": "very_high",
                 "source_authority": "client",
             },
-        ])
-        patches = _parse_patches(raw, ["c1"], "client")
+        ]
+        patches = _validate_patches(data, ["c1"], "client")
         assert patches[0].target_entity_id == "feat-123"
         assert patches[1].target_entity_id == "step-456"
 
     def test_chunk_id_fallback(self):
         """If LLM doesn't provide chunk_id, use first available."""
-        raw = json.dumps([
+        data = [
             {
                 "operation": "create",
                 "entity_type": "feature",
@@ -119,9 +111,35 @@ class TestParsePatches:
                 "confidence": "high",
                 "source_authority": "client",
             },
-        ])
-        patches = _parse_patches(raw, ["real-chunk-1"], "client")
+        ]
+        patches = _validate_patches(data, ["real-chunk-1"], "client")
         assert patches[0].evidence[0].chunk_id == "real-chunk-1"
+
+
+class TestParseTextFallback:
+    def test_json_array(self):
+        raw = json.dumps([{"operation": "create", "entity_type": "feature", "payload": {}}])
+        result = _parse_text_fallback(raw)
+        assert len(result) == 1
+
+    def test_json_in_code_block(self):
+        raw = '```json\n[{"operation": "create"}]\n```'
+        result = _parse_text_fallback(raw)
+        assert len(result) == 1
+
+    def test_invalid_json(self):
+        result = _parse_text_fallback("not json at all")
+        assert result == []
+
+    def test_wrapped_object(self):
+        raw = json.dumps({"patches": [{"a": 1}, {"b": 2}]})
+        result = _parse_text_fallback(raw)
+        assert len(result) == 2
+
+    def test_single_object(self):
+        raw = json.dumps({"operation": "create"})
+        result = _parse_text_fallback(raw)
+        assert len(result) == 1
 
 
 class TestStrategyBlocks:
@@ -148,7 +166,8 @@ class TestExtractEntityPatches:
         mock_snapshot.memory_prompt = "## Memory\nNo beliefs"
         mock_snapshot.gaps_prompt = "## Gaps\nNo gaps"
 
-        llm_response = json.dumps([
+        # _call_extraction_llm now returns list[dict] (from tool_use)
+        llm_response = [
             {
                 "operation": "create",
                 "entity_type": "feature",
@@ -167,7 +186,7 @@ class TestExtractEntityPatches:
                 "confidence": "medium",
                 "source_authority": "client",
             },
-        ])
+        ]
 
         with patch("app.chains.extract_entity_patches._call_extraction_llm", new_callable=AsyncMock, return_value=llm_response):
             result = await extract_entity_patches(
