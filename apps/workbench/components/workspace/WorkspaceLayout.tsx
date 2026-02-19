@@ -69,7 +69,7 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
 
   // SWR hook for read-only BRD data (cached across page navigations)
   // next_actions are included in the BRD response to avoid a separate API call
-  const { data: brdSwr, mutate: mutateBrd } = useBRDData(projectId, false)
+  const { data: brdSwr, mutate: mutateBrd } = useBRDData(projectId)
   const brdData = brdSwr ?? null
   const nextActions = brdSwr?.next_actions ?? null
   const { data: contextFrame, mutate: mutateContextFrame } = useContextFrame(projectId)

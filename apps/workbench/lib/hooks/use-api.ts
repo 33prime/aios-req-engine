@@ -123,7 +123,7 @@ export function useWorkspaceData(
 // --- BRD workspace data (per-project) ---
 export function useBRDData(
   projectId: string | undefined,
-  includeEvidence = false,
+  includeEvidence = true,
   config?: SWRConfiguration<BRDWorkspaceData>,
 ) {
   const key = projectId

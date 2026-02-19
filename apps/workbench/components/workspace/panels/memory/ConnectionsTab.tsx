@@ -117,7 +117,7 @@ function BeliefChain({ belief, edges, nodeMap }: {
             title={`Supports (${supportEdges.length})`}
             titleColor="text-emerald-700"
             borderColor="border-emerald-300"
-            icon="\u2713"
+            icon="✓"
             edges={supportEdges}
             nodeMap={nodeMap}
             directionKey="from_node_id"
@@ -128,7 +128,7 @@ function BeliefChain({ belief, edges, nodeMap }: {
             title={`Contradictions (${contradictEdges.length})`}
             titleColor="text-gray-600"
             borderColor="border-gray-300"
-            icon="\u2717"
+            icon="✗"
             edges={contradictEdges}
             nodeMap={nodeMap}
             directionKey="from_node_id"
@@ -140,7 +140,7 @@ function BeliefChain({ belief, edges, nodeMap }: {
               title={`Implications (${implicationEdges.length})`}
               titleColor="text-teal-700"
               borderColor="border-teal-300"
-              icon="\u2192"
+              icon="→"
               edges={implicationEdges}
               nodeMap={nodeMap}
               directionKey="to_node_id"

@@ -449,9 +449,9 @@ function HistoryTab({ data }: { data: EntityConfidenceData }) {
                       {rev.revision_type}
                     </span>
                   )}
-                  {rev.created_by && (
-                    <span className="text-[11px] text-[rgba(55,53,47,0.35)]">by {rev.created_by}</span>
-                  )}
+                  <span className="text-[11px] text-[rgba(55,53,47,0.35)]">
+                    by {rev.created_by === 'system' || rev.created_by === 'build_state' || rev.created_by === 'signal_pipeline_v2' || rev.created_by === 'project_launch' ? '✦ AIOS' : rev.created_by || 'AIOS'}
+                  </span>
                 </div>
                 {rev.diff_summary && (
                   <p className="text-[13px] text-[rgba(55,53,47,0.65)] mt-0.5">{rev.diff_summary}</p>

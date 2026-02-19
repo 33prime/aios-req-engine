@@ -541,9 +541,9 @@ def _parse_evidence(raw: list | None) -> list[EvidenceItem]:
     items = []
     for e in raw:
         if isinstance(e, dict):
-            # Drivers store text as 'text', features as 'excerpt'
-            excerpt = e.get("excerpt") or e.get("text") or ""
-            source_type = e.get("source_type") or e.get("fact_type") or "inferred"
+            # Evidence fields vary by source: 'excerpt' (project_launch), 'quote' (V2 pipeline), 'text' (legacy)
+            excerpt = e.get("excerpt") or e.get("quote") or e.get("text") or ""
+            source_type = e.get("source_type") or e.get("fact_type") or ("signal" if e.get("chunk_id") else "inferred")
             rationale = e.get("rationale") or ""
             items.append(EvidenceItem(
                 chunk_id=e.get("chunk_id"),

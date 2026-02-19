@@ -920,9 +920,9 @@ function RevisionCard({ revision }: { revision: RevisionEntry }) {
           {revision.revision_type}
         </span>
         <span className="text-[11px] text-[#999999]">{timeAgo}</span>
-        {revision.created_by && (
-          <span className="text-[11px] text-[#999999]">by {revision.created_by}</span>
-        )}
+        <span className="text-[11px] text-[#999999]">
+          by {revision.created_by === 'system' || revision.created_by === 'build_state' || revision.created_by === 'signal_pipeline_v2' || revision.created_by === 'project_launch' ? '✦ AIOS' : revision.created_by || 'AIOS'}
+        </span>
       </div>
       {revision.diff_summary && (
         <p className="text-[12px] text-[#666666] leading-relaxed">
