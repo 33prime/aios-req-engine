@@ -291,6 +291,8 @@ export function useWorkspaceData(
 }
 
 // --- BRD workspace data (per-project) ---
+// Uses MED_CACHE: data only changes on entity mutations (signals, features, etc.)
+// The realtime hook (useRealtimeBRD) handles instant invalidation after mutations.
 export function useBRDData(
   projectId: string | undefined,
   includeEvidence = true,
@@ -303,7 +305,8 @@ export function useBRDData(
     key,
     () => getBRDWorkspaceData(projectId!, includeEvidence),
     {
-      dedupingInterval: SHORT_CACHE,
+      dedupingInterval: MED_CACHE,
+      revalidateOnFocus: false,
       ...config,
     },
   )

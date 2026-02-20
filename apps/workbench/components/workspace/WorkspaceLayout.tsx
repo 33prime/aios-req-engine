@@ -62,10 +62,10 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
 
   // SWR hook for read-only BRD data (cached across page navigations)
   // next_actions are included in the BRD response to avoid a separate API call
-  const { data: brdSwr, mutate: mutateBrd } = useBRDData(projectId)
+  const { data: brdSwr, isLoading: isBrdLoading, mutate: mutateBrd } = useBRDData(projectId)
   const brdData = brdSwr ?? null
   const nextActions = brdSwr?.next_actions ?? null
-  const { data: contextFrame, mutate: mutateContextFrame } = useContextFrame(projectId)
+  const { data: contextFrame, isLoading: isContextFrameLoading, mutate: mutateContextFrame } = useContextFrame(projectId)
   useRealtimeBRD(projectId)
   const [collaborationState, setCollaborationState] = useState<PanelState>('normal')
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true)
@@ -663,8 +663,10 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
                 canvasData={canvasData}
                 readinessData={readinessData}
                 brdData={brdData}
+                isBrdLoading={isBrdLoading}
                 nextActions={nextActions}
                 contextActions={contextFrame?.actions}
+                isLoadingActions={isContextFrameLoading}
                 onNavigateToPhase={(p) => setPhase(p)}
                 onActionExecute={handleActionExecuteFromOverview}
                 onOpenHealth={() => setShowHealthOverlay(true)}

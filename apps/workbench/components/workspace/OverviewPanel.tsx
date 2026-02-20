@@ -43,8 +43,10 @@ interface OverviewPanelProps {
   canvasData: CanvasData
   readinessData: ReadinessScore | null
   brdData: BRDWorkspaceData | null
+  isBrdLoading?: boolean
   nextActions: NextAction[] | null
   contextActions?: TerseAction[]
+  isLoadingActions?: boolean
   onNavigateToPhase: (phase: 'discovery' | 'build') => void
   onActionExecute?: (action: NextAction) => void
   /** Open the unified health modal (managed by WorkspaceLayout) */
@@ -64,7 +66,9 @@ export function OverviewPanel({
   projectId,
   canvasData,
   brdData,
+  isBrdLoading,
   contextActions,
+  isLoadingActions,
   onNavigateToPhase,
   onOpenHealth,
 }: OverviewPanelProps) {
@@ -118,12 +122,14 @@ export function OverviewPanel({
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <ProjectPulseCard
           sections={completeness?.sections ?? []}
+          isLoading={isBrdLoading && !brdData}
           questionCounts={questionCounts}
           healthData={healthData}
         />
 
         <ContextActionsCard
           actions={topActions}
+          isLoading={isLoadingActions && !contextActions}
           onNavigateToPhase={onNavigateToPhase}
         />
 
@@ -261,10 +267,12 @@ function HeroDashboard({
 
 function ProjectPulseCard({
   sections,
+  isLoading,
   questionCounts,
   healthData,
 }: {
   sections: SectionScore[]
+  isLoading?: boolean
   questionCounts: QuestionCounts | null
   healthData: BRDHealthData | null
 }) {
@@ -285,16 +293,28 @@ function ProjectPulseCard({
 
       {/* Section bars */}
       <div className="space-y-2 mb-3">
-        {sections.map((sec) => (
-          <SectionBar
-            key={sec.section}
-            label={SECTION_LABELS[sec.section] || sec.section}
-            score={sec.score}
-            maxScore={sec.max_score}
-          />
-        ))}
-        {sections.length === 0 && (
-          <p className="text-[11px] text-[#999999] py-2">No data yet — start uploading signals</p>
+        {isLoading ? (
+          ['Vision', 'Constraints', 'Data Entities', 'Stakeholders', 'Workflows', 'Features'].map((label) => (
+            <div key={label} className="flex items-center gap-3 animate-pulse">
+              <span className="text-[12px] text-[#999] w-[90px] flex-shrink-0">{label}</span>
+              <div className="flex-1 h-2 bg-[#E5E5E5] rounded-full" />
+              <div className="w-8 h-3 bg-[#E5E5E5] rounded" />
+            </div>
+          ))
+        ) : (
+          <>
+            {sections.map((sec) => (
+              <SectionBar
+                key={sec.section}
+                label={SECTION_LABELS[sec.section] || sec.section}
+                score={sec.score}
+                maxScore={sec.max_score}
+              />
+            ))}
+            {sections.length === 0 && (
+              <p className="text-[11px] text-[#999999] py-2">No data yet — start uploading signals</p>
+            )}
+          </>
         )}
       </div>
 
@@ -386,9 +406,11 @@ function SectionBar({
 
 function ContextActionsCard({
   actions,
+  isLoading,
   onNavigateToPhase,
 }: {
   actions: TerseAction[]
+  isLoading?: boolean
   onNavigateToPhase: (phase: 'discovery' | 'build') => void
 }) {
   return (
@@ -398,7 +420,19 @@ function ContextActionsCard({
         <h2 className="text-[13px] font-semibold text-[#333333]">Next Best Actions</h2>
       </div>
 
-      {actions.length > 0 ? (
+      {isLoading ? (
+        <div className="flex-1 flex flex-col gap-2">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="flex items-start gap-3 p-3 bg-[#F4F4F4] rounded-xl animate-pulse">
+              <div className="w-5 h-5 rounded-full bg-[#E5E5E5] flex-shrink-0" />
+              <div className="flex-1 space-y-1.5">
+                <div className="h-2.5 bg-[#E5E5E5] rounded w-16" />
+                <div className="h-3 bg-[#E5E5E5] rounded w-full" />
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : actions.length > 0 ? (
         <div className="flex-1 flex flex-col gap-2">
           {actions.map((action, idx) => {
             const sourceColor = GAP_SOURCE_COLORS[action.gap_source] || '#999999'
