@@ -33,7 +33,7 @@ from app.core.stage_progression import (
     validate_stage_transition,
 )
 from app.db.company_info import batch_get_company_names
-from app.db.profiles import get_profile_by_user_id
+
 from app.db.project_gates import get_or_create_project_gate, upsert_project_gate
 from app.db.projects import (
     archive_project as db_archive_project,
@@ -80,20 +80,25 @@ async def list_all_projects(
         # Convert to response model, preferring company_info.name over projects.client_name
         projects = [_to_project_response(p, company_name=company_names.get(p["id"])) for p in result["projects"]]
 
-        # Fetch owner profiles for all projects
+        # Batch-fetch owner profiles (1 RPC call instead of N sequential queries)
         owner_ids = list(set([UUID(p.created_by) for p in projects if p.created_by]))
         owner_profiles = {}
-        for user_id in owner_ids:
+        if owner_ids:
             try:
-                profile = await get_profile_by_user_id(user_id)
-                if profile:
-                    owner_profiles[str(user_id)] = {
-                        "first_name": profile.first_name,
-                        "last_name": profile.last_name,
-                        "photo_url": profile.photo_url,
+                from app.db.supabase_client import get_supabase
+                supabase = get_supabase()
+                profiles_resp = supabase.rpc(
+                    "get_batch_owner_profiles",
+                    {"p_user_ids": [str(uid) for uid in owner_ids]},
+                ).execute()
+                for row in (profiles_resp.data or []):
+                    owner_profiles[row["user_id"]] = {
+                        "first_name": row.get("first_name"),
+                        "last_name": row.get("last_name"),
+                        "photo_url": row.get("photo_url"),
                     }
             except Exception as e:
-                logger.warning(f"Failed to fetch profile for {user_id}: {e}")
+                logger.warning(f"Batch owner profile fetch failed: {e}")
 
         return ProjectListResponse(projects=projects, total=result["total"], owner_profiles=owner_profiles)
 
@@ -105,21 +110,27 @@ async def list_all_projects(
 class BatchDashboardRequest(BaseModel):
     """Request body for batch dashboard data."""
     project_ids: list[str]
+    include_portal_sync: bool = False
+    include_pending_tasks: bool = False
+    pending_tasks_limit: int = 10
 
 
 @router.post("/batch/dashboard-data")
 async def batch_get_dashboard_data(request: BatchDashboardRequest) -> dict:
-    """Get task stats + next actions for multiple projects in one call.
+    """Get task stats + next actions + portal sync + pending tasks for multiple projects.
 
-    Replaces N getTaskStats() + N getNextActions() calls from the projects list page.
-    Uses SQL RPCs so the entire operation is 2 DB queries regardless of project count.
+    V2: Also returns portal_sync and pending_tasks when requested, eliminating
+    the N+1 frontend loops that were causing 5+ second load times.
+
+    All data is fetched via batch SQL RPCs — total is 2-5 DB queries regardless
+    of project count (was 40+ queries before).
     """
     from app.core.next_actions import compute_next_actions_from_inputs
     from app.db.supabase_client import get_supabase
 
     project_ids = request.project_ids
     if not project_ids:
-        return {"task_stats": {}, "next_actions": {}}
+        return {"task_stats": {}, "next_actions": {}, "portal_sync": {}, "pending_tasks": []}
 
     supabase = get_supabase()
 
@@ -157,10 +168,78 @@ async def batch_get_dashboard_data(request: BatchDashboardRequest) -> dict:
     except Exception as e:
         logger.warning(f"Batch next-action inputs RPC failed: {e}")
 
-    return {
+    result: dict = {
         "task_stats": task_stats_map,
         "next_actions": next_actions_map,
     }
+
+    # Batch portal sync (1 RPC call — replaces N × 10-14 queries)
+    if request.include_portal_sync:
+        portal_sync_map: dict[str, dict] = {}
+        try:
+            portal_resp = supabase.rpc(
+                "get_batch_portal_sync",
+                {"p_project_ids": project_ids},
+            ).execute()
+
+            for row in (portal_resp.data or []):
+                portal_sync_map[row["project_id"]] = {
+                    "portal_enabled": row["portal_enabled"],
+                    "portal_phase": row["portal_phase"],
+                    "questions": {
+                        "sent": row["questions_sent"],
+                        "completed": row["questions_completed"],
+                        "in_progress": row["questions_in_progress"],
+                        "pending": row["questions_pending"],
+                    },
+                    "documents": {
+                        "sent": row["documents_sent"],
+                        "completed": row["documents_completed"],
+                        "in_progress": row["documents_in_progress"],
+                        "pending": row["documents_pending"],
+                    },
+                    "clients_invited": row["clients_invited"],
+                    "clients_active": row["clients_active"],
+                    "last_client_activity": row["last_client_activity"],
+                }
+        except Exception as e:
+            logger.warning(f"Batch portal sync RPC failed: {e}")
+
+        result["portal_sync"] = portal_sync_map
+
+    # Batch pending tasks (1 RPC call — replaces N × listTasks() round-trips)
+    if request.include_pending_tasks:
+        pending_tasks: list[dict] = []
+        try:
+            tasks_resp = supabase.rpc(
+                "get_batch_pending_tasks",
+                {
+                    "p_project_ids": project_ids,
+                    "p_limit": request.pending_tasks_limit,
+                    "p_max_age_days": 10,
+                },
+            ).execute()
+
+            pending_tasks = [
+                {
+                    "id": row["id"],
+                    "project_id": row["project_id"],
+                    "title": row["title"],
+                    "task_type": row["task_type"],
+                    "priority_score": float(row["priority_score"] or 0),
+                    "status": row["status"],
+                    "requires_client_input": row["requires_client_input"],
+                    "source_type": row["source_type"],
+                    "created_at": row["created_at"],
+                }
+                for row in (tasks_resp.data or [])
+            ]
+        except Exception as e:
+            logger.warning(f"Batch pending tasks RPC failed: {e}")
+
+        result["pending_tasks"] = pending_tasks
+
+    return result
 
 
 @router.post("/", response_model=ProjectResponse)

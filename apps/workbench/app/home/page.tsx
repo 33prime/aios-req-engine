@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useMemo, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   Search,
@@ -13,12 +13,10 @@ import {
 import { formatDistanceToNow, isToday, isTomorrow, format } from 'date-fns'
 import { AppSidebar } from '@/components/workspace/AppSidebar'
 import { BuildingCardOverlay } from '@/app/projects/components/BuildingCardOverlay'
-import { getCollaborationCurrent } from '@/lib/api'
 import {
   useProfile,
   useProjects,
   useUpcomingMeetings,
-  useCrossProjectTasks,
   useBatchDashboardData,
 } from '@/lib/hooks/use-api'
 import { useRealtimeDashboard } from '@/lib/realtime'
@@ -27,7 +25,7 @@ import type {
   Profile,
   Meeting,
 } from '@/types/api'
-import type { NextAction, Task, CollaborationCurrentResponse } from '@/lib/api'
+import type { NextAction, Task } from '@/lib/api'
 
 // =============================================================================
 // Constants
@@ -429,12 +427,11 @@ function SchedulePanel({ meetings }: { meetings: Meeting[]; }) {
 // =============================================================================
 
 export default function HomeDashboard() {
-  const [portalSyncMap, setPortalSyncMap] = useState<Record<string, CollaborationCurrentResponse['portal_sync'] | null>>({})
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
 
   useRealtimeDashboard()
 
-  // Data hooks
+  // Data hooks — Wave 1 (parallel on mount)
   const { data: profile } = useProfile()
   const { data: projectsData, isLoading: projectsLoading, mutate: mutateProjects } = useProjects('active')
   const { data: meetingsData } = useUpcomingMeetings(8)
@@ -468,46 +465,24 @@ export default function HomeDashboard() {
     return () => clearInterval(interval)
   }, [hasBuilding, mutateProjects])
 
-  // Per-project next best actions (batch endpoint — single POST instead of N calls)
+  // All project IDs (for batch endpoint)
   const projectIds = useMemo(() => allProjects.map((p) => p.id), [allProjects])
-  const dashboardProjectIds = useMemo(
-    () => dashboardProjects.map((p) => p.id),
-    [dashboardProjects],
-  )
 
+  // Single batch call: next actions + portal sync + pending tasks (5 RPC queries total)
+  // Replaces: N × getCollaborationCurrent (10-14 queries each) + N × listTasks
   const { data: batchData } = useBatchDashboardData(
-    dashboardProjectIds.length > 0 ? dashboardProjectIds : undefined,
+    projectIds.length > 0 ? projectIds : undefined,
+    { includePortalSync: true, includePendingTasks: true, pendingTasksLimit: 5 },
   )
   const nextActionsMap = batchData?.next_actions ?? {}
+  const globalTasks = batchData?.pending_tasks ?? []
 
-  // Cross-project tasks
-  const { data: globalTasks } = useCrossProjectTasks(
-    projectIds.length > 0 ? projectIds : undefined,
-    5,
-  )
-
-  // Portal sync per project
-  useEffect(() => {
-    const portalProjects = allProjects.filter((p) => p.portal_enabled)
-    if (portalProjects.length === 0) return
-
-    Promise.all(
-      portalProjects.map((p) =>
-        getCollaborationCurrent(p.id)
-          .then((res) => ({ id: p.id, sync: res.portal_sync }))
-          .catch(() => ({ id: p.id, sync: null }))
-      )
-    ).then((results) => {
-      const syncMap: Record<string, CollaborationCurrentResponse['portal_sync'] | null> = {}
-      for (const r of results) syncMap[r.id] = r.sync
-      setPortalSyncMap(syncMap)
-    })
-  }, [allProjects])
-
-  // Derive portal info per project
+  // Derive portal info from batch portal_sync data
   const portalMap = useMemo(() => {
     const map: Record<string, PortalInfo> = {}
-    for (const [projectId, sync] of Object.entries(portalSyncMap)) {
+    const syncMap = batchData?.portal_sync ?? {}
+
+    for (const [projectId, sync] of Object.entries(syncMap)) {
       if (!sync) {
         map[projectId] = { pendingQuestions: 0, pendingDocuments: 0, lastActivity: null, items: [{ text: 'No portal activity', dot: '#E5E5E5', time: '' }] }
         continue
@@ -535,7 +510,7 @@ export default function HomeDashboard() {
       map[projectId] = { pendingQuestions: pq, pendingDocuments: pd, lastActivity: sync.last_client_activity ?? null, items }
     }
     return map
-  }, [portalSyncMap])
+  }, [batchData?.portal_sync])
 
   // Stats
   const meetingsToday = useMemo(

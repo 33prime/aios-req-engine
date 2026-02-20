@@ -145,20 +145,23 @@ export function useMeetings(
   )
 }
 
-// --- Batch dashboard data (task stats + next actions for multiple projects) ---
+// --- Batch dashboard data (task stats + next actions + portal sync + tasks) ---
 export function useBatchDashboardData(
   projectIds: string[] | undefined,
+  opts?: { includePortalSync?: boolean; includePendingTasks?: boolean; pendingTasksLimit?: number },
   config?: SWRConfiguration<BatchDashboardData>,
 ) {
   // Stable key: sort IDs so order doesn't matter
   const sortedIds = projectIds ? [...projectIds].sort() : null
+  const ps = opts?.includePortalSync ? ':ps' : ''
+  const pt = opts?.includePendingTasks ? ':pt' : ''
   const key = sortedIds && sortedIds.length > 0
-    ? `batch-dashboard:${sortedIds.join(',')}`
+    ? `batch-dashboard:${sortedIds.join(',')}${ps}${pt}`
     : null
 
   return useSWR<BatchDashboardData>(
     key,
-    () => batchGetDashboardData(sortedIds!),
+    () => batchGetDashboardData(sortedIds!, opts),
     {
       dedupingInterval: MED_CACHE,
       revalidateOnFocus: false,

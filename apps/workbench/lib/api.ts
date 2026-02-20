@@ -2892,15 +2892,35 @@ export const getConversationMessages = (
     `/v1/conversations/${conversationId}/messages?limit=${limit}`,
   )
 
+export interface PortalSyncBatch {
+  portal_enabled: boolean
+  portal_phase: string
+  questions: { sent: number; completed: number; in_progress: number; pending: number }
+  documents: { sent: number; completed: number; in_progress: number; pending: number }
+  clients_invited: number
+  clients_active: number
+  last_client_activity: string | null
+}
+
 export interface BatchDashboardData {
   task_stats: Record<string, TaskStatsResponse>
   next_actions: Record<string, NextAction[]>
+  portal_sync?: Record<string, PortalSyncBatch>
+  pending_tasks?: Task[]
 }
 
-export const batchGetDashboardData = (projectIds: string[]) =>
+export const batchGetDashboardData = (
+  projectIds: string[],
+  opts?: { includePortalSync?: boolean; includePendingTasks?: boolean; pendingTasksLimit?: number },
+) =>
   apiRequest<BatchDashboardData>('/projects/batch/dashboard-data', {
     method: 'POST',
-    body: JSON.stringify({ project_ids: projectIds }),
+    body: JSON.stringify({
+      project_ids: projectIds,
+      include_portal_sync: opts?.includePortalSync ?? false,
+      include_pending_tasks: opts?.includePendingTasks ?? false,
+      pending_tasks_limit: opts?.pendingTasksLimit ?? 10,
+    }),
   })
 
 export const getDataEntityGraph = (projectId: string) =>
