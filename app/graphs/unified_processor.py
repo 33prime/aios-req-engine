@@ -255,7 +255,11 @@ async def v2_load_context(state: V2ProcessorState) -> dict[str, Any]:
 
 
 async def v2_extract_patches(state: V2ProcessorState) -> dict[str, Any]:
-    """Step 4: Extract EntityPatch[] from signal using Sonnet + context."""
+    """Step 4: Extract EntityPatch[] from signal.
+
+    Uses parallel per-chunk Haiku extraction when signal_chunks >= 2 (documents).
+    Falls back to single Sonnet call for chunk-less signals (notes, chat, email).
+    """
     if not state.signal_text:
         logger.warning("[v2] No signal text to extract from")
         return {"entity_patches": None}
@@ -266,26 +270,44 @@ async def v2_extract_patches(state: V2ProcessorState) -> dict[str, Any]:
     )
 
     try:
-        from app.chains.extract_entity_patches import extract_entity_patches
-
-        # Get chunk IDs for evidence references
-        chunk_ids: list[str] = []
+        # Load chunks for this signal
+        chunks: list[dict] = []
         try:
             from app.db.signals import list_signal_chunks
             chunks = list_signal_chunks(state.signal_id)
-            chunk_ids = [str(c.get("id", "")) for c in chunks]
         except Exception as e:
             logger.debug(f"[v2] Could not load signal chunks: {e}")
 
-        patch_list = await extract_entity_patches(
-            signal_text=state.signal_text,
-            signal_type=state.signal_type,
-            context_snapshot=state.context_snapshot,
-            chunk_ids=chunk_ids,
-            source_authority=state.source_authority,
-            signal_id=str(state.signal_id),
-            run_id=str(state.run_id),
-        )
+        if len(chunks) >= 2:
+            # Parallel chunk extraction (fast path — Haiku map-reduce)
+            from app.chains.extract_entity_patches import extract_patches_parallel
+
+            logger.info(
+                f"[v2] Using parallel extraction ({len(chunks)} chunks)",
+                extra={"signal_id": str(state.signal_id)},
+            )
+            patch_list = await extract_patches_parallel(
+                chunks=chunks,
+                signal_type=state.signal_type,
+                context_snapshot=state.context_snapshot,
+                source_authority=state.source_authority,
+                signal_id=str(state.signal_id),
+                run_id=str(state.run_id),
+            )
+        else:
+            # Single-call fallback for chunk-less signals
+            from app.chains.extract_entity_patches import extract_entity_patches
+
+            chunk_ids = [str(c.get("id", "")) for c in chunks]
+            patch_list = await extract_entity_patches(
+                signal_text=state.signal_text,
+                signal_type=state.signal_type,
+                context_snapshot=state.context_snapshot,
+                chunk_ids=chunk_ids,
+                source_authority=state.source_authority,
+                signal_id=str(state.signal_id),
+                run_id=str(state.run_id),
+            )
 
         logger.info(
             f"[v2] Extracted {len(patch_list.patches)} patches",
