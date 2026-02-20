@@ -462,11 +462,19 @@ async def generate_solution_flow(
             )
             elapsed_ms = int((time.monotonic() - t0) * 1000)
 
+            logger.info(
+                f"Response stop_reason={response.stop_reason}, "
+                f"blocks={[b.type for b in response.content]}, "
+                f"usage in={response.usage.input_tokens} out={response.usage.output_tokens}"
+            )
+
             for block in response.content:
                 if block.type == "tool_use" and block.name == "submit_solution_flow_steps":
                     generated_steps = block.input.get("steps", [])
                     summary = block.input.get("summary", "")
                     break
+                elif block.type == "text":
+                    logger.warning(f"Got text block instead of tool_use: {block.text[:200]}")
 
             if generated_steps:
                 logger.info(
