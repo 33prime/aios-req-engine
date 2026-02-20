@@ -326,6 +326,8 @@ export function useNextActions(
 }
 
 // --- Context frame (v3 — action count for BrainBubble badge) ---
+// Backend uses fingerprint-based caching: only calls Haiku LLM when entity data
+// actually changes. Safe to cache longer on the frontend side.
 export function useContextFrame(
   projectId: string | undefined,
   config?: SWRConfiguration<ProjectContextFrame>,
@@ -334,8 +336,8 @@ export function useContextFrame(
     projectId ? SWR_KEYS.contextFrame(projectId) : null,
     () => getContextFrame(projectId!, 5),
     {
-      dedupingInterval: MED_CACHE,
-      revalidateOnFocus: true,
+      dedupingInterval: LONG_CACHE,
+      revalidateOnFocus: false,
       ...config,
     },
   )

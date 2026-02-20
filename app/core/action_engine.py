@@ -1331,11 +1331,31 @@ def _build_entity_inventory(data: dict) -> dict[str, list[dict]]:
 
 
 # =============================================================================
-# Context Frame Cache (2-min TTL)
+# Context Frame Cache (fingerprint-based — only recompute when data changes)
 # =============================================================================
 
-_context_frame_cache: dict[str, tuple[float, object]] = {}
-_CONTEXT_FRAME_TTL = 120  # seconds
+# Cache entry: (timestamp, data_fingerprint, frame)
+_context_frame_cache: dict[str, tuple[float, str, object]] = {}
+_CONTEXT_FRAME_MAX_TTL = 1800  # 30 min safety net
+
+
+def _compute_data_fingerprint(data: dict) -> str:
+    """Hash entity counts + workflow structure to detect meaningful changes.
+
+    The context frame only needs recomputation when entities are added/removed
+    or workflows change — not on every page load.
+    """
+    import hashlib
+    import json
+
+    counts = _count_entities(data)
+    # Include workflow pair IDs to detect workflow structure changes
+    wf_ids = sorted(
+        f"{wp.get('current', {}).get('id', '')}:{wp.get('future', {}).get('id', '')}"
+        for wp in (data.get("workflow_pairs") or [])
+    )
+    fingerprint_data = json.dumps({"counts": counts, "wf": wf_ids}, sort_keys=True)
+    return hashlib.md5(fingerprint_data.encode()).hexdigest()[:16]
 
 
 def invalidate_context_frame(project_id: UUID | str) -> None:
@@ -1358,31 +1378,45 @@ async def compute_context_frame(
     2. Haiku signal + knowledge gaps (fast, ~200ms)
     3. Merge + rank into terse actions
 
-    Results are cached for 2 minutes per project to avoid redundant
-    DB queries + LLM calls on rapid chat messages.
+    Cache strategy: fingerprint-based. The frame is cached until either:
+    - Entity data changes (fingerprint mismatch after DB load)
+    - invalidate_context_frame() is called (explicit mutation)
+    - 30-minute safety-net TTL expires
+
+    This avoids redundant Haiku calls when nothing has changed.
 
     Args:
         project_id: Project UUID
         max_actions: Max terse actions to return
     """
-    cache_key = str(project_id)
-    now = time.time()
-
-    # Check cache
-    if cache_key in _context_frame_cache:
-        cached_at, cached_frame = _context_frame_cache[cache_key]
-        if now - cached_at < _CONTEXT_FRAME_TTL:
-            logger.info(f"Context frame cache HIT for {cache_key} (age={now - cached_at:.0f}s)")
-            return cached_frame  # type: ignore
-
     from app.core.schemas_actions import (
         CTAType,
         ProjectContextFrame,
         TerseAction,
     )
 
-    # Load project data (single async boundary)
+    cache_key = str(project_id)
+    now = time.time()
+
+    # Load project data (needed for both cache check and computation)
     data = await _load_project_data(project_id)
+    current_fingerprint = _compute_data_fingerprint(data)
+
+    # Check cache: serve if fingerprint matches AND within max TTL
+    if cache_key in _context_frame_cache:
+        cached_at, cached_fp, cached_frame = _context_frame_cache[cache_key]
+        age = now - cached_at
+        if cached_fp == current_fingerprint and age < _CONTEXT_FRAME_MAX_TTL:
+            logger.info(
+                f"Context frame cache HIT for {cache_key} "
+                f"(age={age:.0f}s, fingerprint match)"
+            )
+            return cached_frame  # type: ignore
+        if cached_fp != current_fingerprint:
+            logger.info(
+                f"Context frame cache STALE for {cache_key} "
+                f"(fingerprint changed: {cached_fp} → {current_fingerprint})"
+            )
 
     # Phase detection (new 4-tier system)
     phase, phase_progress = _detect_context_phase(data)
@@ -1506,8 +1540,8 @@ async def compute_context_frame(
         open_questions=open_questions_summary,
     )
 
-    # Cache the result
-    _context_frame_cache[cache_key] = (time.time(), frame)
-    logger.info(f"Context frame cache MISS for {cache_key} — computed and cached")
+    # Cache the result with fingerprint
+    _context_frame_cache[cache_key] = (time.time(), current_fingerprint, frame)
+    logger.info(f"Context frame cache MISS for {cache_key} — computed and cached (fp={current_fingerprint})")
 
     return frame
