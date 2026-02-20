@@ -184,22 +184,26 @@ export function KnowledgeTab({ projectId, data: vizData }: KnowledgeTabProps) {
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null)
   const [showAddBelief, setShowAddBelief] = useState(false)
 
-  // Use SWR data, fallback to vizData
-  const graphData: IntelGraphResponse | null = swrGraphData ?? (vizData ? {
-    nodes: vizData.nodes.map((n) => ({
-      ...n,
-      content: n.summary,
-      is_active: true,
-      consultant_status: null,
-      consultant_note: null,
-      consultant_status_at: null,
-      hypothesis_status: null,
-      linked_entity_type: n.linked_entity_type ?? null,
-      linked_entity_id: null,
-    })),
-    edges: vizData.edges,
-    stats: vizData.stats as unknown as Record<string, number>,
-  } : null)
+  // Use SWR data, fallback to vizData — memoize to prevent infinite re-render
+  const graphData: IntelGraphResponse | null = useMemo(() => {
+    if (swrGraphData) return swrGraphData
+    if (!vizData) return null
+    return {
+      nodes: vizData.nodes.map((n) => ({
+        ...n,
+        content: n.summary,
+        is_active: true,
+        consultant_status: null,
+        consultant_note: null,
+        consultant_status_at: null,
+        hypothesis_status: null,
+        linked_entity_type: n.linked_entity_type ?? null,
+        linked_entity_id: null,
+      })),
+      edges: vizData.edges,
+      stats: vizData.stats as unknown as Record<string, number>,
+    }
+  }, [swrGraphData, vizData])
   const isLoading = swrLoading && !vizData
 
   const { nodes: flowNodes, edges: flowEdges } = useMemo(
