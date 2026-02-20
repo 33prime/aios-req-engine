@@ -22,11 +22,9 @@ import { BrainBubble, BRAIN_PANEL_WIDTH } from './BrainBubble'
 import { useChat } from '@/lib/useChat'
 import { AssistantProvider } from '@/lib/assistant'
 import {
-  getWorkspaceData,
   updatePitchLine,
   updatePrototypeUrl,
   mapFeatureToStep,
-  getReadinessScore,
   getPrototypeForProject,
   generatePrototype,
   endConsultantReview,
@@ -34,10 +32,10 @@ import {
   triggerPrototypeCodeUpdate,
   getPrototypeSession,
 } from '@/lib/api'
-import { useBRDData, useContextFrame } from '@/lib/hooks/use-api'
+import { useBRDData, useContextFrame, useWorkspaceData } from '@/lib/hooks/use-api'
 import { useRealtimeBRD } from '@/lib/realtime'
 import type { CanvasData } from '@/types/workspace'
-import type { ReadinessScore, NextAction } from '@/lib/api'
+import type { NextAction } from '@/lib/api'
 import type { VpStep } from '@/types/api'
 import type { DesignSelection, FeatureOverlay, FeatureVerdict, PrototypeSession, TourStep, SessionContext, RouteFeatureMap } from '@/types/prototype'
 import type { PrototypeFrameHandle } from '@/components/prototype/PrototypeFrame'
@@ -55,13 +53,10 @@ interface WorkspaceLayoutProps {
 
 export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
   const [phase, setPhase] = useState<WorkspacePhase>('overview')
-  const [canvasData, setCanvasData] = useState<CanvasData | null>(null)
-  const [readinessData, setReadinessData] = useState<ReadinessScore | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  // SWR hook for read-only BRD data (cached across page navigations)
-  // next_actions are included in the BRD response to avoid a separate API call
+  // SWR hooks — all fire on mount in parallel, cached across navigations
+  const { data: canvasData, isLoading: isWorkspaceLoading, mutate: mutateWorkspace } = useWorkspaceData(projectId)
   const { data: brdSwr, isLoading: isBrdLoading, mutate: mutateBrd } = useBRDData(projectId)
   const brdData = brdSwr ?? null
   const nextActions = brdSwr?.next_actions ?? null
@@ -209,57 +204,42 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
     },
   })
 
-  // Load workspace data (canvas + readiness are stateful; BRD + next-actions are SWR-managed)
-  const loadData = useCallback(async () => {
-    try {
-      setIsLoading(true)
-      setError(null)
-
-      // Only block on layout-critical data. Tasks, history, questions
-      // load lazily inside OverviewPanel via their own useEffect.
-      const [data, readiness, proto] = await Promise.all([
-        getWorkspaceData(projectId),
-        getReadinessScore(projectId).catch(() => null),
-        getPrototypeForProject(projectId).catch(() => null),
-      ])
-      if (proto?.deploy_url) {
-        data.prototype_url = proto.deploy_url
-      }
-
-      setCanvasData(data)
-      setReadinessData(readiness)
-
-      // Revalidate SWR-managed BRD data (includes next_actions)
-      mutateBrd()
-
-      // Auto-detect phase based on project state
-      if (data.prototype_url) {
-        setPhase('build')
-      }
-    } catch (err) {
-      console.error('Failed to load workspace data:', err)
-      setError('Failed to load workspace data')
-    } finally {
-      setIsLoading(false)
-    }
-  }, [projectId, mutateBrd])
-
+  // Check for prototype URL (lightweight, non-blocking)
   useEffect(() => {
-    loadData()
-  }, [loadData])
+    getPrototypeForProject(projectId)
+      .then((proto) => {
+        if (proto?.deploy_url && canvasData && !canvasData.prototype_url) {
+          mutateWorkspace((prev) => prev ? { ...prev, prototype_url: proto.deploy_url } : prev, false)
+          setPhase('build')
+        }
+      })
+      .catch(() => {})
+  }, [projectId, canvasData, mutateWorkspace])
+
+  // Auto-detect phase from workspace data
+  useEffect(() => {
+    if (canvasData?.prototype_url) {
+      setPhase('build')
+    }
+  }, [canvasData?.prototype_url])
+
+  // Revalidate all data
+  const loadData = useCallback(async () => {
+    await Promise.all([mutateWorkspace(), mutateBrd()])
+  }, [mutateWorkspace, mutateBrd])
 
   // Handlers
   const handleUpdatePitchLine = async (pitchLine: string) => {
     await updatePitchLine(projectId, pitchLine)
-    setCanvasData((prev) =>
-      prev ? { ...prev, pitch_line: pitchLine } : prev
+    mutateWorkspace((prev) =>
+      prev ? { ...prev, pitch_line: pitchLine } : prev, false
     )
   }
 
   const handleUpdatePrototypeUrl = async (url: string) => {
     await updatePrototypeUrl(projectId, url)
-    setCanvasData((prev) =>
-      prev ? { ...prev, prototype_url: url, prototype_updated_at: new Date().toISOString() } : prev
+    mutateWorkspace((prev) =>
+      prev ? { ...prev, prototype_url: url, prototype_updated_at: new Date().toISOString() } : prev, false
     )
   }
 
@@ -303,7 +283,7 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
 
       // Use the prototype's deploy_url as the canonical URL
       if (deployUrlFromModal) {
-        setCanvasData((prev) => prev ? { ...prev, prototype_url: deployUrlFromModal } : prev)
+        mutateWorkspace((prev) => prev ? { ...prev, prototype_url: deployUrlFromModal } : prev, false)
       }
 
       // Auto-expand collaboration panel
@@ -576,7 +556,7 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
     )
   }
 
-  if (isLoading) {
+  if (isWorkspaceLoading && !canvasData) {
     return (
       <div className="min-h-screen bg-ui-background flex items-center justify-center">
         <div className="text-center">
@@ -661,7 +641,7 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
               <OverviewPanel
                 projectId={projectId}
                 canvasData={canvasData}
-                readinessData={readinessData}
+                readinessData={null}
                 brdData={brdData}
                 isBrdLoading={isBrdLoading}
                 nextActions={nextActions}
@@ -735,7 +715,7 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
                   projectId={projectId}
                   prototypeUrl={canvasData.prototype_url}
                   prototypeUpdatedAt={canvasData.prototype_updated_at}
-                  readinessScore={brdData?.completeness?.overall_score ?? readinessData?.score ?? canvasData.readiness_score}
+                  readinessScore={brdData?.completeness?.overall_score ?? canvasData.readiness_score}
                   onUpdatePrototypeUrl={handleUpdatePrototypeUrl}
                   onGeneratePrototype={handleGeneratePrototype}
                   isReviewActive={isReviewActive}

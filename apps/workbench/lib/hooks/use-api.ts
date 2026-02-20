@@ -276,6 +276,7 @@ export function useTaskComments(
 }
 
 // --- Canvas workspace data (per-project) ---
+// MED_CACHE: data only changes on entity mutations. SWR handles revalidation.
 export function useWorkspaceData(
   projectId: string | undefined,
   config?: SWRConfiguration<CanvasData>,
@@ -284,7 +285,8 @@ export function useWorkspaceData(
     projectId ? SWR_KEYS.workspace(projectId) : null,
     () => getWorkspaceData(projectId!),
     {
-      dedupingInterval: SHORT_CACHE,
+      dedupingInterval: MED_CACHE,
+      revalidateOnFocus: false,
       ...config,
     },
   )
