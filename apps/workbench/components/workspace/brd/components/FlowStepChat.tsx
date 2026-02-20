@@ -273,8 +273,8 @@ export function FlowStepChat({
         </div>
       )}
 
-      {/* Open question cards — at the top, below header/banner */}
-      {activeQuestions.length > 0 && !solvingQuestion && !justResolved && (
+      {/* Open question cards — only shown as empty-state before conversation starts */}
+      {activeQuestions.length > 0 && !solvingQuestion && !justResolved && messages.length === 0 && (
         <QuestionCards
           questions={activeQuestions}
           onSolve={handleSolveQuestion}
@@ -329,11 +329,12 @@ export function FlowStepChat({
             if (e.key === 'Enter' && !e.shiftKey && solvingQuestion && input.trim()) {
               e.preventDefault()
               const answer = input.trim()
+              const qRef = solvingQuestion.question.length > 50
+                ? solvingQuestion.question.slice(0, 50) + '...'
+                : solvingQuestion.question
               setInput('')
               setSolvingQuestion(null)
-              sendMessage(
-                `Re: "${solvingQuestion.question}" — ${answer}. Resolve this question and update the step if this changes anything.`
-              )
+              sendMessage(`${answer}\n\n[resolve: ${qRef}]`)
             }
           }}
         />
