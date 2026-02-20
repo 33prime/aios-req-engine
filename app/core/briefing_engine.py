@@ -4,11 +4,11 @@ Composes deterministic engines + LLM chains into a single IntelligenceBriefing.
 5-phase parallel execution:
   Phase 1: Data loading (reuses _load_project_data from action_engine)
   Phase 2: Deterministic (tensions, hypotheses, gaps, heartbeat)
-  Phase 3: Temporal diff (DB queries + optional Haiku summary)
-  Phase 4: Narrative (Sonnet, only if cache stale)
-  Phase 5: Assembly
+  Phase 3: LLM calls — narrative + starters + temporal summary in parallel
+  Phase 4: Assembly
 """
 
+import asyncio
 import json
 import logging
 from datetime import datetime, timezone
@@ -74,9 +74,9 @@ async def compute_intelligence_briefing(
     beliefs = _load_beliefs(project_id)
     insights = _load_insights(project_id)
 
-    # Check briefing cache
+    # Check briefing cache (is_stale is included in this query — no separate call)
     cached_sections = _get_cached_briefing(project_id)
-    cache_stale = force_refresh or not cached_sections or _is_cache_stale(project_id)
+    cache_stale = force_refresh or not cached_sections
 
     # ── Phase 2: Deterministic (parallel-safe, <50ms) ──
     from app.core.hypothesis_engine import get_active_hypotheses, scan_for_hypotheses
@@ -92,34 +92,43 @@ async def compute_intelligence_briefing(
     heartbeat = _build_heartbeat(project_id, data, entity_counts)
     temporal_diff = compute_temporal_diff(project_id, since_timestamp)
 
-    # ── Phase 3: Temporal diff summary (Haiku, conditional) ──
-    if temporal_diff.changes:
+    # ── Phase 3: LLM calls — run ALL in parallel ──
+    # Build temporal data from raw diff (no Haiku summary yet — that runs concurrently)
+    temporal_data = {
+        "since_label": temporal_diff.since_label,
+        "change_summary": "",  # filled later if Haiku succeeds
+        "counts": temporal_diff.counts,
+        "changes": [c.model_dump(mode="json") for c in temporal_diff.changes[:5]],
+    } if temporal_diff.changes else None
+
+    situation_narrative = ""
+    what_you_should_know = WhatYouShouldKnow()
+    narrative_cached = False
+    conversation_starters: list[ConversationStarter] = []
+
+    # Define async tasks for parallel execution
+    async def _run_temporal_summary() -> str:
+        """Haiku: summarize temporal changes."""
+        if not temporal_diff.changes:
+            return ""
         try:
             from app.core.temporal_diff import summarize_changes
-            temporal_diff.change_summary = await summarize_changes(
+            return await summarize_changes(
                 temporal_diff.changes,
                 project_id=str(project_id),
             )
         except Exception as e:
             logger.warning(f"Change summary failed (non-fatal): {e}")
+            return ""
 
-    # ── Phase 4: Narrative (Sonnet, only if cache stale) ──
-    situation_narrative = ""
-    what_you_should_know = WhatYouShouldKnow()
-    narrative_cached = False
-
-    if cache_stale:
+    async def _run_narrative() -> dict:
+        """Sonnet: generate situation narrative + what you should know."""
+        if not cache_stale:
+            return {}
         try:
             from app.chains.generate_briefing_narrative import generate_briefing_narrative
-
             tension_dicts = [t.model_dump() for t in tensions]
-            temporal_data = {
-                "since_label": temporal_diff.since_label,
-                "change_summary": temporal_diff.change_summary,
-                "counts": temporal_diff.counts,
-                "changes": [c.model_dump(mode="json") for c in temporal_diff.changes[:5]],
-            } if temporal_diff.changes else None
-            result = await generate_briefing_narrative(
+            return await generate_briefing_narrative(
                 project_name=project_name,
                 beliefs=beliefs,
                 insights=insights,
@@ -132,55 +141,30 @@ async def compute_intelligence_briefing(
                 project_id=str(project_id),
                 temporal_changes=temporal_data,
             )
-            situation_narrative = result.get("situation_narrative", "")
-            what_you_should_know = WhatYouShouldKnow(
-                narrative=result.get("what_you_should_know_narrative", ""),
-                bullets=result.get("what_you_should_know_bullets", []),
-            )
-
-            # Cache the narrative
-            _cache_briefing_sections(project_id, {
-                "situation_narrative": situation_narrative,
-                "what_you_should_know": what_you_should_know.model_dump(),
-            })
         except Exception as e:
             logger.warning(f"Narrative generation failed (non-fatal): {e}")
-    else:
-        # Use cached narrative
-        narrative_cached = True
-        situation_narrative = cached_sections.get("situation_narrative", "")
-        wysk_data = cached_sections.get("what_you_should_know", {})
-        what_you_should_know = WhatYouShouldKnow(
-            narrative=wysk_data.get("narrative", ""),
-            bullets=wysk_data.get("bullets", []),
-        )
+            return {}
 
-    # ── Phase 4b: Hypothesis test suggestions (Haiku, conditional) ──
-    new_hypotheses = [h for h in hypotheses if h.status.value == "proposed" and not h.test_suggestion]
-    if new_hypotheses:
+    async def _run_hypothesis_suggestions() -> list[dict]:
+        """Haiku: generate test suggestions for new hypotheses."""
+        new_hyps = [h for h in hypotheses if h.status.value == "proposed" and not h.test_suggestion]
+        if not new_hyps:
+            return []
         try:
             from app.core.hypothesis_engine import generate_test_suggestions
-            suggestions = await generate_test_suggestions(
-                new_hypotheses,
-                project_id=str(project_id),
-            )
-            # Merge suggestions back
-            suggestion_map = {s["hypothesis_id"]: s["test_suggestion"] for s in suggestions}
-            for h in hypotheses:
-                if h.hypothesis_id in suggestion_map:
-                    h.test_suggestion = suggestion_map[h.hypothesis_id]
+            return await generate_test_suggestions(new_hyps, project_id=str(project_id))
         except Exception as e:
             logger.warning(f"Test suggestions failed (non-fatal): {e}")
+            return []
 
-    # ── Phase 4c: Conversation Starters (Sonnet, conditional) ──
-    conversation_starters: list[ConversationStarter] = []
-    starter_situation_summary = ""
-    if cache_stale or not cached_sections or not cached_sections.get("conversation_starters"):
+    async def _run_conversation_starters() -> dict:
+        """Sonnet: generate conversation starters."""
+        if not cache_stale and cached_sections and cached_sections.get("conversation_starters"):
+            return {"cached": True}
         try:
             from app.chains.generate_conversation_starter import generate_conversation_starters
-
             signal_evidence = _load_signal_evidence(project_id)
-            cs_result = await generate_conversation_starters(
+            return await generate_conversation_starters(
                 phase=phase.value,
                 phase_progress=phase_progress,
                 signal_evidence=signal_evidence,
@@ -191,34 +175,73 @@ async def compute_intelligence_briefing(
                 project_id=str(project_id),
                 project_name=project_name,
             )
-            starter_situation_summary = cs_result.get("situation_summary", "")
-            conversation_starters = cs_result.get("starters", [])
-            # Cache alongside narrative
-            existing_cache = cached_sections or {}
-            _cache_briefing_sections(project_id, {
-                **existing_cache,
-                "conversation_starters": [s.model_dump(mode="json") for s in conversation_starters],
-                "starter_situation_summary": starter_situation_summary,
-            })
         except Exception as e:
             logger.warning(f"Conversation starters failed (non-fatal): {e}")
-    else:
-        # Load from cache
-        cs_list = cached_sections.get("conversation_starters", [])
+            return {}
+
+    # Fire all LLM calls concurrently
+    temporal_summary, narrative_result, hyp_suggestions, cs_result = await asyncio.gather(
+        _run_temporal_summary(),
+        _run_narrative(),
+        _run_hypothesis_suggestions(),
+        _run_conversation_starters(),
+    )
+
+    # ── Phase 4: Process results ──
+
+    # Temporal summary
+    temporal_diff.change_summary = temporal_summary
+
+    # Narrative
+    if cache_stale and narrative_result:
+        situation_narrative = narrative_result.get("situation_narrative", "")
+        what_you_should_know = WhatYouShouldKnow(
+            narrative=narrative_result.get("what_you_should_know_narrative", ""),
+            bullets=narrative_result.get("what_you_should_know_bullets", []),
+        )
+        _cache_briefing_sections(project_id, {
+            "situation_narrative": situation_narrative,
+            "what_you_should_know": what_you_should_know.model_dump(),
+        })
+    elif not cache_stale and cached_sections:
+        narrative_cached = True
+        situation_narrative = cached_sections.get("situation_narrative", "")
+        wysk_data = cached_sections.get("what_you_should_know", {})
+        what_you_should_know = WhatYouShouldKnow(
+            narrative=wysk_data.get("narrative", ""),
+            bullets=wysk_data.get("bullets", []),
+        )
+
+    # Hypothesis suggestions
+    if hyp_suggestions:
+        suggestion_map = {s["hypothesis_id"]: s["test_suggestion"] for s in hyp_suggestions}
+        for h in hypotheses:
+            if h.hypothesis_id in suggestion_map:
+                h.test_suggestion = suggestion_map[h.hypothesis_id]
+
+    # Conversation starters
+    if cs_result.get("cached"):
+        cs_list = cached_sections.get("conversation_starters", []) if cached_sections else []
         for cs_data in cs_list:
             try:
                 conversation_starters.append(ConversationStarter(**cs_data))
             except Exception:
                 pass
-        starter_situation_summary = cached_sections.get("starter_situation_summary", "")
+    elif cs_result:
+        conversation_starters = cs_result.get("starters", [])
+        existing_cache = cached_sections or {}
+        _cache_briefing_sections(project_id, {
+            **existing_cache,
+            "conversation_starters": [s.model_dump(mode="json") for s in conversation_starters],
+            "starter_situation_summary": cs_result.get("situation_summary", ""),
+        })
 
     # ── Phase 5: Actions (reuse v3 context frame) ──
     actions = _build_terse_actions(structural_gaps, max_actions)
 
     # ── Phase 6: Assembly ──
-    # Use starter situation summary as the primary narrative (2 sentences)
-    # Fall back to the longer narrative if starters didn't produce one
-    final_narrative = starter_situation_summary or situation_narrative
+    # Prefer the 5-sentence narrative; fall back to starter summary only if narrative empty
+    final_narrative = situation_narrative or cs_result.get("situation_summary", "")
 
     situation = BriefingSituation(
         narrative=final_narrative,
@@ -330,24 +353,6 @@ def _get_cached_briefing(project_id: UUID) -> dict | None:
     except Exception:
         return None
 
-
-def _is_cache_stale(project_id: UUID) -> bool:
-    """Check if briefing cache is stale."""
-    try:
-        from app.db.supabase_client import get_supabase
-        sb = get_supabase()
-        result = (
-            sb.table("synthesized_memory_cache")
-            .select("is_stale")
-            .eq("project_id", str(project_id))
-            .maybe_single()
-            .execute()
-        )
-        if result.data:
-            return result.data.get("is_stale", True)
-        return True  # No cache = stale
-    except Exception:
-        return True
 
 
 def _cache_briefing_sections(project_id: UUID, sections: dict) -> None:
