@@ -15,17 +15,14 @@ import { AppSidebar } from '@/components/workspace/AppSidebar'
 import { BuildingCardOverlay } from '@/app/projects/components/BuildingCardOverlay'
 import {
   useProfile,
-  useProjects,
-  useUpcomingMeetings,
-  useBatchDashboardData,
+  useHomeDashboard,
 } from '@/lib/hooks/use-api'
 import { useRealtimeDashboard } from '@/lib/realtime'
 import type {
   ProjectDetailWithDashboard,
   Profile,
-  Meeting,
 } from '@/types/api'
-import type { NextAction, Task } from '@/lib/api'
+import type { NextAction, Task, HomeDashboardMeeting } from '@/lib/api'
 
 // =============================================================================
 // Constants
@@ -336,11 +333,11 @@ function GlobalTasksPanel({
 // Schedule Panel (timeline dots)
 // =============================================================================
 
-function SchedulePanel({ meetings }: { meetings: Meeting[]; }) {
+function SchedulePanel({ meetings }: { meetings: HomeDashboardMeeting[]; }) {
   const router = useRouter()
   const grouped = useMemo(() => {
-    const groups: { label: string; items: Meeting[] }[] = []
-    const buckets = new Map<string, Meeting[]>()
+    const groups: { label: string; items: HomeDashboardMeeting[] }[] = []
+    const buckets = new Map<string, HomeDashboardMeeting[]>()
 
     for (const m of meetings) {
       const d = new Date(m.meeting_date)
@@ -431,13 +428,14 @@ export default function HomeDashboard() {
 
   useRealtimeDashboard()
 
-  // Data hooks — Wave 1 (parallel on mount)
+  // Single-call: everything the home dashboard needs in ONE HTTP request
   const { data: profile } = useProfile()
-  const { data: projectsData, isLoading: projectsLoading, mutate: mutateProjects } = useProjects('active')
-  const { data: meetingsData } = useUpcomingMeetings(8)
+  const { data: dashboard, isLoading: dashboardLoading, mutate: mutateDashboard } = useHomeDashboard('active')
 
-  const allProjects = projectsData?.projects ?? []
-  const meetings = meetingsData ?? []
+  const allProjects = (dashboard?.projects ?? []) as ProjectDetailWithDashboard[]
+  const meetings = dashboard?.meetings ?? []
+  const nextActionsMap = dashboard?.next_actions ?? {}
+  const globalTasks = dashboard?.pending_tasks ?? []
 
   // Sort projects by updated_at desc, take top 3
   const dashboardProjects = useMemo(() => {
@@ -461,26 +459,14 @@ export default function HomeDashboard() {
   const hasBuilding = useMemo(() => allProjects.some((p) => p.launch_status === 'building'), [allProjects])
   useEffect(() => {
     if (!hasBuilding) return
-    const interval = setInterval(() => mutateProjects(), 8000)
+    const interval = setInterval(() => mutateDashboard(), 8000)
     return () => clearInterval(interval)
-  }, [hasBuilding, mutateProjects])
-
-  // All project IDs (for batch endpoint)
-  const projectIds = useMemo(() => allProjects.map((p) => p.id), [allProjects])
-
-  // Single batch call: next actions + portal sync + pending tasks (5 RPC queries total)
-  // Replaces: N × getCollaborationCurrent (10-14 queries each) + N × listTasks
-  const { data: batchData } = useBatchDashboardData(
-    projectIds.length > 0 ? projectIds : undefined,
-    { includePortalSync: true, includePendingTasks: true, pendingTasksLimit: 5 },
-  )
-  const nextActionsMap = batchData?.next_actions ?? {}
-  const globalTasks = batchData?.pending_tasks ?? []
+  }, [hasBuilding, mutateDashboard])
 
   // Derive portal info from batch portal_sync data
   const portalMap = useMemo(() => {
     const map: Record<string, PortalInfo> = {}
-    const syncMap = batchData?.portal_sync ?? {}
+    const syncMap = dashboard?.portal_sync ?? {}
 
     for (const [projectId, sync] of Object.entries(syncMap)) {
       if (!sync) {
@@ -510,7 +496,7 @@ export default function HomeDashboard() {
       map[projectId] = { pendingQuestions: pq, pendingDocuments: pd, lastActivity: sync.last_client_activity ?? null, items }
     }
     return map
-  }, [batchData?.portal_sync])
+  }, [dashboard?.portal_sync])
 
   // Stats
   const meetingsToday = useMemo(
@@ -521,7 +507,7 @@ export default function HomeDashboard() {
   const sidebarWidth = sidebarCollapsed ? 64 : 224
 
   // Loading state
-  if (projectsLoading) {
+  if (dashboardLoading) {
     return (
       <>
         <AppSidebar

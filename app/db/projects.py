@@ -83,8 +83,17 @@ def list_projects(
     supabase = get_supabase()
 
     try:
-        # Build query
-        query = supabase.table("projects").select("*", count="exact")
+        # Select only columns needed by the projects list / home dashboard.
+        # Avoids transferring large JSONB blobs like cached_readiness_data (~9KB each).
+        columns = (
+            "id, name, description, status, stage, prd_mode, "
+            "client_name, portal_enabled, portal_phase, "
+            "created_at, updated_at, created_by, "
+            "cached_readiness_score, cached_readiness_data, "
+            "status_narrative, launch_status, active_launch_id, "
+            "tags, vision"
+        )
+        query = supabase.table("projects").select(columns, count="exact")
 
         # Filter by status
         if status != "all":

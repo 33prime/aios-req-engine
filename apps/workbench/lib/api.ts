@@ -2923,6 +2923,33 @@ export const batchGetDashboardData = (
     }),
   })
 
+// --- Home Dashboard (single-call, no waterfall) ---
+
+export interface HomeDashboardMeeting {
+  id: string
+  title: string
+  meeting_date: string
+  meeting_time: string | null
+  project_id: string | null
+  status: string
+  project_name?: string
+}
+
+export interface HomeDashboardData {
+  projects: ProjectDetailWithDashboard[]
+  total: number
+  owner_profiles: Record<string, { first_name?: string; last_name?: string; photo_url?: string }>
+  next_actions: Record<string, NextAction[]>
+  portal_sync: Record<string, PortalSyncBatch>
+  pending_tasks: Task[]
+  meetings: HomeDashboardMeeting[]
+}
+
+export const getHomeDashboard = (status = 'active', pendingTasksLimit = 5) =>
+  apiRequest<HomeDashboardData>(
+    `/projects/home-dashboard?status=${status}&pending_tasks_limit=${pendingTasksLimit}`
+  )
+
 export const getDataEntityGraph = (projectId: string) =>
   apiRequest<import('@/types/workspace').DataEntityGraphData>(
     `/projects/${projectId}/workspace/data-entity-graph`

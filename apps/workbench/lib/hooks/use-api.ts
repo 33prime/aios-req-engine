@@ -20,6 +20,7 @@ import {
   listOpenQuestions,
   getQuestionCounts,
   batchGetDashboardData,
+  getHomeDashboard,
   listUpcomingMeetings,
   listMeetings,
   listTasks,
@@ -44,6 +45,7 @@ import type {
   MyTasksResponse,
   TaskCommentListResponse,
   BatchDashboardData,
+  HomeDashboardData,
   MemoryVisualizationResponse,
   UnifiedMemoryResponse,
 } from '@/lib/api'
@@ -165,6 +167,22 @@ export function useBatchDashboardData(
     {
       dedupingInterval: MED_CACHE,
       revalidateOnFocus: false,
+      ...config,
+    },
+  )
+}
+
+// --- Home dashboard (single-call, no waterfall) ---
+export function useHomeDashboard(
+  status = 'active',
+  config?: SWRConfiguration<HomeDashboardData>,
+) {
+  return useSWR<HomeDashboardData>(
+    `home-dashboard:${status}`,
+    () => getHomeDashboard(status),
+    {
+      dedupingInterval: MED_CACHE,
+      revalidateOnFocus: true,
       ...config,
     },
   )
