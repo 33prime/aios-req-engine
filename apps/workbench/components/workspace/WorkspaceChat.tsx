@@ -238,17 +238,12 @@ export function WorkspaceChat({
                   return
                 }
 
-                // Transition to Phase 2 — show progress message and trigger LLM
+                // Transition to Phase 2 — show progress message, wait for entities before triggering LLM
                 phase = 'entity_analysis'
                 onAddLocalMessage?.({
                   role: 'assistant',
                   content: `Got it — **${fname}** is a **${label}**. Extracting requirements now, I'll have a full summary shortly...`,
                 })
-                setTimeout(() => {
-                  externalSendMessage(
-                    `I just uploaded **${fname}** (classified as ${label}). Check the document status and give me a quick initial take — what's in there? Entity extraction is still running in the background.`
-                  )
-                }, 500)
               }
             }
 
@@ -258,27 +253,32 @@ export function WorkspaceChat({
                 done = true
                 clearInterval(poll)
 
-                // Show entity counts as an assistant message (not blue user bubble)
+                // Build entity detail lines for the LLM
                 const entities = status.extracted_entities
-                const countParts: string[] = []
+                const entityLines: string[] = []
                 if (entities) {
-                  if (entities.features.length > 0) countParts.push(`${entities.features.length} features`)
-                  if (entities.personas.length > 0) countParts.push(`${entities.personas.length} personas`)
-                  if (entities.vp_steps.length > 0) countParts.push(`${entities.vp_steps.length} workflow steps`)
-                  if (entities.constraints.length > 0) countParts.push(`${entities.constraints.length} constraints`)
-                  if (entities.stakeholders.length > 0) countParts.push(`${entities.stakeholders.length} stakeholders`)
+                  if (entities.features.length > 0)
+                    entityLines.push(`Features: ${entities.features.map((e: { name: string }) => e.name).join(', ')}`)
+                  if (entities.personas.length > 0)
+                    entityLines.push(`Personas: ${entities.personas.map((e: { name: string }) => e.name).join(', ')}`)
+                  if (entities.vp_steps.length > 0)
+                    entityLines.push(`Workflow Steps: ${entities.vp_steps.map((e: { name: string }) => e.name).join(', ')}`)
+                  if (entities.constraints.length > 0)
+                    entityLines.push(`Constraints: ${entities.constraints.map((e: { name: string }) => e.name).join(', ')}`)
+                  if (entities.stakeholders.length > 0)
+                    entityLines.push(`Stakeholders: ${entities.stakeholders.map((e: { name: string }) => e.name).join(', ')}`)
                 }
                 const fname = status.original_filename || 'document'
-                if (countParts.length > 0) {
-                  onAddLocalMessage?.({
-                    role: 'assistant',
-                    content: `Analysis complete for **${fname}** — extracted ${countParts.join(', ')}. You can ask me to review any of these, or check the BRD to see what was added.`,
-                  })
+                if (entityLines.length > 0) {
+                  // Send to LLM with full entity details for smart_summary card
+                  externalSendMessage(
+                    `Document analysis complete for **${fname}**. Here's what was extracted:\n${entityLines.join('\n')}\n\nPresent a summary of these extracted items and ask if I want to confirm or adjust anything.`
+                  )
                 } else {
-                  onAddLocalMessage?.({
-                    role: 'assistant',
-                    content: `Finished analyzing **${fname}**. Check the BRD to see what was extracted.`,
-                  })
+                  // No entities — still send to LLM for a proper response
+                  externalSendMessage(
+                    `Document analysis complete for **${fname}** but no new entities were extracted. Check the document status and tell me what happened — was this a duplicate or did the content not match expected patterns?`
+                  )
                 }
               }
             }
