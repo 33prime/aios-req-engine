@@ -1,9 +1,20 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import ReactDiffViewer, { DiffMethod } from 'react-diff-viewer-continued'
+import dynamic from 'next/dynamic'
 import { getEvalPromptDiff } from '@/lib/api'
 import type { EvalPromptDiff } from '@/types/api'
+
+// Dynamic import — react-diff-viewer-continued uses a regex that breaks Node 20 SSG
+const ReactDiffViewer = dynamic(
+  () => import('react-diff-viewer-continued').then(mod => mod.default),
+  { ssr: false }
+)
+
+// Import enum type for compareMethod
+enum DiffMethod {
+  WORDS = 'diffWords',
+}
 
 interface Props {
   versionId: string
