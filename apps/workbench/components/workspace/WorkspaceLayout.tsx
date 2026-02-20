@@ -29,16 +29,11 @@ import {
   getReadinessScore,
   getPrototypeForProject,
   generatePrototype,
-  getTaskStats,
-  getCollaborationHistory,
-  getQuestionCounts,
   endConsultantReview,
   synthesizePrototypeFeedback,
   triggerPrototypeCodeUpdate,
   getPrototypeSession,
 } from '@/lib/api'
-import type { TaskStatsResponse, CollaborationHistoryResponse } from '@/lib/api'
-import type { QuestionCounts } from '@/types/workspace'
 import { useBRDData, useContextFrame } from '@/lib/hooks/use-api'
 import { useRealtimeBRD } from '@/lib/realtime'
 import type { CanvasData } from '@/types/workspace'
@@ -62,9 +57,6 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
   const [phase, setPhase] = useState<WorkspacePhase>('overview')
   const [canvasData, setCanvasData] = useState<CanvasData | null>(null)
   const [readinessData, setReadinessData] = useState<ReadinessScore | null>(null)
-  const [taskStats, setTaskStats] = useState<TaskStatsResponse | null>(null)
-  const [collaborationHistory, setCollaborationHistory] = useState<CollaborationHistoryResponse | null>(null)
-  const [questionCounts, setQuestionCounts] = useState<QuestionCounts | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -223,13 +215,12 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
       setIsLoading(true)
       setError(null)
 
-      const [data, readiness, proto, stats, history, qCounts] = await Promise.all([
+      // Only block on layout-critical data. Tasks, history, questions
+      // load lazily inside OverviewPanel via their own useEffect.
+      const [data, readiness, proto] = await Promise.all([
         getWorkspaceData(projectId),
         getReadinessScore(projectId).catch(() => null),
         getPrototypeForProject(projectId).catch(() => null),
-        getTaskStats(projectId).catch(() => null),
-        getCollaborationHistory(projectId).catch(() => null),
-        getQuestionCounts(projectId).catch(() => null),
       ])
       if (proto?.deploy_url) {
         data.prototype_url = proto.deploy_url
@@ -237,9 +228,6 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
 
       setCanvasData(data)
       setReadinessData(readiness)
-      setTaskStats(stats)
-      setCollaborationHistory(history)
-      setQuestionCounts(qCounts)
 
       // Revalidate SWR-managed BRD data (includes next_actions)
       mutateBrd()
@@ -677,9 +665,6 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
                 brdData={brdData}
                 nextActions={nextActions}
                 contextActions={contextFrame?.actions}
-                initialTaskStats={taskStats}
-                initialHistory={collaborationHistory}
-                initialQuestionCounts={questionCounts}
                 onNavigateToPhase={(p) => setPhase(p)}
                 onActionExecute={handleActionExecuteFromOverview}
                 onOpenHealth={() => setShowHealthOverlay(true)}

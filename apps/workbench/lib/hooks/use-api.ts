@@ -313,9 +313,8 @@ export function useContextFrame(
     projectId ? SWR_KEYS.contextFrame(projectId) : null,
     () => getContextFrame(projectId!, 5),
     {
-      dedupingInterval: SHORT_CACHE,
-      refreshInterval: 30_000,
-      revalidateOnFocus: false,
+      dedupingInterval: MED_CACHE,
+      revalidateOnFocus: true,
       ...config,
     },
   )

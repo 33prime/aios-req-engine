@@ -61,7 +61,7 @@ export function MeetingSidePanel({ meeting, bot, participants, onDeployBot }: Me
   ]
 
   return (
-    <div className="w-[440px] border-l border-[#E5E5E5] bg-white flex flex-col flex-shrink-0 overflow-hidden">
+    <div className="w-[45%] border-l border-[#E5E5E5] bg-white flex flex-col flex-shrink-0 overflow-hidden">
       {/* Tabs */}
       <div className="flex border-b border-[#E5E5E5] flex-shrink-0">
         {tabs.map((tab) => (

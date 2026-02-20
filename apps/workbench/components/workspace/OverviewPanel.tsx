@@ -10,6 +10,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { isToday, isTomorrow, format } from 'date-fns'
 import {
   ListTodo,
   ArrowRight,
@@ -31,9 +32,10 @@ import {
   getBRDHealth,
   getProjectPulse,
 } from '@/lib/api'
+import { useMeetings } from '@/lib/hooks/use-api'
 import type { CanvasData, BRDWorkspaceData, SectionScore, QuestionCounts, BRDHealthData } from '@/types/workspace'
 import type { ReadinessScore, NextAction, TaskStatsResponse, CollaborationHistoryResponse, TerseAction } from '@/lib/api'
-import type { ProjectPulse } from '@/types/api'
+import type { ProjectPulse, Meeting } from '@/types/api'
 import { GAP_SOURCE_ICONS, GAP_SOURCE_COLORS } from '@/lib/action-constants'
 
 interface OverviewPanelProps {
@@ -43,9 +45,6 @@ interface OverviewPanelProps {
   brdData: BRDWorkspaceData | null
   nextActions: NextAction[] | null
   contextActions?: TerseAction[]
-  initialTaskStats?: TaskStatsResponse | null
-  initialHistory?: CollaborationHistoryResponse | null
-  initialQuestionCounts?: QuestionCounts | null
   onNavigateToPhase: (phase: 'discovery' | 'build') => void
   onActionExecute?: (action: NextAction) => void
   /** Open the unified health modal (managed by WorkspaceLayout) */
@@ -66,28 +65,32 @@ export function OverviewPanel({
   canvasData,
   brdData,
   contextActions,
-  initialTaskStats,
-  initialHistory,
-  initialQuestionCounts,
   onNavigateToPhase,
   onOpenHealth,
 }: OverviewPanelProps) {
-  const [taskStats, setTaskStats] = useState<TaskStatsResponse | null>(initialTaskStats ?? null)
+  const [taskStats, setTaskStats] = useState<TaskStatsResponse | null>(null)
   const [taskRefreshKey, setTaskRefreshKey] = useState(0)
-  const [history, setHistory] = useState<CollaborationHistoryResponse | null>(initialHistory ?? null)
-  const [questionCounts, setQuestionCounts] = useState<QuestionCounts | null>(initialQuestionCounts ?? null)
+  const [history, setHistory] = useState<CollaborationHistoryResponse | null>(null)
+  const [questionCounts, setQuestionCounts] = useState<QuestionCounts | null>(null)
   const [healthData, setHealthData] = useState<BRDHealthData | null>(null)
   const [pulse, setPulse] = useState<ProjectPulse | null>(null)
 
+  // Meetings via SWR (cached, deduped)
+  const { data: meetingsData } = useMeetings(projectId)
+  const projectMeetings = (meetingsData ?? []).filter(
+    (m) => m.status !== 'cancelled' && new Date(m.meeting_date) >= new Date(new Date().toDateString()),
+  ).slice(0, 4)
+
+  // Load non-critical data lazily (doesn't block page render)
   useEffect(() => {
-    const promises: Promise<unknown>[] = []
-    if (initialTaskStats === undefined) promises.push(getTaskStats(projectId).then(setTaskStats).catch(() => null))
-    if (initialHistory === undefined) promises.push(getCollaborationHistory(projectId).then(setHistory).catch(() => null))
-    if (initialQuestionCounts === undefined) promises.push(getQuestionCounts(projectId).then(setQuestionCounts).catch(() => null))
-    promises.push(getBRDHealth(projectId).then(setHealthData).catch(() => null))
-    promises.push(getProjectPulse(projectId).then(setPulse).catch(() => null))
-    Promise.all(promises)
-  }, [projectId, initialTaskStats, initialHistory, initialQuestionCounts])
+    Promise.all([
+      getTaskStats(projectId).then(setTaskStats).catch(() => null),
+      getCollaborationHistory(projectId).then(setHistory).catch(() => null),
+      getQuestionCounts(projectId).then(setQuestionCounts).catch(() => null),
+      getBRDHealth(projectId).then(setHealthData).catch(() => null),
+      getProjectPulse(projectId).then(setPulse).catch(() => null),
+    ])
+  }, [projectId])
 
   const pendingCount = taskStats?.by_status?.pending ?? 0
   const completeness = brdData?.completeness ?? null
@@ -154,7 +157,7 @@ export function OverviewPanel({
       {/* Row 2: Activity | Meetings | Portal */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <ActivityCard touchpoints={touchpoints} />
-        <UpcomingMeetingsCard />
+        <UpcomingMeetingsCard meetings={projectMeetings} />
         <ClientPortalCard />
       </div>
     </div>
@@ -514,22 +517,52 @@ function ActivityCard({
 // Upcoming Meetings (placeholder)
 // ---------------------------------------------------------------------------
 
-function UpcomingMeetingsCard() {
+function UpcomingMeetingsCard({ meetings }: { meetings: Meeting[] }) {
   return (
     <div className="bg-white rounded-2xl border border-[#E5E5E5] shadow-md p-5">
       <div className="flex items-center gap-1.5 mb-3">
         <Calendar className="w-4 h-4 text-[#3FAF7A]" />
         <h2 className="text-[13px] font-semibold text-[#333333]">Upcoming Meetings</h2>
       </div>
-      <div className="flex flex-col items-center justify-center py-4">
-        <div className="w-10 h-10 rounded-full bg-[#F4F4F4] flex items-center justify-center mb-2">
-          <Calendar className="w-5 h-5 text-[#E5E5E5]" />
+
+      {meetings.length > 0 ? (
+        <div className="space-y-2">
+          {meetings.map((m) => {
+            const d = new Date(m.meeting_date)
+            const dayLabel = isToday(d) ? 'Today' : isTomorrow(d) ? 'Tomorrow' : format(d, 'MMM d')
+            const timeLabel = m.meeting_time
+              ? format(new Date(`2000-01-01T${m.meeting_time}`), 'h:mm a')
+              : null
+
+            return (
+              <div key={m.id} className="flex items-start gap-2.5 p-2.5 bg-[#F4F4F4] rounded-xl">
+                <div className="w-2 h-2 rounded-full bg-[#3FAF7A] flex-shrink-0 mt-[5px]" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-[11px] font-medium text-[#333333] truncate">{m.title}</p>
+                  <div className="flex items-center gap-1.5 mt-0.5">
+                    <span className="text-[10px] font-medium text-[#3FAF7A]">
+                      {dayLabel}{timeLabel ? ` at ${timeLabel}` : ''}
+                    </span>
+                    {m.meeting_type && (
+                      <span className="text-[10px] text-[#999999]">{m.meeting_type}</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )
+          })}
         </div>
-        <p className="text-[12px] font-medium text-[#333333]">Coming soon</p>
-        <p className="text-[11px] text-[#999999] mt-0.5 text-center">
-          Calendar sync and meeting prep
-        </p>
-      </div>
+      ) : (
+        <div className="flex flex-col items-center justify-center py-4">
+          <div className="w-10 h-10 rounded-full bg-[#F4F4F4] flex items-center justify-center mb-2">
+            <Calendar className="w-5 h-5 text-[#E5E5E5]" />
+          </div>
+          <p className="text-[12px] font-medium text-[#333333]">No upcoming meetings</p>
+          <p className="text-[11px] text-[#999999] mt-0.5 text-center">
+            Schedule a meeting to see it here
+          </p>
+        </div>
+      )}
     </div>
   )
 }

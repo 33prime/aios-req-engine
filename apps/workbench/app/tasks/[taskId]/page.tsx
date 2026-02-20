@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, use } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft } from 'lucide-react'
 import { AppSidebar } from '@/components/workspace/AppSidebar'
@@ -19,8 +19,8 @@ import { PropertyPills } from './components/PropertyPills'
 import { CommentInput } from './components/CommentInput'
 import { ActivityTimeline } from './components/ActivityTimeline'
 
-export default function TaskDetailPage({ params }: { params: Promise<{ taskId: string }> }) {
-  const { taskId } = use(params)
+export default function TaskDetailPage({ params }: { params: { taskId: string } }) {
+  const { taskId } = params
   const router = useRouter()
   const { data: profile } = useProfile()
   const { data: task, mutate: mutateTask } = useTaskDetail(taskId)
