@@ -1,10 +1,11 @@
 'use client'
 
 import { useCallback, useRef } from 'react'
-import { Loader2, Paperclip, Sparkles } from 'lucide-react'
+import { Loader2, Paperclip, Sparkles, Clock, Lightbulb } from 'lucide-react'
 import { useIntelligenceBriefing } from '@/lib/hooks/use-api'
-import { PHASE_DESCRIPTIONS } from '@/lib/action-constants'
-import type { ConversationStarter } from '@/types/workspace'
+import { getIntelligenceBriefing } from '@/lib/api'
+import { PHASE_DESCRIPTIONS, CHANGE_TYPE_COLORS } from '@/lib/action-constants'
+import type { ConversationStarter, TemporalDiff, WhatYouShouldKnow } from '@/types/workspace'
 
 import { BriefingHeader } from './BriefingHeader'
 import { ConversationStarterCard } from './ConversationStarterCard'
@@ -75,8 +76,9 @@ export function IntelligenceBriefingPanel({
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const handleRefresh = useCallback(() => {
-    revalidate()
-  }, [revalidate])
+    // Force-bust backend cache so Sonnet regenerates the narrative
+    revalidate(getIntelligenceBriefing(projectId, 5, true), { revalidate: false })
+  }, [revalidate, projectId])
 
   const handleUploadClick = useCallback(() => {
     if (onUploadDocument) {
@@ -125,6 +127,8 @@ export function IntelligenceBriefingPanel({
   const progress = briefing?.situation?.phase_progress ?? 0
   const starters = briefing?.conversation_starters ?? []
   const narrative = briefing?.situation?.narrative ?? ''
+  const whatChanged = briefing?.what_changed
+  const whatYouShouldKnow = briefing?.what_you_should_know
   const hasContent = narrative || starters.length > 0
 
   return (
@@ -143,16 +147,26 @@ export function IntelligenceBriefingPanel({
           <PhaseEmptyState phase={phase} onUpload={handleUploadClick} />
         ) : (
           <>
-            {/* 2-sentence situation summary */}
+            {/* Situation narrative (4-5 sentences) */}
             {narrative && (
-              <p className="text-[13px] text-[#333333] leading-relaxed px-4 pt-4 pb-2">
+              <p className="text-[13px] text-[#333333] leading-[1.6] px-4 pt-4 pb-1">
                 <InlineMarkdown text={narrative} />
               </p>
             )}
 
-            {/* Conversation starter cards — each a different action type */}
+            {/* What changed — compact activity feed */}
+            {whatChanged && whatChanged.changes.length > 0 && (
+              <WhatChangedSection diff={whatChanged} />
+            )}
+
+            {/* What you should know — insight card */}
+            {whatYouShouldKnow && (whatYouShouldKnow.narrative || whatYouShouldKnow.bullets.length > 0) && (
+              <WhatYouShouldKnowSection data={whatYouShouldKnow} />
+            )}
+
+            {/* Conversation starter cards */}
             {starters.length > 0 && onStartConversation && (
-              <div className="mt-2 mx-4 mb-3 rounded-xl border border-[#E5E5E5] overflow-hidden bg-white">
+              <div className="mt-1 mx-4 mb-3 rounded-xl border border-[#E5E5E5] overflow-hidden bg-white">
                 {starters.map((starter) => (
                   <ConversationStarterCard
                     key={starter.starter_id}
@@ -185,6 +199,102 @@ export function IntelligenceBriefingPanel({
         accept=".pdf,.docx,.xlsx,.pptx,.png,.jpg,.jpeg,.webp,.gif"
         className="hidden"
       />
+    </div>
+  )
+}
+
+/** Compact "what changed" section — activity-feed style */
+function WhatChangedSection({ diff }: { diff: TemporalDiff }) {
+  const { counts, change_summary, since_label } = diff
+
+  // Build compact count pills from the counts dict
+  const pills: Array<{ label: string; count: number; color: string }> = []
+  if (counts.new_signals) pills.push({ label: 'signals', count: counts.new_signals, color: CHANGE_TYPE_COLORS.signal_processed })
+  if (counts.beliefs_changed) pills.push({ label: 'beliefs', count: counts.beliefs_changed, color: CHANGE_TYPE_COLORS.belief_strengthened })
+  if (counts.entities_updated) pills.push({ label: 'enriched', count: counts.entities_updated, color: CHANGE_TYPE_COLORS.entity_updated })
+  if (counts.new_facts) pills.push({ label: 'facts', count: counts.new_facts, color: CHANGE_TYPE_COLORS.fact_added })
+  if (counts.new_insights) pills.push({ label: 'insights', count: counts.new_insights, color: CHANGE_TYPE_COLORS.insight_added })
+
+  if (pills.length === 0 && !change_summary) return null
+
+  return (
+    <div className="mx-4 mt-3 mb-1">
+      {/* Section header */}
+      <div className="flex items-center gap-1.5 mb-2">
+        <Clock className="w-3 h-3 text-[#999999]" />
+        <span className="text-[11px] font-medium text-[#999999] uppercase tracking-wide">
+          Since {since_label}
+        </span>
+      </div>
+
+      {/* Change summary (Haiku-generated) */}
+      {change_summary && (
+        <p className="text-[12px] text-[#666666] leading-relaxed mb-2">
+          {change_summary}
+        </p>
+      )}
+
+      {/* Count pills — compact colored badges */}
+      {pills.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {pills.map((pill) => (
+            <span
+              key={pill.label}
+              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium"
+              style={{
+                backgroundColor: `${pill.color}10`,
+                color: pill.color,
+              }}
+            >
+              <span
+                className="w-1.5 h-1.5 rounded-full"
+                style={{ backgroundColor: pill.color }}
+              />
+              {pill.count} {pill.label}
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+/** "What you should know" insight card */
+function WhatYouShouldKnowSection({ data }: { data: WhatYouShouldKnow }) {
+  const { narrative, bullets } = data
+
+  if (!narrative && bullets.length === 0) return null
+
+  return (
+    <div className="mx-4 mt-3 mb-2 rounded-lg bg-[#F8FAF8] border border-[#E5EDE5] p-3">
+      {/* Section header */}
+      <div className="flex items-center gap-1.5 mb-2">
+        <Lightbulb className="w-3 h-3 text-[#3FAF7A]" />
+        <span className="text-[11px] font-semibold text-[#25785A] uppercase tracking-wide">
+          Worth knowing
+        </span>
+      </div>
+
+      {/* Narrative */}
+      {narrative && (
+        <p className="text-[12px] text-[#333333] leading-relaxed mb-2">
+          <InlineMarkdown text={narrative} />
+        </p>
+      )}
+
+      {/* Bullets with green accent dots */}
+      {bullets.length > 0 && (
+        <div className="space-y-1.5">
+          {bullets.map((bullet, i) => (
+            <div key={i} className="flex items-start gap-2">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#3FAF7A] mt-[5px] flex-shrink-0" />
+              <span className="text-[12px] text-[#444444] leading-snug">
+                <InlineMarkdown text={bullet} />
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

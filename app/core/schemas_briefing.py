@@ -90,7 +90,7 @@ class HypothesisStatus(str, Enum):
 class BriefingSituation(BaseModel):
     """Narrative situation summary — the 'here's where we are' section."""
 
-    narrative: str = ""  # 2-3 sentences from Sonnet, conversational
+    narrative: str = ""  # 4-5 sentences from Sonnet, conversational + temporal-aware
     project_name: str = ""
     phase: ContextPhase = ContextPhase.EMPTY
     phase_progress: float = 0.0

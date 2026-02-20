@@ -113,6 +113,12 @@ async def compute_intelligence_briefing(
             from app.chains.generate_briefing_narrative import generate_briefing_narrative
 
             tension_dicts = [t.model_dump() for t in tensions]
+            temporal_data = {
+                "since_label": temporal_diff.since_label,
+                "change_summary": temporal_diff.change_summary,
+                "counts": temporal_diff.counts,
+                "changes": [c.model_dump(mode="json") for c in temporal_diff.changes[:5]],
+            } if temporal_diff.changes else None
             result = await generate_briefing_narrative(
                 project_name=project_name,
                 beliefs=beliefs,
@@ -124,6 +130,7 @@ async def compute_intelligence_briefing(
                 phase=phase.value,
                 phase_progress=phase_progress,
                 project_id=str(project_id),
+                temporal_changes=temporal_data,
             )
             situation_narrative = result.get("situation_narrative", "")
             what_you_should_know = WhatYouShouldKnow(
