@@ -217,7 +217,7 @@ export function WorkspaceChat({
                   return
                 }
 
-                // Show warm intermediate message
+                // Phase 1 done — send a real message to the LLM for early analysis
                 if (!shownPhase1Message) {
                   shownPhase1Message = true
                   const docClass = status.document_class || 'document'
@@ -227,25 +227,18 @@ export function WorkspaceChat({
                     research: 'research document', process_doc: 'process document',
                   }
                   const label = classLabels[docClass] || docClass
-                  onAddLocalMessage?.({
-                    role: 'assistant',
-                    content: `Got it — looks like a **${label}**. Running deeper analysis now...`,
-                  })
+                  const fname = status.original_filename || 'the document'
+                  setTimeout(() => {
+                    externalSendMessage(
+                      `I just uploaded **${fname}** (classified as ${label}). Check the document status and give me a quick initial take — what's in there? Entity extraction is still running in the background.`
+                    )
+                  }, 500)
                 }
 
-                // If no signal_id or entity extraction not applicable, fall back to immediate trigger
+                // If no signal_id or entity extraction not applicable, stop polling
                 if (!status.signal_id || status.entity_extraction_status === 'not_applicable') {
                   clearInterval(poll)
                   completedCount++
-                  completedFiles.push(status.original_filename || 'document')
-                  if (completedCount >= documentIds.length && completedFiles.length > 0) {
-                    const fileList = completedFiles.map((f) => `**${f}**`).join(', ')
-                    setTimeout(() => {
-                      externalSendMessage(
-                        `I just uploaded ${fileList}. What did you find in there? Any follow-up questions for me?`
-                      )
-                    }, 500)
-                  }
                   return
                 }
 
@@ -261,10 +254,8 @@ export function WorkspaceChat({
                 completedCount++
                 completedFiles.push(status.original_filename || 'document')
 
-                // When all docs finish, send context-rich message with entity counts
+                // When all docs finish, send follow-up with entity counts
                 if (completedCount >= documentIds.length && completedFiles.length > 0) {
-                  const fileList = completedFiles.map((f) => `**${f}**`).join(', ')
-                  // Build entity count summary from the last completed doc
                   const entities = status.extracted_entities
                   let countParts: string[] = []
                   if (entities) {
@@ -274,14 +265,13 @@ export function WorkspaceChat({
                     if (entities.constraints.length > 0) countParts.push(`${entities.constraints.length} constraints`)
                     if (entities.stakeholders.length > 0) countParts.push(`${entities.stakeholders.length} stakeholders`)
                   }
-                  const countSummary = countParts.length > 0
-                    ? ` Analysis complete — extracted ${countParts.join(', ')}.`
-                    : ''
-                  setTimeout(() => {
-                    externalSendMessage(
-                      `I just uploaded ${fileList}.${countSummary} Show me what was found and help me review them.`
-                    )
-                  }, 500)
+                  if (countParts.length > 0) {
+                    setTimeout(() => {
+                      externalSendMessage(
+                        `Entity extraction just finished — found ${countParts.join(', ')}. Show me a summary of what was extracted so I can review.`
+                      )
+                    }, 500)
+                  }
                 }
               }
             }

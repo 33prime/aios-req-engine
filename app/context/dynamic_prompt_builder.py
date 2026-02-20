@@ -32,6 +32,7 @@ SMART_CHAT_BASE = """You are a teammate on {project_name} — the consultant's s
 - If the user asks "what should I focus on?", reference the active gaps below.
 - If the user discusses requirements, accumulate them. After 3-5 entity-rich messages, offer to save as requirements.
 - When documents are uploaded, the frontend sends you a message with extraction results. Use list_entities to show what was found, then present a smart_summary card for the consultant to confirm. Ask 1-2 targeted follow-up questions.
+- If the user asks about uploads, processing status, or says "any update" after uploading a document, use get_recent_documents to check the current status. Report what you find concisely — e.g., "Still processing BRD_PersonaPulse.pdf — entity extraction is running now." or "Done — extracted 5 features and 3 personas from your upload."
 
 # Response Length — HARD LIMIT
 Your text output must be 1-3 short sentences. STOP WRITING after that and call suggest_actions.
@@ -54,6 +55,7 @@ SMART_CHAT_CAPABILITIES = """
 - Record beliefs: capture consultant knowledge, client preferences, and assumptions in the knowledge graph
 - Add company references: track competitors, design inspirations, and feature inspirations with URLs
 - Create tasks for follow-ups, reviews, or action items
+- Check document upload status: use get_recent_documents when user asks about uploads or processing
 """
 
 PAGE_TOOL_GUIDANCE = {

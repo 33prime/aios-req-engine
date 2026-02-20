@@ -639,12 +639,85 @@ def _trigger_signal_pipeline(
                 extra={"project_id": str(project_id), "signal_id": str(signal_id)},
             )
 
+            # Create notification for the project owner
+            _create_document_notification(
+                project_id=project_id,
+                signal_id=signal_id,
+                patches_applied=result.patches_applied,
+                created_count=result.created_count,
+            )
+
         except Exception as e:
             logger.exception(f"V2 signal pipeline failed for document: {e}")
 
     # Run in background thread
     thread = threading.Thread(target=run_pipeline, daemon=True)
     thread.start()
+
+
+def _create_document_notification(
+    project_id: UUID,
+    signal_id: UUID,
+    patches_applied: int,
+    created_count: int,
+) -> None:
+    """Create a notification for the project owner when document processing completes."""
+    try:
+        supabase = get_supabase()
+
+        # Get the document filename from the signal's linked document
+        doc_resp = (
+            supabase.table("document_uploads")
+            .select("original_filename")
+            .eq("signal_id", str(signal_id))
+            .limit(1)
+            .execute()
+        )
+        filename = (
+            doc_resp.data[0]["original_filename"]
+            if doc_resp.data
+            else "document"
+        )
+
+        # Get project owner (created_by)
+        proj_resp = (
+            supabase.table("projects")
+            .select("created_by")
+            .eq("id", str(project_id))
+            .single()
+            .execute()
+        )
+        if not proj_resp.data or not proj_resp.data.get("created_by"):
+            return
+
+        user_id = proj_resp.data["created_by"]
+
+        # Build notification
+        from app.db.notifications import create_notification
+
+        title = f"Document processed: {filename}"
+        body = (
+            f"Extracted {created_count} new entities and applied {patches_applied} updates to the BRD."
+            if created_count or patches_applied
+            else f"Finished analyzing {filename} — no new entities found."
+        )
+
+        create_notification(
+            user_id=user_id,
+            type="document_processed",
+            title=title,
+            body=body,
+            project_id=project_id,
+            metadata={
+                "signal_id": str(signal_id),
+                "patches_applied": patches_applied,
+                "created_count": created_count,
+                "filename": filename,
+            },
+        )
+
+    except Exception as e:
+        logger.warning(f"Failed to create document notification: {e}")
 
 
 def should_continue(state: DocumentProcessingState) -> str:

@@ -755,6 +755,20 @@ def get_tool_definitions() -> List[Dict[str, Any]]:
                 "required": ["step_id", "instruction"],
             },
         },
+        {
+            "name": "get_recent_documents",
+            "description": "Get recently uploaded documents for this project with their processing status. Use this when the user asks about uploads, document processing, or says 'any update'. Returns filenames, upload times, processing status (pending/processing/completed/failed), and extracted entity counts.",
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "limit": {
+                        "type": "integer",
+                        "description": "Maximum documents to return (default 5)",
+                        "default": 5,
+                    },
+                },
+            },
+        },
     ]
 
 
@@ -775,6 +789,7 @@ CORE_TOOLS = {
     "create_confirmation",
     "add_belief",
     "add_company_reference",
+    "get_recent_documents",
 }
 
 # Additional tools per page context
@@ -934,7 +949,9 @@ async def execute_tool(project_id: UUID, tool_name: str, tool_input: Dict[str, A
             return await _identify_stakeholders(project_id, tool_input)
         elif tool_name == "update_strategic_context":
             return await _update_strategic_context(project_id, tool_input)
-        # Document Clarification Tools
+        # Document Tools
+        elif tool_name == "get_recent_documents":
+            return await _get_recent_documents(project_id, tool_input)
         elif tool_name == "check_document_clarifications":
             return await _check_document_clarifications(project_id, tool_input)
         elif tool_name == "respond_to_document_clarification":
@@ -2467,6 +2484,92 @@ async def _update_strategic_context(project_id: UUID, params: Dict[str, Any]) ->
             "error": str(e),
             "message": f"Failed to update strategic context: {str(e)}",
         }
+
+
+async def _get_recent_documents(
+    project_id: UUID, params: Dict[str, Any]
+) -> Dict[str, Any]:
+    """Get recently uploaded documents with processing status."""
+    try:
+        supabase = get_supabase()
+        limit = params.get("limit", 5)
+
+        # Query recent documents for this project
+        response = (
+            supabase.table("documents")
+            .select("id, original_filename, document_class, processing_status, signal_id, created_at, metadata")
+            .eq("project_id", str(project_id))
+            .order("created_at", desc=True)
+            .limit(limit)
+            .execute()
+        )
+
+        docs = response.data or []
+        results = []
+
+        for doc in docs:
+            doc_info: Dict[str, Any] = {
+                "filename": doc.get("original_filename", "unknown"),
+                "uploaded_at": doc.get("created_at", ""),
+                "document_type": doc.get("document_class") or "pending classification",
+                "processing_status": doc.get("processing_status", "unknown"),
+            }
+
+            # If document extraction is done and has a signal, check entity extraction
+            if doc.get("processing_status") == "completed" and doc.get("signal_id"):
+                try:
+                    sig_resp = (
+                        supabase.table("signals")
+                        .select("processing_status, patch_summary")
+                        .eq("id", doc["signal_id"])
+                        .single()
+                        .execute()
+                    )
+                    if sig_resp.data:
+                        sig_status = sig_resp.data.get("processing_status", "")
+                        if sig_status in ("completed", "processed"):
+                            doc_info["entity_extraction"] = "completed"
+                            # Parse patch summary for entity counts
+                            patch = sig_resp.data.get("patch_summary") or {}
+                            if isinstance(patch, str):
+                                import json as _json
+                                try:
+                                    patch = _json.loads(patch)
+                                except Exception:
+                                    patch = {}
+                            if patch:
+                                doc_info["entities_extracted"] = patch
+                        elif sig_status in ("processing", "pending"):
+                            doc_info["entity_extraction"] = "processing"
+                        else:
+                            doc_info["entity_extraction"] = sig_status or "unknown"
+                except Exception:
+                    doc_info["entity_extraction"] = "unknown"
+            elif doc.get("processing_status") == "completed":
+                doc_info["entity_extraction"] = "not started"
+            elif doc.get("processing_status") in ("pending", "processing"):
+                doc_info["entity_extraction"] = "waiting for document extraction"
+
+            results.append(doc_info)
+
+        return {
+            "documents": results,
+            "total": len(results),
+            "summary": (
+                f"{len(results)} recent document(s). "
+                + ", ".join(
+                    f"{d['filename']}: {d['processing_status']}"
+                    + (f" → entities {d.get('entity_extraction', 'n/a')}" if d.get("entity_extraction") else "")
+                    for d in results
+                )
+                if results
+                else "No documents uploaded yet."
+            ),
+        }
+
+    except Exception as e:
+        logger.error(f"Error getting recent documents: {e}", exc_info=True)
+        return {"error": str(e)}
 
 
 async def _check_document_clarifications(
