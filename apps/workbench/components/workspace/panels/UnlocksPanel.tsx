@@ -127,18 +127,28 @@ export function UnlocksPanel({ projectId }: UnlocksPanelProps) {
 // Unlocks Tab
 // ============================================================================
 
+const GENERATION_STAGES = [
+  'Analyzing project data...',
+  'Identifying strategic opportunities...',
+  'Crafting unlock narratives...',
+  'Finalizing recommendations...',
+]
+
 function UnlocksTab({ projectId }: { projectId: string }) {
   const [unlocks, setUnlocks] = useState<UnlockSummary[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isGenerating, setIsGenerating] = useState(false)
+  const [generationStage, setGenerationStage] = useState(0)
 
   const loadUnlocks = useCallback(async () => {
     try {
       setIsLoading(true)
       const data = await listUnlocks(projectId)
       setUnlocks(data)
+      return data
     } catch (err) {
       console.error('Failed to load unlocks:', err)
+      return []
     } finally {
       setIsLoading(false)
     }
@@ -151,19 +161,40 @@ function UnlocksTab({ projectId }: { projectId: string }) {
   const handleGenerate = useCallback(async () => {
     try {
       setIsGenerating(true)
+      setGenerationStage(0)
       await generateUnlocks(projectId)
-      // Poll for results after a delay (generation is async)
-      setTimeout(() => {
-        loadUnlocks().finally(() => setIsGenerating(false))
+
+      // Animate through stages while polling
+      const stageInterval = setInterval(() => {
+        setGenerationStage((prev) => Math.min(prev + 1, GENERATION_STAGES.length - 1))
       }, 3000)
-      // Poll again after more time
-      setTimeout(() => loadUnlocks(), 8000)
-      setTimeout(() => loadUnlocks(), 15000)
+
+      // Poll with increasing intervals until results arrive or 30s elapsed
+      const delays = [2000, 4000, 6000, 8000, 10000]
+      let elapsed = 0
+      for (const delay of delays) {
+        await new Promise((r) => setTimeout(r, delay))
+        elapsed += delay
+        const data = await listUnlocks(projectId)
+        if (data.length > 0) {
+          setUnlocks(data)
+          clearInterval(stageInterval)
+          setIsGenerating(false)
+          return
+        }
+        if (elapsed >= 30000) break
+      }
+
+      // Final attempt
+      const finalData = await listUnlocks(projectId)
+      setUnlocks(finalData)
+      clearInterval(stageInterval)
     } catch (err) {
       console.error('Failed to generate unlocks:', err)
+    } finally {
       setIsGenerating(false)
     }
-  }, [projectId, loadUnlocks])
+  }, [projectId])
 
   const handleCurate = useCallback(async (unlockId: string) => {
     try {
@@ -213,30 +244,53 @@ function UnlocksTab({ projectId }: { projectId: string }) {
         <div className="w-14 h-14 mx-auto mb-4 rounded-full bg-[#E8F5E9] flex items-center justify-center">
           <Zap className="w-7 h-7 text-[#3FAF7A]" />
         </div>
-        <h3 className="text-[16px] font-semibold text-[#333333] mb-2">
-          Discover Strategic Unlocks
-        </h3>
-        <p className="text-[13px] text-[#666666] max-w-md mx-auto mb-6">
-          Analyze your project to discover what becomes strategically possible
-          when the system is built — not features, but business outcomes.
-        </p>
-        <button
-          onClick={handleGenerate}
-          disabled={isGenerating}
-          className="inline-flex items-center gap-2 px-5 py-2.5 text-[13px] font-medium text-white bg-[#3FAF7A] hover:bg-[#25785A] rounded-xl transition-colors disabled:opacity-50"
-        >
-          {isGenerating ? (
-            <>
-              <RefreshCw className="w-4 h-4 animate-spin" />
-              Analyzing...
-            </>
-          ) : (
-            <>
+        {isGenerating ? (
+          <>
+            <h3 className="text-[16px] font-semibold text-[#333333] mb-4">
+              Generating Unlocks
+            </h3>
+            <div className="max-w-xs mx-auto space-y-2 mb-6">
+              {GENERATION_STAGES.map((stage, i) => (
+                <div
+                  key={stage}
+                  className={`flex items-center gap-2 text-[12px] transition-all duration-500 ${
+                    i < generationStage
+                      ? 'text-[#3FAF7A]'
+                      : i === generationStage
+                        ? 'text-[#333333] font-medium'
+                        : 'text-[#CCCCCC]'
+                  }`}
+                >
+                  {i < generationStage ? (
+                    <span className="w-4 h-4 flex items-center justify-center text-[#3FAF7A]">✓</span>
+                  ) : i === generationStage ? (
+                    <RefreshCw className="w-4 h-4 animate-spin text-[#3FAF7A]" />
+                  ) : (
+                    <span className="w-4 h-4 flex items-center justify-center text-[#CCCCCC]">○</span>
+                  )}
+                  {stage}
+                </div>
+              ))}
+            </div>
+          </>
+        ) : (
+          <>
+            <h3 className="text-[16px] font-semibold text-[#333333] mb-2">
+              Discover Strategic Unlocks
+            </h3>
+            <p className="text-[13px] text-[#666666] max-w-md mx-auto mb-6">
+              Analyze your project to discover what becomes strategically possible
+              when the system is built — not features, but business outcomes.
+            </p>
+            <button
+              onClick={handleGenerate}
+              className="inline-flex items-center gap-2 px-5 py-2.5 text-[13px] font-medium text-white bg-[#3FAF7A] hover:bg-[#25785A] rounded-xl transition-colors"
+            >
               <Sparkles className="w-4 h-4" />
               Generate Unlocks
-            </>
-          )}
-        </button>
+            </button>
+          </>
+        )}
       </div>
     )
   }

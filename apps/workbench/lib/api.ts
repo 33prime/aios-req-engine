@@ -3903,6 +3903,12 @@ export const createBelief = (
     { method: 'POST', body: JSON.stringify(data) }
   )
 
+export const generateBeliefs = (projectId: string) =>
+  apiRequest<import('@/types/workspace').IntelGraphNode[]>(
+    `/projects/${projectId}/intelligence/beliefs/generate`,
+    { method: 'POST' }
+  )
+
 export const getIntelligenceEvolution = (
   projectId: string,
   params?: { event_type?: string; days?: number; limit?: number },

@@ -8,7 +8,7 @@
 
 'use client'
 
-import { useCallback } from 'react'
+import { useCallback, useState } from 'react'
 import {
   TrendingUp,
   TrendingDown,
@@ -20,12 +20,15 @@ import {
   GitBranch,
   ArrowLeftRight,
   FlaskConical,
+  Sparkles,
+  RefreshCw,
 } from 'lucide-react'
-import { submitNodeFeedback, getIntelligenceOverview } from '@/lib/api'
+import { submitNodeFeedback, generateBeliefs } from '@/lib/api'
 import type { MemoryVisualizationResponse } from '@/lib/api'
 import type {
   IntelOverviewResponse,
   IntelRecentActivity,
+  IntelGraphNode,
   Tension,
   Hypothesis,
 } from '@/types/workspace'
@@ -81,6 +84,9 @@ export function OverviewTab({ projectId, data: vizData }: OverviewTabProps) {
             <p className="text-sm text-[#333333] leading-relaxed">{narrative}</p>
           </div>
         ) : null}
+
+        {/* Core Beliefs */}
+        <CoreBeliefsSection projectId={projectId} onFeedback={handleHypothesisFeedback} />
 
         {/* What You Should Know */}
         {wysk?.narrative ? (
@@ -241,6 +247,158 @@ export function OverviewTab({ projectId, data: vizData }: OverviewTabProps) {
             </div>
           </div>
         )}
+      </div>
+    </div>
+  )
+}
+
+// ─── Core Beliefs Section ────────────────────────────────────────────────────
+
+const DOMAIN_COLORS: Record<string, { bg: string; text: string }> = {
+  user_experience: { bg: '#E8F5E9', text: '#25785A' },
+  business_value: { bg: '#E8F5E9', text: '#25785A' },
+  technical: { bg: '#F0F0F0', text: '#666666' },
+  strategic: { bg: '#EDE9FE', text: '#6B21A8' },
+  operational: { bg: '#FEF3C7', text: '#92400E' },
+}
+
+function CoreBeliefsSection({
+  projectId,
+  onFeedback,
+}: {
+  projectId: string
+  onFeedback: (nodeId: string, action: 'confirm' | 'dispute') => Promise<void>
+}) {
+  const [beliefs, setBeliefs] = useState<IntelGraphNode[]>([])
+  const [isGenerating, setIsGenerating] = useState(false)
+
+  const handleGenerate = useCallback(async () => {
+    try {
+      setIsGenerating(true)
+      const newBeliefs = await generateBeliefs(projectId)
+      setBeliefs(newBeliefs)
+    } catch (err) {
+      console.error('Failed to generate beliefs:', err)
+    } finally {
+      setIsGenerating(false)
+    }
+  }, [projectId])
+
+  const handleFeedback = useCallback(
+    async (nodeId: string, action: 'confirm' | 'dispute') => {
+      await onFeedback(nodeId, action)
+      setBeliefs((prev) =>
+        prev.map((b) =>
+          b.id === nodeId
+            ? { ...b, consultant_status: action === 'confirm' ? 'confirmed' : 'disputed' }
+            : b,
+        ),
+      )
+    },
+    [onFeedback],
+  )
+
+  if (beliefs.length === 0) {
+    return (
+      <div className="bg-white rounded-2xl border border-[#E5E5E5] p-5 shadow-sm">
+        <div className="flex items-center justify-between mb-3">
+          <h4 className="text-[12px] font-semibold text-[#333333] uppercase tracking-wide">
+            Core Beliefs
+          </h4>
+        </div>
+        <p className="text-[12px] text-[#666666] mb-3">
+          Auto-generate beliefs about why this solution matters to the client — connecting pain points and goals to specific features.
+        </p>
+        <button
+          onClick={handleGenerate}
+          disabled={isGenerating}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-white bg-[#3FAF7A] hover:bg-[#25785A] rounded-lg transition-colors disabled:opacity-50"
+        >
+          {isGenerating ? (
+            <>
+              <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+              Generating...
+            </>
+          ) : (
+            <>
+              <Sparkles className="w-3.5 h-3.5" />
+              Generate Beliefs
+            </>
+          )}
+        </button>
+      </div>
+    )
+  }
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-3">
+        <h4 className="text-[12px] font-semibold text-[#333333] uppercase tracking-wide">
+          Core Beliefs
+        </h4>
+        <button
+          onClick={handleGenerate}
+          disabled={isGenerating}
+          className="inline-flex items-center gap-1 text-[11px] font-medium text-[#3FAF7A] hover:text-[#25785A] transition-colors disabled:opacity-50"
+        >
+          <RefreshCw className={`w-3 h-3 ${isGenerating ? 'animate-spin' : ''}`} />
+          {isGenerating ? 'Refreshing...' : 'Refresh'}
+        </button>
+      </div>
+      <div className="space-y-2">
+        {beliefs.map((b) => {
+          const domain = b.belief_domain || 'strategic'
+          const colors = DOMAIN_COLORS[domain] || DOMAIN_COLORS.strategic
+          return (
+            <div
+              key={b.id}
+              className="bg-white rounded-xl border border-[#E5E5E5] px-4 py-3 shadow-sm"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex-1 min-w-0">
+                  <p className="text-[12px] text-[#333333] leading-relaxed">
+                    {b.content || b.summary}
+                  </p>
+                  <div className="flex items-center gap-2 mt-1.5">
+                    <span
+                      className="px-1.5 py-0.5 text-[10px] font-medium rounded"
+                      style={{ backgroundColor: colors.bg, color: colors.text }}
+                    >
+                      {domain.replace('_', ' ')}
+                    </span>
+                    <span className="text-[10px] text-[#999999]">
+                      {Math.round(b.confidence * 100)}% confidence
+                    </span>
+                    {b.consultant_status === 'confirmed' && (
+                      <span className="text-[10px] font-medium text-[#3FAF7A]">Confirmed</span>
+                    )}
+                    {b.consultant_status === 'disputed' && (
+                      <span className="text-[10px] font-medium text-[#999999]">Disputed</span>
+                    )}
+                  </div>
+                </div>
+                {!b.consultant_status && (
+                  <div className="flex items-center gap-1 shrink-0">
+                    <button
+                      onClick={() => handleFeedback(b.id, 'confirm')}
+                      className="p-1 rounded hover:bg-[#E8F5E9] text-[#999999] hover:text-[#25785A] transition-colors"
+                      title="Confirm"
+                    >
+                      <ThumbsUp className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onClick={() => handleFeedback(b.id, 'dispute')}
+                      className="p-1 rounded hover:bg-gray-100 text-[#999999] hover:text-[#666666] transition-colors"
+                      title="Dispute"
+                    >
+                      <ThumbsDown className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          )
+        })}
       </div>
     </div>
   )

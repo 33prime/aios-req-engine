@@ -188,9 +188,6 @@ export function IntelligenceSection({
         </div>
       )}
 
-      {healthLoading && !health && (
-        <div className="text-[12px] text-[#999999] py-2">Loading health data...</div>
-      )}
     </section>
   )
 }

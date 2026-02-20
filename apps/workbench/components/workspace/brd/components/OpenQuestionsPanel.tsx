@@ -41,16 +41,7 @@ export function OpenQuestionsPanel({ projectId, questions, loading, onMutate }: 
 
   const openQuestions = questions.filter(q => q.status === 'open')
 
-  if (loading) {
-    return (
-      <div className="mb-6 border border-[#E5E5E5] rounded-2xl bg-white shadow-md p-4">
-        <div className="flex items-center gap-2 text-[12px] text-[#999999]">
-          <Loader2 className="w-4 h-4 animate-spin" />
-          Loading open questions...
-        </div>
-      </div>
-    )
-  }
+  if (loading) return null
 
   if (openQuestions.length === 0) return null
 

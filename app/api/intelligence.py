@@ -902,3 +902,110 @@ def _compute_gaps_and_risks(
         pass
 
     return items
+
+
+# =============================================================================
+# 11. POST /beliefs/generate — Auto-generate core beliefs
+# =============================================================================
+
+
+@router.post("/beliefs/generate")
+async def generate_beliefs_endpoint(project_id: UUID) -> list[GraphNodeResponse]:
+    """Generate core beliefs about why the solution matters to the client.
+
+    Gathers project context, calls LLM, stores beliefs as memory nodes.
+    Idempotent: refreshes agent-sourced beliefs on each call.
+    """
+    from app.chains.generate_beliefs import generate_beliefs
+    from app.db.memory_graph import create_node, get_active_beliefs
+    from app.db.supabase_client import get_supabase
+
+    sb = get_supabase()
+
+    # Load project name
+    project_name = "Project"
+    try:
+        proj = sb.table("projects").select("name").eq("id", str(project_id)).maybe_single().execute()
+        project_name = (proj.data or {}).get("name", "Project")
+    except Exception:
+        pass
+
+    # Load project data for context
+    features: list[dict] = []
+    pain_points: list[dict] = []
+    goals: list[dict] = []
+    workflows: list[dict] = []
+    stakeholder_names: list[str] = []
+
+    try:
+        feat_result = sb.table("features").select("name, overview").eq("project_id", str(project_id)).limit(20).execute()
+        features = feat_result.data or []
+    except Exception:
+        pass
+
+    try:
+        drivers = sb.table("business_drivers").select("description, driver_type").eq("project_id", str(project_id)).execute()
+        for d in drivers.data or []:
+            if d.get("driver_type") == "pain":
+                pain_points.append(d)
+            elif d.get("driver_type") == "goal":
+                goals.append(d)
+    except Exception:
+        pass
+
+    try:
+        from app.db.workflows import get_workflow_pairs
+        workflows = get_workflow_pairs(project_id)
+    except Exception:
+        pass
+
+    try:
+        sh_result = sb.table("stakeholders").select("name").eq("project_id", str(project_id)).limit(10).execute()
+        stakeholder_names = [s["name"] for s in (sh_result.data or []) if s.get("name")]
+    except Exception:
+        pass
+
+    # Generate beliefs via LLM
+    try:
+        belief_dicts = await generate_beliefs(
+            project_name=project_name,
+            features=features,
+            pain_points=pain_points,
+            goals=goals,
+            workflows=workflows,
+            stakeholders=stakeholder_names,
+            project_id=str(project_id),
+        )
+    except Exception as e:
+        logger.error(f"Belief generation failed: {e}")
+        raise HTTPException(status_code=500, detail="Belief generation failed")
+
+    # Deactivate existing agent-generated beliefs before creating new ones
+    try:
+        existing = get_active_beliefs(project_id, limit=50)
+        for b in existing:
+            if b.get("source_type") == "agent":
+                sb.table("memory_nodes").update({"is_active": False}).eq("id", b["id"]).execute()
+    except Exception as e:
+        logger.warning(f"Failed to deactivate old beliefs: {e}")
+
+    # Store beliefs as memory nodes
+    created_nodes: list[GraphNodeResponse] = []
+    for bd in belief_dicts:
+        try:
+            node = create_node(
+                project_id=project_id,
+                node_type="belief",
+                content=bd.get("statement", ""),
+                summary=bd.get("statement", "")[:120],
+                confidence=bd.get("confidence", 0.7),
+                source_type="agent",
+                belief_domain=bd.get("domain"),
+                linked_entity_type=bd.get("linked_entity_type"),
+            )
+            if node:
+                created_nodes.append(_node_to_response(node))
+        except Exception as e:
+            logger.warning(f"Failed to store belief: {e}")
+
+    return created_nodes

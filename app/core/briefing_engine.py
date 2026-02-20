@@ -43,6 +43,7 @@ async def compute_intelligence_briefing(
     from app.core.action_engine import (
         _build_structural_gaps,
         _build_workflow_context,
+        _build_workflow_context_display,
         _count_entities,
         _detect_context_phase,
         _load_project_data,
@@ -52,6 +53,7 @@ async def compute_intelligence_briefing(
     data = await _load_project_data(project_id)
     phase, phase_progress = _detect_context_phase(data)
     workflow_context = _build_workflow_context(data["workflow_pairs"])
+    workflow_context_display = _build_workflow_context_display(data["workflow_pairs"])
     entity_counts = _count_entities(data)
 
     # Load project name
@@ -117,7 +119,7 @@ async def compute_intelligence_briefing(
                 insights=insights,
                 tensions=tension_dicts,
                 entity_summary=entity_counts,
-                workflow_context=workflow_context,
+                workflow_context=workflow_context_display,
                 stakeholder_names=data.get("stakeholder_names", []),
                 phase=phase.value,
                 phase_progress=phase_progress,
@@ -175,7 +177,7 @@ async def compute_intelligence_briefing(
                 phase=phase.value,
                 phase_progress=phase_progress,
                 signal_evidence=signal_evidence,
-                workflow_context=workflow_context,
+                workflow_context=workflow_context_display,
                 entity_counts=entity_counts,
                 beliefs=beliefs[:3],
                 open_questions=data.get("questions", [])[:3],

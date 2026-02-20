@@ -1104,6 +1104,29 @@ def _build_workflow_context(workflow_pairs: list[dict]) -> str:
     return "\n".join(lines)
 
 
+def _build_workflow_context_display(workflow_pairs: list[dict]) -> str:
+    """Build workflow context for user-facing narratives — no IDs."""
+    if not workflow_pairs:
+        return "No workflows defined yet."
+
+    lines = []
+    for p in workflow_pairs[:8]:
+        name = p.get("name", "Unnamed")
+        current = p.get("current_steps") or []
+        future = p.get("future_steps") or []
+        line = f"- {name}"
+        if current:
+            step_parts = [s.get("label", "step") for s in current[:6]]
+            line += f" (current: {', '.join(step_parts)})"
+        if future:
+            step_parts = [s.get("label", "step") for s in future[:6]]
+            line += f" (future: {', '.join(step_parts)})"
+        lines.append(line)
+    if len(workflow_pairs) > 8:
+        lines.append(f"  ... and {len(workflow_pairs) - 8} more workflows")
+    return "\n".join(lines)
+
+
 def _build_structural_gaps(
     workflow_pairs: list[dict],
     phase_str: str,
