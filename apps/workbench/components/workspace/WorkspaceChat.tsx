@@ -178,28 +178,27 @@ export function WorkspaceChat({
       // Two-phase polling for processing completion
       if (documentIds.length === 0) return
 
-      let completedCount = 0
-      const completedFiles: string[] = []
-
       for (const docId of documentIds) {
         let attempts = 0
         const maxAttempts = 90 // 3 minutes at 2s intervals
         let phase: 'extraction' | 'entity_analysis' = 'extraction'
-        let shownPhase1Message = false
+        let done = false // Guard against async race conditions
 
         const poll = setInterval(async () => {
+          if (done) return // Prevent overlapping async callbacks
           attempts++
           if (attempts > maxAttempts) {
+            done = true
             clearInterval(poll)
-            completedCount++
             return
           }
           try {
             const status = await getDocumentStatus(docId)
+            if (done) return // Re-check after async gap
 
             if (status.processing_status === 'failed') {
+              done = true
               clearInterval(poll)
-              completedCount++
               return
             }
 
@@ -208,8 +207,8 @@ export function WorkspaceChat({
               if (status.processing_status === 'completed') {
                 // Check if clarification is needed — stop polling if so
                 if (status.needs_clarification) {
+                  done = true
                   clearInterval(poll)
-                  completedCount++
                   onAddLocalMessage?.({
                     role: 'assistant',
                     content: status.clarification_question || 'I have a question about this document — what type of document is it?',
@@ -217,67 +216,75 @@ export function WorkspaceChat({
                   return
                 }
 
-                // Phase 1 done — send a real message to the LLM for early analysis
-                if (!shownPhase1Message) {
-                  shownPhase1Message = true
-                  const docClass = status.document_class || 'document'
-                  const classLabels: Record<string, string> = {
-                    prd: 'product requirements doc', transcript: 'meeting transcript',
-                    spec: 'technical spec', email: 'email thread', presentation: 'presentation',
-                    research: 'research document', process_doc: 'process document',
-                  }
-                  const label = classLabels[docClass] || docClass
-                  const fname = status.original_filename || 'the document'
+                // Phase 1 done — trigger LLM analysis
+                const docClass = status.document_class || 'document'
+                const classLabels: Record<string, string> = {
+                  prd: 'product requirements doc', transcript: 'meeting transcript',
+                  spec: 'technical spec', email: 'email thread', presentation: 'presentation',
+                  research: 'research document', process_doc: 'process document',
+                }
+                const label = classLabels[docClass] || docClass
+                const fname = status.original_filename || 'the document'
+
+                // If no signal_id or entity extraction not applicable, this is the final step
+                if (!status.signal_id || status.entity_extraction_status === 'not_applicable') {
+                  done = true
+                  clearInterval(poll)
                   setTimeout(() => {
                     externalSendMessage(
-                      `I just uploaded **${fname}** (classified as ${label}). Check the document status and give me a quick initial take — what's in there? Entity extraction is still running in the background.`
+                      `I just uploaded **${fname}** (classified as ${label}). Check the document status and give me a quick take — what's in there?`
                     )
                   }, 500)
-                }
-
-                // If no signal_id or entity extraction not applicable, stop polling
-                if (!status.signal_id || status.entity_extraction_status === 'not_applicable') {
-                  clearInterval(poll)
-                  completedCount++
                   return
                 }
 
-                // Transition to Phase 2
+                // Transition to Phase 2 — show progress message and trigger LLM
                 phase = 'entity_analysis'
+                onAddLocalMessage?.({
+                  role: 'assistant',
+                  content: `Got it — **${fname}** is a **${label}**. Extracting requirements now, I'll have a full summary shortly...`,
+                })
+                setTimeout(() => {
+                  externalSendMessage(
+                    `I just uploaded **${fname}** (classified as ${label}). Check the document status and give me a quick initial take — what's in there? Entity extraction is still running in the background.`
+                  )
+                }, 500)
               }
             }
 
             // Phase 2: Wait for V2 entity extraction to complete
             if (phase === 'entity_analysis') {
               if (status.entity_extraction_status === 'completed') {
+                done = true
                 clearInterval(poll)
-                completedCount++
-                completedFiles.push(status.original_filename || 'document')
 
-                // When all docs finish, send follow-up with entity counts
-                if (completedCount >= documentIds.length && completedFiles.length > 0) {
-                  const entities = status.extracted_entities
-                  let countParts: string[] = []
-                  if (entities) {
-                    if (entities.features.length > 0) countParts.push(`${entities.features.length} features`)
-                    if (entities.personas.length > 0) countParts.push(`${entities.personas.length} personas`)
-                    if (entities.vp_steps.length > 0) countParts.push(`${entities.vp_steps.length} workflow steps`)
-                    if (entities.constraints.length > 0) countParts.push(`${entities.constraints.length} constraints`)
-                    if (entities.stakeholders.length > 0) countParts.push(`${entities.stakeholders.length} stakeholders`)
-                  }
-                  if (countParts.length > 0) {
-                    setTimeout(() => {
-                      externalSendMessage(
-                        `Entity extraction just finished — found ${countParts.join(', ')}. Show me a summary of what was extracted so I can review.`
-                      )
-                    }, 500)
-                  }
+                // Show entity counts as an assistant message (not blue user bubble)
+                const entities = status.extracted_entities
+                const countParts: string[] = []
+                if (entities) {
+                  if (entities.features.length > 0) countParts.push(`${entities.features.length} features`)
+                  if (entities.personas.length > 0) countParts.push(`${entities.personas.length} personas`)
+                  if (entities.vp_steps.length > 0) countParts.push(`${entities.vp_steps.length} workflow steps`)
+                  if (entities.constraints.length > 0) countParts.push(`${entities.constraints.length} constraints`)
+                  if (entities.stakeholders.length > 0) countParts.push(`${entities.stakeholders.length} stakeholders`)
+                }
+                const fname = status.original_filename || 'document'
+                if (countParts.length > 0) {
+                  onAddLocalMessage?.({
+                    role: 'assistant',
+                    content: `Analysis complete for **${fname}** — extracted ${countParts.join(', ')}. You can ask me to review any of these, or check the BRD to see what was added.`,
+                  })
+                } else {
+                  onAddLocalMessage?.({
+                    role: 'assistant',
+                    content: `Finished analyzing **${fname}**. Check the BRD to see what was extracted.`,
+                  })
                 }
               }
             }
           } catch {
+            done = true
             clearInterval(poll)
-            completedCount++
           }
         }, 2000)
       }
