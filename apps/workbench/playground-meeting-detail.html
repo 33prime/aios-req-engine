@@ -1,0 +1,932 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AIOS — Meeting Detail</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; background: #FAFAFA; color: #4B4B4B; min-height: 100vh; overflow: hidden; }
+
+  /* Layout */
+  .layout { display: flex; height: 100vh; }
+
+  /* Top bar */
+  .topbar { height: 52px; background: white; border-bottom: 1px solid #E5E5E5; display: flex; align-items: center; justify-content: space-between; padding: 0 24px; flex-shrink: 0; }
+  .breadcrumb { display: flex; align-items: center; gap: 6px; font-size: 13px; }
+  .breadcrumb a { color: #7B7B7B; text-decoration: none; }
+  .breadcrumb a:hover { color: #044159; }
+  .breadcrumb .sep { color: #D0D0D0; }
+  .breadcrumb .current { color: #1D1D1F; font-weight: 500; }
+  .topbar-actions { display: flex; gap: 8px; align-items: center; }
+
+  .btn { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 6px; font-size: 12px; font-weight: 500; cursor: pointer; border: none; transition: all 0.15s; white-space: nowrap; font-family: inherit; }
+  .btn-primary { background: #044159; color: white; }
+  .btn-primary:hover { background: #033344; }
+  .btn-secondary { background: #F5F5F5; color: #4B4B4B; }
+  .btn-secondary:hover { background: #E8E8E8; }
+  .btn-outline { background: white; color: #044159; border: 1px solid #D0D0D0; }
+  .btn-outline:hover { border-color: #044159; background: #f0f7fa; }
+  .btn-ghost { background: transparent; color: #7B7B7B; padding: 6px 8px; }
+  .btn-ghost:hover { background: #F0F0F0; color: #4B4B4B; }
+  .btn-green { background: #E8F5E9; color: #25785A; border: 1px solid #C8E6C9; }
+  .btn-green:hover { background: #D1FAE5; }
+  .btn svg { width: 14px; height: 14px; }
+  .btn-sm { padding: 4px 10px; font-size: 11px; }
+
+  /* Panels */
+  .content-area { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  .panels { flex: 1; display: flex; overflow: hidden; }
+  .main-panel { flex: 1; overflow-y: auto; padding: 24px 32px; min-width: 0; }
+  .side-panel { width: 420px; background: white; border-left: 1px solid #E5E5E5; display: flex; flex-direction: column; transition: width 0.25s, opacity 0.2s; overflow: hidden; }
+  .side-panel.collapsed { width: 0; opacity: 0; border: none; }
+  .side-panel-tabs { display: flex; border-bottom: 1px solid #E5E5E5; flex-shrink: 0; }
+  .sp-tab { padding: 12px 18px; font-size: 13px; font-weight: 500; color: #7B7B7B; cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.15s; }
+  .sp-tab:hover { color: #4B4B4B; }
+  .sp-tab.active { color: #044159; border-bottom-color: #044159; }
+  .sp-content { flex: 1; overflow-y: auto; }
+  .sp-section { padding: 20px; }
+
+  /* Toggle panel button */
+  .panel-toggle { width: 32px; height: 32px; border-radius: 6px; border: 1px solid #E5E5E5; background: white; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #7B7B7B; transition: all 0.15s; }
+  .panel-toggle:hover { background: #F0F0F0; border-color: #D0D0D0; }
+  .panel-toggle.active { background: #E0EFF3; color: #044159; border-color: #044159; }
+
+  /* Meeting header */
+  .meeting-title { font-size: 22px; font-weight: 700; color: #1D1D1F; margin-bottom: 12px; line-height: 1.3; }
+  .meeting-meta { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 8px; }
+  .meta-pill { display: inline-flex; align-items: center; gap: 5px; padding: 4px 12px; border-radius: 16px; font-size: 12px; font-weight: 500; background: #F5F5F5; color: #4B4B4B; border: 1px solid #E5E5E5; }
+  .meta-pill svg { width: 13px; height: 13px; color: #7B7B7B; }
+  .badge { display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 10px; font-size: 11px; font-weight: 600; }
+  .badge-discovery { background: #E8F5E9; color: #25785A; }
+  .badge-scheduled { background: #DBEAFE; color: #1D4ED8; }
+  .badge-completed { background: #D1FAE5; color: #047857; }
+  .meet-link { display: inline-flex; align-items: center; gap: 5px; padding: 4px 12px; border-radius: 16px; font-size: 12px; font-weight: 500; background: #E8F5E9; color: #25785A; border: 1px solid #C8E6C9; cursor: pointer; text-decoration: none; transition: background 0.15s; }
+  .meet-link:hover { background: #D1FAE5; }
+  .meet-link svg { width: 14px; height: 14px; }
+
+  /* Sections */
+  .section { margin-top: 28px; }
+  .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+  .section-title { font-size: 15px; font-weight: 600; color: #1D1D1F; display: flex; align-items: center; gap: 8px; }
+  .section-title .count { font-size: 12px; font-weight: 500; color: #7B7B7B; background: #F0F0F0; padding: 1px 7px; border-radius: 8px; }
+  .section-actions { display: flex; gap: 6px; }
+  .ai-badge { display: inline-flex; align-items: center; gap: 3px; font-size: 10px; font-weight: 600; color: #88BABF; background: rgba(136,186,191,0.12); padding: 2px 7px; border-radius: 4px; }
+
+  /* Participants */
+  .participants-grid { display: flex; gap: 10px; flex-wrap: wrap; }
+  .participant-card { display: flex; align-items: center; gap: 10px; padding: 8px 14px; background: white; border: 1px solid #E5E5E5; border-radius: 8px; transition: all 0.15s; cursor: default; min-width: 180px; }
+  .participant-card:hover { border-color: #D0D0D0; box-shadow: 0 2px 4px rgba(0,0,0,0.04); }
+  .participant-avatar { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: white; flex-shrink: 0; }
+  .participant-info { min-width: 0; }
+  .participant-name { font-size: 13px; font-weight: 600; color: #1D1D1F; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .participant-detail { font-size: 11px; color: #7B7B7B; display: flex; align-items: center; gap: 4px; }
+  .role-badge { font-size: 10px; font-weight: 600; padding: 1px 6px; border-radius: 4px; }
+  .role-champion { background: #E8F5E9; color: #25785A; }
+  .role-sponsor { background: #DBEAFE; color: #1D4ED8; }
+  .role-enduser { background: #F3F4F6; color: #374151; }
+  .role-influencer { background: #F3E8FF; color: #6B21A8; }
+  .role-consultant { background: #E0EFF3; color: #044159; }
+
+  /* Participant Insights */
+  .insights-panel { background: white; border: 1px solid #E5E5E5; border-radius: 8px; overflow: hidden; }
+  .insights-toggle { width: 100%; padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; background: none; border: none; cursor: pointer; font-family: inherit; }
+  .insights-toggle-left { display: flex; align-items: center; gap: 8px; }
+  .insights-toggle-left span { font-size: 13px; font-weight: 600; color: #1D1D1F; }
+  .insights-toggle svg { width: 16px; height: 16px; color: #7B7B7B; transition: transform 0.2s; }
+  .insights-toggle.open svg.chevron { transform: rotate(180deg); }
+  .sparkle-icon { color: #88BABF !important; }
+  .insights-body { padding: 0 16px 16px; display: none; }
+  .insights-body.open { display: block; }
+  .insights-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .insight-card { padding: 10px 12px; border-radius: 6px; font-size: 12px; line-height: 1.5; color: #4B4B4B; border-left: 3px solid; }
+  .insight-positive { background: #f0fdf4; border-color: #3FAF7A; }
+  .insight-neutral { background: #f0f7fa; border-color: #88BABF; }
+  .insight-attention { background: #fff8f0; border-color: #D97706; }
+  .insight-new { background: #F3E8FF; border-color: #6B21A8; }
+  .insight-name { font-weight: 600; color: #1D1D1F; }
+
+  /* Agenda */
+  .agenda-list { display: flex; flex-direction: column; gap: 0; }
+  .agenda-item { background: white; border: 1px solid #E5E5E5; border-radius: 8px; overflow: hidden; margin-bottom: 8px; transition: box-shadow 0.15s; }
+  .agenda-item:hover { box-shadow: 0 2px 4px rgba(0,0,0,0.04); }
+  .agenda-item-header { display: flex; align-items: center; gap: 10px; padding: 12px 14px; cursor: pointer; }
+  .agenda-num { width: 24px; height: 24px; border-radius: 50%; background: #E0EFF3; color: #044159; font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .agenda-title-text { flex: 1; font-size: 14px; font-weight: 500; color: #1D1D1F; }
+  .agenda-duration { font-size: 11px; font-weight: 600; color: #7B7B7B; background: #F5F5F5; padding: 2px 8px; border-radius: 4px; white-space: nowrap; }
+  .agenda-expand { width: 20px; height: 20px; color: #D0D0D0; transition: transform 0.2s; }
+  .agenda-item.expanded .agenda-expand { transform: rotate(180deg); }
+  .agenda-body { padding: 0 14px 14px 48px; display: none; }
+  .agenda-item.expanded .agenda-body { display: block; }
+  .agenda-desc { font-size: 13px; color: #7B7B7B; line-height: 1.5; margin-bottom: 8px; }
+  .agenda-questions { list-style: none; }
+  .agenda-questions li { font-size: 12px; color: #4B4B4B; padding: 3px 0; padding-left: 14px; position: relative; }
+  .agenda-questions li::before { content: '?'; position: absolute; left: 0; color: #88BABF; font-weight: 700; }
+  .agenda-total { padding: 12px 0; font-size: 13px; font-weight: 500; color: #7B7B7B; display: flex; align-items: center; gap: 6px; justify-content: space-between; }
+  .add-item-btn { display: inline-flex; align-items: center; gap: 4px; padding: 6px 12px; border-radius: 6px; font-size: 12px; font-weight: 500; color: #044159; background: white; border: 1px dashed #D0D0D0; cursor: pointer; transition: all 0.15s; }
+  .add-item-btn:hover { border-color: #044159; background: #f0f7fa; }
+
+  /* AI Rewrite Panel */
+  .ai-rewrite-panel { background: white; border: 1px solid #88BABF; border-radius: 8px; padding: 16px; margin-top: 12px; display: none; }
+  .ai-rewrite-panel.open { display: block; }
+  .rewrite-styles { display: flex; gap: 6px; margin-bottom: 12px; flex-wrap: wrap; }
+  .rewrite-pill { padding: 5px 12px; border-radius: 16px; font-size: 12px; font-weight: 500; border: 1px solid #E5E5E5; background: white; color: #4B4B4B; cursor: pointer; transition: all 0.15s; }
+  .rewrite-pill:hover { border-color: #88BABF; }
+  .rewrite-pill.selected { background: #044159; color: white; border-color: #044159; }
+  .rewrite-preview { background: #F8FAFB; border: 1px solid #E5E5E5; border-radius: 6px; padding: 12px; margin-top: 12px; font-size: 12px; color: #4B4B4B; line-height: 1.6; }
+  .rewrite-actions { display: flex; gap: 8px; margin-top: 12px; justify-content: flex-end; }
+
+  /* Notes section */
+  .notes-area { background: white; border: 1px solid #E5E5E5; border-radius: 8px; padding: 16px; min-height: 120px; }
+  .notes-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 32px; color: #B0B0B0; text-align: center; }
+  .notes-empty svg { width: 32px; height: 32px; margin-bottom: 8px; color: #D0D0D0; }
+  .notes-empty p { font-size: 13px; }
+
+  /* Side panel: Recording */
+  .video-placeholder { background: #1a1a2e; border-radius: 8px; aspect-ratio: 16/9; display: flex; align-items: center; justify-content: center; position: relative; overflow: hidden; margin-bottom: 4px; }
+  .video-placeholder .play-btn { width: 52px; height: 52px; border-radius: 50%; background: rgba(255,255,255,0.15); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: background 0.2s; }
+  .video-placeholder .play-btn:hover { background: rgba(255,255,255,0.25); }
+  .video-placeholder .play-btn svg { width: 24px; height: 24px; color: white; margin-left: 3px; }
+  .video-time { position: absolute; bottom: 10px; left: 12px; color: rgba(255,255,255,0.7); font-size: 11px; font-family: 'SF Mono', monospace; }
+  .video-controls { display: flex; align-items: center; gap: 8px; padding: 6px 0 12px; }
+  .progress-bar { flex: 1; height: 3px; background: #E5E5E5; border-radius: 2px; position: relative; cursor: pointer; }
+  .progress-fill { width: 0%; height: 100%; background: #044159; border-radius: 2px; transition: width 0.3s; }
+  .vc-btn { background: none; border: none; cursor: pointer; color: #7B7B7B; display: flex; align-items: center; }
+  .vc-btn:hover { color: #4B4B4B; }
+  .vc-btn svg { width: 16px; height: 16px; }
+
+  .transcript-search { position: relative; margin-bottom: 12px; }
+  .transcript-search input { width: 100%; padding: 7px 12px 7px 32px; border: 1px solid #E5E5E5; border-radius: 6px; font-size: 12px; background: #FAFAFA; color: #4B4B4B; outline: none; }
+  .transcript-search input:focus { border-color: #88BABF; background: white; }
+  .transcript-search svg { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); width: 13px; height: 13px; color: #B0B0B0; }
+
+  .transcript { display: flex; flex-direction: column; gap: 12px; }
+  .transcript-entry { display: flex; gap: 10px; }
+  .transcript-speaker { font-size: 12px; font-weight: 600; min-width: 100px; white-space: nowrap; }
+  .transcript-text { font-size: 12px; line-height: 1.6; color: #4B4B4B; flex: 1; }
+  .transcript-time { font-size: 10px; color: #B0B0B0; font-family: 'SF Mono', monospace; white-space: nowrap; cursor: pointer; }
+  .transcript-time:hover { color: #044159; }
+
+  /* Side panel: Details */
+  .detail-row { display: flex; align-items: flex-start; padding: 8px 0; border-bottom: 1px solid #F5F5F5; }
+  .detail-label { width: 120px; font-size: 12px; color: #7B7B7B; flex-shrink: 0; padding-top: 2px; }
+  .detail-value { font-size: 13px; color: #1D1D1F; flex: 1; }
+  .detail-link { color: #044159; text-decoration: none; }
+  .detail-link:hover { text-decoration: underline; }
+  .detail-check { display: inline-flex; align-items: center; gap: 4px; color: #3FAF7A; font-size: 12px; }
+  .detail-check svg { width: 14px; height: 14px; }
+
+  /* Side panel: Signals */
+  .signal-card { padding: 12px; border: 1px solid #E5E5E5; border-radius: 6px; margin-bottom: 8px; }
+  .signal-header { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+  .signal-type { font-size: 10px; font-weight: 600; padding: 1px 6px; border-radius: 4px; text-transform: uppercase; }
+  .signal-feature { background: #E8F5E9; color: #25785A; }
+  .signal-persona { background: #F3E8FF; color: #6B21A8; }
+  .signal-constraint { background: #FEE2E2; color: #991B1B; }
+  .signal-title { font-size: 13px; font-weight: 500; color: #1D1D1F; }
+  .signal-maps { font-size: 11px; color: #7B7B7B; margin-top: 4px; }
+  .signal-confidence { font-size: 11px; font-weight: 600; padding: 1px 6px; border-radius: 4px; float: right; }
+  .signal-high { background: #D1FAE5; color: #047857; }
+  .signal-med { background: #FEF3C7; color: #92400E; }
+
+  /* Email modal */
+  .email-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 1000; display: flex; align-items: center; justify-content: center; opacity: 0; pointer-events: none; transition: opacity 0.2s; }
+  .email-overlay.open { opacity: 1; pointer-events: all; }
+  .email-modal { background: white; border-radius: 12px; width: 100%; max-width: 560px; max-height: 85vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.15); transform: translateY(10px); transition: transform 0.2s; }
+  .email-overlay.open .email-modal { transform: translateY(0); }
+  .email-header { padding: 20px 24px 16px; border-bottom: 1px solid #F0F0F0; display: flex; align-items: center; justify-content: space-between; }
+  .email-header h3 { font-size: 16px; font-weight: 600; color: #1D1D1F; }
+  .email-body { padding: 20px 24px; }
+  .email-footer { padding: 16px 24px 20px; border-top: 1px solid #F0F0F0; display: flex; align-items: center; justify-content: space-between; }
+  .email-footer .note { font-size: 11px; color: #7B7B7B; display: flex; align-items: center; gap: 4px; }
+  .recipient-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
+  .recipient-row { display: flex; align-items: center; gap: 10px; padding: 6px 0; }
+  .recipient-row input[type="checkbox"] { accent-color: #044159; }
+  .recipient-name { font-size: 13px; font-weight: 500; color: #1D1D1F; }
+  .recipient-email { font-size: 11px; color: #7B7B7B; }
+  .email-preview { background: #FAFAFA; border: 1px solid #E5E5E5; border-radius: 6px; padding: 16px; margin-bottom: 16px; font-size: 12px; line-height: 1.7; color: #4B4B4B; max-height: 200px; overflow-y: auto; }
+  .email-preview h4 { font-size: 13px; font-weight: 600; color: #1D1D1F; margin-bottom: 8px; }
+  .email-preview .agenda-line { padding: 3px 0; border-bottom: 1px solid #F0F0F0; }
+  .custom-msg { width: 100%; padding: 8px 12px; border: 1px solid #E5E5E5; border-radius: 6px; font-size: 13px; font-family: inherit; resize: vertical; min-height: 60px; outline: none; }
+  .custom-msg:focus { border-color: #88BABF; }
+  .label-sm { font-size: 11px; font-weight: 600; color: rgba(55,53,47,0.5); text-transform: uppercase; letter-spacing: 0.3px; margin-bottom: 6px; }
+
+  .modal-close { width: 28px; height: 28px; border-radius: 6px; border: none; background: transparent; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #7B7B7B; }
+  .modal-close:hover { background: #F0F0F0; }
+
+  /* View switcher */
+  .view-switcher { display: flex; gap: 4px; background: #F0F0F0; padding: 2px; border-radius: 6px; }
+  .view-switcher-btn { padding: 4px 10px; border-radius: 4px; font-size: 11px; font-weight: 500; border: none; background: transparent; color: #7B7B7B; cursor: pointer; transition: all 0.15s; }
+  .view-switcher-btn.active { background: white; color: #1D1D1F; box-shadow: 0 1px 2px rgba(0,0,0,0.06); }
+
+  /* Prompt output */
+  .prompt-output { position: fixed; bottom: 0; left: 0; right: 0; background: #0A1E2F; color: #c8d6df; padding: 10px 24px; font-size: 11px; font-family: 'SF Mono', 'Fira Code', monospace; display: flex; align-items: center; gap: 16px; z-index: 50; }
+  .prompt-output .prompt-text { flex: 1; line-height: 1.5; opacity: 0.85; }
+  .prompt-output .copy-btn { padding: 4px 10px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); border-radius: 4px; color: white; font-size: 10px; cursor: pointer; white-space: nowrap; font-family: inherit; }
+  .prompt-output .copy-btn:hover { background: rgba(255,255,255,0.2); }
+
+  .recording-upcoming { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 48px 24px; text-align: center; color: #B0B0B0; }
+  .recording-upcoming svg { width: 40px; height: 40px; margin-bottom: 12px; color: #D0D0D0; }
+  .recording-upcoming p { font-size: 13px; }
+
+  .recording-toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; background: #FAFAFA; border-radius: 6px; margin-top: 12px; }
+  .recording-toggle-label { font-size: 12px; font-weight: 500; color: #4B4B4B; }
+  .toggle { width: 36px; height: 20px; border-radius: 10px; background: #D0D0D0; cursor: pointer; position: relative; transition: background 0.2s; flex-shrink: 0; }
+  .toggle.on { background: #3FAF7A; }
+  .toggle::after { content: ''; position: absolute; width: 16px; height: 16px; border-radius: 50%; background: white; top: 2px; left: 2px; transition: transform 0.2s; box-shadow: 0 1px 2px rgba(0,0,0,0.2); }
+  .toggle.on::after { transform: translateX(16px); }
+  .status-indicator { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 500; }
+  .status-dot { width: 6px; height: 6px; border-radius: 50%; }
+  .status-dot.green { background: #3FAF7A; }
+  .status-dot.gray { background: #D0D0D0; }
+</style>
+</head>
+<body>
+
+<div class="layout">
+  <div class="content-area">
+    <!-- Top Bar -->
+    <div class="topbar">
+      <div class="breadcrumb">
+        <a href="playground-meetings-list.html">Meetings</a>
+        <span class="sep">/</span>
+        <a href="#">Upcoming</a>
+        <span class="sep">/</span>
+        <span class="current">Requirements Kickoff with Acme Corp</span>
+      </div>
+      <div class="topbar-actions">
+        <button class="btn btn-outline" onclick="openEmailModal()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+          Email Agenda
+        </button>
+        <button class="btn btn-secondary">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          Edit
+        </button>
+        <button class="btn btn-ghost">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+        </button>
+        <button class="panel-toggle active" id="panelToggle" onclick="togglePanel()" title="Toggle side panel">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="15" y1="3" x2="15" y2="21"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="panels">
+      <!-- Main Panel -->
+      <div class="main-panel" style="padding-bottom:56px;">
+
+        <!-- Meeting Header -->
+        <h1 class="meeting-title">Requirements Kickoff with Acme Corp</h1>
+        <div class="meeting-meta">
+          <span class="meta-pill">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            Feb 24, 2026, 10:00 – 11:00 AM EST
+          </span>
+          <span class="meta-pill">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            60 min
+          </span>
+          <span class="badge badge-discovery">Discovery</span>
+          <span class="badge badge-scheduled">Scheduled</span>
+        </div>
+        <div style="margin-top:6px;">
+          <a href="#" class="meet-link" onclick="event.preventDefault()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+            Join Google Meet
+          </a>
+        </div>
+
+        <!-- Participants -->
+        <div class="section">
+          <div class="section-header">
+            <div class="section-title">
+              Participants <span class="count">5</span>
+            </div>
+          </div>
+          <div class="participants-grid">
+            <div class="participant-card">
+              <div class="participant-avatar" style="background:linear-gradient(135deg,#044159,#2d7d9a)">SC</div>
+              <div class="participant-info">
+                <div class="participant-name">Sarah Chen</div>
+                <div class="participant-detail"><span class="role-badge role-champion">Champion</span> Acme Corp</div>
+              </div>
+            </div>
+            <div class="participant-card">
+              <div class="participant-avatar" style="background:linear-gradient(135deg,#25785A,#3FAF7A)">MR</div>
+              <div class="participant-info">
+                <div class="participant-name">Mike Rodriguez</div>
+                <div class="participant-detail"><span class="role-badge role-sponsor">Sponsor</span> Acme Corp</div>
+              </div>
+            </div>
+            <div class="participant-card">
+              <div class="participant-avatar" style="background:linear-gradient(135deg,#88BABF,#a8d4d8)">AP</div>
+              <div class="participant-info">
+                <div class="participant-name">Alex Park</div>
+                <div class="participant-detail"><span class="role-badge role-enduser">End User</span> Acme Corp</div>
+              </div>
+            </div>
+            <div class="participant-card" style="border-color:#88BABF;background:#f8fbfc;">
+              <div class="participant-avatar" style="background:linear-gradient(135deg,#044159,#88BABF)">ME</div>
+              <div class="participant-info">
+                <div class="participant-name">You (Matt Edmund)</div>
+                <div class="participant-detail"><span class="role-badge role-consultant">Consultant</span></div>
+              </div>
+            </div>
+            <div class="participant-card">
+              <div class="participant-avatar" style="background:linear-gradient(135deg,#6B21A8,#a855f7)">JW</div>
+              <div class="participant-info">
+                <div class="participant-name">Jamie Walsh</div>
+                <div class="participant-detail"><span class="role-badge role-influencer">Influencer</span> Acme Corp</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Participant Insights -->
+        <div class="section">
+          <div class="insights-panel">
+            <button class="insights-toggle open" onclick="toggleInsights()">
+              <div class="insights-toggle-left">
+                <svg class="sparkle-icon" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M12 0L14.59 8.41L23 11L14.59 13.59L12 22L9.41 13.59L1 11L9.41 8.41L12 0Z" transform="scale(0.75) translate(4,4)"/></svg>
+                <span>Participant Insights</span>
+                <span class="ai-badge">AI Generated</span>
+              </div>
+              <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
+            <div class="insights-body open" id="insightsBody">
+              <div class="insights-grid">
+                <div class="insight-card insight-positive">
+                  <span class="insight-name">Sarah Chen</span> tends to focus on UX consistency — she's raised 4 usability concerns across past sessions. Prepare concrete wireframe examples.
+                </div>
+                <div class="insight-card insight-neutral">
+                  <span class="insight-name">Mike Rodriguez</span> is budget-conscious — has asked about ROI 3 times in discovery. Have cost-benefit data ready.
+                </div>
+                <div class="insight-card insight-attention">
+                  <span class="insight-name">Alex Park</span> hasn't spoken in the last 2 meetings — consider direct questions to draw out end-user feedback.
+                </div>
+                <div class="insight-card insight-new">
+                  First meeting with <span class="insight-name">Jamie Walsh</span> — recently added as an influencer. Brief intro and context-setting recommended.
+                </div>
+              </div>
+              <div style="margin-top:10px;text-align:right;">
+                <button class="btn btn-sm btn-secondary" onclick="this.textContent='Regenerating...';setTimeout(()=>this.textContent='Regenerate Insights',1200)">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="width:12px;height:12px"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+                  Regenerate Insights
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Agenda -->
+        <div class="section">
+          <div class="section-header">
+            <div class="section-title">Agenda</div>
+            <div class="section-actions">
+              <button class="btn btn-sm btn-secondary" onclick="toggleRewrite()">
+                <svg viewBox="0 0 24 24" fill="currentColor" stroke="none" style="width:12px;height:12px;color:#88BABF"><path d="M12 0L14.59 8.41L23 11L14.59 13.59L12 22L9.41 13.59L1 11L9.41 8.41L12 0Z" transform="scale(0.75) translate(4,4)"/></svg>
+                AI Rewrite
+              </button>
+              <button class="btn btn-sm btn-secondary">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="width:12px;height:12px"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                Edit
+              </button>
+            </div>
+          </div>
+
+          <div class="ai-rewrite-panel" id="rewritePanel">
+            <div style="font-size:12px;font-weight:600;color:#1D1D1F;margin-bottom:8px;">Rewrite Style</div>
+            <div class="rewrite-styles" id="rewriteStyles">
+              <div class="rewrite-pill selected" onclick="selectRewriteStyle(this)">More Focused</div>
+              <div class="rewrite-pill" onclick="selectRewriteStyle(this)">More Collaborative</div>
+              <div class="rewrite-pill" onclick="selectRewriteStyle(this)">Executive Summary</div>
+              <div class="rewrite-pill" onclick="selectRewriteStyle(this)">Custom</div>
+            </div>
+            <div id="customRewriteInput" style="display:none;margin-bottom:8px;">
+              <input class="custom-msg" style="min-height:36px" placeholder="Describe how you'd like the agenda rewritten...">
+            </div>
+            <button class="btn btn-sm btn-primary" onclick="showRewritePreview()" style="margin-bottom:8px;">Rewrite Agenda</button>
+            <div class="rewrite-preview" id="rewritePreview" style="display:none;">
+              <strong>Preview — More Focused:</strong><br><br>
+              1. <strong>Quick Intros</strong> (3 min) — Brief round-table, skip formalities<br>
+              2. <strong>Top 3 Pain Points</strong> (20 min) — Deep-dive into highest-impact issues only<br>
+              3. <strong>Feature Priority Stack-Rank</strong> (25 min) — Forced ranking of top 5 features<br>
+              4. <strong>Blockers & Constraints</strong> (7 min) — Technical showstoppers only<br>
+              5. <strong>Action Items</strong> (5 min) — Owner + deadline for each item
+            </div>
+            <div class="rewrite-actions" id="rewriteActions" style="display:none;">
+              <button class="btn btn-sm btn-secondary" onclick="toggleRewrite()">Discard</button>
+              <button class="btn btn-sm btn-primary" onclick="toggleRewrite()">Apply Changes</button>
+            </div>
+          </div>
+
+          <div class="agenda-list" id="agendaList">
+            <div class="agenda-item expanded" onclick="toggleAgenda(this)">
+              <div class="agenda-item-header">
+                <div class="agenda-num">1</div>
+                <div class="agenda-title-text">Welcome & Introductions</div>
+                <div class="agenda-duration">5 min</div>
+                <svg class="agenda-expand" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
+              </div>
+              <div class="agenda-body">
+                <div class="agenda-desc">Set context for the project and establish rapport. Brief round of introductions for new participants.</div>
+                <ul class="agenda-questions">
+                  <li>What are each stakeholder's primary interests in this project?</li>
+                  <li>Are there any changes in team composition since the last update?</li>
+                </ul>
+              </div>
+            </div>
+            <div class="agenda-item" onclick="toggleAgenda(this)">
+              <div class="agenda-item-header">
+                <div class="agenda-num">2</div>
+                <div class="agenda-title-text">Current Pain Points Review</div>
+                <div class="agenda-duration">15 min</div>
+                <svg class="agenda-expand" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
+              </div>
+              <div class="agenda-body">
+                <div class="agenda-desc">Walk through documented challenges from the initial stakeholder survey. Validate and prioritize.</div>
+                <ul class="agenda-questions">
+                  <li>Which pain points have the highest business impact?</li>
+                  <li>Are there undocumented friction points we should explore?</li>
+                  <li>How are workarounds currently handled?</li>
+                </ul>
+              </div>
+            </div>
+            <div class="agenda-item" onclick="toggleAgenda(this)">
+              <div class="agenda-item-header">
+                <div class="agenda-num">3</div>
+                <div class="agenda-title-text">Feature Prioritization Workshop</div>
+                <div class="agenda-duration">20 min</div>
+                <svg class="agenda-expand" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
+              </div>
+              <div class="agenda-body">
+                <div class="agenda-desc">Collaborative ranking of proposed features using MoSCoW framework. Focus on must-haves for MVP.</div>
+                <ul class="agenda-questions">
+                  <li>Which features are non-negotiable for launch?</li>
+                  <li>What's the relationship between feature X and the compliance timeline?</li>
+                </ul>
+              </div>
+            </div>
+            <div class="agenda-item" onclick="toggleAgenda(this)">
+              <div class="agenda-item-header">
+                <div class="agenda-num">4</div>
+                <div class="agenda-title-text">Technical Constraints Discussion</div>
+                <div class="agenda-duration">10 min</div>
+                <svg class="agenda-expand" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
+              </div>
+              <div class="agenda-body">
+                <div class="agenda-desc">Understand platform limitations and integration requirements. Identify any technical showstoppers early.</div>
+                <ul class="agenda-questions">
+                  <li>What existing systems must we integrate with?</li>
+                  <li>Are there security or compliance constraints?</li>
+                </ul>
+              </div>
+            </div>
+            <div class="agenda-item" onclick="toggleAgenda(this)">
+              <div class="agenda-item-header">
+                <div class="agenda-num">5</div>
+                <div class="agenda-title-text">Next Steps & Action Items</div>
+                <div class="agenda-duration">10 min</div>
+                <svg class="agenda-expand" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
+              </div>
+              <div class="agenda-body">
+                <div class="agenda-desc">Assign owners and set timeline for follow-up. Confirm next meeting date.</div>
+                <ul class="agenda-questions">
+                  <li>Who owns each action item?</li>
+                  <li>What's our target date for the next checkpoint?</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+          <div class="agenda-total">
+            <span>60 min total</span>
+            <button class="add-item-btn">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="width:12px;height:12px"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              Add Item
+            </button>
+          </div>
+        </div>
+
+        <!-- Notes & Summary -->
+        <div class="section">
+          <div class="section-header">
+            <div class="section-title">Meeting Notes</div>
+            <div class="view-switcher" id="viewSwitcher">
+              <button class="view-switcher-btn active" onclick="switchView(this,'upcoming')">Upcoming</button>
+              <button class="view-switcher-btn" onclick="switchView(this,'past')">Past (Demo)</button>
+            </div>
+          </div>
+          <div class="notes-area">
+            <div id="notesUpcoming">
+              <div class="notes-empty">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                <p>Notes will appear here after the meeting</p>
+              </div>
+            </div>
+            <div id="notesPast" style="display:none;">
+              <div style="font-size:13px;line-height:1.7;color:#4B4B4B;">
+                <div style="display:flex;align-items:center;gap:6px;margin-bottom:12px;">
+                  <span class="ai-badge">AI Generated Summary</span>
+                </div>
+                <p><strong>Key Decisions:</strong></p>
+                <ul style="margin:6px 0 12px 18px;font-size:13px;">
+                  <li>SSO integration confirmed as MVP must-have (Sarah + Mike aligned)</li>
+                  <li>Mobile-first approach approved — desktop as secondary target</li>
+                  <li>Phase 1 budget capped at $85K with 12-week timeline</li>
+                </ul>
+                <p><strong>Action Items:</strong></p>
+                <ul style="margin:6px 0 12px 18px;font-size:13px;">
+                  <li><strong>Matt:</strong> Draft technical requirements for SSO by Feb 28</li>
+                  <li><strong>Sarah:</strong> Share existing user research docs by Feb 26</li>
+                  <li><strong>Mike:</strong> Confirm budget approval with finance by Mar 1</li>
+                  <li><strong>Alex:</strong> Coordinate user testing group (5-8 participants) by Mar 3</li>
+                </ul>
+                <p><strong>Open Questions:</strong></p>
+                <ul style="margin:6px 0 0 18px;font-size:13px;">
+                  <li>Legacy data migration approach TBD — needs technical spike</li>
+                  <li>Jamie to clarify compliance requirements in follow-up</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Side Panel -->
+      <div class="side-panel" id="sidePanel">
+        <div class="side-panel-tabs">
+          <div class="sp-tab active" data-sp="recording" onclick="switchSPTab('recording')">Recording</div>
+          <div class="sp-tab" data-sp="details" onclick="switchSPTab('details')">Details</div>
+          <div class="sp-tab" data-sp="signals" onclick="switchSPTab('signals')">Signals</div>
+        </div>
+        <div class="sp-content">
+          <!-- Recording Tab -->
+          <div class="sp-section" id="sp-recording">
+            <div id="recordingUpcoming">
+              <div class="recording-upcoming">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+                <p>Recording will appear here<br>after the meeting</p>
+              </div>
+              <div class="recording-toggle-row">
+                <div>
+                  <div class="recording-toggle-label">Auto-record meeting</div>
+                  <div style="font-size:11px;color:#7B7B7B;margin-top:2px;">
+                    <span class="status-indicator"><span class="status-dot green"></span> Consent: All approved</span>
+                  </div>
+                </div>
+                <div class="toggle on" onclick="this.classList.toggle('on')"></div>
+              </div>
+            </div>
+            <div id="recordingPast" style="display:none;">
+              <div class="video-placeholder">
+                <div class="play-btn"><svg viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg></div>
+                <div class="video-time">0:00 / 58:42</div>
+              </div>
+              <div class="video-controls">
+                <button class="vc-btn"><svg viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg></button>
+                <div class="progress-bar"><div class="progress-fill" style="width:0%"></div></div>
+                <button class="vc-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg></button>
+                <button class="vc-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M15 3h6v6"/><path d="M9 21H3v-6"/><path d="M21 3l-7 7"/><path d="M3 21l7-7"/></svg></button>
+              </div>
+              <div class="transcript-search">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                <input type="text" placeholder="Search transcript...">
+              </div>
+              <div class="transcript">
+                <div class="transcript-entry">
+                  <div class="transcript-speaker" style="color:#044159">Sarah Chen</div>
+                  <div class="transcript-text">Thanks everyone for joining. Really excited to kick off this requirements phase. I know we've all been looking forward to getting aligned on the vision.</div>
+                  <div class="transcript-time">0:01</div>
+                </div>
+                <div class="transcript-entry">
+                  <div class="transcript-speaker" style="color:#88BABF">Matt Edmund</div>
+                  <div class="transcript-text">Great to have everyone here. As you know, we're here today to align on the core requirements for the redesign. I've prepared an agenda that covers pain points, feature priorities, and next steps.</div>
+                  <div class="transcript-time">0:15</div>
+                </div>
+                <div class="transcript-entry">
+                  <div class="transcript-speaker" style="color:#25785A">Mike Rodriguez</div>
+                  <div class="transcript-text">Before we dive in, I want to flag the budget constraints we discussed last week. We've got approval for Phase 1 but need to be strategic about what makes the cut.</div>
+                  <div class="transcript-time">0:42</div>
+                </div>
+                <div class="transcript-entry">
+                  <div class="transcript-speaker" style="color:#044159">Sarah Chen</div>
+                  <div class="transcript-text">Agreed. I think the SSO piece is non-negotiable from a user experience standpoint. Our internal surveys show it's the number one request.</div>
+                  <div class="transcript-time">1:08</div>
+                </div>
+                <div class="transcript-entry">
+                  <div class="transcript-speaker" style="color:#88BABF">Matt Edmund</div>
+                  <div class="transcript-text">That aligns with what I've seen in the data. Let me share the survey results — we had 87% of respondents citing SSO as a must-have.</div>
+                  <div class="transcript-time">1:25</div>
+                </div>
+                <div class="transcript-entry">
+                  <div class="transcript-speaker" style="color:#6B21A8">Jamie Walsh</div>
+                  <div class="transcript-text">I should mention there are compliance implications with SSO. We'll need to ensure SAML 2.0 compatibility for our enterprise customers.</div>
+                  <div class="transcript-time">1:52</div>
+                </div>
+                <div class="transcript-entry">
+                  <div class="transcript-speaker" style="color:#a0a0a0">Alex Park</div>
+                  <div class="transcript-text">From the end-user perspective, the current login flow is really painful. We lose about 15% of users at the authentication step.</div>
+                  <div class="transcript-time">2:18</div>
+                </div>
+                <div class="transcript-entry">
+                  <div class="transcript-speaker" style="color:#25785A">Mike Rodriguez</div>
+                  <div class="transcript-text">That's a significant drop-off. If SSO can recover even half of that, the ROI is clear. Let's make it a priority.</div>
+                  <div class="transcript-time">2:41</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Details Tab -->
+          <div class="sp-section" id="sp-details" style="display:none;">
+            <div class="detail-row">
+              <div class="detail-label">Type</div>
+              <div class="detail-value"><span class="badge badge-discovery">Discovery</span></div>
+            </div>
+            <div class="detail-row">
+              <div class="detail-label">Project</div>
+              <div class="detail-value"><a href="#" class="detail-link">Acme Corp Redesign</a></div>
+            </div>
+            <div class="detail-row">
+              <div class="detail-label">Status</div>
+              <div class="detail-value"><span class="badge badge-scheduled">Scheduled</span></div>
+            </div>
+            <div class="detail-row">
+              <div class="detail-label">Start time</div>
+              <div class="detail-value">Feb 24, 2026, 10:00 AM</div>
+            </div>
+            <div class="detail-row">
+              <div class="detail-label">End time</div>
+              <div class="detail-value">Feb 24, 2026, 11:00 AM</div>
+            </div>
+            <div class="detail-row">
+              <div class="detail-label">Duration</div>
+              <div class="detail-value">60 minutes</div>
+            </div>
+            <div class="detail-row">
+              <div class="detail-label">Timezone</div>
+              <div class="detail-value">Eastern Time (ET)</div>
+            </div>
+            <div class="detail-row">
+              <div class="detail-label">Created by</div>
+              <div class="detail-value" style="display:flex;align-items:center;gap:6px;">
+                <div style="width:20px;height:20px;border-radius:50%;background:linear-gradient(135deg,#044159,#88BABF);font-size:8px;color:white;display:flex;align-items:center;justify-content:center;font-weight:700">ME</div>
+                Matt Edmund
+              </div>
+            </div>
+            <div class="detail-row">
+              <div class="detail-label">Created at</div>
+              <div class="detail-value">Feb 20, 2026, 3:15 PM</div>
+            </div>
+            <div class="detail-row">
+              <div class="detail-label">Updated</div>
+              <div class="detail-value">Feb 20, 2026, 4:30 PM</div>
+            </div>
+            <div style="margin-top:16px;padding-top:12px;border-top:1px solid #F0F0F0;">
+              <div style="font-size:11px;font-weight:600;color:rgba(55,53,47,0.5);text-transform:uppercase;letter-spacing:0.3px;margin-bottom:10px;">Integrations</div>
+              <div class="detail-row">
+                <div class="detail-label">Google Calendar</div>
+                <div class="detail-value">
+                  <span class="detail-check">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+                    Synced
+                  </span>
+                </div>
+              </div>
+              <div class="detail-row">
+                <div class="detail-label">Google Meet</div>
+                <div class="detail-value"><a href="#" class="detail-link" style="font-size:12px;">meet.google.com/abc-defg-hij</a></div>
+              </div>
+              <div class="detail-row">
+                <div class="detail-label">Recording</div>
+                <div class="detail-value">
+                  <span class="detail-check">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+                    Enabled
+                  </span>
+                </div>
+              </div>
+              <div class="detail-row">
+                <div class="detail-label">Consent</div>
+                <div class="detail-value"><span style="color:#3FAF7A;font-size:12px;font-weight:500;">All Consented</span></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Signals Tab -->
+          <div class="sp-section" id="sp-signals" style="display:none;">
+            <div style="font-size:11px;font-weight:600;color:rgba(55,53,47,0.5);text-transform:uppercase;letter-spacing:0.3px;margin-bottom:12px;">Extracted Signals (6)</div>
+            <div class="signal-card">
+              <div class="signal-header">
+                <span class="signal-type signal-feature">Feature</span>
+                <span class="signal-title">SSO / Single Sign-On</span>
+                <span class="signal-confidence signal-high">92%</span>
+              </div>
+              <div class="signal-maps">Maps to: Feature — Single Sign-On Integration</div>
+            </div>
+            <div class="signal-card">
+              <div class="signal-header">
+                <span class="signal-type signal-feature">Feature</span>
+                <span class="signal-title">Mobile-First Responsive Design</span>
+                <span class="signal-confidence signal-high">88%</span>
+              </div>
+              <div class="signal-maps">Maps to: Feature — Responsive Mobile UI</div>
+            </div>
+            <div class="signal-card">
+              <div class="signal-header">
+                <span class="signal-type signal-constraint">Constraint</span>
+                <span class="signal-title">SAML 2.0 Compliance Required</span>
+                <span class="signal-confidence signal-high">95%</span>
+              </div>
+              <div class="signal-maps">Maps to: Constraint — Enterprise Authentication</div>
+            </div>
+            <div class="signal-card">
+              <div class="signal-header">
+                <span class="signal-type signal-persona">Persona</span>
+                <span class="signal-title">Enterprise Admin User</span>
+                <span class="signal-confidence signal-med">74%</span>
+              </div>
+              <div class="signal-maps">Maps to: Persona — IT Administrator</div>
+            </div>
+            <div class="signal-card">
+              <div class="signal-header">
+                <span class="signal-type signal-feature">Feature</span>
+                <span class="signal-title">Legacy Data Migration Tool</span>
+                <span class="signal-confidence signal-med">68%</span>
+              </div>
+              <div class="signal-maps">Maps to: Feature — Data Migration</div>
+            </div>
+            <div class="signal-card">
+              <div class="signal-header">
+                <span class="signal-type signal-feature">Feature</span>
+                <span class="signal-title">User Authentication Analytics</span>
+                <span class="signal-confidence signal-med">65%</span>
+              </div>
+              <div class="signal-maps">Maps to: Feature — Auth Analytics Dashboard</div>
+            </div>
+            <div style="margin-top:12px;text-align:center;">
+              <button class="btn btn-sm btn-primary">Process as Signal</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Email Agenda Modal -->
+<div class="email-overlay" id="emailModal">
+  <div class="email-modal" onclick="event.stopPropagation()">
+    <div class="email-header">
+      <h3>Send Agenda to Participants</h3>
+      <button class="modal-close" onclick="closeEmailModal()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="email-body">
+      <div class="label-sm">Recipients</div>
+      <div class="recipient-list">
+        <div class="recipient-row">
+          <input type="checkbox" checked>
+          <div style="width:24px;height:24px;border-radius:50%;background:linear-gradient(135deg,#044159,#2d7d9a);font-size:9px;color:white;display:flex;align-items:center;justify-content:center;font-weight:700">SC</div>
+          <div><div class="recipient-name">Sarah Chen</div><div class="recipient-email">sarah.chen@acmecorp.com</div></div>
+        </div>
+        <div class="recipient-row">
+          <input type="checkbox" checked>
+          <div style="width:24px;height:24px;border-radius:50%;background:linear-gradient(135deg,#25785A,#3FAF7A);font-size:9px;color:white;display:flex;align-items:center;justify-content:center;font-weight:700">MR</div>
+          <div><div class="recipient-name">Mike Rodriguez</div><div class="recipient-email">mike.r@acmecorp.com</div></div>
+        </div>
+        <div class="recipient-row">
+          <input type="checkbox" checked>
+          <div style="width:24px;height:24px;border-radius:50%;background:linear-gradient(135deg,#88BABF,#a8d4d8);font-size:9px;color:white;display:flex;align-items:center;justify-content:center;font-weight:700">AP</div>
+          <div><div class="recipient-name">Alex Park</div><div class="recipient-email">alex.park@acmecorp.com</div></div>
+        </div>
+        <div class="recipient-row">
+          <input type="checkbox" checked>
+          <div style="width:24px;height:24px;border-radius:50%;background:linear-gradient(135deg,#6B21A8,#a855f7);font-size:9px;color:white;display:flex;align-items:center;justify-content:center;font-weight:700">JW</div>
+          <div><div class="recipient-name">Jamie Walsh</div><div class="recipient-email">j.walsh@acmecorp.com</div></div>
+        </div>
+      </div>
+
+      <div class="label-sm" style="margin-top:12px;">Email Preview</div>
+      <div class="email-preview">
+        <h4>Requirements Kickoff with Acme Corp — Agenda</h4>
+        <p style="color:#7B7B7B;font-size:11px;margin-bottom:8px;">Feb 24, 2026 &middot; 10:00 – 11:00 AM EST &middot; Google Meet</p>
+        <div class="agenda-line"><strong>1.</strong> Welcome & Introductions (5 min)</div>
+        <div class="agenda-line"><strong>2.</strong> Current Pain Points Review (15 min)</div>
+        <div class="agenda-line"><strong>3.</strong> Feature Prioritization Workshop (20 min)</div>
+        <div class="agenda-line"><strong>4.</strong> Technical Constraints Discussion (10 min)</div>
+        <div class="agenda-line"><strong>5.</strong> Next Steps & Action Items (10 min)</div>
+        <p style="margin-top:8px;color:#7B7B7B;font-size:11px;">Please review and come prepared with any items you'd like to add. Looking forward to a productive session!</p>
+      </div>
+
+      <div class="label-sm" style="margin-top:12px;">Personal Message (optional)</div>
+      <textarea class="custom-msg" placeholder="Add a note to participants..."></textarea>
+    </div>
+    <div class="email-footer">
+      <div class="note">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+        Sent on your behalf via connected Google account
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-secondary" onclick="closeEmailModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="closeEmailModal()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+          Send via Gmail
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Prompt Output -->
+<div class="prompt-output">
+  <div class="prompt-text" id="promptText">Meeting detail: two-panel layout with collapsible side panel. Main: header badges, 5 participants with role badges, AI insights (4 cards), editable agenda with AI rewrite, notes/summary. Side: Recording (video+transcript), Details (properties), Signals (extracted entities). Email agenda modal with recipient picker.</div>
+  <button class="copy-btn" onclick="copyPrompt()">Copy</button>
+</div>
+
+<script>
+// Side panel toggle
+function togglePanel() {
+  const panel = document.getElementById('sidePanel');
+  const btn = document.getElementById('panelToggle');
+  panel.classList.toggle('collapsed');
+  btn.classList.toggle('active');
+}
+
+// Side panel tabs
+function switchSPTab(tab) {
+  document.querySelectorAll('.sp-tab').forEach(t => t.classList.toggle('active', t.dataset.sp === tab));
+  ['recording','details','signals'].forEach(id => {
+    document.getElementById('sp-'+id).style.display = id === tab ? 'block' : 'none';
+  });
+}
+
+// Insights toggle
+function toggleInsights() {
+  const btn = document.querySelector('.insights-toggle');
+  const body = document.getElementById('insightsBody');
+  btn.classList.toggle('open');
+  body.classList.toggle('open');
+}
+
+// Agenda expand/collapse
+function toggleAgenda(el) {
+  if (event.target.closest('.agenda-body')) return;
+  el.classList.toggle('expanded');
+}
+
+// AI Rewrite
+function toggleRewrite() {
+  const panel = document.getElementById('rewritePanel');
+  panel.classList.toggle('open');
+  document.getElementById('rewritePreview').style.display = 'none';
+  document.getElementById('rewriteActions').style.display = 'none';
+}
+
+function selectRewriteStyle(el) {
+  el.parentElement.querySelectorAll('.rewrite-pill').forEach(p => p.classList.remove('selected'));
+  el.classList.add('selected');
+  const isCustom = el.textContent === 'Custom';
+  document.getElementById('customRewriteInput').style.display = isCustom ? 'block' : 'none';
+}
+
+function showRewritePreview() {
+  document.getElementById('rewritePreview').style.display = 'block';
+  document.getElementById('rewriteActions').style.display = 'flex';
+}
+
+// Email modal
+function openEmailModal() {
+  document.getElementById('emailModal').classList.add('open');
+}
+function closeEmailModal() {
+  document.getElementById('emailModal').classList.remove('open');
+}
+document.getElementById('emailModal').addEventListener('click', function(e) {
+  if (e.target === this) closeEmailModal();
+});
+
+// View switcher (upcoming vs past demo)
+function switchView(btn, view) {
+  btn.parentElement.querySelectorAll('.view-switcher-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('notesUpcoming').style.display = view === 'upcoming' ? 'block' : 'none';
+  document.getElementById('notesPast').style.display = view === 'past' ? 'block' : 'none';
+  document.getElementById('recordingUpcoming').style.display = view === 'upcoming' ? 'block' : 'none';
+  document.getElementById('recordingPast').style.display = view === 'past' ? 'block' : 'none';
+}
+
+function copyPrompt() {
+  const text = document.getElementById('promptText').textContent;
+  navigator.clipboard.writeText(text);
+  const btn = document.querySelector('.copy-btn');
+  btn.textContent = 'Copied!';
+  setTimeout(() => btn.textContent = 'Copy', 1500);
+}
+
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeEmailModal(); });
+</script>
+</body>
+</html>

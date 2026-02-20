@@ -66,6 +66,7 @@ ENTITY_TABLE_MAP = {
     "constraint": "constraints",
     "competitor": "competitor_references",
     "vision": "projects",  # Vision is stored on the project itself
+    "solution_flow_step": "solution_flow_steps",
 }
 
 # Tables that have a slug column
@@ -82,6 +83,7 @@ TABLES_WITH_SIGNAL_IDS = {
 TABLES_WITH_VERSION = {
     "features", "personas", "vp_steps", "constraints",
     "business_drivers", "competitor_references", "data_entities", "stakeholders",
+    "solution_flow_steps",
 }
 
 # Field name normalization: LLM-generated names → actual DB column names

@@ -10,6 +10,7 @@ import {
   DollarSign,
   BarChart3,
   Target,
+  FlaskConical,
   Shield,
 } from 'lucide-react'
 
@@ -21,6 +22,7 @@ const navItems = [
   { href: '/admin/cost', icon: DollarSign, label: 'Cost & Usage' },
   { href: '/admin/analytics', icon: BarChart3, label: 'Analytics' },
   { href: '/admin/icp', icon: Target, label: 'ICP' },
+  { href: '/admin/evals', icon: FlaskConical, label: 'Evals' },
 ]
 
 export function AdminSidebar() {

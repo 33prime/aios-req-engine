@@ -282,6 +282,24 @@ class Settings(BaseSettings):
     POSTHOG_API_KEY: str | None = Field(default=None, description="PostHog project API key")
     POSTHOG_HOST: str = Field(default="https://us.i.posthog.com", description="PostHog host URL")
 
+    # Eval Pipeline configuration
+    EVAL_PIPELINE_MODEL: str = Field(
+        default="claude-sonnet-4-6",
+        description="Model for LLM-judged eval grading"
+    )
+    EVAL_ACCEPT_THRESHOLD: float = Field(
+        default=0.80,
+        description="Overall score threshold to auto-accept"
+    )
+    EVAL_MAX_ITERATIONS: int = Field(
+        default=2,
+        description="Max refinement iterations before notifying"
+    )
+    EVAL_DETERMINISTIC_WEIGHT: float = Field(
+        default=0.40,
+        description="Weight of deterministic scores in overall blend"
+    )
+
     # Verdict Chat configuration (Haiku for speed/cost)
     VERDICT_CHAT_MODEL: str = Field(
         default="claude-haiku-4-5-20251001",

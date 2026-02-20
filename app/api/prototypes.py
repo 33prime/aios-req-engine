@@ -190,6 +190,26 @@ async def generate_prototype_endpoint(
         )
         update_prototype(UUID(prototype["id"]), status="generating")
 
+        # Track prompt version (v1) for eval pipeline
+        try:
+            from app.db.prompt_versions import create_prompt_version
+
+            create_prompt_version(
+                prototype_id=UUID(prototype["id"]),
+                version_number=1,
+                prompt_text=prompt_output.prompt,
+                generation_model=settings.PROTOTYPE_PROMPT_MODEL,
+                generation_chain="generate_v0_prompt",
+                input_context_snapshot={
+                    "feature_count": len(features),
+                    "persona_count": len(personas),
+                    "vp_step_count": len(vp_steps),
+                    "feature_ids": prompt_output.features_included,
+                },
+            )
+        except Exception as e:
+            logger.warning(f"Failed to create prompt version record: {e}")
+
         logger.info(
             f"Generated prototype prompt for project {request.project_id}, "
             f"prototype_id={prototype['id']}"

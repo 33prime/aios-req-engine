@@ -1,0 +1,843 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard Redesign — Design Playground</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; background: #1a1a1a; color: #ccc; display: flex; height: 100vh; overflow: hidden; }
+
+  /* Controls panel */
+  .controls { width: 280px; background: #222; border-right: 1px solid #333; overflow-y: auto; padding: 20px; flex-shrink: 0; }
+  .controls h2 { font-size: 14px; font-weight: 600; color: #fff; margin-bottom: 16px; }
+  .controls h3 { font-size: 11px; font-weight: 600; color: #888; text-transform: uppercase; letter-spacing: 0.08em; margin: 20px 0 10px; }
+  .control-group { margin-bottom: 12px; }
+  .control-group label { display: block; font-size: 12px; color: #999; margin-bottom: 4px; }
+  .control-group select, .control-group input[type="range"] { width: 100%; }
+  select { background: #333; color: #ccc; border: 1px solid #444; border-radius: 6px; padding: 6px 8px; font-size: 12px; }
+  input[type="range"] { -webkit-appearance: none; height: 4px; background: #444; border-radius: 2px; outline: none; }
+  input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; border-radius: 50%; background: #3FAF7A; cursor: pointer; }
+  .range-value { font-size: 11px; color: #3FAF7A; font-weight: 600; float: right; }
+
+  /* Preset buttons */
+  .presets { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
+  .preset-btn { padding: 5px 10px; font-size: 11px; font-weight: 600; border: 1px solid #444; border-radius: 6px; background: #2a2a2a; color: #ccc; cursor: pointer; transition: all 0.15s; }
+  .preset-btn:hover { border-color: #3FAF7A; color: #3FAF7A; }
+  .preset-btn.active { border-color: #3FAF7A; background: rgba(63,175,122,0.15); color: #3FAF7A; }
+
+  /* Toggle */
+  .toggle-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+  .toggle-row span { font-size: 12px; color: #999; }
+  .toggle { width: 36px; height: 20px; border-radius: 10px; background: #444; cursor: pointer; position: relative; transition: background 0.2s; }
+  .toggle.on { background: #3FAF7A; }
+  .toggle::after { content: ''; position: absolute; width: 16px; height: 16px; border-radius: 50%; background: white; top: 2px; left: 2px; transition: transform 0.2s; }
+  .toggle.on::after { transform: translateX(16px); }
+
+  /* Preview area */
+  .preview-area { flex: 1; overflow-y: auto; background: #F4F4F4; }
+  .preview-container { padding: 24px; max-width: 1200px; margin: 0 auto; }
+
+  /* Prompt output */
+  .prompt-area { position: fixed; bottom: 0; left: 280px; right: 0; background: #222; border-top: 1px solid #333; padding: 12px 20px; z-index: 10; }
+  .prompt-text { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 12px; color: #ccc; line-height: 1.6; max-height: 80px; overflow-y: auto; }
+  .copy-btn { position: absolute; top: 12px; right: 20px; padding: 5px 12px; font-size: 11px; font-weight: 600; border: 1px solid #3FAF7A; border-radius: 6px; background: transparent; color: #3FAF7A; cursor: pointer; transition: all 0.15s; }
+  .copy-btn:hover { background: rgba(63,175,122,0.15); }
+  .copy-btn.copied { background: #3FAF7A; color: #fff; }
+
+  /* ===== Dashboard Preview Styles ===== */
+
+  /* Greeting */
+  .dash-greeting { margin-bottom: 4px; }
+  .dash-greeting h1 { font-weight: 600; color: #333; }
+  .dash-date { font-size: 13px; color: #999; margin-bottom: 20px; }
+
+  /* Main grid: 2/3 left + 1/3 right */
+  .dash-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; }
+
+  /* Project card */
+  .project-card { background: #fff; border: 1px solid #E5E5E5; overflow: hidden; transition: box-shadow 0.2s; cursor: pointer; }
+  .project-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+
+  .pc-header { display: flex; align-items: flex-start; justify-content: space-between; }
+  .pc-title { font-weight: 600; color: #333; }
+  .pc-client { color: #999; }
+  .pc-stage { display: inline-block; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; border-radius: 999px; }
+
+  /* Readiness bar */
+  .pc-readiness { display: flex; align-items: center; gap: 8px; }
+  .pc-bar-track { flex: 1; height: 4px; background: #E5E5E5; border-radius: 2px; overflow: hidden; }
+  .pc-bar-fill { height: 100%; border-radius: 2px; transition: width 0.4s; }
+  .pc-score { font-size: 11px; color: #666; font-variant-numeric: tabular-nums; }
+
+  /* Card two-column body */
+  .pc-body { display: grid; grid-template-columns: 1fr 1fr; }
+
+  /* Next steps column */
+  .pc-col-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: #999; margin-bottom: 8px; }
+  .nba-item { display: flex; align-items: flex-start; gap: 6px; margin-bottom: 6px; }
+  .nba-icon { width: 16px; height: 16px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 1px; }
+  .nba-icon svg { width: 10px; height: 10px; }
+  .nba-text { font-size: 12px; color: #333; line-height: 1.4; }
+
+  /* Portal column */
+  .portal-item { display: flex; align-items: flex-start; gap: 6px; margin-bottom: 6px; }
+  .portal-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; margin-top: 5px; }
+  .portal-text { font-size: 12px; line-height: 1.4; }
+  .portal-time { font-size: 10px; color: #999; }
+
+  /* Right sidebar */
+  .sidebar-card { background: #fff; border: 1px solid #E5E5E5; }
+
+  /* Tasks section */
+  .task-row { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid #F0F0F0; cursor: pointer; }
+  .task-row:last-child { border-bottom: none; }
+  .task-priority { width: 3px; height: 24px; border-radius: 2px; flex-shrink: 0; }
+  .task-content { flex: 1; min-width: 0; }
+  .task-title { font-size: 12px; color: #333; font-weight: 500; line-height: 1.3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .task-meta { font-size: 10px; color: #999; display: flex; align-items: center; gap: 4px; margin-top: 2px; }
+  .task-project-pill { font-size: 9px; font-weight: 600; padding: 1px 6px; border-radius: 999px; background: rgba(63,175,122,0.1); color: #25785A; }
+  .task-type-pill { font-size: 9px; font-weight: 500; padding: 1px 5px; border-radius: 4px; background: #F0F0F0; color: #666; }
+
+  /* Schedule */
+  .sched-group-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: #999; margin-bottom: 8px; }
+  .sched-item { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 10px; }
+  .sched-time { font-size: 12px; font-weight: 600; color: #333; width: 52px; flex-shrink: 0; }
+  .sched-details { flex: 1; min-width: 0; }
+  .sched-title { font-size: 12px; color: #333; line-height: 1.3; }
+  .sched-project { font-size: 10px; color: #999; }
+
+  /* Section header in sidebar */
+  .sidebar-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+  .sidebar-header h3 { font-size: 13px; font-weight: 600; color: #333; }
+  .sidebar-header .view-all { font-size: 11px; color: #3FAF7A; font-weight: 500; cursor: pointer; text-decoration: none; }
+  .sidebar-header .view-all:hover { text-decoration: underline; }
+
+  /* Arrow icon for project cards */
+  .pc-arrow { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; transition: all 0.15s; cursor: pointer; flex-shrink: 0; }
+  .pc-arrow:hover { transform: scale(1.1); }
+  .pc-arrow svg { width: 14px; height: 14px; }
+
+  /* Bottom padding for prompt bar */
+  .preview-area { padding-bottom: 120px; }
+</style>
+</head>
+<body>
+
+<!-- Controls Panel -->
+<div class="controls">
+  <h2>Dashboard Redesign</h2>
+
+  <h3>Preset Styles</h3>
+  <div class="presets">
+    <button class="preset-btn active" onclick="applyPreset('clean')">Clean</button>
+    <button class="preset-btn" onclick="applyPreset('compact')">Compact</button>
+    <button class="preset-btn" onclick="applyPreset('airy')">Airy</button>
+    <button class="preset-btn" onclick="applyPreset('bold')">Bold</button>
+  </div>
+
+  <h3>Greeting</h3>
+  <div class="control-group">
+    <label>Style</label>
+    <select id="greetingStyle" onchange="updateAll()">
+      <option value="daily-snapshot">Daily Snapshot</option>
+      <option value="personal">Good morning, Matt</option>
+      <option value="minimal">Just date</option>
+    </select>
+  </div>
+  <div class="control-group">
+    <label>Heading Size <span class="range-value" id="headingSizeVal">18px</span></label>
+    <input type="range" id="headingSize" min="16" max="26" value="18" onchange="updateAll()" oninput="updateAll()">
+  </div>
+
+  <h3>Project Cards</h3>
+  <div class="control-group">
+    <label>Card Radius <span class="range-value" id="cardRadiusVal">16px</span></label>
+    <input type="range" id="cardRadius" min="0" max="24" value="16" onchange="updateAll()" oninput="updateAll()">
+  </div>
+  <div class="control-group">
+    <label>Card Padding <span class="range-value" id="cardPaddingVal">20px</span></label>
+    <input type="range" id="cardPadding" min="12" max="28" value="20" onchange="updateAll()" oninput="updateAll()">
+  </div>
+  <div class="control-group">
+    <label>Card Shadow</label>
+    <select id="cardShadow" onchange="updateAll()">
+      <option value="subtle">Subtle (md)</option>
+      <option value="none">None (border only)</option>
+      <option value="elevated">Elevated (lg)</option>
+    </select>
+  </div>
+  <div class="control-group">
+    <label>Progress Bar Color</label>
+    <select id="barColor" onchange="updateAll()">
+      <option value="green">#3FAF7A (Brand Green)</option>
+      <option value="adaptive">Adaptive (red → yellow → green)</option>
+    </select>
+  </div>
+  <div class="control-group">
+    <label>Next Steps Count</label>
+    <select id="nbaCount" onchange="updateAll()">
+      <option value="1">1 action</option>
+      <option value="2" selected>2 actions</option>
+    </select>
+  </div>
+  <div class="toggle-row">
+    <span>Stage pill filled</span>
+    <div class="toggle on" id="stageFilled" onclick="toggleControl(this); updateAll()"></div>
+  </div>
+  <div class="toggle-row">
+    <span>Show arrow button</span>
+    <div class="toggle on" id="showArrow" onclick="toggleControl(this); updateAll()"></div>
+  </div>
+  <div class="toggle-row">
+    <span>Show readiness bar</span>
+    <div class="toggle on" id="showReadiness" onclick="toggleControl(this); updateAll()"></div>
+  </div>
+  <div class="toggle-row">
+    <span>Green top border</span>
+    <div class="toggle" id="greenTopBorder" onclick="toggleControl(this); updateAll()"></div>
+  </div>
+
+  <h3>Client Portal Column</h3>
+  <div class="control-group">
+    <label>Portal Style</label>
+    <select id="portalStyle" onchange="updateAll()">
+      <option value="activity-feed">Activity feed</option>
+      <option value="status-summary">Status summary</option>
+      <option value="count-badges">Count badges</option>
+    </select>
+  </div>
+  <div class="toggle-row">
+    <span>Show divider line</span>
+    <div class="toggle on" id="showDivider" onclick="toggleControl(this); updateAll()"></div>
+  </div>
+
+  <h3>Sidebar (Tasks + Schedule)</h3>
+  <div class="control-group">
+    <label>Task Row Style</label>
+    <select id="taskStyle" onchange="updateAll()">
+      <option value="priority-bar">Priority bar + pills</option>
+      <option value="icon-type">Type icon + text</option>
+      <option value="minimal-dots">Minimal (dot + text)</option>
+    </select>
+  </div>
+  <div class="control-group">
+    <label>Tasks Shown <span class="range-value" id="tasksShownVal">5</span></label>
+    <input type="range" id="tasksShown" min="3" max="8" value="5" onchange="updateAll()" oninput="updateAll()">
+  </div>
+  <div class="control-group">
+    <label>Meeting Style</label>
+    <select id="meetingStyle" onchange="updateAll()">
+      <option value="time-left">Time on left</option>
+      <option value="timeline">Timeline dots</option>
+    </select>
+  </div>
+
+  <h3>Global</h3>
+  <div class="control-group">
+    <label>Section Gap <span class="range-value" id="sectionGapVal">20px</span></label>
+    <input type="range" id="sectionGap" min="12" max="32" value="20" onchange="updateAll()" oninput="updateAll()">
+  </div>
+  <div class="control-group">
+    <label>Max Projects</label>
+    <select id="maxProjects" onchange="updateAll()">
+      <option value="2">2 projects</option>
+      <option value="3" selected>3 projects</option>
+    </select>
+  </div>
+</div>
+
+<!-- Preview Area -->
+<div class="preview-area" id="previewArea">
+  <div class="preview-container" id="preview"></div>
+</div>
+
+<!-- Prompt Output -->
+<div class="prompt-area">
+  <div class="prompt-text" id="promptOutput"></div>
+  <button class="copy-btn" id="copyBtn" onclick="copyPrompt()">Copy</button>
+</div>
+
+<script>
+// =========================================================================
+// State
+// =========================================================================
+const DEFAULTS = {
+  greetingStyle: 'daily-snapshot',
+  headingSize: 18,
+  cardRadius: 16,
+  cardPadding: 20,
+  cardShadow: 'subtle',
+  barColor: 'green',
+  nbaCount: 2,
+  stageFilled: true,
+  showArrow: true,
+  showReadiness: true,
+  greenTopBorder: false,
+  portalStyle: 'activity-feed',
+  showDivider: true,
+  taskStyle: 'priority-bar',
+  tasksShown: 5,
+  meetingStyle: 'time-left',
+  sectionGap: 20,
+  maxProjects: 3,
+};
+
+let state = { ...DEFAULTS };
+
+// =========================================================================
+// Mock Data
+// =========================================================================
+const PROJECTS = [
+  {
+    name: 'Ortho Assessment',
+    client: 'HealthFirst Medical',
+    stage: 'Discovery',
+    stageColor: '#3FAF7A',
+    score: 34,
+    nextActions: [
+      'Confirm 3 auto-generated personas',
+      'Upload stakeholder interview notes',
+    ],
+    portal: {
+      status: 'active',
+      items: [
+        { text: 'Client approved 2 feature proposals', time: '3h ago', dot: '#3FAF7A' },
+        { text: '1 question pending response', time: '1d ago', dot: '#F59E0B' },
+      ],
+      pendingQ: 1, pendingD: 0, lastActive: '3h ago'
+    }
+  },
+  {
+    name: 'PersonaPulse',
+    client: 'PersonaPlus Inc',
+    stage: 'Validation',
+    stageColor: '#6366F1',
+    score: 62,
+    nextActions: [
+      'Review client feedback on workflows',
+      'Map data entity relationships',
+    ],
+    portal: {
+      status: 'pending',
+      items: [
+        { text: '2 questions awaiting client', time: '2d ago', dot: '#F59E0B' },
+        { text: 'Document request sent', time: '3d ago', dot: '#999' },
+      ],
+      pendingQ: 2, pendingD: 1, lastActive: '2d ago'
+    }
+  },
+  {
+    name: 'Acme CRM Rebuild',
+    client: 'Acme Corp',
+    stage: 'Prototype',
+    stageColor: '#3B82F6',
+    score: 88,
+    nextActions: [
+      'Generate v0 prototype',
+      'Schedule validation session',
+    ],
+    portal: {
+      status: 'quiet',
+      items: [
+        { text: 'No recent portal activity', time: '', dot: '#ccc' },
+      ],
+      pendingQ: 0, pendingD: 0, lastActive: null
+    }
+  },
+];
+
+const TASKS = [
+  { title: 'Validate 3 new feature proposals', project: 'Ortho', type: 'Gap', priority: 'high', due: 'Due tomorrow', color: '#EF4444' },
+  { title: 'Review client feedback on personas', project: 'Pulse', type: 'Client', priority: 'high', due: 'Due today', color: '#EF4444' },
+  { title: 'Enrich stakeholder profiles', project: 'Acme', type: 'Enrichment', priority: 'medium', due: '2d ago', color: '#F59E0B' },
+  { title: 'Map remaining workflow steps', project: 'Ortho', type: 'Gap', priority: 'medium', due: 'No due date', color: '#F59E0B' },
+  { title: 'Research competitor integrations', project: 'Pulse', type: 'Research', priority: 'low', due: 'Due next week', color: '#94A3B8' },
+  { title: 'Upload discovery session recording', project: 'Ortho', type: 'Manual', priority: 'low', due: '5d ago', color: '#94A3B8' },
+  { title: 'Confirm data entity schemas', project: 'Acme', type: 'Validation', priority: 'medium', due: 'Due Fri', color: '#F59E0B' },
+  { title: 'Schedule prototype walkthrough', project: 'Acme', type: 'Collaboration', priority: 'high', due: 'Due today', color: '#EF4444' },
+];
+
+const MEETINGS = [
+  { time: '10:00a', title: 'Discovery Kickoff', project: 'Ortho', stakeholder: 'Dr. J. Smith', type: 'Discovery' },
+  { time: '2:00p', title: 'Persona Review', project: 'Pulse', stakeholder: 'S. Lee', type: 'Validation' },
+  { time: '9:30a', title: 'Prototype Walkthrough', project: 'Acme', stakeholder: 'M. Chen', type: 'Review', tomorrow: true },
+  { time: '11:00a', title: 'Stakeholder Interviews', project: 'Ortho', stakeholder: 'Team', type: 'Discovery', tomorrow: true },
+];
+
+// =========================================================================
+// Helpers
+// =========================================================================
+function toggleControl(el) {
+  el.classList.toggle('on');
+}
+
+function isOn(id) {
+  return document.getElementById(id).classList.contains('on');
+}
+
+function readState() {
+  state.greetingStyle = document.getElementById('greetingStyle').value;
+  state.headingSize = +document.getElementById('headingSize').value;
+  state.cardRadius = +document.getElementById('cardRadius').value;
+  state.cardPadding = +document.getElementById('cardPadding').value;
+  state.cardShadow = document.getElementById('cardShadow').value;
+  state.barColor = document.getElementById('barColor').value;
+  state.nbaCount = +document.getElementById('nbaCount').value;
+  state.stageFilled = isOn('stageFilled');
+  state.showArrow = isOn('showArrow');
+  state.showReadiness = isOn('showReadiness');
+  state.greenTopBorder = isOn('greenTopBorder');
+  state.portalStyle = document.getElementById('portalStyle').value;
+  state.showDivider = isOn('showDivider');
+  state.taskStyle = document.getElementById('taskStyle').value;
+  state.tasksShown = +document.getElementById('tasksShown').value;
+  state.meetingStyle = document.getElementById('meetingStyle').value;
+  state.sectionGap = +document.getElementById('sectionGap').value;
+  state.maxProjects = +document.getElementById('maxProjects').value;
+
+  // Update range value displays
+  document.getElementById('headingSizeVal').textContent = state.headingSize + 'px';
+  document.getElementById('cardRadiusVal').textContent = state.cardRadius + 'px';
+  document.getElementById('cardPaddingVal').textContent = state.cardPadding + 'px';
+  document.getElementById('sectionGapVal').textContent = state.sectionGap + 'px';
+  document.getElementById('tasksShownVal').textContent = state.tasksShown;
+}
+
+function getBarColor(score) {
+  if (state.barColor === 'green') return '#3FAF7A';
+  // Adaptive: red < 30, yellow 30-70, green > 70
+  if (score < 30) return '#EF4444';
+  if (score < 70) return '#F59E0B';
+  return '#3FAF7A';
+}
+
+function getShadow() {
+  if (state.cardShadow === 'none') return 'none';
+  if (state.cardShadow === 'elevated') return '0 4px 12px rgba(0,0,0,0.08)';
+  return '0 1px 3px rgba(0,0,0,0.04)';
+}
+
+// SVG icons
+const arrowSVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="7" y1="17" x2="17" y2="7"/><polyline points="7 7 17 7 17 17"/></svg>`;
+const checkSVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
+const circleSVG = `<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="4"/></svg>`;
+const searchSVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>`;
+const bellSVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>`;
+const clockSVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`;
+const listSVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>`;
+const calSVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>`;
+
+// =========================================================================
+// Render
+// =========================================================================
+function renderPreview() {
+  const p = document.getElementById('preview');
+  const gap = state.sectionGap;
+  const projects = PROJECTS.slice(0, state.maxProjects);
+  const tasks = TASKS.slice(0, state.tasksShown);
+
+  // Greeting
+  let greeting = '';
+  if (state.greetingStyle === 'daily-snapshot') {
+    greeting = `
+      <div class="dash-greeting">
+        <h1 style="font-size: ${state.headingSize}px">Daily Snapshot</h1>
+      </div>
+      <div class="dash-date">Welcome back <strong style="color:#333">Matt</strong>! Here's the latest for <strong style="color:#333">Thursday, Feb 20</strong>.</div>
+    `;
+  } else if (state.greetingStyle === 'personal') {
+    greeting = `
+      <div class="dash-greeting">
+        <h1 style="font-size: ${state.headingSize}px">Good morning, Matt</h1>
+      </div>
+      <div class="dash-date">Thursday, Feb 20 &middot; ${projects.length} projects &middot; 2 meetings today</div>
+    `;
+  } else {
+    greeting = `
+      <div class="dash-date" style="font-size: 14px; margin-bottom: 16px; color: #666;">Thursday, Feb 20</div>
+    `;
+  }
+
+  // Header row with icons
+  const headerRow = `
+    <div style="display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: ${gap}px;">
+      <div>${greeting}</div>
+      <div style="display: flex; align-items: center; gap: 8px; margin-top: 4px;">
+        <div style="width: 32px; height: 32px; border-radius: 8px; background: #fff; border: 1px solid #E5E5E5; display: flex; align-items: center; justify-content: center; cursor: pointer; color: #999;">${searchSVG.replace('width="2"', 'width="1.5"').replace(/<svg/, '<svg width="16" height="16"')}</div>
+        <div style="width: 32px; height: 32px; border-radius: 8px; background: #fff; border: 1px solid #E5E5E5; display: flex; align-items: center; justify-content: center; cursor: pointer; color: #999; position: relative;">${bellSVG.replace(/<svg/, '<svg width="16" height="16"')}<span style="position: absolute; top: 4px; right: 4px; width: 6px; height: 6px; background: #EF4444; border-radius: 50; border: 1.5px solid #fff;"></span></div>
+      </div>
+    </div>
+  `;
+
+  // Project cards
+  let projectsHTML = '';
+  for (const proj of projects) {
+    const shadow = getShadow();
+    const topBorder = state.greenTopBorder ? `border-top: 3px solid #3FAF7A;` : '';
+    const stageBg = state.stageFilled ? `background: ${proj.stageColor}15; color: ${proj.stageColor};` : `background: #F0F0F0; color: #666;`;
+
+    // Next actions
+    const actions = proj.nextActions.slice(0, state.nbaCount);
+    let actionsHTML = actions.map(a => `
+      <div class="nba-item">
+        <div class="nba-icon" style="background: rgba(63,175,122,0.1); color: #3FAF7A;">${checkSVG.replace(/<svg/, '<svg width="10" height="10"')}</div>
+        <div class="nba-text">${a}</div>
+      </div>
+    `).join('');
+
+    // Portal column
+    let portalHTML = '';
+    if (state.portalStyle === 'activity-feed') {
+      portalHTML = proj.portal.items.map(item => `
+        <div class="portal-item">
+          <div class="portal-dot" style="background: ${item.dot}"></div>
+          <div>
+            <div class="portal-text" style="color: ${item.dot === '#3FAF7A' ? '#333' : item.dot === '#F59E0B' ? '#92400E' : '#999'}">${item.text}</div>
+            ${item.time ? `<div class="portal-time">${item.time}</div>` : ''}
+          </div>
+        </div>
+      `).join('');
+    } else if (state.portalStyle === 'status-summary') {
+      const total = proj.portal.pendingQ + proj.portal.pendingD;
+      const statusText = total > 0
+        ? `<span style="color: #F59E0B; font-weight: 500;">${total} item${total > 1 ? 's' : ''} pending</span>`
+        : `<span style="color: #999;">All clear</span>`;
+      portalHTML = `
+        <div style="font-size: 12px; color: #333; margin-bottom: 4px;">${statusText}</div>
+        ${proj.portal.lastActive ? `<div style="font-size: 10px; color: #999;">Last active ${proj.portal.lastActive}</div>` : '<div style="font-size: 10px; color: #ccc;">No activity yet</div>'}
+      `;
+    } else {
+      // count-badges
+      const qBadge = proj.portal.pendingQ > 0 ? `<span style="display: inline-flex; align-items: center; gap: 3px; font-size: 11px; padding: 2px 8px; border-radius: 999px; background: #FEF3C7; color: #92400E; font-weight: 500;">${proj.portal.pendingQ} Q</span>` : '';
+      const dBadge = proj.portal.pendingD > 0 ? `<span style="display: inline-flex; align-items: center; gap: 3px; font-size: 11px; padding: 2px 8px; border-radius: 999px; background: #DBEAFE; color: #1D4ED8; font-weight: 500;">${proj.portal.pendingD} Doc</span>` : '';
+      portalHTML = (qBadge || dBadge) ? `<div style="display: flex; gap: 6px; flex-wrap: wrap;">${qBadge}${dBadge}</div>` : `<div style="font-size: 11px; color: #999;">No pending items</div>`;
+      if (proj.portal.lastActive) {
+        portalHTML += `<div style="font-size: 10px; color: #999; margin-top: 4px;">Active ${proj.portal.lastActive}</div>`;
+      }
+    }
+
+    const dividerStyle = state.showDivider ? 'border-left: 1px solid #F0F0F0; padding-left: 16px;' : '';
+
+    const readinessHTML = state.showReadiness ? `
+      <div class="pc-readiness" style="margin-top: 12px;">
+        <div class="pc-bar-track">
+          <div class="pc-bar-fill" style="width: ${proj.score}%; background: ${getBarColor(proj.score)};"></div>
+        </div>
+        <span class="pc-score">${proj.score}%</span>
+      </div>
+    ` : '';
+
+    const arrowHTML = state.showArrow ? `
+      <div class="pc-arrow" style="background: #3FAF7A; color: white;">${arrowSVG.replace(/<svg/, '<svg width="14" height="14"')}</div>
+    ` : '';
+
+    projectsHTML += `
+      <div class="project-card" style="border-radius: ${state.cardRadius}px; padding: ${state.cardPadding}px; box-shadow: ${shadow}; margin-bottom: ${gap}px; ${topBorder}">
+        <div class="pc-header">
+          <div style="flex: 1; min-width: 0;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <div class="pc-title" style="font-size: 15px;">${proj.name}</div>
+            </div>
+            <div class="pc-client" style="font-size: 12px; margin-top: 2px;">${proj.client}</div>
+            <div style="margin-top: 6px;">
+              <span class="pc-stage" style="${stageBg} padding: 2px 10px;">${proj.stage}</span>
+            </div>
+          </div>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            ${state.showReadiness ? `<span style="font-size: 11px; color: #666;">Readiness: ${proj.score}%</span>` : ''}
+            ${arrowHTML}
+          </div>
+        </div>
+
+        ${readinessHTML}
+
+        <div class="pc-body" style="margin-top: 16px; gap: 16px;">
+          <div>
+            <div class="pc-col-label">Next Steps</div>
+            ${actionsHTML}
+          </div>
+          <div style="${dividerStyle}">
+            <div class="pc-col-label">Client Updates</div>
+            ${portalHTML}
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  // Tasks sidebar
+  let tasksHTML = tasks.map((t, i) => {
+    if (state.taskStyle === 'priority-bar') {
+      return `
+        <div class="task-row">
+          <div class="task-priority" style="background: ${t.color}"></div>
+          <div class="task-content">
+            <div class="task-title">${t.title}</div>
+            <div class="task-meta">
+              <span class="task-project-pill">${t.project}</span>
+              <span class="task-type-pill">${t.type}</span>
+              <span>${t.due}</span>
+            </div>
+          </div>
+        </div>
+      `;
+    } else if (state.taskStyle === 'icon-type') {
+      const typeColors = { Gap: '#EF4444', Client: '#6366F1', Enrichment: '#F59E0B', Research: '#3B82F6', Manual: '#999', Validation: '#3FAF7A', Collaboration: '#8B5CF6' };
+      const tc = typeColors[t.type] || '#999';
+      return `
+        <div class="task-row">
+          <div style="width: 24px; height: 24px; border-radius: 6px; background: ${tc}15; color: ${tc}; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 10px; font-weight: 700;">${t.type[0]}</div>
+          <div class="task-content">
+            <div class="task-title">${t.title}</div>
+            <div class="task-meta">
+              <span class="task-project-pill">${t.project}</span>
+              <span>${t.due}</span>
+            </div>
+          </div>
+        </div>
+      `;
+    } else {
+      // minimal-dots
+      return `
+        <div class="task-row">
+          <div style="width: 6px; height: 6px; border-radius: 50%; background: ${t.color}; flex-shrink: 0; margin-top: 6px;"></div>
+          <div class="task-content">
+            <div class="task-title">${t.title}</div>
+            <div class="task-meta">
+              <span class="task-project-pill">${t.project}</span>
+              <span>${t.due}</span>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+  }).join('');
+
+  // Schedule
+  const todayMeetings = MEETINGS.filter(m => !m.tomorrow);
+  const tomorrowMeetings = MEETINGS.filter(m => m.tomorrow);
+
+  function renderMeetings(meetings) {
+    if (state.meetingStyle === 'time-left') {
+      return meetings.map(m => `
+        <div class="sched-item">
+          <div class="sched-time">${m.time}</div>
+          <div class="sched-details">
+            <div class="sched-title">${m.title}</div>
+            <div class="sched-project">${m.project} &middot; ${m.stakeholder}</div>
+          </div>
+        </div>
+      `).join('');
+    } else {
+      // timeline dots
+      return meetings.map((m, i) => `
+        <div style="display: flex; align-items: flex-start; gap: 12px; margin-bottom: 10px;">
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 0;">
+            <div style="width: 8px; height: 8px; border-radius: 50%; background: #3FAF7A; flex-shrink: 0; margin-top: 4px;"></div>
+            ${i < meetings.length - 1 ? '<div style="width: 1px; height: 28px; background: #E5E5E5;"></div>' : ''}
+          </div>
+          <div class="sched-details" style="padding-bottom: 4px;">
+            <div style="display: flex; align-items: center; gap: 6px;">
+              <span style="font-size: 11px; font-weight: 600; color: #3FAF7A;">${m.time}</span>
+              <span class="sched-title">${m.title}</span>
+            </div>
+            <div class="sched-project">${m.project} &middot; ${m.stakeholder}</div>
+          </div>
+        </div>
+      `).join('');
+    }
+  }
+
+  let scheduleHTML = `
+    <div style="margin-bottom: 16px;">
+      <div class="sched-group-label">Today</div>
+      ${renderMeetings(todayMeetings)}
+    </div>
+    <div>
+      <div class="sched-group-label">Tomorrow</div>
+      ${renderMeetings(tomorrowMeetings)}
+    </div>
+  `;
+
+  // Assemble full layout
+  p.innerHTML = `
+    ${headerRow}
+
+    <div class="dash-grid" style="gap: ${gap}px;">
+      <!-- Left 2/3: Project Cards -->
+      <div>
+        <div style="font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: #999; margin-bottom: 12px;">Latest Projects</div>
+        ${projectsHTML}
+      </div>
+
+      <!-- Right 1/3: Tasks + Schedule -->
+      <div style="display: flex; flex-direction: column; gap: ${gap}px;">
+        <div class="sidebar-card" style="border-radius: ${state.cardRadius}px; padding: ${state.cardPadding}px; box-shadow: ${getShadow()};">
+          <div class="sidebar-header">
+            <h3 style="display: flex; align-items: center; gap: 6px;">${listSVG.replace(/<svg/, '<svg width="14" height="14" style="color:#999"')} Tasks</h3>
+            <a class="view-all">View all</a>
+          </div>
+          ${tasksHTML}
+        </div>
+
+        <div class="sidebar-card" style="border-radius: ${state.cardRadius}px; padding: ${state.cardPadding}px; box-shadow: ${getShadow()};">
+          <div class="sidebar-header">
+            <h3 style="display: flex; align-items: center; gap: 6px;">${calSVG.replace(/<svg/, '<svg width="14" height="14" style="color:#999"')} Schedule</h3>
+            <a class="view-all">View all</a>
+          </div>
+          ${scheduleHTML}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// =========================================================================
+// Prompt
+// =========================================================================
+function updatePrompt() {
+  const parts = [];
+  const diff = [];
+
+  // Greeting
+  if (state.greetingStyle !== DEFAULTS.greetingStyle) {
+    const labels = { 'daily-snapshot': '"Daily Snapshot" heading with welcome subtext', 'personal': '"Good morning, Name" personal greeting', 'minimal': 'minimal date-only greeting' };
+    diff.push(`greeting: ${labels[state.greetingStyle]}`);
+  }
+  if (state.headingSize !== DEFAULTS.headingSize) diff.push(`heading at ${state.headingSize}px`);
+
+  // Cards
+  if (state.cardRadius !== DEFAULTS.cardRadius) diff.push(`card radius ${state.cardRadius}px`);
+  if (state.cardPadding !== DEFAULTS.cardPadding) diff.push(`card padding ${state.cardPadding}px`);
+  if (state.cardShadow !== DEFAULTS.cardShadow) {
+    const labels = { none: 'no shadow (border only)', subtle: 'subtle shadow', elevated: 'elevated shadow' };
+    diff.push(labels[state.cardShadow]);
+  }
+  if (state.barColor !== DEFAULTS.barColor) diff.push('adaptive readiness bar color (red→yellow→green)');
+  if (state.nbaCount !== DEFAULTS.nbaCount) diff.push(`${state.nbaCount} next action${state.nbaCount > 1 ? 's' : ''} per card`);
+  if (!state.stageFilled) diff.push('neutral gray stage pills instead of colored');
+  if (!state.showArrow) diff.push('no arrow button on cards');
+  if (!state.showReadiness) diff.push('hide readiness bar');
+  if (state.greenTopBorder) diff.push('green top border on project cards');
+
+  // Portal
+  if (state.portalStyle !== DEFAULTS.portalStyle) {
+    const labels = { 'activity-feed': 'activity feed', 'status-summary': 'status summary', 'count-badges': 'count badges' };
+    diff.push(`portal column as ${labels[state.portalStyle]}`);
+  }
+  if (!state.showDivider) diff.push('no divider between card columns');
+
+  // Sidebar
+  if (state.taskStyle !== DEFAULTS.taskStyle) {
+    const labels = { 'priority-bar': 'priority bars + pills', 'icon-type': 'type icon squares', 'minimal-dots': 'minimal dots' };
+    diff.push(`task rows: ${labels[state.taskStyle]}`);
+  }
+  if (state.tasksShown !== DEFAULTS.tasksShown) diff.push(`show ${state.tasksShown} tasks`);
+  if (state.meetingStyle !== DEFAULTS.meetingStyle) diff.push('timeline dot style for meetings');
+  if (state.sectionGap !== DEFAULTS.sectionGap) diff.push(`${state.sectionGap}px section gap`);
+  if (state.maxProjects !== DEFAULTS.maxProjects) diff.push(`show ${state.maxProjects} projects max`);
+
+  const el = document.getElementById('promptOutput');
+  if (diff.length === 0) {
+    el.textContent = 'Rebuild the home dashboard with a 2/3 + 1/3 layout. Left column: project cards (max 3, sorted by latest update) with two inner columns — "Next Steps" (1-2 top next actions with green check icons) and "Client Updates" (portal activity feed with colored dots). Right column: global tasks panel (cross-project, sorted by priority with colored priority bars and project pills) and schedule panel (meetings grouped by day showing project + stakeholder). Greeting is "Daily Snapshot" style. Use brand colors: Green #3FAF7A, Navy #0A1E2F. Card style: rounded-2xl, subtle shadow, 20px padding. Typography: 15px card titles, 12px body, 10-11px labels.';
+  } else {
+    el.textContent = `Rebuild the home dashboard with a 2/3 + 1/3 layout (project cards left, tasks + schedule right). Same structure as described, but with these adjustments: ${diff.join('; ')}.`;
+  }
+}
+
+// =========================================================================
+// Presets
+// =========================================================================
+const PRESETS = {
+  clean: { ...DEFAULTS },
+  compact: {
+    ...DEFAULTS,
+    headingSize: 16,
+    cardRadius: 12,
+    cardPadding: 16,
+    sectionGap: 14,
+    nbaCount: 1,
+    taskStyle: 'minimal-dots',
+    greetingStyle: 'personal',
+  },
+  airy: {
+    ...DEFAULTS,
+    headingSize: 22,
+    cardRadius: 20,
+    cardPadding: 24,
+    cardShadow: 'elevated',
+    sectionGap: 24,
+    meetingStyle: 'timeline',
+    portalStyle: 'status-summary',
+  },
+  bold: {
+    ...DEFAULTS,
+    headingSize: 20,
+    cardRadius: 16,
+    cardPadding: 20,
+    greenTopBorder: true,
+    barColor: 'adaptive',
+    taskStyle: 'icon-type',
+    portalStyle: 'count-badges',
+    stageFilled: true,
+  },
+};
+
+function applyPreset(name) {
+  const preset = PRESETS[name];
+  if (!preset) return;
+
+  // Update controls
+  document.getElementById('greetingStyle').value = preset.greetingStyle;
+  document.getElementById('headingSize').value = preset.headingSize;
+  document.getElementById('cardRadius').value = preset.cardRadius;
+  document.getElementById('cardPadding').value = preset.cardPadding;
+  document.getElementById('cardShadow').value = preset.cardShadow;
+  document.getElementById('barColor').value = preset.barColor;
+  document.getElementById('nbaCount').value = preset.nbaCount;
+  document.getElementById('portalStyle').value = preset.portalStyle;
+  document.getElementById('taskStyle').value = preset.taskStyle;
+  document.getElementById('tasksShown').value = preset.tasksShown;
+  document.getElementById('meetingStyle').value = preset.meetingStyle;
+  document.getElementById('sectionGap').value = preset.sectionGap;
+  document.getElementById('maxProjects').value = preset.maxProjects;
+
+  // Toggles
+  const toggleMap = { stageFilled: preset.stageFilled, showArrow: preset.showArrow, showReadiness: preset.showReadiness, greenTopBorder: preset.greenTopBorder, showDivider: preset.showDivider };
+  for (const [id, val] of Object.entries(toggleMap)) {
+    const el = document.getElementById(id);
+    if (val) el.classList.add('on'); else el.classList.remove('on');
+  }
+
+  // Highlight active preset
+  document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+  event.target.classList.add('active');
+
+  updateAll();
+}
+
+function copyPrompt() {
+  const text = document.getElementById('promptOutput').textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.getElementById('copyBtn');
+    btn.textContent = 'Copied!';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 1500);
+  });
+}
+
+// =========================================================================
+// Main
+// =========================================================================
+function updateAll() {
+  readState();
+  renderPreview();
+  updatePrompt();
+}
+
+// Initialize
+updateAll();
+</script>
+</body>
+</html>

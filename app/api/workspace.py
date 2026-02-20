@@ -673,11 +673,19 @@ async def get_brd_workspace_data(
             except Exception:
                 return []
 
+        def _q_solution_flow():
+            try:
+                from app.db.solution_flow import get_flow_overview
+                return get_flow_overview(project_id)
+            except Exception:
+                return None
+
         (
             project_result, company_info, drivers_result,
             personas_result, vp_result, features_result,
             constraints_result, de_result, sh_result,
             comp_result, pending_result, workflow_pairs_raw,
+            solution_flow_raw,
         ) = await asyncio.gather(
             asyncio.to_thread(_q_project),
             asyncio.to_thread(_q_company_info),
@@ -691,6 +699,7 @@ async def get_brd_workspace_data(
             asyncio.to_thread(_q_competitors),
             asyncio.to_thread(_q_pending),
             asyncio.to_thread(_q_workflow_pairs),
+            asyncio.to_thread(_q_solution_flow),
         )
 
         # Validate project exists
@@ -1115,6 +1124,7 @@ async def get_brd_workspace_data(
             workflow_pairs=workflow_pairs_out,
             roi_summary=roi_summary_list,
             completeness=completeness,
+            solution_flow=solution_flow_raw,
         )
 
         try:
@@ -4240,4 +4250,101 @@ async def dismiss_unlock_endpoint(project_id: UUID, unlock_id: UUID):
     result = dismiss_unlock(unlock_id, project_id)
     if not result:
         raise HTTPException(status_code=404, detail="Unlock not found")
+    return result
+
+
+# ============================================================================
+# Solution Flow Endpoints
+# ============================================================================
+
+
+@router.get("/solution-flow")
+async def get_solution_flow(project_id: UUID):
+    """Get the solution flow overview (flow + step summaries)."""
+    from app.db.solution_flow import get_flow_overview
+
+    overview = get_flow_overview(project_id)
+    if not overview:
+        return {"id": None, "title": "Solution Flow", "steps": []}
+    return overview
+
+
+@router.post("/solution-flow/generate")
+async def generate_solution_flow_endpoint(
+    project_id: UUID, background_tasks: BackgroundTasks
+):
+    """Generate solution flow steps from project data using LLM."""
+    from app.chains.generate_solution_flow import generate_solution_flow
+    from app.db.solution_flow import get_or_create_flow
+
+    flow = get_or_create_flow(project_id)
+    result = await generate_solution_flow(project_id, flow["id"])
+    return result
+
+
+@router.patch("/solution-flow")
+async def update_solution_flow_endpoint(project_id: UUID, body: dict):
+    """Update flow metadata (title, summary, confirmation_status)."""
+    from app.db.solution_flow import get_or_create_flow, update_flow
+
+    flow = get_or_create_flow(project_id)
+    result = update_flow(UUID(flow["id"]), body)
+    return result
+
+
+@router.post("/solution-flow/steps")
+async def create_solution_flow_step_endpoint(project_id: UUID, body: dict):
+    """Create a new solution flow step."""
+    from app.core.schemas_solution_flow import SolutionFlowStepCreate
+    from app.db.solution_flow import create_flow_step, get_or_create_flow
+
+    flow = get_or_create_flow(project_id)
+    step_data = SolutionFlowStepCreate(**body)
+    result = create_flow_step(
+        UUID(flow["id"]), project_id, step_data.model_dump()
+    )
+    return result
+
+
+@router.get("/solution-flow/steps/{step_id}")
+async def get_solution_flow_step_endpoint(project_id: UUID, step_id: UUID):
+    """Get a single step with all fields."""
+    from app.db.solution_flow import get_flow_step
+
+    step = get_flow_step(step_id)
+    if not step:
+        raise HTTPException(status_code=404, detail="Step not found")
+    return step
+
+
+@router.patch("/solution-flow/steps/{step_id}")
+async def update_solution_flow_step_endpoint(
+    project_id: UUID, step_id: UUID, body: dict
+):
+    """Update a solution flow step."""
+    from app.db.solution_flow import update_flow_step
+
+    result = update_flow_step(step_id, body)
+    return result
+
+
+@router.delete("/solution-flow/steps/{step_id}")
+async def delete_solution_flow_step_endpoint(project_id: UUID, step_id: UUID):
+    """Delete a step and reindex remaining steps."""
+    from app.db.solution_flow import delete_flow_step
+
+    delete_flow_step(step_id)
+    return {"deleted": True}
+
+
+@router.post("/solution-flow/steps/reorder")
+async def reorder_solution_flow_steps_endpoint(project_id: UUID, body: dict):
+    """Reorder steps. Body: {step_ids: string[]}."""
+    from app.db.solution_flow import get_or_create_flow, reorder_flow_steps
+
+    step_ids = body.get("step_ids", [])
+    if not step_ids:
+        raise HTTPException(status_code=400, detail="step_ids required")
+    flow = get_or_create_flow(project_id)
+    result = reorder_flow_steps(UUID(flow["id"]), step_ids)
     return result

@@ -1,0 +1,1701 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Application Blueprint Explorer — ABO Assessment Platform</title>
+<style>
+  :root {
+    --navy: #0A1E2F;
+    --navy-light: #132D42;
+    --navy-muted: #1A3A54;
+    --green: #3FAF7A;
+    --green-light: #4CC98E;
+    --green-soft: rgba(63, 175, 122, 0.08);
+    --green-border: rgba(63, 175, 122, 0.2);
+    --amber: #E5A93D;
+    --amber-soft: rgba(229, 169, 61, 0.08);
+    --amber-border: rgba(229, 169, 61, 0.25);
+    --red: #E55C5C;
+    --red-soft: rgba(229, 92, 92, 0.06);
+    --white: #FFFFFF;
+    --gray-50: #F8FAFB;
+    --gray-100: #F1F4F7;
+    --gray-200: #E2E7ED;
+    --gray-300: #C8D0DA;
+    --gray-400: #9BA5B4;
+    --gray-500: #6E7A8A;
+    --gray-600: #4A5568;
+    --gray-700: #2D3748;
+    --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    --mono: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+    --radius: 12px;
+    --radius-sm: 8px;
+    --radius-xs: 6px;
+    --shadow-sm: 0 1px 3px rgba(10, 30, 47, 0.06);
+    --shadow-md: 0 4px 16px rgba(10, 30, 47, 0.08);
+    --shadow-lg: 0 8px 32px rgba(10, 30, 47, 0.12);
+    --transition: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: var(--font);
+    background: var(--gray-50);
+    color: var(--gray-700);
+    line-height: 1.6;
+    overflow: hidden;
+    height: 100vh;
+  }
+
+  /* ─── TOP BAR ─── */
+  .topbar {
+    background: var(--navy);
+    color: var(--white);
+    padding: 16px 28px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+    z-index: 100;
+  }
+  .topbar-left {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  .topbar h1 {
+    font-size: 17px;
+    font-weight: 600;
+    letter-spacing: -0.3px;
+  }
+  .topbar .subtitle {
+    font-size: 12px;
+    color: var(--gray-400);
+    font-weight: 400;
+  }
+  .stat-badge {
+    background: rgba(63, 175, 122, 0.12);
+    color: var(--green-light);
+    padding: 5px 14px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 500;
+    white-space: nowrap;
+  }
+  .view-toggle {
+    display: flex;
+    background: var(--navy-light);
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid rgba(255,255,255,0.08);
+  }
+  .view-toggle button {
+    background: none;
+    border: none;
+    color: var(--gray-400);
+    padding: 7px 16px;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: var(--transition);
+    font-family: var(--font);
+  }
+  .view-toggle button.active {
+    background: var(--green);
+    color: var(--white);
+  }
+  .view-toggle button:hover:not(.active) {
+    color: var(--white);
+  }
+
+  /* ─── JOURNEY FLOW ─── */
+  .journey-flow {
+    background: var(--white);
+    border-bottom: 1px solid var(--gray-200);
+    padding: 20px 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+  }
+  .journey-phase {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    cursor: pointer;
+    transition: var(--transition);
+  }
+  .journey-node {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 18px;
+    border-radius: 24px;
+    border: 2px solid var(--gray-200);
+    background: var(--white);
+    transition: var(--transition);
+    white-space: nowrap;
+  }
+  .journey-node .phase-icon {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    background: var(--gray-100);
+    color: var(--gray-500);
+    transition: var(--transition);
+  }
+  .journey-node .phase-label {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--gray-600);
+    transition: var(--transition);
+  }
+  .journey-node .phase-count {
+    font-size: 11px;
+    color: var(--gray-400);
+    font-weight: 400;
+  }
+  .journey-phase.active .journey-node,
+  .journey-phase:hover .journey-node {
+    border-color: var(--green);
+    background: var(--green-soft);
+  }
+  .journey-phase.active .phase-icon {
+    background: var(--green);
+    color: var(--white);
+  }
+  .journey-phase.active .phase-label { color: var(--navy); }
+  .journey-connector {
+    width: 48px;
+    height: 2px;
+    background: var(--gray-200);
+    position: relative;
+    margin: 0 4px;
+  }
+  .journey-connector::after {
+    content: '';
+    position: absolute;
+    right: -3px;
+    top: -3px;
+    width: 0; height: 0;
+    border-left: 6px solid var(--gray-200);
+    border-top: 4px solid transparent;
+    border-bottom: 4px solid transparent;
+  }
+
+  /* ─── MAIN LAYOUT ─── */
+  .main {
+    display: flex;
+    height: calc(100vh - 130px);
+    overflow: hidden;
+  }
+
+  /* ─── LEFT SIDEBAR ─── */
+  .sidebar {
+    width: 320px;
+    min-width: 320px;
+    background: var(--white);
+    border-right: 1px solid var(--gray-200);
+    overflow-y: auto;
+    padding: 16px 0;
+  }
+  .sidebar::-webkit-scrollbar { width: 4px; }
+  .sidebar::-webkit-scrollbar-thumb { background: var(--gray-300); border-radius: 2px; }
+
+  .sidebar-phase {
+    margin-bottom: 4px;
+  }
+  .sidebar-phase-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 20px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    color: var(--gray-400);
+  }
+  .sidebar-phase-header::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--gray-200);
+  }
+
+  .block-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 12px 20px;
+    cursor: pointer;
+    transition: var(--transition);
+    border-left: 3px solid transparent;
+    margin: 0;
+  }
+  .block-item:hover {
+    background: var(--gray-50);
+  }
+  .block-item.active {
+    background: var(--green-soft);
+    border-left-color: var(--green);
+  }
+  .block-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: var(--radius-xs);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+  .block-item.active .block-icon { opacity: 1; }
+  .block-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--navy);
+    margin-bottom: 2px;
+    line-height: 1.3;
+  }
+  .block-pattern {
+    font-size: 11px;
+    color: var(--gray-400);
+    font-weight: 400;
+  }
+  .block-questions-count {
+    font-size: 10px;
+    color: var(--amber);
+    font-weight: 600;
+    margin-top: 3px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  /* ─── DETAIL PANEL ─── */
+  .detail {
+    flex: 1;
+    overflow-y: auto;
+    padding: 32px 40px;
+    background: var(--gray-50);
+  }
+  .detail::-webkit-scrollbar { width: 6px; }
+  .detail::-webkit-scrollbar-thumb { background: var(--gray-300); border-radius: 3px; }
+
+  .detail-header {
+    margin-bottom: 28px;
+  }
+  .detail-header h2 {
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--navy);
+    letter-spacing: -0.5px;
+    margin-bottom: 6px;
+  }
+  .detail-header .pattern-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--green-soft);
+    color: var(--green);
+    padding: 4px 12px;
+    border-radius: 16px;
+    font-size: 12px;
+    font-weight: 500;
+    border: 1px solid var(--green-border);
+  }
+
+  .detail-section {
+    background: var(--white);
+    border-radius: var(--radius);
+    border: 1px solid var(--gray-200);
+    margin-bottom: 20px;
+    overflow: hidden;
+    transition: var(--transition);
+  }
+  .detail-section:hover {
+    box-shadow: var(--shadow-sm);
+  }
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 16px 20px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    color: var(--gray-500);
+    border-bottom: 1px solid var(--gray-100);
+    background: var(--gray-50);
+  }
+  .section-header .section-icon {
+    font-size: 14px;
+  }
+  .section-body {
+    padding: 20px;
+  }
+  .section-body p {
+    font-size: 14px;
+    color: var(--gray-600);
+    line-height: 1.7;
+  }
+
+  /* info fields */
+  .info-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  .info-field {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 10px 14px;
+    background: var(--gray-50);
+    border-radius: var(--radius-xs);
+    border: 1px solid var(--gray-100);
+  }
+  .info-field .field-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--green);
+    margin-top: 6px;
+    flex-shrink: 0;
+  }
+  .info-field .field-name {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--navy);
+  }
+  .info-field .field-desc {
+    font-size: 11px;
+    color: var(--gray-400);
+    margin-top: 1px;
+  }
+  .info-field.captured .field-dot { background: var(--green); }
+  .info-field.displayed .field-dot { background: #5B8DEF; }
+  .info-field.computed .field-dot { background: #9B6FE8; }
+
+  /* open questions */
+  .questions-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .question-card {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 14px 16px;
+    background: var(--amber-soft);
+    border: 1px solid var(--amber-border);
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    color: var(--gray-700);
+    line-height: 1.5;
+  }
+  .question-card .q-icon {
+    flex-shrink: 0;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: var(--amber);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 700;
+    margin-top: 1px;
+  }
+
+  /* ─── MOCK DATA RENDERERS ─── */
+
+  /* Registration form mock */
+  .mock-form {
+    background: var(--white);
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius);
+    padding: 24px;
+    max-width: 420px;
+  }
+  .mock-form-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--navy);
+    margin-bottom: 4px;
+  }
+  .mock-form-sub {
+    font-size: 12px;
+    color: var(--gray-400);
+    margin-bottom: 20px;
+  }
+  .mock-input-group {
+    margin-bottom: 14px;
+  }
+  .mock-input-group label {
+    display: block;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--gray-500);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 5px;
+  }
+  .mock-input {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius-xs);
+    font-size: 14px;
+    color: var(--navy);
+    background: var(--gray-50);
+    font-family: var(--font);
+  }
+  .mock-input.filled {
+    background: var(--white);
+    border-color: var(--green-border);
+  }
+  .mock-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  .mock-btn {
+    width: 100%;
+    padding: 12px;
+    background: var(--green);
+    color: white;
+    border: none;
+    border-radius: var(--radius-xs);
+    font-size: 14px;
+    font-weight: 600;
+    cursor: default;
+    margin-top: 8px;
+    font-family: var(--font);
+  }
+
+  /* Progress stepper mock */
+  .mock-stepper {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    max-width: 500px;
+  }
+  .mock-step {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 16px 20px;
+    border-radius: var(--radius);
+    border: 1px solid var(--gray-200);
+    background: var(--white);
+    transition: var(--transition);
+  }
+  .mock-step.complete {
+    border-color: var(--green-border);
+    background: var(--green-soft);
+  }
+  .mock-step.current {
+    border-color: var(--green);
+    box-shadow: 0 0 0 3px rgba(63,175,122,0.1);
+  }
+  .mock-step-num {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: 700;
+    flex-shrink: 0;
+    background: var(--gray-100);
+    color: var(--gray-500);
+  }
+  .mock-step.complete .mock-step-num {
+    background: var(--green);
+    color: white;
+  }
+  .mock-step.current .mock-step-num {
+    background: var(--navy);
+    color: white;
+  }
+  .mock-step-info { flex: 1; }
+  .mock-step-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--navy);
+  }
+  .mock-step-meta {
+    font-size: 12px;
+    color: var(--gray-400);
+    margin-top: 2px;
+  }
+  .mock-step-progress {
+    width: 60px;
+    text-align: right;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--gray-400);
+  }
+  .mock-step.complete .mock-step-progress { color: var(--green); }
+  .mock-step.current .mock-step-progress { color: var(--navy); }
+
+  /* Image grid mock */
+  .mock-case-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 20px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--gray-200);
+  }
+  .mock-case-id {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    color: var(--gray-400);
+  }
+  .mock-case-name {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--navy);
+  }
+  .mock-case-age {
+    font-size: 13px;
+    color: var(--gray-500);
+  }
+  .mock-image-grid {
+    display: grid;
+    gap: 8px;
+    margin-bottom: 20px;
+  }
+  .mock-image-grid.extraoral { grid-template-columns: repeat(3, 1fr); }
+  .mock-image-grid.intraoral { grid-template-columns: repeat(5, 1fr); }
+  .mock-image-grid.xray { grid-template-columns: 1fr 1fr; }
+  .mock-image-cell {
+    aspect-ratio: 1;
+    background: var(--navy);
+    border-radius: var(--radius-xs);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    color: rgba(255,255,255,0.5);
+    font-size: 22px;
+    position: relative;
+    overflow: hidden;
+  }
+  .mock-image-cell.xray { aspect-ratio: 4/3; }
+  .mock-image-cell .img-label {
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.6);
+    text-align: center;
+    line-height: 1.2;
+  }
+  .mock-image-section-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--gray-400);
+    margin-bottom: 8px;
+    margin-top: 16px;
+  }
+  .mock-image-section-label:first-child { margin-top: 0; }
+
+  /* Ceph table mock */
+  .mock-ceph-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+    margin-top: 16px;
+  }
+  .mock-ceph-table thead th {
+    padding: 8px 12px;
+    text-align: left;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    color: var(--gray-400);
+    border-bottom: 2px solid var(--gray-200);
+    background: var(--gray-50);
+  }
+  .mock-ceph-table thead th:not(:first-child) { text-align: center; }
+  .mock-ceph-table .group-row td {
+    padding: 8px 12px;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--navy);
+    background: var(--gray-50);
+    letter-spacing: 0.3px;
+    border-bottom: 1px solid var(--gray-100);
+  }
+  .mock-ceph-table tbody td {
+    padding: 7px 12px;
+    border-bottom: 1px solid var(--gray-100);
+    color: var(--gray-600);
+  }
+  .mock-ceph-table tbody td:not(:first-child) { text-align: center; font-family: var(--mono); font-size: 12px; }
+  .mock-ceph-table .flag-critical { color: var(--red); font-weight: 700; }
+  .mock-ceph-table .flag-significant { color: #D97706; font-weight: 600; }
+  .mock-ceph-table .flag-moderate { color: var(--amber); }
+  .mock-ceph-table .flag-normal { color: var(--gray-400); }
+  .mock-ceph-table .row-critical td { background: var(--red-soft); }
+
+  /* Question mock */
+  .mock-question-card {
+    max-width: 560px;
+  }
+  .mock-q-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+  }
+  .mock-q-num {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--gray-400);
+  }
+  .mock-q-stem {
+    font-size: 15px;
+    color: var(--navy);
+    line-height: 1.7;
+    margin-bottom: 20px;
+    font-weight: 400;
+  }
+  .mock-q-options {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .mock-q-option {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 12px 16px;
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius-sm);
+    cursor: default;
+    transition: var(--transition);
+  }
+  .mock-q-option:hover { border-color: var(--gray-300); background: var(--gray-50); }
+  .mock-q-option.correct {
+    border-color: var(--green);
+    background: var(--green-soft);
+  }
+  .mock-q-option .opt-letter {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 700;
+    background: var(--gray-100);
+    color: var(--gray-500);
+    flex-shrink: 0;
+  }
+  .mock-q-option.correct .opt-letter {
+    background: var(--green);
+    color: white;
+  }
+  .mock-q-option .opt-text {
+    font-size: 13px;
+    color: var(--gray-600);
+    line-height: 1.5;
+    padding-top: 3px;
+  }
+  .mock-q-option.correct .opt-text { color: var(--navy); font-weight: 500; }
+
+  /* Results mock */
+  .mock-results {
+    max-width: 520px;
+  }
+  .mock-score-big {
+    text-align: center;
+    margin-bottom: 24px;
+  }
+  .mock-score-number {
+    font-size: 56px;
+    font-weight: 800;
+    color: var(--navy);
+    letter-spacing: -2px;
+    line-height: 1;
+  }
+  .mock-score-label {
+    font-size: 13px;
+    color: var(--gray-400);
+    margin-top: 4px;
+  }
+  .mock-score-sections {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+  .mock-score-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  .mock-score-row .sname {
+    font-size: 13px;
+    color: var(--gray-600);
+    width: 200px;
+    flex-shrink: 0;
+  }
+  .mock-score-bar-bg {
+    flex: 1;
+    height: 8px;
+    background: var(--gray-100);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .mock-score-bar {
+    height: 100%;
+    border-radius: 4px;
+    transition: width 0.6s ease;
+  }
+  .mock-score-bar.high { background: var(--green); }
+  .mock-score-bar.mid { background: var(--amber); }
+  .mock-score-bar.low { background: var(--red); }
+  .mock-score-row .spct {
+    font-size: 13px;
+    font-weight: 700;
+    width: 40px;
+    text-align: right;
+  }
+  .mock-resource-card {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 14px 16px;
+    background: var(--gray-50);
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius-sm);
+    margin-top: 8px;
+  }
+  .mock-resource-card .r-icon {
+    font-size: 18px;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+  .mock-resource-card .r-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--navy);
+  }
+  .mock-resource-card .r-type {
+    font-size: 11px;
+    color: var(--gray-400);
+  }
+
+  /* Survey mock */
+  .mock-survey { max-width: 400px; }
+  .mock-stars {
+    display: flex;
+    gap: 6px;
+    margin: 8px 0 16px;
+  }
+  .mock-star {
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    border: 1px solid var(--gray-200);
+    cursor: default;
+  }
+  .mock-star.filled {
+    background: var(--amber-soft);
+    border-color: var(--amber);
+  }
+  .mock-textarea {
+    width: 100%;
+    height: 80px;
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius-xs);
+    padding: 10px;
+    font-family: var(--font);
+    font-size: 13px;
+    color: var(--gray-600);
+    background: var(--gray-50);
+    resize: none;
+    margin: 8px 0 16px;
+  }
+  .mock-toggle-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 0;
+    border-top: 1px solid var(--gray-100);
+  }
+  .mock-toggle-row .tl {
+    font-size: 13px;
+    color: var(--gray-600);
+  }
+  .mock-toggle {
+    width: 44px;
+    height: 24px;
+    border-radius: 12px;
+    background: var(--green);
+    position: relative;
+    cursor: default;
+  }
+  .mock-toggle::after {
+    content: '';
+    position: absolute;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: white;
+    top: 3px;
+    right: 3px;
+    box-shadow: var(--shadow-sm);
+  }
+
+  /* Dashboard mock */
+  .mock-dashboard { max-width: 600px; }
+  .mock-metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+  .mock-metric-card {
+    padding: 16px;
+    background: var(--gray-50);
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius-sm);
+    text-align: center;
+  }
+  .mock-metric-value {
+    font-size: 28px;
+    font-weight: 800;
+    color: var(--navy);
+    letter-spacing: -1px;
+  }
+  .mock-metric-label {
+    font-size: 11px;
+    color: var(--gray-400);
+    font-weight: 500;
+    margin-top: 2px;
+  }
+  .mock-funnel {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    margin-top: 16px;
+  }
+  .mock-funnel-step {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 12px;
+    border-radius: var(--radius-xs);
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--white);
+    transition: width 0.4s ease;
+  }
+  .mock-funnel-step .f-val {
+    font-weight: 800;
+    font-size: 16px;
+  }
+  .mock-funnel-arrow {
+    font-size: 14px;
+    color: var(--gray-300);
+  }
+
+  /* ─── RAW ENTITIES VIEW ─── */
+  .raw-view {
+    flex: 1;
+    overflow-y: auto;
+    padding: 32px 40px;
+    display: none;
+  }
+  .raw-view.visible { display: block; }
+  .raw-entity-list {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    max-width: 900px;
+  }
+  .raw-entity-card {
+    background: var(--white);
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius);
+    padding: 20px;
+  }
+  .raw-entity-card h3 {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--navy);
+    margin-bottom: 4px;
+    font-family: var(--mono);
+  }
+  .raw-entity-card .re-cat {
+    font-size: 11px;
+    color: var(--gray-400);
+    margin-bottom: 12px;
+  }
+  .raw-field {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 3px 0;
+    font-size: 12px;
+    font-family: var(--mono);
+  }
+  .raw-field .rf-name { color: var(--gray-600); }
+  .raw-field .rf-type { color: var(--gray-400); font-size: 11px; }
+
+  /* ─── EMPTY STATE ─── */
+  .empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: var(--gray-400);
+    text-align: center;
+    padding: 40px;
+  }
+  .empty-state .empty-icon {
+    font-size: 48px;
+    margin-bottom: 16px;
+    opacity: 0.4;
+  }
+  .empty-state h3 {
+    font-size: 17px;
+    font-weight: 600;
+    color: var(--gray-500);
+    margin-bottom: 6px;
+  }
+  .empty-state p {
+    font-size: 13px;
+    color: var(--gray-400);
+    max-width: 320px;
+    line-height: 1.6;
+  }
+
+  /* Responsive */
+  @media (max-width: 1100px) {
+    .sidebar { width: 260px; min-width: 260px; }
+    .detail { padding: 24px; }
+    .info-grid { grid-template-columns: 1fr; }
+  }
+
+  /* Animations */
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .detail-section { animation: fadeIn 0.25s ease both; }
+  .detail-section:nth-child(2) { animation-delay: 0.05s; }
+  .detail-section:nth-child(3) { animation-delay: 0.1s; }
+  .detail-section:nth-child(4) { animation-delay: 0.15s; }
+  .detail-section:nth-child(5) { animation-delay: 0.2s; }
+
+  .blueprint-view { display: flex; height: calc(100vh - 130px); }
+  .blueprint-view.hidden { display: none; }
+</style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<div class="topbar">
+  <div class="topbar-left">
+    <div>
+      <h1>Application Blueprint Explorer</h1>
+      <div class="subtitle">ABO Orthodontist Certification Assessment</div>
+    </div>
+    <div class="stat-badge" id="statBadge">7 Building Blocks → replaces 14 Data Entities, 100+ fields</div>
+  </div>
+  <div class="view-toggle" id="viewToggle">
+    <button class="active" data-view="blueprint">Building Blocks</button>
+    <button data-view="raw">Raw Data Entities</button>
+  </div>
+</div>
+
+<!-- JOURNEY FLOW -->
+<div class="journey-flow" id="journeyFlow">
+  <div class="journey-phase active" data-phase="entry" onclick="selectPhase('entry')">
+    <div class="journey-node">
+      <div class="phase-icon">1</div>
+      <div>
+        <div class="phase-label">Entry</div>
+        <div class="phase-count">1 block</div>
+      </div>
+    </div>
+  </div>
+  <div class="journey-connector"></div>
+  <div class="journey-phase" data-phase="assessment" onclick="selectPhase('assessment')">
+    <div class="journey-node">
+      <div class="phase-icon">2</div>
+      <div>
+        <div class="phase-label">Assessment</div>
+        <div class="phase-count">3 blocks</div>
+      </div>
+    </div>
+  </div>
+  <div class="journey-connector"></div>
+  <div class="journey-phase" data-phase="results" onclick="selectPhase('results')">
+    <div class="journey-node">
+      <div class="phase-icon">3</div>
+      <div>
+        <div class="phase-label">Results</div>
+        <div class="phase-count">2 blocks</div>
+      </div>
+    </div>
+  </div>
+  <div class="journey-connector"></div>
+  <div class="journey-phase" data-phase="admin" onclick="selectPhase('admin')">
+    <div class="journey-node">
+      <div class="phase-icon">4</div>
+      <div>
+        <div class="phase-label">Admin</div>
+        <div class="phase-count">1 block</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MAIN CONTENT -->
+<div class="blueprint-view" id="blueprintView">
+  <!-- SIDEBAR -->
+  <div class="sidebar" id="sidebar"></div>
+
+  <!-- DETAIL -->
+  <div class="detail" id="detailPanel">
+    <div class="empty-state">
+      <div class="empty-icon">&#9672;</div>
+      <h3>Select a Building Block</h3>
+      <p>Click any block on the left to explore its description, information fields, mock data, and open questions.</p>
+    </div>
+  </div>
+</div>
+
+<!-- RAW VIEW -->
+<div class="raw-view" id="rawView"></div>
+
+<script>
+// ─── DATA ───
+const blocks = [
+  {
+    id: 'registration',
+    phase: 'entry',
+    name: 'Booth Arrival & Registration',
+    icon: '&#128244;',
+    iconBg: '#E8F5EE',
+    pattern: 'Short mobile form → submit → begin',
+    description: 'Orthodontists scan a QR code at the ABO trade show booth. They land on a mobile-optimized registration form that captures their information and grants access to the assessment. This is both the front door to the experience and the lead generation engine.',
+    fields: [
+      { name: 'First name', desc: 'Text input', type: 'captured' },
+      { name: 'Last name', desc: 'Text input', type: 'captured' },
+      { name: 'Email', desc: 'With format validation', type: 'captured' },
+      { name: 'Practice name', desc: 'Orthodontic practice', type: 'captured' },
+      { name: 'City / State', desc: 'Practice location', type: 'captured' },
+      { name: 'Years certified', desc: 'Dropdown: 0-5, 5-10, 10-20, 20+', type: 'captured' },
+      { name: 'QR source ID', desc: 'Auto-captured from scan', type: 'computed' },
+    ],
+    questions: [
+      'Do we need phone number?',
+      'Should we capture ABO member ID for matching existing records?',
+      'Should "years certified" be a dropdown or free text?',
+      'Is there a consent/privacy checkbox needed?',
+    ],
+    mockHtml: 'registration'
+  },
+  {
+    id: 'overview',
+    phase: 'assessment',
+    name: 'Assessment Overview & Navigation',
+    icon: '&#9776;',
+    iconBg: '#EBF0FF',
+    pattern: 'Progress stepper / section selector',
+    description: 'The home base of the assessment experience. After registering, orthodontists see three assessment sections with visual progress indicators. They can see which section they\'re in, how far along they are, and what\'s ahead. This is where they return between sections.',
+    fields: [
+      { name: 'Section name', desc: 'e.g. "Facial Classification & Diagnosis"', type: 'displayed' },
+      { name: 'Question count', desc: 'Number of questions per section', type: 'displayed' },
+      { name: 'Estimated time', desc: 'Minutes to complete', type: 'displayed' },
+      { name: 'Completion status', desc: 'Not started / In progress / Complete', type: 'computed' },
+      { name: 'Progress', desc: 'Questions answered out of total', type: 'computed' },
+    ],
+    questions: [
+      'Can sections be done in any order, or is it linear?',
+      'Can you pause and resume later (persistent session)?',
+      'Is there a timer or time limit for the full assessment?',
+      'Do section names come from a fixed list or are they configurable?',
+    ],
+    mockHtml: 'stepper'
+  },
+  {
+    id: 'clinical-case',
+    phase: 'assessment',
+    name: 'Clinical Case Presentation',
+    icon: '&#129657;',
+    iconBg: '#FEF3E2',
+    pattern: 'Media grid + data table (most complex component)',
+    description: 'This is THE core visual experience — where 80% of the time is spent. A patient case is presented with a grid of 8+ clinical images (facial photos, intraoral shots, X-rays with digitized tracing overlays) alongside a cephalometric measurements table showing deviations from population norms. Multiple questions reference the same case.',
+    fields: [
+      { name: 'Case ID', desc: 'e.g. "Case SR 13-11"', type: 'displayed' },
+      { name: 'Patient age', desc: 'Years and months (e.g. 13y 11m)', type: 'displayed' },
+      { name: 'Extraoral photos', desc: 'Profile, frontal, smiling — 3 images', type: 'displayed' },
+      { name: 'Intraoral photos', desc: 'Right, frontal, left, upper, lower — 5 images', type: 'displayed' },
+      { name: 'Lateral ceph X-ray', desc: 'With blue digitized tracing overlay', type: 'displayed' },
+      { name: 'Panoramic X-ray', desc: 'Full arch OPG radiograph', type: 'displayed' },
+      { name: 'Ceph measurements', desc: 'Grouped by anatomical region', type: 'displayed' },
+      { name: 'Patient value', desc: 'Measured value for each metric', type: 'displayed' },
+      { name: 'Population norm', desc: 'Expected value', type: 'displayed' },
+      { name: 'Deviation score', desc: 'How far from norm (in std devs)', type: 'computed' },
+      { name: 'Significance flag', desc: 'Stars indicating clinical importance', type: 'computed' },
+      { name: 'Clinical highlights', desc: 'Red flags for critical outliers', type: 'computed' },
+    ],
+    questions: [
+      'What image types are always present vs optional per case?',
+      'Do ALL cases have cephalometric data, or only some?',
+      'Can images be zoomed/enlarged on tap (important for mobile)?',
+      'Is the tracing overlay always blue-line, or does style vary?',
+      'How many cases total? How many questions per case?',
+    ],
+    mockHtml: 'clinical-case'
+  },
+  {
+    id: 'question',
+    phase: 'assessment',
+    name: 'Question & Answer Interaction',
+    icon: '&#10067;',
+    iconBg: '#F3EEFF',
+    pattern: 'Quiz card with immediate feedback + retry',
+    description: 'Clinical reasoning questions tied to a patient case. Each presents a scenario with 5 answer options (A-E). Select the correct answer and get immediate positive feedback. Select wrong and you get one retry — "Try Again" — without seeing the answer. Wrong twice? The correct answer is shown and you advance.',
+    fields: [
+      { name: 'Question number', desc: 'Position in assessment (e.g. "3 of 25")', type: 'displayed' },
+      { name: 'Question stem', desc: 'Clinical scenario text', type: 'displayed' },
+      { name: 'Answer options', desc: '5 choices labeled A through E', type: 'displayed' },
+      { name: 'Correct answer', desc: 'The designated right answer', type: 'computed' },
+      { name: 'First attempt', desc: 'What was selected first', type: 'captured' },
+      { name: 'Second chance used', desc: 'Whether retry was triggered', type: 'captured' },
+      { name: 'Final correctness', desc: 'Right or wrong after up to 2 attempts', type: 'computed' },
+    ],
+    questions: [
+      'Is there a time limit per question?',
+      'Can you skip a question and come back later?',
+      'Is there an explanation/rationale shown after answering?',
+      'On second failure, is the correct answer shown with explanation?',
+      'Are questions randomized or in fixed order?',
+    ],
+    mockHtml: 'question'
+  },
+  {
+    id: 'results',
+    phase: 'results',
+    name: 'Performance Results & Learning Map',
+    icon: '&#128200;',
+    iconBg: '#E8F5EE',
+    pattern: 'Score dashboard + resource cards',
+    description: 'After completing all sections, the orthodontist sees their score broken down by topic area. Each weak area maps to specific ABO educational resources — webinars, whitepapers. It\'s not just "you got 72%" — it\'s "here\'s what to study next." The transition from assessment to ongoing learning.',
+    fields: [
+      { name: 'Overall score', desc: 'Percentage correct', type: 'computed' },
+      { name: 'Section scores', desc: 'Score per assessment section', type: 'computed' },
+      { name: 'Topic performance', desc: 'Strengths and weak areas', type: 'computed' },
+      { name: 'Recommended resources', desc: 'ABO webinars, whitepapers per weak area', type: 'displayed' },
+      { name: 'Pass/fail status', desc: 'If applicable', type: 'computed' },
+    ],
+    questions: [
+      'Is there a defined passing score?',
+      'Do they get a certificate or badge for completing?',
+      'Can they retake the assessment? If so, how many times?',
+      'Is the resource list curated per topic or auto-generated?',
+      'Can results be emailed to the orthodontist?',
+    ],
+    mockHtml: 'results'
+  },
+  {
+    id: 'survey',
+    phase: 'results',
+    name: 'Quick Feedback Survey',
+    icon: '&#11088;',
+    iconBg: '#FEF3E2',
+    pattern: 'Short survey overlay (2-3 questions)',
+    description: 'A brief exit survey presented after seeing results. Captures how relevant the assessment felt to their daily practice, optional free-text feedback, and permission for ABO to follow up. Quick, non-intrusive, high signal.',
+    fields: [
+      { name: 'Relevance rating', desc: '1-5 stars: "How relevant to your practice?"', type: 'captured' },
+      { name: 'Free-text feedback', desc: 'Optional additional thoughts', type: 'captured' },
+      { name: 'Follow-up opt-in', desc: '"May ABO contact you?" yes/no', type: 'captured' },
+    ],
+    questions: [
+      'Is the survey mandatory or can it be skipped?',
+      'Should the star rating use 5 or 10 point scale?',
+      'Are there more specific questions beyond relevance?',
+    ],
+    mockHtml: 'survey'
+  },
+  {
+    id: 'analytics',
+    phase: 'admin',
+    name: 'Event Analytics Dashboard',
+    icon: '&#128202;',
+    iconBg: '#EBF0FF',
+    pattern: 'Metrics dashboard + funnel + data export',
+    description: 'The post-event command center for ABO leadership. Shows booth traffic, assessment completion funnels, score distributions, lead capture rates, and opt-in metrics. Answers the question: "Was this booth worth it?" and "What should we change for next time?"',
+    fields: [
+      { name: 'Total QR scans', desc: 'Raw booth traffic count', type: 'displayed' },
+      { name: 'Assessment starts', desc: 'How many began after registering', type: 'computed' },
+      { name: 'Completions', desc: 'Full assessment finish count', type: 'computed' },
+      { name: 'Completion rate', desc: 'Percentage who finished', type: 'computed' },
+      { name: 'Average score', desc: 'Mean across all takers', type: 'computed' },
+      { name: 'Lead capture rate', desc: '% who gave contact info', type: 'computed' },
+      { name: 'Opt-in rate', desc: '% who agreed to follow-up', type: 'computed' },
+      { name: 'Score by section', desc: 'Which topics are strong/weak', type: 'computed' },
+      { name: 'Time distribution', desc: 'How long people spend', type: 'computed' },
+    ],
+    questions: [
+      'Real-time during the event or post-event only?',
+      'Export to CSV/Excel needed?',
+      'Compare across multiple events?',
+      'Who has access? Just leadership or also booth staff?',
+    ],
+    mockHtml: 'analytics'
+  },
+];
+
+const rawEntities = [
+  { name: 'Assessment', category: 'domain', fields: ['assessment_id: UUID','title: string','description: text','assessment_type: enum','status: enum','created_date: datetime','updated_date: datetime','question_count: integer','estimated_duration_minutes: integer'] },
+  { name: 'AssessmentSection', category: 'domain', fields: ['clinical_topic_area: string','question_count: integer'] },
+  { name: 'CephalometricMeasurement', category: 'domain', fields: ['group: string','measurement_name: string','unit: enum','value: float','norm: float','std_dev: float','dev_norm: float','significance_flag: string','is_highlighted: boolean','clinical_case_id: string'] },
+  { name: 'CephalometricMeasurement (dup)', category: 'domain', fields: ['case_id: string','patient_age_years: integer','patient_age_months: integer','measurement_group: string','measurement_name: string','value: float','norm: float','std_dev: float','dev_norm: float','significance_flag: string','unit: enum','is_highlighted: boolean'] },
+  { name: 'ClinicalCase', category: 'domain', fields: ['case_id: string','case_description: string','associated_images: array','associated_question_ids: array','clinical_topics: array','section: string'] },
+  { name: 'ClinicalImage', category: 'domain', fields: ['image_id: string','image_type: string','associated_question_ids: array','clinical_region: string'] },
+  { name: 'ClinicalQuestion', category: 'domain', fields: ['question_id: string','question_stem: string','answer_options: array','correct_answer_label: string','correct_answer_text: string','clinical_domain: string','section_id: string'] },
+  { name: 'FeedbackSurvey', category: 'transactional', fields: ['user_id: reference','relevance_rating: numeric','additional_feedback: text','follow_up_opt_in: boolean'] },
+  { name: 'LeadProfile', category: 'domain', fields: ['lead_id: UUID','first_name: string','last_name: string','email: string','phone: string','practice_name: string','practice_location: string','capture_date: datetime','capture_method: enum','event_id: UUID','assessment_taken: boolean','opt_in_followup: boolean'] },
+  { name: 'Orthodontist', category: 'domain', fields: ['orthodontist_id: UUID','first_name: string','last_name: string','email: string','phone: string','practice_name: string','practice_location: string','abo_member_id: string','certification_status: enum','last_certification_date: date','years_in_practice: integer','registration_date: datetime'] },
+  { name: 'PerformanceMetric', category: 'domain', fields: ['metric_id: UUID','time_period: enum','period_start_date: date','period_end_date: date','metric_type: enum','metric_value: decimal','cohort: string','comparison_value: decimal','notes: text'] },
+  { name: 'Question', category: 'domain', fields: ['question_id: string','question_text: string','answer_options: array','correct_answer: string','clinical_topic: string','image_reference: string'] },
+  { name: 'QuestionAttempt', category: 'transactional', fields: ['question_id: string','selected_answer_label: string','is_correct_first_attempt: boolean','second_chance_used: boolean','second_attempt_answer_label: string','is_correct_second_attempt: boolean'] },
+  { name: 'TestResult', category: 'domain', fields: ['result_id: UUID','assessment_id: UUID','orthodontist_id: UUID','start_datetime: datetime','completion_datetime: datetime','total_questions_answered: integer','correct_answers: integer','final_score: decimal','pass_fail_status: enum','section_scores: json','feedback_provided: boolean'] },
+];
+
+// ─── STATE ───
+let currentView = 'blueprint';
+let selectedBlock = null;
+let selectedPhase = 'entry';
+
+// ─── MOCK DATA RENDERERS ───
+function renderMock(type) {
+  switch(type) {
+    case 'registration': return `
+      <div class="mock-form">
+        <div class="mock-form-title">ABO Assessment</div>
+        <div class="mock-form-sub">Scan complete — tell us about yourself to begin</div>
+        <div class="mock-row">
+          <div class="mock-input-group">
+            <label>First Name</label>
+            <input class="mock-input filled" value="Sarah" readonly>
+          </div>
+          <div class="mock-input-group">
+            <label>Last Name</label>
+            <input class="mock-input filled" value="Chen" readonly>
+          </div>
+        </div>
+        <div class="mock-input-group">
+          <label>Email</label>
+          <input class="mock-input filled" value="sarah.chen@brightsmilesortho.com" readonly>
+        </div>
+        <div class="mock-input-group">
+          <label>Practice Name</label>
+          <input class="mock-input filled" value="Bright Smiles Orthodontics" readonly>
+        </div>
+        <div class="mock-row">
+          <div class="mock-input-group">
+            <label>City / State</label>
+            <input class="mock-input filled" value="Portland, OR" readonly>
+          </div>
+          <div class="mock-input-group">
+            <label>Years Certified</label>
+            <input class="mock-input filled" value="10-20 years" readonly>
+          </div>
+        </div>
+        <button class="mock-btn">Begin Assessment &#8594;</button>
+      </div>`;
+
+    case 'stepper': return `
+      <div class="mock-stepper">
+        <div class="mock-step complete">
+          <div class="mock-step-num">&#10003;</div>
+          <div class="mock-step-info">
+            <div class="mock-step-name">Facial Classification & Diagnosis</div>
+            <div class="mock-step-meta">8 questions &middot; ~12 min</div>
+          </div>
+          <div class="mock-step-progress">8/8</div>
+        </div>
+        <div class="mock-step current">
+          <div class="mock-step-num">2</div>
+          <div class="mock-step-info">
+            <div class="mock-step-name">Cephalometric Analysis</div>
+            <div class="mock-step-meta">10 questions &middot; ~15 min</div>
+          </div>
+          <div class="mock-step-progress">6/10</div>
+        </div>
+        <div class="mock-step">
+          <div class="mock-step-num">3</div>
+          <div class="mock-step-info">
+            <div class="mock-step-name">Treatment Planning</div>
+            <div class="mock-step-meta">7 questions &middot; ~10 min</div>
+          </div>
+          <div class="mock-step-progress">&mdash;</div>
+        </div>
+      </div>`;
+
+    case 'clinical-case': return `
+      <div class="mock-case-header">
+        <div>
+          <div class="mock-case-id">Case SR 13-11</div>
+          <div class="mock-case-name">Patient Clinical Case</div>
+          <div class="mock-case-age">Patient age: 13 years, 11 months</div>
+        </div>
+      </div>
+      <div class="mock-image-section-label">Extraoral Photos</div>
+      <div class="mock-image-grid extraoral">
+        <div class="mock-image-cell"><span>&#128100;</span><div class="img-label">Profile</div></div>
+        <div class="mock-image-cell"><span>&#128100;</span><div class="img-label">Frontal</div></div>
+        <div class="mock-image-cell"><span>&#128513;</span><div class="img-label">Smiling</div></div>
+      </div>
+      <div class="mock-image-section-label">Intraoral Photos</div>
+      <div class="mock-image-grid intraoral">
+        <div class="mock-image-cell"><span>&#129463;</span><div class="img-label">Right</div></div>
+        <div class="mock-image-cell"><span>&#129463;</span><div class="img-label">Frontal</div></div>
+        <div class="mock-image-cell"><span>&#129463;</span><div class="img-label">Left</div></div>
+        <div class="mock-image-cell"><span>&#129463;</span><div class="img-label">Upper</div></div>
+        <div class="mock-image-cell"><span>&#129463;</span><div class="img-label">Lower</div></div>
+      </div>
+      <div class="mock-image-section-label">Radiographs</div>
+      <div class="mock-image-grid xray">
+        <div class="mock-image-cell xray" style="background: #0d2940;">
+          <span style="font-size:28px;">&#9876;</span>
+          <div class="img-label" style="color:rgba(100,180,255,0.7);">Lateral Ceph<br>with tracing</div>
+        </div>
+        <div class="mock-image-cell xray" style="background: #0d2940;">
+          <span style="font-size:28px;">&#9737;</span>
+          <div class="img-label" style="color:rgba(100,180,255,0.7);">Panoramic<br>OPG</div>
+        </div>
+      </div>
+      <div class="mock-image-section-label" style="margin-top:24px;">Cephalometric Measurements</div>
+      <table class="mock-ceph-table">
+        <thead>
+          <tr><th>Measurement</th><th>Value</th><th>Norm</th><th>Dev</th><th>Sig.</th></tr>
+        </thead>
+        <tbody>
+          <tr class="group-row"><td colspan="5">Skull to Cranial Base</td></tr>
+          <tr><td>SNA</td><td>82&deg;</td><td>82&deg;</td><td class="flag-normal">0.0</td><td class="flag-normal">&mdash;</td></tr>
+          <tr><td>SNB</td><td>75&deg;</td><td>80&deg;</td><td class="flag-moderate">-1.7</td><td class="flag-moderate">&#9733;&#9733;</td></tr>
+          <tr class="group-row"><td colspan="5">Maxillo-Mandibular</td></tr>
+          <tr class="row-critical"><td>ANB</td><td class="flag-critical">7&deg;</td><td>2&deg;</td><td class="flag-critical">+2.5</td><td class="flag-critical">&#9733;&#9733;&#9733;&#9733;</td></tr>
+          <tr class="group-row"><td colspan="5">Mandibular Dentition</td></tr>
+          <tr><td>L1-NB</td><td>6mm</td><td>4mm</td><td class="flag-moderate">+1.3</td><td class="flag-moderate">&#9733;&#9733;</td></tr>
+          <tr class="group-row"><td colspan="5">Soft Tissue</td></tr>
+          <tr class="row-critical"><td>Upper Lip to E-Plane</td><td class="flag-critical">-8mm</td><td>-4mm</td><td class="flag-critical">-2.0</td><td class="flag-significant">&#9733;&#9733;&#9733;</td></tr>
+        </tbody>
+      </table>`;
+
+    case 'question': return `
+      <div class="mock-question-card">
+        <div class="mock-q-header">
+          <span class="mock-q-num">Question 3 of 25 &middot; Case SR 13-11</span>
+        </div>
+        <p class="mock-q-stem">Based on the cephalometric analysis for this patient, the ANB angle of 7&deg; and retruded soft tissue profile most strongly suggest:</p>
+        <div class="mock-q-options">
+          <div class="mock-q-option"><div class="opt-letter">A</div><div class="opt-text">Skeletal Class I with dental compensation</div></div>
+          <div class="mock-q-option correct"><div class="opt-letter">B</div><div class="opt-text">Skeletal Class II with mandibular deficiency</div></div>
+          <div class="mock-q-option"><div class="opt-letter">C</div><div class="opt-text">Skeletal Class III with maxillary excess</div></div>
+          <div class="mock-q-option"><div class="opt-letter">D</div><div class="opt-text">Bimaxillary protrusion</div></div>
+          <div class="mock-q-option"><div class="opt-letter">E</div><div class="opt-text">Pseudo Class III</div></div>
+        </div>
+      </div>`;
+
+    case 'results': return `
+      <div class="mock-results">
+        <div class="mock-score-big">
+          <div class="mock-score-number">72%</div>
+          <div class="mock-score-label">Overall Score &middot; 18 of 25 correct</div>
+        </div>
+        <div class="mock-score-sections">
+          <div class="mock-score-row">
+            <div class="sname">Facial Classification</div>
+            <div class="mock-score-bar-bg"><div class="mock-score-bar high" style="width:87%"></div></div>
+            <div class="spct" style="color:var(--green)">87%</div>
+          </div>
+          <div class="mock-score-row">
+            <div class="sname">Cephalometric Analysis</div>
+            <div class="mock-score-bar-bg"><div class="mock-score-bar low" style="width:60%"></div></div>
+            <div class="spct" style="color:var(--red)">60%</div>
+          </div>
+          <div class="mock-score-row">
+            <div class="sname">Treatment Planning</div>
+            <div class="mock-score-bar-bg"><div class="mock-score-bar mid" style="width:71%"></div></div>
+            <div class="spct" style="color:var(--amber)">71%</div>
+          </div>
+        </div>
+        <div class="mock-image-section-label">Recommended for You</div>
+        <div class="mock-resource-card">
+          <div class="r-icon">&#127891;</div>
+          <div>
+            <div class="r-title">Modern Cephalometric Interpretation</div>
+            <div class="r-type">ABO Webinar &middot; Based on Cephalometric Analysis (60%)</div>
+          </div>
+        </div>
+        <div class="mock-resource-card">
+          <div class="r-icon">&#128196;</div>
+          <div>
+            <div class="r-title">Common Measurement Pitfalls in Practice</div>
+            <div class="r-type">Whitepaper &middot; Based on Cephalometric Analysis (60%)</div>
+          </div>
+        </div>
+        <div class="mock-resource-card">
+          <div class="r-icon">&#127891;</div>
+          <div>
+            <div class="r-title">Evidence-Based Treatment Planning</div>
+            <div class="r-type">ABO Webinar &middot; Based on Treatment Planning (71%)</div>
+          </div>
+        </div>
+      </div>`;
+
+    case 'survey': return `
+      <div class="mock-survey">
+        <div class="mock-input-group">
+          <label>How relevant was this assessment to your daily practice?</label>
+          <div class="mock-stars">
+            <div class="mock-star filled">&#9733;</div>
+            <div class="mock-star filled">&#9733;</div>
+            <div class="mock-star filled">&#9733;</div>
+            <div class="mock-star filled">&#9733;</div>
+            <div class="mock-star">&#9734;</div>
+          </div>
+        </div>
+        <div class="mock-input-group">
+          <label>Any additional thoughts? (Optional)</label>
+          <textarea class="mock-textarea" readonly>Would love to see more questions on CBCT interpretation and 3D treatment planning.</textarea>
+        </div>
+        <div class="mock-toggle-row">
+          <div class="tl">May ABO contact you about future programs?</div>
+          <div class="mock-toggle"></div>
+        </div>
+        <button class="mock-btn" style="margin-top:16px">Submit Feedback</button>
+      </div>`;
+
+    case 'analytics': return `
+      <div class="mock-dashboard">
+        <div class="mock-metrics-grid">
+          <div class="mock-metric-card"><div class="mock-metric-value">342</div><div class="mock-metric-label">QR Scans</div></div>
+          <div class="mock-metric-card"><div class="mock-metric-value">198</div><div class="mock-metric-label">Completions</div></div>
+          <div class="mock-metric-card"><div class="mock-metric-value">69%</div><div class="mock-metric-label">Completion Rate</div></div>
+          <div class="mock-metric-card"><div class="mock-metric-value">74%</div><div class="mock-metric-label">Avg Score</div></div>
+          <div class="mock-metric-card"><div class="mock-metric-value">84%</div><div class="mock-metric-label">Lead Capture</div></div>
+          <div class="mock-metric-card"><div class="mock-metric-value">61%</div><div class="mock-metric-label">Opt-in Rate</div></div>
+        </div>
+        <div class="mock-image-section-label">Conversion Funnel</div>
+        <div class="mock-funnel">
+          <div class="mock-funnel-step" style="width:100%;background:var(--navy);"><span class="f-val">342</span> QR Scans</div>
+          <div class="mock-funnel-arrow">&#9660;</div>
+          <div class="mock-funnel-step" style="width:84%;background:var(--navy-muted);"><span class="f-val">287</span> Started Assessment</div>
+          <div class="mock-funnel-arrow">&#9660;</div>
+          <div class="mock-funnel-step" style="width:58%;background:var(--green);"><span class="f-val">198</span> Completed</div>
+          <div class="mock-funnel-arrow">&#9660;</div>
+          <div class="mock-funnel-step" style="width:35%;background:var(--green-light);"><span class="f-val">121</span> Opted-in to Follow Up</div>
+        </div>
+      </div>`;
+
+    default: return '<p>Mock data coming soon...</p>';
+  }
+}
+
+// ─── RENDER ───
+function renderSidebar() {
+  const phases = [
+    { id: 'entry', label: 'Entry' },
+    { id: 'assessment', label: 'Assessment Experience' },
+    { id: 'results', label: 'Results & Follow-up' },
+    { id: 'admin', label: 'Behind the Scenes' },
+  ];
+  let html = '';
+  phases.forEach(phase => {
+    const phaseBlocks = blocks.filter(b => b.phase === phase.id);
+    html += `<div class="sidebar-phase"><div class="sidebar-phase-header">${phase.label}</div>`;
+    phaseBlocks.forEach(block => {
+      const active = selectedBlock === block.id ? 'active' : '';
+      html += `
+        <div class="block-item ${active}" onclick="selectBlock('${block.id}')">
+          <div class="block-icon" style="background:${block.iconBg}">${block.icon}</div>
+          <div>
+            <div class="block-name">${block.name}</div>
+            <div class="block-pattern">${block.pattern}</div>
+            <div class="block-questions-count">&#9888; ${block.questions.length} open questions</div>
+          </div>
+        </div>`;
+    });
+    html += '</div>';
+  });
+  document.getElementById('sidebar').innerHTML = html;
+}
+
+function renderDetail(block) {
+  if (!block) {
+    document.getElementById('detailPanel').innerHTML = `
+      <div class="empty-state">
+        <div class="empty-icon">&#9672;</div>
+        <h3>Select a Building Block</h3>
+        <p>Click any block on the left to explore its description, information fields, mock data, and open questions.</p>
+      </div>`;
+    return;
+  }
+
+  const fieldTypes = { captured: 'Captured', displayed: 'Displayed', computed: 'Computed' };
+  const fieldsHtml = block.fields.map(f => `
+    <div class="info-field ${f.type}">
+      <div class="field-dot"></div>
+      <div>
+        <div class="field-name">${f.name}</div>
+        <div class="field-desc">${f.desc}</div>
+      </div>
+    </div>`).join('');
+
+  const questionsHtml = block.questions.map(q => `
+    <div class="question-card">
+      <div class="q-icon">?</div>
+      <div>${q}</div>
+    </div>`).join('');
+
+  document.getElementById('detailPanel').innerHTML = `
+    <div class="detail-header">
+      <h2>${block.name}</h2>
+      <span class="pattern-tag">&#9636; ${block.pattern}</span>
+    </div>
+
+    <div class="detail-section">
+      <div class="section-header"><span class="section-icon">&#128196;</span> Description</div>
+      <div class="section-body"><p>${block.description}</p></div>
+    </div>
+
+    <div class="detail-section">
+      <div class="section-header">
+        <span class="section-icon">&#128203;</span> Information
+        <span style="margin-left:auto;display:flex;gap:12px;font-size:10px;font-weight:500;text-transform:none;letter-spacing:0;">
+          <span style="display:flex;align-items:center;gap:4px;"><span style="width:6px;height:6px;border-radius:50%;background:var(--green);display:inline-block;"></span> Captured</span>
+          <span style="display:flex;align-items:center;gap:4px;"><span style="width:6px;height:6px;border-radius:50%;background:#5B8DEF;display:inline-block;"></span> Displayed</span>
+          <span style="display:flex;align-items:center;gap:4px;"><span style="width:6px;height:6px;border-radius:50%;background:#9B6FE8;display:inline-block;"></span> Computed</span>
+        </span>
+      </div>
+      <div class="section-body"><div class="info-grid">${fieldsHtml}</div></div>
+    </div>
+
+    <div class="detail-section">
+      <div class="section-header"><span class="section-icon">&#127912;</span> Mock Data Preview</div>
+      <div class="section-body">${renderMock(block.mockHtml)}</div>
+    </div>
+
+    <div class="detail-section">
+      <div class="section-header"><span class="section-icon">&#9888;</span> Open Questions <span style="margin-left:auto;background:var(--amber);color:white;padding:2px 8px;border-radius:10px;font-size:10px;">${block.questions.length}</span></div>
+      <div class="section-body"><div class="questions-list">${questionsHtml}</div></div>
+    </div>
+  `;
+}
+
+function renderRawView() {
+  let html = `
+    <div style="margin-bottom:24px;">
+      <h2 style="font-size:20px;font-weight:700;color:var(--navy);margin-bottom:4px;">Raw Data Entities</h2>
+      <p style="font-size:13px;color:var(--gray-400);">14 entities, 100+ technical fields — this is what the BRD currently shows. Includes duplicates, foreign keys, and database-level types.</p>
+    </div>
+    <div class="raw-entity-list">`;
+  rawEntities.forEach(e => {
+    const fieldsHtml = e.fields.map(f => {
+      const [name, type] = f.split(': ');
+      return `<div class="raw-field"><span class="rf-name">${name}</span><span class="rf-type">${type}</span></div>`;
+    }).join('');
+    html += `
+      <div class="raw-entity-card">
+        <h3>${e.name}</h3>
+        <div class="re-cat">${e.category}</div>
+        ${fieldsHtml}
+      </div>`;
+  });
+  html += '</div>';
+  document.getElementById('rawView').innerHTML = html;
+}
+
+// ─── INTERACTIONS ───
+function selectBlock(id) {
+  selectedBlock = id;
+  const block = blocks.find(b => b.id === id);
+  if (block) {
+    selectedPhase = block.phase;
+    updatePhaseHighlights();
+  }
+  renderSidebar();
+  renderDetail(block);
+  // Scroll detail to top
+  document.getElementById('detailPanel').scrollTop = 0;
+}
+
+function selectPhase(phase) {
+  selectedPhase = phase;
+  updatePhaseHighlights();
+  // Select first block in phase
+  const first = blocks.find(b => b.phase === phase);
+  if (first) selectBlock(first.id);
+}
+
+function updatePhaseHighlights() {
+  document.querySelectorAll('.journey-phase').forEach(el => {
+    el.classList.toggle('active', el.dataset.phase === selectedPhase);
+  });
+}
+
+function switchView(view) {
+  currentView = view;
+  document.querySelectorAll('.view-toggle button').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.view === view);
+  });
+  document.getElementById('blueprintView').classList.toggle('hidden', view !== 'blueprint');
+  document.getElementById('rawView').classList.toggle('visible', view === 'raw');
+  document.getElementById('statBadge').textContent = view === 'blueprint'
+    ? '7 Building Blocks \u2192 replaces 14 Data Entities, 100+ fields'
+    : '14 Data Entities \u00b7 100+ technical fields \u00b7 includes duplicates';
+}
+
+// Init
+document.querySelectorAll('.view-toggle button').forEach(btn => {
+  btn.addEventListener('click', () => switchView(btn.dataset.view));
+});
+
+renderSidebar();
+renderRawView();
+selectBlock('registration');
+</script>
+</body>
+</html>

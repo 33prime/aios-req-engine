@@ -122,9 +122,10 @@ async def list_members_with_users(
     client = get_client()
 
     # Join with users table to get user details
+    # Use FK hint to disambiguate (user_id vs invited_by_user_id both reference users)
     result = (
         client.table("organization_members")
-        .select("*, users(email, first_name, last_name, avatar_url)")
+        .select("*, users!organization_members_user_id_fkey(email, first_name, last_name, avatar_url)")
         .eq("organization_id", str(organization_id))
         .order("joined_at", desc=False)
         .execute()

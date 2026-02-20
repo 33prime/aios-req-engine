@@ -1,0 +1,1190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Combined Workflow — ABO Assessment Platform</title>
+<style>
+  :root {
+    --navy: #0A1E2F;
+    --navy-80: #2A3E4F;
+    --navy-60: #4A5E6F;
+    --green: #3FAF7A;
+    --green-light: #4CC98E;
+    --green-soft: rgba(63,175,122,0.06);
+    --green-border: rgba(63,175,122,0.18);
+    --green-bg: rgba(63,175,122,0.08);
+    --amber: #E5A93D;
+    --amber-soft: rgba(229,169,61,0.06);
+    --amber-border: rgba(229,169,61,0.2);
+    --blue: #5B8DEF;
+    --blue-soft: rgba(91,141,239,0.06);
+    --blue-border: rgba(91,141,239,0.18);
+    --purple: #9B6FE8;
+    --purple-soft: rgba(155,111,232,0.06);
+    --purple-border: rgba(155,111,232,0.18);
+    --red: #E55C5C;
+    --red-soft: rgba(229,92,92,0.04);
+    --white: #FFFFFF;
+    --g50: #F8FAFB; --g100: #F1F4F7; --g200: #E2E7ED;
+    --g300: #C8D0DA; --g400: #9BA5B4; --g500: #6E7A8A;
+    --g600: #4A5568; --g700: #2D3748;
+    --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    --mono: 'SF Mono', 'Fira Code', Consolas, monospace;
+    --r: 12px; --r-sm: 8px; --r-xs: 6px;
+    --shadow: 0 1px 3px rgba(10,30,47,0.06);
+    --shadow-md: 0 4px 16px rgba(10,30,47,0.08);
+    --t: 0.2s cubic-bezier(0.4,0,0.2,1);
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:var(--font); background:var(--g50); color:var(--g700); line-height:1.6; height:100vh; overflow:hidden; }
+
+  /* ─── TOPBAR ─── */
+  .topbar {
+    background: var(--navy);
+    color: var(--white);
+    padding: 14px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    z-index: 100;
+  }
+  .topbar h1 { font-size:16px; font-weight:600; letter-spacing:-0.3px; }
+  .topbar .sub { font-size:11px; color:var(--g400); margin-top:1px; }
+  .topbar-right { display:flex; align-items:center; gap:16px; }
+  .stat-pill {
+    background: rgba(63,175,122,0.12);
+    color: var(--green-light);
+    padding: 5px 14px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 500;
+  }
+
+  /* ─── LAYOUT ─── */
+  .layout { display:flex; height:calc(100vh - 56px); }
+
+  /* ─── SIDEBAR ─── */
+  .sidebar {
+    width: 280px;
+    min-width: 280px;
+    background: var(--white);
+    border-right: 1px solid var(--g200);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .sidebar-section {
+    padding: 16px 18px 12px;
+    border-bottom: 1px solid var(--g100);
+  }
+  .sidebar-label {
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    color: var(--g400);
+    margin-bottom: 10px;
+  }
+
+  /* Actors */
+  .actor-list { display:flex; flex-direction:column; gap:6px; }
+  .actor-card {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    border-radius: var(--r-sm);
+    cursor: pointer;
+    transition: var(--t);
+    border: 1px solid transparent;
+  }
+  .actor-card:hover { background:var(--g50); }
+  .actor-card.active { background:var(--green-soft); border-color:var(--green-border); }
+  .actor-avatar {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    flex-shrink: 0;
+  }
+  .actor-name { font-size:12px; font-weight:600; color:var(--navy); }
+  .actor-role { font-size:10px; color:var(--g400); }
+  .actor-steps { font-size:10px; color:var(--green); font-weight:600; margin-top:1px; }
+
+  /* Info legend */
+  .legend-items { display:flex; flex-direction:column; gap:6px; }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 11px;
+    color: var(--g600);
+  }
+  .legend-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  /* Step minimap */
+  .minimap {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px 18px;
+  }
+  .minimap::-webkit-scrollbar { width:3px; }
+  .minimap::-webkit-scrollbar-thumb { background:var(--g300); border-radius:2px; }
+  .mini-step {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 6px 8px;
+    cursor: pointer;
+    border-radius: var(--r-xs);
+    transition: var(--t);
+    position: relative;
+  }
+  .mini-step:hover { background:var(--g50); }
+  .mini-step.active { background:var(--green-soft); }
+  .mini-step-line {
+    width: 2px;
+    position: absolute;
+    left: 17px;
+    top: 28px;
+    bottom: -6px;
+    background: var(--g200);
+  }
+  .mini-step:last-child .mini-step-line { display:none; }
+  .mini-num {
+    width: 20px; height: 20px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 9px;
+    font-weight: 700;
+    flex-shrink: 0;
+    background: var(--g100);
+    color: var(--g500);
+    position: relative;
+    z-index: 1;
+  }
+  .mini-step.active .mini-num { background:var(--green); color:white; }
+  .mini-text { font-size:11px; color:var(--g600); font-weight:500; line-height:1.3; padding-top:2px; }
+  .mini-step.active .mini-text { color:var(--navy); font-weight:600; }
+  .mini-actor-tag {
+    display: inline-block;
+    font-size: 9px;
+    padding: 1px 6px;
+    border-radius: 8px;
+    font-weight: 600;
+    margin-top: 2px;
+  }
+  .mini-branch {
+    margin-left: 30px;
+    padding: 4px 8px;
+    font-size: 10px;
+    color: var(--g400);
+    border-left: 2px dashed var(--g200);
+    margin-top: 2px;
+    margin-bottom: 4px;
+  }
+
+  /* ─── MAIN FLOW ─── */
+  .main-flow {
+    flex: 1;
+    overflow-y: auto;
+    padding: 32px 40px 80px;
+    scroll-behavior: smooth;
+  }
+  .main-flow::-webkit-scrollbar { width:6px; }
+  .main-flow::-webkit-scrollbar-thumb { background:var(--g300); border-radius:3px; }
+
+  .flow-header {
+    text-align: center;
+    margin-bottom: 40px;
+  }
+  .flow-header h2 {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--navy);
+    letter-spacing: -0.5px;
+  }
+  .flow-header p {
+    font-size: 13px;
+    color: var(--g400);
+    margin-top: 4px;
+  }
+
+  /* Phase divider */
+  .phase-divider {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 36px 0 24px;
+    max-width: 740px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  .phase-divider:first-of-type { margin-top: 0; }
+  .phase-pill {
+    padding: 5px 14px;
+    border-radius: 16px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    white-space: nowrap;
+    background: var(--navy);
+    color: var(--white);
+  }
+  .phase-line { flex:1; height:1px; background:var(--g200); }
+
+  /* Step card */
+  .step-card {
+    max-width: 740px;
+    margin: 0 auto 16px;
+    background: var(--white);
+    border: 1px solid var(--g200);
+    border-radius: var(--r);
+    overflow: hidden;
+    transition: var(--t);
+    cursor: pointer;
+    position: relative;
+  }
+  .step-card:hover { box-shadow:var(--shadow-md); border-color:var(--g300); }
+  .step-card.expanded { box-shadow:var(--shadow-md); border-color:var(--green-border); }
+  .step-card.expanded .step-expand-icon { transform:rotate(180deg); }
+
+  .step-top {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 18px 22px;
+  }
+  .step-num-big {
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    font-weight: 800;
+    background: var(--g100);
+    color: var(--g500);
+    flex-shrink: 0;
+  }
+  .step-card.expanded .step-num-big { background:var(--green); color:white; }
+  .step-info { flex:1; }
+  .step-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--navy);
+    line-height: 1.3;
+  }
+  .step-subtitle {
+    font-size: 12px;
+    color: var(--g400);
+    margin-top: 2px;
+  }
+  .step-actors-inline {
+    display: flex;
+    gap: 6px;
+    flex-shrink: 0;
+  }
+  .actor-chip {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 10px;
+    border-radius: 14px;
+    font-size: 11px;
+    font-weight: 600;
+  }
+  .actor-chip .ac-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+  }
+  .step-expand-icon {
+    font-size: 14px;
+    color: var(--g400);
+    transition: var(--t);
+    flex-shrink: 0;
+  }
+
+  /* Step detail (expanded) */
+  .step-detail {
+    display: none;
+    border-top: 1px solid var(--g100);
+    padding: 20px 22px;
+    animation: fadeSlide 0.25s ease;
+  }
+  .step-card.expanded .step-detail { display:block; }
+
+  @keyframes fadeSlide {
+    from { opacity:0; transform:translateY(-6px); }
+    to { opacity:1; transform:translateY(0); }
+  }
+
+  .detail-columns {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+  .detail-col-full {
+    grid-column: 1 / -1;
+  }
+
+  .detail-block {
+    padding: 14px 16px;
+    border-radius: var(--r-sm);
+    border: 1px solid var(--g100);
+  }
+  .detail-block.info-block { background:var(--g50); }
+  .detail-block.mock-block { background:var(--white); border-color:var(--g200); }
+  .detail-block.question-block { background:var(--amber-soft); border-color:var(--amber-border); }
+
+  .detail-block-label {
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--g400);
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .detail-block-label .dbl-icon { font-size:12px; }
+
+  /* Data pills in step detail */
+  .data-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .data-pill {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 5px 10px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 500;
+  }
+  .data-pill.captured { background:var(--green-soft); color:#1a7a4a; border:1px solid var(--green-border); }
+  .data-pill.displayed { background:var(--blue-soft); color:#3565b5; border:1px solid var(--blue-border); }
+  .data-pill.computed { background:var(--purple-soft); color:#6b45b0; border:1px solid var(--purple-border); }
+  .data-pill .dp-dot { width:5px; height:5px; border-radius:50%; }
+  .data-pill.captured .dp-dot { background:var(--green); }
+  .data-pill.displayed .dp-dot { background:var(--blue); }
+  .data-pill.computed .dp-dot { background:var(--purple); }
+
+  /* Mock inline */
+  .mock-inline {
+    font-size: 12px;
+    color: var(--g600);
+    line-height: 1.7;
+  }
+  .mock-inline .mock-label {
+    font-weight: 600;
+    color: var(--navy);
+  }
+  .mock-inline .mock-value {
+    color: var(--g500);
+    font-family: var(--mono);
+    font-size: 11px;
+  }
+
+  /* Mock specific renders */
+  .mock-mini-form {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+  }
+  .mock-mini-field {
+    padding: 6px 10px;
+    background: var(--g50);
+    border: 1px solid var(--g200);
+    border-radius: var(--r-xs);
+    font-size: 11px;
+  }
+  .mock-mini-field .mf-label {
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--g400);
+    font-weight: 600;
+  }
+  .mock-mini-field .mf-value {
+    color: var(--navy);
+    font-weight: 500;
+    margin-top: 1px;
+  }
+  .mock-mini-field.full { grid-column: 1/-1; }
+
+  .mock-mini-stepper {
+    display: flex;
+    gap: 8px;
+  }
+  .mock-mini-section {
+    flex: 1;
+    padding: 10px;
+    border-radius: var(--r-xs);
+    border: 1px solid var(--g200);
+    font-size: 11px;
+    text-align: center;
+  }
+  .mock-mini-section.complete { border-color:var(--green-border); background:var(--green-soft); }
+  .mock-mini-section.current { border-color:var(--green); box-shadow:0 0 0 2px rgba(63,175,122,0.15); }
+  .mock-mini-section .ms-name { font-weight:600; color:var(--navy); font-size:10px; }
+  .mock-mini-section .ms-meta { color:var(--g400); font-size:9px; margin-top:2px; }
+
+  .mock-mini-images {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+  }
+  .mock-mini-img {
+    width: 48px;
+    height: 48px;
+    border-radius: 4px;
+    background: var(--navy);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 8px;
+    color: rgba(255,255,255,0.5);
+    text-align: center;
+    line-height: 1.1;
+  }
+  .mock-mini-img.xray { background:#0d2940; color:rgba(100,180,255,0.6); }
+
+  .mock-mini-ceph {
+    font-size: 10px;
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 8px;
+  }
+  .mock-mini-ceph th {
+    text-align: left;
+    font-size: 9px;
+    font-weight: 700;
+    color: var(--g400);
+    padding: 4px 6px;
+    border-bottom: 1px solid var(--g200);
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+  }
+  .mock-mini-ceph th:not(:first-child) { text-align:center; }
+  .mock-mini-ceph td {
+    padding: 4px 6px;
+    border-bottom: 1px solid var(--g100);
+    color: var(--g600);
+  }
+  .mock-mini-ceph td:not(:first-child) { text-align:center; font-family:var(--mono); }
+  .mock-mini-ceph .critical { color:var(--red); font-weight:700; }
+
+  .mock-mini-question {
+    font-size: 12px;
+    color: var(--g600);
+    line-height: 1.6;
+  }
+  .mock-mini-question .q-stem {
+    font-style: italic;
+    margin-bottom: 8px;
+    color: var(--navy);
+  }
+  .mock-mini-options {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .mock-mini-opt {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    border: 1px solid var(--g100);
+  }
+  .mock-mini-opt.correct { background:var(--green-soft); border-color:var(--green-border); }
+  .mock-mini-opt .opt-l {
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 9px;
+    font-weight: 700;
+    background: var(--g100);
+    color: var(--g500);
+    flex-shrink: 0;
+  }
+  .mock-mini-opt.correct .opt-l { background:var(--green); color:white; }
+
+  .mock-mini-scores {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .mock-mini-score-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 11px;
+  }
+  .mock-mini-score-row .sr-name { width:140px; color:var(--g600); flex-shrink:0; }
+  .mock-mini-score-bar-bg { flex:1; height:6px; background:var(--g100); border-radius:3px; overflow:hidden; }
+  .mock-mini-score-bar { height:100%; border-radius:3px; }
+  .mock-mini-score-row .sr-pct { width:30px; text-align:right; font-weight:700; font-size:11px; }
+
+  .mock-mini-survey {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    font-size: 11px;
+  }
+  .mock-mini-survey-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 0;
+  }
+  .mock-stars-sm { display:flex; gap:2px; font-size:14px; }
+  .mock-star-filled { color:var(--amber); }
+  .mock-star-empty { color:var(--g200); }
+
+  .mock-mini-metrics {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+  }
+  .mock-mini-metric {
+    text-align: center;
+    padding: 8px;
+    background: var(--g50);
+    border-radius: var(--r-xs);
+    border: 1px solid var(--g100);
+  }
+  .mock-mini-metric .mm-val { font-size:18px; font-weight:800; color:var(--navy); }
+  .mock-mini-metric .mm-label { font-size:9px; color:var(--g400); margin-top:1px; }
+  .mock-mini-funnel {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    margin-top: 10px;
+  }
+  .mock-mini-funnel-step {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 6px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    color: white;
+  }
+
+  /* Question cards in steps */
+  .q-list { display:flex; flex-direction:column; gap:6px; }
+  .q-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--g700);
+    line-height: 1.5;
+  }
+  .q-bullet {
+    width: 16px; height: 16px;
+    border-radius: 50%;
+    background: var(--amber);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 9px;
+    font-weight: 700;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+
+  /* Branch connector */
+  .branch-connector {
+    max-width: 740px;
+    margin: -4px auto 12px;
+    padding-left: 40px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .branch-line {
+    width: 2px;
+    height: 20px;
+    background: var(--g200);
+    margin-left: 16px;
+  }
+  .branch-label {
+    font-size: 10px;
+    color: var(--g400);
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .branch-label .bl-arrow { font-size:12px; }
+  .branch-split {
+    max-width: 740px;
+    margin: 4px auto 12px;
+    display: flex;
+    gap: 8px;
+    padding-left: 40px;
+  }
+  .branch-option {
+    flex: 1;
+    padding: 8px 14px;
+    border-radius: var(--r-xs);
+    border: 1px dashed var(--g300);
+    font-size: 11px;
+    text-align: center;
+    color: var(--g500);
+  }
+  .branch-option.yes { border-color:var(--green-border); background:var(--green-soft); color:var(--green); }
+  .branch-option.no { border-color:var(--amber-border); background:var(--amber-soft); color:var(--amber); }
+
+  /* Step connector arrow */
+  .step-connector {
+    display: flex;
+    justify-content: center;
+    margin: -4px 0;
+    max-width: 740px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  .step-connector-line {
+    width: 2px;
+    height: 16px;
+    background: var(--g200);
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div>
+    <h1>Combined Workflow</h1>
+    <div class="sub">ABO Orthodontist Certification Assessment &mdash; Future State</div>
+  </div>
+  <div class="topbar-right">
+    <div class="stat-pill">10 steps &middot; 4 actors &middot; 28 information points</div>
+  </div>
+</div>
+
+<div class="layout">
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <div class="sidebar-section">
+      <div class="sidebar-label">Actors</div>
+      <div class="actor-list" id="actorList"></div>
+    </div>
+    <div class="sidebar-section">
+      <div class="sidebar-label">Information Legend</div>
+      <div class="legend-items">
+        <div class="legend-item"><div class="legend-dot" style="background:var(--green)"></div> Captured &mdash; user provides input</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--blue)"></div> Displayed &mdash; shown to user</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--purple)"></div> Computed &mdash; system derives</div>
+      </div>
+    </div>
+    <div style="padding:12px 18px 6px;"><div class="sidebar-label">Workflow Steps</div></div>
+    <div class="minimap" id="minimap"></div>
+  </div>
+
+  <!-- MAIN -->
+  <div class="main-flow" id="mainFlow"></div>
+</div>
+
+<script>
+const actors = [
+  { id:'orthodontist', name:'Orthodontist', role:'Assessment taker', icon:'🦷', bg:'#E8F5EE', color:'var(--green)', chipBg:'var(--green-soft)', chipBorder:'var(--green-border)', chipColor:'#1a7a4a' },
+  { id:'system', name:'System', role:'Assessment engine', icon:'⚙️', bg:'#EBF0FF', color:'var(--blue)', chipBg:'var(--blue-soft)', chipBorder:'var(--blue-border)', chipColor:'#3565b5' },
+  { id:'leadership', name:'ABO Leadership', role:'Post-event analytics', icon:'📊', bg:'#F3EEFF', color:'var(--purple)', chipBg:'var(--purple-soft)', chipBorder:'var(--purple-border)', chipColor:'#6b45b0' },
+  { id:'booth', name:'Booth Staff', role:'On-site support', icon:'🎪', bg:'#FEF3E2', color:'var(--amber)', chipBg:'var(--amber-soft)', chipBorder:'var(--amber-border)', chipColor:'#9a6d1a' },
+];
+
+const steps = [
+  {
+    id: 1, phase: 'Entry',
+    title: 'Scan QR Code at Booth',
+    subtitle: 'Orthodontist approaches ABO booth, scans QR code with phone',
+    actors: ['orthodontist'],
+    data: [
+      { name:'QR code ID', type:'computed' },
+      { name:'Scan timestamp', type:'computed' },
+      { name:'Event ID', type:'computed' },
+    ],
+    questions: [
+      'Are there multiple QR codes for different booth stations?',
+      'What happens if they go directly to the URL without scanning?',
+    ],
+    mock: 'qr'
+  },
+  {
+    id: 2, phase: 'Entry',
+    title: 'Complete Registration',
+    subtitle: 'Mobile form captures contact info and practice details',
+    actors: ['orthodontist'],
+    data: [
+      { name:'First name', type:'captured' },
+      { name:'Last name', type:'captured' },
+      { name:'Email', type:'captured' },
+      { name:'Practice name', type:'captured' },
+      { name:'City / State', type:'captured' },
+      { name:'Years certified', type:'captured' },
+    ],
+    questions: [
+      'Do we need phone number?',
+      'Should we capture ABO member ID for record matching?',
+      'Is there a privacy consent checkbox?',
+    ],
+    mock: 'form'
+  },
+  {
+    id: 3, phase: 'Assessment',
+    title: 'View Assessment Sections',
+    subtitle: 'See 3 sections with progress — choose where to start',
+    actors: ['orthodontist'],
+    data: [
+      { name:'Section names', type:'displayed' },
+      { name:'Questions per section', type:'displayed' },
+      { name:'Estimated time', type:'displayed' },
+      { name:'Completion status', type:'computed' },
+      { name:'Progress', type:'computed' },
+    ],
+    questions: [
+      'Can sections be done in any order?',
+      'Can you pause and resume later?',
+      'Is there a timer or time limit?',
+    ],
+    mock: 'stepper'
+  },
+  {
+    id: 4, phase: 'Assessment',
+    title: 'Review Clinical Case',
+    subtitle: 'Patient presentation with images, radiographs, and cephalometric data',
+    actors: ['orthodontist'],
+    data: [
+      { name:'Patient case ID', type:'displayed' },
+      { name:'Patient age', type:'displayed' },
+      { name:'Extraoral photos (3)', type:'displayed' },
+      { name:'Intraoral photos (5)', type:'displayed' },
+      { name:'Lateral ceph X-ray', type:'displayed' },
+      { name:'Panoramic X-ray', type:'displayed' },
+      { name:'Ceph measurements', type:'displayed' },
+      { name:'Deviation scores', type:'computed' },
+      { name:'Significance flags', type:'computed' },
+    ],
+    questions: [
+      'What image types are always present vs optional?',
+      'Do all cases have cephalometric data?',
+      'Can images be zoomed/enlarged on mobile?',
+      'How many cases total? Questions per case?',
+    ],
+    mock: 'clinical'
+  },
+  {
+    id: 5, phase: 'Assessment',
+    title: 'Answer Clinical Question',
+    subtitle: 'Read question stem, select from 5 options (A–E)',
+    actors: ['orthodontist'],
+    data: [
+      { name:'Question number', type:'displayed' },
+      { name:'Question stem', type:'displayed' },
+      { name:'5 answer options', type:'displayed' },
+      { name:'Selected answer', type:'captured' },
+    ],
+    questions: [
+      'Is there a time limit per question?',
+      'Can you skip and come back?',
+    ],
+    mock: 'question',
+    branches: [
+      { label: 'Correct', type: 'yes', target: 'Immediate feedback → next question' },
+      { label: 'Wrong', type: 'no', target: 'Try Again prompt (Step 6)' },
+    ]
+  },
+  {
+    id: 6, phase: 'Assessment',
+    title: 'Second Chance Attempt',
+    subtitle: 'Wrong answer triggers "Try Again" — one retry without showing the answer',
+    actors: ['orthodontist', 'system'],
+    data: [
+      { name:'Second attempt answer', type:'captured' },
+      { name:'Correct on retry?', type:'computed' },
+    ],
+    questions: [
+      'Is an explanation shown after the second failure?',
+      'Is partial credit given for getting it right on retry?',
+    ],
+    mock: 'retry',
+    note: 'Loops back to Step 5 for next question, or Step 3 between sections'
+  },
+  {
+    id: 7, phase: 'Assessment',
+    title: 'Provide Positive Feedback',
+    subtitle: 'System confirms correct answer with encouragement, advances automatically',
+    actors: ['system'],
+    data: [
+      { name:'Correct answer text', type:'displayed' },
+      { name:'Feedback animation', type:'displayed' },
+    ],
+    questions: [
+      'Is there an explanation/rationale for the correct answer?',
+      'How long before auto-advancing to next question?',
+    ],
+    mock: 'feedback',
+    note: 'Returns to Step 5 for next question, or Step 3 between sections'
+  },
+  {
+    id: 8, phase: 'Results',
+    title: 'View Performance Results',
+    subtitle: 'Score breakdown by section with personalized learning recommendations',
+    actors: ['orthodontist', 'system'],
+    data: [
+      { name:'Overall score', type:'computed' },
+      { name:'Section scores', type:'computed' },
+      { name:'Topic performance', type:'computed' },
+      { name:'Recommended resources', type:'displayed' },
+      { name:'Weak area mapping', type:'computed' },
+    ],
+    questions: [
+      'Is there a passing score?',
+      'Do they get a certificate?',
+      'Can they retake the assessment?',
+      'Is the resource list curated or auto-generated?',
+    ],
+    mock: 'results'
+  },
+  {
+    id: 9, phase: 'Results',
+    title: 'Complete Feedback Survey',
+    subtitle: 'Quick 2-3 question survey on relevance, with follow-up opt-in',
+    actors: ['orthodontist'],
+    data: [
+      { name:'Relevance rating (1-5)', type:'captured' },
+      { name:'Free-text feedback', type:'captured' },
+      { name:'Follow-up opt-in', type:'captured' },
+    ],
+    questions: [
+      'Is the survey mandatory or skippable?',
+      'Are there topic-specific feedback questions?',
+    ],
+    mock: 'survey'
+  },
+  {
+    id: 10, phase: 'Analytics',
+    title: 'Review Event Analytics',
+    subtitle: 'Post-event dashboard: traffic, completions, scores, lead conversion',
+    actors: ['leadership'],
+    data: [
+      { name:'Total QR scans', type:'computed' },
+      { name:'Completion count', type:'computed' },
+      { name:'Completion rate', type:'computed' },
+      { name:'Average score', type:'computed' },
+      { name:'Lead capture rate', type:'computed' },
+      { name:'Opt-in rate', type:'computed' },
+      { name:'Score by section', type:'computed' },
+    ],
+    questions: [
+      'Real-time during event or post-event only?',
+      'Export to CSV/Excel?',
+      'Compare across multiple events?',
+      'Who has access — leadership only or booth staff too?',
+    ],
+    mock: 'analytics'
+  },
+];
+
+// Mock renderers
+function renderMockContent(type) {
+  switch(type) {
+    case 'qr': return `
+      <div style="text-align:center;padding:16px;">
+        <div style="width:100px;height:100px;background:var(--navy);border-radius:var(--r-sm);margin:0 auto 10px;display:flex;align-items:center;justify-content:center;font-size:36px;color:rgba(255,255,255,0.3);">&#9641;</div>
+        <div style="font-size:12px;color:var(--g500);font-weight:500;">Scan to start assessment</div>
+        <div style="font-size:10px;color:var(--g400);margin-top:4px;font-family:var(--mono);">abo.link/booth-2026-a3</div>
+      </div>`;
+
+    case 'form': return `
+      <div class="mock-mini-form">
+        <div class="mock-mini-field"><div class="mf-label">First Name</div><div class="mf-value">Sarah</div></div>
+        <div class="mock-mini-field"><div class="mf-label">Last Name</div><div class="mf-value">Chen</div></div>
+        <div class="mock-mini-field full"><div class="mf-label">Email</div><div class="mf-value">sarah.chen@brightsmilesortho.com</div></div>
+        <div class="mock-mini-field"><div class="mf-label">Practice</div><div class="mf-value">Bright Smiles Ortho</div></div>
+        <div class="mock-mini-field"><div class="mf-label">Location</div><div class="mf-value">Portland, OR</div></div>
+        <div class="mock-mini-field full"><div class="mf-label">Years Certified</div><div class="mf-value">10–20 years</div></div>
+      </div>`;
+
+    case 'stepper': return `
+      <div class="mock-mini-stepper">
+        <div class="mock-mini-section complete"><div class="ms-name">Facial Classification</div><div class="ms-meta">8 Qs &middot; 12 min &middot; &#10003;</div></div>
+        <div class="mock-mini-section current"><div class="ms-name">Cephalometric</div><div class="ms-meta">10 Qs &middot; 15 min &middot; 6/10</div></div>
+        <div class="mock-mini-section"><div class="ms-name">Treatment Planning</div><div class="ms-meta">7 Qs &middot; 10 min</div></div>
+      </div>`;
+
+    case 'clinical': return `
+      <div style="margin-bottom:8px;font-size:11px;font-weight:600;color:var(--navy);">Case SR 13-11 &middot; Patient age: 13y 11m</div>
+      <div class="mock-mini-images">
+        <div class="mock-mini-img">Profile</div>
+        <div class="mock-mini-img">Frontal</div>
+        <div class="mock-mini-img">Smile</div>
+        <div class="mock-mini-img">R. Lat</div>
+        <div class="mock-mini-img">Front</div>
+        <div class="mock-mini-img">L. Lat</div>
+        <div class="mock-mini-img">Upper</div>
+        <div class="mock-mini-img">Lower</div>
+        <div class="mock-mini-img xray" style="width:72px;">Lat Ceph</div>
+        <div class="mock-mini-img xray" style="width:72px;">Panoramic</div>
+      </div>
+      <table class="mock-mini-ceph">
+        <thead><tr><th>Measure</th><th>Value</th><th>Norm</th><th>Dev</th></tr></thead>
+        <tbody>
+          <tr><td>SNA</td><td>82&deg;</td><td>82&deg;</td><td style="color:var(--g400)">0.0</td></tr>
+          <tr><td>SNB</td><td>75&deg;</td><td>80&deg;</td><td style="color:var(--amber)">-1.7 &#9733;&#9733;</td></tr>
+          <tr><td class="critical">ANB</td><td class="critical">7&deg;</td><td>2&deg;</td><td class="critical">+2.5 &#9733;&#9733;&#9733;&#9733;</td></tr>
+          <tr><td class="critical">Lip-E</td><td class="critical">-8mm</td><td>-4mm</td><td class="critical">-2.0 &#9733;&#9733;&#9733;</td></tr>
+        </tbody>
+      </table>`;
+
+    case 'question': return `
+      <div class="mock-mini-question">
+        <div class="q-stem">"The ANB angle of 7&deg; and retruded soft tissue profile most strongly suggest:"</div>
+        <div class="mock-mini-options">
+          <div class="mock-mini-opt"><div class="opt-l">A</div> Skeletal Class I with dental compensation</div>
+          <div class="mock-mini-opt correct"><div class="opt-l">B</div> Skeletal Class II with mandibular deficiency</div>
+          <div class="mock-mini-opt"><div class="opt-l">C</div> Skeletal Class III with maxillary excess</div>
+          <div class="mock-mini-opt"><div class="opt-l">D</div> Bimaxillary protrusion</div>
+          <div class="mock-mini-opt"><div class="opt-l">E</div> Pseudo Class III</div>
+        </div>
+      </div>`;
+
+    case 'retry': return `
+      <div style="text-align:center;padding:16px;">
+        <div style="font-size:28px;margin-bottom:8px;">&#128260;</div>
+        <div style="font-size:14px;font-weight:600;color:var(--navy);margin-bottom:4px;">Not quite — try again!</div>
+        <div style="font-size:12px;color:var(--g400);">You have one more attempt. Take another look at the case data.</div>
+      </div>`;
+
+    case 'feedback': return `
+      <div style="text-align:center;padding:16px;">
+        <div style="font-size:28px;margin-bottom:8px;">&#10003;</div>
+        <div style="font-size:14px;font-weight:600;color:var(--green);margin-bottom:4px;">Correct!</div>
+        <div style="font-size:12px;color:var(--g500);">Skeletal Class II with mandibular deficiency — the ANB of 7&deg; confirms the anteroposterior jaw discrepancy.</div>
+      </div>`;
+
+    case 'results': return `
+      <div style="text-align:center;margin-bottom:12px;">
+        <div style="font-size:32px;font-weight:800;color:var(--navy);">72%</div>
+        <div style="font-size:10px;color:var(--g400);">18 of 25 correct</div>
+      </div>
+      <div class="mock-mini-scores">
+        <div class="mock-mini-score-row">
+          <div class="sr-name">Facial Classification</div>
+          <div class="mock-mini-score-bar-bg"><div class="mock-mini-score-bar" style="width:87%;background:var(--green)"></div></div>
+          <div class="sr-pct" style="color:var(--green)">87%</div>
+        </div>
+        <div class="mock-mini-score-row">
+          <div class="sr-name">Cephalometric Analysis</div>
+          <div class="mock-mini-score-bar-bg"><div class="mock-mini-score-bar" style="width:60%;background:var(--red)"></div></div>
+          <div class="sr-pct" style="color:var(--red)">60%</div>
+        </div>
+        <div class="mock-mini-score-row">
+          <div class="sr-name">Treatment Planning</div>
+          <div class="mock-mini-score-bar-bg"><div class="mock-mini-score-bar" style="width:71%;background:var(--amber)"></div></div>
+          <div class="sr-pct" style="color:var(--amber)">71%</div>
+        </div>
+      </div>
+      <div style="margin-top:10px;padding:8px 10px;background:var(--g50);border-radius:6px;border:1px solid var(--g100);font-size:10px;">
+        <div style="font-weight:600;color:var(--navy);">&#127891; Recommended: Modern Cephalometric Interpretation</div>
+        <div style="color:var(--g400);">ABO Webinar &middot; Based on your 60% in Cephalometric Analysis</div>
+      </div>`;
+
+    case 'survey': return `
+      <div class="mock-mini-survey">
+        <div class="mock-mini-survey-row">
+          <span style="color:var(--g600);flex:1;">Relevance to practice?</span>
+          <div class="mock-stars-sm">
+            <span class="mock-star-filled">&#9733;</span>
+            <span class="mock-star-filled">&#9733;</span>
+            <span class="mock-star-filled">&#9733;</span>
+            <span class="mock-star-filled">&#9733;</span>
+            <span class="mock-star-empty">&#9734;</span>
+          </div>
+        </div>
+        <div style="padding:6px 8px;background:var(--g50);border:1px solid var(--g100);border-radius:4px;font-size:10px;color:var(--g500);font-style:italic;">
+          "Would love more CBCT interpretation questions..."
+        </div>
+        <div class="mock-mini-survey-row">
+          <span style="color:var(--g600);flex:1;">May ABO follow up?</span>
+          <span style="color:var(--green);font-weight:600;">Yes &#10003;</span>
+        </div>
+      </div>`;
+
+    case 'analytics': return `
+      <div class="mock-mini-metrics">
+        <div class="mock-mini-metric"><div class="mm-val">342</div><div class="mm-label">QR Scans</div></div>
+        <div class="mock-mini-metric"><div class="mm-val">198</div><div class="mm-label">Completed</div></div>
+        <div class="mock-mini-metric"><div class="mm-val">69%</div><div class="mm-label">Rate</div></div>
+      </div>
+      <div class="mock-mini-funnel">
+        <div class="mock-mini-funnel-step" style="width:100%;background:var(--navy);">342 scans</div>
+        <div style="font-size:10px;color:var(--g300);">&#9660;</div>
+        <div class="mock-mini-funnel-step" style="width:84%;background:var(--navy-80);">287 started</div>
+        <div style="font-size:10px;color:var(--g300);">&#9660;</div>
+        <div class="mock-mini-funnel-step" style="width:58%;background:var(--green);">198 completed</div>
+        <div style="font-size:10px;color:var(--g300);">&#9660;</div>
+        <div class="mock-mini-funnel-step" style="width:35%;background:var(--green-light);">121 opted-in</div>
+      </div>`;
+
+    default: return '';
+  }
+}
+
+// STATE
+let expandedSteps = new Set([1]);
+let highlightActor = null;
+
+function getActor(id) { return actors.find(a => a.id === id); }
+
+function renderActorChip(actorId) {
+  const a = getActor(actorId);
+  return `<div class="actor-chip" style="background:${a.chipBg};border:1px solid ${a.chipBorder};color:${a.chipColor};">
+    <div class="ac-dot" style="background:${a.color}"></div>${a.name}
+  </div>`;
+}
+
+function renderSidebar() {
+  // Actors
+  const actorHtml = actors.map(a => {
+    const stepCount = steps.filter(s => s.actors.includes(a.id)).length;
+    const active = highlightActor === a.id ? 'active' : '';
+    return `<div class="actor-card ${active}" onclick="toggleActor('${a.id}')">
+      <div class="actor-avatar" style="background:${a.bg}">${a.icon}</div>
+      <div>
+        <div class="actor-name">${a.name}</div>
+        <div class="actor-role">${a.role}</div>
+        <div class="actor-steps">${stepCount} steps</div>
+      </div>
+    </div>`;
+  }).join('');
+  document.getElementById('actorList').innerHTML = actorHtml;
+
+  // Minimap
+  let lastPhase = '';
+  const miniHtml = steps.map(s => {
+    const phaseLabel = s.phase !== lastPhase ? `<div style="font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--g400);padding:8px 0 4px;">${s.phase}</div>` : '';
+    lastPhase = s.phase;
+    const active = expandedSteps.has(s.id) ? 'active' : '';
+    const dimmed = highlightActor && !s.actors.includes(highlightActor) ? 'opacity:0.3;' : '';
+    const actorTags = s.actors.map(aid => {
+      const a = getActor(aid);
+      return `<span class="mini-actor-tag" style="background:${a.chipBg};color:${a.chipColor};border:1px solid ${a.chipBorder};">${a.icon}</span>`;
+    }).join(' ');
+    return `${phaseLabel}<div class="mini-step ${active}" style="${dimmed}" onclick="toggleStep(${s.id})">
+      <div class="mini-step-line"></div>
+      <div class="mini-num">${s.id}</div>
+      <div><div class="mini-text">${s.title}</div><div>${actorTags}</div></div>
+    </div>`;
+  }).join('');
+  document.getElementById('minimap').innerHTML = miniHtml;
+}
+
+function renderFlow() {
+  let html = '';
+  let lastPhase = '';
+
+  steps.forEach((s, idx) => {
+    if (s.phase !== lastPhase) {
+      html += `<div class="phase-divider"><div class="phase-pill">${s.phase}</div><div class="phase-line"></div></div>`;
+      lastPhase = s.phase;
+    }
+
+    const expanded = expandedSteps.has(s.id) ? 'expanded' : '';
+    const dimmed = highlightActor && !s.actors.includes(highlightActor) ? 'opacity:0.35;pointer-events:none;' : '';
+    const actorChips = s.actors.map(a => renderActorChip(a)).join('');
+    const dataPills = s.data.map(d => `<div class="data-pill ${d.type}"><div class="dp-dot"></div>${d.name}</div>`).join('');
+    const questionCards = s.questions.map(q => `<div class="q-item"><div class="q-bullet">?</div>${q}</div>`).join('');
+
+    html += `<div class="step-card ${expanded}" id="step-${s.id}" style="${dimmed}" onclick="toggleStep(${s.id})">
+      <div class="step-top">
+        <div class="step-num-big">${s.id}</div>
+        <div class="step-info">
+          <div class="step-title">${s.title}</div>
+          <div class="step-subtitle">${s.subtitle}</div>
+        </div>
+        <div class="step-actors-inline">${actorChips}</div>
+        <div class="step-expand-icon">&#9660;</div>
+      </div>
+      <div class="step-detail">
+        <div class="detail-columns">
+          <div class="detail-block info-block">
+            <div class="detail-block-label"><span class="dbl-icon">&#128203;</span> Information at this step</div>
+            <div class="data-pills">${dataPills}</div>
+          </div>
+          <div class="detail-block mock-block">
+            <div class="detail-block-label"><span class="dbl-icon">&#127912;</span> What this looks like</div>
+            ${renderMockContent(s.mock)}
+          </div>
+          <div class="detail-block question-block detail-col-full">
+            <div class="detail-block-label"><span class="dbl-icon">&#9888;</span> Open questions (${s.questions.length})</div>
+            <div class="q-list">${questionCards}</div>
+          </div>
+        </div>
+        ${s.note ? `<div style="margin-top:12px;font-size:11px;color:var(--g400);font-style:italic;">&#8617; ${s.note}</div>` : ''}
+      </div>
+    </div>`;
+
+    // Branches
+    if (s.branches) {
+      html += `<div class="branch-split">
+        ${s.branches.map(b => `<div class="branch-option ${b.type}">${b.label} &rarr; ${b.target}</div>`).join('')}
+      </div>`;
+    }
+
+    // Connector
+    if (idx < steps.length - 1 && !s.branches) {
+      html += `<div class="step-connector"><div class="step-connector-line"></div></div>`;
+    }
+  });
+
+  document.getElementById('mainFlow').innerHTML = html;
+}
+
+function toggleStep(id) {
+  if (expandedSteps.has(id)) {
+    expandedSteps.delete(id);
+  } else {
+    expandedSteps.add(id);
+  }
+  renderFlow();
+  renderSidebar();
+}
+
+function toggleActor(id) {
+  highlightActor = highlightActor === id ? null : id;
+  renderFlow();
+  renderSidebar();
+}
+
+// Init
+renderSidebar();
+renderFlow();
+</script>
+</body>
+</html>

@@ -243,6 +243,7 @@ class BRDWorkspaceData(BaseModel):
     roi_summary: list[ROISummary] = []
     completeness: BRDCompleteness | None = None
     next_actions: list[dict] = Field(default_factory=list, description="Top 3 next best actions computed from BRD state")
+    solution_flow: dict | None = None
 
 
 # ============================================================================

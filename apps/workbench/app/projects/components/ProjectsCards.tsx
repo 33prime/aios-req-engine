@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react'
-import { formatDistanceToNow, isToday, isTomorrow } from 'date-fns'
+import { formatDistanceToNow, isToday, isTomorrow, format } from 'date-fns'
 import {
   ArrowRight,
   ListTodo,
@@ -48,17 +48,19 @@ export function ProjectsCards({
   onBuildingCardClick,
   onRefresh,
 }: ProjectsCardsProps) {
-  // Group meetings by project
+  // Group meetings by project + find next meeting per project
   const meetingsByProject = useMemo(() => {
-    const map: Record<string, { today: number; upcoming: number }> = {}
+    const map: Record<string, { today: number; upcoming: number; next: Meeting | null }> = {}
     for (const m of meetings) {
       if (!m.project_id || m.status === 'cancelled') continue
-      if (!map[m.project_id]) map[m.project_id] = { today: 0, upcoming: 0 }
+      if (!map[m.project_id]) map[m.project_id] = { today: 0, upcoming: 0, next: null }
       const d = new Date(m.meeting_date)
       if (isToday(d)) {
         map[m.project_id].today++
+        if (!map[m.project_id].next) map[m.project_id].next = m
       } else if (isTomorrow(d) || d > new Date()) {
         map[m.project_id].upcoming++
+        if (!map[m.project_id].next) map[m.project_id].next = m
       }
     }
     return map
@@ -151,27 +153,46 @@ export function ProjectsCards({
 
             {/* Stats row: tasks + meetings */}
             {!isBuilding && (
-              <div className="mt-2.5 flex items-center gap-3 flex-wrap">
-                {totalTasks > 0 && (
-                  <span className="flex items-center gap-1 text-[11px] text-[#999]">
-                    <ListTodo className="w-3 h-3" />
-                    {pendingTasks > 0 ? (
-                      <>{pendingTasks} pending</>
-                    ) : (
-                      <span className="flex items-center gap-0.5">
-                        <CheckCircle2 className="w-2.5 h-2.5 text-[#3FAF7A]" />
-                        All done
-                      </span>
-                    )}
-                  </span>
-                )}
-                {projectMeetings && (projectMeetings.today > 0 || projectMeetings.upcoming > 0) && (
-                  <span className="flex items-center gap-1 text-[11px] text-[#999]">
-                    <CalendarDays className="w-3 h-3" />
-                    {projectMeetings.today > 0
-                      ? `${projectMeetings.today} today`
-                      : `${projectMeetings.upcoming} upcoming`}
-                  </span>
+              <div className="mt-2.5 space-y-1.5">
+                <div className="flex items-center gap-3 flex-wrap">
+                  {totalTasks > 0 && (
+                    <span className="flex items-center gap-1 text-[11px] text-[#999]">
+                      <ListTodo className="w-3 h-3" />
+                      {pendingTasks > 0 ? (
+                        <>{pendingTasks} pending</>
+                      ) : (
+                        <span className="flex items-center gap-0.5">
+                          <CheckCircle2 className="w-2.5 h-2.5 text-[#3FAF7A]" />
+                          All done
+                        </span>
+                      )}
+                    </span>
+                  )}
+                  {projectMeetings && (projectMeetings.today > 0 || projectMeetings.upcoming > 0) && (
+                    <span className="flex items-center gap-1 text-[11px] text-[#999]">
+                      <CalendarDays className="w-3 h-3" />
+                      {projectMeetings.today > 0
+                        ? `${projectMeetings.today} today`
+                        : `${projectMeetings.upcoming} upcoming`}
+                    </span>
+                  )}
+                </div>
+                {/* Next meeting detail */}
+                {projectMeetings?.next && (
+                  <div className="flex items-center gap-1.5 text-[11px]">
+                    <CalendarDays className="w-3 h-3 text-[#3FAF7A] flex-shrink-0" />
+                    <span className="text-[#3FAF7A] font-medium">
+                      {isToday(new Date(projectMeetings.next.meeting_date))
+                        ? 'Today'
+                        : isTomorrow(new Date(projectMeetings.next.meeting_date))
+                        ? 'Tomorrow'
+                        : format(new Date(projectMeetings.next.meeting_date), 'MMM d')}
+                      {projectMeetings.next.meeting_time && (
+                        <> at {format(new Date(`2000-01-01T${projectMeetings.next.meeting_time}`), 'h:mm a')}</>
+                      )}
+                    </span>
+                    <span className="text-[#666] truncate">{projectMeetings.next.title}</span>
+                  </div>
                 )}
               </div>
             )}

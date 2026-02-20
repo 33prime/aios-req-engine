@@ -65,6 +65,7 @@ class PendingItemType(str, Enum):
     COMPETITOR = "competitor"
     DESIGN_PREFERENCE = "design_preference"
     STAKEHOLDER = "stakeholder"
+    OPEN_QUESTION = "open_question"  # Solution flow escalated question
 
 
 class PendingItemSource(str, Enum):
@@ -73,6 +74,7 @@ class PendingItemSource(str, Enum):
     NEEDS_REVIEW = "needs_review"      # Marked "needs review" in Features/Personas/etc.
     AI_GENERATED = "ai_generated"      # AI suggested this needs input
     MANUAL = "manual"                  # Consultant added manually
+    SOLUTION_FLOW = "solution_flow"    # Escalated from solution flow chat
 
 
 # ============================================================================

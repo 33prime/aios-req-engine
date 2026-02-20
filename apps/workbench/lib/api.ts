@@ -881,6 +881,8 @@ export const createMeeting = (data: {
   timezone?: string
   stakeholder_ids?: string[]
   agenda?: Record<string, any>
+  create_calendar_event?: boolean
+  attendee_emails?: string[]
 }) =>
   apiRequest<Meeting>('/meetings', {
     method: 'POST',
@@ -1335,8 +1337,41 @@ export interface Task {
   completed_by?: string
   completion_method?: string
   completion_notes?: string
+  assigned_to?: string
+  due_date?: string
+  created_by?: string
+  priority?: 'none' | 'low' | 'medium' | 'high'
   created_at: string
   updated_at: string
+}
+
+export interface TaskWithProject extends Omit<Task, 'source_context' | 'completed_at' | 'completed_by' | 'completion_method' | 'completion_notes' | 'source_type' | 'source_id'> {
+  project_name: string
+  assigned_to_name?: string
+  assigned_to_photo_url?: string
+}
+
+export interface MyTasksResponse {
+  tasks: TaskWithProject[]
+  total: number
+  counts: Record<string, number>
+}
+
+export interface TaskComment {
+  id: string
+  task_id: string
+  project_id: string
+  author_id: string
+  body: string
+  author_name?: string
+  author_photo_url?: string
+  created_at: string
+  updated_at: string
+}
+
+export interface TaskCommentListResponse {
+  comments: TaskComment[]
+  total: number
 }
 
 export interface TaskListResponse {
@@ -1399,6 +1434,9 @@ export const createTask = (
     gate_stage?: string
     requires_client_input?: boolean
     metadata?: Record<string, unknown>
+    assigned_to?: string
+    due_date?: string
+    priority?: string
   }
 ) =>
   apiRequest<Task>(`/projects/${projectId}/tasks`, {
@@ -1415,6 +1453,9 @@ export const updateTask = (
     status?: string
     requires_client_input?: boolean
     priority_score?: number
+    assigned_to?: string
+    due_date?: string
+    priority?: string
   }
 ) =>
   apiRequest<Task>(`/projects/${projectId}/tasks/${taskId}`, {
@@ -1489,9 +1530,9 @@ export const syncEnrichmentTasks = (projectId: string) =>
 export interface TaskActivity {
   id: string
   task_id: string
-  action: 'created' | 'updated' | 'completed' | 'dismissed' | 'reopened'
+  action: 'created' | 'started' | 'updated' | 'completed' | 'dismissed' | 'reopened' | 'priority_changed' | 'assigned' | 'commented' | 'due_date_changed'
   actor_id?: string
-  actor_type: 'user' | 'system' | 'ai'
+  actor_type: 'user' | 'system' | 'ai_assistant'
   changes?: Record<string, unknown>
   note?: string
   created_at: string
@@ -1514,6 +1555,42 @@ export const getProjectTaskActivity = (
     `/projects/${projectId}/tasks/activity${query ? `?${query}` : ''}`
   )
 }
+
+// ============================================
+// Cross-Project Task APIs
+// ============================================
+
+export const listMyTasks = (params?: {
+  view?: 'assigned_to_me' | 'created_by_me' | 'all'
+  status?: string
+  limit?: number
+  offset?: number
+}) => {
+  const queryParams = new URLSearchParams()
+  if (params?.view) queryParams.set('view', params.view)
+  if (params?.status) queryParams.set('status', params.status)
+  if (params?.limit) queryParams.set('limit', params.limit.toString())
+  if (params?.offset) queryParams.set('offset', params.offset.toString())
+  const query = queryParams.toString()
+  return apiRequest<MyTasksResponse>(`/tasks/my${query ? `?${query}` : ''}`)
+}
+
+export const getTaskById = (taskId: string) =>
+  apiRequest<TaskWithProject>(`/tasks/${taskId}`)
+
+export const listTaskComments = (taskId: string) =>
+  apiRequest<TaskCommentListResponse>(`/tasks/${taskId}/comments`)
+
+export const createTaskComment = (taskId: string, body: string) =>
+  apiRequest<TaskComment>(`/tasks/${taskId}/comments`, {
+    method: 'POST',
+    body: JSON.stringify({ body }),
+  })
+
+export const deleteTaskComment = (taskId: string, commentId: string) =>
+  apiRequest<{ deleted: boolean }>(`/tasks/${taskId}/comments/${commentId}`, {
+    method: 'DELETE',
+  })
 
 // ============================================
 // Project Memory APIs
@@ -3619,6 +3696,52 @@ export const getUserICPSignals = (userId: string) =>
   apiRequest<any[]>(`/super-admin/users/${userId}/icp-signals`)
 
 // =============================================================================
+// Eval Pipeline
+// =============================================================================
+
+export const getEvalDashboard = () =>
+  apiRequest<import('@/types/api').EvalDashboardStats>('/super-admin/eval/dashboard')
+
+export const listEvalRuns = (prototypeId?: string) => {
+  const qs = prototypeId ? `?prototype_id=${prototypeId}` : ''
+  return apiRequest<import('@/types/api').EvalRunListItem[]>(`/super-admin/eval/runs${qs}`)
+}
+
+export const getEvalRunDetail = (runId: string) =>
+  apiRequest<import('@/types/api').EvalRunDetail>(`/super-admin/eval/runs/${runId}`)
+
+export const listEvalPromptVersions = (prototypeId: string) =>
+  apiRequest<import('@/types/api').EvalPromptVersion[]>(`/super-admin/eval/versions?prototype_id=${prototypeId}`)
+
+export const getEvalPromptDiff = (versionId: string) =>
+  apiRequest<import('@/types/api').EvalPromptDiff>(`/super-admin/eval/versions/${versionId}/diff`)
+
+export const listEvalLearnings = (params?: { dimension?: string; active_only?: boolean }) => {
+  const qs = new URLSearchParams()
+  if (params?.dimension) qs.set('dimension', params.dimension)
+  if (params?.active_only) qs.set('active_only', 'true')
+  const query = qs.toString()
+  return apiRequest<import('@/types/api').EvalLearning[]>(`/super-admin/eval/learnings${query ? `?${query}` : ''}`)
+}
+
+export const createEvalLearning = (body: { category: string; learning: string; dimension?: string; gap_pattern?: string }) =>
+  apiRequest<import('@/types/api').EvalLearning>('/super-admin/eval/learnings', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  })
+
+export const toggleEvalLearning = (learningId: string, active: boolean) =>
+  apiRequest<import('@/types/api').EvalLearning>(`/super-admin/eval/learnings/${learningId}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ active }),
+  })
+
+export const triggerEvalPipeline = (prototypeId: string) =>
+  apiRequest<{ prototype_id: string; overall_score: number; action: string; iterations: number }>(`/super-admin/eval/trigger/${prototypeId}`, {
+    method: 'POST',
+  })
+
+// =============================================================================
 // Notifications
 // =============================================================================
 
@@ -3798,4 +3921,54 @@ export const dismissUnlock = (projectId: string, unlockId: string) =>
   apiRequest<import('@/types/workspace').UnlockSummary>(
     `/projects/${projectId}/workspace/unlocks/${unlockId}/dismiss`,
     { method: 'POST' }
+  )
+
+// ============================================
+// Solution Flow
+// ============================================
+
+export const getSolutionFlow = (projectId: string) =>
+  apiRequest<import('@/types/workspace').SolutionFlowOverview>(
+    `/projects/${projectId}/workspace/solution-flow`
+  )
+
+export const generateSolutionFlow = (projectId: string) =>
+  apiRequest<{ flow_id: string; summary: string; steps_generated: number; steps: Record<string, unknown>[] }>(
+    `/projects/${projectId}/workspace/solution-flow/generate`,
+    { method: 'POST' }
+  )
+
+export const updateSolutionFlow = (projectId: string, data: Record<string, unknown>) =>
+  apiRequest<Record<string, unknown>>(
+    `/projects/${projectId}/workspace/solution-flow`,
+    { method: 'PATCH', body: JSON.stringify(data) }
+  )
+
+export const createSolutionFlowStep = (projectId: string, data: Record<string, unknown>) =>
+  apiRequest<import('@/types/workspace').SolutionFlowStepDetail>(
+    `/projects/${projectId}/workspace/solution-flow/steps`,
+    { method: 'POST', body: JSON.stringify(data) }
+  )
+
+export const getSolutionFlowStep = (projectId: string, stepId: string) =>
+  apiRequest<import('@/types/workspace').SolutionFlowStepDetail>(
+    `/projects/${projectId}/workspace/solution-flow/steps/${stepId}`
+  )
+
+export const updateSolutionFlowStep = (projectId: string, stepId: string, data: Record<string, unknown>) =>
+  apiRequest<import('@/types/workspace').SolutionFlowStepDetail>(
+    `/projects/${projectId}/workspace/solution-flow/steps/${stepId}`,
+    { method: 'PATCH', body: JSON.stringify(data) }
+  )
+
+export const deleteSolutionFlowStep = (projectId: string, stepId: string) =>
+  apiRequest<{ deleted: boolean }>(
+    `/projects/${projectId}/workspace/solution-flow/steps/${stepId}`,
+    { method: 'DELETE' }
+  )
+
+export const reorderSolutionFlowSteps = (projectId: string, stepIds: string[]) =>
+  apiRequest<Record<string, unknown>[]>(
+    `/projects/${projectId}/workspace/solution-flow/steps/reorder`,
+    { method: 'POST', body: JSON.stringify({ step_ids: stepIds }) }
   )

@@ -1,13 +1,17 @@
 """Meetings API endpoints."""
 
-from datetime import date, time
+import logging
+from datetime import date, datetime, time, timedelta
 from typing import Literal, Optional
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
+from app.core.auth_middleware import AuthContext, require_auth
 from app.db import meetings as meetings_db
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/meetings", tags=["meetings"])
 
@@ -29,6 +33,9 @@ class MeetingCreate(BaseModel):
     timezone: str = "UTC"
     stakeholder_ids: Optional[list[UUID]] = None
     agenda: Optional[dict] = None
+    # Google Calendar integration
+    create_calendar_event: bool = False
+    attendee_emails: Optional[list[str]] = None
 
 
 class MeetingUpdate(BaseModel):
@@ -126,8 +133,11 @@ async def get_meeting(meeting_id: UUID):
 
 
 @router.post("", response_model=MeetingResponse, status_code=201)
-async def create_meeting(data: MeetingCreate):
-    """Create a new meeting."""
+async def create_meeting(
+    data: MeetingCreate,
+    auth: AuthContext = Depends(require_auth),
+):
+    """Create a new meeting, optionally creating a Google Calendar event."""
     meeting = meetings_db.create_meeting(
         project_id=data.project_id,
         title=data.title,
@@ -139,10 +149,37 @@ async def create_meeting(data: MeetingCreate):
         timezone=data.timezone,
         stakeholder_ids=data.stakeholder_ids,
         agenda=data.agenda,
+        created_by=auth.user.id,
     )
 
     if not meeting:
         raise HTTPException(status_code=500, detail="Failed to create meeting")
+
+    # Create Google Calendar event if requested
+    if data.create_calendar_event:
+        try:
+            cal_result = await _create_google_calendar_event(
+                user_id=auth.user.id,
+                title=data.title,
+                description=data.description,
+                meeting_date=data.meeting_date,
+                meeting_time=data.meeting_time,
+                duration_minutes=data.duration_minutes,
+                timezone=data.timezone,
+                attendee_emails=data.attendee_emails,
+            )
+            # Update meeting with calendar data
+            meeting = meetings_db.update_meeting(
+                UUID(meeting["id"]),
+                {
+                    "google_calendar_event_id": cal_result["event_id"],
+                    "google_meet_link": cal_result.get("meet_link"),
+                },
+            ) or meeting
+        except ValueError as e:
+            logger.warning("Google not connected, skipping calendar event: %s", e)
+        except Exception as e:
+            logger.error("Failed to create calendar event: %s", e)
 
     return _to_response(meeting)
 
@@ -184,6 +221,33 @@ async def delete_meeting(meeting_id: UUID):
 # ============================================================================
 # Helpers
 # ============================================================================
+
+
+async def _create_google_calendar_event(
+    user_id: UUID,
+    title: str,
+    meeting_date: date,
+    meeting_time: time,
+    duration_minutes: int,
+    timezone: str,
+    description: str | None = None,
+    attendee_emails: list[str] | None = None,
+) -> dict:
+    """Build datetime strings and call Google Calendar API."""
+    from app.core.google_calendar_service import create_calendar_event
+
+    start_dt = datetime.combine(meeting_date, meeting_time)
+    end_dt = start_dt + timedelta(minutes=duration_minutes)
+
+    return await create_calendar_event(
+        user_id=user_id,
+        title=title,
+        start_datetime=start_dt.isoformat(),
+        end_datetime=end_dt.isoformat(),
+        timezone=timezone,
+        description=description,
+        attendee_emails=attendee_emails,
+    )
 
 
 def _to_response(meeting: dict) -> MeetingResponse:

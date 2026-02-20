@@ -13,6 +13,19 @@ import { CheckCircle2, Mail, Calendar, Quote, Check } from 'lucide-react'
 import { URGENCY_COLORS } from '@/lib/action-constants'
 
 // =============================================================================
+// Shared Style Constants
+// =============================================================================
+
+const CARD_BASE = 'border border-[#E5E5E5] rounded-2xl bg-[#F7F8FA] px-4 py-4'
+const CARD_RESOLVED = 'border border-[#3FAF7A]/40 bg-[#E8F5E9]/30 rounded-2xl px-4 py-3.5 flex items-center gap-2'
+const CARD_HEADER = 'text-[10px] text-[#999] uppercase tracking-wider font-semibold mb-2.5'
+const BTN_PRIMARY_OUTLINE = 'text-[12px] font-medium px-4 py-1.5 rounded-full border border-[#3FAF7A] text-[#3FAF7A] hover:bg-[#E8F5E9] transition-colors'
+const BTN_PRIMARY_FILLED = 'text-[12px] font-medium px-4 py-1.5 rounded-full bg-[#3FAF7A] text-white hover:bg-[#25785A] transition-colors'
+const BTN_SECONDARY = 'text-[12px] font-medium px-4 py-1.5 rounded-full border border-[#D5D5D5] text-[#4B4B4B] hover:bg-[#F5F5F5] transition-colors'
+const BTN_GHOST = 'text-[12px] font-medium px-3 py-1.5 text-[#999] hover:text-[#4B4B4B] transition-colors'
+const BTN_CONFIRMED = 'text-[12px] font-medium px-4 py-1.5 rounded-full bg-[#E8F5E9] text-[#25785A] pointer-events-none flex items-center gap-1'
+
+// =============================================================================
 // Types
 // =============================================================================
 
@@ -36,6 +49,7 @@ interface ActionButtonsData {
 }
 
 interface ChoiceData {
+  title?: string
   question: string
   options: Array<{ label: string; command: string }>
 }
@@ -93,7 +107,7 @@ export function QuickActionCards({ cards, onAction }: QuickActionCardsProps) {
   if (!cards || cards.length === 0) return null
 
   return (
-    <div className="mt-2 space-y-2">
+    <div className="mt-3 space-y-3">
       {cards.map((card) => {
         switch (card.card_type) {
           case 'gap_closer':
@@ -130,7 +144,7 @@ function GapCloserCard({ data, onAction }: { data: GapCloserData; onAction: (cmd
 
   if (resolved) {
     return (
-      <div className="border border-[#3FAF7A]/40 bg-[#E8F5E9]/30 rounded-lg px-3 py-2.5 flex items-center gap-2">
+      <div className={CARD_RESOLVED}>
         <CheckCircle2 className="h-3.5 w-3.5 text-[#3FAF7A]" />
         <span className="text-[12px] text-[#25785A] font-medium">Resolved</span>
       </div>
@@ -138,7 +152,7 @@ function GapCloserCard({ data, onAction }: { data: GapCloserData; onAction: (cmd
   }
 
   return (
-    <div className="border border-[#E5E5E5] rounded-lg px-3 py-2.5">
+    <div className={CARD_BASE}>
       <div className="flex items-center gap-2 flex-wrap">
         <span className="text-[13px] font-medium text-[#333] flex-1 min-w-0">{data.label}</span>
         <span
@@ -151,7 +165,7 @@ function GapCloserCard({ data, onAction }: { data: GapCloserData; onAction: (cmd
       {data.resolution && (
         <p className="text-[11px] text-[#7B7B7B] border-l-2 border-[#E5E5E5] pl-2 mt-1.5">{data.resolution}</p>
       )}
-      <div className="flex items-center gap-1.5 mt-2">
+      <div className="flex items-center gap-2 mt-3">
         {data.actions?.map((action, i) => (
           <button
             key={i}
@@ -159,11 +173,7 @@ function GapCloserCard({ data, onAction }: { data: GapCloserData; onAction: (cmd
               setResolved(true)
               onAction(action.command)
             }}
-            className={
-              action.variant === 'ghost'
-                ? 'text-[11px] font-medium px-3 py-1.5 rounded-lg bg-[#F5F5F5] text-[#4B4B4B] hover:bg-[#E5E5E5] transition-colors'
-                : 'text-[11px] font-medium px-3 py-1.5 rounded-lg bg-[#3FAF7A] text-white hover:bg-[#25785A] transition-colors'
-            }
+            className={action.variant === 'ghost' ? BTN_SECONDARY : BTN_PRIMARY_OUTLINE}
           >
             {action.label}
           </button>
@@ -181,15 +191,12 @@ function ActionButtonsCard({ data, onAction }: { data: ActionButtonsData; onActi
   const [confirmed, setConfirmed] = useState<string | null>(null)
 
   return (
-    <div className="flex items-center gap-1.5 flex-wrap">
+    <div className="flex items-center gap-2 flex-wrap">
       {data.buttons?.map((btn, i) => {
         const isConfirmed = confirmed === btn.label
         if (isConfirmed) {
           return (
-            <span
-              key={i}
-              className="text-[11px] font-medium px-3 py-1.5 rounded-lg bg-[#E8F5E9] text-[#25785A] pointer-events-none flex items-center gap-1"
-            >
+            <span key={i} className={BTN_CONFIRMED}>
               <Check className="h-3 w-3" />
               {btn.label}
             </span>
@@ -198,10 +205,8 @@ function ActionButtonsCard({ data, onAction }: { data: ActionButtonsData; onActi
         const variant = btn.variant || 'primary'
         const cls =
           variant === 'ghost'
-            ? 'text-[11px] font-medium px-3 py-1.5 rounded-lg text-[#4B4B4B] hover:bg-[#F5F5F5] transition-colors'
-            : variant === 'outline'
-              ? 'text-[11px] font-medium px-3 py-1.5 rounded-lg border border-[#3FAF7A] text-[#3FAF7A] hover:bg-[#E8F5E9] transition-colors'
-              : 'text-[11px] font-medium px-3 py-1.5 rounded-lg border border-[#3FAF7A] text-[#3FAF7A] hover:bg-[#E8F5E9] transition-colors'
+            ? BTN_GHOST
+            : BTN_PRIMARY_OUTLINE
         return (
           <button
             key={i}
@@ -227,9 +232,10 @@ function ChoiceCard({ data, onAction }: { data: ChoiceData; onAction: (cmd: stri
   const [selected, setSelected] = useState<string | null>(null)
 
   return (
-    <div className="border border-[#E5E5E5] rounded-lg px-3 py-2.5">
-      <p className="text-[13px] font-medium text-[#333] mb-2">{data.question}</p>
-      <div className="flex items-center gap-1.5 flex-wrap">
+    <div className={CARD_BASE}>
+      {data.title && <p className={CARD_HEADER}>{data.title}</p>}
+      <p className="text-[13px] font-medium text-[#333] mb-3">{data.question}</p>
+      <div className="flex items-center gap-2 flex-wrap">
         {data.options?.map((opt, i) => {
           const isSelected = selected === opt.label
           const isOther = selected !== null && !isSelected
@@ -245,8 +251,8 @@ function ChoiceCard({ data, onAction }: { data: ChoiceData; onAction: (cmd: stri
                 isSelected
                   ? 'bg-[#3FAF7A] text-white border-[#3FAF7A]'
                   : isOther
-                    ? 'border-[#E5E5E5] text-[#999] opacity-30 pointer-events-none'
-                    : 'border-[#E5E5E5] text-[#4B4B4B] hover:border-[#3FAF7A] hover:text-[#3FAF7A]'
+                    ? 'border-[#D5D5D5] text-[#999] opacity-30 pointer-events-none'
+                    : 'border-[#D5D5D5] text-[#4B4B4B] hover:border-[#3FAF7A] hover:text-[#3FAF7A]'
               }`}
             >
               {opt.label}
@@ -273,7 +279,7 @@ function ProposalCard({ data, onAction }: { data: ProposalData; onAction: (cmd: 
 
   if (approved) {
     return (
-      <div className="border border-[#3FAF7A]/40 bg-[#E8F5E9]/30 rounded-lg px-3 py-2.5 flex items-center gap-2">
+      <div className={CARD_RESOLVED}>
         <CheckCircle2 className="h-3.5 w-3.5 text-[#3FAF7A]" />
         <span className="text-[12px] text-[#25785A] font-medium">Added to BRD</span>
       </div>
@@ -281,17 +287,19 @@ function ProposalCard({ data, onAction }: { data: ProposalData; onAction: (cmd: 
   }
 
   return (
-    <div className="border border-[#E5E5E5] rounded-lg px-3 py-2.5">
-      <div className="flex items-center gap-2 flex-wrap">
-        <span className="text-[13px] font-medium text-[#333] flex-1 min-w-0">{data.title}</span>
-        {data.tags?.map((tag, i) => (
-          <span key={i} className="text-[10px] rounded-full px-2 py-0.5 bg-[#E8F5E9] text-[#25785A]">
-            {tag}
-          </span>
-        ))}
-      </div>
+    <div className={CARD_BASE}>
+      <p className={CARD_HEADER}>{data.title}</p>
+      {data.tags && data.tags.length > 0 && (
+        <div className="flex items-center gap-1.5 flex-wrap mb-2.5">
+          {data.tags.map((tag, i) => (
+            <span key={i} className="text-[10px] rounded-full px-2 py-0.5 bg-[#E8F5E9] text-[#25785A]">
+              {tag}
+            </span>
+          ))}
+        </div>
+      )}
       {data.bullets && data.bullets.length > 0 && (
-        <ul className="mt-1.5 space-y-0.5">
+        <ul className="mt-1.5 space-y-1">
           {data.bullets.map((b, i) => (
             <li key={i} className="text-[12px] text-[#4B4B4B] flex items-start gap-1.5">
               <span className="w-1.5 h-1.5 rounded-full bg-[#3FAF7A] mt-1.5 shrink-0" />
@@ -303,15 +311,15 @@ function ProposalCard({ data, onAction }: { data: ProposalData; onAction: (cmd: 
       {data.body && !data.bullets && (
         <p className="text-[12px] text-[#4B4B4B] mt-1.5">{data.body}</p>
       )}
-      <div className="border-t border-[#E5E5E5] mt-2 pt-2 flex items-center gap-1.5">
+      <div className="border-t border-[#E5E5E5] mt-3 pt-3 flex items-center gap-2">
         {data.actions?.map((action, i) => {
           const variant = action.variant || 'primary'
           const cls =
             variant === 'ghost'
-              ? 'text-[11px] font-medium px-3 py-1.5 text-[#999] hover:text-[#4B4B4B] transition-colors'
+              ? BTN_GHOST
               : variant === 'outline'
-                ? 'text-[11px] font-medium px-3 py-1.5 rounded-lg border border-[#E5E5E5] text-[#4B4B4B] hover:bg-[#F5F5F5] transition-colors'
-                : 'text-[11px] font-medium px-3 py-1.5 rounded-lg bg-[#3FAF7A] text-white hover:bg-[#25785A] transition-colors'
+                ? BTN_SECONDARY
+                : BTN_PRIMARY_FILLED
           return (
             <button
               key={i}
@@ -339,7 +347,7 @@ function EmailDraftCard({ data, onAction }: { data: EmailDraftData; onAction: (c
 
   if (sent) {
     return (
-      <div className="border border-[#3FAF7A]/40 bg-[#E8F5E9]/30 rounded-lg px-3 py-2.5 flex items-center gap-2">
+      <div className={CARD_RESOLVED}>
         <Mail className="h-3.5 w-3.5 text-[#3FAF7A]" />
         <span className="text-[12px] text-[#25785A] font-medium">Draft copied</span>
       </div>
@@ -347,12 +355,12 @@ function EmailDraftCard({ data, onAction }: { data: EmailDraftData; onAction: (c
   }
 
   return (
-    <div className="border border-[#E5E5E5] rounded-lg overflow-hidden">
-      <div className="px-3 py-2 bg-[#F9F9F9] border-b border-[#E5E5E5] flex items-center gap-2">
+    <div className="border border-[#E5E5E5] rounded-2xl bg-[#F7F8FA] overflow-hidden">
+      <div className="px-4 py-3 bg-[#F0F1F3] border-b border-[#E5E5E5] flex items-center gap-2">
         <Mail className="h-3 w-3 text-[#999]" />
-        <span className="text-[10px] text-[#999] uppercase tracking-wider font-medium">Email Draft</span>
+        <span className="text-[10px] text-[#999] uppercase tracking-wider font-semibold">Email Draft</span>
       </div>
-      <div className="px-3 py-2.5 space-y-1">
+      <div className="px-4 py-3 space-y-1">
         <div className="flex items-baseline gap-2">
           <span className="text-[10px] text-[#999] uppercase tracking-wider w-10">To</span>
           <span className="text-[12px] text-[#333]">{data.to}</span>
@@ -365,19 +373,19 @@ function EmailDraftCard({ data, onAction }: { data: EmailDraftData; onAction: (c
           <p className="text-[12px] text-[#4B4B4B] line-clamp-4 whitespace-pre-line">{data.body}</p>
         </div>
       </div>
-      <div className="border-t border-[#E5E5E5] px-3 py-2 flex items-center gap-1.5">
+      <div className="border-t border-[#E5E5E5] px-4 py-3 flex items-center gap-2">
         <button
           onClick={() => {
             setSent(true)
             onAction(`Send email draft to ${data.to} about "${data.subject}"`)
           }}
-          className="text-[11px] font-medium px-3 py-1.5 rounded-lg bg-[#3FAF7A] text-white hover:bg-[#25785A] transition-colors"
+          className={BTN_PRIMARY_FILLED}
         >
           Send Draft
         </button>
         <button
           onClick={() => onAction(`Edit email draft to ${data.to} about "${data.subject}"`)}
-          className="text-[11px] font-medium px-3 py-1.5 rounded-lg border border-[#E5E5E5] text-[#4B4B4B] hover:bg-[#F5F5F5] transition-colors"
+          className={BTN_SECONDARY}
         >
           Edit
         </button>
@@ -395,7 +403,7 @@ function MeetingCard({ data, onAction }: { data: MeetingData; onAction: (cmd: st
 
   if (booked) {
     return (
-      <div className="border border-[#3FAF7A]/40 bg-[#E8F5E9]/30 rounded-lg px-3 py-2.5 flex items-center gap-2">
+      <div className={CARD_RESOLVED}>
         <Calendar className="h-3.5 w-3.5 text-[#3FAF7A]" />
         <span className="text-[12px] text-[#25785A] font-medium">Meeting prep saved</span>
       </div>
@@ -403,12 +411,12 @@ function MeetingCard({ data, onAction }: { data: MeetingData; onAction: (cmd: st
   }
 
   return (
-    <div className="border border-[#E5E5E5] rounded-lg overflow-hidden">
-      <div className="px-3 py-2 bg-[#F9F9F9] border-b border-[#E5E5E5] flex items-center gap-2">
+    <div className="border border-[#E5E5E5] rounded-2xl bg-[#F7F8FA] overflow-hidden">
+      <div className="px-4 py-3 bg-[#F0F1F3] border-b border-[#E5E5E5] flex items-center gap-2">
         <Calendar className="h-3 w-3 text-[#999]" />
-        <span className="text-[10px] text-[#999] uppercase tracking-wider font-medium">Meeting</span>
+        <span className="text-[10px] text-[#999] uppercase tracking-wider font-semibold">Meeting</span>
       </div>
-      <div className="px-3 py-2.5 space-y-1.5">
+      <div className="px-4 py-3 space-y-1.5">
         <p className="text-[13px] font-medium text-[#333]">{data.topic}</p>
         {data.attendees?.length > 0 && (
           <p className="text-[11px] text-[#7B7B7B]">With: {data.attendees.join(', ')}</p>
@@ -424,19 +432,19 @@ function MeetingCard({ data, onAction }: { data: MeetingData; onAction: (cmd: st
           </ol>
         )}
       </div>
-      <div className="border-t border-[#E5E5E5] px-3 py-2 flex items-center gap-1.5">
+      <div className="border-t border-[#E5E5E5] px-4 py-3 flex items-center gap-2">
         <button
           onClick={() => {
             setBooked(true)
             onAction(`Book meeting: "${data.topic}" with ${data.attendees?.join(', ')}`)
           }}
-          className="text-[11px] font-medium px-3 py-1.5 rounded-lg bg-[#3FAF7A] text-white hover:bg-[#25785A] transition-colors"
+          className={BTN_PRIMARY_FILLED}
         >
           Book
         </button>
         <button
           onClick={() => onAction(`Edit meeting agenda for "${data.topic}"`)}
-          className="text-[11px] font-medium px-3 py-1.5 rounded-lg border border-[#E5E5E5] text-[#4B4B4B] hover:bg-[#F5F5F5] transition-colors"
+          className={BTN_SECONDARY}
         >
           Edit Agenda
         </button>
@@ -484,7 +492,7 @@ function SmartSummaryCard({ data, onAction }: { data: SmartSummaryData; onAction
 
   if (saved) {
     return (
-      <div className="border border-[#3FAF7A]/40 bg-[#E8F5E9]/30 rounded-lg px-3 py-2.5 flex items-center gap-2">
+      <div className={CARD_RESOLVED}>
         <CheckCircle2 className="h-3.5 w-3.5 text-[#3FAF7A]" />
         <span className="text-[12px] text-[#25785A] font-medium">
           {selectedCount} item{selectedCount !== 1 ? 's' : ''} saved to BRD
@@ -494,17 +502,17 @@ function SmartSummaryCard({ data, onAction }: { data: SmartSummaryData; onAction
   }
 
   return (
-    <div className="border border-[#E5E5E5] rounded-lg px-3 py-2.5">
-      <p className="text-[10px] text-[#999] uppercase tracking-wider font-medium mb-2">From our discussion</p>
+    <div className={CARD_BASE}>
+      <p className={CARD_HEADER}>From our discussion</p>
       <div className="space-y-1">
         {(data.items || []).map((item, i) => (
           <label
             key={i}
-            className="flex items-center gap-2 cursor-pointer group"
+            className="flex items-start gap-2.5 cursor-pointer group py-1.5"
             onClick={() => handleToggle(i)}
           >
             <span
-              className={`w-[18px] h-[18px] rounded border flex items-center justify-center shrink-0 transition-colors ${
+              className={`w-[18px] h-[18px] rounded border flex items-center justify-center shrink-0 mt-0.5 transition-colors ${
                 checks[i]
                   ? 'bg-[#3FAF7A] border-[#3FAF7A]'
                   : 'border-[#D5D5D5] group-hover:border-[#3FAF7A]'
@@ -512,25 +520,27 @@ function SmartSummaryCard({ data, onAction }: { data: SmartSummaryData; onAction
             >
               {checks[i] && <Check className="h-3 w-3 text-white" />}
             </span>
-            <span className="text-[12px] text-[#333] flex-1 min-w-0">{item.label}</span>
-            <span
-              className={`text-[10px] rounded-full px-2 py-0.5 font-medium shrink-0 ${
-                TYPE_BADGE_STYLES[item.type] || TYPE_BADGE_STYLES.task
-              }`}
-            >
-              {item.type}
-            </span>
+            <div className="flex-1 min-w-0">
+              <span
+                className={`text-[10px] rounded px-1.5 py-0.5 font-medium uppercase tracking-wide mb-1 inline-block ${
+                  TYPE_BADGE_STYLES[item.type] || TYPE_BADGE_STYLES.task
+                }`}
+              >
+                {item.type}
+              </span>
+              <span className="text-[12px] text-[#333] block">{item.label}</span>
+            </div>
           </label>
         ))}
       </div>
-      <div className="border-t border-[#E5E5E5] mt-2 pt-2 flex items-center justify-between">
+      <div className="border-t border-[#E5E5E5] mt-3 pt-3 flex items-center justify-between">
         <span className="text-[11px] text-[#999]">
           {selectedCount} of {data.items?.length || 0} selected
         </span>
         <button
           onClick={handleSave}
           disabled={selectedCount === 0}
-          className="text-[11px] font-medium px-3 py-1.5 rounded-lg bg-[#3FAF7A] text-white hover:bg-[#25785A] transition-colors disabled:opacity-40 disabled:pointer-events-none"
+          className={`${BTN_PRIMARY_FILLED} disabled:opacity-40 disabled:pointer-events-none`}
         >
           Save selected to BRD
         </button>
@@ -552,7 +562,7 @@ const EVIDENCE_TAG_STYLES: Record<string, string> = {
 
 function EvidenceCard({ data, onAction }: { data: EvidenceData; onAction: (cmd: string) => void }) {
   return (
-    <div className="space-y-2">
+    <div className="space-y-3">
       {(data.items || []).map((item, i) => (
         <EvidenceItem key={i} item={item} onAction={onAction} />
       ))}
@@ -565,7 +575,7 @@ function EvidenceItem({ item, onAction }: { item: EvidenceItem; onAction: (cmd: 
 
   return (
     <div
-      className={`border border-[#E5E5E5] rounded-lg px-3 py-2.5 transition-all duration-300 ${
+      className={`border border-[#E5E5E5] rounded-2xl bg-[#F7F8FA] px-4 py-4 transition-all duration-300 ${
         tagged ? 'opacity-0 max-h-0 py-0 px-0 mt-0 overflow-hidden border-0' : ''
       }`}
     >
@@ -575,7 +585,7 @@ function EvidenceItem({ item, onAction }: { item: EvidenceItem; onAction: (cmd: 
           {item.source}{item.section ? ` — ${item.section}` : ''}
         </p>
       </div>
-      <div className="flex items-center gap-1">
+      <div className="flex items-center gap-1.5">
         {(['feature', 'constraint', 'assumption', 'dismiss'] as const).map((tag) => (
           <button
             key={tag}
@@ -587,7 +597,7 @@ function EvidenceItem({ item, onAction }: { item: EvidenceItem; onAction: (cmd: 
                 onAction(`Tag as ${tag}: "${item.quote.slice(0, 60)}..." from ${item.source}`)
               }
             }}
-            className={`text-[11px] font-medium px-2.5 py-1 rounded-lg border border-[#E5E5E5] text-[#4B4B4B] transition-colors capitalize ${
+            className={`text-[12px] font-medium px-3 py-1 rounded-full border border-[#E5E5E5] text-[#4B4B4B] transition-colors capitalize ${
               EVIDENCE_TAG_STYLES[tag] || ''
             }`}
           >

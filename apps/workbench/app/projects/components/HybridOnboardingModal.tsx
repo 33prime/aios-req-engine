@@ -116,25 +116,32 @@ export function HybridOnboardingModal({
     }
   }
 
-  const addStakeholder = () => {
-    if (!sFirstName.trim()) return
-    setStakeholders((prev) => [
-      ...prev,
-      {
-        first_name: sFirstName.trim(),
-        last_name: sLastName.trim(),
-        email: sEmail.trim() || undefined,
-        linkedin_url: sLinkedin.trim() || undefined,
-        role: sRole.trim() || undefined,
-        stakeholder_type: sType,
-      },
-    ])
+  const buildStakeholderFromForm = (): StakeholderLaunchInput | null => {
+    if (!sFirstName.trim()) return null
+    return {
+      first_name: sFirstName.trim(),
+      last_name: sLastName.trim(),
+      email: sEmail.trim() || undefined,
+      linkedin_url: sLinkedin.trim() || undefined,
+      role: sRole.trim() || undefined,
+      stakeholder_type: sType,
+    }
+  }
+
+  const clearStakeholderForm = () => {
     setSFirstName('')
     setSLastName('')
     setSEmail('')
     setSLinkedin('')
     setSRole('')
     setSType('champion')
+  }
+
+  const addStakeholder = () => {
+    const s = buildStakeholderFromForm()
+    if (!s) return
+    setStakeholders((prev) => [...prev, s])
+    clearStakeholderForm()
   }
 
   const removeStakeholder = (idx: number) => {
@@ -152,6 +159,12 @@ export function HybridOnboardingModal({
   }
 
   const handleStakeholderContinue = () => {
+    // Auto-add any filled-in stakeholder before continuing
+    const pending = buildStakeholderFromForm()
+    if (pending) {
+      setStakeholders((prev) => [...prev, pending])
+      clearStakeholderForm()
+    }
     setPhase('confirm')
   }
 

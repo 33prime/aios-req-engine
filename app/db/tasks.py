@@ -7,11 +7,13 @@ from uuid import UUID
 from app.core.schemas_tasks import (
     AnchoredEntityType,
     GateStage,
+    MyTasksResponse,
     Task,
     TaskActivity,
     TaskActivityAction,
     TaskActivityCreate,
     TaskActorType,
+    TaskComment,
     TaskCompletionMethod,
     TaskCreate,
     TaskFilter,
@@ -20,6 +22,7 @@ from app.core.schemas_tasks import (
     TaskSummary,
     TaskType,
     TaskUpdate,
+    TaskWithProject,
 )
 from app.db.supabase_client import get_supabase as get_client
 
@@ -133,6 +136,16 @@ async def create_task(
         "source_context": data.source_context,
         "metadata": data.metadata,
     }
+
+    # New optional fields
+    if data.assigned_to:
+        task_data["assigned_to"] = str(data.assigned_to)
+    if data.due_date:
+        task_data["due_date"] = data.due_date.isoformat()
+    if data.priority:
+        task_data["priority"] = data.priority
+    if created_by:
+        task_data["created_by"] = str(created_by)
 
     result = client.table("tasks").insert(task_data).execute()
     task = Task(**result.data[0])
@@ -253,10 +266,14 @@ async def update_task(
         return None
 
     update_data = {}
-    for field, value in data.model_dump().items():
+    for field, value in data.model_dump(exclude_unset=True).items():
         if value is not None:
             if hasattr(value, "value"):
                 update_data[field] = value.value
+            elif isinstance(value, UUID):
+                update_data[field] = str(value)
+            elif hasattr(value, "isoformat"):
+                update_data[field] = value.isoformat()
             else:
                 update_data[field] = value
 
@@ -286,6 +303,14 @@ async def update_task(
 
     if data.priority_score and data.priority_score != current_task.priority_score:
         action = TaskActivityAction.PRIORITY_CHANGED
+
+    if data.assigned_to and data.assigned_to != current_task.assigned_to:
+        action = TaskActivityAction.ASSIGNED
+        activity_details["assigned_to"] = str(data.assigned_to)
+
+    if data.due_date and data.due_date != current_task.due_date:
+        action = TaskActivityAction.DUE_DATE_CHANGED
+        activity_details["due_date"] = data.due_date.isoformat()
 
     await log_task_activity(
         task_id=task_id,
@@ -767,3 +792,296 @@ async def recalculate_priorities_for_entity(
         return {"total_checked": 0, "updated_count": 0, "updated_tasks": []}
 
     return await recalculate_task_priorities(project_id, task_ids)
+
+
+# ============================================================================
+# Cross-Project Task Queries
+# ============================================================================
+
+
+async def list_my_tasks(
+    user_id: UUID,
+    view: str = "all",
+    status: Optional[str] = None,
+    limit: int = 100,
+    offset: int = 0,
+) -> MyTasksResponse:
+    """
+    List tasks across all projects for a user.
+
+    Views:
+      - all: all tasks in projects the user is a member of
+      - assigned_to_me: tasks where assigned_to = user_id
+      - created_by_me: tasks where created_by = user_id
+
+    Returns TaskWithProject items with joined project name and assignee info.
+    """
+    from app.db.project_members import list_user_projects
+
+    client = get_client()
+
+    # Get all project IDs the user belongs to
+    project_ids = await list_user_projects(user_id)
+
+    # Fallback: if no project_members entries, query projects table directly
+    # (consultants who create projects aren't auto-added as project_members)
+    if not project_ids:
+        projects_result = (
+            client.table("projects")
+            .select("id")
+            .eq("status", "active")
+            .execute()
+        )
+        project_ids = [UUID(row["id"]) for row in (projects_result.data or [])]
+        if not project_ids:
+            return MyTasksResponse(tasks=[], total=0, counts={})
+
+    pid_strs = [str(pid) for pid in project_ids]
+
+    # Build query with project name join — use left join for assignee since it may be null
+    query = (
+        client.table("tasks")
+        .select("*, projects(name)")
+        .in_("project_id", pid_strs)
+    )
+
+    # Apply view filter (within the user's projects)
+    if view == "assigned_to_me":
+        query = query.eq("assigned_to", str(user_id))
+    elif view == "created_by_me":
+        query = query.eq("created_by", str(user_id))
+    # "all" — no additional filter, show all tasks in user's projects
+
+    # Apply status filter
+    if status:
+        query = query.eq("status", status)
+
+    # Order: pending/in_progress first, then by priority desc
+    query = query.order("priority_score", desc=True).order("created_at", desc=True)
+    query = query.range(offset, offset + limit - 1)
+
+    result = query.execute()
+
+    # Count by status (unfiltered by status, same view scope)
+    count_query = (
+        client.table("tasks")
+        .select("status")
+        .in_("project_id", pid_strs)
+    )
+    if view == "assigned_to_me":
+        count_query = count_query.eq("assigned_to", str(user_id))
+    elif view == "created_by_me":
+        count_query = count_query.eq("created_by", str(user_id))
+
+    count_result = count_query.execute()
+    counts: dict[str, int] = {}
+    for row in count_result.data or []:
+        s = row.get("status", "unknown")
+        counts[s] = counts.get(s, 0) + 1
+
+    # Transform rows into TaskWithProject
+    tasks = []
+    for row in result.data or []:
+        project_data = row.pop("projects", {}) or {}
+
+        tasks.append(TaskWithProject(
+            id=row["id"],
+            project_id=row["project_id"],
+            project_name=project_data.get("name", "Unknown"),
+            title=row["title"],
+            description=row.get("description"),
+            task_type=row["task_type"],
+            status=row["status"],
+            priority_score=row.get("priority_score", 0),
+            priority=row.get("priority", "none"),
+            requires_client_input=row.get("requires_client_input", False),
+            anchored_entity_type=row.get("anchored_entity_type"),
+            gate_stage=row.get("gate_stage"),
+            assigned_to=row.get("assigned_to"),
+            assigned_to_name=None,  # Populated below if assigned
+            assigned_to_photo_url=None,
+            due_date=row.get("due_date"),
+            created_by=row.get("created_by"),
+            created_at=row["created_at"],
+            updated_at=row["updated_at"],
+        ))
+
+    # Batch-resolve assignee names for tasks that have assigned_to
+    assignee_ids = list({t.assigned_to for t in tasks if t.assigned_to})
+    if assignee_ids:
+        users_result = (
+            client.table("users")
+            .select("id, first_name, last_name, avatar_url")
+            .in_("id", [str(uid) for uid in assignee_ids])
+            .execute()
+        )
+        user_map = {row["id"]: row for row in users_result.data or []}
+        for t in tasks:
+            if t.assigned_to and str(t.assigned_to) in user_map:
+                u = user_map[str(t.assigned_to)]
+                if u.get("first_name"):
+                    t.assigned_to_name = f"{u['first_name']} {u.get('last_name', '')}".strip()
+                t.assigned_to_photo_url = u.get("avatar_url")
+
+    total = sum(counts.values())
+
+    return MyTasksResponse(tasks=tasks, total=total, counts=counts)
+
+
+async def get_task_with_project(task_id: UUID) -> Optional[TaskWithProject]:
+    """Get a single task with project name and assignee info."""
+    client = get_client()
+
+    result = (
+        client.table("tasks")
+        .select("*, projects(name)")
+        .eq("id", str(task_id))
+        .execute()
+    )
+
+    if not result.data:
+        return None
+
+    row = result.data[0]
+    project_data = row.pop("projects", {}) or {}
+
+    assignee_name = None
+    assignee_photo = None
+
+    # Resolve assignee info if present
+    if row.get("assigned_to"):
+        user_result = (
+            client.table("users")
+            .select("first_name, last_name, avatar_url")
+            .eq("id", row["assigned_to"])
+            .execute()
+        )
+        if user_result.data:
+            u = user_result.data[0]
+            if u.get("first_name"):
+                assignee_name = f"{u['first_name']} {u.get('last_name', '')}".strip()
+            assignee_photo = u.get("avatar_url")
+
+    return TaskWithProject(
+        id=row["id"],
+        project_id=row["project_id"],
+        project_name=project_data.get("name", "Unknown"),
+        title=row["title"],
+        description=row.get("description"),
+        task_type=row["task_type"],
+        status=row["status"],
+        priority_score=row.get("priority_score", 0),
+        priority=row.get("priority", "none"),
+        requires_client_input=row.get("requires_client_input", False),
+        anchored_entity_type=row.get("anchored_entity_type"),
+        gate_stage=row.get("gate_stage"),
+        assigned_to=row.get("assigned_to"),
+        assigned_to_name=assignee_name,
+        assigned_to_photo_url=assignee_photo,
+        due_date=row.get("due_date"),
+        created_by=row.get("created_by"),
+        created_at=row["created_at"],
+        updated_at=row["updated_at"],
+    )
+
+
+# ============================================================================
+# Task Comments
+# ============================================================================
+
+
+async def create_task_comment(
+    task_id: UUID,
+    project_id: UUID,
+    author_id: UUID,
+    body: str,
+) -> TaskComment:
+    """Create a comment on a task."""
+    client = get_client()
+
+    comment_data = {
+        "task_id": str(task_id),
+        "project_id": str(project_id),
+        "author_id": str(author_id),
+        "body": body,
+    }
+
+    result = client.table("task_comments").insert(comment_data).execute()
+    row = result.data[0]
+
+    # Fetch author info
+    user_result = (
+        client.table("users")
+        .select("first_name, last_name, avatar_url")
+        .eq("id", str(author_id))
+        .execute()
+    )
+    user_data = user_result.data[0] if user_result.data else {}
+    author_name = None
+    if user_data.get("first_name"):
+        author_name = f"{user_data['first_name']} {user_data.get('last_name', '')}".strip()
+
+    return TaskComment(
+        id=row["id"],
+        task_id=row["task_id"],
+        project_id=row["project_id"],
+        author_id=row["author_id"],
+        body=row["body"],
+        author_name=author_name,
+        author_photo_url=user_data.get("avatar_url"),
+        created_at=row["created_at"],
+        updated_at=row["updated_at"],
+    )
+
+
+async def list_task_comments(
+    task_id: UUID,
+    limit: int = 50,
+    offset: int = 0,
+) -> tuple[list[TaskComment], int]:
+    """List comments for a task with author info."""
+    client = get_client()
+
+    result = (
+        client.table("task_comments")
+        .select("*, author:users!task_comments_author_id_fkey(first_name, last_name, avatar_url)", count="exact")
+        .eq("task_id", str(task_id))
+        .order("created_at", desc=False)
+        .range(offset, offset + limit - 1)
+        .execute()
+    )
+
+    comments = []
+    for row in result.data or []:
+        author_data = row.pop("author", {}) or {}
+        author_name = None
+        if author_data.get("first_name"):
+            author_name = f"{author_data['first_name']} {author_data.get('last_name', '')}".strip()
+
+        comments.append(TaskComment(
+            id=row["id"],
+            task_id=row["task_id"],
+            project_id=row["project_id"],
+            author_id=row["author_id"],
+            body=row["body"],
+            author_name=author_name,
+            author_photo_url=author_data.get("avatar_url"),
+            created_at=row["created_at"],
+            updated_at=row["updated_at"],
+        ))
+
+    total = result.count or len(comments)
+    return comments, total
+
+
+async def delete_task_comment(comment_id: UUID, author_id: UUID) -> bool:
+    """Delete a comment (only by the author)."""
+    client = get_client()
+    result = (
+        client.table("task_comments")
+        .delete()
+        .eq("id", str(comment_id))
+        .eq("author_id", str(author_id))
+        .execute()
+    )
+    return len(result.data) > 0

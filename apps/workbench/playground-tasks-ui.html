@@ -1,0 +1,1503 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tasks UI — AIOS Playground</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   RESET & TOKENS
+   ============================================================ */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  /* Brand */
+  --green: #3FAF7A;
+  --green-light: #E8F5E9;
+  --green-dark: #25785A;
+  --navy: #0A1E2F;
+  --slate: #0D2A35;
+  /* Text */
+  --text-primary: #333333;
+  --text-secondary: #666666;
+  --text-muted: #999999;
+  --text-faint: #BBBBBB;
+  /* Surfaces */
+  --bg: #F4F4F4;
+  --card: #FFFFFF;
+  --border: #E5E5E5;
+  /* Priority */
+  --priority-high: #25785A;
+  --priority-medium: #3FAF7A;
+  --priority-low: #E5E5E5;
+  /* Danger (overdue only) */
+  --red: #DC2626;
+  /* Spacing */
+  --radius: 8px;
+  --radius-full: 999px;
+}
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  background: var(--bg);
+  color: var(--text-primary);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ============================================================
+   LAYOUT
+   ============================================================ */
+.shell {
+  display: flex;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* Mini sidebar */
+.sidebar {
+  width: 56px;
+  background: var(--card);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 12px 0;
+  gap: 4px;
+  flex-shrink: 0;
+}
+.sidebar .logo {
+  width: 28px; height: 28px;
+  background: var(--green);
+  border-radius: 6px;
+  margin-bottom: 16px;
+  display: flex; align-items: center; justify-content: center;
+}
+.sidebar .logo svg { width: 16px; height: 16px; color: white; }
+.sidebar .nav-item {
+  width: 40px; height: 40px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: var(--radius);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s;
+  position: relative;
+}
+.sidebar .nav-item:hover { background: var(--bg); color: var(--text-secondary); }
+.sidebar .nav-item.active {
+  background: var(--green-light);
+  color: var(--green);
+}
+.sidebar .nav-item.active::before {
+  content: '';
+  position: absolute;
+  left: -8px;
+  top: 8px; bottom: 8px;
+  width: 3px;
+  background: var(--green);
+  border-radius: 0 2px 2px 0;
+}
+
+/* Main area */
+.main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* ============================================================
+   PLAYGROUND TAB BAR (top)
+   ============================================================ */
+.playground-tabs {
+  display: flex;
+  background: var(--navy);
+  padding: 0 16px;
+  gap: 2px;
+  flex-shrink: 0;
+}
+.playground-tab {
+  padding: 10px 20px;
+  color: rgba(255,255,255,0.5);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all 0.15s;
+  user-select: none;
+}
+.playground-tab:hover { color: rgba(255,255,255,0.8); }
+.playground-tab.active {
+  color: #fff;
+  border-bottom-color: var(--green);
+}
+
+/* View containers */
+.view { display: none; flex: 1; overflow: hidden; }
+.view.active { display: flex; flex-direction: column; }
+
+/* ============================================================
+   VIEW 1: TASK LIST
+   ============================================================ */
+.tasks-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 32px 0;
+  gap: 12px;
+}
+.tasks-header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.tasks-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/* View dropdown pill */
+.view-dropdown-wrap { position: relative; }
+.view-pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  background: var(--card);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: all 0.15s;
+  user-select: none;
+}
+.view-pill:hover { background: var(--bg); }
+.view-pill svg { width: 14px; height: 14px; color: var(--text-muted); }
+.view-pill .count {
+  background: var(--bg);
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: var(--radius-full);
+}
+
+.view-dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+  min-width: 220px;
+  z-index: 100;
+  display: none;
+  overflow: hidden;
+}
+.view-dropdown.open { display: block; }
+.view-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.1s;
+  color: var(--text-primary);
+}
+.view-option:hover { background: var(--bg); }
+.view-option .opt-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.view-option .opt-left svg { width: 14px; height: 14px; color: var(--text-muted); }
+.view-option .opt-count {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+.view-option .opt-check { color: var(--green); font-weight: 600; }
+
+/* Add task button */
+.btn-add-task {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background: var(--green);
+  color: white;
+  border: none;
+  border-radius: var(--radius);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+  font-family: inherit;
+}
+.btn-add-task:hover { background: var(--green-dark); }
+.btn-add-task svg { width: 14px; height: 14px; }
+
+/* Toolbar */
+.tasks-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 32px;
+}
+.toolbar-pill {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  background: var(--card);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.toolbar-pill:hover { background: var(--bg); color: var(--text-primary); }
+.toolbar-pill svg { width: 13px; height: 13px; }
+.toolbar-search {
+  margin-left: auto;
+  width: 32px; height: 32px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: var(--radius-full);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.toolbar-search:hover { background: var(--bg); color: var(--text-secondary); }
+.toolbar-search svg { width: 16px; height: 16px; }
+
+/* Task list scroll area */
+.tasks-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 32px 32px;
+}
+
+/* Time group */
+.time-group { margin-bottom: 8px; }
+.time-group-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 0 8px;
+  cursor: pointer;
+  user-select: none;
+}
+.time-group-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+.time-group-count {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+.time-group-chevron {
+  width: 16px; height: 16px;
+  color: var(--text-muted);
+  transition: transform 0.2s;
+  flex-shrink: 0;
+}
+.time-group.collapsed .time-group-chevron { transform: rotate(-90deg); }
+.time-group-line {
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+.time-group-add {
+  width: 24px; height: 24px;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-radius: 4px;
+  transition: all 0.15s;
+  flex-shrink: 0;
+}
+.time-group-add:hover { background: var(--green-light); color: var(--green); }
+.time-group-add svg { width: 14px; height: 14px; }
+.time-group-content { overflow: hidden; transition: all 0.2s; }
+.time-group.collapsed .time-group-content { display: none; }
+
+/* Empty state */
+.empty-state {
+  text-align: center;
+  padding: 24px;
+}
+.empty-state-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.empty-state-sub {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+/* Task row */
+.task-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.1s;
+  position: relative;
+}
+.task-row:hover { background: rgba(0,0,0,0.02); }
+
+/* Status circle */
+.task-status {
+  width: 18px; height: 18px;
+  border-radius: 50%;
+  border: 1.5px dashed var(--text-muted);
+  flex-shrink: 0;
+  cursor: pointer;
+  transition: all 0.15s;
+  display: flex; align-items: center; justify-content: center;
+}
+.task-status:hover {
+  border-color: var(--green);
+  background: var(--green-light);
+}
+.task-status.completed {
+  border: none;
+  background: var(--green);
+}
+.task-status.completed svg { width: 12px; height: 12px; color: white; }
+
+/* Priority bar */
+.task-priority-bar {
+  width: 3px;
+  height: 18px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+.task-priority-bar.high { background: var(--priority-high); }
+.task-priority-bar.medium { background: var(--priority-medium); }
+.task-priority-bar.low { background: var(--priority-low); }
+.task-priority-bar.none { background: var(--priority-low); }
+
+/* Task title */
+.task-title-text {
+  flex: 1;
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.task-row.completed-row .task-title-text {
+  text-decoration: line-through;
+  color: var(--text-muted);
+}
+
+/* Project badge */
+.task-project-badge {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-muted);
+  background: var(--bg);
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* Due date */
+.task-due {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-muted);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.task-due.overdue { color: var(--red); }
+
+/* Assignee avatar */
+.task-avatar {
+  width: 24px; height: 24px;
+  border-radius: 50%;
+  background: var(--green);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+.task-avatar span {
+  font-size: 10px;
+  font-weight: 600;
+  color: white;
+  line-height: 1;
+}
+.task-avatar.alt { background: var(--green-dark); }
+
+/* ============================================================
+   VIEW 2: ADD TASK MODAL
+   ============================================================ */
+.modal-backdrop {
+  flex: 1;
+  background: rgba(0,0,0,0.08);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 80px 32px;
+}
+.modal-card {
+  background: var(--card);
+  border-radius: 12px;
+  box-shadow: 0 16px 48px rgba(0,0,0,0.15);
+  width: 100%;
+  max-width: 600px;
+  overflow: hidden;
+}
+.modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 20px 24px 0;
+}
+.modal-close {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.modal-close-btn {
+  width: 28px; height: 28px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 6px;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.modal-close-btn:hover { background: var(--bg); color: var(--text-primary); }
+.modal-close-btn svg { width: 16px; height: 16px; }
+.modal-expand-btn {
+  width: 28px; height: 28px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 6px;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.modal-expand-btn:hover { background: var(--bg); color: var(--text-primary); }
+.modal-expand-btn svg { width: 14px; height: 14px; }
+
+.modal-body { padding: 0 24px; }
+.modal-title-input {
+  width: 100%;
+  border: none;
+  outline: none;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
+  font-family: inherit;
+  padding: 0;
+  margin-bottom: 4px;
+}
+.modal-title-input::placeholder { color: var(--text-faint); }
+.modal-desc-input {
+  width: 100%;
+  border: none;
+  outline: none;
+  font-size: 14px;
+  color: var(--text-secondary);
+  font-family: inherit;
+  padding: 0;
+  min-height: 48px;
+  resize: none;
+}
+.modal-desc-input::placeholder { color: var(--text-faint); }
+
+.modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 24px;
+  margin-top: 12px;
+  border-top: 1px solid var(--border);
+}
+.modal-pills {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+/* Property pills (shared) */
+.prop-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.15s;
+  user-select: none;
+  position: relative;
+  white-space: nowrap;
+}
+.prop-pill:hover { background: var(--bg); color: var(--text-primary); }
+.prop-pill svg { width: 13px; height: 13px; }
+.prop-pill .pill-avatar {
+  width: 18px; height: 18px;
+  border-radius: 50%;
+  background: var(--green);
+  display: flex; align-items: center; justify-content: center;
+  margin-left: -3px;
+}
+.prop-pill .pill-avatar span {
+  font-size: 9px;
+  font-weight: 600;
+  color: white;
+}
+
+/* Priority dropdown inside pill */
+.priority-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+  min-width: 140px;
+  z-index: 200;
+  display: none;
+  overflow: hidden;
+}
+.priority-dropdown.open { display: block; }
+.priority-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.1s;
+  color: var(--text-primary);
+}
+.priority-option:hover { background: var(--bg); }
+.priority-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+}
+
+.modal-add-btn {
+  padding: 8px 20px;
+  background: var(--green);
+  color: white;
+  border: none;
+  border-radius: var(--radius);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+  font-family: inherit;
+}
+.modal-add-btn:hover { background: var(--green-dark); }
+
+/* ============================================================
+   VIEW 3: TASK DETAIL
+   ============================================================ */
+.detail-view {
+  flex: 1;
+  overflow-y: auto;
+  background: var(--card);
+}
+.detail-inner {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 24px 40px 60px;
+}
+
+/* Breadcrumb */
+.breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-bottom: 24px;
+}
+.breadcrumb a {
+  color: var(--text-muted);
+  text-decoration: none;
+  transition: color 0.15s;
+}
+.breadcrumb a:hover { color: var(--text-primary); }
+.breadcrumb .sep { color: var(--text-faint); }
+.breadcrumb .current { color: var(--text-primary); font-weight: 500; }
+.breadcrumb .star-btn {
+  width: 20px; height: 20px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  color: var(--text-faint);
+  transition: color 0.15s;
+  margin-left: 4px;
+}
+.breadcrumb .star-btn:hover { color: var(--green); }
+.breadcrumb .star-btn svg { width: 16px; height: 16px; }
+
+/* Detail title */
+.detail-title {
+  font-size: 26px;
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: 1.3;
+  margin-bottom: 16px;
+}
+
+/* Property pills row */
+.detail-props {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 28px;
+}
+.detail-props .prop-pill {
+  font-size: 13px;
+  padding: 6px 12px;
+}
+.detail-props .prop-pill .pill-avatar {
+  width: 20px; height: 20px;
+}
+.detail-props .prop-pill .pill-avatar span { font-size: 10px; }
+.prop-pill.overdue-date { color: var(--red); border-color: rgba(220,38,38,0.2); }
+
+/* Description */
+.detail-desc {
+  font-size: 15px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  margin-bottom: 32px;
+  font-style: italic;
+}
+.detail-desc a {
+  color: var(--green);
+  text-decoration: none;
+}
+.detail-desc a:hover { text-decoration: underline; }
+
+/* Divider */
+.detail-divider {
+  height: 1px;
+  background: var(--border);
+  margin-bottom: 28px;
+}
+
+/* Comment input */
+.comment-input-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 32px;
+}
+.comment-avatar {
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  background: var(--green);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.comment-avatar span {
+  font-size: 12px;
+  font-weight: 600;
+  color: white;
+}
+.comment-input-wrap {
+  flex: 1;
+  position: relative;
+}
+.comment-input {
+  width: 100%;
+  padding: 10px 44px 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  font-size: 13px;
+  color: var(--text-primary);
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.comment-input::placeholder { color: var(--text-faint); }
+.comment-input:focus { border-color: var(--green); }
+.comment-send {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  background: var(--bg);
+  border: none;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.comment-send:hover { background: var(--green); color: white; }
+.comment-send svg { width: 14px; height: 14px; }
+
+/* Activity section */
+.activity-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+.activity-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.activity-subscribe {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 13px;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: color 0.15s;
+}
+.activity-subscribe:hover { color: var(--text-primary); }
+.activity-subscribe svg { width: 16px; height: 16px; }
+
+/* Activity entry */
+.activity-entry {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 8px 0;
+}
+.activity-icon {
+  width: 24px; height: 24px;
+  border-radius: 6px;
+  background: var(--bg);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+.activity-icon svg { width: 14px; height: 14px; color: var(--text-muted); }
+.activity-icon.system-icon {
+  background: var(--green-light);
+}
+.activity-icon.system-icon svg { color: var(--green); }
+.activity-text {
+  flex: 1;
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+.activity-text strong {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+.activity-time {
+  font-size: 12px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+/* ============================================================
+   PROMPT OUTPUT BAR (at bottom)
+   ============================================================ */
+.prompt-bar {
+  background: var(--navy);
+  border-top: 1px solid rgba(255,255,255,0.1);
+  padding: 12px 20px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+.prompt-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(255,255,255,0.35);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  flex-shrink: 0;
+}
+.prompt-text {
+  flex: 1;
+  font-size: 12px;
+  color: rgba(255,255,255,0.7);
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.prompt-copy {
+  padding: 5px 12px;
+  background: rgba(255,255,255,0.1);
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 6px;
+  color: rgba(255,255,255,0.7);
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+  font-family: inherit;
+  white-space: nowrap;
+}
+.prompt-copy:hover { background: rgba(255,255,255,0.15); color: white; }
+
+/* ============================================================
+   SCROLLBAR
+   ============================================================ */
+.tasks-scroll::-webkit-scrollbar,
+.detail-view::-webkit-scrollbar { width: 6px; }
+.tasks-scroll::-webkit-scrollbar-track,
+.detail-view::-webkit-scrollbar-track { background: transparent; }
+.tasks-scroll::-webkit-scrollbar-thumb,
+.detail-view::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+.tasks-scroll::-webkit-scrollbar-thumb:hover,
+.detail-view::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+/* ============================================================
+   STATUS DROPDOWN
+   ============================================================ */
+.status-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+  min-width: 160px;
+  z-index: 200;
+  display: none;
+  overflow: hidden;
+}
+.status-dropdown.open { display: block; }
+.status-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.1s;
+  color: var(--text-primary);
+}
+.status-option:hover { background: var(--bg); }
+.status-icon-mini {
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  border: 1.5px dashed var(--text-muted);
+}
+.status-icon-mini.in-progress {
+  border-style: solid;
+  border-color: var(--green);
+  background: var(--green-light);
+}
+.status-icon-mini.completed {
+  border: none;
+  background: var(--green);
+}
+.status-icon-mini.dismissed {
+  border-style: solid;
+  border-color: var(--text-faint);
+  background: var(--bg);
+}
+</style>
+</head>
+<body>
+
+<div class="shell">
+  <!-- Mini sidebar -->
+  <div class="sidebar">
+    <div class="logo">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+    </div>
+    <div class="nav-item" title="Home">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+    </div>
+    <div class="nav-item" title="Projects">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
+    </div>
+    <div class="nav-item active" title="Tasks">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+    </div>
+    <div class="nav-item" title="Clients">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M3 7v11a2 2 0 002 2h14a2 2 0 002-2V7M3 7l9-4 9 4"/></svg>
+    </div>
+    <div class="nav-item" title="People">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+    </div>
+    <div class="nav-item" title="Settings" style="margin-top: auto;">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+    </div>
+  </div>
+
+  <div class="main">
+    <!-- Playground tab bar -->
+    <div class="playground-tabs">
+      <div class="playground-tab active" data-view="list">Task List</div>
+      <div class="playground-tab" data-view="modal">Add Task</div>
+      <div class="playground-tab" data-view="detail">Task Detail</div>
+    </div>
+
+    <!-- VIEW 1: Task List -->
+    <div class="view active" id="view-list">
+      <div class="tasks-header">
+        <div class="tasks-header-left">
+          <span class="tasks-title">Tasks</span>
+          <div class="view-dropdown-wrap">
+            <div class="view-pill" id="viewPill" onclick="toggleViewDropdown()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+              <span id="viewLabel">Assigned to me</span>
+              <span class="count" id="viewCount">6</span>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
+            </div>
+            <div class="view-dropdown" id="viewDropdown">
+              <div class="view-option" data-view="assigned" onclick="selectView('assigned')">
+                <span class="opt-left">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+                  Assigned to me
+                </span>
+                <span class="opt-count"><span class="opt-check" id="check-assigned">&#10003;</span> 6</span>
+              </div>
+              <div class="view-option" data-view="created" onclick="selectView('created')">
+                <span class="opt-left">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+                  Created by me
+                </span>
+                <span class="opt-count"><span class="opt-check" id="check-created" style="display:none">&#10003;</span> 1</span>
+              </div>
+              <div class="view-option" data-view="all" onclick="selectView('all')">
+                <span class="opt-left">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><polyline points="9 11 12 14 22 4"/></svg>
+                  All tasks
+                </span>
+                <span class="opt-count"><span class="opt-check" id="check-all" style="display:none">&#10003;</span> 8</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <button class="btn-add-task" onclick="switchToTab('modal')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+          Add task
+        </button>
+      </div>
+
+      <div class="tasks-toolbar">
+        <div class="toolbar-pill">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>
+          Filter
+        </div>
+        <div class="toolbar-pill">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          Due date
+        </div>
+        <div class="toolbar-search">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        </div>
+      </div>
+
+      <div class="tasks-scroll" id="tasksList">
+        <!-- Populated by JS -->
+      </div>
+    </div>
+
+    <!-- VIEW 2: Add Task Modal -->
+    <div class="view" id="view-modal">
+      <div class="modal-backdrop">
+        <div class="modal-card">
+          <div class="modal-header">
+            <div style="flex:1"></div>
+            <div class="modal-close">
+              <div class="modal-expand-btn" title="Open full page" onclick="switchToTab('detail')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+              </div>
+              <div class="modal-close-btn" title="Close" onclick="switchToTab('list')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </div>
+            </div>
+          </div>
+          <div class="modal-body">
+            <input class="modal-title-input" placeholder="Task title" />
+            <textarea class="modal-desc-input" placeholder="Add description..."></textarea>
+          </div>
+          <div class="modal-footer">
+            <div class="modal-pills">
+              <!-- Status pill -->
+              <div class="prop-pill" id="statusPill" onclick="toggleStatusDropdown(event)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="12" cy="12" r="9" stroke-dasharray="4 3"/></svg>
+                <span id="statusLabel">To do</span>
+                <div class="status-dropdown" id="statusDropdown">
+                  <div class="status-option" onclick="selectStatus('To do', event)">
+                    <div class="status-icon-mini"></div> To do
+                  </div>
+                  <div class="status-option" onclick="selectStatus('In progress', event)">
+                    <div class="status-icon-mini in-progress"></div> In progress
+                  </div>
+                  <div class="status-option" onclick="selectStatus('Completed', event)">
+                    <div class="status-icon-mini completed"></div> Completed
+                  </div>
+                </div>
+              </div>
+              <!-- Priority pill -->
+              <div class="prop-pill" id="priorityPill" onclick="togglePriorityDropdown(event)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                <span id="priorityLabel">No priority</span>
+                <div class="priority-dropdown" id="priorityDropdown">
+                  <div class="priority-option" onclick="selectPriority('none', event)">
+                    <div class="priority-dot" style="background: var(--priority-low)"></div> None
+                  </div>
+                  <div class="priority-option" onclick="selectPriority('low', event)">
+                    <div class="priority-dot" style="background: var(--priority-low); border: 1.5px solid var(--text-muted)"></div> Low
+                  </div>
+                  <div class="priority-option" onclick="selectPriority('medium', event)">
+                    <div class="priority-dot" style="background: var(--priority-medium)"></div> Medium
+                  </div>
+                  <div class="priority-option" onclick="selectPriority('high', event)">
+                    <div class="priority-dot" style="background: var(--priority-high)"></div> High
+                  </div>
+                </div>
+              </div>
+              <!-- Assignee pill -->
+              <div class="prop-pill">
+                <span class="pill-avatar"><span>ME</span></span>
+                Matt E
+              </div>
+              <!-- Due date pill -->
+              <div class="prop-pill">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                Due date
+              </div>
+              <!-- Project pill -->
+              <div class="prop-pill">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
+                Select project
+              </div>
+            </div>
+            <button class="modal-add-btn">Add</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- VIEW 3: Task Detail -->
+    <div class="view" id="view-detail">
+      <div class="detail-view">
+        <div class="detail-inner">
+          <!-- Breadcrumb -->
+          <div class="breadcrumb">
+            <a href="#" onclick="switchToTab('list');event.preventDefault()">Tasks</a>
+            <span class="sep">&gt;</span>
+            <span class="current">Download the Mac desktop app</span>
+            <span class="star-btn">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            </span>
+          </div>
+
+          <!-- Title -->
+          <h1 class="detail-title">Download the Mac desktop app</h1>
+
+          <!-- Property pills -->
+          <div class="detail-props">
+            <div class="prop-pill">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="12" cy="12" r="9" stroke-dasharray="4 3"/></svg>
+              To do
+            </div>
+            <div class="prop-pill">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              Low
+            </div>
+            <div class="prop-pill">
+              <span class="pill-avatar"><span>ME</span></span>
+              Matt Edmund
+            </div>
+            <div class="prop-pill overdue-date">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+              Sep 2, 2025
+            </div>
+            <div class="prop-pill">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              Record
+            </div>
+          </div>
+
+          <!-- Description -->
+          <div class="detail-desc">
+            Stay in flow with a faster, distraction-free way to work.<br><br>
+            <a href="#">Learn more about the macOS app</a>
+          </div>
+
+          <!-- Divider -->
+          <div class="detail-divider"></div>
+
+          <!-- Comment input -->
+          <div class="comment-input-row">
+            <div class="comment-avatar"><span>ME</span></div>
+            <div class="comment-input-wrap">
+              <input class="comment-input" placeholder="Leave a comment..." />
+              <button class="comment-send">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 16 16 12 12 8"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <!-- Activity -->
+          <div class="activity-header">
+            <span class="activity-title">Activity</span>
+            <span class="activity-subscribe">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
+              Subscribe
+            </span>
+          </div>
+
+          <!-- Activity entries -->
+          <div class="activity-entry">
+            <div class="activity-icon system-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><polyline points="9 11 12 14 22 4"/></svg>
+            </div>
+            <div class="activity-text">
+              <strong>System</strong> created this task
+            </div>
+            <span class="activity-time">6 months ago</span>
+          </div>
+
+          <div class="activity-entry">
+            <div class="activity-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+            </div>
+            <div class="activity-text">
+              Assigned to <strong>Matt Edmund</strong>
+            </div>
+            <span class="activity-time">6 months ago</span>
+          </div>
+
+          <div class="activity-entry">
+            <div class="activity-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            </div>
+            <div class="activity-text">
+              Due date set to <strong>Sep 2, 2025</strong>
+            </div>
+            <span class="activity-time">6 months ago</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Prompt bar -->
+    <div class="prompt-bar">
+      <span class="prompt-label">Prompt</span>
+      <span class="prompt-text" id="promptText">Build a Tasks page at /tasks with cross-project task list grouped by due date (Overdue, Today, Next, Later, Completed). Use brand green #3FAF7A for actions, #25785A for high priority, #E5E5E5 for low. Task rows show status circle, priority bar, title, project badge, due date (red #DC2626 if overdue), and assignee avatar.</span>
+      <button class="prompt-copy" id="copyBtn" onclick="copyPrompt()">Copy</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// STATE
+// ============================================================
+const state = {
+  activeTab: 'list',
+  activeView: 'assigned',
+  viewDropdownOpen: false,
+  priorityDropdownOpen: false,
+  statusDropdownOpen: false,
+  selectedPriority: 'none',
+  selectedStatus: 'To do',
+};
+
+const TASKS = [
+  { id: 1, title: 'Download the Mac desktop app', project: 'Acme Corp', priority: 'low', due: '2025-09-02', assignee: 'ME', status: 'pending' },
+  { id: 2, title: 'Use search with Ctrl+K or ⌘K', project: 'Acme Corp', priority: 'medium', due: '2025-09-02', assignee: 'JD', status: 'pending' },
+  { id: 3, title: 'Review prototype feedback from Sarah', project: 'Widget Co', priority: 'high', due: null, assignee: 'ME', status: 'pending' },
+  { id: 4, title: 'Prepare discovery session agenda', project: 'Acme Corp', priority: 'medium', due: '2026-02-25', assignee: 'ME', status: 'pending' },
+  { id: 5, title: 'Send stakeholder interview notes', project: 'Widget Co', priority: 'none', due: '2026-03-15', assignee: 'JD', status: 'pending' },
+  { id: 6, title: 'Complete onboarding checklist', project: 'Acme Corp', priority: 'low', due: '2025-12-01', assignee: 'ME', status: 'completed' },
+  { id: 7, title: 'Set up project workspace', project: 'Widget Co', priority: 'medium', due: '2025-11-15', assignee: 'JD', status: 'completed' },
+  { id: 8, title: 'Initial requirements intake', project: 'Acme Corp', priority: 'high', due: '2025-10-20', assignee: 'ME', status: 'completed' },
+];
+
+const collapsedGroups = new Set();
+
+// ============================================================
+// TAB SWITCHING
+// ============================================================
+function switchToTab(tab) {
+  state.activeTab = tab;
+  document.querySelectorAll('.playground-tab').forEach(t => {
+    t.classList.toggle('active', t.dataset.view === tab);
+  });
+  document.querySelectorAll('.view').forEach(v => {
+    v.classList.toggle('active', v.id === 'view-' + tab);
+  });
+  closeAllDropdowns();
+  updatePrompt();
+}
+
+document.querySelectorAll('.playground-tab').forEach(tab => {
+  tab.addEventListener('click', () => switchToTab(tab.dataset.view));
+});
+
+// ============================================================
+// VIEW DROPDOWN
+// ============================================================
+function toggleViewDropdown() {
+  state.viewDropdownOpen = !state.viewDropdownOpen;
+  document.getElementById('viewDropdown').classList.toggle('open', state.viewDropdownOpen);
+}
+
+function selectView(view) {
+  state.activeView = view;
+  const labels = { assigned: 'Assigned to me', created: 'Created by me', all: 'All tasks' };
+  const counts = { assigned: 6, created: 1, all: 8 };
+  document.getElementById('viewLabel').textContent = labels[view];
+  document.getElementById('viewCount').textContent = counts[view];
+  ['assigned', 'created', 'all'].forEach(v => {
+    const el = document.getElementById('check-' + v);
+    el.style.display = v === view ? 'inline' : 'none';
+  });
+  state.viewDropdownOpen = false;
+  document.getElementById('viewDropdown').classList.remove('open');
+  updatePrompt();
+}
+
+// ============================================================
+// PRIORITY DROPDOWN
+// ============================================================
+function togglePriorityDropdown(e) {
+  e.stopPropagation();
+  state.priorityDropdownOpen = !state.priorityDropdownOpen;
+  document.getElementById('priorityDropdown').classList.toggle('open', state.priorityDropdownOpen);
+}
+
+function selectPriority(level, e) {
+  e.stopPropagation();
+  state.selectedPriority = level;
+  const labels = { none: 'No priority', low: 'Low', medium: 'Medium', high: 'High' };
+  document.getElementById('priorityLabel').textContent = labels[level];
+  state.priorityDropdownOpen = false;
+  document.getElementById('priorityDropdown').classList.remove('open');
+}
+
+// ============================================================
+// STATUS DROPDOWN
+// ============================================================
+function toggleStatusDropdown(e) {
+  e.stopPropagation();
+  state.statusDropdownOpen = !state.statusDropdownOpen;
+  document.getElementById('statusDropdown').classList.toggle('open', state.statusDropdownOpen);
+}
+
+function selectStatus(status, e) {
+  e.stopPropagation();
+  state.selectedStatus = status;
+  document.getElementById('statusLabel').textContent = status;
+  state.statusDropdownOpen = false;
+  document.getElementById('statusDropdown').classList.remove('open');
+}
+
+// ============================================================
+// CLOSE DROPDOWNS ON OUTSIDE CLICK
+// ============================================================
+function closeAllDropdowns() {
+  state.viewDropdownOpen = false;
+  state.priorityDropdownOpen = false;
+  state.statusDropdownOpen = false;
+  document.getElementById('viewDropdown').classList.remove('open');
+  document.getElementById('priorityDropdown').classList.remove('open');
+  document.getElementById('statusDropdown').classList.remove('open');
+}
+
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('.view-dropdown-wrap')) {
+    state.viewDropdownOpen = false;
+    document.getElementById('viewDropdown').classList.remove('open');
+  }
+  if (!e.target.closest('#priorityPill')) {
+    state.priorityDropdownOpen = false;
+    document.getElementById('priorityDropdown').classList.remove('open');
+  }
+  if (!e.target.closest('#statusPill')) {
+    state.statusDropdownOpen = false;
+    document.getElementById('statusDropdown').classList.remove('open');
+  }
+});
+
+// ============================================================
+// RENDER TASK LIST
+// ============================================================
+function groupTasks(tasks) {
+  const now = new Date();
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const todayEnd = new Date(todayStart); todayEnd.setDate(todayEnd.getDate() + 1);
+  const nextEnd = new Date(todayStart); nextEnd.setDate(nextEnd.getDate() + 7);
+
+  const active = tasks.filter(t => t.status !== 'completed');
+  const completed = tasks.filter(t => t.status === 'completed');
+
+  const overdue = active.filter(t => t.due && new Date(t.due) < todayStart);
+  const today = active.filter(t => t.due && new Date(t.due) >= todayStart && new Date(t.due) < todayEnd);
+  const next = active.filter(t => t.due && new Date(t.due) >= todayEnd && new Date(t.due) < nextEnd);
+  const later = active.filter(t => !t.due || new Date(t.due) >= nextEnd);
+
+  return { overdue, today, next, later, completed };
+}
+
+function formatDate(dateStr) {
+  if (!dateStr) return '';
+  const d = new Date(dateStr);
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+function isOverdue(dateStr) {
+  if (!dateStr) return false;
+  const d = new Date(dateStr);
+  const now = new Date();
+  return d < new Date(now.getFullYear(), now.getMonth(), now.getDate());
+}
+
+function renderTaskRow(task) {
+  const isComp = task.status === 'completed';
+  const overdue = isOverdue(task.due);
+  const avatarColors = { ME: 'var(--green)', JD: 'var(--green-dark)', SK: 'var(--navy)' };
+
+  return `
+    <div class="task-row ${isComp ? 'completed-row' : ''}" onclick="switchToTab('detail')">
+      <div class="task-status ${isComp ? 'completed' : ''}" onclick="event.stopPropagation()">
+        ${isComp ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>' : ''}
+      </div>
+      <div class="task-priority-bar ${task.priority}"></div>
+      <span class="task-title-text">${task.title}</span>
+      <span class="task-project-badge">${task.project}</span>
+      ${task.due ? `<span class="task-due ${overdue && !isComp ? 'overdue' : ''}">${formatDate(task.due)}</span>` : ''}
+      <div class="task-avatar ${task.assignee === 'JD' ? 'alt' : ''}" style="background:${avatarColors[task.assignee] || 'var(--green)'}">
+        <span>${task.assignee}</span>
+      </div>
+    </div>
+  `;
+}
+
+function renderTimeGroup(name, tasks, defaultCollapsed = false) {
+  const id = name.toLowerCase().replace(/\s/g, '-');
+  const isCollapsed = defaultCollapsed ? !collapsedGroups.has(id) ? true : false : collapsedGroups.has(id);
+
+  let content = '';
+  if (tasks.length === 0 && name === 'Today') {
+    content = `
+      <div class="empty-state">
+        <div class="empty-state-title">No tasks for today</div>
+        <div class="empty-state-sub">You're all caught up for the day!</div>
+      </div>
+    `;
+  } else {
+    content = tasks.map(renderTaskRow).join('');
+  }
+
+  return `
+    <div class="time-group ${isCollapsed ? 'collapsed' : ''}" data-group="${id}">
+      <div class="time-group-header" onclick="toggleGroup('${id}')">
+        <span class="time-group-title">${name}</span>
+        <span class="time-group-count">${tasks.length}</span>
+        <svg class="time-group-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
+        <div class="time-group-line"></div>
+        <div class="time-group-add" onclick="event.stopPropagation();switchToTab('modal')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+        </div>
+      </div>
+      <div class="time-group-content">
+        ${content}
+      </div>
+    </div>
+  `;
+}
+
+function renderTaskList() {
+  const groups = groupTasks(TASKS);
+  const container = document.getElementById('tasksList');
+  container.innerHTML = [
+    renderTimeGroup('Overdue', groups.overdue),
+    renderTimeGroup('Today', groups.today),
+    renderTimeGroup('Next', groups.next),
+    renderTimeGroup('Later', groups.later),
+    renderTimeGroup('Completed', groups.completed, true),
+  ].join('');
+}
+
+function toggleGroup(id) {
+  if (collapsedGroups.has(id)) {
+    collapsedGroups.delete(id);
+  } else {
+    collapsedGroups.add(id);
+  }
+  renderTaskList();
+}
+
+// ============================================================
+// PROMPT OUTPUT
+// ============================================================
+function updatePrompt() {
+  const parts = [];
+
+  if (state.activeTab === 'list') {
+    parts.push('Build a Tasks page at /tasks with cross-project task list grouped by due date (Overdue, Today, Next, Later, Completed).');
+    parts.push(`Use brand green #3FAF7A for actions, #25785A for high priority, #E5E5E5 for low.`);
+    parts.push('Task rows show status circle, priority bar, title, project badge, due date (red #DC2626 if overdue), and assignee avatar.');
+    if (state.activeView !== 'assigned') {
+      const viewLabels = { created: '"Created by me"', all: '"All tasks"' };
+      parts.push(`Default view filter: ${viewLabels[state.activeView]}.`);
+    }
+  } else if (state.activeTab === 'modal') {
+    parts.push('Add Task modal with title + description inputs.');
+    parts.push('Bottom pill bar: Status, Priority, Assignee (org members dropdown), Due date (date picker), Project (required dropdown).');
+    parts.push(`Font: Inter. Colors: green #3FAF7A buttons, #E5E5E5 borders, #333 text.`);
+  } else if (state.activeTab === 'detail') {
+    parts.push('Task detail page at /tasks/[taskId] with breadcrumb back to /tasks.');
+    parts.push('Editable title, property pills (status, priority, assignee, due date, record link).');
+    parts.push('Comment input with avatar + text field + send button.');
+    parts.push('Activity timeline: interleaved comments and system events, sorted chronologically.');
+  }
+
+  document.getElementById('promptText').textContent = parts.join(' ');
+}
+
+function copyPrompt() {
+  const text = document.getElementById('promptText').textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.getElementById('copyBtn');
+    btn.textContent = 'Copied!';
+    setTimeout(() => btn.textContent = 'Copy', 1500);
+  });
+}
+
+// ============================================================
+// INIT
+// ============================================================
+renderTaskList();
+updatePrompt();
+</script>
+
+</body>
+</html>

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { FileText, RefreshCw } from 'lucide-react'
 import { BusinessContextSection } from './sections/BusinessContextSection'
 import { ActorsSection } from './sections/ActorsSection'
@@ -10,6 +10,8 @@ import { ConstraintsSection } from './sections/ConstraintsSection'
 import { DataEntitiesSection } from './sections/DataEntitiesSection'
 import { StakeholdersSection } from './sections/StakeholdersSection'
 import { IntelligenceSection } from './sections/IntelligenceSection'
+import { SolutionFlowSection } from './sections/SolutionFlowSection'
+import { SolutionFlowModal } from './components/SolutionFlowModal'
 import { WorkflowCreateModal } from './components/WorkflowCreateModal'
 import { WorkflowStepEditor } from './components/WorkflowStepEditor'
 import { DataEntityCreateModal } from './components/DataEntityCreateModal'
@@ -47,6 +49,7 @@ import {
   updateCanvasRole,
   inferConstraints,
   listOpenQuestions,
+  generateSolutionFlow,
 } from '@/lib/api'
 import type { NextAction } from '@/lib/api'
 import { CompletenessRing } from './components/CompletenessRing'
@@ -84,8 +87,8 @@ export function BRDCanvas({ projectId, initialData, initialNextActions, onRefres
 
     const sectionIds = [
       'brd-section-questions', 'brd-section-business-context', 'brd-section-personas',
-      'brd-section-workflows', 'brd-section-features', 'brd-section-data-entities',
-      'brd-section-stakeholders', 'brd-section-constraints',
+      'brd-section-workflows', 'brd-section-solution-flow', 'brd-section-features',
+      'brd-section-data-entities', 'brd-section-stakeholders', 'brd-section-constraints',
     ]
     const visibleRatios = new Map<string, number>()
     let debounceTimer: ReturnType<typeof setTimeout> | null = null
@@ -646,6 +649,24 @@ export function BRDCanvas({ projectId, initialData, initialNextActions, onRefres
 
   const [showCreateDataEntity, setShowCreateDataEntity] = useState(false)
   const [showCreateWorkflow, setShowCreateWorkflow] = useState(false)
+  const [showSolutionFlowModal, setShowSolutionFlowModal] = useState(false)
+  const [isGeneratingSolutionFlow, setIsGeneratingSolutionFlow] = useState(false)
+
+  // Entity lookup for solution flow — resolves UUIDs to names
+  const entityLookup = useMemo(() => {
+    if (!data) return undefined
+    const allFeatures = [
+      ...(data.requirements?.must_have || []),
+      ...(data.requirements?.should_have || []),
+      ...(data.requirements?.could_have || []),
+      ...(data.requirements?.out_of_scope || []),
+    ]
+    return {
+      features: Object.fromEntries(allFeatures.map(f => [f.id, f.name])),
+      workflows: Object.fromEntries((data.workflow_pairs || []).map(w => [w.id, w.name])),
+      data_entities: Object.fromEntries((data.data_entities || []).map(d => [d.id, d.name])),
+    }
+  }, [data])
 
   // Edit workflow state
   const [editWorkflowData, setEditWorkflowData] = useState<{
@@ -1104,6 +1125,27 @@ export function BRDCanvas({ projectId, initialData, initialNextActions, onRefres
 
         <div className="border-t border-[#e9e9e7]" />
 
+        <div id="brd-section-solution-flow">
+        <SolutionFlowSection
+          flow={data.solution_flow}
+          onOpen={() => setShowSolutionFlowModal(true)}
+          onGenerate={async () => {
+            setIsGeneratingSolutionFlow(true)
+            try {
+              await generateSolutionFlow(projectId)
+              await loadData()
+            } catch (err) {
+              console.error('Failed to generate solution flow:', err)
+            } finally {
+              setIsGeneratingSolutionFlow(false)
+            }
+          }}
+          isGenerating={isGeneratingSolutionFlow}
+        />
+        </div>
+
+        <div className="border-t border-[#e9e9e7]" />
+
         <div id="brd-section-features">
         <RequirementsSection
           requirements={data.requirements}
@@ -1213,6 +1255,19 @@ export function BRDCanvas({ projectId, initialData, initialNextActions, onRefres
         entityName={impactPreview.entityName}
         onClose={() => setImpactPreview((prev) => ({ ...prev, open: false }))}
         onConfirmDelete={impactPreview.onDelete}
+      />
+
+      {/* Solution Flow Modal */}
+      <SolutionFlowModal
+        projectId={projectId}
+        isOpen={showSolutionFlowModal}
+        onClose={() => {
+          setShowSolutionFlowModal(false)
+          loadData()
+        }}
+        onConfirm={handleConfirm}
+        onNeedsReview={handleNeedsReview}
+        entityLookup={entityLookup}
       />
 
       {/* Stakeholder Detail Drawer */}

@@ -155,6 +155,80 @@ async def stop_calendar_watch(
         logger.info(f"Calendar watch stopped: user={user_id}, channel={channel_id}")
 
 
+async def create_calendar_event(
+    user_id: UUID,
+    title: str,
+    start_datetime: str,
+    end_datetime: str,
+    timezone: str = "UTC",
+    description: str | None = None,
+    attendee_emails: list[str] | None = None,
+    timeout: int = 15,
+) -> dict[str, Any]:
+    """
+    Create a Google Calendar event with auto-generated Google Meet link.
+
+    Args:
+        user_id: AIOS user ID (must have Google connected)
+        title: Event title
+        start_datetime: ISO datetime for event start (e.g. "2026-02-24T10:00:00")
+        end_datetime: ISO datetime for event end (e.g. "2026-02-24T11:00:00")
+        timezone: IANA timezone (e.g. "America/New_York")
+        description: Optional event description
+        attendee_emails: Optional list of attendee email addresses
+        timeout: Request timeout in seconds
+
+    Returns:
+        Dict with event_id, meet_link, and html_link
+    """
+    from uuid import uuid4
+
+    access_token = await _get_access_token(user_id)
+
+    event_body: dict[str, Any] = {
+        "summary": title,
+        "start": {"dateTime": start_datetime, "timeZone": timezone},
+        "end": {"dateTime": end_datetime, "timeZone": timezone},
+        "conferenceData": {
+            "createRequest": {
+                "requestId": str(uuid4()),
+                "conferenceSolutionKey": {"type": "hangoutsMeet"},
+            }
+        },
+    }
+
+    if description:
+        event_body["description"] = description
+
+    if attendee_emails:
+        event_body["attendees"] = [{"email": e} for e in attendee_emails]
+
+    async with httpx.AsyncClient(timeout=timeout) as client:
+        response = await client.post(
+            f"{CALENDAR_API_URL}/calendars/primary/events",
+            headers={"Authorization": f"Bearer {access_token}"},
+            params={"conferenceDataVersion": 1, "sendUpdates": "all"},
+            json=event_body,
+        )
+        response.raise_for_status()
+        data = response.json()
+
+    event_id = data.get("id", "")
+    meet_link = extract_meet_link(data)
+    html_link = data.get("htmlLink", "")
+
+    logger.info(
+        "Calendar event created: user=%s, event_id=%s, meet=%s",
+        user_id, event_id, bool(meet_link),
+    )
+
+    return {
+        "event_id": event_id,
+        "meet_link": meet_link,
+        "html_link": html_link,
+    }
+
+
 def extract_meet_link(event: dict) -> str | None:
     """Extract Google Meet link from a calendar event."""
     # Check conferenceData first (most reliable)

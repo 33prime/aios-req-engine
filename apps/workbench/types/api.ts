@@ -904,6 +904,104 @@ export interface LeaderboardEntry {
   computed_at?: string
 }
 
+// Eval Pipeline
+export interface EvalDashboardStats {
+  total_runs: number
+  avg_score: number
+  first_pass_rate: number
+  top_gaps: Array<{ dimension: string; count: number }>
+  version_distribution: Record<string, number>
+  score_trend: Array<{ date: string; score: number }>
+  avg_iterations: number
+  total_cost_usd: number
+}
+
+export interface EvalRunListItem {
+  id: string
+  prompt_version_id: string
+  prototype_id: string
+  iteration_number: number
+  overall_score: number
+  det_composite: number
+  llm_overall: number
+  action: 'pending' | 'accept' | 'retry' | 'notify'
+  estimated_cost_usd: number
+  created_at: string
+}
+
+export interface EvalGap {
+  id: string
+  eval_run_id: string
+  dimension: string
+  description: string
+  severity: 'high' | 'medium' | 'low'
+  feature_ids: string[]
+  gap_pattern?: string | null
+  resolved_in_run_id?: string | null
+  resolved_at?: string | null
+  created_at: string
+}
+
+export interface EvalRunDetail extends EvalRunListItem {
+  det_handoff_present: boolean
+  det_feature_id_coverage: number
+  det_file_structure: number
+  det_route_count: number
+  det_jsdoc_coverage: number
+  llm_feature_coverage: number
+  llm_structure: number
+  llm_mock_data: number
+  llm_flow: number
+  llm_feature_id: number
+  file_tree: string[]
+  feature_scan: Record<string, string[]>
+  handoff_content?: string | null
+  recommendations: string[]
+  deterministic_duration_ms: number
+  llm_duration_ms: number
+  tokens_input: number
+  tokens_output: number
+  tokens_cache_read: number
+  tokens_cache_create: number
+  gaps: EvalGap[]
+}
+
+export interface EvalPromptVersion {
+  id: string
+  prototype_id: string
+  version_number: number
+  prompt_text: string
+  parent_version_id?: string | null
+  generation_model?: string | null
+  generation_chain?: string | null
+  input_context_snapshot: Record<string, any>
+  learnings_injected: any[]
+  tokens_input: number
+  tokens_output: number
+  estimated_cost_usd: number
+  created_at: string
+  latest_score?: number | null
+  latest_action?: string | null
+}
+
+export interface EvalPromptDiff {
+  version_a: EvalPromptVersion
+  version_b: EvalPromptVersion
+}
+
+export interface EvalLearning {
+  id: string
+  category: string
+  learning: string
+  source_prototype_id?: string | null
+  effectiveness_score: number
+  active: boolean
+  eval_run_id?: string | null
+  dimension?: string | null
+  gap_pattern?: string | null
+  created_at: string
+}
+
 // Notifications
 export interface Notification {
   id: string

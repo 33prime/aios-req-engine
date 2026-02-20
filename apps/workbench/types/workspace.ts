@@ -639,6 +639,59 @@ export interface BRDCompleteness {
   top_gaps: string[]
 }
 
+// ============================================
+// Solution Flow Types
+// ============================================
+
+export interface InformationField {
+  name: string
+  type: 'captured' | 'displayed' | 'computed'
+  mock_value: string
+  confidence: 'known' | 'inferred' | 'guess' | 'unknown'
+}
+
+export interface FlowOpenQuestion {
+  question: string
+  context?: string
+  status: 'open' | 'resolved' | 'escalated'
+  resolved_answer?: string
+  escalated_to?: string
+}
+
+export interface SolutionFlowStepSummary {
+  id: string
+  step_index: number
+  phase: string
+  title: string
+  goal: string
+  actors: string[]
+  confirmation_status?: string | null
+  open_question_count: number
+  info_field_count: number
+  confidence_breakdown: Record<string, number>
+}
+
+export interface SolutionFlowStepDetail extends SolutionFlowStepSummary {
+  information_fields: InformationField[]
+  mock_data_narrative: string
+  open_questions: FlowOpenQuestion[]
+  implied_pattern: string
+  linked_workflow_ids: string[]
+  linked_feature_ids: string[]
+  linked_data_entity_ids: string[]
+  evidence_ids: string[]
+  version: number
+}
+
+export interface SolutionFlowOverview {
+  id: string | null
+  title: string
+  summary?: string | null
+  generated_at?: string | null
+  confirmation_status?: string | null
+  steps: SolutionFlowStepSummary[]
+}
+
 export interface BRDWorkspaceData {
   business_context: {
     background?: string | null
@@ -669,6 +722,7 @@ export interface BRDWorkspaceData {
   roi_summary: ROISummary[]
   completeness?: BRDCompleteness | null
   next_actions?: import('@/lib/api').NextAction[]
+  solution_flow?: SolutionFlowOverview | null
 }
 
 // ============================================

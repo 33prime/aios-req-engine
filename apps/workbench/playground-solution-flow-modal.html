@@ -1,0 +1,1654 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Solution Flow — Workspace Modal</title>
+<style>
+  :root {
+    --navy: #0A1E2F;
+    --navy-80: #1E3448;
+    --navy-60: #34495E;
+    --green: #3FAF7A;
+    --green-light: #4CC98E;
+    --green-soft: rgba(63,175,122,0.06);
+    --green-bg: rgba(63,175,122,0.08);
+    --green-border: rgba(63,175,122,0.18);
+    --green-strong: rgba(63,175,122,0.15);
+    --amber: #E5A93D;
+    --amber-soft: rgba(229,169,61,0.06);
+    --amber-bg: rgba(229,169,61,0.1);
+    --amber-border: rgba(229,169,61,0.22);
+    --blue: #5B8DEF;
+    --blue-soft: rgba(91,141,239,0.06);
+    --blue-border: rgba(91,141,239,0.18);
+    --purple: #9B6FE8;
+    --purple-soft: rgba(155,111,232,0.06);
+    --purple-border: rgba(155,111,232,0.18);
+    --red: #E55C5C;
+    --white: #FFFFFF;
+    --g25: #FCFDFD;
+    --g50: #F8FAFB;
+    --g75: #F4F6F8;
+    --g100: #F1F4F7;
+    --g150: #E8ECF1;
+    --g200: #E2E7ED;
+    --g300: #C8D0DA;
+    --g400: #9BA5B4;
+    --g500: #6E7A8A;
+    --g600: #4A5568;
+    --g700: #2D3748;
+    --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    --mono: 'SF Mono', 'Fira Code', Consolas, monospace;
+    --r: 12px;
+    --r-sm: 8px;
+    --r-xs: 6px;
+    --r-lg: 16px;
+    --shadow: 0 1px 3px rgba(10,30,47,0.06);
+    --shadow-md: 0 4px 20px rgba(10,30,47,0.1);
+    --shadow-lg: 0 12px 48px rgba(10,30,47,0.18);
+    --shadow-xl: 0 24px 64px rgba(10,30,47,0.22);
+    --t: 0.2s cubic-bezier(0.4,0,0.2,1);
+    --t-spring: 0.35s cubic-bezier(0.34,1.56,0.64,1);
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:var(--font); background:var(--g100); color:var(--g700); line-height:1.6; height:100vh; overflow:hidden; }
+
+  /* ═══════ BRD BACKGROUND ═══════ */
+  .brd-bg {
+    height: 100vh;
+    overflow-y: auto;
+    padding: 32px 48px;
+    background: var(--g75);
+    transition: filter 0.3s ease;
+  }
+  .brd-bg.dimmed {
+    filter: blur(4px) brightness(0.92);
+    pointer-events: none;
+  }
+  .brd-header {
+    margin-bottom: 32px;
+  }
+  .brd-header h1 {
+    font-size: 28px;
+    font-weight: 800;
+    color: var(--navy);
+    letter-spacing: -0.8px;
+  }
+  .brd-header p {
+    font-size: 14px;
+    color: var(--g500);
+    margin-top: 4px;
+  }
+
+  /* Hero Card */
+  .hero-card {
+    background: linear-gradient(135deg, var(--navy) 0%, #14344D 100%);
+    border-radius: var(--r-lg);
+    padding: 28px 32px;
+    margin-bottom: 24px;
+    cursor: pointer;
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
+    position: relative;
+    overflow: hidden;
+  }
+  .hero-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-lg);
+  }
+  .hero-card::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    right: -20%;
+    width: 400px;
+    height: 400px;
+    background: radial-gradient(circle, rgba(63,175,122,0.08) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .hero-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+  }
+  .hero-badge {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .hero-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    background: rgba(63,175,122,0.15);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+  }
+  .hero-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--white);
+    letter-spacing: -0.3px;
+  }
+  .hero-subtitle {
+    font-size: 12px;
+    color: var(--g400);
+    font-weight: 400;
+  }
+  .hero-open-btn {
+    padding: 8px 20px;
+    background: var(--green);
+    color: var(--white);
+    border: none;
+    border-radius: var(--r-sm);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: var(--font);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: var(--t);
+  }
+  .hero-open-btn:hover { background: var(--green-light); }
+
+  .hero-stats {
+    display: flex;
+    gap: 24px;
+    margin-bottom: 16px;
+  }
+  .hero-stat {
+    display: flex;
+    flex-direction: column;
+  }
+  .hero-stat-value {
+    font-size: 22px;
+    font-weight: 800;
+    color: var(--white);
+    letter-spacing: -0.5px;
+    line-height: 1.2;
+  }
+  .hero-stat-label {
+    font-size: 11px;
+    color: var(--g400);
+    font-weight: 400;
+  }
+  .hero-progress-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .hero-progress-bg {
+    flex: 1;
+    height: 6px;
+    background: rgba(255,255,255,0.08);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  .hero-progress-bar {
+    height: 100%;
+    background: var(--green);
+    border-radius: 3px;
+    transition: width 0.6s ease;
+  }
+  .hero-progress-pct {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--green-light);
+    min-width: 40px;
+    text-align: right;
+  }
+  .hero-questions-strip {
+    display: flex;
+    gap: 6px;
+    margin-top: 14px;
+    flex-wrap: wrap;
+  }
+  .hero-q-pill {
+    padding: 4px 10px;
+    background: rgba(229,169,61,0.12);
+    border: 1px solid rgba(229,169,61,0.2);
+    border-radius: 12px;
+    font-size: 11px;
+    color: #D4953A;
+    white-space: nowrap;
+  }
+
+  /* BRD sections (dimmed behind modal) */
+  .brd-section {
+    background: var(--white);
+    border: 1px solid var(--g200);
+    border-radius: var(--r);
+    padding: 20px 24px;
+    margin-bottom: 16px;
+  }
+  .brd-section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+  }
+  .brd-section-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--navy);
+  }
+  .brd-section-count {
+    font-size: 12px;
+    color: var(--g400);
+    padding: 3px 10px;
+    background: var(--g100);
+    border-radius: 10px;
+  }
+  .brd-section-items {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .brd-section-item {
+    padding: 8px 14px;
+    background: var(--g50);
+    border: 1px solid var(--g150);
+    border-radius: var(--r-xs);
+    font-size: 12px;
+    color: var(--g600);
+  }
+
+  /* ═══════ MODAL OVERLAY ═══════ */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+  }
+  .modal-overlay.open {
+    opacity: 1;
+    pointer-events: all;
+  }
+  .modal-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(10,30,47,0.5);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+  }
+  .modal-container {
+    position: relative;
+    width: calc(100vw - 48px);
+    height: calc(100vh - 48px);
+    max-width: 1440px;
+    background: var(--white);
+    border-radius: var(--r-lg);
+    box-shadow: var(--shadow-xl);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    transform: scale(0.96) translateY(12px);
+    transition: transform 0.35s cubic-bezier(0.34,1.56,0.64,1);
+  }
+  .modal-overlay.open .modal-container {
+    transform: scale(1) translateY(0);
+  }
+
+  /* ═══════ MODAL HEADER ═══════ */
+  .modal-header {
+    display: flex;
+    align-items: center;
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--g200);
+    background: var(--white);
+    gap: 16px;
+    flex-shrink: 0;
+  }
+  .modal-back {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border: 1px solid var(--g200);
+    border-radius: var(--r-xs);
+    background: var(--white);
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--g500);
+    cursor: pointer;
+    transition: var(--t);
+    font-family: var(--font);
+  }
+  .modal-back:hover { background:var(--g50); color:var(--navy); border-color:var(--g300); }
+  .modal-header-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--navy);
+    flex: 1;
+  }
+  .modal-header-title span { font-weight: 400; color: var(--g400); margin-left: 6px; font-size: 13px; }
+  .modal-progress {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .modal-progress-bg {
+    width: 120px;
+    height: 5px;
+    background: var(--g150);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  .modal-progress-bar {
+    height: 100%;
+    background: var(--green);
+    border-radius: 3px;
+    width: 72%;
+  }
+  .modal-progress-text {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--green);
+  }
+  .modal-questions-badge {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 12px;
+    background: var(--amber-bg);
+    border: 1px solid var(--amber-border);
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--amber);
+  }
+  .modal-close {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    border: 1px solid var(--g200);
+    background: var(--white);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 16px;
+    color: var(--g400);
+    transition: var(--t);
+    font-family: var(--font);
+  }
+  .modal-close:hover { background:var(--g50); color:var(--navy); }
+
+  /* ═══════ MODAL BODY ═══════ */
+  .modal-body {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+  }
+
+  /* ═══════ FLOW SIDEBAR ═══════ */
+  .flow-sidebar {
+    width: 264px;
+    min-width: 264px;
+    border-right: 1px solid var(--g200);
+    display: flex;
+    flex-direction: column;
+    background: var(--g25);
+  }
+  .flow-sidebar-scroll {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px 0;
+  }
+  .flow-sidebar-scroll::-webkit-scrollbar { width:3px; }
+  .flow-sidebar-scroll::-webkit-scrollbar-thumb { background:var(--g300); border-radius:2px; }
+
+  .flow-phase-label {
+    padding: 12px 16px 6px;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    color: var(--g400);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .flow-phase-label::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--g200);
+  }
+
+  .flow-step-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 10px 16px;
+    cursor: pointer;
+    transition: var(--t);
+    position: relative;
+    border-left: 3px solid transparent;
+  }
+  .flow-step-item:hover { background: var(--g75); }
+  .flow-step-item.active {
+    background: var(--green-soft);
+    border-left-color: var(--green);
+  }
+  .flow-step-num {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 700;
+    flex-shrink: 0;
+    background: var(--g150);
+    color: var(--g500);
+    margin-top: 1px;
+    position: relative;
+    z-index: 1;
+  }
+  .flow-step-item.active .flow-step-num {
+    background: var(--green);
+    color: var(--white);
+  }
+  .flow-step-item.resolved .flow-step-num {
+    background: var(--green-bg);
+    color: var(--green);
+  }
+  .flow-step-content { flex:1; min-width:0; }
+  .flow-step-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--navy);
+    line-height: 1.3;
+    margin-bottom: 3px;
+  }
+  .flow-step-meta {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  .flow-step-actor {
+    font-size: 10px;
+    padding: 1px 7px;
+    border-radius: 8px;
+    font-weight: 500;
+  }
+  .flow-step-questions-count {
+    font-size: 10px;
+    color: var(--amber);
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 3px;
+  }
+  .flow-step-confidence {
+    display: flex;
+    gap: 2px;
+    margin-left: auto;
+  }
+  .confidence-dot {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+  }
+  .confidence-dot.filled { background: var(--green); }
+  .confidence-dot.partial { background: var(--amber); }
+  .confidence-dot.empty { background: var(--g200); }
+
+  /* Connector line between steps */
+  .flow-step-item::before {
+    content: '';
+    position: absolute;
+    left: 27px;
+    top: 36px;
+    bottom: -10px;
+    width: 1px;
+    background: var(--g200);
+  }
+  .flow-step-item:last-child::before { display: none; }
+  .flow-phase-label + .flow-step-item::before { top: 36px; }
+
+  /* Sidebar bottom — actors panel */
+  .flow-sidebar-actors {
+    border-top: 1px solid var(--g200);
+    padding: 12px 16px;
+    background: var(--white);
+    flex-shrink: 0;
+  }
+  .sidebar-actors-label {
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--g400);
+    margin-bottom: 8px;
+  }
+  .sidebar-actors-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .sidebar-actor-chip {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 10px;
+    border-radius: 14px;
+    font-size: 11px;
+    font-weight: 500;
+    border: 1px solid var(--g200);
+    cursor: pointer;
+    transition: var(--t);
+    background: var(--white);
+    color: var(--g600);
+  }
+  .sidebar-actor-chip:hover { border-color: var(--g300); }
+  .sidebar-actor-chip.highlighted { border-color: var(--green-border); background: var(--green-soft); color: var(--green); }
+
+  /* ═══════ RIGHT PANEL ═══════ */
+  .right-panel {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* ═══════ STEP DETAIL (top portion) ═══════ */
+  .step-detail {
+    flex: 1;
+    overflow-y: auto;
+    padding: 24px 28px;
+    min-height: 0;
+  }
+  .step-detail::-webkit-scrollbar { width:5px; }
+  .step-detail::-webkit-scrollbar-thumb { background:var(--g300); border-radius:3px; }
+
+  .step-phase-tag {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    color: var(--g400);
+    margin-bottom: 6px;
+  }
+  .step-detail-title {
+    font-size: 22px;
+    font-weight: 800;
+    color: var(--navy);
+    letter-spacing: -0.5px;
+    margin-bottom: 4px;
+    line-height: 1.2;
+  }
+  .step-detail-actors {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 20px;
+  }
+  .step-actor-chip {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+  }
+
+  /* Goal box */
+  .goal-box {
+    background: linear-gradient(135deg, var(--navy) 0%, var(--navy-80) 100%);
+    border-radius: var(--r);
+    padding: 20px 24px;
+    margin-bottom: 20px;
+    position: relative;
+  }
+  .goal-label {
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    color: var(--green-light);
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .goal-text {
+    font-size: 16px;
+    font-weight: 500;
+    color: var(--white);
+    line-height: 1.6;
+    letter-spacing: -0.1px;
+  }
+  .goal-edit-hint {
+    position: absolute;
+    top: 12px;
+    right: 16px;
+    font-size: 10px;
+    color: rgba(255,255,255,0.3);
+    padding: 3px 8px;
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 4px;
+  }
+
+  /* Info + Mock columns */
+  .detail-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 20px;
+  }
+  .detail-card {
+    border: 1px solid var(--g200);
+    border-radius: var(--r);
+    overflow: hidden;
+  }
+  .detail-card-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px;
+    background: var(--g50);
+    border-bottom: 1px solid var(--g150);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    color: var(--g400);
+  }
+  .detail-card-header .icon { font-size: 13px; }
+  .detail-card-body { padding: 14px 16px; }
+
+  /* Info pills */
+  .info-list { display:flex; flex-direction:column; gap:6px; }
+  .info-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 10px;
+    border-radius: var(--r-xs);
+    background: var(--g50);
+    border: 1px solid var(--g100);
+    transition: var(--t);
+  }
+  .info-item:hover { border-color: var(--g200); }
+  .info-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .info-dot.captured { background: var(--green); }
+  .info-dot.displayed { background: var(--blue); }
+  .info-dot.computed { background: var(--purple); }
+  .info-name {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--navy);
+    flex: 1;
+  }
+  .info-confidence {
+    font-size: 9px;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: 8px;
+    letter-spacing: 0.3px;
+    text-transform: uppercase;
+  }
+  .info-confidence.known { background: var(--green-bg); color: var(--green); }
+  .info-confidence.inferred { background: var(--blue-soft); color: var(--blue); border: 1px solid var(--blue-border); }
+  .info-confidence.guess { background: var(--amber-soft); color: var(--amber); border: 1px solid var(--amber-border); }
+  .info-confidence.unknown { background: var(--g100); color: var(--g500); }
+  .add-info-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 7px;
+    border: 1px dashed var(--g300);
+    border-radius: var(--r-xs);
+    font-size: 11px;
+    color: var(--g400);
+    cursor: pointer;
+    transition: var(--t);
+    background: none;
+    width: 100%;
+    font-family: var(--font);
+  }
+  .add-info-btn:hover { border-color: var(--green); color: var(--green); background: var(--green-soft); }
+
+  /* Mock data card */
+  .mock-preview {
+    font-size: 12px;
+    color: var(--g600);
+    line-height: 1.7;
+  }
+  .mock-field-row {
+    display: flex;
+    gap: 8px;
+    padding: 4px 0;
+    border-bottom: 1px solid var(--g100);
+  }
+  .mock-field-row:last-child { border-bottom: none; }
+  .mock-field-label {
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--g400);
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    width: 80px;
+    flex-shrink: 0;
+    padding-top: 2px;
+  }
+  .mock-field-value {
+    font-size: 12px;
+    color: var(--navy);
+    font-weight: 500;
+  }
+
+  /* Mini image grid for clinical case mock */
+  .mock-mini-imgs {
+    display: flex;
+    gap: 3px;
+    flex-wrap: wrap;
+    margin: 4px 0;
+  }
+  .mock-mini-img {
+    width: 38px;
+    height: 38px;
+    border-radius: 3px;
+    background: var(--navy);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 7px;
+    color: rgba(255,255,255,0.5);
+    text-align: center;
+    line-height: 1.1;
+  }
+  .mock-mini-ceph-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 3px 0;
+    font-size: 11px;
+    font-family: var(--mono);
+  }
+  .mock-ceph-name { color: var(--g600); width: 60px; }
+  .mock-ceph-val { color: var(--navy); font-weight: 600; }
+  .mock-ceph-flag { font-size: 10px; }
+  .mock-ceph-critical { color: var(--red); font-weight: 700; }
+
+  /* Questions section */
+  .questions-section {
+    background: var(--amber-soft);
+    border: 1px solid var(--amber-border);
+    border-radius: var(--r);
+    padding: 14px 18px;
+    margin-bottom: 20px;
+  }
+  .questions-section-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    color: var(--amber);
+  }
+  .question-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--amber-border);
+    font-size: 13px;
+    color: var(--g700);
+    line-height: 1.5;
+  }
+  .question-item:last-child { border-bottom: none; }
+  .q-icon {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: var(--amber);
+    color: var(--white);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    font-weight: 700;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+  .q-resolve-btn {
+    margin-left: auto;
+    font-size: 10px;
+    color: var(--g400);
+    padding: 2px 8px;
+    border: 1px solid var(--g200);
+    border-radius: 4px;
+    cursor: pointer;
+    background: var(--white);
+    transition: var(--t);
+    flex-shrink: 0;
+    font-family: var(--font);
+  }
+  .q-resolve-btn:hover { border-color: var(--green); color: var(--green); }
+
+  /* ═══════ CHAT PANEL (bottom portion) ═══════ */
+  .chat-panel {
+    height: 280px;
+    min-height: 200px;
+    border-top: 1px solid var(--g200);
+    display: flex;
+    flex-direction: column;
+    background: var(--g25);
+    flex-shrink: 0;
+  }
+  .chat-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    border-bottom: 1px solid var(--g150);
+    background: var(--white);
+    flex-shrink: 0;
+  }
+  .chat-header-icon {
+    width: 24px;
+    height: 24px;
+    border-radius: 6px;
+    background: var(--green-bg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+  }
+  .chat-header-text {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--navy);
+    flex: 1;
+  }
+  .chat-header-hint {
+    font-size: 10px;
+    color: var(--g400);
+  }
+  .chat-resize-handle {
+    width: 32px;
+    height: 4px;
+    border-radius: 2px;
+    background: var(--g300);
+    cursor: ns-resize;
+  }
+
+  .chat-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 14px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .chat-messages::-webkit-scrollbar { width:4px; }
+  .chat-messages::-webkit-scrollbar-thumb { background:var(--g300); border-radius:2px; }
+
+  .chat-msg {
+    display: flex;
+    gap: 10px;
+    max-width: 85%;
+    animation: msgIn 0.2s ease;
+  }
+  @keyframes msgIn {
+    from { opacity:0; transform:translateY(6px); }
+    to { opacity:1; transform:translateY(0); }
+  }
+  .chat-msg.assistant { align-self: flex-start; }
+  .chat-msg.user { align-self: flex-end; flex-direction: row-reverse; }
+  .chat-msg-avatar {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+  .chat-msg.assistant .chat-msg-avatar { background: var(--green-bg); }
+  .chat-msg.user .chat-msg-avatar { background: var(--g150); }
+  .chat-msg-bubble {
+    padding: 10px 14px;
+    border-radius: 12px;
+    font-size: 13px;
+    line-height: 1.6;
+  }
+  .chat-msg.assistant .chat-msg-bubble {
+    background: var(--white);
+    border: 1px solid var(--g200);
+    color: var(--g700);
+    border-bottom-left-radius: 4px;
+  }
+  .chat-msg.user .chat-msg-bubble {
+    background: var(--navy);
+    color: var(--white);
+    border-bottom-right-radius: 4px;
+  }
+  .chat-mutation {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    background: var(--green-soft);
+    border: 1px solid var(--green-border);
+    border-radius: 8px;
+    font-size: 11px;
+    color: var(--green);
+    font-weight: 500;
+    align-self: center;
+    animation: msgIn 0.2s ease;
+  }
+  .chat-mutation .mut-icon { font-weight: 700; }
+
+  .chat-input-area {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 20px;
+    border-top: 1px solid var(--g150);
+    background: var(--white);
+    flex-shrink: 0;
+  }
+  .chat-input {
+    flex: 1;
+    padding: 10px 14px;
+    border: 1px solid var(--g200);
+    border-radius: var(--r-sm);
+    font-size: 13px;
+    font-family: var(--font);
+    color: var(--g700);
+    outline: none;
+    transition: var(--t);
+    background: var(--g50);
+  }
+  .chat-input:focus { border-color: var(--green); background: var(--white); box-shadow: 0 0 0 3px rgba(63,175,122,0.08); }
+  .chat-input::placeholder { color: var(--g400); }
+  .chat-send {
+    width: 36px;
+    height: 36px;
+    border-radius: var(--r-sm);
+    background: var(--green);
+    border: none;
+    color: var(--white);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: var(--t);
+    font-size: 16px;
+    flex-shrink: 0;
+  }
+  .chat-send:hover { background: var(--green-light); }
+
+  /* Mini option buttons for question answers */
+  .mock-mini-opts {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    margin-top: 4px;
+  }
+  .mock-mini-opt {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 8px;
+    font-size: 10px;
+    border-radius: 4px;
+    border: 1px solid var(--g100);
+    color: var(--g600);
+  }
+  .mock-mini-opt.correct { background: var(--green-soft); border-color: var(--green-border); color: var(--green); font-weight: 600; }
+  .mock-mini-opt-letter {
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 8px;
+    font-weight: 700;
+    background: var(--g100);
+    color: var(--g500);
+    flex-shrink: 0;
+  }
+  .mock-mini-opt.correct .mock-mini-opt-letter { background: var(--green); color: white; }
+
+  /* Score bars */
+  .mock-mini-score { display:flex; flex-direction:column; gap:4px; margin-top:4px; }
+  .mock-score-line { display:flex; align-items:center; gap:6px; font-size:10px; }
+  .mock-score-line .sn { width:100px; color:var(--g500); }
+  .mock-score-bar-bg { flex:1; height:4px; background:var(--g150); border-radius:2px; overflow:hidden; }
+  .mock-score-bar-fill { height:100%; border-radius:2px; }
+  .mock-score-line .sv { width:28px; text-align:right; font-weight:700; font-size:10px; }
+
+  /* Survey mini */
+  .mock-mini-survey { font-size: 11px; color: var(--g600); }
+  .mock-survey-stars { font-size: 14px; margin: 2px 0; }
+  .star-on { color: var(--amber); }
+  .star-off { color: var(--g200); }
+
+  /* Metrics mini */
+  .mock-mini-metrics { display:flex; gap:8px; margin-bottom:6px; }
+  .mock-mini-met { text-align:center; flex:1; padding:6px; background:var(--g50); border-radius:4px; border:1px solid var(--g100); }
+  .mock-mini-met-val { font-size:16px; font-weight:800; color:var(--navy); }
+  .mock-mini-met-label { font-size:8px; color:var(--g400); text-transform:uppercase; letter-spacing:0.3px; }
+</style>
+</head>
+<body>
+
+<!-- ═══════ BRD BACKGROUND ═══════ -->
+<div class="brd-bg" id="brdBg">
+  <div class="brd-header">
+    <h1>ABO Assessment Platform</h1>
+    <p>Business Requirements Document</p>
+  </div>
+
+  <!-- HERO CARD -->
+  <div class="hero-card" onclick="openModal()">
+    <div class="hero-top">
+      <div class="hero-badge">
+        <div class="hero-icon">&#9878;</div>
+        <div>
+          <div class="hero-title">Solution Flow</div>
+          <div class="hero-subtitle">The complete experience, step by step</div>
+        </div>
+      </div>
+      <button class="hero-open-btn" onclick="event.stopPropagation(); openModal();">Open Flow &#8594;</button>
+    </div>
+    <div class="hero-stats">
+      <div class="hero-stat"><div class="hero-stat-value">10</div><div class="hero-stat-label">Steps</div></div>
+      <div class="hero-stat"><div class="hero-stat-value">4</div><div class="hero-stat-label">Actors</div></div>
+      <div class="hero-stat"><div class="hero-stat-value">28</div><div class="hero-stat-label">Info points</div></div>
+    </div>
+    <div class="hero-progress-row">
+      <div class="hero-progress-bg"><div class="hero-progress-bar" style="width:72%"></div></div>
+      <div class="hero-progress-pct">72%</div>
+    </div>
+    <div class="hero-questions-strip">
+      <div class="hero-q-pill">&#9888; 6 open questions</div>
+      <div class="hero-q-pill">Can images be zoomed?</div>
+      <div class="hero-q-pill">Is there a passing score?</div>
+      <div class="hero-q-pill">+4 more</div>
+    </div>
+  </div>
+
+  <!-- Other BRD sections (for context) -->
+  <div class="brd-section">
+    <div class="brd-section-header">
+      <div class="brd-section-title">Features</div>
+      <div class="brd-section-count">23 features</div>
+    </div>
+    <div class="brd-section-items">
+      <div class="brd-section-item">Lead Capture Form</div>
+      <div class="brd-section-item">QR Code Entry</div>
+      <div class="brd-section-item">Three-Section Assessment</div>
+      <div class="brd-section-item">Clinical Image Support</div>
+      <div class="brd-section-item">Cephalometric Display</div>
+      <div class="brd-section-item">Second Chance Logic</div>
+      <div class="brd-section-item">+17 more...</div>
+    </div>
+  </div>
+  <div class="brd-section">
+    <div class="brd-section-header">
+      <div class="brd-section-title">Personas</div>
+      <div class="brd-section-count">4 personas</div>
+    </div>
+    <div class="brd-section-items">
+      <div class="brd-section-item">&#129463; Newly Certified Orthodontist</div>
+      <div class="brd-section-item">&#129463; Veteran Orthodontist</div>
+      <div class="brd-section-item">&#128188; ABO Board Member</div>
+      <div class="brd-section-item">&#128188; Association Leadership</div>
+    </div>
+  </div>
+  <div class="brd-section">
+    <div class="brd-section-header">
+      <div class="brd-section-title">Data Entities</div>
+      <div class="brd-section-count">14 entities</div>
+    </div>
+    <div class="brd-section-items">
+      <div class="brd-section-item" style="font-family:var(--mono);font-size:11px;">Assessment</div>
+      <div class="brd-section-item" style="font-family:var(--mono);font-size:11px;">CephalometricMeasurement</div>
+      <div class="brd-section-item" style="font-family:var(--mono);font-size:11px;">ClinicalCase</div>
+      <div class="brd-section-item" style="font-family:var(--mono);font-size:11px;">LeadProfile</div>
+      <div class="brd-section-item" style="font-family:var(--mono);font-size:11px;">+10 more...</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════ MODAL ═══════ -->
+<div class="modal-overlay" id="modal">
+  <div class="modal-backdrop" onclick="closeModal()"></div>
+  <div class="modal-container">
+    <!-- HEADER -->
+    <div class="modal-header">
+      <button class="modal-back" onclick="closeModal()">&#8592; BRD</button>
+      <div class="modal-header-title">Solution Flow <span>ABO Assessment Platform</span></div>
+      <div class="modal-progress">
+        <div class="modal-progress-bg"><div class="modal-progress-bar"></div></div>
+        <div class="modal-progress-text">72%</div>
+      </div>
+      <div class="modal-questions-badge">&#9888; 6 open</div>
+      <button class="modal-close" onclick="closeModal()">&#10005;</button>
+    </div>
+
+    <!-- BODY -->
+    <div class="modal-body">
+      <!-- FLOW SIDEBAR -->
+      <div class="flow-sidebar">
+        <div class="flow-sidebar-scroll" id="flowSidebar"></div>
+        <div class="flow-sidebar-actors">
+          <div class="sidebar-actors-label">Actors</div>
+          <div class="sidebar-actors-list" id="actorFilters"></div>
+        </div>
+      </div>
+
+      <!-- RIGHT PANEL -->
+      <div class="right-panel">
+        <div class="step-detail" id="stepDetail"></div>
+        <div class="chat-panel">
+          <div class="chat-header">
+            <div class="chat-header-icon">&#128172;</div>
+            <div class="chat-header-text" id="chatHeaderText">Chat about this step</div>
+            <div class="chat-header-hint">Ask questions, add data, resolve unknowns</div>
+          </div>
+          <div class="chat-messages" id="chatMessages"></div>
+          <div class="chat-input-area">
+            <input class="chat-input" id="chatInput" placeholder="Ask about this step or add information..." onkeydown="if(event.key==='Enter')sendMessage()">
+            <button class="chat-send" onclick="sendMessage()">&#8593;</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const actors = [
+  { id:'ortho', name:'Orthodontist', icon:'&#129463;', bg:'var(--green-bg)', border:'var(--green-border)', color:'var(--green)' },
+  { id:'system', name:'System', icon:'&#9881;', bg:'var(--blue-soft)', border:'var(--blue-border)', color:'var(--blue)' },
+  { id:'leadership', name:'ABO Leadership', icon:'&#128202;', bg:'var(--purple-soft)', border:'var(--purple-border)', color:'var(--purple)' },
+];
+
+const steps = [
+  {
+    id:1, phase:'Entry', title:'Scan QR at Booth',
+    goal:'Get the orthodontist from booth curiosity to assessment start in under 30 seconds',
+    actors:['ortho'],
+    info:[
+      {name:'QR code ID',type:'computed',confidence:'known'},
+      {name:'Scan timestamp',type:'computed',confidence:'known'},
+      {name:'Event/booth ID',type:'computed',confidence:'known'},
+    ],
+    mock: [
+      {label:'QR URL', value:'abo.link/booth-2026-a3'},
+      {label:'Source', value:'Booth Station #3, AAO 2026'},
+    ],
+    mockType: 'simple',
+    questions:['Multiple QR codes per booth or one?','What if they type the URL directly?'],
+    chat:[
+      {role:'assistant',text:'This is the entry point — a QR code at the trade show booth. Right now I have the scan auto-capturing the booth ID and timestamp. Anything else we should grab at the scan level before the form?'},
+    ]
+  },
+  {
+    id:2, phase:'Entry', title:'Complete Registration',
+    goal:'Capture enough contact info for lead follow-up while keeping the form fast enough that nobody abandons it',
+    actors:['ortho'],
+    info:[
+      {name:'First name',type:'captured',confidence:'known'},
+      {name:'Last name',type:'captured',confidence:'known'},
+      {name:'Email',type:'captured',confidence:'known'},
+      {name:'Practice name',type:'captured',confidence:'known'},
+      {name:'City / State',type:'captured',confidence:'known'},
+      {name:'Years certified',type:'captured',confidence:'known'},
+      {name:'Phone number',type:'captured',confidence:'unknown'},
+    ],
+    mock: [
+      {label:'Name', value:'Dr. Sarah Chen'},
+      {label:'Email', value:'sarah.chen@brightsmilesortho.com'},
+      {label:'Practice', value:'Bright Smiles Orthodontics'},
+      {label:'Location', value:'Portland, OR'},
+      {label:'Certified', value:'10-20 years'},
+    ],
+    mockType: 'simple',
+    questions:['Do we need phone number?','Capture ABO member ID?','Privacy consent checkbox needed?'],
+    chat:[
+      {role:'assistant',text:'The registration form is the balance between speed and data. I have 6 confirmed fields. Phone number is still unknown — it adds friction but sales teams usually want it. What\'s the priority: speed to assessment or data completeness?'},
+      {role:'user',text:'Speed. We can get phone later in follow-up. Skip it.'},
+      {role:'mutation',text:'Removed phone number from registration step'},
+      {role:'assistant',text:'Done. That keeps the form to 6 fields which should be under 45 seconds on mobile. Should "years certified" be a dropdown (0-5, 5-10, 10-20, 20+) or a simple number input?'},
+    ]
+  },
+  {
+    id:3, phase:'Assessment', title:'View Assessment Sections',
+    goal:'Give a clear sense of progress and what\'s ahead so the orthodontist feels oriented, not overwhelmed',
+    actors:['ortho'],
+    info:[
+      {name:'Section names (3)',type:'displayed',confidence:'known'},
+      {name:'Questions per section',type:'displayed',confidence:'known'},
+      {name:'Estimated time',type:'displayed',confidence:'inferred'},
+      {name:'Completion status',type:'computed',confidence:'known'},
+      {name:'Progress count',type:'computed',confidence:'known'},
+    ],
+    mock: 'stepper',
+    mockType: 'stepper',
+    questions:['Can sections be done in any order?','Pause and resume later?','Is there a timer?'],
+    chat:[
+      {role:'assistant',text:'This is the assessment home base. Three sections with progress tracking. One thing I\'m inferring: estimated time per section. The signals mention "quick" and "bite-sized" — I\'m estimating 10-15 min per section based on question count. Does that feel right?'},
+    ]
+  },
+  {
+    id:4, phase:'Assessment', title:'Review Clinical Case',
+    goal:'Give the orthodontist enough visual and measurement context to reason about a clinical diagnosis — this must feel like reviewing a real patient chart',
+    actors:['ortho'],
+    info:[
+      {name:'Patient case ID',type:'displayed',confidence:'known'},
+      {name:'Patient age',type:'displayed',confidence:'known'},
+      {name:'Extraoral photos (3)',type:'displayed',confidence:'known'},
+      {name:'Intraoral photos (5)',type:'displayed',confidence:'known'},
+      {name:'Lateral ceph X-ray',type:'displayed',confidence:'known'},
+      {name:'Panoramic X-ray',type:'displayed',confidence:'known'},
+      {name:'Periapical X-ray',type:'displayed',confidence:'inferred'},
+      {name:'Ceph measurements',type:'displayed',confidence:'known'},
+      {name:'Deviation scores',type:'computed',confidence:'known'},
+      {name:'Significance flags',type:'computed',confidence:'known'},
+    ],
+    mock: 'clinical',
+    mockType: 'clinical',
+    questions:['Which images are always vs optional?','Can images be zoomed on mobile?','How many total cases?','Ceph data on every case?'],
+    chat:[
+      {role:'assistant',text:'This is the most complex step — it\'s the core clinical experience. I\'ve mapped the standard ABO record format: 3 extraoral, 5 intraoral, plus radiographs. The ceph table shows measurements grouped by region with deviation scoring. A few things I need to confirm...'},
+      {role:'user',text:'Every case has the standard 8 photos plus lateral ceph and pano. Some also have periapical but not all. And yes, every case has ceph measurement data.'},
+      {role:'mutation',text:'Updated: periapical X-ray marked as optional'},
+      {role:'mutation',text:'Confirmed: ceph measurements present on all cases'},
+      {role:'assistant',text:'Got it. So 10 images minimum per case (8 photos + 2 radiographs), with optional periapical. And ceph data is universal. Can patients zoom into images on mobile? For ceph tracings especially, the detail matters.'},
+    ]
+  },
+  {
+    id:5, phase:'Assessment', title:'Answer Clinical Question',
+    goal:'Test whether the orthodontist can apply clinical reasoning to a real scenario — not just recall, but diagnostic thinking',
+    actors:['ortho'],
+    info:[
+      {name:'Question number',type:'displayed',confidence:'known'},
+      {name:'Question stem',type:'displayed',confidence:'known'},
+      {name:'5 answer options (A-E)',type:'displayed',confidence:'known'},
+      {name:'Selected answer',type:'captured',confidence:'known'},
+      {name:'Correct answer',type:'computed',confidence:'known'},
+    ],
+    mock: 'question',
+    mockType: 'question',
+    questions:['Time limit per question?','Can you skip and return?'],
+    chat:[
+      {role:'assistant',text:'Each question is tied to a clinical case. The format is consistent: stem + 5 options (A-E). The second-chance mechanic means first wrong answer gets a retry, second wrong shows the correct answer. Is there an explanation or rationale shown when the correct answer is revealed?'},
+    ]
+  },
+  {
+    id:6, phase:'Assessment', title:'Handle Second Chance',
+    goal:'Keep the orthodontist engaged after a wrong answer — the retry is a learning moment, not a penalty',
+    actors:['ortho','system'],
+    info:[
+      {name:'"Try Again" prompt',type:'displayed',confidence:'known'},
+      {name:'Second attempt answer',type:'captured',confidence:'known'},
+      {name:'Correct on retry',type:'computed',confidence:'known'},
+    ],
+    mock: [
+      {label:'State', value:'Wrong first attempt → "Not quite — try again!"'},
+      {label:'Behavior', value:'No answer revealed, re-examine case'},
+      {label:'On 2nd fail', value:'Show correct answer, advance'},
+    ],
+    mockType: 'simple',
+    questions:['Explanation shown after 2nd failure?','Partial credit for retry?'],
+    chat:[
+      {role:'assistant',text:'The retry mechanic is key to the learning experience. After first wrong: encouraging "try again" without revealing the answer. After second wrong: show the correct answer and advance. The tone should be supportive, not punishing. Should there be an explanation of WHY the correct answer is right?'},
+    ]
+  },
+  {
+    id:7, phase:'Assessment', title:'Celebrate Correct Answer',
+    goal:'Reinforce confidence and maintain momentum — make getting it right feel good',
+    actors:['system'],
+    info:[
+      {name:'Success animation',type:'displayed',confidence:'inferred'},
+      {name:'Correct answer highlight',type:'displayed',confidence:'known'},
+      {name:'Brief explanation',type:'displayed',confidence:'guess'},
+    ],
+    mock: [
+      {label:'Display', value:'&#10003; Correct! Green highlight on answer B'},
+      {label:'Explain', value:'Brief rationale (if confirmed)'},
+      {label:'Timing', value:'1.5s display then auto-advance'},
+    ],
+    mockType: 'simple',
+    questions:['Show rationale for correct answers?','Auto-advance delay timing?'],
+    chat:[
+      {role:'assistant',text:'Positive feedback is brief but satisfying — green confirmation, maybe a subtle animation. The question is whether to include a short explanation even when they get it right. It would add learning value but slow the flow. What\'s the priority?'},
+    ]
+  },
+  {
+    id:8, phase:'Results', title:'View Performance Results',
+    goal:'Transform a test score into an actionable learning roadmap — don\'t just say "72%", say "here\'s what to focus on next"',
+    actors:['ortho','system'],
+    info:[
+      {name:'Overall score',type:'computed',confidence:'known'},
+      {name:'Section scores (3)',type:'computed',confidence:'known'},
+      {name:'Topic performance',type:'computed',confidence:'known'},
+      {name:'Recommended resources',type:'displayed',confidence:'inferred'},
+      {name:'Pass/fail status',type:'computed',confidence:'unknown'},
+    ],
+    mock: 'results',
+    mockType: 'results',
+    questions:['Is there a passing score?','Certificate or badge?','Can they retake?','Curated or auto-generated resources?','Email results to user?'],
+    chat:[
+      {role:'assistant',text:'The results screen is where the assessment becomes valuable long-term. I\'ve mapped score breakdowns by section with resource recommendations for weak areas. The big open question: is there a defined passing score? That fundamentally changes the emotional tone of this screen.'},
+    ]
+  },
+  {
+    id:9, phase:'Results', title:'Complete Feedback Survey',
+    goal:'Capture honest signal about whether this assessment format resonates — and get permission to follow up',
+    actors:['ortho'],
+    info:[
+      {name:'Relevance rating (1-5)',type:'captured',confidence:'known'},
+      {name:'Free-text feedback',type:'captured',confidence:'known'},
+      {name:'Follow-up opt-in',type:'captured',confidence:'known'},
+    ],
+    mock: 'survey',
+    mockType: 'survey',
+    questions:['Mandatory or skippable?','More specific questions?'],
+    chat:[
+      {role:'assistant',text:'Quick exit survey — 3 fields, 30 seconds. The opt-in for follow-up is the most important capture here. Should this be mandatory (risks abandonment) or skippable (risks low response rate)?'},
+    ]
+  },
+  {
+    id:10, phase:'Admin', title:'Review Event Analytics',
+    goal:'Answer "was this booth worth it?" with data — and identify what to change for the next event',
+    actors:['leadership'],
+    info:[
+      {name:'QR scan count',type:'computed',confidence:'known'},
+      {name:'Start / completion counts',type:'computed',confidence:'known'},
+      {name:'Completion rate',type:'computed',confidence:'known'},
+      {name:'Average score',type:'computed',confidence:'known'},
+      {name:'Lead capture rate',type:'computed',confidence:'known'},
+      {name:'Opt-in rate',type:'computed',confidence:'known'},
+      {name:'Score by section',type:'computed',confidence:'known'},
+    ],
+    mock: 'analytics',
+    mockType: 'analytics',
+    questions:['Real-time or post-event?','CSV export?','Compare across events?','Who has access?'],
+    chat:[
+      {role:'assistant',text:'This is the leadership payoff — a dashboard that proves ROI. I\'ve mapped the funnel: scans → starts → completions → opt-ins. The big question is timing: does leadership want to see this DURING the event (real-time booth monitoring) or only after (post-event analysis)?'},
+    ]
+  },
+];
+
+// STATE
+let activeStep = 2;
+let activeActor = null;
+
+function getActor(id) { return actors.find(a=>a.id===id); }
+
+function renderMockContent(step) {
+  if (step.mockType === 'simple') {
+    return step.mock.map(m => `
+      <div class="mock-field-row">
+        <div class="mock-field-label">${m.label}</div>
+        <div class="mock-field-value">${m.value}</div>
+      </div>`).join('');
+  }
+  if (step.mockType === 'stepper') {
+    return `
+      <div style="display:flex;flex-direction:column;gap:4px;">
+        <div style="padding:6px 8px;border-radius:4px;border:1px solid var(--green-border);background:var(--green-soft);font-size:10px;">
+          <div style="font-weight:600;color:var(--navy);">&#10003; Facial Classification</div>
+          <div style="color:var(--g400);">8 Qs &middot; Complete</div>
+        </div>
+        <div style="padding:6px 8px;border-radius:4px;border:1px solid var(--green);box-shadow:0 0 0 2px rgba(63,175,122,0.1);font-size:10px;">
+          <div style="font-weight:600;color:var(--navy);">&#9654; Cephalometric Analysis</div>
+          <div style="color:var(--g400);">10 Qs &middot; 6/10</div>
+        </div>
+        <div style="padding:6px 8px;border-radius:4px;border:1px solid var(--g200);font-size:10px;">
+          <div style="font-weight:500;color:var(--g500);">Treatment Planning</div>
+          <div style="color:var(--g400);">7 Qs &middot; Not started</div>
+        </div>
+      </div>`;
+  }
+  if (step.mockType === 'clinical') {
+    return `
+      <div style="font-size:10px;font-weight:600;color:var(--navy);margin-bottom:6px;">Case SR 13-11 &middot; 13y 11m</div>
+      <div class="mock-mini-imgs">
+        <div class="mock-mini-img">Profile</div><div class="mock-mini-img">Front</div><div class="mock-mini-img">Smile</div>
+        <div class="mock-mini-img">R.Lat</div><div class="mock-mini-img">Front</div><div class="mock-mini-img">L.Lat</div>
+        <div class="mock-mini-img">Upper</div><div class="mock-mini-img">Lower</div>
+        <div class="mock-mini-img" style="width:50px;background:#0d2940;color:rgba(100,180,255,0.6);">Lat Ceph</div>
+        <div class="mock-mini-img" style="width:50px;background:#0d2940;color:rgba(100,180,255,0.6);">Pano</div>
+      </div>
+      <div style="margin-top:8px;">
+        <div class="mock-mini-ceph-row"><span class="mock-ceph-name">SNA</span><span class="mock-ceph-val">82&deg;</span><span style="color:var(--g400)">norm</span></div>
+        <div class="mock-mini-ceph-row"><span class="mock-ceph-name">SNB</span><span class="mock-ceph-val">75&deg;</span><span class="mock-ceph-flag" style="color:var(--amber)">&#9733;&#9733;</span></div>
+        <div class="mock-mini-ceph-row mock-ceph-critical"><span class="mock-ceph-name" style="color:var(--red)">ANB</span><span class="mock-ceph-val" style="color:var(--red)">7&deg;</span><span class="mock-ceph-flag" style="color:var(--red)">&#9733;&#9733;&#9733;&#9733;</span></div>
+        <div class="mock-mini-ceph-row mock-ceph-critical"><span class="mock-ceph-name" style="color:var(--red)">Lip-E</span><span class="mock-ceph-val" style="color:var(--red)">-8mm</span><span class="mock-ceph-flag" style="color:var(--red)">&#9733;&#9733;&#9733;</span></div>
+      </div>`;
+  }
+  if (step.mockType === 'question') {
+    return `
+      <div style="font-size:11px;color:var(--navy);font-style:italic;margin-bottom:6px;line-height:1.5;">"The ANB of 7&deg; and retruded profile suggest:"</div>
+      <div class="mock-mini-opts">
+        <div class="mock-mini-opt"><span class="mock-mini-opt-letter">A</span> Skeletal Class I</div>
+        <div class="mock-mini-opt correct"><span class="mock-mini-opt-letter">B</span> Skeletal Class II w/ mandibular deficiency</div>
+        <div class="mock-mini-opt"><span class="mock-mini-opt-letter">C</span> Skeletal Class III</div>
+        <div class="mock-mini-opt"><span class="mock-mini-opt-letter">D</span> Bimaxillary protrusion</div>
+        <div class="mock-mini-opt"><span class="mock-mini-opt-letter">E</span> Pseudo Class III</div>
+      </div>`;
+  }
+  if (step.mockType === 'results') {
+    return `
+      <div style="text-align:center;margin-bottom:6px;"><span style="font-size:24px;font-weight:800;color:var(--navy);">72%</span><span style="font-size:10px;color:var(--g400);margin-left:4px;">18/25</span></div>
+      <div class="mock-mini-score">
+        <div class="mock-score-line"><span class="sn">Facial</span><div class="mock-score-bar-bg"><div class="mock-score-bar-fill" style="width:87%;background:var(--green)"></div></div><span class="sv" style="color:var(--green)">87%</span></div>
+        <div class="mock-score-line"><span class="sn">Cephalometric</span><div class="mock-score-bar-bg"><div class="mock-score-bar-fill" style="width:60%;background:var(--red)"></div></div><span class="sv" style="color:var(--red)">60%</span></div>
+        <div class="mock-score-line"><span class="sn">Treatment</span><div class="mock-score-bar-bg"><div class="mock-score-bar-fill" style="width:71%;background:var(--amber)"></div></div><span class="sv" style="color:var(--amber)">71%</span></div>
+      </div>`;
+  }
+  if (step.mockType === 'survey') {
+    return `
+      <div class="mock-mini-survey">
+        <div style="font-size:10px;color:var(--g500);margin-bottom:2px;">Relevance to practice:</div>
+        <div class="mock-survey-stars"><span class="star-on">&#9733;&#9733;&#9733;&#9733;</span><span class="star-off">&#9734;</span></div>
+        <div style="font-size:10px;color:var(--g500);margin-top:6px;padding:4px 6px;background:var(--g50);border-radius:3px;font-style:italic;">"More CBCT questions..."</div>
+        <div style="font-size:10px;margin-top:6px;">Follow-up: <span style="color:var(--green);font-weight:600;">Yes &#10003;</span></div>
+      </div>`;
+  }
+  if (step.mockType === 'analytics') {
+    return `
+      <div class="mock-mini-metrics">
+        <div class="mock-mini-met"><div class="mock-mini-met-val">342</div><div class="mock-mini-met-label">Scans</div></div>
+        <div class="mock-mini-met"><div class="mock-mini-met-val">198</div><div class="mock-mini-met-label">Done</div></div>
+        <div class="mock-mini-met"><div class="mock-mini-met-val">69%</div><div class="mock-mini-met-label">Rate</div></div>
+      </div>
+      <div style="font-size:9px;color:var(--g400);text-align:center;">342 &#8594; 287 &#8594; 198 &#8594; 121 opted-in</div>`;
+  }
+  return '';
+}
+
+function renderFlowSidebar() {
+  let html = '';
+  let lastPhase = '';
+  steps.forEach(s => {
+    if (s.phase !== lastPhase) {
+      html += `<div class="flow-phase-label">${s.phase}</div>`;
+      lastPhase = s.phase;
+    }
+    const active = activeStep === s.id ? 'active' : '';
+    const dimmed = activeActor && !s.actors.includes(activeActor) ? 'opacity:0.3;' : '';
+    const actorTags = s.actors.map(aid => {
+      const a = getActor(aid);
+      return `<span class="flow-step-actor" style="background:${a.bg};color:${a.color};border:1px solid ${a.border};">${a.icon}</span>`;
+    }).join('');
+    const qCount = s.questions.length;
+    const knownCount = s.info.filter(i=>i.confidence==='known').length;
+    const totalCount = s.info.length;
+    const dots = [0,1,2].map(i => {
+      const ratio = knownCount / totalCount;
+      if (i < Math.floor(ratio * 3)) return 'filled';
+      if (i < Math.ceil(ratio * 3)) return 'partial';
+      return 'empty';
+    }).map(c => `<span class="confidence-dot ${c}"></span>`).join('');
+
+    html += `<div class="flow-step-item ${active}" style="${dimmed}" onclick="selectStep(${s.id})">
+      <div class="flow-step-num">${active ? s.id : s.id}</div>
+      <div class="flow-step-content">
+        <div class="flow-step-title">${s.title}</div>
+        <div class="flow-step-meta">
+          ${actorTags}
+          ${qCount > 0 ? `<span class="flow-step-questions-count">&#9888; ${qCount}</span>` : ''}
+          <span class="flow-step-confidence">${dots}</span>
+        </div>
+      </div>
+    </div>`;
+  });
+  document.getElementById('flowSidebar').innerHTML = html;
+
+  // Actor filters
+  document.getElementById('actorFilters').innerHTML = actors.map(a => {
+    const hl = activeActor === a.id ? 'highlighted' : '';
+    return `<div class="sidebar-actor-chip ${hl}" onclick="toggleActor('${a.id}')">${a.icon} ${a.name}</div>`;
+  }).join('');
+}
+
+function renderStepDetail(step) {
+  const actorChips = step.actors.map(aid => {
+    const a = getActor(aid);
+    return `<span class="step-actor-chip" style="background:${a.bg};color:${a.color};border:1px solid ${a.border};">${a.icon} ${a.name}</span>`;
+  }).join('');
+
+  const infoItems = step.info.map(i => `
+    <div class="info-item">
+      <div class="info-dot ${i.type}"></div>
+      <div class="info-name">${i.name}</div>
+      <span class="info-confidence ${i.confidence}">${i.confidence}</span>
+    </div>`).join('');
+
+  const questionItems = step.questions.map(q => `
+    <div class="question-item">
+      <div class="q-icon">?</div>
+      <div style="flex:1">${q}</div>
+      <button class="q-resolve-btn">Resolve</button>
+    </div>`).join('');
+
+  document.getElementById('stepDetail').innerHTML = `
+    <div class="step-phase-tag">${step.phase} &middot; Step ${step.id} of ${steps.length}</div>
+    <div class="step-detail-title">${step.title}</div>
+    <div class="step-detail-actors">${actorChips}</div>
+
+    <div class="goal-box">
+      <div class="goal-label">&#127919; Goal</div>
+      <div class="goal-text">${step.goal}</div>
+      <div class="goal-edit-hint">Click to edit</div>
+    </div>
+
+    <div class="detail-grid">
+      <div class="detail-card">
+        <div class="detail-card-header"><span class="icon">&#128203;</span> Information at this step</div>
+        <div class="detail-card-body">
+          <div class="info-list">
+            ${infoItems}
+            <button class="add-info-btn">+ Add information</button>
+          </div>
+        </div>
+      </div>
+      <div class="detail-card">
+        <div class="detail-card-header"><span class="icon">&#127912;</span> Mock data</div>
+        <div class="detail-card-body">
+          <div class="mock-preview">${renderMockContent(step)}</div>
+        </div>
+      </div>
+    </div>
+
+    ${step.questions.length > 0 ? `
+    <div class="questions-section">
+      <div class="questions-section-header">&#9888; Open questions (${step.questions.length})</div>
+      ${questionItems}
+    </div>` : ''}
+  `;
+  document.getElementById('stepDetail').scrollTop = 0;
+}
+
+function renderChat(step) {
+  document.getElementById('chatHeaderText').textContent = `Chat \u00b7 Step ${step.id}: ${step.title}`;
+  const msgs = step.chat.map(m => {
+    if (m.role === 'mutation') {
+      return `<div class="chat-mutation"><span class="mut-icon">&#10003;</span> ${m.text}</div>`;
+    }
+    return `<div class="chat-msg ${m.role}">
+      <div class="chat-msg-avatar">${m.role === 'assistant' ? '&#9878;' : '&#128100;'}</div>
+      <div class="chat-msg-bubble">${m.text}</div>
+    </div>`;
+  }).join('');
+  document.getElementById('chatMessages').innerHTML = msgs;
+  const el = document.getElementById('chatMessages');
+  el.scrollTop = el.scrollHeight;
+}
+
+function selectStep(id) {
+  activeStep = id;
+  const step = steps.find(s=>s.id===id);
+  renderFlowSidebar();
+  renderStepDetail(step);
+  renderChat(step);
+}
+
+function toggleActor(id) {
+  activeActor = activeActor === id ? null : id;
+  renderFlowSidebar();
+}
+
+function sendMessage() {
+  const input = document.getElementById('chatInput');
+  const text = input.value.trim();
+  if (!text) return;
+  input.value = '';
+
+  const step = steps.find(s=>s.id===activeStep);
+  step.chat.push({role:'user',text});
+
+  // Simulate response
+  setTimeout(() => {
+    step.chat.push({role:'assistant',text:'That\'s helpful context. Let me update the step data to reflect that. Is there anything else about this step you want to refine?'});
+    renderChat(step);
+  }, 800);
+
+  renderChat(step);
+}
+
+function openModal() {
+  document.getElementById('modal').classList.add('open');
+  document.getElementById('brdBg').classList.add('dimmed');
+  selectStep(activeStep);
+}
+function closeModal() {
+  document.getElementById('modal').classList.remove('open');
+  document.getElementById('brdBg').classList.remove('dimmed');
+}
+</script>
+</body>
+</html>

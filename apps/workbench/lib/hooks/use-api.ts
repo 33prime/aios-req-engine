@@ -21,6 +21,11 @@ import {
   getQuestionCounts,
   batchGetDashboardData,
   listUpcomingMeetings,
+  listMeetings,
+  listTasks,
+  listMyTasks,
+  getTaskById,
+  listTaskComments,
   getWorkspaceData,
   getMemoryVisualization,
   getIntelligenceOverview,
@@ -33,7 +38,11 @@ import type {
   NextAction,
   ProjectContextFrame,
   UnifiedActionsResult,
+  Task,
+  TaskWithProject,
   TaskStatsResponse,
+  MyTasksResponse,
+  TaskCommentListResponse,
   BatchDashboardData,
   MemoryVisualizationResponse,
   UnifiedMemoryResponse,
@@ -118,6 +127,24 @@ export function useUpcomingMeetings(
   )
 }
 
+// --- All meetings (for meetings page) ---
+export function useMeetings(
+  projectId?: string,
+  status?: string,
+  config?: SWRConfiguration<Meeting[]>,
+) {
+  const key = `meetings:all:${projectId || 'all'}:${status || 'all'}`
+  return useSWR<Meeting[]>(
+    key,
+    () => listMeetings(projectId, status),
+    {
+      dedupingInterval: MED_CACHE,
+      revalidateOnFocus: false,
+      ...config,
+    },
+  )
+}
+
 // --- Batch dashboard data (task stats + next actions for multiple projects) ---
 export function useBatchDashboardData(
   projectIds: string[] | undefined,
@@ -135,6 +162,93 @@ export function useBatchDashboardData(
     {
       dedupingInterval: MED_CACHE,
       revalidateOnFocus: false,
+      ...config,
+    },
+  )
+}
+
+// --- Cross-project tasks (for home dashboard) ---
+export function useCrossProjectTasks(
+  projectIds: string[] | undefined,
+  limit = 5,
+  config?: SWRConfiguration<Task[]>,
+) {
+  const sortedIds = projectIds ? [...projectIds].sort() : null
+  const key = sortedIds && sortedIds.length > 0
+    ? `cross-project-tasks:${sortedIds.join(',')}`
+    : null
+
+  return useSWR<Task[]>(
+    key,
+    async () => {
+      const results = await Promise.all(
+        sortedIds!.map((pid) =>
+          listTasks(pid, {
+            status: 'pending',
+            limit: 10,
+            sort_by: 'created_at',
+            sort_order: 'desc',
+          }).catch(() => ({ tasks: [], total: 0, has_more: false }))
+        )
+      )
+      // Merge, filter out tasks older than 10 days, sort by latest first
+      const tenDaysAgo = Date.now() - 10 * 24 * 60 * 60 * 1000
+      const all = results.flatMap((r) => r.tasks)
+        .filter((t) => new Date(t.created_at).getTime() >= tenDaysAgo)
+      all.sort((a, b) =>
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      )
+      return all.slice(0, limit)
+    },
+    {
+      dedupingInterval: MED_CACHE,
+      revalidateOnFocus: false,
+      ...config,
+    },
+  )
+}
+
+// --- My tasks (cross-project, server-side aggregation) ---
+export function useMyTasks(
+  view: 'assigned_to_me' | 'created_by_me' | 'all' = 'all',
+  config?: SWRConfiguration<MyTasksResponse>,
+) {
+  return useSWR<MyTasksResponse>(
+    `my-tasks:${view}`,
+    () => listMyTasks({ view, limit: 200 }),
+    {
+      dedupingInterval: MED_CACHE,
+      revalidateOnFocus: false,
+      ...config,
+    },
+  )
+}
+
+// --- Single task detail ---
+export function useTaskDetail(
+  taskId: string | undefined,
+  config?: SWRConfiguration<TaskWithProject>,
+) {
+  return useSWR<TaskWithProject>(
+    taskId ? `task-detail:${taskId}` : null,
+    () => getTaskById(taskId!),
+    {
+      dedupingInterval: SHORT_CACHE,
+      ...config,
+    },
+  )
+}
+
+// --- Task comments ---
+export function useTaskComments(
+  taskId: string | undefined,
+  config?: SWRConfiguration<TaskCommentListResponse>,
+) {
+  return useSWR<TaskCommentListResponse>(
+    taskId ? `task-comments:${taskId}` : null,
+    () => listTaskComments(taskId!),
+    {
+      dedupingInterval: SHORT_CACHE,
       ...config,
     },
   )

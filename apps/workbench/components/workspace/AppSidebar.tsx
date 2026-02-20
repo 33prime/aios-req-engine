@@ -19,12 +19,14 @@ import {
   Folder,
   Building2,
   UserCircle,
+  Calendar,
   Settings,
   Shield,
   ChevronLeft,
   ChevronRight,
   User,
   Plus,
+  ListTodo,
 } from 'lucide-react'
 import { useAuth } from '@/components/auth/AuthProvider'
 import { useProfile } from '@/lib/hooks/use-api'
@@ -101,8 +103,10 @@ export function AppSidebar({ isCollapsed: controlledCollapsed, onToggleCollapse 
   const navItems = [
     { href: '/home', icon: <Home className="w-4 h-4" />, label: 'Home' },
     { href: '/projects', icon: <Folder className="w-4 h-4" />, label: 'Projects' },
+    { href: '/tasks', icon: <ListTodo className="w-4 h-4" />, label: 'Tasks' },
     { href: '/clients', icon: <Building2 className="w-4 h-4" />, label: 'Clients' },
     { href: '/people', icon: <UserCircle className="w-4 h-4" />, label: 'People' },
+    { href: '/meetings', icon: <Calendar className="w-4 h-4" />, label: 'Meetings' },
     { href: '/settings', icon: <Settings className="w-4 h-4" />, label: 'Settings' },
     ...(profile?.platform_role === 'super_admin'
       ? [{ href: '/admin', icon: <Shield className="w-4 h-4" />, label: 'Admin' }]
@@ -156,10 +160,10 @@ export function AppSidebar({ isCollapsed: controlledCollapsed, onToggleCollapse 
             {/* Green "+" button */}
             <button
               onClick={() => setShowCreateProject(true)}
-              className="p-1.5 rounded-full bg-[#3FAF7A] text-white hover:bg-[#25785A] transition-colors"
+              className="p-1 rounded-full bg-[#3FAF7A] text-white hover:bg-[#25785A] transition-colors"
               title="New project"
             >
-              <Plus className="w-3.5 h-3.5" />
+              <Plus className="w-3 h-3" />
             </button>
           </div>
         </div>
@@ -172,7 +176,7 @@ export function AppSidebar({ isCollapsed: controlledCollapsed, onToggleCollapse 
               href={item.href}
               icon={item.icon}
               label={item.label}
-              isActive={item.href === '/admin' ? pathname.startsWith('/admin') : pathname === item.href}
+              isActive={item.href === '/admin' ? pathname.startsWith('/admin') : item.href === '/meetings' ? pathname.startsWith('/meetings') : item.href === '/tasks' ? pathname.startsWith('/tasks') : pathname === item.href}
               isCollapsed={isCollapsed}
             />
           ))}

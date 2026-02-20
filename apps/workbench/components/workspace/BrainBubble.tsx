@@ -55,7 +55,7 @@ interface BrainBubbleProps {
 }
 
 // Panel width constant — shared with WorkspaceLayout for margin calculation
-export const BRAIN_PANEL_WIDTH = 380
+export const BRAIN_PANEL_WIDTH = 475
 
 // =============================================================================
 // BrainBubble — floating button + side panel that compresses BRD

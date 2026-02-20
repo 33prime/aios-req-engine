@@ -22,9 +22,13 @@ from app.core.logging import get_logger
 from app.core.schemas_tasks import (
     AnchoredEntityType,
     GateStage,
+    MyTasksResponse,
     Task,
     TaskActivity,
     TaskActivityListResponse,
+    TaskComment,
+    TaskCommentCreate,
+    TaskCommentListResponse,
     TaskCompletionMethod,
     TaskCreate,
     TaskFilter,
@@ -35,12 +39,14 @@ from app.core.schemas_tasks import (
     TaskSummary,
     TaskType,
     TaskUpdate,
+    TaskWithProject,
 )
 from app.db import tasks as tasks_db
 
 logger = get_logger(__name__)
 
 router = APIRouter(prefix="/projects", tags=["tasks"])
+my_tasks_router = APIRouter(prefix="/tasks", tags=["my-tasks"])
 
 
 # ============================================================================
@@ -653,3 +659,107 @@ async def recalculate_for_entity(
     except Exception as e:
         logger.error(f"Failed to recalculate entity priorities: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to recalculate priorities: {str(e)}")
+
+
+# ============================================================================
+# Cross-Project Task Endpoints (my_tasks_router)
+# ============================================================================
+
+
+@my_tasks_router.get("/my", response_model=MyTasksResponse)
+async def list_my_tasks(
+    view: str = Query("all", pattern="^(assigned_to_me|created_by_me|all)$"),
+    status: Optional[str] = Query(None),
+    limit: int = Query(100, ge=1, le=200),
+    offset: int = Query(0, ge=0),
+    auth: AuthContext = Depends(require_auth),
+):
+    """
+    List tasks across all projects for the current user.
+
+    Views:
+    - assigned_to_me: tasks assigned to you
+    - created_by_me: tasks you created
+    - all: both
+    """
+    return await tasks_db.list_my_tasks(
+        user_id=auth.user_id,
+        view=view,
+        status=status,
+        limit=limit,
+        offset=offset,
+    )
+
+
+@my_tasks_router.get("/{task_id}", response_model=TaskWithProject)
+async def get_task_detail(
+    task_id: UUID,
+    auth: AuthContext = Depends(require_auth),
+):
+    """Get a single task by ID with project info (no project_id required)."""
+    task = await tasks_db.get_task_with_project(task_id)
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    return task
+
+
+@my_tasks_router.get("/{task_id}/comments", response_model=TaskCommentListResponse)
+async def list_task_comments(
+    task_id: UUID,
+    limit: int = Query(50, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+    auth: AuthContext = Depends(require_auth),
+):
+    """List comments for a task."""
+    task = await tasks_db.get_task(task_id)
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    comments, total = await tasks_db.list_task_comments(task_id, limit, offset)
+    return TaskCommentListResponse(comments=comments, total=total)
+
+
+@my_tasks_router.post("/{task_id}/comments", response_model=TaskComment)
+async def create_task_comment(
+    task_id: UUID,
+    data: TaskCommentCreate,
+    auth: AuthContext = Depends(require_auth),
+):
+    """Create a comment on a task."""
+    task = await tasks_db.get_task(task_id)
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    comment = await tasks_db.create_task_comment(
+        task_id=task_id,
+        project_id=task.project_id,
+        author_id=auth.user_id,
+        body=data.body,
+    )
+
+    # Log comment activity
+    await tasks_db.log_task_activity(
+        task_id=task_id,
+        project_id=task.project_id,
+        data=tasks_db.TaskActivityCreate(
+            action=tasks_db.TaskActivityAction.COMMENTED,
+            actor_type=tasks_db.TaskActorType.USER,
+            actor_id=auth.user_id,
+            details={"comment_id": str(comment.id)},
+        ),
+    )
+
+    return comment
+
+
+@my_tasks_router.delete("/{task_id}/comments/{comment_id}")
+async def delete_task_comment(
+    task_id: UUID,
+    comment_id: UUID,
+    auth: AuthContext = Depends(require_auth),
+):
+    """Delete a comment (only your own)."""
+    deleted = await tasks_db.delete_task_comment(comment_id, auth.user_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Comment not found or not yours")
+    return {"deleted": True, "comment_id": str(comment_id)}

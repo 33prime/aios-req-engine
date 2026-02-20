@@ -1,0 +1,1527 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Quick Action Cards — BrainBubble Playground</title>
+<style>
+  :root {
+    --navy: #0A1E2F;
+    --navy-light: #122a40;
+    --navy-lighter: #1a3654;
+    --green: #3FAF7A;
+    --green-dim: rgba(63,175,122,0.15);
+    --green-hover: #4bc48a;
+    --white: #ffffff;
+    --gray-100: #f0f2f5;
+    --gray-200: #e1e5ea;
+    --gray-300: #c4cad3;
+    --gray-400: #8e99a8;
+    --gray-500: #6b7685;
+    --gray-600: #4a5568;
+    --red-dim: rgba(239,68,68,0.12);
+    --red: #ef4444;
+    --amber-dim: rgba(245,158,11,0.12);
+    --amber: #f59e0b;
+    --blue-dim: rgba(59,130,246,0.12);
+    --blue: #3b82f6;
+    --purple-dim: rgba(139,92,246,0.12);
+    --purple: #8b5cf6;
+    --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    --mono: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+    --radius: 8px;
+    --radius-sm: 6px;
+    --radius-pill: 100px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: var(--font);
+    background: #0d0d0d;
+    color: var(--white);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ─── Layout ─── */
+  .layout {
+    display: flex;
+    flex: 1;
+    min-height: 0;
+  }
+
+  .controls-panel {
+    width: 320px;
+    min-width: 320px;
+    background: #141414;
+    border-right: 1px solid #2a2a2a;
+    padding: 24px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .preview-panel {
+    flex: 1;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 32px;
+    overflow-y: auto;
+    background: #111;
+  }
+
+  /* ─── Controls ─── */
+  .controls-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--white);
+    margin-bottom: 4px;
+  }
+
+  .controls-subtitle {
+    font-size: 12px;
+    color: var(--gray-400);
+    line-height: 1.5;
+  }
+
+  .section-label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--gray-400);
+    margin-bottom: 8px;
+  }
+
+  .tab-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .tab-btn {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: var(--radius-sm);
+    color: var(--gray-400);
+    font-size: 13px;
+    font-family: var(--font);
+    cursor: pointer;
+    transition: all 0.15s ease;
+    text-align: left;
+  }
+
+  .tab-btn:hover {
+    background: rgba(255,255,255,0.04);
+    color: var(--gray-200);
+  }
+
+  .tab-btn.active {
+    background: var(--green-dim);
+    border-color: rgba(63,175,122,0.3);
+    color: var(--green);
+    font-weight: 500;
+  }
+
+  .tab-num {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.06);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 600;
+    flex-shrink: 0;
+  }
+
+  .tab-btn.active .tab-num {
+    background: var(--green);
+    color: var(--navy);
+  }
+
+  .desc-box {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid #2a2a2a;
+    border-radius: var(--radius);
+    padding: 14px;
+    font-size: 12px;
+    color: var(--gray-400);
+    line-height: 1.6;
+  }
+
+  .desc-box strong {
+    color: var(--gray-200);
+  }
+
+  .toggle-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 0;
+  }
+
+  .toggle-label {
+    font-size: 13px;
+    color: var(--gray-300);
+  }
+
+  .toggle {
+    width: 36px;
+    height: 20px;
+    background: #333;
+    border-radius: 10px;
+    cursor: pointer;
+    position: relative;
+    transition: background 0.2s;
+  }
+
+  .toggle.on { background: var(--green); }
+
+  .toggle::after {
+    content: '';
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    background: white;
+    border-radius: 50%;
+    top: 2px;
+    left: 2px;
+    transition: transform 0.2s;
+  }
+
+  .toggle.on::after { transform: translateX(16px); }
+
+  /* ─── Chat Preview ─── */
+  .chat-frame {
+    width: 380px;
+    min-width: 380px;
+    max-width: 380px;
+    background: var(--navy);
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+    display: flex;
+    flex-direction: column;
+    max-height: calc(100vh - 64px);
+  }
+
+  .chat-header {
+    padding: 14px 16px;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: rgba(255,255,255,0.02);
+  }
+
+  .chat-header-dot {
+    width: 8px;
+    height: 8px;
+    background: var(--green);
+    border-radius: 50%;
+  }
+
+  .chat-header-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--white);
+  }
+
+  .chat-header-badge {
+    margin-left: auto;
+    font-size: 10px;
+    color: var(--gray-400);
+    background: rgba(255,255,255,0.06);
+    padding: 2px 8px;
+    border-radius: var(--radius-pill);
+  }
+
+  .chat-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .chat-body::-webkit-scrollbar { width: 4px; }
+  .chat-body::-webkit-scrollbar-track { background: transparent; }
+  .chat-body::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
+
+  /* ─── Messages ─── */
+  .msg {
+    animation: msgIn 0.25s ease-out;
+  }
+
+  @keyframes msgIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .msg-assistant {
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--gray-200);
+  }
+
+  .msg-user {
+    align-self: flex-end;
+    background: var(--green);
+    color: var(--navy);
+    font-size: 13px;
+    line-height: 1.5;
+    padding: 8px 14px;
+    border-radius: 14px 14px 4px 14px;
+    max-width: 85%;
+    font-weight: 500;
+  }
+
+  .msg-assistant p { margin-bottom: 8px; }
+  .msg-assistant p:last-child { margin-bottom: 0; }
+
+  .msg-bold { color: var(--white); font-weight: 600; }
+
+  /* ─── Card Shared ─── */
+  .card {
+    background: var(--navy-light);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: var(--radius);
+    margin-top: 10px;
+    overflow: hidden;
+    transition: border-color 0.2s;
+  }
+
+  .card:hover { border-color: rgba(255,255,255,0.1); }
+
+  .card-inner { padding: 12px 14px; }
+
+  .card-header {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: var(--gray-400);
+    margin-bottom: 8px;
+  }
+
+  .card-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--white);
+    margin-bottom: 6px;
+  }
+
+  .card-text {
+    font-size: 12px;
+    color: var(--gray-400);
+    line-height: 1.5;
+  }
+
+  .card-divider {
+    height: 1px;
+    background: rgba(255,255,255,0.06);
+  }
+
+  .card-actions {
+    padding: 8px 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  /* ─── Buttons ─── */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    border-radius: var(--radius-sm);
+    font-size: 12px;
+    font-weight: 500;
+    font-family: var(--font);
+    cursor: pointer;
+    transition: all 0.15s ease;
+    border: 1px solid transparent;
+    white-space: nowrap;
+  }
+
+  .btn-green {
+    background: var(--green);
+    color: var(--navy);
+  }
+
+  .btn-green:hover { background: var(--green-hover); transform: translateY(-1px); }
+
+  .btn-green-outline {
+    background: transparent;
+    border-color: var(--green);
+    color: var(--green);
+  }
+
+  .btn-green-outline:hover { background: var(--green-dim); }
+
+  .btn-ghost {
+    background: transparent;
+    border-color: rgba(255,255,255,0.12);
+    color: var(--gray-300);
+  }
+
+  .btn-ghost:hover { background: rgba(255,255,255,0.04); border-color: rgba(255,255,255,0.2); }
+
+  .btn-text {
+    background: transparent;
+    color: var(--gray-500);
+    padding: 6px 8px;
+    border: none;
+  }
+
+  .btn-text:hover { color: var(--gray-300); }
+
+  .btn-sm {
+    padding: 4px 10px;
+    font-size: 11px;
+  }
+
+  .btn-pill {
+    border-radius: var(--radius-pill);
+    padding: 6px 16px;
+  }
+
+  .btn:active { transform: scale(0.97); }
+
+  .btn.confirmed {
+    background: var(--green-dim) !important;
+    border-color: var(--green) !important;
+    color: var(--green) !important;
+    pointer-events: none;
+  }
+
+  .btn.confirmed::before {
+    content: '\\2713 ';
+  }
+
+  .btn.dismissed {
+    opacity: 0.3;
+    pointer-events: none;
+  }
+
+  /* ─── Action Buttons (Tab 1) ─── */
+  .inline-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 10px;
+  }
+
+  /* ─── Choice Cards (Tab 2) ─── */
+  .choice-options {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 8px;
+  }
+
+  .choice-btn {
+    padding: 6px 14px;
+    border-radius: var(--radius-pill);
+    font-size: 12px;
+    font-weight: 500;
+    font-family: var(--font);
+    cursor: pointer;
+    transition: all 0.15s ease;
+    border: 1px solid rgba(255,255,255,0.12);
+    background: rgba(255,255,255,0.03);
+    color: var(--gray-300);
+  }
+
+  .choice-btn:hover {
+    border-color: var(--green);
+    color: var(--green);
+    background: var(--green-dim);
+  }
+
+  .choice-btn.selected {
+    border-color: var(--green);
+    background: var(--green);
+    color: var(--navy);
+    font-weight: 600;
+  }
+
+  .choice-btn.not-selected {
+    opacity: 0.3;
+    pointer-events: none;
+  }
+
+  .choice-confirmed {
+    font-size: 11px;
+    color: var(--green);
+    margin-top: 6px;
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+
+  .choice-confirmed.show { opacity: 1; }
+
+  /* ─── Proposal Cards (Tab 3) ─── */
+  .tag-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin: 8px 0;
+  }
+
+  .tag {
+    padding: 3px 10px;
+    border-radius: var(--radius-pill);
+    font-size: 11px;
+    font-weight: 500;
+  }
+
+  .tag-green { background: var(--green-dim); color: var(--green); }
+  .tag-blue { background: var(--blue-dim); color: var(--blue); }
+  .tag-purple { background: var(--purple-dim); color: var(--purple); }
+
+  .proposal-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 6px 0;
+    font-size: 12px;
+    color: var(--gray-300);
+  }
+
+  .proposal-bullet {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--green);
+    flex-shrink: 0;
+    margin-top: 5px;
+  }
+
+  .card-confirmed-overlay {
+    display: none;
+    padding: 14px;
+    text-align: center;
+  }
+
+  .card-confirmed-overlay .check-circle {
+    width: 32px;
+    height: 32px;
+    background: var(--green-dim);
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 6px;
+  }
+
+  .card-confirmed-overlay .check-circle svg {
+    width: 16px;
+    height: 16px;
+    stroke: var(--green);
+  }
+
+  .card-confirmed-overlay .confirm-text {
+    font-size: 12px;
+    color: var(--green);
+    font-weight: 500;
+  }
+
+  .card.is-confirmed .card-inner,
+  .card.is-confirmed .card-divider,
+  .card.is-confirmed .card-actions { display: none; }
+
+  .card.is-confirmed .card-confirmed-overlay { display: block; }
+
+  /* ─── Email/Meeting Cards (Tab 4) ─── */
+  .email-field {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 0;
+    font-size: 12px;
+  }
+
+  .email-label {
+    color: var(--gray-500);
+    font-weight: 500;
+    width: 48px;
+    flex-shrink: 0;
+  }
+
+  .email-value { color: var(--gray-200); }
+
+  .email-body {
+    font-size: 12px;
+    color: var(--gray-400);
+    line-height: 1.6;
+    padding: 8px 0;
+    border-top: 1px solid rgba(255,255,255,0.04);
+    margin-top: 4px;
+  }
+
+  .agenda-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 3px 0;
+    font-size: 12px;
+    color: var(--gray-300);
+  }
+
+  .agenda-num {
+    color: var(--gray-500);
+    font-weight: 600;
+    font-size: 11px;
+    flex-shrink: 0;
+    width: 16px;
+  }
+
+  /* ─── Smart Summary (Tab 5) ─── */
+  .summary-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 8px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    cursor: pointer;
+    transition: background 0.1s;
+  }
+
+  .summary-item:last-child { border-bottom: none; }
+  .summary-item:hover { background: rgba(255,255,255,0.02); margin: 0 -14px; padding-left: 14px; padding-right: 14px; }
+
+  .summary-check {
+    width: 18px;
+    height: 18px;
+    border-radius: 4px;
+    border: 1.5px solid rgba(255,255,255,0.2);
+    flex-shrink: 0;
+    margin-top: 1px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s;
+  }
+
+  .summary-check.checked {
+    background: var(--green);
+    border-color: var(--green);
+  }
+
+  .summary-check svg {
+    width: 12px;
+    height: 12px;
+    stroke: var(--navy);
+    stroke-width: 2.5;
+    opacity: 0;
+    transition: opacity 0.15s;
+  }
+
+  .summary-check.checked svg { opacity: 1; }
+
+  .summary-type {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 1px 6px;
+    border-radius: 3px;
+    margin-bottom: 2px;
+    display: inline-block;
+  }
+
+  .type-feature { background: var(--green-dim); color: var(--green); }
+  .type-constraint { background: var(--amber-dim); color: var(--amber); }
+  .type-task { background: var(--blue-dim); color: var(--blue); }
+  .type-question { background: var(--purple-dim); color: var(--purple); }
+
+  .summary-label {
+    font-size: 12px;
+    color: var(--gray-200);
+    line-height: 1.4;
+  }
+
+  .summary-count {
+    font-size: 11px;
+    color: var(--gray-500);
+    margin-top: 10px;
+  }
+
+  /* ─── Gap Closers (Tab 6) ─── */
+  .gap-card {
+    background: var(--navy-light);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: var(--radius);
+    padding: 10px 12px;
+    margin-top: 8px;
+    transition: all 0.2s;
+  }
+
+  .gap-card:hover { border-color: rgba(255,255,255,0.1); }
+
+  .gap-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .gap-label {
+    font-size: 12px;
+    color: var(--gray-200);
+    font-weight: 500;
+    line-height: 1.4;
+    flex: 1;
+  }
+
+  .gap-severity {
+    font-size: 10px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: var(--radius-pill);
+    flex-shrink: 0;
+  }
+
+  .severity-critical { background: var(--red-dim); color: var(--red); }
+  .severity-moderate { background: var(--amber-dim); color: var(--amber); }
+
+  .gap-resolution {
+    font-size: 11px;
+    color: var(--gray-500);
+    margin: 6px 0 8px;
+    padding-left: 10px;
+    border-left: 2px solid rgba(255,255,255,0.06);
+  }
+
+  .gap-actions {
+    display: flex;
+    gap: 6px;
+  }
+
+  .gap-card.resolved {
+    border-color: rgba(63,175,122,0.3);
+    background: rgba(63,175,122,0.05);
+  }
+
+  .gap-card.resolved .gap-label { color: var(--green); }
+  .gap-card.resolved .gap-resolution { display: none; }
+  .gap-card.resolved .gap-actions { display: none; }
+  .gap-card.resolved .gap-severity { display: none; }
+
+  .gap-resolved-badge {
+    display: none;
+    font-size: 11px;
+    color: var(--green);
+    font-weight: 500;
+    margin-top: 4px;
+  }
+
+  .gap-card.resolved .gap-resolved-badge { display: block; }
+
+  /* ─── Evidence Cards (Tab 7) ─── */
+  .evidence-card {
+    background: var(--navy-light);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: var(--radius);
+    margin-top: 8px;
+    overflow: hidden;
+    transition: all 0.3s;
+  }
+
+  .evidence-quote {
+    padding: 12px 14px;
+    font-size: 12px;
+    color: var(--gray-200);
+    line-height: 1.6;
+    border-left: 3px solid var(--green);
+    margin: 10px;
+    font-style: italic;
+  }
+
+  .evidence-source {
+    padding: 0 14px 8px;
+    font-size: 10px;
+    color: var(--gray-500);
+  }
+
+  .evidence-actions {
+    padding: 8px 10px;
+    display: flex;
+    gap: 4px;
+    border-top: 1px solid rgba(255,255,255,0.04);
+  }
+
+  .evidence-btn {
+    flex: 1;
+    padding: 6px 0;
+    border-radius: var(--radius-sm);
+    font-size: 11px;
+    font-weight: 500;
+    font-family: var(--font);
+    cursor: pointer;
+    border: 1px solid rgba(255,255,255,0.08);
+    background: transparent;
+    color: var(--gray-400);
+    transition: all 0.15s;
+    text-align: center;
+  }
+
+  .evidence-btn:hover {
+    background: rgba(255,255,255,0.04);
+    color: var(--gray-200);
+    border-color: rgba(255,255,255,0.15);
+  }
+
+  .evidence-btn.tag-feature:hover { background: var(--green-dim); color: var(--green); border-color: rgba(63,175,122,0.3); }
+  .evidence-btn.tag-constraint:hover { background: var(--amber-dim); color: var(--amber); border-color: rgba(245,158,11,0.3); }
+  .evidence-btn.tag-assumption:hover { background: var(--purple-dim); color: var(--purple); border-color: rgba(139,92,246,0.3); }
+  .evidence-btn.tag-dismiss:hover { background: rgba(255,255,255,0.04); color: var(--gray-500); }
+
+  .evidence-card.tagged {
+    opacity: 0;
+    transform: translateX(-20px);
+    height: 0;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    transition: all 0.3s ease-out;
+  }
+
+  .evidence-tagged-msg {
+    display: none;
+    font-size: 11px;
+    color: var(--green);
+    padding: 6px 0;
+  }
+
+  .evidence-tagged-msg.show { display: block; }
+
+  /* ─── Prompt Output ─── */
+  .prompt-panel {
+    background: #141414;
+    border-top: 1px solid #2a2a2a;
+    padding: 16px 24px;
+  }
+
+  .prompt-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+  }
+
+  .prompt-label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--gray-500);
+  }
+
+  .copy-btn {
+    padding: 4px 12px;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: var(--radius-sm);
+    color: var(--gray-400);
+    font-size: 11px;
+    font-family: var(--font);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .copy-btn:hover { background: rgba(255,255,255,0.1); color: var(--white); }
+  .copy-btn.copied { background: var(--green-dim); color: var(--green); border-color: var(--green); }
+
+  .prompt-text {
+    font-size: 12px;
+    font-family: var(--mono);
+    color: var(--gray-300);
+    line-height: 1.6;
+    white-space: pre-wrap;
+    max-height: 120px;
+    overflow-y: auto;
+  }
+</style>
+</head>
+<body>
+
+<div class="layout">
+  <!-- Controls -->
+  <div class="controls-panel">
+    <div>
+      <div class="controls-title">Quick Action Cards</div>
+      <div class="controls-subtitle">Inline UI patterns for the BrainBubble chat assistant. Click a tab to preview each card type.</div>
+    </div>
+
+    <div>
+      <div class="section-label">Card Types</div>
+      <div class="tab-grid" id="tabGrid">
+        <button class="tab-btn active" data-tab="action-buttons" onclick="switchTab('action-buttons')">
+          <span class="tab-num">1</span> Action Buttons
+        </button>
+        <button class="tab-btn" data-tab="choice-cards" onclick="switchTab('choice-cards')">
+          <span class="tab-num">2</span> Choice Cards
+        </button>
+        <button class="tab-btn" data-tab="proposal-cards" onclick="switchTab('proposal-cards')">
+          <span class="tab-num">3</span> Proposal Cards
+        </button>
+        <button class="tab-btn" data-tab="email-meeting" onclick="switchTab('email-meeting')">
+          <span class="tab-num">4</span> Email / Meeting
+        </button>
+        <button class="tab-btn" data-tab="smart-summary" onclick="switchTab('smart-summary')">
+          <span class="tab-num">5</span> Smart Summary
+        </button>
+        <button class="tab-btn" data-tab="gap-closers" onclick="switchTab('gap-closers')">
+          <span class="tab-num">6</span> Gap Closers
+        </button>
+        <button class="tab-btn" data-tab="inline-evidence" onclick="switchTab('inline-evidence')">
+          <span class="tab-num">7</span> Inline Evidence
+        </button>
+      </div>
+    </div>
+
+    <div id="descBox" class="desc-box">
+      <strong>Action Buttons</strong> — Simple one-click buttons after assistant messages. Lowest friction — the assistant says what it found, and offers 1-2 immediate actions inline.
+    </div>
+
+    <div>
+      <div class="section-label">Options</div>
+      <div class="toggle-row">
+        <span class="toggle-label">Show user messages</span>
+        <div class="toggle on" id="toggleUser" onclick="toggleOption('showUser')"></div>
+      </div>
+      <div class="toggle-row">
+        <span class="toggle-label">Dark assistant bubbles</span>
+        <div class="toggle on" id="toggleDark" onclick="toggleOption('darkBubbles')"></div>
+      </div>
+      <div class="toggle-row">
+        <span class="toggle-label">Compact mode</span>
+        <div class="toggle" id="toggleCompact" onclick="toggleOption('compact')"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Preview -->
+  <div class="preview-panel">
+    <div class="chat-frame">
+      <div class="chat-header">
+        <div class="chat-header-dot"></div>
+        <div class="chat-header-title">Chat</div>
+        <div class="chat-header-badge">BRD : Workflows</div>
+      </div>
+      <div class="chat-body" id="chatBody">
+        <!-- Content injected by JS -->
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Prompt Output -->
+<div class="prompt-panel">
+  <div class="prompt-header">
+    <span class="prompt-label">Implementation Prompt</span>
+    <button class="copy-btn" id="copyBtn" onclick="copyPrompt()">Copy</button>
+  </div>
+  <div class="prompt-text" id="promptText"></div>
+</div>
+
+<script>
+const state = {
+  activeTab: 'action-buttons',
+  showUser: true,
+  darkBubbles: true,
+  compact: false
+};
+
+const descriptions = {
+  'action-buttons': '<strong>Action Buttons</strong> — Simple one-click buttons after assistant messages. Lowest friction — the assistant says what it found, and offers 1-2 immediate actions inline.',
+  'choice-cards': '<strong>Choice Cards</strong> — When there are 2-3 valid paths, let the user pick with a single tap. Pill-shaped options that confirm on select. No typing needed.',
+  'proposal-cards': '<strong>Proposal Cards</strong> — The assistant proposes a specific solution and the user approves, modifies, or skips. Great for batch entity creation and taxonomy suggestions.',
+  'email-meeting': '<strong>Email / Meeting Cards</strong> — Pre-composed email drafts and meeting agendas. Shows enough to evaluate at a glance, with Send/Edit actions. Turns "I should email them about X" into one click.',
+  'smart-summary': '<strong>Smart Summary</strong> — After 3-5 rich messages, the assistant extracts entities from the conversation and lets you batch-save them. Checkboxes for selective capture.',
+  'gap-closers': '<strong>Gap Closers</strong> — The killer feature. Shows the gap, proposes the resolution, and lets you close it in one click. Transforms passive gap lists into active resolution.',
+  'inline-evidence': '<strong>Inline Evidence</strong> — When documents are processed, surface key quotes and let the user tag them as features, constraints, or assumptions with one click. Triage mode for extracted content.'
+};
+
+const promptTemplates = {
+  'action-buttons': `Add inline action buttons to chat assistant messages in WorkspaceChat.tsx.
+
+When the assistant message contains an actionable suggestion, render 1-2 small buttons below the message text. Button types:
+- "Create task" (green outline) — calls create_task tool with pre-filled title from message context
+- "Queue client question" (ghost) — creates a task with requires_client_input=true
+- "Add to BRD" (green outline) — calls the appropriate entity creation tool
+
+Buttons are 12px font, 6px 14px padding, border-radius 6px. Use green-outline for primary actions, ghost for secondary. On click, button transitions to confirmed state (green background, checkmark prefix, pointer-events: none). Only show buttons when the assistant message contains tool-actionable content — detect via a "suggested_actions" field in the streamed response.`,
+
+  'choice-cards': `Add choice cards to the chat assistant response format.
+
+When the assistant identifies multiple valid approaches, render a choice card with pill-shaped option buttons. Structure:
+- Card container: navy-light background, 1px border, 8px radius
+- Question header: 12px, gray-400, describes the decision
+- Options: pill buttons (border-radius: 100px), 12px font, 6px 14px padding
+- Default: ghost style (subtle border, gray text)
+- Hover: green border + green text + green-dim background
+- Selected: solid green background, navy text, font-weight 600
+- Non-selected pills fade to 30% opacity
+
+On selection, send the choice as a user message and the assistant continues with that approach. Add a "suggested_choices" field to the chat response schema for the backend to populate.`,
+
+  'proposal-cards': `Add proposal cards for batch entity creation and taxonomy suggestions.
+
+When the assistant wants to propose creating entities or applying a structured change, render a proposal card:
+- Card with proposal description text (12px, gray-200)
+- Optional tag pills showing proposed taxonomy/categories
+- Optional bullet list of proposed entities
+- Action row: "Approve" (green solid), "Modify" (ghost), "Skip" (text link)
+
+On Approve: execute the proposed tool calls, card transitions to confirmed state (green check + "Added to BRD" text). On Modify: open the proposal as editable text in the chat input. On Skip: card fades slightly, no action taken.
+
+Backend: add "proposed_actions" to chat response schema — array of {action_type, params, description}.`,
+
+  'email-meeting': `Add email draft and meeting agenda cards to the chat assistant.
+
+When the user says "email them about X" or "set up a meeting for Y", render a rich card:
+
+Email card:
+- Fields: To (gray label + value), Subject (bold), body preview (3 lines, gray-400)
+- Actions: "Send Draft" (green), "Edit" (ghost)
+- Send Draft creates a task with the email content; Edit puts content in chat input
+
+Meeting card:
+- Fields: Topic (bold), Attendees (comma-separated), numbered agenda items
+- Actions: "Book" (green), "Edit" (ghost)
+- Book creates a task with meeting details; Edit puts in chat input
+
+Cards are compact — max 200px height. Use the same card container style as other cards.`,
+
+  'smart-summary': `Add smart summary cards that appear after extended conversations.
+
+After 4+ messages with entity-rich content, the assistant can offer a summary card:
+- Header: "From our discussion:" (11px uppercase, gray-400)
+- Items: checkbox list with type badges (Feature=green, Constraint=amber, Task=blue, Question=purple)
+- Each item has a toggleable checkbox (18px, 4px radius)
+- Footer: count of selected items + "Save selected to BRD" button (green, full width)
+
+Checkboxes default to checked for high-confidence extractions. On "Save selected", execute tool calls for each checked item, then show confirmation. Backend: add "extracted_entities" to response schema.`,
+
+  'gap-closers': `Add gap closer cards — the most compact action card type.
+
+When the assistant references active gaps from the context frame, render inline gap cards:
+- Compact: gap label (12px, white, font-weight 500) + severity badge (critical=red, moderate=amber)
+- Resolution line: 11px, gray-500, left-bordered, describes proposed fix
+- Action buttons: "Close Gap" (green-outline, small) or split "Generate" / "Ask Client" buttons
+
+On action: execute the proposed resolution (create task, queue question, or trigger generation). Card transitions to resolved state (green border, green text, actions hidden, "Resolved" badge shown).
+
+These should be the tightest cards — gap + resolution + action in ~60px height. Backend: include gap_id in proposed actions so the action engine can mark gaps as addressed.`,
+
+  'inline-evidence': `Add inline evidence cards for document triage.
+
+After document processing, surface key extracted quotes as evidence cards:
+- Quote block: 12px italic, gray-200, left green border (3px)
+- Source attribution: 10px, gray-500 (filename + section)
+- Action row: 4 equal-width buttons — "Feature" / "Constraint" / "Assumption" / "Dismiss"
+- Feature hover: green, Constraint hover: amber, Assumption hover: purple, Dismiss hover: gray
+
+On tag: card slides out (translateX + opacity transition, 300ms), confirmation text appears briefly. Next evidence card is already visible below. This creates a "triage flow" for processing extracted content quickly.
+
+Backend: add a "tag_evidence" tool that creates the appropriate entity from the evidence chunk, linking back to the source document and chunk ID.`
+};
+
+function switchTab(tab) {
+  state.activeTab = tab;
+  document.querySelectorAll('.tab-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.tab === tab);
+  });
+  document.getElementById('descBox').innerHTML = descriptions[tab];
+  renderChat();
+  updatePrompt();
+}
+
+function toggleOption(key) {
+  state[key] = !state[key];
+  document.getElementById({
+    showUser: 'toggleUser',
+    darkBubbles: 'toggleDark',
+    compact: 'toggleCompact'
+  }[key]).classList.toggle('on');
+  renderChat();
+  updatePrompt();
+}
+
+function renderChat() {
+  const body = document.getElementById('chatBody');
+  const renderers = {
+    'action-buttons': renderActionButtons,
+    'choice-cards': renderChoiceCards,
+    'proposal-cards': renderProposalCards,
+    'email-meeting': renderEmailMeeting,
+    'smart-summary': renderSmartSummary,
+    'gap-closers': renderGapClosers,
+    'inline-evidence': renderInlineEvidence
+  };
+  body.innerHTML = '';
+  renderers[state.activeTab](body);
+}
+
+// ─── Tab 1: Action Buttons ───
+function renderActionButtons(el) {
+  if (state.showUser) {
+    el.innerHTML += `<div class="msg msg-user">I uploaded the ABO assessment docs. What did you find?</div>`;
+  }
+  el.innerHTML += `
+    <div class="msg msg-assistant">
+      <p>Nice find — the Section 476 doc has <span class="msg-bold">42 questions</span> across 3 difficulty tiers, but there's no scoring methodology defined. That's a gap we should close before prototyping the assessment flow.</p>
+      <div class="inline-actions">
+        <button class="btn btn-green-outline btn-sm" onclick="confirmBtn(this)">Create task</button>
+        <button class="btn btn-ghost btn-sm" onclick="confirmBtn(this)">Queue client question</button>
+      </div>
+    </div>
+  `;
+
+  el.innerHTML += `
+    <div class="msg msg-assistant" style="margin-top:8px">
+      <p>I also spotted a reference to <span class="msg-bold">"adaptive difficulty"</span> in Section 2 — the questions might need difficulty metadata. Want me to add that as a feature?</p>
+      <div class="inline-actions">
+        <button class="btn btn-green-outline btn-sm" onclick="confirmBtn(this)">Add to BRD</button>
+      </div>
+    </div>
+  `;
+
+  el.innerHTML += `
+    <div class="msg msg-assistant" style="margin-top:8px">
+      <p>The clinical image specs are missing from both docs. We'll need resolution and format requirements from ABO before the image-based questions can be prototyped.</p>
+      <div class="inline-actions">
+        <button class="btn btn-green-outline btn-sm" onclick="confirmBtn(this)">Queue client question</button>
+        <button class="btn btn-ghost btn-sm" onclick="confirmBtn(this)">Create task</button>
+      </div>
+    </div>
+  `;
+}
+
+// ─── Tab 2: Choice Cards ───
+function renderChoiceCards(el) {
+  if (state.showUser) {
+    el.innerHTML += `<div class="msg msg-user">How should the assessment scoring work?</div>`;
+  }
+  el.innerHTML += `
+    <div class="msg msg-assistant">
+      <p>Good question — there are a few ways to handle this. The docs mention a "passing threshold" but don't specify the methodology:</p>
+      <div class="card">
+        <div class="card-inner">
+          <div class="card-header">Pick an approach</div>
+          <div class="card-text">How should the assessment scoring work?</div>
+          <div class="choice-options" data-group="scoring">
+            <button class="choice-btn" onclick="selectChoice(this, 'scoring')">Fixed threshold (70%)</button>
+            <button class="choice-btn" onclick="selectChoice(this, 'scoring')">Adaptive per-section</button>
+            <button class="choice-btn" onclick="selectChoice(this, 'scoring')">Ask ABO to decide</button>
+          </div>
+          <div class="choice-confirmed" id="scoring-confirm">Saved — I'll use this approach going forward</div>
+        </div>
+      </div>
+    </div>
+  `;
+
+  el.innerHTML += `
+    <div class="msg msg-assistant" style="margin-top:12px">
+      <p>The uploaded transcript mentions <span class="msg-bold">"competency tracking across attempts"</span> — this could go a few directions:</p>
+      <div class="card">
+        <div class="card-inner">
+          <div class="card-header">Classify this</div>
+          <div class="card-text">"Competency tracking across attempts"</div>
+          <div class="choice-options" data-group="classify">
+            <button class="choice-btn" onclick="selectChoice(this, 'classify')">A feature</button>
+            <button class="choice-btn" onclick="selectChoice(this, 'classify')">A constraint</button>
+            <button class="choice-btn" onclick="selectChoice(this, 'classify')">An assumption</button>
+          </div>
+          <div class="choice-confirmed" id="classify-confirm">Tagged and added to BRD</div>
+        </div>
+      </div>
+    </div>
+  `;
+
+  el.innerHTML += `
+    <div class="msg msg-assistant" style="margin-top:12px">
+      <p>For the second-chance feature on failed questions:</p>
+      <div class="card">
+        <div class="card-inner">
+          <div class="card-header">Implementation approach</div>
+          <div class="card-text">How should "second chance" work?</div>
+          <div class="choice-options" data-group="secondchance">
+            <button class="choice-btn" onclick="selectChoice(this, 'secondchance')">Immediate retry</button>
+            <button class="choice-btn" onclick="selectChoice(this, 'secondchance')">End-of-section review</button>
+            <button class="choice-btn" onclick="selectChoice(this, 'secondchance')">Separate remediation quiz</button>
+          </div>
+          <div class="choice-confirmed" id="secondchance-confirm">Got it — I'll document this in the feature spec</div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// ─── Tab 3: Proposal Cards ───
+function renderProposalCards(el) {
+  if (state.showUser) {
+    el.innerHTML += `<div class="msg msg-user">Can you organize the question metadata we need?</div>`;
+  }
+  el.innerHTML += `
+    <div class="msg msg-assistant">
+      <p>Based on the uploaded docs, I'd recommend tagging questions with these competency areas:</p>
+      <div class="card" id="proposal1">
+        <div class="card-inner">
+          <div class="card-header">Proposed taxonomy</div>
+          <div class="tag-list">
+            <span class="tag tag-green">Clinical Knowledge</span>
+            <span class="tag tag-blue">Regulatory Compliance</span>
+            <span class="tag tag-purple">Patient Safety</span>
+          </div>
+          <div class="card-text">Each question gets one primary tag. This maps to the 3 competency areas referenced in the Section 476 document.</div>
+        </div>
+        <div class="card-divider"></div>
+        <div class="card-actions">
+          <button class="btn btn-green btn-sm" onclick="confirmProposal('proposal1')">Approve</button>
+          <button class="btn btn-ghost btn-sm">Modify</button>
+          <button class="btn btn-text btn-sm">Skip</button>
+        </div>
+        <div class="card-confirmed-overlay">
+          <div class="check-circle"><svg viewBox="0 0 24 24" fill="none" stroke-linecap="round"><path d="M5 13l4 4L19 7"/></svg></div>
+          <div class="confirm-text">Taxonomy added to BRD</div>
+        </div>
+      </div>
+    </div>
+  `;
+
+  el.innerHTML += `
+    <div class="msg msg-assistant" style="margin-top:12px">
+      <p>From the assessment docs, I can extract these as features:</p>
+      <div class="card" id="proposal2">
+        <div class="card-inner">
+          <div class="card-header">Batch create — 3 features</div>
+          <div class="proposal-item"><div class="proposal-bullet"></div><div>Timed assessment with per-section time limits</div></div>
+          <div class="proposal-item"><div class="proposal-bullet"></div><div>Clinical image zoom and annotation</div></div>
+          <div class="proposal-item"><div class="proposal-bullet"></div><div>Score breakdown by competency area</div></div>
+        </div>
+        <div class="card-divider"></div>
+        <div class="card-actions">
+          <button class="btn btn-green btn-sm" onclick="confirmProposal('proposal2')">Add all 3</button>
+          <button class="btn btn-ghost btn-sm">Edit list</button>
+          <button class="btn btn-text btn-sm">Skip</button>
+        </div>
+        <div class="card-confirmed-overlay">
+          <div class="check-circle"><svg viewBox="0 0 24 24" fill="none" stroke-linecap="round"><path d="M5 13l4 4L19 7"/></svg></div>
+          <div class="confirm-text">3 features added to BRD</div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// ─── Tab 4: Email / Meeting ───
+function renderEmailMeeting(el) {
+  if (state.showUser) {
+    el.innerHTML += `<div class="msg msg-user">I need to email ABO about the scoring methodology and image specs</div>`;
+  }
+  el.innerHTML += `
+    <div class="msg msg-assistant">
+      <p>Here's a draft — covers the two open items:</p>
+      <div class="card" id="email1">
+        <div class="card-inner">
+          <div class="card-header">Email draft</div>
+          <div class="email-field"><span class="email-label">To</span><span class="email-value">Sarah Chen (ABO)</span></div>
+          <div class="email-field"><span class="email-label">Subject</span><span class="email-value" style="font-weight:600;color:var(--white)">Assessment Module — Scoring & Image Specs</span></div>
+          <div class="email-body">Hi Sarah,<br><br>Quick follow-up on two items for the assessment module. First, we need to nail down the passing criteria — is it a fixed threshold per section, or weighted overall? Second, for the clinical image questions, what format and resolution are the images delivered in?<br><br>Happy to jump on a quick call if easier.</div>
+        </div>
+        <div class="card-divider"></div>
+        <div class="card-actions">
+          <button class="btn btn-green btn-sm" onclick="confirmBtn(this)">Send draft</button>
+          <button class="btn btn-ghost btn-sm">Edit</button>
+        </div>
+      </div>
+    </div>
+  `;
+
+  if (state.showUser) {
+    el.innerHTML += `<div class="msg msg-user" style="margin-top:12px">Also set up a review meeting for the assessment flow</div>`;
+  }
+  el.innerHTML += `
+    <div class="msg msg-assistant" style="margin-top:12px">
+      <p>Here's a meeting setup with the key stakeholders:</p>
+      <div class="card" id="meeting1">
+        <div class="card-inner">
+          <div class="card-header">Meeting</div>
+          <div class="card-title">Assessment Flow Review</div>
+          <div class="email-field"><span class="email-label">With</span><span class="email-value">Sarah Chen, Dr. Martinez, You</span></div>
+          <div style="margin-top:8px">
+            <div class="agenda-item"><span class="agenda-num">1.</span><span>Walk through current question bank structure</span></div>
+            <div class="agenda-item"><span class="agenda-num">2.</span><span>Confirm scoring methodology and pass/fail criteria</span></div>
+            <div class="agenda-item"><span class="agenda-num">3.</span><span>Clinical image requirements and delivery format</span></div>
+          </div>
+        </div>
+        <div class="card-divider"></div>
+        <div class="card-actions">
+          <button class="btn btn-green btn-sm" onclick="confirmBtn(this)">Book</button>
+          <button class="btn btn-ghost btn-sm">Edit agenda</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// ─── Tab 5: Smart Summary ───
+function renderSmartSummary(el) {
+  if (state.showUser) {
+    el.innerHTML += `<div class="msg msg-user">That covers the main assessment requirements</div>`;
+  }
+  el.innerHTML += `
+    <div class="msg msg-assistant">
+      <p>Nice — we covered a lot. Here's what I pulled from our conversation:</p>
+      <div class="card">
+        <div class="card-inner">
+          <div class="card-header">From our discussion</div>
+
+          <div class="summary-item" onclick="toggleCheck(this)">
+            <div class="summary-check checked"><svg viewBox="0 0 24 24" fill="none" stroke-linecap="round"><path d="M5 13l4 4L19 7"/></svg></div>
+            <div><span class="summary-type type-feature">Feature</span><br><span class="summary-label">Assessment scoring engine with per-section thresholds</span></div>
+          </div>
+
+          <div class="summary-item" onclick="toggleCheck(this)">
+            <div class="summary-check checked"><svg viewBox="0 0 24 24" fill="none" stroke-linecap="round"><path d="M5 13l4 4L19 7"/></svg></div>
+            <div><span class="summary-type type-feature">Feature</span><br><span class="summary-label">Clinical image viewer with zoom and annotation</span></div>
+          </div>
+
+          <div class="summary-item" onclick="toggleCheck(this)">
+            <div class="summary-check checked"><svg viewBox="0 0 24 24" fill="none" stroke-linecap="round"><path d="M5 13l4 4L19 7"/></svg></div>
+            <div><span class="summary-type type-constraint">Constraint</span><br><span class="summary-label">Must support offline mode for exam proctoring</span></div>
+          </div>
+
+          <div class="summary-item" onclick="toggleCheck(this)">
+            <div class="summary-check"><svg viewBox="0 0 24 24" fill="none" stroke-linecap="round"><path d="M5 13l4 4L19 7"/></svg></div>
+            <div><span class="summary-type type-task">Task</span><br><span class="summary-label">Clarify image specs and delivery format with ABO</span></div>
+          </div>
+
+          <div class="summary-item" onclick="toggleCheck(this)">
+            <div class="summary-check"><svg viewBox="0 0 24 24" fill="none" stroke-linecap="round"><path d="M5 13l4 4L19 7"/></svg></div>
+            <div><span class="summary-type type-question">Question</span><br><span class="summary-label">Are questions weighted equally or by difficulty tier?</span></div>
+          </div>
+
+          <div style="margin-top:10px; display:flex; align-items:center; justify-content:space-between">
+            <span class="summary-count" id="summaryCount">3 of 5 selected</span>
+            <button class="btn btn-green btn-sm" onclick="confirmBtn(this)">Save selected to BRD</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+  updateSummaryCount();
+}
+
+// ─── Tab 6: Gap Closers ───
+function renderGapClosers(el) {
+  el.innerHTML += `
+    <div class="msg msg-assistant">
+      <p>Here are the open gaps holding up the assessment module. I've got a resolution for each one:</p>
+
+      <div class="gap-card" id="gap1">
+        <div class="gap-top">
+          <div class="gap-label">Missing scoring criteria</div>
+          <span class="gap-severity severity-critical">Critical</span>
+        </div>
+        <div class="gap-resolution">Create client question + follow-up task for ABO</div>
+        <div class="gap-actions">
+          <button class="btn btn-green-outline btn-sm" onclick="resolveGap('gap1')">Close gap</button>
+        </div>
+        <div class="gap-resolved-badge">Resolved — task created, question queued</div>
+      </div>
+
+      <div class="gap-card" id="gap2">
+        <div class="gap-top">
+          <div class="gap-label">No persona goals defined</div>
+          <span class="gap-severity severity-critical">Critical</span>
+        </div>
+        <div class="gap-resolution">Draft goals from the uploaded meeting transcript</div>
+        <div class="gap-actions">
+          <button class="btn btn-green-outline btn-sm" onclick="resolveGap('gap2')">Generate</button>
+          <button class="btn btn-ghost btn-sm" onclick="resolveGap('gap2')">Ask client</button>
+        </div>
+        <div class="gap-resolved-badge">Resolved — 3 persona goals drafted from transcript</div>
+      </div>
+
+      <div class="gap-card" id="gap3">
+        <div class="gap-top">
+          <div class="gap-label">Clinical image requirements undefined</div>
+          <span class="gap-severity severity-moderate">Moderate</span>
+        </div>
+        <div class="gap-resolution">Queue as client question with suggested spec template</div>
+        <div class="gap-actions">
+          <button class="btn btn-green-outline btn-sm" onclick="resolveGap('gap3')">Close gap</button>
+        </div>
+        <div class="gap-resolved-badge">Resolved — client question queued</div>
+      </div>
+
+      <div class="gap-card" id="gap4">
+        <div class="gap-top">
+          <div class="gap-label">Question difficulty metadata missing</div>
+          <span class="gap-severity severity-moderate">Moderate</span>
+        </div>
+        <div class="gap-resolution">Propose 3-tier taxonomy and add as data entity</div>
+        <div class="gap-actions">
+          <button class="btn btn-green-outline btn-sm" onclick="resolveGap('gap4')">Generate</button>
+          <button class="btn btn-ghost btn-sm" onclick="resolveGap('gap4')">Ask client</button>
+        </div>
+        <div class="gap-resolved-badge">Resolved — taxonomy proposed and saved</div>
+      </div>
+    </div>
+  `;
+}
+
+// ─── Tab 7: Inline Evidence ───
+function renderInlineEvidence(el) {
+  el.innerHTML += `
+    <div class="msg msg-assistant">
+      <p>I found some key passages in the uploaded documents. Tag them to capture in the BRD:</p>
+
+      <div class="evidence-card" id="ev1">
+        <div class="evidence-quote">"All candidates must achieve a minimum score of 70% in each individual section before the overall assessment is considered passed."</div>
+        <div class="evidence-source">Section 476 Assessment Guide.docx — Section: Scoring Criteria</div>
+        <div class="evidence-actions">
+          <button class="evidence-btn tag-feature" onclick="tagEvidence('ev1','Feature')">Feature</button>
+          <button class="evidence-btn tag-constraint" onclick="tagEvidence('ev1','Constraint')">Constraint</button>
+          <button class="evidence-btn tag-assumption" onclick="tagEvidence('ev1','Assumption')">Assumption</button>
+          <button class="evidence-btn tag-dismiss" onclick="tagEvidence('ev1','dismiss')">Dismiss</button>
+        </div>
+      </div>
+      <div class="evidence-tagged-msg" id="ev1-msg"></div>
+
+      <div class="evidence-card" id="ev2">
+        <div class="evidence-quote">"Clinical images must be viewable at 2x zoom without degradation. Candidates should be able to annotate key findings directly on the image."</div>
+        <div class="evidence-source">Section 2 Clinical Assessment.docx — Section: Image Requirements</div>
+        <div class="evidence-actions">
+          <button class="evidence-btn tag-feature" onclick="tagEvidence('ev2','Feature')">Feature</button>
+          <button class="evidence-btn tag-constraint" onclick="tagEvidence('ev2','Constraint')">Constraint</button>
+          <button class="evidence-btn tag-assumption" onclick="tagEvidence('ev2','Assumption')">Assumption</button>
+          <button class="evidence-btn tag-dismiss" onclick="tagEvidence('ev2','dismiss')">Dismiss</button>
+        </div>
+      </div>
+      <div class="evidence-tagged-msg" id="ev2-msg"></div>
+
+      <div class="evidence-card" id="ev3">
+        <div class="evidence-quote">"The system should support offline exam delivery for locations with unreliable internet connectivity, syncing results when connection is restored."</div>
+        <div class="evidence-source">ABO Technical Requirements.pdf — Section: Infrastructure</div>
+        <div class="evidence-actions">
+          <button class="evidence-btn tag-feature" onclick="tagEvidence('ev3','Feature')">Feature</button>
+          <button class="evidence-btn tag-constraint" onclick="tagEvidence('ev3','Constraint')">Constraint</button>
+          <button class="evidence-btn tag-assumption" onclick="tagEvidence('ev3','Assumption')">Assumption</button>
+          <button class="evidence-btn tag-dismiss" onclick="tagEvidence('ev3','dismiss')">Dismiss</button>
+        </div>
+      </div>
+      <div class="evidence-tagged-msg" id="ev3-msg"></div>
+
+      <div class="evidence-card" id="ev4">
+        <div class="evidence-quote">"We anticipate approximately 2,000 candidates per examination window, with peak concurrent usage of 500 simultaneous sessions."</div>
+        <div class="evidence-source">ABO Technical Requirements.pdf — Section: Scale</div>
+        <div class="evidence-actions">
+          <button class="evidence-btn tag-feature" onclick="tagEvidence('ev4','Feature')">Feature</button>
+          <button class="evidence-btn tag-constraint" onclick="tagEvidence('ev4','Constraint')">Constraint</button>
+          <button class="evidence-btn tag-assumption" onclick="tagEvidence('ev4','Assumption')">Assumption</button>
+          <button class="evidence-btn tag-dismiss" onclick="tagEvidence('ev4','dismiss')">Dismiss</button>
+        </div>
+      </div>
+      <div class="evidence-tagged-msg" id="ev4-msg"></div>
+    </div>
+  `;
+}
+
+// ─── Interactions ───
+function confirmBtn(btn) {
+  btn.classList.add('confirmed');
+}
+
+function selectChoice(btn, group) {
+  const siblings = btn.parentElement.querySelectorAll('.choice-btn');
+  siblings.forEach(s => {
+    if (s === btn) {
+      s.classList.add('selected');
+      s.classList.remove('not-selected');
+    } else {
+      s.classList.add('not-selected');
+      s.classList.remove('selected');
+    }
+  });
+  const confirm = document.getElementById(group + '-confirm');
+  if (confirm) confirm.classList.add('show');
+}
+
+function confirmProposal(id) {
+  document.getElementById(id).classList.add('is-confirmed');
+}
+
+function toggleCheck(item) {
+  const check = item.querySelector('.summary-check');
+  check.classList.toggle('checked');
+  updateSummaryCount();
+}
+
+function updateSummaryCount() {
+  const items = document.querySelectorAll('.summary-item');
+  const checked = document.querySelectorAll('.summary-check.checked');
+  const counter = document.getElementById('summaryCount');
+  if (counter) counter.textContent = `${checked.length} of ${items.length} selected`;
+}
+
+function resolveGap(id) {
+  document.getElementById(id).classList.add('resolved');
+}
+
+function tagEvidence(id, tag) {
+  const card = document.getElementById(id);
+  const msg = document.getElementById(id + '-msg');
+  card.classList.add('tagged');
+  if (tag === 'dismiss') {
+    msg.textContent = 'Dismissed';
+    msg.style.color = 'var(--gray-500)';
+  } else {
+    msg.textContent = `Tagged as ${tag}`;
+    msg.style.color = tag === 'Feature' ? 'var(--green)' : tag === 'Constraint' ? 'var(--amber)' : 'var(--purple)';
+  }
+  msg.classList.add('show');
+}
+
+// ─── Prompt Output ───
+function updatePrompt() {
+  const text = promptTemplates[state.activeTab];
+  let extra = '';
+  if (state.compact) extra += '\n\nUse compact spacing — reduce card padding to 8px 10px, message gap to 10px.';
+  if (!state.darkBubbles) extra += '\n\nUse light card backgrounds (#f0f2f5) instead of navy-light.';
+  document.getElementById('promptText').textContent = text + extra;
+}
+
+function copyPrompt() {
+  const text = document.getElementById('promptText').textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.getElementById('copyBtn');
+    btn.textContent = 'Copied!';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 1500);
+  });
+}
+
+// Init
+renderChat();
+updatePrompt();
+</script>
+</body>
+</html>

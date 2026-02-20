@@ -29,6 +29,7 @@ EntityType = Literal[
     "constraint",
     "competitor",
     "vision",
+    "solution_flow_step",
 ]
 
 PatchOperation = Literal["create", "merge", "update", "stale", "delete"]

@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AIOS — Meetings List</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; background: #FAFAFA; color: #4B4B4B; min-height: 100vh; display: flex; }
+
+  /* Sidebar */
+  .sidebar { width: 64px; background: #fff; border-right: 1px solid #E5E5E5; display: flex; flex-direction: column; align-items: center; padding: 16px 0; gap: 4px; position: fixed; top: 0; left: 0; bottom: 0; z-index: 100; }
+  .sidebar-logo { width: 36px; height: 36px; background: #044159; border-radius: 10px; display: flex; align-items: center; justify-content: center; margin-bottom: 16px; }
+  .sidebar-logo svg { width: 20px; height: 20px; color: white; }
+  .nav-item { width: 44px; height: 44px; border-radius: 8px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.15s; position: relative; color: #7B7B7B; }
+  .nav-item:hover { background: #F5F5F5; color: #4B4B4B; }
+  .nav-item.active { background: #E8F5E9; color: #3FAF7A; }
+  .nav-item.active::before { content: ''; position: absolute; left: -10px; top: 50%; transform: translateY(-50%); width: 3px; height: 20px; background: #3FAF7A; border-radius: 0 2px 2px 0; }
+  .nav-item svg { width: 20px; height: 20px; }
+  .nav-spacer { flex: 1; }
+  .nav-item-label { display: none; }
+
+  /* Main */
+  .main { margin-left: 64px; flex: 1; padding: 24px 32px; max-width: 1464px; }
+
+  /* Header */
+  .page-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 24px; }
+  .page-header h1 { font-size: 22px; font-weight: 700; color: #1D1D1F; line-height: 1.3; }
+  .page-header .subtitle { font-size: 13px; color: #7B7B7B; margin-top: 2px; }
+  .header-actions { display: flex; gap: 8px; align-items: center; }
+
+  /* Buttons */
+  .btn { display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: 6px; font-size: 13px; font-weight: 500; cursor: pointer; border: none; transition: all 0.15s; white-space: nowrap; }
+  .btn-primary { background: #044159; color: white; }
+  .btn-primary:hover { background: #033344; }
+  .btn-secondary { background: #F5F5F5; color: #4B4B4B; }
+  .btn-secondary:hover { background: #E8E8E8; }
+  .btn-outline { background: white; color: #044159; border: 1px solid #044159; }
+  .btn-outline:hover { background: #f0f7fa; }
+  .btn svg { width: 15px; height: 15px; }
+
+  /* Tabs */
+  .tabs { display: flex; gap: 0; border-bottom: 1px solid #E5E5E5; margin-bottom: 16px; }
+  .tab { padding: 10px 20px; font-size: 13px; font-weight: 500; color: #7B7B7B; cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.15s; display: flex; align-items: center; gap: 8px; }
+  .tab:hover { color: #4B4B4B; }
+  .tab.active { color: #044159; border-bottom-color: #044159; }
+  .tab-count { background: #F0F0F0; color: #7B7B7B; font-size: 11px; font-weight: 600; padding: 1px 7px; border-radius: 10px; }
+  .tab.active .tab-count { background: #E0EFF3; color: #044159; }
+  .tab-dot { width: 6px; height: 6px; border-radius: 50%; background: #3FAF7A; }
+
+  /* Filters */
+  .filters { display: flex; gap: 10px; margin-bottom: 16px; align-items: center; }
+  .search-input { position: relative; min-width: 220px; }
+  .search-input input { width: 100%; padding: 7px 12px 7px 32px; border: 1px solid #E5E5E5; border-radius: 6px; font-size: 13px; background: white; color: #4B4B4B; outline: none; transition: border-color 0.15s; }
+  .search-input input:focus { border-color: #88BABF; box-shadow: 0 0 0 2px rgba(136,186,191,0.15); }
+  .search-input input::placeholder { color: #B0B0B0; }
+  .search-input svg { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); width: 14px; height: 14px; color: #B0B0B0; }
+  .filter-select { padding: 7px 28px 7px 12px; border: 1px solid #E5E5E5; border-radius: 6px; font-size: 13px; background: white; color: #4B4B4B; appearance: none; background-image: url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L5 5L9 1' stroke='%237B7B7B' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 10px center; cursor: pointer; outline: none; }
+  .filter-select:focus { border-color: #88BABF; }
+
+  /* Table */
+  .table-wrapper { background: white; border: 1px solid #E5E5E5; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 2px rgba(0,0,0,0.04); }
+  table { width: 100%; border-collapse: collapse; }
+  thead th { padding: 10px 16px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: rgba(55,53,47,0.45); text-align: left; border-bottom: 1px solid #E5E5E5; background: #FAFAFA; }
+  tbody tr { cursor: pointer; transition: background 0.1s; }
+  tbody tr:hover { background: #F8F9FA; }
+  tbody td { padding: 12px 16px; font-size: 13px; border-bottom: 1px solid #F3F3F3; vertical-align: middle; }
+  tbody tr:last-child td { border-bottom: none; }
+
+  .meeting-title { font-weight: 500; color: #1D1D1F; }
+  .meeting-project { font-size: 12px; color: #7B7B7B; margin-top: 2px; }
+
+  /* Badges */
+  .badge { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; white-space: nowrap; }
+  .badge-discovery { background: #E8F5E9; color: #25785A; }
+  .badge-validation { background: #DBEAFE; color: #1D4ED8; }
+  .badge-review { background: #F3E8FF; color: #6B21A8; }
+  .badge-other { background: #F3F4F6; color: #374151; }
+  .badge-scheduled { background: #DBEAFE; color: #1D4ED8; }
+  .badge-completed { background: #D1FAE5; color: #047857; }
+  .badge-cancelled { background: #FEE2E2; color: #991B1B; }
+  .badge-recorded { background: #E8F5E9; color: #25785A; display: inline-flex; align-items: center; gap: 4px; }
+  .badge-recorded::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: #3FAF7A; }
+
+  /* Avatar stack */
+  .avatar-stack { display: flex; align-items: center; }
+  .avatar { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 600; color: white; border: 2px solid white; margin-left: -8px; }
+  .avatar:first-child { margin-left: 0; }
+  .avatar-overflow { width: 28px; height: 28px; border-radius: 50%; background: #F0F0F0; color: #7B7B7B; font-size: 10px; font-weight: 600; display: flex; align-items: center; justify-content: center; border: 2px solid white; margin-left: -8px; }
+
+  .meeting-time { white-space: nowrap; }
+  .meeting-date { font-weight: 500; color: #1D1D1F; }
+  .meeting-time-sub { font-size: 12px; color: #7B7B7B; margin-top: 1px; }
+  .duration { color: #7B7B7B; white-space: nowrap; }
+
+  .action-btn { width: 28px; height: 28px; border-radius: 6px; border: none; background: transparent; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #7B7B7B; transition: all 0.1s; }
+  .action-btn:hover { background: #F0F0F0; color: #4B4B4B; }
+
+  /* Empty state */
+  .empty-state { padding: 64px 32px; text-align: center; }
+  .empty-state svg { width: 48px; height: 48px; color: #D0D0D0; margin-bottom: 16px; }
+  .empty-state h3 { font-size: 15px; font-weight: 600; color: #4B4B4B; margin-bottom: 4px; }
+  .empty-state p { font-size: 13px; color: #7B7B7B; }
+
+  /* Modal */
+  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 1000; display: flex; align-items: center; justify-content: center; opacity: 0; pointer-events: none; transition: opacity 0.2s; }
+  .modal-overlay.open { opacity: 1; pointer-events: all; }
+  .modal { background: white; border-radius: 12px; width: 100%; max-width: 600px; max-height: 90vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.15); transform: translateY(10px); transition: transform 0.2s; }
+  .modal-overlay.open .modal { transform: translateY(0); }
+  .modal-header { display: flex; align-items: center; justify-content: space-between; padding: 20px 24px 16px; border-bottom: 1px solid #F0F0F0; }
+  .modal-header h2 { font-size: 17px; font-weight: 600; color: #1D1D1F; }
+  .modal-close { width: 32px; height: 32px; border-radius: 6px; border: none; background: transparent; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #7B7B7B; }
+  .modal-close:hover { background: #F0F0F0; }
+  .modal-body { padding: 20px 24px; }
+  .modal-footer { padding: 16px 24px 20px; border-top: 1px solid #F0F0F0; display: flex; justify-content: flex-end; gap: 8px; }
+
+  .form-group { margin-bottom: 18px; }
+  .form-label { display: block; font-size: 12px; font-weight: 600; color: rgba(55,53,47,0.65); text-transform: uppercase; letter-spacing: 0.3px; margin-bottom: 6px; }
+  .form-input { width: 100%; padding: 8px 12px; border: 1px solid #E5E5E5; border-radius: 6px; font-size: 14px; color: #1D1D1F; outline: none; transition: border-color 0.15s; font-family: inherit; }
+  .form-input:focus { border-color: #88BABF; box-shadow: 0 0 0 2px rgba(136,186,191,0.15); }
+  .form-textarea { resize: vertical; min-height: 72px; }
+  .form-row { display: flex; gap: 12px; }
+  .form-row > * { flex: 1; }
+
+  /* Radio pills */
+  .radio-pills { display: flex; gap: 6px; flex-wrap: wrap; }
+  .radio-pill { padding: 6px 14px; border-radius: 20px; font-size: 13px; font-weight: 500; border: 1px solid #E5E5E5; background: white; color: #4B4B4B; cursor: pointer; transition: all 0.15s; }
+  .radio-pill:hover { border-color: #88BABF; }
+  .radio-pill.selected { background: #044159; color: white; border-color: #044159; }
+
+  /* Chip input */
+  .chip-input-wrapper { display: flex; flex-wrap: wrap; gap: 6px; padding: 6px 10px; border: 1px solid #E5E5E5; border-radius: 6px; min-height: 38px; align-items: center; cursor: text; transition: border-color 0.15s; }
+  .chip-input-wrapper:focus-within { border-color: #88BABF; box-shadow: 0 0 0 2px rgba(136,186,191,0.15); }
+  .chip { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px 2px 4px; background: #E8F5E9; color: #25785A; border-radius: 12px; font-size: 12px; font-weight: 500; }
+  .chip .chip-avatar { width: 18px; height: 18px; border-radius: 50%; font-size: 8px; font-weight: 700; color: white; display: flex; align-items: center; justify-content: center; }
+  .chip .chip-remove { cursor: pointer; opacity: 0.5; margin-left: 2px; }
+  .chip .chip-remove:hover { opacity: 1; }
+  .chip-input { border: none; outline: none; font-size: 13px; flex: 1; min-width: 80px; color: #4B4B4B; }
+  .chip-dropdown { position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid #E5E5E5; border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); z-index: 10; margin-top: 4px; max-height: 160px; overflow-y: auto; display: none; }
+  .chip-dropdown.open { display: block; }
+  .chip-option { padding: 8px 12px; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 8px; }
+  .chip-option:hover { background: #F5F5F5; }
+  .chip-section { position: relative; }
+
+  /* Toggle */
+  .toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; }
+  .toggle-row-left { display: flex; align-items: center; gap: 10px; }
+  .toggle-row-left svg { width: 18px; height: 18px; color: #7B7B7B; }
+  .toggle-label { font-size: 13px; font-weight: 500; color: #1D1D1F; }
+  .toggle-hint { font-size: 12px; color: #7B7B7B; }
+  .toggle { width: 36px; height: 20px; border-radius: 10px; background: #D0D0D0; cursor: pointer; position: relative; transition: background 0.2s; flex-shrink: 0; }
+  .toggle.on { background: #3FAF7A; }
+  .toggle::after { content: ''; position: absolute; width: 16px; height: 16px; border-radius: 50%; background: white; top: 2px; left: 2px; transition: transform 0.2s; box-shadow: 0 1px 2px rgba(0,0,0,0.2); }
+  .toggle.on::after { transform: translateX(16px); }
+
+  /* Prompt output */
+  .prompt-output { position: fixed; bottom: 0; left: 64px; right: 0; background: #0A1E2F; color: #c8d6df; padding: 12px 24px; font-size: 12px; font-family: 'SF Mono', 'Fira Code', monospace; display: flex; align-items: center; gap: 16px; z-index: 50; }
+  .prompt-output .prompt-text { flex: 1; line-height: 1.5; opacity: 0.85; }
+  .prompt-output .copy-btn { padding: 5px 12px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); border-radius: 4px; color: white; font-size: 11px; cursor: pointer; white-space: nowrap; font-family: inherit; }
+  .prompt-output .copy-btn:hover { background: rgba(255,255,255,0.2); }
+  .main { padding-bottom: 56px; }
+</style>
+</head>
+<body>
+
+<!-- Sidebar -->
+<nav class="sidebar">
+  <div class="sidebar-logo">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+  </div>
+  <div class="nav-item" title="Home"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg></div>
+  <div class="nav-item" title="Projects"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg></div>
+  <div class="nav-item" title="Clients"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 22V4a2 2 0 012-2h8a2 2 0 012 2v18"/><path d="M6 12H4a2 2 0 00-2 2v6a2 2 0 002 2h2"/><path d="M18 9h2a2 2 0 012 2v9a2 2 0 01-2 2h-2"/></svg></div>
+  <div class="nav-item" title="People"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div>
+  <div class="nav-item active" title="Meetings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div>
+  <div class="nav-spacer"></div>
+  <div class="nav-item" title="Settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg></div>
+  <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#044159,#88BABF);display:flex;align-items:center;justify-content:center;color:white;font-size:13px;font-weight:600;cursor:pointer;margin-top:8px;" title="Matt E">ME</div>
+</nav>
+
+<!-- Main Content -->
+<div class="main">
+  <div class="page-header">
+    <div>
+      <h1>Meetings</h1>
+      <div class="subtitle">Manage discovery sessions, reviews, and stakeholder calls</div>
+    </div>
+    <div class="header-actions">
+      <button class="btn btn-secondary" onclick="location.reload()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+        Refresh
+      </button>
+      <button class="btn btn-primary" onclick="openModal()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        New Meeting
+      </button>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tabs" id="tabs">
+    <div class="tab active" data-tab="upcoming" onclick="switchTab('upcoming')">
+      Upcoming <span class="tab-count" id="count-upcoming">4</span>
+    </div>
+    <div class="tab" data-tab="past" onclick="switchTab('past')">
+      Past <span class="tab-count" id="count-past">5</span>
+    </div>
+    <div class="tab" data-tab="recorded" onclick="switchTab('recorded')">
+      <span class="tab-dot"></span> Recorded <span class="tab-count" id="count-recorded">3</span>
+    </div>
+  </div>
+
+  <!-- Filters -->
+  <div class="filters">
+    <div class="search-input">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input type="text" placeholder="Search meetings..." id="searchInput" oninput="filterMeetings()">
+    </div>
+    <select class="filter-select" id="typeFilter" onchange="filterMeetings()">
+      <option value="">All Types</option>
+      <option value="discovery">Discovery</option>
+      <option value="validation">Validation</option>
+      <option value="review">Review</option>
+      <option value="other">Other</option>
+    </select>
+    <select class="filter-select" id="projectFilter" onchange="filterMeetings()">
+      <option value="">All Projects</option>
+      <option value="acme">Acme Corp Redesign</option>
+      <option value="techstart">TechStart MVP</option>
+      <option value="globalbank">Global Bank Portal</option>
+    </select>
+  </div>
+
+  <!-- Table -->
+  <div class="table-wrapper">
+    <table>
+      <thead>
+        <tr>
+          <th style="min-width:240px">Meeting</th>
+          <th>Type</th>
+          <th>Date & Time</th>
+          <th>Duration</th>
+          <th>Participants</th>
+          <th>Status</th>
+          <th style="width:40px"></th>
+        </tr>
+      </thead>
+      <tbody id="meetingTableBody"></tbody>
+    </table>
+    <div class="empty-state" id="emptyState" style="display:none;">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <h3>No meetings found</h3>
+      <p>Try adjusting your filters or create a new meeting</p>
+    </div>
+  </div>
+</div>
+
+<!-- Create Meeting Modal -->
+<div class="modal-overlay" id="createModal">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <h2>Schedule Meeting</h2>
+      <button class="modal-close" onclick="closeModal()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Title</label>
+        <input class="form-input" type="text" placeholder="e.g. Requirements Kickoff with Acme Corp" id="modalTitle">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Project</label>
+        <select class="form-input" id="modalProject">
+          <option value="">Select project...</option>
+          <option value="acme">Acme Corp Redesign</option>
+          <option value="techstart">TechStart MVP</option>
+          <option value="globalbank">Global Bank Portal</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Meeting Type</label>
+        <div class="radio-pills" id="typePills">
+          <div class="radio-pill selected" data-value="discovery" onclick="selectPill(this)">Discovery</div>
+          <div class="radio-pill" data-value="validation" onclick="selectPill(this)">Validation</div>
+          <div class="radio-pill" data-value="review" onclick="selectPill(this)">Review</div>
+          <div class="radio-pill" data-value="other" onclick="selectPill(this)">Other</div>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Date</label>
+          <input class="form-input" type="date" id="modalDate" value="2026-02-24">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Time</label>
+          <input class="form-input" type="time" id="modalTime" value="10:00">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Duration</label>
+          <select class="form-input" id="modalDuration">
+            <option value="30">30 min</option>
+            <option value="45">45 min</option>
+            <option value="60" selected>60 min</option>
+            <option value="90">90 min</option>
+            <option value="120">2 hours</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Timezone</label>
+        <select class="form-input" id="modalTimezone">
+          <option value="America/New_York">Eastern Time (ET)</option>
+          <option value="America/Chicago">Central Time (CT)</option>
+          <option value="America/Denver">Mountain Time (MT)</option>
+          <option value="America/Los_Angeles">Pacific Time (PT)</option>
+          <option value="UTC">UTC</option>
+          <option value="Europe/London">London (GMT)</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Description</label>
+        <textarea class="form-input form-textarea" placeholder="Meeting purpose and context (optional)" id="modalDesc"></textarea>
+      </div>
+      <div class="form-group chip-section">
+        <label class="form-label">Participants</label>
+        <div class="chip-input-wrapper" onclick="document.getElementById('chipSearchInput').focus()">
+          <div id="chipContainer"></div>
+          <input class="chip-input" type="text" placeholder="Search stakeholders..." id="chipSearchInput" oninput="showChipDropdown(this.value)" onfocus="showChipDropdown(this.value)">
+        </div>
+        <div class="chip-dropdown" id="chipDropdown"></div>
+      </div>
+      <div style="border-top:1px solid #F0F0F0;padding-top:14px;margin-top:6px;">
+        <div class="toggle-row">
+          <div class="toggle-row-left">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            <div>
+              <div class="toggle-label">Create Google Calendar event</div>
+              <div class="toggle-hint">Auto-generates a Google Meet link</div>
+            </div>
+          </div>
+          <div class="toggle on" onclick="this.classList.toggle('on')"></div>
+        </div>
+        <div class="toggle-row">
+          <div class="toggle-row-left">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="M2 12h2"/><path d="M20 12h2"/></svg>
+            <div>
+              <div class="toggle-label">Auto-record this meeting</div>
+              <div class="toggle-hint">Participants will receive consent notifications</div>
+            </div>
+          </div>
+          <div class="toggle" onclick="this.classList.toggle('on')"></div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="closeModal()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        Schedule Meeting
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Prompt Output -->
+<div class="prompt-output">
+  <div class="prompt-text" id="promptText">Meetings list page with 3-tab navigation (Upcoming/Past/Recorded), search + type/project filters, create meeting modal with Google Calendar + recording toggles. Uses AIOS brand: Ocean Blue #044159, Green #3FAF7A, Navy #0A1E2F.</div>
+  <button class="copy-btn" onclick="copyPrompt()">Copy</button>
+</div>
+
+<script>
+const AVATARS = ['#044159','#3FAF7A','#25785A','#88BABF','#6B21A8','#1D4ED8','#991B1B','#0A1E2F'];
+
+const STAKEHOLDERS = [
+  { name: 'Sarah Chen', initials: 'SC', color: '#044159', company: 'Acme Corp', role: 'Champion' },
+  { name: 'Mike Rodriguez', initials: 'MR', color: '#25785A', company: 'Acme Corp', role: 'Sponsor' },
+  { name: 'Alex Park', initials: 'AP', color: '#88BABF', company: 'Acme Corp', role: 'End User' },
+  { name: 'Jamie Walsh', initials: 'JW', color: '#6B21A8', company: 'Acme Corp', role: 'Influencer' },
+  { name: 'Dana Kim', initials: 'DK', color: '#1D4ED8', company: 'TechStart', role: 'Champion' },
+  { name: 'Tom Bradley', initials: 'TB', color: '#3FAF7A', company: 'TechStart', role: 'Sponsor' },
+  { name: 'Priya Sharma', initials: 'PS', color: '#0A1E2F', company: 'Global Bank', role: 'Sponsor' },
+  { name: 'Kevin Li', initials: 'KL', color: '#991B1B', company: 'Global Bank', role: 'Champion' },
+];
+
+const MEETINGS = [
+  // Upcoming
+  { id:1, title:'Requirements Kickoff', project:'Acme Corp Redesign', projectKey:'acme', type:'discovery', date:'2026-02-24', time:'10:00', duration:60, participants:['SC','MR','AP','JW'], status:'scheduled', recorded:false, tab:'upcoming' },
+  { id:2, title:'User Research Debrief', project:'TechStart MVP', projectKey:'techstart', type:'discovery', date:'2026-02-25', time:'14:00', duration:45, participants:['DK','TB'], status:'scheduled', recorded:false, tab:'upcoming' },
+  { id:3, title:'Prototype Review Sprint 2', project:'Acme Corp Redesign', projectKey:'acme', type:'review', date:'2026-02-26', time:'11:00', duration:90, participants:['SC','MR','AP'], status:'scheduled', recorded:false, tab:'upcoming' },
+  { id:4, title:'Portal Security Assessment', project:'Global Bank Portal', projectKey:'globalbank', type:'validation', date:'2026-02-27', time:'09:00', duration:60, participants:['PS','KL'], status:'scheduled', recorded:false, tab:'upcoming' },
+  // Past
+  { id:5, title:'Stakeholder Alignment Session', project:'Acme Corp Redesign', projectKey:'acme', type:'discovery', date:'2026-02-18', time:'10:00', duration:60, participants:['SC','MR','JW','AP'], status:'completed', recorded:true, tab:'past' },
+  { id:6, title:'Feature Prioritization Workshop', project:'TechStart MVP', projectKey:'techstart', type:'validation', date:'2026-02-17', time:'15:00', duration:90, participants:['DK','TB'], status:'completed', recorded:true, tab:'past' },
+  { id:7, title:'Integration Requirements Deep Dive', project:'Global Bank Portal', projectKey:'globalbank', type:'discovery', date:'2026-02-14', time:'11:00', duration:60, participants:['PS','KL'], status:'completed', recorded:false, tab:'past' },
+  { id:8, title:'UX Concept Walkthrough', project:'Acme Corp Redesign', projectKey:'acme', type:'review', date:'2026-02-12', time:'14:00', duration:45, participants:['SC','AP'], status:'completed', recorded:true, tab:'past' },
+  { id:9, title:'Vendor Evaluation Call', project:'Global Bank Portal', projectKey:'globalbank', type:'other', date:'2026-02-10', time:'16:00', duration:30, participants:['PS'], status:'cancelled', recorded:false, tab:'past' },
+];
+
+let currentTab = 'upcoming';
+let selectedChips = [];
+
+function switchTab(tab) {
+  currentTab = tab;
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+  filterMeetings();
+}
+
+function filterMeetings() {
+  const search = document.getElementById('searchInput').value.toLowerCase();
+  const typeFilter = document.getElementById('typeFilter').value;
+  const projectFilter = document.getElementById('projectFilter').value;
+
+  let filtered = MEETINGS.filter(m => {
+    if (currentTab === 'upcoming' && m.tab !== 'upcoming') return false;
+    if (currentTab === 'past' && m.tab !== 'past') return false;
+    if (currentTab === 'recorded' && !m.recorded) return false;
+    if (search && !m.title.toLowerCase().includes(search) && !m.project.toLowerCase().includes(search)) return false;
+    if (typeFilter && m.type !== typeFilter) return false;
+    if (projectFilter && m.projectKey !== projectFilter) return false;
+    return true;
+  });
+
+  const tbody = document.getElementById('meetingTableBody');
+  const empty = document.getElementById('emptyState');
+
+  if (filtered.length === 0) {
+    tbody.innerHTML = '';
+    empty.style.display = 'block';
+    return;
+  }
+  empty.style.display = 'none';
+
+  tbody.innerHTML = filtered.map(m => {
+    const typeClass = `badge-${m.type}`;
+    const statusClass = `badge-${m.status}`;
+    const dateObj = new Date(m.date + 'T' + m.time);
+    const dateStr = dateObj.toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric' });
+    const timeStr = dateObj.toLocaleTimeString('en-US', { hour:'numeric', minute:'2-digit' });
+    const participantHTML = m.participants.slice(0,3).map((p, i) => {
+      const s = STAKEHOLDERS.find(s => s.initials === p);
+      return `<div class="avatar" style="background:${s?.color||'#7B7B7B'}">${p}</div>`;
+    }).join('') + (m.participants.length > 3 ? `<div class="avatar-overflow">+${m.participants.length-3}</div>` : '');
+
+    return `<tr onclick="window.open('playground-meeting-detail.html','_blank')">
+      <td>
+        <div class="meeting-title">${m.title}</div>
+        <div class="meeting-project">${m.project}</div>
+      </td>
+      <td><span class="badge ${typeClass}">${m.type.charAt(0).toUpperCase()+m.type.slice(1)}</span></td>
+      <td>
+        <div class="meeting-date">${dateStr}</div>
+        <div class="meeting-time-sub">${timeStr}</div>
+      </td>
+      <td><span class="duration">${m.duration} min</span></td>
+      <td><div class="avatar-stack">${participantHTML}</div></td>
+      <td><span class="badge ${statusClass}">${m.status.charAt(0).toUpperCase()+m.status.slice(1)}</span>${m.recorded ? ' <span class="badge badge-recorded" style="margin-left:4px">Recorded</span>' : ''}</td>
+      <td><button class="action-btn" onclick="event.stopPropagation()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg></button></td>
+    </tr>`;
+  }).join('');
+}
+
+function openModal() {
+  document.getElementById('createModal').classList.add('open');
+}
+function closeModal() {
+  document.getElementById('createModal').classList.remove('open');
+}
+document.getElementById('createModal').addEventListener('click', function(e) {
+  if (e.target === this) closeModal();
+});
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
+function selectPill(el) {
+  el.parentElement.querySelectorAll('.radio-pill').forEach(p => p.classList.remove('selected'));
+  el.classList.add('selected');
+}
+
+function showChipDropdown(query) {
+  const dd = document.getElementById('chipDropdown');
+  const available = STAKEHOLDERS.filter(s => !selectedChips.includes(s.initials));
+  const filtered = query ? available.filter(s => s.name.toLowerCase().includes(query.toLowerCase())) : available;
+  if (filtered.length === 0) { dd.classList.remove('open'); return; }
+  dd.innerHTML = filtered.map(s => `<div class="chip-option" onclick="addChip('${s.initials}')">
+    <div style="width:24px;height:24px;border-radius:50%;background:${s.color};color:white;font-size:9px;font-weight:700;display:flex;align-items:center;justify-content:center">${s.initials}</div>
+    <div><div style="font-weight:500;color:#1D1D1F">${s.name}</div><div style="font-size:11px;color:#7B7B7B">${s.role} &middot; ${s.company}</div></div>
+  </div>`).join('');
+  dd.classList.add('open');
+}
+
+function addChip(initials) {
+  if (selectedChips.includes(initials)) return;
+  selectedChips.push(initials);
+  renderChips();
+  document.getElementById('chipSearchInput').value = '';
+  document.getElementById('chipDropdown').classList.remove('open');
+}
+
+function removeChip(initials) {
+  selectedChips = selectedChips.filter(c => c !== initials);
+  renderChips();
+}
+
+function renderChips() {
+  const container = document.getElementById('chipContainer');
+  container.innerHTML = selectedChips.map(init => {
+    const s = STAKEHOLDERS.find(s => s.initials === init);
+    return `<div class="chip"><div class="chip-avatar" style="background:${s.color}">${s.initials}</div>${s.name}<span class="chip-remove" onclick="event.stopPropagation();removeChip('${init}')">&times;</span></div>`;
+  }).join('');
+}
+
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('.chip-section')) {
+    document.getElementById('chipDropdown').classList.remove('open');
+  }
+});
+
+function copyPrompt() {
+  const text = document.getElementById('promptText').textContent;
+  navigator.clipboard.writeText(text);
+  const btn = document.querySelector('.copy-btn');
+  btn.textContent = 'Copied!';
+  setTimeout(() => btn.textContent = 'Copy', 1500);
+}
+
+// Init
+filterMeetings();
+</script>
+</body>
+</html>

@@ -75,6 +75,14 @@ class GateStage(str, Enum):
     CONFIRMED_SCOPE = "confirmed_scope"
 
 
+class TaskPriority(str, Enum):
+    """Human-set priority for manual tasks."""
+    NONE = "none"
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
+
+
 class TaskActivityAction(str, Enum):
     """Actions that can be logged in the activity log."""
     CREATED = "created"
@@ -84,6 +92,9 @@ class TaskActivityAction(str, Enum):
     REOPENED = "reopened"
     UPDATED = "updated"
     PRIORITY_CHANGED = "priority_changed"
+    ASSIGNED = "assigned"
+    COMMENTED = "commented"
+    DUE_DATE_CHANGED = "due_date_changed"
 
 
 class TaskActorType(str, Enum):
@@ -116,6 +127,9 @@ class TaskCreate(TaskBase):
     source_id: Optional[UUID] = None
     source_context: dict[str, Any] = Field(default_factory=dict)
     priority_score: Optional[float] = None  # If not provided, will be calculated
+    assigned_to: Optional[UUID] = None
+    due_date: Optional[datetime] = None
+    priority: Optional[str] = None  # none/low/medium/high
 
 
 class TaskUpdate(BaseModel):
@@ -126,6 +140,9 @@ class TaskUpdate(BaseModel):
     requires_client_input: Optional[bool] = None
     priority_score: Optional[float] = None
     metadata: Optional[dict[str, Any]] = None
+    assigned_to: Optional[UUID] = None
+    due_date: Optional[datetime] = None
+    priority: Optional[str] = None  # none/low/medium/high
 
 
 class TaskComplete(BaseModel):
@@ -153,6 +170,10 @@ class Task(TaskBase):
     completion_method: Optional[TaskCompletionMethod] = None
     completion_notes: Optional[str] = None
     info_request_id: Optional[UUID] = None
+    assigned_to: Optional[UUID] = None
+    due_date: Optional[datetime] = None
+    created_by: Optional[UUID] = None
+    priority: Optional[str] = "none"
     created_at: datetime
     updated_at: datetime
 
@@ -173,6 +194,10 @@ class TaskSummary(BaseModel):
     gate_stage: Optional[GateStage] = None
     source_type: Optional[TaskSourceType] = None
     source_id: Optional[UUID] = None
+    assigned_to: Optional[UUID] = None
+    due_date: Optional[datetime] = None
+    created_by: Optional[UUID] = None
+    priority: Optional[str] = "none"
     created_at: datetime
 
     class Config:
@@ -254,3 +279,73 @@ class TaskFilter(BaseModel):
     offset: int = 0
     sort_by: str = "priority_score"
     sort_order: str = "desc"  # "asc" or "desc"
+
+
+# ============================================================================
+# Comment Schemas
+# ============================================================================
+
+
+class TaskCommentCreate(BaseModel):
+    """Schema for creating a task comment."""
+    body: str
+
+
+class TaskComment(BaseModel):
+    """Full task comment schema."""
+    id: UUID
+    task_id: UUID
+    project_id: UUID
+    author_id: UUID
+    body: str
+    author_name: Optional[str] = None
+    author_photo_url: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class TaskCommentListResponse(BaseModel):
+    """Response for listing task comments."""
+    comments: list[TaskComment]
+    total: int
+
+
+# ============================================================================
+# Cross-Project Task Schemas
+# ============================================================================
+
+
+class TaskWithProject(BaseModel):
+    """Task summary with project info for cross-project views."""
+    id: UUID
+    project_id: UUID
+    project_name: str
+    title: str
+    description: Optional[str] = None
+    task_type: TaskType
+    status: TaskStatus
+    priority_score: float
+    priority: Optional[str] = "none"
+    requires_client_input: bool
+    anchored_entity_type: Optional[AnchoredEntityType] = None
+    gate_stage: Optional[GateStage] = None
+    assigned_to: Optional[UUID] = None
+    assigned_to_name: Optional[str] = None
+    assigned_to_photo_url: Optional[str] = None
+    due_date: Optional[datetime] = None
+    created_by: Optional[UUID] = None
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class MyTasksResponse(BaseModel):
+    """Response for /tasks/my endpoint."""
+    tasks: list[TaskWithProject]
+    total: int
+    counts: dict[str, int] = Field(default_factory=dict)  # by_status counts

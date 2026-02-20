@@ -221,6 +221,58 @@ def get_tool_definitions() -> List[Dict[str, Any]]:
             },
         },
         {
+            "name": "schedule_meeting",
+            "description": "Schedule a meeting with stakeholders. Use this when the user wants to book, create, or schedule a client meeting with a specific date and time. Creates the meeting in the system and optionally links to Google Calendar.",
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "title": {
+                        "type": "string",
+                        "description": "Meeting title (e.g. 'Requirements Kickoff with Acme Corp')",
+                    },
+                    "meeting_date": {
+                        "type": "string",
+                        "description": "Meeting date in YYYY-MM-DD format",
+                    },
+                    "meeting_time": {
+                        "type": "string",
+                        "description": "Meeting start time in HH:MM format (24-hour, e.g. '14:30')",
+                    },
+                    "meeting_type": {
+                        "type": "string",
+                        "enum": ["discovery", "validation", "review", "other"],
+                        "description": "Type of meeting (default: 'other')",
+                        "default": "other",
+                    },
+                    "duration_minutes": {
+                        "type": "integer",
+                        "description": "Meeting duration in minutes (default: 60)",
+                        "default": 60,
+                    },
+                    "description": {
+                        "type": "string",
+                        "description": "Meeting purpose and context (optional)",
+                    },
+                    "timezone": {
+                        "type": "string",
+                        "description": "IANA timezone (default: 'America/New_York')",
+                        "default": "America/New_York",
+                    },
+                    "create_calendar_event": {
+                        "type": "boolean",
+                        "description": "If true, also creates a Google Calendar event with auto-generated Meet link. Only works if the user has Google connected.",
+                        "default": False,
+                    },
+                    "attendee_emails": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "Email addresses to add as calendar event attendees (optional)",
+                    },
+                },
+                "required": ["title", "meeting_date", "meeting_time"],
+            },
+        },
+        {
             "name": "list_pending_confirmations",
             "description": "List pending confirmation items that need client input. Use this to see what questions need to be asked to the client, or before generating emails/meeting agendas.",
             "input_schema": {
@@ -574,6 +626,135 @@ def get_tool_definitions() -> List[Dict[str, Any]]:
                 "required": ["cards"],
             },
         },
+        # =================================================================
+        # Solution Flow Tools
+        # =================================================================
+        {
+            "name": "update_solution_flow_step",
+            "description": "Update any field on a solution flow step (goal, information fields, questions, pattern, actors, etc.).",
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "step_id": {"type": "string", "description": "UUID of the step to update"},
+                    "title": {"type": "string"},
+                    "goal": {"type": "string"},
+                    "phase": {"type": "string", "enum": ["entry", "core_experience", "output", "admin"]},
+                    "actors": {"type": "array", "items": {"type": "string"}},
+                    "information_fields": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "name": {"type": "string"},
+                                "type": {"type": "string", "enum": ["captured", "displayed", "computed"]},
+                                "mock_value": {"type": "string"},
+                                "confidence": {"type": "string", "enum": ["known", "inferred", "guess", "unknown"]},
+                            },
+                            "required": ["name", "type", "mock_value", "confidence"],
+                        },
+                    },
+                    "mock_data_narrative": {"type": "string"},
+                    "open_questions": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "question": {"type": "string"},
+                                "context": {"type": "string"},
+                                "status": {"type": "string", "enum": ["open", "resolved", "escalated"]},
+                                "resolved_answer": {"type": "string"},
+                                "escalated_to": {"type": "string"},
+                            },
+                            "required": ["question"],
+                        },
+                    },
+                    "implied_pattern": {"type": "string"},
+                    "confirmation_status": {"type": "string", "enum": ["ai_generated", "confirmed_consultant", "needs_client", "confirmed_client"]},
+                },
+                "required": ["step_id"],
+            },
+        },
+        {
+            "name": "add_solution_flow_step",
+            "description": "Add a new step to the solution flow at a given position.",
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "title": {"type": "string", "description": "Step name"},
+                    "goal": {"type": "string", "description": "What must be achieved"},
+                    "phase": {"type": "string", "enum": ["entry", "core_experience", "output", "admin"]},
+                    "actors": {"type": "array", "items": {"type": "string"}},
+                    "step_index": {"type": "integer", "description": "Position in the flow (0-based). Omit to append."},
+                    "implied_pattern": {"type": "string"},
+                },
+                "required": ["title", "goal", "phase"],
+            },
+        },
+        {
+            "name": "remove_solution_flow_step",
+            "description": "Remove a step from the solution flow.",
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "step_id": {"type": "string", "description": "UUID of the step to remove"},
+                },
+                "required": ["step_id"],
+            },
+        },
+        {
+            "name": "reorder_solution_flow_steps",
+            "description": "Reorder all steps in the solution flow. Provide step IDs in the desired order.",
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "step_ids": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "Step UUIDs in the desired order",
+                    },
+                },
+                "required": ["step_ids"],
+            },
+        },
+        {
+            "name": "resolve_solution_flow_question",
+            "description": "Mark an open question on a solution flow step as resolved.",
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "step_id": {"type": "string", "description": "UUID of the step"},
+                    "question_text": {"type": "string", "description": "The question to resolve (exact match)"},
+                    "answer": {"type": "string", "description": "The resolution answer"},
+                },
+                "required": ["step_id", "question_text", "answer"],
+            },
+        },
+        {
+            "name": "escalate_to_client",
+            "description": "Escalate an open question from a solution flow step to the client. Creates a pending item so it appears in the client's queue. Use when the question requires client input.",
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "step_id": {"type": "string", "description": "UUID of the solution flow step"},
+                    "question_text": {"type": "string", "description": "The question to escalate (exact match)"},
+                    "suggested_stakeholder": {"type": "string", "description": "Name or role of who should answer (optional)"},
+                    "reason": {"type": "string", "description": "Why this needs client input (optional)"},
+                },
+                "required": ["step_id", "question_text"],
+            },
+        },
+        {
+            "name": "refine_solution_flow_step",
+            "description": "Use AI to refine a solution flow step based on an instruction. The AI analyzes the step's context (linked entities, information fields, questions) and applies targeted changes. Only ai_generated fields will be modified; confirmed fields are preserved.",
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "step_id": {"type": "string", "description": "UUID of the step to refine"},
+                    "instruction": {"type": "string", "description": "What to refine or change about this step"},
+                },
+                "required": ["step_id", "instruction"],
+            },
+        },
     ]
 
 
@@ -618,6 +799,15 @@ PAGE_TOOLS: Dict[str, set] = {
         "list_pending_confirmations",
     },
     "prototype": {"attach_evidence", "query_entity_history"},
+    "brd:solution-flow": {
+        "update_solution_flow_step",
+        "add_solution_flow_step",
+        "remove_solution_flow_step",
+        "reorder_solution_flow_steps",
+        "resolve_solution_flow_question",
+        "escalate_to_client",
+        "refine_solution_flow_step",
+    },
 }
 
 # Tools added when no specific page context (chat opened from sidebar, etc.)
@@ -629,6 +819,7 @@ FALLBACK_EXTRAS = {
     "list_pending_confirmations",
     "generate_client_email",
     "generate_meeting_agenda",
+    "schedule_meeting",
     "attach_evidence",
     "query_entity_history",
     "query_knowledge_graph",
@@ -640,6 +831,7 @@ FALLBACK_EXTRAS = {
 COMMUNICATION_TOOLS = {
     "generate_client_email",
     "generate_meeting_agenda",
+    "schedule_meeting",
     "list_pending_confirmations",
 }
 
@@ -691,6 +883,10 @@ _MUTATING_TOOLS = {
     "create_confirmation", "attach_evidence", "generate_strategic_context",
     "update_strategic_context", "update_project_type", "identify_stakeholders",
     "respond_to_document_clarification", "add_belief", "add_company_reference",
+    "update_solution_flow_step", "add_solution_flow_step",
+    "remove_solution_flow_step", "reorder_solution_flow_steps",
+    "resolve_solution_flow_question", "escalate_to_client",
+    "refine_solution_flow_step", "schedule_meeting",
 }
 
 
@@ -725,6 +921,8 @@ async def execute_tool(project_id: UUID, tool_name: str, tool_input: Dict[str, A
             return await _generate_client_email(project_id, tool_input)
         elif tool_name == "generate_meeting_agenda":
             return await _generate_meeting_agenda(project_id, tool_input)
+        elif tool_name == "schedule_meeting":
+            return await _schedule_meeting(project_id, tool_input)
         elif tool_name == "list_pending_confirmations":
             return await _list_pending_confirmations(project_id, tool_input)
         # Strategic Context Tools
@@ -762,6 +960,21 @@ async def execute_tool(project_id: UUID, tool_name: str, tool_input: Dict[str, A
         # Interactive Action Cards — pass-through (frontend renders)
         elif tool_name == "suggest_actions":
             return tool_input
+        # Solution Flow Tools
+        elif tool_name == "update_solution_flow_step":
+            return await _update_solution_flow_step(project_id, tool_input)
+        elif tool_name == "add_solution_flow_step":
+            return await _add_solution_flow_step(project_id, tool_input)
+        elif tool_name == "remove_solution_flow_step":
+            return await _remove_solution_flow_step(project_id, tool_input)
+        elif tool_name == "reorder_solution_flow_steps":
+            return await _reorder_solution_flow_steps(project_id, tool_input)
+        elif tool_name == "resolve_solution_flow_question":
+            return await _resolve_solution_flow_question(project_id, tool_input)
+        elif tool_name == "escalate_to_client":
+            return await _escalate_to_client(project_id, tool_input)
+        elif tool_name == "refine_solution_flow_step":
+            return await _refine_solution_flow_step(project_id, tool_input)
         else:
             return {"error": f"Unknown tool: {tool_name}"}
 
@@ -1718,6 +1931,114 @@ Return JSON with:
             "success": False,
             "error": str(e),
             "message": f"Failed to generate meeting agenda: {str(e)}",
+        }
+
+
+async def _schedule_meeting(project_id: UUID, params: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Schedule a new meeting for the project, optionally creating a Google Calendar event.
+
+    Args:
+        project_id: Project UUID
+        params: title, meeting_date, meeting_time, meeting_type, duration_minutes,
+                description, timezone, create_calendar_event, attendee_emails
+    """
+    try:
+        from datetime import datetime, timedelta
+
+        from app.db.meetings import create_meeting, update_meeting
+
+        title = params.get("title", "").strip()
+        meeting_date = params.get("meeting_date", "").strip()
+        meeting_time = params.get("meeting_time", "").strip()
+
+        if not title:
+            return {"success": False, "error": "Title is required", "message": "Please provide a meeting title."}
+        if not meeting_date:
+            return {"success": False, "error": "Date is required", "message": "Please provide a meeting date (YYYY-MM-DD)."}
+        if not meeting_time:
+            return {"success": False, "error": "Time is required", "message": "Please provide a meeting time (HH:MM)."}
+
+        timezone = params.get("timezone", "America/New_York")
+        duration_minutes = params.get("duration_minutes", 60)
+        description = params.get("description")
+
+        meeting = create_meeting(
+            project_id=str(project_id),
+            title=title,
+            meeting_date=meeting_date,
+            meeting_time=meeting_time,
+            meeting_type=params.get("meeting_type", "other"),
+            duration_minutes=duration_minutes,
+            description=description,
+            timezone=timezone,
+        )
+
+        if not meeting:
+            return {"success": False, "error": "Failed to create meeting", "message": "Meeting creation failed."}
+
+        meeting_id = meeting.get("id", "")
+        calendar_info = ""
+
+        # Optionally create Google Calendar event
+        if params.get("create_calendar_event"):
+            try:
+                from app.core.google_calendar_service import create_calendar_event
+                from app.db.supabase_client import get_supabase
+
+                # Look up project owner to get their Google credentials
+                supabase = get_supabase()
+                project = supabase.table("projects").select("created_by").eq("id", str(project_id)).single().execute()
+                user_id = project.data.get("created_by") if project.data else None
+
+                if user_id:
+                    start_dt = datetime.fromisoformat(f"{meeting_date}T{meeting_time}")
+                    end_dt = start_dt + timedelta(minutes=duration_minutes)
+
+                    cal_result = await create_calendar_event(
+                        user_id=user_id,
+                        title=title,
+                        start_datetime=start_dt.isoformat(),
+                        end_datetime=end_dt.isoformat(),
+                        timezone=timezone,
+                        description=description,
+                        attendee_emails=params.get("attendee_emails"),
+                    )
+
+                    # Update meeting with calendar data
+                    update_meeting(
+                        UUID(meeting_id),
+                        {
+                            "google_calendar_event_id": cal_result["event_id"],
+                            "google_meet_link": cal_result.get("meet_link"),
+                        },
+                    )
+                    meet_link = cal_result.get("meet_link", "")
+                    calendar_info = f" Google Calendar event created{' with Meet link' if meet_link else ''}."
+                else:
+                    calendar_info = " (No project owner found — calendar event skipped.)"
+            except ValueError:
+                calendar_info = " (Google not connected — calendar event skipped.)"
+            except Exception as e:
+                logger.warning(f"Calendar event creation failed: {e}")
+                calendar_info = " (Calendar event creation failed — meeting still saved.)"
+
+        return {
+            "success": True,
+            "meeting_id": meeting_id,
+            "title": title,
+            "meeting_date": meeting_date,
+            "meeting_time": meeting_time,
+            "google_meet_link": meeting.get("google_meet_link"),
+            "message": f"Meeting scheduled: **{title}** on {meeting_date} at {meeting_time}.{calendar_info}",
+        }
+
+    except Exception as e:
+        logger.error(f"Error scheduling meeting: {e}", exc_info=True)
+        return {
+            "success": False,
+            "error": str(e),
+            "message": f"Failed to schedule meeting: {str(e)}",
         }
 
 
@@ -2962,3 +3283,191 @@ async def _add_company_reference(project_id: UUID, params: Dict[str, Any]) -> Di
     except Exception as e:
         logger.error(f"Failed to add company reference: {e}", exc_info=True)
         return {"error": f"Failed to add reference: {str(e)}"}
+
+
+# =============================================================================
+# Solution Flow Tool Implementations
+# =============================================================================
+
+
+async def _update_solution_flow_step(project_id: UUID, params: Dict[str, Any]) -> Dict[str, Any]:
+    """Update fields on a solution flow step."""
+    from app.db.solution_flow import update_flow_step
+
+    step_id = params.pop("step_id", None)
+    if not step_id:
+        return {"error": "step_id is required"}
+    try:
+        result = update_flow_step(UUID(step_id), params)
+        return {
+            "success": True,
+            "step_id": step_id,
+            "message": f"Updated step '{result.get('title', '')}'.",
+            "updated_fields": list(params.keys()),
+        }
+    except Exception as e:
+        return {"error": str(e)}
+
+
+async def _add_solution_flow_step(project_id: UUID, params: Dict[str, Any]) -> Dict[str, Any]:
+    """Add a new step to the solution flow."""
+    from app.db.solution_flow import create_flow_step, get_or_create_flow
+
+    try:
+        flow = get_or_create_flow(project_id)
+        result = create_flow_step(UUID(flow["id"]), project_id, params)
+        return {
+            "success": True,
+            "step_id": result["id"],
+            "message": f"Added step '{result.get('title', '')}' at index {result.get('step_index', '?')}.",
+            "title": result.get("title"),
+            "step_index": result.get("step_index"),
+        }
+    except Exception as e:
+        return {"error": str(e)}
+
+
+async def _remove_solution_flow_step(project_id: UUID, params: Dict[str, Any]) -> Dict[str, Any]:
+    """Remove a step from the solution flow."""
+    from app.db.solution_flow import delete_flow_step, get_flow_step
+
+    step_id = params.get("step_id")
+    if not step_id:
+        return {"error": "step_id is required"}
+    try:
+        step = get_flow_step(UUID(step_id))
+        title = step.get("title", "") if step else ""
+        delete_flow_step(UUID(step_id))
+        return {
+            "success": True,
+            "message": f"Removed step '{title}'. Remaining steps reindexed.",
+        }
+    except Exception as e:
+        return {"error": str(e)}
+
+
+async def _reorder_solution_flow_steps(project_id: UUID, params: Dict[str, Any]) -> Dict[str, Any]:
+    """Reorder steps in the solution flow."""
+    from app.db.solution_flow import get_or_create_flow, reorder_flow_steps
+
+    step_ids = params.get("step_ids", [])
+    if not step_ids:
+        return {"error": "step_ids is required"}
+    try:
+        flow = get_or_create_flow(project_id)
+        result = reorder_flow_steps(UUID(flow["id"]), step_ids)
+        return {
+            "success": True,
+            "message": f"Reordered {len(step_ids)} steps.",
+            "step_count": len(result),
+        }
+    except Exception as e:
+        return {"error": str(e)}
+
+
+async def _resolve_solution_flow_question(project_id: UUID, params: Dict[str, Any]) -> Dict[str, Any]:
+    """Resolve an open question on a solution flow step."""
+    from app.db.solution_flow import get_flow_step, update_flow_step
+
+    step_id = params.get("step_id")
+    question_text = params.get("question_text", "")
+    answer = params.get("answer", "")
+
+    if not step_id or not question_text or not answer:
+        return {"error": "step_id, question_text, and answer are required"}
+
+    try:
+        step = get_flow_step(UUID(step_id))
+        if not step:
+            return {"error": "Step not found"}
+
+        questions = step.get("open_questions") or []
+        resolved = False
+        for q in questions:
+            if isinstance(q, dict) and q.get("question") == question_text:
+                q["status"] = "resolved"
+                q["resolved_answer"] = answer
+                resolved = True
+                break
+
+        if not resolved:
+            return {"error": f"Question not found: '{question_text}'"}
+
+        update_flow_step(UUID(step_id), {"open_questions": questions})
+        return {
+            "success": True,
+            "message": f"Resolved question: '{question_text[:60]}...'",
+            "answer": answer,
+        }
+    except Exception as e:
+        return {"error": str(e)}
+
+
+async def _escalate_to_client(project_id: UUID, params: Dict[str, Any]) -> Dict[str, Any]:
+    """Escalate an open question to the client by creating a pending item."""
+    from app.db.solution_flow import get_flow_step, update_flow_step
+
+    step_id = params.get("step_id")
+    question_text = params.get("question_text", "")
+    suggested_stakeholder = params.get("suggested_stakeholder")
+    reason = params.get("reason")
+
+    if not step_id or not question_text:
+        return {"error": "step_id and question_text are required"}
+
+    try:
+        step = get_flow_step(UUID(step_id))
+        if not step:
+            return {"error": "Step not found"}
+
+        # Find and update the question status to escalated
+        questions = step.get("open_questions") or []
+        escalated = False
+        for q in questions:
+            if isinstance(q, dict) and q.get("question") == question_text:
+                q["status"] = "escalated"
+                q["escalated_to"] = suggested_stakeholder or "client"
+                escalated = True
+                break
+
+        if not escalated:
+            return {"error": f"Question not found: '{question_text}'"}
+
+        update_flow_step(UUID(step_id), {"open_questions": questions})
+
+        # Create pending item
+        supabase = get_supabase()
+        pending_row = {
+            "project_id": str(project_id),
+            "item_type": "open_question",
+            "source": "solution_flow",
+            "entity_id": step_id,
+            "title": question_text,
+            "why_needed": reason or f"Escalated from solution flow step: {step.get('title', '')}",
+            "priority": "high",
+        }
+        result = supabase.table("pending_items").insert(pending_row).execute()
+        pending_item_id = result.data[0]["id"] if result.data else None
+
+        return {
+            "success": True,
+            "question": question_text,
+            "escalated_to": suggested_stakeholder or "client",
+            "pending_item_id": pending_item_id,
+            "message": f"Escalated to {suggested_stakeholder or 'client'}: '{question_text[:50]}...'",
+        }
+    except Exception as e:
+        return {"error": str(e)}
+
+
+async def _refine_solution_flow_step(project_id: UUID, params: Dict[str, Any]) -> Dict[str, Any]:
+    """Refine a solution flow step using AI."""
+    from app.chains.refine_solution_flow_step import refine_solution_flow_step
+
+    step_id = params.get("step_id")
+    instruction = params.get("instruction", "")
+
+    if not step_id or not instruction:
+        return {"error": "step_id and instruction are required"}
+
+    return await refine_solution_flow_step(str(project_id), step_id, instruction)

@@ -29,20 +29,64 @@ def create_learning(
     learning: str,
     source_prototype_id: UUID | None = None,
     effectiveness_score: float = 0.5,
+    eval_run_id: UUID | None = None,
+    dimension: str | None = None,
+    gap_pattern: str | None = None,
 ) -> dict[str, Any]:
     """Record a new prompt learning."""
     supabase = get_supabase()
-    data = {
+    data: dict[str, Any] = {
         "category": category,
         "learning": learning,
         "source_prototype_id": str(source_prototype_id) if source_prototype_id else None,
         "effectiveness_score": effectiveness_score,
         "active": True,
     }
+    if eval_run_id:
+        data["eval_run_id"] = str(eval_run_id)
+    if dimension:
+        data["dimension"] = dimension
+    if gap_pattern:
+        data["gap_pattern"] = gap_pattern
     response = supabase.table("prompt_template_learnings").insert(data).execute()
     if not response.data:
         raise ValueError("Failed to create learning")
     logger.info(f"Created prompt learning: {category}")
+    return response.data[0]
+
+
+def list_learnings(
+    dimension: str | None = None,
+    active_only: bool = False,
+    limit: int = 100,
+) -> list[dict[str, Any]]:
+    """List learnings with optional filters."""
+    supabase = get_supabase()
+    query = (
+        supabase.table("prompt_template_learnings")
+        .select("*")
+        .order("created_at", desc=True)
+        .limit(limit)
+    )
+    if active_only:
+        query = query.eq("active", True)
+    if dimension:
+        query = query.eq("dimension", dimension)
+    response = query.execute()
+    return response.data or []
+
+
+def toggle_learning_active(learning_id: UUID, active: bool) -> dict[str, Any]:
+    """Toggle a learning's active state."""
+    supabase = get_supabase()
+    response = (
+        supabase.table("prompt_template_learnings")
+        .update({"active": active})
+        .eq("id", str(learning_id))
+        .execute()
+    )
+    if not response.data:
+        raise ValueError(f"Failed to toggle learning {learning_id}")
     return response.data[0]
 
 
