@@ -11,9 +11,14 @@ import {
   Rocket,
   Check,
   ChevronRight,
+  Loader2,
+  Circle,
+  AlertCircle,
+  CheckCircle2,
+  ArrowRight,
 } from 'lucide-react'
 import { useProjectCreationChat, type ChatSummaryData } from '@/lib/useProjectCreationChat'
-import { launchProject } from '@/lib/api'
+import { launchProject, getLaunchProgress } from '@/lib/api'
 import type { StakeholderLaunchInput } from '@/types/workspace'
 
 interface HybridOnboardingModalProps {
@@ -22,7 +27,7 @@ interface HybridOnboardingModalProps {
   onLaunched: (response: { project_id: string; launch_id: string }) => void
 }
 
-type Phase = 'chat' | 'client_card' | 'stakeholder_card' | 'confirm' | 'launching'
+type Phase = 'chat' | 'client_card' | 'stakeholder_card' | 'confirm' | 'launching' | 'building'
 
 const STAKEHOLDER_TYPES = [
   { value: 'champion', label: 'Champion' },
@@ -31,6 +36,80 @@ const STAKEHOLDER_TYPES = [
   { value: 'blocker', label: 'Blocker' },
   { value: 'end_user', label: 'End User' },
 ] as const
+
+// Rich cycling sub-labels for each step when running
+const STEP_SUB_LABELS: Record<string, string[]> = {
+  company_research: [
+    'Researching company background...',
+    'Analyzing industry context...',
+    'Identifying competitive landscape...',
+    'Building company profile...',
+  ],
+  entity_generation: [
+    'Analyzing business goals...',
+    'Mapping current & future workflows...',
+    'Identifying key personas...',
+    'Generating requirements...',
+    'Building feature roadmap...',
+    'Connecting workflows to features...',
+  ],
+  stakeholder_enrichment: [
+    'Enriching stakeholder profiles...',
+    'Mapping organizational roles...',
+    'Identifying decision-makers...',
+  ],
+  quality_check: [
+    'Validating entity relationships...',
+    'Checking for completeness...',
+    'Running final quality checks...',
+  ],
+}
+
+const STEP_ICON = {
+  completed: <Check className="w-4 h-4 text-[#3FAF7A]" />,
+  running: <Loader2 className="w-4 h-4 text-[#3FAF7A] animate-spin" />,
+  pending: <Circle className="w-4 h-4 text-[#E5E5E5]" />,
+  skipped: <Check className="w-4 h-4 text-[#999999]" />,
+  failed: <AlertCircle className="w-4 h-4 text-red-500" />,
+} as const
+
+function BuildCyclingLabel({ stepKey }: { stepKey: string }) {
+  const labels = STEP_SUB_LABELS[stepKey]
+  const [index, setIndex] = useState(0)
+  const [fade, setFade] = useState(true)
+
+  useEffect(() => {
+    if (!labels || labels.length <= 1) return
+    const interval = setInterval(() => {
+      setFade(false)
+      setTimeout(() => {
+        setIndex((prev) => (prev + 1) % labels.length)
+        setFade(true)
+      }, 200)
+    }, 3000)
+    return () => clearInterval(interval)
+  }, [labels])
+
+  if (!labels) return null
+
+  return (
+    <p
+      className={`text-xs text-[#999999] mt-0.5 transition-opacity duration-200 ${
+        fade ? 'opacity-100' : 'opacity-0'
+      }`}
+    >
+      {labels[index]}
+    </p>
+  )
+}
+
+interface BuildStepStatus {
+  step_key: string
+  step_label: string
+  status: string
+  result_summary?: string | null
+  error_message?: string | null
+}
 
 function renderMarkdown(text: string) {
   return text
@@ -56,6 +135,37 @@ export function HybridOnboardingModal({
   const [clientWebsite, setClientWebsite] = useState('')
   const [clientIndustry, setClientIndustry] = useState('')
   const [clientCardDone, setClientCardDone] = useState(false)
+
+  // Build progress state
+  const [buildProjectId, setBuildProjectId] = useState<string | null>(null)
+  const [buildLaunchId, setBuildLaunchId] = useState<string | null>(null)
+  const [buildSteps, setBuildSteps] = useState<BuildStepStatus[]>([])
+  const [buildProgressPct, setBuildProgressPct] = useState(0)
+  const [buildStatus, setBuildStatus] = useState('pending')
+  const buildPollRef = useRef<NodeJS.Timeout | null>(null)
+
+  // Poll build progress when in building phase
+  useEffect(() => {
+    if (phase !== 'building' || !buildProjectId || !buildLaunchId) return
+
+    const poll = async () => {
+      try {
+        const data = await getLaunchProgress(buildProjectId, buildLaunchId)
+        setBuildSteps(data.steps || [])
+        setBuildProgressPct(data.progress_pct || 0)
+        setBuildStatus(data.status)
+      } catch {
+        // Non-fatal
+      }
+    }
+
+    poll()
+    buildPollRef.current = setInterval(poll, 3000)
+
+    return () => {
+      if (buildPollRef.current) clearInterval(buildPollRef.current)
+    }
+  }, [phase, buildProjectId, buildLaunchId])
 
   // Stakeholder card state
   const [stakeholders, setStakeholders] = useState<StakeholderLaunchInput[]>([])
@@ -189,18 +299,25 @@ export function HybridOnboardingModal({
         auto_discovery: false,
       })
 
-      onLaunched({
-        project_id: response.project_id,
-        launch_id: response.launch_id,
-      })
-      handleClose()
+      // Immediately transition to building animation
+      setBuildProjectId(response.project_id)
+      setBuildLaunchId(response.launch_id)
+      setPhase('building')
     } catch (err) {
       console.error('Launch failed:', err)
       setPhase('confirm')
     }
   }
 
+  const handleBuildDismiss = () => {
+    if (buildProjectId && buildLaunchId) {
+      onLaunched({ project_id: buildProjectId, launch_id: buildLaunchId })
+    }
+    handleClose()
+  }
+
   const handleClose = () => {
+    if (buildPollRef.current) clearInterval(buildPollRef.current)
     reset()
     setPhase('chat')
     setSummary(null)
@@ -210,6 +327,11 @@ export function HybridOnboardingModal({
     setClientIndustry('')
     setClientCardDone(false)
     setStakeholders([])
+    setBuildProjectId(null)
+    setBuildLaunchId(null)
+    setBuildSteps([])
+    setBuildProgressPct(0)
+    setBuildStatus('pending')
     onClose()
   }
 
@@ -220,7 +342,7 @@ export function HybridOnboardingModal({
       {/* Backdrop */}
       <div
         className="absolute inset-0 bg-black/30 backdrop-blur-md"
-        onClick={handleClose}
+        onClick={phase === 'building' ? handleBuildDismiss : handleClose}
       />
 
       {/* Modal */}
@@ -229,7 +351,7 @@ export function HybridOnboardingModal({
         <div className="bg-gradient-to-r from-[#0A1E2F] to-[#0D2A35] px-6 py-4 flex items-center justify-between shrink-0">
           <div>
             <h2 className="text-white font-semibold text-lg">
-              {phase === 'launching' ? 'Launching...' : 'New Project'}
+              {phase === 'launching' ? 'Launching...' : phase === 'building' ? 'Building Your Project' : 'New Project'}
             </h2>
             <p className="text-white/60 text-sm">
               {phase === 'chat' && "Let's get the basics down"}
@@ -237,10 +359,11 @@ export function HybridOnboardingModal({
               {phase === 'stakeholder_card' && 'Key contacts'}
               {phase === 'confirm' && 'Ready to launch'}
               {phase === 'launching' && 'Setting everything up'}
+              {phase === 'building' && (summary?.name || 'Setting everything up')}
             </p>
           </div>
           <button
-            onClick={handleClose}
+            onClick={phase === 'building' ? handleBuildDismiss : handleClose}
             className="text-white/60 hover:text-white p-1 rounded-lg transition-colors"
           >
             <X className="w-5 h-5" />
@@ -523,15 +646,111 @@ export function HybridOnboardingModal({
             </div>
           )}
 
-          {/* Launching state */}
+          {/* Launching state (brief transition before building phase) */}
           {phase === 'launching' && (
             <div className="flex justify-center py-8">
               <div className="text-center">
-                <div className="w-12 h-12 border-3 border-[#3FAF7A] border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-                <p className="text-sm text-[#666666]">Building your project...</p>
+                <Loader2 className="w-10 h-10 text-[#3FAF7A] animate-spin mx-auto mb-4" />
+                <p className="text-sm text-[#666666]">Setting things up...</p>
               </div>
             </div>
           )}
+
+          {/* Building phase — real progress with polling */}
+          {phase === 'building' && (() => {
+            const isDone = ['completed', 'completed_with_errors', 'failed'].includes(buildStatus)
+            const isFailed = buildStatus === 'failed'
+
+            return (
+              <div className="flex flex-col items-center py-6 px-4">
+                {/* Status header */}
+                <div className="text-center mb-5">
+                  {isDone && !isFailed ? (
+                    <div className="flex items-center gap-2 justify-center mb-1">
+                      <CheckCircle2 className="w-6 h-6 text-[#3FAF7A]" />
+                      <h3 className="text-lg font-semibold text-[#333333]">Build Complete</h3>
+                    </div>
+                  ) : isFailed ? (
+                    <div className="flex items-center gap-2 justify-center mb-1">
+                      <AlertCircle className="w-6 h-6 text-red-500" />
+                      <h3 className="text-lg font-semibold text-[#333333]">Build Failed</h3>
+                    </div>
+                  ) : (
+                    <>
+                      <Loader2 className="w-10 h-10 text-[#3FAF7A] animate-spin mx-auto mb-3" />
+                      <p className="text-sm text-[#666666]">Building your project...</p>
+                    </>
+                  )}
+                </div>
+
+                {/* Progress bar */}
+                <div className="w-full max-w-sm">
+                  <div className="h-2 bg-[#E5E5E5] rounded-full overflow-hidden mb-5">
+                    <div
+                      className={`h-full rounded-full transition-all duration-500 ${
+                        isFailed ? 'bg-red-500' : 'bg-[#3FAF7A]'
+                      }`}
+                      style={{ width: `${buildProgressPct}%` }}
+                    />
+                  </div>
+                </div>
+
+                {/* Steps */}
+                <div className="w-full max-w-sm space-y-3">
+                  {buildSteps.map((step) => (
+                    <div key={step.step_key} className="flex items-start gap-3">
+                      <div className="mt-0.5">
+                        {STEP_ICON[step.status as keyof typeof STEP_ICON] || STEP_ICON.pending}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className={`text-sm ${
+                          step.status === 'running' ? 'text-[#333333] font-medium' :
+                          step.status === 'completed' ? 'text-[#333333]' :
+                          step.status === 'failed' ? 'text-red-600' :
+                          'text-[#999999]'
+                        }`}>
+                          {step.step_label}
+                          {step.status === 'running' && '...'}
+                        </p>
+                        {step.status === 'running' && (
+                          <BuildCyclingLabel stepKey={step.step_key} />
+                        )}
+                        {step.result_summary && step.status === 'completed' && (
+                          <p className="text-xs text-[#999999] mt-0.5">{step.result_summary}</p>
+                        )}
+                        {step.error_message && (
+                          <p className="text-xs text-red-500 mt-0.5">{step.error_message}</p>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Footer */}
+                <div className="mt-6">
+                  {isDone && !isFailed ? (
+                    <button
+                      onClick={handleBuildDismiss}
+                      className="flex items-center gap-2 bg-[#3FAF7A] text-white font-medium px-5 py-2.5 rounded-xl hover:bg-[#25785A] transition-colors"
+                    >
+                      Go to Project <ArrowRight className="w-4 h-4" />
+                    </button>
+                  ) : isFailed ? (
+                    <button
+                      onClick={handleBuildDismiss}
+                      className="text-sm text-[#666666] hover:text-[#333333] px-4 py-2"
+                    >
+                      Close
+                    </button>
+                  ) : (
+                    <p className="text-xs text-[#999999] text-center">
+                      You can close this and check back later.
+                    </p>
+                  )}
+                </div>
+              </div>
+            )
+          })()}
 
           <div ref={messagesEndRef} />
         </div>

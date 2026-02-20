@@ -179,7 +179,7 @@ export default function PersonDetailPage() {
             onBack={() => router.push('/people')}
             completeness={intelligence?.profile_completeness}
             analyzing={analyzing}
-            onAnalyze={handleAnalyze}
+            onAnalyze={(!intelligence?.profile_completeness || intelligence.profile_completeness === 0) ? handleAnalyze : undefined}
           />
 
           {/* Tabs */}

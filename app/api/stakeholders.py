@@ -307,6 +307,7 @@ async def list_stakeholders(
 
 @router.post("", response_model=StakeholderOut)
 async def create_stakeholder(
+    background_tasks: BackgroundTasks,
     project_id: UUID = Path(..., description="Project UUID"),
     body: StakeholderCreate = ...,
 ) -> StakeholderOut:
@@ -342,6 +343,55 @@ async def create_stakeholder(
                 body.domain_expertise,
                 append=False,
             )
+
+        # Trigger SI Agent enrichment in background
+        stakeholder_id = UUID(stakeholder["id"])
+
+        async def run_enrichment():
+            from app.agents.stakeholder_intelligence_agent import invoke_stakeholder_intelligence_agent
+
+            MAX_ITERATIONS = 6
+            prev_score: int | None = None
+
+            for iteration in range(MAX_ITERATIONS):
+                try:
+                    result = await invoke_stakeholder_intelligence_agent(
+                        stakeholder_id=stakeholder_id,
+                        project_id=project_id,
+                        trigger="user_request",
+                        trigger_context=f"Stakeholder created manually — auto-enrichment iteration {iteration + 1}/{MAX_ITERATIONS}",
+                        specific_request="Enrich this newly created stakeholder profile" if iteration == 0 else "Continue enriching the weakest profile section",
+                    )
+
+                    if result.action_type in ("stop", "guidance"):
+                        logger.info(
+                            f"SI Agent stopped at iteration {iteration + 1}: {result.action_type}",
+                            extra={"stakeholder_id": str(stakeholder_id)},
+                        )
+                        break
+
+                    current_score = result.profile_completeness_after
+                    if current_score is not None and current_score == prev_score:
+                        logger.info(
+                            f"SI Agent plateaued at {current_score}% after {iteration + 1} iterations",
+                            extra={"stakeholder_id": str(stakeholder_id)},
+                        )
+                        break
+
+                    prev_score = current_score
+
+                    if current_score is not None and current_score >= 85:
+                        logger.info(
+                            f"SI Agent reached {current_score}% — good enough",
+                            extra={"stakeholder_id": str(stakeholder_id)},
+                        )
+                        break
+
+                except Exception as e:
+                    logger.error(f"SI Agent enrichment iteration {iteration + 1} failed: {e}", exc_info=True)
+                    break
+
+        background_tasks.add_task(run_enrichment)
 
         return StakeholderOut(**stakeholder)
 
@@ -569,6 +619,7 @@ async def get_stakeholder_evidence(
 
 @router.patch("/{stakeholder_id}", response_model=StakeholderOut)
 async def update_stakeholder(
+    background_tasks: BackgroundTasks,
     project_id: UUID = Path(..., description="Project UUID"),
     stakeholder_id: UUID = Path(..., description="Stakeholder UUID"),
     body: StakeholderUpdate = ...,
@@ -587,6 +638,45 @@ async def update_stakeholder(
             return StakeholderOut(**existing)
 
         stakeholder = stakeholders_db.update_stakeholder(stakeholder_id, updates)
+
+        # Auto-trigger SI Agent re-enrichment on meaningful field changes
+        enrichment_relevant_fields = {
+            "role", "email", "organization", "influence_level", "stakeholder_type",
+            "priorities", "concerns", "notes", "linkedin_profile",
+        }
+        changed_fields = set(updates.keys()) & enrichment_relevant_fields
+        if changed_fields:
+            async def run_re_enrichment():
+                from app.agents.stakeholder_intelligence_agent import invoke_stakeholder_intelligence_agent
+
+                MAX_ITERATIONS = 4
+                prev_score: int | None = None
+
+                for iteration in range(MAX_ITERATIONS):
+                    try:
+                        result = await invoke_stakeholder_intelligence_agent(
+                            stakeholder_id=stakeholder_id,
+                            project_id=project_id,
+                            trigger="user_request",
+                            trigger_context=f"Stakeholder updated — fields changed: {', '.join(changed_fields)}",
+                            specific_request="Re-enrich based on updated stakeholder data" if iteration == 0 else "Continue enriching the weakest profile section",
+                        )
+
+                        if result.action_type in ("stop", "guidance"):
+                            break
+
+                        current_score = result.profile_completeness_after
+                        if current_score is not None and current_score == prev_score:
+                            break
+                        prev_score = current_score
+                        if current_score is not None and current_score >= 85:
+                            break
+                    except Exception as e:
+                        logger.error(f"SI Agent re-enrichment iteration {iteration + 1} failed: {e}", exc_info=True)
+                        break
+
+            background_tasks.add_task(run_re_enrichment)
+
         return StakeholderOut(**stakeholder)
 
     except HTTPException:

@@ -85,6 +85,9 @@ async def invoke_stakeholder_intelligence_agent(
         if focus_areas:
             focus_text = f"\n\n**Focus areas:** {', '.join(focus_areas)}\nPrioritize these sections in your analysis."
 
+        # Load recent SI logs so the agent knows what's already been tried
+        recent_attempts_text = _format_recent_attempts(stakeholder_id)
+
         user_prompt = f"""# STAKEHOLDER STATE
 
 ## Identity
@@ -114,7 +117,7 @@ async def invoke_stakeholder_intelligence_agent(
 - Priorities: {json.dumps(stakeholder.get('priorities') or [], default=str)[:200]}
 - Concerns: {json.dumps(stakeholder.get('concerns') or [], default=str)[:200]}
 - Notes: {(stakeholder.get('notes') or 'None')[:300]}
-
+{recent_attempts_text}
 ---
 
 # YOUR TASK
@@ -132,11 +135,12 @@ Follow OBSERVE → THINK → DECIDE → ACT:
 The stakeholder_id for all tools is: {str(stakeholder_id)}
 The project_id for all tools is: {str(project_id)}
 
-Remember:
+CRITICAL RULES:
+- NEVER repeat a tool that was already tried (see Recent Attempts above). Pick a DIFFERENT tool.
+- Inference tools (enrich_engagement_profile, analyze_decision_authority, synthesize_win_conditions, detect_communication_patterns, infer_relationships) can infer from role, type, influence level, and project signals even without direct evidence.
+- Only call enrich_from_external_sources if it has NOT been tried yet AND LinkedIn/email are available.
 - Enrich the THINNEST section first (lowest score relative to max)
 - If core identity is incomplete, flag that first
-- If no signals exist, use stop_with_guidance to tell the consultant
-- Evidence-backed updates > inference-based updates
 
 What's your reasoning and recommended action?"""
 
@@ -263,6 +267,43 @@ What's your reasoning and recommended action?"""
 # =============================================================================
 # Helpers
 # =============================================================================
+
+
+def _format_recent_attempts(stakeholder_id: UUID) -> str:
+    """Load recent SI agent invocations so the agent doesn't repeat failed tools."""
+    try:
+        from app.db.supabase_client import get_supabase
+
+        supabase = get_supabase()
+        logs = (
+            supabase.table("stakeholder_intelligence_logs")
+            .select("action_type, action_summary, tools_called, stop_reason, created_at")
+            .eq("stakeholder_id", str(stakeholder_id))
+            .order("created_at", desc=True)
+            .limit(5)
+            .execute()
+        )
+
+        if not logs.data:
+            return ""
+
+        lines = ["\n## Recent Attempts (DO NOT repeat these tools)"]
+        for log in logs.data:
+            tools = log.get("tools_called") or []
+            tool_names = [t.get("tool_name", "?") for t in tools]
+            successes = [t.get("success", False) for t in tools]
+            summary = log.get("action_summary") or log.get("stop_reason") or "no result"
+            status = "OK" if all(successes) and successes else "NO EFFECT"
+            # Mark as no effect if tool ran but completeness didn't change
+            if summary and ("0 fields" in summary or "none" in summary.lower()):
+                status = "NO EFFECT"
+            lines.append(f"- Tool: {', '.join(tool_names)} → {status}: {summary}")
+
+        return "\n".join(lines)
+
+    except Exception as e:
+        logger.debug(f"Failed to load recent SI logs: {e}")
+        return ""
 
 
 def _format_trigger(trigger: str, context: str | None, specific: str | None) -> str:
