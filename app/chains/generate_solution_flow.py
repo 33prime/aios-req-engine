@@ -452,7 +452,7 @@ async def generate_solution_flow(
         try:
             t0 = time.monotonic()
             response = await client.messages.create(
-                model="claude-sonnet-4-6",
+                model="claude-sonnet-4-5-20250929",
                 max_tokens=8000,
                 system=system_blocks,
                 messages=[{"role": "user", "content": user_prompt}],
@@ -478,7 +478,7 @@ async def generate_solution_flow(
                 try:
                     _log_usage(
                         project_id, "solution_flow_generate",
-                        "claude-sonnet-4-6", response, elapsed_ms,
+                        "claude-sonnet-4-5-20250929", response, elapsed_ms,
                     )
                 except Exception as e:
                     logger.warning(f"Failed to log usage: {e}")
