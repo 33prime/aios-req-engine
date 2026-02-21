@@ -215,15 +215,33 @@ def get_signal_impact(signal_id: UUID) -> dict[str, Any]:
         # Fetch entity details for each type
         details: dict[str, list[dict[str, Any]]] = {}
 
-        for entity_type, entity_ids in entity_ids_by_type.items():
-            # Map entity_type to table name
-            table_map = {
-                "vp_step": "vp_steps",
-                "feature": "features",
-                "insight": "insights",
-                "persona": "personas",
-            }
+        # Map entity_type to table name and display-name column
+        table_map = {
+            "vp_step": "vp_steps",
+            "feature": "features",
+            "insight": "insights",
+            "persona": "personas",
+            "stakeholder": "stakeholders",
+            "workflow": "workflows",
+            "data_entity": "data_entities",
+            "constraint": "constraints",
+            "business_driver": "business_drivers",
+            "competitor": "competitors",
+        }
+        columns_map = {
+            "vp_step": "id, label, slug",
+            "feature": "id, label, slug",
+            "insight": "id, label, slug",
+            "persona": "id, name",
+            "stakeholder": "id, name",
+            "workflow": "id, name",
+            "data_entity": "id, name",
+            "constraint": "id, label",
+            "business_driver": "id, label",
+            "competitor": "id, name",
+        }
 
+        for entity_type, entity_ids in entity_ids_by_type.items():
             table_name = table_map.get(entity_type)
             if not table_name:
                 logger.warning(f"Unknown entity_type: {entity_type}")
@@ -231,11 +249,12 @@ def get_signal_impact(signal_id: UUID) -> dict[str, Any]:
 
             # Deduplicate entity IDs
             unique_ids = list(set(entity_ids))
+            columns = columns_map.get(entity_type, "id, label")
 
             # Fetch entities
             entities_response = (
                 supabase.table(table_name)
-                .select("id, label, slug")
+                .select(columns)
                 .in_("id", unique_ids)
                 .execute()
             )
@@ -315,6 +334,10 @@ def get_project_source_usage(project_id: UUID) -> list[dict[str, Any]]:
                 "persona": 0,
                 "vp_step": 0,
                 "business_driver": 0,
+                "stakeholder": 0,
+                "workflow": 0,
+                "data_entity": 0,
+                "constraint": 0,
             }
 
             entity_ids: set[str] = set()

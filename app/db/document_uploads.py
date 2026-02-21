@@ -461,21 +461,24 @@ def get_documents_with_usage(project_id: UUID) -> list[dict[str, Any]]:
             impacts = impacts_response.data or []
 
             # Aggregate by entity type
-            contributed_to: dict[str, int] = {
-                "features": 0,
-                "personas": 0,
-                "vp_steps": 0,
-                "other": 0,
+            type_to_key = {
+                "feature": "features",
+                "persona": "personas",
+                "vp_step": "vp_steps",
+                "stakeholder": "stakeholders",
+                "workflow": "workflows",
+                "data_entity": "data_entities",
+                "constraint": "constraints",
+                "business_driver": "business_drivers",
             }
+            contributed_to: dict[str, int] = {v: 0 for v in type_to_key.values()}
+            contributed_to["other"] = 0
 
             for impact in impacts:
                 entity_type = impact.get("entity_type", "")
-                if entity_type == "feature":
-                    contributed_to["features"] += 1
-                elif entity_type == "persona":
-                    contributed_to["personas"] += 1
-                elif entity_type == "vp_step":
-                    contributed_to["vp_steps"] += 1
+                key = type_to_key.get(entity_type)
+                if key:
+                    contributed_to[key] += 1
                 else:
                     contributed_to["other"] += 1
 
@@ -487,6 +490,11 @@ def get_documents_with_usage(project_id: UUID) -> list[dict[str, Any]]:
                 "features": 0,
                 "personas": 0,
                 "vp_steps": 0,
+                "stakeholders": 0,
+                "workflows": 0,
+                "data_entities": 0,
+                "constraints": 0,
+                "business_drivers": 0,
                 "other": 0,
             }
 

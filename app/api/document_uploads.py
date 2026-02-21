@@ -60,10 +60,15 @@ class DocumentStatsResponse(BaseModel):
 class DocumentContributedTo(BaseModel):
     """Counts of entities a document contributed to."""
 
-    features: int
-    personas: int
-    vp_steps: int
-    other: int
+    features: int = 0
+    personas: int = 0
+    vp_steps: int = 0
+    stakeholders: int = 0
+    workflows: int = 0
+    data_entities: int = 0
+    constraints: int = 0
+    business_drivers: int = 0
+    other: int = 0
 
 
 class DocumentSummaryItem(BaseModel):
@@ -80,6 +85,7 @@ class DocumentSummaryItem(BaseModel):
     contributed_to: DocumentContributedTo
     confidence_level: str
     processing_status: str
+    signal_id: str | None = None
     # Analysis fields from document classification
     quality_score: float | None = None
     relevance_score: float | None = None
@@ -270,10 +276,16 @@ def _build_extracted_entities(signal_id: str) -> dict:
         "feature": "features",
         "persona": "personas",
         "vp_step": "vp_steps",
+        "workflow_step": "vp_steps",
         "constraint": "constraints",
         "stakeholder": "stakeholders",
+        "workflow": "workflows",
+        "data_entity": "data_entities",
+        "business_driver": "business_drivers",
+        "competitor": "competitors",
+        "vision": "vision",
     }
-    result: dict = {v: [] for v in type_map.values()}
+    result: dict = {v: [] for v in set(type_map.values())}
     result["total_count"] = 0
 
     try:
@@ -444,6 +456,7 @@ async def get_documents_summary(project_id: UUID) -> DocumentSummaryResponse:
                     contributed_to=DocumentContributedTo(**doc["contributed_to"]),
                     confidence_level=doc["confidence_level"],
                     processing_status=doc["processing_status"],
+                    signal_id=doc.get("signal_id"),
                     quality_score=doc.get("quality_score"),
                     relevance_score=doc.get("relevance_score"),
                     information_density=doc.get("information_density"),

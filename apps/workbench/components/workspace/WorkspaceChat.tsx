@@ -257,16 +257,25 @@ export function WorkspaceChat({
                 const entities = status.extracted_entities
                 const entityLines: string[] = []
                 if (entities) {
-                  if (entities.features.length > 0)
-                    entityLines.push(`Features: ${entities.features.map((e: { name: string }) => e.name).join(', ')}`)
-                  if (entities.personas.length > 0)
-                    entityLines.push(`Personas: ${entities.personas.map((e: { name: string }) => e.name).join(', ')}`)
-                  if (entities.vp_steps.length > 0)
-                    entityLines.push(`Workflow Steps: ${entities.vp_steps.map((e: { name: string }) => e.name).join(', ')}`)
-                  if (entities.constraints.length > 0)
-                    entityLines.push(`Constraints: ${entities.constraints.map((e: { name: string }) => e.name).join(', ')}`)
-                  if (entities.stakeholders.length > 0)
-                    entityLines.push(`Stakeholders: ${entities.stakeholders.map((e: { name: string }) => e.name).join(', ')}`)
+                  const nameMapper = (e: { name: string }) => e.name
+                  if (entities.features?.length > 0)
+                    entityLines.push(`Features: ${entities.features.map(nameMapper).join(', ')}`)
+                  if (entities.personas?.length > 0)
+                    entityLines.push(`Personas: ${entities.personas.map(nameMapper).join(', ')}`)
+                  if (entities.vp_steps?.length > 0)
+                    entityLines.push(`Workflow Steps: ${entities.vp_steps.map(nameMapper).join(', ')}`)
+                  if (entities.stakeholders?.length > 0)
+                    entityLines.push(`Stakeholders: ${entities.stakeholders.map(nameMapper).join(', ')}`)
+                  if (entities.constraints?.length > 0)
+                    entityLines.push(`Constraints: ${entities.constraints.map(nameMapper).join(', ')}`)
+                  if (entities.workflows?.length > 0)
+                    entityLines.push(`Workflows: ${entities.workflows.map(nameMapper).join(', ')}`)
+                  if (entities.data_entities?.length > 0)
+                    entityLines.push(`Data Entities: ${entities.data_entities.map(nameMapper).join(', ')}`)
+                  if (entities.business_drivers?.length > 0)
+                    entityLines.push(`Business Drivers: ${entities.business_drivers.map(nameMapper).join(', ')}`)
+                  if (entities.competitors?.length > 0)
+                    entityLines.push(`Competitors: ${entities.competitors.map(nameMapper).join(', ')}`)
                 }
                 const fname = status.original_filename || 'document'
                 if (entityLines.length > 0) {

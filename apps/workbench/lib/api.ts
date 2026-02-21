@@ -1900,6 +1900,11 @@ export interface DocumentStatusResponse {
     vp_steps: Array<{ name: string; id: string }>
     constraints: Array<{ name: string; id: string }>
     stakeholders: Array<{ name: string; id: string }>
+    workflows: Array<{ name: string; id: string }>
+    data_entities: Array<{ name: string; id: string }>
+    business_drivers: Array<{ name: string; id: string }>
+    competitors: Array<{ name: string; id: string }>
+    vision: Array<{ name: string; id: string }>
     total_count: number
   }
 }
@@ -1996,6 +2001,11 @@ export interface DocumentContributedTo {
   features: number
   personas: number
   vp_steps: number
+  stakeholders: number
+  workflows: number
+  data_entities: number
+  constraints: number
+  business_drivers: number
   other: number
 }
 
@@ -2011,6 +2021,7 @@ export interface DocumentSummaryItem {
   contributed_to: DocumentContributedTo
   confidence_level: string
   processing_status: string
+  signal_id?: string | null
   // Analysis fields from document classification
   quality_score?: number
   relevance_score?: number
@@ -2069,6 +2080,10 @@ export interface SourceUsageByEntity {
   persona: number
   vp_step: number
   business_driver: number
+  stakeholder: number
+  workflow: number
+  data_entity: number
+  constraint: number
 }
 
 export interface SourceUsageItem {
@@ -2092,6 +2107,19 @@ export interface SourceUsageResponse {
  */
 export const getSourceUsage = (projectId: string) =>
   apiRequest<SourceUsageResponse>(`/projects/${projectId}/sources/usage`)
+
+/**
+ * Signal impact — entities influenced by a specific signal
+ */
+export interface SignalImpactResponse {
+  signal_id: string
+  total_impacts: number
+  by_entity_type: Record<string, number>
+  details: Record<string, Array<{ id: string; label?: string; name?: string; slug?: string }>>
+}
+
+export const getSignalImpact = (signalId: string) =>
+  apiRequest<SignalImpactResponse>(`/signals/${signalId}/impact`)
 
 /**
  * Evidence quality breakdown

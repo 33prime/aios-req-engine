@@ -14,6 +14,10 @@ ENTITY_TABLES = [
     "personas",
     "vp_steps",
     "business_drivers",
+    "workflows",
+    "data_entities",
+    "stakeholders",
+    "constraints",
 ]
 
 

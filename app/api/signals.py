@@ -236,6 +236,10 @@ class SourceUsageByEntity(BaseModel):
     persona: int = 0
     vp_step: int = 0
     business_driver: int = 0
+    stakeholder: int = 0
+    workflow: int = 0
+    data_entity: int = 0
+    constraint: int = 0
 
 
 class SourceUsageItem(BaseModel):
@@ -301,6 +305,10 @@ async def get_source_usage(project_id: UUID) -> SourceUsageResponse:
                         persona=uses_by.get("persona", 0),
                         vp_step=uses_by.get("vp_step", 0),
                         business_driver=uses_by.get("business_driver", 0),
+                        stakeholder=uses_by.get("stakeholder", 0),
+                        workflow=uses_by.get("workflow", 0),
+                        data_entity=uses_by.get("data_entity", 0),
+                        constraint=uses_by.get("constraint", 0),
                     ),
                     last_used=src.get("last_used"),
                     entities_contributed=src.get("entities_contributed", []),
