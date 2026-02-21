@@ -4503,6 +4503,13 @@ async def batch_confirm_entities(
         except Exception:
             pass  # Fire-and-forget
 
+        # Record pulse snapshot after batch confirmation (fire-and-forget)
+        try:
+            from app.core.pulse_observer import record_pulse_snapshot
+            asyncio.create_task(record_pulse_snapshot(project_id, trigger="confirmation"))
+        except Exception:
+            pass
+
     return BatchConfirmResponse(
         confirmed_count=len(confirmed_ids),
         entity_ids=confirmed_ids,

@@ -1094,3 +1094,80 @@ export interface BatchConfirmResponse {
   entity_ids: string[]
   tasks_created: number
 }
+
+// =============================================================================
+// Pulse Engine
+// =============================================================================
+
+export interface PulseSnapshot {
+  id: string | null
+  project_id: string
+  stage: string
+  stage_progress: number
+  gates: string[]
+  gates_met: number
+  gates_total: number
+  health: Record<string, {
+    entity_type: string
+    count: number
+    confirmed: number
+    stale: number
+    confirmation_rate: number
+    staleness_rate: number
+    coverage: string
+    quality: number
+    freshness: number
+    health_score: number
+    directive: string
+    target: number
+  }>
+  actions: Array<{
+    sentence: string
+    impact_score: number
+    entity_type: string | null
+    unblocks_gate: boolean
+  }>
+  risks: {
+    contradiction_count: number
+    stale_clusters: number
+    critical_questions: number
+    single_source_types: number
+    risk_score: number
+  }
+  forecast: {
+    prototype_readiness: number
+    spec_completeness: number
+    confidence_index: number
+    coverage_index: number
+  }
+  extraction_directive: Record<string, unknown>
+  config_version: string
+  rules_fired: string[]
+  trigger: string
+  created_at: string | null
+}
+
+// =============================================================================
+// Pulse Admin
+// =============================================================================
+
+export interface AdminPulseConfigSummary {
+  id: string
+  project_id: string | null
+  version: string
+  label: string
+  is_active: boolean
+  created_at: string
+}
+
+export interface AdminProjectPulse {
+  project_id: string
+  project_name: string
+  stage: string
+  stage_progress: number
+  health_scores: Record<string, number>
+  risk_score: number
+  top_action: string | null
+  snapshot_count: number
+  last_snapshot_at: string | null
+}

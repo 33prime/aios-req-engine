@@ -11,6 +11,7 @@ import {
   BarChart3,
   Target,
   FlaskConical,
+  Activity,
   Shield,
 } from 'lucide-react'
 
@@ -21,6 +22,7 @@ const navItems = [
   { href: '/admin/clients', icon: Building2, label: 'Clients' },
   { href: '/admin/cost', icon: DollarSign, label: 'Cost & Usage' },
   { href: '/admin/analytics', icon: BarChart3, label: 'Analytics' },
+  { href: '/admin/pulse', icon: Activity, label: 'Pulse' },
   { href: '/admin/icp', icon: Target, label: 'ICP' },
   { href: '/admin/evals', icon: FlaskConical, label: 'Evals' },
 ]

@@ -724,3 +724,156 @@ async def get_user_icp_signals(
     )
 
     return resp.data or []
+
+
+# =============================================================================
+# Pulse Engine Admin
+# =============================================================================
+
+
+class AdminPulseConfigSummary(BaseModel):
+    id: str
+    project_id: str | None = None
+    version: str = "1.0"
+    label: str = ""
+    is_active: bool = False
+    created_at: str = ""
+
+
+class AdminProjectPulse(BaseModel):
+    project_id: str
+    project_name: str = ""
+    stage: str = "discovery"
+    stage_progress: float = 0.0
+    health_scores: dict[str, float] = {}
+    risk_score: float = 0.0
+    top_action: str | None = None
+    snapshot_count: int = 0
+    last_snapshot_at: str | None = None
+
+
+@router.get("/pulse/configs", response_model=list[AdminPulseConfigSummary])
+async def list_pulse_configs(
+    auth: AuthContext = Depends(require_super_admin),
+) -> list[AdminPulseConfigSummary]:
+    """List all pulse configs (global + per-project)."""
+    from app.db.pulse import list_pulse_configs as db_list_configs
+
+    configs = db_list_configs()
+    return [
+        AdminPulseConfigSummary(
+            id=c["id"],
+            project_id=c.get("project_id"),
+            version=c.get("version", "1.0"),
+            label=c.get("label", ""),
+            is_active=c.get("is_active", False),
+            created_at=c.get("created_at", ""),
+        )
+        for c in configs
+    ]
+
+
+@router.get("/pulse/projects", response_model=list[AdminProjectPulse])
+async def list_project_pulses(
+    auth: AuthContext = Depends(require_super_admin),
+) -> list[AdminProjectPulse]:
+    """Get latest pulse snapshot for all active projects (heatmap data)."""
+    client = get_supabase()
+
+    # Get all active projects
+    projects_resp = (
+        client.table("projects")
+        .select("id, name, stage, status")
+        .neq("status", "archived")
+        .order("updated_at", desc=True)
+        .execute()
+    )
+    projects = projects_resp.data or []
+
+    results: list[AdminProjectPulse] = []
+    for proj in projects:
+        pid = proj["id"]
+
+        # Get latest snapshot
+        snap_resp = (
+            client.table("pulse_snapshots")
+            .select("stage, stage_progress, health, risks, actions, created_at")
+            .eq("project_id", pid)
+            .order("created_at", desc=True)
+            .limit(1)
+            .maybe_single()
+            .execute()
+        )
+
+        # Get snapshot count
+        count_resp = (
+            client.table("pulse_snapshots")
+            .select("id", count="exact")
+            .eq("project_id", pid)
+            .execute()
+        )
+        snap_count = count_resp.count if count_resp.count is not None else len(count_resp.data or [])
+
+        snap = snap_resp.data
+        if snap:
+            health = snap.get("health", {})
+            health_scores = {
+                et: h.get("health_score", 0) for et, h in health.items()
+            } if isinstance(health, dict) else {}
+
+            risks = snap.get("risks", {})
+            risk_score = risks.get("risk_score", 0) if isinstance(risks, dict) else 0
+
+            actions = snap.get("actions", [])
+            top_action = actions[0].get("sentence") if actions else None
+
+            results.append(AdminProjectPulse(
+                project_id=pid,
+                project_name=proj.get("name", ""),
+                stage=snap.get("stage", proj.get("stage", "discovery")),
+                stage_progress=snap.get("stage_progress", 0),
+                health_scores=health_scores,
+                risk_score=risk_score,
+                top_action=top_action,
+                snapshot_count=snap_count,
+                last_snapshot_at=snap.get("created_at"),
+            ))
+        else:
+            results.append(AdminProjectPulse(
+                project_id=pid,
+                project_name=proj.get("name", ""),
+                stage=proj.get("stage", "discovery"),
+                snapshot_count=0,
+            ))
+
+    return results
+
+
+@router.get("/pulse/projects/{project_id}")
+async def get_project_pulse_detail(
+    project_id: UUID,
+    auth: AuthContext = Depends(require_super_admin),
+):
+    """Full latest snapshot + history for one project."""
+    from app.db.pulse import get_latest_pulse_snapshot, list_pulse_snapshots
+
+    client = get_supabase()
+
+    # Get project name
+    proj_resp = (
+        client.table("projects")
+        .select("name")
+        .eq("id", str(project_id))
+        .maybe_single()
+        .execute()
+    )
+    project_name = proj_resp.data.get("name", "") if proj_resp.data else ""
+
+    latest = get_latest_pulse_snapshot(project_id)
+    history = list_pulse_snapshots(project_id, limit=20)
+
+    return {
+        "project_name": project_name,
+        "latest": latest,
+        "history": history,
+    }

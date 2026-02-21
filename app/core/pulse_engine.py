@@ -166,9 +166,33 @@ async def compute_project_pulse(
         ProjectPulse with stage, health, actions, risks, forecast, directive
     """
     if config is None:
-        config = get_default_config()
+        # Try loading from DB first, fall back to hardcoded default
+        try:
+            from app.db.pulse import get_active_pulse_config
+            db_config = get_active_pulse_config(project_id)
+            if db_config and db_config.get("config"):
+                config = PulseConfig(**db_config["config"])
+            else:
+                config = get_default_config()
+        except Exception:
+            config = get_default_config()
 
     rules_fired: list[str] = []
+
+    # Scale entity targets based on signal velocity (non-critical)
+    try:
+        from app.core.pulse_dynamics import compute_signal_velocity, scale_entity_targets
+
+        velocity = compute_signal_velocity(project_id)
+        if velocity["velocity_trend"] != "steady":
+            # Scale targets for all stages
+            scaled_targets = {}
+            for stage_key, targets in config.entity_targets.items():
+                scaled_targets[stage_key] = scale_entity_targets(targets, velocity)
+            config = config.model_copy(update={"entity_targets": scaled_targets})
+            rules_fired.append(f"velocity: {velocity['velocity_trend']} → targets scaled")
+    except Exception as e:
+        logger.debug(f"Pulse: velocity scaling skipped: {e}")
 
     # Load data if not provided
     if project_data is None:

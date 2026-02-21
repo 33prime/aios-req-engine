@@ -4126,3 +4126,38 @@ export const confirmCluster = (
       body: JSON.stringify({ entities, confirmation_status: confirmationStatus }),
     }
   )
+
+// =============================================================================
+// Pulse Engine v2 (deterministic health snapshots)
+// =============================================================================
+
+export const getPulseSnapshot = (projectId: string) =>
+  apiRequest<import('@/types/api').PulseSnapshot>(
+    `/projects/${projectId}/pulse`
+  )
+
+export const getPulseHistory = (projectId: string, limit = 20) =>
+  apiRequest<import('@/types/api').PulseSnapshot[]>(
+    `/projects/${projectId}/pulse/history?limit=${limit}`
+  )
+
+// =============================================================================
+// Pulse Admin
+// =============================================================================
+
+export const getAdminPulseConfigs = () =>
+  apiRequest<import('@/types/api').AdminPulseConfigSummary[]>(
+    '/super-admin/pulse/configs'
+  )
+
+export const getAdminProjectPulses = () =>
+  apiRequest<import('@/types/api').AdminProjectPulse[]>(
+    '/super-admin/pulse/projects'
+  )
+
+export const getAdminProjectPulseDetail = (projectId: string) =>
+  apiRequest<{
+    latest: import('@/types/api').PulseSnapshot
+    history: import('@/types/api').PulseSnapshot[]
+    project_name: string
+  }>(`/super-admin/pulse/projects/${projectId}`)

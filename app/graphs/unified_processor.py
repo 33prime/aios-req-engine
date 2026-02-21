@@ -71,6 +71,9 @@ class V2ProcessorState:
     # Summary (set by v2_generate_summary)
     chat_summary: str = ""
 
+    # Extraction logging
+    extraction_log: Any | None = None  # ExtractionLog instance
+
     # Status
     success: bool = True
     error: str | None = None
@@ -293,6 +296,7 @@ async def v2_extract_patches(state: V2ProcessorState) -> dict[str, Any]:
                 source_authority=state.source_authority,
                 signal_id=str(state.signal_id),
                 run_id=str(state.run_id),
+                extraction_log=state.extraction_log,
             )
         else:
             # Single-call fallback for chunk-less signals
@@ -307,7 +311,12 @@ async def v2_extract_patches(state: V2ProcessorState) -> dict[str, Any]:
                 source_authority=state.source_authority,
                 signal_id=str(state.signal_id),
                 run_id=str(state.run_id),
+                extraction_log=state.extraction_log,
             )
+
+        # Update extraction log with model info
+        if state.extraction_log and patch_list.extraction_model:
+            state.extraction_log.model = patch_list.extraction_model
 
         logger.info(
             f"[v2] Extracted {len(patch_list.patches)} patches",
@@ -342,8 +351,22 @@ async def v2_dedup_patches(state: V2ProcessorState) -> dict[str, Any]:
         from app.core.entity_dedup import dedup_create_patches
 
         inventory = getattr(state.context_snapshot, "entity_inventory", {}) if state.context_snapshot else {}
+
+        # Pass pulse health map for dynamic dedup threshold tuning
+        pulse_health = None
+        try:
+            pulse = getattr(state.context_snapshot, "pulse", None)
+            if pulse and hasattr(pulse, "health"):
+                pulse_health = pulse.health
+            elif isinstance(pulse, dict):
+                pulse_health = pulse.get("health")
+        except Exception:
+            pass
+
         deduped = await dedup_create_patches(
-            state.entity_patches.patches, inventory, state.project_id
+            state.entity_patches.patches, inventory, state.project_id,
+            extraction_log=state.extraction_log,
+            pulse_health_map=pulse_health,
         )
         return {"entity_patches": EntityPatchList(
             patches=deduped,
@@ -421,6 +444,15 @@ async def v2_apply_patches(state: V2ProcessorState) -> dict[str, Any]:
             f"escalated {result.total_escalated}",
             extra={"signal_id": str(state.signal_id)},
         )
+
+        # Record pulse snapshot after successful patch application (fire-and-forget)
+        try:
+            from app.core.pulse_observer import record_pulse_snapshot
+            import asyncio
+            asyncio.create_task(record_pulse_snapshot(state.project_id, trigger="signal_processed"))
+        except Exception as e:
+            logger.debug(f"Pulse observer failed (non-fatal): {e}")
+
         return {"application_result": result}
 
     except Exception as e:
@@ -528,10 +560,14 @@ async def v2_trigger_memory(state: V2ProcessorState) -> dict[str, Any]:
             "chat_summary": state.chat_summary or "",
         }
 
+    extra: dict[str, Any] = {"patch_summary": patch_summary}
+    if state.extraction_log:
+        extra["extraction_log"] = state.extraction_log.to_dict()
+
     _update_signal_status(
         state.signal_id,
         "complete",
-        extra={"patch_summary": patch_summary},
+        extra=extra,
     )
 
     # Create review task if this signal came from a document upload
@@ -626,6 +662,10 @@ async def process_signal_v2(
         run_id=run_id,
     )
 
+    # Create extraction log for audit trail
+    from app.core.extraction_logger import ExtractionLog
+    state.extraction_log = ExtractionLog(run_id=str(run_id), model="")
+
     try:
         # Step 1: Load signal (CRITICAL — abort on failure)
         updates = v2_load_signal(state)
@@ -642,6 +682,10 @@ async def process_signal_v2(
         updates = await v2_load_context(state)
         _apply_state_updates(state, updates)
 
+        # Log context snapshot for extraction audit
+        if state.context_snapshot and state.extraction_log:
+            state.extraction_log.log_context(state.context_snapshot)
+
         # Step 4: Extract patches (CRITICAL — abort on failure)
         updates = await v2_extract_patches(state)
         _apply_state_updates(state, updates)
@@ -657,12 +701,20 @@ async def process_signal_v2(
         updates = await v2_score_patches(state)
         _apply_state_updates(state, updates)
 
+        # Log scored patches for extraction audit
+        if state.entity_patches and state.extraction_log:
+            state.extraction_log.log_scoring(state.entity_patches.patches)
+
         # Step 6: Apply patches (CRITICAL — abort on failure)
         updates = await v2_apply_patches(state)
         _apply_state_updates(state, updates)
         if state.error:
             _update_signal_status(signal_id, "failed")
             return _make_v2_result(state)
+
+        # Log application results for extraction audit
+        if state.extraction_log:
+            state.extraction_log.log_application(state.application_result)
 
         # Step 7: Generate summary (non-critical — fallback message used)
         updates = await v2_generate_summary(state)
