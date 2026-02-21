@@ -119,25 +119,6 @@ async def chat_with_assistant(
             else:
                 raise HTTPException(status_code=500, detail="Failed to create conversation")
 
-        # Compute v3 context frame (single source of truth for chat context)
-        context_frame = await compute_context_frame(project_id, max_actions=5)
-
-        # Get project name from Supabase (single fast query)
-        project_row = (
-            supabase.table("projects")
-            .select("name")
-            .eq("id", str(project_id))
-            .single()
-            .execute()
-        )
-        project_name = project_row.data.get("name", "Unknown") if project_row.data else "Unknown"
-
-        logger.info(
-            f"Context frame: phase={context_frame.phase.value}, "
-            f"progress={context_frame.phase_progress:.0%}, "
-            f"gaps={context_frame.total_gap_count}"
-        )
-
         # Generate streaming response
         async def generate() -> AsyncGenerator[str, None]:
             """Generate streaming chat responses."""
@@ -145,16 +126,7 @@ async def chat_with_assistant(
             tool_calls_data = []  # Track tool executions
 
             try:
-                # Persist user message
-                user_msg_data = {
-                    "conversation_id": str(conversation_id),
-                    "role": "user",
-                    "content": request.message,
-                }
-                user_msg_response = supabase.table("messages").insert(user_msg_data).execute()
-                user_message_id = user_msg_response.data[0]["id"] if user_msg_response.data else None
-
-                # Send conversation ID to client (for subsequent requests)
+                # Send conversation ID immediately so client can track
                 yield f"data: {json.dumps({'type': 'conversation_id', 'conversation_id': str(conversation_id)})}\n\n"
 
                 # Import here to avoid loading if API key not set
@@ -171,75 +143,107 @@ async def chat_with_assistant(
                 ]
                 messages = recent_history + [{"role": "user", "content": request.message}]
 
-                # Build solution flow context if on solution-flow page
-                solution_flow_ctx = None
-                if request.page_context == "brd:solution-flow":
+                # ── Parallel context assembly ────────────────────────────────
+                # These three operations are mostly independent. Run them
+                # concurrently to cut ~2-4s off response time.
+
+                async def _build_context_frame():
+                    return await compute_context_frame(project_id, max_actions=5)
+
+                async def _build_flow_ctx():
+                    if request.page_context != "brd:solution-flow":
+                        return None
                     try:
                         from app.core.solution_flow_context import build_solution_flow_context
-
                         focused_step_id = None
                         if request.focused_entity:
                             fe_data = request.focused_entity.get("data", {})
                             focused_step_id = fe_data.get("id")
-
-                        solution_flow_ctx = await build_solution_flow_context(
+                        return await build_solution_flow_context(
                             project_id=str(project_id),
                             focused_step_id=focused_step_id,
                         )
                     except Exception as e:
                         logger.debug(f"Solution flow context build failed (non-fatal): {e}")
+                        return None
 
-                # Pre-fetch relevant evidence via unified retrieval
-                retrieval_context = ""
-                try:
-                    from app.core.retrieval import retrieve
-                    from app.core.retrieval_format import format_retrieval_for_context
+                async def _run_retrieval():
+                    try:
+                        from app.core.retrieval import retrieve
+                        from app.core.retrieval_format import format_retrieval_for_context
 
-                    is_simple = len(request.message.split()) < 8 and "?" not in request.message
+                        # Solution flow step chat already has rich context —
+                        # always use simple (fast) retrieval: skip decomposition,
+                        # reranking, and sufficiency loops.
+                        is_flow = request.page_context == "brd:solution-flow"
+                        is_simple = is_flow or (len(request.message.split()) < 8 and "?" not in request.message)
 
-                    # Build context hint from focused entity (enriches vector search)
-                    context_hint = None
-                    if solution_flow_ctx and solution_flow_ctx.focused_step_prompt:
-                        # Flow-aware retrieval: use step goal + retrieval hints
-                        hint_parts = []
+                        # Build context hint from focused entity
+                        context_hint = None
                         if request.focused_entity:
-                            fe_data = request.focused_entity.get("data", {})
-                            step_title = fe_data.get("title", "")
-                            step_goal = fe_data.get("goal", "")
-                            if step_title:
-                                hint_parts.append(f"Solution flow step: {step_title}.")
-                            if step_goal:
-                                hint_parts.append(f"Goal: {step_goal}.")
-                        if solution_flow_ctx.retrieval_hints:
-                            hint_parts.append("Related: " + "; ".join(solution_flow_ctx.retrieval_hints[:2]))
-                        if hint_parts:
-                            context_hint = " ".join(hint_parts)
-                    elif request.focused_entity:
-                        fe = request.focused_entity
-                        etype = fe.get("type", "")
-                        edata = fe.get("data", {})
-                        ename = edata.get("title") or edata.get("name") or ""
-                        if ename:
-                            context_hint = f"User is viewing {etype}: \"{ename}\". Prioritize evidence related to this entity."
+                            fe = request.focused_entity
+                            edata = fe.get("data", {})
+                            ename = edata.get("title") or edata.get("name") or ""
+                            egoal = edata.get("goal") or ""
+                            if ename:
+                                parts = [f"User is viewing {fe.get('type', 'entity')}: \"{ename}\"."]
+                                if egoal:
+                                    parts.append(f"Goal: {egoal}.")
+                                context_hint = " ".join(parts)
 
-                    # Page-aware entity type filtering
-                    entity_types = _PAGE_ENTITY_TYPES.get(request.page_context or "")
+                        entity_types = _PAGE_ENTITY_TYPES.get(request.page_context or "")
+                        retrieval_result = await retrieve(
+                            query=request.message,
+                            project_id=str(project_id),
+                            max_rounds=1,
+                            skip_decomposition=is_simple,
+                            skip_reranking=is_simple,
+                            evaluation_criteria="Enough context to answer the user's question",
+                            context_hint=context_hint,
+                            entity_types=entity_types,
+                        )
+                        return format_retrieval_for_context(
+                            retrieval_result, style="chat", max_tokens=2000
+                        )
+                    except Exception as e:
+                        logger.debug(f"Retrieval pre-fetch failed (non-fatal): {e}")
+                        return ""
 
-                    retrieval_result = await retrieve(
-                        query=request.message,
-                        project_id=str(project_id),
-                        max_rounds=2 if not is_simple else 1,
-                        skip_decomposition=is_simple,
-                        skip_reranking=is_simple,
-                        evaluation_criteria="Enough context to answer the user's question",
-                        context_hint=context_hint,
-                        entity_types=entity_types,
+                async def _persist_user_msg():
+                    user_msg_data = {
+                        "conversation_id": str(conversation_id),
+                        "role": "user",
+                        "content": request.message,
+                    }
+                    return supabase.table("messages").insert(user_msg_data).execute()
+
+                async def _get_project_name():
+                    project_row = (
+                        supabase.table("projects")
+                        .select("name")
+                        .eq("id", str(project_id))
+                        .single()
+                        .execute()
                     )
-                    retrieval_context = format_retrieval_for_context(
-                        retrieval_result, style="chat", max_tokens=2000
+                    return project_row.data.get("name", "Unknown") if project_row.data else "Unknown"
+
+                # Run all five in parallel
+                import asyncio
+                context_frame, solution_flow_ctx, retrieval_context, user_msg_resp, project_name = (
+                    await asyncio.gather(
+                        _build_context_frame(),
+                        _build_flow_ctx(),
+                        _run_retrieval(),
+                        _persist_user_msg(),
+                        _get_project_name(),
                     )
-                except Exception as e:
-                    logger.debug(f"Retrieval pre-fetch failed (non-fatal): {e}")
+                )
+
+                logger.info(
+                    f"Context frame: phase={context_frame.phase.value}, "
+                    f"progress={context_frame.phase_progress:.0%}, "
+                    f"gaps={context_frame.total_gap_count}"
+                )
 
                 # Build v3 smart chat prompt from context frame
                 system_prompt = build_smart_chat_prompt(

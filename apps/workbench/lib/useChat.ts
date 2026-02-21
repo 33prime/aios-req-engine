@@ -34,12 +34,22 @@ export interface ChatMessage {
   }>
 }
 
+// Tools that mutate project data — frontend should revalidate after these execute
+const MUTATING_TOOLS = new Set([
+  'create_entity', 'update_entity', 'delete_entity', 'add_signal', 'create_task',
+  'create_confirmation', 'attach_evidence', 'generate_strategic_context',
+  'update_strategic_context', 'update_project_type', 'identify_stakeholders',
+  'update_solution_flow_step', 'refine_solution_flow_step',
+])
+
 interface UseChatOptions {
   projectId: string
   conversationId?: string
   pageContext?: string  // e.g., "brd:workflows", "canvas", "prototype"
   focusedEntity?: { type: string; data: Record<string, string> } | null
   onError?: (error: Error) => void
+  /** Called after a mutating tool executes — use to revalidate SWR caches */
+  onDataMutated?: () => void
 }
 
 interface UseChatReturn {
@@ -68,11 +78,14 @@ export function useChat({
   pageContext,
   focusedEntity,
   onError,
+  onDataMutated,
 }: UseChatOptions): UseChatReturn {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<Error | null>(null)
   const abortControllerRef = useRef<AbortController | null>(null)
+  const onDataMutatedRef = useRef(onDataMutated)
+  onDataMutatedRef.current = onDataMutated
   const [conversationId, setConversationId] = useState<string | null>(initialConversationId ?? null)
   const conversationContextRef = useRef<string | null>(null)
 
@@ -222,6 +235,11 @@ export function useChat({
                 }
 
                 currentToolCalls.push(toolCall)
+
+                // Revalidate UI data after mutating tools
+                if (MUTATING_TOOLS.has(event.tool_name) && !event.result?.error) {
+                  onDataMutatedRef.current?.()
+                }
 
                 setMessages((prev) => {
                   const newMessages = [...prev]
@@ -379,6 +397,10 @@ export function useChat({
                   status: 'complete' as const,
                   result: event.result,
                 })
+                // Revalidate UI data after mutating tools
+                if (MUTATING_TOOLS.has(event.tool_name) && !event.result?.error) {
+                  onDataMutatedRef.current?.()
+                }
                 setMessages((prev) => {
                   const newMessages = [...prev]
                   const lastMessage = newMessages[newMessages.length - 1]

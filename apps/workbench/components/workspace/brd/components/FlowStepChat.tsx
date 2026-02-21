@@ -300,18 +300,26 @@ export function FlowStepChat({
           </div>
         )}
 
-        {messages.map((msg, i) => (
-          <MessageBubble key={msg.id || i} message={msg} isStreaming={isLoading && i === messages.length - 1 && msg.role === 'assistant'} />
-        ))}
+        {messages.map((msg, i) => {
+          const isLastAssistant = isLoading && i === messages.length - 1 && msg.role === 'assistant'
+          // Hide empty assistant placeholder — typing dots show instead
+          if (isLastAssistant && !msg.content) return null
+          return (
+            <MessageBubble key={msg.id || i} message={msg} isStreaming={isLastAssistant} />
+          )
+        })}
 
-        {/* Thinking dots — shown while waiting for assistant response */}
-        {isLoading && (messages.length === 0 || messages[messages.length - 1]?.role === 'user') && (
+        {/* Typing dots — shown while waiting for first text from assistant */}
+        {isLoading && (() => {
+          const last = messages[messages.length - 1]
+          return !last || last.role === 'user' || (last.role === 'assistant' && !last.content)
+        })() && (
           <div className="flex justify-start">
             <div className="flex items-center gap-2 px-4 py-3 bg-white border border-[#E5E5E5] rounded-2xl">
-              <div className="flex gap-[3px] items-center">
-                <div className="w-[6px] h-[6px] rounded-full bg-[#3FAF7A] animate-typing" />
-                <div className="w-[6px] h-[6px] rounded-full bg-[#3FAF7A] animate-typing [animation-delay:200ms]" />
-                <div className="w-[6px] h-[6px] rounded-full bg-[#3FAF7A] animate-typing [animation-delay:400ms]" />
+              <div className="flex gap-[3px] items-end h-[14px]">
+                <div className="w-[7px] h-[7px] rounded-full bg-[#999999] animate-typing" />
+                <div className="w-[7px] h-[7px] rounded-full bg-[#999999] animate-typing [animation-delay:200ms]" />
+                <div className="w-[7px] h-[7px] rounded-full bg-[#999999] animate-typing [animation-delay:400ms]" />
               </div>
             </div>
           </div>
@@ -428,7 +436,6 @@ function MessageBubble({ message, isStreaming }: { message: ChatMessage; isStrea
         ) : (
           <>
             {message.content && <Markdown content={message.content} className="text-[13px] leading-relaxed" />}
-            {isStreaming && <span className="inline-block w-[5px] h-[14px] bg-[#3FAF7A] ml-0.5 animate-pulse rounded-sm" />}
           </>
         )}
 

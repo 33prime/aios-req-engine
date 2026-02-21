@@ -174,13 +174,13 @@ class TestChatEndpoint:
         """Chat endpoint returns text/event-stream with correct headers."""
         # Use side_effect to return different values for successive .execute() calls:
         #  1. conversations.insert → conv data
-        #  2. projects.select.single → project name
-        #  3. messages.insert (user) → msg data
+        #  2. messages.insert (user) → msg data  (parallel: runs before project name)
+        #  3. projects.select.single → project name
         #  4. messages.insert (assistant) → msg data
         sb = _mock_supabase(execute_results=[
             MagicMock(data=[{"id": CONV_ID, "project_id": PROJECT_ID}]),
-            MagicMock(data={"name": "Test Project"}),
             MagicMock(data=[{"id": "msg-1"}]),
+            MagicMock(data={"name": "Test Project"}),
             MagicMock(data=[{"id": "msg-2"}]),
         ])
         mock_sb.return_value = sb
@@ -229,8 +229,8 @@ class TestChatEndpoint:
         """SSE events follow: conversation_id → text → done order."""
         sb = _mock_supabase(execute_results=[
             MagicMock(data=[{"id": CONV_ID, "project_id": PROJECT_ID}]),
-            MagicMock(data={"name": "Test"}),
             MagicMock(data=[{"id": "msg-1"}]),
+            MagicMock(data={"name": "Test"}),
             MagicMock(data=[{"id": "msg-2"}]),
         ])
         mock_sb.return_value = sb
@@ -322,8 +322,8 @@ class TestChatEndpoint:
         """page_context parameter is passed to get_tools_for_context."""
         sb = _mock_supabase(execute_results=[
             MagicMock(data=[{"id": CONV_ID, "project_id": PROJECT_ID}]),
-            MagicMock(data={"name": "Test"}),
             MagicMock(data=[{"id": "msg-1"}]),
+            MagicMock(data={"name": "Test"}),
             MagicMock(data=[{"id": "msg-2"}]),
         ])
         mock_sb.return_value = sb
