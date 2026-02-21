@@ -168,22 +168,26 @@ export function useChat({
           throw new Error('Response body is null')
         }
 
-        // Read SSE stream
+        // Read SSE stream with proper cross-chunk buffering
         const reader = response.body.getReader()
         const decoder = new TextDecoder()
+        let sseBuffer = ''
 
         while (true) {
           const { done, value } = await reader.read()
 
           if (done) break
 
-          // Decode chunk
-          const chunk = decoder.decode(value, { stream: true })
+          // Decode chunk and append to buffer
+          sseBuffer += decoder.decode(value, { stream: true })
 
-          // Parse SSE events (format: "data: {...}\n\n")
-          const lines = chunk.split('\n')
+          // Split on double-newline (SSE event boundary) and process complete events
+          const events = sseBuffer.split('\n\n')
+          // Last element may be incomplete — keep it in the buffer
+          sseBuffer = events.pop() || ''
 
-          for (const line of lines) {
+          for (const eventBlock of events) {
+            const line = eventBlock.trim()
             if (!line.startsWith('data: ')) continue
 
             const data = line.slice(6) // Remove "data: " prefix
@@ -245,7 +249,7 @@ export function useChat({
                 throw new Error(event.message || 'Unknown error')
               }
             } catch (parseError) {
-              console.error('Failed to parse SSE event:', parseError)
+              console.error('Failed to parse SSE event:', data?.slice(0, 100), parseError)
             }
           }
         }
@@ -333,19 +337,23 @@ export function useChat({
           throw new Error('Response body is null')
         }
 
-        // Read SSE stream
+        // Read SSE stream with proper cross-chunk buffering
         const reader = response.body.getReader()
         const decoder = new TextDecoder()
         let currentToolCalls: ChatMessage['toolCalls'] = []
+        let sseBuffer = ''
 
         while (true) {
           const { done, value } = await reader.read()
           if (done) break
 
-          const chunk = decoder.decode(value, { stream: true })
-          const lines = chunk.split('\n')
+          sseBuffer += decoder.decode(value, { stream: true })
 
-          for (const line of lines) {
+          const events = sseBuffer.split('\n\n')
+          sseBuffer = events.pop() || ''
+
+          for (const eventBlock of events) {
+            const line = eventBlock.trim()
             if (!line.startsWith('data: ')) continue
 
             const data = line.slice(6)
@@ -392,7 +400,7 @@ export function useChat({
                 throw new Error(event.message || 'Unknown error')
               }
             } catch (parseError) {
-              console.error('Failed to parse SSE event:', parseError)
+              console.error('Failed to parse SSE event:', data?.slice(0, 100), parseError)
             }
           }
         }
