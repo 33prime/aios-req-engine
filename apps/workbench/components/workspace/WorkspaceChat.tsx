@@ -31,6 +31,7 @@ import { uploadDocument, processDocument, getDocumentStatus } from '@/lib/api'
 import type { TerseAction } from '@/lib/api'
 import { GAP_SOURCE_ICONS } from '@/lib/action-constants'
 import { QuickActionCards } from './QuickActionCards'
+import { ProcessingResultsCard } from './chat/ProcessingResultsCard'
 
 // =============================================================================
 // Types
@@ -253,38 +254,30 @@ export function WorkspaceChat({
                 done = true
                 clearInterval(poll)
 
-                // Build entity detail lines for the LLM
-                const entities = status.extracted_entities
-                const entityLines: string[] = []
-                if (entities) {
-                  const nameMapper = (e: { name: string }) => e.name
-                  if (entities.features?.length > 0)
-                    entityLines.push(`Features: ${entities.features.map(nameMapper).join(', ')}`)
-                  if (entities.personas?.length > 0)
-                    entityLines.push(`Personas: ${entities.personas.map(nameMapper).join(', ')}`)
-                  if (entities.vp_steps?.length > 0)
-                    entityLines.push(`Workflow Steps: ${entities.vp_steps.map(nameMapper).join(', ')}`)
-                  if (entities.stakeholders?.length > 0)
-                    entityLines.push(`Stakeholders: ${entities.stakeholders.map(nameMapper).join(', ')}`)
-                  if (entities.constraints?.length > 0)
-                    entityLines.push(`Constraints: ${entities.constraints.map(nameMapper).join(', ')}`)
-                  if (entities.workflows?.length > 0)
-                    entityLines.push(`Workflows: ${entities.workflows.map(nameMapper).join(', ')}`)
-                  if (entities.data_entities?.length > 0)
-                    entityLines.push(`Data Entities: ${entities.data_entities.map(nameMapper).join(', ')}`)
-                  if (entities.business_drivers?.length > 0)
-                    entityLines.push(`Business Drivers: ${entities.business_drivers.map(nameMapper).join(', ')}`)
-                  if (entities.competitors?.length > 0)
-                    entityLines.push(`Competitors: ${entities.competitors.map(nameMapper).join(', ')}`)
-                }
                 const fname = status.original_filename || 'document'
-                if (entityLines.length > 0) {
-                  // Send to LLM with full entity details for smart_summary card
-                  externalSendMessage(
-                    `Document analysis complete for **${fname}**. Here's what was extracted:\n${entityLines.join('\n')}\n\nPresent a summary of these extracted items and ask if I want to confirm or adjust anything.`
-                  )
+                const sid = status.signal_id
+
+                if (sid) {
+                  // Insert deterministic ProcessingResultsCard as a system message
+                  onAddLocalMessage?.({
+                    role: 'system',
+                    content: '',
+                    metadata: {
+                      card_type: 'processing_results',
+                      signal_id: sid,
+                      filename: fname,
+                      project_id: projectId,
+                    },
+                  })
+
+                  // Follow up with a lighter LLM prompt for smart questions
+                  setTimeout(() => {
+                    externalSendMessage(
+                      `I just finished processing **${fname}**. The results card is showing above. Based on what was extracted, ask me 1-2 smart follow-up questions about the project — things that would help clarify requirements or fill gaps.`
+                    )
+                  }, 800)
                 } else {
-                  // No entities — still send to LLM for a proper response
+                  // No signal_id — fall back to LLM summary
                   externalSendMessage(
                     `Document analysis complete for **${fname}** but no new entities were extracted. Check the document status and tell me what happened — was this a duplicate or did the content not match expected patterns?`
                   )
@@ -594,6 +587,20 @@ function SidebarMessageBubble({
     ? message.toolCalls?.filter((t) => !cardToolNames.has(t.tool_name))
     : message.toolCalls
   const completedToolCount = visibleToolCalls?.filter((t) => t.status === 'complete').length || 0
+
+  // Render processing results card for system messages
+  if (isSystem && message.metadata?.card_type === 'processing_results') {
+    const meta = message.metadata as { signal_id: string; filename: string; project_id: string }
+    return (
+      <div className="w-full message-enter">
+        <ProcessingResultsCard
+          signalId={meta.signal_id}
+          projectId={meta.project_id}
+          filename={meta.filename}
+        />
+      </div>
+    )
+  }
 
   if (isSystem) return null
 

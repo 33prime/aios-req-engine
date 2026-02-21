@@ -124,6 +124,8 @@ class StakeholderBRDSummary(BaseModel):
     domain_expertise: list[str] = []
     confirmation_status: str | None = None
     evidence: list[EvidenceItem] = []
+    created_at: str | None = None
+    version: int | None = None
 
 
 class BusinessDriverFinancialUpdate(BaseModel):
@@ -154,6 +156,8 @@ class PersonaBRDSummary(BaseModel):
     is_stale: bool = False
     stale_reason: str | None = None
     canvas_role: str | None = None
+    created_at: str | None = None
+    version: int | None = None
 
 
 class VpStepBRDSummary(BaseModel):
@@ -169,6 +173,8 @@ class VpStepBRDSummary(BaseModel):
     feature_names: list[str] = []
     is_stale: bool = False
     stale_reason: str | None = None
+    created_at: str | None = None
+    version: int | None = None
 
 
 class FeatureBRDSummary(BaseModel):
@@ -184,6 +190,8 @@ class FeatureBRDSummary(BaseModel):
     evidence: list[EvidenceItem] = []
     is_stale: bool = False
     stale_reason: str | None = None
+    created_at: str | None = None
+    version: int | None = None
 
 
 class CompetitorBRDSummary(BaseModel):

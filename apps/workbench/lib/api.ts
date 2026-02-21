@@ -4053,3 +4053,39 @@ export const reorderSolutionFlowSteps = (projectId: string, stepIds: string[]) =
     `/projects/${projectId}/workspace/solution-flow/steps/reorder`,
     { method: 'POST', body: JSON.stringify({ step_ids: stepIds }) }
   )
+
+// =============================================================================
+// Signal Processing Results
+// =============================================================================
+
+export const getProcessingResults = (signalId: string) =>
+  apiRequest<import('@/types/api').ProcessingResultsResponse>(
+    `/signals/${signalId}/processing-results`
+  )
+
+export const batchConfirmFromSignal = (
+  projectId: string,
+  body: import('@/types/api').BatchConfirmRequest,
+) =>
+  apiRequest<import('@/types/api').BatchConfirmResponse>(
+    `/projects/${projectId}/workspace/batch-confirm`,
+    { method: 'POST', body: JSON.stringify(body) }
+  )
+
+// =============================================================================
+// Project Settings
+// =============================================================================
+
+export const getProjectSettings = (projectId: string) =>
+  apiRequest<{ auto_confirm_extractions: boolean }>(
+    `/projects/${projectId}/workspace/settings`
+  )
+
+export const updateProjectSettings = (
+  projectId: string,
+  settings: { auto_confirm_extractions?: boolean },
+) =>
+  apiRequest<{ auto_confirm_extractions: boolean }>(
+    `/projects/${projectId}/workspace/settings`,
+    { method: 'PATCH', body: JSON.stringify(settings) }
+  )

@@ -617,7 +617,7 @@ async def get_brd_workspace_data(
 
         def _q_personas():
             return client.table("personas").select(
-                "id, name, role, description, goals, pain_points, confirmation_status, is_stale, stale_reason, canvas_role"
+                "id, name, role, description, goals, pain_points, confirmation_status, is_stale, stale_reason, canvas_role, created_at, version"
             ).eq("project_id", pid).execute()
 
         def _q_vp_steps():
@@ -625,7 +625,7 @@ async def get_brd_workspace_data(
 
         def _q_features():
             return client.table("features").select(
-                "id, name, category, is_mvp, priority_group, confirmation_status, vp_step_id, evidence, overview, is_stale, stale_reason"
+                "id, name, category, is_mvp, priority_group, confirmation_status, vp_step_id, evidence, overview, is_stale, stale_reason, created_at, version"
             ).eq("project_id", pid).execute()
 
         def _q_constraints():
@@ -634,7 +634,7 @@ async def get_brd_workspace_data(
         def _q_data_entities():
             try:
                 return client.table("data_entities").select(
-                    "id, name, description, entity_category, fields, confirmation_status, evidence, is_stale, stale_reason"
+                    "id, name, description, entity_category, fields, confirmation_status, evidence, is_stale, stale_reason, created_at"
                 ).eq("project_id", pid).order("created_at").execute()
             except Exception:
                 return None
@@ -643,7 +643,7 @@ async def get_brd_workspace_data(
             try:
                 return client.table("stakeholders").select(
                     "id, name, first_name, last_name, role, email, organization, stakeholder_type, "
-                    "influence_level, is_primary_contact, domain_expertise, confirmation_status, evidence"
+                    "influence_level, is_primary_contact, domain_expertise, confirmation_status, evidence, created_at, version"
                 ).eq("project_id", pid).order("created_at").execute()
             except Exception:
                 return None
@@ -4348,3 +4348,222 @@ async def reorder_solution_flow_steps_endpoint(project_id: UUID, body: dict):
     flow = get_or_create_flow(project_id)
     result = reorder_flow_steps(UUID(flow["id"]), step_ids)
     return result
+
+
+# ============================================================================
+# Batch Confirm (from signal processing results)
+# ============================================================================
+
+
+class BatchConfirmRequest(BaseModel):
+    """Request to batch-confirm entities from a signal."""
+
+    signal_id: str
+    scope: str  # "new" | "updates" | "all" | "defer"
+
+
+class BatchConfirmResponse(BaseModel):
+    """Response from batch confirm."""
+
+    confirmed_count: int = 0
+    entity_ids: list[str] = []
+    tasks_created: int = 0
+
+
+# Table name for each entity type
+_ENTITY_TABLE_MAP = {
+    "feature": "features",
+    "persona": "personas",
+    "vp_step": "vp_steps",
+    "stakeholder": "stakeholders",
+    "business_driver": "business_drivers",
+    "workflow": "workflows",
+    "data_entity": "data_entities",
+    "constraint": "constraints",
+    "competitor": "competitors",
+}
+
+
+@router.post("/batch-confirm")
+async def batch_confirm_entities(
+    project_id: UUID,
+    body: BatchConfirmRequest,
+) -> BatchConfirmResponse:
+    """Batch-confirm entities from a signal processing run.
+
+    Scopes:
+      - "new": confirm only created entities
+      - "updates": confirm only updated/enriched/merged entities
+      - "all": confirm everything
+      - "defer": skip confirmation, create review tasks instead
+    """
+    client = get_client()
+    sid = body.signal_id
+
+    # Get revisions for this signal
+    revisions_resp = (
+        client.table("enrichment_revisions")
+        .select("entity_type, entity_id, entity_label, revision_type")
+        .eq("source_signal_id", sid)
+        .execute()
+    )
+    revisions = revisions_resp.data or []
+
+    if not revisions:
+        return BatchConfirmResponse()
+
+    # Filter by scope
+    if body.scope == "new":
+        filtered = [r for r in revisions if r["revision_type"] == "created"]
+    elif body.scope == "updates":
+        filtered = [r for r in revisions if r["revision_type"] in ("updated", "enriched", "merged")]
+    elif body.scope == "all":
+        filtered = revisions
+    elif body.scope == "defer":
+        # Create review tasks instead of confirming
+        tasks_created = await _create_signal_review_tasks(
+            project_id, sid, revisions
+        )
+        return BatchConfirmResponse(tasks_created=tasks_created)
+    else:
+        raise HTTPException(status_code=400, detail=f"Invalid scope: {body.scope}")
+
+    # Batch-update confirmation_status for each entity
+    confirmed_ids: list[str] = []
+    for rev in filtered:
+        table = _ENTITY_TABLE_MAP.get(rev["entity_type"])
+        if not table:
+            logger.warning(f"Unknown entity type for confirm: {rev['entity_type']}")
+            continue
+
+        try:
+            client.table(table).update(
+                {"confirmation_status": "confirmed_consultant"}
+            ).eq("id", rev["entity_id"]).execute()
+            confirmed_ids.append(rev["entity_id"])
+        except Exception as e:
+            logger.error(f"Failed to confirm {rev['entity_type']} {rev['entity_id']}: {e}")
+
+    logger.info(
+        f"Batch-confirmed {len(confirmed_ids)} entities from signal {sid} (scope={body.scope})"
+    )
+
+    # Cascade: flag solution flow steps that link to confirmed entities
+    if confirmed_ids:
+        try:
+            from app.db.solution_flow import flag_steps_with_updates
+            flag_steps_with_updates(project_id, confirmed_ids)
+        except Exception as e:
+            logger.warning(f"Solution flow cascade failed: {e}")
+
+    return BatchConfirmResponse(
+        confirmed_count=len(confirmed_ids),
+        entity_ids=confirmed_ids,
+    )
+
+
+async def _create_signal_review_tasks(
+    project_id: UUID,
+    signal_id: str,
+    revisions: list[dict],
+) -> int:
+    """Create review tasks when user defers confirmation."""
+    from app.core.schemas_tasks import TaskCreate, TaskSourceType, TaskType
+    from app.db.tasks import create_task
+
+    created_count = [r for r in revisions if r["revision_type"] == "created"]
+    updated_count = [r for r in revisions if r["revision_type"] in ("updated", "enriched", "merged")]
+
+    tasks_created = 0
+
+    # Get source name from signal
+    try:
+        from app.db.signals import get_signal
+        signal = get_signal(UUID(signal_id))
+        source_name = signal.get("source_label") or signal.get("source", "document")
+    except Exception:
+        source_name = "document"
+
+    if created_count:
+        await create_task(
+            project_id=project_id,
+            data=TaskCreate(
+                title=f"Confirm {len(created_count)} new entities from {source_name}",
+                description=f"Review and confirm {len(created_count)} newly extracted entities.",
+                task_type=TaskType.VALIDATION,
+                source_type=TaskSourceType.SIGNAL_PROCESSING,
+                source_id=UUID(signal_id),
+                source_context={"scope": "new", "count": len(created_count)},
+                priority_score=84.0,  # 70 base × 1.2 recent signal boost
+            ),
+        )
+        tasks_created += 1
+
+    if updated_count:
+        await create_task(
+            project_id=project_id,
+            data=TaskCreate(
+                title=f"Review {len(updated_count)} updated entities from {source_name}",
+                description=f"Review {len(updated_count)} entities that were updated with new data.",
+                task_type=TaskType.VALIDATION,
+                source_type=TaskSourceType.SIGNAL_PROCESSING,
+                source_id=UUID(signal_id),
+                source_context={"scope": "updates", "count": len(updated_count)},
+                priority_score=70.0,
+            ),
+        )
+        tasks_created += 1
+
+    return tasks_created
+
+
+# ============================================================================
+# Project Settings (auto-confirm toggle)
+# ============================================================================
+
+
+class ProjectSettingsUpdate(BaseModel):
+    """Request to update project settings."""
+
+    auto_confirm_extractions: bool | None = None
+
+
+class ProjectSettingsResponse(BaseModel):
+    """Current project settings."""
+
+    auto_confirm_extractions: bool = False
+
+
+@router.patch("/settings")
+async def update_project_settings(
+    project_id: UUID,
+    body: ProjectSettingsUpdate,
+) -> ProjectSettingsResponse:
+    """Update project workspace settings (e.g., auto-confirm toggle)."""
+    client = get_client()
+    updates: dict = {}
+
+    if body.auto_confirm_extractions is not None:
+        updates["auto_confirm_extractions"] = body.auto_confirm_extractions
+
+    if not updates:
+        raise HTTPException(status_code=400, detail="No settings to update")
+
+    client.table("projects").update(updates).eq("id", str(project_id)).execute()
+
+    return ProjectSettingsResponse(
+        auto_confirm_extractions=updates.get("auto_confirm_extractions", False),
+    )
+
+
+@router.get("/settings")
+async def get_project_settings(project_id: UUID) -> ProjectSettingsResponse:
+    """Get project workspace settings."""
+    client = get_client()
+    resp = client.table("projects").select("auto_confirm_extractions").eq("id", str(project_id)).execute()
+    if not resp.data:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    return ProjectSettingsResponse(
+        auto_confirm_extractions=resp.data[0].get("auto_confirm_extractions", False),
+    )

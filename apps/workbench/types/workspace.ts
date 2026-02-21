@@ -12,6 +12,8 @@ export interface PersonaSummary {
   persona_type?: string | null
   confirmation_status?: string | null
   confidence_score?: number | null
+  created_at?: string | null
+  version?: number | null
 }
 
 export interface FeatureSummary {
@@ -21,6 +23,8 @@ export interface FeatureSummary {
   is_mvp: boolean
   confirmation_status?: string | null
   vp_step_id?: string | null
+  created_at?: string | null
+  version?: number | null
 }
 
 export interface VpStepSummary {
@@ -32,6 +36,8 @@ export interface VpStepSummary {
   actor_persona_name?: string | null
   confirmation_status?: string | null
   features: FeatureSummary[]
+  created_at?: string | null
+  version?: number | null
 }
 
 export interface PortalClientSummary {
@@ -145,6 +151,8 @@ export interface PersonaBRDSummary {
   is_stale?: boolean
   stale_reason?: string | null
   canvas_role?: 'primary' | 'secondary' | null
+  created_at?: string | null
+  version?: number | null
 }
 
 export interface VpStepBRDSummary {
@@ -159,6 +167,8 @@ export interface VpStepBRDSummary {
   feature_names?: string[]
   is_stale?: boolean
   stale_reason?: string | null
+  created_at?: string | null
+  version?: number | null
 }
 
 export interface FeatureBRDSummary {
@@ -173,6 +183,8 @@ export interface FeatureBRDSummary {
   evidence?: BRDEvidence[]
   is_stale?: boolean
   stale_reason?: string | null
+  created_at?: string | null
+  version?: number | null
 }
 
 export type MoSCoWGroup = 'must_have' | 'should_have' | 'could_have' | 'out_of_scope'
@@ -494,6 +506,8 @@ export interface StakeholderBRDSummary {
   domain_expertise?: string[]
   confirmation_status?: string | null
   evidence?: BRDEvidence[]
+  created_at?: string | null
+  version?: number | null
 }
 
 export interface StakeholderDetail extends StakeholderBRDSummary {
@@ -666,6 +680,7 @@ export interface SolutionFlowStepSummary {
   goal: string
   actors: string[]
   confirmation_status?: string | null
+  has_pending_updates?: boolean
   open_question_count: number
   info_field_count: number
   confidence_breakdown: Record<string, number>

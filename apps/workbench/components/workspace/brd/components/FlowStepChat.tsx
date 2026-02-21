@@ -171,7 +171,7 @@ export function FlowStepChat({
             clearInterval(poll)
             const fname = status.original_filename || 'the document'
             await sendMessage(
-              `I uploaded **${fname}** for the step "${stepTitle}". What did you find that's relevant to this step? Update the step if needed.`
+              `I uploaded **${fname}** for the step "${stepTitle}". Update the step with any relevant findings — information fields, actors, and open questions. Apply changes directly.`
             )
           } else if (status.processing_status === 'failed') {
             clearInterval(poll)

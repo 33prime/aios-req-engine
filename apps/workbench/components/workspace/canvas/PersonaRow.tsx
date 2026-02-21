@@ -69,6 +69,18 @@ export function PersonaRow({ personas, onPersonaClick }: PersonaRowProps) {
                   {StatusIcon && (
                     <StatusIcon className={`w-3.5 h-3.5 ${status.color} flex-shrink-0`} />
                   )}
+                  {(() => {
+                    if (persona.confirmation_status && persona.confirmation_status !== 'ai_generated') return null
+                    if (!persona.created_at) return null
+                    const age = Date.now() - new Date(persona.created_at).getTime()
+                    if (age >= 24 * 60 * 60 * 1000) return null
+                    const isNew = persona.version === 1 || persona.version == null
+                    return (
+                      <span className={`px-1 py-px text-[9px] font-bold text-white rounded leading-tight flex-shrink-0 ${isNew ? 'bg-emerald-500' : 'bg-indigo-500'}`}>
+                        {isNew ? 'NEW' : 'UPDATED'}
+                      </span>
+                    )
+                  })()}
                 </div>
                 {persona.role && (
                   <p className="text-support text-ui-supportText truncate mt-0.5">

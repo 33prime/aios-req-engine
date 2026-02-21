@@ -98,6 +98,7 @@ async def apply_entity_patches(
     run_id: UUID,
     signal_id: UUID | None = None,
     auto_apply_threshold: set[ConfidenceTier] | None = None,
+    auto_confirm: bool = False,
 ) -> PatchApplicationResult:
     """Apply a batch of EntityPatches to the database.
 
@@ -107,12 +108,23 @@ async def apply_entity_patches(
         run_id: Run tracking UUID
         signal_id: Source signal UUID (for evidence linking)
         auto_apply_threshold: Override which confidence tiers auto-apply
+        auto_confirm: If True, auto-confirm entities with high/very_high confidence
 
     Returns:
         PatchApplicationResult with applied/skipped/escalated details
     """
     if auto_apply_threshold is None:
         auto_apply_threshold = AUTO_APPLY_TIERS
+
+    # Check project auto_confirm_extractions setting if not explicitly passed
+    if not auto_confirm:
+        try:
+            sb = get_supabase()
+            proj_resp = sb.table("projects").select("auto_confirm_extractions").eq("id", str(project_id)).execute()
+            if proj_resp.data and proj_resp.data[0].get("auto_confirm_extractions"):
+                auto_confirm = True
+        except Exception:
+            pass  # Fail open — don't block patch application
 
     result = PatchApplicationResult()
 
@@ -130,7 +142,10 @@ async def apply_entity_patches(
             continue
 
         try:
-            applied = await _apply_single_patch(project_id, patch, signal_id, run_id)
+            applied = await _apply_single_patch(
+                project_id, patch, signal_id, run_id,
+                auto_confirm=auto_confirm,
+            )
             if applied:
                 result.applied.append(applied)
                 result.entity_ids_modified.append(applied["entity_id"])
@@ -197,6 +212,7 @@ async def _apply_single_patch(
     patch: EntityPatch,
     signal_id: UUID | None,
     run_id: UUID | None = None,
+    auto_confirm: bool = False,
 ) -> dict | None:
     """Apply a single EntityPatch. Returns applied dict or None."""
     operation = patch.operation
@@ -216,7 +232,7 @@ async def _apply_single_patch(
         patch = _resolve_target_entity_id(project_id, patch, table)
 
     if operation == "create":
-        return _apply_create(project_id, patch, table, signal_id, run_id)
+        return _apply_create(project_id, patch, table, signal_id, run_id, auto_confirm=auto_confirm)
     elif operation == "merge":
         return _apply_merge(project_id, patch, table, signal_id, run_id)
     elif operation == "update":
@@ -364,6 +380,7 @@ def _apply_create(
     table: str,
     signal_id: UUID | None,
     run_id: UUID | None = None,
+    auto_confirm: bool = False,
 ) -> dict | None:
     """Create a new entity from patch payload."""
     sb = get_supabase()
@@ -372,6 +389,11 @@ def _apply_create(
     # Set standard fields
     payload["project_id"] = str(project_id)
     confirmation_status = AUTHORITY_TO_STATUS.get(patch.source_authority, "ai_generated")
+
+    # Auto-confirm high/very_high confidence when project setting is enabled
+    if auto_confirm and confirmation_status == "ai_generated" and patch.confidence in ("very_high", "high"):
+        confirmation_status = "confirmed_consultant"
+
     payload["confirmation_status"] = confirmation_status
 
     # Generate slug only for tables that have the column

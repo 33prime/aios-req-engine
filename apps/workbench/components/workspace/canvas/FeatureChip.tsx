@@ -99,6 +99,21 @@ export function FeatureChip({ feature, isDragging = false }: FeatureChipProps) {
     }
   }
 
+  // NEW/UPDATED badge — only for ai_generated within 24h
+  const getEntityBadge = () => {
+    if (feature.confirmation_status && feature.confirmation_status !== 'ai_generated') return null
+    const createdAt = (feature as { created_at?: string | null }).created_at
+    const version = (feature as { version?: number | null }).version
+    if (!createdAt) return null
+    const age = Date.now() - new Date(createdAt).getTime()
+    const isRecent = age < 24 * 60 * 60 * 1000
+    if (!isRecent) return null
+    if (version === 1 || version == null) return { label: 'NEW', color: 'bg-emerald-500' }
+    return { label: 'UPDATED', color: 'bg-indigo-500' }
+  }
+
+  const badge = getEntityBadge()
+
   return (
     <div className="relative" ref={chipRef}>
       <div
@@ -130,6 +145,12 @@ export function FeatureChip({ feature, isDragging = false }: FeatureChipProps) {
         <span className="font-medium text-ui-headingDark truncate max-w-[150px]">
           {feature.name}
         </span>
+
+        {badge && (
+          <span className={`px-1 py-px text-[9px] font-bold text-white rounded ${badge.color} leading-tight`}>
+            {badge.label}
+          </span>
+        )}
 
         {getStatusIcon(feature.confirmation_status)}
       </div>

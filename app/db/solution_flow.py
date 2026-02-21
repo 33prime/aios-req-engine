@@ -250,6 +250,61 @@ def reorder_flow_steps(flow_id: UUID, step_ids: list[str]) -> list[dict[str, Any
 # ============================================================================
 
 
+def flag_steps_with_updates(
+    project_id: UUID,
+    entity_ids: list[str],
+) -> int:
+    """Flag solution flow steps that link to any of the given entity IDs.
+
+    Sets has_pending_updates=true on steps whose linked_feature_ids,
+    linked_workflow_ids, or linked_data_entity_ids contain a matching ID.
+
+    Returns count of steps flagged.
+    """
+    supabase = get_supabase()
+    pid = str(project_id)
+
+    if not entity_ids:
+        return 0
+
+    # Get the flow for this project
+    flow = _maybe_single(
+        supabase.table("solution_flows")
+        .select("id")
+        .eq("project_id", pid)
+    )
+    if not flow:
+        return 0
+
+    # Get all steps
+    steps_result = (
+        supabase.table("solution_flow_steps")
+        .select("id, linked_feature_ids, linked_workflow_ids, linked_data_entity_ids")
+        .eq("flow_id", flow["id"])
+        .execute()
+    )
+    steps = steps_result.data or []
+
+    entity_set = set(entity_ids)
+    flagged = 0
+
+    for step in steps:
+        linked = set()
+        for key in ("linked_feature_ids", "linked_workflow_ids", "linked_data_entity_ids"):
+            linked.update(step.get(key) or [])
+
+        if linked & entity_set:
+            supabase.table("solution_flow_steps").update(
+                {"has_pending_updates": True}
+            ).eq("id", step["id"]).execute()
+            flagged += 1
+
+    if flagged:
+        logger.info(f"Flagged {flagged} solution flow steps with pending updates")
+
+    return flagged
+
+
 def _step_to_summary(step: dict[str, Any]) -> dict[str, Any]:
     """Convert a raw step row to a summary dict."""
     info_fields = step.get("information_fields") or []
@@ -269,6 +324,7 @@ def _step_to_summary(step: dict[str, Any]) -> dict[str, Any]:
         "goal": step["goal"],
         "actors": step.get("actors") or [],
         "confirmation_status": step.get("confirmation_status"),
+        "has_pending_updates": step.get("has_pending_updates", False),
         "open_question_count": sum(
             1 for q in open_questions
             if isinstance(q, dict) and q.get("status") == "open"

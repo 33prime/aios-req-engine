@@ -1040,3 +1040,57 @@ export interface ChatSummary {
   features: string
   org_fit: string
 }
+
+// =============================================================================
+// Signal Processing Results
+// =============================================================================
+
+export interface EntityChangeItem {
+  entity_type: string
+  entity_id: string
+  entity_label: string
+  revision_type: 'created' | 'updated' | 'merged' | 'enriched'
+  changes: Record<string, unknown>
+  diff_summary: string | null
+  created_at: string
+}
+
+export interface MemoryUpdateItem {
+  id: string
+  node_type: 'fact' | 'belief' | 'insight'
+  content: string
+  confidence: number | null
+  status: string
+  created_at: string
+}
+
+export interface ProcessingSummary {
+  total_entities_affected: number
+  created: number
+  updated: number
+  merged: number
+  escalated: number
+  memory_facts_added: number
+  by_entity_type: Record<string, number>
+  triage_strategy: string
+  confidence_distribution: Record<string, number>
+}
+
+export interface ProcessingResultsResponse {
+  signal_id: string
+  patch_summary: Record<string, unknown>
+  entity_changes: EntityChangeItem[]
+  memory_updates: MemoryUpdateItem[]
+  summary: ProcessingSummary
+}
+
+export interface BatchConfirmRequest {
+  signal_id: string
+  scope: 'new' | 'updates' | 'all' | 'defer'
+}
+
+export interface BatchConfirmResponse {
+  confirmed_count: number
+  entity_ids: string[]
+  tasks_created: number
+}

@@ -1,5 +1,6 @@
 """Signal and chunk read operations."""
 
+from collections import Counter
 from typing import Any
 from uuid import UUID
 
@@ -278,6 +279,124 @@ def get_signal_impact(signal_id: UUID) -> dict[str, Any]:
         raise
 
 
+def get_signal_processing_results(signal_id: UUID) -> dict[str, Any]:
+    """
+    Get comprehensive processing results for a signal.
+
+    Queries enrichment_revisions and memory_nodes to build a full picture
+    of what the V2 pipeline extracted from this signal.
+
+    Args:
+        signal_id: Signal UUID
+
+    Returns:
+        Dict with entity_changes, memory_updates, patch_summary, and computed summary
+    """
+    supabase = get_supabase()
+    sid = str(signal_id)
+
+    try:
+        # Get the signal itself for patch_summary and triage_metadata
+        signal = get_signal(signal_id)
+        patch_summary = signal.get("patch_summary") or {}
+        triage_metadata = signal.get("triage_metadata") or {}
+
+        # Query enrichment_revisions for this signal
+        revisions_resp = (
+            supabase.table("enrichment_revisions")
+            .select(
+                "entity_type, entity_id, entity_label, revision_type, "
+                "changes, diff_summary, created_at"
+            )
+            .eq("source_signal_id", sid)
+            .order("entity_type")
+            .order("created_at")
+            .execute()
+        )
+        revisions = revisions_resp.data or []
+
+        # Query memory_nodes for this signal
+        memory_resp = (
+            supabase.table("memory_nodes")
+            .select("id, node_type, content, confidence, status, created_at")
+            .eq("source_id", sid)
+            .order("created_at", desc=True)
+            .execute()
+        )
+        memory_nodes = memory_resp.data or []
+
+        # Build entity_changes list
+        entity_changes = [
+            {
+                "entity_type": r["entity_type"],
+                "entity_id": r["entity_id"],
+                "entity_label": r["entity_label"],
+                "revision_type": r["revision_type"],
+                "changes": r.get("changes") or {},
+                "diff_summary": r.get("diff_summary"),
+                "created_at": r["created_at"],
+            }
+            for r in revisions
+        ]
+
+        # Build memory_updates list
+        memory_updates = [
+            {
+                "id": m["id"],
+                "node_type": m.get("node_type", "fact"),
+                "content": m.get("content", ""),
+                "confidence": m.get("confidence"),
+                "status": m.get("status", "active"),
+                "created_at": m["created_at"],
+            }
+            for m in memory_nodes
+        ]
+
+        # Compute summary aggregates
+        revision_types = Counter(r["revision_type"] for r in revisions)
+        entity_type_counts = Counter(r["entity_type"] for r in revisions)
+
+        # Confidence distribution from patch_summary if available
+        confidence_dist: dict[str, int] = {}
+        patches = patch_summary.get("patches", [])
+        if isinstance(patches, list):
+            confidence_dist = dict(
+                Counter(p.get("confidence", "unknown") for p in patches if isinstance(p, dict))
+            )
+
+        summary = {
+            "total_entities_affected": len(revisions),
+            "created": revision_types.get("created", 0),
+            "updated": revision_types.get("updated", 0) + revision_types.get("enriched", 0),
+            "merged": revision_types.get("merged", 0),
+            "escalated": patch_summary.get("escalated", 0),
+            "memory_facts_added": len(memory_nodes),
+            "by_entity_type": dict(entity_type_counts),
+            "triage_strategy": triage_metadata.get("strategy", "unknown"),
+            "confidence_distribution": confidence_dist,
+        }
+
+        logger.info(
+            f"Got processing results for signal {signal_id}: "
+            f"{summary['total_entities_affected']} entities, "
+            f"{summary['memory_facts_added']} memory nodes"
+        )
+
+        return {
+            "signal_id": sid,
+            "patch_summary": patch_summary,
+            "entity_changes": entity_changes,
+            "memory_updates": memory_updates,
+            "summary": summary,
+        }
+
+    except ValueError:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to get processing results for signal {signal_id}: {e}")
+        raise
+
+
 def get_project_source_usage(project_id: UUID) -> list[dict[str, Any]]:
     """
     Get usage statistics for all sources (signals) in a project.
@@ -378,8 +497,10 @@ def get_project_source_usage(project_id: UUID) -> list[dict[str, Any]]:
 
                 if source == "project_description":
                     source_name = "Project Brief"
+                elif source and signal_type in ("file", "file_text"):
+                    source_name = source  # Just the filename
                 elif source:
-                    source_name = f"{type_label}: {source[:30]}"
+                    source_name = f"{type_label}: {source[:60]}"
                 else:
                     source_name = type_label
 

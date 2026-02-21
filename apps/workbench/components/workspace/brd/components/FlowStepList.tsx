@@ -73,10 +73,18 @@ export function FlowStepList({ steps, selectedStepId, onSelectStep, onAddStep }:
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0 flex-1">
                       {/* Title — wraps instead of truncating */}
-                      <div className={`text-[13px] font-medium leading-snug ${
-                        isSelected ? 'text-[#0A1E2F]' : 'text-[#333333]'
-                      }`}>
-                        {step.title}
+                      <div className="flex items-center gap-1.5">
+                        <div className={`text-[13px] font-medium leading-snug ${
+                          isSelected ? 'text-[#0A1E2F]' : 'text-[#333333]'
+                        }`}>
+                          {step.title}
+                        </div>
+                        {step.has_pending_updates && (
+                          <span
+                            className="w-2 h-2 rounded-full bg-amber-400 flex-shrink-0"
+                            title="Linked entities were updated"
+                          />
+                        )}
                       </div>
                       {step.actors.length > 0 && (
                         <div className="flex flex-wrap gap-1 mt-1">

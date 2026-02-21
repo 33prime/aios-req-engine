@@ -66,6 +66,18 @@ export function JourneyStep({ step, isLast, isSaving, onStepClick }: JourneyStep
                 {step.step_index + 1}
               </span>
               <h3 className="font-semibold text-ui-headingDark text-sm">{step.title}</h3>
+              {(() => {
+                if (step.confirmation_status && step.confirmation_status !== 'ai_generated') return null
+                if (!step.created_at) return null
+                const age = Date.now() - new Date(step.created_at).getTime()
+                if (age >= 24 * 60 * 60 * 1000) return null
+                const isNew = step.version === 1 || step.version == null
+                return (
+                  <span className={`px-1 py-px text-[9px] font-bold text-white rounded leading-tight ${isNew ? 'bg-emerald-500' : 'bg-indigo-500'}`}>
+                    {isNew ? 'NEW' : 'UPDATED'}
+                  </span>
+                )
+              })()}
             </div>
             {StatusIcon && (
               <StatusIcon className={`w-4 h-4 ${status.color} flex-shrink-0 mt-0.5`} />

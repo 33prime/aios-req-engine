@@ -44,6 +44,7 @@ import {
   getSourceUsage,
   getSignal,
   getSignalImpact,
+  getProcessingResults,
   getDocumentDownloadUrl,
   withdrawDocument,
   getRequirementsIntelligence,
@@ -58,6 +59,10 @@ import type {
   RequirementsIntelligenceResponse,
   SignalImpactResponse,
 } from '@/lib/api'
+import type {
+  ProcessingResultsResponse,
+  EntityChangeItem,
+} from '@/types/api'
 import { Markdown } from '@/components/ui/Markdown'
 import { RequirementsIntelligenceTab } from './RequirementsIntelligenceTab'
 
@@ -701,13 +706,23 @@ function TimelineCard({ item, onDocumentRemoved }: { item: TimelineItem; onDocum
                 {/* ===== ANALYSIS TAB ===== */}
                 {expandedTab === 'analysis' && (
                   <>
-                    {/* Document analysis view (scores, topics, keywords, contributions) */}
+                    {/* Document analysis — show processing results if signal_id available */}
                     {item.type === 'document' && item.docData && (
-                      <DocumentAnalysisView doc={item.docData} />
+                      <div className="space-y-3">
+                        <DocumentAnalysisView doc={item.docData} />
+                        {signalIdForImpact && (
+                          <div className="pt-2 border-t border-gray-100">
+                            <ProcessingResultsView signalId={signalIdForImpact} />
+                          </div>
+                        )}
+                      </div>
                     )}
 
-                    {/* Signal impact analysis */}
-                    {item.type === 'signal' && (
+                    {/* Signal impact analysis — show processing results first, fallback to impact */}
+                    {item.type === 'signal' && signalIdForImpact && (
+                      <ProcessingResultsView signalId={signalIdForImpact} />
+                    )}
+                    {item.type === 'signal' && !signalIdForImpact && (
                       <ImpactAnalysisView
                         impactData={impactData}
                         loading={loadingImpact}
@@ -831,6 +846,220 @@ function DocumentAnalysisView({ doc }: { doc: DocumentSummaryItem }) {
 
       {!hasScores && !hasTopics && !hasKeywords && doc.usage_count === 0 && (
         <p className="text-xs text-ui-supportText italic py-2">No analysis data available yet.</p>
+      )}
+    </div>
+  )
+}
+
+// =============================================================================
+// Processing Results View — rich breakdown from V2 pipeline
+// =============================================================================
+
+function ProcessingResultsView({
+  signalId,
+}: {
+  signalId: string
+}) {
+  const [data, setData] = useState<ProcessingResultsResponse | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['created', 'updated', 'memory']))
+
+  useEffect(() => {
+    setLoading(true)
+    getProcessingResults(signalId)
+      .then(setData)
+      .catch(() => setData(null))
+      .finally(() => setLoading(false))
+  }, [signalId])
+
+  if (loading) {
+    return (
+      <div className="flex items-center gap-2 py-3">
+        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-brand-teal" />
+        <span className="text-xs text-ui-supportText">Loading processing results...</span>
+      </div>
+    )
+  }
+
+  if (!data || data.summary.total_entities_affected === 0) {
+    return <p className="text-xs text-ui-supportText italic py-2">No processing results available.</p>
+  }
+
+  const { summary } = data
+
+  // Group entity changes by revision_type, then by entity_type
+  const created = data.entity_changes.filter((c) => c.revision_type === 'created')
+  const updated = data.entity_changes.filter((c) => c.revision_type !== 'created')
+
+  const groupByType = (items: EntityChangeItem[]) => {
+    const groups: Record<string, EntityChangeItem[]> = {}
+    for (const item of items) {
+      if (!groups[item.entity_type]) groups[item.entity_type] = []
+      groups[item.entity_type].push(item)
+    }
+    return groups
+  }
+
+  const toggleSection = (key: string) => {
+    setExpandedSections((prev) => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
+  }
+
+  return (
+    <div className="space-y-3">
+      {/* Summary bar */}
+      <div className="flex items-center gap-3 text-[11px] text-ui-supportText flex-wrap">
+        {summary.created > 0 && (
+          <span className="font-medium text-emerald-700">{summary.created} created</span>
+        )}
+        {summary.updated > 0 && (
+          <span className="font-medium text-indigo-600">{summary.updated} updated</span>
+        )}
+        {summary.merged > 0 && (
+          <span className="font-medium text-amber-600">{summary.merged} merged</span>
+        )}
+        {summary.memory_facts_added > 0 && (
+          <span>{summary.memory_facts_added} facts</span>
+        )}
+        <span className="text-gray-400">|</span>
+        <span>Strategy: {summary.triage_strategy}</span>
+      </div>
+
+      {/* Created entities */}
+      {created.length > 0 && (
+        <div>
+          <button
+            onClick={() => toggleSection('created')}
+            className="flex items-center gap-1.5 w-full text-left"
+          >
+            {expandedSections.has('created') ? (
+              <ChevronDown className="w-3 h-3 text-ui-supportText" />
+            ) : (
+              <ChevronUp className="w-3 h-3 text-ui-supportText" />
+            )}
+            <span className="text-[10px] font-semibold text-emerald-700 uppercase tracking-wide">
+              Created ({created.length})
+            </span>
+          </button>
+          {expandedSections.has('created') && (
+            <div className="mt-1.5 space-y-2 pl-4">
+              {Object.entries(groupByType(created)).map(([entityType, items]) => {
+                const style = ENTITY_TYPE_STYLES[entityType] || { label: entityType, bg: 'bg-gray-100', text: 'text-gray-700' }
+                return (
+                  <div key={entityType}>
+                    <span className="text-[10px] font-medium text-ui-supportText">
+                      {style.label} ({items.length})
+                    </span>
+                    <div className="flex flex-wrap gap-1 mt-0.5">
+                      {items.map((item) => (
+                        <span
+                          key={item.entity_id}
+                          className={`px-2 py-0.5 text-[11px] rounded-full ${style.bg} ${style.text}`}
+                        >
+                          {item.entity_label}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Updated entities */}
+      {updated.length > 0 && (
+        <div>
+          <button
+            onClick={() => toggleSection('updated')}
+            className="flex items-center gap-1.5 w-full text-left"
+          >
+            {expandedSections.has('updated') ? (
+              <ChevronDown className="w-3 h-3 text-ui-supportText" />
+            ) : (
+              <ChevronUp className="w-3 h-3 text-ui-supportText" />
+            )}
+            <span className="text-[10px] font-semibold text-indigo-600 uppercase tracking-wide">
+              Updated ({updated.length})
+            </span>
+          </button>
+          {expandedSections.has('updated') && (
+            <div className="mt-1.5 space-y-1.5 pl-4">
+              {updated.map((item) => {
+                const style = ENTITY_TYPE_STYLES[item.entity_type] || { label: item.entity_type, bg: 'bg-gray-100', text: 'text-gray-700' }
+                return (
+                  <div key={item.entity_id} className="flex items-start gap-2">
+                    <span className={`px-1.5 py-0.5 text-[10px] rounded ${style.bg} ${style.text} flex-shrink-0`}>
+                      {style.label.replace(/s$/, '')}
+                    </span>
+                    <div className="min-w-0">
+                      <span className="text-xs font-medium text-ui-headingDark">{item.entity_label}</span>
+                      {item.diff_summary && (
+                        <span className="text-[11px] text-ui-supportText ml-1.5">
+                          — {item.diff_summary}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Memory updates */}
+      {data.memory_updates.length > 0 && (
+        <div>
+          <button
+            onClick={() => toggleSection('memory')}
+            className="flex items-center gap-1.5 w-full text-left"
+          >
+            {expandedSections.has('memory') ? (
+              <ChevronDown className="w-3 h-3 text-ui-supportText" />
+            ) : (
+              <ChevronUp className="w-3 h-3 text-ui-supportText" />
+            )}
+            <span className="text-[10px] font-semibold text-ui-supportText uppercase tracking-wide">
+              Memory ({data.memory_updates.length})
+            </span>
+          </button>
+          {expandedSections.has('memory') && (
+            <div className="mt-1.5 space-y-1 pl-4">
+              {data.memory_updates.map((mem) => (
+                <div key={mem.id} className="flex items-start gap-2 text-[11px]">
+                  <span className="text-ui-supportText flex-shrink-0">{mem.node_type}:</span>
+                  <span className="text-ui-bodyText">&ldquo;{mem.content}&rdquo;</span>
+                  {mem.confidence != null && (
+                    <span className="text-ui-supportText flex-shrink-0">({(mem.confidence * 100).toFixed(0)}%)</span>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Pipeline decisions */}
+      {(summary.confidence_distribution && Object.keys(summary.confidence_distribution).length > 0) && (
+        <div className="pt-2 border-t border-gray-100">
+          <span className="text-[10px] font-semibold text-ui-supportText uppercase tracking-wide">
+            Pipeline Decisions
+          </span>
+          <div className="flex flex-wrap gap-2 mt-1 text-[11px] text-ui-supportText">
+            {Object.entries(summary.confidence_distribution).map(([level, count]) => (
+              <span key={level}>{count} {level}</span>
+            ))}
+            {summary.escalated > 0 && (
+              <span className="text-amber-600">{summary.escalated} escalated</span>
+            )}
+          </div>
+        </div>
       )}
     </div>
   )

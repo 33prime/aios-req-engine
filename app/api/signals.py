@@ -12,6 +12,7 @@ from app.db.signals import (
     get_project_source_usage,
     get_signal,
     get_signal_impact,
+    get_signal_processing_results,
     list_project_signals,
     list_signal_chunks,
 )
@@ -68,6 +69,100 @@ async def get_signal_status(signal_id: UUID) -> SignalStatusResponse:
     except Exception as e:
         logger.exception(f"Failed to get status for signal {signal_id}")
         raise HTTPException(status_code=500, detail="Failed to retrieve signal status")
+
+
+# =============================================================================
+# Processing results endpoint
+# =============================================================================
+
+
+class EntityChangeItem(BaseModel):
+    """Single entity change from signal processing."""
+
+    entity_type: str
+    entity_id: str
+    entity_label: str
+    revision_type: str  # created | updated | merged | enriched
+    changes: dict[str, Any] = {}
+    diff_summary: str | None = None
+    created_at: str
+
+
+class MemoryUpdateItem(BaseModel):
+    """Single memory node created from signal processing."""
+
+    id: str
+    node_type: str  # fact | belief | insight
+    content: str
+    confidence: float | None = None
+    status: str = "active"
+    created_at: str
+
+
+class ProcessingSummary(BaseModel):
+    """Aggregate summary of processing results."""
+
+    total_entities_affected: int = 0
+    created: int = 0
+    updated: int = 0
+    merged: int = 0
+    escalated: int = 0
+    memory_facts_added: int = 0
+    by_entity_type: dict[str, int] = {}
+    triage_strategy: str = "unknown"
+    confidence_distribution: dict[str, int] = {}
+
+
+class ProcessingResultsResponse(BaseModel):
+    """Full processing results for a signal."""
+
+    signal_id: str
+    patch_summary: dict[str, Any] = {}
+    entity_changes: list[EntityChangeItem] = []
+    memory_updates: list[MemoryUpdateItem] = []
+    summary: ProcessingSummary = ProcessingSummary()
+
+
+@router.get("/signals/{signal_id}/processing-results")
+async def get_processing_results(signal_id: UUID) -> ProcessingResultsResponse:
+    """Get comprehensive processing results for a signal.
+
+    Returns entity changes (created/updated/merged), memory nodes,
+    patch summary, and computed aggregates.
+
+    Args:
+        signal_id: Signal UUID
+
+    Returns:
+        ProcessingResultsResponse with full processing breakdown
+
+    Raises:
+        HTTPException 404: If signal not found
+        HTTPException 500: If database error
+    """
+    try:
+        results = get_signal_processing_results(signal_id)
+
+        return ProcessingResultsResponse(
+            signal_id=results["signal_id"],
+            patch_summary=results.get("patch_summary", {}),
+            entity_changes=[
+                EntityChangeItem(**change) for change in results.get("entity_changes", [])
+            ],
+            memory_updates=[
+                MemoryUpdateItem(**mem) for mem in results.get("memory_updates", [])
+            ],
+            summary=ProcessingSummary(**results.get("summary", {})),
+        )
+
+    except ValueError:
+        raise HTTPException(status_code=404, detail="Signal not found")
+    except Exception as e:
+        logger.exception(f"Failed to get processing results for signal {signal_id}")
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to retrieve processing results",
+        ) from e
 
 
 @router.get("/signals/{signal_id}")
