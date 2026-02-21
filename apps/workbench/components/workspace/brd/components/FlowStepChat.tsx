@@ -140,7 +140,7 @@ export function FlowStepChat({
     if (isLoading) return
     setQuestionListOpen(false)
     await sendMessage(
-      `I need to escalate the question "${q.question}" to the client. Can you suggest who would know this and escalate it?`
+      `Escalate this question on step "${stepTitle}" (step_id: ${stepId}) to the client:\n\nQuestion: ${q.question}\n\nUse the escalate_to_client tool with the step_id and question_text. Suggest who would best answer this.`
     )
   }
 
@@ -361,11 +361,11 @@ export function FlowStepChat({
             if (e.key === 'Enter' && !e.shiftKey && solvingQuestion && input.trim()) {
               e.preventDefault()
               const answer = input.trim()
-              const qRef = solvingQuestion.question.length > 50
-                ? solvingQuestion.question.slice(0, 50) + '...'
-                : solvingQuestion.question
+              const fullQuestion = solvingQuestion.question
               setInput('')
-              sendMessage(`${answer}\n\n[resolve: ${qRef}]`)
+              sendMessage(
+                `Resolve this open question on step "${stepTitle}" (step_id: ${stepId}):\n\nQuestion: ${fullQuestion}\nAnswer: ${answer}\n\nUse the resolve_solution_flow_question tool with the step_id, full question_text, and this answer.`
+              )
             }
           }}
         />
