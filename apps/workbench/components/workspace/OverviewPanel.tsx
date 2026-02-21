@@ -9,7 +9,7 @@
 
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { isToday, isTomorrow, format } from 'date-fns'
 import {
   ListTodo,
@@ -26,13 +26,13 @@ import {
 } from 'lucide-react'
 import { TaskListCompact } from '@/components/tasks'
 import {
-  getTaskStats,
-  getCollaborationHistory,
-  getQuestionCounts,
-  getBRDHealth,
-  getProjectPulse,
-} from '@/lib/api'
-import { useMeetings } from '@/lib/hooks/use-api'
+  useMeetings,
+  useTaskStats,
+  useCollaborationHistory,
+  useQuestionCounts,
+  useBRDHealth,
+  useProjectPulse,
+} from '@/lib/hooks/use-api'
 import type { CanvasData, BRDWorkspaceData, SectionScore, QuestionCounts, BRDHealthData } from '@/types/workspace'
 import type { ReadinessScore, NextAction, TaskStatsResponse, CollaborationHistoryResponse, TerseAction } from '@/lib/api'
 import type { ProjectPulse, Meeting } from '@/types/api'
@@ -72,12 +72,12 @@ export function OverviewPanel({
   onNavigateToPhase,
   onOpenHealth,
 }: OverviewPanelProps) {
-  const [taskStats, setTaskStats] = useState<TaskStatsResponse | null>(null)
-  const [taskRefreshKey, setTaskRefreshKey] = useState(0)
-  const [history, setHistory] = useState<CollaborationHistoryResponse | null>(null)
-  const [questionCounts, setQuestionCounts] = useState<QuestionCounts | null>(null)
-  const [healthData, setHealthData] = useState<BRDHealthData | null>(null)
-  const [pulse, setPulse] = useState<ProjectPulse | null>(null)
+  // All data via SWR (cached, deduped — instant on return visits)
+  const { data: taskStats, mutate: mutateTaskStats } = useTaskStats(projectId)
+  const { data: history } = useCollaborationHistory(projectId)
+  const { data: questionCounts } = useQuestionCounts(projectId)
+  const { data: healthData } = useBRDHealth(projectId)
+  const { data: pulse } = useProjectPulse(projectId)
 
   // Meetings via SWR (cached, deduped)
   const { data: meetingsData } = useMeetings(projectId)
@@ -85,22 +85,12 @@ export function OverviewPanel({
     (m) => m.status !== 'cancelled' && new Date(m.meeting_date) >= new Date(new Date().toDateString()),
   ).slice(0, 4)
 
-  // Load non-critical data lazily (doesn't block page render)
-  useEffect(() => {
-    Promise.all([
-      getTaskStats(projectId).then(setTaskStats).catch(() => null),
-      getCollaborationHistory(projectId).then(setHistory).catch(() => null),
-      getQuestionCounts(projectId).then(setQuestionCounts).catch(() => null),
-      getBRDHealth(projectId).then(setHealthData).catch(() => null),
-      getProjectPulse(projectId).then(setPulse).catch(() => null),
-    ])
-  }, [projectId])
-
   const pendingCount = taskStats?.by_status?.pending ?? 0
   const completeness = brdData?.completeness ?? null
   const touchpoints = history?.touchpoints ?? []
   const overallScore = completeness?.overall_score ?? 0
   const topActions = contextActions?.slice(0, 3) ?? []
+  const [taskRefreshKey, setTaskRefreshKey] = useState(0)
 
   // Last activity time from touchpoints
   const lastActivityTime = touchpoints[0]?.completed_at || touchpoints[0]?.created_at || null
@@ -123,8 +113,8 @@ export function OverviewPanel({
         <ProjectPulseCard
           sections={completeness?.sections ?? []}
           isLoading={isBrdLoading && !brdData}
-          questionCounts={questionCounts}
-          healthData={healthData}
+          questionCounts={questionCounts ?? null}
+          healthData={healthData ?? null}
         />
 
         <ContextActionsCard
@@ -153,7 +143,7 @@ export function OverviewPanel({
               refreshKey={taskRefreshKey}
               onTasksChange={() => {
                 setTaskRefreshKey((k) => k + 1)
-                getTaskStats(projectId).then(setTaskStats).catch(() => {})
+                mutateTaskStats()
               }}
             />
           </div>

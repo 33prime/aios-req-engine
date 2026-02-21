@@ -34,6 +34,10 @@ import {
   getIntelligenceEvolution,
   getSalesIntelligence,
   getUnifiedMemory,
+  getTaskStats,
+  getCollaborationHistory,
+  getBRDHealth,
+  getProjectPulse,
 } from '@/lib/api'
 import type {
   NextAction,
@@ -42,6 +46,7 @@ import type {
   Task,
   TaskWithProject,
   TaskStatsResponse,
+  CollaborationHistoryResponse,
   MyTasksResponse,
   TaskCommentListResponse,
   BatchDashboardData,
@@ -49,9 +54,10 @@ import type {
   MemoryVisualizationResponse,
   UnifiedMemoryResponse,
 } from '@/lib/api'
-import type { Profile, ProjectDetailWithDashboard, Meeting } from '@/types/api'
+import type { Profile, ProjectDetailWithDashboard, Meeting, ProjectPulse } from '@/types/api'
 import type {
   BRDWorkspaceData,
+  BRDHealthData,
   CanvasData,
   IntelligenceBriefing,
   OpenQuestion,
@@ -392,6 +398,70 @@ export function useQuestionCounts(
   return useSWR<QuestionCounts>(
     projectId ? `question-counts:${projectId}` : null,
     () => getQuestionCounts(projectId!),
+    {
+      dedupingInterval: MED_CACHE,
+      revalidateOnFocus: false,
+      ...config,
+    },
+  )
+}
+
+// --- Task stats (per-project) ---
+export function useTaskStats(
+  projectId: string | undefined,
+  config?: SWRConfiguration<TaskStatsResponse>,
+) {
+  return useSWR<TaskStatsResponse>(
+    projectId ? `task-stats:${projectId}` : null,
+    () => getTaskStats(projectId!),
+    {
+      dedupingInterval: MED_CACHE,
+      revalidateOnFocus: false,
+      ...config,
+    },
+  )
+}
+
+// --- Collaboration history (per-project) ---
+export function useCollaborationHistory(
+  projectId: string | undefined,
+  config?: SWRConfiguration<CollaborationHistoryResponse>,
+) {
+  return useSWR<CollaborationHistoryResponse>(
+    projectId ? `collaboration-history:${projectId}` : null,
+    () => getCollaborationHistory(projectId!),
+    {
+      dedupingInterval: MED_CACHE,
+      revalidateOnFocus: false,
+      ...config,
+    },
+  )
+}
+
+// --- BRD health (per-project) ---
+export function useBRDHealth(
+  projectId: string | undefined,
+  config?: SWRConfiguration<BRDHealthData>,
+) {
+  return useSWR<BRDHealthData>(
+    projectId ? `brd-health:${projectId}` : null,
+    () => getBRDHealth(projectId!),
+    {
+      dedupingInterval: MED_CACHE,
+      revalidateOnFocus: false,
+      ...config,
+    },
+  )
+}
+
+// --- Project pulse (per-project) ---
+export function useProjectPulse(
+  projectId: string | undefined,
+  config?: SWRConfiguration<ProjectPulse>,
+) {
+  return useSWR<ProjectPulse>(
+    projectId ? `project-pulse:${projectId}` : null,
+    () => getProjectPulse(projectId!),
     {
       dedupingInterval: MED_CACHE,
       revalidateOnFocus: false,

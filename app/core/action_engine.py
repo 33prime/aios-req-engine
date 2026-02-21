@@ -7,6 +7,7 @@ Produces 5 ActionSkeletons with rich relationship context.
 Layer 2 (generate_action_narratives.py) wraps skeletons with Haiku narratives.
 """
 
+import asyncio
 import hashlib
 import logging
 import time
@@ -105,33 +106,44 @@ async def _load_project_data(project_id: UUID) -> dict:
     phase = "discovery"
     phase_progress = 0.0
 
-    # Core data — all sync calls
-    workflow_pairs = get_workflow_pairs(project_id)
-    drivers = list_business_drivers(project_id, limit=200)
-    personas = list_personas(project_id)
-    features = list_features(project_id)
-    dep_graph = get_dependency_graph(project_id)
-    questions = list_open_questions(project_id, status="open", limit=50)
+    def _q_stakeholders() -> list[str]:
+        try:
+            from app.db.supabase_client import get_supabase
 
-    # Stakeholder names for question routing
-    stakeholder_names: list[str] = []
-    try:
-        from app.db.supabase_client import get_supabase
+            sb = get_supabase()
+            result = (
+                sb.table("stakeholders")
+                .select("id, first_name, last_name, name, role, stakeholder_type")
+                .eq("project_id", str(project_id))
+                .execute()
+            )
+            return [
+                f"{s.get('first_name', '')} {s.get('last_name', '')}".strip()
+                or s.get("name", "")
+                for s in (result.data or [])
+            ]
+        except Exception as e:
+            logger.warning(f"Stakeholder load failed: {e}")
+            return []
 
-        sb = get_supabase()
-        result = (
-            sb.table("stakeholders")
-            .select("id, first_name, last_name, name, role, stakeholder_type")
-            .eq("project_id", str(project_id))
-            .execute()
-        )
-        stakeholder_names = [
-            f"{s.get('first_name', '')} {s.get('last_name', '')}".strip()
-            or s.get("name", "")
-            for s in (result.data or [])
-        ]
-    except Exception as e:
-        logger.warning(f"Stakeholder load failed: {e}")
+    # Core data — all sync calls run in parallel via asyncio.gather
+    (
+        workflow_pairs,
+        drivers,
+        personas,
+        features,
+        dep_graph,
+        questions,
+        stakeholder_names,
+    ) = await asyncio.gather(
+        asyncio.to_thread(get_workflow_pairs, project_id),
+        asyncio.to_thread(list_business_drivers, project_id, 200),
+        asyncio.to_thread(list_personas, project_id),
+        asyncio.to_thread(list_features, project_id),
+        asyncio.to_thread(get_dependency_graph, project_id),
+        asyncio.to_thread(lambda: list_open_questions(project_id, status="open", limit=50)),
+        asyncio.to_thread(_q_stakeholders),
+    )
 
     return {
         "phase": phase,

@@ -1,5 +1,6 @@
 """Database operations for workflows and workflow steps."""
 
+from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 from uuid import UUID
 
@@ -228,32 +229,42 @@ def get_workflow_pairs(project_id: UUID) -> list[dict[str, Any]]:
     - current_steps, future_steps
     - roi (if both sides have steps with time data)
     """
-    supabase = get_supabase()
+    pid_str = str(project_id)
 
-    # Load all workflows for project
-    workflows_result = (
-        supabase.table("workflows")
-        .select("*")
-        .eq("project_id", str(project_id))
-        .execute()
-    )
-    all_workflows = workflows_result.data or []
+    def _q_workflows():
+        sb = get_supabase()
+        return (sb.table("workflows").select("*").eq("project_id", pid_str).execute()).data or []
+
+    def _q_steps():
+        sb = get_supabase()
+        return (
+            sb.table("vp_steps").select("*").eq("project_id", pid_str)
+            .not_.is_("workflow_id", "null").order("step_index").execute()
+        ).data or []
+
+    def _q_features():
+        sb = get_supabase()
+        return (sb.table("features").select("id, name, vp_step_id").eq("project_id", pid_str).execute()).data or []
+
+    def _q_personas():
+        sb = get_supabase()
+        return (sb.table("personas").select("id, name").eq("project_id", pid_str).execute()).data or []
+
+    # Run all 4 DB queries in parallel
+    with ThreadPoolExecutor(max_workers=4) as executor:
+        f_wf = executor.submit(_q_workflows)
+        f_steps = executor.submit(_q_steps)
+        f_features = executor.submit(_q_features)
+        f_personas = executor.submit(_q_personas)
+
+    all_workflows = f_wf.result()
     if not all_workflows:
         return []
 
+    all_steps = f_steps.result()
+
     # Build ID lookup
     wf_by_id = {w["id"]: w for w in all_workflows}
-
-    # Load all workflow steps for project (with workflow_id)
-    steps_result = (
-        supabase.table("vp_steps")
-        .select("*")
-        .eq("project_id", str(project_id))
-        .not_.is_("workflow_id", "null")
-        .order("step_index")
-        .execute()
-    )
-    all_steps = steps_result.data or []
 
     # Group steps by workflow_id
     steps_by_wf: dict[str, list[dict]] = {}
@@ -262,27 +273,15 @@ def get_workflow_pairs(project_id: UUID) -> list[dict[str, Any]]:
         if wid:
             steps_by_wf.setdefault(wid, []).append(s)
 
-    # Load features for step-feature mapping
-    features_result = (
-        supabase.table("features")
-        .select("id, name, vp_step_id")
-        .eq("project_id", str(project_id))
-        .execute()
-    )
+    # Step-feature mapping
     step_feature_map: dict[str, list[tuple[str, str]]] = {}
-    for f in (features_result.data or []):
+    for f in f_features.result():
         sid = f.get("vp_step_id")
         if sid:
             step_feature_map.setdefault(sid, []).append((f["id"], f["name"]))
 
-    # Load personas for actor name lookup
-    personas_result = (
-        supabase.table("personas")
-        .select("id, name")
-        .eq("project_id", str(project_id))
-        .execute()
-    )
-    persona_lookup = {p["id"]: p["name"] for p in (personas_result.data or [])}
+    # Persona name lookup
+    persona_lookup = {p["id"]: p["name"] for p in f_personas.result()}
 
     def build_step_summaries(steps: list[dict]) -> list[dict]:
         summaries = []

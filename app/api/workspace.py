@@ -1776,27 +1776,77 @@ async def get_brd_health(project_id: UUID) -> BRDHealthResponse:
     from app.db.entity_dependencies import get_dependency_graph, get_stale_entities
 
     try:
-        client = get_client()
+        pid_str = str(project_id)
 
-        # 1. Stale entities
-        stale = get_stale_entities(project_id)
+        def _q_features_priority():
+            c = get_client()
+            return (c.table("features").select("id, priority_group").eq("project_id", pid_str).execute()).data or []
 
-        # 2. Dependency graph stats
-        graph = get_dependency_graph(project_id)
+        def _q_workflow_complexity():
+            from app.db.workflows import list_workflows, list_workflow_steps
+            alerts = []
+            try:
+                workflows = list_workflows(project_id)
+                for wf in workflows:
+                    steps = list_workflow_steps(wf["id"])
+                    if len(steps) > 15:
+                        alerts.append(ScopeAlert(
+                            alert_type="workflow_complexity",
+                            severity="warning",
+                            message=f"Workflow \"{wf.get('name', 'Untitled')}\" has {len(steps)} steps — consider breaking it down",
+                        ))
+            except Exception:
+                pass
+            return alerts
+
+        def _q_persona_overload():
+            alerts = []
+            try:
+                c = get_client()
+                personas_result = c.table("personas").select("id, name").eq("project_id", pid_str).execute()
+                persona_map = {p["id"]: p["name"] for p in (personas_result.data or [])}
+                features_full = c.table("features").select("id, target_personas").eq("project_id", pid_str).execute()
+                persona_feature_count: dict[str, int] = {}
+                for f in (features_full.data or []):
+                    for tp in (f.get("target_personas") or []):
+                        pid = tp.get("persona_id") if isinstance(tp, dict) else tp
+                        if pid:
+                            persona_feature_count[pid] = persona_feature_count.get(pid, 0) + 1
+                for pid, count in persona_feature_count.items():
+                    if count > 10:
+                        pname = persona_map.get(pid, pid[:8])
+                        alerts.append(ScopeAlert(
+                            alert_type="overloaded_persona",
+                            severity="info",
+                            message=f"Persona \"{pname}\" is targeted by {count} features — consider splitting responsibilities",
+                        ))
+            except Exception:
+                pass
+            return alerts
+
+        # Run all queries in parallel
+        (
+            stale,
+            graph,
+            queue_stats,
+            features_data,
+            wf_complexity_alerts,
+            persona_overload_alerts,
+        ) = await asyncio.gather(
+            asyncio.to_thread(get_stale_entities, project_id),
+            asyncio.to_thread(get_dependency_graph, project_id),
+            asyncio.to_thread(get_change_queue_stats, project_id),
+            asyncio.to_thread(_q_features_priority),
+            asyncio.to_thread(_q_workflow_complexity),
+            asyncio.to_thread(_q_persona_overload),
+        )
+
         dependency_count = graph.get("total_count", 0)
-
-        # 3. Pending cascade count
-        queue_stats = get_change_queue_stats(project_id)
         pending_cascade_count = queue_stats.get("pending", 0)
 
-        # 4. Scope alerts (heuristic, no LLM)
+        # Build scope alerts
         scope_alerts: list[ScopeAlert] = []
 
-        # scope_creep: >= 50% of features in could_have + out_of_scope
-        features_result = client.table("features").select(
-            "id, priority_group"
-        ).eq("project_id", str(project_id)).execute()
-        features_data = features_result.data or []
         total_features = len(features_data)
         if total_features > 0:
             low_priority = sum(
@@ -1810,50 +1860,8 @@ async def get_brd_health(project_id: UUID) -> BRDHealthResponse:
                     message=f"{low_priority}/{total_features} features are Could Have or Out of Scope — scope may be too broad",
                 ))
 
-        # workflow_complexity: any workflow with > 15 steps
-        try:
-            from app.db.workflows import list_workflows, list_workflow_steps
-
-            workflows = list_workflows(project_id)
-            for wf in workflows:
-                steps = list_workflow_steps(wf["id"])
-                if len(steps) > 15:
-                    scope_alerts.append(ScopeAlert(
-                        alert_type="workflow_complexity",
-                        severity="warning",
-                        message=f"Workflow \"{wf.get('name', 'Untitled')}\" has {len(steps)} steps — consider breaking it down",
-                    ))
-        except Exception:
-            pass
-
-        # overloaded_persona: any persona targeted by > 10 features
-        try:
-            personas_result = client.table("personas").select(
-                "id, name"
-            ).eq("project_id", str(project_id)).execute()
-            persona_map = {p["id"]: p["name"] for p in (personas_result.data or [])}
-
-            features_full = client.table("features").select(
-                "id, target_personas"
-            ).eq("project_id", str(project_id)).execute()
-
-            persona_feature_count: dict[str, int] = {}
-            for f in (features_full.data or []):
-                for tp in (f.get("target_personas") or []):
-                    pid = tp.get("persona_id") if isinstance(tp, dict) else tp
-                    if pid:
-                        persona_feature_count[pid] = persona_feature_count.get(pid, 0) + 1
-
-            for pid, count in persona_feature_count.items():
-                if count > 10:
-                    pname = persona_map.get(pid, pid[:8])
-                    scope_alerts.append(ScopeAlert(
-                        alert_type="overloaded_persona",
-                        severity="info",
-                        message=f"Persona \"{pname}\" is targeted by {count} features — consider splitting responsibilities",
-                    ))
-        except Exception:
-            pass
+        scope_alerts.extend(wf_complexity_alerts)
+        scope_alerts.extend(persona_overload_alerts)
 
         return BRDHealthResponse(
             stale_entities=stale,
@@ -3986,36 +3994,47 @@ class ProjectPulseResponse(BaseModel):
 async def get_project_pulse(project_id: UUID):
     """Get the Project Pulse overview — readiness score, strengths, next actions."""
     try:
-        supabase = get_client()
+        pid_str = str(project_id)
 
-        # Load project
-        project = (
-            supabase.table("projects")
-            .select("id, name, description, vision, metadata")
-            .eq("id", str(project_id))
-            .maybe_single()
-            .execute()
+        def _q_project():
+            sb = get_client()
+            r = sb.table("projects").select("id, name, description, vision, metadata").eq("id", pid_str).maybe_single().execute()
+            return r.data if r else None
+
+        def _q_count(table: str):
+            sb = get_client()
+            return (sb.table(table).select("id", count="exact").eq("project_id", pid_str).execute()).count or 0
+
+        # Run project lookup + 6 count queries in parallel
+        (
+            proj,
+            c_personas,
+            c_features,
+            c_workflows,
+            c_drivers,
+            c_vp_steps,
+            c_stakeholders,
+        ) = await asyncio.gather(
+            asyncio.to_thread(_q_project),
+            asyncio.to_thread(_q_count, "personas"),
+            asyncio.to_thread(_q_count, "features"),
+            asyncio.to_thread(_q_count, "workflows"),
+            asyncio.to_thread(_q_count, "business_drivers"),
+            asyncio.to_thread(_q_count, "vp_steps"),
+            asyncio.to_thread(_q_count, "stakeholders"),
         )
-        if not project.data:
+
+        if not proj:
             raise HTTPException(status_code=404, detail="Project not found")
-        proj = project.data
         metadata = proj.get("metadata") or {}
 
-        # Entity counts
-        personas = supabase.table("personas").select("id", count="exact").eq("project_id", str(project_id)).execute()
-        features = supabase.table("features").select("id", count="exact").eq("project_id", str(project_id)).execute()
-        workflows = supabase.table("workflows").select("id", count="exact").eq("project_id", str(project_id)).execute()
-        drivers = supabase.table("business_drivers").select("id", count="exact").eq("project_id", str(project_id)).execute()
-        vp_steps = supabase.table("vp_steps").select("id", count="exact").eq("project_id", str(project_id)).execute()
-        stakeholders = supabase.table("stakeholders").select("id", count="exact").eq("project_id", str(project_id)).execute()
-
         counts = {
-            "personas": personas.count or 0,
-            "features": features.count or 0,
-            "workflows": workflows.count or 0,
-            "drivers": drivers.count or 0,
-            "vp_steps": vp_steps.count or 0,
-            "stakeholders": stakeholders.count or 0,
+            "personas": c_personas,
+            "features": c_features,
+            "workflows": c_workflows,
+            "drivers": c_drivers,
+            "vp_steps": c_vp_steps,
+            "stakeholders": c_stakeholders,
         }
 
         # Compute score (simple heuristic, no LLM)
