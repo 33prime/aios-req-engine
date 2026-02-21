@@ -1,27 +1,32 @@
 """Context Snapshot builder for Signal Pipeline v2.
 
-Assembles a 3-layer prompt context that gets injected into every extraction run:
+Assembles a 4-layer prompt context that gets injected into every extraction run:
   Layer 1: Entity inventory (IDs, names, confirmation status, staleness)
   Layer 2: Memory beliefs, insights, open questions
   Layer 3: Gap summary from the context frame
+  Layer 4: Extraction briefing (Haiku-synthesized coverage/dedup/targets)
 
 All layers are pre-rendered as prompt strings — the extraction chain just
-concatenates them into the system prompt. Zero LLM cost, ~200ms to build.
+concatenates them into the system prompt. Layer 4 costs ~$0.002 per signal.
 """
 
 from __future__ import annotations
 
 import asyncio
 import logging
+from typing import TYPE_CHECKING
 from uuid import UUID
 
 from pydantic import BaseModel, Field
+
+if TYPE_CHECKING:
+    from app.core.schemas_pulse import ProjectPulse
 
 logger = logging.getLogger(__name__)
 
 
 class ContextSnapshot(BaseModel):
-    """Pre-rendered 3-layer context for extraction prompts.
+    """Pre-rendered 4-layer context for extraction prompts.
 
     Each layer is a ready-to-inject prompt string.
     """
@@ -35,10 +40,16 @@ class ContextSnapshot(BaseModel):
     # Layer 3: What's missing (gaps + rules)
     gaps_prompt: str = ""
 
+    # Layer 4: Extraction directive (Pulse Engine or Haiku fallback)
+    extraction_briefing_prompt: str = ""
+
     # Raw data for downstream use (scoring, resolution)
     entity_inventory: dict[str, list[dict]] = Field(default_factory=dict)
     beliefs: list[dict] = Field(default_factory=list)
     open_questions: list[dict] = Field(default_factory=list)
+
+    # Pulse snapshot (None if pulse computation failed)
+    pulse: "ProjectPulse | None" = None
 
 
 async def build_context_snapshot(project_id: UUID) -> ContextSnapshot:
@@ -62,7 +73,7 @@ async def build_context_snapshot(project_id: UUID) -> ContextSnapshot:
         logger.warning(f"Failed to load project data for context snapshot: {e}")
         project_data = {}
 
-    # Run all 3 layers in parallel (independent of each other)
+    # Run layers 1-3 in parallel (independent of each other)
     entity_inventory_task = _build_entity_inventory(project_id, project_data=project_data)
     memory_task = _build_memory_layer(project_id)
     gaps_task = _build_gaps_layer(project_id, project_data=project_data)
@@ -73,13 +84,37 @@ async def build_context_snapshot(project_id: UUID) -> ContextSnapshot:
 
     entity_prompt = _render_entity_inventory_prompt(entity_inventory)
 
+    # Layer 4: Pulse Engine directive (deterministic, $0) with Haiku fallback
+    pulse = None
+    briefing_prompt = ""
+    try:
+        from app.core.pulse_engine import compute_project_pulse
+
+        pulse = await compute_project_pulse(
+            project_id,
+            project_data=project_data,
+            entity_inventory=entity_inventory,
+        )
+        briefing_prompt = pulse.extraction_directive.rendered_prompt
+        logger.info(
+            f"Pulse computed: stage={pulse.stage.current.value} "
+            f"config=v{pulse.config_version} rules={len(pulse.rules_fired)}"
+        )
+    except Exception as e:
+        logger.warning(f"Pulse engine failed, falling back to Haiku briefing: {e}")
+        briefing_prompt = await _build_extraction_briefing(
+            project_id, project_data=project_data
+        )
+
     return ContextSnapshot(
         entity_inventory_prompt=entity_prompt,
         memory_prompt=memory_prompt,
         gaps_prompt=gaps_prompt,
+        extraction_briefing_prompt=briefing_prompt,
         entity_inventory=entity_inventory,
         beliefs=beliefs,
         open_questions=open_questions,
+        pulse=pulse,
     )
 
 
@@ -432,3 +467,239 @@ async def _build_gaps_layer(
     except Exception as e:
         logger.debug(f"Gaps layer build failed: {e}")
         return "## Current Gaps\nGap analysis not available."
+
+
+# =============================================================================
+# Layer 4: Extraction briefing (Haiku-synthesized)
+# =============================================================================
+
+_BRIEFING_MODEL = "claude-haiku-4-5-20251001"
+
+BRIEFING_TOOL = {
+    "name": "submit_extraction_briefing",
+    "description": "Submit the extraction briefing with coverage map, dedup alerts, and extraction targets.",
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "coverage_map": {
+                "type": "string",
+                "description": "Which entity types are saturated (>15), adequate, thin (<3), or missing (0). Name counts.",
+            },
+            "dedup_alerts": {
+                "type": "string",
+                "description": "Specific themes/entity names that are over-represented. Say 'merge into existing, don't create new.'",
+            },
+            "extraction_targets": {
+                "type": "string",
+                "description": "Based on thin/missing types and open questions, say what to look for.",
+            },
+        },
+        "required": ["coverage_map", "dedup_alerts", "extraction_targets"],
+    },
+}
+
+_BRIEFING_SYSTEM = """You are an extraction strategist preparing a briefing for a requirements extraction AI.
+Given entity inventory metrics, produce a concise briefing that prevents duplicates and targets gaps.
+
+Output 3 sections:
+1. coverage_map: Which types are saturated (>15 entities), adequate, thin (<3), or missing (0). Name counts.
+2. dedup_alerts: Name specific themes/entity names that are over-represented. Say "merge into existing, don't create new."
+3. extraction_targets: Based on thin/missing types and open questions, say what to look for.
+
+Be concrete — name entities, quote descriptions, cite counts. ~300-400 tokens total."""
+
+
+async def _build_extraction_briefing(
+    project_id: UUID,
+    project_data: dict | None = None,
+) -> str:
+    """Build a Haiku-synthesized extraction briefing from entity inventory metrics.
+
+    Computes counts directly from project_data and calls Haiku to produce
+    a 3-section briefing (coverage map, dedup alerts, extraction targets).
+    Falls back to a deterministic metrics-only briefing on failure.
+
+    Args:
+        project_id: Project UUID
+        project_data: Pre-loaded project data (avoids duplicate DB call)
+
+    Returns:
+        Rendered briefing prompt string
+    """
+    try:
+        if project_data is None:
+            from app.core.action_engine import _load_project_data
+
+            project_data = await _load_project_data(project_id)
+    except Exception as e:
+        logger.warning(f"Failed to load project data for briefing: {e}")
+        return ""
+
+    # Compute entity counts from project_data
+    counts: dict[str, int] = {}
+    counts["feature"] = len(project_data.get("features") or [])
+    counts["persona"] = len(project_data.get("personas") or [])
+
+    workflow_pairs = project_data.get("workflow_pairs") or []
+    counts["workflow"] = len(workflow_pairs)
+    step_count = 0
+    for pair in workflow_pairs:
+        step_count += len(pair.get("current_steps") or [])
+        step_count += len(pair.get("future_steps") or [])
+    counts["workflow_step"] = step_count
+
+    drivers = project_data.get("drivers") or []
+    counts["business_driver"] = len(drivers)
+
+    # These need DB queries — use quick counts via supabase
+    try:
+        from app.db.supabase_client import get_supabase
+
+        sb = get_supabase()
+        pid = str(project_id)
+        for table, etype in [
+            ("stakeholders", "stakeholder"),
+            ("data_entities", "data_entity"),
+            ("constraints", "constraint"),
+            ("competitor_references", "competitor"),
+        ]:
+            result = sb.table(table).select("id", count="exact").eq("project_id", pid).execute()
+            counts[etype] = result.count or 0
+    except Exception as e:
+        logger.debug(f"Briefing count queries failed: {e}")
+
+    total = sum(counts.values())
+    if total == 0:
+        return ""  # New project, no briefing needed
+
+    # Build compact input for Haiku
+    input_lines = ["## Entity Inventory Metrics"]
+    for etype, count in sorted(counts.items(), key=lambda x: -x[1]):
+        confirmed = 0
+        if etype == "business_driver":
+            confirmed = sum(1 for d in drivers if d.get("confirmation_status", "").startswith("confirmed"))
+        elif etype == "feature":
+            confirmed = sum(
+                1 for f in (project_data.get("features") or [])
+                if f.get("confirmation_status", "").startswith("confirmed")
+            )
+        label = f" ({confirmed} confirmed)" if confirmed else ""
+        input_lines.append(f"- {etype}: {count}{label}")
+
+    # Top 5 BD descriptions grouped by driver_type
+    if drivers:
+        input_lines.append("\n### Business Drivers by Type")
+        by_type: dict[str, list[str]] = {}
+        for d in drivers:
+            dt = d.get("driver_type", "unknown")
+            desc = (d.get("description") or "")[:60]
+            if desc:
+                by_type.setdefault(dt, []).append(desc)
+        for dt, descs in by_type.items():
+            input_lines.append(f"  {dt} ({len(descs)}):")
+            for desc in descs[:5]:
+                input_lines.append(f"    - {desc}")
+
+    # Top 5 names for other types
+    for etype, key_field, data_key in [
+        ("feature", "name", "features"),
+        ("persona", "name", "personas"),
+    ]:
+        items = project_data.get(data_key) or []
+        if items:
+            names = [i.get(key_field, "") for i in items[:5] if i.get(key_field)]
+            if names:
+                input_lines.append(f"\n### Top {etype}s: {', '.join(names)}")
+
+    # Open questions
+    try:
+        from app.db.open_questions import list_open_questions
+
+        raw_questions = list_open_questions(project_id, status="open", limit=5)
+        if raw_questions:
+            input_lines.append("\n### Open Questions")
+            for q in raw_questions:
+                input_lines.append(f"- {q.get('question', '')}")
+    except Exception as e:
+        logger.debug(f"Briefing open questions load failed: {e}")
+
+    input_text = "\n".join(input_lines)
+
+    # Call Haiku
+    try:
+        from anthropic import AsyncAnthropic
+
+        from app.core.config import Settings
+
+        settings = Settings()
+        client = AsyncAnthropic(api_key=settings.ANTHROPIC_API_KEY)
+
+        response = await client.messages.create(
+            model=_BRIEFING_MODEL,
+            max_tokens=800,
+            system=_BRIEFING_SYSTEM,
+            messages=[{"role": "user", "content": input_text}],
+            temperature=0,
+            tools=[BRIEFING_TOOL],
+            tool_choice={"type": "tool", "name": "submit_extraction_briefing"},
+        )
+
+        for block in response.content:
+            if block.type == "tool_use":
+                data = block.input
+                # Handle string values (Anthropic bug)
+                coverage = data.get("coverage_map", "")
+                if isinstance(coverage, str):
+                    pass  # already a string
+                dedup = data.get("dedup_alerts", "")
+                targets = data.get("extraction_targets", "")
+
+                return _render_briefing(coverage, dedup, targets)
+
+        logger.warning("No tool_use block in briefing response, falling back to deterministic")
+    except Exception as e:
+        logger.warning(f"Haiku briefing call failed, using deterministic fallback: {e}")
+
+    # Deterministic fallback
+    return _build_deterministic_briefing(counts, drivers, project_data)
+
+
+def _render_briefing(coverage: str, dedup: str, targets: str) -> str:
+    """Render the 3-section briefing prompt."""
+    return f"""## Extraction Briefing
+
+### Coverage
+{coverage}
+
+### Dedup Alerts
+{dedup}
+
+### Extraction Targets
+{targets}"""
+
+
+def _build_deterministic_briefing(
+    counts: dict[str, int],
+    drivers: list[dict],
+    project_data: dict,
+) -> str:
+    """Metrics-only fallback when Haiku is unavailable."""
+    lines = ["## Extraction Briefing (metrics-based)"]
+
+    for etype, count in sorted(counts.items(), key=lambda x: -x[1]):
+        if count > 15:
+            confirmed = 0
+            if etype == "business_driver":
+                confirmed = sum(
+                    1 for d in drivers if d.get("confirmation_status", "").startswith("confirmed")
+                )
+            label = f", {confirmed} confirmed" if confirmed else ""
+            lines.append(
+                f"SATURATED: {etype} ({count} entities{label}) — strongly prefer merge over create."
+            )
+        elif count == 0:
+            lines.append(f"MISSING: {etype}")
+        elif count < 3:
+            lines.append(f"THIN: {etype} ({count})")
+
+    return "\n".join(lines)
