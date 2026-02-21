@@ -790,31 +790,29 @@ async def list_project_pulses(
     )
     projects = projects_resp.data or []
 
+    # Batch-load all snapshots (newest first), then group by project
+    all_snaps_resp = (
+        client.table("pulse_snapshots")
+        .select("project_id, stage, stage_progress, health, risks, actions, created_at")
+        .order("created_at", desc=True)
+        .execute()
+    )
+    all_snaps = all_snaps_resp.data or []
+
+    # Build lookup: project_id → latest snapshot + count
+    snap_by_project: dict[str, dict] = {}
+    snap_counts: dict[str, int] = {}
+    for snap in all_snaps:
+        pid = snap["project_id"]
+        snap_counts[pid] = snap_counts.get(pid, 0) + 1
+        if pid not in snap_by_project:
+            snap_by_project[pid] = snap  # First = newest (ordered desc)
+
     results: list[AdminProjectPulse] = []
     for proj in projects:
         pid = proj["id"]
+        snap = snap_by_project.get(pid)
 
-        # Get latest snapshot
-        snap_resp = (
-            client.table("pulse_snapshots")
-            .select("stage, stage_progress, health, risks, actions, created_at")
-            .eq("project_id", pid)
-            .order("created_at", desc=True)
-            .limit(1)
-            .maybe_single()
-            .execute()
-        )
-
-        # Get snapshot count
-        count_resp = (
-            client.table("pulse_snapshots")
-            .select("id", count="exact")
-            .eq("project_id", pid)
-            .execute()
-        )
-        snap_count = count_resp.count if count_resp.count is not None else len(count_resp.data or [])
-
-        snap = snap_resp.data
         if snap:
             health = snap.get("health", {})
             health_scores = {
@@ -835,7 +833,7 @@ async def list_project_pulses(
                 health_scores=health_scores,
                 risk_score=risk_score,
                 top_action=top_action,
-                snapshot_count=snap_count,
+                snapshot_count=snap_counts.get(pid, 0),
                 last_snapshot_at=snap.get("created_at"),
             ))
         else:
