@@ -475,7 +475,7 @@ export function BusinessContextSection({
       <div>
         <h2 className="text-lg font-semibold text-[#333333] mb-3 flex items-center gap-2">
           <Building2 className="w-5 h-5 text-[#999999]" />
-          Background
+          What drove the need for this solution
         </h2>
         <div className="bg-white rounded-2xl shadow-md border border-[#E5E5E5] p-5">
           {editingBackground ? (
@@ -484,7 +484,7 @@ export function BusinessContextSection({
                 value={backgroundDraft}
                 onChange={(e) => setBackgroundDraft(e.target.value)}
                 className="w-full p-3 text-[14px] text-[#333333] border border-[#E5E5E5] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#3FAF7A]/30 focus:border-[#3FAF7A] resize-y min-h-[80px]"
-                placeholder="Describe the company background..."
+                placeholder="What drove the need for this solution..."
                 autoFocus
               />
               <div className="flex items-center gap-2">

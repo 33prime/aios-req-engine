@@ -52,7 +52,12 @@ interface WorkspaceLayoutProps {
 }
 
 export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
-  const [phase, setPhase] = useState<WorkspacePhase>('overview')
+  const [phase, setPhase] = useState<WorkspacePhase>(() => {
+    if (typeof window !== 'undefined') {
+      return (localStorage.getItem(`workspace-phase-${projectId}`) as WorkspacePhase) || 'overview'
+    }
+    return 'overview'
+  })
   const [error, setError] = useState<string | null>(null)
 
   // SWR hooks — all fire on mount in parallel, cached across navigations
@@ -62,6 +67,11 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
   const nextActions = brdSwr?.next_actions ?? null
   const { data: contextFrame, isLoading: isContextFrameLoading, mutate: mutateContextFrame } = useContextFrame(projectId)
   useRealtimeBRD(projectId)
+  // Persist phase to localStorage so refresh restores the current view
+  useEffect(() => {
+    localStorage.setItem(`workspace-phase-${projectId}`, phase)
+  }, [phase, projectId])
+
   const [collaborationState, setCollaborationState] = useState<PanelState>('normal')
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true)
   const [activeBottomPanel, setActiveBottomPanel] = useState<'context' | 'evidence' | 'history' | null>(null)
@@ -191,6 +201,12 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
       ? overlays.find((o) => o.id === selectedOverlayId || o.feature_id === selectedOverlayId) ?? null
       : null
 
+  // Revalidate BRD + context frame when chat tools mutate data
+  const handleDataMutated = useCallback(() => {
+    mutateBrd()
+    mutateContextFrame()
+  }, [mutateBrd, mutateContextFrame])
+
   // Chat integration
   const {
     messages, isLoading: isChatLoading, sendMessage, sendSignal, addLocalMessage,
@@ -202,6 +218,7 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
     onError: (error) => {
       console.error('Chat error:', error)
     },
+    onDataMutated: handleDataMutated,
   })
 
   // Check for prototype URL (lightweight, non-blocking)

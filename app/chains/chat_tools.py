@@ -33,7 +33,7 @@ def get_tool_definitions() -> List[Dict[str, Any]]:
         },
         {
             "name": "list_entities",
-            "description": "List all entities of a given type from the BRD. Returns names, key fields, and status. Use this when the user asks to see, review, consolidate, or compare features, personas, workflows, constraints, stakeholders, data entities, or open questions. ALWAYS use this before analyzing or consolidating entities — never say you can't see the data.",
+            "description": "List all entities of a given type from the BRD. Returns names, key fields, and status. Use this when the user asks to see, review, consolidate, or compare features, personas, workflows, constraints, stakeholders, data entities, business drivers (goals/pains/KPIs), or open questions. ALWAYS use this before analyzing or consolidating entities — never say you can't see the data.",
             "input_schema": {
                 "type": "object",
                 "properties": {
@@ -48,14 +48,20 @@ def get_tool_definitions() -> List[Dict[str, Any]]:
                             "data_entity",
                             "question",
                             "workflow",
+                            "business_driver",
                         ],
-                        "description": "Type of entities to list",
+                        "description": "Type of entities to list. Use 'business_driver' for goals, pain points, and KPIs.",
                     },
                     "filter": {
                         "type": "string",
                         "enum": ["all", "mvp", "confirmed", "draft"],
                         "description": "Optional filter. 'mvp' for features only. 'confirmed' = client/consultant confirmed. 'draft' = ai_generated.",
                         "default": "all",
+                    },
+                    "driver_type": {
+                        "type": "string",
+                        "enum": ["goal", "pain", "kpi"],
+                        "description": "For business_driver only: filter by driver type (goal, pain, kpi).",
                     },
                 },
                 "required": ["entity_type"],
@@ -392,7 +398,7 @@ def get_tool_definitions() -> List[Dict[str, Any]]:
         # =============================================================================
         {
             "name": "create_entity",
-            "description": "Create a new entity in the project. Supports features, personas, workflow steps, stakeholders, data entities, and workflows. Use when the user asks to add/create something. Always confirm what was created.",
+            "description": "Create a new entity in the project. Supports features, personas, workflow steps, stakeholders, data entities, workflows, and business drivers (goals, pain points, KPIs). Use when the user asks to add/create something. Always confirm what was created.",
             "input_schema": {
                 "type": "object",
                 "properties": {
@@ -405,16 +411,17 @@ def get_tool_definitions() -> List[Dict[str, Any]]:
                             "stakeholder",
                             "data_entity",
                             "workflow",
+                            "business_driver",
                         ],
                         "description": "Type of entity to create",
                     },
                     "name": {
                         "type": "string",
-                        "description": "Name/title of the entity",
+                        "description": "Name/title/description of the entity",
                     },
                     "fields": {
                         "type": "object",
-                        "description": "Additional fields. Feature: category, is_mvp, overview, priority_group. Persona: role, goals(array), pain_points(array). VP Step: workflow_id, step_number, actor, pain_description, benefit_description, time_minutes, automation_level. Stakeholder: stakeholder_type(champion/sponsor/blocker/influencer/end_user), email, role, organization, influence_level. Data Entity: entity_type, fields(array of {name,type,description}). Workflow: workflow_type(current/future), description.",
+                        "description": "Additional fields. Feature: category, is_mvp, overview, priority_group. Persona: role, goals(array), pain_points(array). VP Step: workflow_id, step_number, actor, pain_description, benefit_description, time_minutes, automation_level. Stakeholder: stakeholder_type(champion/sponsor/blocker/influencer/end_user), email, role, organization, influence_level. Data Entity: entity_type, fields(array of {name,type,description}). Workflow: workflow_type(current/future), description. Business Driver: driver_type(goal/pain/kpi), measurement, timeframe, priority(1-5).",
                     },
                 },
                 "required": ["entity_type", "name"],
@@ -422,7 +429,7 @@ def get_tool_definitions() -> List[Dict[str, Any]]:
         },
         {
             "name": "update_entity",
-            "description": "Update an existing entity by ID. Supports all entity types. Use when the user asks to change, modify, rename, or update something specific. Always confirm what was changed.",
+            "description": "Update an existing entity by ID. Supports all entity types including business drivers (goals, pain points, KPIs). Use when the user asks to change, modify, rename, or update something specific. Always confirm what was changed.",
             "input_schema": {
                 "type": "object",
                 "properties": {
@@ -435,6 +442,7 @@ def get_tool_definitions() -> List[Dict[str, Any]]:
                             "stakeholder",
                             "data_entity",
                             "workflow",
+                            "business_driver",
                         ],
                         "description": "Type of entity to update",
                     },
@@ -444,7 +452,7 @@ def get_tool_definitions() -> List[Dict[str, Any]]:
                     },
                     "fields": {
                         "type": "object",
-                        "description": "Fields to update. Feature: name, category, overview, priority_group, is_mvp. Persona: name, role, goals, pain_points. VP Step: name, actor, pain_description, benefit_description, time_minutes. Stakeholder: name, stakeholder_type, email, role, influence_level. Data Entity: name, entity_type, fields. Workflow: name, description.",
+                        "description": "Fields to update. Feature: name, category, overview, priority_group, is_mvp. Persona: name, role, goals, pain_points. VP Step: name, actor, pain_description, benefit_description, time_minutes. Stakeholder: name, stakeholder_type, email, role, influence_level. Data Entity: name, entity_type, fields. Workflow: name, description. Business Driver: description, measurement, timeframe, priority, driver_type.",
                     },
                 },
                 "required": ["entity_type", "entity_id", "fields"],
@@ -452,7 +460,7 @@ def get_tool_definitions() -> List[Dict[str, Any]]:
         },
         {
             "name": "delete_entity",
-            "description": "Delete an entity by ID. Supports features, personas, workflow steps, stakeholders, data entities, and workflows. Use when the user asks to remove/delete something. Always confirm what was deleted by name.",
+            "description": "Delete an entity by ID. Supports features, personas, workflow steps, stakeholders, data entities, workflows, and business drivers (goals, pain points, KPIs). Use when the user asks to remove/delete something. Always confirm what was deleted by name.",
             "input_schema": {
                 "type": "object",
                 "properties": {
@@ -465,6 +473,7 @@ def get_tool_definitions() -> List[Dict[str, Any]]:
                             "stakeholder",
                             "data_entity",
                             "workflow",
+                            "business_driver",
                         ],
                     },
                     "entity_id": {
@@ -1295,6 +1304,27 @@ async def _list_entities(project_id: UUID, params: Dict[str, Any]) -> Dict[str, 
                     "id": r["id"], "name": r.get("name", "?"),
                     "type": r.get("workflow_type"),
                     "description": desc + ("..." if len(r.get("description") or "") > 150 else ""),
+                })
+
+        elif entity_type == "business_driver":
+            from app.db.business_drivers import list_business_drivers
+            driver_type_filter = params.get("driver_type")  # optional: "goal", "pain", "kpi"
+            rows = list_business_drivers(project_id, driver_type=driver_type_filter)
+            if filter_mode == "confirmed":
+                rows = [r for r in rows if r.get("confirmation_status") in ("confirmed_client", "confirmed_consultant")]
+            elif filter_mode == "draft":
+                rows = [r for r in rows if r.get("confirmation_status") == "ai_generated"]
+            items = []
+            for r in rows:
+                desc = (r.get("description") or "")[:150]
+                items.append({
+                    "id": r["id"],
+                    "description": desc + ("..." if len(r.get("description") or "") > 150 else ""),
+                    "driver_type": r.get("driver_type"),
+                    "priority": r.get("priority"),
+                    "measurement": r.get("measurement"),
+                    "timeframe": r.get("timeframe"),
+                    "status": r.get("confirmation_status"),
                 })
 
         else:
@@ -2742,6 +2772,8 @@ async def _create_entity(project_id: UUID, params: Dict[str, Any]) -> Dict[str, 
             return await _create_data_entity_entity(project_id, name, fields)
         elif entity_type == "workflow":
             return await _create_workflow_entity(project_id, name, fields)
+        elif entity_type == "business_driver":
+            return await _create_business_driver_entity(project_id, name, fields)
         else:
             return {"success": False, "error": f"Unsupported entity type: {entity_type}"}
 
@@ -2790,6 +2822,8 @@ async def _update_entity(project_id: UUID, params: Dict[str, Any]) -> Dict[str, 
             return await _update_data_entity_entity(eid, fields)
         elif entity_type == "workflow":
             return await _update_workflow_entity(eid, fields)
+        elif entity_type == "business_driver":
+            return await _update_business_driver_entity(eid, project_id, fields)
         else:
             return {"success": False, "error": f"Unsupported entity type: {entity_type}"}
 
@@ -2841,6 +2875,24 @@ async def _delete_entity(project_id: UUID, params: Dict[str, Any]) -> Dict[str, 
                 "success": True,
                 "message": f"Deleted persona: {entity_name}",
                 "entity_type": "persona",
+                "entity_name": entity_name,
+            }
+
+        elif entity_type == "business_driver":
+            from app.db.business_drivers import get_business_driver, delete_business_driver
+
+            driver = get_business_driver(eid)
+            if not driver:
+                return {"success": False, "error": f"Business driver not found: {entity_id}"}
+
+            entity_name = driver.get("description", "Unknown")[:80]
+            driver_type = driver.get("driver_type", "driver")
+            delete_business_driver(eid, project_id)
+
+            return {
+                "success": True,
+                "message": f"Deleted {driver_type}: {entity_name}",
+                "entity_type": "business_driver",
                 "entity_name": entity_name,
             }
 
@@ -3194,6 +3246,63 @@ async def _update_workflow_entity(entity_id: UUID, fields: dict) -> Dict[str, An
         "entity_type": "workflow",
         "entity_id": str(entity_id),
         "message": f"Updated workflow **{workflow.get('name', '')}**: {changed}",
+    }
+
+
+# --- Business Driver ---
+
+
+async def _create_business_driver_entity(project_id: UUID, description: str, fields: dict) -> Dict[str, Any]:
+    """Create a business driver (goal, pain point, or KPI)."""
+    from app.db.business_drivers import create_business_driver
+
+    driver_type = fields.get("driver_type", "goal")
+    if driver_type not in ("goal", "pain", "kpi"):
+        return {"success": False, "error": f"Invalid driver_type: {driver_type}. Must be goal, pain, or kpi."}
+
+    driver = create_business_driver(
+        project_id=project_id,
+        driver_type=driver_type,
+        description=description,
+        measurement=fields.get("measurement"),
+        timeframe=fields.get("timeframe"),
+        priority=fields.get("priority", 3),
+    )
+
+    type_label = {"goal": "goal", "pain": "pain point", "kpi": "KPI"}.get(driver_type, driver_type)
+    return {
+        "success": True,
+        "entity_type": "business_driver",
+        "entity_id": driver["id"],
+        "message": f"Created {type_label}: **{description[:80]}**",
+    }
+
+
+async def _update_business_driver_entity(entity_id: UUID, project_id: UUID, fields: dict) -> Dict[str, Any]:
+    """Update a business driver (goal, pain point, or KPI)."""
+    from app.db.business_drivers import update_business_driver, get_business_driver
+
+    ALLOWED = {"description", "measurement", "timeframe", "priority", "driver_type",
+               "severity", "frequency", "affected_users", "business_impact", "current_workaround",
+               "goal_timeframe", "success_criteria", "dependencies", "owner",
+               "baseline_value", "target_value", "measurement_method", "tracking_frequency",
+               "data_source", "responsible_team"}
+    updates = {k: v for k, v in fields.items() if k in ALLOWED}
+
+    if not updates:
+        return {"success": False, "error": f"No valid fields. Allowed: {', '.join(sorted(ALLOWED))}"}
+
+    driver = update_business_driver(entity_id, project_id, **updates)
+    if not driver:
+        return {"success": False, "error": f"Business driver not found: {entity_id}"}
+
+    changed = ", ".join(updates.keys())
+    desc = driver.get("description", "")[:60]
+    return {
+        "success": True,
+        "entity_type": "business_driver",
+        "entity_id": str(entity_id),
+        "message": f"Updated {driver.get('driver_type', 'driver')} **{desc}**: {changed}",
     }
 
 
