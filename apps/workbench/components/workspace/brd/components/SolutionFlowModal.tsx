@@ -51,6 +51,7 @@ export function SolutionFlowModal({
   const [loading, setLoading] = useState(true)
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [readiness, setReadiness] = useState<SolutionFlowReadiness | null>(null)
+  const [highlightFields, setHighlightFields] = useState<string[] | null>(null)
   const stepCache = useRef<Map<string, StepDetail>>(new Map())
 
   // Load flow data + readiness check
@@ -197,6 +198,12 @@ export function SolutionFlowModal({
           stepCache.current.set(selectedStepId, detail)
         } else {
           refreshStepDetail(selectedStepId)
+        }
+        // Flash updated fields in detail panel
+        const fields = result?.updated_fields as string[] | undefined
+        if (fields?.length) {
+          setHighlightFields(fields)
+          setTimeout(() => setHighlightFields(null), 2500)
         }
         refreshFlow()
         break
@@ -424,6 +431,7 @@ export function SolutionFlowModal({
                     projectId={projectId}
                     prevStepTitle={prevStepTitle}
                     nextStepTitle={nextStepTitle}
+                    highlightFields={highlightFields}
                   />
                 ) : (
                   <div className="flex-1 flex items-center justify-center h-full text-sm text-[#999999]">

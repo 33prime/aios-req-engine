@@ -58,8 +58,8 @@ module.exports = {
           to: { transform: 'translateX(0)' },
         },
         typing: {
-          '0%, 60%, 100%': { opacity: '0.3', transform: 'scale(0.8)' },
-          '30%': { opacity: '1', transform: 'scale(1)' },
+          '0%, 60%, 100%': { transform: 'translateY(0)' },
+          '30%': { transform: 'translateY(-4px)' },
         },
       },
       animation: {

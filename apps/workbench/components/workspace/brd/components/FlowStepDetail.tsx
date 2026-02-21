@@ -70,6 +70,17 @@ interface EvidenceFile {
   status: string
 }
 
+// Map updated field names → which tab they belong to
+const FIELD_TAB_MAP: Record<string, TabId> = {
+  ai_config: 'ai',
+  success_criteria: 'success',
+  pain_points_addressed: 'success',
+  goals_addressed: 'success',
+  linked_feature_ids: 'success',
+  linked_workflow_ids: 'success',
+  linked_data_entity_ids: 'success',
+}
+
 interface FlowStepDetailProps {
   step: StepDetail | null
   loading: boolean
@@ -79,6 +90,7 @@ interface FlowStepDetailProps {
   projectId: string
   prevStepTitle?: string
   nextStepTitle?: string
+  highlightFields?: string[] | null
 }
 
 // ─── CSS animations (injected once) ─────────────────────────────────────────
@@ -91,13 +103,18 @@ const ANIMATION_STYLES = `
   0% { background-color: rgba(63, 175, 122, 0.15); }
   100% { background-color: transparent; }
 }
+@keyframes highlightFlash {
+  0% { box-shadow: 0 0 0 2px rgba(63, 175, 122, 0.5); }
+  100% { box-shadow: 0 0 0 2px transparent; }
+}
 .animate-slideInLeft { animation: slideInLeft 0.4s ease-out; }
 .animate-pulseGreen { animation: pulseGreen 2.5s ease-out; }
+.animate-highlightFlash { animation: highlightFlash 2.5s ease-out; border-radius: 12px; }
 `
 
 type TabId = 'experience' | 'success' | 'ai' | 'history'
 
-export function FlowStepDetail({ step, loading, onConfirm, onNeedsReview, entityLookup, projectId, prevStepTitle, nextStepTitle }: FlowStepDetailProps) {
+export function FlowStepDetail({ step, loading, onConfirm, onNeedsReview, entityLookup, projectId, prevStepTitle, nextStepTitle, highlightFields }: FlowStepDetailProps) {
   const [evidenceFiles, setEvidenceFiles] = useState<EvidenceFile[]>([])
   const [activeTab, setActiveTab] = useState<TabId>('experience')
   const [revisions, setRevisions] = useState<RevisionEntry[]>([])
@@ -193,6 +210,20 @@ export function FlowStepDetail({ step, loading, onConfirm, onNeedsReview, entity
     setActiveTab('experience')
     setDataFieldsExpanded(false)
   }, [step?.id])
+
+  // Auto-switch tab when highlightFields arrives from chat tool completion
+  useEffect(() => {
+    if (!highlightFields?.length) return
+    // Find which tab the first updated field belongs to (default: experience)
+    for (const field of highlightFields) {
+      const tab = FIELD_TAB_MAP[field]
+      if (tab) {
+        setActiveTab(tab)
+        return
+      }
+    }
+    setActiveTab('experience')
+  }, [highlightFields])
 
   if (loading) {
     return (
@@ -332,15 +363,17 @@ export function FlowStepDetail({ step, loading, onConfirm, onNeedsReview, entity
           nextStepTitle={nextStepTitle}
           dataFieldsExpanded={dataFieldsExpanded}
           setDataFieldsExpanded={setDataFieldsExpanded}
+          highlightFields={highlightFields}
         />
       ) : activeTab === 'success' ? (
         <SuccessTab
           step={step}
           linkedEntities={linkedEntities}
           changedFields={changedFields}
+          highlightFields={highlightFields}
         />
       ) : activeTab === 'ai' ? (
-        <AITab step={step} changedFields={changedFields} />
+        <AITab step={step} changedFields={changedFields} highlightFields={highlightFields} />
       ) : (
         <HistoryTimeline revisions={revisions} loading={revisionsLoading} />
       )}
@@ -366,6 +399,7 @@ function ExperienceTab({
   nextStepTitle,
   dataFieldsExpanded,
   setDataFieldsExpanded,
+  highlightFields,
 }: {
   step: StepDetail
   infoFields: InformationField[]
@@ -382,12 +416,14 @@ function ExperienceTab({
   nextStepTitle?: string
   dataFieldsExpanded: boolean
   setDataFieldsExpanded: (v: boolean) => void
+  highlightFields?: string[] | null
 }) {
+  const hlSet = new Set(highlightFields || [])
   return (
     <>
       {/* Goal box */}
       <div className={`bg-[#0A1E2F] rounded-xl p-4 transition-all duration-700 ${
-        changedFields.has('goal') ? 'ring-2 ring-[#3FAF7A]/30' : ''
+        changedFields.has('goal') || hlSet.has('goal') ? 'animate-highlightFlash' : ''
       }${step.confidence_impact && step.confidence_impact > 0 ? ' ring-2 ring-[#C4A97D]/50' : ''}`}>
         <div className="flex items-center justify-between mb-1">
           <div className="text-[10px] uppercase tracking-wider text-white/50">Goal</div>
@@ -421,7 +457,7 @@ function ExperienceTab({
           {/* Mock data narrative as featured block */}
           {step.mock_data_narrative && (
             <div className={`bg-[#F8F6F0] border border-[#E8E4D8] rounded-xl p-4 mb-4 transition-all duration-700 ${
-              changedFields.has('narrative') ? 'ring-2 ring-[#3FAF7A]/30' : ''
+              changedFields.has('narrative') || hlSet.has('mock_data_narrative') ? 'animate-highlightFlash' : ''
             }`}>
               <p className="text-[13px] text-[#555555] leading-relaxed italic">
                 {step.mock_data_narrative}
@@ -532,7 +568,7 @@ function ExperienceTab({
 
       {/* Things to Explore — reframed open questions */}
       {openQuestions.length > 0 && (
-        <div className={changedFields.has('questions') ? 'animate-pulseGreen rounded-xl' : ''}>
+        <div className={changedFields.has('questions') || hlSet.has('open_questions') ? 'animate-highlightFlash' : ''}>
           <h3 className="text-[11px] font-semibold uppercase tracking-wider text-[#999999] mb-2">
             Things to Explore ({openQuestions.length})
           </h3>
@@ -693,11 +729,14 @@ function SuccessTab({
   step,
   linkedEntities,
   changedFields,
+  highlightFields,
 }: {
   step: StepDetail
   linkedEntities: { type: string; id: string; name: string }[]
   changedFields: Set<string>
+  highlightFields?: string[] | null
 }) {
+  const hlSet = new Set(highlightFields || [])
   const painPoints = (step.pain_points_addressed || []).map(pp =>
     typeof pp === 'string' ? { text: pp } : pp
   )
@@ -720,7 +759,7 @@ function SuccessTab({
     <>
       {/* Solves For — pain points */}
       {painPoints.length > 0 && (
-        <div className={changedFields.has('pain_points') ? 'animate-pulseGreen rounded-xl' : ''}>
+        <div className={changedFields.has('pain_points') || hlSet.has('pain_points_addressed') ? 'animate-highlightFlash' : ''}>
           <h3 className="text-[11px] font-semibold uppercase tracking-wider text-[#999999] mb-2">
             Solves For
           </h3>
@@ -750,7 +789,7 @@ function SuccessTab({
 
       {/* Achieves — goals */}
       {goals.length > 0 && (
-        <div className={changedFields.has('goals_addressed') ? 'animate-pulseGreen rounded-xl' : ''}>
+        <div className={changedFields.has('goals_addressed') || hlSet.has('goals_addressed') ? 'animate-highlightFlash' : ''}>
           <h3 className="text-[11px] font-semibold uppercase tracking-wider text-[#999999] mb-2">
             Achieves
           </h3>
@@ -770,7 +809,7 @@ function SuccessTab({
 
       {/* What Makes This Step Successful — criteria */}
       {criteria.length > 0 && (
-        <div className={changedFields.has('success_criteria') ? 'animate-pulseGreen rounded-xl' : ''}>
+        <div className={changedFields.has('success_criteria') || hlSet.has('success_criteria') ? 'animate-highlightFlash' : ''}>
           <h3 className="text-[11px] font-semibold uppercase tracking-wider text-[#999999] mb-2">
             What Makes This Step Successful
           </h3>
@@ -820,10 +859,13 @@ function SuccessTab({
 function AITab({
   step,
   changedFields,
+  highlightFields,
 }: {
   step: StepDetail
   changedFields: Set<string>
+  highlightFields?: string[] | null
 }) {
+  const hlSet = new Set(highlightFields || [])
   const aiConfig = step.ai_config
 
   if (!aiConfig) {
@@ -844,7 +886,7 @@ function AITab({
   const role = aiConfig.role || aiConfig.ai_role
 
   return (
-    <div className={`space-y-5 ${changedFields.has('ai_config') ? 'animate-pulseGreen rounded-xl' : ''}`}>
+    <div className={`space-y-5 ${changedFields.has('ai_config') || hlSet.has('ai_config') ? 'animate-highlightFlash' : ''}`}>
       {/* Role */}
       <div>
         <h3 className="text-[11px] font-semibold uppercase tracking-wider text-[#999999] mb-2">

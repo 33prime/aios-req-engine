@@ -75,7 +75,12 @@ export function FlowStepChat({
 
   // Reset state when step changes
   useEffect(() => {
-    processedToolCountRef.current = 0
+    // Don't reset to 0 — old messages still exist with old tool calls.
+    // Set to current count to skip all prior completions.
+    const allToolCalls = messages.flatMap(m =>
+      m.role === 'assistant' ? (m.toolCalls || []) : []
+    )
+    processedToolCountRef.current = allToolCalls.length
     setSolvingQuestion(null)
     setResolvedFlash(false)
     setQuestionListOpen(false)
@@ -440,6 +445,32 @@ function MessageBubble({ message, isStreaming }: { message: ChatMessage; isStrea
 // Inline Tool Result Cards
 // =============================================================================
 
+const FIELD_LABELS: Record<string, string> = {
+  ai_config: 'AI configuration',
+  goal: 'goal',
+  title: 'title',
+  actors: 'actors',
+  phase: 'phase',
+  information_fields: 'information fields',
+  open_questions: 'open questions',
+  implied_pattern: 'implied pattern',
+  success_criteria: 'success criteria',
+  pain_points_addressed: 'pain points',
+  goals_addressed: 'goals addressed',
+  mock_data_narrative: 'preview narrative',
+  linked_feature_ids: 'linked features',
+  linked_workflow_ids: 'linked workflows',
+  linked_data_entity_ids: 'linked data entities',
+}
+
+function formatFieldLabels(fields: string[]): string {
+  const labels = fields.map((f: string) => FIELD_LABELS[f] || f.replace(/_/g, ' '))
+  if (labels.length === 0) return ''
+  if (labels.length === 1) return labels[0]
+  if (labels.length === 2) return `${labels[0]} and ${labels[1]}`
+  return `${labels.slice(0, -1).join(', ')}, and ${labels[labels.length - 1]}`
+}
+
 function ToolResultCard({ toolName, result }: { toolName: string; result?: any }) {
   if (!result?.success) return null
 
@@ -458,7 +489,7 @@ function ToolResultCard({ toolName, result }: { toolName: string; result?: any }
       return (
         <div className="mt-2 rounded-lg border-l-[3px] border-[#3FAF7A] bg-[#F0FFF4] px-3 py-2 text-[12px]">
           <div className="flex items-center gap-1.5 font-medium text-[#25785A]">
-            <CheckCircle2 className="w-3.5 h-3.5" /> Updated: {(result.updated_fields || []).join(', ')}
+            <CheckCircle2 className="w-3.5 h-3.5" /> Updated {formatFieldLabels(result.updated_fields || [])}
           </div>
         </div>
       )
