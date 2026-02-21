@@ -53,6 +53,8 @@ export function SolutionFlowModal({
   const [readiness, setReadiness] = useState<SolutionFlowReadiness | null>(null)
   const [highlightFields, setHighlightFields] = useState<string[] | null>(null)
   const stepCache = useRef<Map<string, StepDetail>>(new Map())
+  const selectedStepIdRef = useRef(selectedStepId)
+  selectedStepIdRef.current = selectedStepId
 
   // Load flow data + readiness check
   const loadFlow = useCallback(async () => {
@@ -64,8 +66,8 @@ export function SolutionFlowModal({
       ])
       setFlow(data)
       setReadiness(readinessData)
-      // Auto-select first step
-      if (data.steps?.length > 0 && !selectedStepId) {
+      // Auto-select first step only if nothing selected yet
+      if (data.steps?.length > 0 && !selectedStepIdRef.current) {
         setSelectedStepId(data.steps[0].id)
       }
     } catch (err) {
@@ -73,7 +75,7 @@ export function SolutionFlowModal({
     } finally {
       setLoading(false)
     }
-  }, [projectId, selectedStepId])
+  }, [projectId])
 
   useEffect(() => {
     if (isOpen) loadFlow()
