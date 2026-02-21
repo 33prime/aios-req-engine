@@ -35,7 +35,8 @@ META_TAG_TOOL = {
                     "enum": [
                         "feature", "persona", "workflow", "constraint",
                         "stakeholder", "business_driver", "data_entity",
-                        "competitor", "vp_step",
+                        "competitor", "vp_step", "solution_flow_step",
+                        "unlock", "prototype_feedback",
                     ],
                 },
                 "description": "Which BRD entity types are discussed in this chunk.",

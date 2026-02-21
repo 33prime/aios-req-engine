@@ -4492,6 +4492,17 @@ async def batch_confirm_entities(
         except Exception as e:
             logger.warning(f"Solution flow cascade failed: {e}")
 
+        # Record confirmation events as memory facts
+        try:
+            from app.core.confirmation_signals import record_batch_confirmation_signals
+            record_batch_confirmation_signals(
+                project_id=project_id,
+                entities=[r for r in filtered if r["entity_id"] in confirmed_ids],
+                confirmation_status="confirmed_consultant",
+            )
+        except Exception:
+            pass  # Fire-and-forget
+
     return BatchConfirmResponse(
         confirmed_count=len(confirmed_ids),
         entity_ids=confirmed_ids,
@@ -4603,3 +4614,122 @@ async def get_project_settings(project_id: UUID) -> ProjectSettingsResponse:
     return ProjectSettingsResponse(
         auto_confirm_extractions=resp.data[0].get("auto_confirm_extractions", False),
     )
+
+
+# =============================================================================
+# Confirmation Clustering
+# =============================================================================
+
+
+@router.get("/confirmation-clusters")
+async def get_confirmation_clusters(
+    project_id: UUID,
+    min_size: int = 2,
+    max_clusters: int = 8,
+):
+    """Get thematic clusters of unconfirmed entities for bulk action.
+
+    Groups ai_generated entities across types by semantic similarity,
+    enabling consultants to confirm/escalate related entities together.
+    """
+    from app.core.confirmation_clustering import build_confirmation_clusters
+
+    clusters = build_confirmation_clusters(
+        project_id,
+        min_cluster_size=min_size,
+        max_clusters=max_clusters,
+    )
+    return {"clusters": clusters, "total": len(clusters)}
+
+
+@router.post("/confirmation-clusters/confirm")
+async def confirm_cluster(project_id: UUID, body: dict):
+    """Batch-confirm all entities in a cluster.
+
+    Body: {entity_ids: [{entity_id, entity_type}], confirmation_status: "confirmed_consultant"}
+    """
+    entities = body.get("entities", [])
+    status = body.get("confirmation_status", "confirmed_consultant")
+
+    if not entities:
+        raise HTTPException(status_code=400, detail="No entities provided")
+
+    client = get_client()
+    updated = 0
+
+    # Group by type for efficient batch updates
+    by_type: dict[str, list[str]] = {}
+    for e in entities:
+        etype = e.get("entity_type", "")
+        eid = e.get("entity_id", "")
+        if etype and eid:
+            by_type.setdefault(etype, []).append(eid)
+
+    table_map = {
+        "feature": "features",
+        "persona": "personas",
+        "workflow": "workflows",
+        "data_entity": "data_entities",
+        "business_driver": "business_drivers",
+        "constraint": "constraints",
+        "stakeholder": "stakeholders",
+    }
+
+    for etype, eids in by_type.items():
+        table = table_map.get(etype)
+        if not table:
+            continue
+
+        try:
+            result = (
+                client.table(table)
+                .update({"confirmation_status": status})
+                .in_("id", eids)
+                .execute()
+            )
+            updated += len(result.data or [])
+        except Exception as e:
+            logger.warning(f"Cluster confirm failed for {etype}: {e}")
+
+    # Cascade to solution flow steps + auto-resolve questions
+    if updated > 0:
+        try:
+            all_ids = [e["entity_id"] for e in entities if e.get("entity_id")]
+            from app.db.solution_flow import flag_steps_with_updates
+            flag_steps_with_updates(project_id, all_ids)
+        except Exception:
+            pass  # Fire-and-forget
+
+        # Check if confirmed entities resolve any open questions
+        try:
+            from app.core.question_auto_resolver import check_confirmation_resolves_questions
+            # Use first confirmed entity as representative for question check
+            for etype, eids in by_type.items():
+                if not eids:
+                    continue
+                table = table_map.get(etype)
+                if not table:
+                    continue
+                row = client.table(table).select("*").eq("id", eids[0]).maybe_single().execute()
+                if row.data:
+                    import asyncio
+                    asyncio.ensure_future(
+                        check_confirmation_resolves_questions(project_id, etype, row.data)
+                    )
+                break  # One representative check is enough
+        except Exception:
+            pass  # Fire-and-forget
+
+    # Record confirmation events as memory facts
+    if updated > 0:
+        try:
+            from app.core.confirmation_signals import record_batch_confirmation_signals
+            record_batch_confirmation_signals(
+                project_id=project_id,
+                entities=entities,
+                confirmation_status=status,
+            )
+        except Exception:
+            pass  # Fire-and-forget
+
+    return {"updated_count": updated, "confirmation_status": status}

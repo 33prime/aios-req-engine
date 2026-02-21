@@ -299,3 +299,37 @@ export interface ReviewMode {
   routeFeatureMap: RouteFeatureMap
   isFrameReady: boolean
 }
+
+// === Convergence Tracking ===
+
+export interface FeatureConvergence {
+  feature_id: string | null
+  feature_name: string
+  consultant_verdict: string | null
+  client_verdict: string | null
+  aligned: boolean
+  consultant_score: number
+  client_score: number
+  delta: number
+  questions_total: number
+  questions_answered: number
+}
+
+export interface ConvergenceSnapshot {
+  prototype_id: string
+  total_features: number
+  features_with_verdicts: number
+  alignment_rate: number
+  average_score: number
+  consultant_avg: number
+  client_avg: number
+  trend: 'improving' | 'declining' | 'stable' | 'insufficient_data'
+  feedback_total: number
+  feedback_concerns: number
+  feedback_resolution_rate: number
+  questions_total: number
+  questions_answered: number
+  question_coverage: number
+  sessions_completed: number
+  per_feature: FeatureConvergence[]
+}

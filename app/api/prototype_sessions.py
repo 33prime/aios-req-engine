@@ -569,6 +569,15 @@ async def complete_client_review_endpoint(session_id: UUID, token: str) -> dict:
 
         update_session(session_id, status="client_complete", client_completed_at="now()")
 
+        # Auto-compute and save convergence snapshot
+        try:
+            from app.core.convergence_tracker import compute_convergence, save_convergence_snapshot
+            prototype_id = UUID(session["prototype_id"])
+            snapshot = compute_convergence(prototype_id)
+            save_convergence_snapshot(session_id, snapshot)
+        except Exception as conv_err:
+            logger.warning(f"Convergence snapshot failed (non-fatal): {conv_err}")
+
         return {"session_id": str(session_id), "status": "client_complete"}
 
     except HTTPException:
@@ -630,6 +639,15 @@ async def update_code_endpoint(session_id: UUID) -> dict:
             completed_at="now()",
         )
 
+        # Auto-compute and save convergence snapshot
+        try:
+            from app.core.convergence_tracker import compute_convergence, save_convergence_snapshot
+            prototype_id_uuid = UUID(prototype["id"])
+            snapshot = compute_convergence(prototype_id_uuid)
+            save_convergence_snapshot(session_id, snapshot)
+        except Exception as conv_err:
+            logger.warning(f"Convergence snapshot failed (non-fatal): {conv_err}")
+
         # Push changes
         try:
             git.push(prototype["local_path"], branch_name)
@@ -649,3 +667,40 @@ async def update_code_endpoint(session_id: UUID) -> dict:
     except Exception as e:
         logger.exception(f"Failed to update code for session {session_id}")
         raise HTTPException(status_code=500, detail="Failed to update code")
+
+
+# =============================================================================
+# Convergence Tracking
+# =============================================================================
+
+
+@router.get("/prototype-sessions/convergence/{prototype_id}")
+async def get_convergence(prototype_id: UUID):
+    """Get convergence metrics for a prototype across all sessions.
+
+    Returns alignment rate, trend, per-feature convergence detail,
+    feedback resolution rate, and question coverage.
+    """
+    from app.core.convergence_tracker import compute_convergence
+
+    snapshot = compute_convergence(prototype_id)
+    return snapshot.to_dict()
+
+
+@router.post("/prototype-sessions/{session_id}/save-convergence")
+async def save_session_convergence(session_id: UUID):
+    """Compute and persist convergence snapshot for a session.
+
+    Call after session completion to freeze metrics for trend analysis.
+    """
+    from app.core.convergence_tracker import compute_convergence, save_convergence_snapshot
+
+    session = get_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    prototype_id = UUID(session["prototype_id"])
+    snapshot = compute_convergence(prototype_id)
+    save_convergence_snapshot(session_id, snapshot)
+
+    return {"saved": True, "alignment_rate": snapshot.alignment_rate, "trend": snapshot.trend}

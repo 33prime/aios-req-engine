@@ -672,6 +672,19 @@ async def process_signal_v2(
         updates = await v2_trigger_memory(state)
         _apply_state_updates(state, updates)
 
+        # Step 9: Auto-resolve open questions from signal content (non-critical, fire-and-forget)
+        if state.raw_text and state.patches_applied > 0:
+            try:
+                from app.core.question_auto_resolver import auto_resolve_from_signal
+                await auto_resolve_from_signal(
+                    project_id=project_id,
+                    signal_content=state.raw_text,
+                    signal_id=signal_id,
+                    signal_source="v2_pipeline",
+                )
+            except Exception as qar_err:
+                logger.debug(f"[v2] Question auto-resolution failed (non-fatal): {qar_err}")
+
         result = _make_v2_result(state)
 
         logger.info(

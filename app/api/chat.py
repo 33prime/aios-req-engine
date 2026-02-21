@@ -17,6 +17,22 @@ from app.core.logging import get_logger
 from app.core.rate_limiter import check_chat_rate_limit, get_chat_rate_limit_stats
 from app.db.supabase_client import get_supabase
 
+# Page-context → entity type filtering for retrieval
+# Prioritizes relevant entity types so vector search returns focused results
+_PAGE_ENTITY_TYPES: dict[str, list[str]] = {
+    "brd:features": ["feature", "unlock"],
+    "brd:personas": ["persona"],
+    "brd:workflows": ["workflow", "workflow_step"],
+    "brd:data-entities": ["data_entity"],
+    "brd:stakeholders": ["stakeholder"],
+    "brd:constraints": ["constraint"],
+    "brd:solution-flow": ["solution_flow_step", "feature", "workflow", "unlock"],
+    "brd:business-drivers": ["business_driver"],
+    "brd:unlocks": ["unlock", "feature", "competitor"],
+    "prototype": ["prototype_feedback", "feature"],
+    # Canvas / overview pages get all types (None = no filter)
+}
+
 logger = get_logger(__name__)
 
 router = APIRouter()
@@ -206,6 +222,9 @@ async def chat_with_assistant(
                         if ename:
                             context_hint = f"User is viewing {etype}: \"{ename}\". Prioritize evidence related to this entity."
 
+                    # Page-aware entity type filtering
+                    entity_types = _PAGE_ENTITY_TYPES.get(request.page_context or "")
+
                     retrieval_result = await retrieve(
                         query=request.message,
                         project_id=str(project_id),
@@ -214,6 +233,7 @@ async def chat_with_assistant(
                         skip_reranking=is_simple,
                         evaluation_criteria="Enough context to answer the user's question",
                         context_hint=context_hint,
+                        entity_types=entity_types,
                     )
                     retrieval_context = format_retrieval_for_context(
                         retrieval_result, style="chat", max_tokens=2000

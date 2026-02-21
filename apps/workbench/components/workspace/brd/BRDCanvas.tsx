@@ -28,6 +28,7 @@ import { BusinessDriverDetailDrawer } from './components/BusinessDriverDetailDra
 import { ConfidenceDrawer } from './components/ConfidenceDrawer'
 import { OpenQuestionsPanel } from './components/OpenQuestionsPanel'
 import { ImpactPreviewModal } from './components/ImpactPreviewModal'
+import { ConfirmationClusters } from './components/ConfirmationClusters'
 import {
   getBRDWorkspaceData,
   getBRDHealth,
@@ -50,11 +51,12 @@ import {
   inferConstraints,
   listOpenQuestions,
   generateSolutionFlow,
+  getConfirmationClusters,
 } from '@/lib/api'
 import type { NextAction } from '@/lib/api'
 import { CompletenessRing } from './components/CompletenessRing'
 import { ACTION_EXECUTION_MAP } from '@/lib/action-constants'
-import type { BRDWorkspaceData, BRDHealthData, MoSCoWGroup, StakeholderBRDSummary, AutomationLevel, SectionScore, OpenQuestion } from '@/types/workspace'
+import type { BRDWorkspaceData, BRDHealthData, MoSCoWGroup, StakeholderBRDSummary, AutomationLevel, SectionScore, OpenQuestion, ConfirmationCluster } from '@/types/workspace'
 
 interface BRDCanvasProps {
   projectId: string
@@ -149,6 +151,18 @@ export function BRDCanvas({ projectId, initialData, initialNextActions, onRefres
     }
   }, [projectId])
 
+  // Confirmation Clusters
+  const [clusters, setClusters] = useState<ConfirmationCluster[]>([])
+
+  const loadClusters = useCallback(async () => {
+    try {
+      const result = await getConfirmationClusters(projectId)
+      setClusters(result.clusters)
+    } catch {
+      // Silent — clusters are supplementary
+    }
+  }, [projectId])
+
   const loadHealth = useCallback(async () => {
     try {
       setHealthLoading(true)
@@ -193,7 +207,8 @@ export function BRDCanvas({ projectId, initialData, initialNextActions, onRefres
     // Health is always loaded fresh (lightweight, not duplicated by parent)
     loadHealth()
     loadOpenQuestions()
-  }, [loadData, loadHealth, loadOpenQuestions, initialData])
+    loadClusters()
+  }, [loadData, loadHealth, loadOpenQuestions, loadClusters, initialData])
 
   // Optimistic confirm: update local state immediately, then sync
   const handleConfirm = useCallback(async (entityType: string, entityId: string) => {
@@ -1051,6 +1066,17 @@ export function BRDCanvas({ projectId, initialData, initialNextActions, onRefres
             onRefreshAll={handleRefreshHealth}
             isRefreshing={isRefreshingHealth}
           />
+
+          {/* Confirmation Clusters */}
+          {clusters.length > 0 && (
+            <div className="mb-6">
+              <ConfirmationClusters
+                projectId={projectId}
+                clusters={clusters}
+                onConfirmed={() => { loadClusters(); loadData() }}
+              />
+            </div>
+          )}
 
           {/* Open Questions (collapsed by default) */}
           <div id="brd-section-questions">

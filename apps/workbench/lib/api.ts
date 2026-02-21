@@ -3186,6 +3186,11 @@ export const triggerPrototypeCodeUpdate = (sessionId: string) =>
     summary: string
   }>(`/prototype-sessions/${sessionId}/update-code`, { method: 'POST' })
 
+export const getPrototypeConvergence = (prototypeId: string) =>
+  apiRequest<import('@/types/prototype').ConvergenceSnapshot>(
+    `/prototype-sessions/convergence/${prototypeId}`
+  )
+
 export const getPrototypeClientData = (sessionId: string, token: string) =>
   apiRequest<{
     prototype_id: string
@@ -4098,4 +4103,26 @@ export const updateProjectSettings = (
   apiRequest<{ auto_confirm_extractions: boolean }>(
     `/projects/${projectId}/workspace/settings`,
     { method: 'PATCH', body: JSON.stringify(settings) }
+  )
+
+// =============================================================================
+// Confirmation Clustering
+// =============================================================================
+
+export const getConfirmationClusters = (projectId: string) =>
+  apiRequest<{ clusters: import('@/types/workspace').ConfirmationCluster[]; total: number }>(
+    `/projects/${projectId}/workspace/confirmation-clusters`
+  )
+
+export const confirmCluster = (
+  projectId: string,
+  entities: { entity_id: string; entity_type: string }[],
+  confirmationStatus = 'confirmed_consultant',
+) =>
+  apiRequest<{ updated_count: number; confirmation_status: string }>(
+    `/projects/${projectId}/workspace/confirmation-clusters/confirm`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ entities, confirmation_status: confirmationStatus }),
+    }
   )

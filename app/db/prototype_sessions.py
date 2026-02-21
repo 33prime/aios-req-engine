@@ -139,6 +139,16 @@ def create_feedback(
         "answers_question_id": str(answers_question_id) if answers_question_id else None,
         "priority": priority,
     }
+    # Resolve project_id from session → prototype chain for embedding queries
+    try:
+        session_row = supabase.table("prototype_sessions").select("prototype_id").eq("id", str(session_id)).maybe_single().execute()
+        if session_row.data:
+            proto_row = supabase.table("prototypes").select("project_id").eq("id", session_row.data["prototype_id"]).maybe_single().execute()
+            if proto_row.data:
+                data["project_id"] = proto_row.data["project_id"]
+    except Exception:
+        pass  # Non-critical — project_id is denormalized convenience
+
     response = supabase.table("prototype_feedback").insert(data).execute()
     if not response.data:
         raise ValueError("Failed to create feedback")
@@ -146,6 +156,15 @@ def create_feedback(
     logger.info(
         f"Created feedback {feedback['id']} ({source}/{feedback_type}) in session {session_id}"
     )
+
+    # Fire-and-forget embedding
+    try:
+        from app.db.entity_embeddings import embed_entity
+        from uuid import UUID as _UUID
+        embed_entity("prototype_feedback", _UUID(feedback["id"]), feedback)
+    except Exception:
+        pass
+
     return feedback
 
 

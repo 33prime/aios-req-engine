@@ -62,8 +62,17 @@ def create_unlock(project_id: UUID, **fields: Any) -> dict[str, Any]:
 
     response = supabase.table("unlocks").insert(data).execute()
     invalidate_snapshot(project_id)
+    result = response.data[0] if response.data else data
     logger.info(f"Created unlock '{fields.get('title', '?')}' for project {project_id}")
-    return response.data[0] if response.data else data
+
+    # Fire-and-forget embedding
+    try:
+        from app.db.entity_embeddings import embed_entity
+        embed_entity("unlock", UUID(result["id"]), result)
+    except Exception:
+        pass
+
+    return result
 
 
 def update_unlock(unlock_id: UUID, project_id: UUID, **updates: Any) -> dict[str, Any] | None:
@@ -87,7 +96,17 @@ def update_unlock(unlock_id: UUID, project_id: UUID, **updates: Any) -> dict[str
         .execute()
     )
     invalidate_snapshot(project_id)
-    return response.data[0] if response.data else None
+    result = response.data[0] if response.data else None
+
+    # Re-embed on update
+    if result:
+        try:
+            from app.db.entity_embeddings import embed_entity
+            embed_entity("unlock", unlock_id, result)
+        except Exception:
+            pass
+
+    return result
 
 
 def bulk_create_unlocks(
@@ -118,8 +137,17 @@ def bulk_create_unlocks(
 
     response = supabase.table("unlocks").insert(rows).execute()
     invalidate_snapshot(project_id)
-    logger.info(f"Bulk-created {len(rows)} unlocks (batch {batch_id}) for project {project_id}")
-    return response.data or []
+    results = response.data or []
+    logger.info(f"Bulk-created {len(results)} unlocks (batch {batch_id}) for project {project_id}")
+
+    # Fire-and-forget batch embedding
+    try:
+        from app.db.entity_embeddings import embed_entities_batch
+        embed_entities_batch("unlock", results)
+    except Exception:
+        pass
+
+    return results
 
 
 def dismiss_unlock(unlock_id: UUID, project_id: UUID) -> dict[str, Any] | None:

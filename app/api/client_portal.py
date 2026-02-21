@@ -798,6 +798,22 @@ async def _create_portal_response_signal(info_request: InfoRequest, user_id: UUI
             except Exception as resolve_err:
                 logger.warning(f"Confirmation resolution check failed (non-fatal): {resolve_err}")
 
+            # Check if this resolves any open questions
+            try:
+                from app.core.question_auto_resolver import auto_resolve_from_signal
+                qar_result = await auto_resolve_from_signal(
+                    project_id=info_request.project_id,
+                    signal_content=answer_text,
+                    signal_id=signal_id,
+                    signal_source="client_portal",
+                )
+                if qar_result.get("resolved", 0) > 0:
+                    logger.info(
+                        f"Signal {signal_id} auto-resolved {qar_result['resolved']} question(s)"
+                    )
+            except Exception as qar_err:
+                logger.warning(f"Question auto-resolution failed (non-fatal): {qar_err}")
+
             # Refresh readiness cache after all processing
             try:
                 from app.core.readiness_cache import refresh_cached_readiness

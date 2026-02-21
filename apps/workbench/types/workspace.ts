@@ -717,6 +717,22 @@ export interface SolutionFlowReadiness {
   missing: string[]
 }
 
+export interface ConfirmationClusterEntity {
+  entity_id: string
+  entity_type: string
+  name: string
+  confirmation_status: string
+}
+
+export interface ConfirmationCluster {
+  cluster_id: string
+  theme: string
+  topics: string[]
+  entities: ConfirmationClusterEntity[]
+  entity_type_counts: Record<string, number>
+  total: number
+}
+
 export interface SolutionFlowOverview {
   id: string | null
   title: string
