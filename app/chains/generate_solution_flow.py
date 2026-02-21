@@ -109,8 +109,15 @@ SOLUTION_FLOW_TOOL = {
                         },
                         "pain_points_addressed": {
                             "type": "array",
-                            "items": {"type": "string"},
-                            "description": "Pain point IDs or descriptions this step alleviates",
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "text": {"type": "string"},
+                                    "persona": {"type": "string"},
+                                },
+                                "required": ["text"],
+                            },
+                            "description": "Pain points this step alleviates, each with text and optional persona",
                         },
                         "goals_addressed": {
                             "type": "array",
@@ -120,9 +127,11 @@ SOLUTION_FLOW_TOOL = {
                         "ai_config": {
                             "type": "object",
                             "properties": {
-                                "ai_role": {"type": "string"},
+                                "role": {"type": "string", "description": "What the AI does in this step"},
+                                "behaviors": {"type": "array", "items": {"type": "string"}, "description": "Specific AI behaviors"},
+                                "guardrails": {"type": "array", "items": {"type": "string"}, "description": "Constraints/limits on AI behavior"},
                                 "confidence_display": {"type": "string", "enum": ["hidden", "subtle", "prominent"]},
-                                "fallback": {"type": "string"},
+                                "fallback": {"type": "string", "description": "What happens when AI fails"},
                             },
                         },
                     },
@@ -223,7 +232,7 @@ Steps belong to one of four phases, and MUST be ordered in this sequence:
   "success_criteria": ["Average time from draft to approval under 3 minutes", "Voice match score improves by 5% over first month of edits", "User makes fewer than 3 edits per post on average after 2 weeks"],
   "linked_workflow_ids": ["wf-review-editing-id"],
   "linked_feature_ids": ["feat-editor-id", "feat-preview-id", "feat-voice-learning-id"],
-  "ai_config": {"ai_role": "Generate draft, learn from edits, predict engagement", "confidence_display": "subtle", "fallback": "Show raw draft without predictions if AI unavailable"},
+  "ai_config": {"role": "Generate draft, learn from edits, predict engagement", "behaviors": ["Generate voice-matched drafts", "Learn from inline edits", "Predict engagement scores"], "guardrails": ["Never publish without user approval", "Flag low-confidence predictions"], "confidence_display": "subtle", "fallback": "Show raw draft without predictions if AI unavailable"},
   "open_questions": [{"question": "Should edit suggestions be proactive (AI suggests changes) or reactive (AI only learns from user edits)?"}]
 }
 </example_step>

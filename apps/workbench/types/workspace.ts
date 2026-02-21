@@ -698,12 +698,15 @@ export interface SolutionFlowStepDetail extends SolutionFlowStepSummary {
   evidence_ids: string[]
   version: number
   success_criteria: string[] | null
-  pain_points_addressed: Array<{ text: string; persona?: string }> | null
+  pain_points_addressed: Array<{ text: string; persona?: string } | string> | null
   goals_addressed: string[] | null
   ai_config: {
-    role: string
-    behaviors: string[]
-    guardrails: string[]
+    role?: string
+    ai_role?: string  // legacy field name from v3 generation
+    behaviors?: string[]
+    guardrails?: string[]
+    confidence_display?: string
+    fallback?: string
   } | null
   background_narrative?: string | null
   generation_version?: number

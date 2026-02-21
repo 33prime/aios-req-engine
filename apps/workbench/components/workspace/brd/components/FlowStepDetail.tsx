@@ -698,7 +698,9 @@ function SuccessTab({
   linkedEntities: { type: string; id: string; name: string }[]
   changedFields: Set<string>
 }) {
-  const painPoints = step.pain_points_addressed || []
+  const painPoints = (step.pain_points_addressed || []).map(pp =>
+    typeof pp === 'string' ? { text: pp } : pp
+  )
   const goals = step.goals_addressed || []
   const criteria = step.success_criteria || []
 
@@ -839,6 +841,8 @@ function AITab({
     )
   }
 
+  const role = aiConfig.role || aiConfig.ai_role
+
   return (
     <div className={`space-y-5 ${changedFields.has('ai_config') ? 'animate-pulseGreen rounded-xl' : ''}`}>
       {/* Role */}
@@ -848,13 +852,13 @@ function AITab({
         </h3>
         <div className="bg-[#0A1E2F] rounded-xl p-4">
           <p className="text-sm text-white/90 leading-relaxed">
-            {aiConfig.role || 'No role defined'}
+            {role || 'No role defined'}
           </p>
         </div>
       </div>
 
       {/* Behaviors */}
-      {aiConfig.behaviors?.length > 0 && (
+      {aiConfig.behaviors && aiConfig.behaviors.length > 0 && (
         <div>
           <h3 className="text-[11px] font-semibold uppercase tracking-wider text-[#999999] mb-2">
             Behaviors
@@ -871,7 +875,7 @@ function AITab({
       )}
 
       {/* Guardrails */}
-      {aiConfig.guardrails?.length > 0 && (
+      {aiConfig.guardrails && aiConfig.guardrails.length > 0 && (
         <div>
           <h3 className="text-[11px] font-semibold uppercase tracking-wider text-[#999999] mb-2">
             Guardrails
@@ -884,6 +888,31 @@ function AITab({
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* Fallback — shown when behaviors/guardrails are empty */}
+      {aiConfig.fallback && !(aiConfig.behaviors?.length) && (
+        <div>
+          <h3 className="text-[11px] font-semibold uppercase tracking-wider text-[#999999] mb-2">
+            Fallback
+          </h3>
+          <div className="flex items-start gap-2 py-1.5 px-3 rounded-lg bg-[#F4F4F4] border border-[#E5E5E5]">
+            <Shield className="w-3.5 h-3.5 text-[#999999] shrink-0 mt-0.5" />
+            <span className="text-[13px] text-[#666666]">{aiConfig.fallback}</span>
+          </div>
+        </div>
+      )}
+
+      {/* Confidence Display */}
+      {aiConfig.confidence_display && (
+        <div className="flex items-center gap-2">
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-[#999999]">
+            Confidence Display:
+          </span>
+          <span className="text-[12px] px-2 py-0.5 rounded-full bg-[#0A1E2F]/5 text-[#0A1E2F] font-medium">
+            {aiConfig.confidence_display}
+          </span>
         </div>
       )}
     </div>

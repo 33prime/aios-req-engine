@@ -296,8 +296,22 @@ export function FlowStepChat({
         )}
 
         {messages.map((msg, i) => (
-          <MessageBubble key={msg.id || i} message={msg} />
+          <MessageBubble key={msg.id || i} message={msg} isStreaming={isLoading && i === messages.length - 1 && msg.role === 'assistant'} />
         ))}
+
+        {/* Thinking dots — shown while waiting for assistant response */}
+        {isLoading && (messages.length === 0 || messages[messages.length - 1]?.role === 'user') && (
+          <div className="flex justify-start">
+            <div className="flex items-center gap-2 px-4 py-3 bg-white border border-[#E5E5E5] rounded-2xl">
+              <div className="flex gap-[3px] items-center">
+                <div className="w-[6px] h-[6px] rounded-full bg-[#3FAF7A] animate-typing" />
+                <div className="w-[6px] h-[6px] rounded-full bg-[#3FAF7A] animate-typing [animation-delay:200ms]" />
+                <div className="w-[6px] h-[6px] rounded-full bg-[#3FAF7A] animate-typing [animation-delay:400ms]" />
+              </div>
+            </div>
+          </div>
+        )}
+
         <div ref={messagesEndRef} />
       </div>
 
@@ -389,7 +403,7 @@ export function FlowStepChat({
 // Message Bubble with Markdown + Inline Result Cards
 // =============================================================================
 
-function MessageBubble({ message }: { message: ChatMessage }) {
+function MessageBubble({ message, isStreaming }: { message: ChatMessage; isStreaming?: boolean }) {
   const isUser = message.role === 'user'
 
   const completedTools = (message.toolCalls || []).filter(tc => tc.status === 'complete')
@@ -407,7 +421,10 @@ function MessageBubble({ message }: { message: ChatMessage }) {
         {isUser ? (
           message.content
         ) : (
-          message.content && <Markdown content={message.content} className="text-[13px] leading-relaxed" />
+          <>
+            {message.content && <Markdown content={message.content} className="text-[13px] leading-relaxed" />}
+            {isStreaming && <span className="inline-block w-[5px] h-[14px] bg-[#3FAF7A] ml-0.5 animate-pulse rounded-sm" />}
+          </>
         )}
 
         {/* Inline result cards for completed mutating tools */}

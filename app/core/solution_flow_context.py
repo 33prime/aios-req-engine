@@ -116,6 +116,9 @@ def _build_focused_step(
     """Layer 2: Full detail of the selected step, ~300 tokens."""
     parts: list[str] = []
 
+    # Step ID — critical for tool calls
+    parts.append(f"Step ID: {step.get('id', '?')}")
+
     # Basic info
     parts.append(f"Title: {step.get('title', '?')}")
     parts.append(f"Phase: {step.get('phase', '?')}")

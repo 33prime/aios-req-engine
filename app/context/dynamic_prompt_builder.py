@@ -69,7 +69,7 @@ PAGE_TOOL_GUIDANCE = {
     "brd:questions": "User is viewing open questions. Help resolve or clarify outstanding questions about the project.",
     "prototype": "User is viewing the prototype. Focus on prototype feedback, feature comparison to BRD, and creating refinement tasks.",
     "overview": "User is on the overview. Be strategic and broad — summarize health, recommend focus areas, highlight gaps.",
-    "brd:solution-flow": """User is viewing the Solution Flow — the goal-oriented journey through the application. You can update step goals, add/remove information fields, resolve open questions, add new steps, reorder the flow, and change implied patterns. When the user mentions 'this step', refer to the currently selected step in context. The step ID is available in the "Currently Viewing" section — use it directly, never search for it.
+    "brd:solution-flow": """User is viewing the Solution Flow — the goal-oriented journey through the application. You can update step goals, add/remove information fields, resolve open questions, add new steps, reorder the flow, and change implied patterns. When the user mentions 'this step', refer to the currently selected step in context. The step ID is in the "Currently Viewing" section — use it directly in tool calls, never ask the user for it.
 
 ## ABSOLUTE RULE: Zero Narration
 You must NEVER write ANY text before your tool calls complete. Do NOT write:
@@ -243,25 +243,31 @@ def build_smart_chat_prompt(
         if guidance:
             sections.append(f"# Page-Specific Guidance\n{guidance}")
 
-    # 8. Focused entity (skip when solution flow context provides richer step detail)
-    if focused_entity and not (solution_flow_context and solution_flow_context.focused_step_prompt):
+    # 8. Focused entity — split into IDENTITY (always emitted) and DETAIL (can be overridden)
+    if focused_entity:
         etype = focused_entity.get("type", "entity")
         edata = focused_entity.get("data", {})
-        ename = edata.get("title") or edata.get("name") or edata.get("question", "")
         eid = edata.get("id", "")
-        egoal = edata.get("goal", "")
-        if ename:
-            entity_lines = [f'{etype}: "{ename}"']
-            if eid:
-                entity_lines.append(f"ID: {eid}")
-            if egoal:
-                entity_lines.append(f"Goal: {egoal}")
-            entity_lines.append("Prioritize this entity in your responses.")
+        ename = edata.get("title") or edata.get("name") or edata.get("question", "")
+
+        # 8a. Identity — ALWAYS emitted. Tools need this for every call.
+        if eid:
             sections.append(
-                "# Currently Viewing\n" + "\n".join(entity_lines)
+                f"# Currently Viewing\n{etype}: {eid}"
+                + (f' ("{ename}")' if ename else "")
             )
 
-    # 8b. Solution Flow context (supersedes generic "Currently Viewing" for flow pages)
+        # 8b. Generic detail — only when no specialized context overrides it
+        if not (solution_flow_context and solution_flow_context.focused_step_prompt):
+            egoal = edata.get("goal", "")
+            if ename:
+                detail_lines = []
+                if egoal:
+                    detail_lines.append(f"Goal: {egoal}")
+                detail_lines.append("Prioritize this entity in your responses.")
+                sections.append("\n".join(detail_lines))
+
+    # 8c. Solution Flow context (specialized detail — augments identity above)
     if solution_flow_context:
         if solution_flow_context.flow_summary_prompt:
             sections.append(f"# Solution Flow Overview\n{solution_flow_context.flow_summary_prompt}")
