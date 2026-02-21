@@ -368,6 +368,7 @@ export function SolutionFlowModal({
                     projectId={projectId}
                     stepId={selectedStep.id}
                     stepTitle={selectedStep.title}
+                    stepGoal={stepDetail?.goal || selectedStep.goal}
                     openQuestions={openQuestions}
                     onToolResult={handleToolResult}
                   />

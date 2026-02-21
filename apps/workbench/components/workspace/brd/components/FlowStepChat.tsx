@@ -36,6 +36,7 @@ interface FlowStepChatProps {
   projectId: string
   stepId: string
   stepTitle: string
+  stepGoal?: string
   openQuestions?: FlowOpenQuestion[]
   onToolResult?: (toolName: string, result: any) => void
 }
@@ -44,6 +45,7 @@ export function FlowStepChat({
   projectId,
   stepId,
   stepTitle,
+  stepGoal,
   openQuestions = [],
   onToolResult,
 }: FlowStepChatProps) {
@@ -67,7 +69,7 @@ export function FlowStepChat({
     pageContext: 'brd:solution-flow',
     focusedEntity: {
       type: 'solution_flow_step',
-      data: { id: stepId, title: stepTitle },
+      data: { id: stepId, title: stepTitle, ...(stepGoal ? { goal: stepGoal } : {}) },
     },
   })
 

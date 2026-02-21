@@ -162,6 +162,17 @@ async def chat_with_assistant(
                     from app.core.retrieval_format import format_retrieval_for_context
 
                     is_simple = len(request.message.split()) < 8 and "?" not in request.message
+
+                    # Build context hint from focused entity (enriches vector search)
+                    context_hint = None
+                    if request.focused_entity:
+                        fe = request.focused_entity
+                        etype = fe.get("type", "")
+                        edata = fe.get("data", {})
+                        ename = edata.get("title") or edata.get("name") or ""
+                        if ename:
+                            context_hint = f"User is viewing {etype}: \"{ename}\". Prioritize evidence related to this entity."
+
                     retrieval_result = await retrieve(
                         query=request.message,
                         project_id=str(project_id),
@@ -169,6 +180,7 @@ async def chat_with_assistant(
                         skip_decomposition=is_simple,
                         skip_reranking=is_simple,
                         evaluation_criteria="Enough context to answer the user's question",
+                        context_hint=context_hint,
                     )
                     retrieval_context = format_retrieval_for_context(
                         retrieval_result, style="chat", max_tokens=2000

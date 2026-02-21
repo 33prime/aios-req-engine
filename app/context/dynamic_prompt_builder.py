@@ -247,9 +247,17 @@ def build_smart_chat_prompt(
         etype = focused_entity.get("type", "entity")
         edata = focused_entity.get("data", {})
         ename = edata.get("title") or edata.get("name") or edata.get("question", "")
+        eid = edata.get("id", "")
+        egoal = edata.get("goal", "")
         if ename:
+            entity_lines = [f'{etype}: "{ename}"']
+            if eid:
+                entity_lines.append(f"ID: {eid}")
+            if egoal:
+                entity_lines.append(f"Goal: {egoal}")
+            entity_lines.append("Prioritize this entity in your responses.")
             sections.append(
-                f"# Currently Viewing\n{etype}: \"{ename}\"\nPrioritize this entity in your responses."
+                "# Currently Viewing\n" + "\n".join(entity_lines)
             )
 
     # 9. Conversation starter context
