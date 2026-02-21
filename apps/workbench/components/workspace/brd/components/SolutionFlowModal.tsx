@@ -133,8 +133,10 @@ export function SolutionFlowModal({
 
     switch (toolName) {
       case 'resolve_solution_flow_question': {
-        // Optimistic patch: mark question as resolved in local state
-        if (stepDetail && result?.answer) {
+        // Optimistic patch from step_data (instant), fallback to manual patch
+        if (result?.step_data) {
+          setStepDetail(result.step_data as StepDetail)
+        } else if (stepDetail && result?.answer) {
           setStepDetail(prev => {
             if (!prev) return prev
             const updatedQuestions = (prev.open_questions || []).map(q =>
@@ -145,13 +147,14 @@ export function SolutionFlowModal({
             return { ...prev, open_questions: updatedQuestions }
           })
         }
-        refreshStepDetail(selectedStepId)
         refreshFlow()
         break
       }
       case 'escalate_to_client': {
-        // Optimistic patch: mark question as escalated
-        if (stepDetail && result?.question) {
+        // Optimistic patch from step_data (instant), fallback to manual patch
+        if (result?.step_data) {
+          setStepDetail(result.step_data as StepDetail)
+        } else if (stepDetail && result?.question) {
           setStepDetail(prev => {
             if (!prev) return prev
             const updatedQuestions = (prev.open_questions || []).map(q =>
@@ -162,13 +165,17 @@ export function SolutionFlowModal({
             return { ...prev, open_questions: updatedQuestions }
           })
         }
-        refreshStepDetail(selectedStepId)
         refreshFlow()
         break
       }
       case 'update_solution_flow_step':
       case 'refine_solution_flow_step': {
-        refreshStepDetail(selectedStepId)
+        // Optimistic patch from step_data (instant)
+        if (result?.step_data) {
+          setStepDetail(result.step_data as StepDetail)
+        } else {
+          refreshStepDetail(selectedStepId)
+        }
         refreshFlow()
         break
       }
@@ -345,6 +352,7 @@ export function SolutionFlowModal({
                     onConfirm={onConfirm}
                     onNeedsReview={onNeedsReview}
                     entityLookup={entityLookup}
+                    projectId={projectId}
                   />
                 ) : (
                   <div className="flex-1 flex items-center justify-center h-full text-sm text-[#999999]">

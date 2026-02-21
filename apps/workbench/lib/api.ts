@@ -4036,6 +4036,11 @@ export const getSolutionFlowStep = (projectId: string, stepId: string) =>
     `/projects/${projectId}/workspace/solution-flow/steps/${stepId}`
   )
 
+export const getSolutionFlowStepRevisions = (projectId: string, stepId: string) =>
+  apiRequest<{ revisions: import('@/types/workspace').RevisionEntry[] }>(
+    `/projects/${projectId}/workspace/solution-flow/steps/${stepId}/revisions`
+  )
+
 export const updateSolutionFlowStep = (projectId: string, stepId: string, data: Record<string, unknown>) =>
   apiRequest<import('@/types/workspace').SolutionFlowStepDetail>(
     `/projects/${projectId}/workspace/solution-flow/steps/${stepId}`,

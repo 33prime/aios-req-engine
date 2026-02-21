@@ -3508,18 +3508,50 @@ async def _add_company_reference(project_id: UUID, params: Dict[str, Any]) -> Di
 
 async def _update_solution_flow_step(project_id: UUID, params: Dict[str, Any]) -> Dict[str, Any]:
     """Update fields on a solution flow step."""
-    from app.db.solution_flow import update_flow_step
+    from app.db.solution_flow import get_flow_step, update_flow_step
 
     step_id = params.pop("step_id", None)
     if not step_id:
         return {"error": "step_id is required"}
     try:
+        # Capture before-state for diff
+        before = get_flow_step(UUID(step_id))
         result = update_flow_step(UUID(step_id), params)
+
+        # Build field-level diff
+        changes = {}
+        if before:
+            for field in params:
+                old_val = before.get(field)
+                new_val = result.get(field)
+                if old_val != new_val:
+                    changes[field] = {"old": old_val, "new": new_val}
+
+        # Record revision
+        try:
+            from app.db.revisions_enrichment import insert_enrichment_revision
+            insert_enrichment_revision(
+                project_id=project_id,
+                entity_type="solution_flow_step",
+                entity_id=UUID(step_id),
+                entity_label=result.get("title", ""),
+                revision_type="updated",
+                trigger_event="chat_tool",
+                changes=changes,
+                diff_summary=f"Updated {', '.join(params.keys())}",
+                created_by="chat_assistant",
+            )
+        except Exception:
+            pass  # Don't fail the update if revision recording fails
+
+        # Re-fetch full step data for optimistic update
+        step_data = get_flow_step(UUID(step_id))
         return {
             "success": True,
             "step_id": step_id,
             "message": f"Updated step '{result.get('title', '')}'.",
             "updated_fields": list(params.keys()),
+            "step_data": step_data,
         }
     except Exception as e:
         return {"error": str(e)}
@@ -3610,10 +3642,32 @@ async def _resolve_solution_flow_question(project_id: UUID, params: Dict[str, An
             return {"error": f"Question not found: '{question_text}'"}
 
         update_flow_step(UUID(step_id), {"open_questions": questions})
+
+        # Record revision
+        try:
+            from app.db.revisions_enrichment import insert_enrichment_revision
+            insert_enrichment_revision(
+                project_id=project_id,
+                entity_type="solution_flow_step",
+                entity_id=UUID(step_id),
+                entity_label=step.get("title", ""),
+                revision_type="updated",
+                trigger_event="question_resolved",
+                changes={"question_resolved": {"question": question_text, "answer": answer}},
+                diff_summary=f"Resolved: {question_text[:80]}",
+                created_by="chat_assistant",
+            )
+        except Exception:
+            pass
+
+        # Re-fetch full step data for optimistic update
+        step_data = get_flow_step(UUID(step_id))
         return {
             "success": True,
             "message": f"Resolved question: '{question_text[:60]}...'",
             "answer": answer,
+            "question_text": question_text,
+            "step_data": step_data,
         }
     except Exception as e:
         return {"error": str(e)}
@@ -3665,12 +3719,32 @@ async def _escalate_to_client(project_id: UUID, params: Dict[str, Any]) -> Dict[
         result = supabase.table("pending_items").insert(pending_row).execute()
         pending_item_id = result.data[0]["id"] if result.data else None
 
+        # Record revision
+        try:
+            from app.db.revisions_enrichment import insert_enrichment_revision
+            insert_enrichment_revision(
+                project_id=project_id,
+                entity_type="solution_flow_step",
+                entity_id=UUID(step_id),
+                entity_label=step.get("title", ""),
+                revision_type="updated",
+                trigger_event="question_escalated",
+                changes={"question_escalated": {"question": question_text, "escalated_to": suggested_stakeholder or "client"}},
+                diff_summary=f"Escalated to {suggested_stakeholder or 'client'}: {question_text[:60]}",
+                created_by="chat_assistant",
+            )
+        except Exception:
+            pass
+
+        # Re-fetch full step data for optimistic update
+        step_data = get_flow_step(UUID(step_id))
         return {
             "success": True,
             "question": question_text,
             "escalated_to": suggested_stakeholder or "client",
             "pending_item_id": pending_item_id,
             "message": f"Escalated to {suggested_stakeholder or 'client'}: '{question_text[:50]}...'",
+            "step_data": step_data,
         }
     except Exception as e:
         return {"error": str(e)}

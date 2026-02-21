@@ -4317,6 +4317,15 @@ async def get_solution_flow_step_endpoint(project_id: UUID, step_id: UUID):
     return step
 
 
+@router.get("/solution-flow/steps/{step_id}/revisions")
+async def get_step_revisions(project_id: UUID, step_id: UUID):
+    """Get change history for a solution flow step."""
+    from app.db.revisions_enrichment import list_entity_revisions
+
+    revisions = list_entity_revisions("solution_flow_step", step_id, limit=30)
+    return {"revisions": revisions}
+
+
 @router.patch("/solution-flow/steps/{step_id}")
 async def update_solution_flow_step_endpoint(
     project_id: UUID, step_id: UUID, body: dict

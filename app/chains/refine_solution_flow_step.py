@@ -197,6 +197,33 @@ Rules:
     except Exception as e:
         return {"error": f"Failed to apply changes: {e}"}
 
+    # Record revision
+    try:
+        from app.db.revisions_enrichment import insert_enrichment_revision
+        # Build field-level diff
+        change_diff = {}
+        for field in changes:
+            old_val = step.get(field)
+            new_val = changes[field]
+            if old_val != new_val:
+                change_diff[field] = {"old": old_val, "new": new_val}
+        insert_enrichment_revision(
+            project_id=UUID(project_id),
+            entity_type="solution_flow_step",
+            entity_id=UUID(step_id),
+            entity_label=step.get("title", ""),
+            revision_type="updated",
+            trigger_event="refine_chat_tool",
+            changes=change_diff,
+            diff_summary=f"AI refined: {', '.join(changes.keys())}",
+            created_by="chat_assistant",
+        )
+    except Exception:
+        pass
+
+    # Re-fetch full step data for optimistic update
+    step_data = get_flow_step(UUID(step_id))
+
     updated_fields = list(changes.keys())
     # Build human-readable summary
     summary_parts = []
@@ -224,4 +251,5 @@ Rules:
         "step_id": step_id,
         "changes_summary": changes_summary,
         "updated_fields": updated_fields,
+        "step_data": step_data,
     }

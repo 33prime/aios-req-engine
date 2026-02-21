@@ -49,7 +49,8 @@ export function FlowStepChat({
 }: FlowStepChatProps) {
   const [input, setInput] = useState('')
   const [solvingQuestion, setSolvingQuestion] = useState<FlowOpenQuestion | null>(null)
-  const [justResolved, setJustResolved] = useState(false)
+  const [resolvedFlash, setResolvedFlash] = useState(false)
+  const [questionListOpen, setQuestionListOpen] = useState(false)
   const [uploadingFiles, setUploadingFiles] = useState(false)
   const [isDragging, setIsDragging] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -70,11 +71,14 @@ export function FlowStepChat({
     },
   })
 
+  const activeQuestions = openQuestions.filter(q => q.status === 'open')
+
   // Reset state when step changes
   useEffect(() => {
     processedToolCountRef.current = 0
     setSolvingQuestion(null)
-    setJustResolved(false)
+    setResolvedFlash(false)
+    setQuestionListOpen(false)
   }, [stepId])
 
   // Scroll to bottom on new messages
@@ -82,7 +86,7 @@ export function FlowStepChat({
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
-  // Detect tool completions and fire cascade callback
+  // Detect tool completions and fire cascade callback + auto-advance
   useEffect(() => {
     if (!onToolResult) return
     const allToolCalls = messages.flatMap(m =>
@@ -92,14 +96,26 @@ export function FlowStepChat({
     for (const tc of newCompletions) {
       if (tc.status === 'complete' && tc.result?.success && MUTATING_TOOLS.has(tc.tool_name)) {
         onToolResult(tc.tool_name, tc.result)
-        // Show continuation prompt after resolving a question
+
+        // Auto-advance: show resolved flash then pick next question
         if (tc.tool_name === 'resolve_solution_flow_question') {
-          setJustResolved(true)
+          setResolvedFlash(true)
+          setSolvingQuestion(null)
+          setTimeout(() => {
+            setResolvedFlash(false)
+            // Auto-advance to next open question
+            const remaining = activeQuestions.filter(
+              q => q.question !== tc.result?.question_text
+            )
+            if (remaining.length > 0) {
+              setSolvingQuestion(remaining[0])
+            }
+          }, 1500)
         }
       }
     }
     processedToolCountRef.current = allToolCalls.length
-  }, [messages, onToolResult])
+  }, [messages, onToolResult, activeQuestions])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -112,6 +128,7 @@ export function FlowStepChat({
   // "Solve" flow — user clicks solve on a question
   const handleSolveQuestion = (q: FlowOpenQuestion) => {
     setSolvingQuestion(q)
+    setQuestionListOpen(false)
   }
 
   const handleCancelSolve = () => {
@@ -121,6 +138,7 @@ export function FlowStepChat({
   // "Ask Client →" flow
   const handleAskClient = async (q: FlowOpenQuestion) => {
     if (isLoading) return
+    setQuestionListOpen(false)
     await sendMessage(
       `I need to escalate the question "${q.question}" to the client. Can you suggest who would know this and escalate it?`
     )
@@ -199,11 +217,6 @@ export function FlowStepChat({
     if (files.length > 0) processFiles(files)
   }, [processFiles])
 
-  const activeQuestions = openQuestions.filter(q => q.status === 'open')
-  const remainingAfterSolve = solvingQuestion
-    ? activeQuestions.filter(q => q.question !== solvingQuestion.question)
-    : activeQuestions
-
   return (
     <div
       className={`flex flex-col h-full bg-[#FAFAFA] ${isDragging ? 'ring-2 ring-[#3FAF7A] ring-inset' : ''}`}
@@ -211,76 +224,67 @@ export function FlowStepChat({
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
     >
-      {/* Chat header */}
-      <div className="flex items-center gap-2 px-4 py-2.5 border-b border-[#E5E5E5] bg-white shrink-0">
-        <MessageCircle className="w-3.5 h-3.5 text-[#999999]" />
-        <span className="text-[11px] font-medium text-[#999999] uppercase tracking-wider">Step Chat</span>
-      </div>
-
-      {/* Solving question banner — full text, not truncated */}
-      {solvingQuestion && (
-        <div className="px-4 py-2.5 bg-[#0A1E2F] text-white flex items-start gap-2 shrink-0">
-          <div className="flex-1 min-w-0">
-            <div className="text-[10px] uppercase tracking-wider text-white/50 mb-0.5">Solving</div>
-            <p className="text-[12px] leading-snug">{solvingQuestion.question}</p>
-          </div>
-          <button onClick={handleCancelSolve} className="shrink-0 mt-0.5 text-white/40 hover:text-white/80">
-            <X className="w-3.5 h-3.5" />
-          </button>
+      {/* Chat header with compact question counter */}
+      <div className="flex items-center justify-between px-4 py-2.5 border-b border-[#E5E5E5] bg-white shrink-0">
+        <div className="flex items-center gap-2">
+          <MessageCircle className="w-3.5 h-3.5 text-[#999999]" />
+          <span className="text-[11px] font-medium text-[#999999] uppercase tracking-wider">Step Chat</span>
         </div>
-      )}
 
-      {/* Post-resolve continuation banner */}
-      {justResolved && !solvingQuestion && activeQuestions.length > 0 && (
-        <div className="px-4 py-3 bg-[#F0FFF4] border-b border-[#3FAF7A]/20 shrink-0">
-          <div className="flex items-center justify-between">
-            <span className="text-[12px] text-[#25785A]">
-              {activeQuestions.length} more question{activeQuestions.length !== 1 ? 's' : ''} to go
-            </span>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => {
-                  setJustResolved(false)
-                  handleSolveQuestion(activeQuestions[0])
-                }}
-                className="text-[11px] font-semibold text-white bg-[#3FAF7A] px-3 py-1 rounded-md hover:bg-[#25785A] transition-colors"
-              >
-                Continue
-              </button>
-              <button
-                onClick={() => setJustResolved(false)}
-                className="text-[11px] font-medium text-[#999999] hover:text-[#666666]"
-              >
-                Done
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Post-resolve banner when no more questions remain */}
-      {justResolved && !solvingQuestion && activeQuestions.length === 0 && (
-        <div className="px-4 py-3 bg-[#F0FFF4] border-b border-[#3FAF7A]/20 shrink-0">
-          <div className="flex items-center justify-between">
-            <span className="text-[12px] text-[#25785A] font-medium">All questions resolved</span>
+        {/* Question counter strip */}
+        {activeQuestions.length > 0 && !solvingQuestion && (
+          <div className="flex items-center gap-2">
             <button
-              onClick={() => setJustResolved(false)}
-              className="text-[11px] text-[#999999] hover:text-[#666666]"
+              onClick={() => setQuestionListOpen(!questionListOpen)}
+              className="flex items-center gap-1.5 text-[11px] font-medium text-[#A08050] hover:text-[#8B7355]"
             >
-              Dismiss
+              <span className="w-4.5 h-4.5 flex items-center justify-center rounded bg-[#EDE8D5] text-[10px] font-bold text-[#8B7355] px-1">
+                {activeQuestions.length}
+              </span>
+              open question{activeQuestions.length !== 1 ? 's' : ''}
+            </button>
+            <button
+              onClick={() => handleSolveQuestion(activeQuestions[0])}
+              disabled={isLoading}
+              className="text-[11px] font-semibold text-[#25785A] hover:text-[#1A5C43] disabled:opacity-50"
+            >
+              Solve next &rarr;
             </button>
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
-      {/* Open question cards — only shown as empty-state before conversation starts */}
-      {activeQuestions.length > 0 && !solvingQuestion && !justResolved && messages.length === 0 && (
-        <QuestionCards
-          questions={activeQuestions}
-          onSolve={handleSolveQuestion}
-          onAskClient={handleAskClient}
-          isLoading={isLoading}
-        />
+      {/* Expandable question list dropdown */}
+      {questionListOpen && activeQuestions.length > 0 && (
+        <div className="px-3 py-2 border-b border-[#E5E5E5] bg-white shrink-0 max-h-[200px] overflow-y-auto">
+          <div className="space-y-1.5">
+            {activeQuestions.map((q, i) => (
+              <div
+                key={i}
+                className="rounded-lg border border-[#E5E5E5] bg-[#FAFAFA] px-3 py-2"
+              >
+                <p className="text-[12px] text-[#333333] leading-snug mb-1.5">{q.question}</p>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => handleSolveQuestion(q)}
+                    disabled={isLoading}
+                    className="text-[11px] font-medium text-[#25785A] hover:text-[#1A5C43] disabled:opacity-50"
+                  >
+                    Solve
+                  </button>
+                  <span className="text-[#E5E5E5]">|</span>
+                  <button
+                    onClick={() => handleAskClient(q)}
+                    disabled={isLoading}
+                    className="text-[11px] font-medium text-[#666666] hover:text-[#333333] flex items-center gap-0.5 disabled:opacity-50"
+                  >
+                    Ask Client <ArrowUpRight className="w-3 h-3" />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
       )}
 
       {/* Messages */}
@@ -307,6 +311,34 @@ export function FlowStepChat({
         onChange={handleFileSelect}
       />
 
+      {/* Resolved flash */}
+      {resolvedFlash && (
+        <div className="px-4 py-2 bg-[#F0FFF4] border-t border-[#3FAF7A]/20 shrink-0 flex items-center gap-2">
+          <CheckCircle2 className="w-3.5 h-3.5 text-[#3FAF7A]" />
+          <span className="text-[12px] font-medium text-[#25785A]">Resolved</span>
+        </div>
+      )}
+
+      {/* Solving question prompt — above input, not top banner */}
+      {solvingQuestion && !resolvedFlash && (
+        <div className="px-3 py-2 bg-[#EDE8D5]/40 border-t border-[#C4A97D]/20 shrink-0">
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <div className="text-[10px] uppercase tracking-wider text-[#A08050] mb-0.5 font-medium">
+                Answering
+              </div>
+              <p className="text-[12px] text-[#333333] leading-snug">{solvingQuestion.question}</p>
+            </div>
+            <button
+              onClick={handleCancelSolve}
+              className="shrink-0 mt-0.5 text-[#BBBBBB] hover:text-[#999999]"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Input bar */}
       <form onSubmit={handleSubmit} className="flex items-center gap-2 px-3 py-2.5 border-t border-[#E5E5E5] bg-white">
         <button
@@ -322,7 +354,7 @@ export function FlowStepChat({
           type="text"
           value={input}
           onChange={e => setInput(e.target.value)}
-          placeholder={solvingQuestion ? 'What should happen here?' : 'Refine this step...'}
+          placeholder={solvingQuestion ? 'Your answer...' : 'Refine this step...'}
           className="flex-1 text-[13px] px-3 py-2 rounded-lg bg-[#F4F4F4] border border-[#E5E5E5] focus:outline-none focus:border-[#3FAF7A]/40 focus:ring-1 focus:ring-[#3FAF7A]/10 placeholder:text-[#BBBBBB]"
           disabled={isLoading}
           onKeyDown={e => {
@@ -333,7 +365,6 @@ export function FlowStepChat({
                 ? solvingQuestion.question.slice(0, 50) + '...'
                 : solvingQuestion.question
               setInput('')
-              setSolvingQuestion(null)
               sendMessage(`${answer}\n\n[resolve: ${qRef}]`)
             }
           }}
@@ -350,72 +381,6 @@ export function FlowStepChat({
           )}
         </button>
       </form>
-    </div>
-  )
-}
-
-// =============================================================================
-// Question Cards Component
-// =============================================================================
-
-function QuestionCards({
-  questions,
-  onSolve,
-  onAskClient,
-  isLoading,
-}: {
-  questions: FlowOpenQuestion[]
-  onSolve: (q: FlowOpenQuestion) => void
-  onAskClient: (q: FlowOpenQuestion) => void
-  isLoading: boolean
-}) {
-  const [expanded, setExpanded] = useState(false)
-  const shown = expanded ? questions : questions.slice(0, 3)
-  const hasMore = questions.length > 3
-
-  return (
-    <div className="px-3 py-2 border-b border-[#E5E5E5] bg-white shrink-0 max-h-[220px] overflow-y-auto">
-      <div className="text-[10px] font-medium text-[#999999] uppercase tracking-wider mb-1.5">
-        {questions.length} open question{questions.length !== 1 ? 's' : ''}
-      </div>
-      <div className="space-y-1.5">
-        {shown.map((q, i) => (
-          <div
-            key={i}
-            className="rounded-lg border border-[#E5E5E5] bg-[#FAFAFA] px-3 py-2"
-          >
-            <p className="text-[12px] text-[#333333] leading-snug mb-1.5">{q.question}</p>
-            {q.context && (
-              <p className="text-[10px] text-[#999999] mb-1.5 line-clamp-1">{q.context}</p>
-            )}
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => onSolve(q)}
-                disabled={isLoading}
-                className="text-[11px] font-medium text-[#25785A] hover:text-[#1A5C43] disabled:opacity-50"
-              >
-                Solve
-              </button>
-              <span className="text-[#E5E5E5]">|</span>
-              <button
-                onClick={() => onAskClient(q)}
-                disabled={isLoading}
-                className="text-[11px] font-medium text-[#666666] hover:text-[#333333] flex items-center gap-0.5 disabled:opacity-50"
-              >
-                Ask Client <ArrowUpRight className="w-3 h-3" />
-              </button>
-            </div>
-          </div>
-        ))}
-      </div>
-      {hasMore && (
-        <button
-          onClick={() => setExpanded(!expanded)}
-          className="text-[11px] text-[#999999] mt-1.5 hover:text-[#666666]"
-        >
-          {expanded ? 'Show less' : `Show all ${questions.length}`}
-        </button>
-      )}
     </div>
   )
 }
