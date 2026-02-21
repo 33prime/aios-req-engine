@@ -30,9 +30,9 @@ from app.core.readiness.dimensions.engagement import score_engagement
 from app.core.readiness.caps import apply_caps
 from app.core.readiness.recommendations import select_top_recommendations
 
-# Gate assessment (DI Agent integration)
+# Gate assessment
 from app.core.readiness.gates import assess_all_gates
-from app.agents.di_agent_types import ReadinessPhase
+from app.core.readiness.types import ReadinessPhase
 
 # Data access
 from app.db.vp import list_vp_steps

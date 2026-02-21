@@ -1688,13 +1688,6 @@ async def _add_signal(project_id: UUID, params: Dict[str, Any]) -> Dict[str, Any
             logger.warning(f"Failed to chunk signal {signal_id}: {chunk_error}")
             # Continue anyway - signal is saved
 
-        # Invalidate DI cache - new signal to analyze
-        try:
-            from app.db.di_cache import invalidate_cache
-            invalidate_cache(project_id, f"new {signal_type} signal from {source}")
-        except Exception as cache_err:
-            logger.warning(f"Failed to invalidate DI cache: {cache_err}")
-
         result = {
             "success": True,
             "signal_id": signal_id,

@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter
 
-from app.api import activity, admin, agents, analytics, auth, baseline, business_drivers, chat, client_packages, client_portal, clients, collaboration, communications, competitor_refs, confirmations, consultant_enrichment, creative_brief, di_agent, discovery, discovery_prep, document_uploads, entity_cascades, eval, evidence, icp, intelligence, jobs, meetings, n8n_research, notifications, open_questions, organizations, outreach, phase0, process_documents, project_creation, project_launch, projects, proposals, prototype_sessions, prototypes, pulse, readiness, research, research_agent, revisions, risks, signals, sources, stakeholders, state, strategic_analytics, super_admin, tasks, workspace
+from app.api import activity, admin, agents, analytics, auth, baseline, business_drivers, chat, client_packages, client_portal, clients, collaboration, communications, competitor_refs, confirmations, consultant_enrichment, creative_brief, discovery, discovery_prep, document_uploads, entity_cascades, eval, evidence, icp, intelligence, jobs, meetings, n8n_research, notifications, open_questions, organizations, outreach, phase0, process_documents, project_creation, project_launch, projects, proposals, prototype_sessions, prototypes, pulse, readiness, research, research_agent, revisions, risks, signals, sources, stakeholders, state, strategic_analytics, super_admin, tasks, workspace
 
 router = APIRouter()
 
@@ -113,9 +113,6 @@ router.include_router(tasks.my_tasks_router, tags=["my-tasks"])
 
 # Include Readiness routes (project readiness scoring)
 router.include_router(readiness.router, tags=["readiness"])
-
-# Include DI Agent routes (Design Intelligence agent and foundation gates)
-router.include_router(di_agent.router, tags=["di_agent"])
 
 # Include Project Creation Chat routes (AI-assisted project creation)
 router.include_router(project_creation.router, tags=["project_creation"])

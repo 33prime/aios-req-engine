@@ -12,7 +12,7 @@ from uuid import uuid4
 
 import pytest
 
-from app.agents.di_agent_types import GateAssessment, ReadinessPhase
+from app.core.readiness.types import GateAssessment, ReadinessPhase
 from app.core.readiness.gates import (
     assess_build_gates,
     assess_prototype_gates,

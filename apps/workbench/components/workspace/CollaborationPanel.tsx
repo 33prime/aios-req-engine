@@ -31,7 +31,7 @@ import {
 } from 'lucide-react'
 import { WorkspaceChat, type ChatMessage } from './WorkspaceChat'
 import { CollaborationHub } from './CollaborationHub'
-import { getCollaborationHistory, getDIAgentLogs } from '@/lib/api'
+import { getCollaborationHistory } from '@/lib/api'
 import FeatureVerdictCard from '@/components/prototype/FeatureVerdictCard'
 import VerdictChat from '@/components/prototype/VerdictChat'
 import type { FeatureOverlay, FeatureVerdict, TourStep, PrototypeSession, SessionContext } from '@/types/prototype'
@@ -448,10 +448,7 @@ function ActivityFeed({ projectId }: { projectId: string }) {
 
     async function load() {
       try {
-        const [history, agentLogs] = await Promise.all([
-          getCollaborationHistory(projectId).catch(() => null),
-          getDIAgentLogs(projectId, { limit: 10 }).catch(() => null),
-        ])
+        const history = await getCollaborationHistory(projectId).catch(() => null)
 
         if (cancelled) return
 
@@ -468,25 +465,6 @@ function ActivityFeed({ projectId }: { projectId: string }) {
               timestamp: tp.completed_at || tp.created_at,
               status: tp.status,
             })
-          }
-        }
-
-        // Agent log events (collaboration-relevant)
-        if (agentLogs?.logs) {
-          for (const log of agentLogs.logs) {
-            const action = log.action_type || log.trigger || ''
-            // Only show collaboration-relevant agent actions
-            if (['generate_discovery_prep', 'send_to_portal', 'generate_package', 'process_responses', 'invite_client'].some(
-              (a) => action.toLowerCase().includes(a) || (log.decision || '').toLowerCase().includes(a)
-            )) {
-              activityEvents.push({
-                id: `agent-${log.id || Math.random()}`,
-                type: 'agent',
-                title: log.decision || action.replace(/_/g, ' '),
-                detail: log.observation ? String(log.observation).slice(0, 80) : undefined,
-                timestamp: log.created_at || new Date().toISOString(),
-              })
-            }
           }
         }
 

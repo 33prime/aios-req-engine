@@ -19,7 +19,7 @@ import {
   RefreshCw,
   Clock,
 } from 'lucide-react'
-import { getDIAgentLogs, getProjectMemory, synthesizeMemory } from '@/lib/api'
+import { getProjectMemory, synthesizeMemory } from '@/lib/api'
 import type { ProjectMemory } from '@/lib/api'
 
 interface HistoryPanelProps {
@@ -248,10 +248,9 @@ function ActivityTab({ projectId }: { projectId: string }) {
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    getDIAgentLogs(projectId, { limit: 20 })
-      .then((data) => setLogs(data.logs || []))
-      .catch(() => setLogs([]))
-      .finally(() => setIsLoading(false))
+    // DI Agent removed — activity tab shows empty until replaced
+    setLogs([])
+    setIsLoading(false)
   }, [projectId])
 
   if (isLoading) {

@@ -19,7 +19,7 @@ Gate System:
 from typing import Optional
 from uuid import UUID
 
-from app.agents.di_agent_types import GateAssessment, ReadinessPhase
+from app.core.readiness.types import GateAssessment, ReadinessPhase
 from app.core.logging import get_logger
 from app.core.schemas_foundation import (
     BusinessCase,

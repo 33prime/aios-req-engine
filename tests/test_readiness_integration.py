@@ -14,7 +14,7 @@ from uuid import uuid4
 
 import pytest
 
-from app.agents.di_agent_types import GateAssessment, ReadinessPhase
+from app.core.readiness.types import GateAssessment, ReadinessPhase
 from app.core.readiness import compute_readiness
 from app.core.readiness.types import ReadinessScore
 from app.core.schemas_foundation import (

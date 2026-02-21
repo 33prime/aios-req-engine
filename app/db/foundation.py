@@ -262,12 +262,6 @@ def _invalidate_caches_on_foundation_change(
         element_type: Which element changed
     """
     try:
-        # Import here to avoid circular dependency
-        from app.db.di_cache import invalidate_cache
-
-        # Invalidate DI analysis cache
-        invalidate_cache(project_id, f"{element_type} updated")
-
         # Invalidate readiness cache
         from app.core.readiness_cache import refresh_cached_readiness
 

@@ -1,9 +1,50 @@
 """Pydantic models for readiness scoring system."""
 
 from datetime import datetime
-from typing import Any, Literal
+from enum import Enum
+from typing import Any, Literal, Optional
 
 from pydantic import BaseModel, Field
+
+
+# =============================================================================
+# Gate Types (moved from di_agent_types.py)
+# =============================================================================
+
+
+class ReadinessPhase(str, Enum):
+    """Readiness phase based on gate satisfaction."""
+
+    INSUFFICIENT = "insufficient"  # 0-40: Working toward prototype
+    PROTOTYPE_READY = "prototype_ready"  # 41-70: Can build prototype
+    BUILD_READY = "build_ready"  # 71-100: Can build real product
+
+
+class GateAssessment(BaseModel):
+    """Assessment of a single gate."""
+
+    name: str = Field(..., description="Gate name (e.g., 'Core Pain')")
+    satisfied: bool = Field(..., description="Whether this gate is satisfied")
+    confidence: float = Field(
+        default=0.0, ge=0.0, le=1.0, description="Confidence in this gate (0.0-1.0)"
+    )
+    required: bool = Field(
+        default=True, description="Whether this gate is required for its phase"
+    )
+    missing: list[str] = Field(
+        default_factory=list, description="What's missing to satisfy this gate"
+    )
+    how_to_acquire: list[str] = Field(
+        default_factory=list, description="How to get the missing information"
+    )
+    unlock_hint: Optional[str] = Field(
+        None, description="What often unlocks this gate (for build gates)"
+    )
+
+
+# =============================================================================
+# Readiness Scoring Types
+# =============================================================================
 
 
 class FactorScore(BaseModel):
