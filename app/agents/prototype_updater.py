@@ -45,6 +45,28 @@ async def plan_updates(
     model = settings.PROTOTYPE_UPDATER_PLAN_MODEL
     logger.info(f"Planning code updates using {model}")
 
+    # Fetch discovery evidence for affected features
+    discovery_context = ""
+    if features and features[0].get("project_id"):
+        try:
+            from app.core.retrieval import retrieve
+            from app.core.retrieval_format import format_retrieval_for_context
+
+            feedback_summary = json.dumps(synthesis, default=str)[:200]
+            feature_names = " ".join(f.get("name", "") for f in features[:3])
+            retrieval_result = await retrieve(
+                query=f"{feature_names} {feedback_summary}",
+                project_id=str(features[0]["project_id"]),
+                max_rounds=2,
+                evaluation_criteria="Need original requirements evidence for these features",
+                skip_reranking=True,
+            )
+            discovery_context = format_retrieval_for_context(
+                retrieval_result, style="generation", max_tokens=3000
+            )
+        except Exception:
+            pass  # Non-blocking
+
     user_message = f"""## Feedback Synthesis
 {json.dumps(synthesis, indent=2, default=str)[:6000]}
 
@@ -53,9 +75,15 @@ async def plan_updates(
 
 ## Features
 {json.dumps([{"id": f["id"], "name": f["name"]} for f in features], indent=2, default=str)}
-
-Generate the UpdatePlan.
 """
+
+    if discovery_context:
+        user_message += f"""
+## Discovery Evidence (original requirements context)
+{discovery_context}
+"""
+
+    user_message += "\nGenerate the UpdatePlan.\n"
 
     client = Anthropic(api_key=settings.ANTHROPIC_API_KEY)
     response = client.messages.create(

@@ -399,6 +399,14 @@ def create_chunks(state: DocumentProcessingState) -> dict[str, Any]:
             authority=state.authority,
         )
 
+        # Persist classifier tags into each chunk's metadata (zero-cost enrichment)
+        if state.classification:
+            for chunk in chunks:
+                if state.classification.keyword_tags:
+                    chunk.metadata["classifier_keyword_tags"] = state.classification.keyword_tags
+                if state.classification.key_topics:
+                    chunk.metadata["classifier_key_topics"] = state.classification.key_topics
+
         logger.info(f"Created {len(chunks)} chunks")
 
         return {"chunks": chunks}
@@ -459,18 +467,47 @@ def create_signal_and_embed(state: DocumentProcessingState) -> dict[str, Any]:
 
         signal_id = UUID(signal_response.data[0]["id"])
 
-        # Embed chunks in batch (much faster than one-by-one)
-        from openai import OpenAI
-
-        openai_client = OpenAI(api_key=settings.OPENAI_API_KEY)
-
-        # Batch embed all chunks at once
+        # Run embedding and meta-tagging in parallel
         chunk_texts = [chunk.content_with_context for chunk in state.chunks]
-        embedding_response = openai_client.embeddings.create(
-            model=settings.EMBEDDING_MODEL,
-            input=chunk_texts,
+        doc_type = (
+            state.classification.document_class if state.classification else "generic"
         )
-        embeddings = [e.embedding for e in embedding_response.data]
+
+        # Build chunk dicts for meta-tagger
+        chunk_dicts = [
+            {
+                "content": chunk.original_content,
+                "section_path": chunk.section_path,
+            }
+            for chunk in state.chunks
+        ]
+
+        async def _async_embed(texts):
+            from openai import OpenAI
+            openai_client = OpenAI(api_key=settings.OPENAI_API_KEY)
+            response = openai_client.embeddings.create(
+                model=settings.EMBEDDING_MODEL,
+                input=texts,
+            )
+            return [e.embedding for e in response.data]
+
+        async def _async_meta_tag(chunks_for_tagging, document_type):
+            try:
+                from app.chains.meta_tag_chunks import meta_tag_chunks_parallel
+                return await meta_tag_chunks_parallel(chunks_for_tagging, document_type)
+            except Exception as e:
+                logger.warning(f"Meta-tagging failed (non-fatal): {e}")
+                return [{} for _ in chunks_for_tagging]
+
+        embeddings, meta_tags = _run_async(asyncio.gather(
+            _async_embed(chunk_texts),
+            _async_meta_tag(chunk_dicts, doc_type),
+        ))
+
+        # Merge meta-tags into chunk metadata
+        for i, chunk in enumerate(state.chunks):
+            if i < len(meta_tags) and meta_tags[i]:
+                chunk.metadata["meta_tags"] = meta_tags[i]
 
         # Insert all chunks with their embeddings
         chunk_ids = []

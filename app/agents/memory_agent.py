@@ -859,6 +859,7 @@ async def process_signal_for_memory(
     signal_type: str,
     raw_text: str,
     entities_extracted: dict,
+    chunks: list[dict] | None = None,
 ) -> dict:
     """
     Convenience function to process a signal through the memory system.
@@ -871,21 +872,39 @@ async def process_signal_for_memory(
         signal_type: Type of signal
         raw_text: Raw text content
         entities_extracted: Dict of entity counts
+        chunks: Optional list of signal chunks with metadata for grounding
 
     Returns:
         Processing result including whether synthesis was triggered
     """
     watcher = MemoryWatcher()
 
+    event_data: dict = {
+        "signal_id": str(signal_id),
+        "signal_type": signal_type,
+        "raw_text_snippet": raw_text[:500] if raw_text else "",
+        "entities_extracted": entities_extracted,
+    }
+
+    # Include chunk summaries for richer memory extraction
+    if chunks:
+        chunk_summaries = []
+        for chunk in chunks[:10]:
+            content = (chunk.get("content") or "")[:300]
+            meta_tags = (chunk.get("metadata") or {}).get("meta_tags", {})
+            chunk_summaries.append({
+                "chunk_id": chunk.get("id"),
+                "content_preview": content,
+                "topics": meta_tags.get("topics", []),
+                "decision_made": meta_tags.get("decision_made", False),
+                "speaker_roles": meta_tags.get("speaker_roles", {}),
+            })
+        event_data["chunk_summaries"] = chunk_summaries
+
     result = await watcher.process_event(
         project_id=project_id,
         event_type="signal_processed",
-        event_data={
-            "signal_id": str(signal_id),
-            "signal_type": signal_type,
-            "raw_text_snippet": raw_text[:500] if raw_text else "",
-            "entities_extracted": entities_extracted,
-        },
+        event_data=event_data,
     )
 
     # Trigger synthesis if needed

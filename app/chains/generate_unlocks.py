@@ -384,6 +384,41 @@ async def generate_unlocks(project_id: UUID) -> list[dict[str, Any]]:
 
     context_text = await _load_project_context(project_id)
 
+    # Parallel retrieval for three unlock tiers
+    try:
+        from app.core.retrieval import retrieve
+        from app.core.retrieval_format import format_retrieval_for_context
+
+        operational, strategic, visionary = await asyncio.gather(
+            retrieve(
+                query="workflow automation pain manual process efficiency",
+                project_id=str(project_id),
+                entity_types=["workflow", "feature"],
+                skip_evaluation=True, skip_reranking=True,
+            ),
+            retrieve(
+                query="competitive advantage differentiation market position",
+                project_id=str(project_id),
+                entity_types=["competitor", "business_driver"],
+                skip_evaluation=True, skip_reranking=True,
+            ),
+            retrieve(
+                query="vision future state transformation scale",
+                project_id=str(project_id),
+                entity_types=["feature", "business_driver"],
+                skip_evaluation=True, skip_reranking=True,
+            ),
+        )
+        tier_evidence = []
+        for label, result in [("Operational", operational), ("Strategic", strategic), ("Visionary", visionary)]:
+            evidence = format_retrieval_for_context(result, style="generation", max_tokens=600)
+            if evidence:
+                tier_evidence.append(f"### {label} Evidence\n{evidence}")
+        if tier_evidence:
+            context_text += "\n\n## Retrieved Evidence by Tier\n" + "\n\n".join(tier_evidence)
+    except Exception:
+        pass  # Non-blocking
+
     settings = Settings()
     client = AsyncAnthropic(api_key=settings.ANTHROPIC_API_KEY)
 

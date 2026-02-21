@@ -138,11 +138,32 @@ async def generate_gap_intelligence(
 
     counts_str = ", ".join(f"{k}: {v}" for k, v in entity_counts.items())
 
+    # Enrich with retrieval evidence for gap validation
+    enriched_workflow = workflow_context
+    if project_id:
+        try:
+            from app.core.retrieval import retrieve
+            from app.core.retrieval_format import format_retrieval_for_context
+
+            retrieval_result = await retrieve(
+                query=f"gaps uncertainties unknowns risks in {phase.value} phase",
+                project_id=project_id,
+                max_rounds=1,
+                skip_decomposition=True,
+                skip_reranking=True,
+                skip_evaluation=True,
+            )
+            evidence = format_retrieval_for_context(retrieval_result, style="analysis", max_tokens=1000)
+            if evidence:
+                enriched_workflow += f"\n\n## Retrieved Evidence\n{evidence}"
+        except Exception:
+            pass  # Non-blocking
+
     user_message = GAP_INTELLIGENCE_USER.format(
         phase=phase.value,
         entity_counts=counts_str,
         state_snapshot=state_snapshot,
-        workflow_context=workflow_context,
+        workflow_context=enriched_workflow,
     )
 
     start = time.time()

@@ -42,6 +42,9 @@ def create_node(
     linked_entity_id: UUID | None = None,
     belief_domain: str | None = None,
     insight_type: str | None = None,
+    chunk_id: UUID | None = None,
+    source_quote: str | None = None,
+    speaker_name: str | None = None,
 ) -> dict:
     """
     Create a new memory node.
@@ -80,15 +83,41 @@ def create_node(
         "linked_entity_id": str(linked_entity_id) if linked_entity_id else None,
         "belief_domain": belief_domain,
         "insight_type": insight_type,
+        "chunk_id": str(chunk_id) if chunk_id else None,
+        "source_quote": source_quote,
+        "speaker_name": speaker_name,
     }
 
     try:
         response = supabase.table("memory_nodes").insert(payload).execute()
+        node = response.data[0] if response.data else {}
+
+        # Embed the node (fire-and-forget)
+        if node:
+            _embed_node(node)
+
         logger.info(f"Created {node_type} node for project {project_id}: {summary[:50]}")
-        return response.data[0] if response.data else {}
+        return node
     except Exception as e:
         logger.error(f"Failed to create node: {e}")
         raise
+
+
+def _embed_node(node: dict) -> None:
+    """Generate and store an embedding for a memory node. Non-blocking."""
+    try:
+        text = f"{node.get('summary', '')} {(node.get('content') or '')[:300]}".strip()
+        if len(text) < 10:
+            return
+
+        from app.core.embeddings import embed_texts
+        embeddings = embed_texts([text])
+        if embeddings:
+            get_supabase().table("memory_nodes").update(
+                {"embedding": embeddings[0]}
+            ).eq("id", node["id"]).execute()
+    except Exception as e:
+        logger.debug(f"Memory node embedding failed (non-fatal): {e}")
 
 
 def get_node(node_id: UUID) -> dict | None:

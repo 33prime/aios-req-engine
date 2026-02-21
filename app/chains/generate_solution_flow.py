@@ -429,6 +429,28 @@ async def generate_solution_flow(
     # Stage 1: Context Assembly
     context_text = await _load_context(project_id)
 
+    # Enrich with retrieval evidence
+    try:
+        from app.core.retrieval import retrieve
+        from app.core.retrieval_format import format_retrieval_for_context
+
+        retrieval_result = await retrieve(
+            query="pain points, goals, constraints, and desired outcomes for workflows",
+            project_id=str(project_id),
+            max_rounds=2,
+            entity_types=["workflow", "feature", "constraint", "data_entity"],
+            evaluation_criteria="Need: current pain, desired outcome, technical constraints",
+            context_hint="generating solution architecture",
+            skip_reranking=True,
+        )
+        retrieval_evidence = format_retrieval_for_context(
+            retrieval_result, style="generation", max_tokens=2000
+        )
+        if retrieval_evidence:
+            context_text += f"\n\n## Retrieved Evidence\n{retrieval_evidence}"
+    except Exception:
+        pass  # Non-blocking
+
     settings = Settings()
     client = AsyncAnthropic(api_key=settings.ANTHROPIC_API_KEY)
 

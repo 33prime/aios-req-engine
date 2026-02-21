@@ -127,14 +127,37 @@ async def compute_intelligence_briefing(
             return {}
         try:
             from app.chains.generate_briefing_narrative import generate_briefing_narrative
+
+            # Enrich tensions with retrieval evidence
             tension_dicts = [t.model_dump() for t in tensions]
+            enriched_workflow = workflow_context_display
+            try:
+                from app.core.retrieval import retrieve
+                from app.core.retrieval_format import format_retrieval_for_context
+
+                if tension_dicts:
+                    tension_query = " ".join(t.get("description", "")[:100] for t in tension_dicts[:3])
+                    retrieval_result = await retrieve(
+                        query=f"evidence for and against: {tension_query}",
+                        project_id=str(project_id),
+                        max_rounds=2,
+                        include_beliefs=True,
+                        evaluation_criteria="Need supporting AND contradicting evidence with quotes",
+                        skip_reranking=True,
+                    )
+                    evidence = format_retrieval_for_context(retrieval_result, style="analysis", max_tokens=1500)
+                    if evidence:
+                        enriched_workflow += f"\n\n{evidence}"
+            except Exception:
+                pass  # Non-blocking
+
             return await generate_briefing_narrative(
                 project_name=project_name,
                 beliefs=beliefs,
                 insights=insights,
                 tensions=tension_dicts,
                 entity_summary=entity_counts,
-                workflow_context=workflow_context_display,
+                workflow_context=enriched_workflow,
                 stakeholder_names=data.get("stakeholder_names", []),
                 phase=phase.value,
                 phase_progress=phase_progress,

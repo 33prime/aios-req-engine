@@ -159,6 +159,7 @@ def build_smart_chat_prompt(
     page_context: str | None = None,
     focused_entity: dict | None = None,
     conversation_context: str | None = None,
+    retrieval_context: str | None = None,
 ) -> str:
     """Build a terse, gap-aware system prompt from ProjectContextFrame.
 
@@ -258,6 +259,14 @@ def build_smart_chat_prompt(
             "The consultant opened chat from a conversation starter. Here's what prompted this:\n"
             f"{conversation_context}\n"
             "Use this to give specific, informed responses. Reference the same evidence."
+        )
+
+    # 9b. Pre-fetched retrieval context (evidence from vector search)
+    if retrieval_context:
+        sections.append(
+            "# Retrieved Evidence (from signal analysis)\n"
+            "Use this evidence to answer questions directly — cite specific quotes when possible.\n"
+            f"{retrieval_context}"
         )
 
     # 10. Action cards guidance

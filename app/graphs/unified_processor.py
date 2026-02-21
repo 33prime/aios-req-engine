@@ -324,6 +324,42 @@ async def v2_extract_patches(state: V2ProcessorState) -> dict[str, Any]:
         return {"entity_patches": None, "error": f"Extraction failed: {e}"}
 
 
+async def v2_dedup_patches(state: V2ProcessorState) -> dict[str, Any]:
+    """Step 4b: Deduplicate create patches against existing entities."""
+    if not state.entity_patches or not state.entity_patches.patches:
+        return {}
+
+    create_count = sum(1 for p in state.entity_patches.patches if p.operation == "create")
+    if create_count == 0:
+        return {}
+
+    logger.info(
+        f"[v2] Deduplicating {create_count} create patches",
+        extra={"signal_id": str(state.signal_id)},
+    )
+
+    try:
+        from app.core.entity_dedup import dedup_create_patches
+
+        inventory = getattr(state.context_snapshot, "entity_inventory", {}) if state.context_snapshot else {}
+        deduped = await dedup_create_patches(
+            state.entity_patches.patches, inventory, state.project_id
+        )
+        return {"entity_patches": EntityPatchList(
+            patches=deduped,
+            signal_id=state.entity_patches.signal_id,
+            run_id=state.entity_patches.run_id,
+            extraction_model=state.entity_patches.extraction_model,
+            extraction_duration_ms=state.entity_patches.extraction_duration_ms,
+        )}
+    except Exception as e:
+        logger.warning(
+            f"[v2] Dedup failed (continuing with original patches): {e}",
+            extra={"signal_id": str(state.signal_id)},
+        )
+        return {}
+
+
 async def v2_score_patches(state: V2ProcessorState) -> dict[str, Any]:
     """Step 5: Score patches against memory beliefs and open questions."""
     if not state.entity_patches or not state.entity_patches.patches:
@@ -438,6 +474,22 @@ def _build_entity_counts(result: PatchApplicationResult | None) -> dict:
 
 async def v2_trigger_memory(state: V2ProcessorState) -> dict[str, Any]:
     """Step 8: Fire MemoryWatcher + Stakeholder Intelligence for signal processing event."""
+    # Load chunks for memory agent and speaker resolution
+    chunks: list[dict] = []
+    try:
+        from app.db.signals import list_signal_chunks
+        chunks = list_signal_chunks(state.signal_id)
+    except Exception:
+        pass
+
+    # Speaker resolution (non-critical)
+    try:
+        from app.core.speaker_resolver import resolve_speakers_for_signal
+        if chunks:
+            resolve_speakers_for_signal(state.project_id, state.signal_id, chunks)
+    except Exception as e:
+        logger.debug(f"[v2] Speaker resolution failed: {e}")
+
     try:
         from app.agents.memory_agent import process_signal_for_memory
 
@@ -450,6 +502,7 @@ async def v2_trigger_memory(state: V2ProcessorState) -> dict[str, Any]:
                 signal_type=signal_type,
                 raw_text=state.signal_text,
                 entities_extracted=entity_counts,
+                chunks=chunks if chunks else None,
             )
     except ImportError:
         logger.debug("[v2] Memory processing not available")
@@ -595,6 +648,10 @@ async def process_signal_v2(
         if state.error:
             _update_signal_status(signal_id, "failed")
             return _make_v2_result(state)
+
+        # Step 4b: Dedup create patches (non-critical — original patches still work)
+        updates = await v2_dedup_patches(state)
+        _apply_state_updates(state, updates)
 
         # Step 5: Score patches (non-critical — unscored patches still apply)
         updates = await v2_score_patches(state)

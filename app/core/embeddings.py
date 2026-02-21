@@ -1,5 +1,7 @@
 """OpenAI embeddings generation with validation."""
 
+import asyncio
+
 from openai import OpenAI
 
 from app.core.config import get_settings
@@ -65,3 +67,8 @@ def embed_texts(texts: list[str]) -> list[list[float]]:
     except Exception as e:
         logger.error(f"Failed to generate embeddings: {e}")
         raise
+
+
+async def embed_texts_async(texts: list[str]) -> list[list[float]]:
+    """Async wrapper around embed_texts using thread pool."""
+    return await asyncio.to_thread(embed_texts, texts)

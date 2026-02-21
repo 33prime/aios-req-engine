@@ -136,6 +136,29 @@ def _load_stakeholder_context(stakeholder: dict, project_id: UUID) -> str:
         except Exception:
             pass
 
+    # Semantic search for indirect references (catches "the CEO mentioned..." patterns)
+    if name:
+        try:
+            import asyncio
+            from app.core.retrieval import retrieve
+            from app.core.retrieval_format import format_retrieval_for_context
+
+            role = stakeholder.get("role", "")
+            retrieval_result = asyncio.run(retrieve(
+                query=f"{name} {role} concerns priorities decisions",
+                project_id=str(project_id),
+                max_rounds=1,
+                skip_decomposition=True,
+                skip_reranking=True,
+                skip_evaluation=True,
+                evaluation_criteria="Need: what this person cares about, decisions made, concerns raised",
+            ))
+            evidence = format_retrieval_for_context(retrieval_result, style="chat", max_tokens=1000)
+            if evidence:
+                parts.append(f"Semantic matches:\n{evidence}")
+        except Exception:
+            pass  # Non-blocking
+
     return "\n".join(parts)
 
 

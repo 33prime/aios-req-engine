@@ -155,6 +155,27 @@ async def chat_with_assistant(
                 ]
                 messages = recent_history + [{"role": "user", "content": request.message}]
 
+                # Pre-fetch relevant evidence via unified retrieval
+                retrieval_context = ""
+                try:
+                    from app.core.retrieval import retrieve
+                    from app.core.retrieval_format import format_retrieval_for_context
+
+                    is_simple = len(request.message.split()) < 8 and "?" not in request.message
+                    retrieval_result = await retrieve(
+                        query=request.message,
+                        project_id=str(project_id),
+                        max_rounds=2 if not is_simple else 1,
+                        skip_decomposition=is_simple,
+                        skip_reranking=is_simple,
+                        evaluation_criteria="Enough context to answer the user's question",
+                    )
+                    retrieval_context = format_retrieval_for_context(
+                        retrieval_result, style="chat", max_tokens=2000
+                    )
+                except Exception as e:
+                    logger.debug(f"Retrieval pre-fetch failed (non-fatal): {e}")
+
                 # Build v3 smart chat prompt from context frame
                 system_prompt = build_smart_chat_prompt(
                     context_frame=context_frame,
@@ -162,6 +183,7 @@ async def chat_with_assistant(
                     page_context=request.page_context,
                     focused_entity=request.focused_entity,
                     conversation_context=request.conversation_context,
+                    retrieval_context=retrieval_context,
                 )
 
                 # Log context stats
