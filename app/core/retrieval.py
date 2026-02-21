@@ -139,7 +139,7 @@ async def _search_chunks(
 
     for i, embedding in enumerate(embeddings):
         try:
-            result = sb.rpc("search_signal_chunks", {
+            result = sb.rpc("match_signal_chunks", {
                 "query_embedding": embedding,
                 "match_count": chunks_per_query,
                 "filter_project_id": project_id,
