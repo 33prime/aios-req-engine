@@ -7,14 +7,6 @@ import { MetricCard } from '../components/MetricCard'
 import { getAdminProjectPulses, getAdminPulseConfigs } from '@/lib/api'
 import type { AdminProjectPulse, AdminPulseConfigSummary } from '@/types/api'
 
-const DIRECTIVE_COLORS: Record<string, string> = {
-  stable: 'bg-[#3FAF7A]/15 text-[#25785A]',
-  grow: 'bg-[#3B82F6]/15 text-[#1D4ED8]',
-  enrich: 'bg-[#F59E0B]/15 text-[#92400E]',
-  confirm: 'bg-[#F97316]/15 text-[#9A3412]',
-  merge_only: 'bg-[#EF4444]/15 text-[#991B1B]',
-}
-
 const STAGE_COLORS: Record<string, string> = {
   discovery: 'bg-[#3FAF7A]/15 text-[#25785A]',
   validation: 'bg-[#3FAF7A]/15 text-[#25785A]',
@@ -34,8 +26,8 @@ export default function AdminPulsePage() {
 
   useEffect(() => {
     Promise.all([
-      getAdminProjectPulses().catch(() => []),
-      getAdminPulseConfigs().catch(() => []),
+      getAdminProjectPulses().catch((e) => { console.error('Pulse projects:', e); return [] }),
+      getAdminPulseConfigs().catch((e) => { console.error('Pulse configs:', e); return [] }),
     ])
       .then(([p, c]) => {
         setProjects(p)
@@ -52,21 +44,25 @@ export default function AdminPulsePage() {
     )
   }
 
+  // Split projects into those with pulse data vs awaiting
+  const activeProjects = projects.filter((p) => p.snapshot_count > 0)
+  const pendingProjects = projects.filter((p) => p.snapshot_count === 0)
+
   const avgHealth =
-    projects.length > 0
-      ? projects.reduce((sum, p) => {
+    activeProjects.length > 0
+      ? activeProjects.reduce((sum, p) => {
           const scores = Object.values(p.health_scores)
           return sum + (scores.length > 0 ? scores.reduce((a, b) => a + b, 0) / scores.length : 0)
-        }, 0) / projects.length
+        }, 0) / activeProjects.length
       : 0
 
   const totalSnapshots = projects.reduce((sum, p) => sum + p.snapshot_count, 0)
   const activeConfigs = configs.filter((c) => c.is_active).length
-  const highRiskCount = projects.filter((p) => p.risk_score >= 50).length
+  const highRiskCount = activeProjects.filter((p) => p.risk_score >= 50).length
 
-  // Collect all entity types across projects for table headers
+  // Collect all entity types across active projects for table headers
   const allEntityTypes = Array.from(
-    new Set(projects.flatMap((p) => Object.keys(p.health_scores)))
+    new Set(activeProjects.flatMap((p) => Object.keys(p.health_scores)))
   ).sort()
 
   return (
@@ -77,20 +73,23 @@ export default function AdminPulsePage() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <MetricCard icon={Heart} value={formatScore(avgHealth)} label="Avg Health" />
         <MetricCard icon={Activity} value={totalSnapshots.toLocaleString()} label="Total Snapshots" />
-        <MetricCard icon={Settings} value={activeConfigs} label="Active Configs" />
-        <MetricCard
-          icon={AlertTriangle}
-          value={highRiskCount}
-          label="High Risk"
-        />
+        <MetricCard icon={Settings} value={activeConfigs || 'Default'} label="Active Configs" />
+        <MetricCard icon={AlertTriangle} value={highRiskCount} label="High Risk" />
       </div>
 
-      {/* Project heatmap table */}
+      {/* Active projects heatmap */}
       <div className="bg-white rounded-2xl shadow-md border border-[#E5E5E5] p-6">
         <h2 className="text-[15px] font-semibold text-[#333333] mb-5">Project Health</h2>
 
-        {projects.length === 0 ? (
-          <p className="text-[13px] text-[#999999]">No projects with pulse data yet.</p>
+        {activeProjects.length === 0 ? (
+          <div className="text-center py-8">
+            <Activity className="w-8 h-8 text-[#E5E5E5] mx-auto mb-3" />
+            <p className="text-[13px] text-[#999999] mb-1">No pulse snapshots yet</p>
+            <p className="text-[12px] text-[#CCCCCC]">
+              Snapshots are recorded when signals are processed or entities are confirmed.
+              You can also trigger one via the API: GET /projects/:id/pulse
+            </p>
+          </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-[13px]">
@@ -100,7 +99,7 @@ export default function AdminPulsePage() {
                   <th className="text-left py-2 px-3 text-[#999999] font-medium">Stage</th>
                   {allEntityTypes.map((et) => (
                     <th key={et} className="text-center py-2 px-2 text-[#999999] font-medium whitespace-nowrap">
-                      {et.replace('_', ' ')}
+                      {et.replace(/_/g, ' ')}
                     </th>
                   ))}
                   <th className="text-center py-2 px-3 text-[#999999] font-medium">Risk</th>
@@ -110,7 +109,7 @@ export default function AdminPulsePage() {
                 </tr>
               </thead>
               <tbody>
-                {projects.map((proj) => (
+                {activeProjects.map((proj) => (
                   <tr key={proj.project_id} className="border-b border-[#F4F4F4] hover:bg-[#FAFAFA] transition-colors">
                     <td className="py-2.5 pr-3 font-medium text-[#333333] max-w-[160px] truncate">
                       {proj.project_name || proj.project_id.slice(0, 8)}
@@ -170,6 +169,26 @@ export default function AdminPulsePage() {
           </div>
         )}
       </div>
+
+      {/* Pending projects */}
+      {pendingProjects.length > 0 && (
+        <div className="bg-white rounded-2xl shadow-md border border-[#E5E5E5] p-6">
+          <h2 className="text-[15px] font-semibold text-[#333333] mb-3">
+            Awaiting First Signal
+            <span className="text-[12px] font-normal text-[#999999] ml-2">{pendingProjects.length} projects</span>
+          </h2>
+          <div className="flex flex-wrap gap-2">
+            {pendingProjects.map((proj) => (
+              <span key={proj.project_id} className="px-3 py-1.5 bg-[#F4F4F4] rounded-lg text-[12px] text-[#666666]">
+                {proj.project_name || proj.project_id.slice(0, 8)}
+                <span className={`ml-2 px-1.5 py-0.5 rounded-full text-[10px] font-medium ${STAGE_COLORS[proj.stage] || 'bg-[#E5E5E5] text-[#666666]'}`}>
+                  {proj.stage}
+                </span>
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Configs table */}
       <div className="bg-white rounded-2xl shadow-md border border-[#E5E5E5] p-6">
