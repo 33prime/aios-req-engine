@@ -51,6 +51,37 @@ _SUBMIT_TOOL = {
                     "required": ["question"],
                 },
             },
+            "success_criteria": {
+                "type": "array",
+                "items": {"type": "string"},
+                "description": "What makes this step successful (measurable outcomes)",
+            },
+            "pain_points_addressed": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "text": {"type": "string"},
+                        "persona": {"type": "string"},
+                    },
+                    "required": ["text"],
+                },
+                "description": "Pain points this step solves, with optional persona attribution",
+            },
+            "goals_addressed": {
+                "type": "array",
+                "items": {"type": "string"},
+                "description": "Business goals this step contributes to",
+            },
+            "ai_config": {
+                "type": "object",
+                "properties": {
+                    "role": {"type": "string"},
+                    "behaviors": {"type": "array", "items": {"type": "string"}},
+                    "guardrails": {"type": "array", "items": {"type": "string"}},
+                },
+                "description": "AI behavior configuration for this step",
+            },
         },
     },
 }
@@ -243,6 +274,14 @@ Rules:
         summary_parts.append(f"pattern → {changes['implied_pattern']}")
     if "mock_data_narrative" in changes:
         summary_parts.append("updated preview narrative")
+    if "success_criteria" in changes:
+        summary_parts.append(f"{len(changes['success_criteria'])} success criteria")
+    if "pain_points_addressed" in changes:
+        summary_parts.append(f"{len(changes['pain_points_addressed'])} pain points")
+    if "goals_addressed" in changes:
+        summary_parts.append(f"{len(changes['goals_addressed'])} goals")
+    if "ai_config" in changes:
+        summary_parts.append("AI config")
 
     changes_summary = "; ".join(summary_parts) if summary_parts else "minor adjustments"
 

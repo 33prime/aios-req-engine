@@ -238,12 +238,12 @@ export function FlowStepChat({
           <div className="flex items-center gap-2">
             <button
               onClick={() => setQuestionListOpen(!questionListOpen)}
-              className="flex items-center gap-1.5 text-[11px] font-medium text-[#A08050] hover:text-[#8B7355]"
+              className="flex items-center gap-1.5 text-[11px] font-medium text-[#0A1E2F]/60 hover:text-[#0A1E2F]/80"
             >
-              <span className="w-4.5 h-4.5 flex items-center justify-center rounded bg-[#EDE8D5] text-[10px] font-bold text-[#8B7355] px-1">
+              <span className="w-4.5 h-4.5 flex items-center justify-center rounded bg-[#0A1E2F]/8 text-[10px] font-bold text-[#0A1E2F]/70 px-1">
                 {activeQuestions.length}
               </span>
-              open question{activeQuestions.length !== 1 ? 's' : ''}
+              to explore
             </button>
             <button
               onClick={() => handleSolveQuestion(activeQuestions[0])}

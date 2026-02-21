@@ -155,6 +155,24 @@ async def chat_with_assistant(
                 ]
                 messages = recent_history + [{"role": "user", "content": request.message}]
 
+                # Build solution flow context if on solution-flow page
+                solution_flow_ctx = None
+                if request.page_context == "brd:solution-flow":
+                    try:
+                        from app.core.solution_flow_context import build_solution_flow_context
+
+                        focused_step_id = None
+                        if request.focused_entity:
+                            fe_data = request.focused_entity.get("data", {})
+                            focused_step_id = fe_data.get("id")
+
+                        solution_flow_ctx = await build_solution_flow_context(
+                            project_id=str(project_id),
+                            focused_step_id=focused_step_id,
+                        )
+                    except Exception as e:
+                        logger.debug(f"Solution flow context build failed (non-fatal): {e}")
+
                 # Pre-fetch relevant evidence via unified retrieval
                 retrieval_context = ""
                 try:
@@ -165,7 +183,22 @@ async def chat_with_assistant(
 
                     # Build context hint from focused entity (enriches vector search)
                     context_hint = None
-                    if request.focused_entity:
+                    if solution_flow_ctx and solution_flow_ctx.focused_step_prompt:
+                        # Flow-aware retrieval: use step goal + retrieval hints
+                        hint_parts = []
+                        if request.focused_entity:
+                            fe_data = request.focused_entity.get("data", {})
+                            step_title = fe_data.get("title", "")
+                            step_goal = fe_data.get("goal", "")
+                            if step_title:
+                                hint_parts.append(f"Solution flow step: {step_title}.")
+                            if step_goal:
+                                hint_parts.append(f"Goal: {step_goal}.")
+                        if solution_flow_ctx.retrieval_hints:
+                            hint_parts.append("Related: " + "; ".join(solution_flow_ctx.retrieval_hints[:2]))
+                        if hint_parts:
+                            context_hint = " ".join(hint_parts)
+                    elif request.focused_entity:
                         fe = request.focused_entity
                         etype = fe.get("type", "")
                         edata = fe.get("data", {})
@@ -196,6 +229,7 @@ async def chat_with_assistant(
                     focused_entity=request.focused_entity,
                     conversation_context=request.conversation_context,
                     retrieval_context=retrieval_context,
+                    solution_flow_context=solution_flow_ctx,
                 )
 
                 # Log context stats

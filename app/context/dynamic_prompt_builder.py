@@ -160,6 +160,7 @@ def build_smart_chat_prompt(
     focused_entity: dict | None = None,
     conversation_context: str | None = None,
     retrieval_context: str | None = None,
+    solution_flow_context: "SolutionFlowContext | None" = None,
 ) -> str:
     """Build a terse, gap-aware system prompt from ProjectContextFrame.
 
@@ -242,8 +243,8 @@ def build_smart_chat_prompt(
         if guidance:
             sections.append(f"# Page-Specific Guidance\n{guidance}")
 
-    # 8. Focused entity
-    if focused_entity:
+    # 8. Focused entity (skip when solution flow context provides richer detail)
+    if focused_entity and not solution_flow_context:
         etype = focused_entity.get("type", "entity")
         edata = focused_entity.get("data", {})
         ename = edata.get("title") or edata.get("name") or edata.get("question", "")
@@ -259,6 +260,15 @@ def build_smart_chat_prompt(
             sections.append(
                 "# Currently Viewing\n" + "\n".join(entity_lines)
             )
+
+    # 8b. Solution Flow context (supersedes generic "Currently Viewing" for flow pages)
+    if solution_flow_context:
+        if solution_flow_context.flow_summary_prompt:
+            sections.append(f"# Solution Flow Overview\n{solution_flow_context.flow_summary_prompt}")
+        if solution_flow_context.focused_step_prompt:
+            sections.append(f"# Current Step Detail\n{solution_flow_context.focused_step_prompt}")
+        if solution_flow_context.cross_step_prompt:
+            sections.append(f"# Flow Intelligence\n{solution_flow_context.cross_step_prompt}")
 
     # 9. Conversation starter context
     if conversation_context:

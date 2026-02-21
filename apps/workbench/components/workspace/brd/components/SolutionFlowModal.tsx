@@ -213,6 +213,9 @@ export function SolutionFlowModal({
 
   const steps = flow?.steps || []
   const selectedStep = steps.find(s => s.id === selectedStepId)
+  const selectedIndex = steps.findIndex(s => s.id === selectedStepId)
+  const prevStepTitle = selectedIndex > 0 ? steps[selectedIndex - 1].title : undefined
+  const nextStepTitle = selectedIndex >= 0 && selectedIndex < steps.length - 1 ? steps[selectedIndex + 1].title : undefined
 
   // Phase summary chips
   const phaseCountMap: Record<string, number> = {}
@@ -353,6 +356,8 @@ export function SolutionFlowModal({
                     onNeedsReview={onNeedsReview}
                     entityLookup={entityLookup}
                     projectId={projectId}
+                    prevStepTitle={prevStepTitle}
+                    nextStepTitle={nextStepTitle}
                   />
                 ) : (
                   <div className="flex-1 flex items-center justify-center h-full text-sm text-[#999999]">

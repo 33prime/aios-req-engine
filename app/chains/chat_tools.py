@@ -695,6 +695,29 @@ def get_tool_definitions() -> List[Dict[str, Any]]:
                     },
                     "implied_pattern": {"type": "string"},
                     "confirmation_status": {"type": "string", "enum": ["ai_generated", "confirmed_consultant", "needs_client", "confirmed_client"]},
+                    "success_criteria": {"type": "array", "items": {"type": "string"}, "description": "What makes this step successful (measurable outcomes)"},
+                    "pain_points_addressed": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "text": {"type": "string"},
+                                "persona": {"type": "string"},
+                            },
+                            "required": ["text"],
+                        },
+                        "description": "Pain points this step solves, with optional persona attribution",
+                    },
+                    "goals_addressed": {"type": "array", "items": {"type": "string"}, "description": "Business goals this step contributes to"},
+                    "ai_config": {
+                        "type": "object",
+                        "properties": {
+                            "role": {"type": "string"},
+                            "behaviors": {"type": "array", "items": {"type": "string"}},
+                            "guardrails": {"type": "array", "items": {"type": "string"}},
+                        },
+                        "description": "AI behavior configuration for this step",
+                    },
                 },
                 "required": ["step_id"],
             },
@@ -3543,6 +3566,20 @@ async def _update_solution_flow_step(project_id: UUID, params: Dict[str, Any]) -
             )
         except Exception:
             pass  # Don't fail the update if revision recording fails
+
+        # Cross-step cascade: if substantial fields changed, flag other steps
+        # that share linked entities with this step
+        substantial_fields = {"goal", "information_fields", "actors"}
+        if substantial_fields & set(params.keys()):
+            try:
+                linked_ids = []
+                for key in ("linked_feature_ids", "linked_workflow_ids", "linked_data_entity_ids"):
+                    linked_ids.extend(result.get(key) or [])
+                if linked_ids:
+                    from app.db.solution_flow import flag_steps_with_updates
+                    flag_steps_with_updates(project_id, linked_ids)
+            except Exception:
+                pass  # Don't fail the update
 
         # Re-fetch full step data for optimistic update
         step_data = get_flow_step(UUID(step_id))

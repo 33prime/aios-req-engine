@@ -696,6 +696,14 @@ export interface SolutionFlowStepDetail extends SolutionFlowStepSummary {
   linked_data_entity_ids: string[]
   evidence_ids: string[]
   version: number
+  success_criteria: string[] | null
+  pain_points_addressed: Array<{ text: string; persona?: string }> | null
+  goals_addressed: string[] | null
+  ai_config: {
+    role: string
+    behaviors: string[]
+    guardrails: string[]
+  } | null
 }
 
 export interface SolutionFlowOverview {

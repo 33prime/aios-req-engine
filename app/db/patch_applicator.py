@@ -180,6 +180,16 @@ async def apply_entity_patches(
     if result.applied:
         _embed_modified_entities(result.applied)
 
+    # Flag linked solution flow steps when entities change
+    if result.entity_ids_modified:
+        try:
+            from app.db.solution_flow import flag_steps_with_updates
+            flag_steps_with_updates(
+                project_id, [str(eid) for eid in result.entity_ids_modified]
+            )
+        except Exception:
+            logger.warning("Failed to flag solution flow steps", exc_info=True)
+
     # Record state revision if anything was applied
     if result.entity_ids_modified:
         try:

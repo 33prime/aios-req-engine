@@ -17,6 +17,17 @@ import {
   FileSearch,
   Sparkles,
   MessageCircle,
+  ChevronDown,
+  ChevronRight,
+  Target,
+  Zap,
+  Shield,
+  Bot,
+  ArrowRight,
+  ArrowLeft,
+  Heart,
+  Trophy,
+  Compass,
 } from 'lucide-react'
 import { ConfirmActions } from './ConfirmActions'
 import type { SolutionFlowStepDetail as StepDetail, InformationField, FlowOpenQuestion, RevisionEntry } from '@/types/workspace'
@@ -35,6 +46,13 @@ const ENTITY_CONFIG: Record<string, { icon: typeof GitBranch; label: string; col
   workflow: { icon: GitBranch, label: 'Workflow', color: 'text-[#0A1E2F]', bg: 'bg-[#0A1E2F]/5 border-[#0A1E2F]/15' },
   feature: { icon: Box, label: 'Feature', color: 'text-[#25785A]', bg: 'bg-[#3FAF7A]/5 border-[#3FAF7A]/15' },
   data_entity: { icon: Database, label: 'Data Entity', color: 'text-[#0D2A35]', bg: 'bg-[#0D2A35]/5 border-[#0D2A35]/15' },
+}
+
+// ─── Beat emoji markers by field type ───────────────────────────────────────
+const BEAT_CONFIG: Record<string, { verb: string; icon: typeof Target; bg: string; border: string }> = {
+  captured: { verb: 'User provides', icon: Target, bg: 'bg-[#0A1E2F]/3', border: 'border-[#0A1E2F]/10' },
+  computed: { verb: 'System generates', icon: Zap, bg: 'bg-[#3FAF7A]/5', border: 'border-[#3FAF7A]/15' },
+  displayed: { verb: 'Shows', icon: FileSearch, bg: 'bg-[#F4F4F4]', border: 'border-[#E5E5E5]' },
 }
 
 // ─── Revision badge config ───────────────────────────────────────────────────
@@ -59,6 +77,8 @@ interface FlowStepDetailProps {
   onNeedsReview: (entityType: string, entityId: string) => void
   entityLookup?: EntityLookup
   projectId: string
+  prevStepTitle?: string
+  nextStepTitle?: string
 }
 
 // ─── CSS animations (injected once) ─────────────────────────────────────────
@@ -75,11 +95,14 @@ const ANIMATION_STYLES = `
 .animate-pulseGreen { animation: pulseGreen 2.5s ease-out; }
 `
 
-export function FlowStepDetail({ step, loading, onConfirm, onNeedsReview, entityLookup, projectId }: FlowStepDetailProps) {
+type TabId = 'experience' | 'success' | 'ai' | 'history'
+
+export function FlowStepDetail({ step, loading, onConfirm, onNeedsReview, entityLookup, projectId, prevStepTitle, nextStepTitle }: FlowStepDetailProps) {
   const [evidenceFiles, setEvidenceFiles] = useState<EvidenceFile[]>([])
-  const [activeTab, setActiveTab] = useState<'details' | 'history'>('details')
+  const [activeTab, setActiveTab] = useState<TabId>('experience')
   const [revisions, setRevisions] = useState<RevisionEntry[]>([])
   const [revisionsLoading, setRevisionsLoading] = useState(false)
+  const [dataFieldsExpanded, setDataFieldsExpanded] = useState(false)
 
   // ─── Change highlighting state ──────────────────────────────────────────────
   const prevStepRef = useRef<StepDetail | null>(null)
@@ -108,6 +131,10 @@ export function FlowStepDetail({ step, loading, onConfirm, onNeedsReview, entity
     }
     if (JSON.stringify(step.open_questions) !== JSON.stringify(prev.open_questions)) changed.add('questions')
     if (step.mock_data_narrative !== prev.mock_data_narrative) changed.add('narrative')
+    if (JSON.stringify(step.success_criteria) !== JSON.stringify(prev.success_criteria)) changed.add('success_criteria')
+    if (JSON.stringify(step.pain_points_addressed) !== JSON.stringify(prev.pain_points_addressed)) changed.add('pain_points')
+    if (JSON.stringify(step.goals_addressed) !== JSON.stringify(prev.goals_addressed)) changed.add('goals_addressed')
+    if (JSON.stringify(step.ai_config) !== JSON.stringify(prev.ai_config)) changed.add('ai_config')
 
     prevStepRef.current = step
     if (changed.size > 0) {
@@ -163,7 +190,8 @@ export function FlowStepDetail({ step, loading, onConfirm, onNeedsReview, entity
 
   // Reset tab when step changes
   useEffect(() => {
-    setActiveTab('details')
+    setActiveTab('experience')
+    setDataFieldsExpanded(false)
   }, [step?.id])
 
   if (loading) {
@@ -187,9 +215,10 @@ export function FlowStepDetail({ step, loading, onConfirm, onNeedsReview, entity
   const escalatedQuestions: FlowOpenQuestion[] = (step.open_questions || []).filter(q => q.status === 'escalated')
   const resolvedQuestions: FlowOpenQuestion[] = (step.open_questions || []).filter(q => q.status === 'resolved')
 
-  // Group info fields by confidence
-  const definedFields = infoFields.filter(f => f.confidence === 'known' || f.confidence === 'inferred')
-  const needsConfirmationFields = infoFields.filter(f => f.confidence === 'guess' || f.confidence === 'unknown')
+  // Group info fields by type for narrative beats
+  const capturedFields = infoFields.filter(f => f.type === 'captured')
+  const computedFields = infoFields.filter(f => f.type === 'computed')
+  const displayedFields = infoFields.filter(f => f.type === 'displayed')
 
   // Collect linked entities with resolved names
   const linkedEntities: { type: string; id: string; name: string }[] = []
@@ -228,6 +257,13 @@ export function FlowStepDetail({ step, loading, onConfirm, onNeedsReview, entity
     return <FileText className="w-4 h-4" />
   }
 
+  const tabs: { id: TabId; label: string; icon: typeof FileSearch }[] = [
+    { id: 'experience', label: 'Experience', icon: FileSearch },
+    { id: 'success', label: 'Success', icon: Trophy },
+    { id: 'ai', label: 'AI', icon: Bot },
+    { id: 'history', label: 'History', icon: History },
+  ]
+
   return (
     <div className="h-full overflow-y-auto p-5 space-y-5">
       {/* Inject animation styles */}
@@ -258,242 +294,575 @@ export function FlowStepDetail({ step, loading, onConfirm, onNeedsReview, entity
         />
       </div>
 
-      {/* Details / History tab toggle */}
+      {/* 4-tab toggle */}
       <div className="flex gap-1 bg-[#F4F4F4] rounded-lg p-0.5 w-fit">
-        <button
-          onClick={() => setActiveTab('details')}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
-            activeTab === 'details'
-              ? 'bg-white text-[#333333] shadow-sm'
-              : 'text-[#999999] hover:text-[#666666]'
-          }`}
-        >
-          <FileSearch className="w-3.5 h-3.5" />
-          Details
-        </button>
-        <button
-          onClick={() => setActiveTab('history')}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
-            activeTab === 'history'
-              ? 'bg-white text-[#333333] shadow-sm'
-              : 'text-[#999999] hover:text-[#666666]'
-          }`}
-        >
-          <History className="w-3.5 h-3.5" />
-          History
-        </button>
+        {tabs.map(tab => {
+          const Icon = tab.icon
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                activeTab === tab.id
+                  ? 'bg-white text-[#333333] shadow-sm'
+                  : 'text-[#999999] hover:text-[#666666]'
+              }`}
+            >
+              <Icon className="w-3.5 h-3.5" />
+              {tab.label}
+            </button>
+          )
+        })}
       </div>
 
-      {activeTab === 'details' ? (
-        <>
-          {/* Goal box */}
-          <div className={`bg-[#0A1E2F] rounded-xl p-4 transition-all duration-700 ${
-            changedFields.has('goal') ? 'ring-2 ring-[#3FAF7A]/30' : ''
-          }`}>
-            <div className="text-[10px] uppercase tracking-wider text-white/50 mb-1">Goal</div>
-            <p className="text-sm text-white/90 leading-relaxed">{step.goal}</p>
-          </div>
+      {activeTab === 'experience' ? (
+        <ExperienceTab
+          step={step}
+          infoFields={infoFields}
+          capturedFields={capturedFields}
+          computedFields={computedFields}
+          displayedFields={displayedFields}
+          openQuestions={openQuestions}
+          escalatedQuestions={escalatedQuestions}
+          resolvedQuestions={resolvedQuestions}
+          changedFields={changedFields}
+          evidenceFiles={evidenceFiles}
+          fileIcon={fileIcon}
+          prevStepTitle={prevStepTitle}
+          nextStepTitle={nextStepTitle}
+          dataFieldsExpanded={dataFieldsExpanded}
+          setDataFieldsExpanded={setDataFieldsExpanded}
+        />
+      ) : activeTab === 'success' ? (
+        <SuccessTab
+          step={step}
+          linkedEntities={linkedEntities}
+          changedFields={changedFields}
+        />
+      ) : activeTab === 'ai' ? (
+        <AITab step={step} changedFields={changedFields} />
+      ) : (
+        <HistoryTimeline revisions={revisions} loading={revisionsLoading} />
+      )}
+    </div>
+  )
+}
 
-          {/* Linked Entities */}
-          {linkedEntities.length > 0 && (
-            <div>
-              <h3 className="text-[11px] font-semibold uppercase tracking-wider text-[#999999] mb-2">
-                Linked Entities
-              </h3>
-              <div className="flex flex-wrap gap-2">
-                {linkedEntities.map(({ type, id, name }) => {
-                  const config = ENTITY_CONFIG[type] || ENTITY_CONFIG.workflow
-                  const Icon = config.icon
-                  return (
-                    <div
-                      key={id}
-                      className={`flex items-center gap-2 px-3 py-2 rounded-lg border ${config.bg}`}
-                    >
-                      <Icon className={`w-3.5 h-3.5 ${config.color}`} />
-                      <div className="min-w-0">
-                        <span className={`text-[10px] font-medium ${config.color} mr-1.5`}>{config.label}</span>
-                        <span className="text-[12px] font-medium text-[#333333]">{name}</span>
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-          )}
+// ─── Experience Tab ─────────────────────────────────────────────────────────
 
-          {/* Key Information — card-based grouped by confidence */}
-          {infoFields.length > 0 && (
-            <div>
-              <h3 className="text-[11px] font-semibold uppercase tracking-wider text-[#999999] mb-2">
-                Key Information ({infoFields.length})
-              </h3>
-              <div className="space-y-1">
-                {/* Defined fields (known + inferred) */}
-                {definedFields.map((field) => (
-                  <FieldRow
-                    key={field.name}
-                    field={field}
-                    highlighted={changedFields.has(`field:${field.name}`)}
-                    isNew={changedFields.has(`field:${field.name}`) && changedFields.has('info_fields')}
-                  />
-                ))}
+function ExperienceTab({
+  step,
+  infoFields,
+  capturedFields,
+  computedFields,
+  displayedFields,
+  openQuestions,
+  escalatedQuestions,
+  resolvedQuestions,
+  changedFields,
+  evidenceFiles,
+  fileIcon,
+  prevStepTitle,
+  nextStepTitle,
+  dataFieldsExpanded,
+  setDataFieldsExpanded,
+}: {
+  step: StepDetail
+  infoFields: InformationField[]
+  capturedFields: InformationField[]
+  computedFields: InformationField[]
+  displayedFields: InformationField[]
+  openQuestions: FlowOpenQuestion[]
+  escalatedQuestions: FlowOpenQuestion[]
+  resolvedQuestions: FlowOpenQuestion[]
+  changedFields: Set<string>
+  evidenceFiles: EvidenceFile[]
+  fileIcon: (fileType: string) => React.ReactNode
+  prevStepTitle?: string
+  nextStepTitle?: string
+  dataFieldsExpanded: boolean
+  setDataFieldsExpanded: (v: boolean) => void
+}) {
+  return (
+    <>
+      {/* Goal box */}
+      <div className={`bg-[#0A1E2F] rounded-xl p-4 transition-all duration-700 ${
+        changedFields.has('goal') ? 'ring-2 ring-[#3FAF7A]/30' : ''
+      }`}>
+        <div className="text-[10px] uppercase tracking-wider text-white/50 mb-1">Goal</div>
+        <p className="text-sm text-white/90 leading-relaxed">{step.goal}</p>
+      </div>
 
-                {/* Divider between defined and needs-confirmation */}
-                {definedFields.length > 0 && needsConfirmationFields.length > 0 && (
-                  <div className="flex items-center gap-2 py-1.5">
-                    <div className="flex-1 border-t border-dashed border-[#E5E5E5]" />
-                    <span className="text-[10px] font-medium text-[#999999] uppercase tracking-wider">
-                      Needs Confirmation
-                    </span>
-                    <div className="flex-1 border-t border-dashed border-[#E5E5E5]" />
-                  </div>
-                )}
-
-                {/* Guess + unknown fields */}
-                {needsConfirmationFields.map((field) => (
-                  <FieldRow
-                    key={field.name}
-                    field={field}
-                    highlighted={changedFields.has(`field:${field.name}`)}
-                    isNew={changedFields.has(`field:${field.name}`) && changedFields.has('info_fields')}
-                  />
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Mock Data Narrative */}
+      {/* Narrative Beats — info fields as story beats */}
+      {infoFields.length > 0 && (
+        <div>
+          {/* Mock data narrative as featured block */}
           {step.mock_data_narrative && (
-            <div className={`bg-[#F4F4F4] border border-[#E5E5E5] rounded-xl p-4 transition-all duration-700 ${
+            <div className={`bg-[#F8F6F0] border border-[#E8E4D8] rounded-xl p-4 mb-4 transition-all duration-700 ${
               changedFields.has('narrative') ? 'ring-2 ring-[#3FAF7A]/30' : ''
             }`}>
-              <h3 className="text-[11px] font-semibold uppercase tracking-wider text-[#999999] mb-2">
-                Preview
-              </h3>
-              <p className="text-[13px] text-[#666666] leading-relaxed italic">
+              <p className="text-[13px] text-[#555555] leading-relaxed italic">
                 {step.mock_data_narrative}
               </p>
             </div>
           )}
 
-          {/* Open Questions */}
-          {openQuestions.length > 0 && (
-            <div className={changedFields.has('questions') ? 'animate-pulseGreen rounded-xl' : ''}>
-              <h3 className="text-[11px] font-semibold uppercase tracking-wider text-[#999999] mb-2">
-                Open Questions ({openQuestions.length})
-              </h3>
-              <div className="space-y-2">
-                {openQuestions.map((q, i) => (
-                  <div key={i} className="border-l-[3px] border-[#C4A97D] bg-[#EDE8D5]/30 rounded-r-lg p-3">
-                    <div className="flex items-start gap-2">
-                      <AlertCircle className="w-4 h-4 text-[#A08050] shrink-0 mt-0.5" />
-                      <div>
-                        <p className="text-[13px] text-[#333333]">{q.question}</p>
-                        {q.context && (
-                          <p className="text-xs text-[#999999] mt-1">{q.context}</p>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+          <h3 className="text-[11px] font-semibold uppercase tracking-wider text-[#999999] mb-3">
+            Narrative Beats
+          </h3>
 
-          {/* Escalated Questions */}
-          {escalatedQuestions.length > 0 && (
-            <div>
-              <h3 className="text-[11px] font-semibold uppercase tracking-wider text-[#999999] mb-2">
-                Queued for Client ({escalatedQuestions.length})
-              </h3>
-              <div className="space-y-2">
-                {escalatedQuestions.map((q, i) => (
-                  <div key={i} className="border-l-[3px] border-[#E5E5E5] bg-[#F9F9F9] rounded-r-lg p-3">
-                    <div className="flex items-start gap-2">
-                      <ArrowUpRight className="w-4 h-4 text-[#999999] shrink-0 mt-0.5" />
-                      <div>
-                        <p className="text-[13px] text-[#666666]">{q.question}</p>
-                        {q.escalated_to && (
-                          <p className="text-xs text-[#A08050] mt-1 flex items-center gap-1">
-                            <Clock className="w-3 h-3" /> Queued for {q.escalated_to}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+          <div className="relative">
+            {/* Vertical connector line */}
+            <div className="absolute left-[15px] top-3 bottom-3 w-px bg-[#E5E5E5]" />
 
-          {/* Resolved Questions */}
-          {resolvedQuestions.length > 0 && (
-            <div>
-              <h3 className="text-[11px] font-semibold uppercase tracking-wider text-[#999999] mb-2">
-                Resolved ({resolvedQuestions.length})
-              </h3>
-              <div className="space-y-2">
-                {resolvedQuestions.map((q, i) => (
-                  <div key={i} className="border-l-[3px] border-[#3FAF7A]/40 bg-[#3FAF7A]/5 rounded-r-lg p-3">
-                    <div className="flex items-start gap-2">
-                      <CheckCircle2 className="w-4 h-4 text-[#3FAF7A] shrink-0 mt-0.5" />
-                      <div>
-                        <p className="text-[13px] text-[#666666] line-through opacity-60">{q.question}</p>
-                        <p className="text-[13px] text-[#333333] mt-1">{q.resolved_answer}</p>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+            <div className="space-y-2">
+              {/* Captured beats — user actions */}
+              {capturedFields.map((field, i) => (
+                <NarrativeBeat
+                  key={`captured-${field.name}`}
+                  field={field}
+                  beatType="captured"
+                  actors={step.actors}
+                  highlighted={changedFields.has(`field:${field.name}`)}
+                  isNew={changedFields.has(`field:${field.name}`) && changedFields.has('info_fields')}
+                />
+              ))}
 
-          {/* Implied Pattern */}
-          {step.implied_pattern && (
-            <div className="flex items-center gap-2">
-              <Layout className="w-4 h-4 text-[#999999]" />
-              <span className="text-xs px-2.5 py-1 rounded-full bg-[#F4F4F4] text-[#666666] font-medium">
-                {step.implied_pattern}
-              </span>
-            </div>
-          )}
+              {/* Computed beats — system actions */}
+              {computedFields.map((field) => (
+                <NarrativeBeat
+                  key={`computed-${field.name}`}
+                  field={field}
+                  beatType="computed"
+                  highlighted={changedFields.has(`field:${field.name}`)}
+                  isNew={changedFields.has(`field:${field.name}`) && changedFields.has('info_fields')}
+                />
+              ))}
 
-          {/* Evidence & Uploads */}
-          <div>
-            <h3 className="text-[11px] font-semibold uppercase tracking-wider text-[#999999] mb-2">
-              Evidence & Uploads
-              {evidenceFiles.length > 0 && ` (${evidenceFiles.length})`}
-            </h3>
-            {evidenceFiles.length > 0 ? (
-              <div className="space-y-1.5">
-                {evidenceFiles.map(file => (
-                  <div
-                    key={file.id}
-                    className="flex items-center gap-3 px-3 py-2.5 bg-white border border-[#E5E5E5] rounded-lg"
-                  >
-                    <div className="w-8 h-8 rounded-md bg-[#F4F4F4] flex items-center justify-center text-[#666666]">
-                      {fileIcon(file.fileType)}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="text-[13px] font-medium text-[#333333] truncate">{file.filename}</div>
-                      <div className="text-[10px] text-[#999999] uppercase">{file.fileType}</div>
-                    </div>
+              {/* Implied pattern as a beat */}
+              {step.implied_pattern && (
+                <div className="flex items-start gap-3 pl-1.5">
+                  <div className="w-[9px] h-[9px] rounded-full bg-[#0A1E2F]/20 mt-1.5 shrink-0 z-10 ring-2 ring-white" />
+                  <div className="flex-1 flex items-center gap-2 py-1.5 px-3 rounded-lg bg-[#0A1E2F]/5 border border-[#0A1E2F]/10">
+                    <Layout className="w-3.5 h-3.5 text-[#0A1E2F]/50" />
+                    <span className="text-[12px] text-[#666666]">
+                      Renders as a <span className="font-medium text-[#0A1E2F]">{step.implied_pattern}</span>
+                    </span>
                   </div>
-                ))}
-              </div>
-            ) : (
-              <div className="flex items-center gap-3 px-4 py-5 border border-dashed border-[#E5E5E5] rounded-xl text-center">
-                <Paperclip className="w-4 h-4 text-[#BBBBBB]" />
-                <p className="text-xs text-[#BBBBBB]">
-                  No files attached yet. Use the chat to upload documents or images for this step.
-                </p>
-              </div>
-            )}
+                </div>
+              )}
+
+              {/* Displayed beats — output/results */}
+              {displayedFields.map((field) => (
+                <NarrativeBeat
+                  key={`displayed-${field.name}`}
+                  field={field}
+                  beatType="displayed"
+                  highlighted={changedFields.has(`field:${field.name}`)}
+                  isNew={changedFields.has(`field:${field.name}`) && changedFields.has('info_fields')}
+                />
+              ))}
+            </div>
           </div>
-        </>
-      ) : (
-        /* ─── History Tab ─────────────────────────────────────────────────── */
-        <HistoryTimeline revisions={revisions} loading={revisionsLoading} />
+        </div>
+      )}
+
+      {/* Step connections */}
+      {(prevStepTitle || nextStepTitle) && (
+        <div className="flex items-center gap-3 px-3 py-2 rounded-lg bg-[#F4F4F4]/60 text-[12px] text-[#999999]">
+          {prevStepTitle && (
+            <span className="flex items-center gap-1">
+              <ArrowLeft className="w-3 h-3" /> from {prevStepTitle}
+            </span>
+          )}
+          {prevStepTitle && nextStepTitle && <span className="text-[#E5E5E5]">|</span>}
+          {nextStepTitle && (
+            <span className="flex items-center gap-1">
+              feeds {nextStepTitle} <ArrowRight className="w-3 h-3" />
+            </span>
+          )}
+        </div>
+      )}
+
+      {/* Evidence & Uploads */}
+      {evidenceFiles.length > 0 && (
+        <div>
+          <h3 className="text-[11px] font-semibold uppercase tracking-wider text-[#999999] mb-2">
+            Client References ({evidenceFiles.length})
+          </h3>
+          <div className="flex flex-wrap gap-2">
+            {evidenceFiles.map(file => (
+              <div
+                key={file.id}
+                className="flex items-center gap-2 px-3 py-2 bg-white border border-[#E5E5E5] rounded-lg"
+              >
+                <div className="w-7 h-7 rounded-md bg-[#F4F4F4] flex items-center justify-center text-[#666666]">
+                  {fileIcon(file.fileType)}
+                </div>
+                <div className="min-w-0">
+                  <div className="text-[12px] font-medium text-[#333333] truncate max-w-[140px]">{file.filename}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Things to Explore — reframed open questions */}
+      {openQuestions.length > 0 && (
+        <div className={changedFields.has('questions') ? 'animate-pulseGreen rounded-xl' : ''}>
+          <h3 className="text-[11px] font-semibold uppercase tracking-wider text-[#999999] mb-2">
+            Things to Explore ({openQuestions.length})
+          </h3>
+          <div className="space-y-2">
+            {openQuestions.map((q, i) => (
+              <div key={i} className="border border-[#E5E5E5] bg-[#FAFAFA] rounded-xl p-3">
+                <div className="flex items-start gap-2">
+                  <Compass className="w-4 h-4 text-[#0A1E2F]/40 shrink-0 mt-0.5" />
+                  <div className="flex-1">
+                    <p className="text-[13px] text-[#333333]">{q.question}</p>
+                    {q.context && (
+                      <p className="text-xs text-[#999999] mt-1">{q.context}</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Escalated Questions */}
+      {escalatedQuestions.length > 0 && (
+        <div>
+          <h3 className="text-[11px] font-semibold uppercase tracking-wider text-[#999999] mb-2">
+            Queued for Client ({escalatedQuestions.length})
+          </h3>
+          <div className="space-y-2">
+            {escalatedQuestions.map((q, i) => (
+              <div key={i} className="border-l-[3px] border-[#E5E5E5] bg-[#F9F9F9] rounded-r-lg p-3">
+                <div className="flex items-start gap-2">
+                  <ArrowUpRight className="w-4 h-4 text-[#999999] shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-[13px] text-[#666666]">{q.question}</p>
+                    {q.escalated_to && (
+                      <p className="text-xs text-[#A08050] mt-1 flex items-center gap-1">
+                        <Clock className="w-3 h-3" /> Queued for {q.escalated_to}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Resolved Questions */}
+      {resolvedQuestions.length > 0 && (
+        <div>
+          <h3 className="text-[11px] font-semibold uppercase tracking-wider text-[#999999] mb-2">
+            Resolved ({resolvedQuestions.length})
+          </h3>
+          <div className="space-y-2">
+            {resolvedQuestions.map((q, i) => (
+              <div key={i} className="border-l-[3px] border-[#3FAF7A]/40 bg-[#3FAF7A]/5 rounded-r-lg p-3">
+                <div className="flex items-start gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-[#3FAF7A] shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-[13px] text-[#666666] line-through opacity-60">{q.question}</p>
+                    <p className="text-[13px] text-[#333333] mt-1">{q.resolved_answer}</p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Collapsed data fields */}
+      {infoFields.length > 0 && (
+        <div>
+          <button
+            onClick={() => setDataFieldsExpanded(!dataFieldsExpanded)}
+            className="flex items-center gap-1.5 text-[11px] font-medium text-[#999999] hover:text-[#666666]"
+          >
+            {dataFieldsExpanded ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
+            {dataFieldsExpanded ? 'Hide' : 'Show'} {infoFields.length} data field{infoFields.length !== 1 ? 's' : ''}
+          </button>
+          {dataFieldsExpanded && (
+            <div className="mt-2 space-y-1">
+              {infoFields.map((field) => (
+                <FieldRow
+                  key={field.name}
+                  field={field}
+                  highlighted={changedFields.has(`field:${field.name}`)}
+                  isNew={changedFields.has(`field:${field.name}`) && changedFields.has('info_fields')}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </>
+  )
+}
+
+// ─── Narrative Beat Component ────────────────────────────────────────────────
+
+function NarrativeBeat({
+  field,
+  beatType,
+  actors,
+  highlighted,
+  isNew,
+}: {
+  field: InformationField
+  beatType: 'captured' | 'computed' | 'displayed'
+  actors?: string[]
+  highlighted: boolean
+  isNew: boolean
+}) {
+  const config = BEAT_CONFIG[beatType]
+  const dot = CONFIDENCE_DOT[field.confidence] || CONFIDENCE_DOT.unknown
+  const Icon = config.icon
+
+  return (
+    <div
+      className={`flex items-start gap-3 pl-1.5 transition-all duration-500 ${
+        highlighted
+          ? `animate-pulseGreen${isNew ? ' animate-slideInLeft' : ''}`
+          : ''
+      }`}
+    >
+      {/* Timeline dot */}
+      <div
+        className={`w-[9px] h-[9px] rounded-full mt-1.5 shrink-0 z-10 ring-2 ring-white ${dot.color}`}
+        title={dot.label}
+      />
+
+      {/* Beat card */}
+      <div className={`flex-1 py-2 px-3 rounded-lg border ${config.bg} ${config.border}`}>
+        <div className="flex items-center gap-2 mb-0.5">
+          <Icon className="w-3 h-3 text-[#999999]" />
+          <span className="text-[10px] font-medium text-[#999999] uppercase tracking-wider">
+            {config.verb}
+          </span>
+          {beatType === 'captured' && actors?.length ? (
+            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[#0A1E2F]/8 text-[#0A1E2F]">
+              {actors[0]}
+            </span>
+          ) : null}
+        </div>
+        <div className="flex items-baseline gap-1.5">
+          <span className="text-[13px] font-medium text-[#333333]">{field.name}</span>
+          {field.mock_value && (
+            <span className="text-[12px] text-[#999999]">&mdash; {field.mock_value}</span>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─── Success Tab ─────────────────────────────────────────────────────────────
+
+function SuccessTab({
+  step,
+  linkedEntities,
+  changedFields,
+}: {
+  step: StepDetail
+  linkedEntities: { type: string; id: string; name: string }[]
+  changedFields: Set<string>
+}) {
+  const painPoints = step.pain_points_addressed || []
+  const goals = step.goals_addressed || []
+  const criteria = step.success_criteria || []
+
+  const isEmpty = painPoints.length === 0 && goals.length === 0 && criteria.length === 0 && linkedEntities.length === 0
+
+  if (isEmpty) {
+    return (
+      <div className="flex flex-col items-center justify-center h-48 text-center">
+        <Trophy className="w-6 h-6 text-[#CCCCCC] mb-3" />
+        <p className="text-sm text-[#999999] mb-1">No success criteria yet</p>
+        <p className="text-xs text-[#BBBBBB]">Use the chat to discuss what makes this step successful</p>
+      </div>
+    )
+  }
+
+  return (
+    <>
+      {/* Solves For — pain points */}
+      {painPoints.length > 0 && (
+        <div className={changedFields.has('pain_points') ? 'animate-pulseGreen rounded-xl' : ''}>
+          <h3 className="text-[11px] font-semibold uppercase tracking-wider text-[#999999] mb-2">
+            Solves For
+          </h3>
+          <div className="space-y-2">
+            {painPoints.map((pp, i) => (
+              <div
+                key={i}
+                className="border border-[#E5E5E5] bg-white rounded-xl p-3 animate-slideInLeft"
+                style={{ animationDelay: `${i * 60}ms` }}
+              >
+                <div className="flex items-start gap-2">
+                  <Heart className="w-4 h-4 text-[#D97706] shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-[13px] text-[#333333]">{pp.text}</p>
+                    {pp.persona && (
+                      <span className="inline-block text-[10px] px-2 py-0.5 rounded-full bg-[#0A1E2F]/5 text-[#0A1E2F] mt-1.5">
+                        {pp.persona}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Achieves — goals */}
+      {goals.length > 0 && (
+        <div className={changedFields.has('goals_addressed') ? 'animate-pulseGreen rounded-xl' : ''}>
+          <h3 className="text-[11px] font-semibold uppercase tracking-wider text-[#999999] mb-2">
+            Achieves
+          </h3>
+          <div className="flex flex-wrap gap-2">
+            {goals.map((goal, i) => (
+              <span
+                key={i}
+                className="inline-flex items-center gap-1.5 text-[12px] px-3 py-1.5 rounded-full bg-[#3FAF7A]/10 text-[#25785A] font-medium"
+              >
+                <CheckCircle2 className="w-3 h-3" />
+                {goal}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* What Makes This Step Successful — criteria */}
+      {criteria.length > 0 && (
+        <div className={changedFields.has('success_criteria') ? 'animate-pulseGreen rounded-xl' : ''}>
+          <h3 className="text-[11px] font-semibold uppercase tracking-wider text-[#999999] mb-2">
+            What Makes This Step Successful
+          </h3>
+          <div className="space-y-1.5">
+            {criteria.map((c, i) => (
+              <div key={i} className="flex items-start gap-2 py-1.5 px-3 rounded-lg hover:bg-[#F9F9F9]">
+                <Target className="w-4 h-4 text-[#3FAF7A] shrink-0 mt-0.5" />
+                <span className="text-[13px] text-[#333333]">{c}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Connected Entities */}
+      {linkedEntities.length > 0 && (
+        <div>
+          <h3 className="text-[11px] font-semibold uppercase tracking-wider text-[#999999] mb-2">
+            Connected Entities
+          </h3>
+          <div className="flex flex-wrap gap-2">
+            {linkedEntities.map(({ type, id, name }) => {
+              const config = ENTITY_CONFIG[type] || ENTITY_CONFIG.workflow
+              const Icon = config.icon
+              return (
+                <div
+                  key={id}
+                  className={`flex items-center gap-2 px-3 py-2 rounded-lg border ${config.bg}`}
+                >
+                  <Icon className={`w-3.5 h-3.5 ${config.color}`} />
+                  <div className="min-w-0">
+                    <span className={`text-[10px] font-medium ${config.color} mr-1.5`}>{config.label}</span>
+                    <span className="text-[12px] font-medium text-[#333333]">{name}</span>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+    </>
+  )
+}
+
+// ─── AI Tab ──────────────────────────────────────────────────────────────────
+
+function AITab({
+  step,
+  changedFields,
+}: {
+  step: StepDetail
+  changedFields: Set<string>
+}) {
+  const aiConfig = step.ai_config
+
+  if (!aiConfig) {
+    return (
+      <div className="flex flex-col items-center justify-center h-48 text-center">
+        <Bot className="w-6 h-6 text-[#CCCCCC] mb-3" />
+        <p className="text-sm font-medium text-[#666666] mb-1">Does this step use AI?</p>
+        <p className="text-xs text-[#999999] max-w-xs mb-4">
+          If this step involves AI-driven behavior — recommendations, scoring, generation — define the role, behaviors, and guardrails.
+        </p>
+        <p className="text-xs text-[#BBBBBB]">
+          Use the chat to say &quot;Enable AI for this step&quot;
+        </p>
+      </div>
+    )
+  }
+
+  return (
+    <div className={`space-y-5 ${changedFields.has('ai_config') ? 'animate-pulseGreen rounded-xl' : ''}`}>
+      {/* Role */}
+      <div>
+        <h3 className="text-[11px] font-semibold uppercase tracking-wider text-[#999999] mb-2">
+          AI Role
+        </h3>
+        <div className="bg-[#0A1E2F] rounded-xl p-4">
+          <p className="text-sm text-white/90 leading-relaxed">
+            {aiConfig.role || 'No role defined'}
+          </p>
+        </div>
+      </div>
+
+      {/* Behaviors */}
+      {aiConfig.behaviors?.length > 0 && (
+        <div>
+          <h3 className="text-[11px] font-semibold uppercase tracking-wider text-[#999999] mb-2">
+            Behaviors
+          </h3>
+          <div className="space-y-1.5">
+            {aiConfig.behaviors.map((b, i) => (
+              <div key={i} className="flex items-start gap-2 py-1.5 px-3 rounded-lg bg-[#3FAF7A]/5 border border-[#3FAF7A]/10">
+                <Zap className="w-3.5 h-3.5 text-[#3FAF7A] shrink-0 mt-0.5" />
+                <span className="text-[13px] text-[#333333]">{b}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Guardrails */}
+      {aiConfig.guardrails?.length > 0 && (
+        <div>
+          <h3 className="text-[11px] font-semibold uppercase tracking-wider text-[#999999] mb-2">
+            Guardrails
+          </h3>
+          <div className="space-y-1.5">
+            {aiConfig.guardrails.map((g, i) => (
+              <div key={i} className="flex items-start gap-2 py-1.5 px-3 rounded-lg bg-[#FFF7ED] border border-[#FDBA74]/20">
+                <Shield className="w-3.5 h-3.5 text-[#D97706] shrink-0 mt-0.5" />
+                <span className="text-[13px] text-[#333333]">{g}</span>
+              </div>
+            ))}
+          </div>
+        </div>
       )}
     </div>
   )
@@ -643,7 +1012,7 @@ function FieldChanges({ changes }: { changes: Record<string, unknown> }) {
               <div key={key} className="text-[11px] bg-[#F4F4F4] rounded px-2 py-1.5">
                 <span className="font-medium text-[#666666]">{key}:</span>{' '}
                 {oldStr && <span className="text-[#CC4444] line-through">{truncate(oldStr, 60)}</span>}
-                {oldStr && newStr && <span className="text-[#999999]"> → </span>}
+                {oldStr && newStr && <span className="text-[#999999]"> &rarr; </span>}
                 {newStr && <span className="text-[#25785A]">{truncate(newStr, 60)}</span>}
               </div>
             )
