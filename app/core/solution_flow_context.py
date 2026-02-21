@@ -389,6 +389,8 @@ async def build_solution_flow_context(
 
                 # Confirmation history — step's own revision timeline
                 ctx.confirmation_history = _build_confirmation_history(focused_step)
+            else:
+                logger.warning(f"Focused step not found in DB: {focused_step_id}")
 
         # Layer 3: Cross-step intelligence
         ctx.cross_step_prompt = _build_cross_step_intelligence(steps)

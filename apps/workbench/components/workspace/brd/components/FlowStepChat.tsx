@@ -11,8 +11,6 @@ import {
   Plus,
   Trash2,
   Shuffle,
-  ChevronDown,
-  ChevronRight,
   Paperclip,
   X,
 } from 'lucide-react'
@@ -393,11 +391,8 @@ export function FlowStepChat({
 
 function MessageBubble({ message }: { message: ChatMessage }) {
   const isUser = message.role === 'user'
-  const [toolsExpanded, setToolsExpanded] = useState(false)
 
-  const toolCalls = message.toolCalls || []
-  const completedTools = toolCalls.filter(tc => tc.status === 'complete')
-  const runningTools = toolCalls.filter(tc => tc.status === 'running' || tc.status === 'pending')
+  const completedTools = (message.toolCalls || []).filter(tc => tc.status === 'complete')
 
   return (
     <div className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
@@ -413,33 +408,6 @@ function MessageBubble({ message }: { message: ChatMessage }) {
           message.content
         ) : (
           message.content && <Markdown content={message.content} className="text-[13px] leading-relaxed" />
-        )}
-
-        {/* Running tool indicators */}
-        {runningTools.map((tc, i) => (
-          <div key={`run-${i}`} className="mt-1.5 text-[11px] flex items-center gap-1 text-[#999999]">
-            <Loader2 className="w-3 h-3 animate-spin" />
-            {tc.tool_name.replace(/_/g, ' ')}
-          </div>
-        ))}
-
-        {/* Completed tool summary — collapsible */}
-        {completedTools.length > 0 && (
-          <div className="mt-1.5">
-            <button
-              onClick={() => setToolsExpanded(!toolsExpanded)}
-              className={`text-[11px] flex items-center gap-1 ${isUser ? 'text-white/50' : 'text-[#999999]'} hover:opacity-80`}
-            >
-              {toolsExpanded ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
-              {completedTools.length} tool{completedTools.length !== 1 ? 's' : ''} completed
-            </button>
-            {toolsExpanded && completedTools.map((tc, i) => (
-              <div key={`done-${i}`} className={`mt-0.5 text-[11px] flex items-center gap-1 ${isUser ? 'text-white/40' : 'text-[#BBBBBB]'}`}>
-                <span className="text-[#3FAF7A]">&#x2713;</span>
-                {tc.tool_name.replace(/_/g, ' ')}
-              </div>
-            ))}
-          </div>
         )}
 
         {/* Inline result cards for completed mutating tools */}

@@ -140,11 +140,35 @@ PHASE_STEPS_TOOL = {
                             "type": "array",
                             "items": {"type": "string"},
                         },
+                        "success_criteria": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "description": "2-4 measurable criteria that define success for this step",
+                        },
+                        "pain_points_addressed": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "description": "Pain point IDs or descriptions this step alleviates",
+                        },
+                        "goals_addressed": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "description": "Goal IDs or descriptions this step advances",
+                        },
+                        "ai_config": {
+                            "type": "object",
+                            "properties": {
+                                "ai_role": {"type": "string", "description": "What AI does in this step (e.g. 'auto-classify', 'suggest', 'generate draft')"},
+                                "confidence_display": {"type": "string", "enum": ["hidden", "subtle", "prominent"]},
+                                "fallback": {"type": "string", "description": "What happens if AI is unavailable or wrong"},
+                            },
+                            "description": "AI behavior and configuration for this step",
+                        },
                     },
                     "required": [
                         "title", "goal", "phase", "actors",
                         "information_fields", "mock_data_narrative",
-                        "implied_pattern",
+                        "implied_pattern", "success_criteria",
                     ],
                 },
                 "minItems": 1,
@@ -250,6 +274,11 @@ Focus: {focus}
 Link steps to actual workflow IDs, feature IDs, and data entity IDs from the context.
 Each step must have a clear, actionable goal — NOT "view dashboard" but "identify which accounts need attention today".
 Mock data narratives should read like user stories with specific names and values.
+
+For each step:
+- Define 2-4 success criteria — measurable, user-observable outcomes (not system metrics).
+- Map pain points and goals from the context that this step addresses (use entity IDs where available).
+- If the step involves AI/automation, specify ai_config: what the AI does, how confident it should appear, and what happens when it fails.
 """
 
 

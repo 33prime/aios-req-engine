@@ -243,8 +243,8 @@ def build_smart_chat_prompt(
         if guidance:
             sections.append(f"# Page-Specific Guidance\n{guidance}")
 
-    # 8. Focused entity (skip when solution flow context provides richer detail)
-    if focused_entity and not solution_flow_context:
+    # 8. Focused entity (skip when solution flow context provides richer step detail)
+    if focused_entity and not (solution_flow_context and solution_flow_context.focused_step_prompt):
         etype = focused_entity.get("type", "entity")
         edata = focused_entity.get("data", {})
         ename = edata.get("title") or edata.get("name") or edata.get("question", "")

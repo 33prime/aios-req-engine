@@ -22,9 +22,7 @@ import {
   Paperclip,
   Lightbulb,
   ArrowRight,
-  ChevronDown,
   MessageSquare,
-  FileText,
 } from 'lucide-react'
 import { Markdown } from '../../components/ui/Markdown'
 import { uploadDocument, processDocument, getDocumentStatus } from '@/lib/api'
@@ -520,12 +518,11 @@ function ThinkingIndicator() {
   return (
     <div className="flex justify-start">
       <div className="flex items-center gap-2 px-4 py-3 bg-white border border-[#E5E5E5] rounded-2xl rounded-bl-md shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
-        <div className="flex gap-1">
-          <div className="w-1.5 h-1.5 rounded-full bg-[#3FAF7A] animate-bounce" />
-          <div className="w-1.5 h-1.5 rounded-full bg-[#3FAF7A] animate-bounce [animation-delay:150ms]" />
-          <div className="w-1.5 h-1.5 rounded-full bg-[#3FAF7A] animate-bounce [animation-delay:300ms]" />
+        <div className="flex gap-[3px] items-center">
+          <div className="w-[6px] h-[6px] rounded-full bg-[#3FAF7A] animate-typing" />
+          <div className="w-[6px] h-[6px] rounded-full bg-[#3FAF7A] animate-typing [animation-delay:200ms]" />
+          <div className="w-[6px] h-[6px] rounded-full bg-[#3FAF7A] animate-typing [animation-delay:400ms]" />
         </div>
-        <span className="text-[12px] text-[#999999]">Thinking...</span>
       </div>
     </div>
   )
@@ -543,7 +540,6 @@ function SidebarMessageBubble({
 }) {
   const isUser = message.role === 'user'
   const isSystem = message.role === 'system'
-  const [showToolDetails, setShowToolDetails] = useState(false)
 
   const signalResult = message.toolCalls?.find(
     (t) => t.tool_name === 'add_signal' && t.status === 'complete' && t.result?.processed
@@ -577,16 +573,6 @@ function SidebarMessageBubble({
       agenda: (meetingResult.agenda || []).map((a: any) => `${a.topic} (${a.time_minutes}min)`)
     }
   }] : null
-
-  const hasRunningTools = message.toolCalls?.some((t) => t.status === 'running')
-  // Filter card-rendered tools from completed tool display
-  const cardToolNames = new Set(['suggest_actions'])
-  if (emailCards) cardToolNames.add('generate_client_email')
-  if (meetingCards) cardToolNames.add('generate_meeting_agenda')
-  const visibleToolCalls = cardToolNames.size > 1 || actionCards?.length
-    ? message.toolCalls?.filter((t) => !cardToolNames.has(t.tool_name))
-    : message.toolCalls
-  const completedToolCount = visibleToolCalls?.filter((t) => t.status === 'complete').length || 0
 
   // Render processing results card for system messages
   if (isSystem && message.metadata?.card_type === 'processing_results') {
@@ -625,63 +611,6 @@ function SidebarMessageBubble({
                   <span className="inline-block w-0.5 h-[18px] ml-0.5 bg-[#3FAF7A] rounded-full animate-pulse" />
                 )}
               </>
-            )}
-          </div>
-        )}
-
-        {/* Tool Calls — compact */}
-        {!isUser && visibleToolCalls && visibleToolCalls.length > 0 && (
-          <div className="mt-1.5">
-            {hasRunningTools ? (
-              /* Running state — inline card */
-              <div className="flex items-center gap-2 px-3 py-2 bg-[#F4F4F4] rounded-xl border border-[#E5E5E5]">
-                <Loader2 className="h-3.5 w-3.5 animate-spin text-[#3FAF7A]" />
-                <span className="text-[11px] text-[#333333]">
-                  {getToolDisplayName(message.toolCalls?.find((t) => t.status === 'running')?.tool_name || '')}
-                </span>
-              </div>
-            ) : (
-              /* Completed state — inline summary with tool names */
-              <button
-                onClick={() => setShowToolDetails(!showToolDetails)}
-                className="flex items-center gap-1.5 text-[11px] text-[#999999] hover:text-[#333333] transition-colors"
-              >
-                <CheckCircle2 className="h-3 w-3 text-[#3FAF7A] flex-shrink-0" />
-                <span className="truncate">
-                  {visibleToolCalls
-                    .filter(t => t.status === 'complete')
-                    .map(t => getToolDisplayName(t.tool_name))
-                    .join(', ')}
-                </span>
-                <ChevronDown className={`h-2.5 w-2.5 flex-shrink-0 transition-transform ${showToolDetails ? 'rotate-180' : ''}`} />
-              </button>
-            )}
-
-            {showToolDetails && (
-              <div className="mt-1.5 space-y-1 pl-3 border-l-2 border-[#E5E5E5]">
-                {visibleToolCalls.map((tool, idx) => (
-                  <div
-                    key={idx}
-                    className="flex items-center gap-1.5 text-[11px] px-2 py-1 rounded-lg"
-                  >
-                    {tool.status === 'running' ? (
-                      <Loader2 className="h-2.5 w-2.5 animate-spin text-[#3FAF7A]" />
-                    ) : tool.status === 'error' ? (
-                      <div className="w-2.5 h-2.5 rounded-full bg-red-400" />
-                    ) : tool.status === 'complete' ? (
-                      <CheckCircle2 className="h-2.5 w-2.5 text-[#3FAF7A]" />
-                    ) : (
-                      <div className="w-2.5 h-2.5 rounded-full bg-[#E5E5E5]" />
-                    )}
-                    <span className={tool.status === 'error' ? 'text-red-600' : 'text-[#666666]'}>
-                      {getToolDisplayName(tool.tool_name)}
-                    </span>
-                    {tool.status === 'error' && tool.error && (
-                      <span className="text-red-500">- {tool.error}</span>
-                    )}
-                  </div>
-                ))}
-              </div>
             )}
           </div>
         )}
@@ -737,25 +666,6 @@ function SidebarMessageBubble({
       </div>
     </div>
   )
-}
-
-function getToolDisplayName(toolName: string): string {
-  const names: Record<string, string> = {
-    generate_strategic_context: 'Strategic context',
-    get_strategic_context: 'Fetching context',
-    identify_stakeholders: 'Finding stakeholders',
-    search: 'Searching',
-    get_project_status: 'Project status',
-    add_signal: 'Processing signal',
-    generate_meeting_agenda: 'Meeting agenda',
-    generate_client_email: 'Drafting email',
-    create_entity: 'Creating entity',
-    update_entity: 'Updating entity',
-    update_strategic_context: 'Updating context',
-    create_task: 'Creating task',
-    suggest_actions: 'Suggesting actions',
-  }
-  return names[toolName] || toolName.replace(/_/g, ' ')
 }
 
 export default WorkspaceChat

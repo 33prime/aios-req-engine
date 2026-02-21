@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { X, Sparkles, RefreshCw, PanelLeftClose, PanelLeftOpen } from 'lucide-react'
 import { FlowStepList } from './FlowStepList'
 import { FlowStepDetail } from './FlowStepDetail'
@@ -51,6 +51,7 @@ export function SolutionFlowModal({
   const [loading, setLoading] = useState(true)
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [readiness, setReadiness] = useState<SolutionFlowReadiness | null>(null)
+  const stepCache = useRef<Map<string, StepDetail>>(new Map())
 
   // Load flow data + readiness check
   const loadFlow = useCallback(async () => {
@@ -101,12 +102,21 @@ export function SolutionFlowModal({
       setStepDetail(null)
       return
     }
+
+    const cached = stepCache.current.get(selectedStepId)
+    if (cached) {
+      setStepDetail(cached)
+      return
+    }
+
     let cancelled = false
     setStepLoading(true)
     getSolutionFlowStep(projectId, selectedStepId)
       .then(data => {
         if (!cancelled) {
-          setStepDetail(data as StepDetail)
+          const detail = data as StepDetail
+          stepCache.current.set(selectedStepId, detail)
+          setStepDetail(detail)
           setStepLoading(false)
         }
       })
@@ -122,6 +132,7 @@ export function SolutionFlowModal({
   const handleGenerate = async (force?: boolean) => {
     try {
       setIsGenerating(true)
+      stepCache.current.clear()
       await generateSolutionFlow(projectId, force)
       await loadFlow()
     } catch (err) {
@@ -136,6 +147,9 @@ export function SolutionFlowModal({
   // ==========================================================================
   const handleToolResult = useCallback((toolName: string, result: any) => {
     if (!selectedStepId) return
+
+    // Invalidate cache for mutated step
+    stepCache.current.delete(selectedStepId)
 
     switch (toolName) {
       case 'resolve_solution_flow_question': {
@@ -178,7 +192,9 @@ export function SolutionFlowModal({
       case 'refine_solution_flow_step': {
         // Optimistic patch from step_data (instant)
         if (result?.step_data) {
-          setStepDetail(result.step_data as StepDetail)
+          const detail = result.step_data as StepDetail
+          setStepDetail(detail)
+          stepCache.current.set(selectedStepId, detail)
         } else {
           refreshStepDetail(selectedStepId)
         }
@@ -186,6 +202,7 @@ export function SolutionFlowModal({
         break
       }
       case 'add_solution_flow_step': {
+        stepCache.current.clear()
         refreshFlow().then(() => {
           // Auto-select the new step if we got a step_id back
           if (result?.step_id) {
@@ -195,6 +212,7 @@ export function SolutionFlowModal({
         break
       }
       case 'remove_solution_flow_step': {
+        stepCache.current.clear()
         refreshFlow().then(() => {
           // If current step was deleted, select first remaining
           setFlow(prev => {

@@ -57,9 +57,14 @@ module.exports = {
           from: { transform: 'translateX(100%)' },
           to: { transform: 'translateX(0)' },
         },
+        typing: {
+          '0%, 60%, 100%': { opacity: '0.3', transform: 'scale(0.8)' },
+          '30%': { opacity: '1', transform: 'scale(1)' },
+        },
       },
       animation: {
         'slide-in-right': 'slide-in-right 0.25s ease-out',
+        typing: 'typing 1.4s ease-in-out infinite',
       },
     },
   },

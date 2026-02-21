@@ -183,6 +183,16 @@ def create_flow_step(
     if data.get("preserved_from_version") is not None:
         row["preserved_from_version"] = data["preserved_from_version"]
 
+    # v2 generation fields (migration 0153)
+    if data.get("success_criteria") is not None:
+        row["success_criteria"] = data["success_criteria"]
+    if data.get("pain_points_addressed") is not None:
+        row["pain_points_addressed"] = data["pain_points_addressed"]
+    if data.get("goals_addressed") is not None:
+        row["goals_addressed"] = data["goals_addressed"]
+    if data.get("ai_config") is not None:
+        row["ai_config"] = data["ai_config"]
+
     result = supabase.table("solution_flow_steps").insert(row).execute()
     if not result.data:
         raise ValueError("No data returned from step insert")
