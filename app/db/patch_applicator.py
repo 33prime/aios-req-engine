@@ -190,6 +190,18 @@ async def apply_entity_patches(
         except Exception:
             logger.warning("Failed to flag solution flow steps", exc_info=True)
 
+    # Staleness-specific cascade: demote confirmed steps linking to stale entities
+    stale_ids = [
+        str(p.target_entity_id) for p in patches
+        if p.operation == "stale" and p.target_entity_id
+    ]
+    if stale_ids:
+        try:
+            from app.db.solution_flow import cascade_staleness_to_steps
+            cascade_staleness_to_steps(project_id, stale_ids)
+        except Exception:
+            logger.warning("Failed to cascade staleness to solution flow steps", exc_info=True)
+
     # Record state revision if anything was applied
     if result.entity_ids_modified:
         try:

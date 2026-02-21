@@ -4013,9 +4013,14 @@ export const getSolutionFlow = (projectId: string) =>
     `/projects/${projectId}/workspace/solution-flow`
   )
 
-export const generateSolutionFlow = (projectId: string) =>
-  apiRequest<{ flow_id: string; summary: string; steps_generated: number; steps: Record<string, unknown>[] }>(
-    `/projects/${projectId}/workspace/solution-flow/generate`,
+export const checkSolutionFlowReadiness = (projectId: string) =>
+  apiRequest<import('@/types/workspace').SolutionFlowReadiness>(
+    `/projects/${projectId}/workspace/solution-flow/readiness`
+  )
+
+export const generateSolutionFlow = (projectId: string, force?: boolean) =>
+  apiRequest<{ flow_id: string; summary: string; steps_generated: number; steps_preserved?: number; steps: Record<string, unknown>[] }>(
+    `/projects/${projectId}/workspace/solution-flow/generate${force ? '?force=true' : ''}`,
     { method: 'POST' }
   )
 

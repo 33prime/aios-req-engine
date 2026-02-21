@@ -25,6 +25,8 @@ class SolutionFlowContext:
     focused_step_prompt: str = ""
     cross_step_prompt: str = ""
     retrieval_hints: list[str] = field(default_factory=list)
+    entity_change_delta: str = ""
+    confirmation_history: str = ""
 
 
 def _resolve_entity_names_batch(
@@ -274,6 +276,20 @@ def _build_cross_step_intelligence(steps: list[dict[str, Any]]) -> str:
         ]
         insights.append(f"Shared data fields: {'; '.join(shared_strs)}")
 
+    # 6. Staleness — steps with confidence_impact or needs_review
+    stale_steps = [
+        s.get("title", "?") for s in steps
+        if s.get("confidence_impact") and s["confidence_impact"] > 0
+    ]
+    needs_review = [
+        s.get("title", "?") for s in steps
+        if s.get("confirmation_status") == "needs_review"
+    ]
+    if stale_steps:
+        insights.append(f"Steps linked to stale entities: {', '.join(stale_steps[:3])}")
+    if needs_review:
+        insights.append(f"Steps needing review: {', '.join(needs_review[:3])}")
+
     return "\n".join(f"- {i}" for i in insights) if insights else ""
 
 
@@ -368,6 +384,12 @@ async def build_solution_flow_context(
                 # Layer 4: Retrieval hints
                 ctx.retrieval_hints = _build_retrieval_hints(focused_step)
 
+                # Entity change delta — recent changes to linked entities
+                ctx.entity_change_delta = _build_entity_change_delta(focused_step)
+
+                # Confirmation history — step's own revision timeline
+                ctx.confirmation_history = _build_confirmation_history(focused_step)
+
         # Layer 3: Cross-step intelligence
         ctx.cross_step_prompt = _build_cross_step_intelligence(steps)
 
@@ -375,3 +397,61 @@ async def build_solution_flow_context(
         logger.warning(f"Failed to build solution flow context: {e}", exc_info=True)
 
     return ctx
+
+
+def _build_entity_change_delta(step: dict[str, Any]) -> str:
+    """Build a summary of recent changes to entities linked to this step."""
+    from app.db.revisions_enrichment import list_entity_revisions
+
+    all_linked_ids: list[tuple[str, str]] = []  # (entity_type, entity_id)
+    for eid in step.get("linked_feature_ids") or []:
+        all_linked_ids.append(("feature", eid))
+    for eid in step.get("linked_workflow_ids") or []:
+        all_linked_ids.append(("workflow", eid))
+    for eid in step.get("linked_data_entity_ids") or []:
+        all_linked_ids.append(("data_entity", eid))
+
+    if not all_linked_ids:
+        return ""
+
+    changes: list[str] = []
+    for entity_type, entity_id in all_linked_ids[:6]:  # Cap at 6 to limit DB calls
+        try:
+            revisions = list_entity_revisions(entity_type, UUID(entity_id), limit=3)
+            for rev in revisions:
+                diff = rev.get("diff_summary", "")
+                label = rev.get("entity_label", entity_id[:8])
+                if diff:
+                    changes.append(f"- {entity_type} \"{label}\": {diff}")
+        except Exception:
+            continue
+
+    return "\n".join(changes[:8]) if changes else ""
+
+
+def _build_confirmation_history(step: dict[str, Any]) -> str:
+    """Build a summary of this step's own revision history."""
+    from app.db.revisions_enrichment import list_entity_revisions
+
+    step_id = step.get("id")
+    if not step_id:
+        return ""
+
+    try:
+        revisions = list_entity_revisions("solution_flow_step", UUID(step_id), limit=5)
+    except Exception:
+        return ""
+
+    if not revisions:
+        status = step.get("confirmation_status", "ai_generated")
+        version = step.get("generation_version", 1)
+        return f"Status: {status}, generation version {version}. No revisions recorded."
+
+    lines = [f"Status: {step.get('confirmation_status', 'ai_generated')} (v{step.get('generation_version', 1)})"]
+    for rev in revisions:
+        diff = rev.get("diff_summary", "updated")
+        trigger = rev.get("trigger_event", "")
+        created_at = rev.get("created_at", "")[:16]
+        lines.append(f"- [{created_at}] {trigger}: {diff}")
+
+    return "\n".join(lines)

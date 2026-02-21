@@ -684,6 +684,7 @@ export interface SolutionFlowStepSummary {
   open_question_count: number
   info_field_count: number
   confidence_breakdown: Record<string, number>
+  confidence_impact?: number | null
 }
 
 export interface SolutionFlowStepDetail extends SolutionFlowStepSummary {
@@ -704,6 +705,16 @@ export interface SolutionFlowStepDetail extends SolutionFlowStepSummary {
     behaviors: string[]
     guardrails: string[]
   } | null
+  background_narrative?: string | null
+  generation_version?: number
+  preserved_from_version?: number | null
+}
+
+export interface SolutionFlowReadiness {
+  ready: boolean
+  met: Record<string, number>
+  required: Record<string, number>
+  missing: string[]
 }
 
 export interface SolutionFlowOverview {

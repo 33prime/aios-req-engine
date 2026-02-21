@@ -173,6 +173,16 @@ def create_flow_step(
         "linked_data_entity_ids": data.get("linked_data_entity_ids", []),
     }
 
+    # v2 columns
+    if data.get("confidence_impact") is not None:
+        row["confidence_impact"] = data["confidence_impact"]
+    if data.get("background_narrative") is not None:
+        row["background_narrative"] = data["background_narrative"]
+    if data.get("generation_version") is not None:
+        row["generation_version"] = data["generation_version"]
+    if data.get("preserved_from_version") is not None:
+        row["preserved_from_version"] = data["preserved_from_version"]
+
     result = supabase.table("solution_flow_steps").insert(row).execute()
     if not result.data:
         raise ValueError("No data returned from step insert")
@@ -305,6 +315,81 @@ def flag_steps_with_updates(
     return flagged
 
 
+def cascade_staleness_to_steps(
+    project_id: UUID,
+    stale_entity_ids: list[str],
+) -> int:
+    """Cascade entity staleness to linked solution flow steps.
+
+    When entities are marked stale by the V2 pipeline:
+    - Sets has_pending_updates = True
+    - Computes confidence_impact (proportion of links affected)
+    - Demotes confirmed steps to needs_review (NOT deleted)
+    - AI-generated steps just get flagged
+
+    Returns count of steps affected.
+    """
+    supabase = get_supabase()
+    pid = str(project_id)
+
+    if not stale_entity_ids:
+        return 0
+
+    flow = _maybe_single(
+        supabase.table("solution_flows")
+        .select("id")
+        .eq("project_id", pid)
+    )
+    if not flow:
+        return 0
+
+    steps_result = (
+        supabase.table("solution_flow_steps")
+        .select("id, confirmation_status, linked_feature_ids, linked_workflow_ids, linked_data_entity_ids")
+        .eq("flow_id", flow["id"])
+        .execute()
+    )
+    steps = steps_result.data or []
+
+    stale_set = set(stale_entity_ids)
+    affected = 0
+
+    for step in steps:
+        all_linked = set()
+        for key in ("linked_feature_ids", "linked_workflow_ids", "linked_data_entity_ids"):
+            all_linked.update(step.get(key) or [])
+
+        stale_overlap = all_linked & stale_set
+        if not stale_overlap:
+            continue
+
+        # Compute confidence impact (0.0 - 1.0)
+        impact = len(stale_overlap) / len(all_linked) if all_linked else 0.0
+
+        update_data: dict[str, Any] = {
+            "has_pending_updates": True,
+            "confidence_impact": round(impact, 2),
+        }
+
+        # Demote confirmed steps to needs_review
+        status = step.get("confirmation_status", "ai_generated")
+        if status in ("confirmed_consultant", "confirmed_client"):
+            update_data["confirmation_status"] = "needs_review"
+
+        supabase.table("solution_flow_steps").update(
+            update_data
+        ).eq("id", step["id"]).execute()
+        affected += 1
+
+    if affected:
+        logger.info(
+            f"Staleness cascade: {affected} solution flow steps affected "
+            f"({len(stale_entity_ids)} stale entities)"
+        )
+
+    return affected
+
+
 def _step_to_summary(step: dict[str, Any]) -> dict[str, Any]:
     """Convert a raw step row to a summary dict."""
     info_fields = step.get("information_fields") or []
@@ -316,7 +401,7 @@ def _step_to_summary(step: dict[str, Any]) -> dict[str, Any]:
         conf = f.get("confidence", "unknown") if isinstance(f, dict) else "unknown"
         confidence_counts[conf] = confidence_counts.get(conf, 0) + 1
 
-    return {
+    summary = {
         "id": step["id"],
         "step_index": step["step_index"],
         "phase": step["phase"],
@@ -332,3 +417,9 @@ def _step_to_summary(step: dict[str, Any]) -> dict[str, Any]:
         "info_field_count": len(info_fields),
         "confidence_breakdown": confidence_counts,
     }
+
+    # v2 fields
+    if step.get("confidence_impact") is not None:
+        summary["confidence_impact"] = step["confidence_impact"]
+
+    return summary

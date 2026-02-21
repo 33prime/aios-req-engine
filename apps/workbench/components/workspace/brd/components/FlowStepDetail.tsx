@@ -388,10 +388,32 @@ function ExperienceTab({
       {/* Goal box */}
       <div className={`bg-[#0A1E2F] rounded-xl p-4 transition-all duration-700 ${
         changedFields.has('goal') ? 'ring-2 ring-[#3FAF7A]/30' : ''
-      }`}>
-        <div className="text-[10px] uppercase tracking-wider text-white/50 mb-1">Goal</div>
+      }${step.confidence_impact && step.confidence_impact > 0 ? ' ring-2 ring-[#C4A97D]/50' : ''}`}>
+        <div className="flex items-center justify-between mb-1">
+          <div className="text-[10px] uppercase tracking-wider text-white/50">Goal</div>
+          {step.confidence_impact != null && step.confidence_impact > 0 && (
+            <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#C4A97D]/20 text-[#C4A97D] font-medium">
+              {Math.round(step.confidence_impact * 100)}% links stale
+            </span>
+          )}
+        </div>
         <p className="text-sm text-white/90 leading-relaxed">{step.goal}</p>
       </div>
+
+      {/* Background narrative (provenance) */}
+      {step.background_narrative && (
+        <div className="text-xs text-[#999999] leading-relaxed px-1 -mt-2">
+          {step.background_narrative}
+        </div>
+      )}
+
+      {/* Needs review indicator */}
+      {step.confirmation_status === 'needs_review' && (
+        <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-[#C4A97D]/10 border border-[#C4A97D]/20 text-xs text-[#8B7355]">
+          <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+          <span>This step was demoted to needs review — linked entities have changed.</span>
+        </div>
+      )}
 
       {/* Narrative Beats — info fields as story beats */}
       {infoFields.length > 0 && (

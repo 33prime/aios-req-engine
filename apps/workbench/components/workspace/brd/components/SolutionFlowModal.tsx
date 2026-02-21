@@ -9,8 +9,9 @@ import type {
   SolutionFlowOverview,
   SolutionFlowStepDetail as StepDetail,
   FlowOpenQuestion,
+  SolutionFlowReadiness,
 } from '@/types/workspace'
-import { getSolutionFlow, getSolutionFlowStep, generateSolutionFlow } from '@/lib/api'
+import { getSolutionFlow, getSolutionFlowStep, generateSolutionFlow, checkSolutionFlowReadiness } from '@/lib/api'
 
 const PHASE_CONFIG: Record<string, { label: string; color: string }> = {
   entry: { label: 'Entry', color: 'bg-[#0A1E2F]/10 text-[#0A1E2F]' },
@@ -49,13 +50,18 @@ export function SolutionFlowModal({
   const [isGenerating, setIsGenerating] = useState(false)
   const [loading, setLoading] = useState(true)
   const [sidebarOpen, setSidebarOpen] = useState(true)
+  const [readiness, setReadiness] = useState<SolutionFlowReadiness | null>(null)
 
-  // Load flow data
+  // Load flow data + readiness check
   const loadFlow = useCallback(async () => {
     try {
       setLoading(true)
-      const data = await getSolutionFlow(projectId)
+      const [data, readinessData] = await Promise.all([
+        getSolutionFlow(projectId),
+        checkSolutionFlowReadiness(projectId),
+      ])
       setFlow(data)
+      setReadiness(readinessData)
       // Auto-select first step
       if (data.steps?.length > 0 && !selectedStepId) {
         setSelectedStepId(data.steps[0].id)
@@ -113,10 +119,10 @@ export function SolutionFlowModal({
     return () => { cancelled = true }
   }, [projectId, selectedStepId])
 
-  const handleGenerate = async () => {
+  const handleGenerate = async (force?: boolean) => {
     try {
       setIsGenerating(true)
-      await generateSolutionFlow(projectId)
+      await generateSolutionFlow(projectId, force)
       await loadFlow()
     } catch (err) {
       console.error('Failed to generate solution flow:', err)
@@ -270,7 +276,7 @@ export function SolutionFlowModal({
           <div className="flex items-center gap-2">
             {steps.length > 0 && (
               <button
-                onClick={handleGenerate}
+                onClick={() => handleGenerate()}
                 disabled={isGenerating}
                 className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-[#3FAF7A] bg-[#3FAF7A]/5 rounded-lg hover:bg-[#3FAF7A]/10 transition-colors disabled:opacity-50"
               >
@@ -298,32 +304,74 @@ export function SolutionFlowModal({
               Loading solution flow...
             </div>
           ) : steps.length === 0 ? (
-            /* No steps — generate CTA */
+            /* No steps — readiness gate or generate CTA */
             <div className="flex-1 flex items-center justify-center">
               <div className="text-center max-w-sm">
                 <div className="w-14 h-14 rounded-full bg-[#3FAF7A]/10 flex items-center justify-center mx-auto mb-4">
                   <Sparkles className="w-7 h-7 text-[#3FAF7A]" />
                 </div>
                 <h3 className="text-base font-semibold text-[#333333] mb-2">
-                  No steps yet
+                  {readiness && !readiness.ready ? 'Almost ready' : 'No steps yet'}
                 </h3>
-                <p className="text-sm text-[#666666] mb-5">
-                  Generate a solution flow from your project data to see the goal-oriented journey.
-                </p>
+                {readiness && !readiness.ready ? (
+                  <>
+                    <p className="text-sm text-[#666666] mb-4">
+                      Add more project data to unlock generation.
+                    </p>
+                    <div className="space-y-2 mb-5 text-left">
+                      {Object.entries(readiness.required).map(([key, required]) => {
+                        const current = readiness.met[key] || 0
+                        const isMet = current >= required
+                        const label = key.replace(/_/g, ' ')
+                        return (
+                          <div key={key} className="flex items-center gap-2">
+                            <div className={`w-5 h-5 rounded-full flex items-center justify-center ${
+                              isMet ? 'bg-[#3FAF7A]/15' : 'bg-[#E5E5E5]'
+                            }`}>
+                              {isMet ? (
+                                <svg className="w-3 h-3 text-[#3FAF7A]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                </svg>
+                              ) : (
+                                <span className="text-[9px] font-bold text-[#999999]">{current}/{required}</span>
+                              )}
+                            </div>
+                            <span className={`text-sm capitalize ${isMet ? 'text-[#333333]' : 'text-[#999999]'}`}>
+                              {label}
+                            </span>
+                            {!isMet && (
+                              <span className="text-xs text-[#BBBBBB] ml-auto">
+                                need {required - current} more
+                              </span>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </>
+                ) : (
+                  <p className="text-sm text-[#666666] mb-5">
+                    Generate a solution flow from your project data to see the goal-oriented journey.
+                  </p>
+                )}
                 <button
-                  onClick={handleGenerate}
+                  onClick={() => handleGenerate(readiness && !readiness.ready ? true : undefined)}
                   disabled={isGenerating}
-                  className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#3FAF7A] text-white rounded-xl text-sm font-semibold hover:bg-[#25785A] transition-colors disabled:opacity-50"
+                  className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition-colors disabled:opacity-50 ${
+                    readiness && !readiness.ready
+                      ? 'bg-[#E5E5E5] text-[#666666] hover:bg-[#D5D5D5]'
+                      : 'bg-[#3FAF7A] text-white hover:bg-[#25785A]'
+                  }`}
                 >
                   {isGenerating ? (
                     <>
-                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      <div className="w-4 h-4 border-2 border-current/30 border-t-current rounded-full animate-spin" />
                       Generating...
                     </>
                   ) : (
                     <>
                       <Sparkles className="w-4 h-4" />
-                      Generate Solution Flow
+                      {readiness && !readiness.ready ? 'Generate Anyway' : 'Generate Solution Flow'}
                     </>
                   )}
                 </button>

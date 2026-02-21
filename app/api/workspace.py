@@ -4269,13 +4269,40 @@ async def get_solution_flow(project_id: UUID):
     return overview
 
 
+@router.get("/solution-flow/readiness")
+async def check_solution_flow_readiness(project_id: UUID):
+    """Check if project has enough data to generate a solution flow."""
+    from app.core.solution_flow_readiness import check_readiness
+
+    result = await check_readiness(project_id)
+    return result.to_dict()
+
+
 @router.post("/solution-flow/generate")
 async def generate_solution_flow_endpoint(
-    project_id: UUID, background_tasks: BackgroundTasks
+    project_id: UUID,
+    background_tasks: BackgroundTasks,
+    force: bool = False,
 ):
     """Generate solution flow steps from project data using LLM."""
+    from fastapi import HTTPException
+
     from app.chains.generate_solution_flow import generate_solution_flow
+    from app.core.solution_flow_readiness import check_readiness
     from app.db.solution_flow import get_or_create_flow
+
+    if not force:
+        readiness = await check_readiness(project_id)
+        if not readiness.ready:
+            raise HTTPException(
+                status_code=422,
+                detail={
+                    "message": "Project not ready for solution flow generation",
+                    "missing": readiness.missing,
+                    "met": readiness.met,
+                    "required": readiness.required,
+                },
+            )
 
     flow = get_or_create_flow(project_id)
     result = await generate_solution_flow(project_id, flow["id"])

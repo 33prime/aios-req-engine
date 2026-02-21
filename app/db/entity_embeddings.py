@@ -28,6 +28,10 @@ EMBED_TEXT_BUILDERS: dict[str, Any] = {
     "competitor": lambda e: _join(e.get("name"), ": ", (e.get("research_notes") or "")[:300]),
     "workflow": lambda e: _join(e.get("name"), ": ", e.get("description")),
     "vp_step": lambda e: _join(e.get("label"), ": ", e.get("description")),
+    "solution_flow_step": lambda e: _join(
+        e.get("title"), ": ", e.get("goal"),
+        " — ", (e.get("mock_data_narrative") or "")[:300],
+    ),
 }
 
 # Entity type → table name (mirrors patch_applicator.ENTITY_TABLE_MAP)
@@ -42,6 +46,7 @@ ENTITY_TABLE_MAP = {
     "business_driver": "business_drivers",
     "constraint": "constraints",
     "competitor": "competitor_references",
+    "solution_flow_step": "solution_flow_steps",
 }
 
 
