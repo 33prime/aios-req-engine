@@ -3,7 +3,6 @@ import type {
   Feature,
   VpStep,
   Persona,
-  Job,
   Signal,
   Project,
   ProjectDetailWithDashboard,
@@ -107,128 +106,6 @@ export const getVpSteps = (projectId: string) =>
 
 export const getPersonas = (projectId: string) =>
   apiRequest<Persona[]>(`/state/personas?project_id=${projectId}`)
-
-// DEPRECATED: V1 build_state endpoint — uses destructive bulk_replace_features.
-// All signal processing now uses V2 (process_signal_v2).
-// Kept for backwards compatibility but has zero active callers.
-/** @deprecated Use V2 signal pipeline instead */
-export const buildState = (projectId: string) =>
-  apiRequest<{ run_id: string; job_id: string; changed_counts: Record<string, number>; summary: string }>(
-    '/state/build',
-    {
-      method: 'POST',
-      body: JSON.stringify({ project_id: projectId }),
-    }
-  )
-
-export const enrichAllPhases = (
-  projectId: string,
-  options: { includeResearch?: boolean } = {}
-) =>
-  apiRequest<{
-    run_id: string
-    features: { processed: number; updated: number; summary: string; error: string | null }
-    personas: { processed: number; updated: number; summary: string; error: string | null }
-    vp_steps: { processed: number; updated: number; summary: string; error: string | null }
-  }>(`/projects/${projectId}/enrich-all`, {
-    method: 'POST',
-    body: JSON.stringify({
-      project_id: projectId,
-      include_research: options.includeResearch,
-    }),
-  })
-
-export const enrichFeatures = (
-  projectId: string,
-  options: {
-    onlyMvp?: boolean
-    includeResearch?: boolean
-  } = {}
-) =>
-  apiRequest<{
-    run_id: string
-    job_id: string
-    features_processed: number
-    features_updated: number
-    summary: string
-  }>('/agents/enrich-features', {
-    method: 'POST',
-    body: JSON.stringify({
-      project_id: projectId,
-      only_mvp: options.onlyMvp,
-      include_research: options.includeResearch,
-    }),
-  })
-
-export const enrichVp = (projectId: string, includeResearch = false) =>
-  apiRequest<{
-    run_id: string
-    job_id: string
-    steps_processed: number
-    steps_updated: number
-    summary: string
-  }>('/agents/enrich-vp', {
-    method: 'POST',
-    body: JSON.stringify({
-      project_id: projectId,
-      include_research: includeResearch,
-    }),
-  })
-
-export const enrichPersonas = (
-  projectId: string,
-  options: {
-    personaIds?: string[]
-    includeResearch?: boolean
-    topKContext?: number
-  } = {}
-) =>
-  apiRequest<{
-    run_id: string
-    job_id: string
-    personas_processed: number
-    personas_updated: number
-    summary: string
-  }>('/agents/enrich-personas', {
-    method: 'POST',
-    body: JSON.stringify({
-      project_id: projectId,
-      persona_ids: options.personaIds,
-      include_research: options.includeResearch,
-      top_k_context: options.topKContext,
-    }),
-  })
-
-// n8n Research Integration (external research workflow)
-export const triggerN8nResearch = (
-  projectId: string,
-  focusAreas?: string[]
-) =>
-  apiRequest<{
-    job_id: string
-    status: string
-    message: string
-  }>(`/projects/${projectId}/trigger-research`, {
-    method: 'POST',
-    body: JSON.stringify({
-      focus_areas: focusAreas || [],
-    }),
-  })
-
-// Strategic Foundation APIs
-export const runStrategicFoundation = (projectId: string) =>
-  apiRequest<{
-    job_id: string
-    status: string
-    message: string
-  }>('/agents/strategic-foundation', {
-    method: 'POST',
-    body: JSON.stringify({ project_id: projectId }),
-  })
-
-// Job APIs
-export const getJobStatus = (jobId: string) =>
-  apiRequest<Job>(`/jobs/${jobId}`)
 
 // Evidence APIs
 export const getSignal = (signalId: string) =>

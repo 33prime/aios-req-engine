@@ -113,11 +113,6 @@ registerTrigger({
             command: '/run-foundation',
             variant: 'primary',
           },
-          {
-            id: 'enrich-features',
-            label: 'Enrich Features',
-            command: '/enrich-features',
-          },
         ],
         dismissable: true,
       }
@@ -158,9 +153,9 @@ registerTrigger({
           variant: 'primary',
         },
         {
-          id: 'enrich-entity',
-          label: 'Enrich First',
-          command: '/enrich',
+          id: 'analyze-entity',
+          label: 'Analyze First',
+          command: '/analyze',
         },
       ],
       dismissable: true,
@@ -213,18 +208,18 @@ registerTrigger({
       const hasFeatures = (projectData?.stats?.features ?? 0) > 0
       if (hasFeatures) {
         return {
-          message: 'Need help with anything? I can enrich personas, enhance features, or check project status.',
+          message: 'Need help with anything? I can analyze personas, check for gaps, or review project status.',
           priority: 'low',
           actions: [
             {
-              id: 'enrich-personas',
-              label: 'Enrich Personas',
-              command: '/enrich-personas',
+              id: 'check-status',
+              label: 'Check Status',
+              command: '/status',
             },
             {
-              id: 'enrich-features',
-              label: 'Enrich Features',
-              command: '/enrich-features',
+              id: 'analyze',
+              label: 'Analyze',
+              command: '/analyze',
             },
           ],
           dismissable: true,

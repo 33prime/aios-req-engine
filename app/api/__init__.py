@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter
 
-from app.api import activity, admin, agents, analytics, auth, baseline, business_drivers, chat, client_packages, client_portal, clients, collaboration, communications, competitor_refs, confirmations, consultant_enrichment, creative_brief, di_agent, discovery, discovery_prep, document_uploads, enrich_all, enrich_features, enrich_personas, enrich_vp, entity_cascades, eval, evidence, icp, intelligence, jobs, meetings, n8n_research, notifications, open_questions, organizations, outreach, phase0, process_documents, project_creation, project_launch, projects, proposals, prototype_sessions, prototypes, pulse, readiness, research, research_agent, revisions, risks, signals, signal_stream, sources, stakeholders, state, strategic_analytics, super_admin, tasks, workspace
+from app.api import activity, admin, agents, analytics, auth, baseline, business_drivers, chat, client_packages, client_portal, clients, collaboration, communications, competitor_refs, confirmations, consultant_enrichment, creative_brief, di_agent, discovery, discovery_prep, document_uploads, entity_cascades, eval, evidence, icp, intelligence, jobs, meetings, n8n_research, notifications, open_questions, organizations, outreach, phase0, process_documents, project_creation, project_launch, projects, proposals, prototype_sessions, prototypes, pulse, readiness, research, research_agent, revisions, risks, signals, sources, stakeholders, state, strategic_analytics, super_admin, tasks, workspace
 
 router = APIRouter()
 
@@ -33,20 +33,8 @@ router.include_router(jobs.router, prefix="/jobs", tags=["jobs"])
 # Include Phase 2D: Signal evidence drilldown routes
 router.include_router(signals.router, tags=["signals"])
 
-# Include Phase 4: Signal streaming pipeline routes
-router.include_router(signal_stream.router, prefix="/stream", tags=["signal_stream"])
-
 # Include Phase 2A: State building routes (PRD, VP, Features)
 router.include_router(state.router, tags=["state"])
-
-# Include Phase 2C: Feature enrichment routes
-router.include_router(enrich_features.router, tags=["enrich_features"])
-
-# Include Phase 2C: VP enrichment routes
-router.include_router(enrich_vp.router, tags=["enrich_vp"])
-
-# Include Persona enrichment routes
-router.include_router(enrich_personas.router, tags=["enrich_personas"])
 
 # Include Phase 2B: Confirmation queue routes
 router.include_router(confirmations.router, tags=["confirmations"])
@@ -140,9 +128,6 @@ router.include_router(evidence.router, tags=["evidence"])
 
 # Include Unified Sources routes (cross-source search)
 router.include_router(sources.router, tags=["sources"])
-
-# Include Parallel Enrichment routes
-router.include_router(enrich_all.router, tags=["enrich_all"])
 
 # Include Workspace routes (canvas-based UI)
 router.include_router(workspace.router, tags=["workspace"])

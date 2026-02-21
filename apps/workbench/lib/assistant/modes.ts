@@ -139,12 +139,6 @@ Be specific about what makes features well-defined and actionable.`,
         variant: 'default',
       },
       {
-        id: 'enrich-feature',
-        label: 'Enrich',
-        command: '/enrich',
-        variant: 'primary',
-      },
-      {
         id: 'add-feature',
         label: 'Add Feature',
         command: '/add feature',
@@ -160,7 +154,7 @@ Be specific about what makes features well-defined and actionable.`,
 
     focusEntities: ['feature'],
     proactiveMessages: true,
-    suggestedCommands: ['/analyze', '/enrich', '/add feature', '/confirm'],
+    suggestedCommands: ['/analyze', '/add feature', '/confirm'],
     contextFields: ['selectedFeature', 'relatedPersonas', 'acceptanceCriteria'],
   },
 
@@ -185,12 +179,6 @@ Focus on making personas actionable and grounded in real user signals.`,
         variant: 'default',
       },
       {
-        id: 'enrich-persona',
-        label: 'Enrich',
-        command: '/enrich',
-        variant: 'primary',
-      },
-      {
         id: 'add-persona',
         label: 'Add Persona',
         command: '/add persona',
@@ -205,7 +193,7 @@ Focus on making personas actionable and grounded in real user signals.`,
 
     focusEntities: ['persona'],
     proactiveMessages: true,
-    suggestedCommands: ['/analyze', '/enrich', '/add persona', '/history'],
+    suggestedCommands: ['/analyze', '/add persona', '/history'],
     contextFields: ['selectedPersona', 'painPoints', 'goals', 'relatedFeatures'],
   },
 
@@ -224,16 +212,16 @@ Focus on the end-to-end user experience and value realization.`,
 
     quickActions: [
       {
-        id: 'enrich-value-path',
-        label: 'Enrich Value Path',
-        command: '/enrich-value-path',
+        id: 'analyze-value-path',
+        label: 'Analyze Path',
+        command: '/analyze',
         variant: 'primary',
       },
     ],
 
     focusEntities: ['vp_step'],
     proactiveMessages: true,
-    suggestedCommands: ['/enrich-value-path'],
+    suggestedCommands: ['/analyze'],
     contextFields: ['selectedStep', 'adjacentSteps', 'supportingFeatures'],
   },
 
@@ -370,26 +358,26 @@ Your role:
 - Connect personas to relevant features
 - Ensure personas and features are evidence-based
 
-Use /enrich-personas to AI-enhance personas, or /enrich-features to enhance features.`,
+Ask me to analyze personas, improve features, or check for gaps.`,
 
     quickActions: [
       {
-        id: 'enrich-features',
-        label: 'Enrich Features',
-        command: '/enrich-features',
+        id: 'analyze-personas',
+        label: 'Analyze Personas',
+        command: '/analyze',
         variant: 'primary',
       },
       {
-        id: 'enrich-personas',
-        label: 'Enrich Personas',
-        command: '/enrich-personas',
-        variant: 'primary',
+        id: 'add-feature',
+        label: 'Add Feature',
+        command: '/add feature',
+        variant: 'default',
       },
     ],
 
     focusEntities: ['persona', 'feature'],
     proactiveMessages: true,
-    suggestedCommands: ['/enrich-features', '/enrich-personas'],
+    suggestedCommands: ['/analyze', '/add feature', '/confirm'],
     contextFields: ['personas', 'features', 'personaFeatureLinks'],
   },
 
@@ -435,7 +423,6 @@ You can help with any aspect of the project including features, personas, value 
 Available commands:
 - /status - Check project health
 - /analyze - Analyze selected entity
-- /enrich - Trigger AI enrichment
 - /add - Add new entities
 - /confirm - Confirm entities
 - /help - See all commands
@@ -522,14 +509,6 @@ export function getContextualQuickActions(
         command: '/analyze',
       })
     }
-    if (!baseActions.some(a => a.command === '/enrich')) {
-      contextualActions.push({
-        id: 'ctx-enrich',
-        label: 'Enrich Selected',
-        command: '/enrich',
-        variant: 'primary',
-      })
-    }
   }
 
   if (context.hasPendingConfirmations) {
@@ -592,7 +571,7 @@ export const MODE_TRANSITIONS: Record<AssistantMode, {
   },
   personas_features: {
     allowedFrom: ['general', 'overview', 'strategic_foundation', 'value_path', 'signals', 'next_steps'],
-    onEnter: 'Switched to Personas & Features. Use /enrich-personas or /enrich-features to enhance.',
+    onEnter: 'Switched to Personas & Features. I can help analyze and refine personas and features.',
   },
   value_path: {
     allowedFrom: ['general', 'overview', 'features', 'personas', 'personas_features'],

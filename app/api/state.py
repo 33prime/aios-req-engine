@@ -1,6 +1,5 @@
 """API endpoints for canonical state building and retrieval."""
 
-import uuid
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Query
@@ -9,8 +8,6 @@ from pydantic import BaseModel
 from app.core.logging import get_logger
 from app.core.readiness.score import compute_readiness
 from app.core.schemas_state import (
-    BuildStateRequest,
-    BuildStateResponse,
     FeatureOut,
     PersonaOut,
     VpStepOut,
@@ -28,7 +25,6 @@ from app.core.schemas_strategic_context import (
     SuccessMetricCreate,
 )
 from app.db.features import list_features, update_feature_status
-from app.db.jobs import complete_job, create_job, fail_job, start_job
 from app.db.personas import list_personas, update_confirmation_status as update_persona_status
 from app.db.stakeholders import (
     create_stakeholder,
@@ -52,7 +48,6 @@ from app.db.strategic_context import (
     upsert_strategic_context,
 )
 from app.db.vp import list_vp_steps, update_vp_step_status
-from app.graphs.build_state_graph import run_build_state_agent
 
 logger = get_logger(__name__)
 
@@ -62,115 +57,6 @@ router = APIRouter()
 class UpdateStatusRequest(BaseModel):
     """Request body for updating status."""
     status: str
-
-
-@router.post("/state/build", response_model=BuildStateResponse, deprecated=True)
-async def build_state(request: BuildStateRequest) -> BuildStateResponse:
-    """
-    DEPRECATED: Use Signal Pipeline V2 (process_signal_v2) instead.
-
-    This V1 endpoint uses bulk_replace_features() which destructively overwrites
-    entities, losing V2's evidence tracking, confirmation hierarchy, and memory
-    connections. It only handles features/personas/vp_steps (not workflows,
-    data_entities, constraints, stakeholders, or other BRD entities).
-
-    Build canonical state (VP steps, Features, Personas) from extracted facts and signals.
-
-    This endpoint:
-    1. Loads extracted facts digest
-    2. Retrieves relevant chunks via vector search
-    3. Runs the state builder LLM
-    4. Persists VP steps, features, and personas to database
-
-    Args:
-        request: BuildStateRequest with project_id and options
-
-    Returns:
-        BuildStateResponse with counts and summary
-
-    Raises:
-        HTTPException 500: If state building fails
-    """
-    logger.warning(
-        "DEPRECATED: POST /state/build called — uses V1 pipeline which "
-        "destructively overwrites entities. Use V2 signal pipeline instead.",
-        extra={"project_id": str(request.project_id)},
-    )
-
-    run_id = uuid.uuid4()
-    job_id: UUID | None = None
-
-    try:
-        # Create and start job
-        job_id = create_job(
-            project_id=request.project_id,
-            job_type="build_state",
-            input_json={
-                "include_research": request.include_research,
-                "top_k_context": request.top_k_context,
-            },
-            run_id=run_id,
-        )
-        start_job(job_id)
-
-        logger.info(
-            f"Starting state building for project {request.project_id}",
-            extra={"run_id": str(run_id), "job_id": str(job_id)},
-        )
-
-        # Run the state builder agent
-        # Note: prd_count is ignored as PRD sections are deprecated
-        llm_output, _prd_count, vp_count, features_count = run_build_state_agent(
-            project_id=request.project_id,
-            job_id=job_id,
-            run_id=run_id,
-            include_research=request.include_research,
-            top_k_context=request.top_k_context,
-        )
-
-        # Build summary
-        summary = (
-            f"Built {vp_count} VP steps and {features_count} features "
-            f"from extracted facts and signals."
-        )
-
-        # Complete job
-        complete_job(
-            job_id=job_id,
-            output_json={
-                "vp_steps_upserted": vp_count,
-                "features_written": features_count,
-            },
-        )
-
-        logger.info(
-            "State building completed",
-            extra={
-                "run_id": str(run_id),
-                "job_id": str(job_id),
-                "vp_count": vp_count,
-                "features_count": features_count,
-            },
-        )
-
-        return BuildStateResponse(
-            run_id=run_id,
-            job_id=job_id,
-            vp_steps_upserted=vp_count,
-            features_written=features_count,
-            summary=summary,
-        )
-
-    except Exception as e:
-        logger.exception(f"State building failed: {e}")
-
-        if job_id:
-            try:
-                fail_job(job_id, str(e))
-            except Exception:
-                logger.exception("Failed to mark job as failed")
-
-        raise HTTPException(status_code=500, detail="State building failed") from e
 
 
 @router.get("/state/vp", response_model=list[VpStepOut])
@@ -1039,17 +925,17 @@ async def get_project_status_endpoint(
 
         if not features:
             blockers.append("No features defined")
-            suggestions.append("Run /enrich-features to generate features")
+            suggestions.append("Add signals to generate features via the V2 pipeline")
         elif len(confirmed_features) < len(features) / 2:
             suggestions.append(f"Confirm features: {len(confirmed_features)}/{len(features)} confirmed")
 
         if not personas:
-            suggestions.append("Run /enrich-personas to generate user personas")
+            suggestions.append("Add signals to generate user personas via the V2 pipeline")
         elif not primary_personas:
             suggestions.append("Mark a primary persona to guide feature prioritization")
 
         if not vp_steps:
-            suggestions.append("Run /enrich-value-path to generate user journey")
+            suggestions.append("Add signals to generate user journey via the V2 pipeline")
 
         if not signals:
             suggestions.append("Add signals (emails, notes, research) to enrich context")

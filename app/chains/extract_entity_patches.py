@@ -208,6 +208,10 @@ update: {{statement}} — single vision statement for the project
 - Current vs future: "Today we..." → current steps, "System will..." → future steps
 - Stakeholders are INDIVIDUAL PEOPLE only, never organizations
 - Data entities are domain objects (Patient, Invoice, Order), not generic "data"
+- Business drivers: ONE entity per distinct pain/goal/KPI. If the same pain is discussed from different angles, that's one business_driver with richer evidence, not multiple. Phase milestones (Phase 1, Phase 2, Phase 3) can be separate goal entities.
+- Competitors: Extract ALL named products, tools, or platforms (even if just mentioned in passing) as competitor entities. Include generic AI tools (ChatGPT, Jasper, etc.) and design inspirations (Canva, etc.).
+- Workflows MUST include a parent workflow entity (create) plus its workflow_steps. Never create orphaned workflow_steps without a workflow_name that ties them to a parent.
+- Feature granularity: Sub-capabilities of a larger feature should be merge patches on the parent, not separate creates. E.g., "Image Selection" and "Image Regeneration" are not separate features — they're aspects of the visual generation feature.
 """
 
 EXTRACTION_CONTEXT_TEMPLATE = """{strategy_block}
@@ -269,6 +273,14 @@ STRATEGY_BLOCKS = {
 - Executive narrative — extract vision, goals, KPIs
 - Default source_authority: based on presenter
 """,
+    "document": """## SOURCE-SPECIFIC: Document (Requirements / Discovery Notes)
+- Extract ALL named processes as workflows with 3-8 steps each
+- Every workflow MUST include the parent workflow entity AND its steps
+- Capture ALL named products, tools, and platforms as competitors
+- Business drivers should be consolidated — one entity per distinct pain/goal/kpi, not one per mention
+- High entity volume expected — be thorough across all entity types
+- Default source_authority: "consultant"
+""",
     "default": """## SOURCE-SPECIFIC: General Signal
 - Extract all recognizable requirements and entities
 - Use medium confidence for inferred items
@@ -290,6 +302,7 @@ async def extract_entity_patches(
     source_authority: str = "research",
     signal_id: str | None = None,
     run_id: str | None = None,
+    extraction_log: Any | None = None,  # ExtractionLog instance
 ) -> EntityPatchList:
     """Extract EntityPatch[] from signal text using Sonnet with 3-layer context.
 
@@ -324,11 +337,21 @@ async def extract_entity_patches(
             "text": EXTRACTION_SYSTEM_PROMPT_STATIC,
             "cache_control": {"type": "ephemeral"},
         },
-        {
-            "type": "text",
-            "text": dynamic_context,
-        },
     ]
+
+    # Layer 4: Extraction briefing (Haiku-synthesized guidance)
+    briefing_text = getattr(context_snapshot, "extraction_briefing_prompt", "")
+    if briefing_text:
+        system_blocks.append({
+            "type": "text",
+            "text": briefing_text,
+            "cache_control": {"type": "ephemeral"},
+        })
+
+    system_blocks.append({
+        "type": "text",
+        "text": dynamic_context,
+    })
 
     user_prompt = f"""## Signal Content ({signal_type})
 
@@ -340,6 +363,17 @@ Extract all EntityPatch objects from this signal. Use the submit_entity_patches 
     # Call LLM
     try:
         patch_dicts = await _call_extraction_llm(system_blocks, user_prompt)
+
+        # Log single-chunk result before validation
+        if extraction_log is not None:
+            extraction_log.log_chunk_result(
+                chunk_id=chunk_ids[0] if chunk_ids else "single",
+                chunk_index=0,
+                section_title=None,
+                char_count=len(signal_text),
+                raw_patches=patch_dicts,
+            )
+
         patches = _validate_patches(patch_dicts, chunk_ids, source_authority)
     except Exception as e:
         logger.error(f"Extraction failed: {e}", exc_info=True)
@@ -506,7 +540,13 @@ def _validate_patches(
 
 CHUNK_SYSTEM_PROMPT = """You are extracting structured entity patches from ONE SECTION of a larger document.
 
-Focus on entities clearly present in THIS chunk. Another pass will merge duplicates across chunks — extract everything you see without worrying about cross-chunk dedup.
+Focus on entities clearly present in THIS chunk. Another pass will merge duplicates across chunks.
+
+IMPORTANT per-chunk rules:
+- Extract ALL named products, tools, platforms as competitors — even brief mentions
+- Create workflow entities WITH their steps (use workflow_name on steps to link them)
+- Business drivers: one entity per distinct pain/goal/KPI — don't split the same concept into multiple entities
+- If this chunk discusses an existing feature from the inventory, use merge/update, not create
 
 If a section title is provided, use it as page_or_section in evidence references."""
 
@@ -559,11 +599,22 @@ async def _extract_single_chunk(
             "text": CHUNK_SYSTEM_PROMPT,
             "cache_control": {"type": "ephemeral"},
         },
-        {
-            "type": "text",
-            "text": dynamic_context,
-        },
     ]
+
+    # Layer 4: Extraction briefing (same across all chunks → cached)
+    briefing_text = getattr(context_snapshot, "extraction_briefing_prompt", "")
+    if briefing_text:
+        system_blocks.append({
+            "type": "text",
+            "text": briefing_text,
+            "cache_control": {"type": "ephemeral"},
+        })
+
+    system_blocks.append({
+        "type": "text",
+        "text": dynamic_context,
+        "cache_control": {"type": "ephemeral"},
+    })
 
     section_ctx = f" (Section: {section_title})" if section_title else ""
     user_prompt = f"""## Document Chunk {chunk_index + 1}{section_ctx}
@@ -635,7 +686,9 @@ Extract all EntityPatch objects from this chunk. Use the submit_entity_patches t
     return []
 
 
-def _merge_duplicate_patches(patches: list[EntityPatch]) -> list[EntityPatch]:
+def _merge_duplicate_patches(
+    patches: list[EntityPatch],
+) -> tuple[list[EntityPatch], list[dict]]:
     """Merge duplicate create patches that refer to the same entity across chunks.
 
     Groups create patches by (entity_type, normalized_name) and merges duplicates:
@@ -646,6 +699,9 @@ def _merge_duplicate_patches(patches: list[EntityPatch]) -> list[EntityPatch]:
 
     Non-create patches (merge/update/stale/delete) are kept as-is since they
     reference target_entity_id.
+
+    Returns:
+        Tuple of (merged patches, merge decisions for logging)
     """
     CONFIDENCE_ORDER = {"very_high": 4, "high": 3, "medium": 2, "low": 1, "conflict": 0}
 
@@ -661,8 +717,16 @@ def _merge_duplicate_patches(patches: list[EntityPatch]) -> list[EntityPatch]:
         name = (
             patch.payload.get("name")
             or patch.payload.get("label")
-            or patch.payload.get("description", "")[:60]
+            or patch.payload.get("title")
+            or ""
         )
+        # For business_drivers, build a more stable key from driver_type + description
+        if not name and patch.entity_type == "business_driver":
+            driver_type = patch.payload.get("driver_type", "")
+            desc = patch.payload.get("description", "")[:50]
+            name = f"{driver_type}:{desc}" if desc else ""
+        elif not name:
+            name = patch.payload.get("description", "")[:60]
         key = (patch.entity_type, name.lower().strip() if name else "")
 
         if not key[1]:
@@ -673,6 +737,7 @@ def _merge_duplicate_patches(patches: list[EntityPatch]) -> list[EntityPatch]:
         creates.setdefault(key, []).append(patch)
 
     merged: list[EntityPatch] = []
+    merge_decisions: list[dict] = []
     for (_etype, _name), group in creates.items():
         if len(group) == 1:
             merged.append(group[0])
@@ -710,11 +775,19 @@ def _merge_duplicate_patches(patches: list[EntityPatch]) -> list[EntityPatch]:
             mention_count=total_mentions,
         ))
 
+        merge_decisions.append({
+            "name": _name,
+            "entity_type": _etype,
+            "duplicates_merged": len(group),
+            "kept_confidence": best.confidence,
+            "evidence_combined": len(all_evidence),
+        })
+
         logger.debug(
             f"Merged {len(group)} duplicate '{_name}' ({_etype}) patches into one"
         )
 
-    return merged + non_creates
+    return merged + non_creates, merge_decisions
 
 
 async def extract_patches_parallel(
@@ -724,6 +797,7 @@ async def extract_patches_parallel(
     source_authority: str = "research",
     signal_id: str | None = None,
     run_id: str | None = None,
+    extraction_log: Any | None = None,  # ExtractionLog instance
 ) -> EntityPatchList:
     """Extract patches from multiple chunks in parallel using Haiku.
 
@@ -776,6 +850,18 @@ async def extract_patches_parallel(
         if isinstance(result, Exception):
             logger.error(f"[parallel] Chunk {i} raised: {result}")
             continue
+
+        # Log per-chunk raw results
+        if extraction_log is not None:
+            chunk = chunks[i]
+            extraction_log.log_chunk_result(
+                chunk_id=str(chunk.get("id", "")),
+                chunk_index=chunk.get("chunk_index", i),
+                section_title=(chunk.get("metadata") or {}).get("section_title"),
+                char_count=len(chunk.get("content", "")),
+                raw_patches=result,
+            )
+
         all_patch_dicts.extend(result)
 
     logger.info(
@@ -788,7 +874,26 @@ async def extract_patches_parallel(
     patches = _validate_patches(all_patch_dicts, chunk_ids=None, default_authority=source_authority)
 
     # Deduplicate creates across chunks
-    patches = _merge_duplicate_patches(patches)
+    before_count = len(patches)
+    patches, merge_decisions = _merge_duplicate_patches(patches)
+
+    if extraction_log is not None:
+        extraction_log.log_chunk_merge(before_count, patches, merge_decisions)
+
+    # Consolidate semantically duplicate creates (LLM pass)
+    try:
+        from app.chains.consolidate_patches import consolidate_create_patches
+
+        before_consolidation = len(patches)
+        patches, consolidation_decisions = await consolidate_create_patches(patches)
+        if extraction_log is not None:
+            extraction_log.log_consolidation(before_consolidation, patches, consolidation_decisions)
+        if consolidation_decisions:
+            logger.info(
+                f"[parallel] Consolidated {before_consolidation - len(patches)} duplicate creates"
+            )
+    except Exception as e:
+        logger.warning(f"[parallel] Consolidation failed (continuing): {e}")
 
     duration_ms = int((time.time() - start) * 1000)
 

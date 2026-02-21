@@ -64,17 +64,6 @@ class Settings(BaseSettings):
         default=1500, description="Max chars per chunk for fact extraction (sentence-boundary aware)"
     )
 
-    # Phase 1.3: Red-Team configuration
-    REDTEAM_MODEL: str = Field(default="gpt-4.1-mini", description="Model for red-team analysis")
-    REDTEAM_PROMPT_VERSION: str = Field(default="redteam_v1", description="Red-team prompt version")
-    REDTEAM_SCHEMA_VERSION: str = Field(default="redteam_v1", description="Red-team schema version")
-    REDTEAM_TOP_K_PER_QUERY: int = Field(
-        default=6, description="Chunks to retrieve per query for red-team"
-    )
-    REDTEAM_MAX_TOTAL_CHUNKS: int = Field(
-        default=30, description="Max total chunks for red-team after dedup"
-    )
-
     # Phase 2A: State Builder configuration
     STATE_BUILDER_MODEL: str = Field(default="gpt-4.1-mini", description="Model for state building")
     STATE_BUILDER_PROMPT_VERSION: str = Field(
@@ -88,15 +77,6 @@ class Settings(BaseSettings):
     )
     STATE_BUILDER_MAX_TOTAL_CHUNKS: int = Field(
         default=30, description="Max total chunks after dedup for state builder"
-    )
-
-    # Phase 2B: State Reconciliation configuration
-    STATE_MODEL: str = Field(default="gpt-4.1-mini", description="Model for state reconciliation")
-    STATE_PROMPT_VERSION: str = Field(
-        default="reconcile_v1", description="Reconcile prompt version"
-    )
-    STATE_SCHEMA_VERSION: str = Field(
-        default="reconcile_v1", description="Reconcile schema version"
     )
 
     # Phase 2C: Feature Enrichment configuration
