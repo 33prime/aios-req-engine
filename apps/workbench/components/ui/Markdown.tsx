@@ -39,7 +39,7 @@ export function Markdown({ content, className = '' }: MarkdownProps) {
           inline ? (
             <code className="bg-gray-100 text-red-600 px-1 py-0.5 rounded text-xs font-mono" {...props} />
           ) : (
-            <code className="block bg-gray-900 text-gray-100 p-2.5 rounded text-xs font-mono overflow-x-auto mb-1.5" {...props} />
+            <code className="block bg-gray-100 text-gray-800 p-2.5 rounded text-xs font-mono overflow-x-auto mb-1.5" {...props} />
           ),
         pre: ({ node, ...props }) => <pre className="mb-1.5" {...props} />,
 

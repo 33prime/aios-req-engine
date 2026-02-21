@@ -450,6 +450,31 @@ def get_tool_definitions() -> List[Dict[str, Any]]:
                 "required": ["entity_type", "entity_id", "fields"],
             },
         },
+        {
+            "name": "delete_entity",
+            "description": "Delete an entity by ID. Supports features, personas, workflow steps, stakeholders, data entities, and workflows. Use when the user asks to remove/delete something. Always confirm what was deleted by name.",
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "entity_type": {
+                        "type": "string",
+                        "enum": [
+                            "feature",
+                            "persona",
+                            "vp_step",
+                            "stakeholder",
+                            "data_entity",
+                            "workflow",
+                        ],
+                    },
+                    "entity_id": {
+                        "type": "string",
+                        "description": "UUID of the entity to delete",
+                    },
+                },
+                "required": ["entity_type", "entity_id"],
+            },
+        },
         # Research / Evolution Tools
         {
             "name": "query_entity_history",
@@ -783,6 +808,7 @@ CORE_TOOLS = {
     "search",
     "create_entity",
     "update_entity",
+    "delete_entity",
     "create_task",
     "suggest_actions",
     "add_signal",
@@ -894,7 +920,7 @@ def get_tools_for_context(page_context: str | None = None) -> List[Dict[str, Any
 
 # Tools that mutate project data — invalidate context frame cache after execution
 _MUTATING_TOOLS = {
-    "create_entity", "update_entity", "add_signal", "create_task",
+    "create_entity", "update_entity", "delete_entity", "add_signal", "create_task",
     "create_confirmation", "attach_evidence", "generate_strategic_context",
     "update_strategic_context", "update_project_type", "identify_stakeholders",
     "respond_to_document_clarification", "add_belief", "add_company_reference",
@@ -961,6 +987,8 @@ async def execute_tool(project_id: UUID, tool_name: str, tool_input: Dict[str, A
             return await _create_entity(project_id, tool_input)
         elif tool_name == "update_entity":
             return await _update_entity(project_id, tool_input)
+        elif tool_name == "delete_entity":
+            return await _delete_entity(project_id, tool_input)
         # Research / Evolution Tools
         elif tool_name == "query_entity_history":
             return await _query_entity_history(project_id, tool_input)
@@ -2744,6 +2772,91 @@ async def _update_entity(project_id: UUID, params: Dict[str, Any]) -> Dict[str, 
 
     except Exception as e:
         logger.error(f"Error updating {entity_type} {entity_id}: {e}", exc_info=True)
+        return {"success": False, "error": str(e)}
+
+
+async def _delete_entity(project_id: UUID, params: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Delete any entity type by ID.
+
+    Supports: feature, persona, vp_step, stakeholder, data_entity, workflow.
+    Uses cascade delete for features and personas to clean up references.
+    """
+    entity_type = params.get("entity_type")
+    entity_id = params.get("entity_id")
+
+    if not entity_type or not entity_id:
+        return {
+            "success": False,
+            "error": "entity_type and entity_id are required",
+        }
+
+    try:
+        eid = UUID(entity_id)
+    except (ValueError, TypeError):
+        return {"success": False, "error": f"Invalid entity_id: {entity_id}"}
+
+    try:
+        supabase = get_supabase()
+
+        if entity_type == "feature":
+            from app.db.cascade import delete_feature_with_cascade
+            result = delete_feature_with_cascade(eid)
+            entity_name = result.get("feature_name", "Unknown")
+            return {
+                "success": True,
+                "message": f"Deleted feature: {entity_name}",
+                "entity_type": "feature",
+                "entity_name": entity_name,
+            }
+
+        elif entity_type == "persona":
+            from app.db.cascade import delete_persona_with_cascade
+            result = delete_persona_with_cascade(eid)
+            entity_name = result.get("persona_name", "Unknown")
+            return {
+                "success": True,
+                "message": f"Deleted persona: {entity_name}",
+                "entity_type": "persona",
+                "entity_name": entity_name,
+            }
+
+        elif entity_type in ("vp_step", "stakeholder", "data_entity", "workflow"):
+            table_map = {
+                "vp_step": ("vp_steps", "label"),
+                "stakeholder": ("stakeholders", "name"),
+                "data_entity": ("data_entities", "name"),
+                "workflow": ("workflows", "name"),
+            }
+            table, name_col = table_map[entity_type]
+
+            # Fetch name before deleting
+            fetch = (
+                supabase.table(table)
+                .select(f"id, {name_col}")
+                .eq("id", str(eid))
+                .maybe_single()
+                .execute()
+            )
+            if not fetch.data:
+                return {"success": False, "error": f"{entity_type} not found: {entity_id}"}
+
+            entity_name = fetch.data.get(name_col, "Unknown")
+
+            supabase.table(table).delete().eq("id", str(eid)).execute()
+
+            return {
+                "success": True,
+                "message": f"Deleted {entity_type}: {entity_name}",
+                "entity_type": entity_type,
+                "entity_name": entity_name,
+            }
+
+        else:
+            return {"success": False, "error": f"Unsupported entity type: {entity_type}"}
+
+    except Exception as e:
+        logger.error(f"Error deleting {entity_type} {entity_id}: {e}", exc_info=True)
         return {"success": False, "error": str(e)}
 
 
