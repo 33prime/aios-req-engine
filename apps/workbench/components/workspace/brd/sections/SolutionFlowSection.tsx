@@ -2,13 +2,7 @@
 
 import { Sparkles, ArrowRight, Zap } from 'lucide-react'
 import type { SolutionFlowOverview } from '@/types/workspace'
-
-const PHASE_CONFIG: Record<string, { label: string; color: string }> = {
-  entry: { label: 'Entry', color: 'bg-[#0A1E2F]/10 text-[#0A1E2F]' },
-  core_experience: { label: 'Core', color: 'bg-[#3FAF7A]/10 text-[#25785A]' },
-  output: { label: 'Output', color: 'bg-[#0D2A35]/10 text-[#0D2A35]' },
-  admin: { label: 'Admin', color: 'bg-[#F4F4F4] text-[#666666]' },
-}
+import { SOLUTION_FLOW_PHASES } from '@/lib/solution-flow-constants'
 
 interface SolutionFlowSectionProps {
   flow: SolutionFlowOverview | null | undefined
@@ -109,7 +103,7 @@ export function SolutionFlowSection({ flow, onOpen, onGenerate, isGenerating }: 
             {/* Phase breakdown chips */}
             <div className="flex flex-wrap gap-2 mb-4">
               {Object.entries(phaseCountMap).map(([phase, count]) => {
-                const config = PHASE_CONFIG[phase] || PHASE_CONFIG.core_experience
+                const config = SOLUTION_FLOW_PHASES[phase] || SOLUTION_FLOW_PHASES.core_experience
                 return (
                   <span
                     key={phase}

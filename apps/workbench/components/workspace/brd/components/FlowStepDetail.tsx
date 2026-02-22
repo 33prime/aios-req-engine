@@ -42,6 +42,16 @@ const CONFIDENCE_DOT: Record<string, { color: string; label: string }> = {
   unknown: { color: 'bg-[#CCCCCC]', label: 'Unknown' },
 }
 
+/** Shallow compare two arrays of primitives or objects by length + JSON per-item. */
+function arraysChanged(a: unknown[] | undefined | null, b: unknown[] | undefined | null): boolean {
+  if (a === b) return false
+  if (!a || !b || a.length !== b.length) return true
+  for (let i = 0; i < a.length; i++) {
+    if (a[i] !== b[i] && JSON.stringify(a[i]) !== JSON.stringify(b[i])) return true
+  }
+  return false
+}
+
 const ENTITY_CONFIG: Record<string, { icon: typeof GitBranch; label: string; color: string; bg: string }> = {
   workflow: { icon: GitBranch, label: 'Workflow', color: 'text-[#0A1E2F]', bg: 'bg-[#0A1E2F]/5 border-[#0A1E2F]/15' },
   feature: { icon: Box, label: 'Feature', color: 'text-[#25785A]', bg: 'bg-[#3FAF7A]/5 border-[#3FAF7A]/15' },
@@ -134,8 +144,8 @@ export function FlowStepDetail({ step, loading, onConfirm, onNeedsReview, entity
     const changed = new Set<string>()
 
     if (step.goal !== prev.goal) changed.add('goal')
-    if (JSON.stringify(step.actors) !== JSON.stringify(prev.actors)) changed.add('actors')
-    if (JSON.stringify(step.information_fields) !== JSON.stringify(prev.information_fields)) {
+    if (arraysChanged(step.actors, prev.actors)) changed.add('actors')
+    if (arraysChanged(step.information_fields, prev.information_fields)) {
       changed.add('info_fields')
       const prevNames = new Set((prev.information_fields || []).map(f => f.name))
       for (const f of step.information_fields || []) {
@@ -146,12 +156,12 @@ export function FlowStepDetail({ step, loading, onConfirm, onNeedsReview, entity
         }
       }
     }
-    if (JSON.stringify(step.open_questions) !== JSON.stringify(prev.open_questions)) changed.add('questions')
+    if (arraysChanged(step.open_questions, prev.open_questions)) changed.add('questions')
     if (step.mock_data_narrative !== prev.mock_data_narrative) changed.add('narrative')
-    if (JSON.stringify(step.success_criteria) !== JSON.stringify(prev.success_criteria)) changed.add('success_criteria')
-    if (JSON.stringify(step.pain_points_addressed) !== JSON.stringify(prev.pain_points_addressed)) changed.add('pain_points')
-    if (JSON.stringify(step.goals_addressed) !== JSON.stringify(prev.goals_addressed)) changed.add('goals_addressed')
-    if (JSON.stringify(step.ai_config) !== JSON.stringify(prev.ai_config)) changed.add('ai_config')
+    if (arraysChanged(step.success_criteria, prev.success_criteria)) changed.add('success_criteria')
+    if (arraysChanged(step.pain_points_addressed, prev.pain_points_addressed)) changed.add('pain_points')
+    if (arraysChanged(step.goals_addressed, prev.goals_addressed)) changed.add('goals_addressed')
+    if (step.ai_config !== prev.ai_config && JSON.stringify(step.ai_config) !== JSON.stringify(prev.ai_config)) changed.add('ai_config')
 
     prevStepRef.current = step
     if (changed.size > 0) {

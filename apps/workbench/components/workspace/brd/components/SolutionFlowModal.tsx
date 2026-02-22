@@ -5,6 +5,7 @@ import { X, Sparkles, RefreshCw, PanelLeftClose, PanelLeftOpen } from 'lucide-re
 import { FlowStepList } from './FlowStepList'
 import { FlowStepDetail } from './FlowStepDetail'
 import { FlowStepChat } from './FlowStepChat'
+import { SOLUTION_FLOW_PHASES } from '@/lib/solution-flow-constants'
 import type {
   SolutionFlowOverview,
   SolutionFlowStepDetail as StepDetail,
@@ -13,12 +14,7 @@ import type {
 } from '@/types/workspace'
 import { getSolutionFlow, getSolutionFlowStep, generateSolutionFlow, checkSolutionFlowReadiness } from '@/lib/api'
 
-const PHASE_CONFIG: Record<string, { label: string; color: string }> = {
-  entry: { label: 'Entry', color: 'bg-[#0A1E2F]/10 text-[#0A1E2F]' },
-  core_experience: { label: 'Core', color: 'bg-[#3FAF7A]/10 text-[#25785A]' },
-  output: { label: 'Output', color: 'bg-[#0D2A35]/10 text-[#0D2A35]' },
-  admin: { label: 'Admin', color: 'bg-gray-100 text-[#666666]' },
-}
+const STEP_CACHE_MAX = 10
 
 export interface EntityLookup {
   features: Record<string, string>    // id → name
@@ -53,8 +49,15 @@ export function SolutionFlowModal({
   const [readiness, setReadiness] = useState<SolutionFlowReadiness | null>(null)
   const [highlightFields, setHighlightFields] = useState<string[] | null>(null)
   const stepCache = useRef<Map<string, StepDetail>>(new Map())
-  const selectedStepIdRef = useRef(selectedStepId)
-  selectedStepIdRef.current = selectedStepId
+  const highlightTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // Clear cache + highlight when modal closes
+  useEffect(() => {
+    if (!isOpen) {
+      stepCache.current.clear()
+      if (highlightTimerRef.current) clearTimeout(highlightTimerRef.current)
+    }
+  }, [isOpen])
 
   // Load flow data + readiness check
   const loadFlow = useCallback(async () => {
@@ -67,8 +70,8 @@ export function SolutionFlowModal({
       setFlow(data)
       setReadiness(readinessData)
       // Auto-select first step only if nothing selected yet
-      if (data.steps?.length > 0 && !selectedStepIdRef.current) {
-        setSelectedStepId(data.steps[0].id)
+      if (data.steps?.length > 0) {
+        setSelectedStepId(prev => prev ?? data.steps[0].id)
       }
     } catch (err) {
       console.error('Failed to load solution flow:', err)
@@ -118,6 +121,11 @@ export function SolutionFlowModal({
       .then(data => {
         if (!cancelled) {
           const detail = data as StepDetail
+          // Evict oldest entries when cache exceeds max
+          if (stepCache.current.size >= STEP_CACHE_MAX) {
+            const firstKey = stepCache.current.keys().next().value
+            if (firstKey) stepCache.current.delete(firstKey)
+          }
           stepCache.current.set(selectedStepId, detail)
           setStepDetail(detail)
           setStepLoading(false)
@@ -146,20 +154,65 @@ export function SolutionFlowModal({
   }
 
   // ==========================================================================
+  // Optimistic sidebar patch — update step summary from detail data
+  // ==========================================================================
+  const patchFlowStep = useCallback((detail: StepDetail) => {
+    setFlow(prev => {
+      if (!prev) return prev
+      const idx = prev.steps.findIndex(s => s.id === detail.id)
+      if (idx === -1) return prev
+      const openCount = (detail.open_questions || []).filter(q => q.status === 'open').length
+      const infoCount = (detail.information_fields || []).length
+      const breakdown: Record<string, number> = {}
+      for (const f of detail.information_fields || []) {
+        const conf = (f as any).confidence || 'unknown'
+        breakdown[conf] = (breakdown[conf] || 0) + 1
+      }
+      const updated = [...prev.steps]
+      updated[idx] = {
+        ...updated[idx],
+        title: detail.title,
+        goal: detail.goal,
+        phase: detail.phase,
+        actors: detail.actors,
+        confirmation_status: detail.confirmation_status || updated[idx].confirmation_status,
+        open_question_count: openCount,
+        info_field_count: infoCount,
+        confidence_breakdown: breakdown,
+      }
+      return { ...prev, steps: updated }
+    })
+  }, [])
+
+  // ==========================================================================
   // Cascade handler — refetch data when chat tools complete
   // ==========================================================================
   const handleToolResult = useCallback((toolName: string, result: any) => {
     if (!selectedStepId) return
 
+    // Guard: ignore results targeting a different step
+    const resultStepId = result?.step_id || result?.step_data?.id
+    if (resultStepId && resultStepId !== selectedStepId) return
+
     // Invalidate cache for mutated step
     stepCache.current.delete(selectedStepId)
 
+    // Helper: schedule highlight flash with proper cleanup
+    const flashFields = (fields: string[] | undefined) => {
+      if (!fields?.length) return
+      if (highlightTimerRef.current) clearTimeout(highlightTimerRef.current)
+      setHighlightFields(fields)
+      highlightTimerRef.current = setTimeout(() => setHighlightFields(null), 2500)
+    }
+
     switch (toolName) {
       case 'resolve_solution_flow_question': {
-        // Optimistic patch from step_data (instant), fallback to manual patch
         if (result?.step_data) {
-          setStepDetail(result.step_data as StepDetail)
-        } else if (stepDetail && result?.answer) {
+          const detail = result.step_data as StepDetail
+          setStepDetail(detail)
+          stepCache.current.set(selectedStepId, detail)
+          patchFlowStep(detail)
+        } else if (result?.answer) {
           setStepDetail(prev => {
             if (!prev) return prev
             const updatedQuestions = (prev.open_questions || []).map(q =>
@@ -169,15 +222,17 @@ export function SolutionFlowModal({
             )
             return { ...prev, open_questions: updatedQuestions }
           })
+          refreshFlow()
         }
-        refreshFlow()
         break
       }
       case 'escalate_to_client': {
-        // Optimistic patch from step_data (instant), fallback to manual patch
         if (result?.step_data) {
-          setStepDetail(result.step_data as StepDetail)
-        } else if (stepDetail && result?.question) {
+          const detail = result.step_data as StepDetail
+          setStepDetail(detail)
+          stepCache.current.set(selectedStepId, detail)
+          patchFlowStep(detail)
+        } else if (result?.question) {
           setStepDetail(prev => {
             if (!prev) return prev
             const updatedQuestions = (prev.open_questions || []).map(q =>
@@ -187,33 +242,27 @@ export function SolutionFlowModal({
             )
             return { ...prev, open_questions: updatedQuestions }
           })
+          refreshFlow()
         }
-        refreshFlow()
         break
       }
       case 'update_solution_flow_step':
       case 'refine_solution_flow_step': {
-        // Optimistic patch from step_data (instant)
         if (result?.step_data) {
           const detail = result.step_data as StepDetail
           setStepDetail(detail)
           stepCache.current.set(selectedStepId, detail)
+          patchFlowStep(detail)
         } else {
           refreshStepDetail(selectedStepId)
+          refreshFlow()
         }
-        // Flash updated fields in detail panel
-        const fields = result?.updated_fields as string[] | undefined
-        if (fields?.length) {
-          setHighlightFields(fields)
-          setTimeout(() => setHighlightFields(null), 2500)
-        }
-        refreshFlow()
+        flashFields(result?.updated_fields as string[] | undefined)
         break
       }
       case 'add_solution_flow_step': {
         stepCache.current.clear()
         refreshFlow().then(() => {
-          // Auto-select the new step if we got a step_id back
           if (result?.step_id) {
             setSelectedStepId(result.step_id)
           }
@@ -223,7 +272,6 @@ export function SolutionFlowModal({
       case 'remove_solution_flow_step': {
         stepCache.current.clear()
         refreshFlow().then(() => {
-          // If current step was deleted, select first remaining
           setFlow(prev => {
             if (!prev) return prev
             const remaining = prev.steps || []
@@ -240,7 +288,7 @@ export function SolutionFlowModal({
         break
       }
     }
-  }, [selectedStepId, stepDetail, refreshStepDetail, refreshFlow])
+  }, [selectedStepId, refreshStepDetail, refreshFlow, patchFlowStep])
 
   if (!isOpen) return null
 
@@ -288,7 +336,7 @@ export function SolutionFlowModal({
             </h2>
             <div className="flex gap-1.5">
               {Object.entries(phaseCountMap).map(([phase, count]) => {
-                const config = PHASE_CONFIG[phase] || PHASE_CONFIG.core_experience
+                const config = SOLUTION_FLOW_PHASES[phase] || SOLUTION_FLOW_PHASES.core_experience
                 return (
                   <span
                     key={phase}

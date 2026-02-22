@@ -2,28 +2,7 @@
 
 import { Plus } from 'lucide-react'
 import type { SolutionFlowStepSummary } from '@/types/workspace'
-
-const PHASE_ORDER = ['entry', 'core_experience', 'output', 'admin'] as const
-const PHASE_LABELS: Record<string, string> = {
-  entry: 'Entry',
-  core_experience: 'Core Experience',
-  output: 'Output',
-  admin: 'Admin',
-}
-
-const CONFIDENCE_DOT: Record<string, string> = {
-  known: 'bg-[#3FAF7A]',
-  inferred: 'bg-[#0A1E2F]/40',
-  guess: 'bg-[#BBBBBB]',
-  unknown: 'bg-[#E5E5E5]',
-}
-
-const STATUS_BORDER: Record<string, string> = {
-  confirmed_client: 'border-l-[#3FAF7A]',
-  confirmed_consultant: 'border-l-[#0A1E2F]',
-  needs_client: 'border-l-[#C4A97D]',
-  ai_generated: 'border-l-[#E5E5E5]',
-}
+import { PHASE_ORDER, SOLUTION_FLOW_PHASES, STATUS_BORDER, CONFIDENCE_DOT_COLOR } from '@/lib/solution-flow-constants'
 
 interface FlowStepListProps {
   steps: SolutionFlowStepSummary[]
@@ -50,7 +29,7 @@ export function FlowStepList({ steps, selectedStepId, onSelectStep, onAddStep }:
             {/* Phase header */}
             <div className="flex items-center justify-between px-4 py-2">
               <span className="text-[10px] font-semibold uppercase tracking-wider text-[#999999]">
-                {PHASE_LABELS[phase] || phase}
+                {SOLUTION_FLOW_PHASES[phase]?.fullLabel || phase}
                 {phaseSteps?.length ? ` (${phaseSteps.length})` : ''}
               </span>
             </div>
@@ -112,7 +91,7 @@ export function FlowStepList({ steps, selectedStepId, onSelectStep, onAddStep }:
                           Array.from({ length: Math.min(count, 4) }).map((_, i) => (
                             <div
                               key={`${conf}-${i}`}
-                              className={`w-1.5 h-1.5 rounded-full ${CONFIDENCE_DOT[conf] || CONFIDENCE_DOT.unknown}`}
+                              className={`w-1.5 h-1.5 rounded-full ${CONFIDENCE_DOT_COLOR[conf] || CONFIDENCE_DOT_COLOR.unknown}`}
                             />
                           ))
                         ))}

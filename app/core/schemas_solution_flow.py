@@ -47,6 +47,19 @@ class SolutionFlowStepCreate(BaseModel):
     linked_data_entity_ids: list[str] = Field(default_factory=list)
 
 
+class PainPoint(BaseModel):
+    text: str
+    persona: str | None = None
+
+
+class AIConfig(BaseModel):
+    role: str | None = None
+    behaviors: list[str] = Field(default_factory=list)
+    guardrails: list[str] = Field(default_factory=list)
+    confidence_display: str | None = None
+    fallback: str | None = None
+
+
 class SolutionFlowStepUpdate(BaseModel):
     title: str | None = None
     goal: str | None = None
@@ -61,6 +74,10 @@ class SolutionFlowStepUpdate(BaseModel):
     linked_feature_ids: list[str] | None = None
     linked_data_entity_ids: list[str] | None = None
     evidence_ids: list[str] | None = None
+    success_criteria: list[str] | None = None
+    pain_points_addressed: list[PainPoint] | None = None
+    goals_addressed: list[str] | None = None
+    ai_config: AIConfig | None = None
 
 
 # =============================================================================
@@ -98,6 +115,13 @@ class SolutionFlowStepDetail(BaseModel):
     linked_data_entity_ids: list[str] = Field(default_factory=list)
     evidence_ids: list[str] = Field(default_factory=list)
     version: int = 1
+    success_criteria: list[str] = Field(default_factory=list)
+    pain_points_addressed: list[PainPoint] = Field(default_factory=list)
+    goals_addressed: list[str] = Field(default_factory=list)
+    ai_config: AIConfig | None = None
+    background_narrative: str | None = None
+    generation_version: int | None = None
+    confidence_impact: float | None = None
 
 
 # =============================================================================
