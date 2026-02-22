@@ -14,7 +14,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import {
   MessageSquare,
-  GitBranch,
   Bell,
   ChevronLeft,
   ChevronRight,
@@ -30,7 +29,6 @@ import {
   Layers,
 } from 'lucide-react'
 import { WorkspaceChat, type ChatMessage } from './WorkspaceChat'
-import { CollaborationHub } from './CollaborationHub'
 import { getCollaborationHistory } from '@/lib/api'
 import FeatureVerdictCard from '@/components/prototype/FeatureVerdictCard'
 import VerdictChat from '@/components/prototype/VerdictChat'
@@ -90,7 +88,7 @@ export function CollaborationPanel({
   prototypeId = null,
   onVerdictSubmit,
 }: CollaborationPanelProps) {
-  const [activeTab, setActiveTab] = useState<'chat' | 'collab' | 'activity'>('chat')
+  const [activeTab, setActiveTab] = useState<'chat' | 'activity'>('chat')
 
   const isCollapsed = panelState === 'collapsed'
   const isWide = panelState === 'wide'
@@ -133,15 +131,6 @@ export function CollaborationPanel({
             title={isReviewActive ? 'Review' : 'Chat'}
           >
             {isReviewActive ? <Layers className="w-5 h-5" /> : <MessageSquare className="w-5 h-5" />}
-          </button>
-          <button
-            onClick={() => { setActiveTab('collab'); handleToggleCollapse() }}
-            className={`p-2 rounded-lg transition-colors ${
-              activeTab === 'collab' ? 'bg-[#3FAF7A]/10 text-[#3FAF7A]' : 'text-[#999999] hover:bg-[#F9F9F9]'
-            }`}
-            title="Collaboration"
-          >
-            <GitBranch className="w-5 h-5" />
           </button>
           <button
             onClick={() => { setActiveTab('activity'); handleToggleCollapse() }}
@@ -188,16 +177,6 @@ export function CollaborationPanel({
                 )}
               </>
             ) : 'Chat'}
-          </button>
-          <button
-            onClick={() => setActiveTab('collab')}
-            className={`flex-1 px-3 py-1.5 text-[13px] font-medium rounded-lg transition-colors text-center ${
-              activeTab === 'collab'
-                ? 'bg-white text-[#3FAF7A] shadow-sm'
-                : 'text-[#666666] hover:text-[#333333]'
-            }`}
-          >
-            Collab
           </button>
           <button
             onClick={() => setActiveTab('activity')}
@@ -260,10 +239,6 @@ export function CollaborationPanel({
               />
             )}
           </div>
-        )}
-
-        {activeTab === 'collab' && (
-          <CollaborationHub projectId={projectId} projectName={projectName} />
         )}
 
         {activeTab === 'activity' && (

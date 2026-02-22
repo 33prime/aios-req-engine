@@ -5,6 +5,7 @@ import { MessageSquare, X, Zap, FileText, Loader2, Plus } from 'lucide-react'
 import type { ChatMessage } from './WorkspaceChat'
 import { WorkspaceChat } from './WorkspaceChat'
 import { IntelligenceBriefingPanel } from './brd/components/briefing/IntelligenceBriefingPanel'
+import { ClientPulseStrip } from './ClientPulseStrip'
 import type { ChatEntityDetectionResult, TerseAction } from '@/lib/api'
 import type { ConversationStarter } from '@/types/workspace'
 
@@ -52,6 +53,12 @@ interface BrainBubbleProps {
 
   /** Set conversation context for next chat message */
   onSetConversationContext?: (context: string) => void
+
+  /** Navigate to the Collaborate view */
+  onNavigateToCollaborate?: () => void
+
+  /** Hide the pulse strip (e.g., when already on Collaborate) */
+  hideClientPulse?: boolean
 }
 
 // Panel width constant — shared with WorkspaceLayout for margin calculation
@@ -81,6 +88,8 @@ export function BrainBubble({
   contextActions,
   onNewChat,
   onSetConversationContext,
+  onNavigateToCollaborate,
+  hideClientPulse,
 }: BrainBubbleProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [activeTab, setActiveTab] = useState<BrainTab>(() => {
@@ -285,6 +294,11 @@ export function BrainBubble({
             </button>
           </div>
         </div>
+
+        {/* Client Pulse Strip — persistent awareness (hidden on Collaborate) */}
+        {!hideClientPulse && (
+          <ClientPulseStrip projectId={projectId} onClick={onNavigateToCollaborate} />
+        )}
 
         {/* Tab Content */}
         <div className="flex-1 overflow-hidden relative">

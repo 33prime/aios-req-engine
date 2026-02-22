@@ -273,3 +273,94 @@ async def send_opt_out_confirmation(
 
     result = await _send_mail([participant_email], subject, html_body)
     return {"sent": True, **result}
+
+
+async def send_package_notification(
+    project_id: UUID,
+    package_id: str,
+) -> dict[str, Any]:
+    """
+    Send email notification to portal clients when a package is sent.
+
+    Looks up project members with client role and sends a branded
+    notification with a link to the portal.
+    """
+    from app.db.supabase_client import get_supabase
+
+    supabase = get_supabase()
+
+    # Get project name
+    project_resp = supabase.table("projects").select("name").eq(
+        "id", str(project_id)
+    ).single().execute()
+    project_name = project_resp.data.get("name", "Your Project") if project_resp.data else "Your Project"
+
+    # Get package details
+    pkg_resp = supabase.table("client_packages").select(
+        "questions_count, action_items_count"
+    ).eq("id", package_id).single().execute()
+    questions_count = pkg_resp.data.get("questions_count", 0) if pkg_resp.data else 0
+    action_items_count = pkg_resp.data.get("action_items_count", 0) if pkg_resp.data else 0
+
+    # Get client emails from project_members
+    members_resp = supabase.table("project_members").select(
+        "email"
+    ).eq("project_id", str(project_id)).eq("role", "client").execute()
+
+    client_emails = [m["email"] for m in (members_resp.data or []) if m.get("email")]
+
+    if not client_emails:
+        logger.info(f"No client emails found for project {project_id} — skipping notification")
+        return {"sent": False, "reason": "no_client_emails"}
+
+    settings = get_settings()
+    portal_base = settings.FRONTEND_URL if hasattr(settings, "FRONTEND_URL") else "https://app.readytogo.ai"
+
+    subject = f"New questions from your consultant — {project_name}"
+
+    items_line = f"{questions_count} question{'s' if questions_count != 1 else ''}"
+    if action_items_count > 0:
+        items_line += f" and {action_items_count} action item{'s' if action_items_count != 1 else ''}"
+
+    html_body = f"""
+    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 520px; margin: 0 auto; padding: 32px 0;">
+        <div style="background: #FFFFFF; border: 1px solid #E5E5E5; border-radius: 16px; overflow: hidden;">
+            <div style="background: #0A1E2F; padding: 24px 32px;">
+                <h1 style="color: #FFFFFF; font-size: 18px; font-weight: 600; margin: 0;">
+                    {project_name}
+                </h1>
+            </div>
+            <div style="padding: 32px;">
+                <p style="color: #333333; font-size: 15px; line-height: 1.6; margin: 0 0 16px;">
+                    Your consultant has {items_line} for you to review.
+                </p>
+                <p style="color: #666666; font-size: 14px; line-height: 1.5; margin: 0 0 24px;">
+                    Your answers help shape the project — the more detail you provide, the better we can build what you need.
+                </p>
+                <div style="text-align: center; margin: 24px 0;">
+                    <a href="{portal_base}/portal/{project_id}"
+                       style="background: #3FAF7A; color: white; padding: 14px 32px;
+                              border-radius: 12px; text-decoration: none; display: inline-block;
+                              font-size: 14px; font-weight: 600;">
+                        Review &amp; Answer
+                    </a>
+                </div>
+                <p style="color: #999999; font-size: 12px; text-align: center; margin: 24px 0 0;">
+                    Sent via AIOS on behalf of your consulting team
+                </p>
+            </div>
+        </div>
+    </div>
+    """
+
+    text_body = (
+        f"{project_name}\n\n"
+        f"Your consultant has {items_line} for you to review.\n\n"
+        f"Visit the portal to respond: {portal_base}/portal/{project_id}\n\n"
+        f"Your answers help shape the project — the more detail you provide, "
+        f"the better we can build what you need."
+    )
+
+    result = await _send_mail(client_emails, subject, html_body, text_body)
+    logger.info(f"Package notification sent to {len(client_emails)} client(s) for project {project_id}")
+    return {"sent_count": len(client_emails), **result}

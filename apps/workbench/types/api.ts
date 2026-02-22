@@ -1032,6 +1032,25 @@ export interface ProjectPulse {
   first_visit: boolean
 }
 
+// Client Pulse (lightweight engagement metrics for Collaborate view)
+export interface ClientPulse {
+  pending_count: number
+  unread_count: number
+  next_meeting: { title: string; date: string } | null
+  last_client_activity: string | null
+}
+
+// Client Activity (unified timeline entry)
+export interface ClientActivityItem {
+  id: string
+  type: 'answer' | 'upload' | 'view' | 'annotation' | 'confirmation'
+  actor_name: string
+  description: string
+  timestamp: string
+  entity_type?: string
+  entity_id?: string
+}
+
 // Chat Summary (from onboarding chat)
 export interface ChatSummary {
   name: string

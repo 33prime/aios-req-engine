@@ -3,6 +3,7 @@
 from .definitions import get_tool_definitions
 from .dispatcher import execute_tool
 from .filtering import (
+    CLIENT_PORTAL_TOOLS,
     COMMUNICATION_TOOLS,
     CORE_TOOLS,
     DOCUMENT_TOOLS,
@@ -21,5 +22,6 @@ __all__ = [
     "FALLBACK_EXTRAS",
     "COMMUNICATION_TOOLS",
     "DOCUMENT_TOOLS",
+    "CLIENT_PORTAL_TOOLS",
     "_MUTATING_TOOLS",
 ]

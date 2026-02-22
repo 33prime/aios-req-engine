@@ -21,6 +21,7 @@ interface Toast {
   title: string
   message?: string
   duration?: number
+  action?: { label: string; onClick: () => void }
 }
 
 interface ToastContextType {
@@ -154,6 +155,14 @@ function ToastItem({ toast, onRemove }: ToastItemProps) {
           <p className="text-sm font-medium text-[#333333]">{toast.title}</p>
           {toast.message && (
             <p className="text-xs text-[#999999] mt-1">{toast.message}</p>
+          )}
+          {toast.action && (
+            <button
+              onClick={() => { toast.action!.onClick(); handleRemove() }}
+              className="text-xs font-medium text-[#3FAF7A] hover:text-[#25785A] mt-1.5 transition-colors"
+            >
+              {toast.action.label} &rarr;
+            </button>
           )}
         </div>
         <button

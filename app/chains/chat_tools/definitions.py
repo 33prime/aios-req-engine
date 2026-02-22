@@ -796,4 +796,91 @@ def get_tool_definitions() -> List[Dict[str, Any]]:
                 },
             },
         },
+        # =================================================================
+        # Client Portal Pipeline Tools
+        # =================================================================
+        {
+            "name": "mark_for_client_review",
+            "description": "Mark an entity for client review — adds it to the pending queue for the next client package. Use when: user says 'ask the client about this feature', 'mark this for review', 'the client should validate this', 'send this to the client'. Sets confirmation_status to needs_client and creates a pending item.",
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "entity_type": {
+                        "type": "string",
+                        "enum": [
+                            "feature", "persona", "vp_step", "stakeholder",
+                            "workflow", "data_entity", "constraint",
+                            "goal", "kpi", "pain_point", "competitor",
+                            "solution_flow_step",
+                        ],
+                        "description": "Type of entity to mark for client review",
+                    },
+                    "entity_id": {
+                        "type": "string",
+                        "description": "UUID of the entity",
+                    },
+                    "reason": {
+                        "type": "string",
+                        "description": "Why this needs client input (shown in the synthesized package)",
+                    },
+                },
+                "required": ["entity_type", "entity_id"],
+            },
+        },
+        {
+            "name": "draft_client_question",
+            "description": "Add a freeform question to the client queue for the next package. Use when: user says 'ask the client...', 'we need to find out...', 'add this question for the client'. Unlike mark_for_client_review, this creates a standalone question not tied to a specific entity.",
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "question": {
+                        "type": "string",
+                        "description": "The question to ask the client",
+                    },
+                    "context": {
+                        "type": "string",
+                        "description": "Why this question matters (helps AI synthesize better)",
+                    },
+                    "priority": {
+                        "type": "string",
+                        "enum": ["high", "medium", "low"],
+                        "description": "How urgently we need the answer (default: medium)",
+                        "default": "medium",
+                    },
+                    "suggested_answerer": {
+                        "type": "string",
+                        "description": "Who should answer (e.g. 'Product Owner', 'CTO')",
+                    },
+                },
+                "required": ["question"],
+            },
+        },
+        {
+            "name": "synthesize_and_preview",
+            "description": "Preview what the next client package would look like — synthesizes pending items into questions without sending. Use when: user says 'show me the client package', 'what would we send?', 'preview the questions'. Returns synthesized questions for review.",
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "max_questions": {
+                        "type": "integer",
+                        "description": "Maximum questions to generate (default: 8)",
+                        "default": 8,
+                    },
+                },
+            },
+        },
+        {
+            "name": "push_to_portal",
+            "description": "Generate and send a client package to the portal. Use when: user says 'send it', 'push to portal', 'send the package to the client'. If a draft exists, sends that. Otherwise generates from pending items first. Sends email notification to client.",
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "confirm": {
+                        "type": "boolean",
+                        "description": "Must be true to send. Set to false for a dry-run check.",
+                        "default": True,
+                    },
+                },
+            },
+        },
     ]

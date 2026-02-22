@@ -64,6 +64,7 @@ async def get_collaboration_current(project_id: UUID):
     # Get pending counts
     pending_validation = await _get_pending_validation_count(project_id)
     pending_proposals = await _get_pending_proposals_count(project_id)
+    pending_review = await _get_pending_review_count(project_id)
 
     # Get touchpoint stats
     stats = await db.get_touchpoint_stats(project_id)
@@ -79,6 +80,7 @@ async def get_collaboration_current(project_id: UUID):
         portal_sync=portal_sync,
         pending_validation_count=pending_validation,
         pending_proposals_count=pending_proposals,
+        pending_review_count=pending_review,
         total_touchpoints_completed=stats["total_touchpoints"],
         last_client_interaction=last_interaction,
     )
@@ -500,6 +502,21 @@ async def _get_pending_proposals_count(project_id: UUID) -> int:
 
     result = (
         supabase.table("batch_proposals")
+        .select("id", count="exact")
+        .eq("project_id", str(project_id))
+        .eq("status", "pending")
+        .execute()
+    )
+
+    return result.count or 0
+
+
+async def _get_pending_review_count(project_id: UUID) -> int:
+    """Get count of entities marked 'needs review' waiting to be packaged."""
+    supabase = get_supabase()
+
+    result = (
+        supabase.table("pending_items")
         .select("id", count="exact")
         .eq("project_id", str(project_id))
         .eq("status", "pending")

@@ -48,9 +48,10 @@ interface BRDCanvasProps {
   pendingAction?: NextAction | null
   onPendingActionConsumed?: () => void
   onActiveSectionChange?: (sectionId: string) => void
+  onNavigateToCollaborate?: () => void
 }
 
-export function BRDCanvas({ projectId, initialData, initialNextActions, onRefresh, onSendToChat, pendingAction, onPendingActionConsumed, onActiveSectionChange }: BRDCanvasProps) {
+export function BRDCanvas({ projectId, initialData, initialNextActions, onRefresh, onSendToChat, pendingAction, onPendingActionConsumed, onActiveSectionChange, onNavigateToCollaborate }: BRDCanvasProps) {
   // Hook 1: Data loading, health, questions, clusters
   const dataState = useBRDDataLoading(projectId, initialData, initialNextActions, onActiveSectionChange)
   const { data, setData, isLoading, error, loadData, scrollContainerRef } = dataState
@@ -70,6 +71,7 @@ export function BRDCanvas({ projectId, initialData, initialNextActions, onRefres
     onSendToChat,
     pendingAction,
     onPendingActionConsumed,
+    onNavigateToCollaborate,
   })
 
   // Hook 4: Workflow/step/data-entity CRUD

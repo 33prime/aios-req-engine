@@ -272,6 +272,7 @@ class CollaborationCurrentResponse(BaseModel):
     # Pending items needing attention
     pending_validation_count: int = 0
     pending_proposals_count: int = 0
+    pending_review_count: int = 0  # entities marked "needs review" waiting to be packaged
 
     # Quick stats
     total_touchpoints_completed: int = 0

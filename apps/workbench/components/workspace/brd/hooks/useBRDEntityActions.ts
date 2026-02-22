@@ -7,7 +7,9 @@ import {
   updateProjectBackground,
   refreshStaleEntity,
   updateCanvasRole,
+  markEntityNeedsReview,
 } from '@/lib/api'
+import { useToast } from '@/components/ui'
 import type { NextAction } from '@/lib/api'
 import type { BRDWorkspaceData, MoSCoWGroup } from '@/types/workspace'
 import { ACTION_EXECUTION_MAP } from '@/lib/action-constants'
@@ -24,6 +26,7 @@ interface EntityActionsDeps {
   onSendToChat?: (action: NextAction) => void
   pendingAction?: NextAction | null
   onPendingActionConsumed?: () => void
+  onNavigateToCollaborate?: () => void
 }
 
 export function useBRDEntityActions({
@@ -37,7 +40,9 @@ export function useBRDEntityActions({
   onSendToChat,
   pendingAction,
   onPendingActionConsumed,
+  onNavigateToCollaborate,
 }: EntityActionsDeps) {
+  const toast = useToast()
   // Optimistic confirm: update local state immediately, then sync
   const handleConfirm = useCallback(async (entityType: string, entityId: string) => {
     if (!data) return
@@ -64,12 +69,21 @@ export function useBRDEntityActions({
     })
 
     try {
-      await batchConfirmEntities(projectId, entityType, [entityId], 'needs_client')
+      // markEntityNeedsReview sets confirmation_status AND creates a pending_item
+      await markEntityNeedsReview(projectId, entityType, entityId)
+      toast.showToast({
+        type: 'success',
+        title: 'Marked for client review',
+        message: 'This item will appear in the Collaborate queue.',
+        action: onNavigateToCollaborate
+          ? { label: 'View in Collaborate', onClick: onNavigateToCollaborate }
+          : undefined,
+      })
     } catch (err) {
       console.error('Failed to mark entity for review:', err)
       loadData()
     }
-  }, [data, projectId, loadData, setData])
+  }, [data, projectId, loadData, setData, toast, onNavigateToCollaborate])
 
   const handleConfirmAll = useCallback(async (entityType: string, ids: string[]) => {
     if (!data || ids.length === 0) return

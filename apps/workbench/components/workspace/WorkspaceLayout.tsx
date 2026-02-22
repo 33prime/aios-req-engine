@@ -42,7 +42,9 @@ import type { PrototypeFrameHandle } from '@/components/prototype/PrototypeFrame
 import ReviewStartModal from '@/components/prototype/ReviewStartModal'
 import ReviewEndModal from '@/components/prototype/ReviewEndModal'
 import { ProjectHealthOverlay } from './ProjectHealthOverlay'
-import { Activity, Settings, Loader2, CheckCircle2, XCircle, Clock, ArrowLeft } from 'lucide-react'
+import { Activity, Settings, Loader2, CheckCircle2, XCircle, Clock, ArrowLeft, Users } from 'lucide-react'
+import { CollaborateView } from './collaborate/CollaborateView'
+import { useClientPulse } from '@/lib/hooks/use-api'
 import { getProjectDetails, getLaunchProgress } from '@/lib/api'
 import type { LaunchProgressResponse } from '@/types/workspace'
 
@@ -91,6 +93,7 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
   // Dynamic page context for chat — tells the LLM what the user is looking at
   const pageContext = useMemo(() => {
     if (phase === 'overview') return 'overview'
+    if (phase === 'collaborate') return 'collaborate'
     if (phase === 'build') return 'prototype'
     if (phase === 'discovery') {
       if (discoveryViewMode === 'canvas') return 'canvas'
@@ -471,8 +474,11 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
 
   // Calculate sidebar widths
   const sidebarWidth = sidebarCollapsed ? 64 : 224
-  // BrainBubble only in BRD/Canvas views (discovery phase with brd or canvas mode)
-  const useBrainBubble = (phase === 'discovery' || phase === 'overview') && (discoveryViewMode === 'brd' || discoveryViewMode === 'canvas')
+  // BrainBubble in BRD/Canvas views (discovery), overview, and collaborate
+  const useBrainBubble = (phase === 'discovery' || phase === 'overview' || phase === 'collaborate') && (phase === 'collaborate' || discoveryViewMode === 'brd' || discoveryViewMode === 'canvas')
+
+  // Client pulse for Collaborate button badge
+  const { data: pulseData } = useClientPulse(projectId)
   // When brain panel is open, BRD compresses to make room
   const collaborationWidth = useBrainBubble
     ? (brainPanelOpen ? BRAIN_PANEL_WIDTH : 0)
@@ -645,10 +651,29 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
                 </button>
               </div>
 
-              <PhaseSwitcher
-                currentPhase={phase}
-                onPhaseChange={setPhase}
-              />
+              <div className="flex items-center gap-3">
+                <PhaseSwitcher
+                  currentPhase={phase}
+                  onPhaseChange={setPhase}
+                />
+                <div className="w-px h-6 bg-[#E5E5E5]" />
+                <button
+                  onClick={() => setPhase('collaborate')}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-[13px] font-medium transition-all duration-200 ${
+                    phase === 'collaborate'
+                      ? 'bg-white text-[#3FAF7A] shadow-sm border border-[#E5E5E5]'
+                      : 'text-[#666666] hover:text-[#333333]'
+                  }`}
+                >
+                  <Users className="w-4 h-4" />
+                  Collaborate
+                  {(pulseData?.unread_count ?? 0) > 0 && (
+                    <span className="px-1.5 py-0.5 bg-[#3FAF7A] text-white text-[10px] font-bold rounded-full min-w-[18px] text-center">
+                      {pulseData!.unread_count}
+                    </span>
+                  )}
+                </button>
+              </div>
             </div>
           </header>
 
@@ -709,6 +734,7 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
                       pendingAction={pendingAction}
                       onPendingActionConsumed={() => setPendingAction(null)}
                       onActiveSectionChange={setActiveBrdSection}
+                      onNavigateToCollaborate={() => setPhase('collaborate')}
                     />
                   </div>
                 ) : (
@@ -771,6 +797,10 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
               </div>
             )}
 
+            {phase === 'collaborate' && (
+              <CollaborateView projectId={projectId} onNavigateToPhase={setPhase} />
+            )}
+
             {/* Optional children for extension */}
             {children}
           </main>
@@ -825,6 +855,8 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
             contextActions={contextFrame?.actions}
             onNewChat={startNewChat}
             onSetConversationContext={setConversationContext}
+            onNavigateToCollaborate={() => setPhase('collaborate')}
+            hideClientPulse={phase === 'collaborate'}
           />
         ) : (
           <CollaborationPanel

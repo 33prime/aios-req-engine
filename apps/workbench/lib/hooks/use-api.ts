@@ -38,6 +38,10 @@ import {
   getCollaborationHistory,
   getBRDHealth,
   getProjectPulse,
+  getClientPulse,
+  getClientActivity,
+  getCollaborationCurrent,
+  getPhaseProgress,
 } from '@/lib/api'
 import type {
   NextAction,
@@ -54,7 +58,8 @@ import type {
   MemoryVisualizationResponse,
   UnifiedMemoryResponse,
 } from '@/lib/api'
-import type { Profile, ProjectDetailWithDashboard, Meeting, ProjectPulse } from '@/types/api'
+import type { Profile, ProjectDetailWithDashboard, Meeting, ProjectPulse, ClientPulse, ClientActivityItem, PhaseProgressResponse } from '@/types/api'
+import type { CollaborationCurrentResponse } from '@/lib/api/collaboration'
 import type {
   BRDWorkspaceData,
   BRDHealthData,
@@ -580,6 +585,72 @@ export function useUnifiedMemory(
     () => getUnifiedMemory(projectId!),
     {
       dedupingInterval: LONG_CACHE,
+      revalidateOnFocus: false,
+      ...config,
+    },
+  )
+}
+
+// --- Client pulse (lightweight engagement metrics — Collaborate view) ---
+export function useClientPulse(
+  projectId: string | undefined,
+  config?: SWRConfiguration<ClientPulse>,
+) {
+  return useSWR<ClientPulse>(
+    projectId ? `client-pulse:${projectId}` : null,
+    () => getClientPulse(projectId!),
+    {
+      dedupingInterval: MED_CACHE,
+      refreshInterval: 60_000,
+      revalidateOnFocus: false,
+      ...config,
+    },
+  )
+}
+
+// --- Client activity (unified timeline — Collaborate view) ---
+export function useClientActivity(
+  projectId: string | undefined,
+  limit = 30,
+  config?: SWRConfiguration<{ items: ClientActivityItem[] }>,
+) {
+  return useSWR<{ items: ClientActivityItem[] }>(
+    projectId ? `client-activity:${projectId}` : null,
+    () => getClientActivity(projectId!, limit),
+    {
+      dedupingInterval: MED_CACHE,
+      revalidateOnFocus: false,
+      ...config,
+    },
+  )
+}
+
+// --- Collaboration current state (portal sync, phase, touchpoints) ---
+export function useCollaborationCurrent(
+  projectId: string | undefined,
+  config?: SWRConfiguration<CollaborationCurrentResponse>,
+) {
+  return useSWR<CollaborationCurrentResponse>(
+    projectId ? `collab-current:${projectId}` : null,
+    () => getCollaborationCurrent(projectId!),
+    {
+      dedupingInterval: MED_CACHE,
+      revalidateOnFocus: false,
+      ...config,
+    },
+  )
+}
+
+// --- Phase progress (linear workflow status) ---
+export function usePhaseProgress(
+  projectId: string | undefined,
+  config?: SWRConfiguration<PhaseProgressResponse>,
+) {
+  return useSWR<PhaseProgressResponse>(
+    projectId ? `phase-progress:${projectId}` : null,
+    () => getPhaseProgress(projectId!),
+    {
+      dedupingInterval: MED_CACHE,
       revalidateOnFocus: false,
       ...config,
     },

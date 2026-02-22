@@ -356,7 +356,14 @@ async def send_package(
         "status": "sent",
     }).eq("package_id", str(package_id)).execute()
 
-    # TODO: Send notification to clients
+    # Send email notification to clients (best-effort, don't block on failure)
+    project_id = package_result.data.get("project_id")
+    if project_id:
+        try:
+            from app.core.sendgrid_service import send_package_notification
+            await send_package_notification(UUID(project_id), str(package_id))
+        except Exception as e:
+            logger.warning(f"Email notification failed for package {package_id}: {e}")
 
     return {
         "success": True,
@@ -545,7 +552,7 @@ async def save_package(project_id: UUID, package_data: dict) -> dict:
 
 class MarkNeedsReviewRequest(BaseModel):
     """Request to mark an entity as needing client review."""
-    entity_type: str = Field(..., description="Type: feature, persona, vp_step, goal, kpi, pain_point")
+    entity_type: str = Field(..., description="Type: feature, persona, vp_step, goal, kpi, pain_point, competitor, stakeholder, workflow, data_entity, constraint, solution_flow_step")
     entity_id: UUID = Field(..., description="ID of the entity")
     reason: Optional[str] = Field(None, description="Why this needs review")
 
@@ -565,15 +572,18 @@ async def mark_entity_needs_review(
 
     # Map entity type to table and fields
     entity_configs = {
-        "feature": {"table": "features", "name_field": "name", "desc_field": "description"},
-        "persona": {"table": "personas", "name_field": "name", "desc_field": "description"},
+        "feature": {"table": "features", "name_field": "name", "desc_field": "overview"},
+        "persona": {"table": "personas", "name_field": "name", "desc_field": "role"},
         "vp_step": {"table": "vp_steps", "name_field": "action", "desc_field": "details"},
-        "goal": {"table": "goals", "name_field": "title", "desc_field": "description"},
-        "kpi": {"table": "kpis", "name_field": "title", "desc_field": "description"},
-        "pain_point": {"table": "pain_points", "name_field": "title", "desc_field": "description"},
-        "competitor": {"table": "competitors", "name_field": "name", "desc_field": "description"},
-        "design_preference": {"table": "design_preferences", "name_field": "title", "desc_field": "description"},
+        "goal": {"table": "business_drivers", "name_field": "description", "desc_field": "measurement", "extra_filter": ("driver_type", "goal")},
+        "kpi": {"table": "business_drivers", "name_field": "description", "desc_field": "measurement", "extra_filter": ("driver_type", "kpi")},
+        "pain_point": {"table": "business_drivers", "name_field": "description", "desc_field": "measurement", "extra_filter": ("driver_type", "pain")},
+        "competitor": {"table": "competitor_references", "name_field": "name", "desc_field": "research_notes"},
         "stakeholder": {"table": "stakeholders", "name_field": "name", "desc_field": "role"},
+        "workflow": {"table": "workflows", "name_field": "name", "desc_field": "description"},
+        "data_entity": {"table": "data_entities", "name_field": "name", "desc_field": "description"},
+        "constraint": {"table": "constraints", "name_field": "title", "desc_field": "description"},
+        "solution_flow_step": {"table": "solution_flow_steps", "name_field": "title", "desc_field": "goal"},
     }
 
     config = entity_configs.get(request.entity_type)
@@ -581,9 +591,16 @@ async def mark_entity_needs_review(
         raise HTTPException(status_code=400, detail=f"Unknown entity type: {request.entity_type}")
 
     # Get the entity
-    entity_result = client.table(config["table"]).select("*").eq(
+    query = client.table(config["table"]).select("*").eq(
         "id", str(request.entity_id)
-    ).eq("project_id", str(project_id)).single().execute()
+    ).eq("project_id", str(project_id))
+
+    # Business drivers need extra filter on driver_type
+    extra_filter = config.get("extra_filter")
+    if extra_filter:
+        query = query.eq(extra_filter[0], extra_filter[1])
+
+    entity_result = query.single().execute()
 
     if not entity_result.data:
         raise HTTPException(status_code=404, detail=f"{request.entity_type} not found")

@@ -80,6 +80,7 @@ export interface CollaborationCurrentResponse {
   }
   pending_validation_count: number
   pending_proposals_count: number
+  pending_review_count: number
   total_touchpoints_completed: number
   last_client_interaction: string | null
 }
@@ -230,6 +231,20 @@ export const markEntityNeedsReview = (
         reason,
       }),
     }
+  )
+
+// ============================================
+// Client Pulse & Activity APIs
+// ============================================
+
+export const getClientPulse = (projectId: string) =>
+  apiRequest<import('@/types/api').ClientPulse>(
+    `/collaboration/projects/${projectId}/pulse`
+  )
+
+export const getClientActivity = (projectId: string, limit = 30) =>
+  apiRequest<{ items: import('@/types/api').ClientActivityItem[] }>(
+    `/collaboration/projects/${projectId}/client-activity?limit=${limit}`
   )
 
 // ============================================

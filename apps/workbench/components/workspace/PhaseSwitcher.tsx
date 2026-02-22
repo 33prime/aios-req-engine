@@ -9,7 +9,7 @@
 
 import { LayoutDashboard, FileText, Rocket, Wrench } from 'lucide-react'
 
-export type WorkspacePhase = 'overview' | 'discovery' | 'build' | 'live'
+export type WorkspacePhase = 'overview' | 'discovery' | 'build' | 'live' | 'collaborate'
 
 interface PhaseSwitcherProps {
   currentPhase: WorkspacePhase

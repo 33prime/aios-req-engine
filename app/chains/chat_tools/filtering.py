@@ -50,6 +50,14 @@ PAGE_TOOLS: Dict[str, set] = {
         "escalate_to_client",
         "refine_solution_flow_step",
     },
+    "collaborate": {
+        "mark_for_client_review",
+        "draft_client_question",
+        "synthesize_and_preview",
+        "push_to_portal",
+        "list_pending_confirmations",
+        "schedule_meeting",
+    },
 }
 
 # Tools added when no specific page context (chat opened from sidebar, etc.)
@@ -68,6 +76,10 @@ FALLBACK_EXTRAS = {
     "add_signal",
     "add_company_reference",
     "create_confirmation",
+    "mark_for_client_review",
+    "draft_client_question",
+    "synthesize_and_preview",
+    "push_to_portal",
 }
 
 # Communication tools — added on any page that involves client interaction
@@ -75,6 +87,14 @@ COMMUNICATION_TOOLS = {
     "schedule_meeting",
     "list_pending_confirmations",
     "create_confirmation",
+}
+
+# Client portal tools — mark for review, draft questions, synthesize, push
+CLIENT_PORTAL_TOOLS = {
+    "mark_for_client_review",
+    "draft_client_question",
+    "synthesize_and_preview",
+    "push_to_portal",
 }
 
 # Document tools — added when documents may be discussed
@@ -94,6 +114,8 @@ _MUTATING_TOOLS = {
     "remove_solution_flow_step", "reorder_solution_flow_steps",
     "resolve_solution_flow_question", "escalate_to_client",
     "refine_solution_flow_step", "schedule_meeting",
+    "mark_for_client_review", "draft_client_question",
+    "synthesize_and_preview", "push_to_portal",
 }
 
 
@@ -115,9 +137,9 @@ def get_tools_for_context(page_context: str | None = None) -> List[Dict[str, Any
         # Core + page-specific + communication on BRD pages + document tools
         page_extras = PAGE_TOOLS.get(page_context, set())
 
-        # For any brd: page, include communication and document tools
+        # For any brd: page, include communication, document, and portal tools
         if page_context.startswith("brd"):
-            page_extras = page_extras | COMMUNICATION_TOOLS | DOCUMENT_TOOLS
+            page_extras = page_extras | COMMUNICATION_TOOLS | DOCUMENT_TOOLS | CLIENT_PORTAL_TOOLS
 
         # For the generic "brd" page (all sections), include everything BRD-related
         if page_context == "brd":

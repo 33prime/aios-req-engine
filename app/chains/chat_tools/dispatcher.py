@@ -25,6 +25,10 @@ def _build_handler_map() -> Dict[str, Callable[..., Coroutine[Any, Any, Dict[str
         _reorder_solution_flow_steps, _resolve_solution_flow_question, _escalate_to_client,
         _refine_solution_flow_step,
     )
+    from .tools_collaboration import (
+        _mark_for_client_review, _draft_client_question,
+        _synthesize_and_preview, _push_to_portal,
+    )
 
     return {
         "get_project_status": _get_project_status,
@@ -57,6 +61,10 @@ def _build_handler_map() -> Dict[str, Callable[..., Coroutine[Any, Any, Dict[str
         "resolve_solution_flow_question": _resolve_solution_flow_question,
         "escalate_to_client": _escalate_to_client,
         "refine_solution_flow_step": _refine_solution_flow_step,
+        "mark_for_client_review": _mark_for_client_review,
+        "draft_client_question": _draft_client_question,
+        "synthesize_and_preview": _synthesize_and_preview,
+        "push_to_portal": _push_to_portal,
     }
 
 
