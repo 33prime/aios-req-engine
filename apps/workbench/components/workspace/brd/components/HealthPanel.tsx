@@ -146,7 +146,7 @@ export function HealthPanel({ projectId, onDataRefresh }: HealthPanelProps) {
                         return (
                           <div
                             key={item.id}
-                            className="flex items-center justify-between gap-2 pl-2 py-1 text-[12px] text-[rgba(55,53,47,0.65)]"
+                            className="flex items-center justify-between gap-2 pl-2 py-1 text-[12px] text-[#666666]"
                           >
                             <div className="flex items-center gap-1.5 min-w-0">
                               <span className="w-1.5 h-1.5 rounded-full bg-orange-400 flex-shrink-0" />

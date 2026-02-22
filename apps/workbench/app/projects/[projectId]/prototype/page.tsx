@@ -267,7 +267,7 @@ export default function PrototypeSessionPage() {
   if (status === 'loading') {
     return (
       <div className="flex items-center justify-center h-full">
-        <p className="text-ui-supportText">Loading prototype...</p>
+        <p className="text-[#999999]">Loading prototype...</p>
       </div>
     )
   }
@@ -277,8 +277,8 @@ export default function PrototypeSessionPage() {
     return (
       <div className="flex items-center justify-center h-full">
         <div className="text-center space-y-4">
-          <h2 className="text-h2 text-ui-headingDark">No Prototype Yet</h2>
-          <p className="text-body text-ui-bodyText max-w-md">
+          <h2 className="text-xl text-[#333333]">No Prototype Yet</h2>
+          <p className="text-sm text-[#666666] max-w-md">
             Generate a prototype from your discovery data to begin the refinement process.
           </p>
         </div>
@@ -394,14 +394,14 @@ export default function PrototypeSessionPage() {
     return (
       <div className="flex items-center justify-center h-full">
         <div className="text-center space-y-4">
-          <h2 className="text-h2 text-ui-headingDark">Prototype Ready for Review</h2>
-          <p className="text-body text-ui-bodyText max-w-md">
+          <h2 className="text-xl text-[#333333]">Prototype Ready for Review</h2>
+          <p className="text-sm text-[#666666] max-w-md">
             {overlays.length} features analyzed. Start a session to review the prototype
             and capture requirements.
           </p>
           <button
             onClick={startSession}
-            className="px-6 py-2.5 bg-brand-primary text-white font-medium rounded-lg hover:bg-[#033344] transition-all duration-200"
+            className="px-6 py-2.5 bg-[#3FAF7A] text-white font-medium rounded-lg hover:bg-[#033344] transition-all duration-200"
           >
             Start Review Session
           </button>
@@ -412,28 +412,28 @@ export default function PrototypeSessionPage() {
 
   // Active session
   return (
-    <div className="flex flex-col h-full bg-ui-background">
+    <div className="flex flex-col h-full bg-[#F9F9F9]">
       {/* Header */}
-      <div className="bg-white border-b border-ui-cardBorder px-6 py-3 flex items-center justify-between sticky top-0 z-10">
+      <div className="bg-white border-b border-[#E5E5E5] px-6 py-3 flex items-center justify-between sticky top-0 z-10">
         <div className="flex items-center gap-6">
-          <h2 className="text-sm font-semibold text-ui-headingDark">
+          <h2 className="text-sm font-semibold text-[#333333]">
             Session {session?.session_number || 1}
           </h2>
-          <span className="text-support text-ui-supportText">
+          <span className="text-[12px] text-[#999999]">
             Coverage: {sessionContext.features_reviewed.length}/{overlays.length}
           </span>
         </div>
         <div className="flex items-center gap-3">
           {status === 'synthesizing' && (
-            <span className="text-support text-brand-primary">Synthesizing feedback...</span>
+            <span className="text-[12px] text-[#3FAF7A]">Synthesizing feedback...</span>
           )}
           {status === 'updating' && (
-            <span className="text-support text-brand-primary">Updating code...</span>
+            <span className="text-[12px] text-[#3FAF7A]">Updating code...</span>
           )}
           {status === 'reviewing' && (
             <button
               onClick={handleEndReview}
-              className="px-4 py-2 bg-brand-primary text-white text-sm font-medium rounded-lg hover:bg-[#033344] transition-all duration-200"
+              className="px-4 py-2 bg-[#3FAF7A] text-white text-sm font-medium rounded-lg hover:bg-[#033344] transition-all duration-200"
             >
               End Review
             </button>
@@ -466,7 +466,7 @@ export default function PrototypeSessionPage() {
             onIframeReady={() => setIsFrameReady(true)}
           />
         ) : (
-          <div className="flex-1 flex items-center justify-center text-ui-supportText">
+          <div className="flex-1 flex items-center justify-center text-[#999999]">
             No deploy URL available
           </div>
         )}

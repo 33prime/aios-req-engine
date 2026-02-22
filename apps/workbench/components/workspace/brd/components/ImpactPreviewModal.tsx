@@ -88,7 +88,7 @@ export function ImpactPreviewModal({
 
         {/* Body */}
         <div className="p-5 space-y-4">
-          <p className="text-[13px] text-[rgba(55,53,47,0.65)]">
+          <p className="text-[13px] text-[#666666]">
             You are about to delete <span className="font-medium text-[#37352f]">{entityName}</span>.
           </p>
 
@@ -113,7 +113,7 @@ export function ImpactPreviewModal({
               )}
 
               {/* Impact count */}
-              <p className="text-[13px] text-[rgba(55,53,47,0.65)]">
+              <p className="text-[13px] text-[#666666]">
                 <span className="font-medium text-[#37352f]">{impact.total_affected}</span>{' '}
                 {impact.total_affected === 1 ? 'entity' : 'entities'} will be affected.
               </p>
@@ -126,7 +126,7 @@ export function ImpactPreviewModal({
                   </span>
                   <ul className="mt-1 space-y-1">
                     {impact.direct_impacts.slice(0, 8).map((item, i) => (
-                      <li key={i} className="flex items-center gap-2 text-[12px] text-[rgba(55,53,47,0.65)]">
+                      <li key={i} className="flex items-center gap-2 text-[12px] text-[#666666]">
                         <span className="w-1.5 h-1.5 rounded-full bg-red-300 flex-shrink-0" />
                         <span className="text-[11px] text-gray-400">{ENTITY_TYPE_LABELS[item.type] || item.type}</span>
                         <span className="truncate">{item.id.slice(0, 8)}...</span>

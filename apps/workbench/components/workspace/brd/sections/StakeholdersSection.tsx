@@ -79,7 +79,7 @@ export function StakeholdersSection({
                 onStatusClick={onStatusClick ? () => onStatusClick('stakeholder', stakeholder.id, stakeholder.name, stakeholder.confirmation_status) : undefined}
                 onDetailClick={() => onOpenDetail(stakeholder)}
               >
-                <div className="space-y-2 text-[13px] text-[rgba(55,53,47,0.65)]">
+                <div className="space-y-2 text-[13px] text-[#666666]">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium ${typeConfig.bg} ${typeConfig.text}`}>
                       {typeConfig.label}

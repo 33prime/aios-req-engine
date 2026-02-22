@@ -22,7 +22,7 @@ export function SectionHeader({ title, count, onConfirmAll, confirmedCount = 0, 
           <CompletenessRing score={sectionScore.score} size="sm" />
         )}
         <h2 className="text-lg font-semibold text-[#37352f]">{title}</h2>
-        <span className="text-[13px] text-[rgba(55,53,47,0.5)] font-medium">
+        <span className="text-[13px] text-[#999999] font-medium">
           ({count})
         </span>
       </div>
