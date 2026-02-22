@@ -15,6 +15,7 @@ import {
   BarChart3,
 } from 'lucide-react'
 import { getEntityConfidence } from '@/lib/api'
+import { formatRelativeTime, formatRevisionAuthor } from '@/lib/date-utils'
 import { BRDStatusBadge } from './StatusBadge'
 import { ConfirmActions } from './ConfirmActions'
 import { StaleIndicator } from './StaleIndicator'
@@ -45,21 +46,6 @@ const SOURCE_TYPE_CONFIG: Record<string, { bg: string; text: string; label: stri
   signal: { bg: 'bg-[#E8F5E9]', text: 'text-[#25785A]', label: 'Signal' },
   research: { bg: 'bg-[#E8F5E9]', text: 'text-[#25785A]', label: 'Research' },
   inferred: { bg: 'bg-gray-100', text: 'text-gray-600', label: 'Inferred' },
-}
-
-function formatRelativeTime(dateStr: string | null | undefined): string {
-  if (!dateStr) return ''
-  const date = new Date(dateStr)
-  const now = new Date()
-  const diffMs = now.getTime() - date.getTime()
-  const diffMin = Math.floor(diffMs / 60000)
-  if (diffMin < 1) return 'just now'
-  if (diffMin < 60) return `${diffMin}m ago`
-  const diffHr = Math.floor(diffMin / 60)
-  if (diffHr < 24) return `${diffHr}h ago`
-  const diffDay = Math.floor(diffHr / 24)
-  if (diffDay < 30) return `${diffDay}d ago`
-  return date.toLocaleDateString()
 }
 
 export function ConfidenceDrawer({
@@ -348,7 +334,7 @@ function EvidenceTab({ data }: { data: EntityConfidenceData }) {
                   <tr key={i} className="border-t border-gray-50">
                     <td className="px-3 py-2 text-[rgba(55,53,47,0.65)] font-mono text-[11px]">{attr.field_path}</td>
                     <td className="px-3 py-2 text-[rgba(55,53,47,0.65)]">{attr.signal_label || '—'}</td>
-                    <td className="px-3 py-2 text-[rgba(55,53,47,0.45)]">{formatRelativeTime(attr.contributed_at)}</td>
+                    <td className="px-3 py-2 text-[rgba(55,53,47,0.45)]">{attr.contributed_at ? formatRelativeTime(attr.contributed_at) : ''}</td>
                   </tr>
                 ))}
               </tbody>
@@ -450,7 +436,7 @@ function HistoryTab({ data }: { data: EntityConfidenceData }) {
                     </span>
                   )}
                   <span className="text-[11px] text-[rgba(55,53,47,0.35)]">
-                    by {rev.created_by === 'system' || rev.created_by === 'build_state' || rev.created_by === 'signal_pipeline_v2' || rev.created_by === 'project_launch' ? '✦ AIOS' : rev.created_by || 'AIOS'}
+                    by {formatRevisionAuthor(rev.created_by)}
                   </span>
                 </div>
                 {rev.diff_summary && (

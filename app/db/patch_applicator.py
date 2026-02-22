@@ -811,31 +811,43 @@ def _summarize_patch(patch: EntityPatch) -> str:
 
 
 def _embed_modified_entities(applied_results: list[dict]) -> None:
-    """Fire-and-forget: generate embeddings for entities that were created/merged/updated."""
+    """Fire-and-forget: generate embeddings for entities that were created/merged/updated.
+
+    Batches queries by table to avoid N+1 round-trips.
+    """
     try:
         from app.db.entity_embeddings import embed_entity, ENTITY_TABLE_MAP
 
-        sb = get_supabase()
+        # Group entity IDs by (table, entity_type)
+        by_table: dict[str, list[tuple[str, str]]] = {}  # table -> [(entity_type, entity_id)]
         for applied in applied_results:
             op = applied.get("operation")
             if op not in ("create", "merge", "update"):
                 continue
-
             entity_type = applied.get("entity_type")
             entity_id = applied.get("entity_id")
             if not entity_type or not entity_id:
                 continue
-
             table = ENTITY_TABLE_MAP.get(entity_type)
             if not table:
                 continue
+            by_table.setdefault(table, []).append((entity_type, entity_id))
 
+        if not by_table:
+            return
+
+        sb = get_supabase()
+        for table, type_id_pairs in by_table.items():
+            ids = [eid for _, eid in type_id_pairs]
             try:
-                response = sb.table(table).select("*").eq("id", entity_id).single().execute()
-                if response.data:
-                    embed_entity(entity_type, UUID(entity_id), response.data)
+                response = sb.table(table).select("*").in_("id", ids).execute()
+                rows_by_id = {r["id"]: r for r in (response.data or [])}
+                for entity_type, entity_id in type_id_pairs:
+                    row = rows_by_id.get(entity_id)
+                    if row:
+                        embed_entity(entity_type, UUID(entity_id), row)
             except Exception as e:
-                logger.debug(f"Entity embedding skipped for {entity_type} {entity_id}: {e}")
+                logger.debug(f"Batch embedding query failed for {table}: {e}")
 
     except Exception as e:
         logger.debug(f"Entity embedding batch failed: {e}")

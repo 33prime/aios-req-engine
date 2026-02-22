@@ -20,6 +20,7 @@ import {
   Clock,
 } from 'lucide-react'
 import { getProjectMemory, synthesizeMemory } from '@/lib/api'
+import { formatDate } from '@/lib/date-utils'
 import type { ProjectMemory } from '@/lib/api'
 
 interface HistoryPanelProps {
@@ -231,16 +232,6 @@ function formatTimestamp(dateStr: string) {
   if (diffHrs < 24) return `${diffHrs}h ago`
   const diffDays = Math.floor(diffHrs / 24)
   return `${diffDays}d ago`
-}
-
-function formatDate(dateStr: string) {
-  const date = new Date(dateStr)
-  return date.toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-  })
 }
 
 function ActivityTab({ projectId }: { projectId: string }) {

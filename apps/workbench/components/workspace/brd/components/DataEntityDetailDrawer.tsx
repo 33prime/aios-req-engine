@@ -18,6 +18,7 @@ import { BRDStatusBadge } from './StatusBadge'
 import { ConfirmActions } from './ConfirmActions'
 import { EvidenceBlock } from './EvidenceBlock'
 import { getDataEntityDetail, analyzeDataEntity } from '@/lib/api'
+import { formatDate } from '@/lib/date-utils'
 import type {
   DataEntityDetail,
   DataEntityEnrichment,
@@ -58,17 +59,6 @@ const OPERATION_COLORS: Record<string, string> = {
   validate: 'bg-[#F0F0F0] text-[#999999]',
   notify: 'bg-[#F0F0F0] text-[#999999]',
   transfer: 'bg-[#F0F0F0] text-[#666666]',
-}
-
-function formatDate(dateStr: string) {
-  const d = new Date(dateStr)
-  return d.toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
 }
 
 export function DataEntityDetailDrawer({

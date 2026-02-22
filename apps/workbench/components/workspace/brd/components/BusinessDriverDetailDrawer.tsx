@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useMemo } from 'react'
 import {
-  X,
   AlertTriangle,
   Target,
   BarChart3,
@@ -20,6 +19,11 @@ import {
   DollarSign,
   Pencil,
 } from 'lucide-react'
+import { DrawerShell, type DrawerTab } from '@/components/ui/DrawerShell'
+import { EmptyState } from '@/components/ui/EmptyState'
+import { Spinner } from '@/components/ui/Spinner'
+import { ConnectionGroup } from '@/components/ui/ConnectionGroup'
+import { formatRelativeTime, formatRevisionAuthor, REVISION_TYPE_COLORS } from '@/lib/date-utils'
 import { BRDStatusBadge } from './StatusBadge'
 import { ConfirmActions } from './ConfirmActions'
 import { EvidenceBlock } from './EvidenceBlock'
@@ -55,13 +59,6 @@ const TYPE_CONFIG: Record<DriverType, { icon: typeof AlertTriangle; color: strin
   goal: { icon: Target, color: '#3FAF7A', label: 'Business Goal' },
   kpi: { icon: BarChart3, color: 'text-gray-500', label: 'Success Metric' },
 }
-
-const TABS: { id: TabId; label: string; icon: typeof FileText }[] = [
-  { id: 'intelligence', label: 'Intelligence', icon: Sparkles },
-  { id: 'who_has_data', label: 'Who Has Data', icon: Users },
-  { id: 'evidence_history', label: 'Evidence', icon: FileText },
-  { id: 'connections', label: 'Connections', icon: Link2 },
-]
 
 export function BusinessDriverDetailDrawer({
   driverId,
@@ -107,119 +104,77 @@ export function BusinessDriverDetailDrawer({
       (initialData.linked_workflow_count ?? 0)
   }, [detail, initialData])
 
+  const tabs: DrawerTab[] = useMemo(() => [
+    { id: 'intelligence', label: 'Intelligence', icon: Sparkles },
+    { id: 'who_has_data', label: 'Who Has Data', icon: Users },
+    { id: 'evidence_history', label: 'Evidence', icon: FileText },
+    {
+      id: 'connections',
+      label: 'Connections',
+      icon: Link2,
+      badge: connectionCount > 0 ? (
+        <span className="ml-1 text-[10px] bg-[#F0F0F0] text-[#666666] px-1.5 py-0.5 rounded-full">
+          {connectionCount}
+        </span>
+      ) : undefined,
+    },
+  ], [connectionCount])
+
   return (
-    <>
-      {/* Backdrop */}
-      <div
-        className="fixed inset-0 bg-black/20 z-40 transition-opacity"
-        onClick={onClose}
-      />
-
-      {/* Drawer */}
-      <div className="fixed right-0 top-0 h-full w-[560px] max-w-full bg-white shadow-xl z-50 flex flex-col animate-slide-in-right">
-        {/* Header */}
-        <div className="flex-shrink-0 border-b border-[#E5E5E5] px-6 py-4">
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex items-start gap-3 min-w-0 flex-1">
-              <Icon className={`w-5 h-5 mt-0.5 flex-shrink-0 ${config.color}`} />
-              <div className="min-w-0">
-                <p className="text-[11px] font-medium text-[#999999] uppercase tracking-wide mb-1">
-                  {config.label}
-                </p>
-                <h2 className="text-[15px] font-semibold text-[#333333] line-clamp-2 leading-snug">
-                  {initialData.description}
-                </h2>
-              </div>
-            </div>
-            <div className="flex items-center gap-2 flex-shrink-0">
-              <BRDStatusBadge status={initialData.confirmation_status} />
-              <button
-                onClick={onClose}
-                className="p-1.5 rounded-md text-[#999999] hover:text-[#666666] hover:bg-[#F0F0F0] transition-colors"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-
-          {/* Confirm/Review actions */}
-          <div className="mt-3">
-            <ConfirmActions
-              status={initialData.confirmation_status}
-              onConfirm={() => onConfirm('business_driver', driverId)}
-              onNeedsReview={() => onNeedsReview('business_driver', driverId)}
-              size="md"
-            />
-          </div>
-
-          {/* Tabs */}
-          <div className="flex gap-0 mt-4 -mb-4 border-b-0">
-            {TABS.map((tab) => {
-              const TabIcon = tab.icon
-              const isActive = activeTab === tab.id
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center gap-1.5 px-3 py-2 text-[12px] font-medium border-b-2 transition-colors ${
-                    isActive
-                      ? 'border-[#3FAF7A] text-[#25785A]'
-                      : 'border-transparent text-[#999999] hover:text-[#666666]'
-                  }`}
-                >
-                  <TabIcon className="w-3.5 h-3.5" />
-                  {tab.label}
-                  {tab.id === 'connections' && connectionCount > 0 && (
-                    <span className="ml-1 text-[10px] bg-[#F0F0F0] text-[#666666] px-1.5 py-0.5 rounded-full">
-                      {connectionCount}
-                    </span>
-                  )}
-                </button>
-              )
-            })}
-          </div>
-        </div>
-
-        {/* Body */}
-        <div className="flex-1 overflow-y-auto px-6 py-5">
-          {activeTab === 'intelligence' && (
-            <IntelligenceTab
-              driverType={driverType}
-              projectId={projectId}
-              driverId={driverId}
-              initialData={initialData}
-              detail={detail}
-              loading={loading}
-              onDetailUpdate={setDetail}
-            />
-          )}
-          {activeTab === 'who_has_data' && (
-            <WhoHasTheData
-              topics={[
-                ...getTopicsForDriverType(driverType),
-                ...inferTopicsFromText(initialData.description),
-              ]}
-              stakeholders={stakeholders}
-              evidence={detail?.evidence || initialData.evidence || []}
-            />
-          )}
-          {activeTab === 'evidence_history' && (
-            <EvidenceHistoryTab
-              evidence={detail?.evidence || initialData.evidence || []}
-              revisions={detail?.revisions || []}
-              loading={loading}
-            />
-          )}
-          {activeTab === 'connections' && (
-            <ConnectionsTab
-              detail={detail}
-              initialData={initialData}
-              loading={loading}
-            />
-          )}
-        </div>
-      </div>
-    </>
+    <DrawerShell
+      onClose={onClose}
+      icon={Icon}
+      entityLabel={config.label}
+      title={initialData.description}
+      headerRight={<BRDStatusBadge status={initialData.confirmation_status} />}
+      headerActions={
+        <ConfirmActions
+          status={initialData.confirmation_status}
+          onConfirm={() => onConfirm('business_driver', driverId)}
+          onNeedsReview={() => onNeedsReview('business_driver', driverId)}
+          size="md"
+        />
+      }
+      tabs={tabs}
+      activeTab={activeTab}
+      onTabChange={(id) => setActiveTab(id as TabId)}
+    >
+      {activeTab === 'intelligence' && (
+        <IntelligenceTab
+          driverType={driverType}
+          projectId={projectId}
+          driverId={driverId}
+          initialData={initialData}
+          detail={detail}
+          loading={loading}
+          onDetailUpdate={setDetail}
+        />
+      )}
+      {activeTab === 'who_has_data' && (
+        <WhoHasTheData
+          topics={[
+            ...getTopicsForDriverType(driverType),
+            ...inferTopicsFromText(initialData.description),
+          ]}
+          stakeholders={stakeholders}
+          evidence={detail?.evidence || initialData.evidence || []}
+        />
+      )}
+      {activeTab === 'evidence_history' && (
+        <EvidenceHistoryTab
+          evidence={detail?.evidence || initialData.evidence || []}
+          revisions={detail?.revisions || []}
+          loading={loading}
+        />
+      )}
+      {activeTab === 'connections' && (
+        <ConnectionsTab
+          detail={detail}
+          initialData={initialData}
+          loading={loading}
+        />
+      )}
+    </DrawerShell>
   )
 }
 
@@ -378,10 +333,7 @@ function IntelligenceTab({
       </div>
 
       {loading && !detail && (
-        <div className="text-center py-4">
-          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-[#3FAF7A] mx-auto" />
-          <p className="text-[12px] text-[#999999] mt-2">Loading details...</p>
-        </div>
+        <Spinner size="sm" label="Loading details..." />
       )}
     </div>
   )
@@ -670,7 +622,7 @@ function VisionAlignmentBadge({ alignment }: { alignment: VisionAlignment }) {
 }
 
 // ============================================================================
-// Connections Tab (NEW)
+// Connections Tab
 // ============================================================================
 
 function ConnectionsTab({
@@ -688,25 +640,18 @@ function ConnectionsTab({
   const workflowCount = (detail || initialData).linked_workflow_count ?? 0
 
   if (loading && !detail) {
-    return (
-      <div className="text-center py-8">
-        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-[#3FAF7A] mx-auto" />
-        <p className="text-[12px] text-[#999999] mt-2">Loading connections...</p>
-      </div>
-    )
+    return <Spinner size="sm" label="Loading connections..." />
   }
 
   const isEmpty = personas.length === 0 && features.length === 0 && relatedDrivers.length === 0 && workflowCount === 0
 
   if (isEmpty) {
     return (
-      <div className="text-center py-8">
-        <Link2 className="w-8 h-8 text-[#E5E5E5] mx-auto mb-3" />
-        <p className="text-[13px] text-[#666666] mb-1">No connections found</p>
-        <p className="text-[12px] text-[#999999]">
-          Run enrichment or manually link entities to build the relationship graph.
-        </p>
-      </div>
+      <EmptyState
+        icon={<Link2 className="w-8 h-8 text-[#E5E5E5]" />}
+        title="No connections found"
+        description="Run enrichment or manually link entities to build the relationship graph."
+      />
     )
   }
 
@@ -788,33 +733,6 @@ function ConnectionsTab({
   )
 }
 
-function ConnectionGroup({
-  icon: GroupIcon,
-  title,
-  count,
-  children,
-}: {
-  icon: typeof Users
-  title: string
-  count: number
-  children: React.ReactNode
-}) {
-  return (
-    <div>
-      <h4 className="text-[11px] font-medium text-[#999999] uppercase tracking-wide mb-2 flex items-center gap-1.5">
-        <GroupIcon className="w-3.5 h-3.5" />
-        {title}
-        <span className="text-[10px] bg-[#F0F0F0] text-[#666666] px-1.5 py-0.5 rounded-full ml-1">
-          {count}
-        </span>
-      </h4>
-      <div className="border border-[#E5E5E5] rounded-xl overflow-hidden bg-white">
-        {children}
-      </div>
-    </div>
-  )
-}
-
 function ConnectionItem({
   name,
   subtitle,
@@ -860,12 +778,7 @@ function EvidenceHistoryTab({
   loading: boolean
 }) {
   if (loading && evidence.length === 0 && revisions.length === 0) {
-    return (
-      <div className="text-center py-8">
-        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-[#3FAF7A] mx-auto" />
-        <p className="text-[12px] text-[#999999] mt-2">Loading...</p>
-      </div>
-    )
+    return <Spinner size="sm" label="Loading..." />
   }
 
   return (
@@ -903,14 +816,7 @@ function RevisionCard({ revision }: { revision: RevisionEntry }) {
   const [expanded, setExpanded] = useState(false)
   const hasChanges = revision.changes && Object.keys(revision.changes).length > 0
 
-  const typeColors: Record<string, string> = {
-    created: 'bg-[#E8F5E9] text-[#25785A]',
-    enriched: 'bg-[#F0F0F0] text-[#666666]',
-    updated: 'bg-[#F0F0F0] text-[#666666]',
-    merged: 'bg-[#F0F0F0] text-[#666666]',
-  }
-  const typeCls = typeColors[revision.revision_type] || 'bg-[#F0F0F0] text-[#666666]'
-
+  const typeCls = REVISION_TYPE_COLORS[revision.revision_type] || 'bg-[#F0F0F0] text-[#666666]'
   const timeAgo = formatRelativeTime(revision.created_at)
 
   return (
@@ -921,7 +827,7 @@ function RevisionCard({ revision }: { revision: RevisionEntry }) {
         </span>
         <span className="text-[11px] text-[#999999]">{timeAgo}</span>
         <span className="text-[11px] text-[#999999]">
-          by {revision.created_by === 'system' || revision.created_by === 'build_state' || revision.created_by === 'signal_pipeline_v2' || revision.created_by === 'project_launch' ? '✦ AIOS' : revision.created_by || 'AIOS'}
+          by {formatRevisionAuthor(revision.created_by)}
         </span>
       </div>
       {revision.diff_summary && (
@@ -1001,23 +907,4 @@ function SeverityBadge({ value }: { value: string }) {
       {value}
     </span>
   )
-}
-
-function formatRelativeTime(dateStr: string): string {
-  if (!dateStr) return ''
-  try {
-    const date = new Date(dateStr)
-    const now = new Date()
-    const diffMs = now.getTime() - date.getTime()
-    const diffMins = Math.floor(diffMs / 60000)
-    if (diffMins < 1) return 'just now'
-    if (diffMins < 60) return `${diffMins}m ago`
-    const diffHours = Math.floor(diffMins / 60)
-    if (diffHours < 24) return `${diffHours}h ago`
-    const diffDays = Math.floor(diffHours / 24)
-    if (diffDays < 30) return `${diffDays}d ago`
-    return date.toLocaleDateString()
-  } catch {
-    return dateStr
-  }
 }

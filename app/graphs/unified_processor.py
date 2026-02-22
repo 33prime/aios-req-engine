@@ -74,6 +74,9 @@ class V2ProcessorState:
     # Extraction logging
     extraction_log: Any | None = None  # ExtractionLog instance
 
+    # Signal chunks (loaded once, reused by extraction + memory steps)
+    chunks: list[dict[str, Any]] = field(default_factory=list)
+
     # Status
     success: bool = True
     error: str | None = None
@@ -273,11 +276,12 @@ async def v2_extract_patches(state: V2ProcessorState) -> dict[str, Any]:
     )
 
     try:
-        # Load chunks for this signal
+        # Load chunks for this signal (stored on state for reuse in v2_trigger_memory)
         chunks: list[dict] = []
         try:
             from app.db.signals import list_signal_chunks
             chunks = list_signal_chunks(state.signal_id)
+            state.chunks = chunks
         except Exception as e:
             logger.debug(f"[v2] Could not load signal chunks: {e}")
 
@@ -506,13 +510,8 @@ def _build_entity_counts(result: PatchApplicationResult | None) -> dict:
 
 async def v2_trigger_memory(state: V2ProcessorState) -> dict[str, Any]:
     """Step 8: Fire MemoryWatcher + Stakeholder Intelligence for signal processing event."""
-    # Load chunks for memory agent and speaker resolution
-    chunks: list[dict] = []
-    try:
-        from app.db.signals import list_signal_chunks
-        chunks = list_signal_chunks(state.signal_id)
-    except Exception:
-        pass
+    # Reuse chunks loaded in v2_extract_patches (avoids duplicate DB query)
+    chunks: list[dict] = state.chunks
 
     # Speaker resolution (non-critical)
     try:

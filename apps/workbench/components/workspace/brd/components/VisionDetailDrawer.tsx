@@ -12,6 +12,7 @@ import {
   Pencil,
 } from 'lucide-react'
 import { getVisionDetail, updateProjectVision } from '@/lib/api'
+import { formatDate } from '@/lib/date-utils'
 import type { VisionDetailData, VisionAnalysis, RevisionEntry } from '@/types/workspace'
 
 type TabId = 'current' | 'evolution' | 'sources'
@@ -56,17 +57,6 @@ function ScoreBar({ label, score }: { label: string; score: number }) {
       </div>
     </div>
   )
-}
-
-function formatDate(dateStr: string) {
-  const d = new Date(dateStr)
-  return d.toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
 }
 
 export function VisionDetailDrawer({

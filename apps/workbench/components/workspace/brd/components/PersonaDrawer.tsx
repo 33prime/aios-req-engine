@@ -2,7 +2,6 @@
 
 import { useState } from 'react'
 import {
-  X,
   Users,
   FileText,
   Target,
@@ -11,6 +10,8 @@ import {
   Info,
   Puzzle,
 } from 'lucide-react'
+import { DrawerShell, type DrawerTab } from '@/components/ui/DrawerShell'
+import { EmptyState } from '@/components/ui/EmptyState'
 import { BRDStatusBadge } from './StatusBadge'
 import { ConfirmActions } from './ConfirmActions'
 import type {
@@ -31,12 +32,6 @@ interface PersonaDrawerProps {
   onNeedsReview: (entityType: string, entityId: string) => void
 }
 
-const TABS: { id: TabId; label: string; icon: typeof FileText }[] = [
-  { id: 'profile', label: 'Profile', icon: Users },
-  { id: 'validation', label: 'Validation', icon: Check },
-  { id: 'evidence', label: 'Evidence', icon: FileText },
-]
-
 export function PersonaDrawer({
   persona,
   projectId,
@@ -55,116 +50,70 @@ export function PersonaDrawer({
 
   const hasVoice = matchedStakeholders.length > 0
 
+  const tabs: DrawerTab[] = [
+    { id: 'profile', label: 'Profile', icon: Users },
+    {
+      id: 'validation',
+      label: 'Validation',
+      icon: Check,
+      badge: !hasVoice ? (
+        <span className="ml-1 text-[10px] bg-[#F0F0F0] text-[#666666] px-1.5 py-0.5 rounded-full">!</span>
+      ) : undefined,
+    },
+    { id: 'evidence', label: 'Evidence', icon: FileText },
+  ]
+
   return (
-    <>
-      {/* Backdrop */}
-      <div
-        className="fixed inset-0 bg-black/20 z-40 transition-opacity"
-        onClick={onClose}
-      />
-
-      {/* Drawer */}
-      <div className="fixed right-0 top-0 h-full w-[560px] max-w-full bg-white shadow-xl z-50 flex flex-col animate-slide-in-right">
-        {/* Header */}
-        <div className="flex-shrink-0 border-b border-[#E5E5E5] px-6 py-4">
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex items-start gap-3 min-w-0 flex-1">
-              {/* Navy circle with Users icon */}
-              <div className="w-8 h-8 rounded-full bg-[#0A1E2F] flex items-center justify-center flex-shrink-0 mt-0.5">
-                <Users className="w-4 h-4 text-white" />
-              </div>
-              <div className="min-w-0">
-                <p className="text-[11px] font-medium text-[#999999] uppercase tracking-wide mb-1">
-                  Persona
-                </p>
-                <h2 className="text-[15px] font-semibold text-[#333333] line-clamp-2 leading-snug">
-                  {persona.name}
-                </h2>
-                <div className="flex items-center gap-2 mt-1.5">
-                  {persona.role && (
-                    <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-[#F0F0F0] text-[#666666]">
-                      {persona.role}
-                    </span>
-                  )}
-                  {persona.canvas_role === 'primary' && (
-                    <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-[#E8F5E9] text-[#25785A]">
-                      Primary
-                    </span>
-                  )}
-                  {persona.canvas_role === 'secondary' && (
-                    <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-[#F0F0F0] text-[#666666]">
-                      Secondary
-                    </span>
-                  )}
-                </div>
-              </div>
-            </div>
-            <div className="flex items-center gap-2 flex-shrink-0">
-              <BRDStatusBadge status={persona.confirmation_status} />
-              <button
-                onClick={onClose}
-                className="p-1.5 rounded-md text-[#999999] hover:text-[#666666] hover:bg-[#F0F0F0] transition-colors"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-
-          {/* Confirm/Review actions */}
-          <div className="mt-3">
-            <ConfirmActions
-              status={persona.confirmation_status}
-              onConfirm={() => onConfirm('persona', persona.id)}
-              onNeedsReview={() => onNeedsReview('persona', persona.id)}
-              size="md"
-            />
-          </div>
-
-          {/* Tabs */}
-          <div className="flex gap-0 mt-4 -mb-4 border-b-0">
-            {TABS.map((tab) => {
-              const TabIcon = tab.icon
-              const isActive = activeTab === tab.id
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center gap-1.5 px-3 py-2 text-[12px] font-medium border-b-2 transition-colors ${
-                    isActive
-                      ? 'border-[#3FAF7A] text-[#25785A]'
-                      : 'border-transparent text-[#999999] hover:text-[#666666]'
-                  }`}
-                >
-                  <TabIcon className="w-3.5 h-3.5" />
-                  {tab.label}
-                  {tab.id === 'validation' && !hasVoice && (
-                    <span className="ml-1 text-[10px] bg-[#F0F0F0] text-[#666666] px-1.5 py-0.5 rounded-full">
-                      !
-                    </span>
-                  )}
-                </button>
-              )
-            })}
-          </div>
-        </div>
-
-        {/* Body */}
-        <div className="flex-1 overflow-y-auto px-6 py-5">
-          {activeTab === 'profile' && (
-            <ProfileTab persona={persona} features={features} />
+    <DrawerShell
+      onClose={onClose}
+      icon={Users}
+      entityLabel="Persona"
+      title={persona.name}
+      headerExtra={
+        <div className="flex items-center gap-2 mt-1.5">
+          {persona.role && (
+            <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-[#F0F0F0] text-[#666666]">
+              {persona.role}
+            </span>
           )}
-          {activeTab === 'validation' && (
-            <ValidationTab
-              persona={persona}
-              stakeholders={stakeholders}
-              matchedStakeholders={matchedStakeholders}
-              hasVoice={hasVoice}
-            />
+          {persona.canvas_role === 'primary' && (
+            <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-[#E8F5E9] text-[#25785A]">
+              Primary
+            </span>
           )}
-          {activeTab === 'evidence' && <EvidenceTab />}
+          {persona.canvas_role === 'secondary' && (
+            <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-[#F0F0F0] text-[#666666]">
+              Secondary
+            </span>
+          )}
         </div>
-      </div>
-    </>
+      }
+      headerRight={<BRDStatusBadge status={persona.confirmation_status} />}
+      headerActions={
+        <ConfirmActions
+          status={persona.confirmation_status}
+          onConfirm={() => onConfirm('persona', persona.id)}
+          onNeedsReview={() => onNeedsReview('persona', persona.id)}
+          size="md"
+        />
+      }
+      tabs={tabs}
+      activeTab={activeTab}
+      onTabChange={(id) => setActiveTab(id as TabId)}
+    >
+      {activeTab === 'profile' && (
+        <ProfileTab persona={persona} features={features} />
+      )}
+      {activeTab === 'validation' && (
+        <ValidationTab
+          persona={persona}
+          stakeholders={stakeholders}
+          matchedStakeholders={matchedStakeholders}
+          hasVoice={hasVoice}
+        />
+      )}
+      {activeTab === 'evidence' && <EvidenceTab />}
+    </DrawerShell>
   )
 }
 
@@ -448,12 +397,10 @@ function ValidationTab({
 
 function EvidenceTab() {
   return (
-    <div className="text-center py-8">
-      <FileText className="w-8 h-8 text-[#E5E5E5] mx-auto mb-3" />
-      <p className="text-[13px] text-[#666666] mb-1">Evidence sources available through signal analysis</p>
-      <p className="text-[12px] text-[#999999]">
-        Process signals referencing this persona to build an evidence trail.
-      </p>
-    </div>
+    <EmptyState
+      icon={<FileText className="w-8 h-8 text-[#E5E5E5]" />}
+      title="Evidence sources available through signal analysis"
+      description="Process signals referencing this persona to build an evidence trail."
+    />
   )
 }

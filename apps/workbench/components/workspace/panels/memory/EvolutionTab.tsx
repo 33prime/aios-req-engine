@@ -20,6 +20,7 @@ import {
   ChevronUp,
 } from 'lucide-react'
 import { getConfidenceCurve } from '@/lib/api'
+import { formatDate } from '@/lib/date-utils'
 import type { MemoryVisualizationResponse } from '@/lib/api'
 import type {
   IntelEvolutionEvent,
@@ -246,8 +247,3 @@ function formatEventType(type: string): string {
     .join(' ')
 }
 
-function formatDate(ts: string): string {
-  if (!ts) return ''
-  const d = new Date(ts)
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-}

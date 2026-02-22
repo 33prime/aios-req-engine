@@ -24,6 +24,8 @@ import {
 import { BRDStatusBadge } from './StatusBadge'
 import { ConfirmActions } from './ConfirmActions'
 import { Markdown } from '@/components/ui/Markdown'
+import { ConnectionGroup } from '@/components/ui/ConnectionGroup'
+import { formatRelativeTime, formatRevisionAuthor, REVISION_TYPE_COLORS } from '@/lib/date-utils'
 import { getWorkflowDetail, enrichWorkflow } from '@/lib/api'
 import type {
   WorkflowDetail,
@@ -748,33 +750,6 @@ function OperationBadge({ type }: { type: string }) {
   )
 }
 
-function ConnectionGroup({
-  icon: GroupIcon,
-  title,
-  count,
-  children,
-}: {
-  icon: typeof Users
-  title: string
-  count: number
-  children: React.ReactNode
-}) {
-  return (
-    <div>
-      <h4 className="text-[11px] font-medium text-[#999999] uppercase tracking-wide mb-2 flex items-center gap-1.5">
-        <GroupIcon className="w-3.5 h-3.5" />
-        {title}
-        <span className="text-[10px] bg-[#F0F0F0] text-[#666666] px-1.5 py-0.5 rounded-full ml-1">
-          {count}
-        </span>
-      </h4>
-      <div className="border border-[#E5E5E5] rounded-xl overflow-hidden bg-white">
-        {children}
-      </div>
-    </div>
-  )
-}
-
 // ============================================================================
 // Insights Tab
 // ============================================================================
@@ -850,23 +825,17 @@ function HistoryTab({ revisions }: { revisions: RevisionEntry[] }) {
   return (
     <div className="space-y-3">
       {revisions.map((rev, i) => {
-        const typeColors: Record<string, string> = {
-          created: 'bg-[#E8F5E9] text-[#25785A]',
-          enriched: 'bg-[#F0F0F0] text-[#666666]',
-          updated: 'bg-[#F0F0F0] text-[#666666]',
-          merged: 'bg-[#F0F0F0] text-[#666666]',
-        }
         return (
           <div key={i} className="border border-[#E5E5E5] rounded-xl px-4 py-3">
             <div className="flex items-center gap-2 mb-1">
-              <span className={`text-[10px] font-medium uppercase px-1.5 py-0.5 rounded ${typeColors[rev.revision_type] || typeColors.updated}`}>
+              <span className={`text-[10px] font-medium uppercase px-1.5 py-0.5 rounded ${REVISION_TYPE_COLORS[rev.revision_type] || REVISION_TYPE_COLORS.updated}`}>
                 {rev.revision_type}
               </span>
               <span className="text-[10px] text-[#999999]">
                 {rev.created_at ? formatRelativeTime(rev.created_at) : ''}
               </span>
               <span className="text-[10px] text-[#999999]">
-                by {rev.created_by === 'system' || rev.created_by === 'build_state' || rev.created_by === 'signal_pipeline_v2' || rev.created_by === 'project_launch' ? '✦ AIOS' : rev.created_by || 'AIOS'}
+                by {formatRevisionAuthor(rev.created_by)}
               </span>
             </div>
             {rev.diff_summary && (
@@ -882,24 +851,6 @@ function HistoryTab({ revisions }: { revisions: RevisionEntry[] }) {
 // ============================================================================
 // Helpers
 // ============================================================================
-
-function formatRelativeTime(dateStr: string): string {
-  try {
-    const date = new Date(dateStr)
-    const now = new Date()
-    const diffMs = now.getTime() - date.getTime()
-    const diffMin = Math.floor(diffMs / 60000)
-    if (diffMin < 1) return 'just now'
-    if (diffMin < 60) return `${diffMin}m ago`
-    const diffHrs = Math.floor(diffMin / 60)
-    if (diffHrs < 24) return `${diffHrs}h ago`
-    const diffDays = Math.floor(diffHrs / 24)
-    if (diffDays < 7) return `${diffDays}d ago`
-    return date.toLocaleDateString()
-  } catch {
-    return ''
-  }
-}
 
 function formatCurrency(amount: number): string {
   if (amount >= 1000) {

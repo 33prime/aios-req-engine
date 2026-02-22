@@ -70,9 +70,20 @@ async def build_context_snapshot(project_id: UUID) -> ContextSnapshot:
         logger.warning(f"Failed to load project data for context snapshot: {e}")
         project_data = {}
 
+    # Pre-load open questions once (reused by memory layer + extraction briefing)
+    open_questions_raw: list[dict] = []
+    try:
+        from app.db.open_questions import list_open_questions
+
+        open_questions_raw = await asyncio.to_thread(
+            list_open_questions, project_id, "open", 10
+        )
+    except Exception as e:
+        logger.debug(f"Open questions pre-load failed: {e}")
+
     # Run layers 1-3 in parallel (independent of each other)
     entity_inventory_task = _build_entity_inventory(project_id, project_data=project_data)
-    memory_task = _build_memory_layer(project_id)
+    memory_task = _build_memory_layer(project_id, open_questions_raw=open_questions_raw)
     gaps_task = _build_gaps_layer(project_id, project_data=project_data)
 
     entity_inventory, (memory_prompt, beliefs, open_questions), gaps_prompt = (
@@ -100,7 +111,10 @@ async def build_context_snapshot(project_id: UUID) -> ContextSnapshot:
     except Exception as e:
         logger.warning(f"Pulse engine failed, falling back to Haiku briefing: {e}")
         briefing_prompt = await _build_extraction_briefing(
-            project_id, project_data=project_data
+            project_id,
+            project_data=project_data,
+            entity_inventory=entity_inventory,
+            open_questions_raw=open_questions_raw,
         )
 
     return ContextSnapshot(
@@ -338,15 +352,21 @@ def _render_entity_inventory_prompt(inventory: dict[str, list[dict]]) -> str:
 # =============================================================================
 
 
-async def _build_memory_layer(project_id: UUID) -> tuple[str, list[dict], list[dict]]:
+async def _build_memory_layer(
+    project_id: UUID,
+    open_questions_raw: list[dict] | None = None,
+) -> tuple[str, list[dict], list[dict]]:
     """Build memory prompt from beliefs, insights, and open questions.
+
+    Args:
+        project_id: Project UUID
+        open_questions_raw: Pre-loaded open questions (avoids duplicate DB query)
 
     Returns:
         (prompt_string, beliefs_list, open_questions_list)
     """
     beliefs: list[dict] = []
     insights: list[dict] = []
-    open_questions: list[dict] = []
 
     try:
         from app.core.memory_renderer import (
@@ -375,29 +395,31 @@ async def _build_memory_layer(project_id: UUID) -> tuple[str, list[dict], list[d
         logger.debug(f"Memory layer build failed: {e}")
         lines = ["## Project Memory\nMemory graph not available."]
 
-    # Open questions (from action engine data)
-    try:
-        from app.db.open_questions import list_open_questions
+    # Open questions — use pre-loaded data if available
+    raw_questions = open_questions_raw if open_questions_raw is not None else []
+    if open_questions_raw is None:
+        try:
+            from app.db.open_questions import list_open_questions
 
-        raw_questions = list_open_questions(project_id, status="open", limit=10)
-        open_questions = [
-            {
-                "id": str(q.get("id", "")),
-                "question": q.get("question", ""),
-                "priority": q.get("priority", "medium"),
-                "category": q.get("category", ""),
-            }
-            for q in raw_questions
-        ]
+            raw_questions = list_open_questions(project_id, status="open", limit=10)
+        except Exception as e:
+            logger.debug(f"Open questions load failed: {e}")
 
-        if open_questions:
-            lines.append("\n### Open Questions")
-            for q in open_questions:
-                priority_tag = f" [{q['priority']}]" if q["priority"] != "medium" else ""
-                lines.append(f"- {q['question']}{priority_tag}")
+    open_questions = [
+        {
+            "id": str(q.get("id", "")),
+            "question": q.get("question", ""),
+            "priority": q.get("priority", "medium"),
+            "category": q.get("category", ""),
+        }
+        for q in raw_questions
+    ]
 
-    except Exception as e:
-        logger.debug(f"Open questions load failed: {e}")
+    if open_questions:
+        lines.append("\n### Open Questions")
+        for q in open_questions:
+            priority_tag = f" [{q['priority']}]" if q["priority"] != "medium" else ""
+            lines.append(f"- {q['question']}{priority_tag}")
 
     prompt = "\n".join(lines)
     return prompt, beliefs, open_questions
@@ -490,16 +512,20 @@ Be concrete — name entities, quote descriptions, cite counts. ~300-400 tokens 
 async def _build_extraction_briefing(
     project_id: UUID,
     project_data: dict | None = None,
+    entity_inventory: dict[str, list[dict]] | None = None,
+    open_questions_raw: list[dict] | None = None,
 ) -> str:
     """Build a Haiku-synthesized extraction briefing from entity inventory metrics.
 
-    Computes counts directly from project_data and calls Haiku to produce
-    a 3-section briefing (coverage map, dedup alerts, extraction targets).
+    Computes counts from project_data + entity_inventory (avoids duplicate
+    DB queries when inventory is already loaded by _build_entity_inventory).
     Falls back to a deterministic metrics-only briefing on failure.
 
     Args:
         project_id: Project UUID
         project_data: Pre-loaded project data (avoids duplicate DB call)
+        entity_inventory: Pre-loaded entity inventory (avoids 4 count queries)
+        open_questions_raw: Pre-loaded open questions (avoids duplicate DB call)
 
     Returns:
         Rendered briefing prompt string
@@ -513,7 +539,7 @@ async def _build_extraction_briefing(
         logger.warning(f"Failed to load project data for briefing: {e}")
         return ""
 
-    # Compute entity counts from project_data
+    # Compute entity counts — use inventory if available (no extra DB queries)
     counts: dict[str, int] = {}
     counts["feature"] = len(project_data.get("features") or [])
     counts["persona"] = len(project_data.get("personas") or [])
@@ -529,30 +555,37 @@ async def _build_extraction_briefing(
     drivers = project_data.get("drivers") or []
     counts["business_driver"] = len(drivers)
 
-    # These need DB queries — run all 4 count queries in parallel
-    try:
-        from app.db.supabase_client import get_supabase
+    if entity_inventory:
+        # Derive counts from already-loaded inventory (eliminates 4 DB round-trips)
+        counts["stakeholder"] = len(entity_inventory.get("stakeholder", []))
+        counts["data_entity"] = len(entity_inventory.get("data_entity", []))
+        counts["constraint"] = len(entity_inventory.get("constraint", []))
+        counts["competitor"] = len(entity_inventory.get("competitor", []))
+    else:
+        # Fallback: run 4 count queries in parallel
+        try:
+            from app.db.supabase_client import get_supabase
 
-        sb = get_supabase()
-        pid = str(project_id)
-        tables = [
-            ("stakeholders", "stakeholder"),
-            ("data_entities", "data_entity"),
-            ("constraints", "constraint"),
-            ("competitor_references", "competitor"),
-        ]
+            sb = get_supabase()
+            pid = str(project_id)
+            tables = [
+                ("stakeholders", "stakeholder"),
+                ("data_entities", "data_entity"),
+                ("constraints", "constraint"),
+                ("competitor_references", "competitor"),
+            ]
 
-        async def _count(table: str) -> int:
-            r = await asyncio.to_thread(
-                lambda: sb.table(table).select("id", count="exact").eq("project_id", pid).execute()
-            )
-            return r.count or 0
+            async def _count(table: str) -> int:
+                r = await asyncio.to_thread(
+                    lambda t=table: sb.table(t).select("id", count="exact").eq("project_id", pid).execute()
+                )
+                return r.count or 0
 
-        count_results = await asyncio.gather(*[_count(t) for t, _ in tables])
-        for (_, etype), c in zip(tables, count_results):
-            counts[etype] = c
-    except Exception as e:
-        logger.debug(f"Briefing count queries failed: {e}")
+            count_results = await asyncio.gather(*[_count(t) for t, _ in tables])
+            for (_, etype), c in zip(tables, count_results):
+                counts[etype] = c
+        except Exception as e:
+            logger.debug(f"Briefing count queries failed: {e}")
 
     total = sum(counts.values())
     if total == 0:
@@ -597,17 +630,19 @@ async def _build_extraction_briefing(
             if names:
                 input_lines.append(f"\n### Top {etype}s: {', '.join(names)}")
 
-    # Open questions
-    try:
-        from app.db.open_questions import list_open_questions
+    # Open questions — use pre-loaded data if available
+    raw_questions = open_questions_raw if open_questions_raw is not None else []
+    if open_questions_raw is None:
+        try:
+            from app.db.open_questions import list_open_questions
 
-        raw_questions = list_open_questions(project_id, status="open", limit=5)
-        if raw_questions:
-            input_lines.append("\n### Open Questions")
-            for q in raw_questions:
-                input_lines.append(f"- {q.get('question', '')}")
-    except Exception as e:
-        logger.debug(f"Briefing open questions load failed: {e}")
+            raw_questions = list_open_questions(project_id, status="open", limit=5)
+        except Exception as e:
+            logger.debug(f"Briefing open questions load failed: {e}")
+    if raw_questions:
+        input_lines.append("\n### Open Questions")
+        for q in raw_questions[:5]:
+            input_lines.append(f"- {q.get('question', '')}")
 
     input_text = "\n".join(input_lines)
 

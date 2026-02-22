@@ -16,6 +16,7 @@ import {
   Shield,
 } from 'lucide-react'
 import { getProjectClientIntelligence } from '@/lib/api'
+import { formatDate } from '@/lib/date-utils'
 import type { ClientIntelligenceData } from '@/types/workspace'
 
 /** Safely parse a value that might be a JSON string instead of a parsed object/array. */
@@ -48,15 +49,6 @@ function toLabel(val: unknown): string {
 interface ClientIntelligenceDrawerProps {
   projectId: string
   onClose: () => void
-}
-
-function formatDate(dateStr: string) {
-  const d = new Date(dateStr)
-  return d.toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  })
 }
 
 function FreshnessBadge({ dateStr }: { dateStr?: string | null }) {
