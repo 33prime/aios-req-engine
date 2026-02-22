@@ -133,7 +133,6 @@ async def _delete_entity(project_id: UUID, params: Dict[str, Any]) -> Dict[str, 
             entity_name = result.get("feature_name", "Unknown")
             return {
                 "success": True,
-                "message": f"Deleted feature: {entity_name}",
                 "entity_type": "feature",
                 "entity_name": entity_name,
             }
@@ -144,7 +143,6 @@ async def _delete_entity(project_id: UUID, params: Dict[str, Any]) -> Dict[str, 
             entity_name = result.get("persona_name", "Unknown")
             return {
                 "success": True,
-                "message": f"Deleted persona: {entity_name}",
                 "entity_type": "persona",
                 "entity_name": entity_name,
             }
@@ -162,8 +160,8 @@ async def _delete_entity(project_id: UUID, params: Dict[str, Any]) -> Dict[str, 
 
             return {
                 "success": True,
-                "message": f"Deleted {driver_type}: {entity_name}",
                 "entity_type": "business_driver",
+                "driver_type": driver_type,
                 "entity_name": entity_name,
             }
 
@@ -193,7 +191,6 @@ async def _delete_entity(project_id: UUID, params: Dict[str, Any]) -> Dict[str, 
 
             return {
                 "success": True,
-                "message": f"Deleted {entity_type}: {entity_name}",
                 "entity_type": entity_type,
                 "entity_name": entity_name,
             }
@@ -242,7 +239,7 @@ async def _create_feature_entity(project_id: UUID, name: str, fields: dict) -> D
         "success": True,
         "entity_type": "feature",
         "entity_id": feature["id"],
-        "message": f"Created feature: **{name}**",
+        "name": name,
     }
 
 
@@ -262,12 +259,11 @@ async def _update_feature_entity(entity_id: UUID, fields: dict) -> Dict[str, Any
     if not response.data:
         return {"success": False, "error": "Feature not found"}
 
-    changed = ", ".join(f"{k}={v}" for k, v in updates.items() if k != "updated_at")
     return {
         "success": True,
         "entity_type": "feature",
         "entity_id": str(entity_id),
-        "message": f"Updated feature: {changed}",
+        "updated_fields": [k for k in updates if k != "updated_at"],
     }
 
 
@@ -294,7 +290,8 @@ async def _create_persona_entity(project_id: UUID, name: str, fields: dict) -> D
         "success": True,
         "entity_type": "persona",
         "entity_id": persona["id"],
-        "message": f"Created persona: **{name}**" + (f" ({fields['role']})" if fields.get("role") else ""),
+        "name": name,
+        "role": fields.get("role"),
     }
 
 
@@ -309,12 +306,12 @@ async def _update_persona_entity(entity_id: UUID, fields: dict) -> Dict[str, Any
         return {"success": False, "error": f"No valid fields. Allowed: {', '.join(ALLOWED)}"}
 
     persona = update_persona(persona_id=entity_id, updates=updates)
-    changed = ", ".join(updates.keys())
     return {
         "success": True,
         "entity_type": "persona",
         "entity_id": str(entity_id),
-        "message": f"Updated persona **{persona.get('name', '')}**: {changed}",
+        "name": persona.get("name", ""),
+        "updated_fields": list(updates.keys()),
     }
 
 
@@ -352,7 +349,7 @@ async def _create_vp_step_entity(project_id: UUID, name: str, fields: dict) -> D
         "success": True,
         "entity_type": "vp_step",
         "entity_id": step["id"],
-        "message": f"Created step: **{name}**" + (f" (actor: {fields['actor']})" if fields.get("actor") else ""),
+        "name": name,
     }
 
 
@@ -370,12 +367,12 @@ async def _update_vp_step_entity(entity_id: UUID, fields: dict) -> Dict[str, Any
         return {"success": False, "error": f"No valid fields. Allowed: {', '.join(ALLOWED)}"}
 
     step = update_workflow_step(step_id=entity_id, data=updates)
-    changed = ", ".join(updates.keys())
     return {
         "success": True,
         "entity_type": "vp_step",
         "entity_id": str(entity_id),
-        "message": f"Updated step **{step.get('name', '')}**: {changed}",
+        "name": step.get("name", ""),
+        "updated_fields": list(updates.keys()),
     }
 
 
@@ -400,19 +397,12 @@ async def _create_stakeholder_entity(project_id: UUID, name: str, fields: dict) 
         confirmation_status="ai_generated",
     )
 
-    type_labels = {
-        "champion": "Champion",
-        "sponsor": "Sponsor",
-        "blocker": "Blocker",
-        "influencer": "Influencer",
-        "end_user": "End User",
-    }
-
     return {
         "success": True,
         "entity_type": "stakeholder",
         "entity_id": stakeholder["id"],
-        "message": f"Created stakeholder: **{name}** ({type_labels.get(stakeholder_type, stakeholder_type)})",
+        "name": name,
+        "stakeholder_type": stakeholder_type,
     }
 
 
@@ -430,12 +420,12 @@ async def _update_stakeholder_entity(entity_id: UUID, fields: dict) -> Dict[str,
         return {"success": False, "error": f"No valid fields. Allowed: {', '.join(ALLOWED)}"}
 
     stakeholder = update_stakeholder(stakeholder_id=entity_id, updates=updates)
-    changed = ", ".join(updates.keys())
     return {
         "success": True,
         "entity_type": "stakeholder",
         "entity_id": str(entity_id),
-        "message": f"Updated stakeholder **{stakeholder.get('name', '')}**: {changed}",
+        "name": stakeholder.get("name", ""),
+        "updated_fields": list(updates.keys()),
     }
 
 
@@ -459,7 +449,7 @@ async def _create_data_entity_entity(project_id: UUID, name: str, fields: dict) 
         "success": True,
         "entity_type": "data_entity",
         "entity_id": entity["id"],
-        "message": f"Created data entity: **{name}**",
+        "name": name,
     }
 
 
@@ -474,12 +464,12 @@ async def _update_data_entity_entity(entity_id: UUID, fields: dict) -> Dict[str,
         return {"success": False, "error": f"No valid fields. Allowed: {', '.join(ALLOWED)}"}
 
     entity = update_data_entity(entity_id=entity_id, data=updates)
-    changed = ", ".join(updates.keys())
     return {
         "success": True,
         "entity_type": "data_entity",
         "entity_id": str(entity_id),
-        "message": f"Updated data entity **{entity.get('name', '')}**: {changed}",
+        "name": entity.get("name", ""),
+        "updated_fields": list(updates.keys()),
     }
 
 
@@ -501,7 +491,8 @@ async def _create_workflow_entity(project_id: UUID, name: str, fields: dict) -> 
         "success": True,
         "entity_type": "workflow",
         "entity_id": workflow["id"],
-        "message": f"Created workflow: **{name}** ({data['workflow_type']})",
+        "name": name,
+        "workflow_type": data["workflow_type"],
     }
 
 
@@ -516,12 +507,12 @@ async def _update_workflow_entity(entity_id: UUID, fields: dict) -> Dict[str, An
         return {"success": False, "error": f"No valid fields. Allowed: {', '.join(ALLOWED)}"}
 
     workflow = update_workflow(workflow_id=entity_id, data=updates)
-    changed = ", ".join(updates.keys())
     return {
         "success": True,
         "entity_type": "workflow",
         "entity_id": str(entity_id),
-        "message": f"Updated workflow **{workflow.get('name', '')}**: {changed}",
+        "name": workflow.get("name", ""),
+        "updated_fields": list(updates.keys()),
     }
 
 
@@ -545,12 +536,12 @@ async def _create_business_driver_entity(project_id: UUID, description: str, fie
         priority=fields.get("priority", 3),
     )
 
-    type_label = {"goal": "goal", "pain": "pain point", "kpi": "KPI"}.get(driver_type, driver_type)
     return {
         "success": True,
         "entity_type": "business_driver",
         "entity_id": driver["id"],
-        "message": f"Created {type_label}: **{description[:80]}**",
+        "driver_type": driver_type,
+        "description": description[:80],
     }
 
 
@@ -572,13 +563,12 @@ async def _update_business_driver_entity(entity_id: UUID, project_id: UUID, fiel
     if not driver:
         return {"success": False, "error": f"Business driver not found: {entity_id}"}
 
-    changed = ", ".join(updates.keys())
-    desc = driver.get("description", "")[:60]
     return {
         "success": True,
         "entity_type": "business_driver",
         "entity_id": str(entity_id),
-        "message": f"Updated {driver.get('driver_type', 'driver')} **{desc}**: {changed}",
+        "driver_type": driver.get("driver_type", "driver"),
+        "updated_fields": list(updates.keys()),
     }
 
 
@@ -631,7 +621,7 @@ async def _create_task(project_id: UUID, params: Dict[str, Any]) -> Dict[str, An
         return {
             "success": True,
             "task_id": str(task.id),
-            "message": f"Task created: \"{title}\"",
+            "title": title,
         }
     except Exception as e:
         logger.error(f"Failed to create task: {e}", exc_info=True)
@@ -672,7 +662,7 @@ async def _add_belief(project_id: UUID, params: Dict[str, Any]) -> Dict[str, Any
         return {
             "success": True,
             "node_id": node.get("id"),
-            "message": f"Got it, I'll remember: {summary}",
+            "summary": summary,
         }
     except Exception as e:
         logger.error(f"Failed to add belief: {e}", exc_info=True)
@@ -701,16 +691,9 @@ async def _add_company_reference(project_id: UUID, params: Dict[str, Any]) -> Di
             url=url,
             research_notes=notes,
         )
-        type_labels = {
-            "competitor": "competitor",
-            "design_inspiration": "design inspiration",
-            "feature_inspiration": "feature inspiration",
-        }
-        label = type_labels.get(reference_type, reference_type)
         return {
             "success": True,
             "ref_id": ref.get("id"),
-            "message": f"Added {name} as a {label}.",
             "name": name,
             "url": url,
             "reference_type": reference_type,

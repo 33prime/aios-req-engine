@@ -49,7 +49,7 @@ async def _search(project_id: UUID, params: Dict[str, Any]) -> Dict[str, Any]:
 
             filtered_results.append({
                 "chunk_id": result.get("id"),
-                "text": result.get("text", "")[:500],  # Limit text preview
+                "text": result.get("text", "")[:500],
                 "similarity": round(similarity, 3),
                 "source_type": result.get("metadata", {}).get("source_type", "unknown"),
                 "metadata": result.get("metadata", {}),
@@ -63,16 +63,11 @@ async def _search(project_id: UUID, params: Dict[str, Any]) -> Dict[str, Any]:
             "results": filtered_results,
             "count": len(filtered_results),
             "query": query,
-            "message": f"Found {len(filtered_results)} relevant research chunks",
         }
 
     except Exception as e:
         logger.error(f"Error in semantic search: {e}", exc_info=True)
-        return {
-            "success": False,
-            "error": str(e),
-            "message": f"Semantic search failed: {str(e)}",
-        }
+        return {"success": False, "error": str(e)}
 
 
 async def _attach_evidence(project_id: UUID, params: Dict[str, Any]) -> Dict[str, Any]:
@@ -135,16 +130,11 @@ async def _attach_evidence(project_id: UUID, params: Dict[str, Any]) -> Dict[str
             "entity_id": entity_id,
             "attached_count": len(new_evidence),
             "total_evidence": len(current_evidence),
-            "message": f"Attached {len(new_evidence)} evidence chunks to {entity_type}",
         }
 
     except Exception as e:
         logger.error(f"Error attaching evidence: {e}", exc_info=True)
-        return {
-            "success": False,
-            "error": str(e),
-            "message": f"Failed to attach evidence: {str(e)}",
-        }
+        return {"success": False, "error": str(e)}
 
 
 async def _query_entity_history(project_id: UUID, params: Dict[str, Any]) -> Dict[str, Any]:
@@ -204,7 +194,7 @@ async def _query_entity_history(project_id: UUID, params: Dict[str, Any]) -> Dic
 
     def _q_revisions():
         try:
-            return supabase.table("enrichment_revisions").select("field_name, old_value, new_value, source, created_at").eq("entity_type", entity_type).eq("entity_id", entity_id).order("created_at").limit(20).execute()
+            return supabase.table("enrichment_revisions").select("field_name, old_value, new_value, source, created_at").eq("entity_type", entity_type).eq("entity_id", entity_id).order("created_at").limit(10).execute()
         except Exception:
             return None
 
@@ -212,13 +202,13 @@ async def _query_entity_history(project_id: UUID, params: Dict[str, Any]) -> Dic
         if not source_signal_ids:
             return None
         try:
-            return supabase.table("signals").select("id, title, signal_type, created_at").in_("id", source_signal_ids[:10]).order("created_at").execute()
+            return supabase.table("signals").select("id, title, signal_type, created_at").in_("id", source_signal_ids[:5]).order("created_at").execute()
         except Exception:
             return None
 
     def _q_memory():
         try:
-            return supabase.table("memory_nodes").select("id, node_type, summary, confidence, created_at").eq("project_id", str(project_id)).eq("linked_entity_type", entity_type).eq("linked_entity_id", entity_id).order("created_at", desc=True).limit(10).execute()
+            return supabase.table("memory_nodes").select("id, node_type, summary, confidence, created_at").eq("project_id", str(project_id)).eq("linked_entity_type", entity_type).eq("linked_entity_id", entity_id).order("created_at", desc=True).limit(5).execute()
         except Exception:
             return None
 
@@ -228,17 +218,18 @@ async def _query_entity_history(project_id: UUID, params: Dict[str, Any]) -> Dic
         asyncio.to_thread(_q_memory),
     )
 
-    result["revisions"] = (rev_resp.data or []) if rev_resp else []
+    # Truncate revision values to 100 chars
+    revisions = (rev_resp.data or []) if rev_resp else []
+    for rev in revisions:
+        if rev.get("old_value") and len(str(rev["old_value"])) > 100:
+            rev["old_value"] = str(rev["old_value"])[:100] + "..."
+        if rev.get("new_value") and len(str(rev["new_value"])) > 100:
+            rev["new_value"] = str(rev["new_value"])[:100] + "..."
+
+    result["revisions"] = revisions
     result["source_signals"] = (sig_resp.data or []) if sig_resp else []
     result["memory_nodes"] = (mem_resp.data or []) if mem_resp else []
 
-    rev_count = len(result["revisions"])
-    sig_count = len(result["source_signals"])
-    mem_count = len(result["memory_nodes"])
-    result["message"] = (
-        f"**{result['name']}** ({entity_type}): "
-        f"{rev_count} revisions, {sig_count} source signals, {mem_count} linked facts"
-    )
     return result
 
 
@@ -246,7 +237,7 @@ async def _query_knowledge_graph(project_id: UUID, params: Dict[str, Any]) -> Di
     """Search the knowledge graph for facts and beliefs about a topic."""
     supabase = get_supabase()
     topic = params.get("topic", "")
-    limit = min(params.get("limit", 10), 20)
+    limit = min(params.get("limit", 5), 20)
 
     if not topic:
         return {"error": "topic is required"}
@@ -269,53 +260,23 @@ async def _query_knowledge_graph(project_id: UUID, params: Dict[str, Any]) -> Di
 
     if not nodes:
         return {
-            "nodes": [],
-            "edges": [],
-            "message": f"No knowledge found about '{topic}'. Try uploading documents or discussing the topic in chat.",
+            "topic": topic,
+            "findings": [],
+            "total": 0,
         }
 
-    node_ids = [n["id"] for n in nodes]
+    # Return compact findings (no raw nodes/edges)
+    findings = []
+    for n in nodes:
+        findings.append({
+            "summary": n.get("summary", ""),
+            "type": n.get("node_type", "unknown"),
+            "confidence": n.get("confidence"),
+            "linked_entity": n.get("linked_entity_type"),
+        })
 
-    # Load edges for matching nodes
-    edges = []
-    try:
-        edges_resp = (
-            supabase.table("memory_edges")
-            .select("source_node_id, target_node_id, edge_type, weight")
-            .or_(f"source_node_id.in.({','.join(node_ids)}),target_node_id.in.({','.join(node_ids)})")
-            .limit(50)
-            .execute()
-        )
-        edges = edges_resp.data or []
-    except Exception:
-        pass
-
-    # Categorize nodes
-    facts = [n for n in nodes if n.get("node_type") == "fact"]
-    beliefs = [n for n in nodes if n.get("node_type") == "belief"]
-    other = [n for n in nodes if n.get("node_type") not in ("fact", "belief")]
-
-    result = {
+    return {
         "topic": topic,
-        "nodes": nodes,
-        "edges": edges,
-        "summary": {
-            "total_nodes": len(nodes),
-            "facts": len(facts),
-            "beliefs": len(beliefs),
-            "other": len(other),
-            "relationships": len(edges),
-        },
+        "findings": findings,
+        "total": len(findings),
     }
-
-    # Build message
-    parts = []
-    if facts:
-        parts.append(f"{len(facts)} facts")
-    if beliefs:
-        parts.append(f"{len(beliefs)} beliefs")
-    if edges:
-        parts.append(f"{len(edges)} relationships")
-    result["message"] = f"Knowledge about '{topic}': {', '.join(parts) if parts else 'no results'}"
-
-    return result

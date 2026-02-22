@@ -10,16 +10,7 @@ logger = get_logger(__name__)
 
 
 async def _add_signal(project_id: UUID, params: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Add a signal and process it through the full pipeline.
-
-    Args:
-        project_id: Project UUID
-        params: Signal parameters (signal_type, content, source, process_immediately)
-
-    Returns:
-        Created signal with processing status
-    """
+    """Add a signal and process it through the full pipeline."""
     import uuid as uuid_module
 
     signal_type = params.get("signal_type", "note")
@@ -36,20 +27,15 @@ async def _add_signal(project_id: UUID, params: Dict[str, Any]) -> Dict[str, Any
 
         # Derive a meaningful title from the content (first line, truncated)
         def derive_title(text: str, max_length: int = 60) -> str:
-            """Derive a title from content - first non-empty line, cleaned and truncated."""
             lines = text.strip().split('\n')
             for line in lines:
                 cleaned = line.strip()
-                # Skip empty lines or lines that look like timestamps/metadata
                 if cleaned and not cleaned.startswith('[') and len(cleaned) > 5:
-                    # Remove common transcript markers
                     if cleaned.lower().startswith(('speaker', 'transcript', '---')):
                         continue
-                    # Truncate and add ellipsis if needed
                     if len(cleaned) > max_length:
                         return cleaned[:max_length].rsplit(' ', 1)[0] + '...'
                     return cleaned
-            # Fallback to generic title with timestamp
             from datetime import datetime
             return f"Signal from {datetime.now().strftime('%b %d, %Y')}"
 
@@ -86,7 +72,6 @@ async def _add_signal(project_id: UUID, params: Dict[str, Any]) -> Dict[str, Any
 
             chunks = chunk_text(content)
             if chunks:
-                # Extract content strings for embedding
                 chunk_texts = [c["content"] for c in chunks]
                 embeddings = embed_texts(chunk_texts)
                 insert_signal_chunks(
@@ -99,7 +84,6 @@ async def _add_signal(project_id: UUID, params: Dict[str, Any]) -> Dict[str, Any
                 logger.info(f"Created {chunks_created} chunks for signal {signal_id}")
         except Exception as chunk_error:
             logger.warning(f"Failed to chunk signal {signal_id}: {chunk_error}")
-            # Continue anyway - signal is saved
 
         result = {
             "success": True,
@@ -128,34 +112,24 @@ async def _add_signal(project_id: UUID, params: Dict[str, Any]) -> Dict[str, Any
                     result["patches_applied"] = pipeline_result.patches_applied
                     result["created_count"] = pipeline_result.created_count
                     result["merged_count"] = pipeline_result.merged_count
-                    result["message"] = pipeline_result.chat_summary or (
-                        f"Created {signal_type} signal and processed: "
-                        f"{pipeline_result.patches_applied} patches applied, "
-                        f"{pipeline_result.created_count} created"
-                    )
+                    if pipeline_result.chat_summary:
+                        result["chat_summary"] = pipeline_result.chat_summary
                 else:
                     result["processed"] = False
                     result["pipeline_error"] = pipeline_result.error or "Unknown error"
-                    result["message"] = f"Created {signal_type} signal but processing failed: {result['pipeline_error']}"
 
             except Exception as pipeline_error:
                 logger.warning(f"V2 pipeline processing failed: {pipeline_error}")
                 result["processed"] = False
                 result["pipeline_error"] = str(pipeline_error)
-                result["message"] = f"Created {signal_type} signal but processing failed: {str(pipeline_error)}"
         else:
             result["processed"] = False
-            result["message"] = f"Created {signal_type} signal. Use signal streaming to process."
 
         return result
 
     except Exception as e:
         logger.error(f"Error adding signal: {e}", exc_info=True)
-        return {
-            "success": False,
-            "error": str(e),
-            "message": f"Failed to add signal: {str(e)}",
-        }
+        return {"success": False, "error": str(e)}
 
 
 async def _get_recent_documents(
@@ -166,7 +140,6 @@ async def _get_recent_documents(
         supabase = get_supabase()
         limit = params.get("limit", 5)
 
-        # Query recent documents for this project
         response = (
             supabase.table("documents")
             .select("id, original_filename, document_class, processing_status, signal_id, created_at, metadata")
@@ -178,7 +151,7 @@ async def _get_recent_documents(
 
         docs = response.data or []
 
-        # Batch-fetch all related signals in one query (replaces N+1 loop)
+        # Batch-fetch all related signals in one query
         signal_ids = [d["signal_id"] for d in docs if d.get("processing_status") == "completed" and d.get("signal_id")]
         signal_map: Dict[str, Any] = {}
         if signal_ids:
@@ -197,7 +170,6 @@ async def _get_recent_documents(
                 "processing_status": doc.get("processing_status", "unknown"),
             }
 
-            # If document extraction is done and has a signal, check entity extraction
             if doc.get("processing_status") == "completed" and doc.get("signal_id"):
                 sig_data = signal_map.get(doc["signal_id"])
                 if sig_data:
@@ -229,16 +201,6 @@ async def _get_recent_documents(
         return {
             "documents": results,
             "total": len(results),
-            "summary": (
-                f"{len(results)} recent document(s). "
-                + ", ".join(
-                    f"{d['filename']}: {d['processing_status']}"
-                    + (f" → entities {d.get('entity_extraction', 'n/a')}" if d.get("entity_extraction") else "")
-                    for d in results
-                )
-                if results
-                else "No documents uploaded yet."
-            ),
         }
 
     except Exception as e:
@@ -265,17 +227,10 @@ async def _check_document_clarifications(
 
         docs = response.data or []
 
-        if not docs:
-            return {
-                "success": True,
-                "pending_clarifications": [],
-                "message": "No documents need clarification.",
-            }
-
         return {
             "success": True,
             "pending_clarifications": docs,
-            "message": f"{len(docs)} document(s) need clarification about their type.",
+            "count": len(docs),
         }
 
     except Exception as e:
@@ -297,7 +252,6 @@ async def _respond_to_document_clarification(
     try:
         supabase = get_supabase()
 
-        # Update the document with clarification response
         response = (
             supabase.table("document_uploads")
             .update({
@@ -319,11 +273,8 @@ async def _respond_to_document_clarification(
 
         return {
             "success": True,
-            "message": (
-                f"Updated **{doc['original_filename']}** classification to "
-                f"'{document_class}'. The document's extracted content is already "
-                f"in the system and will be used with this corrected classification."
-            ),
+            "filename": doc.get("original_filename", "unknown"),
+            "document_class": document_class,
         }
 
     except Exception as e:

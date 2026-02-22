@@ -17,7 +17,7 @@ def _build_handler_map() -> Dict[str, Callable[..., Coroutine[Any, Any, Dict[str
     from .tools_status import _get_project_status, _list_entities
     from .tools_search import _search, _attach_evidence, _query_entity_history, _query_knowledge_graph
     from .tools_signals import _add_signal, _get_recent_documents, _check_document_clarifications, _respond_to_document_clarification
-    from .tools_communication import _create_confirmation, _generate_client_email, _generate_meeting_agenda, _schedule_meeting, _list_pending_confirmations
+    from .tools_communication import _create_confirmation, _schedule_meeting, _list_pending_confirmations
     from .tools_strategic import _generate_strategic_context, _update_project_type, _identify_stakeholders, _update_strategic_context
     from .tools_entity_crud import _create_entity, _update_entity, _delete_entity, _create_task, _add_belief, _add_company_reference
     from .tools_solution_flow import (
@@ -33,8 +33,6 @@ def _build_handler_map() -> Dict[str, Callable[..., Coroutine[Any, Any, Dict[str
         "search": _search,
         "attach_evidence": _attach_evidence,
         "add_signal": _add_signal,
-        "generate_client_email": _generate_client_email,
-        "generate_meeting_agenda": _generate_meeting_agenda,
         "schedule_meeting": _schedule_meeting,
         "list_pending_confirmations": _list_pending_confirmations,
         "generate_strategic_context": _generate_strategic_context,

@@ -9,6 +9,39 @@ from app.db.supabase_client import get_supabase
 logger = get_logger(__name__)
 
 
+def _match_question(questions: list, params: Dict[str, Any]) -> tuple[int | None, dict | None]:
+    """Match a question by index (preferred), exact text, or fuzzy text.
+
+    Returns (index, question_dict) or (None, None) if not found.
+    """
+    question_index = params.get("question_index")
+    question_text = params.get("question_text", "")
+
+    # Primary: match by index
+    if question_index is not None:
+        if 0 <= question_index < len(questions):
+            q = questions[question_index]
+            if isinstance(q, dict):
+                return question_index, q
+        return None, None
+
+    # Fallback: exact text match
+    if question_text:
+        for i, q in enumerate(questions):
+            if isinstance(q, dict) and q.get("question") == question_text:
+                return i, q
+
+        # Fuzzy fallback: case-insensitive, whitespace-normalized
+        normalized_target = " ".join(question_text.lower().split())
+        for i, q in enumerate(questions):
+            if isinstance(q, dict):
+                normalized_q = " ".join((q.get("question") or "").lower().split())
+                if normalized_q == normalized_target:
+                    return i, q
+
+    return None, None
+
+
 async def _update_solution_flow_step(project_id: UUID, params: Dict[str, Any]) -> Dict[str, Any]:
     """Update fields on a solution flow step."""
     from app.db.solution_flow import get_flow_step, update_flow_step
@@ -48,7 +81,6 @@ async def _update_solution_flow_step(project_id: UUID, params: Dict[str, Any]) -
             pass  # Don't fail the update if revision recording fails
 
         # Cross-step cascade: if substantial fields changed, flag other steps
-        # that share linked entities with this step
         substantial_fields = {"goal", "information_fields", "actors"}
         if substantial_fields & set(params.keys()):
             try:
@@ -66,7 +98,6 @@ async def _update_solution_flow_step(project_id: UUID, params: Dict[str, Any]) -
         return {
             "success": True,
             "step_id": step_id,
-            "message": f"Updated step '{result.get('title', '')}'.",
             "updated_fields": list(params.keys()),
             "step_data": step_data,
         }
@@ -84,7 +115,6 @@ async def _add_solution_flow_step(project_id: UUID, params: Dict[str, Any]) -> D
         return {
             "success": True,
             "step_id": result["id"],
-            "message": f"Added step '{result.get('title', '')}' at index {result.get('step_index', '?')}.",
             "title": result.get("title"),
             "step_index": result.get("step_index"),
         }
@@ -105,7 +135,7 @@ async def _remove_solution_flow_step(project_id: UUID, params: Dict[str, Any]) -
         delete_flow_step(UUID(step_id))
         return {
             "success": True,
-            "message": f"Removed step '{title}'. Remaining steps reindexed.",
+            "removed_title": title,
         }
     except Exception as e:
         return {"error": str(e)}
@@ -123,7 +153,6 @@ async def _reorder_solution_flow_steps(project_id: UUID, params: Dict[str, Any])
         result = reorder_flow_steps(UUID(flow["id"]), step_ids)
         return {
             "success": True,
-            "message": f"Reordered {len(step_ids)} steps.",
             "step_count": len(result),
         }
     except Exception as e:
@@ -135,11 +164,10 @@ async def _resolve_solution_flow_question(project_id: UUID, params: Dict[str, An
     from app.db.solution_flow import get_flow_step, update_flow_step
 
     step_id = params.get("step_id")
-    question_text = params.get("question_text", "")
     answer = params.get("answer", "")
 
-    if not step_id or not question_text or not answer:
-        return {"error": "step_id, question_text, and answer are required"}
+    if not step_id or not answer:
+        return {"error": "step_id and answer are required"}
 
     try:
         step = get_flow_step(UUID(step_id))
@@ -147,16 +175,14 @@ async def _resolve_solution_flow_question(project_id: UUID, params: Dict[str, An
             return {"error": "Step not found"}
 
         questions = step.get("open_questions") or []
-        resolved = False
-        for q in questions:
-            if isinstance(q, dict) and q.get("question") == question_text:
-                q["status"] = "resolved"
-                q["resolved_answer"] = answer
-                resolved = True
-                break
+        idx, matched_q = _match_question(questions, params)
 
-        if not resolved:
-            return {"error": f"Question not found: '{question_text}'"}
+        if idx is None or matched_q is None:
+            return {"error": "Question not found — check question_index or question_text"}
+
+        matched_q["status"] = "resolved"
+        matched_q["resolved_answer"] = answer
+        question_text = matched_q.get("question", "")
 
         update_flow_step(UUID(step_id), {"open_questions": questions})
 
@@ -181,7 +207,6 @@ async def _resolve_solution_flow_question(project_id: UUID, params: Dict[str, An
         step_data = get_flow_step(UUID(step_id))
         return {
             "success": True,
-            "message": f"Resolved question: '{question_text[:60]}...'",
             "answer": answer,
             "question_text": question_text,
             "step_data": step_data,
@@ -195,12 +220,11 @@ async def _escalate_to_client(project_id: UUID, params: Dict[str, Any]) -> Dict[
     from app.db.solution_flow import get_flow_step, update_flow_step
 
     step_id = params.get("step_id")
-    question_text = params.get("question_text", "")
     suggested_stakeholder = params.get("suggested_stakeholder")
     reason = params.get("reason")
 
-    if not step_id or not question_text:
-        return {"error": "step_id and question_text are required"}
+    if not step_id:
+        return {"error": "step_id is required"}
 
     try:
         step = get_flow_step(UUID(step_id))
@@ -209,16 +233,14 @@ async def _escalate_to_client(project_id: UUID, params: Dict[str, Any]) -> Dict[
 
         # Find and update the question status to escalated
         questions = step.get("open_questions") or []
-        escalated = False
-        for q in questions:
-            if isinstance(q, dict) and q.get("question") == question_text:
-                q["status"] = "escalated"
-                q["escalated_to"] = suggested_stakeholder or "client"
-                escalated = True
-                break
+        idx, matched_q = _match_question(questions, params)
 
-        if not escalated:
-            return {"error": f"Question not found: '{question_text}'"}
+        if idx is None or matched_q is None:
+            return {"error": "Question not found — check question_index or question_text"}
+
+        matched_q["status"] = "escalated"
+        matched_q["escalated_to"] = suggested_stakeholder or "client"
+        question_text = matched_q.get("question", "")
 
         update_flow_step(UUID(step_id), {"open_questions": questions})
 
@@ -260,7 +282,6 @@ async def _escalate_to_client(project_id: UUID, params: Dict[str, Any]) -> Dict[
             "question": question_text,
             "escalated_to": suggested_stakeholder or "client",
             "pending_item_id": pending_item_id,
-            "message": f"Escalated to {suggested_stakeholder or 'client'}: '{question_text[:50]}...'",
             "step_data": step_data,
         }
     except Exception as e:

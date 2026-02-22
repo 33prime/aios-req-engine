@@ -13,7 +13,7 @@ def get_tool_definitions() -> List[Dict[str, Any]]:
     return [
         {
             "name": "get_project_status",
-            "description": "Get a comprehensive status summary of the project including counts, recent activity, and items needing attention. Use this when the user asks about project status, overview, or what needs attention.",
+            "description": "Get entity counts, open insights, pending confirmations, and items needing attention. Use when: user asks 'how's the project?', 'what needs attention?', 'give me an overview', 'what's the status?'. Do NOT use when the user asks about a specific entity type — use list_entities instead.",
             "input_schema": {
                 "type": "object",
                 "properties": {
@@ -27,7 +27,7 @@ def get_tool_definitions() -> List[Dict[str, Any]]:
         },
         {
             "name": "list_entities",
-            "description": "List all entities of a given type from the BRD. Returns names, key fields, and status. Use this when the user asks to see, review, consolidate, or compare features, personas, workflows, constraints, stakeholders, data entities, business drivers (goals/pains/KPIs), or open questions. ALWAYS use this before analyzing or consolidating entities — never say you can't see the data.",
+            "description": "List all entities of a given type with key fields and confirmation status. Use when: user asks to see, review, compare, consolidate, or count features, personas, workflows, constraints, stakeholders, data entities, business drivers, or open questions. ALWAYS call this before analyzing, consolidating, or proposing changes to entities. Do NOT use for semantic search — use search instead.",
             "input_schema": {
                 "type": "object",
                 "properties": {
@@ -55,7 +55,12 @@ def get_tool_definitions() -> List[Dict[str, Any]]:
                     "driver_type": {
                         "type": "string",
                         "enum": ["goal", "pain", "kpi"],
-                        "description": "For business_driver only: filter by driver type (goal, pain, kpi).",
+                        "description": "For business_driver only: filter by driver type.",
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "description": "Max items to return (default 20, max 50)",
+                        "default": 20,
                     },
                 },
                 "required": ["entity_type"],
@@ -63,7 +68,7 @@ def get_tool_definitions() -> List[Dict[str, Any]]:
         },
         {
             "name": "create_confirmation",
-            "description": "Create a confirmation item for the client. Use this when an insight or decision needs client input/approval.",
+            "description": "Create a confirmation item for the client portal. Use when: an insight or decision needs client input/approval, or user says 'ask the client about...'.",
             "input_schema": {
                 "type": "object",
                 "properties": {
@@ -85,7 +90,7 @@ def get_tool_definitions() -> List[Dict[str, Any]]:
         },
         {
             "name": "search",
-            "description": "Semantic search through research using AI embeddings. Better than keyword search for finding related concepts and contextual matches. Use this when you need intelligent research discovery based on meaning, not just keywords.",
+            "description": "Semantic search through signal chunks and research using AI embeddings. Use when: user asks 'what did the client say about...', 'find evidence for...', 'is there any mention of...'. Returns ranked text excerpts with similarity scores. Do NOT use for listing BRD entities — use list_entities instead.",
             "input_schema": {
                 "type": "object",
                 "properties": {
@@ -117,7 +122,7 @@ def get_tool_definitions() -> List[Dict[str, Any]]:
         },
         {
             "name": "attach_evidence",
-            "description": "Link research chunks to features or Value Path steps as supporting evidence. Use this to strengthen decisions with research backing and create audit trail.",
+            "description": "Link research chunks to features or personas as supporting evidence. Use when: user wants to connect search results to an entity, or after a search yields relevant results.",
             "input_schema": {
                 "type": "object",
                 "properties": {
@@ -145,7 +150,7 @@ def get_tool_definitions() -> List[Dict[str, Any]]:
         },
         {
             "name": "add_signal",
-            "description": "Add a signal (email, note, transcript, document) and process it through the full pipeline (chunking, embedding, fact extraction). Use this when the user wants to add client content directly.",
+            "description": "Add a signal (email, note, transcript) and process it through the full extraction pipeline. Use when: user pastes content and says 'process this', 'here's a transcript', 'add this email'. WARNING: triggers full V2 pipeline (chunking + embedding + entity extraction) taking 10-30s. For short notes, prefer add_belief.",
             "input_schema": {
                 "type": "object",
                 "properties": {
@@ -172,57 +177,8 @@ def get_tool_definitions() -> List[Dict[str, Any]]:
             },
         },
         {
-            "name": "generate_client_email",
-            "description": "Generate a professional email draft for client outreach based on pending confirmation items. Use this when the user wants to draft an email to ask the client questions or gather information. Returns a formatted email with subject line and body.",
-            "input_schema": {
-                "type": "object",
-                "properties": {
-                    "confirmation_ids": {
-                        "type": "array",
-                        "items": {"type": "string"},
-                        "description": "Specific confirmation item IDs to include (optional - if empty, includes all open email-suitable items)",
-                    },
-                    "client_name": {
-                        "type": "string",
-                        "description": "Client's name for personalized greeting (optional)",
-                    },
-                    "project_name": {
-                        "type": "string",
-                        "description": "Project name for context (optional)",
-                    },
-                },
-            },
-        },
-        {
-            "name": "generate_meeting_agenda",
-            "description": "Generate a structured meeting agenda for client discussions based on pending confirmation items. Use this when the user wants to plan a client call or meeting. Returns a formatted agenda with time allocations and pre-read summary.",
-            "input_schema": {
-                "type": "object",
-                "properties": {
-                    "confirmation_ids": {
-                        "type": "array",
-                        "items": {"type": "string"},
-                        "description": "Specific confirmation item IDs to include (optional - if empty, includes all open meeting-suitable items)",
-                    },
-                    "client_name": {
-                        "type": "string",
-                        "description": "Client's name for personalized greeting (optional)",
-                    },
-                    "project_name": {
-                        "type": "string",
-                        "description": "Project name for context (optional)",
-                    },
-                    "meeting_duration": {
-                        "type": "integer",
-                        "description": "Target meeting duration in minutes (default: 30)",
-                        "default": 30,
-                    },
-                },
-            },
-        },
-        {
             "name": "schedule_meeting",
-            "description": "Schedule a meeting with stakeholders. Use this when the user wants to book, create, or schedule a client meeting with a specific date and time. Creates the meeting in the system and optionally links to Google Calendar.",
+            "description": "Schedule a meeting with stakeholders. Use when: user says 'schedule a meeting', 'book a call', 'set up a meeting' with a date and time. Creates the meeting and optionally links to Google Calendar.",
             "input_schema": {
                 "type": "object",
                 "properties": {
@@ -274,7 +230,7 @@ def get_tool_definitions() -> List[Dict[str, Any]]:
         },
         {
             "name": "list_pending_confirmations",
-            "description": "List pending confirmation items that need client input. Use this to see what questions need to be asked to the client, or before generating emails/meeting agendas.",
+            "description": "List pending confirmation items that need client input. Use when: user asks 'what needs client input?', 'what questions do we have for the client?', or before drafting emails/agendas via suggest_actions cards.",
             "input_schema": {
                 "type": "object",
                 "properties": {
@@ -290,7 +246,7 @@ def get_tool_definitions() -> List[Dict[str, Any]]:
         # Strategic Context Tools
         {
             "name": "generate_strategic_context",
-            "description": "Generate or regenerate the strategic context for the project. This analyzes signals to extract: project type (internal vs market), executive summary, opportunity, risks, investment case, success metrics, constraints, and stakeholders. Use this when the user wants to generate the strategic overview, understand the business case, or see the big picture.",
+            "description": "Generate the full strategic context (executive summary, opportunity, risks, success metrics, stakeholder identification, company enrichment). HEAVY operation — multiple LLM calls + web scraping. Use only when: user explicitly asks to generate/regenerate the strategic overview, or project has no strategic context yet. Do NOT use for simple updates — use update_strategic_context instead.",
             "input_schema": {
                 "type": "object",
                 "properties": {
@@ -304,7 +260,7 @@ def get_tool_definitions() -> List[Dict[str, Any]]:
         },
         {
             "name": "update_project_type",
-            "description": "Set whether this is an internal software project or a market product. This affects how the investment case is displayed.",
+            "description": "Set whether this is an internal software project or a market product. Use when: user says 'this is an internal tool' or 'this is a product we sell'.",
             "input_schema": {
                 "type": "object",
                 "properties": {
@@ -319,7 +275,7 @@ def get_tool_definitions() -> List[Dict[str, Any]]:
         },
         {
             "name": "identify_stakeholders",
-            "description": "Automatically identify stakeholders from signals and research. Use this to discover who the key people are based on conversation history.",
+            "description": "Auto-identify stakeholders from signals and research. Use when: user asks 'who are the key people?', 'find stakeholders', or after adding new signals with people mentioned.",
             "input_schema": {
                 "type": "object",
                 "properties": {},
@@ -327,7 +283,7 @@ def get_tool_definitions() -> List[Dict[str, Any]]:
         },
         {
             "name": "update_strategic_context",
-            "description": "Update the strategic context by adding a risk, success metric, or updating a field. Use this when the user wants to add risks, KPIs, or modify strategic context fields.",
+            "description": "Update strategic context by adding a risk, success metric, or updating a field. Use when: user wants to add risks, KPIs, or modify strategic fields. Do NOT use for full regeneration — use generate_strategic_context instead.",
             "input_schema": {
                 "type": "object",
                 "properties": {
@@ -347,7 +303,7 @@ def get_tool_definitions() -> List[Dict[str, Any]]:
         # Document Clarification Tools
         {
             "name": "check_document_clarifications",
-            "description": "Check if any uploaded documents need clarification about their type or content. Returns pending clarification questions. Use this when the user mentions a document upload or when you want to check for ambiguous documents.",
+            "description": "Check if any uploaded documents need clarification about their type or content. Use when: user mentions a document upload, or you want to check for ambiguous documents.",
             "input_schema": {
                 "type": "object",
                 "properties": {},
@@ -355,7 +311,7 @@ def get_tool_definitions() -> List[Dict[str, Any]]:
         },
         {
             "name": "respond_to_document_clarification",
-            "description": "Respond to a document clarification question. After the user tells you what type a document is, use this to update the classification.",
+            "description": "Respond to a document clarification with the correct document class. Use after the user tells you what type a document is.",
             "input_schema": {
                 "type": "object",
                 "properties": {
@@ -392,7 +348,7 @@ def get_tool_definitions() -> List[Dict[str, Any]]:
         # =============================================================================
         {
             "name": "create_entity",
-            "description": "Create a new entity in the project. Supports features, personas, workflow steps, stakeholders, data entities, workflows, and business drivers (goals, pain points, KPIs). Use when the user asks to add/create something. Always confirm what was created.",
+            "description": "Create a new BRD entity. Use when: user says 'add', 'create', 'new' followed by an entity type. Confirm what was created. Required: name. Optional by type — Feature: category, is_mvp, overview, priority_group. Persona: role, goals[], pain_points[]. Stakeholder: stakeholder_type, email, role, influence_level. Business Driver: driver_type (goal/pain/kpi). VP Step: workflow_id. Workflow: workflow_type. Data Entity: entity_type.",
             "input_schema": {
                 "type": "object",
                 "properties": {
@@ -423,7 +379,7 @@ def get_tool_definitions() -> List[Dict[str, Any]]:
         },
         {
             "name": "update_entity",
-            "description": "Update an existing entity by ID. Supports all entity types including business drivers (goals, pain points, KPIs). Use when the user asks to change, modify, rename, or update something specific. Always confirm what was changed.",
+            "description": "Update fields on an existing entity by ID. Use when: user says 'change', 'update', 'rename', 'modify', 'set'. You MUST have the entity_id — call list_entities first if needed. Confirm what changed.",
             "input_schema": {
                 "type": "object",
                 "properties": {
@@ -454,7 +410,7 @@ def get_tool_definitions() -> List[Dict[str, Any]]:
         },
         {
             "name": "delete_entity",
-            "description": "Delete an entity by ID. Supports features, personas, workflow steps, stakeholders, data entities, workflows, and business drivers (goals, pain points, KPIs). Use when the user asks to remove/delete something. Always confirm what was deleted by name.",
+            "description": "Delete an entity by ID. Use when: user says 'remove', 'delete', 'drop' followed by an entity reference. Confirm what was deleted by name.",
             "input_schema": {
                 "type": "object",
                 "properties": {
@@ -481,7 +437,7 @@ def get_tool_definitions() -> List[Dict[str, Any]]:
         # Research / Evolution Tools
         {
             "name": "query_entity_history",
-            "description": "Show the evolution of a specific entity — when it was created, how it changed over time, which signals contributed to it, and linked beliefs. Use this when the user asks 'tell me about the evolution of this feature' or 'how did this persona change'.",
+            "description": "Show the evolution of a specific entity — revisions, source signals, and linked beliefs. Use when: user asks 'how did this evolve?', 'what changed?', 'tell me about the history of...'. Do NOT use for listing current entities — use list_entities instead.",
             "input_schema": {
                 "type": "object",
                 "properties": {
@@ -500,7 +456,7 @@ def get_tool_definitions() -> List[Dict[str, Any]]:
         },
         {
             "name": "query_knowledge_graph",
-            "description": "Search the project's knowledge graph for facts, beliefs, and relationships about a topic. Use when the user asks 'what do we know about X' or wants to explore connected concepts.",
+            "description": "Search the project's knowledge graph for facts and beliefs about a topic. Use when: user asks 'what do we know about X', 'any beliefs about...', or wants to explore connected concepts. Do NOT use for listing entities — use list_entities.",
             "input_schema": {
                 "type": "object",
                 "properties": {
@@ -510,8 +466,8 @@ def get_tool_definitions() -> List[Dict[str, Any]]:
                     },
                     "limit": {
                         "type": "integer",
-                        "description": "Maximum nodes to return",
-                        "default": 10,
+                        "description": "Maximum nodes to return (default 5)",
+                        "default": 5,
                     },
                 },
                 "required": ["topic"],
@@ -520,7 +476,7 @@ def get_tool_definitions() -> List[Dict[str, Any]]:
         # Task Creation
         {
             "name": "create_task",
-            "description": "Create a project task for follow-ups, reviews, or action items. Use when the user says 'create a task', 'remind me to', 'follow up on', or any request to track an action item.",
+            "description": "Create a project task for tracking follow-ups and action items. Use when: user says 'create a task', 'remind me to', 'follow up on', 'add a todo', 'track this'. Title should start with a verb.",
             "input_schema": {
                 "type": "object",
                 "properties": {
@@ -559,7 +515,7 @@ def get_tool_definitions() -> List[Dict[str, Any]]:
         # Knowledge & References
         {
             "name": "add_belief",
-            "description": "Record a belief or knowledge — 'remember that...', 'note that the client prefers...', 'keep in mind...'. Saves to the project knowledge graph for future reference.",
+            "description": "Record a belief or knowledge in the project knowledge graph. Use when: user says 'remember that...', 'note that...', 'keep in mind...'. For longer content that should be processed as a signal, use add_signal instead.",
             "input_schema": {
                 "type": "object",
                 "properties": {
@@ -593,7 +549,7 @@ def get_tool_definitions() -> List[Dict[str, Any]]:
         },
         {
             "name": "add_company_reference",
-            "description": "Add a competitor or design/feature inspiration — 'add X as a competitor', 'look at Y for design inspiration'. Tracks companies and products relevant to the project.",
+            "description": "Add a competitor or design/feature inspiration. Use when: user says 'add X as a competitor', 'look at Y for inspiration'. Requires name and URL.",
             "input_schema": {
                 "type": "object",
                 "properties": {
@@ -622,7 +578,7 @@ def get_tool_definitions() -> List[Dict[str, Any]]:
         # Interactive Action Cards
         {
             "name": "suggest_actions",
-            "description": "Present interactive action cards to the consultant. Use this when you can offer specific, one-click actions. Cards render as interactive UI in the chat. Types: gap_closer (close gaps), action_buttons (simple 1-2 buttons), choice (pick from options), proposal (approve/modify/skip), email_draft, meeting, smart_summary (batch save entities), evidence (tag document quotes).",
+            "description": "Present interactive action cards in the chat UI. You MUST use this for any structured content — never output bullet lists or numbered options as text. Card types: gap_closer, action_buttons, choice, proposal, email_draft, meeting, smart_summary, evidence. Max 3 cards per response.",
             "input_schema": {
                 "type": "object",
                 "properties": {
@@ -659,7 +615,7 @@ def get_tool_definitions() -> List[Dict[str, Any]]:
         # =================================================================
         {
             "name": "update_solution_flow_step",
-            "description": "Update any field on a solution flow step (goal, information fields, questions, pattern, actors, etc.).",
+            "description": "Update fields on a solution flow step. The step_id is in your 'Currently Viewing' context — use it directly. For AI-powered refinement from natural language, use refine_solution_flow_step instead.",
             "input_schema": {
                 "type": "object",
                 "properties": {
@@ -727,7 +683,7 @@ def get_tool_definitions() -> List[Dict[str, Any]]:
         },
         {
             "name": "add_solution_flow_step",
-            "description": "Add a new step to the solution flow at a given position.",
+            "description": "Add a new step to the solution flow at a given position. Use when: user says 'add a step' or describes a new step in the flow.",
             "input_schema": {
                 "type": "object",
                 "properties": {
@@ -743,7 +699,7 @@ def get_tool_definitions() -> List[Dict[str, Any]]:
         },
         {
             "name": "remove_solution_flow_step",
-            "description": "Remove a step from the solution flow.",
+            "description": "Remove a step from the solution flow. Use when: user says 'remove this step' or 'delete step'.",
             "input_schema": {
                 "type": "object",
                 "properties": {
@@ -769,34 +725,36 @@ def get_tool_definitions() -> List[Dict[str, Any]]:
         },
         {
             "name": "resolve_solution_flow_question",
-            "description": "Mark an open question on a solution flow step as resolved.",
+            "description": "Mark an open question on a solution flow step as resolved. Prefer question_index (0-based position in the questions list) for reliable matching.",
             "input_schema": {
                 "type": "object",
                 "properties": {
                     "step_id": {"type": "string", "description": "UUID of the step"},
-                    "question_text": {"type": "string", "description": "The question to resolve (exact match)"},
+                    "question_index": {"type": "integer", "description": "0-based index of the question in the step's open_questions array (preferred)"},
+                    "question_text": {"type": "string", "description": "The question text (fallback if index not provided)"},
                     "answer": {"type": "string", "description": "The resolution answer"},
                 },
-                "required": ["step_id", "question_text", "answer"],
+                "required": ["step_id", "answer"],
             },
         },
         {
             "name": "escalate_to_client",
-            "description": "Escalate an open question from a solution flow step to the client. Creates a pending item so it appears in the client's queue. Use when the question requires client input.",
+            "description": "Escalate an open question from a solution flow step to the client. Creates a pending item in the client's queue. Prefer question_index (0-based) for reliable matching.",
             "input_schema": {
                 "type": "object",
                 "properties": {
                     "step_id": {"type": "string", "description": "UUID of the solution flow step"},
-                    "question_text": {"type": "string", "description": "The question to escalate (exact match)"},
+                    "question_index": {"type": "integer", "description": "0-based index of the question in the step's open_questions array (preferred)"},
+                    "question_text": {"type": "string", "description": "The question text (fallback if index not provided)"},
                     "suggested_stakeholder": {"type": "string", "description": "Name or role of who should answer (optional)"},
                     "reason": {"type": "string", "description": "Why this needs client input (optional)"},
                 },
-                "required": ["step_id", "question_text"],
+                "required": ["step_id"],
             },
         },
         {
             "name": "refine_solution_flow_step",
-            "description": "Use AI to refine a solution flow step based on an instruction. The AI analyzes the step's context (linked entities, information fields, questions) and applies targeted changes. Only ai_generated fields will be modified; confirmed fields are preserved.",
+            "description": "Use AI to refine a solution flow step based on a natural language instruction. Only ai_generated fields are modified; confirmed fields are preserved. Use when the user describes changes conversationally rather than specifying exact field values.",
             "input_schema": {
                 "type": "object",
                 "properties": {
@@ -808,7 +766,7 @@ def get_tool_definitions() -> List[Dict[str, Any]]:
         },
         {
             "name": "get_recent_documents",
-            "description": "Get recently uploaded documents for this project with their processing status. Use this when the user asks about uploads, document processing, or says 'any update'. Returns filenames, upload times, processing status (pending/processing/completed/failed), and extracted entity counts.",
+            "description": "Get recently uploaded documents with their processing status. Use when: user asks about uploads, document processing, or says 'any update on my upload?'. Returns filenames, statuses, and extracted entity counts.",
             "input_schema": {
                 "type": "object",
                 "properties": {

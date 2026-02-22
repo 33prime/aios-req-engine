@@ -4,7 +4,7 @@ from typing import Any, Dict, List
 
 from .definitions import get_tool_definitions
 
-# Tools sent on every request regardless of page
+# Tools sent on every request regardless of page (10 core)
 CORE_TOOLS = {
     "get_project_status",
     "list_entities",
@@ -14,10 +14,7 @@ CORE_TOOLS = {
     "delete_entity",
     "create_task",
     "suggest_actions",
-    "add_signal",
-    "create_confirmation",
     "add_belief",
-    "add_company_reference",
     "get_recent_documents",
 }
 
@@ -34,13 +31,14 @@ PAGE_TOOLS: Dict[str, set] = {
         "update_project_type",
     },
     "brd:constraints": {"update_strategic_context"},
-    "brd:questions": {"list_pending_confirmations", "generate_client_email"},
+    "brd:questions": {"list_pending_confirmations"},
     "overview": {
         "generate_strategic_context",
         "update_strategic_context",
         "update_project_type",
         "identify_stakeholders",
         "list_pending_confirmations",
+        "add_company_reference",
     },
     "prototype": {"attach_evidence", "query_entity_history"},
     "brd:solution-flow": {
@@ -61,28 +59,29 @@ FALLBACK_EXTRAS = {
     "update_project_type",
     "identify_stakeholders",
     "list_pending_confirmations",
-    "generate_client_email",
-    "generate_meeting_agenda",
     "schedule_meeting",
     "attach_evidence",
     "query_entity_history",
     "query_knowledge_graph",
     "check_document_clarifications",
     "respond_to_document_clarification",
+    "add_signal",
+    "add_company_reference",
+    "create_confirmation",
 }
 
 # Communication tools — added on any page that involves client interaction
 COMMUNICATION_TOOLS = {
-    "generate_client_email",
-    "generate_meeting_agenda",
     "schedule_meeting",
     "list_pending_confirmations",
+    "create_confirmation",
 }
 
 # Document tools — added when documents may be discussed
 DOCUMENT_TOOLS = {
     "check_document_clarifications",
     "respond_to_document_clarification",
+    "add_signal",
 }
 
 # Tools that mutate project data — invalidate context frame cache after execution
