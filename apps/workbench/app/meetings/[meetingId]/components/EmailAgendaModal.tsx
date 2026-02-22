@@ -58,11 +58,6 @@ export function EmailAgendaModal({ open, meeting, participants, onClose }: Email
 
   const handleSend = () => {
     const recipients = participants.filter((p) => selectedIds.has(p.id))
-    console.log('Sending agenda email:', {
-      recipients: recipients.map((r) => ({ name: r.name, email: r.email })),
-      meeting: meeting.title,
-      customMessage,
-    })
     onClose()
   }
 

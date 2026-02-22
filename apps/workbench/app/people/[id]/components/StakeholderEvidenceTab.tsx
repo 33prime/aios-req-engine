@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { Loader2 } from 'lucide-react'
 import { getStakeholderEvidence } from '@/lib/api'
+import { formatDateShort } from '@/lib/date-utils'
 import type { StakeholderEvidenceData, SignalReference, FieldAttribution } from '@/types/workspace'
 
 interface StakeholderEvidenceTabProps {
@@ -15,12 +16,6 @@ const SIGNAL_TYPE_STYLE: Record<string, { bg: string; text: string; label: strin
   email: { bg: 'bg-[#0A1E2F]/10', text: 'text-[#0A1E2F]', label: 'Email' },
   document: { bg: 'bg-[#3FAF7A]/10', text: 'text-[#25785A]', label: 'Document' },
   research: { bg: 'bg-[#3FAF7A]/10', text: 'text-[#25785A]', label: 'Research' },
-}
-
-function formatDate(dateStr: string | null | undefined): string {
-  if (!dateStr) return ''
-  const d = new Date(dateStr)
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
 export function StakeholderEvidenceTab({ projectId, stakeholderId }: StakeholderEvidenceTabProps) {
@@ -105,7 +100,7 @@ export function StakeholderEvidenceTab({ projectId, stakeholderId }: Stakeholder
                       </span>
                       <span className="text-[13px] font-semibold text-[#333]">{sig.title || sig.source_label || 'Unknown Signal'}</span>
                     </div>
-                    <span className="text-[11px] text-[#999] whitespace-nowrap ml-4">{formatDate(sig.created_at)}</span>
+                    <span className="text-[11px] text-[#999] whitespace-nowrap ml-4">{formatDateShort(sig.created_at)}</span>
                   </div>
                 </div>
               )

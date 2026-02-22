@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { Clock, Mail, XCircle, Loader } from 'lucide-react'
 import { cancelInvitation } from '@/lib/api'
+import { formatDateShort } from '@/lib/date-utils'
 import type { Invitation, OrganizationRole } from '@/types/api'
 
 interface PendingInvitationsCardProps {
@@ -24,14 +25,6 @@ export default function PendingInvitationsCard({
 
   const isExpired = (invitation: Invitation) => {
     return new Date(invitation.expires_at) < new Date() || invitation.status === 'expired'
-  }
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-    })
   }
 
   const handleCancel = async (invitationId: string) => {
@@ -99,11 +92,11 @@ export default function PendingInvitationsCard({
                   </p>
                   <div className="flex items-center gap-2 mt-0.5">
                     <span className="text-[11px] text-zinc-500">
-                      Sent {formatDate(invitation.created_at)}
+                      Sent {formatDateShort(invitation.created_at)}
                     </span>
                     <span className="text-zinc-300">·</span>
                     <span className={`text-[11px] ${expired ? 'text-red-600' : 'text-zinc-500'}`}>
-                      {expired ? 'Expired' : `Expires ${formatDate(invitation.expires_at)}`}
+                      {expired ? 'Expired' : `Expires ${formatDateShort(invitation.expires_at)}`}
                     </span>
                   </div>
                 </div>
