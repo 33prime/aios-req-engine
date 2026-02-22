@@ -33,7 +33,7 @@ export function Card({
   ...props
 }: CardProps) {
   const baseClasses = 'bg-white border border-[#E5E5E5] rounded-lg shadow-sm'
-  const paddingClasses = noPadding ? '' : 'p-card'
+  const paddingClasses = noPadding ? '' : 'p-4'
   const hoverClasses = hoverable
     ? 'hover:shadow-md hover:border-[#3FAF7A] transition-all duration-200 cursor-pointer'
     : ''
