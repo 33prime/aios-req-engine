@@ -17,7 +17,7 @@ export const SOLUTION_FLOW_PHASES: Record<string, { label: string; fullLabel: st
 export const STATUS_BORDER: Record<string, string> = {
   confirmed_client: 'border-l-[#3FAF7A]',
   confirmed_consultant: 'border-l-[#0A1E2F]',
-  needs_client: 'border-l-[#C4A97D]',
+  needs_client: 'border-l-[#0A1E2F]/40',
   ai_generated: 'border-l-[#E5E5E5]',
 }
 

@@ -2,7 +2,17 @@
 
 import { Plus } from 'lucide-react'
 import type { SolutionFlowStepSummary } from '@/types/workspace'
-import { PHASE_ORDER, SOLUTION_FLOW_PHASES, STATUS_BORDER, CONFIDENCE_DOT_COLOR } from '@/lib/solution-flow-constants'
+import { PHASE_ORDER, SOLUTION_FLOW_PHASES, STATUS_BORDER } from '@/lib/solution-flow-constants'
+
+function getStepDepth(step: SolutionFlowStepSummary): number {
+  let score = 0
+  if (step.info_field_count > 0) score++
+  if (step.info_field_count >= 4) score++
+  const known = step.confidence_breakdown?.known || 0
+  if (known >= 2) score++
+  if (step.open_question_count === 0 && step.info_field_count >= 3) score++
+  return Math.max(1, Math.min(4, score))
+}
 
 interface FlowStepListProps {
   steps: SolutionFlowStepSummary[]
@@ -60,9 +70,11 @@ export function FlowStepList({ steps, selectedStepId, onSelectStep, onAddStep }:
                         </div>
                         {step.has_pending_updates && (
                           <span
-                            className="w-2 h-2 rounded-full bg-amber-400 flex-shrink-0"
+                            className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-[#0A1E2F]/8 text-[#0A1E2F]/60 text-[9px] font-medium flex-shrink-0"
                             title="Linked entities were updated"
-                          />
+                          >
+                            updated
+                          </span>
                         )}
                       </div>
                       {step.actors.length > 0 && (
@@ -84,24 +96,22 @@ export function FlowStepList({ steps, selectedStepId, onSelectStep, onAddStep }:
                       )}
                     </div>
 
-                    {/* Confidence dots */}
-                    {step.info_field_count > 0 && (
-                      <div className="flex flex-wrap gap-0.5 mt-1 shrink-0 max-w-[40px] justify-end">
-                        {Object.entries(step.confidence_breakdown || {}).map(([conf, count]) => (
-                          Array.from({ length: Math.min(count, 4) }).map((_, i) => (
-                            <div
-                              key={`${conf}-${i}`}
-                              className={`w-1.5 h-1.5 rounded-full ${CONFIDENCE_DOT_COLOR[conf] || CONFIDENCE_DOT_COLOR.unknown}`}
-                            />
-                          ))
-                        ))}
-                      </div>
-                    )}
+                    {/* Depth indicator — 4 dots showing step completeness */}
+                    <div className="flex gap-0.5 mt-1.5 shrink-0">
+                      {Array.from({ length: 4 }).map((_, i) => (
+                        <div
+                          key={i}
+                          className={`w-[5px] h-[5px] rounded-full ${
+                            i < getStepDepth(step) ? 'bg-[#3FAF7A]' : 'bg-[#E5E5E5]'
+                          }`}
+                        />
+                      ))}
+                    </div>
                   </div>
 
                   {/* Open questions indicator */}
                   {step.open_question_count > 0 && (
-                    <div className="mt-1 text-[10px] text-[#A08050]">
+                    <div className="mt-1 text-[10px] text-[#0A1E2F]/50">
                       {step.open_question_count} question{step.open_question_count !== 1 ? 's' : ''}
                     </div>
                   )}

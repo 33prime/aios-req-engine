@@ -58,11 +58,11 @@ const ENTITY_CONFIG: Record<string, { icon: typeof GitBranch; label: string; col
   data_entity: { icon: Database, label: 'Data Entity', color: 'text-[#0D2A35]', bg: 'bg-[#0D2A35]/5 border-[#0D2A35]/15' },
 }
 
-// ─── Beat emoji markers by field type ───────────────────────────────────────
-const BEAT_CONFIG: Record<string, { verb: string; icon: typeof Target; bg: string; border: string }> = {
-  captured: { verb: 'User provides', icon: Target, bg: 'bg-[#0A1E2F]/3', border: 'border-[#0A1E2F]/10' },
-  computed: { verb: 'System generates', icon: Zap, bg: 'bg-[#3FAF7A]/5', border: 'border-[#3FAF7A]/15' },
-  displayed: { verb: 'Shows', icon: FileSearch, bg: 'bg-[#F4F4F4]', border: 'border-[#E5E5E5]' },
+// ─── Beat config — green monochrome palette with explicit icon colors ────────
+const BEAT_CONFIG: Record<string, { verb: string; icon: typeof Target; iconColor: string; bg: string; border: string }> = {
+  captured: { verb: 'User provides', icon: Target, iconColor: 'text-[#25785A]', bg: 'bg-[#3FAF7A]/5', border: 'border-[#3FAF7A]/15' },
+  computed: { verb: 'System generates', icon: Zap, iconColor: 'text-[#3FAF7A]', bg: 'bg-[#3FAF7A]/8', border: 'border-[#3FAF7A]/20' },
+  displayed: { verb: 'Shows', icon: FileSearch, iconColor: 'text-[#3FAF7A]/60', bg: 'bg-[#3FAF7A]/3', border: 'border-[#3FAF7A]/10' },
 }
 
 // ─── Revision badge config ───────────────────────────────────────────────────
@@ -70,7 +70,7 @@ const REVISION_BADGE: Record<string, { label: string; color: string; icon: typeo
   chat_tool: { label: 'Updated', color: 'bg-[#3FAF7A]/10 text-[#25785A]', icon: CheckCircle2 },
   refine_chat_tool: { label: 'AI Refined', color: 'bg-[#0A1E2F]/10 text-[#0A1E2F]', icon: Sparkles },
   question_resolved: { label: 'Q&A', color: 'bg-[#3FAF7A]/10 text-[#25785A]', icon: MessageCircle },
-  question_escalated: { label: 'Escalated', color: 'bg-[#EDE8D5] text-[#8B7355]', icon: ArrowUpRight },
+  question_escalated: { label: 'Escalated', color: 'bg-[#0A1E2F]/10 text-[#0A1E2F]', icon: ArrowUpRight },
 }
 
 interface EvidenceFile {
@@ -78,6 +78,8 @@ interface EvidenceFile {
   filename: string
   fileType: string
   status: string
+  quote?: string
+  attribution?: string
 }
 
 // Map updated field names → which tab they belong to
@@ -117,9 +119,20 @@ const ANIMATION_STYLES = `
   0% { box-shadow: 0 0 0 2px rgba(63, 175, 122, 0.5); }
   100% { box-shadow: 0 0 0 2px transparent; }
 }
+@keyframes dimOut {
+  from { opacity: 1; filter: saturate(1); }
+  to { opacity: 0.4; filter: saturate(0.3); }
+}
+@keyframes dimInPulse {
+  0% { opacity: 0.4; filter: saturate(0.3); background-color: rgba(63, 175, 122, 0.08); }
+  30% { opacity: 1; filter: saturate(1); background-color: rgba(63, 175, 122, 0.08); }
+  100% { opacity: 1; filter: saturate(1); background-color: transparent; }
+}
 .animate-slideInLeft { animation: slideInLeft 0.4s ease-out; }
 .animate-pulseGreen { animation: pulseGreen 2.5s ease-out; }
 .animate-highlightFlash { animation: highlightFlash 2.5s ease-out; border-radius: 12px; }
+.animate-dimOut { animation: dimOut 0.5s ease-out forwards; }
+.animate-dimInPulse { animation: dimInPulse 2.5s ease-out forwards; }
 `
 
 type TabId = 'experience' | 'success' | 'ai' | 'history'
@@ -134,6 +147,7 @@ export function FlowStepDetail({ step, loading, onConfirm, onNeedsReview, entity
   // ─── Change highlighting state ──────────────────────────────────────────────
   const prevStepRef = useRef<StepDetail | null>(null)
   const [changedFields, setChangedFields] = useState<Set<string>>(new Set())
+  const [animPhase, setAnimPhase] = useState<'idle' | 'dimming' | 'updating'>('idle')
 
   useEffect(() => {
     if (!step || !prevStepRef.current || step.id !== prevStepRef.current.id) {
@@ -165,8 +179,17 @@ export function FlowStepDetail({ step, loading, onConfirm, onNeedsReview, entity
 
     prevStepRef.current = step
     if (changed.size > 0) {
+      // Phase 1: dim out
       setChangedFields(changed)
-      setTimeout(() => setChangedFields(new Set()), 2500)
+      setAnimPhase('dimming')
+      setTimeout(() => {
+        // Phase 2: update highlight
+        setAnimPhase('updating')
+        setTimeout(() => {
+          setAnimPhase('idle')
+          setChangedFields(new Set())
+        }, 3000)
+      }, 500)
     }
   }, [step])
 
@@ -367,6 +390,7 @@ export function FlowStepDetail({ step, loading, onConfirm, onNeedsReview, entity
           escalatedQuestions={escalatedQuestions}
           resolvedQuestions={resolvedQuestions}
           changedFields={changedFields}
+          animPhase={animPhase}
           evidenceFiles={evidenceFiles}
           fileIcon={fileIcon}
           prevStepTitle={prevStepTitle}
@@ -380,10 +404,11 @@ export function FlowStepDetail({ step, loading, onConfirm, onNeedsReview, entity
           step={step}
           linkedEntities={linkedEntities}
           changedFields={changedFields}
+          animPhase={animPhase}
           highlightFields={highlightFields}
         />
       ) : activeTab === 'ai' ? (
-        <AITab step={step} changedFields={changedFields} highlightFields={highlightFields} />
+        <AITab step={step} changedFields={changedFields} animPhase={animPhase} highlightFields={highlightFields} />
       ) : (
         <HistoryTimeline revisions={revisions} loading={revisionsLoading} />
       )}
@@ -403,6 +428,7 @@ function ExperienceTab({
   escalatedQuestions,
   resolvedQuestions,
   changedFields,
+  animPhase,
   evidenceFiles,
   fileIcon,
   prevStepTitle,
@@ -420,6 +446,7 @@ function ExperienceTab({
   escalatedQuestions: FlowOpenQuestion[]
   resolvedQuestions: FlowOpenQuestion[]
   changedFields: Set<string>
+  animPhase: 'idle' | 'dimming' | 'updating'
   evidenceFiles: EvidenceFile[]
   fileIcon: (fileType: string) => React.ReactNode
   prevStepTitle?: string
@@ -429,16 +456,20 @@ function ExperienceTab({
   highlightFields?: string[] | null
 }) {
   const hlSet = new Set(highlightFields || [])
+  const phaseClass = (field: string) => {
+    if (!changedFields.has(field) && !hlSet.has(field)) return ''
+    if (animPhase === 'dimming') return 'animate-dimOut'
+    if (animPhase === 'updating') return 'animate-dimInPulse'
+    return ''
+  }
   return (
     <>
       {/* Goal box */}
-      <div className={`bg-[#0A1E2F] rounded-xl p-4 transition-all duration-700 ${
-        changedFields.has('goal') || hlSet.has('goal') ? 'animate-highlightFlash' : ''
-      }${step.confidence_impact && step.confidence_impact > 0 ? ' ring-2 ring-[#C4A97D]/50' : ''}`}>
+      <div className={`bg-[#0A1E2F] rounded-xl p-4 transition-all duration-700 ${phaseClass('goal') || (hlSet.has('goal') ? 'animate-highlightFlash' : '')}${step.confidence_impact && step.confidence_impact > 0 ? ' ring-2 ring-[#0A1E2F]/30' : ''}`}>
         <div className="flex items-center justify-between mb-1">
           <div className="text-[10px] uppercase tracking-wider text-white/50">Goal</div>
           {step.confidence_impact != null && step.confidence_impact > 0 && (
-            <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#C4A97D]/20 text-[#C4A97D] font-medium">
+            <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#0A1E2F]/10 text-white/60 font-medium">
               {Math.round(step.confidence_impact * 100)}% links stale
             </span>
           )}
@@ -455,7 +486,7 @@ function ExperienceTab({
 
       {/* Needs review indicator */}
       {step.confirmation_status === 'needs_review' && (
-        <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-[#C4A97D]/10 border border-[#C4A97D]/20 text-xs text-[#8B7355]">
+        <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-[#0A1E2F]/5 border border-[#0A1E2F]/15 text-xs text-[#0A1E2F]/70">
           <AlertCircle className="w-3.5 h-3.5 shrink-0" />
           <span>This step was demoted to needs review — linked entities have changed.</span>
         </div>
@@ -467,7 +498,7 @@ function ExperienceTab({
           {/* Mock data narrative as featured block */}
           {step.mock_data_narrative && (
             <div className={`bg-[#F8F6F0] border border-[#E8E4D8] rounded-xl p-4 mb-4 transition-all duration-700 ${
-              changedFields.has('narrative') || hlSet.has('mock_data_narrative') ? 'animate-highlightFlash' : ''
+              phaseClass('narrative') || (hlSet.has('mock_data_narrative') ? 'animate-highlightFlash' : '')
             }`}>
               <p className="text-[13px] text-[#555555] leading-relaxed italic">
                 {step.mock_data_narrative}
@@ -479,59 +510,50 @@ function ExperienceTab({
             Narrative Beats
           </h3>
 
-          <div className="relative">
-            {/* Vertical connector line */}
-            <div className="absolute left-[15px] top-3 bottom-3 w-px bg-[#E5E5E5]" />
-
-            <div className="space-y-2">
-              {/* Captured beats — user actions */}
-              {capturedFields.map((field, i) => (
-                <NarrativeBeat
-                  key={`captured-${field.name}`}
-                  field={field}
-                  beatType="captured"
-                  actors={step.actors}
-                  highlighted={changedFields.has(`field:${field.name}`)}
-                  isNew={changedFields.has(`field:${field.name}`) && changedFields.has('info_fields')}
-                />
-              ))}
-
-              {/* Computed beats — system actions */}
-              {computedFields.map((field) => (
-                <NarrativeBeat
-                  key={`computed-${field.name}`}
-                  field={field}
-                  beatType="computed"
-                  highlighted={changedFields.has(`field:${field.name}`)}
-                  isNew={changedFields.has(`field:${field.name}`) && changedFields.has('info_fields')}
-                />
-              ))}
-
-              {/* Implied pattern as a beat */}
-              {step.implied_pattern && (
-                <div className="flex items-start gap-3 pl-1.5">
-                  <div className="w-[9px] h-[9px] rounded-full bg-[#0A1E2F]/20 mt-1.5 shrink-0 z-10 ring-2 ring-white" />
-                  <div className="flex-1 flex items-center gap-2 py-1.5 px-3 rounded-lg bg-[#0A1E2F]/5 border border-[#0A1E2F]/10">
-                    <Layout className="w-3.5 h-3.5 text-[#0A1E2F]/50" />
-                    <span className="text-[12px] text-[#666666]">
-                      Renders as a <span className="font-medium text-[#0A1E2F]">{step.implied_pattern}</span>
-                    </span>
-                  </div>
-                </div>
-              )}
-
-              {/* Displayed beats — output/results */}
-              {displayedFields.map((field) => (
-                <NarrativeBeat
-                  key={`displayed-${field.name}`}
-                  field={field}
-                  beatType="displayed"
-                  highlighted={changedFields.has(`field:${field.name}`)}
-                  isNew={changedFields.has(`field:${field.name}`) && changedFields.has('info_fields')}
-                />
-              ))}
-            </div>
-          </div>
+          {(() => {
+            const allBeats: { field?: InformationField; beatType: 'captured' | 'computed' | 'displayed' | 'pattern'; actors?: string[] }[] = [
+              ...capturedFields.map(f => ({ field: f, beatType: 'captured' as const, actors: step.actors })),
+              ...computedFields.map(f => ({ field: f, beatType: 'computed' as const })),
+              ...(step.implied_pattern ? [{ beatType: 'pattern' as const }] : []),
+              ...displayedFields.map(f => ({ field: f, beatType: 'displayed' as const })),
+            ]
+            return (
+              <div className="space-y-0">
+                {allBeats.map((beat, i) => {
+                  const isLast = i === allBeats.length - 1
+                  if (beat.beatType === 'pattern') {
+                    return (
+                      <div key="pattern" className="flex gap-3">
+                        <div className="flex flex-col items-center shrink-0" style={{ width: 36 }}>
+                          <div className="w-[34px] h-[34px] rounded-lg bg-[#0A1E2F]/8 flex items-center justify-center">
+                            <Layout className="w-4 h-4 text-[#0A1E2F]/50" />
+                          </div>
+                          {!isLast && <div className="w-0.5 flex-1 bg-[#3FAF7A]/15 mt-0.5" />}
+                        </div>
+                        <div className="flex-1 py-2 group">
+                          <div className="text-[10px] font-bold uppercase tracking-wider text-[#999999] mb-0.5">Layout</div>
+                          <span className="text-[12px] text-[#666666]">
+                            Renders as a <span className="font-medium text-[#0A1E2F]">{step.implied_pattern}</span>
+                          </span>
+                        </div>
+                      </div>
+                    )
+                  }
+                  return (
+                    <NarrativeBeat
+                      key={`${beat.beatType}-${beat.field!.name}`}
+                      field={beat.field!}
+                      beatType={beat.beatType as 'captured' | 'computed' | 'displayed'}
+                      actors={beat.actors}
+                      highlighted={changedFields.has(`field:${beat.field!.name}`)}
+                      isNew={changedFields.has(`field:${beat.field!.name}`) && changedFields.has('info_fields')}
+                      isLast={isLast}
+                    />
+                  )
+                })}
+              </div>
+            )
+          })()}
         </div>
       )}
 
@@ -562,13 +584,21 @@ function ExperienceTab({
             {evidenceFiles.map(file => (
               <div
                 key={file.id}
-                className="flex items-center gap-2 px-3 py-2 bg-white border border-[#E5E5E5] rounded-lg"
+                className={`flex items-start gap-2 px-3 py-2 bg-white border border-[#E5E5E5] rounded-lg ${file.quote ? 'w-full' : ''}`}
               >
-                <div className="w-7 h-7 rounded-md bg-[#F4F4F4] flex items-center justify-center text-[#666666]">
+                <div className="w-7 h-7 rounded-md bg-[#F4F4F4] flex items-center justify-center text-[#666666] shrink-0">
                   {fileIcon(file.fileType)}
                 </div>
-                <div className="min-w-0">
-                  <div className="text-[12px] font-medium text-[#333333] truncate max-w-[140px]">{file.filename}</div>
+                <div className="min-w-0 flex-1">
+                  <div className="text-[12px] font-medium text-[#333333] truncate max-w-[200px]">{file.filename}</div>
+                  {file.quote && (
+                    <>
+                      <p className="text-[12px] text-[#666666] italic leading-snug mt-1 line-clamp-3">{file.quote}</p>
+                      {file.attribution && (
+                        <p className="text-[10px] text-[#999999] mt-0.5">&mdash; {file.attribution}</p>
+                      )}
+                    </>
+                  )}
                 </div>
               </div>
             ))}
@@ -578,7 +608,7 @@ function ExperienceTab({
 
       {/* Things to Explore — reframed open questions */}
       {openQuestions.length > 0 && (
-        <div className={changedFields.has('questions') || hlSet.has('open_questions') ? 'animate-highlightFlash' : ''}>
+        <div className={phaseClass('questions') || (hlSet.has('open_questions') ? 'animate-highlightFlash' : '')}>
           <h3 className="text-[11px] font-semibold uppercase tracking-wider text-[#999999] mb-2">
             Things to Explore ({openQuestions.length})
           </h3>
@@ -608,13 +638,13 @@ function ExperienceTab({
           </h3>
           <div className="space-y-2">
             {escalatedQuestions.map((q, i) => (
-              <div key={i} className="border-l-[3px] border-[#E5E5E5] bg-[#F9F9F9] rounded-r-lg p-3">
+              <div key={i} className="border-l-[3px] border-[#0A1E2F]/30 bg-[#0A1E2F]/3 rounded-r-lg p-3">
                 <div className="flex items-start gap-2">
-                  <ArrowUpRight className="w-4 h-4 text-[#999999] shrink-0 mt-0.5" />
+                  <ArrowUpRight className="w-4 h-4 text-[#0A1E2F]/40 shrink-0 mt-0.5" />
                   <div>
                     <p className="text-[13px] text-[#666666]">{q.question}</p>
                     {q.escalated_to && (
-                      <p className="text-xs text-[#A08050] mt-1 flex items-center gap-1">
+                      <p className="text-xs text-[#0A1E2F]/60 mt-1 flex items-center gap-1">
                         <Clock className="w-3 h-3" /> Queued for {q.escalated_to}
                       </p>
                     )}
@@ -684,36 +714,38 @@ function NarrativeBeat({
   actors,
   highlighted,
   isNew,
+  isLast,
 }: {
   field: InformationField
   beatType: 'captured' | 'computed' | 'displayed'
   actors?: string[]
   highlighted: boolean
   isNew: boolean
+  isLast?: boolean
 }) {
   const config = BEAT_CONFIG[beatType]
-  const dot = CONFIDENCE_DOT[field.confidence] || CONFIDENCE_DOT.unknown
   const Icon = config.icon
 
   return (
     <div
-      className={`flex items-start gap-3 pl-1.5 transition-all duration-500 ${
+      className={`flex gap-3 transition-all duration-500 ${
         highlighted
           ? `animate-pulseGreen${isNew ? ' animate-slideInLeft' : ''}`
           : ''
       }`}
     >
-      {/* Timeline dot */}
-      <div
-        className={`w-[9px] h-[9px] rounded-full mt-1.5 shrink-0 z-10 ring-2 ring-white ${dot.color}`}
-        title={dot.label}
-      />
+      {/* Icon column with connector */}
+      <div className="flex flex-col items-center shrink-0" style={{ width: 36 }}>
+        <div className={`w-[34px] h-[34px] rounded-lg ${config.bg} ${config.border} border flex items-center justify-center`}>
+          <Icon className={`w-4 h-4 ${config.iconColor}`} />
+        </div>
+        {!isLast && <div className="w-0.5 flex-1 bg-[#3FAF7A]/15 mt-0.5" />}
+      </div>
 
-      {/* Beat card */}
-      <div className={`flex-1 py-2 px-3 rounded-lg border ${config.bg} ${config.border}`}>
+      {/* Content */}
+      <div className="flex-1 py-1.5 group-hover:bg-[#F9F9F9] rounded-lg">
         <div className="flex items-center gap-2 mb-0.5">
-          <Icon className="w-3 h-3 text-[#999999]" />
-          <span className="text-[10px] font-medium text-[#999999] uppercase tracking-wider">
+          <span className="text-[10px] font-bold text-[#999999] uppercase tracking-wider">
             {config.verb}
           </span>
           {beatType === 'captured' && actors?.length ? (
@@ -739,14 +771,22 @@ function SuccessTab({
   step,
   linkedEntities,
   changedFields,
+  animPhase,
   highlightFields,
 }: {
   step: StepDetail
   linkedEntities: { type: string; id: string; name: string }[]
   changedFields: Set<string>
+  animPhase: 'idle' | 'dimming' | 'updating'
   highlightFields?: string[] | null
 }) {
   const hlSet = new Set(highlightFields || [])
+  const phaseClass = (field: string) => {
+    if (!changedFields.has(field) && !hlSet.has(field)) return ''
+    if (animPhase === 'dimming') return 'animate-dimOut'
+    if (animPhase === 'updating') return 'animate-dimInPulse'
+    return ''
+  }
   const painPoints = (step.pain_points_addressed || []).map(pp =>
     typeof pp === 'string' ? { text: pp } : pp
   )
@@ -769,7 +809,7 @@ function SuccessTab({
     <>
       {/* Solves For — pain points */}
       {painPoints.length > 0 && (
-        <div className={changedFields.has('pain_points') || hlSet.has('pain_points_addressed') ? 'animate-highlightFlash' : ''}>
+        <div className={phaseClass('pain_points') || (hlSet.has('pain_points_addressed') ? 'animate-highlightFlash' : '')}>
           <h3 className="text-[11px] font-semibold uppercase tracking-wider text-[#999999] mb-2">
             Solves For
           </h3>
@@ -781,7 +821,7 @@ function SuccessTab({
                 style={{ animationDelay: `${i * 60}ms` }}
               >
                 <div className="flex items-start gap-2">
-                  <Heart className="w-4 h-4 text-[#D97706] shrink-0 mt-0.5" />
+                  <Heart className="w-4 h-4 text-[#25785A] shrink-0 mt-0.5" />
                   <div>
                     <p className="text-[13px] text-[#333333]">{pp.text}</p>
                     {pp.persona && (
@@ -799,7 +839,7 @@ function SuccessTab({
 
       {/* Achieves — goals */}
       {goals.length > 0 && (
-        <div className={changedFields.has('goals_addressed') || hlSet.has('goals_addressed') ? 'animate-highlightFlash' : ''}>
+        <div className={phaseClass('goals_addressed') || (hlSet.has('goals_addressed') ? 'animate-highlightFlash' : '')}>
           <h3 className="text-[11px] font-semibold uppercase tracking-wider text-[#999999] mb-2">
             Achieves
           </h3>
@@ -819,7 +859,7 @@ function SuccessTab({
 
       {/* What Makes This Step Successful — criteria */}
       {criteria.length > 0 && (
-        <div className={changedFields.has('success_criteria') || hlSet.has('success_criteria') ? 'animate-highlightFlash' : ''}>
+        <div className={phaseClass('success_criteria') || (hlSet.has('success_criteria') ? 'animate-highlightFlash' : '')}>
           <h3 className="text-[11px] font-semibold uppercase tracking-wider text-[#999999] mb-2">
             What Makes This Step Successful
           </h3>
@@ -869,14 +909,23 @@ function SuccessTab({
 function AITab({
   step,
   changedFields,
+  animPhase,
   highlightFields,
 }: {
   step: StepDetail
   changedFields: Set<string>
+  animPhase: 'idle' | 'dimming' | 'updating'
   highlightFields?: string[] | null
 }) {
   const hlSet = new Set(highlightFields || [])
   const aiConfig = step.ai_config
+
+  const phaseClass = (() => {
+    if (!changedFields.has('ai_config') && !hlSet.has('ai_config')) return ''
+    if (animPhase === 'dimming') return 'animate-dimOut'
+    if (animPhase === 'updating') return 'animate-dimInPulse'
+    return ''
+  })()
 
   if (!aiConfig) {
     return (
@@ -896,75 +945,89 @@ function AITab({
   const role = aiConfig.role || aiConfig.ai_role
 
   return (
-    <div className={`space-y-5 ${changedFields.has('ai_config') || hlSet.has('ai_config') ? 'animate-highlightFlash' : ''}`}>
-      {/* Role */}
-      <div>
-        <h3 className="text-[11px] font-semibold uppercase tracking-wider text-[#999999] mb-2">
-          AI Role
-        </h3>
-        <div className="bg-[#0A1E2F] rounded-xl p-4">
-          <p className="text-sm text-white/90 leading-relaxed">
-            {role || 'No role defined'}
-          </p>
+    <div className={`space-y-0 ${phaseClass}`}>
+      {/* Stage 1 — Data In */}
+      <div className="flex gap-3">
+        <div className="flex flex-col items-center shrink-0" style={{ width: 36 }}>
+          <div className="w-[34px] h-[34px] rounded-lg bg-[#0A1E2F]/8 flex items-center justify-center">
+            <Database className="w-4 h-4 text-[#0A1E2F]/50" />
+          </div>
+          <div className="w-0.5 flex-1 bg-[#3FAF7A]/20 mt-0.5" />
+        </div>
+        <div className="flex-1 pb-4">
+          <div className="text-[10px] font-bold uppercase tracking-wider text-[#999999] mb-1.5">Data In</div>
+          <div className="bg-[#0A1E2F] rounded-xl p-4">
+            <p className="text-sm text-white/90 leading-relaxed">
+              {role || 'No role defined'}
+            </p>
+          </div>
         </div>
       </div>
 
-      {/* Behaviors */}
-      {aiConfig.behaviors && aiConfig.behaviors.length > 0 && (
-        <div>
-          <h3 className="text-[11px] font-semibold uppercase tracking-wider text-[#999999] mb-2">
-            Behaviors
-          </h3>
-          <div className="space-y-1.5">
-            {aiConfig.behaviors.map((b, i) => (
-              <div key={i} className="flex items-start gap-2 py-1.5 px-3 rounded-lg bg-[#3FAF7A]/5 border border-[#3FAF7A]/10">
-                <Zap className="w-3.5 h-3.5 text-[#3FAF7A] shrink-0 mt-0.5" />
-                <span className="text-[13px] text-[#333333]">{b}</span>
+      {/* Stage 2 — What the AI Does */}
+      <div className="flex gap-3">
+        <div className="flex flex-col items-center shrink-0" style={{ width: 36 }}>
+          <div className="w-[34px] h-[34px] rounded-lg bg-[#3FAF7A]/10 flex items-center justify-center">
+            <Sparkles className="w-4 h-4 text-[#3FAF7A]" />
+          </div>
+          {(aiConfig.confidence_display || aiConfig.fallback) && (
+            <div className="w-0.5 flex-1 bg-[#3FAF7A]/20 mt-0.5" />
+          )}
+        </div>
+        <div className="flex-1 pb-4">
+          <div className="text-[10px] font-bold uppercase tracking-wider text-[#999999] mb-1.5">What the AI Does</div>
+
+          {/* Behaviors */}
+          {aiConfig.behaviors && aiConfig.behaviors.length > 0 && (
+            <div className="space-y-1.5 mb-3">
+              {aiConfig.behaviors.map((b, i) => (
+                <div key={i} className="flex items-start gap-2 py-1.5 px-3 rounded-lg bg-[#3FAF7A]/5">
+                  <Zap className="w-3.5 h-3.5 text-[#3FAF7A] shrink-0 mt-0.5" />
+                  <span className="text-[13px] text-[#333333]">{b}</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Guardrails sub-section */}
+          {aiConfig.guardrails && aiConfig.guardrails.length > 0 && (
+            <div>
+              <div className="text-[10px] font-semibold uppercase tracking-wider text-[#999999] mb-1.5 mt-1">Guardrails</div>
+              <div className="space-y-1.5">
+                {aiConfig.guardrails.map((g, i) => (
+                  <div key={i} className="flex items-start gap-2 py-1.5 px-3 rounded-lg bg-[#0A1E2F]/3">
+                    <Shield className="w-3.5 h-3.5 text-[#0A1E2F]/50 shrink-0 mt-0.5" />
+                    <span className="text-[13px] text-[#333333]">{g}</span>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
+            </div>
+          )}
         </div>
-      )}
+      </div>
 
-      {/* Guardrails */}
-      {aiConfig.guardrails && aiConfig.guardrails.length > 0 && (
-        <div>
-          <h3 className="text-[11px] font-semibold uppercase tracking-wider text-[#999999] mb-2">
-            Guardrails
-          </h3>
-          <div className="space-y-1.5">
-            {aiConfig.guardrails.map((g, i) => (
-              <div key={i} className="flex items-start gap-2 py-1.5 px-3 rounded-lg bg-[#FFF7ED] border border-[#FDBA74]/20">
-                <Shield className="w-3.5 h-3.5 text-[#D97706] shrink-0 mt-0.5" />
-                <span className="text-[13px] text-[#333333]">{g}</span>
+      {/* Stage 3 — What Comes Out */}
+      {(aiConfig.confidence_display || aiConfig.fallback) && (
+        <div className="flex gap-3">
+          <div className="flex flex-col items-center shrink-0" style={{ width: 36 }}>
+            <div className="w-[34px] h-[34px] rounded-lg bg-[#3FAF7A]/15 flex items-center justify-center">
+              <ArrowRight className="w-4 h-4 text-[#25785A]" />
+            </div>
+          </div>
+          <div className="flex-1 pb-2">
+            <div className="text-[10px] font-bold uppercase tracking-wider text-[#999999] mb-1.5">What Comes Out</div>
+            {aiConfig.confidence_display && (
+              <span className="inline-flex text-[12px] px-2 py-0.5 rounded-full bg-[#3FAF7A]/10 text-[#25785A] font-medium mb-2">
+                {aiConfig.confidence_display}
+              </span>
+            )}
+            {aiConfig.fallback && (
+              <div className="flex items-start gap-2 py-1.5 px-3 rounded-lg bg-[#F4F4F4] border border-[#E5E5E5] mt-1">
+                <Shield className="w-3.5 h-3.5 text-[#999999] shrink-0 mt-0.5" />
+                <span className="text-[13px] text-[#666666]">{aiConfig.fallback}</span>
               </div>
-            ))}
+            )}
           </div>
-        </div>
-      )}
-
-      {/* Fallback — shown when behaviors/guardrails are empty */}
-      {aiConfig.fallback && !(aiConfig.behaviors?.length) && (
-        <div>
-          <h3 className="text-[11px] font-semibold uppercase tracking-wider text-[#999999] mb-2">
-            Fallback
-          </h3>
-          <div className="flex items-start gap-2 py-1.5 px-3 rounded-lg bg-[#F4F4F4] border border-[#E5E5E5]">
-            <Shield className="w-3.5 h-3.5 text-[#999999] shrink-0 mt-0.5" />
-            <span className="text-[13px] text-[#666666]">{aiConfig.fallback}</span>
-          </div>
-        </div>
-      )}
-
-      {/* Confidence Display */}
-      {aiConfig.confidence_display && (
-        <div className="flex items-center gap-2">
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-[#999999]">
-            Confidence Display:
-          </span>
-          <span className="text-[12px] px-2 py-0.5 rounded-full bg-[#0A1E2F]/5 text-[#0A1E2F] font-medium">
-            {aiConfig.confidence_display}
-          </span>
         </div>
       )}
     </div>
@@ -1073,9 +1136,9 @@ function HistoryTimeline({ revisions, loading }: { revisions: RevisionEntry[]; l
 
               {/* Escalation inline */}
               {qEscalated && (
-                <div className="mt-1 bg-[#FFFBF0] rounded-lg px-3 py-2">
+                <div className="mt-1 bg-[#0A1E2F]/3 rounded-lg px-3 py-2">
                   <p className="text-[12px] text-[#666666]">{qEscalated.question}</p>
-                  <p className="text-[11px] text-[#A08050] mt-0.5">Sent to {qEscalated.escalated_to}</p>
+                  <p className="text-[11px] text-[#0A1E2F]/60 mt-0.5">Sent to {qEscalated.escalated_to}</p>
                 </div>
               )}
 
@@ -1090,6 +1153,28 @@ function HistoryTimeline({ revisions, loading }: { revisions: RevisionEntry[]; l
 }
 
 // ─── Field Changes (collapsible) ─────────────────────────────────────────────
+
+const HISTORY_FIELD_LABELS: Record<string, string> = {
+  ai_config: 'AI Configuration',
+  goal: 'Goal',
+  title: 'Title',
+  actors: 'Actors',
+  phase: 'Phase',
+  information_fields: 'Information Fields',
+  open_questions: 'Open Questions',
+  implied_pattern: 'Implied Pattern',
+  success_criteria: 'Success Criteria',
+  pain_points_addressed: 'Pain Points',
+  goals_addressed: 'Goals',
+  mock_data_narrative: 'Preview Narrative',
+  linked_feature_ids: 'Linked Features',
+  linked_workflow_ids: 'Linked Workflows',
+  linked_data_entity_ids: 'Linked Data Entities',
+  mock_value: 'Mock Value',
+  confidence: 'Confidence',
+  background_narrative: 'Background Narrative',
+  generation_version: 'Generation Version',
+}
 
 function FieldChanges({ changes }: { changes: Record<string, unknown> }) {
   const [expanded, setExpanded] = useState(false)
@@ -1113,7 +1198,7 @@ function FieldChanges({ changes }: { changes: Record<string, unknown> }) {
             const newStr = typeof change.new === 'string' ? change.new : JSON.stringify(change.new)
             return (
               <div key={key} className="text-[11px] bg-[#F4F4F4] rounded px-2 py-1.5">
-                <span className="font-medium text-[#666666]">{key}:</span>{' '}
+                <span className="font-medium text-[#666666]">{HISTORY_FIELD_LABELS[key] || key.replace(/_/g, ' ')}:</span>{' '}
                 {oldStr && <span className="text-[#CC4444] line-through">{truncate(oldStr, 60)}</span>}
                 {oldStr && newStr && <span className="text-[#999999]"> &rarr; </span>}
                 {newStr && <span className="text-[#25785A]">{truncate(newStr, 60)}</span>}

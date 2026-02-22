@@ -323,10 +323,10 @@ export function FlowStepChat({
         })() && (
           <div className="flex justify-start">
             <div className="flex items-center gap-2 px-4 py-3 bg-white border border-[#E5E5E5] rounded-2xl">
-              <div className="flex gap-[3px] items-end h-[14px]">
-                <div className="w-[7px] h-[7px] rounded-full bg-[#999999] animate-typing" />
-                <div className="w-[7px] h-[7px] rounded-full bg-[#999999] animate-typing [animation-delay:200ms]" />
-                <div className="w-[7px] h-[7px] rounded-full bg-[#999999] animate-typing [animation-delay:400ms]" />
+              <div className="flex gap-[3px] items-end h-[10px]">
+                <div className="w-[5px] h-[5px] rounded-full bg-[#999999] animate-typing" />
+                <div className="w-[5px] h-[5px] rounded-full bg-[#999999] animate-typing [animation-delay:200ms]" />
+                <div className="w-[5px] h-[5px] rounded-full bg-[#999999] animate-typing [animation-delay:400ms]" />
               </div>
             </div>
           </div>
@@ -355,10 +355,10 @@ export function FlowStepChat({
 
       {/* Solving question prompt — above input, not top banner */}
       {solvingQuestion && !resolvedFlash && (
-        <div className="px-3 py-2 bg-[#EDE8D5]/40 border-t border-[#C4A97D]/20 shrink-0">
+        <div className="px-3 py-2 bg-[#0A1E2F]/5 border-t border-[#0A1E2F]/10 shrink-0">
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0">
-              <div className="text-[10px] uppercase tracking-wider text-[#A08050] mb-0.5 font-medium">
+              <div className="text-[10px] uppercase tracking-wider text-[#0A1E2F]/60 mb-0.5 font-medium">
                 Answering
               </div>
               <p className="text-[12px] text-[#333333] leading-snug">{solvingQuestion.question}</p>
@@ -491,65 +491,70 @@ function ToolResultCard({ toolName, result }: { toolName: string; result?: any }
   switch (toolName) {
     case 'resolve_solution_flow_question':
       return (
-        <div className="mt-2 rounded-lg border-l-[3px] border-[#3FAF7A] bg-[#F0FFF4] px-3 py-2 text-[12px]">
-          <div className="flex items-center gap-1.5 font-medium text-[#25785A]">
-            <CheckCircle2 className="w-3.5 h-3.5" /> Question Resolved
-          </div>
-          {result.answer && <p className="mt-1 text-[#4A5568]">{result.answer}</p>}
+        <div className="mt-2">
+          <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#3FAF7A]/10 text-[#25785A]">
+            <CheckCircle2 className="w-3 h-3" /> Resolved
+          </span>
+          {result.answer && <p className="mt-1 text-[11px] text-[#666666]">{result.answer}</p>}
         </div>
       )
 
     case 'update_solution_flow_step':
       return (
-        <div className="mt-2 rounded-lg border-l-[3px] border-[#3FAF7A] bg-[#F0FFF4] px-3 py-2 text-[12px]">
-          <div className="flex items-center gap-1.5 font-medium text-[#25785A]">
-            <CheckCircle2 className="w-3.5 h-3.5" /> Updated {formatFieldLabels(result.updated_fields || [])}
-          </div>
+        <div className="mt-2">
+          <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#3FAF7A]/10 text-[#25785A]">
+            <CheckCircle2 className="w-3 h-3" /> Updated
+          </span>
+          {(result.updated_fields || []).length > 0 && (
+            <p className="mt-1 text-[11px] text-[#666666]">{formatFieldLabels(result.updated_fields)}</p>
+          )}
         </div>
       )
 
     case 'refine_solution_flow_step':
       return (
-        <div className="mt-2 rounded-lg border-l-[3px] border-[#3FAF7A] bg-[#F0FFF4] px-3 py-2 text-[12px]">
-          <div className="flex items-center gap-1.5 font-medium text-[#25785A]">
-            <Sparkles className="w-3.5 h-3.5" /> Refined: {result.changes_summary || 'step updated'}
-          </div>
+        <div className="mt-2">
+          <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#3FAF7A]/10 text-[#25785A]">
+            <Sparkles className="w-3 h-3" /> Refined
+          </span>
+          {result.changes_summary && <p className="mt-1 text-[11px] text-[#666666]">{result.changes_summary}</p>}
         </div>
       )
 
     case 'escalate_to_client':
       return (
-        <div className="mt-2 rounded-lg border-l-[3px] border-[#C4A97D] bg-[#FFFBF0] px-3 py-2 text-[12px]">
-          <div className="flex items-center gap-1.5 font-medium text-[#8B7355]">
-            <ArrowUpRight className="w-3.5 h-3.5" /> Queued for {result.escalated_to || 'client'}
-          </div>
+        <div className="mt-2">
+          <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#0A1E2F]/10 text-[#0A1E2F]/70">
+            <ArrowUpRight className="w-3 h-3" /> Queued for {result.escalated_to || 'client'}
+          </span>
         </div>
       )
 
     case 'add_solution_flow_step':
       return (
-        <div className="mt-2 rounded-lg border-l-[3px] border-[#3FAF7A] bg-[#F0FFF4] px-3 py-2 text-[12px]">
-          <div className="flex items-center gap-1.5 font-medium text-[#25785A]">
-            <Plus className="w-3.5 h-3.5" /> Added step: {result.title || 'new step'}
-          </div>
+        <div className="mt-2">
+          <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#3FAF7A]/10 text-[#25785A]">
+            <Plus className="w-3 h-3" /> Added
+          </span>
+          {result.title && <p className="mt-1 text-[11px] text-[#666666]">{result.title}</p>}
         </div>
       )
 
     case 'remove_solution_flow_step':
       return (
-        <div className="mt-2 rounded-lg border-l-[3px] border-[#E5E5E5] bg-[#FAFAFA] px-3 py-2 text-[12px]">
-          <div className="flex items-center gap-1.5 font-medium text-[#999999]">
-            <Trash2 className="w-3.5 h-3.5" /> Step removed
-          </div>
+        <div className="mt-2">
+          <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#F4F4F4] text-[#999999]">
+            <Trash2 className="w-3 h-3" /> Removed
+          </span>
         </div>
       )
 
     case 'reorder_solution_flow_steps':
       return (
-        <div className="mt-2 rounded-lg border-l-[3px] border-[#3FAF7A] bg-[#F0FFF4] px-3 py-2 text-[12px]">
-          <div className="flex items-center gap-1.5 font-medium text-[#25785A]">
-            <Shuffle className="w-3.5 h-3.5" /> Steps reordered
-          </div>
+        <div className="mt-2">
+          <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#3FAF7A]/10 text-[#25785A]">
+            <Shuffle className="w-3 h-3" /> Reordered
+          </span>
         </div>
       )
 

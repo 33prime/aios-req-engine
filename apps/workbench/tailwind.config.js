@@ -59,7 +59,7 @@ module.exports = {
         },
         typing: {
           '0%, 80%, 100%': { transform: 'translateY(0)' },
-          '40%': { transform: 'translateY(-8px)' },
+          '40%': { transform: 'translateY(-4px)' },
         },
       },
       animation: {
