@@ -1,5 +1,6 @@
 """Workspace endpoint for entity confidence inspection."""
 
+import asyncio
 import logging
 from uuid import UUID
 
@@ -108,28 +109,26 @@ async def get_entity_confidence(
     client = get_client()
 
     try:
-        # 1. Fetch entity row
+        # Round 1: Fetch entity row
         entity_result = client.table(table_name).select("*").eq("id", str(entity_id)).maybe_single().execute()
         if not entity_result or not entity_result.data:
             raise HTTPException(status_code=404, detail="Entity not found")
         entity = entity_result.data
 
         entity_name = entity.get(name_col, "")
-        # Truncate long descriptions used as names (business_driver)
         if name_col == "description" and entity_name and len(entity_name) > 80:
             entity_name = entity_name[:77] + "..."
 
-        # 2. Completeness checks
+        # Completeness checks (in-memory)
         completeness_items = _compute_completeness(entity_type, entity)
         completeness_met = sum(1 for c in completeness_items if c.is_met)
         completeness_total = len(completeness_items)
         gaps = [c for c in completeness_items if not c.is_met]
 
-        # 3. Evidence with source signal resolution
+        # Parse evidence + collect chunk_ids
         raw_evidence = entity.get("evidence") or []
         evidence_out: list[EvidenceWithSource] = []
         chunk_ids: list[str] = []
-
         for ev in raw_evidence:
             if isinstance(ev, dict):
                 cid = ev.get("chunk_id")
@@ -142,111 +141,128 @@ async def get_entity_confidence(
                     rationale=ev.get("rationale", ""),
                 ))
 
-        # Resolve chunk_ids to signal info
-        if chunk_ids:
+        # Round 2: All independent lookups in parallel
+        def _q_chunk_signal_map():
+            if not chunk_ids:
+                return {}
             try:
-                rpc_result = client.rpc(
-                    "get_chunk_signal_map",
-                    {"p_chunk_ids": chunk_ids},
-                ).execute()
-                chunk_signal_map: dict[str, dict] = {}
-                for row in (rpc_result.data or []):
-                    chunk_signal_map[row["chunk_id"]] = row
-
-                # Now fetch signal details
-                signal_ids = list({r.get("signal_id") for r in chunk_signal_map.values() if r.get("signal_id")})
-                signal_lookup: dict[str, dict] = {}
-                if signal_ids:
-                    sig_result = client.table("signals").select(
-                        "id, source_label, signal_type, created_at"
-                    ).in_("id", signal_ids).execute()
-                    for sig in (sig_result.data or []):
-                        signal_lookup[sig["id"]] = sig
-
-                # Enrich evidence items
-                for ev_item in evidence_out:
-                    if ev_item.chunk_id and ev_item.chunk_id in chunk_signal_map:
-                        sig_id = chunk_signal_map[ev_item.chunk_id].get("signal_id")
-                        if sig_id and sig_id in signal_lookup:
-                            sig = signal_lookup[sig_id]
-                            ev_item.signal_id = sig_id
-                            ev_item.signal_label = sig.get("source_label")
-                            ev_item.signal_type = sig.get("signal_type")
-                            ev_item.signal_created_at = sig.get("created_at")
+                rpc_result = client.rpc("get_chunk_signal_map", {"p_chunk_ids": chunk_ids}).execute()
+                return {row["chunk_id"]: row for row in (rpc_result.data or [])}
             except Exception:
-                logger.debug(f"Could not resolve chunk signals for entity {entity_id}")
+                return {}
 
-        # 4. Field attributions
+        def _q_attributions():
+            try:
+                return client.table("field_attributions").select(
+                    "field_path, signal_id, contributed_at, version_number"
+                ).eq("entity_type", entity_type).eq("entity_id", str(entity_id)).execute().data or []
+            except Exception:
+                return []
+
+        def _q_history():
+            try:
+                from app.db.change_tracking import get_entity_history
+                return get_entity_history(str(entity_id)) or []
+            except Exception:
+                return []
+
+        def _q_deps():
+            try:
+                from app.db.entity_dependencies import get_dependencies, get_dependents
+                deps = get_dependencies(project_id, entity_type, entity_id) or []
+                dependents = get_dependents(project_id, entity_type, entity_id) or []
+                return deps, dependents
+            except Exception:
+                return [], []
+
+        (
+            chunk_signal_map, attr_data, raw_history, deps_tuple,
+        ) = await asyncio.gather(
+            asyncio.to_thread(_q_chunk_signal_map),
+            asyncio.to_thread(_q_attributions),
+            asyncio.to_thread(_q_history),
+            asyncio.to_thread(_q_deps),
+        )
+
+        deps, dependents = deps_tuple
+
+        # Round 3: Signal resolution — collect all signal IDs from chunks + attributions
+        all_signal_ids: set[str] = set()
+        for row in chunk_signal_map.values():
+            if row.get("signal_id"):
+                all_signal_ids.add(row["signal_id"])
+        for a in attr_data:
+            if a.get("signal_id"):
+                all_signal_ids.add(a["signal_id"])
+
+        signal_lookup: dict[str, dict] = {}
+        if all_signal_ids:
+            try:
+                sig_result = await asyncio.to_thread(
+                    lambda: client.table("signals").select(
+                        "id, source_label, signal_type, created_at"
+                    ).in_("id", list(all_signal_ids)).execute().data or []
+                )
+                signal_lookup = {s["id"]: s for s in sig_result}
+            except Exception:
+                pass
+
+        # Enrich evidence items with signal info
+        for ev_item in evidence_out:
+            if ev_item.chunk_id and ev_item.chunk_id in chunk_signal_map:
+                sig_id = chunk_signal_map[ev_item.chunk_id].get("signal_id")
+                if sig_id and sig_id in signal_lookup:
+                    sig = signal_lookup[sig_id]
+                    ev_item.signal_id = sig_id
+                    ev_item.signal_label = sig.get("source_label")
+                    ev_item.signal_type = sig.get("signal_type")
+                    ev_item.signal_created_at = sig.get("created_at")
+
+        # Field attributions with signal labels
         attributions_out: list[FieldAttributionOut] = []
-        try:
-            attr_result = client.table("field_attributions").select(
-                "field_path, signal_id, contributed_at, version_number"
-            ).eq("entity_type", entity_type).eq("entity_id", str(entity_id)).execute()
+        for a in attr_data:
+            sig_label = None
+            sid = a.get("signal_id", "")
+            if sid and sid in signal_lookup:
+                sig_label = signal_lookup[sid].get("source_label")
+            attributions_out.append(FieldAttributionOut(
+                field_path=a["field_path"],
+                signal_id=a.get("signal_id"),
+                signal_label=sig_label,
+                contributed_at=a.get("contributed_at"),
+                version_number=a.get("version_number"),
+            ))
 
-            if attr_result.data:
-                # Resolve signal labels
-                attr_signal_ids = list({a["signal_id"] for a in attr_result.data if a.get("signal_id")})
-                attr_signal_lookup: dict[str, str] = {}
-                if attr_signal_ids:
-                    sig_res = client.table("signals").select(
-                        "id, source_label"
-                    ).in_("id", attr_signal_ids).execute()
-                    attr_signal_lookup = {s["id"]: s.get("source_label", "") for s in (sig_res.data or [])}
-
-                for a in attr_result.data:
-                    attributions_out.append(FieldAttributionOut(
-                        field_path=a["field_path"],
-                        signal_id=a.get("signal_id"),
-                        signal_label=attr_signal_lookup.get(a.get("signal_id", ""), None),
-                        contributed_at=a.get("contributed_at"),
-                        version_number=a.get("version_number"),
-                    ))
-        except Exception:
-            logger.debug(f"Could not load field attributions for {entity_type}/{entity_id}")
-
-        # 5. Revision history
+        # Revision history
         revisions_out: list[ConfidenceRevision] = []
-        try:
-            from app.db.change_tracking import get_entity_history
-            raw_history = get_entity_history(str(entity_id))
-            for h in (raw_history or []):
-                revisions_out.append(ConfidenceRevision(
-                    revision_type=h.get("revision_type", h.get("change_type", "")),
-                    diff_summary=h.get("diff_summary"),
-                    changes=h.get("changes"),
-                    created_at=h.get("created_at", ""),
-                    created_by=h.get("created_by"),
-                    source_signal_id=h.get("source_signal_id"),
-                ))
-        except Exception:
-            logger.debug(f"Could not load revisions for {entity_type}/{entity_id}")
+        for h in raw_history:
+            revisions_out.append(ConfidenceRevision(
+                revision_type=h.get("revision_type", h.get("change_type", "")),
+                diff_summary=h.get("diff_summary"),
+                changes=h.get("changes"),
+                created_at=h.get("created_at", ""),
+                created_by=h.get("created_by"),
+                source_signal_id=h.get("source_signal_id"),
+            ))
 
-        # 6. Dependencies
+        # Dependencies
         dependencies_out: list[DependencyItem] = []
-        try:
-            from app.db.entity_dependencies import get_dependents, get_dependencies
-
-            deps = get_dependencies(project_id, entity_type, entity_id)
-            for d in (deps or []):
-                dependencies_out.append(DependencyItem(
-                    entity_type=d.get("target_type", d.get("entity_type", "")),
-                    entity_id=d.get("target_id", d.get("entity_id", "")),
-                    dependency_type=d.get("dependency_type"),
-                    strength=d.get("strength"),
-                    direction="depends_on",
-                ))
-
-            dependents = get_dependents(project_id, entity_type, entity_id)
-            for d in (dependents or []):
-                dependencies_out.append(DependencyItem(
-                    entity_type=d.get("source_type", d.get("entity_type", "")),
-                    entity_id=d.get("source_id", d.get("entity_id", "")),
-                    dependency_type=d.get("dependency_type"),
-                    strength=d.get("strength"),
-                    direction="depended_by",
-                ))
-        except Exception:
-            logger.debug(f"Could not load dependencies for {entity_type}/{entity_id}")
+        for d in deps:
+            dependencies_out.append(DependencyItem(
+                entity_type=d.get("target_type", d.get("entity_type", "")),
+                entity_id=d.get("target_id", d.get("entity_id", "")),
+                dependency_type=d.get("dependency_type"),
+                strength=d.get("strength"),
+                direction="depends_on",
+            ))
+        for d in dependents:
+            dependencies_out.append(DependencyItem(
+                entity_type=d.get("source_type", d.get("entity_type", "")),
+                entity_id=d.get("source_id", d.get("entity_id", "")),
+                dependency_type=d.get("dependency_type"),
+                strength=d.get("strength"),
+                direction="depended_by",
+            ))
 
         return EntityConfidenceResponse(
             entity_type=entity_type,

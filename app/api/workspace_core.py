@@ -282,90 +282,82 @@ async def get_design_profile(project_id: UUID) -> dict:
     client = get_client()
 
     try:
-        # 1. Brand data from company_info
+        # All 3 independent queries in parallel
+        def _q_brand():
+            try:
+                r = client.table("company_info").select(
+                    "logo_url, brand_colors, typography, design_characteristics, brand_scraped_at, name"
+                ).eq("project_id", str(project_id)).maybe_single().execute()
+                return r.data if r else None
+            except Exception:
+                return None
+
+        def _q_refs():
+            try:
+                r = client.table("competitor_references").select(
+                    "id, name, url, description, features_to_study"
+                ).eq("project_id", str(project_id)).eq("reference_type", "design_inspiration").execute()
+                return r.data or []
+            except Exception:
+                return []
+
+        def _q_foundation():
+            try:
+                r = client.table("project_foundation").select(
+                    "design_preferences"
+                ).eq("project_id", str(project_id)).maybe_single().execute()
+                return r.data if r else None
+            except Exception:
+                return None
+
+        brand_data, refs_data, foundation_data = await asyncio.gather(
+            asyncio.to_thread(_q_brand),
+            asyncio.to_thread(_q_refs),
+            asyncio.to_thread(_q_foundation),
+        )
+
+        # Process brand
         brand_available = False
         brand = None
-        try:
-            brand_result = (
-                client.table("company_info")
-                .select(
-                    "logo_url, brand_colors, typography, design_characteristics, "
-                    "brand_scraped_at, name"
-                )
-                .eq("project_id", str(project_id))
-                .maybe_single()
-                .execute()
+        if brand_data:
+            has_brand = bool(
+                brand_data.get("brand_colors") or brand_data.get("typography") or brand_data.get("logo_url")
             )
-            if brand_result and brand_result.data:
-                bd = brand_result.data
-                has_brand = bool(
-                    bd.get("brand_colors") or bd.get("typography") or bd.get("logo_url")
+            if has_brand:
+                brand_available = True
+                brand = BrandData(
+                    logo_url=brand_data.get("logo_url"),
+                    brand_colors=brand_data.get("brand_colors") or [],
+                    typography=brand_data.get("typography"),
+                    design_characteristics=brand_data.get("design_characteristics"),
                 )
-                if has_brand:
-                    brand_available = True
-                    brand = BrandData(
-                        logo_url=bd.get("logo_url"),
-                        brand_colors=bd.get("brand_colors") or [],
-                        typography=bd.get("typography"),
-                        design_characteristics=bd.get("design_characteristics"),
-                    )
-        except Exception:
-            pass
 
-        # 2. Design inspirations from competitor_references
+        # Process design inspirations
         design_inspirations: list[DesignInspiration] = []
-        try:
-            refs_result = (
-                client.table("competitor_references")
-                .select("id, name, url, description, features_to_study")
-                .eq("project_id", str(project_id))
-                .eq("reference_type", "design_inspiration")
-                .execute()
-            )
-            for ref in refs_result.data or []:
-                design_inspirations.append(
-                    DesignInspiration(
-                        id=ref["id"],
-                        name=ref["name"],
-                        url=ref.get("url"),
-                        description=ref.get("description") or ref.get("features_to_study") or "",
-                        source="competitor_ref",
-                    )
-                )
-        except Exception:
-            pass
+        for ref in refs_data:
+            design_inspirations.append(DesignInspiration(
+                id=ref["id"], name=ref["name"], url=ref.get("url"),
+                description=ref.get("description") or ref.get("features_to_study") or "",
+                source="competitor_ref",
+            ))
 
-        # 3. Design preferences from project_foundation
+        # Process foundation
         suggested_style = None
         style_source = None
-        try:
-            foundation_result = (
-                client.table("project_foundation")
-                .select("design_preferences")
-                .eq("project_id", str(project_id))
-                .maybe_single()
-                .execute()
-            )
-            if foundation_result and foundation_result.data:
-                prefs = foundation_result.data.get("design_preferences")
-                if prefs and isinstance(prefs, dict):
-                    vs = prefs.get("visual_style")
-                    if vs:
-                        suggested_style = vs
-                        style_source = "Discovery data: visual style preference"
-                    # Add references as design inspirations
-                    for ref_name in prefs.get("references", []):
-                        design_inspirations.append(
-                            DesignInspiration(
-                                id=f"foundation_ref_{ref_name.lower().replace(' ', '_')}",
-                                name=ref_name,
-                                url=None,
-                                description="Referenced as design inspiration during discovery",
-                                source="foundation",
-                            )
-                        )
-        except Exception:
-            pass
+        if foundation_data:
+            prefs = foundation_data.get("design_preferences")
+            if prefs and isinstance(prefs, dict):
+                vs = prefs.get("visual_style")
+                if vs:
+                    suggested_style = vs
+                    style_source = "Discovery data: visual style preference"
+                for ref_name in prefs.get("references", []):
+                    design_inspirations.append(DesignInspiration(
+                        id=f"foundation_ref_{ref_name.lower().replace(' ', '_')}",
+                        name=ref_name, url=None,
+                        description="Referenced as design inspiration during discovery",
+                        source="foundation",
+                    ))
 
         response = DesignProfileResponse(
             brand_available=brand_available,

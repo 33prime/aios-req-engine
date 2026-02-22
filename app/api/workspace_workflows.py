@@ -1,5 +1,6 @@
 """Workspace endpoints for workflow and step CRUD, detail, pairing, and enrichment."""
 
+import asyncio
 import logging
 from uuid import UUID
 
@@ -60,7 +61,7 @@ async def create_workflow_endpoint(project_id: UUID, data: WorkflowCreate) -> di
 @router.get("/workflows")
 async def list_workflows_endpoint(project_id: UUID) -> list[dict]:
     """List all workflows for a project with their steps."""
-    from app.db.workflows import list_workflows, list_workflow_steps
+    from app.db.workflows import list_workflow_steps, list_workflows
 
     try:
         workflows = list_workflows(project_id)
@@ -239,7 +240,7 @@ async def pair_workflows_endpoint(
     except HTTPException:
         raise
     except Exception as e:
-        logger.exception(f"Failed to pair workflows")
+        logger.exception("Failed to pair workflows")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -265,19 +266,18 @@ async def get_workflow_detail(project_id: UUID, workflow_id: UUID) -> WorkflowDe
     client = get_client()
 
     try:
-        # 1. Fetch workflow
+        # Round 1: Fetch workflow
         workflow = get_workflow(workflow_id)
         if not workflow:
             raise HTTPException(status_code=404, detail="Workflow not found")
         if workflow.get("project_id") != str(project_id):
             raise HTTPException(status_code=403, detail="Workflow does not belong to this project")
 
-        # 2. Determine pair structure
+        # Round 2: Determine pair + fetch paired workflow
         state_type = workflow.get("state_type")
         paired_id = workflow.get("paired_workflow_id")
         paired_workflow = get_workflow(UUID(paired_id)) if paired_id else None
 
-        # Figure out which is current, which is future
         if state_type == "current":
             current_wf_id = str(workflow_id)
             future_wf_id = paired_id
@@ -285,27 +285,70 @@ async def get_workflow_detail(project_id: UUID, workflow_id: UUID) -> WorkflowDe
             current_wf_id = paired_id
             future_wf_id = str(workflow_id)
         else:
-            # Standalone or future without pair
             current_wf_id = None
             future_wf_id = str(workflow_id)
 
-        # 3. Load steps
-        current_steps_raw = list_workflow_steps(UUID(current_wf_id)) if current_wf_id else []
-        future_steps_raw = list_workflow_steps(UUID(future_wf_id)) if future_wf_id else []
+        # Round 3: Load both step lists in parallel
+        async def _load_steps(wf_id_str):
+            if not wf_id_str:
+                return []
+            return await asyncio.to_thread(list_workflow_steps, UUID(wf_id_str))
+
+        current_steps_raw, future_steps_raw = await asyncio.gather(
+            _load_steps(current_wf_id),
+            _load_steps(future_wf_id),
+        )
         all_step_ids = [s["id"] for s in current_steps_raw + future_steps_raw]
 
-        # 4. Load personas for actor resolution
-        persona_ids = set()
-        for s in current_steps_raw + future_steps_raw:
-            if s.get("actor_persona_id"):
-                persona_ids.add(s["actor_persona_id"])
-        persona_map: dict[str, dict] = {}
-        if persona_ids:
-            persona_result = client.table("personas").select(
+        # Round 4: All independent lookups in parallel
+        def _q_personas():
+            persona_ids = set()
+            for s in current_steps_raw + future_steps_raw:
+                if s.get("actor_persona_id"):
+                    persona_ids.add(s["actor_persona_id"])
+            if not persona_ids:
+                return []
+            return client.table("personas").select(
                 "id, name, role"
-            ).in_("id", list(persona_ids)).execute()
-            for p in (persona_result.data or []):
-                persona_map[p["id"]] = p
+            ).in_("id", list(persona_ids)).execute().data or []
+
+        def _q_drivers():
+            return client.table("business_drivers").select(
+                "id, description, driver_type, severity, vision_alignment, linked_vp_step_ids, evidence"
+            ).eq("project_id", str(project_id)).execute().data or []
+
+        def _q_features():
+            return client.table("features").select(
+                "id, name, category, priority_group, confirmation_status, vp_step_id, evidence"
+            ).eq("project_id", str(project_id)).execute().data or []
+
+        def _q_junction():
+            if not all_step_ids:
+                return []
+            return client.table("data_entity_workflow_steps").select(
+                "data_entity_id, operation_type, vp_step_id"
+            ).in_("vp_step_id", all_step_ids).execute().data or []
+
+        def _q_history():
+            return get_entity_history(str(workflow_id)) or []
+
+        def _q_versions():
+            return count_entity_versions(str(workflow_id))
+
+        (
+            personas_data, all_drivers_raw, all_features_raw,
+            junction_data, raw_history, revision_count,
+        ) = await asyncio.gather(
+            asyncio.to_thread(_q_personas),
+            asyncio.to_thread(_q_drivers),
+            asyncio.to_thread(_q_features),
+            asyncio.to_thread(_q_junction),
+            asyncio.to_thread(_q_history),
+            asyncio.to_thread(_q_versions),
+        )
+
+        # Build persona map
+        persona_map: dict[str, dict] = {p["id"]: p for p in personas_data}
 
         # Build step summaries
         def build_step_summaries(steps_raw: list[dict]) -> list[WorkflowStepSummary]:
@@ -331,7 +374,7 @@ async def get_workflow_detail(project_id: UUID, workflow_id: UUID) -> WorkflowDe
         current_steps = build_step_summaries(current_steps_raw)
         future_steps = build_step_summaries(future_steps_raw)
 
-        # 5. ROI
+        # ROI
         roi = None
         if current_wf_id and future_wf_id:
             try:
@@ -341,78 +384,59 @@ async def get_workflow_detail(project_id: UUID, workflow_id: UUID) -> WorkflowDe
                     workflow.get("frequency_per_week", 0),
                     workflow.get("hourly_rate", 0),
                 )
-                roi = ROISummary(
-                    workflow_name=workflow.get("name", ""),
-                    **roi_data,
-                )
+                roi = ROISummary(workflow_name=workflow.get("name", ""), **roi_data)
             except Exception:
                 logger.debug(f"Could not calculate ROI for workflow {workflow_id}")
 
-        # 6. Aggregate connections — business drivers linked to any step
-        all_drivers_raw: list[dict] = []
+        # Resolve linked drivers (from pre-loaded data with evidence)
         linked_drivers: list[LinkedBusinessDriver] = []
-        try:
-            drivers_result = client.table("business_drivers").select(
-                "id, description, driver_type, severity, vision_alignment, linked_vp_step_ids"
-            ).eq("project_id", str(project_id)).execute()
-            all_drivers_raw = drivers_result.data or []
-            seen_driver_ids: set[str] = set()
-            for d in all_drivers_raw:
-                linked_ids = [str(lid) for lid in (d.get("linked_vp_step_ids") or [])]
-                if any(sid in linked_ids for sid in all_step_ids):
-                    if d["id"] not in seen_driver_ids:
-                        seen_driver_ids.add(d["id"])
-                        linked_drivers.append(LinkedBusinessDriver(
-                            id=d["id"],
-                            description=d.get("description", ""),
-                            driver_type=d.get("driver_type", ""),
-                            severity=d.get("severity"),
-                            vision_alignment=d.get("vision_alignment"),
-                        ))
-        except Exception:
-            logger.debug(f"Could not resolve drivers for workflow {workflow_id}")
+        driver_evidence_map: dict[str, list] = {}
+        seen_driver_ids: set[str] = set()
+        for d in all_drivers_raw:
+            linked_ids = [str(lid) for lid in (d.get("linked_vp_step_ids") or [])]
+            if any(sid in linked_ids for sid in all_step_ids):
+                if d["id"] not in seen_driver_ids:
+                    seen_driver_ids.add(d["id"])
+                    linked_drivers.append(LinkedBusinessDriver(
+                        id=d["id"],
+                        description=d.get("description", ""),
+                        driver_type=d.get("driver_type", ""),
+                        severity=d.get("severity"),
+                        vision_alignment=d.get("vision_alignment"),
+                    ))
+                    driver_evidence_map[d["id"]] = d.get("evidence") or []
 
-        # Features linked to any step
-        all_features_raw: list[dict] = []
+        # Resolve linked features (from pre-loaded data with evidence)
         linked_features: list[LinkedFeature] = []
-        try:
-            features_result = client.table("features").select(
-                "id, name, category, priority_group, confirmation_status, vp_step_id"
-            ).eq("project_id", str(project_id)).execute()
-            all_features_raw = features_result.data or []
-            for f in all_features_raw:
-                if f.get("vp_step_id") in all_step_ids:
-                    linked_features.append(LinkedFeature(
-                        id=f["id"],
-                        name=f.get("name", ""),
-                        category=f.get("category"),
-                        priority_group=f.get("priority_group"),
-                        confirmation_status=f.get("confirmation_status"),
-                    ))
-        except Exception:
-            logger.debug(f"Could not resolve features for workflow {workflow_id}")
+        feature_evidence_map: dict[str, list] = {}
+        for f in all_features_raw:
+            if f.get("vp_step_id") in all_step_ids:
+                linked_features.append(LinkedFeature(
+                    id=f["id"],
+                    name=f.get("name", ""),
+                    category=f.get("category"),
+                    priority_group=f.get("priority_group"),
+                    confirmation_status=f.get("confirmation_status"),
+                ))
+                feature_evidence_map[f["id"]] = f.get("evidence") or []
 
-        # Data entities linked to any step
+        # Round 5: Data entities (depends on junction results)
         linked_data_entities: list[LinkedDataEntity] = []
-        try:
-            junction_result = client.table("data_entity_workflow_steps").select(
-                "data_entity_id, operation_type, vp_step_id"
-            ).in_("vp_step_id", all_step_ids).execute()
-            if junction_result.data:
-                de_ids = list({j["data_entity_id"] for j in junction_result.data})
-                op_map = {j["data_entity_id"]: j["operation_type"] for j in junction_result.data}
-                de_result = client.table("data_entities").select(
+        if junction_data:
+            de_ids = list({j["data_entity_id"] for j in junction_data})
+            op_map = {j["data_entity_id"]: j["operation_type"] for j in junction_data}
+            de_result = await asyncio.to_thread(
+                lambda: client.table("data_entities").select(
                     "id, name, entity_category"
-                ).in_("id", de_ids).execute()
-                for de in (de_result.data or []):
-                    linked_data_entities.append(LinkedDataEntity(
-                        id=de["id"],
-                        name=de.get("name", ""),
-                        entity_category=de.get("entity_category", "domain"),
-                        operation_type=op_map.get(de["id"], "read"),
-                    ))
-        except Exception:
-            logger.debug(f"Could not resolve data entities for workflow {workflow_id}")
+                ).in_("id", de_ids).execute().data or []
+            )
+            for de in de_result:
+                linked_data_entities.append(LinkedDataEntity(
+                    id=de["id"],
+                    name=de.get("name", ""),
+                    entity_category=de.get("entity_category", "domain"),
+                    operation_type=op_map.get(de["id"], "read"),
+                ))
 
         # Actor personas (deduplicated)
         actor_personas = [
@@ -420,48 +444,31 @@ async def get_workflow_detail(project_id: UUID, workflow_id: UUID) -> WorkflowDe
             for p in persona_map.values()
         ]
 
-        # 6b. Aggregate evidence from steps + linked drivers + features
+        # Evidence — batch from pre-loaded data (no per-entity queries)
         workflow_evidence: list[dict] = []
-        try:
-            # From steps directly
-            for s in current_steps_raw + future_steps_raw:
-                for e in _parse_evidence(s.get("evidence") or []):
-                    workflow_evidence.append({
-                        "chunk_id": e.chunk_id,
-                        "excerpt": e.excerpt,
-                        "source_type": e.source_type,
-                        "rationale": e.rationale or f"Via step: {s.get('label', '')[:50]}",
-                    })
-            # From linked drivers
-            for d in linked_drivers:
-                driver_row = client.table("business_drivers").select(
-                    "evidence"
-                ).eq("id", d.id).maybe_single().execute()
-                if driver_row and driver_row.data:
-                    for e in _parse_evidence(driver_row.data.get("evidence") or []):
-                        workflow_evidence.append({
-                            "chunk_id": e.chunk_id,
-                            "excerpt": e.excerpt,
-                            "source_type": e.source_type,
-                            "rationale": f"Via driver: {d.description[:50]}",
-                        })
-            # From linked features
-            for f in linked_features:
-                feat_row = client.table("features").select(
-                    "evidence"
-                ).eq("id", f.id).maybe_single().execute()
-                if feat_row and feat_row.data:
-                    for e in _parse_evidence(feat_row.data.get("evidence") or []):
-                        workflow_evidence.append({
-                            "chunk_id": e.chunk_id,
-                            "excerpt": e.excerpt,
-                            "source_type": e.source_type,
-                            "rationale": f"Via feature: {f.name}",
-                        })
-        except Exception:
-            logger.debug(f"Could not gather evidence for workflow {workflow_id}")
+        for s in current_steps_raw + future_steps_raw:
+            for e in _parse_evidence(s.get("evidence") or []):
+                workflow_evidence.append({
+                    "chunk_id": e.chunk_id, "excerpt": e.excerpt,
+                    "source_type": e.source_type,
+                    "rationale": e.rationale or f"Via step: {s.get('label', '')[:50]}",
+                })
+        for d in linked_drivers:
+            for e in _parse_evidence(driver_evidence_map.get(d.id, [])):
+                workflow_evidence.append({
+                    "chunk_id": e.chunk_id, "excerpt": e.excerpt,
+                    "source_type": e.source_type,
+                    "rationale": f"Via driver: {d.description[:50]}",
+                })
+        for f in linked_features:
+            for e in _parse_evidence(feature_evidence_map.get(f.id, [])):
+                workflow_evidence.append({
+                    "chunk_id": e.chunk_id, "excerpt": e.excerpt,
+                    "source_type": e.source_type,
+                    "rationale": f"Via feature: {f.name}",
+                })
 
-        # 7. Read strategic unlocks from workflow-level enrichment_data
+        # Strategic unlocks from enrichment_data
         strategic_unlocks: list[StepUnlockSummary] = []
         wf_enrichment = workflow.get("enrichment_data")
         if isinstance(wf_enrichment, dict):
@@ -475,7 +482,7 @@ async def get_workflow_detail(project_id: UUID, workflow_id: UUID) -> WorkflowDe
                         linked_goal_id=u.get("linked_goal_id"),
                     ))
 
-        # 8. Workflow-level insights
+        # Workflow-level insights
         insights_raw = compute_workflow_insights(
             current_steps=current_steps_raw,
             future_steps=future_steps_raw,
@@ -484,7 +491,7 @@ async def get_workflow_detail(project_id: UUID, workflow_id: UUID) -> WorkflowDe
             roi=roi.model_dump() if roi else None,
         )
 
-        # 9. Health stats
+        # Health stats
         all_steps_raw = current_steps_raw + future_steps_raw
         steps_without_actor = sum(1 for s in all_steps_raw if not s.get("actor_persona_id"))
         steps_without_time = sum(1 for s in all_steps_raw if s.get("time_minutes") is None)
@@ -492,27 +499,19 @@ async def get_workflow_detail(project_id: UUID, workflow_id: UUID) -> WorkflowDe
             1 for s in future_steps_raw
             if not any(f.get("vp_step_id") == s.get("id") for f in all_features_raw)
         )
-        enriched_count = sum(
-            1 for s in all_steps_raw if s.get("enrichment_status") == "enriched"
-        )
+        enriched_count = sum(1 for s in all_steps_raw if s.get("enrichment_status") == "enriched")
 
-        # 10. Fetch revision history
+        # Revision history (from pre-loaded data)
         revisions: list[dict] = []
-        revision_count = 0
-        try:
-            raw_history = get_entity_history(str(workflow_id))
-            for h in (raw_history or []):
-                revisions.append({
-                    "revision_number": h.get("revision_number", 0),
-                    "revision_type": h.get("revision_type", ""),
-                    "diff_summary": h.get("diff_summary", ""),
-                    "changes": h.get("changes"),
-                    "created_at": h.get("created_at", ""),
-                    "created_by": h.get("created_by"),
-                })
-            revision_count = count_entity_versions(str(workflow_id))
-        except Exception:
-            logger.debug(f"Could not fetch history for workflow {workflow_id}")
+        for h in raw_history:
+            revisions.append({
+                "revision_number": h.get("revision_number", 0),
+                "revision_type": h.get("revision_type", ""),
+                "diff_summary": h.get("diff_summary", ""),
+                "changes": h.get("changes"),
+                "created_at": h.get("created_at", ""),
+                "created_by": h.get("created_by"),
+            })
 
         return WorkflowDetail(
             id=workflow["id"],
@@ -562,12 +561,12 @@ async def get_workflow_step_detail(project_id: UUID, step_id: UUID) -> WorkflowS
     """
     from app.core.workflow_health import compute_step_insights
     from app.db.change_tracking import count_entity_versions, get_entity_history
-    from app.db.workflows import get_workflow, list_workflow_steps, list_workflows
+    from app.db.workflows import get_workflow, list_workflows
 
     client = get_client()
 
     try:
-        # 1. Fetch step
+        # Round 1: Fetch step
         step_result = client.table("vp_steps").select("*").eq(
             "id", str(step_id)
         ).maybe_single().execute()
@@ -577,103 +576,135 @@ async def get_workflow_step_detail(project_id: UUID, step_id: UUID) -> WorkflowS
         if step.get("project_id") != str(project_id):
             raise HTTPException(status_code=403, detail="Step does not belong to this project")
 
-        # 2. Fetch parent workflow
+        # Round 2: Parent workflow (needed for paired_workflow_id)
         workflow = None
         state_type = None
         workflow_name = None
         paired_workflow_id = None
         if step.get("workflow_id"):
-            workflow = get_workflow(UUID(step["workflow_id"]))
+            workflow = await asyncio.to_thread(get_workflow, UUID(step["workflow_id"]))
             if workflow:
                 state_type = workflow.get("state_type")
                 workflow_name = workflow.get("name", "")
                 paired_workflow_id = workflow.get("paired_workflow_id")
 
-        # Get all workflows + steps for project (needed for insights)
-        all_workflows = list_workflows(project_id)
-        all_project_steps: list[dict] = []
-        for wf in all_workflows:
-            wf_steps = list_workflow_steps(UUID(wf["id"]))
-            for s in wf_steps:
-                s["state_type"] = wf.get("state_type")
-                s["workflow_name"] = wf.get("name")
-            all_project_steps.extend(wf_steps)
+        # Round 3: All independent lookups in parallel
+        # Replace O(N) list_workflow_steps-per-workflow with single project-wide query
+        def _q_all_steps():
+            """Get all steps for the project in one query, then group by workflow."""
+            return client.table("vp_steps").select("*").eq(
+                "project_id", str(project_id)
+            ).order("step_index").execute().data or []
 
-        # Sibling steps (same workflow)
+        def _q_all_workflows():
+            return list_workflows(project_id)
+
+        def _q_drivers():
+            return client.table("business_drivers").select(
+                "id, description, driver_type, severity, vision_alignment, linked_vp_step_ids, evidence"
+            ).eq("project_id", str(project_id)).execute().data or []
+
+        def _q_features():
+            return client.table("features").select(
+                "id, name, category, priority_group, confirmation_status, evidence"
+            ).eq("vp_step_id", str(step_id)).execute().data or []
+
+        def _q_junction():
+            return client.table("data_entity_workflow_steps").select(
+                "data_entity_id, operation_type"
+            ).eq("vp_step_id", str(step_id)).execute().data or []
+
+        def _q_actor():
+            if not step.get("actor_persona_id"):
+                return None
+            r = client.table("personas").select("id, name, role").eq(
+                "id", step["actor_persona_id"]
+            ).maybe_single().execute()
+            return r.data if r else None
+
+        def _q_history():
+            return get_entity_history(str(step_id)) or []
+
+        def _q_versions():
+            return count_entity_versions(str(step_id))
+
+        (
+            all_steps_data, all_workflows, all_drivers_raw, features_data,
+            junction_data, actor_data, raw_history, revision_count,
+        ) = await asyncio.gather(
+            asyncio.to_thread(_q_all_steps),
+            asyncio.to_thread(_q_all_workflows),
+            asyncio.to_thread(_q_drivers),
+            asyncio.to_thread(_q_features),
+            asyncio.to_thread(_q_junction),
+            asyncio.to_thread(_q_actor),
+            asyncio.to_thread(_q_history),
+            asyncio.to_thread(_q_versions),
+        )
+
+        # Build workflow lookup and annotate steps with state_type/workflow_name
+        wf_lookup = {wf["id"]: wf for wf in all_workflows}
+        all_project_steps: list[dict] = []
+        for s in all_steps_data:
+            wf = wf_lookup.get(s.get("workflow_id", ""), {})
+            s["state_type"] = wf.get("state_type")
+            s["workflow_name"] = wf.get("name")
+            all_project_steps.append(s)
+
         workflow_steps = [s for s in all_project_steps if s.get("workflow_id") == step.get("workflow_id")]
 
-        # 3. Reverse-lookup business drivers: query drivers with linked_vp_step_ids containing this step
+        # Resolve linked drivers (with evidence pre-loaded)
         linked_drivers: list[LinkedBusinessDriver] = []
-        try:
-            drivers_result = client.table("business_drivers").select(
-                "id, description, driver_type, severity, vision_alignment, linked_vp_step_ids"
-            ).eq("project_id", str(project_id)).execute()
-            for d in (drivers_result.data or []):
-                linked_ids = d.get("linked_vp_step_ids") or []
-                if str(step_id) in [str(lid) for lid in linked_ids]:
-                    linked_drivers.append(LinkedBusinessDriver(
-                        id=d["id"],
-                        description=d.get("description", ""),
-                        driver_type=d.get("driver_type", ""),
-                        severity=d.get("severity"),
-                        vision_alignment=d.get("vision_alignment"),
-                    ))
-        except Exception:
-            logger.debug(f"Could not resolve linked drivers for step {step_id}")
-
-        # 4. Lookup features where vp_step_id = step_id
-        linked_features: list[LinkedFeature] = []
-        try:
-            features_result = client.table("features").select(
-                "id, name, category, priority_group, confirmation_status"
-            ).eq("vp_step_id", str(step_id)).execute()
-            for f in (features_result.data or []):
-                linked_features.append(LinkedFeature(
-                    id=f["id"],
-                    name=f.get("name", ""),
-                    category=f.get("category"),
-                    priority_group=f.get("priority_group"),
-                    confirmation_status=f.get("confirmation_status"),
+        driver_evidence_map: dict[str, list] = {}
+        for d in all_drivers_raw:
+            linked_ids = d.get("linked_vp_step_ids") or []
+            if str(step_id) in [str(lid) for lid in linked_ids]:
+                linked_drivers.append(LinkedBusinessDriver(
+                    id=d["id"],
+                    description=d.get("description", ""),
+                    driver_type=d.get("driver_type", ""),
+                    severity=d.get("severity"),
+                    vision_alignment=d.get("vision_alignment"),
                 ))
-        except Exception:
-            logger.debug(f"Could not resolve linked features for step {step_id}")
+                driver_evidence_map[d["id"]] = d.get("evidence") or []
 
-        # 5. Lookup data entities via junction table
+        # Resolve linked features (with evidence pre-loaded)
+        linked_features: list[LinkedFeature] = []
+        feature_evidence_map: dict[str, list] = {}
+        for f in features_data:
+            linked_features.append(LinkedFeature(
+                id=f["id"],
+                name=f.get("name", ""),
+                category=f.get("category"),
+                priority_group=f.get("priority_group"),
+                confirmation_status=f.get("confirmation_status"),
+            ))
+            feature_evidence_map[f["id"]] = f.get("evidence") or []
+
+        # Round 4: Data entities (depends on junction)
         linked_data_entities: list[LinkedDataEntity] = []
-        try:
-            junction_result = client.table("data_entity_workflow_steps").select(
-                "data_entity_id, operation_type"
-            ).eq("vp_step_id", str(step_id)).execute()
-            if junction_result.data:
-                de_ids = [j["data_entity_id"] for j in junction_result.data]
-                op_map = {j["data_entity_id"]: j["operation_type"] for j in junction_result.data}
-                de_result = client.table("data_entities").select(
+        if junction_data:
+            de_ids = [j["data_entity_id"] for j in junction_data]
+            op_map = {j["data_entity_id"]: j["operation_type"] for j in junction_data}
+            de_result = await asyncio.to_thread(
+                lambda: client.table("data_entities").select(
                     "id, name, entity_category"
-                ).in_("id", de_ids).execute()
-                for de in (de_result.data or []):
-                    linked_data_entities.append(LinkedDataEntity(
-                        id=de["id"],
-                        name=de.get("name", ""),
-                        entity_category=de.get("entity_category", "domain"),
-                        operation_type=op_map.get(de["id"], "read"),
-                    ))
-        except Exception:
-            logger.debug(f"Could not resolve data entities for step {step_id}")
+                ).in_("id", de_ids).execute().data or []
+            )
+            for de in de_result:
+                linked_data_entities.append(LinkedDataEntity(
+                    id=de["id"],
+                    name=de.get("name", ""),
+                    entity_category=de.get("entity_category", "domain"),
+                    operation_type=op_map.get(de["id"], "read"),
+                ))
 
-        # 6. Resolve actor persona
+        # Actor persona
         actor: LinkedPersona | None = None
-        if step.get("actor_persona_id"):
-            try:
-                persona_result = client.table("personas").select(
-                    "id, name, role"
-                ).eq("id", step["actor_persona_id"]).maybe_single().execute()
-                if persona_result and persona_result.data:
-                    p = persona_result.data
-                    actor = LinkedPersona(id=p["id"], name=p.get("name", ""), role=p.get("role"))
-            except Exception:
-                logger.debug(f"Could not resolve actor for step {step_id}")
+        if actor_data:
+            actor = LinkedPersona(id=actor_data["id"], name=actor_data.get("name", ""), role=actor_data.get("role"))
 
-        # 7. Find counterpart step
+        # Counterpart step (uses pre-loaded all_steps_data instead of separate queries)
         counterpart_step: WorkflowStepSummary | None = None
         counterpart_state: str | None = None
         time_delta: float | None = None
@@ -681,9 +712,9 @@ async def get_workflow_step_detail(project_id: UUID, step_id: UUID) -> WorkflowS
 
         if paired_workflow_id:
             try:
-                paired_steps = list_workflow_steps(UUID(paired_workflow_id))
-                paired_workflow = get_workflow(UUID(paired_workflow_id))
-                counterpart_state = paired_workflow.get("state_type") if paired_workflow else None
+                paired_steps = [s for s in all_steps_data if s.get("workflow_id") == paired_workflow_id]
+                paired_wf = wf_lookup.get(paired_workflow_id, {})
+                counterpart_state = paired_wf.get("state_type")
 
                 # Match by step_index
                 match = None
@@ -709,24 +740,28 @@ async def get_workflow_step_detail(project_id: UUID, step_id: UUID) -> WorkflowS
                         match = None
 
                 if match:
-                    # Resolve actor name for counterpart
+                    # Resolve actor name for counterpart — check if same as main actor
                     cp_actor_name = None
-                    if match.get("actor_persona_id"):
-                        try:
-                            cp_persona = client.table("personas").select(
-                                "name"
-                            ).eq("id", match["actor_persona_id"]).maybe_single().execute()
-                            if cp_persona and cp_persona.data:
-                                cp_actor_name = cp_persona.data.get("name")
-                        except Exception:
-                            pass
+                    cp_actor_id = match.get("actor_persona_id")
+                    if cp_actor_id:
+                        if actor_data and actor_data["id"] == cp_actor_id:
+                            cp_actor_name = actor_data.get("name")
+                        else:
+                            try:
+                                cp_persona = client.table("personas").select(
+                                    "name"
+                                ).eq("id", cp_actor_id).maybe_single().execute()
+                                if cp_persona and cp_persona.data:
+                                    cp_actor_name = cp_persona.data.get("name")
+                            except Exception:
+                                pass
 
                     counterpart_step = WorkflowStepSummary(
                         id=match["id"],
                         step_index=match.get("step_index", 0),
                         label=match.get("label", ""),
                         description=match.get("description"),
-                        actor_persona_id=match.get("actor_persona_id"),
+                        actor_persona_id=cp_actor_id,
                         actor_persona_name=cp_actor_name,
                         time_minutes=match.get("time_minutes"),
                         pain_description=match.get("pain_description"),
@@ -740,7 +775,6 @@ async def get_workflow_step_detail(project_id: UUID, step_id: UUID) -> WorkflowS
                     step_time = step.get("time_minutes")
                     cp_time = match.get("time_minutes")
                     if step_time is not None and cp_time is not None:
-                        # Delta = current - future (positive = savings)
                         if state_type == "current":
                             time_delta = step_time - cp_time
                         else:
@@ -756,50 +790,29 @@ async def get_workflow_step_detail(project_id: UUID, step_id: UUID) -> WorkflowS
             except Exception:
                 logger.debug(f"Could not resolve counterpart for step {step_id}")
 
-        # 8. Gather evidence — step's own evidence first, then linked entities
+        # Evidence — batch from pre-loaded data (no per-entity queries)
         evidence: list[dict] = []
-        try:
-            # Step's own evidence (direct from V2 pipeline / project launch)
-            step_evidence_raw = step.get("evidence") or []
-            for e in _parse_evidence(step_evidence_raw):
+        for e in _parse_evidence(step.get("evidence") or []):
+            evidence.append({
+                "chunk_id": e.chunk_id, "excerpt": e.excerpt,
+                "source_type": e.source_type, "rationale": e.rationale or "",
+            })
+        for d in linked_drivers:
+            for e in _parse_evidence(driver_evidence_map.get(d.id, [])):
                 evidence.append({
-                    "chunk_id": e.chunk_id,
-                    "excerpt": e.excerpt,
+                    "chunk_id": e.chunk_id, "excerpt": e.excerpt,
                     "source_type": e.source_type,
-                    "rationale": e.rationale or "",
+                    "rationale": f"Via driver: {d.description[:60]}",
                 })
-            # From linked drivers
-            for d in linked_drivers:
-                driver_row = client.table("business_drivers").select(
-                    "evidence"
-                ).eq("id", d.id).maybe_single().execute()
-                if driver_row and driver_row.data:
-                    raw_ev = driver_row.data.get("evidence") or []
-                    for e in _parse_evidence(raw_ev):
-                        evidence.append({
-                            "chunk_id": e.chunk_id,
-                            "excerpt": e.excerpt,
-                            "source_type": e.source_type,
-                            "rationale": f"Via driver: {d.description[:60]}",
-                        })
-            # From linked features
-            for f in linked_features:
-                feat_row = client.table("features").select(
-                    "evidence"
-                ).eq("id", f.id).maybe_single().execute()
-                if feat_row and feat_row.data:
-                    raw_ev = feat_row.data.get("evidence") or []
-                    for e in _parse_evidence(raw_ev):
-                        evidence.append({
-                            "chunk_id": e.chunk_id,
-                            "excerpt": e.excerpt,
-                            "source_type": e.source_type,
-                            "rationale": f"Via feature: {f.name}",
-                        })
-        except Exception:
-            logger.debug(f"Could not gather evidence for step {step_id}")
+        for f in linked_features:
+            for e in _parse_evidence(feature_evidence_map.get(f.id, [])):
+                evidence.append({
+                    "chunk_id": e.chunk_id, "excerpt": e.excerpt,
+                    "source_type": e.source_type,
+                    "rationale": f"Via feature: {f.name}",
+                })
 
-        # 9. Compute insights
+        # Compute insights
         insights_raw = compute_step_insights(
             step=step,
             workflow_steps=workflow_steps,
@@ -811,23 +824,17 @@ async def get_workflow_step_detail(project_id: UUID, step_id: UUID) -> WorkflowS
             linked_data_entities=linked_data_entities,
         )
 
-        # 10. Fetch history
+        # Revision history (from pre-loaded data)
         revisions: list[dict] = []
-        revision_count = 0
-        try:
-            raw_history = get_entity_history(str(step_id))
-            for h in (raw_history or []):
-                revisions.append({
-                    "revision_number": h.get("revision_number", 0),
-                    "revision_type": h.get("revision_type", ""),
-                    "diff_summary": h.get("diff_summary", ""),
-                    "changes": h.get("changes"),
-                    "created_at": h.get("created_at", ""),
-                    "created_by": h.get("created_by"),
-                })
-            revision_count = count_entity_versions(str(step_id))
-        except Exception:
-            logger.debug(f"Could not fetch history for step {step_id}")
+        for h in raw_history:
+            revisions.append({
+                "revision_number": h.get("revision_number", 0),
+                "revision_type": h.get("revision_type", ""),
+                "diff_summary": h.get("diff_summary", ""),
+                "changes": h.get("changes"),
+                "created_at": h.get("created_at", ""),
+                "created_by": h.get("created_by"),
+            })
 
         return WorkflowStepDetail(
             id=step["id"],

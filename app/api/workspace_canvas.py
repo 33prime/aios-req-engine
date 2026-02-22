@@ -61,7 +61,7 @@ async def get_client_intelligence(project_id: UUID) -> dict:
     client = get_client()
 
     try:
-        # Load project (for client_id link)
+        # Round 1: Load project (for client_id link)
         project = client.table("projects").select(
             "id, client_id"
         ).eq("id", str(project_id)).single().execute()
@@ -69,23 +69,23 @@ async def get_client_intelligence(project_id: UUID) -> dict:
         if not project.data:
             raise HTTPException(status_code=404, detail="Project not found")
 
-        # 1. Company info (project-level)
-        company_profile: dict = {}
-        try:
-            ci_result = client.table("company_info").select(
-                "name, description, industry, website, stage, size, revenue, "
-                "employee_count, location, unique_selling_point, company_type, "
-                "industry_display, enrichment_source, enriched_at"
-            ).eq("project_id", str(project_id)).maybe_single().execute()
-            if ci_result and ci_result.data:
-                company_profile = ci_result.data
-        except Exception:
-            pass
-
-        # 2. Client data (if project linked to a client)
-        client_data: dict = {}
         client_id = project.data.get("client_id")
-        if client_id:
+
+        # Round 2: All independent lookups in parallel
+        def _q_company():
+            try:
+                ci_result = client.table("company_info").select(
+                    "name, description, industry, website, stage, size, revenue, "
+                    "employee_count, location, unique_selling_point, company_type, "
+                    "industry_display, enrichment_source, enriched_at"
+                ).eq("project_id", str(project_id)).maybe_single().execute()
+                return ci_result.data if ci_result else {}
+            except Exception:
+                return {}
+
+        def _q_client():
+            if not client_id:
+                return {}
             try:
                 cl_result = client.table("clients").select(
                     "name, industry, stage, size, description, website, "
@@ -94,51 +94,57 @@ async def get_client_intelligence(project_id: UUID) -> dict:
                     "constraint_summary, role_gaps, vision_synthesis, organizational_context, "
                     "profile_completeness, last_analyzed_at, enrichment_status, enriched_at"
                 ).eq("id", str(client_id)).maybe_single().execute()
-                if cl_result and cl_result.data:
-                    client_data = cl_result.data
-                    # Parse JSONB fields that may be double-encoded as strings
+                data = cl_result.data if cl_result else {}
+                if data:
                     for key in ("role_gaps", "constraint_summary", "organizational_context",
                                 "tech_stack", "growth_signals", "competitors"):
-                        val = client_data.get(key)
+                        val = data.get(key)
                         if isinstance(val, str):
                             try:
-                                client_data[key] = json.loads(val)
+                                data[key] = json.loads(val)
                             except (json.JSONDecodeError, TypeError):
                                 pass
+                return data or {}
             except Exception:
-                pass
+                return {}
 
-        # 3. Strategic context
-        strategic: dict = {}
-        try:
-            sc_result = client.table("strategic_context").select(
-                "executive_summary, opportunity, risks, investment_case, "
-                "success_metrics, constraints, confirmation_status, enrichment_status"
-            ).eq("project_id", str(project_id)).maybe_single().execute()
-            if sc_result and sc_result.data:
-                strategic = sc_result.data
-                # Parse JSONB fields that may be double-encoded as strings
-                for key in ("opportunity", "risks", "investment_case",
-                            "success_metrics", "constraints"):
-                    val = strategic.get(key)
-                    if isinstance(val, str):
-                        try:
-                            strategic[key] = json.loads(val)
-                        except (json.JSONDecodeError, TypeError):
-                            pass
-        except Exception:
-            pass
+        def _q_strategic():
+            try:
+                sc_result = client.table("strategic_context").select(
+                    "executive_summary, opportunity, risks, investment_case, "
+                    "success_metrics, constraints, confirmation_status, enrichment_status"
+                ).eq("project_id", str(project_id)).maybe_single().execute()
+                data = sc_result.data if sc_result else {}
+                if data:
+                    for key in ("opportunity", "risks", "investment_case",
+                                "success_metrics", "constraints"):
+                        val = data.get(key)
+                        if isinstance(val, str):
+                            try:
+                                data[key] = json.loads(val)
+                            except (json.JSONDecodeError, TypeError):
+                                pass
+                return data or {}
+            except Exception:
+                return {}
 
-        # 4. Open questions from project memory
-        open_questions: list = []
-        try:
-            pm_result = client.table("project_memory").select(
-                "open_questions, project_understanding"
-            ).eq("project_id", str(project_id)).maybe_single().execute()
-            if pm_result and pm_result.data:
-                open_questions = pm_result.data.get("open_questions") or []
-        except Exception:
-            pass
+        def _q_memory():
+            try:
+                pm_result = client.table("project_memory").select(
+                    "open_questions, project_understanding"
+                ).eq("project_id", str(project_id)).maybe_single().execute()
+                return (pm_result.data or {}).get("open_questions") or [] if pm_result else []
+            except Exception:
+                return []
+
+        (
+            company_profile, client_data, strategic, open_questions,
+        ) = await asyncio.gather(
+            asyncio.to_thread(_q_company),
+            asyncio.to_thread(_q_client),
+            asyncio.to_thread(_q_strategic),
+            asyncio.to_thread(_q_memory),
+        )
 
         return {
             "company_profile": company_profile,
@@ -298,80 +304,81 @@ async def get_canvas_view_data(project_id: UUID) -> dict:
     try:
         client = get_client()
 
-        # 1. Canvas actors
-        canvas_actors_raw = get_canvas_actors(project_id)
+        def _q_actors():
+            return get_canvas_actors(project_id)
+
+        def _q_synthesis():
+            try:
+                from app.db.canvas_synthesis import get_canvas_synthesis
+                return get_canvas_synthesis(project_id)
+            except Exception:
+                return None
+
+        def _q_features():
+            return client.table("features").select(
+                "id, name, category, is_mvp, priority_group, confirmation_status, vp_step_id, overview, is_stale, stale_reason"
+            ).eq("project_id", str(project_id)).eq("priority_group", "must_have").execute().data or []
+
+        def _q_pairs():
+            try:
+                from app.db.workflows import get_workflow_pairs
+                return get_workflow_pairs(project_id)
+            except Exception:
+                return []
+
+        (
+            canvas_actors_raw, synthesis, features_data, workflow_pairs_raw,
+        ) = await asyncio.gather(
+            asyncio.to_thread(_q_actors),
+            asyncio.to_thread(_q_synthesis),
+            asyncio.to_thread(_q_features),
+            asyncio.to_thread(_q_pairs),
+        )
+
         canvas_actors = [
             PersonaBRDSummary(
-                id=p["id"],
-                name=p["name"],
-                role=p.get("role"),
-                description=p.get("description"),
-                goals=p.get("goals") or [],
+                id=p["id"], name=p["name"], role=p.get("role"),
+                description=p.get("description"), goals=p.get("goals") or [],
                 pain_points=p.get("pain_points") or [],
                 confirmation_status=p.get("confirmation_status"),
-                is_stale=p.get("is_stale", False),
-                stale_reason=p.get("stale_reason"),
+                is_stale=p.get("is_stale", False), stale_reason=p.get("stale_reason"),
                 canvas_role=p.get("canvas_role"),
             ).model_dump()
             for p in canvas_actors_raw
         ]
 
-        # 2. Canvas synthesis (value path)
         value_path: list[dict] = []
         synthesis_rationale = None
         synthesis_stale = False
-        try:
-            from app.db.canvas_synthesis import get_canvas_synthesis
-            synthesis = get_canvas_synthesis(project_id)
-            if synthesis:
-                value_path = synthesis.get("value_path") or []
-                synthesis_rationale = synthesis.get("synthesis_rationale")
-                synthesis_stale = synthesis.get("is_stale", False)
-        except Exception:
-            logger.debug(f"Could not load canvas synthesis for project {project_id}")
-
-        # 3. Must-have features
-        features_result = client.table("features").select(
-            "id, name, category, is_mvp, priority_group, confirmation_status, vp_step_id, overview, is_stale, stale_reason"
-        ).eq("project_id", str(project_id)).eq("priority_group", "must_have").execute()
+        if synthesis:
+            value_path = synthesis.get("value_path") or []
+            synthesis_rationale = synthesis.get("synthesis_rationale")
+            synthesis_stale = synthesis.get("is_stale", False)
 
         mvp_features = [
             FeatureBRDSummary(
-                id=f["id"],
-                name=f["name"],
-                description=f.get("overview"),
-                category=f.get("category"),
-                is_mvp=f.get("is_mvp", False),
+                id=f["id"], name=f["name"], description=f.get("overview"),
+                category=f.get("category"), is_mvp=f.get("is_mvp", False),
                 priority_group="must_have",
                 confirmation_status=f.get("confirmation_status"),
                 vp_step_id=f.get("vp_step_id"),
-                is_stale=f.get("is_stale", False),
-                stale_reason=f.get("stale_reason"),
+                is_stale=f.get("is_stale", False), stale_reason=f.get("stale_reason"),
             ).model_dump()
-            for f in (features_result.data or [])
+            for f in features_data
         ]
 
-        # 4. Workflow pairs (for actor journey drill-down)
         workflow_pairs_out = []
-        try:
-            from app.db.workflows import get_workflow_pairs
-            workflow_pairs_raw = get_workflow_pairs(project_id)
-            for wp in workflow_pairs_raw:
-                pair = WorkflowPair(
-                    id=wp["id"],
-                    name=wp["name"],
-                    description=wp.get("description", ""),
-                    owner=wp.get("owner"),
-                    confirmation_status=wp.get("confirmation_status"),
-                    current_workflow_id=wp.get("current_workflow_id"),
-                    future_workflow_id=wp.get("future_workflow_id"),
-                    current_steps=[WorkflowStepSummary(**s) for s in wp.get("current_steps", [])],
-                    future_steps=[WorkflowStepSummary(**s) for s in wp.get("future_steps", [])],
-                    roi=ROISummary(**{**wp["roi"], "workflow_name": wp["name"]}) if wp.get("roi") else None,
-                )
-                workflow_pairs_out.append(pair.model_dump())
-        except Exception:
-            logger.debug(f"Could not load workflow pairs for canvas view, project {project_id}")
+        for wp in workflow_pairs_raw:
+            pair = WorkflowPair(
+                id=wp["id"], name=wp["name"], description=wp.get("description", ""),
+                owner=wp.get("owner"), confirmation_status=wp.get("confirmation_status"),
+                current_workflow_id=wp.get("current_workflow_id"),
+                future_workflow_id=wp.get("future_workflow_id"),
+                current_steps=[WorkflowStepSummary(**s) for s in wp.get("current_steps", [])],
+                future_steps=[WorkflowStepSummary(**s) for s in wp.get("future_steps", [])],
+                roi=ROISummary(**{**wp["roi"], "workflow_name": wp["name"]}) if wp.get("roi") else None,
+            )
+            workflow_pairs_out.append(pair.model_dump())
 
         return {
             "actors": canvas_actors,

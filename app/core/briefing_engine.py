@@ -11,14 +11,12 @@ Composes deterministic engines + LLM chains into a single IntelligenceBriefing.
 import asyncio
 import json
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from uuid import UUID
 
-from app.core.schemas_actions import ContextPhase, TerseAction
+from app.core.schemas_actions import TerseAction
 from app.core.schemas_briefing import (
-    ActiveTension,
     BriefingSituation,
-    BriefingWhatChanged,
     ConversationStarter,
     Hypothesis,
     IntelligenceBriefing,
@@ -56,41 +54,63 @@ async def compute_intelligence_briefing(
     workflow_context_display = _build_workflow_context_display(data["workflow_pairs"])
     entity_counts = _count_entities(data)
 
-    # Load project name
-    project_name = _get_project_name(project_id)
-
-    # Load session data for temporal diff
-    session = None
-    since_timestamp = None
-    if user_id:
+    # Load project name + session + beliefs + insights + cache in parallel
+    def _load_session():
+        if not user_id:
+            return None
         from app.db.consultant_sessions import get_session
-        session = get_session(project_id, user_id)
-        if session:
-            ts = session.get("last_briefing_at")
-            if ts:
-                since_timestamp = _parse_timestamp(ts)
+        return get_session(project_id, user_id)
 
-    # Load memory data
-    beliefs = _load_beliefs(project_id)
-    insights = _load_insights(project_id)
+    (
+        project_name, session, beliefs, insights, cached_sections,
+    ) = await asyncio.gather(
+        asyncio.to_thread(_get_project_name, project_id),
+        asyncio.to_thread(_load_session),
+        asyncio.to_thread(_load_beliefs, project_id),
+        asyncio.to_thread(_load_insights, project_id),
+        asyncio.to_thread(_get_cached_briefing, project_id),
+    )
 
-    # Check briefing cache (is_stale is included in this query — no separate call)
-    cached_sections = _get_cached_briefing(project_id)
+    since_timestamp = None
+    if session:
+        ts = session.get("last_briefing_at")
+        if ts:
+            since_timestamp = _parse_timestamp(ts)
+
     cache_stale = force_refresh or not cached_sections
 
-    # ── Phase 2: Deterministic (parallel-safe, <50ms) ──
+    # ── Phase 2: Deterministic — all independent, run in parallel ──
     from app.core.hypothesis_engine import get_active_hypotheses, scan_for_hypotheses
     from app.core.temporal_diff import compute_temporal_diff
     from app.core.tension_detector import detect_tensions
 
-    tensions = detect_tensions(project_id)
-    hypotheses = _merge_hypotheses(
-        scan_for_hypotheses(project_id),
-        get_active_hypotheses(project_id),
+    def _run_tensions():
+        return detect_tensions(project_id)
+
+    def _run_scan():
+        return scan_for_hypotheses(project_id)
+
+    def _run_active():
+        return get_active_hypotheses(project_id)
+
+    def _run_heartbeat():
+        return _build_heartbeat(project_id, data, entity_counts)
+
+    def _run_temporal():
+        return compute_temporal_diff(project_id, since_timestamp)
+
+    (
+        tensions, scanned_hyps, active_hyps, heartbeat, temporal_diff,
+    ) = await asyncio.gather(
+        asyncio.to_thread(_run_tensions),
+        asyncio.to_thread(_run_scan),
+        asyncio.to_thread(_run_active),
+        asyncio.to_thread(_run_heartbeat),
+        asyncio.to_thread(_run_temporal),
     )
+
+    hypotheses = _merge_hypotheses(scanned_hyps, active_hyps)
     structural_gaps = _build_structural_gaps(data["workflow_pairs"], phase.value)
-    heartbeat = _build_heartbeat(project_id, data, entity_counts)
-    temporal_diff = compute_temporal_diff(project_id, since_timestamp)
 
     # ── Phase 3: LLM calls — run ALL in parallel ──
     # Build temporal data from raw diff (no Haiku summary yet — that runs concurrently)
@@ -284,7 +304,7 @@ async def compute_intelligence_briefing(
         heartbeat=heartbeat,
         actions=actions,
         conversation_starters=conversation_starters,
-        computed_at=datetime.now(timezone.utc),
+        computed_at=datetime.now(UTC),
         narrative_cached=narrative_cached,
         phase=phase,
     )
@@ -346,7 +366,7 @@ def _load_insights(project_id: UUID) -> list[dict]:
 def _parse_timestamp(ts) -> datetime | None:
     """Parse a timestamp from DB (string or datetime)."""
     if isinstance(ts, datetime):
-        return ts if ts.tzinfo else ts.replace(tzinfo=timezone.utc)
+        return ts if ts.tzinfo else ts.replace(tzinfo=UTC)
     if isinstance(ts, str):
         try:
             dt = datetime.fromisoformat(ts.replace("Z", "+00:00"))
@@ -436,7 +456,7 @@ def _build_heartbeat(
         if result.data:
             last_signal_ts = _parse_timestamp(result.data[0].get("created_at"))
             if last_signal_ts:
-                days_since = (datetime.now(timezone.utc) - last_signal_ts).days
+                days_since = (datetime.now(UTC) - last_signal_ts).days
     except Exception:
         pass
 
