@@ -1,5 +1,6 @@
 """Chat assistant tools for Claude."""
 
+import asyncio
 from typing import Any, Dict, List
 from uuid import UUID
 
@@ -1081,55 +1082,52 @@ async def _get_project_status(project_id: UUID, params: Dict[str, Any]) -> Dict[
     """
     supabase = get_supabase()
     include_details = params.get("include_details", False)
+    pid = str(project_id)
 
-    # Get counts in parallel
-    features_response = supabase.table("features").select("id", count="exact").eq("project_id", str(project_id)).execute()
+    # Run all 7 count queries in parallel
+    def _q_features():
+        return supabase.table("features").select("id", count="exact").eq("project_id", pid).execute()
 
-    personas_response = supabase.table("personas").select("id", count="exact").eq("project_id", str(project_id)).execute()
+    def _q_personas():
+        return supabase.table("personas").select("id", count="exact").eq("project_id", pid).execute()
 
-    vp_response = supabase.table("vp_steps").select("id", count="exact").eq("project_id", str(project_id)).execute()
+    def _q_vp_steps():
+        return supabase.table("vp_steps").select("id", count="exact").eq("project_id", pid).execute()
 
-    insights_response = (
-        supabase.table("insights")
-        .select("id, severity", count="exact")
-        .eq("project_id", str(project_id))
-        .eq("insight_type", "general")
-        .eq("status", "open")
-        .execute()
+    def _q_insights():
+        return supabase.table("insights").select("id, severity", count="exact").eq("project_id", pid).eq("insight_type", "general").eq("status", "open").execute()
+
+    def _q_patches_queued():
+        return supabase.table("insights").select("id", count="exact").eq("project_id", pid).eq("insight_type", "patch").eq("status", "queued").execute()
+
+    def _q_patches_applied():
+        return supabase.table("insights").select("id", count="exact").eq("project_id", pid).eq("insight_type", "patch").eq("status", "applied").execute()
+
+    def _q_confirmations():
+        try:
+            return supabase.table("confirmation_items").select("id", count="exact").eq("project_id", pid).eq("status", "open").execute()
+        except Exception:
+            return None
+
+    (
+        features_response,
+        personas_response,
+        vp_response,
+        insights_response,
+        patches_queued_response,
+        patches_applied_response,
+        confirmations_result,
+    ) = await asyncio.gather(
+        asyncio.to_thread(_q_features),
+        asyncio.to_thread(_q_personas),
+        asyncio.to_thread(_q_vp_steps),
+        asyncio.to_thread(_q_insights),
+        asyncio.to_thread(_q_patches_queued),
+        asyncio.to_thread(_q_patches_applied),
+        asyncio.to_thread(_q_confirmations),
     )
 
-    patches_queued_response = (
-        supabase.table("insights")
-        .select("id", count="exact")
-        .eq("project_id", str(project_id))
-        .eq("insight_type", "patch")
-        .eq("status", "queued")
-        .execute()
-    )
-
-    patches_applied_response = (
-        supabase.table("insights")
-        .select("id", count="exact")
-        .eq("project_id", str(project_id))
-        .eq("insight_type", "patch")
-        .eq("status", "applied")
-        .execute()
-    )
-
-    # Try to get confirmation_items (table may not exist yet)
-    confirmations_count = 0
-    try:
-        confirmations_response = (
-            supabase.table("confirmation_items")
-            .select("id", count="exact")
-            .eq("project_id", str(project_id))
-            .eq("status", "open")
-            .execute()
-        )
-        confirmations_count = confirmations_response.count or 0
-    except Exception:
-        # Table doesn't exist yet - migrations not run
-        pass
+    confirmations_count = (confirmations_result.count or 0) if confirmations_result else 0
 
     # Count critical insights
     insights_data = insights_response.data or []
@@ -1526,16 +1524,16 @@ async def _attach_evidence(project_id: UUID, params: Dict[str, Any]) -> Dict[str
         entity = response.data
         current_evidence = entity.get("evidence", [])
 
-        # Build new evidence entries
+        # Batch-fetch all chunks in a single query (replaces N+1 loop)
+        chunks_response = supabase.table("signal_chunks").select("id, text").in_("id", chunk_ids).execute()
+        chunk_text_map = {c["id"]: c.get("text", "") for c in (chunks_response.data or [])}
+
         new_evidence = []
         for chunk_id in chunk_ids:
-            # Fetch chunk to get excerpt
-            chunk_response = supabase.table("signal_chunks").select("text").eq("id", chunk_id).single().execute()
-
-            if chunk_response.data:
+            if chunk_id in chunk_text_map:
                 new_evidence.append({
                     "chunk_id": chunk_id,
-                    "excerpt": chunk_response.data.get("text", "")[:280],
+                    "excerpt": chunk_text_map[chunk_id][:280],
                     "rationale": rationale,
                 })
 
@@ -2579,8 +2577,18 @@ async def _get_recent_documents(
         )
 
         docs = response.data or []
-        results = []
 
+        # Batch-fetch all related signals in one query (replaces N+1 loop)
+        signal_ids = [d["signal_id"] for d in docs if d.get("processing_status") == "completed" and d.get("signal_id")]
+        signal_map: Dict[str, Any] = {}
+        if signal_ids:
+            try:
+                sig_resp = supabase.table("signals").select("id, processing_status, patch_summary").in_("id", signal_ids).execute()
+                signal_map = {s["id"]: s for s in (sig_resp.data or [])}
+            except Exception:
+                pass
+
+        results = []
         for doc in docs:
             doc_info: Dict[str, Any] = {
                 "filename": doc.get("original_filename", "unknown"),
@@ -2591,33 +2599,25 @@ async def _get_recent_documents(
 
             # If document extraction is done and has a signal, check entity extraction
             if doc.get("processing_status") == "completed" and doc.get("signal_id"):
-                try:
-                    sig_resp = (
-                        supabase.table("signals")
-                        .select("processing_status, patch_summary")
-                        .eq("id", doc["signal_id"])
-                        .single()
-                        .execute()
-                    )
-                    if sig_resp.data:
-                        sig_status = sig_resp.data.get("processing_status", "")
-                        if sig_status in ("completed", "processed"):
-                            doc_info["entity_extraction"] = "completed"
-                            # Parse patch summary for entity counts
-                            patch = sig_resp.data.get("patch_summary") or {}
-                            if isinstance(patch, str):
-                                import json as _json
-                                try:
-                                    patch = _json.loads(patch)
-                                except Exception:
-                                    patch = {}
-                            if patch:
-                                doc_info["entities_extracted"] = patch
-                        elif sig_status in ("processing", "pending"):
-                            doc_info["entity_extraction"] = "processing"
-                        else:
-                            doc_info["entity_extraction"] = sig_status or "unknown"
-                except Exception:
+                sig_data = signal_map.get(doc["signal_id"])
+                if sig_data:
+                    sig_status = sig_data.get("processing_status", "")
+                    if sig_status in ("completed", "processed"):
+                        doc_info["entity_extraction"] = "completed"
+                        patch = sig_data.get("patch_summary") or {}
+                        if isinstance(patch, str):
+                            import json as _json
+                            try:
+                                patch = _json.loads(patch)
+                            except Exception:
+                                patch = {}
+                        if patch:
+                            doc_info["entities_extracted"] = patch
+                    elif sig_status in ("processing", "pending"):
+                        doc_info["entity_extraction"] = "processing"
+                    else:
+                        doc_info["entity_extraction"] = sig_status or "unknown"
+                else:
                     doc_info["entity_extraction"] = "unknown"
             elif doc.get("processing_status") == "completed":
                 doc_info["entity_extraction"] = "not started"
@@ -3356,53 +3356,38 @@ async def _query_entity_history(project_id: UUID, params: Dict[str, Any]) -> Dic
         "confirmation_status": entity.get("confirmation_status"),
     }
 
-    # Load enrichment revisions (chronological field changes)
-    try:
-        rev_resp = (
-            supabase.table("enrichment_revisions")
-            .select("field_name, old_value, new_value, source, created_at")
-            .eq("entity_type", entity_type)
-            .eq("entity_id", entity_id)
-            .order("created_at")
-            .limit(20)
-            .execute()
-        )
-        result["revisions"] = rev_resp.data or []
-    except Exception:
-        result["revisions"] = []
-
-    # Load source signals
+    # Load revisions, source signals, and memory nodes in parallel
     source_signal_ids = entity.get("source_signal_ids") or []
-    if source_signal_ids:
-        try:
-            sig_resp = (
-                supabase.table("signals")
-                .select("id, title, signal_type, created_at")
-                .in_("id", source_signal_ids[:10])
-                .order("created_at")
-                .execute()
-            )
-            result["source_signals"] = sig_resp.data or []
-        except Exception:
-            result["source_signals"] = []
-    else:
-        result["source_signals"] = []
 
-    # Load linked memory nodes
-    try:
-        mem_resp = (
-            supabase.table("memory_nodes")
-            .select("id, node_type, summary, confidence, created_at")
-            .eq("project_id", str(project_id))
-            .eq("linked_entity_type", entity_type)
-            .eq("linked_entity_id", entity_id)
-            .order("created_at", desc=True)
-            .limit(10)
-            .execute()
-        )
-        result["memory_nodes"] = mem_resp.data or []
-    except Exception:
-        result["memory_nodes"] = []
+    def _q_revisions():
+        try:
+            return supabase.table("enrichment_revisions").select("field_name, old_value, new_value, source, created_at").eq("entity_type", entity_type).eq("entity_id", entity_id).order("created_at").limit(20).execute()
+        except Exception:
+            return None
+
+    def _q_signals():
+        if not source_signal_ids:
+            return None
+        try:
+            return supabase.table("signals").select("id, title, signal_type, created_at").in_("id", source_signal_ids[:10]).order("created_at").execute()
+        except Exception:
+            return None
+
+    def _q_memory():
+        try:
+            return supabase.table("memory_nodes").select("id, node_type, summary, confidence, created_at").eq("project_id", str(project_id)).eq("linked_entity_type", entity_type).eq("linked_entity_id", entity_id).order("created_at", desc=True).limit(10).execute()
+        except Exception:
+            return None
+
+    rev_resp, sig_resp, mem_resp = await asyncio.gather(
+        asyncio.to_thread(_q_revisions),
+        asyncio.to_thread(_q_signals),
+        asyncio.to_thread(_q_memory),
+    )
+
+    result["revisions"] = (rev_resp.data or []) if rev_resp else []
+    result["source_signals"] = (sig_resp.data or []) if sig_resp else []
+    result["memory_nodes"] = (mem_resp.data or []) if mem_resp else []
 
     rev_count = len(result["revisions"])
     sig_count = len(result["source_signals"])

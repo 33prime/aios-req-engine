@@ -14,13 +14,10 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import TYPE_CHECKING
+from typing import Any
 from uuid import UUID
 
 from pydantic import BaseModel, Field
-
-if TYPE_CHECKING:
-    from app.core.schemas_pulse import ProjectPulse
 
 logger = logging.getLogger(__name__)
 
@@ -49,7 +46,7 @@ class ContextSnapshot(BaseModel):
     open_questions: list[dict] = Field(default_factory=list)
 
     # Pulse snapshot (None if pulse computation failed)
-    pulse: "ProjectPulse | None" = None
+    pulse: Any = None
 
 
 async def build_context_snapshot(project_id: UUID) -> ContextSnapshot:
@@ -214,102 +211,83 @@ async def _build_entity_inventory(
         for d in drivers
     ]
 
-    # Stakeholders (loaded separately in _load_project_data as names only — extend)
-    try:
-        from app.db.supabase_client import get_supabase
+    # Load stakeholders, data_entities, constraints, competitors in parallel
+    from app.db.supabase_client import get_supabase
 
-        sb = get_supabase()
-        result = (
-            sb.table("stakeholders")
-            .select("id, name, first_name, last_name, stakeholder_type, confirmation_status, is_stale")
-            .eq("project_id", str(project_id))
-            .execute()
-        )
-        inventory["stakeholder"] = [
-            {
-                "id": str(s.get("id", "")),
-                "name": f"{s.get('first_name', '')} {s.get('last_name', '')}".strip() or s.get("name", ""),
-                "stakeholder_type": s.get("stakeholder_type", ""),
-                "confirmation_status": s.get("confirmation_status", "ai_generated"),
-                "is_stale": s.get("is_stale", False),
-            }
-            for s in (result.data or [])
-        ]
-    except Exception as e:
-        logger.debug(f"Stakeholder inventory load failed: {e}")
-        inventory["stakeholder"] = []
+    sb = get_supabase()
+    pid = str(project_id)
 
-    # Data entities
-    try:
-        from app.db.supabase_client import get_supabase
+    def _q_stakeholders():
+        try:
+            return sb.table("stakeholders").select("id, name, first_name, last_name, stakeholder_type, confirmation_status, is_stale").eq("project_id", pid).execute()
+        except Exception:
+            return None
 
-        sb = get_supabase()
-        result = (
-            sb.table("data_entities")
-            .select("id, name, entity_category, confirmation_status, is_stale")
-            .eq("project_id", str(project_id))
-            .execute()
-        )
-        inventory["data_entity"] = [
-            {
-                "id": str(d.get("id", "")),
-                "name": d.get("name", ""),
-                "entity_category": d.get("entity_category", ""),
-                "confirmation_status": d.get("confirmation_status", "ai_generated"),
-                "is_stale": d.get("is_stale", False),
-            }
-            for d in (result.data or [])
-        ]
-    except Exception as e:
-        logger.debug(f"Data entity inventory load failed: {e}")
-        inventory["data_entity"] = []
+    def _q_data_entities():
+        try:
+            return sb.table("data_entities").select("id, name, entity_category, confirmation_status, is_stale").eq("project_id", pid).execute()
+        except Exception:
+            return None
 
-    # Constraints
-    try:
-        from app.db.supabase_client import get_supabase
+    def _q_constraints():
+        try:
+            return sb.table("constraints").select("id, title, constraint_type, confirmation_status").eq("project_id", pid).execute()
+        except Exception:
+            return None
 
-        sb = get_supabase()
-        result = (
-            sb.table("constraints")
-            .select("id, title, constraint_type, confirmation_status")
-            .eq("project_id", str(project_id))
-            .execute()
-        )
-        inventory["constraint"] = [
-            {
-                "id": str(c.get("id", "")),
-                "name": c.get("title", ""),
-                "constraint_type": c.get("constraint_type", ""),
-                "confirmation_status": c.get("confirmation_status", "ai_generated"),
-            }
-            for c in (result.data or [])
-        ]
-    except Exception as e:
-        logger.debug(f"Constraint inventory load failed: {e}")
-        inventory["constraint"] = []
+    def _q_competitors():
+        try:
+            return sb.table("competitor_references").select("id, name, reference_type").eq("project_id", pid).execute()
+        except Exception:
+            return None
 
-    # Competitors
-    try:
-        from app.db.supabase_client import get_supabase
+    stk_resp, de_resp, con_resp, comp_resp = await asyncio.gather(
+        asyncio.to_thread(_q_stakeholders),
+        asyncio.to_thread(_q_data_entities),
+        asyncio.to_thread(_q_constraints),
+        asyncio.to_thread(_q_competitors),
+    )
 
-        sb = get_supabase()
-        result = (
-            sb.table("competitor_references")
-            .select("id, name, reference_type")
-            .eq("project_id", str(project_id))
-            .execute()
-        )
-        inventory["competitor"] = [
-            {
-                "id": str(c.get("id", "")),
-                "name": c.get("name", ""),
-                "reference_type": c.get("reference_type", "competitor"),
-            }
-            for c in (result.data or [])
-        ]
-    except Exception as e:
-        logger.debug(f"Competitor inventory load failed: {e}")
-        inventory["competitor"] = []
+    inventory["stakeholder"] = [
+        {
+            "id": str(s.get("id", "")),
+            "name": f"{s.get('first_name', '')} {s.get('last_name', '')}".strip() or s.get("name", ""),
+            "stakeholder_type": s.get("stakeholder_type", ""),
+            "confirmation_status": s.get("confirmation_status", "ai_generated"),
+            "is_stale": s.get("is_stale", False),
+        }
+        for s in ((stk_resp.data or []) if stk_resp else [])
+    ]
+
+    inventory["data_entity"] = [
+        {
+            "id": str(d.get("id", "")),
+            "name": d.get("name", ""),
+            "entity_category": d.get("entity_category", ""),
+            "confirmation_status": d.get("confirmation_status", "ai_generated"),
+            "is_stale": d.get("is_stale", False),
+        }
+        for d in ((de_resp.data or []) if de_resp else [])
+    ]
+
+    inventory["constraint"] = [
+        {
+            "id": str(c.get("id", "")),
+            "name": c.get("title", ""),
+            "constraint_type": c.get("constraint_type", ""),
+            "confirmation_status": c.get("confirmation_status", "ai_generated"),
+        }
+        for c in ((con_resp.data or []) if con_resp else [])
+    ]
+
+    inventory["competitor"] = [
+        {
+            "id": str(c.get("id", "")),
+            "name": c.get("name", ""),
+            "reference_type": c.get("reference_type", "competitor"),
+        }
+        for c in ((comp_resp.data or []) if comp_resp else [])
+    ]
 
     return inventory
 
@@ -551,20 +529,28 @@ async def _build_extraction_briefing(
     drivers = project_data.get("drivers") or []
     counts["business_driver"] = len(drivers)
 
-    # These need DB queries — use quick counts via supabase
+    # These need DB queries — run all 4 count queries in parallel
     try:
         from app.db.supabase_client import get_supabase
 
         sb = get_supabase()
         pid = str(project_id)
-        for table, etype in [
+        tables = [
             ("stakeholders", "stakeholder"),
             ("data_entities", "data_entity"),
             ("constraints", "constraint"),
             ("competitor_references", "competitor"),
-        ]:
-            result = sb.table(table).select("id", count="exact").eq("project_id", pid).execute()
-            counts[etype] = result.count or 0
+        ]
+
+        async def _count(table: str) -> int:
+            r = await asyncio.to_thread(
+                lambda: sb.table(table).select("id", count="exact").eq("project_id", pid).execute()
+            )
+            return r.count or 0
+
+        count_results = await asyncio.gather(*[_count(t) for t, _ in tables])
+        for (_, etype), c in zip(tables, count_results):
+            counts[etype] = c
     except Exception as e:
         logger.debug(f"Briefing count queries failed: {e}")
 

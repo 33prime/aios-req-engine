@@ -2,7 +2,7 @@
  * ClientPortalModal Component
  *
  * Full modal for managing client portal - combines invite functionality,
- * client list with statuses, resend/remove actions, and package summary.
+ * client list with statuses, remove actions, and package summary.
  */
 
 'use client'
@@ -149,17 +149,6 @@ export function ClientPortalModal({
       onRefresh?.()
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to send invite')
-    } finally {
-      setActionLoading(null)
-    }
-  }
-
-  const handleResendInvite = async (userId: string) => {
-    try {
-      setActionLoading(`resend-${userId}`)
-      await api.resendInvite(projectId, userId)
-    } catch (err) {
-      setError('Failed to resend invite')
     } finally {
       setActionLoading(null)
     }
@@ -419,20 +408,6 @@ export function ClientPortalModal({
                                   <Clock className="w-3 h-3" />
                                   Pending
                                 </span>
-                              )}
-                              {!member.accepted_at && (
-                                <button
-                                  onClick={() => handleResendInvite(member.user_id)}
-                                  disabled={actionLoading === `resend-${member.user_id}`}
-                                  className="p-1.5 text-gray-400 hover:text-[#009b87] hover:bg-[#009b87]/10 rounded transition-colors"
-                                  title="Resend invite"
-                                >
-                                  {actionLoading === `resend-${member.user_id}` ? (
-                                    <RefreshCw className="w-4 h-4 animate-spin" />
-                                  ) : (
-                                    <RefreshCw className="w-4 h-4" />
-                                  )}
-                                </button>
                               )}
                               <button
                                 onClick={() => handleRemoveMember(member.user_id)}

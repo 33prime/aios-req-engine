@@ -324,8 +324,9 @@ class TestBuildContextSnapshot:
 
         # Should still return a valid ContextSnapshot
         assert isinstance(snapshot, ContextSnapshot)
-        # Inventory will be empty due to failure
-        assert snapshot.entity_inventory == {}
+        # Inventory keys present but all empty due to failure
+        for items in snapshot.entity_inventory.values():
+            assert items == []
 
 
 class TestContextSnapshotModel:

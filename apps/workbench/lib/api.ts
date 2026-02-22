@@ -353,12 +353,6 @@ export const removeProjectMember = (projectId: string, userId: string) =>
     method: 'DELETE',
   })
 
-export const resendInvite = (projectId: string, userId: string) =>
-  apiRequest<{ success: boolean; magic_link_sent: boolean }>(
-    `/admin/projects/${projectId}/members/${userId}/resend`,
-    { method: 'POST' }
-  )
-
 // Info Requests (Pre-call questions, Post-call actions)
 export interface InfoRequest {
   id: string

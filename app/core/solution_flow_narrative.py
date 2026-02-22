@@ -45,7 +45,7 @@ def build_step_narrative(step: dict[str, Any], project_id: UUID) -> str:
 
     name_lookup = _resolve_entity_names_batch(ids_by_table)
 
-    # Build entity provenance details
+    # Batch-fetch entity details per table (replaces N+1 per-ID queries)
     supabase = get_supabase()
     entity_details: list[str] = []
 
@@ -56,17 +56,19 @@ def build_step_narrative(step: dict[str, Any], project_id: UUID) -> str:
             "data_entities": "Data Entity",
         }.get(table, "Entity")
 
+        # Single batch query for all IDs in this table
+        status_map: dict[str, dict] = {}
+        try:
+            result = supabase.table(table).select(
+                "id, confirmation_status, source_signal_ids"
+            ).in_("id", ids).execute()
+            status_map = {row["id"]: row for row in (result.data or [])}
+        except Exception:
+            pass
+
         for eid in ids:
             name = name_lookup.get(eid, eid[:8])
-            # Get confirmation status + signal count
-            try:
-                row = supabase.table(table).select(
-                    "confirmation_status, source_signal_ids"
-                ).eq("id", eid).maybe_single().execute()
-                data = row.data if row else None
-            except Exception:
-                data = None
-
+            data = status_map.get(eid)
             if data:
                 status = data.get("confirmation_status", "ai_generated")
                 signals = data.get("source_signal_ids") or []

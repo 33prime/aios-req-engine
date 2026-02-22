@@ -3,11 +3,12 @@
 from typing import Any, Dict, List
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from app.chains.chat_tools import execute_tool
+from app.core.auth_middleware import AuthContext, require_auth
 from app.core.chat_stream import ChatStreamConfig, generate_chat_stream
 from app.core.config import get_settings
 from app.core.logging import get_logger
@@ -43,6 +44,7 @@ async def chat_with_assistant(
     request: ChatRequest,
     project_id: UUID = Query(..., description="Project UUID"),
     conversation_id: UUID | None = Query(None, description="Conversation UUID (optional)"),
+    auth: AuthContext = Depends(require_auth),
 ) -> StreamingResponse:
     """
     Chat with the AI assistant using streaming responses.
@@ -136,6 +138,7 @@ async def list_conversations(
     project_id: UUID = Query(..., description="Project UUID"),
     limit: int = Query(20, description="Maximum number of conversations to return"),
     include_archived: bool = Query(False, description="Include archived conversations"),
+    auth: AuthContext = Depends(require_auth),
 ) -> Dict[str, Any]:
     """
     List conversations for a project.
@@ -168,7 +171,10 @@ async def list_conversations(
 
 
 @router.get("/rate-limit-status")
-async def get_rate_limit_status(project_id: UUID = Query(..., description="Project UUID")) -> Dict[str, Any]:
+async def get_rate_limit_status(
+    project_id: UUID = Query(..., description="Project UUID"),
+    auth: AuthContext = Depends(require_auth),
+) -> Dict[str, Any]:
     """
     Get rate limit status for chat endpoint.
 
@@ -191,6 +197,7 @@ async def get_rate_limit_status(project_id: UUID = Query(..., description="Proje
 async def get_conversation_messages(
     conversation_id: UUID,
     limit: int = Query(100, description="Maximum number of messages to return"),
+    auth: AuthContext = Depends(require_auth),
 ) -> Dict[str, Any]:
     """
     Get messages for a conversation.
@@ -226,6 +233,7 @@ async def get_conversation_messages(
 @router.post("/chat/tools")
 async def execute_chat_tool(
     request: Dict[str, Any],
+    auth: AuthContext = Depends(require_auth),
 ) -> Dict[str, Any]:
     """
     Execute a chat tool directly without going through the full chat flow.
