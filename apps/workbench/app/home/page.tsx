@@ -22,6 +22,8 @@ import type {
   ProjectDetailWithDashboard,
   Profile,
 } from '@/types/api'
+import { completeTask, dismissTask } from '@/lib/api'
+import { QuickActionTaskModal } from '@/components/tasks/QuickActionTaskModal'
 import type { NextAction, Task, HomeDashboardMeeting } from '@/lib/api'
 
 // =============================================================================
@@ -252,9 +254,11 @@ function ProjectCard({
 function GlobalTasksPanel({
   tasks,
   projectNameMap,
+  onTaskClick,
 }: {
   tasks: Task[]
   projectNameMap: Record<string, string>
+  onTaskClick: (task: Task) => void
 }) {
   const router = useRouter()
 
@@ -297,7 +301,7 @@ function GlobalTasksPanel({
               <div
                 key={task.id}
                 className="flex items-center gap-2.5 py-2.5 border-b border-[#F0F0F0] last:border-b-0 cursor-pointer hover:bg-[#FAFAFA] -mx-1 px-1 rounded transition-colors"
-                onClick={() => router.push('/tasks')}
+                onClick={() => onTaskClick(task)}
               >
                 <div
                   className="w-[3px] h-7 rounded-sm flex-shrink-0"
@@ -441,6 +445,7 @@ function SchedulePanel({ meetings }: { meetings: HomeDashboardMeeting[]; }) {
 
 export default function HomeDashboard() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+  const [quickActionTask, setQuickActionTask] = useState<Task | null>(null)
 
   useRealtimeDashboard()
 
@@ -592,11 +597,30 @@ export default function HomeDashboard() {
               <GlobalTasksPanel
                 tasks={globalTasks ?? []}
                 projectNameMap={projectNameMap}
+                onTaskClick={setQuickActionTask}
               />
               <SchedulePanel meetings={meetings} />
             </div>
           </div>
         </div>
+
+        {/* Quick action modal for task clicks */}
+        {quickActionTask && (
+          <QuickActionTaskModal
+            task={quickActionTask}
+            projectId={quickActionTask.project_id}
+            onClose={() => setQuickActionTask(null)}
+            onComplete={async (taskId) => {
+              await completeTask(quickActionTask.project_id, taskId, {})
+              mutateDashboard()
+            }}
+            onDismiss={async (taskId) => {
+              await dismissTask(quickActionTask.project_id, taskId)
+              mutateDashboard()
+            }}
+            onChanged={() => mutateDashboard()}
+          />
+        )}
       </div>
     </>
   )

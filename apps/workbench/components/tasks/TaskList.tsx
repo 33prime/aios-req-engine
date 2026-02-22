@@ -18,6 +18,7 @@ import {
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { TaskCard, TaskCardSkeleton } from './TaskCard'
+import { QuickActionTaskModal } from './QuickActionTaskModal'
 import type { Task } from '@/lib/api'
 import {
   listTasks,
@@ -82,10 +83,17 @@ export function TaskList({
   const [bulkActionLoading, setBulkActionLoading] = useState(false)
   const [showFilterDropdown, setShowFilterDropdown] = useState(false)
   const [showTypeDropdown, setShowTypeDropdown] = useState(false)
+  const [quickActionTask, setQuickActionTask] = useState<Task | null>(null)
   const router = useRouter()
 
   const handleViewDetails = (task: Task) => {
-    router.push(`/tasks/${task.id}`)
+    if (compact) {
+      // In compact/workspace mode, show quick action modal
+      setQuickActionTask(task)
+    } else {
+      // In full tasks page, navigate to detail
+      router.push(`/tasks/${task.id}`)
+    }
   }
 
   const loadTasks = useCallback(async (showLoader = true) => {
@@ -407,6 +415,17 @@ export function TaskList({
         <EmptyTaskState filter={filter} />
       )}
 
+      {/* Quick action modal for compact/workspace mode */}
+      {quickActionTask && (
+        <QuickActionTaskModal
+          task={quickActionTask}
+          projectId={projectId}
+          onClose={() => setQuickActionTask(null)}
+          onComplete={(taskId) => handleComplete(taskId)}
+          onDismiss={(taskId) => handleDismiss(taskId)}
+          onChanged={() => loadTasks(false)}
+        />
+      )}
     </div>
   )
 }
