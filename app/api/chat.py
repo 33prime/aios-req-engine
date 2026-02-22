@@ -1,37 +1,18 @@
 """Chat assistant API endpoints."""
 
-import json
-from typing import Any, AsyncGenerator, Dict, List
+from typing import Any, Dict, List
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
-from app.chains.chat_tools import execute_tool, get_tools_for_context
-from app.context.dynamic_prompt_builder import build_smart_chat_prompt
-from app.context.tool_truncator import truncate_tool_result
-from app.core.action_engine import compute_context_frame
+from app.chains.chat_tools import execute_tool
+from app.core.chat_stream import ChatStreamConfig, generate_chat_stream
 from app.core.config import get_settings
 from app.core.logging import get_logger
 from app.core.rate_limiter import check_chat_rate_limit, get_chat_rate_limit_stats
 from app.db.supabase_client import get_supabase
-
-# Page-context → entity type filtering for retrieval
-# Prioritizes relevant entity types so vector search returns focused results
-_PAGE_ENTITY_TYPES: dict[str, list[str]] = {
-    "brd:features": ["feature", "unlock"],
-    "brd:personas": ["persona"],
-    "brd:workflows": ["workflow", "workflow_step"],
-    "brd:data-entities": ["data_entity"],
-    "brd:stakeholders": ["stakeholder"],
-    "brd:constraints": ["constraint"],
-    "brd:solution-flow": ["solution_flow_step", "feature", "workflow", "unlock"],
-    "brd:business-drivers": ["business_driver"],
-    "brd:unlocks": ["unlock", "feature", "competitor"],
-    "prototype": ["prototype_feedback", "feature"],
-    # Canvas / overview pages get all types (None = no filter)
-}
 
 logger = get_logger(__name__)
 
@@ -119,287 +100,24 @@ async def chat_with_assistant(
             else:
                 raise HTTPException(status_code=500, detail="Failed to create conversation")
 
-        # Generate streaming response
-        async def generate() -> AsyncGenerator[str, None]:
-            """Generate streaming chat responses."""
-            assistant_content = ""  # Track assistant response for persistence
-            tool_calls_data = []  # Track tool executions
-
-            try:
-                # Send conversation ID immediately so client can track
-                yield f"data: {json.dumps({'type': 'conversation_id', 'conversation_id': str(conversation_id)})}\n\n"
-
-                # Import here to avoid loading if API key not set
-                from anthropic import AsyncAnthropic
-
-                client = AsyncAnthropic(api_key=anthropic_api_key)
-
-                # Build messages from recent history (no compression LLM call needed)
-                # Keep last 10 messages — fits well within 80K token budget
-                recent_history = [
-                    {"role": msg.role, "content": msg.content}
-                    for msg in request.conversation_history[-10:]
-                    if msg.content and msg.content.strip()
-                ]
-                messages = recent_history + [{"role": "user", "content": request.message}]
-
-                # ── Parallel context assembly ────────────────────────────────
-                # These three operations are mostly independent. Run them
-                # concurrently to cut ~2-4s off response time.
-
-                async def _build_context_frame():
-                    return await compute_context_frame(project_id, max_actions=5)
-
-                async def _build_flow_ctx():
-                    if request.page_context != "brd:solution-flow":
-                        return None
-                    try:
-                        from app.core.solution_flow_context import build_solution_flow_context
-                        focused_step_id = None
-                        if request.focused_entity:
-                            fe_data = request.focused_entity.get("data", {})
-                            focused_step_id = fe_data.get("id")
-                        return await build_solution_flow_context(
-                            project_id=str(project_id),
-                            focused_step_id=focused_step_id,
-                        )
-                    except Exception as e:
-                        logger.debug(f"Solution flow context build failed (non-fatal): {e}")
-                        return None
-
-                async def _run_retrieval():
-                    try:
-                        from app.core.retrieval import retrieve
-                        from app.core.retrieval_format import format_retrieval_for_context
-
-                        # Solution flow step chat already has rich context —
-                        # always use simple (fast) retrieval: skip decomposition,
-                        # reranking, and sufficiency loops.
-                        is_flow = request.page_context == "brd:solution-flow"
-                        is_simple = is_flow or (len(request.message.split()) < 8 and "?" not in request.message)
-
-                        # Build context hint from focused entity
-                        context_hint = None
-                        if request.focused_entity:
-                            fe = request.focused_entity
-                            edata = fe.get("data", {})
-                            ename = edata.get("title") or edata.get("name") or ""
-                            egoal = edata.get("goal") or ""
-                            if ename:
-                                parts = [f"User is viewing {fe.get('type', 'entity')}: \"{ename}\"."]
-                                if egoal:
-                                    parts.append(f"Goal: {egoal}.")
-                                context_hint = " ".join(parts)
-
-                        entity_types = _PAGE_ENTITY_TYPES.get(request.page_context or "")
-                        retrieval_result = await retrieve(
-                            query=request.message,
-                            project_id=str(project_id),
-                            max_rounds=1,
-                            skip_decomposition=is_simple,
-                            skip_reranking=is_simple,
-                            evaluation_criteria="Enough context to answer the user's question",
-                            context_hint=context_hint,
-                            entity_types=entity_types,
-                        )
-                        return format_retrieval_for_context(
-                            retrieval_result, style="chat", max_tokens=2000
-                        )
-                    except Exception as e:
-                        logger.debug(f"Retrieval pre-fetch failed (non-fatal): {e}")
-                        return ""
-
-                async def _persist_user_msg():
-                    user_msg_data = {
-                        "conversation_id": str(conversation_id),
-                        "role": "user",
-                        "content": request.message,
-                    }
-                    return supabase.table("messages").insert(user_msg_data).execute()
-
-                async def _get_project_name():
-                    project_row = (
-                        supabase.table("projects")
-                        .select("name")
-                        .eq("id", str(project_id))
-                        .single()
-                        .execute()
-                    )
-                    return project_row.data.get("name", "Unknown") if project_row.data else "Unknown"
-
-                # Run all five in parallel
-                import asyncio
-                context_frame, solution_flow_ctx, retrieval_context, user_msg_resp, project_name = (
-                    await asyncio.gather(
-                        _build_context_frame(),
-                        _build_flow_ctx(),
-                        _run_retrieval(),
-                        _persist_user_msg(),
-                        _get_project_name(),
-                    )
-                )
-
-                logger.info(
-                    f"Context frame: phase={context_frame.phase.value}, "
-                    f"progress={context_frame.phase_progress:.0%}, "
-                    f"gaps={context_frame.total_gap_count}"
-                )
-
-                # Build v3 smart chat prompt from context frame
-                system_prompt = build_smart_chat_prompt(
-                    context_frame=context_frame,
-                    project_name=project_name,
-                    page_context=request.page_context,
-                    focused_entity=request.focused_entity,
-                    conversation_context=request.conversation_context,
-                    retrieval_context=retrieval_context,
-                    solution_flow_context=solution_flow_ctx,
-                )
-
-                # Log context stats
-                logger.info(
-                    f"Chat prompt: phase={context_frame.phase.value}, "
-                    f"page={request.page_context or 'none'}, "
-                    f"history_msgs={len(recent_history)}"
-                )
-
-                # Token tracking for cost logging
-                total_input = 0
-                total_output = 0
-
-                # Build filtered tool set once (reused across turns)
-                chat_tools = get_tools_for_context(request.page_context)
-                logger.info(f"Chat tools: {len(chat_tools)} tools for page={request.page_context or 'none'}")
-
-                # Tool use loop - handle multi-turn conversation with tools
-                max_turns = 5  # Prevent infinite loops
-                for turn in range(max_turns):
-                    # Stream response from Claude using configured model
-                    async with client.messages.stream(
-                        model=settings.CHAT_MODEL,  # Configurable (default: Haiku 3.5)
-                        max_tokens=settings.CHAT_RESPONSE_BUFFER,
-                        messages=messages,
-                        system=system_prompt,
-                        tools=chat_tools,
-                    ) as stream:
-                        # Collect the final message
-                        async for event in stream:
-                            if hasattr(event, "type"):
-                                if event.type == "content_block_delta":
-                                    if hasattr(event, "delta") and hasattr(event.delta, "text"):
-                                        # Accumulate content for persistence
-                                        assistant_content += event.delta.text
-
-                                        # Send text chunk
-                                        yield f"data: {json.dumps({'type': 'text', 'content': event.delta.text})}\n\n"
-
-                        # Get the final message to check for tool use
-                        final_message = await stream.get_final_message()
-
-                        # Log LLM usage
-                        if hasattr(final_message, 'usage'):
-                            total_input += getattr(final_message.usage, 'input_tokens', 0)
-                            total_output += getattr(final_message.usage, 'output_tokens', 0)
-
-                        # Check if Claude wants to use tools
-                        tool_use_blocks = [block for block in final_message.content if block.type == "tool_use"]
-
-                        if not tool_use_blocks:
-                            # No tool use - conversation is complete
-                            break
-
-                        # Execute all requested tools
-                        tool_results = []
-                        for tool_block in tool_use_blocks:
-                            logger.info(f"Executing tool: {tool_block.name}")
-                            tool_result = await execute_tool(
-                                project_id=project_id,
-                                tool_name=tool_block.name,
-                                tool_input=tool_block.input,
-                            )
-
-                            # Truncate tool result for context window efficiency
-                            truncated_result = truncate_tool_result(
-                                tool_name=tool_block.name,
-                                result=tool_result,
-                            )
-
-                            # Track tool call for persistence (use original result)
-                            tool_calls_data.append({
-                                "tool_name": tool_block.name,
-                                "status": "complete",
-                                "result": tool_result,
-                            })
-
-                            # Build tool result for next turn (use truncated result)
-                            tool_results.append({
-                                "type": "tool_result",
-                                "tool_use_id": tool_block.id,
-                                "content": json.dumps(truncated_result),
-                            })
-
-                            # Send tool result notification to frontend (use original)
-                            yield f"data: {json.dumps({'type': 'tool_result', 'tool_name': tool_block.name, 'result': tool_result})}\n\n"
-
-                        # Add assistant message with tool use to conversation
-                        messages.append({
-                            "role": "assistant",
-                            "content": final_message.content,
-                        })
-
-                        # Add tool results to conversation
-                        messages.append({
-                            "role": "user",
-                            "content": tool_results,
-                        })
-
-                        # Clear assistant_content for next turn
-                        assistant_content = ""
-
-                        # Continue loop to get Claude's response to the tool results
-
-                # Log LLM usage for cost tracking
-                if total_input or total_output:
-                    try:
-                        from app.core.llm_usage import log_llm_usage
-                        log_llm_usage(
-                            model=settings.CHAT_MODEL,
-                            input_tokens=total_input,
-                            output_tokens=total_output,
-                            operation="chat",
-                            project_id=str(project_id),
-                            metadata={"conversation_id": str(conversation_id)},
-                        )
-                    except Exception:
-                        pass  # Fire-and-forget
-
-                # Persist assistant message
-                if assistant_content or tool_calls_data:
-                    assistant_msg_data = {
-                        "conversation_id": str(conversation_id),
-                        "role": "assistant",
-                        "content": assistant_content,
-                        "metadata": {
-                            "model": settings.CHAT_MODEL,
-                            "input_tokens": total_input,
-                            "output_tokens": total_output,
-                        },
-                    }
-
-                    if tool_calls_data:
-                        assistant_msg_data["tool_calls"] = tool_calls_data
-
-                    supabase.table("messages").insert(assistant_msg_data).execute()
-
-                # Send completion event
-                yield f"data: {json.dumps({'type': 'done'})}\n\n"
-
-            except Exception as e:
-                logger.error(f"Error in chat stream: {e}", exc_info=True)
-                yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
+        config = ChatStreamConfig(
+            project_id=project_id,
+            conversation_id=conversation_id,
+            message=request.message,
+            conversation_history=[
+                {"role": msg.role, "content": msg.content}
+                for msg in request.conversation_history
+            ],
+            page_context=request.page_context,
+            focused_entity=request.focused_entity,
+            conversation_context=request.conversation_context,
+            anthropic_api_key=anthropic_api_key,
+            chat_model=settings.CHAT_MODEL,
+            chat_response_buffer=settings.CHAT_RESPONSE_BUFFER,
+        )
 
         return StreamingResponse(
-            generate(),
+            generate_chat_stream(config, supabase),
             media_type="text/event-stream",
             headers={
                 "Cache-Control": "no-cache",
@@ -446,132 +164,6 @@ async def list_conversations(
 
     except Exception as e:
         logger.error(f"Error listing conversations: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-# =============================================================================
-# Chat-as-Signal: Entity Detection + Extraction
-# =============================================================================
-
-
-class DetectEntitiesRequest(BaseModel):
-    """Request to detect entity-rich content in chat messages."""
-    messages: List[ChatMessage]
-
-
-class SaveAsSignalRequest(BaseModel):
-    """Request to save chat messages as a signal for entity extraction."""
-    messages: List[ChatMessage]
-
-
-@router.post("/detect-entities")
-async def detect_entities_in_chat(
-    request: DetectEntitiesRequest,
-    project_id: UUID = Query(..., description="Project UUID"),
-) -> Dict[str, Any]:
-    """
-    Lightweight Haiku check: do recent chat messages contain extractable requirements?
-
-    Returns entity hints without running full extraction.
-    """
-    from app.chains.detect_chat_entities import detect_chat_entities
-
-    try:
-        msg_dicts = [{"role": m.role, "content": m.content} for m in request.messages]
-        result = await detect_chat_entities(msg_dicts, project_id=str(project_id))
-        return result
-    except Exception as e:
-        logger.error(f"Error detecting chat entities: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.post("/save-as-signal")
-async def save_chat_as_signal(
-    request: SaveAsSignalRequest,
-    project_id: UUID = Query(..., description="Project UUID"),
-) -> Dict[str, Any]:
-    """
-    Convert chat messages into a signal and run through V2 pipeline.
-
-    Pipeline: chat messages → signal record → chunk → process_signal_v2.
-    Returns V2 processing summary with patch counts.
-    """
-    from uuid import uuid4
-
-    from app.graphs.unified_processor import process_signal_v2
-
-    supabase = get_supabase()
-
-    try:
-        # Build the chat text from messages
-        chat_lines = []
-        for msg in request.messages:
-            if msg.content.strip():
-                chat_lines.append(f"[{msg.role}]: {msg.content}")
-
-        chat_text = "\n\n".join(chat_lines)
-
-        if not chat_text.strip():
-            return {"success": False, "error": "No message content to extract"}
-
-        run_id = str(uuid4())
-
-        # 1. Create synthetic signal (V2 pipeline needs this)
-        signal_data = {
-            "project_id": str(project_id),
-            "signal_type": "chat",
-            "source_type": "workspace_chat",
-            "source": f"chat_extraction_{run_id[:8]}",
-            "raw_text": chat_text[:50000],
-            "run_id": run_id,
-            "metadata": {
-                "message_count": len(request.messages),
-                "extraction_source": "chat_as_signal",
-            },
-        }
-        signal_response = supabase.table("signals").insert(signal_data).execute()
-        if not signal_response.data:
-            return {"success": False, "error": "Failed to create signal"}
-
-        signal = signal_response.data[0]
-        signal_id = signal["id"]
-
-        # 2. Create a single chunk (V2 pipeline reads from chunks)
-        chunk_data = {
-            "signal_id": signal_id,
-            "chunk_index": 0,
-            "content": chat_text[:10000],
-            "start_char": 0,
-            "end_char": min(len(chat_text), 10000),
-            "metadata": {"source": "chat_as_signal"},
-            "run_id": run_id,
-        }
-        supabase.table("signal_chunks").insert(chunk_data).execute()
-
-        # 3. Run V2 pipeline
-        result = await process_signal_v2(
-            signal_id=signal_id,
-            project_id=str(project_id),
-            run_id=run_id,
-        )
-
-        # 4. Build summary from V2 result
-        patches_applied = result.get("patches_applied", 0) if result else 0
-        chat_summary = result.get("chat_summary", "") if result else ""
-        entity_types = result.get("entity_types_affected", []) if result else []
-
-        type_summary = ", ".join(entity_types) if entity_types else "no entities"
-
-        return {
-            "success": True,
-            "signal_id": signal_id,
-            "patches_applied": patches_applied,
-            "type_summary": type_summary,
-            "summary": chat_summary or f"Processed {patches_applied} patches from chat conversation.",
-        }
-
-    except Exception as e:
-        logger.error(f"Error saving chat as signal: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -671,5 +263,3 @@ async def execute_chat_tool(
     except Exception as e:
         logger.error(f"Error executing tool: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
-
-

@@ -128,7 +128,7 @@ def settings_mock():
 @pytest.fixture
 def context_frame_mock():
     with patch(
-        "app.api.chat.compute_context_frame",
+        "app.core.chat_context.compute_context_frame",
         new_callable=AsyncMock,
         return_value=_mock_context_frame(),
     ):
@@ -167,7 +167,7 @@ class TestChatEndpoint:
         return client.post("/v1/chat", json=body, params=params)
 
     @patch("app.api.chat.check_chat_rate_limit")
-    @patch("app.api.chat.compute_context_frame", new_callable=AsyncMock)
+    @patch("app.core.chat_context.compute_context_frame", new_callable=AsyncMock)
     @patch("app.api.chat.get_settings")
     @patch("app.api.chat.get_supabase")
     def test_chat_returns_sse_stream(self, mock_sb, mock_settings, mock_frame, mock_rate, client):
@@ -222,7 +222,7 @@ class TestChatEndpoint:
         assert "done" in type_seq
 
     @patch("app.api.chat.check_chat_rate_limit")
-    @patch("app.api.chat.compute_context_frame", new_callable=AsyncMock)
+    @patch("app.core.chat_context.compute_context_frame", new_callable=AsyncMock)
     @patch("app.api.chat.get_settings")
     @patch("app.api.chat.get_supabase")
     def test_chat_stream_events_sequence(self, mock_sb, mock_settings, mock_frame, mock_rate, client):
@@ -290,7 +290,7 @@ class TestChatEndpoint:
         assert "API key" in resp.json()["detail"]
 
     @patch("app.api.chat.check_chat_rate_limit")
-    @patch("app.api.chat.compute_context_frame", new_callable=AsyncMock)
+    @patch("app.core.chat_context.compute_context_frame", new_callable=AsyncMock)
     @patch("app.api.chat.get_settings")
     @patch("app.api.chat.get_supabase")
     def test_chat_nonexistent_conversation_errors(self, mock_sb, mock_settings, mock_frame, mock_rate, client):
@@ -315,7 +315,7 @@ class TestChatEndpoint:
         assert "Conversation not found" in resp.json()["detail"]
 
     @patch("app.api.chat.check_chat_rate_limit")
-    @patch("app.api.chat.compute_context_frame", new_callable=AsyncMock)
+    @patch("app.core.chat_context.compute_context_frame", new_callable=AsyncMock)
     @patch("app.api.chat.get_settings")
     @patch("app.api.chat.get_supabase")
     def test_chat_page_context_filters_tools(self, mock_sb, mock_settings, mock_frame, mock_rate, client):
@@ -330,7 +330,7 @@ class TestChatEndpoint:
         mock_settings.return_value = _mock_settings()
         mock_frame.return_value = _mock_context_frame()
 
-        with patch("app.api.chat.get_tools_for_context") as mock_tools:
+        with patch("app.core.chat_stream.get_tools_for_context") as mock_tools:
             mock_tools.return_value = []
 
             mock_stream = AsyncMock()
@@ -455,7 +455,7 @@ class TestDetectEntities:
 class TestSaveAsSignal:
     """POST /v1/save-as-signal."""
 
-    @patch("app.api.chat.get_supabase")
+    @patch("app.api.chat_signals.get_supabase")
     def test_save_as_signal_success(self, mock_sb, client):
         sb = _mock_supabase()
         signal_id = str(uuid4())
@@ -490,7 +490,7 @@ class TestSaveAsSignal:
         assert body["patches_applied"] == 5
         assert "feature" in body["type_summary"]
 
-    @patch("app.api.chat.get_supabase")
+    @patch("app.api.chat_signals.get_supabase")
     def test_save_as_signal_empty_messages(self, mock_sb, client):
         """Empty message content returns success=False."""
         mock_sb.return_value = _mock_supabase()
