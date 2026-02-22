@@ -1,6 +1,6 @@
 """Unified retrieval system — ONE function every flow calls.
 
-5-stage pipeline: decompose → parallel retrieve → rerank → evaluate → format.
+6-stage pipeline: decompose → parallel retrieve → graph expand → rerank → evaluate → format.
 
 Every consumer flow (chat, solution flow, briefing, stakeholder intelligence,
 unlocks, gap intel, prototype updater) calls retrieve() with different parameters.
@@ -354,80 +354,100 @@ async def parallel_retrieve(
 
 
 # =============================================================================
-# Stage 3: Reranking
+# Stage 2.5: Graph Expansion
 # =============================================================================
 
+_GRAPH_SEED_ENTITIES = 3
+_GRAPH_MAX_TOTAL = 15
 
-async def rerank_results(
-    query: str,
+
+async def _expand_via_graph(
     result: RetrievalResult,
-    top_k: int = 10,
+    project_id: str,
 ) -> RetrievalResult:
-    """Rerank chunks via Haiku — keep top_k most relevant."""
-    if len(result.chunks) <= top_k:
+    """Expand retrieval results with 1-hop graph neighbors from top entities.
+
+    Takes the top 3 entities by similarity, fetches their neighborhoods in
+    parallel, and merges new entities + evidence chunks into the result.
+    Graph-expanded items are marked with source="graph_expansion".
+    """
+    if not result.entities:
         return result
 
     try:
-        from anthropic import AsyncAnthropic
+        from app.db.graph_queries import get_entity_neighborhood
 
-        settings = get_settings()
-        client = AsyncAnthropic(api_key=settings.ANTHROPIC_API_KEY)
+        # Pick top seeds by similarity (or just first N if no similarity)
+        seeds = sorted(
+            result.entities,
+            key=lambda e: e.get("similarity", 0),
+            reverse=True,
+        )[:_GRAPH_SEED_ENTITIES]
 
-        # Build numbered summaries
-        summaries = []
-        for i, chunk in enumerate(result.chunks[:20]):  # Cap at 20 for prompt
-            content = (chunk.get("content") or "")[:150]
-            summaries.append(f"{i+1}. {content}")
+        # Parallel neighborhood lookups
+        async def _fetch_neighborhood(entity: dict) -> dict:
+            eid = entity.get("entity_id", entity.get("id", ""))
+            etype = entity.get("entity_type", "")
+            if not eid or not etype:
+                return {"entity": {}, "evidence_chunks": [], "related": []}
+            return await asyncio.to_thread(
+                get_entity_neighborhood,
+                UUID(eid),
+                etype,
+                UUID(project_id),
+                max_related=5,
+            )
 
-        prompt = (
-            f"Given the query: \"{query}\"\n\n"
-            f"Rank these chunks by relevance. Return ONLY a JSON array of the "
-            f"top {top_k} most relevant chunk numbers in order.\n\n"
-            + "\n".join(summaries)
-            + f"\n\nReturn: [most_relevant_number, ..., least_relevant_number] (exactly {top_k} numbers)"
+        neighborhoods = await asyncio.gather(
+            *[_fetch_neighborhood(s) for s in seeds],
+            return_exceptions=True,
         )
 
-        response = await client.messages.create(
-            model="claude-haiku-4-5-20251001",
-            max_tokens=200,
-            temperature=0.0,
-            messages=[{"role": "user", "content": prompt}],
-        )
+        # Track existing IDs for dedup
+        existing_entity_ids = {
+            e.get("entity_id", e.get("id", "")) for e in result.entities
+        }
+        existing_chunk_ids = {
+            c.get("id", c.get("chunk_id", "")) for c in result.chunks
+        }
 
-        import json
-        text = response.content[0].text.strip()
-        # Handle markdown-wrapped JSON
-        if "```" in text:
-            text = text.split("```")[1]
-            if text.startswith("json"):
-                text = text[4:]
-            text = text.strip()
+        graph_entities_added = 0
+        graph_chunks_added = 0
 
-        ranked_indices = json.loads(text)
+        for nbr in neighborhoods:
+            if isinstance(nbr, Exception):
+                continue
 
-        # Reorder chunks
-        reranked = []
-        seen = set()
-        for idx in ranked_indices:
-            if isinstance(idx, int) and 1 <= idx <= len(result.chunks) and idx not in seen:
-                reranked.append(result.chunks[idx - 1])
-                seen.add(idx)
+            # Merge related entities
+            for rel in nbr.get("related", []):
+                if graph_entities_added >= _GRAPH_MAX_TOTAL:
+                    break
+                rel_id = rel.get("entity_id", "")
+                if rel_id and rel_id not in existing_entity_ids:
+                    rel["source"] = "graph_expansion"
+                    result.entities.append(rel)
+                    existing_entity_ids.add(rel_id)
+                    graph_entities_added += 1
 
-        # Keep any remaining chunks not in the ranking
-        if len(reranked) < top_k:
-            for chunk in result.chunks:
-                if chunk not in reranked:
-                    reranked.append(chunk)
-                    if len(reranked) >= top_k:
-                        break
+            # Merge evidence chunks
+            for chunk in nbr.get("evidence_chunks", []):
+                chunk_id = chunk.get("id", chunk.get("chunk_id", ""))
+                if chunk_id and chunk_id not in existing_chunk_ids:
+                    chunk["source"] = "graph_expansion"
+                    result.chunks.append(chunk)
+                    existing_chunk_ids.add(chunk_id)
+                    graph_chunks_added += 1
 
-        result.chunks = reranked[:top_k]
-        return result
+        if graph_entities_added or graph_chunks_added:
+            logger.info(
+                f"Graph expansion: +{graph_entities_added} entities, "
+                f"+{graph_chunks_added} chunks"
+            )
 
     except Exception as e:
-        logger.debug(f"Reranking failed, keeping original order: {e}")
-        result.chunks = result.chunks[:top_k]
-        return result
+        logger.debug(f"Graph expansion failed, continuing without: {e}")
+
+    return result
 
 
 # =============================================================================
@@ -523,11 +543,12 @@ async def retrieve(
     skip_decomposition: bool = False,
     skip_reranking: bool = False,
     skip_evaluation: bool = False,
+    include_graph_expansion: bool = True,
 ) -> RetrievalResult:
     """THE unified retrieval entry point.
 
-    Pipeline: decompose (or skip) → parallel retrieve → rerank (or skip)
-              → evaluate & loop (or skip) → return.
+    Pipeline: decompose (or skip) → parallel retrieve → graph expand (or skip)
+              → rerank (or skip) → evaluate & loop (or skip) → return.
 
     Args:
         query: Natural language query
@@ -544,6 +565,7 @@ async def retrieve(
         skip_decomposition: Skip Haiku decomposition (simple queries)
         skip_reranking: Skip Haiku reranking
         skip_evaluation: Skip sufficiency evaluation loop
+        include_graph_expansion: Whether to expand results via entity graph neighbors
     """
     # Stage 1: Decompose query
     if skip_decomposition:
@@ -563,8 +585,14 @@ async def retrieve(
     )
     result.source_queries = queries
 
-    # Stage 3: Rerank
+    # Stage 2.5: Graph expansion
+    if include_graph_expansion and include_entities and result.entities:
+        result = await _expand_via_graph(result, project_id)
+
+    # Stage 3: Rerank (Cohere → Haiku → cosine order)
     if not skip_reranking and len(result.chunks) > top_k:
+        from app.core.reranker import rerank_results
+
         result = await rerank_results(query, result, top_k)
 
     # Stage 4: Evaluate & re-query loop
@@ -611,8 +639,14 @@ async def retrieve(
 
             result.source_queries.extend(new_queries)
 
+            # Graph expand additional results
+            if include_graph_expansion and include_entities and additional.entities:
+                result = await _expand_via_graph(result, project_id)
+
             # Re-rerank after merge
             if not skip_reranking and len(result.chunks) > top_k:
+                from app.core.reranker import rerank_results
+
                 result = await rerank_results(query, result, top_k)
 
     logger.info(

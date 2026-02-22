@@ -1,4 +1,4 @@
-"""3-tier entity deduplication gate for the V2 signal pipeline.
+"""4-tier entity deduplication gate for the V2 signal pipeline.
 
 Sits between extraction (step 4) and scoring (step 5). Only processes
 `create` patches — merge/update/stale/delete pass through unchanged.
@@ -6,11 +6,13 @@ Sits between extraction (step 4) and scoring (step 5). Only processes
 Dedup tiers:
   1. Exact normalized name match → convert to merge
   2. RapidFuzz token_set_ratio above threshold → convert to merge
-  3. Ambiguous zone → check entity embedding cosine similarity → merge if above threshold
+  2.5. Cohere rerank semantic match (ambiguous zone) → convert to merge
+  3. Embedding cosine similarity (ambiguous zone fallback) → merge if above threshold
 """
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import re
 from dataclasses import dataclass
@@ -102,7 +104,7 @@ async def dedup_create_patches(
 
     result: list[EntityPatch] = []
     dedup_decisions: list[dict] = []
-    dedup_stats = {"exact": 0, "fuzzy": 0, "embedding": 0, "passed": 0}
+    dedup_stats = {"exact": 0, "fuzzy": 0, "cohere": 0, "embedding": 0, "passed": 0}
 
     for patch in patches:
         if patch.operation != "create":
@@ -202,6 +204,40 @@ async def dedup_create_patches(
             })
             continue
 
+        # Tier 2.5: Cohere semantic reranking (ambiguous zone)
+        if best_score >= config.fuzzy_ambiguous and best_match:
+            try:
+                from app.core.reranker import find_dedup_match_cohere
+
+                candidates = [
+                    {"entity_id": str(e["id"]), "text": _get_entity_name(e)}
+                    for e in existing_entities
+                    if _get_entity_name(e)
+                ]
+                cohere_result = await asyncio.to_thread(
+                    find_dedup_match_cohere, patch_name, candidates, 0.8
+                )
+                if cohere_result:
+                    matched_id, cohere_score = cohere_result
+                    merged = _convert_create_to_merge(
+                        patch, matched_id, cohere_score, "cohere_rerank"
+                    )
+                    result.append(merged)
+                    dedup_stats["cohere"] += 1
+                    dedup_decisions.append({
+                        "patch_name": patch_name,
+                        "entity_type": entity_type,
+                        "strategy": "cohere_rerank",
+                        "matched_entity_id": matched_id,
+                        "matched_entity_name": None,
+                        "score": cohere_score,
+                        "action": "convert_to_merge",
+                    })
+                    continue
+            except Exception as e:
+                logger.debug(f"Cohere dedup check failed: {e}")
+            # Fall through to tier 3 embedding check
+
         # Tier 3: Embedding similarity via DB vector search
         if best_score >= config.fuzzy_ambiguous and config.embedding_merge > 0:
             try:
@@ -242,12 +278,15 @@ async def dedup_create_patches(
         })
 
     total_creates = sum(1 for p in patches if p.operation == "create")
-    total_deduped = dedup_stats["exact"] + dedup_stats["fuzzy"] + dedup_stats["embedding"]
+    total_deduped = (
+        dedup_stats["exact"] + dedup_stats["fuzzy"]
+        + dedup_stats["cohere"] + dedup_stats["embedding"]
+    )
     if total_deduped > 0:
         logger.info(
             f"Dedup: {total_deduped}/{total_creates} creates converted to merges "
             f"(exact={dedup_stats['exact']}, fuzzy={dedup_stats['fuzzy']}, "
-            f"embedding={dedup_stats['embedding']})"
+            f"cohere={dedup_stats['cohere']}, embedding={dedup_stats['embedding']})"
         )
 
     if extraction_log is not None:

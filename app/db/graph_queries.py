@@ -27,6 +27,7 @@ _TABLE_MAP = {
     "constraint": "constraints",
     "competitor": "competitor_references",
     "prd_section": "prd_sections",
+    "solution_flow_step": "solution_flow_steps",
 }
 
 # Name column per table
@@ -41,6 +42,7 @@ _NAME_COL = {
     "constraints": "title",
     "competitor_references": "name",
     "prd_sections": "section_title",
+    "solution_flow_steps": "title",
 }
 
 

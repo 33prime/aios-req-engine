@@ -36,6 +36,9 @@ class Settings(BaseSettings):
     # Anthropic configuration (optional - for chat assistant)
     ANTHROPIC_API_KEY: str | None = Field(default=None, description="Anthropic API key for Claude chat")
 
+    # Cohere configuration (optional - for reranking)
+    COHERE_API_KEY: str | None = Field(default=None, description="Cohere API key for reranking")
+
     # Environment
     REQ_ENGINE_ENV: str = Field(default="dev", description="Environment: dev, staging, prod")
 
