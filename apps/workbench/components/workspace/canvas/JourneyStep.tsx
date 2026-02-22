@@ -46,26 +46,26 @@ export function JourneyStep({ step, isLast, isSaving, onStepClick }: JourneyStep
       <div
         ref={setNodeRef}
         className={`
-          flex-1 min-w-[280px] max-w-[320px] bg-white rounded-card border-2 shadow-card
+          flex-1 min-w-[280px] max-w-[320px] bg-white rounded-lg border-2 shadow-sm
           transition-all duration-200
           ${isOver
-            ? 'border-brand-teal bg-emerald-50/50 shadow-card-hover'
-            : 'border-ui-cardBorder hover:border-gray-300'
+            ? 'border-[#3FAF7A] bg-emerald-50/50 shadow-md'
+            : 'border-[#E5E5E5] hover:border-gray-300'
           }
           ${isSaving ? 'opacity-70' : ''}
         `}
       >
         {/* Header */}
         <div
-          className="px-4 py-3 border-b border-gray-100 cursor-pointer hover:bg-ui-background/50 transition-colors"
+          className="px-4 py-3 border-b border-gray-100 cursor-pointer hover:bg-[#F9F9F9]/50 transition-colors"
           onClick={() => onStepClick?.(step.id)}
         >
           <div className="flex items-start justify-between gap-2">
             <div className="flex items-center gap-2">
-              <span className="flex items-center justify-center w-6 h-6 rounded-full bg-brand-teal text-white text-xs font-bold">
+              <span className="flex items-center justify-center w-6 h-6 rounded-full bg-[#3FAF7A] text-white text-xs font-bold">
                 {step.step_index + 1}
               </span>
-              <h3 className="font-semibold text-ui-headingDark text-sm">{step.title}</h3>
+              <h3 className="font-semibold text-[#333333] text-sm">{step.title}</h3>
               {(() => {
                 if (step.confirmation_status && step.confirmation_status !== 'ai_generated') return null
                 if (!step.created_at) return null
@@ -87,14 +87,14 @@ export function JourneyStep({ step, isLast, isSaving, onStepClick }: JourneyStep
           {/* Actor persona */}
           {step.actor_persona_name && (
             <div className="flex items-center gap-1 mt-1.5">
-              <User className="w-3 h-3 text-ui-supportText" />
-              <span className="text-support text-ui-supportText">{step.actor_persona_name}</span>
+              <User className="w-3 h-3 text-[#999999]" />
+              <span className="text-[12px] text-[#999999]">{step.actor_persona_name}</span>
             </div>
           )}
 
           {/* Description */}
           {step.description && (
-            <p className="text-support text-ui-supportText mt-2 line-clamp-2">
+            <p className="text-[12px] text-[#999999] mt-2 line-clamp-2">
               {step.description}
             </p>
           )}
@@ -112,9 +112,9 @@ export function JourneyStep({ step, isLast, isSaving, onStepClick }: JourneyStep
             <div className={`
               h-full min-h-[60px] rounded-lg border-2 border-dashed
               flex items-center justify-center text-center
-              ${isOver ? 'border-brand-teal bg-emerald-50' : 'border-ui-cardBorder'}
+              ${isOver ? 'border-[#3FAF7A] bg-emerald-50' : 'border-[#E5E5E5]'}
             `}>
-              <span className="text-support text-ui-supportText">
+              <span className="text-[12px] text-[#999999]">
                 Drop features here
               </span>
             </div>

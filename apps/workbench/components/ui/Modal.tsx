@@ -76,11 +76,11 @@ export function Modal({ isOpen, onClose, title, children, footer, size = 'md' }:
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}
-          <div className="flex items-center justify-between p-6 border-b border-ui-cardBorder">
+          <div className="flex items-center justify-between p-6 border-b border-[#E5E5E5]">
             <h2 className="heading-2">{title}</h2>
             <button
               onClick={onClose}
-              className="text-ui-supportText hover:text-ui-bodyText transition-colors"
+              className="text-[#999999] hover:text-[#333333] transition-colors"
               aria-label="Close modal"
             >
               <X className="h-5 w-5" />
@@ -92,7 +92,7 @@ export function Modal({ isOpen, onClose, title, children, footer, size = 'md' }:
 
           {/* Footer */}
           {footer && (
-            <div className="flex items-center justify-end gap-3 p-6 border-t border-ui-cardBorder bg-ui-background">
+            <div className="flex items-center justify-end gap-3 p-6 border-t border-[#E5E5E5] bg-[#F9F9F9]">
               {footer}
             </div>
           )}

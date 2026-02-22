@@ -161,7 +161,7 @@ export function ComplexityBadge({ score, showDescription = false, className = ''
         {config.label}
       </span>
       {showDescription && (
-        <span className="text-xs text-ui-supportText mt-1">
+        <span className="text-xs text-[#999999] mt-1">
           {config.description}
         </span>
       )}

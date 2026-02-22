@@ -49,10 +49,10 @@ export function JourneyFlow({ steps, isSaving, onStepClick }: JourneyFlowProps) 
 
   if (steps.length === 0) {
     return (
-      <div className="bg-ui-background rounded-card border border-dashed border-ui-cardBorder p-8 text-center">
+      <div className="bg-[#F9F9F9] rounded-lg border border-dashed border-[#E5E5E5] p-8 text-center">
         <Route className="w-10 h-10 text-gray-300 mx-auto mb-3" />
-        <p className="text-sm text-ui-supportText">No journey steps defined yet</p>
-        <p className="text-support text-ui-supportText mt-1">
+        <p className="text-sm text-[#999999]">No journey steps defined yet</p>
+        <p className="text-[12px] text-[#999999] mt-1">
           Add signals about your value path to generate steps
         </p>
       </div>
@@ -65,7 +65,7 @@ export function JourneyFlow({ steps, isSaving, onStepClick }: JourneyFlowProps) 
       {canScrollLeft && (
         <button
           onClick={() => scroll('left')}
-          className="absolute left-0 top-1/2 -translate-y-1/2 z-10 w-10 h-10 bg-white rounded-full shadow-lg border border-ui-cardBorder flex items-center justify-center text-ui-bodyText hover:bg-ui-background transition-colors"
+          className="absolute left-0 top-1/2 -translate-y-1/2 z-10 w-10 h-10 bg-white rounded-full shadow-lg border border-[#E5E5E5] flex items-center justify-center text-[#333333] hover:bg-[#F9F9F9] transition-colors"
         >
           <ChevronLeft className="w-5 h-5" />
         </button>
@@ -75,7 +75,7 @@ export function JourneyFlow({ steps, isSaving, onStepClick }: JourneyFlowProps) 
       {canScrollRight && (
         <button
           onClick={() => scroll('right')}
-          className="absolute right-0 top-1/2 -translate-y-1/2 z-10 w-10 h-10 bg-white rounded-full shadow-lg border border-ui-cardBorder flex items-center justify-center text-ui-bodyText hover:bg-ui-background transition-colors"
+          className="absolute right-0 top-1/2 -translate-y-1/2 z-10 w-10 h-10 bg-white rounded-full shadow-lg border border-[#E5E5E5] flex items-center justify-center text-[#333333] hover:bg-[#F9F9F9] transition-colors"
         >
           <ChevronRight className="w-5 h-5" />
         </button>

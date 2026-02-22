@@ -202,7 +202,7 @@ function ProfileTab({ persona, coverage }: { persona: any; coverage: PersonaFeat
       {/* Type badge */}
       {persona.persona_type && (
         <div className="pt-2">
-          <span className="inline-block px-2 py-0.5 text-badge rounded-full bg-[#F9F9F9] text-[#666666] capitalize">
+          <span className="inline-block px-2 py-0.5 text-xs font-semibold rounded-full bg-[#F9F9F9] text-[#666666] capitalize">
             {persona.persona_type.replace('_', ' ')}
           </span>
         </div>

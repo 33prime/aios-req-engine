@@ -247,7 +247,7 @@ export function GraphTab({ data }: GraphTabProps) {
   if (!data || data.nodes.length === 0) {
     return (
       <div className="text-center py-8">
-        <p className="text-sm text-ui-supportText">No graph data yet. Process signals to build the knowledge graph.</p>
+        <p className="text-sm text-[#999999]">No graph data yet. Process signals to build the knowledge graph.</p>
       </div>
     )
   }
@@ -274,29 +274,29 @@ export function GraphTab({ data }: GraphTabProps) {
             onClick={() => setFilter(f)}
             className={`px-2.5 py-1 rounded text-[11px] font-medium transition-colors ${
               filter === f
-                ? 'bg-brand-teal/10 text-brand-teal'
-                : 'text-ui-supportText hover:text-ui-headingDark'
+                ? 'bg-[#3FAF7A]/10 text-[#3FAF7A]'
+                : 'text-[#999999] hover:text-[#333333]'
             }`}
           >
             {f === 'all' ? 'All' : f.charAt(0).toUpperCase() + f.slice(1) + 's'}
           </button>
         ))}
         <div className="w-px h-4 bg-gray-200 mx-1" />
-        <label className="flex items-center gap-1.5 text-[11px] text-ui-supportText cursor-pointer">
+        <label className="flex items-center gap-1.5 text-[11px] text-[#999999] cursor-pointer">
           <input
             type="checkbox"
             checked={showLabels}
             onChange={(e) => setShowLabels(e.target.checked)}
-            className="rounded text-brand-teal"
+            className="rounded text-[#3FAF7A]"
           />
           Labels
         </label>
-        <label className="flex items-center gap-1.5 text-[11px] text-ui-supportText cursor-pointer">
+        <label className="flex items-center gap-1.5 text-[11px] text-[#999999] cursor-pointer">
           <input
             type="checkbox"
             checked={showConfidence}
             onChange={(e) => setShowConfidence(e.target.checked)}
-            className="rounded text-brand-teal"
+            className="rounded text-[#3FAF7A]"
           />
           Confidence
         </label>
@@ -305,12 +305,12 @@ export function GraphTab({ data }: GraphTabProps) {
       {/* Educational tooltip */}
       {showTip && (
         <div className="absolute top-14 left-2 z-10 bg-white rounded-lg shadow-lg border border-gray-200 px-3 py-2 max-w-xs">
-          <p className="text-[11px] text-ui-bodyText mb-1.5">
+          <p className="text-[11px] text-[#333333] mb-1.5">
             This is your AI&apos;s knowledge graph. <span className="text-emerald-500 font-medium">Green = facts</span>, <span className="text-teal-500 font-medium">Blue = beliefs</span>, <span className="text-gray-400 font-medium">Gray = insights</span>.
           </p>
           <button
             onClick={dismissTip}
-            className="text-[10px] text-brand-teal font-medium hover:underline"
+            className="text-[10px] text-[#3FAF7A] font-medium hover:underline"
           >
             Got it, don&apos;t show again
           </button>
@@ -357,40 +357,40 @@ export function GraphTab({ data }: GraphTabProps) {
               </span>
               <button
                 onClick={() => setSelectedNode(null)}
-                className="p-1 rounded hover:bg-gray-100 text-ui-supportText"
+                className="p-1 rounded hover:bg-gray-100 text-[#999999]"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <p className="text-sm font-medium text-ui-headingDark mb-2">
+            <p className="text-sm font-medium text-[#333333] mb-2">
               {selectedNode.summary}
             </p>
 
-            <p className="text-[12px] text-ui-bodyText mb-3 whitespace-pre-wrap">
+            <p className="text-[12px] text-[#333333] mb-3 whitespace-pre-wrap">
               {selectedNode.content}
             </p>
 
-            <div className="space-y-1.5 text-[11px] text-ui-supportText mb-4">
+            <div className="space-y-1.5 text-[11px] text-[#999999] mb-4">
               {selectedNode.node_type !== 'fact' && (
-                <p>Confidence: <span className="font-medium text-ui-bodyText">{Math.round(selectedNode.confidence * 100)}%</span></p>
+                <p>Confidence: <span className="font-medium text-[#333333]">{Math.round(selectedNode.confidence * 100)}%</span></p>
               )}
               {selectedNode.belief_domain && (
-                <p>Domain: <span className="font-medium text-ui-bodyText">{selectedNode.belief_domain.replace('_', ' ')}</span></p>
+                <p>Domain: <span className="font-medium text-[#333333]">{selectedNode.belief_domain.replace('_', ' ')}</span></p>
               )}
               {selectedNode.insight_type && (
-                <p>Type: <span className="font-medium text-ui-bodyText">{selectedNode.insight_type}</span></p>
+                <p>Type: <span className="font-medium text-[#333333]">{selectedNode.insight_type}</span></p>
               )}
               {selectedNode.source_type && (
-                <p>Source: <span className="font-medium text-ui-bodyText">{selectedNode.source_type}</span></p>
+                <p>Source: <span className="font-medium text-[#333333]">{selectedNode.source_type}</span></p>
               )}
-              <p>Created: <span className="font-medium text-ui-bodyText">{new Date(selectedNode.created_at).toLocaleDateString()}</span></p>
+              <p>Created: <span className="font-medium text-[#333333]">{new Date(selectedNode.created_at).toLocaleDateString()}</span></p>
             </div>
 
             {/* Connected nodes */}
             {connectedNodes.length > 0 && (
               <div>
-                <h6 className="text-[11px] font-semibold text-ui-headingDark uppercase tracking-wide mb-2">
+                <h6 className="text-[11px] font-semibold text-[#333333] uppercase tracking-wide mb-2">
                   Connected ({connectedNodes.length})
                 </h6>
                 <div className="space-y-1.5">
@@ -398,7 +398,7 @@ export function GraphTab({ data }: GraphTabProps) {
                     <button
                       key={node.id}
                       onClick={() => setSelectedNode(node)}
-                      className="w-full text-left bg-ui-background rounded px-2.5 py-2 hover:bg-gray-100 transition-colors"
+                      className="w-full text-left bg-[#F9F9F9] rounded px-2.5 py-2 hover:bg-gray-100 transition-colors"
                     >
                       <div className="flex items-center gap-1.5 mb-0.5">
                         <span className={`text-[9px] font-semibold uppercase ${
@@ -407,9 +407,9 @@ export function GraphTab({ data }: GraphTabProps) {
                         }`}>
                           {node.node_type}
                         </span>
-                        <span className="text-[9px] text-ui-supportText">{edgeType}</span>
+                        <span className="text-[9px] text-[#999999]">{edgeType}</span>
                       </div>
-                      <p className="text-[11px] text-ui-bodyText truncate">{node.summary}</p>
+                      <p className="text-[11px] text-[#333333] truncate">{node.summary}</p>
                     </button>
                   ))}
                 </div>

@@ -40,8 +40,8 @@ export function HistoryPanel({ projectId }: HistoryPanelProps) {
           onClick={() => setActiveTab('memory')}
           className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium transition-colors ${
             activeTab === 'memory'
-              ? 'bg-brand-teal/10 text-brand-teal'
-              : 'text-ui-supportText hover:text-ui-headingDark hover:bg-ui-background'
+              ? 'bg-[#3FAF7A]/10 text-[#3FAF7A]'
+              : 'text-[#999999] hover:text-[#333333] hover:bg-[#F9F9F9]'
           }`}
         >
           <Brain className="w-3.5 h-3.5" />
@@ -51,8 +51,8 @@ export function HistoryPanel({ projectId }: HistoryPanelProps) {
           onClick={() => setActiveTab('activity')}
           className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium transition-colors ${
             activeTab === 'activity'
-              ? 'bg-brand-teal/10 text-brand-teal'
-              : 'text-ui-supportText hover:text-ui-headingDark hover:bg-ui-background'
+              ? 'bg-[#3FAF7A]/10 text-[#3FAF7A]'
+              : 'text-[#999999] hover:text-[#333333] hover:bg-[#F9F9F9]'
           }`}
         >
           <Clock className="w-3.5 h-3.5" />
@@ -97,7 +97,7 @@ function MemoryTab({ projectId }: { projectId: string }) {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-8">
-        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-brand-teal" />
+        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#3FAF7A]" />
       </div>
     )
   }
@@ -112,11 +112,11 @@ function MemoryTab({ projectId }: { projectId: string }) {
     return (
       <div className="text-center py-6">
         <Brain className="w-8 h-8 text-gray-300 mx-auto mb-2" />
-        <p className="text-sm text-ui-supportText mb-3">No memory entries yet.</p>
+        <p className="text-sm text-[#999999] mb-3">No memory entries yet.</p>
         <button
           onClick={handleSynthesize}
           disabled={isSynthesizing}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-brand-teal hover:bg-brand-teal/10 rounded-lg transition-colors disabled:opacity-50"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-[#3FAF7A] hover:bg-[#3FAF7A]/10 rounded-lg transition-colors disabled:opacity-50"
         >
           <RefreshCw className={`w-3.5 h-3.5 ${isSynthesizing ? 'animate-spin' : ''}`} />
           Synthesize Memory
@@ -132,7 +132,7 @@ function MemoryTab({ projectId }: { projectId: string }) {
         <button
           onClick={handleSynthesize}
           disabled={isSynthesizing}
-          className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-medium text-brand-teal hover:bg-brand-teal/10 rounded-lg transition-colors disabled:opacity-50"
+          className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-medium text-[#3FAF7A] hover:bg-[#3FAF7A]/10 rounded-lg transition-colors disabled:opacity-50"
         >
           <RefreshCw className={`w-3 h-3 ${isSynthesizing ? 'animate-spin' : ''}`} />
           Synthesize
@@ -142,17 +142,17 @@ function MemoryTab({ projectId }: { projectId: string }) {
       {/* Decisions */}
       {memory!.decisions.length > 0 && (
         <div>
-          <h5 className="text-xs font-semibold text-ui-headingDark uppercase tracking-wide mb-2">
+          <h5 className="text-xs font-semibold text-[#333333] uppercase tracking-wide mb-2">
             Decisions ({memory!.decisions.length})
           </h5>
           <div className="space-y-2">
             {memory!.decisions.map((d) => (
-              <div key={d.id} className="bg-ui-background rounded-lg px-3 py-2">
-                <p className="text-sm text-ui-bodyText">{d.content}</p>
+              <div key={d.id} className="bg-[#F9F9F9] rounded-lg px-3 py-2">
+                <p className="text-sm text-[#333333]">{d.content}</p>
                 {d.rationale && (
-                  <p className="text-[11px] text-ui-supportText mt-1">{d.rationale}</p>
+                  <p className="text-[11px] text-[#999999] mt-1">{d.rationale}</p>
                 )}
-                <p className="text-[10px] text-ui-supportText mt-1">
+                <p className="text-[10px] text-[#999999] mt-1">
                   {formatDate(d.created_at)}
                 </p>
               </div>
@@ -164,16 +164,16 @@ function MemoryTab({ projectId }: { projectId: string }) {
       {/* Learnings */}
       {memory!.learnings.length > 0 && (
         <div>
-          <h5 className="text-xs font-semibold text-ui-headingDark uppercase tracking-wide mb-2">
+          <h5 className="text-xs font-semibold text-[#333333] uppercase tracking-wide mb-2">
             Learnings ({memory!.learnings.length})
           </h5>
           <div className="space-y-2">
             {memory!.learnings.map((l) => (
-              <div key={l.id} className="flex items-start gap-2 bg-ui-background rounded-lg px-3 py-2">
+              <div key={l.id} className="flex items-start gap-2 bg-[#F9F9F9] rounded-lg px-3 py-2">
                 <Lightbulb className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
                 <div>
-                  <p className="text-sm text-ui-bodyText">{l.content}</p>
-                  <p className="text-[10px] text-ui-supportText mt-1">
+                  <p className="text-sm text-[#333333]">{l.content}</p>
+                  <p className="text-[10px] text-[#999999] mt-1">
                     {formatDate(l.created_at)}
                   </p>
                 </div>
@@ -186,18 +186,18 @@ function MemoryTab({ projectId }: { projectId: string }) {
       {/* Open Questions */}
       {memory!.questions.length > 0 && (
         <div>
-          <h5 className="text-xs font-semibold text-ui-headingDark uppercase tracking-wide mb-2">
+          <h5 className="text-xs font-semibold text-[#333333] uppercase tracking-wide mb-2">
             Open Questions ({memory!.questions.filter((q) => !q.resolved).length})
           </h5>
           <div className="space-y-2">
             {memory!.questions.map((q) => (
-              <div key={q.id} className="flex items-start gap-2 bg-ui-background rounded-lg px-3 py-2">
+              <div key={q.id} className="flex items-start gap-2 bg-[#F9F9F9] rounded-lg px-3 py-2">
                 <MessageSquare className={`w-4 h-4 flex-shrink-0 mt-0.5 ${q.resolved ? 'text-green-500' : 'text-blue-500'}`} />
                 <div>
-                  <p className={`text-sm ${q.resolved ? 'text-ui-supportText line-through' : 'text-ui-bodyText'}`}>
+                  <p className={`text-sm ${q.resolved ? 'text-[#999999] line-through' : 'text-[#333333]'}`}>
                     {q.content}
                   </p>
-                  <p className="text-[10px] text-ui-supportText mt-1">
+                  <p className="text-[10px] text-[#999999] mt-1">
                     {formatDate(q.created_at)}
                   </p>
                 </div>
@@ -247,14 +247,14 @@ function ActivityTab({ projectId }: { projectId: string }) {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-8">
-        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-brand-teal" />
+        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#3FAF7A]" />
       </div>
     )
   }
 
   if (logs.length === 0) {
     return (
-      <p className="text-sm text-ui-supportText text-center py-8">
+      <p className="text-sm text-[#999999] text-center py-8">
         No activity recorded yet. Agent actions will appear here.
       </p>
     )
@@ -276,11 +276,11 @@ function ActivityTab({ projectId }: { projectId: string }) {
               </span>
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm text-ui-bodyText line-clamp-2">
+              <p className="text-sm text-[#333333] line-clamp-2">
                 {log.observation || log.decision || 'Agent action completed'}
               </p>
             </div>
-            <span className="text-[11px] text-ui-supportText flex-shrink-0">
+            <span className="text-[11px] text-[#999999] flex-shrink-0">
               {log.created_at ? formatTimestamp(log.created_at) : ''}
             </span>
           </div>

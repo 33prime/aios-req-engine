@@ -99,17 +99,17 @@ export function ProjectsTopNav({
     (clientFilter !== 'all' ? 1 : 0)
 
   return (
-    <div className="flex items-center justify-between mb-4 pb-3 border-b border-ui-cardBorder">
+    <div className="flex items-center justify-between mb-4 pb-3 border-b border-[#E5E5E5]">
       {/* Left: Filter + Sort + Refresh */}
       <div className="flex items-center gap-2">
         {/* Filter Dropdown */}
         <Popover open={filterOpen} onOpenChange={setFilterOpen}>
           <PopoverTrigger asChild>
-            <button className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-ui-bodyText border border-ui-cardBorder rounded-lg hover:bg-gray-50 transition-colors">
+            <button className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-[#333333] border border-[#E5E5E5] rounded-lg hover:bg-gray-50 transition-colors">
               <SlidersHorizontal className="w-4 h-4" />
               <span>Filter</span>
               {filterCount > 0 && (
-                <span className="px-1.5 py-0.5 text-[10px] bg-brand-teal/10 text-brand-teal rounded-full font-medium">
+                <span className="px-1.5 py-0.5 text-[10px] bg-[#3FAF7A]/10 text-[#3FAF7A] rounded-full font-medium">
                   {filterCount}
                 </span>
               )}
@@ -119,7 +119,7 @@ export function ProjectsTopNav({
             <div className="space-y-3">
               {/* Stage Filter */}
               <div>
-                <label className="text-xs font-semibold text-ui-headingDark mb-1.5 block">
+                <label className="text-xs font-semibold text-[#333333] mb-1.5 block">
                   Stage
                 </label>
                 <div className="space-y-1">
@@ -128,9 +128,9 @@ export function ProjectsTopNav({
                       type="radio"
                       checked={stageFilter === 'all'}
                       onChange={() => onStageFilterChange('all')}
-                      className="w-3.5 h-3.5 text-brand-teal focus:ring-brand-teal/20"
+                      className="w-3.5 h-3.5 text-[#3FAF7A] focus:ring-[#3FAF7A]/20"
                     />
-                    <span className="text-xs text-ui-bodyText group-hover:text-ui-headingDark">
+                    <span className="text-xs text-[#333333] group-hover:text-[#333333]">
                       All Stages
                     </span>
                   </label>
@@ -143,9 +143,9 @@ export function ProjectsTopNav({
                         type="radio"
                         checked={stageFilter === stage.id}
                         onChange={() => onStageFilterChange(stage.id)}
-                        className="w-3.5 h-3.5 text-brand-teal focus:ring-brand-teal/20"
+                        className="w-3.5 h-3.5 text-[#3FAF7A] focus:ring-[#3FAF7A]/20"
                       />
-                      <span className="text-xs text-ui-bodyText group-hover:text-ui-headingDark">
+                      <span className="text-xs text-[#333333] group-hover:text-[#333333]">
                         {stage.label}
                       </span>
                     </label>
@@ -156,13 +156,13 @@ export function ProjectsTopNav({
               {/* Client Filter */}
               {uniqueClients.length > 0 && (
                 <div>
-                  <label className="text-xs font-semibold text-ui-headingDark mb-1.5 block">
+                  <label className="text-xs font-semibold text-[#333333] mb-1.5 block">
                     Client
                   </label>
                   <select
                     value={clientFilter}
                     onChange={(e) => onClientFilterChange(e.target.value)}
-                    className="w-full px-2 py-1.5 text-xs border border-ui-cardBorder rounded-lg bg-white text-ui-bodyText focus:outline-none focus:ring-2 focus:ring-brand-teal/20"
+                    className="w-full px-2 py-1.5 text-xs border border-[#E5E5E5] rounded-lg bg-white text-[#333333] focus:outline-none focus:ring-2 focus:ring-[#3FAF7A]/20"
                   >
                     <option value="all">All Clients</option>
                     {uniqueClients.map((client) => (
@@ -181,7 +181,7 @@ export function ProjectsTopNav({
                     onStageFilterChange('all')
                     onClientFilterChange('all')
                   }}
-                  className="w-full px-2 py-1.5 text-xs text-ui-supportText hover:text-ui-headingDark border border-ui-cardBorder rounded-lg hover:bg-gray-50 transition-colors"
+                  className="w-full px-2 py-1.5 text-xs text-[#999999] hover:text-[#333333] border border-[#E5E5E5] rounded-lg hover:bg-gray-50 transition-colors"
                 >
                   Clear Filters
                 </button>
@@ -193,7 +193,7 @@ export function ProjectsTopNav({
         {/* Sort Dropdown */}
         <Popover open={sortOpen} onOpenChange={setSortOpen}>
           <PopoverTrigger asChild>
-            <button className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-ui-bodyText border border-ui-cardBorder rounded-lg hover:bg-gray-50 transition-colors">
+            <button className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-[#333333] border border-[#E5E5E5] rounded-lg hover:bg-gray-50 transition-colors">
               <span>
                 {SORT_OPTIONS.find((opt) => opt.id === sortField)?.label || 'Sort'}
               </span>
@@ -211,8 +211,8 @@ export function ProjectsTopNav({
                   }}
                   className={`w-full text-left px-2 py-1.5 text-xs rounded-md transition-colors ${
                     sortField === option.id
-                      ? 'bg-brand-teal/10 text-brand-teal font-medium'
-                      : 'text-ui-bodyText hover:bg-gray-50 hover:text-ui-headingDark'
+                      ? 'bg-[#3FAF7A]/10 text-[#3FAF7A] font-medium'
+                      : 'text-[#333333] hover:bg-gray-50 hover:text-[#333333]'
                   }`}
                 >
                   {option.label}
@@ -225,7 +225,7 @@ export function ProjectsTopNav({
         {/* Refresh Button */}
         <button
           onClick={onRefresh}
-          className="p-1.5 text-ui-supportText hover:text-ui-headingDark hover:bg-gray-50 rounded-lg transition-colors"
+          className="p-1.5 text-[#999999] hover:text-[#333333] hover:bg-gray-50 rounded-lg transition-colors"
           title="Refresh projects"
         >
           <RefreshCw className="w-4 h-4" />
@@ -237,8 +237,8 @@ export function ProjectsTopNav({
         {/* Expandable Search */}
         <div className="flex items-center">
           {searchExpanded ? (
-            <div className="flex items-center gap-1.5 px-2.5 py-1.5 border border-ui-cardBorder rounded-lg bg-white">
-              <Search className="w-4 h-4 text-ui-supportText flex-shrink-0" />
+            <div className="flex items-center gap-1.5 px-2.5 py-1.5 border border-[#E5E5E5] rounded-lg bg-white">
+              <Search className="w-4 h-4 text-[#999999] flex-shrink-0" />
               <input
                 ref={searchInputRef}
                 type="text"
@@ -246,12 +246,12 @@ export function ProjectsTopNav({
                 onChange={(e) => onSearchChange(e.target.value)}
                 onBlur={handleSearchBlur}
                 placeholder="Search projects..."
-                className="w-48 text-xs text-ui-bodyText placeholder:text-ui-supportText focus:outline-none bg-transparent"
+                className="w-48 text-xs text-[#333333] placeholder:text-[#999999] focus:outline-none bg-transparent"
               />
               {searchQuery && (
                 <button
                   onClick={() => onSearchChange('')}
-                  className="text-ui-supportText hover:text-ui-headingDark"
+                  className="text-[#999999] hover:text-[#333333]"
                 >
                   <X className="w-3.5 h-3.5" />
                 </button>
@@ -260,7 +260,7 @@ export function ProjectsTopNav({
           ) : (
             <button
               onClick={() => setSearchExpanded(true)}
-              className="p-1.5 text-ui-supportText hover:text-ui-headingDark hover:bg-gray-50 rounded-lg transition-colors"
+              className="p-1.5 text-[#999999] hover:text-[#333333] hover:bg-gray-50 rounded-lg transition-colors"
               title="Search projects"
             >
               <Search className="w-4 h-4" />
@@ -274,8 +274,8 @@ export function ProjectsTopNav({
             onClick={() => onViewModeChange('table')}
             className={`p-1.5 rounded-md transition-colors ${
               viewMode === 'table'
-                ? 'bg-white text-brand-teal shadow-sm'
-                : 'text-ui-supportText hover:text-ui-headingDark'
+                ? 'bg-white text-[#3FAF7A] shadow-sm'
+                : 'text-[#999999] hover:text-[#333333]'
             }`}
             title="Table view"
           >
@@ -285,8 +285,8 @@ export function ProjectsTopNav({
             onClick={() => onViewModeChange('cards')}
             className={`p-1.5 rounded-md transition-colors ${
               viewMode === 'cards'
-                ? 'bg-white text-brand-teal shadow-sm'
-                : 'text-ui-supportText hover:text-ui-headingDark'
+                ? 'bg-white text-[#3FAF7A] shadow-sm'
+                : 'text-[#999999] hover:text-[#333333]'
             }`}
             title="Cards view"
           >
@@ -296,8 +296,8 @@ export function ProjectsTopNav({
             onClick={() => onViewModeChange('kanban')}
             className={`p-1.5 rounded-md transition-colors ${
               viewMode === 'kanban'
-                ? 'bg-white text-brand-teal shadow-sm'
-                : 'text-ui-supportText hover:text-ui-headingDark'
+                ? 'bg-white text-[#3FAF7A] shadow-sm'
+                : 'text-[#999999] hover:text-[#333333]'
             }`}
             title="Kanban view"
           >

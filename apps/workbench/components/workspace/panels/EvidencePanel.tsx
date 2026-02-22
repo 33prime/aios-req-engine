@@ -132,8 +132,8 @@ export function EvidencePanel({ projectId }: EvidencePanelProps) {
               onClick={() => setActiveTab(tab.id)}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium transition-colors ${
                 activeTab === tab.id
-                  ? 'bg-brand-teal/10 text-brand-teal'
-                  : 'text-ui-supportText hover:text-ui-headingDark hover:bg-ui-background'
+                  ? 'bg-[#3FAF7A]/10 text-[#3FAF7A]'
+                  : 'text-[#999999] hover:text-[#333333] hover:bg-[#F9F9F9]'
               }`}
             >
               <Icon className="w-3.5 h-3.5" />
@@ -148,10 +148,10 @@ export function EvidencePanel({ projectId }: EvidencePanelProps) {
         <>
           {isLoading ? (
             <div className="flex items-center justify-center py-8">
-              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-brand-teal" />
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#3FAF7A]" />
             </div>
           ) : !evidence && !documents && !sourceUsage ? (
-            <p className="text-sm text-ui-supportText text-center py-8">
+            <p className="text-sm text-[#999999] text-center py-8">
               No evidence data available yet.
             </p>
           ) : (
@@ -229,13 +229,13 @@ function SourceUsageCards({ sourceUsage }: { sourceUsage: SourceUsageResponse })
         {visibleCards.map((card) => {
           const Icon = card.icon
           return (
-            <div key={card.key} className="bg-ui-background rounded-lg px-3 py-2 flex items-center gap-2.5">
+            <div key={card.key} className="bg-[#F9F9F9] rounded-lg px-3 py-2 flex items-center gap-2.5">
               <div className={`w-7 h-7 rounded-full ${card.accent} flex items-center justify-center flex-shrink-0`}>
                 <Icon className="w-3.5 h-3.5" />
               </div>
               <div>
-                <p className="text-base font-bold text-ui-headingDark leading-tight">{totals[card.key]}</p>
-                <p className="text-[10px] text-ui-supportText leading-tight">{card.label}</p>
+                <p className="text-base font-bold text-[#333333] leading-tight">{totals[card.key]}</p>
+                <p className="text-[10px] text-[#999999] leading-tight">{card.label}</p>
               </div>
             </div>
           )
@@ -277,20 +277,20 @@ function EvidenceQuality({ evidence }: { evidence: EvidenceQualityResponse }) {
           if (!data) return null
           return (
             <div key={key} className="flex items-center gap-3">
-              <span className="text-[11px] text-ui-supportText w-32 truncate">{label}</span>
+              <span className="text-[11px] text-[#999999] w-32 truncate">{label}</span>
               <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
                 <div
                   className={`h-full ${barColor} rounded-full transition-all`}
                   style={{ width: `${data.percentage}%` }}
                 />
               </div>
-              <span className="text-[11px] text-ui-bodyText w-8 text-right">{data.count}</span>
+              <span className="text-[11px] text-[#333333] w-8 text-right">{data.count}</span>
             </div>
           )
         })}
       </div>
       {evidence.summary && (
-        <p className="text-[11px] text-ui-supportText mt-2 italic">{evidence.summary}</p>
+        <p className="text-[11px] text-[#999999] mt-2 italic">{evidence.summary}</p>
       )}
     </div>
   )
@@ -387,7 +387,7 @@ function SourceTimeline({
 
   if (items.length === 0) {
     return (
-      <p className="text-sm text-ui-supportText text-center py-4">
+      <p className="text-sm text-[#999999] text-center py-4">
         No sources available yet.
       </p>
     )
@@ -553,10 +553,10 @@ function TimelineCard({ item, onDocumentRemoved }: { item: TimelineItem; onDocum
           className="w-full flex items-center gap-2 px-3 py-2.5 text-left hover:bg-gray-100/50 transition-colors"
         >
           <div className="flex-1 min-w-0">
-            <h4 className="text-sm font-medium text-ui-headingDark truncate">{item.name}</h4>
+            <h4 className="text-sm font-medium text-[#333333] truncate">{item.name}</h4>
             <div className="flex items-center gap-2 mt-0.5">
               {item.date && (
-                <span className="text-[10px] text-ui-supportText">
+                <span className="text-[10px] text-[#999999]">
                   {formatDistanceToNow(new Date(item.date), { addSuffix: true })}
                 </span>
               )}
@@ -581,7 +581,7 @@ function TimelineCard({ item, onDocumentRemoved }: { item: TimelineItem; onDocum
                 <button
                   onClick={handleDownload}
                   disabled={isDownloading}
-                  className="p-1.5 rounded-md text-gray-400 hover:text-ui-headingDark hover:bg-gray-200/50 transition-colors disabled:opacity-40"
+                  className="p-1.5 rounded-md text-gray-400 hover:text-[#333333] hover:bg-gray-200/50 transition-colors disabled:opacity-40"
                   title="Download"
                 >
                   <Download className="w-3.5 h-3.5" />
@@ -603,14 +603,14 @@ function TimelineCard({ item, onDocumentRemoved }: { item: TimelineItem; onDocum
             {item.type === 'research' && content && (
               <button
                 onClick={handleCopy}
-                className="p-1.5 rounded-md text-gray-400 hover:text-ui-headingDark hover:bg-gray-200/50 transition-colors"
+                className="p-1.5 rounded-md text-gray-400 hover:text-[#333333] hover:bg-gray-200/50 transition-colors"
                 title={copied ? 'Copied!' : 'Copy'}
               >
                 {copied ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
               </button>
             )}
             <TypeBadge item={item} />
-            <Chevron className="w-3.5 h-3.5 text-ui-supportText" />
+            <Chevron className="w-3.5 h-3.5 text-[#999999]" />
           </div>
         </button>
 
@@ -625,7 +625,7 @@ function TimelineCard({ item, onDocumentRemoved }: { item: TimelineItem; onDocum
                   className={`px-2 py-1 rounded text-[11px] font-medium transition-colors ${
                     expandedTab === 'content'
                       ? 'bg-emerald-50 text-emerald-700'
-                      : 'text-ui-supportText hover:text-ui-headingDark hover:bg-gray-100'
+                      : 'text-[#999999] hover:text-[#333333] hover:bg-gray-100'
                   }`}
                 >
                   Content
@@ -635,7 +635,7 @@ function TimelineCard({ item, onDocumentRemoved }: { item: TimelineItem; onDocum
                   className={`px-2 py-1 rounded text-[11px] font-medium transition-colors ${
                     expandedTab === 'analysis'
                       ? 'bg-emerald-50 text-emerald-700'
-                      : 'text-ui-supportText hover:text-ui-headingDark hover:bg-gray-100'
+                      : 'text-[#999999] hover:text-[#333333] hover:bg-gray-100'
                   }`}
                 >
                   Analysis
@@ -645,8 +645,8 @@ function TimelineCard({ item, onDocumentRemoved }: { item: TimelineItem; onDocum
 
             {loadingContent ? (
               <div className="flex items-center gap-2 py-3">
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-brand-teal" />
-                <span className="text-xs text-ui-supportText">Loading...</span>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#3FAF7A]" />
+                <span className="text-xs text-[#999999]">Loading...</span>
               </div>
             ) : (
               <div className="space-y-3 mt-1">
@@ -666,7 +666,7 @@ function TimelineCard({ item, onDocumentRemoved }: { item: TimelineItem; onDocum
                       <div className="bg-white rounded-lg border border-gray-100 p-3">
                         <Markdown
                           content={formatTranscriptContent(content)}
-                          className="text-sm text-ui-bodyText [&_h1]:text-sm [&_h2]:text-[13px] [&_h3]:text-[13px] [&_p]:text-sm [&_li]:text-sm"
+                          className="text-sm text-[#333333] [&_h1]:text-sm [&_h2]:text-[13px] [&_h3]:text-[13px] [&_p]:text-sm [&_li]:text-sm"
                         />
                       </div>
                     )}
@@ -677,13 +677,13 @@ function TimelineCard({ item, onDocumentRemoved }: { item: TimelineItem; onDocum
                         <div className="bg-white rounded-lg border border-gray-100 p-3">
                           <Markdown
                             content={content}
-                            className="text-sm text-ui-bodyText [&_h1]:text-sm [&_h2]:text-[13px] [&_h3]:text-[13px] [&_p]:text-sm [&_li]:text-sm"
+                            className="text-sm text-[#333333] [&_h1]:text-sm [&_h2]:text-[13px] [&_h3]:text-[13px] [&_p]:text-sm [&_li]:text-sm"
                           />
                         </div>
                         <div className="flex justify-end">
                           <button
                             onClick={handleCopy}
-                            className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-ui-supportText hover:text-ui-headingDark bg-white border border-gray-200 rounded-md hover:bg-gray-50 transition-colors"
+                            className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-[#999999] hover:text-[#333333] bg-white border border-gray-200 rounded-md hover:bg-gray-50 transition-colors"
                           >
                             {copied ? (
                               <>
@@ -751,7 +751,7 @@ function DocumentContentView({ doc, content }: { doc: DocumentSummaryItem; conte
   return (
     <div className="space-y-3">
       {/* File metadata */}
-      <div className="flex items-center gap-3 text-[11px] text-ui-supportText">
+      <div className="flex items-center gap-3 text-[11px] text-[#999999]">
         <span>{formatFileSize(doc.file_size_bytes)}</span>
         {doc.page_count && (
           <>
@@ -768,7 +768,7 @@ function DocumentContentView({ doc, content }: { doc: DocumentSummaryItem; conte
         <div className="bg-white rounded-lg border border-gray-100 p-3">
           <Markdown
             content={formatTranscriptContent(content)}
-            className="text-sm text-ui-bodyText [&_h1]:text-sm [&_h2]:text-[13px] [&_h3]:text-[13px] [&_p]:text-sm [&_li]:text-sm"
+            className="text-sm text-[#333333] [&_h1]:text-sm [&_h2]:text-[13px] [&_h3]:text-[13px] [&_p]:text-sm [&_li]:text-sm"
           />
         </div>
       )}
@@ -811,7 +811,7 @@ function DocumentAnalysisView({ doc }: { doc: DocumentSummaryItem }) {
       {/* Key Topics */}
       {hasTopics && (
         <div>
-          <span className="text-[10px] font-medium text-ui-supportText uppercase tracking-wide">Key Topics</span>
+          <span className="text-[10px] font-medium text-[#999999] uppercase tracking-wide">Key Topics</span>
           <div className="flex flex-wrap gap-1.5 mt-1">
             {doc.key_topics!.map((topic, i) => (
               <span key={i} className="px-2 py-0.5 text-[11px] rounded bg-gray-100 text-gray-700 border border-gray-200">
@@ -825,7 +825,7 @@ function DocumentAnalysisView({ doc }: { doc: DocumentSummaryItem }) {
       {/* Keywords */}
       {hasKeywords && (
         <div>
-          <span className="text-[10px] font-medium text-ui-supportText uppercase tracking-wide">Keywords</span>
+          <span className="text-[10px] font-medium text-[#999999] uppercase tracking-wide">Keywords</span>
           <div className="flex flex-wrap gap-1.5 mt-1">
             {doc.keyword_tags!.slice(0, 10).map((kw, i) => (
               <span key={i} className="px-2 py-0.5 text-[11px] rounded-full bg-emerald-50 text-emerald-700">
@@ -833,7 +833,7 @@ function DocumentAnalysisView({ doc }: { doc: DocumentSummaryItem }) {
               </span>
             ))}
             {doc.keyword_tags!.length > 10 && (
-              <span className="text-[10px] text-ui-supportText self-center">
+              <span className="text-[10px] text-[#999999] self-center">
                 +{doc.keyword_tags!.length - 10} more
               </span>
             )}
@@ -845,7 +845,7 @@ function DocumentAnalysisView({ doc }: { doc: DocumentSummaryItem }) {
       {doc.usage_count > 0 && <ContributionsRow contributed_to={doc.contributed_to} usage_count={doc.usage_count} />}
 
       {!hasScores && !hasTopics && !hasKeywords && doc.usage_count === 0 && (
-        <p className="text-xs text-ui-supportText italic py-2">No analysis data available yet.</p>
+        <p className="text-xs text-[#999999] italic py-2">No analysis data available yet.</p>
       )}
     </div>
   )
@@ -875,14 +875,14 @@ function ProcessingResultsView({
   if (loading) {
     return (
       <div className="flex items-center gap-2 py-3">
-        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-brand-teal" />
-        <span className="text-xs text-ui-supportText">Loading processing results...</span>
+        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#3FAF7A]" />
+        <span className="text-xs text-[#999999]">Loading processing results...</span>
       </div>
     )
   }
 
   if (!data || data.summary.total_entities_affected === 0) {
-    return <p className="text-xs text-ui-supportText italic py-2">No processing results available.</p>
+    return <p className="text-xs text-[#999999] italic py-2">No processing results available.</p>
   }
 
   const { summary } = data
@@ -912,7 +912,7 @@ function ProcessingResultsView({
   return (
     <div className="space-y-3">
       {/* Summary bar */}
-      <div className="flex items-center gap-3 text-[11px] text-ui-supportText flex-wrap">
+      <div className="flex items-center gap-3 text-[11px] text-[#999999] flex-wrap">
         {summary.created > 0 && (
           <span className="font-medium text-emerald-700">{summary.created} created</span>
         )}
@@ -937,9 +937,9 @@ function ProcessingResultsView({
             className="flex items-center gap-1.5 w-full text-left"
           >
             {expandedSections.has('created') ? (
-              <ChevronDown className="w-3 h-3 text-ui-supportText" />
+              <ChevronDown className="w-3 h-3 text-[#999999]" />
             ) : (
-              <ChevronUp className="w-3 h-3 text-ui-supportText" />
+              <ChevronUp className="w-3 h-3 text-[#999999]" />
             )}
             <span className="text-[10px] font-semibold text-emerald-700 uppercase tracking-wide">
               Created ({created.length})
@@ -951,7 +951,7 @@ function ProcessingResultsView({
                 const style = ENTITY_TYPE_STYLES[entityType] || { label: entityType, bg: 'bg-gray-100', text: 'text-gray-700' }
                 return (
                   <div key={entityType}>
-                    <span className="text-[10px] font-medium text-ui-supportText">
+                    <span className="text-[10px] font-medium text-[#999999]">
                       {style.label} ({items.length})
                     </span>
                     <div className="flex flex-wrap gap-1 mt-0.5">
@@ -980,9 +980,9 @@ function ProcessingResultsView({
             className="flex items-center gap-1.5 w-full text-left"
           >
             {expandedSections.has('updated') ? (
-              <ChevronDown className="w-3 h-3 text-ui-supportText" />
+              <ChevronDown className="w-3 h-3 text-[#999999]" />
             ) : (
-              <ChevronUp className="w-3 h-3 text-ui-supportText" />
+              <ChevronUp className="w-3 h-3 text-[#999999]" />
             )}
             <span className="text-[10px] font-semibold text-indigo-600 uppercase tracking-wide">
               Updated ({updated.length})
@@ -998,9 +998,9 @@ function ProcessingResultsView({
                       {style.label.replace(/s$/, '')}
                     </span>
                     <div className="min-w-0">
-                      <span className="text-xs font-medium text-ui-headingDark">{item.entity_label}</span>
+                      <span className="text-xs font-medium text-[#333333]">{item.entity_label}</span>
                       {item.diff_summary && (
-                        <span className="text-[11px] text-ui-supportText ml-1.5">
+                        <span className="text-[11px] text-[#999999] ml-1.5">
                           — {item.diff_summary}
                         </span>
                       )}
@@ -1021,11 +1021,11 @@ function ProcessingResultsView({
             className="flex items-center gap-1.5 w-full text-left"
           >
             {expandedSections.has('memory') ? (
-              <ChevronDown className="w-3 h-3 text-ui-supportText" />
+              <ChevronDown className="w-3 h-3 text-[#999999]" />
             ) : (
-              <ChevronUp className="w-3 h-3 text-ui-supportText" />
+              <ChevronUp className="w-3 h-3 text-[#999999]" />
             )}
-            <span className="text-[10px] font-semibold text-ui-supportText uppercase tracking-wide">
+            <span className="text-[10px] font-semibold text-[#999999] uppercase tracking-wide">
               Memory ({data.memory_updates.length})
             </span>
           </button>
@@ -1033,10 +1033,10 @@ function ProcessingResultsView({
             <div className="mt-1.5 space-y-1 pl-4">
               {data.memory_updates.map((mem) => (
                 <div key={mem.id} className="flex items-start gap-2 text-[11px]">
-                  <span className="text-ui-supportText flex-shrink-0">{mem.node_type}:</span>
-                  <span className="text-ui-bodyText">&ldquo;{mem.content}&rdquo;</span>
+                  <span className="text-[#999999] flex-shrink-0">{mem.node_type}:</span>
+                  <span className="text-[#333333]">&ldquo;{mem.content}&rdquo;</span>
                   {mem.confidence != null && (
-                    <span className="text-ui-supportText flex-shrink-0">({(mem.confidence * 100).toFixed(0)}%)</span>
+                    <span className="text-[#999999] flex-shrink-0">({(mem.confidence * 100).toFixed(0)}%)</span>
                   )}
                 </div>
               ))}
@@ -1048,10 +1048,10 @@ function ProcessingResultsView({
       {/* Pipeline decisions */}
       {(summary.confidence_distribution && Object.keys(summary.confidence_distribution).length > 0) && (
         <div className="pt-2 border-t border-gray-100">
-          <span className="text-[10px] font-semibold text-ui-supportText uppercase tracking-wide">
+          <span className="text-[10px] font-semibold text-[#999999] uppercase tracking-wide">
             Pipeline Decisions
           </span>
-          <div className="flex flex-wrap gap-2 mt-1 text-[11px] text-ui-supportText">
+          <div className="flex flex-wrap gap-2 mt-1 text-[11px] text-[#999999]">
             {Object.entries(summary.confidence_distribution).map(([level, count]) => (
               <span key={level}>{count} {level}</span>
             ))}
@@ -1094,8 +1094,8 @@ function ImpactAnalysisView({
   if (loading) {
     return (
       <div className="flex items-center gap-2 py-3">
-        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-brand-teal" />
-        <span className="text-xs text-ui-supportText">Loading analysis...</span>
+        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#3FAF7A]" />
+        <span className="text-xs text-[#999999]">Loading analysis...</span>
       </div>
     )
   }
@@ -1106,13 +1106,13 @@ function ImpactAnalysisView({
   }
 
   if (!impactData || impactData.total_impacts === 0) {
-    return <p className="text-xs text-ui-supportText italic py-2">No entity extractions recorded yet.</p>
+    return <p className="text-xs text-[#999999] italic py-2">No entity extractions recorded yet.</p>
   }
 
   return (
     <div className="space-y-3">
       <div className="flex items-center gap-2 text-xs">
-        <span className="font-medium text-ui-headingDark">{impactData.total_impacts} entities extracted</span>
+        <span className="font-medium text-[#333333]">{impactData.total_impacts} entities extracted</span>
       </div>
 
       {Object.entries(impactData.details).map(([entityType, entities]) => {
@@ -1121,7 +1121,7 @@ function ImpactAnalysisView({
 
         return (
           <div key={entityType}>
-            <span className="text-[10px] font-medium text-ui-supportText uppercase tracking-wide">
+            <span className="text-[10px] font-medium text-[#999999] uppercase tracking-wide">
               {style.label} ({entities.length})
             </span>
             <div className="flex flex-wrap gap-1.5 mt-1">
@@ -1194,15 +1194,15 @@ function ImpactBar({ source }: { source: SourceUsageItem }) {
   if (entries.length === 0) return null
 
   return (
-    <div className="flex items-center gap-3 text-[11px] text-ui-supportText pt-1 border-t border-gray-100 flex-wrap">
+    <div className="flex items-center gap-3 text-[11px] text-[#999999] pt-1 border-t border-gray-100 flex-wrap">
       {/* Mini usage bar */}
       <div className="w-16 h-1.5 bg-gray-100 rounded-full overflow-hidden flex-shrink-0">
         <div
-          className="h-full bg-brand-teal rounded-full"
+          className="h-full bg-[#3FAF7A] rounded-full"
           style={{ width: `${Math.min(100, (source.total_uses / Math.max(source.total_uses * 2, 1)) * 100)}%` }}
         />
       </div>
-      <span className="font-medium text-ui-bodyText">{source.total_uses} uses</span>
+      <span className="font-medium text-[#333333]">{source.total_uses} uses</span>
       {entries.map((e) => (
         <span key={e.label}>{e.count} {e.label}</span>
       ))}
@@ -1224,8 +1224,8 @@ function ContributionsRow({ contributed_to, usage_count }: { contributed_to: Doc
   ].filter((e) => e.count > 0)
 
   return (
-    <div className="flex items-center gap-3 text-[11px] text-ui-supportText pt-1 border-t border-gray-100 flex-wrap">
-      <span className="font-medium text-ui-bodyText">{usage_count}x used</span>
+    <div className="flex items-center gap-3 text-[11px] text-[#999999] pt-1 border-t border-gray-100 flex-wrap">
+      <span className="font-medium text-[#333333]">{usage_count}x used</span>
       {entries.map((e) => (
         <span key={e.label}>{e.count} {e.label}</span>
       ))}
@@ -1303,9 +1303,9 @@ function getTimelineDotStyle(item: TimelineItem): string {
 function SectionHeader({ title, right }: { title: string; right?: React.ReactNode }) {
   return (
     <div className="flex items-center justify-between mb-2.5">
-      <h4 className="text-xs font-semibold text-ui-headingDark uppercase tracking-wide">{title}</h4>
+      <h4 className="text-xs font-semibold text-[#333333] uppercase tracking-wide">{title}</h4>
       {typeof right === 'string' ? (
-        <span className="text-[11px] text-ui-supportText">{right}</span>
+        <span className="text-[11px] text-[#999999]">{right}</span>
       ) : (
         right
       )}

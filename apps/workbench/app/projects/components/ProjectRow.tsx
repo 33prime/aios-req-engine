@@ -17,7 +17,7 @@ const STAGE_COLORS = {
   discovery: 'bg-emerald-100 text-emerald-700 border-emerald-200',
   validation: 'bg-emerald-50 text-emerald-600 border-emerald-100',
   prototype: 'bg-teal-50 text-teal-700 border-teal-100',
-  proposal: 'bg-[#009b87]/10 text-[#009b87] border-[#009b87]/20',
+  proposal: 'bg-[#3FAF7A]/10 text-[#3FAF7A] border-[#3FAF7A]/20',
   build: 'bg-emerald-200 text-emerald-800 border-emerald-300',
   live: 'bg-emerald-100 text-emerald-700 border-emerald-200',
   prototype_refinement: 'bg-emerald-50 text-emerald-600 border-emerald-100',
@@ -53,9 +53,9 @@ export function ProjectRow({ project, ownerProfile, currentUser, onClick }: Proj
         <div className="flex items-center gap-2">
           <ProjectAvatar name={project.name} clientName={project.client_name} />
           <div className="min-w-0">
-            <div className="text-xs font-medium text-ui-headingDark truncate">{project.name}</div>
+            <div className="text-xs font-medium text-[#333333] truncate">{project.name}</div>
             {isBuilding ? null : project.description ? (
-              <div className="text-xs text-ui-supportText truncate max-w-md">
+              <div className="text-xs text-[#999999] truncate max-w-md">
                 {project.description}
               </div>
             ) : null}
@@ -70,7 +70,7 @@ export function ProjectRow({ project, ownerProfile, currentUser, onClick }: Proj
       </td>
 
       <td className="px-3 py-2">
-        <div className="text-xs text-ui-bodyText">
+        <div className="text-xs text-[#333333]">
           {project.client_name || '-'}
         </div>
       </td>
@@ -90,12 +90,12 @@ export function ProjectRow({ project, ownerProfile, currentUser, onClick }: Proj
       <td className="px-3 py-2">
         <div className="flex items-center gap-1.5">
           <UserAvatar name={ownerName} photoUrl={ownerPhotoUrl} size="small" />
-          <span className="text-xs text-ui-bodyText">{ownerName}</span>
+          <span className="text-xs text-[#333333]">{ownerName}</span>
         </div>
       </td>
 
       <td className="px-3 py-2">
-        <div className="text-xs text-ui-supportText">
+        <div className="text-xs text-[#999999]">
           {formatDistanceToNow(new Date(project.updated_at || project.created_at), {
             addSuffix: true,
           })}

@@ -58,7 +58,7 @@ export function MemoryPanel({ projectId }: MemoryPanelProps) {
   return (
     <div className="flex flex-col h-full">
       {/* Tab bar + utility actions */}
-      <div className="flex items-center justify-between px-6 py-3 border-b border-ui-cardBorder bg-white shrink-0">
+      <div className="flex items-center justify-between px-6 py-3 border-b border-[#E5E5E5] bg-white shrink-0">
         <div className="flex gap-1">
           {TABS.map((tab) => {
             const Icon = tab.icon
@@ -69,8 +69,8 @@ export function MemoryPanel({ projectId }: MemoryPanelProps) {
                 onClick={() => { setActiveTab(tab.id); setShowForAI(false) }}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium transition-colors ${
                   isActive && !showForAI
-                    ? 'bg-brand-teal/10 text-brand-teal'
-                    : 'text-ui-supportText hover:text-ui-headingDark hover:bg-ui-background'
+                    ? 'bg-[#3FAF7A]/10 text-[#3FAF7A]'
+                    : 'text-[#999999] hover:text-[#333333] hover:bg-[#F9F9F9]'
                 }`}
               >
                 <Icon className="w-3.5 h-3.5" />
@@ -86,8 +86,8 @@ export function MemoryPanel({ projectId }: MemoryPanelProps) {
             onClick={() => setShowForAI(!showForAI)}
             className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-medium rounded-lg transition-colors ${
               showForAI
-                ? 'bg-brand-teal/10 text-brand-teal'
-                : 'text-ui-supportText hover:text-ui-headingDark hover:bg-ui-background'
+                ? 'bg-[#3FAF7A]/10 text-[#3FAF7A]'
+                : 'text-[#999999] hover:text-[#333333] hover:bg-[#F9F9F9]'
             }`}
           >
             <Code className="w-3 h-3" />
@@ -96,7 +96,7 @@ export function MemoryPanel({ projectId }: MemoryPanelProps) {
           <button
             onClick={handleSynthesize}
             disabled={isSynthesizing}
-            className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-medium text-brand-teal hover:bg-brand-teal/10 rounded-lg transition-colors disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-medium text-[#3FAF7A] hover:bg-[#3FAF7A]/10 rounded-lg transition-colors disabled:opacity-50"
           >
             <RefreshCw className={`w-3 h-3 ${isSynthesizing ? 'animate-spin' : ''}`} />
             Synthesize
@@ -108,7 +108,7 @@ export function MemoryPanel({ projectId }: MemoryPanelProps) {
       <div className="flex-1 overflow-hidden">
         {isLoading ? (
           <div className="flex items-center justify-center h-full">
-            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-brand-teal" />
+            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#3FAF7A]" />
           </div>
         ) : showForAI ? (
           <div className="h-full overflow-y-auto p-6">

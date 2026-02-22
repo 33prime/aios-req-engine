@@ -42,10 +42,10 @@ export function Button({
   const baseClasses = `rounded-lg font-medium transition-all duration-200 inline-flex items-center justify-center ${sizeClasses[size]}`
 
   const variantClasses = {
-    primary: 'bg-brand-primary text-white hover:bg-[#033344] active:bg-[#022836]',
-    secondary: 'bg-ui-buttonGray text-ui-bodyText hover:bg-ui-buttonGrayHover active:bg-[#D4D4D4]',
-    outline: 'bg-white border border-brand-primary text-brand-primary hover:bg-brand-primary/5 active:bg-brand-primary/10',
-    ghost: 'bg-transparent text-ui-bodyText hover:bg-gray-100 active:bg-gray-200'
+    primary: 'bg-[#3FAF7A] text-white hover:bg-[#033344] active:bg-[#022836]',
+    secondary: 'bg-[#F5F5F5] text-[#333333] hover:bg-[#E5E5E5] active:bg-[#D4D4D4]',
+    outline: 'bg-white border border-[#3FAF7A] text-[#3FAF7A] hover:bg-[#3FAF7A]/5 active:bg-[#3FAF7A]/10',
+    ghost: 'bg-transparent text-[#333333] hover:bg-gray-100 active:bg-gray-200'
   }
 
   const disabledClasses = 'opacity-50 cursor-not-allowed'
@@ -123,10 +123,10 @@ export function IconButton({
   }
 
   const variantClasses = {
-    primary: 'bg-brand-primary text-white hover:bg-[#033344]',
-    secondary: 'bg-ui-buttonGray text-ui-bodyText hover:bg-ui-buttonGrayHover',
-    outline: 'bg-white border border-brand-primary text-brand-primary hover:bg-brand-primary/5',
-    ghost: 'bg-transparent text-ui-bodyText hover:bg-gray-100 active:bg-gray-200'
+    primary: 'bg-[#3FAF7A] text-white hover:bg-[#033344]',
+    secondary: 'bg-[#F5F5F5] text-[#333333] hover:bg-[#E5E5E5]',
+    outline: 'bg-white border border-[#3FAF7A] text-[#3FAF7A] hover:bg-[#3FAF7A]/5',
+    ghost: 'bg-transparent text-[#333333] hover:bg-gray-100 active:bg-gray-200'
   }
 
   return (

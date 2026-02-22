@@ -248,7 +248,7 @@ export function KnowledgeTab({ projectId, data: vizData }: KnowledgeTabProps) {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-full">
-        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-brand-teal" />
+        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#3FAF7A]" />
       </div>
     )
   }
@@ -257,10 +257,10 @@ export function KnowledgeTab({ projectId, data: vizData }: KnowledgeTabProps) {
     return (
       <div className="flex items-center justify-center h-full">
         <div className="text-center">
-          <p className="text-sm text-ui-supportText mb-2">
+          <p className="text-sm text-[#999999] mb-2">
             No knowledge graph data yet.
           </p>
-          <p className="text-xs text-ui-supportText">
+          <p className="text-xs text-[#999999]">
             Process signals to build the knowledge graph, or add beliefs manually.
           </p>
           <button

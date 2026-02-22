@@ -71,7 +71,7 @@ export function FeatureChip({ feature, isDragging = false }: FeatureChipProps) {
       case 'needs_confirmation':
         return 'border-amber-300 bg-amber-50'
       default:
-        return 'border-ui-cardBorder bg-white'
+        return 'border-[#E5E5E5] bg-white'
     }
   }
 
@@ -136,13 +136,13 @@ export function FeatureChip({ feature, isDragging = false }: FeatureChipProps) {
           ${isDragging ? 'shadow-lg opacity-90 scale-105' : ''}
         `}
       >
-        <GripVertical className="w-3 h-3 text-ui-supportText flex-shrink-0" />
+        <GripVertical className="w-3 h-3 text-[#999999] flex-shrink-0" />
 
         {feature.is_mvp && (
           <Star className="w-4 h-4 text-amber-500 fill-amber-500 flex-shrink-0" />
         )}
 
-        <span className="font-medium text-ui-headingDark truncate max-w-[150px]">
+        <span className="font-medium text-[#333333] truncate max-w-[150px]">
           {feature.name}
         </span>
 
@@ -159,20 +159,20 @@ export function FeatureChip({ feature, isDragging = false }: FeatureChipProps) {
       {showPopover && !isDragging && (
         <div
           ref={popoverRef}
-          className="absolute z-50 top-full left-0 mt-2 w-72 bg-white rounded-lg border border-ui-cardBorder shadow-lg p-4"
+          className="absolute z-50 top-full left-0 mt-2 w-72 bg-white rounded-lg border border-[#E5E5E5] shadow-lg p-4"
         >
           <div className="flex items-start justify-between gap-2 mb-2">
-            <h4 className="text-sm font-semibold text-ui-headingDark">{feature.name}</h4>
+            <h4 className="text-sm font-semibold text-[#333333]">{feature.name}</h4>
             <button
               onClick={(e) => { e.stopPropagation(); setShowPopover(false) }}
-              className="p-0.5 rounded text-ui-supportText hover:text-ui-headingDark"
+              className="p-0.5 rounded text-[#999999] hover:text-[#333333]"
             >
               <X className="w-3.5 h-3.5" />
             </button>
           </div>
 
           {feature.description && (
-            <p className="text-sm text-ui-bodyText mb-3">{feature.description}</p>
+            <p className="text-sm text-[#333333] mb-3">{feature.description}</p>
           )}
 
           <div className="flex flex-wrap gap-2">

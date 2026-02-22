@@ -575,10 +575,10 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
 
   if (isWorkspaceLoading && !canvasData) {
     return (
-      <div className="min-h-screen bg-ui-background flex items-center justify-center">
+      <div className="min-h-screen bg-[#F9F9F9] flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-teal mx-auto mb-4" />
-          <p className="text-support text-ui-supportText">Loading workspace...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#3FAF7A] mx-auto mb-4" />
+          <p className="text-[12px] text-[#999999]">Loading workspace...</p>
         </div>
       </div>
     )
@@ -586,12 +586,12 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-ui-background flex items-center justify-center">
+      <div className="min-h-screen bg-[#F9F9F9] flex items-center justify-center">
         <div className="text-center">
           <p className="text-red-600 mb-4">{error}</p>
           <button
             onClick={loadData}
-            className="px-4 py-2 bg-brand-teal text-white rounded-lg hover:bg-brand-tealDark transition-colors"
+            className="px-4 py-2 bg-[#3FAF7A] text-white rounded-lg hover:bg-[#25785A] transition-colors"
           >
             Retry
           </button>
@@ -622,15 +622,15 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
           }}
         >
           {/* Header with Phase Switcher */}
-          <header className="sticky top-0 z-20 bg-white border-b border-ui-cardBorder">
+          <header className="sticky top-0 z-20 bg-white border-b border-[#E5E5E5]">
             <div className="flex items-center justify-between px-6 py-4">
               <div className="flex items-center gap-4">
                 <div>
-                  <h1 className="text-h2 text-ui-headingDark">
+                  <h1 className="text-xl font-medium text-[#333333]">
                     {canvasData?.project_name}
                   </h1>
                   {canvasData?.pitch_line && (
-                    <p className="text-support text-ui-supportText mt-0.5 truncate max-w-xl">
+                    <p className="text-[12px] text-[#999999] mt-0.5 truncate max-w-xl">
                       {canvasData.pitch_line}
                     </p>
                   )}
@@ -718,7 +718,7 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
             )}
 
             {phase === 'build' && canvasData && (
-              <div className="h-[calc(100vh-140px)] bg-white rounded-card border border-ui-cardBorder overflow-hidden relative">
+              <div className="h-[calc(100vh-140px)] bg-white rounded-lg border border-[#E5E5E5] overflow-hidden relative">
                 {/* Synthesizing banner — floats over prototype */}
                 {reviewPhase === 'synthesizing' && (
                   <div className="absolute top-0 left-0 right-0 z-10 flex items-center justify-center gap-2 px-4 py-2 bg-[#3FAF7A]/10 border-b border-[#3FAF7A]/20 text-sm text-[#25785A]">
@@ -758,13 +758,13 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
             {phase === 'live' && (
               <div className="flex items-center justify-center h-[calc(100vh-200px)]">
                 <div className="text-center">
-                  <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-ui-background flex items-center justify-center">
+                  <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-[#F9F9F9] flex items-center justify-center">
                     <span className="text-2xl">🚀</span>
                   </div>
-                  <h3 className="text-section text-ui-headingDark mb-2">
+                  <h3 className="text-base font-semibold text-[#333333] mb-2">
                     Live Product View
                   </h3>
-                  <p className="text-support text-ui-supportText">
+                  <p className="text-[12px] text-[#999999]">
                     Coming soon - track your product post-launch
                   </p>
                 </div>

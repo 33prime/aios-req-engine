@@ -115,14 +115,14 @@ export function DesignSelectionModal({
       <button
         onClick={onClose}
         disabled={isGenerating}
-        className="px-4 py-2 text-sm font-medium text-ui-bodyText bg-ui-buttonGray hover:bg-ui-buttonGrayHover rounded-lg transition-colors disabled:opacity-50"
+        className="px-4 py-2 text-sm font-medium text-[#333333] bg-[#F5F5F5] hover:bg-[#E5E5E5] rounded-lg transition-colors disabled:opacity-50"
       >
         Cancel
       </button>
       <button
         onClick={handleGenerate}
         disabled={!selectedId || isGenerating}
-        className="px-5 py-2 text-sm font-medium text-white bg-brand-teal hover:bg-brand-tealDark rounded-lg transition-colors disabled:opacity-50 flex items-center gap-2"
+        className="px-5 py-2 text-sm font-medium text-white bg-[#3FAF7A] hover:bg-[#25785A] rounded-lg transition-colors disabled:opacity-50 flex items-center gap-2"
       >
         {isGenerating ? (
           <>
@@ -149,12 +149,12 @@ export function DesignSelectionModal({
     >
       {loading ? (
         <div className="flex items-center justify-center py-12">
-          <Loader2 className="w-6 h-6 animate-spin text-brand-teal" />
-          <span className="ml-2 text-sm text-ui-supportText">Loading design options...</span>
+          <Loader2 className="w-6 h-6 animate-spin text-[#3FAF7A]" />
+          <span className="ml-2 text-sm text-[#999999]">Loading design options...</span>
         </div>
       ) : !profile ? (
         <div className="text-center py-8">
-          <p className="text-sm text-ui-supportText">
+          <p className="text-sm text-[#999999]">
             Could not load design options. You can still generate with default styles.
           </p>
         </div>
@@ -163,7 +163,7 @@ export function DesignSelectionModal({
           {/* Brand match card */}
           {profile.brand_available && profile.brand && (
             <div>
-              <p className="text-sm font-medium text-ui-bodyText mb-2">
+              <p className="text-sm font-medium text-[#333333] mb-2">
                 Based on your client&apos;s brand:
               </p>
               <DesignCard
@@ -182,27 +182,27 @@ export function DesignSelectionModal({
           {/* Design inspirations */}
           {profile.design_inspirations.length > 0 && (
             <div>
-              <p className="text-sm font-medium text-ui-bodyText mb-2">
+              <p className="text-sm font-medium text-[#333333] mb-2">
                 From your discovery:
               </p>
               <div className="grid grid-cols-2 gap-3">
                 {profile.design_inspirations.map((insp) => (
                   <div
                     key={insp.id}
-                    className="p-3 border border-ui-cardBorder rounded-lg bg-gray-50"
+                    className="p-3 border border-[#E5E5E5] rounded-lg bg-gray-50"
                   >
-                    <p className="text-sm font-medium text-ui-headingDark">{insp.name}</p>
+                    <p className="text-sm font-medium text-[#333333]">{insp.name}</p>
                     {insp.description && (
-                      <p className="text-xs text-ui-supportText mt-0.5">{insp.description}</p>
+                      <p className="text-xs text-[#999999] mt-0.5">{insp.description}</p>
                     )}
-                    <p className="text-xs text-ui-supportText italic mt-1">
+                    <p className="text-xs text-[#999999] italic mt-1">
                       {insp.source === 'competitor_ref' ? 'Design reference' : 'Discovery data'}
                     </p>
                   </div>
                 ))}
               </div>
               {profile.suggested_style && (
-                <p className="text-xs text-ui-supportText mt-2 italic">
+                <p className="text-xs text-[#999999] mt-2 italic">
                   Suggested style: <strong>{profile.suggested_style}</strong>
                   {profile.style_source && ` — ${profile.style_source}`}
                 </p>
@@ -212,7 +212,7 @@ export function DesignSelectionModal({
 
           {/* Generic styles */}
           <div>
-            <p className="text-sm font-medium text-ui-bodyText mb-2">
+            <p className="text-sm font-medium text-[#333333] mb-2">
               {profile.brand_available || profile.design_inspirations.length > 0
                 ? 'Or choose a style:'
                 : 'Choose a style:'}

@@ -44,7 +44,7 @@ interface RequirementsCanvasProps {
 
 // Auto-assign colors for persona-step indicators
 const PERSONA_COLORS = [
-  'bg-brand-teal',
+  'bg-[#3FAF7A]',
   'bg-blue-500',
   'bg-purple-500',
   'bg-amber-500',
@@ -136,13 +136,13 @@ export function RequirementsCanvas({
     >
       <div className="space-y-6">
         {/* Stats Micro-bar */}
-        <div className="flex items-center justify-end gap-4 text-[11px] text-ui-supportText">
-          <span>Features: <strong className="text-ui-bodyText">{totalFeatures}</strong>{mvpFeatures > 0 && <> (<strong className="text-amber-600">{mvpFeatures} MVP</strong>)</>}</span>
-          <span className="w-px h-3 bg-ui-cardBorder" />
-          <span>Steps: <strong className="text-ui-bodyText">{data.vp_steps.length}</strong></span>
-          <span className="w-px h-3 bg-ui-cardBorder" />
-          <span>Mapped: <strong className="text-ui-bodyText">{mappedFeatures}/{totalFeatures}</strong> ({mappedPct}%)</span>
-          <span className="w-px h-3 bg-ui-cardBorder" />
+        <div className="flex items-center justify-end gap-4 text-[11px] text-[#999999]">
+          <span>Features: <strong className="text-[#333333]">{totalFeatures}</strong>{mvpFeatures > 0 && <> (<strong className="text-amber-600">{mvpFeatures} MVP</strong>)</>}</span>
+          <span className="w-px h-3 bg-[#E5E5E5]" />
+          <span>Steps: <strong className="text-[#333333]">{data.vp_steps.length}</strong></span>
+          <span className="w-px h-3 bg-[#E5E5E5]" />
+          <span>Mapped: <strong className="text-[#333333]">{mappedFeatures}/{totalFeatures}</strong> ({mappedPct}%)</span>
+          <span className="w-px h-3 bg-[#E5E5E5]" />
           <span>Readiness: <strong className={readinessPct >= 70 ? 'text-green-600' : readinessPct >= 40 ? 'text-amber-600' : 'text-red-600'}>{readinessPct}%</strong></span>
         </div>
 
@@ -158,7 +158,7 @@ export function RequirementsCanvas({
         <section>
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-3">
-              <h2 className="text-section text-ui-headingDark">Actors</h2>
+              <h2 className="text-base font-semibold text-[#333333]">Actors</h2>
               {/* Persona color dots legend */}
               <div className="flex items-center gap-1">
                 {data.personas.map((p) => (
@@ -170,7 +170,7 @@ export function RequirementsCanvas({
                 ))}
               </div>
             </div>
-            <span className="text-support text-ui-supportText">
+            <span className="text-[12px] text-[#999999]">
               {data.personas.length} persona{data.personas.length !== 1 ? 's' : ''}
             </span>
           </div>
@@ -183,8 +183,8 @@ export function RequirementsCanvas({
         {/* Journey Section */}
         <section>
           <div className="flex items-center justify-between mb-3">
-            <h2 className="text-section text-ui-headingDark">Journey</h2>
-            <span className="text-support text-ui-supportText">
+            <h2 className="text-base font-semibold text-[#333333]">Journey</h2>
+            <span className="text-[12px] text-[#999999]">
               {data.vp_steps.length} step{data.vp_steps.length !== 1 ? 's' : ''}
             </span>
           </div>
@@ -198,8 +198,8 @@ export function RequirementsCanvas({
         {/* Unmapped Features */}
         <section>
           <div className="flex items-center justify-between mb-3">
-            <h2 className="text-section text-ui-headingDark">Unmapped Features</h2>
-            <span className="text-support text-ui-supportText">
+            <h2 className="text-base font-semibold text-[#333333]">Unmapped Features</h2>
+            <span className="text-[12px] text-[#999999]">
               {data.unmapped_features.length} feature{data.unmapped_features.length !== 1 ? 's' : ''}
             </span>
           </div>

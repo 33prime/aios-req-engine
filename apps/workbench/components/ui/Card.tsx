@@ -32,13 +32,13 @@ export function Card({
   onClick,
   ...props
 }: CardProps) {
-  const baseClasses = 'bg-white border border-ui-cardBorder rounded-card shadow-card'
+  const baseClasses = 'bg-white border border-[#E5E5E5] rounded-lg shadow-sm'
   const paddingClasses = noPadding ? '' : 'p-card'
   const hoverClasses = hoverable
-    ? 'hover:shadow-card-hover hover:border-brand-primary transition-all duration-200 cursor-pointer'
+    ? 'hover:shadow-md hover:border-[#3FAF7A] transition-all duration-200 cursor-pointer'
     : ''
   const activeClasses = active
-    ? 'border-brand-primary bg-brand-primary/[0.02]'
+    ? 'border-[#3FAF7A] bg-[#3FAF7A]/[0.02]'
     : ''
   const clickableClasses = onClick ? 'cursor-pointer' : ''
 
@@ -86,12 +86,12 @@ export function CardHeader({ title, subtitle, actions, icon: Icon, className = '
   return (
     <div className={`flex items-start justify-between mb-4 ${className}`}>
       <div className="flex-1">
-        <h3 className="text-section text-ui-headingDark flex items-center gap-2">
-          {Icon && <Icon className="h-5 w-5 text-ui-supportText" />}
+        <h3 className="text-base font-semibold text-[#333333] flex items-center gap-2">
+          {Icon && <Icon className="h-5 w-5 text-[#999999]" />}
           {title}
         </h3>
         {subtitle && (
-          <p className="text-support text-ui-supportText mt-1">
+          <p className="text-[12px] text-[#999999] mt-1">
             {subtitle}
           </p>
         )}
@@ -121,7 +121,7 @@ export function CardSection({ title, children, className = '' }: CardSectionProp
   return (
     <div className={`${className}`}>
       {title && (
-        <h4 className="text-sm font-semibold text-ui-headingDark mb-2">
+        <h4 className="text-sm font-semibold text-[#333333] mb-2">
           {title}
         </h4>
       )}
@@ -143,7 +143,7 @@ interface CardFooterProps {
 
 export function CardFooter({ children, className = '' }: CardFooterProps) {
   return (
-    <div className={`mt-4 pt-4 border-t border-ui-cardBorder flex items-center gap-2 ${className}`}>
+    <div className={`mt-4 pt-4 border-t border-[#E5E5E5] flex items-center gap-2 ${className}`}>
       {children}
     </div>
   )
@@ -186,15 +186,15 @@ export function EmptyCard({ icon, title, description, action, className = '' }: 
   return (
     <Card className={`text-center py-12 ${className}`}>
       {icon && (
-        <div className="flex justify-center mb-4 text-ui-supportText">
+        <div className="flex justify-center mb-4 text-[#999999]">
           {icon}
         </div>
       )}
-      <h3 className="text-lg font-medium text-ui-headingDark mb-2">
+      <h3 className="text-lg font-medium text-[#333333] mb-2">
         {title}
       </h3>
       {description && (
-        <p className="text-support text-ui-supportText mb-4">
+        <p className="text-[12px] text-[#999999] mb-4">
           {description}
         </p>
       )}

@@ -98,7 +98,7 @@ export default function SessionChat({
   return (
     <div className="border-t border-[#E5E5E5] bg-white flex flex-col h-[240px]">
       {/* Context bar + collapse */}
-      <div className="px-4 py-2 bg-[#F4F4F4] text-support text-[#999999] flex items-center justify-between border-b border-[#E5E5E5]">
+      <div className="px-4 py-2 bg-[#F4F4F4] text-[12px] text-[#999999] flex items-center justify-between border-b border-[#E5E5E5]">
         <div className="flex items-center gap-3 truncate">
           <span>Page: {context.current_page || '/'}</span>
           {context.active_feature_name && (
@@ -121,7 +121,7 @@ export default function SessionChat({
         {messages.map((msg, i) => {
           if (msg.role === 'system') {
             return (
-              <div key={i} className="text-center text-support text-[#999999] my-2 flex items-center gap-2">
+              <div key={i} className="text-center text-[12px] text-[#999999] my-2 flex items-center gap-2">
                 <div className="flex-1 border-t border-dashed border-[#E5E5E5]" />
                 <span className="px-2">{msg.content}</span>
                 <div className="flex-1 border-t border-dashed border-[#E5E5E5]" />

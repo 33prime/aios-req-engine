@@ -34,14 +34,14 @@ export function DesignCard({
         ${isSmall ? 'p-3' : 'p-4'}
         ${
           isSelected
-            ? 'border-brand-teal bg-brand-teal/5 ring-1 ring-brand-teal/20'
-            : 'border-ui-cardBorder bg-white hover:border-gray-300 hover:shadow-sm'
+            ? 'border-[#3FAF7A] bg-[#3FAF7A]/5 ring-1 ring-[#3FAF7A]/20'
+            : 'border-[#E5E5E5] bg-white hover:border-gray-300 hover:shadow-sm'
         }
       `}
     >
       {/* Selection indicator */}
       {isSelected && (
-        <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-brand-teal flex items-center justify-center">
+        <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-[#3FAF7A] flex items-center justify-center">
           <Check className="w-3 h-3 text-white" />
         </div>
       )}
@@ -74,18 +74,18 @@ export function DesignCard({
       </div>
 
       {/* Label */}
-      <div className={`font-medium text-ui-headingDark ${isSmall ? 'text-sm' : 'text-base'}`}>
+      <div className={`font-medium text-[#333333] ${isSmall ? 'text-sm' : 'text-base'}`}>
         {label}
       </div>
 
       {/* Description */}
-      <p className={`text-ui-supportText mt-0.5 ${isSmall ? 'text-xs' : 'text-sm'}`}>
+      <p className={`text-[#999999] mt-0.5 ${isSmall ? 'text-xs' : 'text-sm'}`}>
         {description}
       </p>
 
       {/* Source attribution */}
       {source && (
-        <p className="text-xs text-ui-supportText mt-1.5 italic">
+        <p className="text-xs text-[#999999] mt-1.5 italic">
           Source: {source}
         </p>
       )}

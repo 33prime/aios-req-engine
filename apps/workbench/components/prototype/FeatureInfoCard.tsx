@@ -18,7 +18,7 @@ const TAB_CONFIG: { key: InfoTab; label: string }[] = [
 
 const CONFIDENCE_COLORS: Record<string, string> = {
   high: 'bg-emerald-400',
-  medium: 'bg-brand-accent',
+  medium: 'bg-[#3FAF7A]',
   low: 'bg-red-400',
 }
 
@@ -29,11 +29,11 @@ const IMPL_STATUS_STYLES: Record<string, string> = {
 }
 
 const AREA_STYLES: Record<string, string> = {
-  business_rules: 'bg-ui-background text-ui-bodyText',
-  data_handling: 'bg-ui-background text-ui-bodyText',
-  user_flow: 'bg-ui-background text-ui-bodyText',
-  permissions: 'bg-ui-background text-ui-bodyText',
-  integration: 'bg-ui-background text-ui-bodyText',
+  business_rules: 'bg-[#F9F9F9] text-[#333333]',
+  data_handling: 'bg-[#F9F9F9] text-[#333333]',
+  user_flow: 'bg-[#F9F9F9] text-[#333333]',
+  permissions: 'bg-[#F9F9F9] text-[#333333]',
+  integration: 'bg-[#F9F9F9] text-[#333333]',
 }
 
 function confidenceLevel(score: number): string {
@@ -57,10 +57,10 @@ export default function FeatureInfoCard({ overlay, tourStep }: FeatureInfoCardPr
   if (!overlay?.overlay_content) {
     return (
       <div className="p-4 text-center">
-        <div className="w-10 h-10 mx-auto mb-2 rounded-full bg-ui-background flex items-center justify-center">
-          <span className="text-ui-supportText text-lg">i</span>
+        <div className="w-10 h-10 mx-auto mb-2 rounded-full bg-[#F9F9F9] flex items-center justify-center">
+          <span className="text-[#999999] text-lg">i</span>
         </div>
-        <p className="text-xs text-ui-supportText">
+        <p className="text-xs text-[#999999]">
           {tourStep ? 'Loading feature data...' : 'Click a feature or start the tour to see details'}
         </p>
       </div>
@@ -73,17 +73,17 @@ export default function FeatureInfoCard({ overlay, tourStep }: FeatureInfoCardPr
   return (
     <div className="flex flex-col h-full">
       {/* Feature header */}
-      <div className="px-4 pt-3 pb-2 border-b border-ui-cardBorder">
+      <div className="px-4 pt-3 pb-2 border-b border-[#E5E5E5]">
         <div className="flex items-start justify-between gap-2 mb-2">
-          <h3 className="text-sm font-semibold text-ui-headingDark leading-tight">
+          <h3 className="text-sm font-semibold text-[#333333] leading-tight">
             {content.feature_name}
           </h3>
           <StatusBadge status={content.status} />
         </div>
         {tourStep?.vpStepLabel && (
           <div className="flex items-center gap-1.5 mb-2">
-            <span className="w-1.5 h-1.5 rounded-full bg-brand-primary" />
-            <span className="text-[11px] text-brand-primary font-medium">{tourStep.vpStepLabel}</span>
+            <span className="w-1.5 h-1.5 rounded-full bg-[#3FAF7A]" />
+            <span className="text-[11px] text-[#3FAF7A] font-medium">{tourStep.vpStepLabel}</span>
           </div>
         )}
 
@@ -95,13 +95,13 @@ export default function FeatureInfoCard({ overlay, tourStep }: FeatureInfoCardPr
               onClick={() => setActiveTab(key)}
               className={`px-2.5 py-1 text-xs font-medium rounded-md transition-colors relative ${
                 activeTab === key
-                  ? 'bg-brand-primary/10 text-brand-primary'
-                  : 'text-ui-supportText hover:text-ui-bodyText hover:bg-ui-background'
+                  ? 'bg-[#3FAF7A]/10 text-[#3FAF7A]'
+                  : 'text-[#999999] hover:text-[#333333] hover:bg-[#F9F9F9]'
               }`}
             >
               {label}
               {key === 'question' && hasQuestion && (
-                <span className="ml-1 px-1 py-px bg-brand-primary text-white text-[9px] rounded-full">
+                <span className="ml-1 px-1 py-px bg-[#3FAF7A] text-white text-[9px] rounded-full">
                   1
                 </span>
               )}
@@ -150,8 +150,8 @@ function OverviewTab({ content, tourStep }: { content: OverlayContent; tourStep:
       <div className="flex items-center gap-3">
         <div className="flex-1">
           <div className="flex items-center justify-between mb-1">
-            <span className="text-[11px] text-ui-supportText">Confidence</span>
-            <span className="text-[11px] font-medium text-ui-bodyText">{Math.round(content.confidence * 100)}%</span>
+            <span className="text-[11px] text-[#999999]">Confidence</span>
+            <span className="text-[11px] font-medium text-[#333333]">{Math.round(content.confidence * 100)}%</span>
           </div>
           <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
             <div
@@ -163,9 +163,9 @@ function OverviewTab({ content, tourStep }: { content: OverlayContent; tourStep:
         {tourStep && (
           <span className={`text-[10px] font-medium px-2 py-0.5 rounded ${
             tourStep.featureRole === 'core'
-              ? 'bg-brand-primary/10 text-brand-primary'
+              ? 'bg-[#3FAF7A]/10 text-[#3FAF7A]'
               : tourStep.featureRole === 'supporting'
-                ? 'bg-brand-accent/10 text-brand-accent'
+                ? 'bg-[#3FAF7A]/10 text-[#3FAF7A]'
                 : 'bg-gray-100 text-gray-500'
           }`}>
             {tourStep.featureRole}
@@ -176,7 +176,7 @@ function OverviewTab({ content, tourStep }: { content: OverlayContent; tourStep:
       {/* Implementation status */}
       {overview?.implementation_status && (
         <div className="flex items-center gap-2">
-          <span className="text-[11px] text-ui-supportText">Implementation:</span>
+          <span className="text-[11px] text-[#999999]">Implementation:</span>
           <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${IMPL_STATUS_STYLES[overview.implementation_status] || IMPL_STATUS_STYLES.placeholder}`}>
             {overview.implementation_status}
           </span>
@@ -186,14 +186,14 @@ function OverviewTab({ content, tourStep }: { content: OverlayContent; tourStep:
       {/* Spec summary */}
       {overview?.spec_summary && (
         <Section title="What AIOS says">
-          <p className="text-xs text-ui-bodyText leading-relaxed">{overview.spec_summary}</p>
+          <p className="text-xs text-[#333333] leading-relaxed">{overview.spec_summary}</p>
         </Section>
       )}
 
       {/* Prototype summary */}
       {overview?.prototype_summary && (
         <Section title="What code does">
-          <p className="text-xs text-ui-bodyText leading-relaxed">{overview.prototype_summary}</p>
+          <p className="text-xs text-[#333333] leading-relaxed">{overview.prototype_summary}</p>
         </Section>
       )}
 
@@ -202,8 +202,8 @@ function OverviewTab({ content, tourStep }: { content: OverlayContent; tourStep:
         <Section title="Gaps between spec & code">
           <ul className="space-y-1">
             {overview.delta.map((d, i) => (
-              <li key={i} className="text-xs text-ui-bodyText flex items-start gap-1.5">
-                <span className="text-brand-primary mt-0.5">&#x2022;</span>{d}
+              <li key={i} className="text-xs text-[#333333] flex items-start gap-1.5">
+                <span className="text-[#3FAF7A] mt-0.5">&#x2022;</span>{d}
               </li>
             ))}
           </ul>
@@ -227,9 +227,9 @@ function ImpactTab({ content }: { content: OverlayContent }) {
         <Section title="Personas Affected">
           <div className="space-y-2">
             {impact.personas_affected.map((p, i) => (
-              <div key={i} className="bg-ui-background rounded-lg p-2.5">
-                <span className="text-xs font-medium text-ui-headingDark">{p.name}</span>
-                <p className="text-xs text-ui-bodyText mt-1">{p.how_affected}</p>
+              <div key={i} className="bg-[#F9F9F9] rounded-lg p-2.5">
+                <span className="text-xs font-medium text-[#333333]">{p.name}</span>
+                <p className="text-xs text-[#333333] mt-1">{p.how_affected}</p>
               </div>
             ))}
           </div>
@@ -239,8 +239,8 @@ function ImpactTab({ content }: { content: OverlayContent }) {
       {/* Value path position */}
       {impact?.value_path_position && (
         <Section title="Value Path Position">
-          <div className="bg-brand-primary/5 rounded-lg p-3 border border-brand-primary/10">
-            <span className="text-xs font-medium text-brand-primary">{impact.value_path_position}</span>
+          <div className="bg-[#3FAF7A]/5 rounded-lg p-3 border border-[#3FAF7A]/10">
+            <span className="text-xs font-medium text-[#3FAF7A]">{impact.value_path_position}</span>
           </div>
         </Section>
       )}
@@ -256,7 +256,7 @@ function ImpactTab({ content }: { content: OverlayContent }) {
 
       {(!impact?.personas_affected?.length && !impact?.value_path_position && !impact?.downstream_risk) && (
         <div className="text-center py-6">
-          <p className="text-xs text-ui-supportText">Impact analysis not yet available for this feature.</p>
+          <p className="text-xs text-[#999999]">Impact analysis not yet available for this feature.</p>
         </div>
       )}
     </div>
@@ -275,8 +275,8 @@ function QuestionTab({ content }: { content: OverlayContent }) {
       {/* Confidence bar */}
       <div>
         <div className="flex items-center justify-between mb-1">
-          <span className="text-[11px] text-ui-supportText">Feature Confidence</span>
-          <span className="text-[11px] font-medium text-ui-bodyText">{Math.round(content.confidence * 100)}%</span>
+          <span className="text-[11px] text-[#999999]">Feature Confidence</span>
+          <span className="text-[11px] font-medium text-[#333333]">{Math.round(content.confidence * 100)}%</span>
         </div>
         <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
           <div
@@ -289,7 +289,7 @@ function QuestionTab({ content }: { content: OverlayContent }) {
       {/* AI suggested verdict */}
       {content.suggested_verdict && (
         <div className="flex items-center gap-2">
-          <span className="text-[11px] text-ui-supportText">AI Verdict:</span>
+          <span className="text-[11px] text-[#999999]">AI Verdict:</span>
           <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${
             content.suggested_verdict === 'aligned' ? 'bg-emerald-100 text-emerald-800' :
             content.suggested_verdict === 'needs_adjustment' ? 'bg-amber-100 text-amber-800' :
@@ -303,10 +303,10 @@ function QuestionTab({ content }: { content: OverlayContent }) {
       {/* Validation question */}
       {gap ? (
         <Section title="Validation Question">
-          <div className="bg-ui-background rounded-lg p-3">
-            <p className="text-xs text-ui-bodyText leading-relaxed">&ldquo;{gap.question}&rdquo;</p>
+          <div className="bg-[#F9F9F9] rounded-lg p-3">
+            <p className="text-xs text-[#333333] leading-relaxed">&ldquo;{gap.question}&rdquo;</p>
             {gap.why_it_matters && (
-              <p className="text-[11px] text-ui-supportText mt-1.5 italic">{gap.why_it_matters}</p>
+              <p className="text-[11px] text-[#999999] mt-1.5 italic">{gap.why_it_matters}</p>
             )}
             <span className={`text-[10px] mt-1.5 inline-block px-1.5 py-0.5 rounded ${AREA_STYLES[gap.requirement_area] || AREA_STYLES.business_rules}`}>
               {gap.requirement_area.replace('_', ' ')}
@@ -315,7 +315,7 @@ function QuestionTab({ content }: { content: OverlayContent }) {
         </Section>
       ) : (
         <div className="text-center py-6">
-          <p className="text-xs text-ui-supportText">No validation question — feature appears well-aligned.</p>
+          <p className="text-xs text-[#999999]">No validation question — feature appears well-aligned.</p>
         </div>
       )}
     </div>
@@ -339,13 +339,13 @@ export function FeatureInfoTabs({ content, tourStep }: { content: OverlayContent
             onClick={() => setActiveTab(key)}
             className={`px-2 py-1 text-[11px] font-medium rounded-md transition-colors ${
               activeTab === key
-                ? 'bg-brand-primary/10 text-brand-primary'
-                : 'text-ui-supportText hover:text-ui-bodyText hover:bg-ui-background'
+                ? 'bg-[#3FAF7A]/10 text-[#3FAF7A]'
+                : 'text-[#999999] hover:text-[#333333] hover:bg-[#F9F9F9]'
             }`}
           >
             {label}
             {key === 'question' && hasQuestion && (
-              <span className="ml-1 px-1 py-px bg-brand-primary text-white text-[9px] rounded-full">
+              <span className="ml-1 px-1 py-px bg-[#3FAF7A] text-white text-[9px] rounded-full">
                 1
               </span>
             )}
@@ -368,7 +368,7 @@ export function FeatureInfoTabs({ content, tourStep }: { content: OverlayContent
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div>
-      <h4 className="text-[11px] font-semibold text-ui-headingDark uppercase tracking-wide mb-2">{title}</h4>
+      <h4 className="text-[11px] font-semibold text-[#333333] uppercase tracking-wide mb-2">{title}</h4>
       {children}
     </div>
   )

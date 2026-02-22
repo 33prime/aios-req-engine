@@ -91,16 +91,16 @@ export function CreateProjectModal({ isOpen, onClose, onSuccess }: CreateProject
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
         <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
           {/* Header */}
-          <div className="flex items-center justify-between p-6 border-b border-ui-cardBorder">
-            <h2 className="text-xl font-semibold text-ui-headingDark">
+          <div className="flex items-center justify-between p-6 border-b border-[#E5E5E5]">
+            <h2 className="text-xl font-semibold text-[#333333]">
               Create New Project
             </h2>
             <button
               onClick={handleClose}
               disabled={loading}
-              className="p-1 rounded-lg hover:bg-ui-background transition-colors disabled:opacity-50"
+              className="p-1 rounded-lg hover:bg-[#F9F9F9] transition-colors disabled:opacity-50"
             >
-              <X className="w-5 h-5 text-ui-supportText" />
+              <X className="w-5 h-5 text-[#999999]" />
             </button>
           </div>
 
@@ -116,7 +116,7 @@ export function CreateProjectModal({ isOpen, onClose, onSuccess }: CreateProject
 
               {/* Name Input */}
               <div>
-                <label htmlFor="project-name" className="block text-sm font-medium text-ui-bodyText mb-2">
+                <label htmlFor="project-name" className="block text-sm font-medium text-[#333333] mb-2">
                   Project Name <span className="text-red-500">*</span>
                 </label>
                 <input
@@ -126,18 +126,18 @@ export function CreateProjectModal({ isOpen, onClose, onSuccess }: CreateProject
                   onChange={(e) => setName(e.target.value)}
                   placeholder="e.g., Mobile Todo App"
                   disabled={loading}
-                  className="w-full px-4 py-2 border border-ui-cardBorder rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-primary focus:border-transparent disabled:bg-ui-background disabled:opacity-50"
+                  className="w-full px-4 py-2 border border-[#E5E5E5] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3FAF7A] focus:border-transparent disabled:bg-[#F9F9F9] disabled:opacity-50"
                   required
                   minLength={3}
                 />
-                <p className="text-xs text-ui-supportText mt-1">
+                <p className="text-xs text-[#999999] mt-1">
                   Minimum 3 characters
                 </p>
               </div>
 
               {/* Description Textarea */}
               <div>
-                <label htmlFor="project-description" className="block text-sm font-medium text-ui-bodyText mb-2">
+                <label htmlFor="project-description" className="block text-sm font-medium text-[#333333] mb-2">
                   Project Description
                 </label>
                 <textarea
@@ -147,9 +147,9 @@ export function CreateProjectModal({ isOpen, onClose, onSuccess }: CreateProject
                   placeholder="Describe your project requirements, goals, and context..."
                   disabled={loading}
                   rows={6}
-                  className="w-full px-4 py-2 border border-ui-cardBorder rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-primary focus:border-transparent disabled:bg-ui-background disabled:opacity-50 resize-none"
+                  className="w-full px-4 py-2 border border-[#E5E5E5] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3FAF7A] focus:border-transparent disabled:bg-[#F9F9F9] disabled:opacity-50 resize-none"
                 />
-                <p className="text-xs text-ui-supportText mt-1">
+                <p className="text-xs text-[#999999] mt-1">
                   Optional. If provided, can be used as the first signal for your project.
                 </p>
               </div>
@@ -163,13 +163,13 @@ export function CreateProjectModal({ isOpen, onClose, onSuccess }: CreateProject
                     checked={autoIngest}
                     onChange={(e) => setAutoIngest(e.target.checked)}
                     disabled={loading}
-                    className="mt-1 w-4 h-4 text-brand-primary border-gray-300 rounded focus:ring-brand-primary disabled:opacity-50"
+                    className="mt-1 w-4 h-4 text-[#3FAF7A] border-gray-300 rounded focus:ring-[#3FAF7A] disabled:opacity-50"
                   />
                   <div className="flex-1">
-                    <label htmlFor="auto-ingest" className="text-sm font-medium text-ui-bodyText cursor-pointer">
+                    <label htmlFor="auto-ingest" className="text-sm font-medium text-[#333333] cursor-pointer">
                       Use description as first signal
                     </label>
-                    <p className="text-xs text-ui-supportText mt-1">
+                    <p className="text-xs text-[#999999] mt-1">
                       Your description will be ingested as a signal and automatically processed to extract initial requirements. This helps jumpstart your project.
                     </p>
                   </div>
@@ -177,27 +177,27 @@ export function CreateProjectModal({ isOpen, onClose, onSuccess }: CreateProject
               )}
 
               {/* Info Box */}
-              <div className="p-4 bg-ui-background rounded-lg border border-ui-cardBorder">
-                <h4 className="text-sm font-medium text-ui-bodyText mb-2">
+              <div className="p-4 bg-[#F9F9F9] rounded-lg border border-[#E5E5E5]">
+                <h4 className="text-sm font-medium text-[#333333] mb-2">
                   What happens next?
                 </h4>
-                <ul className="space-y-2 text-sm text-ui-supportText">
+                <ul className="space-y-2 text-sm text-[#999999]">
                   <li className="flex items-start gap-2">
-                    <span className="text-brand-primary mt-0.5">1.</span>
+                    <span className="text-[#3FAF7A] mt-0.5">1.</span>
                     <span>Your project will be created in <strong>Initial mode</strong></span>
                   </li>
                   {description.trim() && autoIngest && (
                     <li className="flex items-start gap-2">
-                      <span className="text-brand-primary mt-0.5">2.</span>
+                      <span className="text-[#3FAF7A] mt-0.5">2.</span>
                       <span>Description will be ingested as your first signal</span>
                     </li>
                   )}
                   <li className="flex items-start gap-2">
-                    <span className="text-brand-primary mt-0.5">{description.trim() && autoIngest ? '3' : '2'}.</span>
+                    <span className="text-[#3FAF7A] mt-0.5">{description.trim() && autoIngest ? '3' : '2'}.</span>
                     <span>Add more signals (emails, transcripts, documents)</span>
                   </li>
                   <li className="flex items-start gap-2">
-                    <span className="text-brand-primary mt-0.5">{description.trim() && autoIngest ? '4' : '3'}.</span>
+                    <span className="text-[#3FAF7A] mt-0.5">{description.trim() && autoIngest ? '4' : '3'}.</span>
                     <span>Run "Build State" to generate your initial PRD</span>
                   </li>
                 </ul>
@@ -205,19 +205,19 @@ export function CreateProjectModal({ isOpen, onClose, onSuccess }: CreateProject
             </div>
 
             {/* Footer */}
-            <div className="flex items-center justify-end gap-3 p-6 border-t border-ui-cardBorder bg-ui-background">
+            <div className="flex items-center justify-end gap-3 p-6 border-t border-[#E5E5E5] bg-[#F9F9F9]">
               <button
                 type="button"
                 onClick={handleClose}
                 disabled={loading}
-                className="px-4 py-2 text-sm font-medium text-ui-bodyText bg-white border border-ui-cardBorder rounded-lg hover:bg-ui-buttonGray transition-colors disabled:opacity-50"
+                className="px-4 py-2 text-sm font-medium text-[#333333] bg-white border border-[#E5E5E5] rounded-lg hover:bg-[#F5F5F5] transition-colors disabled:opacity-50"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={loading || name.trim().length < 3}
-                className="px-4 py-2 text-sm font-medium text-white bg-brand-primary rounded-lg hover:bg-brand-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-4 py-2 text-sm font-medium text-white bg-[#3FAF7A] rounded-lg hover:bg-[#3FAF7A]/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {loading ? (
                   <span className="flex items-center gap-2">

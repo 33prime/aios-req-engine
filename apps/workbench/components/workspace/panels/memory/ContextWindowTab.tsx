@@ -71,15 +71,15 @@ export function ContextWindowTab({
       {/* 1. Token usage bar */}
       <div>
         <div className="flex items-center justify-between mb-1.5">
-          <span className="text-xs font-semibold text-ui-headingDark">
+          <span className="text-xs font-semibold text-[#333333]">
             {tokensEstimate.toLocaleString()} / {MAX_TOKENS.toLocaleString()} tokens used
           </span>
-          <span className="text-[11px] text-ui-supportText">{tokenPct}%</span>
+          <span className="text-[11px] text-[#999999]">{tokenPct}%</span>
         </div>
         <div className="h-2 rounded-full bg-gray-100 overflow-hidden">
           <div
             className={`h-full rounded-full transition-all duration-500 ${
-              tokenPct > 90 ? 'bg-gray-400' : 'bg-brand-teal'
+              tokenPct > 90 ? 'bg-gray-400' : 'bg-[#3FAF7A]'
             }`}
             style={{ width: `${tokenPct}%` }}
           />
@@ -90,7 +90,7 @@ export function ContextWindowTab({
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           {unifiedMemory?.freshness && (
-            <span className="text-[11px] text-ui-supportText">
+            <span className="text-[11px] text-[#999999]">
               Last synthesized: {unifiedMemory.freshness.age_human}
             </span>
           )}
@@ -105,14 +105,14 @@ export function ContextWindowTab({
           <button
             onClick={onRefresh}
             disabled={isSynthesizing}
-            className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-medium text-brand-teal hover:bg-brand-teal/10 rounded-lg transition-colors disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-medium text-[#3FAF7A] hover:bg-[#3FAF7A]/10 rounded-lg transition-colors disabled:opacity-50"
           >
             <RefreshCw className={`w-3 h-3 ${isSynthesizing ? 'animate-spin' : ''}`} />
             Refresh
           </button>
           <button
             onClick={handleCopy}
-            className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-medium text-ui-supportText hover:text-ui-headingDark hover:bg-ui-background rounded-lg transition-colors"
+            className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-medium text-[#999999] hover:text-[#333333] hover:bg-[#F9F9F9] rounded-lg transition-colors"
           >
             {copied ? <Check className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
             {copied ? 'Copied' : 'Copy'}
@@ -126,8 +126,8 @@ export function ContextWindowTab({
           onClick={() => setViewMode('formatted')}
           className={`px-3 py-1 rounded-lg text-[12px] font-medium transition-colors ${
             viewMode === 'formatted'
-              ? 'bg-brand-teal/10 text-brand-teal'
-              : 'text-ui-supportText hover:text-ui-headingDark'
+              ? 'bg-[#3FAF7A]/10 text-[#3FAF7A]'
+              : 'text-[#999999] hover:text-[#333333]'
           }`}
         >
           Formatted
@@ -136,8 +136,8 @@ export function ContextWindowTab({
           onClick={() => setViewMode('raw')}
           className={`px-3 py-1 rounded-lg text-[12px] font-medium transition-colors ${
             viewMode === 'raw'
-              ? 'bg-brand-teal/10 text-brand-teal'
-              : 'text-ui-supportText hover:text-ui-headingDark'
+              ? 'bg-[#3FAF7A]/10 text-[#3FAF7A]'
+              : 'text-[#999999] hover:text-[#333333]'
           }`}
         >
           Raw Markdown
@@ -147,20 +147,20 @@ export function ContextWindowTab({
       {/* Content display */}
       {content ? (
         viewMode === 'formatted' ? (
-          <div className="bg-ui-background rounded-lg p-5">
+          <div className="bg-[#F9F9F9] rounded-lg p-5">
             <Markdown
               content={content}
-              className="text-sm text-ui-bodyText prose prose-sm max-w-none [&_h1]:text-sm [&_h1]:font-bold [&_h1]:text-ui-headingDark [&_h2]:text-[13px] [&_h2]:font-semibold [&_h2]:text-ui-headingDark [&_h3]:text-[13px] [&_h3]:font-medium [&_p]:text-sm [&_p]:text-ui-bodyText [&_li]:text-sm [&_li]:text-ui-bodyText [&_strong]:text-ui-headingDark"
+              className="text-sm text-[#333333] prose prose-sm max-w-none [&_h1]:text-sm [&_h1]:font-bold [&_h1]:text-[#333333] [&_h2]:text-[13px] [&_h2]:font-semibold [&_h2]:text-[#333333] [&_h3]:text-[13px] [&_h3]:font-medium [&_p]:text-sm [&_p]:text-[#333333] [&_li]:text-sm [&_li]:text-[#333333] [&_strong]:text-[#333333]"
             />
           </div>
         ) : (
-          <pre className="text-xs font-mono bg-gray-50 p-4 rounded-lg overflow-x-auto whitespace-pre-wrap text-ui-bodyText">
+          <pre className="text-xs font-mono bg-gray-50 p-4 rounded-lg overflow-x-auto whitespace-pre-wrap text-[#333333]">
             {content}
           </pre>
         )
       ) : (
         <div className="text-center py-8">
-          <p className="text-sm text-ui-supportText">
+          <p className="text-sm text-[#999999]">
             No unified memory synthesized yet. Click &quot;Refresh&quot; to generate.
           </p>
         </div>
@@ -169,7 +169,7 @@ export function ContextWindowTab({
       {/* 4. Token breakdown */}
       {sectionBreakdown.length > 0 && (
         <div>
-          <h5 className="text-xs font-semibold text-ui-headingDark uppercase tracking-wide mb-2">
+          <h5 className="text-xs font-semibold text-[#333333] uppercase tracking-wide mb-2">
             Token Breakdown
           </h5>
           <div className="space-y-1.5">
@@ -177,16 +177,16 @@ export function ContextWindowTab({
               const sectionPct = Math.min(100, Math.round((section.tokens / tokensEstimate) * 100))
               return (
                 <div key={i} className="flex items-center gap-2">
-                  <span className="text-[11px] text-ui-bodyText w-40 truncate flex-shrink-0">
+                  <span className="text-[11px] text-[#333333] w-40 truncate flex-shrink-0">
                     {section.label}
                   </span>
                   <div className="flex-1 h-1.5 rounded-full bg-gray-100 overflow-hidden">
                     <div
-                      className="h-full rounded-full bg-brand-teal/50 transition-all"
+                      className="h-full rounded-full bg-[#3FAF7A]/50 transition-all"
                       style={{ width: `${sectionPct}%` }}
                     />
                   </div>
-                  <span className="text-[10px] text-ui-supportText w-12 text-right flex-shrink-0">
+                  <span className="text-[10px] text-[#999999] w-12 text-right flex-shrink-0">
                     ~{section.tokens}
                   </span>
                 </div>

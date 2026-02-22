@@ -22,7 +22,7 @@ const PopoverContent = React.forwardRef<
       align={align}
       sideOffset={sideOffset}
       className={`
-        z-50 rounded-lg border border-ui-cardBorder bg-white shadow-lg
+        z-50 rounded-lg border border-[#E5E5E5] bg-white shadow-lg
         data-[state=open]:animate-in data-[state=closed]:animate-out
         data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0
         data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95

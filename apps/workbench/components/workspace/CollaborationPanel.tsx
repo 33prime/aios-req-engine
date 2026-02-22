@@ -115,10 +115,10 @@ export function CollaborationPanel({
   // Collapsed state — icon strip
   if (isCollapsed) {
     return (
-      <aside className="fixed right-0 top-0 h-screen w-12 bg-white border-l border-ui-cardBorder flex flex-col items-center py-4 z-30">
+      <aside className="fixed right-0 top-0 h-screen w-12 bg-white border-l border-[#E5E5E5] flex flex-col items-center py-4 z-30">
         <button
           onClick={handleToggleCollapse}
-          className="p-2 rounded-lg text-ui-supportText hover:bg-ui-background hover:text-ui-bodyText transition-colors mb-4"
+          className="p-2 rounded-lg text-[#999999] hover:bg-[#F9F9F9] hover:text-[#333333] transition-colors mb-4"
           title="Expand panel"
         >
           <ChevronLeft className="w-4 h-4" />
@@ -128,7 +128,7 @@ export function CollaborationPanel({
           <button
             onClick={() => { setActiveTab('chat'); handleToggleCollapse() }}
             className={`p-2 rounded-lg transition-colors ${
-              activeTab === 'chat' ? 'bg-brand-teal/10 text-brand-teal' : 'text-ui-supportText hover:bg-ui-background'
+              activeTab === 'chat' ? 'bg-[#3FAF7A]/10 text-[#3FAF7A]' : 'text-[#999999] hover:bg-[#F9F9F9]'
             }`}
             title={isReviewActive ? 'Review' : 'Chat'}
           >
@@ -137,7 +137,7 @@ export function CollaborationPanel({
           <button
             onClick={() => { setActiveTab('collab'); handleToggleCollapse() }}
             className={`p-2 rounded-lg transition-colors ${
-              activeTab === 'collab' ? 'bg-brand-teal/10 text-brand-teal' : 'text-ui-supportText hover:bg-ui-background'
+              activeTab === 'collab' ? 'bg-[#3FAF7A]/10 text-[#3FAF7A]' : 'text-[#999999] hover:bg-[#F9F9F9]'
             }`}
             title="Collaboration"
           >
@@ -146,7 +146,7 @@ export function CollaborationPanel({
           <button
             onClick={() => { setActiveTab('activity'); handleToggleCollapse() }}
             className={`p-2 rounded-lg transition-colors relative ${
-              activeTab === 'activity' ? 'bg-brand-teal/10 text-brand-teal' : 'text-ui-supportText hover:bg-ui-background'
+              activeTab === 'activity' ? 'bg-[#3FAF7A]/10 text-[#3FAF7A]' : 'text-[#999999] hover:bg-[#F9F9F9]'
             }`}
             title="Activity"
           >
@@ -166,7 +166,7 @@ export function CollaborationPanel({
   const panelWidth = isWide ? 'w-[400px]' : 'w-80'
 
   return (
-    <aside className={`fixed right-0 top-0 h-screen ${panelWidth} bg-white border-l border-ui-cardBorder flex flex-col z-30 transition-all duration-200`}>
+    <aside className={`fixed right-0 top-0 h-screen ${panelWidth} bg-white border-l border-[#E5E5E5] flex flex-col z-30 transition-all duration-200`}>
       {/* Header — aligned with main header height */}
       <div className="flex items-center gap-2 px-3 py-4 border-b border-[#E5E5E5] flex-shrink-0">
         <div className="flex items-center gap-1 bg-[#F4F4F4] rounded-xl p-1 border border-[#E5E5E5] flex-1 min-w-0">
@@ -484,7 +484,7 @@ function ActivityFeed({ projectId }: { projectId: string }) {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-full">
-        <Loader2 className="h-5 w-5 text-brand-teal animate-spin" />
+        <Loader2 className="h-5 w-5 text-[#3FAF7A] animate-spin" />
       </div>
     )
   }
@@ -492,9 +492,9 @@ function ActivityFeed({ projectId }: { projectId: string }) {
   if (events.length === 0) {
     return (
       <div className="p-4 text-center">
-        <Bell className="w-8 h-8 mx-auto mb-2 text-ui-supportText/50" />
-        <p className="text-xs text-ui-supportText">No activity yet</p>
-        <p className="text-[11px] text-ui-supportText mt-1">
+        <Bell className="w-8 h-8 mx-auto mb-2 text-[#999999]/50" />
+        <p className="text-xs text-[#999999]">No activity yet</p>
+        <p className="text-[11px] text-[#999999] mt-1">
           Events will appear as you collaborate with clients
         </p>
       </div>
@@ -505,14 +505,14 @@ function ActivityFeed({ projectId }: { projectId: string }) {
     <div className="h-full overflow-y-auto p-3">
       <div className="space-y-1">
         {events.map((event) => (
-          <div key={event.id} className="flex items-start gap-2.5 py-2 border-b border-ui-cardBorder/50 last:border-0">
+          <div key={event.id} className="flex items-start gap-2.5 py-2 border-b border-[#E5E5E5]/50 last:border-0">
             <ActivityIcon type={event.type} status={event.status} />
             <div className="flex-1 min-w-0">
-              <p className="text-xs text-ui-bodyText leading-tight">{event.title}</p>
+              <p className="text-xs text-[#333333] leading-tight">{event.title}</p>
               {event.detail && (
-                <p className="text-[11px] text-ui-supportText mt-0.5 truncate">{event.detail}</p>
+                <p className="text-[11px] text-[#999999] mt-0.5 truncate">{event.detail}</p>
               )}
-              <p className="text-[10px] text-ui-supportText mt-0.5">
+              <p className="text-[10px] text-[#999999] mt-0.5">
                 {formatActivityTime(event.timestamp)}
               </p>
             </div>

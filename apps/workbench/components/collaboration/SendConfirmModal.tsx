@@ -44,14 +44,14 @@ export function SendConfirmModal({
       <button
         onClick={onClose}
         disabled={sending}
-        className="px-4 py-2 text-sm text-ui-bodyText border border-ui-cardBorder rounded-lg hover:bg-ui-background transition-colors disabled:opacity-50"
+        className="px-4 py-2 text-sm text-[#333333] border border-[#E5E5E5] rounded-lg hover:bg-[#F9F9F9] transition-colors disabled:opacity-50"
       >
         Cancel
       </button>
       <button
         onClick={handleSend}
         disabled={sending}
-        className="flex items-center gap-1.5 px-4 py-2 bg-brand-teal text-white text-sm font-medium rounded-lg hover:bg-brand-tealDark disabled:opacity-50 transition-colors"
+        className="flex items-center gap-1.5 px-4 py-2 bg-[#3FAF7A] text-white text-sm font-medium rounded-lg hover:bg-[#25785A] disabled:opacity-50 transition-colors"
       >
         {sending ? (
           <Loader2 className="h-4 w-4 animate-spin" />
@@ -69,14 +69,14 @@ export function SendConfirmModal({
         <div className="mx-auto w-12 h-12 rounded-full bg-amber-100 flex items-center justify-center mb-4">
           <AlertTriangle className="h-6 w-6 text-amber-600" />
         </div>
-        <p className="text-sm text-ui-bodyText">
+        <p className="text-sm text-[#333333]">
           This will send <strong>{questionCount}</strong> confirmed question{questionCount !== 1 ? 's' : ''}
           {documentCount > 0 && (
             <> and <strong>{documentCount}</strong> document request{documentCount !== 1 ? 's' : ''}</>
           )}
           {' '}to the client portal.
         </p>
-        <p className="text-xs text-ui-supportText mt-2">
+        <p className="text-xs text-[#999999] mt-2">
           Clients with portal access will be able to see and respond.
         </p>
       </div>

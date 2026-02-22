@@ -51,7 +51,7 @@ export function MeetingAgendaDisplay({ agenda, onClose }: MeetingAgendaDisplayPr
   return (
     <div className="space-y-4">
       {/* Header Card */}
-      <Card className="border-2 border-brand-primary/30 bg-gradient-to-br from-brand-primary/5 to-purple-50">
+      <Card className="border-2 border-[#3FAF7A]/30 bg-gradient-to-br from-[#3FAF7A]/5 to-purple-50">
         <CardHeader
           title={
             <div className="flex items-center gap-2">
@@ -126,7 +126,7 @@ export function MeetingAgendaDisplay({ agenda, onClose }: MeetingAgendaDisplayPr
               >
                 <div className="flex-1">
                   <div className="flex items-center gap-3">
-                    <span className="flex items-center justify-center w-8 h-8 rounded-full bg-brand-primary text-white text-sm font-semibold">
+                    <span className="flex items-center justify-center w-8 h-8 rounded-full bg-[#3FAF7A] text-white text-sm font-semibold">
                       {index + 1}
                     </span>
                     <div>

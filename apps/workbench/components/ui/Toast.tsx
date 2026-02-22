@@ -151,14 +151,14 @@ function ToastItem({ toast, onRemove }: ToastItemProps) {
       <div className="flex items-start gap-3">
         <div className="flex-shrink-0 mt-0.5">{getIcon()}</div>
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium text-ui-bodyText">{toast.title}</p>
+          <p className="text-sm font-medium text-[#333333]">{toast.title}</p>
           {toast.message && (
-            <p className="text-xs text-ui-supportText mt-1">{toast.message}</p>
+            <p className="text-xs text-[#999999] mt-1">{toast.message}</p>
           )}
         </div>
         <button
           onClick={handleRemove}
-          className="flex-shrink-0 text-ui-supportText hover:text-ui-bodyText transition-colors"
+          className="flex-shrink-0 text-[#999999] hover:text-[#333333] transition-colors"
         >
           <X className="h-4 w-4" />
         </button>
