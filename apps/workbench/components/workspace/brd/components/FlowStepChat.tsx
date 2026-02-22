@@ -62,6 +62,8 @@ export function FlowStepChat({
     isLoading,
     sendMessage,
     addLocalMessage,
+    clearMessages,
+    startNewChat,
   } = useChat({
     projectId,
     pageContext: 'brd:solution-flow',
@@ -71,20 +73,25 @@ export function FlowStepChat({
     },
   })
 
+  // Track previous stepId to detect step switches
+  const prevStepIdRef = useRef(stepId)
+
   const activeQuestions = openQuestions.filter(q => q.status === 'open')
 
-  // Reset state when step changes
+  // Reset conversation when user switches to a different step.
+  // Without this, conversation history from Step A bleeds into Step B,
+  // causing the LLM to "forget" which step it's on (lost-in-the-middle effect).
   useEffect(() => {
-    // Don't reset to 0 — old messages still exist with old tool calls.
-    // Set to current count to skip all prior completions.
-    const allToolCalls = messages.flatMap(m =>
-      m.role === 'assistant' ? (m.toolCalls || []) : []
-    )
-    processedToolCountRef.current = allToolCalls.length
+    if (prevStepIdRef.current !== stepId) {
+      prevStepIdRef.current = stepId
+      clearMessages()
+      startNewChat()
+      processedToolCountRef.current = 0
+    }
     setSolvingQuestion(null)
     setResolvedFlash(false)
     setQuestionListOpen(false)
-  }, [stepId])
+  }, [stepId, clearMessages, startNewChat])
 
   // Scroll to bottom on new messages
   useEffect(() => {

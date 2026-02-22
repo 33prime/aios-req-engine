@@ -65,7 +65,22 @@ async def generate_chat_stream(
             for msg in config.conversation_history[-10:]
             if msg.get("content", "").strip()
         ]
-        messages = recent_history + [{"role": "user", "content": config.message}]
+
+        # Inject step context into the user message when on solution flow.
+        # Places the current step name at the END of the context window
+        # (highest attention zone) so the model never loses track of which
+        # step the user is on, even after long conversation history.
+        user_content = config.message
+        if (
+            config.page_context == "brd:solution-flow"
+            and config.focused_entity
+        ):
+            fe_data = config.focused_entity.get("data", {})
+            step_title = fe_data.get("title", "")
+            if step_title:
+                user_content = f"[Viewing step: {step_title}]\n{config.message}"
+
+        messages = recent_history + [{"role": "user", "content": user_content}]
 
         # ── Parallel context assembly ────────────────────────────────
         # Context building + user message persistence run concurrently
@@ -96,8 +111,9 @@ async def generate_chat_stream(
             f"gaps={chat_ctx.context_frame.total_gap_count}"
         )
 
-        # Build v3 smart chat prompt from context frame
-        system_prompt = build_smart_chat_prompt(
+        # Build v3 smart chat prompt from context frame.
+        # Returns content blocks: [static (cached), dynamic (per-request)].
+        system_blocks = build_smart_chat_prompt(
             context_frame=chat_ctx.context_frame,
             project_name=chat_ctx.project_name,
             page_context=config.page_context,
@@ -118,18 +134,28 @@ async def generate_chat_stream(
         total_input = 0
         total_output = 0
 
-        # Build filtered tool set once (reused across turns)
+        # Build filtered tool set once (reused across turns).
+        # Mark the last tool with cache_control so Anthropic caches the
+        # full tool definition prefix across turns.
         chat_tools = get_tools_for_context(config.page_context)
+        if chat_tools:
+            # Strip stale cache_control from any tool, then mark the last one
+            for t in chat_tools:
+                t.pop("cache_control", None)
+            chat_tools[-1]["cache_control"] = {"type": "ephemeral"}
         logger.info(f"Chat tools: {len(chat_tools)} tools for page={config.page_context or 'none'}")
 
         # Tool use loop - handle multi-turn conversation with tools
         for turn in range(MAX_TOOL_TURNS):
-            # Stream response from Claude using configured model
+            # Stream response from Claude using configured model.
+            # system_blocks uses Anthropic prompt caching: static instructions
+            # are cached across turns (cache_control: ephemeral), dynamic context
+            # is re-processed each turn.
             async with client.messages.stream(
                 model=config.chat_model,
                 max_tokens=config.chat_response_buffer,
                 messages=messages,
-                system=system_prompt,
+                system=system_blocks,
                 tools=chat_tools,
             ) as stream:
                 # Collect the final message
@@ -146,10 +172,17 @@ async def generate_chat_stream(
                 # Get the final message to check for tool use
                 final_message = await stream.get_final_message()
 
-                # Log LLM usage
+                # Log LLM usage (including cache metrics)
                 if hasattr(final_message, "usage"):
                     total_input += getattr(final_message.usage, "input_tokens", 0)
                     total_output += getattr(final_message.usage, "output_tokens", 0)
+                    cache_read = getattr(final_message.usage, "cache_read_input_tokens", 0)
+                    cache_create = getattr(final_message.usage, "cache_creation_input_tokens", 0)
+                    if cache_read or cache_create:
+                        logger.info(
+                            f"Cache: read={cache_read} tokens, created={cache_create} tokens "
+                            f"(turn {turn + 1})"
+                        )
 
                 # Check if Claude wants to use tools
                 tool_use_blocks = [block for block in final_message.content if block.type == "tool_use"]

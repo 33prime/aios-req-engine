@@ -172,8 +172,12 @@ def build_smart_chat_prompt(
     conversation_context: str | None = None,
     retrieval_context: str | None = None,
     solution_flow_context: "SolutionFlowContext | None" = None,
-) -> str:
+) -> list[dict]:
     """Build a terse, gap-aware system prompt from ProjectContextFrame.
+
+    Returns a list of Anthropic content blocks for the system parameter.
+    The first block contains stable instructions (cached via cache_control),
+    the second contains per-request dynamic context.
 
     Args:
         context_frame: ProjectContextFrame from compute_context_frame()
@@ -181,18 +185,32 @@ def build_smart_chat_prompt(
         page_context: Current page (e.g., "brd:workflows", "canvas", "prototype")
         focused_entity: Entity the user is currently viewing
         conversation_context: Optional context from a conversation starter
+        retrieval_context: Pre-fetched evidence from vector search
+        solution_flow_context: Solution flow step context (if on that page)
 
     Returns:
-        Complete system prompt string (~2-3K tokens)
+        List of content blocks for Anthropic system parameter.
+        Block 0: static instructions with cache_control (identity, capabilities,
+                 action cards, conversation patterns).
+        Block 1: dynamic context (project state, phase, gaps, page, entity,
+                 solution flow, retrieval evidence).
     """
-    sections = []
 
-    # 1. Base identity
-    sections.append(SMART_CHAT_BASE.format(project_name=project_name))
+    # ── Static block: stable across turns within a project ─────────────
+    # These sections rarely change and benefit from Anthropic prompt caching.
+    static_sections = [
+        SMART_CHAT_BASE.format(project_name=project_name),
+        SMART_ACTION_CARDS,
+        SMART_CHAT_CAPABILITIES,
+        SMART_CONVERSATION_PATTERNS,
+    ]
+
+    # ── Dynamic block: changes per request ─────────────────────────────
+    dynamic_sections = []
 
     # 2. Current state (from state_snapshot — already ~500 tokens)
     if context_frame.state_snapshot:
-        sections.append(f"# Current Project State\n{context_frame.state_snapshot}")
+        dynamic_sections.append(f"# Current Project State\n{context_frame.state_snapshot}")
 
     # 3. Phase + progress
     phase_label = {
@@ -202,7 +220,7 @@ def build_smart_chat_prompt(
         "refining": "Refining — confirming and polishing for handoff",
     }.get(context_frame.phase.value, context_frame.phase.value)
 
-    sections.append(
+    dynamic_sections.append(
         f"# Phase\n{phase_label} ({int(context_frame.phase_progress * 100)}% complete)"
     )
 
@@ -215,19 +233,19 @@ def build_smart_chat_prompt(
         gap_lines.append(f"- [{source_tag}] {action.sentence}")
 
     if gap_lines:
-        sections.append(
+        dynamic_sections.append(
             f"# Active Gaps ({context_frame.total_gap_count} total)\n"
             + "\n".join(gap_lines)
         )
 
     # 5. Workflow context (for domain reasoning)
     if context_frame.workflow_context and context_frame.workflow_context != "No workflows defined yet.":
-        sections.append(f"# Workflows\n{context_frame.workflow_context}")
+        dynamic_sections.append(f"# Workflows\n{context_frame.workflow_context}")
 
     # 6. Memory hints (low-confidence beliefs, contradictions)
     if context_frame.memory_hints:
         hints = "\n".join(f"- {h}" for h in context_frame.memory_hints[:3])
-        sections.append(f"# Memory (low confidence — verify before citing)\n{hints}")
+        dynamic_sections.append(f"# Memory (low confidence — verify before citing)\n{hints}")
 
     # 7. Page awareness
     if page_context:
@@ -247,12 +265,12 @@ def build_smart_chat_prompt(
             "overview": "Project Overview",
         }
         label = page_labels.get(page_context, page_context)
-        sections.append(f"# Page\nUser is on: {label}")
+        dynamic_sections.append(f"# Page\nUser is on: {label}")
 
         # 7b. Per-page tool guidance
         guidance = PAGE_TOOL_GUIDANCE.get(page_context)
         if guidance:
-            sections.append(f"# Page-Specific Guidance\n{guidance}")
+            dynamic_sections.append(f"# Page-Specific Guidance\n{guidance}")
 
     # 8. Focused entity — split into IDENTITY (always emitted) and DETAIL (can be overridden)
     if focused_entity:
@@ -263,7 +281,7 @@ def build_smart_chat_prompt(
 
         # 8a. Identity — ALWAYS emitted. Tools need this for every call.
         if eid:
-            sections.append(
+            dynamic_sections.append(
                 f"# Currently Viewing\n{etype}: {eid}"
                 + (f' ("{ename}")' if ename else "")
             )
@@ -276,24 +294,24 @@ def build_smart_chat_prompt(
                 if egoal:
                     detail_lines.append(f"Goal: {egoal}")
                 detail_lines.append("Prioritize this entity in your responses.")
-                sections.append("\n".join(detail_lines))
+                dynamic_sections.append("\n".join(detail_lines))
 
     # 8c. Solution Flow context (specialized detail — augments identity above)
     if solution_flow_context:
         if solution_flow_context.flow_summary_prompt:
-            sections.append(f"# Solution Flow Overview\n{solution_flow_context.flow_summary_prompt}")
+            dynamic_sections.append(f"# Solution Flow Overview\n{solution_flow_context.flow_summary_prompt}")
         if solution_flow_context.focused_step_prompt:
-            sections.append(f"# Current Step Detail\n{solution_flow_context.focused_step_prompt}")
+            dynamic_sections.append(f"# Current Step Detail\n{solution_flow_context.focused_step_prompt}")
         if solution_flow_context.cross_step_prompt:
-            sections.append(f"# Flow Intelligence\n{solution_flow_context.cross_step_prompt}")
+            dynamic_sections.append(f"# Flow Intelligence\n{solution_flow_context.cross_step_prompt}")
         if solution_flow_context.entity_change_delta:
-            sections.append(f"# Recent Entity Changes\n{solution_flow_context.entity_change_delta}")
+            dynamic_sections.append(f"# Recent Entity Changes\n{solution_flow_context.entity_change_delta}")
         if solution_flow_context.confirmation_history:
-            sections.append(f"# Step History\n{solution_flow_context.confirmation_history}")
+            dynamic_sections.append(f"# Step History\n{solution_flow_context.confirmation_history}")
 
     # 9. Conversation starter context
     if conversation_context:
-        sections.append(
+        dynamic_sections.append(
             "# Active Discussion Context\n"
             "The consultant opened chat from a conversation starter. Here's what prompted this:\n"
             f"{conversation_context}\n"
@@ -302,26 +320,30 @@ def build_smart_chat_prompt(
 
     # 9b. Pre-fetched retrieval context (evidence from vector search)
     if retrieval_context:
-        sections.append(
+        dynamic_sections.append(
             "# Retrieved Evidence (from signal analysis)\n"
             "Use this evidence to answer questions directly — cite specific quotes when possible.\n"
             f"{retrieval_context}"
         )
 
-    # 10. Action cards guidance
-    sections.append(SMART_ACTION_CARDS)
-
-    # 11. Capabilities
-    sections.append(SMART_CHAT_CAPABILITIES)
-
-    # 12. Smart conversation patterns
-    sections.append(SMART_CONVERSATION_PATTERNS)
-
-    # 13. Entity counts summary
+    # 10. Entity counts summary
     counts = context_frame.entity_counts
     if counts:
         count_parts = [f"{v} {k}" for k, v in counts.items() if v]
         if count_parts:
-            sections.append(f"# Entity Counts\n{', '.join(count_parts)}")
+            dynamic_sections.append(f"# Entity Counts\n{', '.join(count_parts)}")
 
-    return "\n\n".join(sections)
+    # Build content blocks for Anthropic API
+    blocks = [
+        {
+            "type": "text",
+            "text": "\n\n".join(static_sections),
+            "cache_control": {"type": "ephemeral"},
+        },
+        {
+            "type": "text",
+            "text": "\n\n".join(dynamic_sections),
+        },
+    ]
+
+    return blocks

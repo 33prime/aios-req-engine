@@ -40,6 +40,8 @@ const MUTATING_TOOLS = new Set([
   'create_confirmation', 'attach_evidence', 'generate_strategic_context',
   'update_strategic_context', 'update_project_type', 'identify_stakeholders',
   'update_solution_flow_step', 'refine_solution_flow_step',
+  'add_solution_flow_step', 'remove_solution_flow_step',
+  'reorder_solution_flow_steps', 'resolve_solution_flow_question',
 ])
 
 interface UseChatOptions {

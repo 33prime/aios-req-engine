@@ -146,6 +146,52 @@ def list_entity_revisions(
         raise
 
 
+def list_entity_revisions_batch(
+    entity_ids: list[str],
+    limit_per_entity: int = 3,
+) -> dict[str, list[dict[str, Any]]]:
+    """Fetch recent revisions for multiple entities in a single query.
+
+    Args:
+        entity_ids: List of entity ID strings to fetch revisions for.
+        limit_per_entity: Max revisions per entity (applied post-query).
+
+    Returns:
+        Dict mapping entity_id -> list of revision records (newest first).
+    """
+    if not entity_ids:
+        return {}
+
+    supabase = get_supabase()
+
+    try:
+        # Single query: fetch recent revisions for all entity IDs at once.
+        # Over-fetch slightly (limit_per_entity * count) then trim per-entity.
+        response = (
+            supabase.table("enrichment_revisions")
+            .select("entity_id, entity_type, entity_label, diff_summary, trigger_event, created_at")
+            .in_("entity_id", entity_ids)
+            .order("created_at", desc=True)
+            .limit(len(entity_ids) * limit_per_entity)
+            .execute()
+        )
+
+        # Group by entity_id, cap per entity
+        result: dict[str, list[dict[str, Any]]] = {}
+        for row in response.data or []:
+            eid = row["entity_id"]
+            if eid not in result:
+                result[eid] = []
+            if len(result[eid]) < limit_per_entity:
+                result[eid].append(row)
+
+        return result
+
+    except Exception as e:
+        logger.error(f"Failed to batch-list revisions for {len(entity_ids)} entities: {e}")
+        return {}
+
+
 def get_latest_revision(
     entity_type: str,
     entity_id: UUID,

@@ -405,31 +405,39 @@ async def build_solution_flow_context(
 
 
 def _build_entity_change_delta(step: dict[str, Any]) -> str:
-    """Build a summary of recent changes to entities linked to this step."""
-    from app.db.revisions_enrichment import list_entity_revisions
+    """Build a summary of recent changes to entities linked to this step.
 
-    all_linked_ids: list[tuple[str, str]] = []  # (entity_type, entity_id)
-    for eid in step.get("linked_feature_ids") or []:
-        all_linked_ids.append(("feature", eid))
-    for eid in step.get("linked_workflow_ids") or []:
-        all_linked_ids.append(("workflow", eid))
-    for eid in step.get("linked_data_entity_ids") or []:
-        all_linked_ids.append(("data_entity", eid))
+    Uses a single batched DB query instead of per-entity sequential calls.
+    """
+    from app.db.revisions_enrichment import list_entity_revisions_batch
 
-    if not all_linked_ids:
+    # Collect all linked entity IDs with their types
+    id_to_type: dict[str, str] = {}
+    for eid in (step.get("linked_feature_ids") or [])[:6]:
+        id_to_type[eid] = "feature"
+    for eid in (step.get("linked_workflow_ids") or [])[:6]:
+        id_to_type[eid] = "workflow"
+    for eid in (step.get("linked_data_entity_ids") or [])[:6]:
+        id_to_type[eid] = "data_entity"
+
+    if not id_to_type:
+        return ""
+
+    # Single batch query for all linked entities
+    all_ids = list(id_to_type.keys())[:6]  # Cap total at 6
+    try:
+        revisions_by_id = list_entity_revisions_batch(all_ids, limit_per_entity=3)
+    except Exception:
         return ""
 
     changes: list[str] = []
-    for entity_type, entity_id in all_linked_ids[:6]:  # Cap at 6 to limit DB calls
-        try:
-            revisions = list_entity_revisions(entity_type, UUID(entity_id), limit=3)
-            for rev in revisions:
-                diff = rev.get("diff_summary", "")
-                label = rev.get("entity_label", entity_id[:8])
-                if diff:
-                    changes.append(f"- {entity_type} \"{label}\": {diff}")
-        except Exception:
-            continue
+    for eid in all_ids:
+        entity_type = id_to_type[eid]
+        for rev in revisions_by_id.get(eid, []):
+            diff = rev.get("diff_summary", "")
+            label = rev.get("entity_label", eid[:8])
+            if diff:
+                changes.append(f"- {entity_type} \"{label}\": {diff}")
 
     return "\n".join(changes[:8]) if changes else ""
 

@@ -13,6 +13,11 @@ from app.core.schemas_actions import ContextPhase, ProjectContextFrame
 from app.core.solution_flow_context import SolutionFlowContext
 
 
+def _blocks_to_text(blocks: list[dict]) -> str:
+    """Concatenate content block texts for assertion convenience."""
+    return "\n\n".join(b["text"] for b in blocks)
+
+
 @pytest.fixture
 def minimal_frame():
     """Minimal ProjectContextFrame for prompt builder tests."""
@@ -23,13 +28,56 @@ def minimal_frame():
     )
 
 
+# ─── Return format ──────────────────────────────────────────────────────────
+
+
+def test_returns_content_blocks(minimal_frame):
+    """build_smart_chat_prompt returns a list of Anthropic content blocks."""
+    blocks = build_smart_chat_prompt(
+        context_frame=minimal_frame,
+        project_name="Test",
+    )
+    assert isinstance(blocks, list)
+    assert len(blocks) == 2
+    # Static block has cache_control
+    assert blocks[0]["type"] == "text"
+    assert blocks[0]["cache_control"] == {"type": "ephemeral"}
+    # Dynamic block has no cache_control
+    assert blocks[1]["type"] == "text"
+    assert "cache_control" not in blocks[1]
+
+
+def test_static_block_contains_stable_content(minimal_frame):
+    """Static block includes identity, capabilities, action cards, patterns."""
+    blocks = build_smart_chat_prompt(
+        context_frame=minimal_frame,
+        project_name="Test",
+    )
+    static = blocks[0]["text"]
+    assert "teammate" in static  # SMART_CHAT_BASE
+    assert "Interactive Action Cards" in static  # SMART_ACTION_CARDS
+    assert "What You Can Do" in static  # SMART_CHAT_CAPABILITIES
+    assert "Conversation Patterns" in static  # SMART_CONVERSATION_PATTERNS
+
+
+def test_dynamic_block_contains_project_state(minimal_frame):
+    """Dynamic block includes project state, phase, and entity counts."""
+    blocks = build_smart_chat_prompt(
+        context_frame=minimal_frame,
+        project_name="Test",
+    )
+    dynamic = blocks[1]["text"]
+    assert "Test project state" in dynamic
+    assert "Building" in dynamic
+
+
 # ─── Identity always present ─────────────────────────────────────────────────
 
 
 def test_focused_entity_id_in_prompt_generic_path(minimal_frame):
     """Entity ID appears via generic 'Currently Viewing' when no specialized context."""
     entity_id = str(uuid4())
-    prompt = build_smart_chat_prompt(
+    blocks = build_smart_chat_prompt(
         context_frame=minimal_frame,
         project_name="Test",
         focused_entity={
@@ -37,6 +85,7 @@ def test_focused_entity_id_in_prompt_generic_path(minimal_frame):
             "data": {"id": entity_id, "name": "Voice Profiles"},
         },
     )
+    prompt = _blocks_to_text(blocks)
     assert entity_id in prompt
     assert "Currently Viewing" in prompt
 
@@ -49,7 +98,7 @@ def test_focused_entity_id_in_prompt_with_solution_flow_context(minimal_frame):
         focused_step_prompt=f"Step ID: {step_id}\nTitle: Onboard user\nGoal: Set up voice",
         cross_step_prompt="- Missing phases: output",
     )
-    prompt = build_smart_chat_prompt(
+    blocks = build_smart_chat_prompt(
         context_frame=minimal_frame,
         project_name="Test",
         page_context="brd:solution-flow",
@@ -59,6 +108,7 @@ def test_focused_entity_id_in_prompt_with_solution_flow_context(minimal_frame):
         },
         solution_flow_context=flow_ctx,
     )
+    prompt = _blocks_to_text(blocks)
     # ID must appear — both in identity line and in step detail
     assert prompt.count(step_id) >= 2
     assert "Currently Viewing" in prompt
@@ -71,7 +121,7 @@ def test_focused_entity_id_in_prompt_empty_flow_context(minimal_frame):
         flow_summary_prompt="[entry] Onboard user",
         # No focused_step_prompt — generic detail should kick in
     )
-    prompt = build_smart_chat_prompt(
+    blocks = build_smart_chat_prompt(
         context_frame=minimal_frame,
         project_name="Test",
         page_context="brd:solution-flow",
@@ -81,16 +131,18 @@ def test_focused_entity_id_in_prompt_empty_flow_context(minimal_frame):
         },
         solution_flow_context=flow_ctx,
     )
+    prompt = _blocks_to_text(blocks)
     assert step_id in prompt
     assert "Currently Viewing" in prompt
 
 
 def test_no_focused_entity_no_crash(minimal_frame):
     """Prompt builds fine with no focused entity."""
-    prompt = build_smart_chat_prompt(
+    blocks = build_smart_chat_prompt(
         context_frame=minimal_frame,
         project_name="Test",
     )
+    prompt = _blocks_to_text(blocks)
     assert "Currently Viewing" not in prompt
     assert len(prompt) > 100
 
@@ -100,7 +152,7 @@ def test_no_focused_entity_no_crash(minimal_frame):
 
 def test_generic_detail_includes_goal(minimal_frame):
     """Generic path renders goal when no specialized context."""
-    prompt = build_smart_chat_prompt(
+    blocks = build_smart_chat_prompt(
         context_frame=minimal_frame,
         project_name="Test",
         focused_entity={
@@ -108,6 +160,7 @@ def test_generic_detail_includes_goal(minimal_frame):
             "data": {"id": str(uuid4()), "name": "Search", "goal": "Find things fast"},
         },
     )
+    prompt = _blocks_to_text(blocks)
     assert "Find things fast" in prompt
 
 
@@ -117,7 +170,7 @@ def test_generic_detail_suppressed_by_flow_context(minimal_frame):
     flow_ctx = SolutionFlowContext(
         focused_step_prompt=f"Step ID: {step_id}\nTitle: Test\nGoal: Test goal",
     )
-    prompt = build_smart_chat_prompt(
+    blocks = build_smart_chat_prompt(
         context_frame=minimal_frame,
         project_name="Test",
         page_context="brd:solution-flow",
@@ -127,6 +180,7 @@ def test_generic_detail_suppressed_by_flow_context(minimal_frame):
         },
         solution_flow_context=flow_ctx,
     )
+    prompt = _blocks_to_text(blocks)
     assert "Prioritize this entity" not in prompt
     assert "Current Step Detail" in prompt
 
@@ -141,7 +195,7 @@ def test_flow_context_sections_rendered(minimal_frame):
         entity_change_delta='- feature "Search": added priority',
         confirmation_history="Status: ai_generated (v2)",
     )
-    prompt = build_smart_chat_prompt(
+    blocks = build_smart_chat_prompt(
         context_frame=minimal_frame,
         project_name="Test",
         page_context="brd:solution-flow",
@@ -151,6 +205,7 @@ def test_flow_context_sections_rendered(minimal_frame):
         },
         solution_flow_context=flow_ctx,
     )
+    prompt = _blocks_to_text(blocks)
     assert "Solution Flow Overview" in prompt
     assert "Current Step Detail" in prompt
     assert "Flow Intelligence" in prompt
@@ -167,7 +222,7 @@ def test_solution_flow_guidance_references_currently_viewing(minimal_frame):
     flow_ctx = SolutionFlowContext(
         focused_step_prompt=f"Step ID: {step_id}\nTitle: Test",
     )
-    prompt = build_smart_chat_prompt(
+    blocks = build_smart_chat_prompt(
         context_frame=minimal_frame,
         project_name="Test",
         page_context="brd:solution-flow",
@@ -177,6 +232,8 @@ def test_solution_flow_guidance_references_currently_viewing(minimal_frame):
         },
         solution_flow_context=flow_ctx,
     )
+    # Dynamic block contains page guidance and identity
+    prompt = _blocks_to_text(blocks)
     # Guidance says ID is in "Currently Viewing" — verify both exist
     assert 'step ID is in the "Currently Viewing"' in prompt
     # Find the actual "# Currently Viewing" section heading (not the guidance reference)
