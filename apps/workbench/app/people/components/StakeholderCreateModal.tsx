@@ -66,7 +66,7 @@ export function StakeholderCreateModal({ open, projects, onClose, onSave }: Stak
         <div className="px-5 py-4 space-y-3">
           {/* Project */}
           <div>
-            <label className="block text-[12px] font-medium text-[rgba(55,53,47,0.65)] mb-1">Project *</label>
+            <label className="block text-[12px] font-medium text-[#666666] mb-1">Project *</label>
             <select
               value={projectId}
               onChange={(e) => setProjectId(e.target.value)}
@@ -80,7 +80,7 @@ export function StakeholderCreateModal({ open, projects, onClose, onSave }: Stak
 
           {/* Name */}
           <div>
-            <label className="block text-[12px] font-medium text-[rgba(55,53,47,0.65)] mb-1">Name *</label>
+            <label className="block text-[12px] font-medium text-[#666666] mb-1">Name *</label>
             <input
               type="text"
               value={name}
@@ -93,7 +93,7 @@ export function StakeholderCreateModal({ open, projects, onClose, onSave }: Stak
           {/* Email + Role */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-[12px] font-medium text-[rgba(55,53,47,0.65)] mb-1">Email</label>
+              <label className="block text-[12px] font-medium text-[#666666] mb-1">Email</label>
               <input
                 type="email"
                 value={email}
@@ -103,7 +103,7 @@ export function StakeholderCreateModal({ open, projects, onClose, onSave }: Stak
               />
             </div>
             <div>
-              <label className="block text-[12px] font-medium text-[rgba(55,53,47,0.65)] mb-1">Role</label>
+              <label className="block text-[12px] font-medium text-[#666666] mb-1">Role</label>
               <input
                 type="text"
                 value={role}
@@ -116,7 +116,7 @@ export function StakeholderCreateModal({ open, projects, onClose, onSave }: Stak
 
           {/* Organization */}
           <div>
-            <label className="block text-[12px] font-medium text-[rgba(55,53,47,0.65)] mb-1">Organization</label>
+            <label className="block text-[12px] font-medium text-[#666666] mb-1">Organization</label>
             <input
               type="text"
               value={organization}
@@ -129,7 +129,7 @@ export function StakeholderCreateModal({ open, projects, onClose, onSave }: Stak
           {/* Type + Influence */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-[12px] font-medium text-[rgba(55,53,47,0.65)] mb-1">Type</label>
+              <label className="block text-[12px] font-medium text-[#666666] mb-1">Type</label>
               <select
                 value={stakeholderType}
                 onChange={(e) => setStakeholderType(e.target.value)}
@@ -143,7 +143,7 @@ export function StakeholderCreateModal({ open, projects, onClose, onSave }: Stak
               </select>
             </div>
             <div>
-              <label className="block text-[12px] font-medium text-[rgba(55,53,47,0.65)] mb-1">Influence</label>
+              <label className="block text-[12px] font-medium text-[#666666] mb-1">Influence</label>
               <select
                 value={influenceLevel}
                 onChange={(e) => setInfluenceLevel(e.target.value)}
@@ -158,7 +158,7 @@ export function StakeholderCreateModal({ open, projects, onClose, onSave }: Stak
 
           {/* Notes */}
           <div>
-            <label className="block text-[12px] font-medium text-[rgba(55,53,47,0.65)] mb-1">Notes</label>
+            <label className="block text-[12px] font-medium text-[#666666] mb-1">Notes</label>
             <textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}

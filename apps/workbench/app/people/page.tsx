@@ -80,7 +80,7 @@ export default function PeoplePage() {
         >
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#009b87] mx-auto mb-4" />
-            <p className="text-sm text-[rgba(55,53,47,0.45)]">Loading people...</p>
+            <p className="text-sm text-[#999999]">Loading people...</p>
           </div>
         </div>
       </>
@@ -112,7 +112,7 @@ export default function PeoplePage() {
             onCreatePerson={() => setShowCreate(true)}
           />
 
-          <div className="mb-3 text-[12px] text-[rgba(55,53,47,0.45)]">
+          <div className="mb-3 text-[12px] text-[#999999]">
             {total} {total === 1 ? 'person' : 'people'} found
           </div>
 

@@ -463,9 +463,9 @@ function TimelineCard({ item, onDocumentRemoved }: { item: TimelineItem; onDocum
             const metadata = response.metadata || {}
             if (metadata.quality_score) {
               setQuality({
-                score: metadata.quality_score,
-                message: metadata.quality_message || '',
-                details: metadata.quality_details || [],
+                score: metadata.quality_score as 'excellent' | 'good' | 'basic' | 'sparse',
+                message: (metadata.quality_message as string) || '',
+                details: (metadata.quality_details as string[]) || [],
               })
             }
           } catch {

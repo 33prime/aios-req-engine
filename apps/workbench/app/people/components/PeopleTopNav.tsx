@@ -34,7 +34,7 @@ export function PeopleTopNav({
       <div className="flex items-center justify-between mb-4">
         <div>
           <h1 className="text-[22px] font-bold text-[#37352f]">People</h1>
-          <p className="text-[13px] text-[rgba(55,53,47,0.45)] mt-0.5">
+          <p className="text-[13px] text-[#999999] mt-0.5">
             Stakeholders across all projects
           </p>
         </div>

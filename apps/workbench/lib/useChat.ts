@@ -29,7 +29,7 @@ export interface ChatMessage {
     tool_name: string
     status: 'pending' | 'running' | 'complete' | 'error'
     args?: Record<string, unknown>
-    result?: any
+    result?: Record<string, unknown>
     error?: string
   }>
 }

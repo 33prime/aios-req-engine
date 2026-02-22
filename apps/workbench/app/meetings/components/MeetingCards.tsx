@@ -41,7 +41,7 @@ export function MeetingCards({ meetings, onCardClick }: MeetingCardsProps) {
       <div className="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-[#E5E5E5] p-12 text-center">
         <Calendar className="w-10 h-10 text-gray-300 mx-auto mb-3" />
         <p className="text-[14px] font-medium text-[#37352f] mb-1">No meetings found</p>
-        <p className="text-[13px] text-[rgba(55,53,47,0.45)]">
+        <p className="text-[13px] text-[#999999]">
           Try adjusting your filters or schedule a new meeting.
         </p>
       </div>

@@ -89,7 +89,7 @@ export function MeetingCreateModal({ open, projects, googleConnected, onClose, o
     }
   }
 
-  const labelCls = 'block text-[12px] font-medium text-[rgba(55,53,47,0.65)] mb-1'
+  const labelCls = 'block text-[12px] font-medium text-[#666666] mb-1'
   const inputCls = 'w-full px-3 py-1.5 text-[13px] bg-white border border-gray-200 rounded-md focus:outline-none focus:ring-1 focus:ring-[#3FAF7A] focus:border-[#3FAF7A]'
 
   return (
@@ -225,7 +225,7 @@ export function MeetingCreateModal({ open, projects, googleConnected, onClose, o
                 <div>
                   <p className="text-[13px] font-medium text-[#37352f]">Create Google Calendar event</p>
                   {googleConnected ? (
-                    <p className="text-[11px] text-[rgba(55,53,47,0.45)]">Auto-generates a Google Meet link</p>
+                    <p className="text-[11px] text-[#999999]">Auto-generates a Google Meet link</p>
                   ) : (
                     <p className="text-[11px] text-[#999] flex items-center gap-1">
                       <AlertCircle className="w-3 h-3" />
@@ -258,7 +258,7 @@ export function MeetingCreateModal({ open, projects, googleConnected, onClose, o
                 <Video className="w-4 h-4 text-[#999]" />
                 <div>
                   <p className="text-[13px] font-medium text-[#37352f]">Auto-record this meeting</p>
-                  <p className="text-[11px] text-[rgba(55,53,47,0.45)]">Participants receive consent notifications</p>
+                  <p className="text-[11px] text-[#999999]">Participants receive consent notifications</p>
                 </div>
               </div>
               <button

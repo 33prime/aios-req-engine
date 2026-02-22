@@ -5,8 +5,8 @@ export interface Job {
   project_id?: string
   job_type: string
   status: 'queued' | 'processing' | 'completed' | 'failed'
-  input: any
-  output: any
+  input: Record<string, unknown>
+  output: Record<string, unknown>
   error?: string
   run_id: string
   created_at: string
@@ -21,8 +21,8 @@ export interface Feature {
   is_mvp: boolean
   status: string
   confidence: string
-  details?: any
-  evidence: any[]
+  details?: Record<string, unknown>
+  evidence: Record<string, unknown>[]
   confirmation_status?: 'ai_generated' | 'confirmed_consultant' | 'confirmed_client' | 'needs_client'
   created_at: string
   updated_at: string
@@ -93,7 +93,7 @@ export interface VpStep {
   label: string
   status: string
   description: string
-  enrichment?: any
+  enrichment?: Record<string, unknown>
   evidence?: VpEvidence[]
   user_benefit_pain?: string
   ui_overview?: string
@@ -145,7 +145,7 @@ export interface Signal {
   source: string
   signal_type: string
   raw_text: string
-  metadata: any
+  metadata: Record<string, unknown>
   created_at: string
 }
 
@@ -974,8 +974,8 @@ export interface EvalPromptVersion {
   parent_version_id?: string | null
   generation_model?: string | null
   generation_chain?: string | null
-  input_context_snapshot: Record<string, any>
-  learnings_injected: any[]
+  input_context_snapshot: Record<string, unknown>
+  learnings_injected: Record<string, unknown>[]
   tokens_input: number
   tokens_output: number
   estimated_cost_usd: number

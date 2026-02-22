@@ -43,7 +43,7 @@ export function PeopleTable({ stakeholders, onRowClick }: PeopleTableProps) {
       <div className="bg-white rounded-lg border border-gray-200 p-12 text-center">
         <User className="w-10 h-10 text-gray-300 mx-auto mb-3" />
         <p className="text-[14px] font-medium text-[#37352f] mb-1">No stakeholders found</p>
-        <p className="text-[13px] text-[rgba(55,53,47,0.45)]">
+        <p className="text-[13px] text-[#999999]">
           Stakeholders are extracted from signals or can be added manually.
         </p>
       </div>
@@ -55,12 +55,12 @@ export function PeopleTable({ stakeholders, onRowClick }: PeopleTableProps) {
       <table className="w-full">
         <thead>
           <tr className="border-b border-gray-100 bg-gray-50/50">
-            <th className="text-left px-4 py-2.5 text-[11px] font-semibold text-[rgba(55,53,47,0.45)] uppercase tracking-wider">Name</th>
-            <th className="text-left px-4 py-2.5 text-[11px] font-semibold text-[rgba(55,53,47,0.45)] uppercase tracking-wider">Role</th>
-            <th className="text-left px-4 py-2.5 text-[11px] font-semibold text-[rgba(55,53,47,0.45)] uppercase tracking-wider">Type</th>
-            <th className="text-left px-4 py-2.5 text-[11px] font-semibold text-[rgba(55,53,47,0.45)] uppercase tracking-wider">Influence</th>
-            <th className="text-left px-4 py-2.5 text-[11px] font-semibold text-[rgba(55,53,47,0.45)] uppercase tracking-wider">Project</th>
-            <th className="text-left px-4 py-2.5 text-[11px] font-semibold text-[rgba(55,53,47,0.45)] uppercase tracking-wider">Updated</th>
+            <th className="text-left px-4 py-2.5 text-[11px] font-semibold text-[#999999] uppercase tracking-wider">Name</th>
+            <th className="text-left px-4 py-2.5 text-[11px] font-semibold text-[#999999] uppercase tracking-wider">Role</th>
+            <th className="text-left px-4 py-2.5 text-[11px] font-semibold text-[#999999] uppercase tracking-wider">Type</th>
+            <th className="text-left px-4 py-2.5 text-[11px] font-semibold text-[#999999] uppercase tracking-wider">Influence</th>
+            <th className="text-left px-4 py-2.5 text-[11px] font-semibold text-[#999999] uppercase tracking-wider">Project</th>
+            <th className="text-left px-4 py-2.5 text-[11px] font-semibold text-[#999999] uppercase tracking-wider">Updated</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-gray-50">
@@ -86,7 +86,7 @@ export function PeopleTable({ stakeholders, onRowClick }: PeopleTableProps) {
                         )}
                       </div>
                       {s.email && (
-                        <div className="flex items-center gap-1 text-[11px] text-[rgba(55,53,47,0.45)]">
+                        <div className="flex items-center gap-1 text-[11px] text-[#999999]">
                           <Mail className="w-3 h-3" />
                           <span className="truncate">{s.email}</span>
                         </div>
@@ -94,7 +94,7 @@ export function PeopleTable({ stakeholders, onRowClick }: PeopleTableProps) {
                     </div>
                   </div>
                 </td>
-                <td className="px-4 py-3 text-[13px] text-[rgba(55,53,47,0.65)]">
+                <td className="px-4 py-3 text-[13px] text-[#666666]">
                   {s.role || '—'}
                 </td>
                 <td className="px-4 py-3">
@@ -111,10 +111,10 @@ export function PeopleTable({ stakeholders, onRowClick }: PeopleTableProps) {
                     </span>
                   )}
                 </td>
-                <td className="px-4 py-3 text-[13px] text-[rgba(55,53,47,0.65)]">
+                <td className="px-4 py-3 text-[13px] text-[#666666]">
                   {s.project_name || '—'}
                 </td>
-                <td className="px-4 py-3 text-[12px] text-[rgba(55,53,47,0.45)]">
+                <td className="px-4 py-3 text-[12px] text-[#999999]">
                   {timeAgo(s.updated_at || s.created_at)}
                 </td>
               </tr>

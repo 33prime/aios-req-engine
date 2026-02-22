@@ -39,7 +39,7 @@ export function MeetingsTable({ meetings, onRowClick }: MeetingsTableProps) {
       <div className="bg-white rounded-lg border border-gray-200 p-12 text-center">
         <Calendar className="w-10 h-10 text-gray-300 mx-auto mb-3" />
         <p className="text-[14px] font-medium text-[#37352f] mb-1">No meetings found</p>
-        <p className="text-[13px] text-[rgba(55,53,47,0.45)]">
+        <p className="text-[13px] text-[#999999]">
           Try adjusting your filters or schedule a new meeting.
         </p>
       </div>
@@ -51,22 +51,22 @@ export function MeetingsTable({ meetings, onRowClick }: MeetingsTableProps) {
       <table className="w-full">
         <thead>
           <tr className="border-b border-gray-100 bg-gray-50/50">
-            <th className="text-left px-4 py-2.5 text-[11px] font-semibold text-[rgba(55,53,47,0.45)] uppercase tracking-wider">
+            <th className="text-left px-4 py-2.5 text-[11px] font-semibold text-[#999999] uppercase tracking-wider">
               Meeting
             </th>
-            <th className="text-left px-4 py-2.5 text-[11px] font-semibold text-[rgba(55,53,47,0.45)] uppercase tracking-wider">
+            <th className="text-left px-4 py-2.5 text-[11px] font-semibold text-[#999999] uppercase tracking-wider">
               Type
             </th>
-            <th className="text-left px-4 py-2.5 text-[11px] font-semibold text-[rgba(55,53,47,0.45)] uppercase tracking-wider">
+            <th className="text-left px-4 py-2.5 text-[11px] font-semibold text-[#999999] uppercase tracking-wider">
               Date & Time
             </th>
-            <th className="text-left px-4 py-2.5 text-[11px] font-semibold text-[rgba(55,53,47,0.45)] uppercase tracking-wider">
+            <th className="text-left px-4 py-2.5 text-[11px] font-semibold text-[#999999] uppercase tracking-wider">
               Duration
             </th>
-            <th className="text-left px-4 py-2.5 text-[11px] font-semibold text-[rgba(55,53,47,0.45)] uppercase tracking-wider">
+            <th className="text-left px-4 py-2.5 text-[11px] font-semibold text-[#999999] uppercase tracking-wider">
               Participants
             </th>
-            <th className="text-left px-4 py-2.5 text-[11px] font-semibold text-[rgba(55,53,47,0.45)] uppercase tracking-wider">
+            <th className="text-left px-4 py-2.5 text-[11px] font-semibold text-[#999999] uppercase tracking-wider">
               Status
             </th>
           </tr>
@@ -94,7 +94,7 @@ export function MeetingsTable({ meetings, onRowClick }: MeetingsTableProps) {
                         {m.title}
                       </span>
                       {m.project_name && (
-                        <span className="text-[11px] text-[rgba(55,53,47,0.45)] truncate block">
+                        <span className="text-[11px] text-[#999999] truncate block">
                           {m.project_name}
                         </span>
                       )}
@@ -110,12 +110,12 @@ export function MeetingsTable({ meetings, onRowClick }: MeetingsTableProps) {
                   <div className="text-[13px] font-medium text-[#37352f]">
                     {formatMeetingDate(m.meeting_date)}
                   </div>
-                  <div className="text-[11px] text-[rgba(55,53,47,0.45)]">
+                  <div className="text-[11px] text-[#999999]">
                     {formatMeetingTime(m.meeting_time)}
                   </div>
                 </td>
                 <td className="px-4 py-3">
-                  <div className="flex items-center gap-1 text-[13px] text-[rgba(55,53,47,0.65)]">
+                  <div className="flex items-center gap-1 text-[13px] text-[#666666]">
                     <Clock className="w-3 h-3" />
                     {m.duration_minutes} min
                   </div>
@@ -145,7 +145,7 @@ export function MeetingsTable({ meetings, onRowClick }: MeetingsTableProps) {
                       )}
                     </div>
                   ) : (
-                    <span className="text-[12px] text-[rgba(55,53,47,0.45)]">&mdash;</span>
+                    <span className="text-[12px] text-[#999999]">&mdash;</span>
                   )}
                 </td>
                 <td className="px-4 py-3">

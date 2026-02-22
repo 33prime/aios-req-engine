@@ -548,11 +548,11 @@ export interface CollaborationCurrentResponse {
   current_focus: {
     phase: string
     primary_action: string
-    discovery_prep?: any
-    validation?: any
-    prototype_feedback?: any
+    discovery_prep?: Record<string, unknown>
+    validation?: Record<string, unknown>
+    prototype_feedback?: Record<string, unknown>
   }
-  active_touchpoint: any | null
+  active_touchpoint: Record<string, unknown> | null
   portal_sync: {
     portal_enabled: boolean
     portal_phase: string

@@ -139,7 +139,7 @@ export default function MeetingsPage() {
         >
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#3FAF7A] mx-auto mb-4" />
-            <p className="text-sm text-[rgba(55,53,47,0.45)]">Loading meetings...</p>
+            <p className="text-sm text-[#999999]">Loading meetings...</p>
           </div>
         </div>
       </>
@@ -174,7 +174,7 @@ export default function MeetingsPage() {
             onCreateMeeting={() => setShowCreate(true)}
           />
 
-          <div className="mb-3 text-[12px] text-[rgba(55,53,47,0.45)]">
+          <div className="mb-3 text-[12px] text-[#999999]">
             {filtered.length} {filtered.length === 1 ? 'meeting' : 'meetings'} found
           </div>
 

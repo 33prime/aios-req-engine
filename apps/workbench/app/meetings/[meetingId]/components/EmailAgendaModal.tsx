@@ -80,7 +80,7 @@ export function EmailAgendaModal({ open, meeting, participants, onClose }: Email
 
         {/* Body */}
         <div className="px-6 py-5">
-          <div className="text-[11px] font-semibold text-[rgba(55,53,47,0.5)] uppercase tracking-[0.3px] mb-2">
+          <div className="text-[11px] font-semibold text-[#999999] uppercase tracking-[0.3px] mb-2">
             Recipients
           </div>
           <div className="flex flex-col gap-1.5 mb-4">
@@ -109,7 +109,7 @@ export function EmailAgendaModal({ open, meeting, participants, onClose }: Email
             ))}
           </div>
 
-          <div className="text-[11px] font-semibold text-[rgba(55,53,47,0.5)] uppercase tracking-[0.3px] mb-2">
+          <div className="text-[11px] font-semibold text-[#999999] uppercase tracking-[0.3px] mb-2">
             Email Preview
           </div>
           <div className="bg-[#FAFAFA] border border-[#E5E5E5] rounded-md p-4 mb-4 max-h-[200px] overflow-y-auto">
@@ -133,7 +133,7 @@ export function EmailAgendaModal({ open, meeting, participants, onClose }: Email
             </p>
           </div>
 
-          <div className="text-[11px] font-semibold text-[rgba(55,53,47,0.5)] uppercase tracking-[0.3px] mb-2">
+          <div className="text-[11px] font-semibold text-[#999999] uppercase tracking-[0.3px] mb-2">
             Personal Message (optional)
           </div>
           <textarea

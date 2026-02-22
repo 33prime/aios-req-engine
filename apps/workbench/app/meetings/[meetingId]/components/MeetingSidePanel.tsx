@@ -203,7 +203,7 @@ export function MeetingSidePanel({ meeting, bot, participants, onDeployBot }: Me
 
               {/* Integrations section */}
               <div className="mt-4 pt-3 border-t border-[#F0F0F0]">
-                <div className="text-[11px] font-semibold text-[rgba(55,53,47,0.5)] uppercase tracking-[0.3px] mb-2.5">
+                <div className="text-[11px] font-semibold text-[#999999] uppercase tracking-[0.3px] mb-2.5">
                   Integrations
                 </div>
                 <DetailRow label="Google Calendar">
@@ -235,7 +235,7 @@ export function MeetingSidePanel({ meeting, bot, participants, onDeployBot }: Me
           {/* Signals Tab */}
           {activeTab === 'signals' && (
             <div>
-              <div className="text-[11px] font-semibold text-[rgba(55,53,47,0.5)] uppercase tracking-[0.3px] mb-3">
+              <div className="text-[11px] font-semibold text-[#999999] uppercase tracking-[0.3px] mb-3">
                 Extracted Signals
               </div>
               <div className="flex flex-col items-center justify-center py-12 text-center">
