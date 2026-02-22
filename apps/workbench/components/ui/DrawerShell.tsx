@@ -32,6 +32,8 @@ interface DrawerShellProps {
   activeTab?: string
   /** Called when a tab is clicked */
   onTabChange?: (tabId: string) => void
+  /** Drawer width (default: 560px) */
+  width?: number
   /** Drawer body content */
   children: React.ReactNode
 }
@@ -47,6 +49,7 @@ export function DrawerShell({
   tabs,
   activeTab,
   onTabChange,
+  width = 560,
   children,
 }: DrawerShellProps) {
   return (
@@ -58,7 +61,7 @@ export function DrawerShell({
       />
 
       {/* Drawer */}
-      <div className="fixed right-0 top-0 h-full w-[560px] max-w-full bg-white shadow-xl z-50 flex flex-col animate-slide-in-right">
+      <div className="fixed right-0 top-0 h-full max-w-full bg-white shadow-xl z-50 flex flex-col animate-slide-in-right" style={{ width }}>
         {/* Header */}
         <div className="flex-shrink-0 border-b border-[#E5E5E5] px-6 py-4">
           <div className="flex items-start justify-between gap-3">

@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react'
 import {
-  X,
   Building2,
   Users,
   Target,
@@ -15,6 +14,8 @@ import {
   ChevronRight,
   Shield,
 } from 'lucide-react'
+import { DrawerShell } from '@/components/ui/DrawerShell'
+import { Spinner } from '@/components/ui/Spinner'
 import { getProjectClientIntelligence } from '@/lib/api'
 import { formatDate } from '@/lib/date-utils'
 import type { ClientIntelligenceData } from '@/types/workspace'
@@ -195,325 +196,293 @@ export function ClientIntelligenceDrawer({
     constraints: safeParse<Record<string, unknown>>(rawSc.constraints, {}),
   }
 
-  return (
-    <>
-      {/* Backdrop */}
-      <div
-        className="fixed inset-0 bg-black/20 z-40 transition-opacity"
-        onClick={onClose}
-      />
+  const headerExtra = cd.profile_completeness != null && cd.profile_completeness > 0 ? (
+    <div className="flex items-center gap-2 mt-1.5">
+      <div className="w-20 h-1.5 bg-[#F0F0F0] rounded-full overflow-hidden">
+        <div
+          className="h-full bg-[#3FAF7A] rounded-full"
+          style={{ width: `${cd.profile_completeness}%` }}
+        />
+      </div>
+      <span className="text-[10px] text-[#999999]">{cd.profile_completeness}% complete</span>
+    </div>
+  ) : undefined
 
-      {/* Drawer */}
-      <div className="fixed right-0 top-0 h-full w-[560px] max-w-full bg-white shadow-xl z-50 flex flex-col animate-slide-in-right">
-        {/* Header */}
-        <div className="flex-shrink-0 border-b border-[#E5E5E5] px-6 py-4">
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex items-start gap-3 min-w-0 flex-1">
-              <div className="w-8 h-8 rounded-full bg-[#0A1E2F] flex items-center justify-center flex-shrink-0 mt-0.5">
-                <Building2 className="w-4 h-4 text-white" />
+  return (
+    <DrawerShell
+      onClose={onClose}
+      icon={Building2}
+      entityLabel="Client Intelligence"
+      title={cp.name || cd.name || 'Background & Context'}
+      headerExtra={headerExtra}
+    >
+      {loading ? (
+        <Spinner />
+      ) : (
+        <div className="space-y-3">
+          {/* Company Profile — merge company_info (cp) with client data (cd) fallback */}
+          <AccordionSection
+            title="Company Profile"
+            icon={Building2}
+            defaultOpen
+            badge={
+              <div className="flex items-center gap-1.5">
+                <SourceBadge source={cp.enrichment_source} />
+                <FreshnessBadge dateStr={cp.enriched_at || cd.enriched_at} />
               </div>
-              <div className="min-w-0">
-                <p className="text-[11px] font-medium text-[#999999] uppercase tracking-wide mb-1">
-                  Client Intelligence
-                </p>
-                <h2 className="text-[15px] font-semibold text-[#333333] leading-snug">
-                  {cp.name || cd.name || 'Background & Context'}
-                </h2>
-                {cd.profile_completeness != null && cd.profile_completeness > 0 && (
-                  <div className="flex items-center gap-2 mt-1.5">
-                    <div className="w-20 h-1.5 bg-[#F0F0F0] rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-[#3FAF7A] rounded-full"
-                        style={{ width: `${cd.profile_completeness}%` }}
-                      />
-                    </div>
-                    <span className="text-[10px] text-[#999999]">{cd.profile_completeness}% complete</span>
+            }
+          >
+            <div className="space-y-2">
+              <FieldRow label="Industry" value={cp.industry_display || cp.industry || cd.industry} />
+              <FieldRow label="Company Type" value={cp.company_type} />
+              <FieldRow label="Stage" value={cp.stage || cd.stage} />
+              <FieldRow label="Size" value={cp.size || cd.size} />
+              <FieldRow label="Revenue" value={cp.revenue} />
+              <FieldRow label="Employees" value={cp.employee_count} />
+              <FieldRow label="Location" value={cp.location} />
+              {(cp.website || cd.website) && (
+                <div className="flex items-start gap-2 text-[13px]">
+                  <span className="text-[#999999] min-w-[120px] flex-shrink-0">Website</span>
+                  <span className="text-[#3FAF7A] flex items-center gap-1">
+                    <Globe className="w-3 h-3" />
+                    {cp.website || cd.website}
+                  </span>
+                </div>
+              )}
+              {(cp.description || cd.description) && (
+                <div className="mt-2">
+                  <p className="text-[13px] text-[#666666] leading-relaxed">{cp.description || cd.description}</p>
+                </div>
+              )}
+              {cp.unique_selling_point && (
+                <div className="mt-2 bg-[#F9F9F9] rounded-lg p-3">
+                  <p className="text-[11px] font-medium text-[#999999] uppercase tracking-wide mb-1">Unique Selling Point</p>
+                  <p className="text-[13px] text-[#333333]">{cp.unique_selling_point}</p>
+                </div>
+              )}
+            </div>
+          </AccordionSection>
+
+          {/* Organizational Context (from client enrichment) */}
+          {data?.has_client && (
+            <AccordionSection
+              title="Organizational Context"
+              icon={Users}
+              badge={<FreshnessBadge dateStr={cd.last_analyzed_at} />}
+            >
+              <div className="space-y-3">
+                {cd.company_summary && (
+                  <div>
+                    <p className="text-[11px] font-medium text-[#999999] uppercase tracking-wide mb-1">Summary</p>
+                    <p className="text-[13px] text-[#666666] leading-relaxed">{cd.company_summary}</p>
                   </div>
                 )}
-              </div>
-            </div>
-            <button
-              onClick={onClose}
-              className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors flex-shrink-0"
-            >
-              <X className="w-4 h-4 text-[#999999]" />
-            </button>
-          </div>
-        </div>
-
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto px-6 py-5">
-          {loading ? (
-            <div className="flex items-center justify-center py-12">
-              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#3FAF7A]" />
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {/* Company Profile — merge company_info (cp) with client data (cd) fallback */}
-              <AccordionSection
-                title="Company Profile"
-                icon={Building2}
-                defaultOpen
-                badge={
-                  <div className="flex items-center gap-1.5">
-                    <SourceBadge source={cp.enrichment_source} />
-                    <FreshnessBadge dateStr={cp.enriched_at || cd.enriched_at} />
-                  </div>
-                }
-              >
-                <div className="space-y-2">
-                  <FieldRow label="Industry" value={cp.industry_display || cp.industry || cd.industry} />
-                  <FieldRow label="Company Type" value={cp.company_type} />
-                  <FieldRow label="Stage" value={cp.stage || cd.stage} />
-                  <FieldRow label="Size" value={cp.size || cd.size} />
-                  <FieldRow label="Revenue" value={cp.revenue} />
-                  <FieldRow label="Employees" value={cp.employee_count} />
-                  <FieldRow label="Location" value={cp.location} />
-                  {(cp.website || cd.website) && (
-                    <div className="flex items-start gap-2 text-[13px]">
-                      <span className="text-[#999999] min-w-[120px] flex-shrink-0">Website</span>
-                      <span className="text-[#3FAF7A] flex items-center gap-1">
-                        <Globe className="w-3 h-3" />
-                        {cp.website || cd.website}
-                      </span>
-                    </div>
-                  )}
-                  {(cp.description || cd.description) && (
-                    <div className="mt-2">
-                      <p className="text-[13px] text-[#666666] leading-relaxed">{cp.description || cd.description}</p>
-                    </div>
-                  )}
-                  {cp.unique_selling_point && (
-                    <div className="mt-2 bg-[#F9F9F9] rounded-lg p-3">
-                      <p className="text-[11px] font-medium text-[#999999] uppercase tracking-wide mb-1">Unique Selling Point</p>
-                      <p className="text-[13px] text-[#333333]">{cp.unique_selling_point}</p>
-                    </div>
-                  )}
-                </div>
-              </AccordionSection>
-
-              {/* Organizational Context (from client enrichment) */}
-              {data?.has_client && (
-                <AccordionSection
-                  title="Organizational Context"
-                  icon={Users}
-                  badge={<FreshnessBadge dateStr={cd.last_analyzed_at} />}
-                >
-                  <div className="space-y-3">
-                    {cd.company_summary && (
-                      <div>
-                        <p className="text-[11px] font-medium text-[#999999] uppercase tracking-wide mb-1">Summary</p>
-                        <p className="text-[13px] text-[#666666] leading-relaxed">{cd.company_summary}</p>
-                      </div>
-                    )}
-                    {cd.organizational_context && Object.keys(cd.organizational_context).length > 0 && (
-                      <div>
-                        <p className="text-[11px] font-medium text-[#999999] uppercase tracking-wide mb-1">Org Context</p>
-                        <div className="bg-[#F9F9F9] rounded-lg p-3 space-y-2">
-                          {Object.entries(cd.organizational_context).map(([key, val]) => {
-                            // For nested objects (e.g. assessment, stakeholder_analysis), render their sub-fields
-                            if (val && typeof val === 'object' && !Array.isArray(val)) {
-                              const sub = val as Record<string, unknown>
-                              const subEntries = Object.entries(sub).filter(([, v]) =>
-                                v != null && v !== '' && typeof v !== 'object'
-                              )
-                              if (subEntries.length === 0) return null
-                              return (
-                                <div key={key}>
-                                  <p className="text-[11px] font-medium text-[#666666] capitalize mb-1">{key.replace(/_/g, ' ')}</p>
-                                  <div className="space-y-0.5 pl-2">
-                                    {subEntries.map(([sk, sv]) => (
-                                      <div key={sk} className="text-[12px]">
-                                        <span className="text-[#999999] capitalize">{sk.replace(/_/g, ' ')}:</span>{' '}
-                                        <span className="text-[#333333]">{toLabel(sv)}</span>
-                                      </div>
+                {cd.organizational_context && Object.keys(cd.organizational_context).length > 0 && (
+                  <div>
+                    <p className="text-[11px] font-medium text-[#999999] uppercase tracking-wide mb-1">Org Context</p>
+                    <div className="bg-[#F9F9F9] rounded-lg p-3 space-y-2">
+                      {Object.entries(cd.organizational_context).map(([key, val]) => {
+                        // For nested objects (e.g. assessment, stakeholder_analysis), render their sub-fields
+                        if (val && typeof val === 'object' && !Array.isArray(val)) {
+                          const sub = val as Record<string, unknown>
+                          const subEntries = Object.entries(sub).filter(([, v]) =>
+                            v != null && v !== '' && typeof v !== 'object'
+                          )
+                          if (subEntries.length === 0) return null
+                          return (
+                            <div key={key}>
+                              <p className="text-[11px] font-medium text-[#666666] capitalize mb-1">{key.replace(/_/g, ' ')}</p>
+                              <div className="space-y-0.5 pl-2">
+                                {subEntries.map(([sk, sv]) => (
+                                  <div key={sk} className="text-[12px]">
+                                    <span className="text-[#999999] capitalize">{sk.replace(/_/g, ' ')}:</span>{' '}
+                                    <span className="text-[#333333]">{toLabel(sv)}</span>
+                                  </div>
+                                ))}
+                              </div>
+                              {/* Render array sub-fields (e.g. watch_out_for) */}
+                              {Object.entries(sub).filter(([, v]) => Array.isArray(v)).map(([sk, sv]) => (
+                                <div key={sk} className="mt-1">
+                                  <span className="text-[11px] text-[#999999] capitalize">{sk.replace(/_/g, ' ')}:</span>
+                                  <div className="flex flex-wrap gap-1 mt-0.5">
+                                    {(sv as unknown[]).map((item, idx) => (
+                                      <span key={idx} className="px-2 py-0.5 text-[11px] bg-[#F0F0F0] text-[#666666] rounded-full">
+                                        {toLabel(item)}
+                                      </span>
                                     ))}
                                   </div>
-                                  {/* Render array sub-fields (e.g. watch_out_for) */}
-                                  {Object.entries(sub).filter(([, v]) => Array.isArray(v)).map(([sk, sv]) => (
-                                    <div key={sk} className="mt-1">
-                                      <span className="text-[11px] text-[#999999] capitalize">{sk.replace(/_/g, ' ')}:</span>
-                                      <div className="flex flex-wrap gap-1 mt-0.5">
-                                        {(sv as unknown[]).map((item, idx) => (
-                                          <span key={idx} className="px-2 py-0.5 text-[11px] bg-[#F0F0F0] text-[#666666] rounded-full">
-                                            {toLabel(item)}
-                                          </span>
-                                        ))}
-                                      </div>
-                                    </div>
-                                  ))}
                                 </div>
-                              )
-                            }
-                            return (
-                              <div key={key} className="text-[12px]">
-                                <span className="text-[#999999] capitalize">{key.replace(/_/g, ' ')}:</span>{' '}
-                                <span className="text-[#333333]">{toLabel(val)}</span>
-                              </div>
-                            )
-                          })}
-                        </div>
-                      </div>
-                    )}
-                    <FieldRow label="Digital Readiness" value={cd.digital_readiness} />
-                    <FieldRow label="Tech Maturity" value={cd.technology_maturity} />
-                    {cd.role_gaps.length > 0 && (
-                      <div>
-                        <p className="text-[11px] font-medium text-[#999999] uppercase tracking-wide mb-1">Role Gaps</p>
-                        <div className="space-y-1">
-                          {cd.role_gaps.map((gap, i) => (
-                            <div key={i} className="text-[12px] text-[#666666] bg-[#F9F9F9] rounded-lg px-3 py-2">
-                              {typeof gap === 'string' ? gap : (gap.title || gap.role || JSON.stringify(gap)) as string}
+                              ))}
                             </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                    {cd.tech_stack && (
-                      <div>
-                        <p className="text-[11px] font-medium text-[#999999] uppercase tracking-wide mb-1">Tech Stack</p>
-                        <TagList items={cd.tech_stack} emptyText="No tech stack data" />
-                      </div>
-                    )}
-                    {!cd.company_summary && Object.keys(cd.organizational_context).length === 0 && (
-                      <p className="text-[12px] text-[#999999] italic">
-                        Run the Client Intelligence Agent to populate this section.
-                      </p>
-                    )}
-                  </div>
-                </AccordionSection>
-              )}
-
-              {/* Strategic Position */}
-              <AccordionSection
-                title="Strategic Position"
-                icon={Target}
-                badge={
-                  sc.confirmation_status ? (
-                    <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${
-                      sc.confirmation_status === 'confirmed_consultant' || sc.confirmation_status === 'confirmed_client'
-                        ? 'bg-[#E8F5E9] text-[#25785A]'
-                        : 'bg-[#F0F0F0] text-[#999999]'
-                    }`}>
-                      {sc.confirmation_status === 'confirmed_consultant' ? 'Confirmed' : sc.confirmation_status?.replace(/_/g, ' ')}
-                    </span>
-                  ) : undefined
-                }
-              >
-                <div className="space-y-3">
-                  {sc.executive_summary && (
-                    <div>
-                      <p className="text-[11px] font-medium text-[#999999] uppercase tracking-wide mb-1">Executive Summary</p>
-                      <p className="text-[13px] text-[#666666] leading-relaxed">{sc.executive_summary}</p>
-                    </div>
-                  )}
-                  {sc.opportunity && Object.keys(sc.opportunity).length > 0 && (
-                    <div>
-                      <p className="text-[11px] font-medium text-[#999999] uppercase tracking-wide mb-1">Opportunity</p>
-                      <div className="bg-[#F9F9F9] rounded-lg p-3 space-y-1 text-[12px]">
-                        {Object.entries(sc.opportunity).map(([key, val]) => (
-                          val ? (
-                            <div key={key}>
-                              <span className="text-[#999999] capitalize">{key.replace(/_/g, ' ')}:</span>{' '}
-                              <span className="text-[#333333]">{toLabel(val)}</span>
-                            </div>
-                          ) : null
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  {cd.market_position && (
-                    <div>
-                      <p className="text-[11px] font-medium text-[#999999] uppercase tracking-wide mb-1">Market Position</p>
-                      <p className="text-[13px] text-[#666666]">{cd.market_position}</p>
-                    </div>
-                  )}
-                  {cd.vision_synthesis && (
-                    <div>
-                      <p className="text-[11px] font-medium text-[#999999] uppercase tracking-wide mb-1">Vision Synthesis</p>
-                      <p className="text-[13px] text-[#666666]">{cd.vision_synthesis}</p>
-                    </div>
-                  )}
-                  {cd.growth_signals.length > 0 && (
-                    <div>
-                      <p className="text-[11px] font-medium text-[#999999] uppercase tracking-wide mb-1">Growth Signals</p>
-                      <TagList items={cd.growth_signals} />
-                    </div>
-                  )}
-                  {cd.competitors.length > 0 && (
-                    <div>
-                      <p className="text-[11px] font-medium text-[#999999] uppercase tracking-wide mb-1">Competitors</p>
-                      <TagList items={cd.competitors} />
-                    </div>
-                  )}
-                  {sc.risks.length > 0 && (
-                    <div>
-                      <p className="text-[11px] font-medium text-[#999999] uppercase tracking-wide mb-1">Risks</p>
-                      <div className="space-y-1.5">
-                        {sc.risks.slice(0, 5).map((risk, i) => (
-                          <div key={i} className="flex items-start gap-2 text-[12px] bg-[#F9F9F9] rounded-lg px-3 py-2">
-                            <Shield className="w-3 h-3 text-[#999999] mt-0.5 flex-shrink-0" />
-                            <div>
-                              <span className="text-[#333333]">
-                                {typeof risk === 'string' ? risk : (risk.description || JSON.stringify(risk)) as string}
-                              </span>
-                              {typeof risk.severity === 'string' && (
-                                <span className="ml-1.5 text-[10px] text-[#999999]">({risk.severity})</span>
-                              )}
-                            </div>
+                          )
+                        }
+                        return (
+                          <div key={key} className="text-[12px]">
+                            <span className="text-[#999999] capitalize">{key.replace(/_/g, ' ')}:</span>{' '}
+                            <span className="text-[#333333]">{toLabel(val)}</span>
                           </div>
-                        ))}
-                      </div>
+                        )
+                      })}
                     </div>
-                  )}
-                  {!sc.executive_summary && Object.keys(sc.opportunity).length === 0 && !cd.market_position && (
-                    <p className="text-[12px] text-[#999999] italic">
-                      No strategic context available yet. Process more signals to build this section.
-                    </p>
-                  )}
-                </div>
-              </AccordionSection>
-
-              {/* Open Questions */}
-              <AccordionSection
-                title="Open Questions"
-                icon={HelpCircle}
-                badge={
-                  oq.length > 0 ? (
-                    <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-[#F0F0F0] text-[#666666]">
-                      {oq.length}
-                    </span>
-                  ) : undefined
-                }
-              >
-                {oq.length === 0 ? (
-                  <p className="text-[12px] text-[#999999] italic">
-                    No open questions recorded. Questions surface as the Discovery Agent interacts with signals.
-                  </p>
-                ) : (
-                  <div className="space-y-2">
-                    {oq.map((q, i) => {
-                      const question = toLabel(q)
-                      const answered = typeof q === 'object' && q !== null ? (q as Record<string, unknown>).answered : false
-                      return (
-                        <div
-                          key={i}
-                          className={`flex items-start gap-2 text-[13px] rounded-lg px-3 py-2 ${
-                            answered ? 'bg-[#E8F5E9]/50 text-[#25785A]' : 'bg-[#F9F9F9] text-[#666666]'
-                          }`}
-                        >
-                          <HelpCircle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
-                          <span>{question}</span>
-                        </div>
-                      )
-                    })}
                   </div>
                 )}
-              </AccordionSection>
-            </div>
+                <FieldRow label="Digital Readiness" value={cd.digital_readiness} />
+                <FieldRow label="Tech Maturity" value={cd.technology_maturity} />
+                {cd.role_gaps.length > 0 && (
+                  <div>
+                    <p className="text-[11px] font-medium text-[#999999] uppercase tracking-wide mb-1">Role Gaps</p>
+                    <div className="space-y-1">
+                      {cd.role_gaps.map((gap, i) => (
+                        <div key={i} className="text-[12px] text-[#666666] bg-[#F9F9F9] rounded-lg px-3 py-2">
+                          {typeof gap === 'string' ? gap : (gap.title || gap.role || JSON.stringify(gap)) as string}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {cd.tech_stack && (
+                  <div>
+                    <p className="text-[11px] font-medium text-[#999999] uppercase tracking-wide mb-1">Tech Stack</p>
+                    <TagList items={cd.tech_stack} emptyText="No tech stack data" />
+                  </div>
+                )}
+                {!cd.company_summary && Object.keys(cd.organizational_context).length === 0 && (
+                  <p className="text-[12px] text-[#999999] italic">
+                    Run the Client Intelligence Agent to populate this section.
+                  </p>
+                )}
+              </div>
+            </AccordionSection>
           )}
+
+          {/* Strategic Position */}
+          <AccordionSection
+            title="Strategic Position"
+            icon={Target}
+            badge={
+              sc.confirmation_status ? (
+                <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${
+                  sc.confirmation_status === 'confirmed_consultant' || sc.confirmation_status === 'confirmed_client'
+                    ? 'bg-[#E8F5E9] text-[#25785A]'
+                    : 'bg-[#F0F0F0] text-[#999999]'
+                }`}>
+                  {sc.confirmation_status === 'confirmed_consultant' ? 'Confirmed' : sc.confirmation_status?.replace(/_/g, ' ')}
+                </span>
+              ) : undefined
+            }
+          >
+            <div className="space-y-3">
+              {sc.executive_summary && (
+                <div>
+                  <p className="text-[11px] font-medium text-[#999999] uppercase tracking-wide mb-1">Executive Summary</p>
+                  <p className="text-[13px] text-[#666666] leading-relaxed">{sc.executive_summary}</p>
+                </div>
+              )}
+              {sc.opportunity && Object.keys(sc.opportunity).length > 0 && (
+                <div>
+                  <p className="text-[11px] font-medium text-[#999999] uppercase tracking-wide mb-1">Opportunity</p>
+                  <div className="bg-[#F9F9F9] rounded-lg p-3 space-y-1 text-[12px]">
+                    {Object.entries(sc.opportunity).map(([key, val]) => (
+                      val ? (
+                        <div key={key}>
+                          <span className="text-[#999999] capitalize">{key.replace(/_/g, ' ')}:</span>{' '}
+                          <span className="text-[#333333]">{toLabel(val)}</span>
+                        </div>
+                      ) : null
+                    ))}
+                  </div>
+                </div>
+              )}
+              {cd.market_position && (
+                <div>
+                  <p className="text-[11px] font-medium text-[#999999] uppercase tracking-wide mb-1">Market Position</p>
+                  <p className="text-[13px] text-[#666666]">{cd.market_position}</p>
+                </div>
+              )}
+              {cd.vision_synthesis && (
+                <div>
+                  <p className="text-[11px] font-medium text-[#999999] uppercase tracking-wide mb-1">Vision Synthesis</p>
+                  <p className="text-[13px] text-[#666666]">{cd.vision_synthesis}</p>
+                </div>
+              )}
+              {cd.growth_signals.length > 0 && (
+                <div>
+                  <p className="text-[11px] font-medium text-[#999999] uppercase tracking-wide mb-1">Growth Signals</p>
+                  <TagList items={cd.growth_signals} />
+                </div>
+              )}
+              {cd.competitors.length > 0 && (
+                <div>
+                  <p className="text-[11px] font-medium text-[#999999] uppercase tracking-wide mb-1">Competitors</p>
+                  <TagList items={cd.competitors} />
+                </div>
+              )}
+              {sc.risks.length > 0 && (
+                <div>
+                  <p className="text-[11px] font-medium text-[#999999] uppercase tracking-wide mb-1">Risks</p>
+                  <div className="space-y-1.5">
+                    {sc.risks.slice(0, 5).map((risk, i) => (
+                      <div key={i} className="flex items-start gap-2 text-[12px] bg-[#F9F9F9] rounded-lg px-3 py-2">
+                        <Shield className="w-3 h-3 text-[#999999] mt-0.5 flex-shrink-0" />
+                        <div>
+                          <span className="text-[#333333]">
+                            {typeof risk === 'string' ? risk : (risk.description || JSON.stringify(risk)) as string}
+                          </span>
+                          {typeof risk.severity === 'string' && (
+                            <span className="ml-1.5 text-[10px] text-[#999999]">({risk.severity})</span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {!sc.executive_summary && Object.keys(sc.opportunity).length === 0 && !cd.market_position && (
+                <p className="text-[12px] text-[#999999] italic">
+                  No strategic context available yet. Process more signals to build this section.
+                </p>
+              )}
+            </div>
+          </AccordionSection>
+
+          {/* Open Questions */}
+          <AccordionSection
+            title="Open Questions"
+            icon={HelpCircle}
+            badge={
+              oq.length > 0 ? (
+                <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-[#F0F0F0] text-[#666666]">
+                  {oq.length}
+                </span>
+              ) : undefined
+            }
+          >
+            {oq.length === 0 ? (
+              <p className="text-[12px] text-[#999999] italic">
+                No open questions recorded. Questions surface as the Discovery Agent interacts with signals.
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {oq.map((q, i) => {
+                  const question = toLabel(q)
+                  const answered = typeof q === 'object' && q !== null ? (q as Record<string, unknown>).answered : false
+                  return (
+                    <div
+                      key={i}
+                      className={`flex items-start gap-2 text-[13px] rounded-lg px-3 py-2 ${
+                        answered ? 'bg-[#E8F5E9]/50 text-[#25785A]' : 'bg-[#F9F9F9] text-[#666666]'
+                      }`}
+                    >
+                      <HelpCircle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
+                      <span>{question}</span>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </AccordionSection>
         </div>
-      </div>
-    </>
+      )}
+    </DrawerShell>
   )
 }

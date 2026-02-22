@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useMemo } from 'react'
 import {
-  X,
   Shield,
   Globe,
   Target,
@@ -12,6 +11,7 @@ import {
   Sparkles,
   BarChart3,
 } from 'lucide-react'
+import { DrawerShell, type DrawerTab } from '@/components/ui/DrawerShell'
 import { BRDStatusBadge } from './StatusBadge'
 import { formatRelativeTime } from '@/lib/date-utils'
 import { synthesizeCompetitors } from '@/lib/api'
@@ -95,106 +95,60 @@ export function CompetitorSynthesisDrawer({
 
   const hasAnalyzed = analyzedCount > 0
 
+  const drawerTabs: DrawerTab[] = TABS.map((tab) => ({
+    id: tab.id,
+    label: tab.label,
+    icon: tab.icon,
+    badge: tab.id === 'overview' ? (
+      <span className="ml-1 text-[10px] bg-[#F0F0F0] text-[#666666] px-1.5 py-0.5 rounded-full">{competitors.length}</span>
+    ) : undefined,
+  }))
+
   return (
-    <>
-      {/* Backdrop */}
-      <div
-        className="fixed inset-0 bg-black/20 z-40 transition-opacity"
-        onClick={onClose}
-      />
-
-      {/* Drawer */}
-      <div className="fixed right-0 top-0 h-full w-[640px] max-w-[95vw] bg-white shadow-xl z-50 flex flex-col animate-slide-in-right">
-        {/* Header */}
-        <div className="flex-shrink-0 border-b border-[#E5E5E5] px-6 py-4">
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex items-start gap-3 min-w-0 flex-1">
-              {/* Navy circle with Shield icon */}
-              <div className="w-8 h-8 rounded-full bg-[#0A1E2F] flex items-center justify-center flex-shrink-0 mt-0.5">
-                <Shield className="w-4 h-4 text-white" />
-              </div>
-              <div className="min-w-0">
-                <p className="text-[11px] font-medium text-[#999999] uppercase tracking-wide mb-1">
-                  Competitive Intelligence
-                </p>
-                <h2 className="text-[15px] font-semibold text-[#333333] leading-snug">
-                  {competitors.length} competitor{competitors.length !== 1 ? 's' : ''} tracked
-                </h2>
-                <div className="flex items-center gap-2 mt-1.5">
-                  <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-[#E8F5E9] text-[#25785A]">
-                    {confirmedCount} confirmed
-                  </span>
-                  <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-[#F0F0F0] text-[#666666]">
-                    {analyzedCount} analyzed
-                  </span>
-                </div>
-              </div>
-            </div>
-            <button
-              onClick={onClose}
-              className="p-1.5 rounded-md text-[#999999] hover:text-[#666666] hover:bg-[#F0F0F0] transition-colors flex-shrink-0"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-
-          {/* Tabs */}
-          <div className="flex gap-0 mt-4 -mb-4 border-b-0">
-            {TABS.map((tab) => {
-              const TabIcon = tab.icon
-              const isActive = activeTab === tab.id
-              const isDisabled = tab.id === 'intelligence' && !hasAnalyzed
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => !isDisabled && setActiveTab(tab.id)}
-                  disabled={isDisabled}
-                  className={`flex items-center gap-1.5 px-3 py-2 text-[12px] font-medium border-b-2 transition-colors ${
-                    isActive
-                      ? 'border-[#3FAF7A] text-[#25785A]'
-                      : isDisabled
-                        ? 'border-transparent text-[#E5E5E5] cursor-not-allowed'
-                        : 'border-transparent text-[#999999] hover:text-[#666666]'
-                  }`}
-                >
-                  <TabIcon className="w-3.5 h-3.5" />
-                  {tab.label}
-                  {tab.id === 'overview' && (
-                    <span className="ml-1 text-[10px] bg-[#F0F0F0] text-[#666666] px-1.5 py-0.5 rounded-full">
-                      {competitors.length}
-                    </span>
-                  )}
-                </button>
-              )
-            })}
-          </div>
+    <DrawerShell
+      onClose={onClose}
+      icon={Shield}
+      entityLabel="Competitive Intelligence"
+      title={`${competitors.length} competitor${competitors.length !== 1 ? 's' : ''} tracked`}
+      headerExtra={
+        <div className="flex items-center gap-2 mt-1.5">
+          <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-[#E8F5E9] text-[#25785A]">
+            {confirmedCount} confirmed
+          </span>
+          <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-[#F0F0F0] text-[#666666]">
+            {analyzedCount} analyzed
+          </span>
         </div>
-
-        {/* Body */}
-        <div className="flex-1 overflow-y-auto px-6 py-5">
-          {activeTab === 'overview' && (
-            <OverviewTab
-              competitors={competitors}
-              confirmedCount={confirmedCount}
-              analyzedCount={analyzedCount}
-              onOpenDetail={onOpenDetail}
-            />
-          )}
-          {activeTab === 'intelligence' && (
-            <IntelligenceTab
-              projectId={projectId}
-              features={features}
-              painPoints={painPoints}
-              goals={goals}
-              roiSummary={roiSummary}
-            />
-          )}
-          {activeTab === 'evidence' && (
-            <EvidenceTab competitors={competitors} onOpenDetail={onOpenDetail} />
-          )}
-        </div>
-      </div>
-    </>
+      }
+      width={640}
+      tabs={drawerTabs}
+      activeTab={activeTab}
+      onTabChange={(id) => {
+        if (id === 'intelligence' && !hasAnalyzed) return
+        setActiveTab(id as TabId)
+      }}
+    >
+      {activeTab === 'overview' && (
+        <OverviewTab
+          competitors={competitors}
+          confirmedCount={confirmedCount}
+          analyzedCount={analyzedCount}
+          onOpenDetail={onOpenDetail}
+        />
+      )}
+      {activeTab === 'intelligence' && (
+        <IntelligenceTab
+          projectId={projectId}
+          features={features}
+          painPoints={painPoints}
+          goals={goals}
+          roiSummary={roiSummary}
+        />
+      )}
+      {activeTab === 'evidence' && (
+        <EvidenceTab competitors={competitors} onOpenDetail={onOpenDetail} />
+      )}
+    </DrawerShell>
   )
 }
 

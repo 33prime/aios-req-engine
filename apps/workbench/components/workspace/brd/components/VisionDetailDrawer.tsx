@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react'
 import {
-  X,
   Eye,
   Clock,
   Sparkles,
@@ -11,6 +10,8 @@ import {
   Lightbulb,
   Pencil,
 } from 'lucide-react'
+import { DrawerShell, type DrawerTab } from '@/components/ui/DrawerShell'
+import { Spinner } from '@/components/ui/Spinner'
 import { getVisionDetail, updateProjectVision } from '@/lib/api'
 import { formatDate } from '@/lib/date-utils'
 import type { VisionDetailData, VisionAnalysis, RevisionEntry } from '@/types/workspace'
@@ -109,99 +110,55 @@ export function VisionDetailDrawer({
 
   const analysis = detail?.vision_analysis || null
 
+  const drawerTabs: DrawerTab[] = TABS.map((tab) => ({
+    id: tab.id,
+    label: tab.label,
+    icon: tab.icon,
+  }))
+
   return (
-    <>
-      {/* Backdrop */}
-      <div
-        className="fixed inset-0 bg-black/20 z-40 transition-opacity"
-        onClick={onClose}
-      />
-
-      {/* Drawer */}
-      <div className="fixed right-0 top-0 h-full w-[560px] max-w-full bg-white shadow-xl z-50 flex flex-col animate-slide-in-right">
-        {/* Header */}
-        <div className="flex-shrink-0 border-b border-[#E5E5E5] px-6 py-4">
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex items-start gap-3 min-w-0 flex-1">
-              <div className="w-8 h-8 rounded-full bg-[#0A1E2F] flex items-center justify-center flex-shrink-0 mt-0.5">
-                <Eye className="w-4 h-4 text-white" />
-              </div>
-              <div className="min-w-0">
-                <p className="text-[11px] font-medium text-[#999999] uppercase tracking-wide mb-1">
-                  Vision Statement
-                </p>
-                <h2 className="text-[15px] font-semibold text-[#333333] leading-snug">
-                  Product Vision
-                </h2>
-                {detail?.vision_updated_at && (
-                  <p className="text-[11px] text-[#999999] mt-1">
-                    Last updated {formatDate(detail.vision_updated_at)}
-                  </p>
-                )}
-              </div>
-            </div>
-            <button
-              onClick={onClose}
-              className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors flex-shrink-0"
-            >
-              <X className="w-4 h-4 text-[#999999]" />
-            </button>
-          </div>
-
-          {/* Tabs */}
-          <div className="flex gap-1 mt-4">
-            {TABS.map((tab) => {
-              const Icon = tab.icon
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium rounded-lg transition-colors ${
-                    activeTab === tab.id
-                      ? 'bg-[#E8F5E9] text-[#25785A]'
-                      : 'text-[#999999] hover:text-[#666666] hover:bg-[#F0F0F0]'
-                  }`}
-                >
-                  <Icon className="w-3.5 h-3.5" />
-                  {tab.label}
-                </button>
-              )
-            })}
-          </div>
-        </div>
-
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto px-6 py-5">
-          {loading ? (
-            <div className="flex items-center justify-center py-12">
-              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#3FAF7A]" />
-            </div>
-          ) : (
-            <>
-              {activeTab === 'current' && (
-                <CurrentTab
-                  detail={detail}
-                  analysis={analysis}
-                  editing={editing}
-                  draft={draft}
-                  saving={saving}
-                  onDraftChange={setDraft}
-                  onEdit={() => { setDraft(detail?.vision || ''); setEditing(true) }}
-                  onSave={handleSave}
-                  onCancel={() => { setEditing(false); setDraft(detail?.vision || '') }}
-                />
-              )}
-              {activeTab === 'evolution' && (
-                <EvolutionTab revisions={detail?.revisions || []} />
-              )}
-              {activeTab === 'sources' && (
-                <SourcesTab />
-              )}
-            </>
+    <DrawerShell
+      onClose={onClose}
+      icon={Eye}
+      entityLabel="Vision Statement"
+      title="Product Vision"
+      headerExtra={
+        detail?.vision_updated_at ? (
+          <p className="text-[11px] text-[#999999] mt-1">
+            Last updated {formatDate(detail.vision_updated_at)}
+          </p>
+        ) : undefined
+      }
+      tabs={drawerTabs}
+      activeTab={activeTab}
+      onTabChange={(id) => setActiveTab(id as TabId)}
+    >
+      {loading ? (
+        <Spinner />
+      ) : (
+        <>
+          {activeTab === 'current' && (
+            <CurrentTab
+              detail={detail}
+              analysis={analysis}
+              editing={editing}
+              draft={draft}
+              saving={saving}
+              onDraftChange={setDraft}
+              onEdit={() => { setDraft(detail?.vision || ''); setEditing(true) }}
+              onSave={handleSave}
+              onCancel={() => { setEditing(false); setDraft(detail?.vision || '') }}
+            />
           )}
-        </div>
-      </div>
-    </>
+          {activeTab === 'evolution' && (
+            <EvolutionTab revisions={detail?.revisions || []} />
+          )}
+          {activeTab === 'sources' && (
+            <SourcesTab />
+          )}
+        </>
+      )}
+    </DrawerShell>
   )
 }
 

@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useMemo } from 'react'
 import {
-  X,
   Clock,
   Users,
   Puzzle,
@@ -21,6 +20,8 @@ import {
   Shield,
   FileText,
 } from 'lucide-react'
+import { DrawerShell, type DrawerTab } from '@/components/ui/DrawerShell'
+import { Spinner } from '@/components/ui/Spinner'
 import { BRDStatusBadge } from './StatusBadge'
 import { ConfirmActions } from './ConfirmActions'
 import { Markdown } from '@/components/ui/Markdown'
@@ -124,146 +125,84 @@ export function WorkflowDetailDrawer({
 
   const insightCount = detail?.insights?.length || 0
 
+  const drawerTabs: DrawerTab[] = TABS.map((tab) => ({
+    id: tab.id,
+    label: tab.label,
+    icon: tab.icon,
+    badge: tab.id === 'evidence' && evidenceCount > 0 ? (
+      <span className="ml-1 text-[10px] bg-[#F0F0F0] text-[#666666] px-1.5 py-0.5 rounded-full">{evidenceCount}</span>
+    ) : tab.id === 'connections' && connectionCount > 0 ? (
+      <span className="ml-1 text-[10px] bg-[#F0F0F0] text-[#666666] px-1.5 py-0.5 rounded-full">{connectionCount}</span>
+    ) : tab.id === 'insights' && insightCount > 0 ? (
+      <span className="ml-1 text-[10px] bg-[#F0F0F0] text-[#666666] px-1.5 py-0.5 rounded-full">{insightCount}</span>
+    ) : tab.id === 'history' && detail && detail.revision_count > 0 ? (
+      <span className="ml-1 text-[10px] bg-[#F0F0F0] text-[#666666] px-1.5 py-0.5 rounded-full">{detail.revision_count}</span>
+    ) : undefined,
+  }))
+
   return (
-    <>
-      {/* Backdrop */}
-      <div
-        className="fixed inset-0 bg-black/20 z-40 transition-opacity"
-        onClick={onClose}
-      />
-
-      {/* Drawer */}
-      <div className="fixed right-0 top-0 h-full w-[560px] max-w-full bg-white shadow-xl z-50 flex flex-col animate-slide-in-right">
-        {/* Header */}
-        <div className="flex-shrink-0 border-b border-[#E5E5E5] px-6 py-4">
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex items-start gap-3 min-w-0 flex-1">
-              {/* Navy circle with workflow icon */}
-              <div className="w-8 h-8 rounded-full bg-[#0A1E2F] flex items-center justify-center flex-shrink-0 mt-0.5">
-                <Workflow className="w-4 h-4 text-white" />
-              </div>
-              <div className="min-w-0">
-                <p className="text-[11px] font-medium text-[#999999] uppercase tracking-wide mb-1">
-                  Workflow Detail
-                </p>
-                <h2 className="text-[15px] font-semibold text-[#333333] line-clamp-2 leading-snug">
-                  {detail?.name || 'Loading...'}
-                </h2>
-                {detail && (
-                  <div className="flex items-center gap-2 mt-1.5">
-                    <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-[#F0F0F0] text-[#666666]">
-                      {detail.total_step_count} steps
-                    </span>
-                    {detail.enriched_step_count > 0 && (
-                      <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-[#E8F5E9] text-[#25785A]">
-                        {detail.enriched_step_count} enriched
-                      </span>
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-            <div className="flex items-center gap-2 flex-shrink-0">
-              <BRDStatusBadge status={detail?.confirmation_status} />
-              <button
-                onClick={onClose}
-                className="p-1.5 rounded-md text-[#999999] hover:text-[#666666] hover:bg-[#F0F0F0] transition-colors"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
+    <DrawerShell
+      onClose={onClose}
+      icon={Workflow}
+      entityLabel="Workflow Detail"
+      title={detail?.name || 'Loading...'}
+      headerExtra={
+        detail ? (
+          <div className="flex items-center gap-2 mt-1.5">
+            <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-[#F0F0F0] text-[#666666]">
+              {detail.total_step_count} steps
+            </span>
+            {detail.enriched_step_count > 0 && (
+              <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-[#E8F5E9] text-[#25785A]">
+                {detail.enriched_step_count} enriched
+              </span>
+            )}
           </div>
-
-          {/* Confirm/Review actions */}
-          {detail && (
-            <div className="mt-3">
-              <ConfirmActions
-                status={detail.confirmation_status}
-                onConfirm={() => onConfirm('workflow', workflowId)}
-                onNeedsReview={() => onNeedsReview('workflow', workflowId)}
-                size="md"
-              />
-            </div>
+        ) : undefined
+      }
+      headerRight={<BRDStatusBadge status={detail?.confirmation_status} />}
+      headerActions={
+        detail ? (
+          <ConfirmActions
+            status={detail.confirmation_status}
+            onConfirm={() => onConfirm('workflow', workflowId)}
+            onNeedsReview={() => onNeedsReview('workflow', workflowId)}
+            size="md"
+          />
+        ) : undefined
+      }
+      tabs={drawerTabs}
+      activeTab={activeTab}
+      onTabChange={(id) => setActiveTab(id as TabId)}
+    >
+      {loading && !detail ? (
+        <Spinner label="Loading workflow details..." />
+      ) : detail ? (
+        <>
+          {activeTab === 'overview' && (
+            <OverviewTab detail={detail} onViewStepDetail={onViewStepDetail} onEnrich={handleEnrich} enriching={enriching} />
           )}
-
-          {/* Tabs */}
-          <div className="flex gap-0 mt-4 -mb-4 border-b-0">
-            {TABS.map((tab) => {
-              const TabIcon = tab.icon
-              const isActive = activeTab === tab.id
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center gap-1.5 px-3 py-2 text-[12px] font-medium border-b-2 transition-colors ${
-                    isActive
-                      ? 'border-[#3FAF7A] text-[#25785A]'
-                      : 'border-transparent text-[#999999] hover:text-[#666666]'
-                  }`}
-                >
-                  <TabIcon className="w-3.5 h-3.5" />
-                  {tab.label}
-                  {tab.id === 'evidence' && evidenceCount > 0 && (
-                    <span className="ml-1 text-[10px] bg-[#F0F0F0] text-[#666666] px-1.5 py-0.5 rounded-full">
-                      {evidenceCount}
-                    </span>
-                  )}
-                  {tab.id === 'connections' && connectionCount > 0 && (
-                    <span className="ml-1 text-[10px] bg-[#F0F0F0] text-[#666666] px-1.5 py-0.5 rounded-full">
-                      {connectionCount}
-                    </span>
-                  )}
-                  {tab.id === 'insights' && insightCount > 0 && (
-                    <span className="ml-1 text-[10px] bg-[#F0F0F0] text-[#666666] px-1.5 py-0.5 rounded-full">
-                      {insightCount}
-                    </span>
-                  )}
-                  {tab.id === 'history' && detail && detail.revision_count > 0 && (
-                    <span className="ml-1 text-[10px] bg-[#F0F0F0] text-[#666666] px-1.5 py-0.5 rounded-full">
-                      {detail.revision_count}
-                    </span>
-                  )}
-                </button>
-              )
-            })}
-          </div>
-        </div>
-
-        {/* Body */}
-        <div className="flex-1 overflow-y-auto px-6 py-5">
-          {loading && !detail ? (
-            <div className="text-center py-8">
-              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#3FAF7A] mx-auto" />
-              <p className="text-[12px] text-[#999999] mt-2">Loading workflow details...</p>
-            </div>
-          ) : detail ? (
-            <>
-              {activeTab === 'overview' && (
-                <OverviewTab detail={detail} onViewStepDetail={onViewStepDetail} onEnrich={handleEnrich} enriching={enriching} />
-              )}
-              {activeTab === 'evidence' && <EvidenceTab evidence={detail.evidence} />}
-              {activeTab === 'connections' && <ConnectionsTab detail={detail} />}
-              {activeTab === 'insights' && <InsightsTab insights={detail.insights} />}
-              {activeTab === 'history' && <HistoryTab revisions={detail.revisions} />}
-              {activeTab === 'who_knows' && (
-                <WhoHasTheData
-                  topics={[
-                    'process', 'workflow', 'operations',
-                    ...inferTopicsFromText(detail.name + ' ' + (detail.description || '')),
-                  ]}
-                  stakeholders={stakeholders}
-                  evidence={[]}
-                />
-              )}
-            </>
-          ) : (
-            <div className="text-center py-8">
-              <p className="text-[13px] text-[#666666]">Failed to load workflow details.</p>
-            </div>
+          {activeTab === 'evidence' && <EvidenceTab evidence={detail.evidence} />}
+          {activeTab === 'connections' && <ConnectionsTab detail={detail} />}
+          {activeTab === 'insights' && <InsightsTab insights={detail.insights} />}
+          {activeTab === 'history' && <HistoryTab revisions={detail.revisions} />}
+          {activeTab === 'who_knows' && (
+            <WhoHasTheData
+              topics={[
+                'process', 'workflow', 'operations',
+                ...inferTopicsFromText(detail.name + ' ' + (detail.description || '')),
+              ]}
+              stakeholders={stakeholders}
+              evidence={[]}
+            />
           )}
+        </>
+      ) : (
+        <div className="text-center py-8">
+          <p className="text-[13px] text-[#666666]">Failed to load workflow details.</p>
         </div>
-      </div>
-    </>
+      )}
+    </DrawerShell>
   )
 }
 

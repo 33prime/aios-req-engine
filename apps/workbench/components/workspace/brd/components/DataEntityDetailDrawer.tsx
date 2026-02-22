@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react'
 import {
-  X,
   Database,
   Layers,
   Settings2,
@@ -14,6 +13,8 @@ import {
   AlertTriangle,
   ArrowRight,
 } from 'lucide-react'
+import { DrawerShell, type DrawerTab } from '@/components/ui/DrawerShell'
+import { Spinner } from '@/components/ui/Spinner'
 import { BRDStatusBadge } from './StatusBadge'
 import { ConfirmActions } from './ConfirmActions'
 import { EvidenceBlock } from './EvidenceBlock'
@@ -105,112 +106,68 @@ export function DataEntityDetailDrawer({
 
   const enrichment = detail?.enrichment_data || null
 
+  const drawerTabs: DrawerTab[] = TABS.map((tab) => ({
+    id: tab.id,
+    label: tab.label,
+    icon: tab.icon,
+  }))
+
+  const headerExtra = detail ? (
+    <div className="flex items-center gap-2 mt-1.5">
+      <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-[#F0F0F0] text-[#666666]">
+        {CATEGORY_LABELS[detail.entity_category] || detail.entity_category}
+      </span>
+      <span className="text-[10px] text-[#999999]">
+        {detail.fields?.length || 0} fields
+      </span>
+      {detail.enrichment_status === 'enriched' && (
+        <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-[#E8F5E9] text-[#25785A]">
+          Enriched
+        </span>
+      )}
+    </div>
+  ) : undefined
+
   return (
-    <>
-      {/* Backdrop */}
-      <div
-        className="fixed inset-0 bg-black/20 z-40 transition-opacity"
-        onClick={onClose}
-      />
-
-      {/* Drawer */}
-      <div className="fixed right-0 top-0 h-full w-[560px] max-w-full bg-white shadow-xl z-50 flex flex-col animate-slide-in-right">
-        {/* Header */}
-        <div className="flex-shrink-0 border-b border-[#E5E5E5] px-6 py-4">
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex items-start gap-3 min-w-0 flex-1">
-              <div className="w-8 h-8 rounded-full bg-[#0A1E2F] flex items-center justify-center flex-shrink-0 mt-0.5">
-                <Database className="w-4 h-4 text-white" />
-              </div>
-              <div className="min-w-0">
-                <p className="text-[11px] font-medium text-[#999999] uppercase tracking-wide mb-1">
-                  Data Entity
-                </p>
-                <h2 className="text-[15px] font-semibold text-[#333333] leading-snug">
-                  {detail?.name || 'Loading...'}
-                </h2>
-                {detail && (
-                  <div className="flex items-center gap-2 mt-1.5">
-                    <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-[#F0F0F0] text-[#666666]">
-                      {CATEGORY_LABELS[detail.entity_category] || detail.entity_category}
-                    </span>
-                    <span className="text-[10px] text-[#999999]">
-                      {detail.fields?.length || 0} fields
-                    </span>
-                    {detail.enrichment_status === 'enriched' && (
-                      <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-[#E8F5E9] text-[#25785A]">
-                        Enriched
-                      </span>
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-            <button
-              onClick={onClose}
-              className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors flex-shrink-0"
-            >
-              <X className="w-4 h-4 text-[#999999]" />
-            </button>
-          </div>
-
-          {/* Tabs */}
-          <div className="flex gap-1 mt-4 overflow-x-auto">
-            {TABS.map((tab) => {
-              const Icon = tab.icon
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium rounded-lg transition-colors whitespace-nowrap ${
-                    activeTab === tab.id
-                      ? 'bg-[#E8F5E9] text-[#25785A]'
-                      : 'text-[#999999] hover:text-[#666666] hover:bg-[#F0F0F0]'
-                  }`}
-                >
-                  <Icon className="w-3.5 h-3.5" />
-                  {tab.label}
-                </button>
-              )
-            })}
-          </div>
-        </div>
-
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto px-6 py-5">
-          {loading ? (
-            <div className="flex items-center justify-center py-12">
-              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#3FAF7A]" />
-            </div>
-          ) : detail ? (
-            <>
-              {activeTab === 'overview' && (
-                <OverviewTab detail={detail} onConfirm={onConfirm} onNeedsReview={onNeedsReview} />
-              )}
-              {activeTab === 'fields' && (
-                <FieldsTab detail={detail} />
-              )}
-              {activeTab === 'journey' && (
-                <JourneyTab workflowLinks={detail.workflow_links || []} />
-              )}
-              {activeTab === 'intelligence' && (
-                <IntelligenceTab
-                  enrichment={enrichment}
-                  enrichmentStatus={detail.enrichment_status}
-                  onAnalyze={handleAnalyze}
-                  analyzing={analyzing}
-                />
-              )}
-              {activeTab === 'history' && (
-                <HistoryTab revisions={detail.revisions || []} />
-              )}
-            </>
-          ) : (
-            <p className="text-[13px] text-[#999999] text-center py-8">Failed to load entity details.</p>
+    <DrawerShell
+      onClose={onClose}
+      icon={Database}
+      entityLabel="Data Entity"
+      title={detail?.name || 'Loading...'}
+      headerExtra={headerExtra}
+      tabs={drawerTabs}
+      activeTab={activeTab}
+      onTabChange={(id) => setActiveTab(id as TabId)}
+    >
+      {loading ? (
+        <Spinner />
+      ) : detail ? (
+        <>
+          {activeTab === 'overview' && (
+            <OverviewTab detail={detail} onConfirm={onConfirm} onNeedsReview={onNeedsReview} />
           )}
-        </div>
-      </div>
-    </>
+          {activeTab === 'fields' && (
+            <FieldsTab detail={detail} />
+          )}
+          {activeTab === 'journey' && (
+            <JourneyTab workflowLinks={detail.workflow_links || []} />
+          )}
+          {activeTab === 'intelligence' && (
+            <IntelligenceTab
+              enrichment={enrichment}
+              enrichmentStatus={detail.enrichment_status}
+              onAnalyze={handleAnalyze}
+              analyzing={analyzing}
+            />
+          )}
+          {activeTab === 'history' && (
+            <HistoryTab revisions={detail.revisions || []} />
+          )}
+        </>
+      ) : (
+        <p className="text-[13px] text-[#999999] text-center py-8">Failed to load entity details.</p>
+      )}
+    </DrawerShell>
   )
 }
 

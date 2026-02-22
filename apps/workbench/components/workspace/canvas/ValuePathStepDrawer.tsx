@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react'
 import {
-  X,
   Route,
   User,
   TrendingUp,
@@ -18,6 +17,9 @@ import {
   Unlock,
   Lightbulb,
 } from 'lucide-react'
+import { DrawerShell, type DrawerTab } from '@/components/ui/DrawerShell'
+import { Spinner } from '@/components/ui/Spinner'
+import { EmptyState } from '@/components/ui/EmptyState'
 import { getValuePathStepDetail } from '@/lib/api'
 import type {
   ValuePathStepDetail,
@@ -39,12 +41,12 @@ interface ValuePathStepDrawerProps {
 
 type TabId = 'actors' | 'system_flow' | 'business_calcs' | 'components' | 'unlocks'
 
-const TABS: { id: TabId; label: string; accent?: boolean }[] = [
-  { id: 'actors', label: 'Actors' },
-  { id: 'system_flow', label: 'System Flow' },
-  { id: 'business_calcs', label: 'Calculations' },
-  { id: 'components', label: 'Components' },
-  { id: 'unlocks', label: 'Unlocks', accent: true },
+const TABS: (DrawerTab & { id: TabId })[] = [
+  { id: 'actors', label: 'Actors', icon: User },
+  { id: 'system_flow', label: 'System Flow', icon: Cpu },
+  { id: 'business_calcs', label: 'Calculations', icon: TrendingUp },
+  { id: 'components', label: 'Components', icon: Puzzle },
+  { id: 'unlocks', label: 'Unlocks', icon: Sparkles },
 ]
 
 export function ValuePathStepDrawer({
@@ -87,105 +89,59 @@ export function ValuePathStepDrawer({
     }
   }, [projectId, stepIndex])
 
+  const unlockCount = detail ? detail.unlocks.length : 0
+  const tabsWithBadge: (DrawerTab & { id: TabId })[] = TABS.map((tab) =>
+    tab.id === 'unlocks' && unlockCount > 0
+      ? {
+          ...tab,
+          badge: (
+            <span className="text-[9px] font-bold bg-[#3FAF7A] text-white px-1 py-0.5 rounded-full min-w-[16px] text-center">
+              {unlockCount}
+            </span>
+          ),
+        }
+      : tab
+  )
+
   return (
-    <>
-      {/* Backdrop */}
-      <div
-        className="fixed inset-0 bg-black/20 z-40"
-        onClick={onClose}
-      />
-
-      {/* Drawer */}
-      <div className="fixed right-0 top-0 h-full w-[560px] max-w-full bg-white shadow-xl z-50 flex flex-col animate-slide-in-right">
-        {/* Header */}
-        <div className="flex-shrink-0 border-b border-[#E5E5E5] px-6 py-4">
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex items-start gap-3 min-w-0 flex-1">
-              <div className="w-8 h-8 rounded-full bg-[#0A1E2F] flex items-center justify-center flex-shrink-0 mt-0.5">
-                <Route className="w-4 h-4 text-white" />
-              </div>
-              <div className="min-w-0">
-                <p className="text-[11px] font-medium text-[#999999] uppercase tracking-wide mb-1">
-                  VALUE PATH STEP
-                </p>
-                <h2 className="text-[15px] font-semibold text-[#333333] line-clamp-2 leading-snug">
-                  {stepTitle}
-                </h2>
-                {detail && (
-                  <div className="flex items-center gap-2 mt-1.5">
-                    <AutomationBadge level={detail.automation_level} />
-                    {detail.time_minutes != null && (
-                      <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-[#F0F0F0] text-[#666666]">
-                        {detail.time_minutes}min
-                      </span>
-                    )}
-                    <RoiImpactDot impact={detail.roi_impact} />
-                  </div>
-                )}
-              </div>
-            </div>
-            <button
-              onClick={onClose}
-              className="p-1.5 rounded-lg text-[#999999] hover:text-[#666666] hover:bg-gray-100 transition-colors flex-shrink-0"
-            >
-              <X className="w-4 h-4" />
-            </button>
+    <DrawerShell
+      onClose={onClose}
+      icon={Route}
+      entityLabel="Value Path Step"
+      title={stepTitle}
+      headerExtra={
+        detail ? (
+          <div className="flex items-center gap-2 mt-1.5">
+            <AutomationBadge level={detail.automation_level} />
+            {detail.time_minutes != null && (
+              <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-[#F0F0F0] text-[#666666]">
+                {detail.time_minutes}min
+              </span>
+            )}
+            <RoiImpactDot impact={detail.roi_impact} />
           </div>
-
-          {/* Tabs */}
-          <div className="flex gap-0 mt-4 -mb-4 border-b-0">
-            {TABS.map((tab) => {
-              const isActive = activeTab === tab.id
-              const unlockCount = tab.id === 'unlocks' && detail ? detail.unlocks.length : 0
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`px-3 py-2 text-[12px] font-medium border-b-2 transition-colors flex items-center gap-1 ${
-                    isActive && tab.accent
-                      ? 'border-[#3FAF7A] text-[#25785A] bg-[#E8F5E9]/40 rounded-t-lg'
-                      : isActive
-                        ? 'border-[#3FAF7A] text-[#25785A]'
-                        : tab.accent
-                          ? 'border-transparent text-[#3FAF7A] hover:text-[#25785A]'
-                          : 'border-transparent text-[#999999] hover:text-[#666666]'
-                  }`}
-                >
-                  {tab.accent && <Sparkles className="w-3 h-3" />}
-                  {tab.label}
-                  {tab.id === 'unlocks' && unlockCount > 0 && (
-                    <span className="text-[9px] font-bold bg-[#3FAF7A] text-white px-1 py-0.5 rounded-full min-w-[16px] text-center">
-                      {unlockCount}
-                    </span>
-                  )}
-                </button>
-              )
-            })}
-          </div>
+        ) : undefined
+      }
+      tabs={tabsWithBadge}
+      activeTab={activeTab}
+      onTabChange={(id) => setActiveTab(id as TabId)}
+    >
+      {loading && !detail ? (
+        <Spinner label="Loading step details..." />
+      ) : detail ? (
+        <>
+          {activeTab === 'actors' && <ActorsTab detail={detail} />}
+          {activeTab === 'system_flow' && <SystemFlowTab detail={detail} />}
+          {activeTab === 'business_calcs' && <BusinessCalculationsTab logic={detail.business_logic} />}
+          {activeTab === 'components' && <ComponentsTab detail={detail} />}
+          {activeTab === 'unlocks' && <UnlocksTab unlocks={detail.unlocks} />}
+        </>
+      ) : (
+        <div className="text-center py-8">
+          <p className="text-[13px] text-[#666666]">Failed to load step details.</p>
         </div>
-
-        {/* Body */}
-        <div className="flex-1 overflow-y-auto px-6 py-5">
-          {loading && !detail ? (
-            <div className="flex items-center justify-center py-16">
-              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#3FAF7A]" />
-            </div>
-          ) : detail ? (
-            <>
-              {activeTab === 'actors' && <ActorsTab detail={detail} />}
-              {activeTab === 'system_flow' && <SystemFlowTab detail={detail} />}
-              {activeTab === 'business_calcs' && <BusinessCalculationsTab logic={detail.business_logic} />}
-              {activeTab === 'components' && <ComponentsTab detail={detail} />}
-              {activeTab === 'unlocks' && <UnlocksTab unlocks={detail.unlocks} />}
-            </>
-          ) : (
-            <div className="text-center py-8">
-              <p className="text-[13px] text-[#666666]">Failed to load step details.</p>
-            </div>
-          )}
-        </div>
-      </div>
-    </>
+      )}
+    </DrawerShell>
   )
 }
 
@@ -878,24 +834,3 @@ function EffortIndicator({ level }: { level: string }) {
   )
 }
 
-// ============================================================================
-// Shared
-// ============================================================================
-
-function EmptyState({
-  icon,
-  title,
-  description,
-}: {
-  icon: React.ReactNode
-  title: string
-  description: string
-}) {
-  return (
-    <div className="text-center py-8">
-      <div className="mx-auto mb-3">{icon}</div>
-      <p className="text-[13px] text-[#666666] mb-1">{title}</p>
-      <p className="text-[12px] text-[#999999]">{description}</p>
-    </div>
-  )
-}

@@ -1,8 +1,9 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { X, Globe, Target, Shield, Sparkles, ExternalLink, FileText, Swords, Loader2, ToggleLeft, ToggleRight } from 'lucide-react'
+import { Globe, Target, Shield, Sparkles, ExternalLink, FileText, Swords, Loader2, ToggleLeft, ToggleRight } from 'lucide-react'
 import { getCompetitorAnalysis, analyzeCompetitor, toggleDesignReference } from '@/lib/api'
+import { DrawerShell, type DrawerTab } from '@/components/ui/DrawerShell'
 import { ConfirmActions } from './ConfirmActions'
 import { EvidenceBlock } from './EvidenceBlock'
 import type { CompetitorBRDSummary, CompetitorDeepAnalysis } from '@/types/workspace'
@@ -32,6 +33,13 @@ const THREAT_COLORS: Record<string, { bg: string; text: string }> = {
   high: { bg: 'bg-[#E8F5E9]', text: 'text-[#25785A]' },
   critical: { bg: 'bg-[#E8F5E9]', text: 'text-[#25785A]' },
 }
+
+const TABS: DrawerTab[] = [
+  { id: 'overview', label: 'Overview', icon: Globe },
+  { id: 'analysis', label: 'Analysis', icon: Target },
+  { id: 'strategic', label: 'Strategic', icon: Swords },
+  { id: 'evidence', label: 'Evidence', icon: FileText },
+]
 
 export function CompetitorDetailDrawer({
   competitor,
@@ -114,142 +122,106 @@ export function CompetitorDetailDrawer({
 
   const posConfig = POSITION_LABELS[competitor.market_position || ''] || POSITION_LABELS.niche_player
 
-  const tabs: { id: TabId; label: string; icon: React.ReactNode }[] = [
-    { id: 'overview', label: 'Overview', icon: <Globe className="w-3.5 h-3.5" /> },
-    { id: 'analysis', label: 'Analysis', icon: <Target className="w-3.5 h-3.5" /> },
-    { id: 'strategic', label: 'Strategic', icon: <Swords className="w-3.5 h-3.5" /> },
-    { id: 'evidence', label: 'Evidence', icon: <FileText className="w-3.5 h-3.5" /> },
-  ]
-
   return (
-    <>
-      <div className="fixed inset-0 bg-black/20 z-40" onClick={onClose} />
-      <div className="fixed right-0 top-0 h-screen w-[560px] max-w-[90vw] bg-white shadow-xl z-50 flex flex-col animate-slide-in-right">
-        {/* Header */}
-        <div className="flex items-start justify-between px-6 py-4 border-b border-[#E5E5E5]">
-          <div className="flex items-start gap-3 min-w-0 flex-1">
-            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#3FAF7A] to-[#25785A] flex items-center justify-center text-white text-[14px] font-medium flex-shrink-0 mt-0.5">
-              {competitor.name[0]?.toUpperCase() || '?'}
-            </div>
-            <div className="min-w-0 flex-1">
-              <h2 className="text-[16px] font-semibold text-[#333333] truncate">{competitor.name}</h2>
-              {(competitor.website || competitor.url) && (
-                <a
-                  href={competitor.website || competitor.url || '#'}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-[12px] text-[#3FAF7A] hover:underline flex items-center gap-1"
-                >
-                  {(competitor.website || competitor.url || '').replace(/^https?:\/\//, '')}
-                  <ExternalLink className="w-3 h-3" />
-                </a>
-              )}
-              <div className="flex items-center gap-1.5 mt-1.5">
-                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium ${posConfig.bg} ${posConfig.text}`}>
-                  {posConfig.label}
-                </span>
-                {competitor.confirmation_status && (
-                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-[#F0F0F0] text-[#666666]">
-                    {competitor.confirmation_status.replace(/_/g, ' ')}
-                  </span>
-                )}
-              </div>
-            </div>
-            <button onClick={onClose} className="p-1.5 text-[#999999] hover:text-[#333333] transition-colors flex-shrink-0">
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-        </div>
-
-        {/* Confirm/Review actions */}
-        <div className="px-6 py-2 border-b border-[#E5E5E5]">
-          <ConfirmActions
-            status={competitor.confirmation_status}
-            onConfirm={() => onConfirm('competitor_reference', competitor.id)}
-            onNeedsReview={() => onNeedsReview('competitor_reference', competitor.id)}
-            size="md"
-          />
-        </div>
-
-        {/* Design reference toggle + Analyze button */}
-        <div className="flex items-center justify-between px-6 py-3 border-b border-[#E5E5E5] bg-[#F4F4F4]">
-          <button
-            onClick={handleToggleDesignRef}
-            className="flex items-center gap-2 text-[12px] text-[#666666] hover:text-[#333333] transition-colors"
-          >
-            {isDesignRef ? (
-              <ToggleRight className="w-5 h-5 text-[#3FAF7A]" />
-            ) : (
-              <ToggleLeft className="w-5 h-5 text-[#999999]" />
-            )}
-            Design reference
-          </button>
-
-          {analysisStatus !== 'completed' && (
-            competitor.confirmation_status === 'confirmed_consultant' || competitor.confirmation_status === 'confirmed_client' ? (
-              <button
-                onClick={handleAnalyze}
-                disabled={analyzing}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-white bg-[#3FAF7A] rounded-lg hover:bg-[#25785A] transition-colors disabled:opacity-50"
-              >
-                {analyzing ? (
-                  <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Analyzing...</>
-                ) : (
-                  <><Sparkles className="w-3.5 h-3.5" /> Analyze</>
-                )}
-              </button>
-            ) : (
-              <span className="text-[11px] text-[#999999] italic">Confirm this competitor before running analysis</span>
-            )
-          )}
-        </div>
-
-        {/* Tabs */}
-        <div className="flex border-b border-[#E5E5E5] px-6">
-          {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-1.5 px-3 py-2.5 text-[12px] font-medium border-b-2 transition-colors ${
-                activeTab === tab.id
-                  ? 'border-[#3FAF7A] text-[#25785A]'
-                  : 'border-transparent text-[#999999] hover:text-[#666666]'
-              }`}
+    <DrawerShell
+      onClose={onClose}
+      icon={Globe}
+      entityLabel="Competitor"
+      title={competitor.name}
+      headerExtra={
+        <>
+          {(competitor.website || competitor.url) && (
+            <a
+              href={competitor.website || competitor.url || '#'}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[12px] text-[#3FAF7A] hover:underline flex items-center gap-1"
             >
-              {tab.icon}
-              {tab.label}
+              {(competitor.website || competitor.url || '').replace(/^https?:\/\//, '')}
+              <ExternalLink className="w-3 h-3" />
+            </a>
+          )}
+          <div className="flex items-center gap-1.5 mt-1.5">
+            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium ${posConfig.bg} ${posConfig.text}`}>
+              {posConfig.label}
+            </span>
+            {competitor.confirmation_status && (
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-[#F0F0F0] text-[#666666]">
+                {competitor.confirmation_status.replace(/_/g, ' ')}
+              </span>
+            )}
+          </div>
+        </>
+      }
+      headerActions={
+        <ConfirmActions
+          status={competitor.confirmation_status}
+          onConfirm={() => onConfirm('competitor_reference', competitor.id)}
+          onNeedsReview={() => onNeedsReview('competitor_reference', competitor.id)}
+          size="md"
+        />
+      }
+      tabs={TABS}
+      activeTab={activeTab}
+      onTabChange={(id) => setActiveTab(id as TabId)}
+    >
+      {/* Design reference toggle + Analyze button */}
+      <div className="flex items-center justify-between px-6 py-3 -mx-6 -mt-5 mb-5 border-b border-[#E5E5E5] bg-[#F4F4F4]">
+        <button
+          onClick={handleToggleDesignRef}
+          className="flex items-center gap-2 text-[12px] text-[#666666] hover:text-[#333333] transition-colors"
+        >
+          {isDesignRef ? (
+            <ToggleRight className="w-5 h-5 text-[#3FAF7A]" />
+          ) : (
+            <ToggleLeft className="w-5 h-5 text-[#999999]" />
+          )}
+          Design reference
+        </button>
+
+        {analysisStatus !== 'completed' && (
+          competitor.confirmation_status === 'confirmed_consultant' || competitor.confirmation_status === 'confirmed_client' ? (
+            <button
+              onClick={handleAnalyze}
+              disabled={analyzing}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-white bg-[#3FAF7A] rounded-lg hover:bg-[#25785A] transition-colors disabled:opacity-50"
+            >
+              {analyzing ? (
+                <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Analyzing...</>
+              ) : (
+                <><Sparkles className="w-3.5 h-3.5" /> Analyze</>
+              )}
             </button>
-          ))}
-        </div>
-
-        {/* Tab content */}
-        <div className="flex-1 overflow-y-auto px-6 py-5">
-          {activeTab === 'overview' && (
-            <OverviewTab competitor={competitor} />
-          )}
-
-          {activeTab === 'analysis' && (
-            <AnalysisTab
-              analysis={analysis}
-              loading={analysisLoading || analyzing}
-              status={analysisStatus}
-            />
-          )}
-
-          {activeTab === 'strategic' && (
-            <StrategicTab
-              analysis={analysis}
-              loading={analysisLoading || analyzing}
-              status={analysisStatus}
-            />
-          )}
-
-          {activeTab === 'evidence' && (
-            <CompetitorEvidenceTab scrapedPages={scrapedPages} evidence={competitor.evidence || []} />
-          )}
-        </div>
+          ) : (
+            <span className="text-[11px] text-[#999999] italic">Confirm this competitor before running analysis</span>
+          )
+        )}
       </div>
-    </>
+
+      {activeTab === 'overview' && (
+        <OverviewTab competitor={competitor} />
+      )}
+
+      {activeTab === 'analysis' && (
+        <AnalysisTab
+          analysis={analysis}
+          loading={analysisLoading || analyzing}
+          status={analysisStatus}
+        />
+      )}
+
+      {activeTab === 'strategic' && (
+        <StrategicTab
+          analysis={analysis}
+          loading={analysisLoading || analyzing}
+          status={analysisStatus}
+        />
+      )}
+
+      {activeTab === 'evidence' && (
+        <CompetitorEvidenceTab scrapedPages={scrapedPages} evidence={competitor.evidence || []} />
+      )}
+    </DrawerShell>
   )
 }
 

@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useMemo } from 'react'
 import {
-  X,
   Clock,
   Users,
   Puzzle,
@@ -19,6 +18,8 @@ import {
   Layers,
   FileText,
 } from 'lucide-react'
+import { DrawerShell, type DrawerTab } from '@/components/ui/DrawerShell'
+import { Spinner } from '@/components/ui/Spinner'
 import { BRDStatusBadge } from './StatusBadge'
 import { ConfirmActions } from './ConfirmActions'
 import { Markdown } from '@/components/ui/Markdown'
@@ -45,14 +46,6 @@ interface WorkflowStepDetailDrawerProps {
   onConfirm: (entityType: string, entityId: string) => void
   onNeedsReview: (entityType: string, entityId: string) => void
 }
-
-const TABS: { id: TabId; label: string; icon: typeof Clock }[] = [
-  { id: 'overview', label: 'Overview', icon: Layers },
-  { id: 'evidence', label: 'Evidence', icon: FileText },
-  { id: 'connections', label: 'Connections', icon: Link2 },
-  { id: 'insights', label: 'Insights', icon: Sparkles },
-  { id: 'history', label: 'History', icon: Clock },
-]
 
 const AUTOMATION_LABELS: Record<string, string> = {
   manual: 'Manual',
@@ -98,143 +91,105 @@ export function WorkflowStepDetailDrawer({
   const evidenceCount = detail?.evidence?.length || 0
   const insightCount = detail?.insights?.length || 0
 
+  const tabs: DrawerTab[] = [
+    { id: 'overview', label: 'Overview', icon: Layers },
+    {
+      id: 'evidence',
+      label: 'Evidence',
+      icon: FileText,
+      badge: evidenceCount > 0 ? (
+        <span className="ml-1 text-[10px] bg-[#F0F0F0] text-[#666666] px-1.5 py-0.5 rounded-full">
+          {evidenceCount}
+        </span>
+      ) : undefined,
+    },
+    {
+      id: 'connections',
+      label: 'Connections',
+      icon: Link2,
+      badge: connectionCount > 0 ? (
+        <span className="ml-1 text-[10px] bg-[#F0F0F0] text-[#666666] px-1.5 py-0.5 rounded-full">
+          {connectionCount}
+        </span>
+      ) : undefined,
+    },
+    {
+      id: 'insights',
+      label: 'Insights',
+      icon: Sparkles,
+      badge: insightCount > 0 ? (
+        <span className="ml-1 text-[10px] bg-[#F0F0F0] text-[#666666] px-1.5 py-0.5 rounded-full">
+          {insightCount}
+        </span>
+      ) : undefined,
+    },
+    {
+      id: 'history',
+      label: 'History',
+      icon: Clock,
+      badge: detail && detail.revision_count > 0 ? (
+        <span className="ml-1 text-[10px] bg-[#F0F0F0] text-[#666666] px-1.5 py-0.5 rounded-full">
+          {detail.revision_count}
+        </span>
+      ) : undefined,
+    },
+  ]
+
   return (
-    <>
-      {/* Backdrop */}
-      <div
-        className="fixed inset-0 bg-black/20 z-40 transition-opacity"
-        onClick={onClose}
-      />
-
-      {/* Drawer */}
-      <div className="fixed right-0 top-0 h-full w-[560px] max-w-full bg-white shadow-xl z-50 flex flex-col animate-slide-in-right">
-        {/* Header */}
-        <div className="flex-shrink-0 border-b border-[#E5E5E5] px-6 py-4">
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex items-start gap-3 min-w-0 flex-1">
-              {/* Navy circle with step number */}
-              <div className="w-8 h-8 rounded-full bg-[#0A1E2F] flex items-center justify-center flex-shrink-0 mt-0.5">
-                <span className="text-[12px] font-bold text-white">
-                  {detail?.step_index ?? '?'}
-                </span>
-              </div>
-              <div className="min-w-0">
-                <p className="text-[11px] font-medium text-[#999999] uppercase tracking-wide mb-1">
-                  {detail?.workflow_name
-                    ? `Step ${detail.step_index} of ${detail.workflow_name}`
-                    : 'Workflow Step'}
-                </p>
-                <h2 className="text-[15px] font-semibold text-[#333333] line-clamp-2 leading-snug">
-                  {detail?.label || 'Loading...'}
-                </h2>
-                {/* Automation + status badges */}
-                {detail && (
-                  <div className="flex items-center gap-2 mt-1.5">
-                    <AutomationBadge level={detail.automation_level} />
-                    {detail.state_type && (
-                      <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${
-                        detail.state_type === 'current'
-                          ? 'bg-[#F0F0F0] text-[#666666]'
-                          : 'bg-[#E8F5E9] text-[#25785A]'
-                      }`}>
-                        {detail.state_type === 'current' ? 'Current' : 'Future'}
-                      </span>
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-            <div className="flex items-center gap-2 flex-shrink-0">
-              <BRDStatusBadge status={detail?.confirmation_status} />
-              <button
-                onClick={onClose}
-                className="p-1.5 rounded-md text-[#999999] hover:text-[#666666] hover:bg-[#F0F0F0] transition-colors"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
+    <DrawerShell
+      onClose={onClose}
+      icon={Layers}
+      entityLabel={detail?.workflow_name ? `Step ${detail.step_index} of ${detail.workflow_name}` : 'Workflow Step'}
+      title={detail?.label || 'Loading...'}
+      headerExtra={
+        detail ? (
+          <div className="flex items-center gap-2 mt-1.5">
+            <AutomationBadge level={detail.automation_level} />
+            {detail.state_type && (
+              <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${
+                detail.state_type === 'current'
+                  ? 'bg-[#F0F0F0] text-[#666666]'
+                  : 'bg-[#E8F5E9] text-[#25785A]'
+              }`}>
+                {detail.state_type === 'current' ? 'Current' : 'Future'}
+              </span>
+            )}
           </div>
-
-          {/* Confirm/Review actions */}
-          {detail && (
-            <div className="mt-3">
-              <ConfirmActions
-                status={detail.confirmation_status}
-                onConfirm={() => onConfirm('vp_step', stepId)}
-                onNeedsReview={() => onNeedsReview('vp_step', stepId)}
-                size="md"
-              />
-            </div>
+        ) : undefined
+      }
+      headerRight={<BRDStatusBadge status={detail?.confirmation_status} />}
+      headerActions={
+        detail ? (
+          <ConfirmActions
+            status={detail.confirmation_status}
+            onConfirm={() => onConfirm('vp_step', stepId)}
+            onNeedsReview={() => onNeedsReview('vp_step', stepId)}
+            size="md"
+          />
+        ) : undefined
+      }
+      tabs={tabs}
+      activeTab={activeTab}
+      onTabChange={(id) => setActiveTab(id as TabId)}
+    >
+      {loading && !detail ? (
+        <Spinner label="Loading step details..." />
+      ) : detail ? (
+        <>
+          {activeTab === 'overview' && (
+            <OverviewTab detail={detail} />
           )}
-
-          {/* Tabs */}
-          <div className="flex gap-0 mt-4 -mb-4 border-b-0">
-            {TABS.map((tab) => {
-              const TabIcon = tab.icon
-              const isActive = activeTab === tab.id
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center gap-1.5 px-3 py-2 text-[12px] font-medium border-b-2 transition-colors ${
-                    isActive
-                      ? 'border-[#3FAF7A] text-[#25785A]'
-                      : 'border-transparent text-[#999999] hover:text-[#666666]'
-                  }`}
-                >
-                  <TabIcon className="w-3.5 h-3.5" />
-                  {tab.label}
-                  {tab.id === 'evidence' && evidenceCount > 0 && (
-                    <span className="ml-1 text-[10px] bg-[#F0F0F0] text-[#666666] px-1.5 py-0.5 rounded-full">
-                      {evidenceCount}
-                    </span>
-                  )}
-                  {tab.id === 'connections' && connectionCount > 0 && (
-                    <span className="ml-1 text-[10px] bg-[#F0F0F0] text-[#666666] px-1.5 py-0.5 rounded-full">
-                      {connectionCount}
-                    </span>
-                  )}
-                  {tab.id === 'insights' && insightCount > 0 && (
-                    <span className="ml-1 text-[10px] bg-[#F0F0F0] text-[#666666] px-1.5 py-0.5 rounded-full">
-                      {insightCount}
-                    </span>
-                  )}
-                  {tab.id === 'history' && detail && detail.revision_count > 0 && (
-                    <span className="ml-1 text-[10px] bg-[#F0F0F0] text-[#666666] px-1.5 py-0.5 rounded-full">
-                      {detail.revision_count}
-                    </span>
-                  )}
-                </button>
-              )
-            })}
-          </div>
+          {activeTab === 'evidence' && <EvidenceTab evidence={detail.evidence} />}
+          {activeTab === 'connections' && <ConnectionsTab detail={detail} />}
+          {activeTab === 'insights' && <InsightsTab insights={detail.insights} />}
+          {activeTab === 'history' && <HistoryTab revisions={detail.revisions} />}
+        </>
+      ) : (
+        <div className="text-center py-8">
+          <p className="text-[13px] text-[#666666]">Failed to load step details.</p>
         </div>
-
-        {/* Body */}
-        <div className="flex-1 overflow-y-auto px-6 py-5">
-          {loading && !detail ? (
-            <div className="text-center py-8">
-              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#3FAF7A] mx-auto" />
-              <p className="text-[12px] text-[#999999] mt-2">Loading step details...</p>
-            </div>
-          ) : detail ? (
-            <>
-              {activeTab === 'overview' && (
-                <OverviewTab detail={detail} />
-              )}
-              {activeTab === 'evidence' && <EvidenceTab evidence={detail.evidence} />}
-              {activeTab === 'connections' && <ConnectionsTab detail={detail} />}
-              {activeTab === 'insights' && <InsightsTab insights={detail.insights} />}
-              {activeTab === 'history' && <HistoryTab revisions={detail.revisions} />}
-            </>
-          ) : (
-            <div className="text-center py-8">
-              <p className="text-[13px] text-[#666666]">Failed to load step details.</p>
-            </div>
-          )}
-        </div>
-      </div>
-    </>
+      )}
+    </DrawerShell>
   )
 }
 
@@ -780,4 +735,3 @@ function HistoryTab({ revisions }: { revisions: RevisionEntry[] }) {
     </div>
   )
 }
-
