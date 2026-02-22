@@ -16,8 +16,8 @@ import {
   Inbox,
   CheckSquare,
 } from 'lucide-react'
+import { useRouter } from 'next/navigation'
 import { TaskCard, TaskCardSkeleton } from './TaskCard'
-import { TaskDetailModal } from './TaskDetailModal'
 import type { Task } from '@/lib/api'
 import {
   listTasks,
@@ -26,8 +26,8 @@ import {
   bulkCompleteTasks,
 } from '@/lib/api'
 
-export type TaskFilter = 'all' | 'pending' | 'in_progress' | 'proposals' | 'client'
-export type TaskTypeFilter = 'all' | 'proposal' | 'gap' | 'manual' | 'enrichment' | 'validation' | 'research' | 'collaboration'
+export type TaskFilter = 'all' | 'pending' | 'in_progress' | 'reviews' | 'client'
+export type TaskTypeFilter = 'all' | 'signal_review' | 'action_item' | 'meeting_prep' | 'reminder' | 'review_request' | 'book_meeting' | 'deliverable' | 'custom'
 
 interface TaskListProps {
   projectId: string
@@ -46,19 +46,20 @@ const filterOptions: { value: TaskFilter; label: string }[] = [
   { value: 'all', label: 'All Tasks' },
   { value: 'pending', label: 'Pending' },
   { value: 'in_progress', label: 'In Progress' },
-  { value: 'proposals', label: 'Proposals' },
+  { value: 'reviews', label: 'Reviews' },
   { value: 'client', label: 'Client Input' },
 ]
 
 const typeFilterOptions: { value: TaskTypeFilter; label: string }[] = [
   { value: 'all', label: 'All Types' },
-  { value: 'proposal', label: 'Proposals' },
-  { value: 'gap', label: 'Gaps' },
-  { value: 'manual', label: 'Manual' },
-  { value: 'enrichment', label: 'Enrichment' },
-  { value: 'validation', label: 'Validation' },
-  { value: 'research', label: 'Research' },
-  { value: 'collaboration', label: 'Collaboration' },
+  { value: 'signal_review', label: 'Signal Review' },
+  { value: 'action_item', label: 'Action Items' },
+  { value: 'meeting_prep', label: 'Meeting Prep' },
+  { value: 'reminder', label: 'Reminders' },
+  { value: 'review_request', label: 'Review Requests' },
+  { value: 'book_meeting', label: 'Book Meeting' },
+  { value: 'deliverable', label: 'Deliverables' },
+  { value: 'custom', label: 'Custom' },
 ]
 
 export function TaskList({
@@ -81,17 +82,10 @@ export function TaskList({
   const [bulkActionLoading, setBulkActionLoading] = useState(false)
   const [showFilterDropdown, setShowFilterDropdown] = useState(false)
   const [showTypeDropdown, setShowTypeDropdown] = useState(false)
-  const [selectedTask, setSelectedTask] = useState<Task | null>(null)
-  const [isModalOpen, setIsModalOpen] = useState(false)
+  const router = useRouter()
 
   const handleViewDetails = (task: Task) => {
-    setSelectedTask(task)
-    setIsModalOpen(true)
-  }
-
-  const handleCloseModal = () => {
-    setIsModalOpen(false)
-    setSelectedTask(null)
+    router.push(`/tasks/${task.id}`)
   }
 
   const loadTasks = useCallback(async (showLoader = true) => {
@@ -111,8 +105,8 @@ export function TaskList({
         params.status = 'pending'
       } else if (filter === 'in_progress') {
         params.status = 'in_progress'
-      } else if (filter === 'proposals') {
-        params.task_type = 'proposal'
+      } else if (filter === 'reviews') {
+        params.task_type = 'signal_review'
         params.status = 'pending'
       } else if (filter === 'client') {
         params.requires_client_input = true
@@ -120,7 +114,7 @@ export function TaskList({
       }
 
       // Apply type filter (unless status filter already sets it)
-      if (typeFilter !== 'all' && filter !== 'proposals') {
+      if (typeFilter !== 'all' && filter !== 'reviews') {
         params.task_type = typeFilter
       }
 
@@ -413,17 +407,6 @@ export function TaskList({
         <EmptyTaskState filter={filter} />
       )}
 
-      {/* Task Detail Modal */}
-      {selectedTask && (
-        <TaskDetailModal
-          task={selectedTask}
-          projectId={projectId}
-          isOpen={isModalOpen}
-          onClose={handleCloseModal}
-          onComplete={handleComplete}
-          onDismiss={handleDismiss}
-        />
-      )}
     </div>
   )
 }
@@ -432,19 +415,19 @@ function EmptyTaskState({ filter }: { filter: TaskFilter }) {
   const messages: Record<TaskFilter, { title: string; description: string }> = {
     all: {
       title: 'No tasks',
-      description: 'Tasks are created automatically from signal processing, gap detection, and enrichment triggers.',
+      description: 'Tasks are created from signal processing, meeting transcripts, or you can create them manually.',
     },
     pending: {
       title: 'All caught up!',
-      description: 'No pending tasks. Tasks will appear here when signals are processed or gaps are detected.',
+      description: 'No pending tasks. New tasks will appear here when signals are processed.',
     },
     in_progress: {
       title: 'No tasks in progress',
       description: 'Tasks move here when you start working on them.',
     },
-    proposals: {
-      title: 'No proposal tasks',
-      description: 'Proposal tasks are created when signals are processed. Upload a transcript to get started.',
+    reviews: {
+      title: 'No review tasks',
+      description: 'Review tasks are created when signals are processed. Upload a transcript to get started.',
     },
     client: {
       title: 'No client input needed',

@@ -149,8 +149,8 @@ SMART_TOOL_DECISION_TREE = """
 - User asks for email/agenda draft -> list_pending_confirmations, then email_draft/meeting card via suggest_actions
 - User asks about uploads/documents -> get_recent_documents
 - User says "remember that..." / "note that..." -> add_belief
-- User says "create a task" / "remind me" -> create_task
-- User says "schedule a meeting" -> schedule_meeting
+- User says "create a task" / "remind me" / "follow up with" / "email them" -> create_task (infer type: reminder, action_item, review_request, meeting_prep, book_meeting, deliverable, custom)
+- User says "schedule a meeting" / "book a session" -> create_task with task_type=book_meeting (or schedule_meeting)
 - User asks to confirm entities -> handled by frontend (not a tool)
 - On solution flow page, user discusses step changes -> update_solution_flow_step or refine_solution_flow_step
 - On solution flow page, user answers a question -> resolve_solution_flow_question (use question_index)
@@ -162,7 +162,7 @@ SMART_CONVERSATION_PATTERNS = """
 - When creating entities missing required info, ask ONE natural follow-up question.
 - When user mentions a workflow by name, match from Workflows context and use its ID directly.
 - When user says "add step after X", find the step in context, compute step_number, create with workflow_id.
-- When user says "create a task" / "remind me" / "follow up on", use create_task tool.
+- When user says "create a task" / "remind me" / "follow up on" / "review this", use create_task tool. Infer task_type from intent: "remind me" → reminder, "follow up" / "email" → action_item, "review" → review_request, "schedule" / "book" → book_meeting, "prepare for" → meeting_prep, "send the deliverable" → deliverable.
 - Never say "I don't have the workflow ID" — you have them in context.
 - When the user uploads documents, use evidence cards for key quotes and a choice card for what to do next.
 - Frame every gap as a next step. Use gap_closer cards, not text descriptions.

@@ -1,7 +1,50 @@
 import { apiRequest } from './core'
 
 // ============================================
-// Task APIs
+// Task Types
+// ============================================
+
+export type TaskTypeValue =
+  | 'signal_review'
+  | 'action_item'
+  | 'meeting_prep'
+  | 'reminder'
+  | 'review_request'
+  | 'book_meeting'
+  | 'deliverable'
+  | 'custom'
+
+export type ReviewStatusValue =
+  | 'pending_review'
+  | 'in_review'
+  | 'approved'
+  | 'changes_requested'
+
+export type MeetingTypeValue =
+  | 'discovery'
+  | 'event_modeling'
+  | 'proposal'
+  | 'prototype_review'
+  | 'kickoff'
+  | 'stakeholder_interview'
+  | 'technical_deep_dive'
+  | 'internal_strategy'
+  | 'introduction'
+  | 'monthly_check_in'
+  | 'hand_off'
+
+export type ActionVerbValue =
+  | 'send'
+  | 'email'
+  | 'schedule'
+  | 'prepare'
+  | 'review'
+  | 'follow_up'
+  | 'share'
+  | 'create'
+
+// ============================================
+// Task Interfaces
 // ============================================
 
 export interface Task {
@@ -9,10 +52,9 @@ export interface Task {
   project_id: string
   title: string
   description?: string
-  task_type: 'proposal' | 'gap' | 'manual' | 'enrichment' | 'validation' | 'research' | 'collaboration'
+  task_type: TaskTypeValue
   anchored_entity_type?: string
   anchored_entity_id?: string
-  gate_stage?: string
   priority_score: number
   status: 'pending' | 'in_progress' | 'completed' | 'dismissed'
   requires_client_input: boolean
@@ -27,6 +69,13 @@ export interface Task {
   due_date?: string
   created_by?: string
   priority?: 'none' | 'low' | 'medium' | 'high'
+  review_status?: ReviewStatusValue | null
+  remind_at?: string | null
+  meeting_type?: MeetingTypeValue | null
+  meeting_date?: string | null
+  signal_id?: string | null
+  patches_snapshot?: Record<string, unknown> | null
+  action_verb?: ActionVerbValue | null
   created_at: string
   updated_at: string
 }
@@ -77,7 +126,7 @@ export interface TaskStatsResponse {
 export interface TaskActivity {
   id: string
   task_id: string
-  action: 'created' | 'started' | 'updated' | 'completed' | 'dismissed' | 'reopened' | 'priority_changed' | 'assigned' | 'commented' | 'due_date_changed'
+  action: 'created' | 'started' | 'updated' | 'completed' | 'dismissed' | 'reopened' | 'priority_changed' | 'assigned' | 'commented' | 'due_date_changed' | 'review_status_changed' | 'reminder_sent'
   actor_id?: string
   actor_type: 'user' | 'system' | 'ai_assistant'
   changes?: Record<string, unknown>
@@ -89,6 +138,10 @@ export interface TaskActivityListResponse {
   activities: TaskActivity[]
   total: number
 }
+
+// ============================================
+// Task APIs
+// ============================================
 
 export const listTasks = (
   projectId: string,
@@ -130,15 +183,18 @@ export const createTask = (
   data: {
     title: string
     description?: string
-    task_type?: string
+    task_type?: TaskTypeValue
     anchored_entity_type?: string
     anchored_entity_id?: string
-    gate_stage?: string
     requires_client_input?: boolean
     metadata?: Record<string, unknown>
     assigned_to?: string
     due_date?: string
     priority?: string
+    remind_at?: string
+    meeting_type?: MeetingTypeValue
+    meeting_date?: string
+    action_verb?: ActionVerbValue
   }
 ) =>
   apiRequest<Task>(`/projects/${projectId}/tasks`, {
@@ -158,6 +214,11 @@ export const updateTask = (
     assigned_to?: string
     due_date?: string
     priority?: string
+    review_status?: string
+    remind_at?: string
+    meeting_type?: string
+    meeting_date?: string
+    action_verb?: string
   }
 ) =>
   apiRequest<Task>(`/projects/${projectId}/tasks/${taskId}`, {
@@ -188,6 +249,16 @@ export const dismissTask = (
     body: JSON.stringify({ reason }),
   })
 
+export const updateReviewStatus = (
+  projectId: string,
+  taskId: string,
+  reviewStatus: ReviewStatusValue
+) =>
+  apiRequest<Task>(`/projects/${projectId}/tasks/${taskId}/review-status`, {
+    method: 'POST',
+    body: JSON.stringify({ review_status: reviewStatus }),
+  })
+
 export const bulkCompleteTasks = (
   projectId: string,
   taskIds: string[],
@@ -215,18 +286,6 @@ export const bulkDismissTasks = (
       method: 'POST',
       body: JSON.stringify({ task_ids: taskIds, reason }),
     }
-  )
-
-export const syncGapTasks = (projectId: string) =>
-  apiRequest<{ synced: boolean; tasks_created: number; task_ids: string[] }>(
-    `/projects/${projectId}/tasks/sync/gaps`,
-    { method: 'POST' }
-  )
-
-export const syncEnrichmentTasks = (projectId: string) =>
-  apiRequest<{ synced: boolean; tasks_created: number; task_ids: string[] }>(
-    `/projects/${projectId}/tasks/sync/enrichment`,
-    { method: 'POST' }
   )
 
 export const getProjectTaskActivity = (

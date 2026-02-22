@@ -18,6 +18,8 @@ import type { OrganizationMemberPublic } from '@/types/api'
 import { PropertyPills } from './components/PropertyPills'
 import { CommentInput } from './components/CommentInput'
 import { ActivityTimeline } from './components/ActivityTimeline'
+import { SignalReviewPanel } from './components/SignalReviewPanel'
+import { ReviewStatusBar } from './components/ReviewStatusBar'
 
 export default function TaskDetailPage({ params }: { params: { taskId: string } }) {
   const { taskId } = params
@@ -185,6 +187,48 @@ export default function TaskDetailPage({ params }: { params: { taskId: string } 
               className="w-full text-[13px] text-[#333] placeholder-[#CCC] outline-none border border-[#E5E5E5] rounded-lg p-3 resize-none focus:border-[#3FAF7A] transition-colors"
             />
           </div>
+
+          {/* Type-specific sections */}
+          {task.task_type === 'signal_review' && task.patches_snapshot && (
+            <SignalReviewPanel patches={task.patches_snapshot as Record<string, unknown>} />
+          )}
+          {task.task_type === 'review_request' && (
+            <ReviewStatusBar
+              status={task.review_status || null}
+              projectId={task.project_id}
+              taskId={task.id}
+              onUpdate={() => mutateTask()}
+            />
+          )}
+          {(task.task_type === 'meeting_prep' || task.task_type === 'book_meeting') && task.meeting_type && (
+            <div className="mb-4 flex items-center gap-2">
+              <span className="text-[12px] font-medium uppercase tracking-wide text-[#999]">Meeting Type</span>
+              <span className="text-[13px] px-2 py-0.5 bg-[#0A1E2F]/5 text-[#0A1E2F] rounded capitalize">
+                {task.meeting_type.replace(/_/g, ' ')}
+              </span>
+              {task.meeting_date && (
+                <span className="text-[13px] text-[#666]">
+                  {new Date(task.meeting_date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
+                </span>
+              )}
+            </div>
+          )}
+          {task.task_type === 'reminder' && task.remind_at && (
+            <div className="mb-4 flex items-center gap-2">
+              <span className="text-[12px] font-medium uppercase tracking-wide text-[#999]">Remind At</span>
+              <span className="text-[13px] text-[#333]">
+                {new Date(task.remind_at).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
+              </span>
+            </div>
+          )}
+          {task.task_type === 'action_item' && task.action_verb && (
+            <div className="mb-4 flex items-center gap-2">
+              <span className="text-[12px] font-medium uppercase tracking-wide text-[#999]">Action</span>
+              <span className="text-[13px] px-2 py-0.5 bg-[#3FAF7A]/10 text-[#25785A] rounded capitalize">
+                {task.action_verb.replace(/_/g, ' ')}
+              </span>
+            </div>
+          )}
 
           {/* Divider */}
           <div className="border-t border-[#E5E5E5] mb-4" />

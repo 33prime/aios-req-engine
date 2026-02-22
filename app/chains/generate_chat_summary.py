@@ -19,6 +19,7 @@ async def generate_chat_summary(
     result: PatchApplicationResult,
     patches: list[EntityPatch],
     signal_name: str = "signal",
+    action_items: list[dict] | None = None,
 ) -> str:
     """Generate a markdown chat summary of patch application results.
 
@@ -132,5 +133,14 @@ async def generate_chat_summary(
         for p in resolved_questions[:3]:
             lines.append(f"  - {p.answers_question}")
         lines.append("")
+
+    # Action items extracted from transcript
+    if action_items:
+        titles = [item.get("title", "") for item in action_items if item.get("title")]
+        if titles:
+            lines.append(f"**Action Items** ({len(titles)}): {', '.join(titles[:5])}")
+            if len(titles) > 5:
+                lines.append(f"  ... and {len(titles) - 5} more")
+            lines.append("")
 
     return "\n".join(lines)

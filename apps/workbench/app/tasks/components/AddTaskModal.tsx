@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { X } from 'lucide-react'
 import { createTask, listProjects, listOrganizations, listOrganizationMembers } from '@/lib/api'
 import { AssigneePicker } from '@/components/tasks/AssigneePicker'
+import type { TaskTypeValue, MeetingTypeValue, ActionVerbValue } from '@/lib/api/tasks'
 import type { OrganizationMemberPublic } from '@/types/api'
 
 interface AddTaskModalProps {
@@ -19,13 +20,55 @@ const PRIORITIES = [
   { value: 'high', label: 'High', color: '#25785A' },
 ]
 
+const TASK_TYPES: { value: TaskTypeValue; label: string }[] = [
+  { value: 'custom', label: 'Custom' },
+  { value: 'action_item', label: 'Action Item' },
+  { value: 'meeting_prep', label: 'Meeting Prep' },
+  { value: 'book_meeting', label: 'Book Meeting' },
+  { value: 'reminder', label: 'Reminder' },
+  { value: 'review_request', label: 'Review Request' },
+  { value: 'deliverable', label: 'Deliverable' },
+]
+
+const MEETING_TYPES = [
+  { value: 'discovery', label: 'Discovery' },
+  { value: 'event_modeling', label: 'Event Modeling' },
+  { value: 'proposal', label: 'Proposal' },
+  { value: 'prototype_review', label: 'Prototype Review' },
+  { value: 'kickoff', label: 'Kickoff' },
+  { value: 'stakeholder_interview', label: 'Stakeholder Interview' },
+  { value: 'technical_deep_dive', label: 'Technical Deep Dive' },
+  { value: 'internal_strategy', label: 'Internal Strategy' },
+  { value: 'introduction', label: 'Introduction' },
+  { value: 'monthly_check_in', label: 'Monthly Check-in' },
+  { value: 'hand_off', label: 'Hand Off' },
+]
+
+const ACTION_VERBS = [
+  { value: 'send', label: 'Send' },
+  { value: 'email', label: 'Email' },
+  { value: 'schedule', label: 'Schedule' },
+  { value: 'prepare', label: 'Prepare' },
+  { value: 'review', label: 'Review' },
+  { value: 'follow_up', label: 'Follow Up' },
+  { value: 'share', label: 'Share' },
+  { value: 'create', label: 'Create' },
+]
+
+const selectClass = 'text-[13px] px-3 py-1.5 rounded-md border border-[#E5E5E5] bg-white text-[#333] outline-none focus:border-[#3FAF7A] transition-colors'
+
 export function AddTaskModal({ open, onClose, onCreated }: AddTaskModalProps) {
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
+  const [taskType, setTaskType] = useState<TaskTypeValue>('custom')
   const [priority, setPriority] = useState('none')
   const [assignedTo, setAssignedTo] = useState<string | undefined>()
   const [dueDate, setDueDate] = useState('')
   const [projectId, setProjectId] = useState('')
+  const [meetingType, setMeetingType] = useState('')
+  const [meetingDate, setMeetingDate] = useState('')
+  const [remindAt, setRemindAt] = useState('')
+  const [actionVerb, setActionVerb] = useState('')
   const [projects, setProjects] = useState<{ id: string; name: string }[]>([])
   const [members, setMembers] = useState<OrganizationMemberPublic[]>([])
   const [saving, setSaving] = useState(false)
@@ -53,6 +96,19 @@ export function AddTaskModal({ open, onClose, onCreated }: AddTaskModalProps) {
     }
   }, [open])
 
+  const resetForm = () => {
+    setTitle('')
+    setDescription('')
+    setTaskType('custom')
+    setPriority('none')
+    setAssignedTo(undefined)
+    setDueDate('')
+    setMeetingType('')
+    setMeetingDate('')
+    setRemindAt('')
+    setActionVerb('')
+  }
+
   const handleSubmit = async () => {
     if (!title.trim() || !projectId) return
     setSaving(true)
@@ -60,16 +116,16 @@ export function AddTaskModal({ open, onClose, onCreated }: AddTaskModalProps) {
       await createTask(projectId, {
         title: title.trim(),
         description: description.trim() || undefined,
+        task_type: taskType,
         priority,
         assigned_to: assignedTo,
         due_date: dueDate ? new Date(dueDate).toISOString() : undefined,
+        meeting_type: (taskType === 'meeting_prep' || taskType === 'book_meeting') && meetingType ? meetingType as MeetingTypeValue : undefined,
+        meeting_date: (taskType === 'meeting_prep' || taskType === 'book_meeting') && meetingDate ? new Date(meetingDate).toISOString() : undefined,
+        remind_at: taskType === 'reminder' && remindAt ? new Date(remindAt).toISOString() : undefined,
+        action_verb: taskType === 'action_item' && actionVerb ? actionVerb as ActionVerbValue : undefined,
       })
-      // Reset form
-      setTitle('')
-      setDescription('')
-      setPriority('none')
-      setAssignedTo(undefined)
-      setDueDate('')
+      resetForm()
       onCreated()
       onClose()
     } catch (err) {
@@ -78,6 +134,10 @@ export function AddTaskModal({ open, onClose, onCreated }: AddTaskModalProps) {
       setSaving(false)
     }
   }
+
+  const showMeetingFields = taskType === 'meeting_prep' || taskType === 'book_meeting'
+  const showRemindAt = taskType === 'reminder'
+  const showActionVerb = taskType === 'action_item'
 
   if (!open) return null
 
@@ -95,6 +155,23 @@ export function AddTaskModal({ open, onClose, onCreated }: AddTaskModalProps) {
 
         {/* Body */}
         <div className="px-5 py-4 space-y-4">
+          {/* Type selector */}
+          <div className="flex flex-wrap gap-1.5">
+            {TASK_TYPES.map((t) => (
+              <button
+                key={t.value}
+                onClick={() => setTaskType(t.value)}
+                className={`px-2.5 py-1 text-[12px] rounded-md font-medium transition-colors ${
+                  taskType === t.value
+                    ? 'bg-[#3FAF7A]/10 text-[#25785A] border border-[#3FAF7A]/30'
+                    : 'bg-[#F4F4F4] text-[#666] border border-transparent hover:border-[#E5E5E5]'
+                }`}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+
           {/* Title */}
           <input
             autoFocus
@@ -113,13 +190,53 @@ export function AddTaskModal({ open, onClose, onCreated }: AddTaskModalProps) {
             className="w-full text-[13px] text-[#333] placeholder-[#CCC] outline-none border border-[#E5E5E5] rounded-lg p-2.5 resize-none focus:border-[#3FAF7A] transition-colors"
           />
 
+          {/* Type-specific fields */}
+          {showMeetingFields && (
+            <div className="flex gap-2">
+              <select value={meetingType} onChange={(e) => setMeetingType(e.target.value)} className={selectClass}>
+                <option value="">Meeting type...</option>
+                {MEETING_TYPES.map((m) => (
+                  <option key={m.value} value={m.value}>{m.label}</option>
+                ))}
+              </select>
+              <input
+                type="datetime-local"
+                value={meetingDate}
+                onChange={(e) => setMeetingDate(e.target.value)}
+                className={selectClass}
+                placeholder="Meeting date"
+              />
+            </div>
+          )}
+
+          {showRemindAt && (
+            <div>
+              <label className="block text-[12px] text-[#999] mb-1">Remind at</label>
+              <input
+                type="datetime-local"
+                value={remindAt}
+                onChange={(e) => setRemindAt(e.target.value)}
+                className={selectClass}
+              />
+            </div>
+          )}
+
+          {showActionVerb && (
+            <select value={actionVerb} onChange={(e) => setActionVerb(e.target.value)} className={selectClass}>
+              <option value="">Action verb...</option>
+              {ACTION_VERBS.map((v) => (
+                <option key={v.value} value={v.value}>{v.label}</option>
+              ))}
+            </select>
+          )}
+
           {/* Property pills */}
           <div className="flex flex-wrap items-center gap-2">
             {/* Project picker */}
             <select
               value={projectId}
               onChange={(e) => setProjectId(e.target.value)}
-              className="text-[13px] px-3 py-1.5 rounded-md border border-[#E5E5E5] bg-white text-[#333] outline-none focus:border-[#3FAF7A] transition-colors"
+              className={selectClass}
             >
               <option value="">Select project...</option>
               {projects.map((p) => (
@@ -131,7 +248,7 @@ export function AddTaskModal({ open, onClose, onCreated }: AddTaskModalProps) {
             <select
               value={priority}
               onChange={(e) => setPriority(e.target.value)}
-              className="text-[13px] px-3 py-1.5 rounded-md border border-[#E5E5E5] bg-white text-[#333] outline-none focus:border-[#3FAF7A] transition-colors"
+              className={selectClass}
             >
               {PRIORITIES.map((p) => (
                 <option key={p.value} value={p.value}>{p.label}</option>
@@ -151,7 +268,7 @@ export function AddTaskModal({ open, onClose, onCreated }: AddTaskModalProps) {
               type="date"
               value={dueDate}
               onChange={(e) => setDueDate(e.target.value)}
-              className="text-[13px] px-3 py-1.5 rounded-md border border-[#E5E5E5] bg-white text-[#333] outline-none focus:border-[#3FAF7A] transition-colors"
+              className={selectClass}
             />
           </div>
         </div>

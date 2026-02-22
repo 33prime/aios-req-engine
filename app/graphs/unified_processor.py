@@ -118,12 +118,11 @@ def _update_signal_status(signal_id: UUID, status: str, extra: dict[str, Any] | 
 
 
 def _create_document_review_task(state: V2ProcessorState) -> None:
-    """Create a review task if this signal came from a document upload.
+    """Create a signal_review task if this signal came from a document upload.
 
     Non-critical — failures are logged, never fatal.
     """
     try:
-        # Check if there are entities to review
         r = state.application_result
         if not r or r.total_applied == 0:
             return
@@ -145,14 +144,24 @@ def _create_document_review_task(state: V2ProcessorState) -> None:
         filename = doc_resp.data[0].get("original_filename", "document")
         entity_count = r.total_applied
 
+        # Build patches snapshot from application result
+        patches_snapshot = None
+        if r.applied:
+            patches_snapshot = {
+                "total": entity_count,
+                "applied": r.applied[:50],  # Cap to avoid oversized JSONB
+            }
+
         sb.table("tasks").insert(
             {
                 "project_id": str(state.project_id),
                 "title": f"Review {entity_count} entities extracted from {filename}",
-                "task_type": "validation",
+                "task_type": "signal_review",
                 "status": "pending",
                 "source_type": "signal_processing",
                 "priority_score": 80,
+                "signal_id": str(state.signal_id),
+                "patches_snapshot": patches_snapshot,
             }
         ).execute()
 
@@ -735,6 +744,24 @@ async def process_signal_v2(
                 )
             except Exception as qar_err:
                 logger.debug(f"[v2] Question auto-resolution failed (non-fatal): {qar_err}")
+
+        # Step 9b: Extract action items from meeting transcripts (non-critical)
+        if state.triage_result and getattr(state.triage_result, "strategy", "") in (
+            "meeting_transcript", "meeting_notes"
+        ):
+            try:
+                from app.chains.extract_action_items import extract_action_items
+                from app.core.task_integrations import create_action_item_tasks
+
+                items = await extract_action_items(state.signal_text, state.signal_type)
+                if items:
+                    await create_action_item_tasks(project_id, signal_id, items)
+                    logger.info(
+                        f"[v2] Created {len(items)} action item tasks from transcript",
+                        extra={"signal_id": str(signal_id)},
+                    )
+            except Exception as ai_err:
+                logger.debug(f"[v2] Action item extraction failed (non-fatal): {ai_err}")
 
         result = _make_v2_result(state)
 

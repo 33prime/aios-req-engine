@@ -1,5 +1,6 @@
 """FastAPI application entry point."""
 
+import asyncio
 import os
 
 from fastapi import FastAPI, Request
@@ -71,6 +72,13 @@ async def add_security_headers(request: Request, call_next):
 async def health_check() -> JSONResponse:
     """Health check endpoint."""
     return JSONResponse(content={"status": "ok"}, status_code=200)
+
+
+@app.on_event("startup")
+async def startup_event():
+    """Start background services."""
+    from app.services.reminder_scheduler import start_reminder_scheduler
+    asyncio.create_task(start_reminder_scheduler())
 
 
 # Include v1 API router

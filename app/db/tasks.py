@@ -6,7 +6,6 @@ from uuid import UUID
 
 from app.core.schemas_tasks import (
     AnchoredEntityType,
-    GateStage,
     MyTasksResponse,
     Task,
     TaskActivity,
@@ -31,65 +30,40 @@ from app.db.supabase_client import get_supabase as get_client
 # Priority Calculation
 # ============================================================================
 
-# Gate modifiers for priority calculation (Phase 1 gates are higher priority)
-GATE_MODIFIERS: dict[str, float] = {
-    # Phase 1 - Prototype (higher priority)
-    "core_pain": 1.5,
-    "primary_persona": 1.4,
-    "wow_moment": 1.3,
-    "design_preferences": 1.1,
-    # Phase 2 - Build (standard priority)
-    "business_case": 1.0,
-    "budget_constraints": 0.9,
-    "full_requirements": 0.8,
-    "confirmed_scope": 0.7,
-}
-
-
 def calculate_task_priority(
     task_type: TaskType,
-    gate_stage: Optional[str] = None,
-    anchored_entity_type: Optional[str] = None,
-    anchored_entity_id: Optional[UUID] = None,
     requires_client_input: bool = False,
     base_priority: Optional[float] = None,
 ) -> float:
     """
-    Calculate task priority using hybrid approach.
+    Calculate task priority score.
 
-    Priority = base_priority × gate_modifier × client_boost
+    Priority = base_priority × client_boost
 
     Args:
         task_type: Type of task
-        gate_stage: Which gate this task helps satisfy
-        anchored_entity_type: Entity type the task is anchored to
-        anchored_entity_id: Entity ID (for future entity-based priority lookup)
         requires_client_input: Whether task requires client input
-        base_priority: Override base priority (default 50)
+        base_priority: Override base priority (default varies by type)
 
     Returns:
         Calculated priority score
     """
-    # Base priority
     if base_priority is not None:
         base = base_priority
     else:
-        # Default base priorities by task type
         type_priorities = {
-            TaskType.GAP: 60,        # Gap tasks are important
-            TaskType.PROPOSAL: 55,   # Proposals need review
-            TaskType.VALIDATION: 50, # Validation is standard
-            TaskType.ENRICHMENT: 40, # Enrichment can wait
-            TaskType.RESEARCH: 35,   # Research is background
-            TaskType.MANUAL: 50,     # Manual is default
-            TaskType.COLLABORATION: 45,
+            TaskType.SIGNAL_REVIEW: 70,   # Needs prompt review
+            TaskType.ACTION_ITEM: 60,     # Meeting commitments
+            TaskType.MEETING_PREP: 55,    # Time-sensitive
+            TaskType.REVIEW_REQUEST: 55,  # Someone's waiting
+            TaskType.DELIVERABLE: 50,     # Client-facing
+            TaskType.BOOK_MEETING: 50,    # Scheduling
+            TaskType.CUSTOM: 45,          # Freeform
+            TaskType.REMINDER: 40,        # Personal
         }
-        base = type_priorities.get(task_type, 50)
+        base = type_priorities.get(task_type, 45)
 
-    # Apply gate modifier
-    modifier = GATE_MODIFIERS.get(gate_stage, 1.0) if gate_stage else 1.0
-
-    # Apply client boost (client-relevant tasks often block progress)
+    modifier = 1.0
     if requires_client_input:
         modifier *= 1.1
 
@@ -114,9 +88,6 @@ async def create_task(
     if priority is None:
         priority = calculate_task_priority(
             task_type=data.task_type,
-            gate_stage=data.gate_stage.value if data.gate_stage else None,
-            anchored_entity_type=data.anchored_entity_type.value if data.anchored_entity_type else None,
-            anchored_entity_id=data.anchored_entity_id,
             requires_client_input=data.requires_client_input,
         )
 
@@ -127,7 +98,6 @@ async def create_task(
         "task_type": data.task_type.value,
         "anchored_entity_type": data.anchored_entity_type.value if data.anchored_entity_type else None,
         "anchored_entity_id": str(data.anchored_entity_id) if data.anchored_entity_id else None,
-        "gate_stage": data.gate_stage.value if data.gate_stage else None,
         "priority_score": priority,
         "status": TaskStatus.PENDING.value,
         "requires_client_input": data.requires_client_input,
@@ -137,7 +107,7 @@ async def create_task(
         "metadata": data.metadata,
     }
 
-    # New optional fields
+    # Optional fields
     if data.assigned_to:
         task_data["assigned_to"] = str(data.assigned_to)
     if data.due_date:
@@ -146,6 +116,20 @@ async def create_task(
         task_data["priority"] = data.priority
     if created_by:
         task_data["created_by"] = str(created_by)
+    if data.review_status:
+        task_data["review_status"] = data.review_status
+    if data.remind_at:
+        task_data["remind_at"] = data.remind_at.isoformat()
+    if data.meeting_type:
+        task_data["meeting_type"] = data.meeting_type
+    if data.meeting_date:
+        task_data["meeting_date"] = data.meeting_date.isoformat()
+    if data.signal_id:
+        task_data["signal_id"] = str(data.signal_id)
+    if data.patches_snapshot:
+        task_data["patches_snapshot"] = data.patches_snapshot
+    if data.action_verb:
+        task_data["action_verb"] = data.action_verb
 
     result = client.table("tasks").insert(task_data).execute()
     task = Task(**result.data[0])
@@ -231,9 +215,6 @@ async def list_tasks(
 
     if filters.anchored_entity_id:
         query = query.eq("anchored_entity_id", str(filters.anchored_entity_id))
-
-    if filters.gate_stage:
-        query = query.eq("gate_stage", filters.gate_stage.value)
 
     if filters.source_type:
         query = query.eq("source_type", filters.source_type.value)
@@ -735,9 +716,6 @@ async def recalculate_task_priorities(
         # Recalculate priority
         new_priority = calculate_task_priority(
             task_type=TaskType(task_data["task_type"]),
-            gate_stage=task_data.get("gate_stage"),
-            anchored_entity_type=task_data.get("anchored_entity_type"),
-            anchored_entity_id=UUID(task_data["anchored_entity_id"]) if task_data.get("anchored_entity_id") else None,
             requires_client_input=task_data.get("requires_client_input", False),
         )
 
@@ -792,6 +770,67 @@ async def recalculate_priorities_for_entity(
         return {"total_checked": 0, "updated_count": 0, "updated_tasks": []}
 
     return await recalculate_task_priorities(project_id, task_ids)
+
+
+# ============================================================================
+# Review Status
+# ============================================================================
+
+
+_REVIEW_TRANSITIONS: dict[str | None, set[str]] = {
+    None: {"pending_review"},
+    "pending_review": {"in_review", "approved", "changes_requested"},
+    "in_review": {"approved", "changes_requested"},
+    "changes_requested": {"in_review", "approved"},
+    "approved": set(),  # Terminal
+}
+
+
+async def update_review_status(
+    task_id: UUID,
+    new_status: str,
+    updated_by: Optional[UUID] = None,
+) -> Optional[Task]:
+    """Update the review_status on a review_request task with transition validation."""
+    client = get_client()
+
+    current_task = await get_task(task_id)
+    if not current_task:
+        return None
+
+    allowed = _REVIEW_TRANSITIONS.get(current_task.review_status, set())
+    if new_status not in allowed:
+        raise ValueError(
+            f"Cannot transition review_status from {current_task.review_status!r} to {new_status!r}"
+        )
+
+    result = (
+        client.table("tasks")
+        .update({"review_status": new_status})
+        .eq("id", str(task_id))
+        .execute()
+    )
+
+    if not result.data:
+        return None
+
+    task = Task(**result.data[0])
+
+    await log_task_activity(
+        task_id=task_id,
+        project_id=current_task.project_id,
+        data=TaskActivityCreate(
+            action=TaskActivityAction.REVIEW_STATUS_CHANGED,
+            actor_type=TaskActorType.USER if updated_by else TaskActorType.SYSTEM,
+            actor_id=updated_by,
+            details={
+                "previous_review_status": current_task.review_status,
+                "new_review_status": new_status,
+            },
+        ),
+    )
+
+    return task
 
 
 # ============================================================================
@@ -896,12 +935,18 @@ async def list_my_tasks(
             priority=row.get("priority", "none"),
             requires_client_input=row.get("requires_client_input", False),
             anchored_entity_type=row.get("anchored_entity_type"),
-            gate_stage=row.get("gate_stage"),
             assigned_to=row.get("assigned_to"),
             assigned_to_name=None,  # Populated below if assigned
             assigned_to_photo_url=None,
             due_date=row.get("due_date"),
             created_by=row.get("created_by"),
+            review_status=row.get("review_status"),
+            remind_at=row.get("remind_at"),
+            meeting_type=row.get("meeting_type"),
+            meeting_date=row.get("meeting_date"),
+            action_verb=row.get("action_verb"),
+            patches_snapshot=row.get("patches_snapshot"),
+            signal_id=row.get("signal_id"),
             created_at=row["created_at"],
             updated_at=row["updated_at"],
         ))
@@ -974,12 +1019,16 @@ async def get_task_with_project(task_id: UUID) -> Optional[TaskWithProject]:
         priority=row.get("priority", "none"),
         requires_client_input=row.get("requires_client_input", False),
         anchored_entity_type=row.get("anchored_entity_type"),
-        gate_stage=row.get("gate_stage"),
         assigned_to=row.get("assigned_to"),
         assigned_to_name=assignee_name,
         assigned_to_photo_url=assignee_photo,
         due_date=row.get("due_date"),
         created_by=row.get("created_by"),
+        review_status=row.get("review_status"),
+        remind_at=row.get("remind_at"),
+        meeting_type=row.get("meeting_type"),
+        meeting_date=row.get("meeting_date"),
+        action_verb=row.get("action_verb"),
         created_at=row["created_at"],
         updated_at=row["updated_at"],
     )

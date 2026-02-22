@@ -176,7 +176,7 @@ async def _create_signal_review_tasks(
             data=TaskCreate(
                 title=f"Confirm {len(created_count)} new entities from {source_name}",
                 description=f"Review and confirm {len(created_count)} newly extracted entities.",
-                task_type=TaskType.VALIDATION,
+                task_type=TaskType.SIGNAL_REVIEW,
                 source_type=TaskSourceType.SIGNAL_PROCESSING,
                 source_id=UUID(signal_id),
                 source_context={"scope": "new", "count": len(created_count)},
@@ -191,7 +191,7 @@ async def _create_signal_review_tasks(
             data=TaskCreate(
                 title=f"Review {len(updated_count)} updated entities from {source_name}",
                 description=f"Review {len(updated_count)} entities that were updated with new data.",
-                task_type=TaskType.VALIDATION,
+                task_type=TaskType.SIGNAL_REVIEW,
                 source_type=TaskSourceType.SIGNAL_PROCESSING,
                 source_id=UUID(signal_id),
                 source_context={"scope": "updates", "count": len(updated_count)},

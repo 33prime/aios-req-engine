@@ -1,14 +1,7 @@
 """Tasks API - Persistent task management for projects.
 
-This module provides REST endpoints for managing tasks. Tasks can be:
-- Auto-created by DI Agent (gap detection)
-- Auto-created by signal processing (proposals)
-- Manually created by users or AI assistant
-- Created for enrichment, validation, research, or collaboration needs
-
-Tasks appear in:
-- Overview tab: All tasks
-- Collaboration tab: Client-relevant tasks only (requires_client_input=true)
+Tasks support 8 consulting workflow types: signal_review, action_item,
+meeting_prep, reminder, review_request, book_meeting, deliverable, custom.
 """
 
 from typing import Optional
@@ -21,10 +14,8 @@ from app.core.auth_middleware import AuthContext, require_auth
 from app.core.logging import get_logger
 from app.core.schemas_tasks import (
     AnchoredEntityType,
-    GateStage,
     MyTasksResponse,
     Task,
-    TaskActivity,
     TaskActivityListResponse,
     TaskComment,
     TaskCommentCreate,
@@ -36,7 +27,6 @@ from app.core.schemas_tasks import (
     TaskSourceType,
     TaskStatsResponse,
     TaskStatus,
-    TaskSummary,
     TaskType,
     TaskUpdate,
     TaskWithProject,
@@ -78,6 +68,11 @@ class BulkTaskResponse(BaseModel):
     tasks: list[Task]
 
 
+class ReviewStatusRequest(BaseModel):
+    """Request body for updating review status."""
+    review_status: str
+
+
 # ============================================================================
 # List & Read Endpoints
 # ============================================================================
@@ -90,7 +85,6 @@ async def list_tasks(
     task_type: Optional[TaskType] = Query(None, description="Filter by task type"),
     requires_client_input: Optional[bool] = Query(None, description="Filter client-relevant tasks"),
     anchored_entity_type: Optional[AnchoredEntityType] = Query(None, description="Filter by entity type"),
-    gate_stage: Optional[GateStage] = Query(None, description="Filter by gate stage"),
     source_type: Optional[TaskSourceType] = Query(None, description="Filter by source"),
     limit: int = Query(50, ge=1, le=100, description="Max results"),
     offset: int = Query(0, ge=0, description="Offset for pagination"),
@@ -98,18 +92,12 @@ async def list_tasks(
     sort_order: str = Query("desc", pattern="^(asc|desc)$", description="Sort order"),
     auth: AuthContext = Depends(require_auth),
 ):
-    """
-    List tasks for a project with optional filters.
-
-    For the Overview tab, call without filters to get all tasks.
-    For the Collaboration tab, set requires_client_input=true.
-    """
+    """List tasks for a project with optional filters."""
     filters = TaskFilter(
         status=status,
         task_type=task_type,
         requires_client_input=requires_client_input,
         anchored_entity_type=anchored_entity_type,
-        gate_stage=gate_stage,
         source_type=source_type,
         limit=limit,
         offset=offset,
@@ -174,7 +162,6 @@ async def get_task_activity(
     auth: AuthContext = Depends(require_auth),
 ):
     """Get activity log for a specific task."""
-    # Verify task exists and belongs to project
     task = await tasks_db.get_task(task_id)
     if not task or task.project_id != project_id:
         raise HTTPException(status_code=404, detail="Task not found")
@@ -194,13 +181,7 @@ async def create_task(
     data: TaskCreate,
     auth: AuthContext = Depends(require_auth),
 ):
-    """
-    Create a new task manually.
-
-    This endpoint is for manual task creation by users or AI assistant.
-    System-generated tasks (from DI Agent, signal processing) use internal methods.
-    """
-    # Override source type for manual creation
+    """Create a new task manually."""
     data.source_type = TaskSourceType.MANUAL
     if auth.user:
         data.source_context["created_by_user"] = str(auth.user_id)
@@ -227,7 +208,6 @@ async def update_task(
     auth: AuthContext = Depends(require_auth),
 ):
     """Update a task."""
-    # Verify task exists and belongs to project
     task = await tasks_db.get_task(task_id)
     if not task or task.project_id != project_id:
         raise HTTPException(status_code=404, detail="Task not found")
@@ -245,7 +225,7 @@ async def update_task(
 
 
 # ============================================================================
-# Complete & Dismiss Endpoints
+# Complete, Dismiss, Reopen Endpoints
 # ============================================================================
 
 
@@ -257,7 +237,6 @@ async def complete_task(
     auth: AuthContext = Depends(require_auth),
 ):
     """Mark a task as completed."""
-    # Verify task exists and belongs to project
     task = await tasks_db.get_task(task_id)
     if not task or task.project_id != project_id:
         raise HTTPException(status_code=404, detail="Task not found")
@@ -295,7 +274,6 @@ async def dismiss_task(
     auth: AuthContext = Depends(require_auth),
 ):
     """Dismiss a task (mark as not needed)."""
-    # Verify task exists and belongs to project
     task = await tasks_db.get_task(task_id)
     if not task or task.project_id != project_id:
         raise HTTPException(status_code=404, detail="Task not found")
@@ -327,7 +305,6 @@ async def reopen_task(
     auth: AuthContext = Depends(require_auth),
 ):
     """Reopen a completed or dismissed task."""
-    # Verify task exists and belongs to project
     task = await tasks_db.get_task(task_id)
     if not task or task.project_id != project_id:
         raise HTTPException(status_code=404, detail="Task not found")
@@ -352,6 +329,43 @@ async def reopen_task(
 
 
 # ============================================================================
+# Review Status Endpoint
+# ============================================================================
+
+
+@router.post("/{project_id}/tasks/{task_id}/review-status", response_model=Task)
+async def update_review_status(
+    project_id: UUID,
+    task_id: UUID,
+    data: ReviewStatusRequest,
+    auth: AuthContext = Depends(require_auth),
+):
+    """Update review status on a review_request task."""
+    task = await tasks_db.get_task(task_id)
+    if not task or task.project_id != project_id:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    try:
+        updated = await tasks_db.update_review_status(
+            task_id=task_id,
+            new_status=data.review_status,
+            updated_by=auth.user_id,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    if not updated:
+        raise HTTPException(status_code=500, detail="Failed to update review status")
+
+    logger.info(
+        f"Review status updated: {task_id} → {data.review_status}",
+        extra={"project_id": str(project_id), "task_id": str(task_id)},
+    )
+
+    return updated
+
+
+# ============================================================================
 # Bulk Operations
 # ============================================================================
 
@@ -362,18 +376,13 @@ async def bulk_complete_tasks(
     data: BulkTaskIdsRequest,
     auth: AuthContext = Depends(require_auth),
 ):
-    """
-    Complete multiple tasks at once.
-
-    Useful for "Approve All" in the AI assistant chat.
-    """
+    """Complete multiple tasks at once."""
     if not data.task_ids:
         raise HTTPException(status_code=400, detail="No task IDs provided")
 
     if len(data.task_ids) > 50:
         raise HTTPException(status_code=400, detail="Maximum 50 tasks per request")
 
-    # Verify all tasks belong to project
     for task_id in data.task_ids:
         task = await tasks_db.get_task(task_id)
         if not task or task.project_id != project_id:
@@ -409,7 +418,6 @@ async def bulk_dismiss_tasks(
     if len(data.task_ids) > 50:
         raise HTTPException(status_code=400, detail="Maximum 50 tasks per request")
 
-    # Verify all tasks belong to project
     for task_id in data.task_ids:
         task = await tasks_db.get_task(task_id)
         if not task or task.project_id != project_id:
@@ -437,155 +445,13 @@ async def bulk_dismiss_tasks(
 # ============================================================================
 
 
-# ============================================================================
-# Sync Endpoints (Task Generation)
-# ============================================================================
-
-
-@router.post("/{project_id}/tasks/sync/gaps")
-async def sync_gap_tasks(
-    project_id: UUID,
-    auth: AuthContext = Depends(require_auth),
-):
-    """
-    Sync gap tasks from current gate status.
-
-    Creates tasks for unsatisfied gates that don't already have pending tasks.
-    Called after DI Agent runs or when opening a project.
-    """
-    try:
-        from app.core.readiness.gates import assess_prototype_gates, assess_build_gates
-        from app.core.task_integrations import create_tasks_from_gaps
-
-        # Get current gate status
-        prototype_gates = assess_prototype_gates(project_id)
-        build_gates = assess_build_gates(project_id)
-
-        # Convert to dict format
-        all_gaps = {}
-        for gate_name, assessment in prototype_gates.items():
-            all_gaps[gate_name] = {
-                "satisfied": assessment.satisfied,
-                "confidence": assessment.confidence,
-                "missing": assessment.missing,
-                "how_to_acquire": assessment.how_to_acquire,
-            }
-        for gate_name, assessment in build_gates.items():
-            all_gaps[gate_name] = {
-                "satisfied": assessment.satisfied,
-                "confidence": assessment.confidence,
-                "missing": assessment.missing,
-                "how_to_acquire": assessment.how_to_acquire,
-            }
-
-        # Create tasks for unsatisfied gaps
-        created_ids = await create_tasks_from_gaps(project_id, all_gaps)
-
-        logger.info(
-            f"Synced gap tasks for project {project_id}: {len(created_ids)} created",
-            extra={"project_id": str(project_id), "tasks_created": len(created_ids)},
-        )
-
-        return {
-            "synced": True,
-            "tasks_created": len(created_ids),
-            "task_ids": [str(tid) for tid in created_ids],
-        }
-
-    except Exception as e:
-        logger.error(f"Failed to sync gap tasks: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Failed to sync gap tasks: {str(e)}")
-
-
-@router.post("/{project_id}/tasks/sync/enrichment")
-async def sync_enrichment_tasks(
-    project_id: UUID,
-    auth: AuthContext = Depends(require_auth),
-):
-    """
-    Sync enrichment tasks for unenriched entities.
-
-    Creates tasks for entities that need enrichment.
-    """
-    try:
-        from app.core.task_integrations import create_enrichment_tasks
-        from app.db.supabase_client import get_supabase
-
-        supabase = get_supabase()
-
-        # Find unenriched entities
-        entities_to_enrich = []
-
-        # Features without enrichment
-        features = (
-            supabase.table("features")
-            .select("id, name, enrichment_status")
-            .eq("project_id", str(project_id))
-            .in_("enrichment_status", ["none", "failed"])
-            .limit(20)
-            .execute()
-        )
-        for f in features.data or []:
-            entities_to_enrich.append({
-                "id": f["id"],
-                "entity_type": "feature",
-                "name": f["name"],
-                "enrichment_status": f.get("enrichment_status", "none"),
-            })
-
-        # Business drivers without enrichment
-        drivers = (
-            supabase.table("business_drivers")
-            .select("id, name, driver_type, enrichment_status")
-            .eq("project_id", str(project_id))
-            .in_("enrichment_status", ["none", "failed"])
-            .limit(20)
-            .execute()
-        )
-        for d in drivers.data or []:
-            entities_to_enrich.append({
-                "id": d["id"],
-                "entity_type": "business_driver",
-                "name": f"{d.get('driver_type', 'driver')}: {d['name']}",
-                "enrichment_status": d.get("enrichment_status", "none"),
-            })
-
-        # Create enrichment tasks
-        created_ids = await create_enrichment_tasks(project_id, entities_to_enrich)
-
-        logger.info(
-            f"Synced enrichment tasks for project {project_id}: {len(created_ids)} created",
-            extra={"project_id": str(project_id), "tasks_created": len(created_ids)},
-        )
-
-        return {
-            "synced": True,
-            "tasks_created": len(created_ids),
-            "task_ids": [str(tid) for tid in created_ids],
-        }
-
-    except Exception as e:
-        logger.error(f"Failed to sync enrichment tasks: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Failed to sync enrichment tasks: {str(e)}")
-
-
-# ============================================================================
-# Delete Endpoint
-# ============================================================================
-
-
 @router.delete("/{project_id}/tasks/{task_id}")
 async def delete_task(
     project_id: UUID,
     task_id: UUID,
     auth: AuthContext = Depends(require_auth),
 ):
-    """
-    Delete a task permanently.
-
-    Use dismiss instead for soft-delete that preserves activity history.
-    """
-    # Verify task exists and belongs to project
+    """Delete a task permanently."""
     task = await tasks_db.get_task(task_id)
     if not task or task.project_id != project_id:
         raise HTTPException(status_code=404, detail="Task not found")
@@ -612,11 +478,7 @@ async def recalculate_priorities(
     project_id: UUID,
     auth: AuthContext = Depends(require_auth),
 ):
-    """
-    Recalculate priorities for all pending tasks in a project.
-
-    Useful after entity changes (confirmations, enrichments, etc.)
-    """
+    """Recalculate priorities for all pending tasks in a project."""
     try:
         result = await tasks_db.recalculate_task_priorities(project_id)
 
@@ -639,11 +501,7 @@ async def recalculate_for_entity(
     entity_id: UUID = Query(..., description="ID of the entity"),
     auth: AuthContext = Depends(require_auth),
 ):
-    """
-    Recalculate priorities for tasks anchored to a specific entity.
-
-    Called when an entity is updated (confirmed, enriched, etc.)
-    """
+    """Recalculate priorities for tasks anchored to a specific entity."""
     try:
         result = await tasks_db.recalculate_priorities_for_entity(
             project_id, entity_type, entity_id
@@ -674,14 +532,7 @@ async def list_my_tasks(
     offset: int = Query(0, ge=0),
     auth: AuthContext = Depends(require_auth),
 ):
-    """
-    List tasks across all projects for the current user.
-
-    Views:
-    - assigned_to_me: tasks assigned to you
-    - created_by_me: tasks you created
-    - all: both
-    """
+    """List tasks across all projects for the current user."""
     return await tasks_db.list_my_tasks(
         user_id=auth.user_id,
         view=view,

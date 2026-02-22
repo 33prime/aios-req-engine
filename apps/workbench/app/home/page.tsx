@@ -39,13 +39,14 @@ const STAGE_CONFIG: Record<string, { label: string; bg: string; text: string }> 
 }
 
 const TASK_TYPE_CONFIG: Record<string, { label: string; bg: string; text: string }> = {
-  proposal:      { label: 'Proposal',  bg: 'bg-[#E8F5E9]', text: 'text-[#25785A]' },
-  gap:           { label: 'Gap',       bg: 'bg-[#E8F5E9]', text: 'text-[#25785A]' },
-  manual:        { label: 'Manual',    bg: 'bg-[#F0F0F0]', text: 'text-[#666]' },
-  enrichment:    { label: 'Enrich',    bg: 'bg-[#F0F0F0]', text: 'text-[#666]' },
-  validation:    { label: 'Validate',  bg: 'bg-[#E8F5E9]', text: 'text-[#25785A]' },
-  research:      { label: 'Research',  bg: 'bg-[#F0F0F0]', text: 'text-[#666]' },
-  collaboration: { label: 'Client',    bg: 'bg-[#E8F5E9]', text: 'text-[#25785A]' },
+  signal_review:  { label: 'Review',     bg: 'bg-[#E8F5E9]', text: 'text-[#25785A]' },
+  action_item:    { label: 'Action',     bg: 'bg-[#0A1E2F]/5', text: 'text-[#0A1E2F]' },
+  meeting_prep:   { label: 'Prep',       bg: 'bg-[#E8F5E9]', text: 'text-[#25785A]' },
+  book_meeting:   { label: 'Meeting',    bg: 'bg-[#E8F5E9]', text: 'text-[#25785A]' },
+  reminder:       { label: 'Reminder',   bg: 'bg-[#F0F0F0]', text: 'text-[#666]' },
+  review_request: { label: 'Review Req', bg: 'bg-[#E8F5E9]', text: 'text-[#25785A]' },
+  deliverable:    { label: 'Deliverable', bg: 'bg-[#0A1E2F]/5', text: 'text-[#0A1E2F]' },
+  custom:         { label: 'Task',       bg: 'bg-[#F0F0F0]', text: 'text-[#666]' },
 }
 
 const MAX_DASHBOARD_PROJECTS = 3
@@ -286,7 +287,7 @@ function GlobalTasksPanel({
       ) : (
         <div>
           {tasks.map((task) => {
-            const typeConf = TASK_TYPE_CONFIG[task.task_type] ?? TASK_TYPE_CONFIG.manual
+            const typeConf = TASK_TYPE_CONFIG[task.task_type] ?? TASK_TYPE_CONFIG.custom
             const projectName = projectNameMap[task.project_id]
             const shortName = projectName
               ? projectName.length > 14 ? projectName.slice(0, 12) + '..' : projectName
@@ -315,6 +316,21 @@ function GlobalTasksPanel({
                     <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${typeConf.bg} ${typeConf.text}`}>
                       {typeConf.label}
                     </span>
+                    {task.meeting_date && (
+                      <span className="text-[10px] text-[#25785A]">
+                        {format(new Date(task.meeting_date), 'MMM d')}
+                      </span>
+                    )}
+                    {task.remind_at && (
+                      <span className="text-[10px] text-[#999]">
+                        &#128276; {format(new Date(task.remind_at), 'MMM d')}
+                      </span>
+                    )}
+                    {task.action_verb && (
+                      <span className="text-[10px] text-[#666] capitalize">
+                        {task.action_verb.replace('_', ' ')}
+                      </span>
+                    )}
                     <span className="text-[10px] text-[#999]">
                       {formatDistanceToNow(new Date(task.created_at), { addSuffix: true })}
                     </span>

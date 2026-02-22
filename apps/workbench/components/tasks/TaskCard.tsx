@@ -15,12 +15,13 @@ import {
   Link2,
   ChevronRight,
   User,
-  AlertCircle,
-  Sparkles,
   FileText,
-  Target,
-  Search,
-  MessageSquare,
+  Bell,
+  Calendar,
+  Send,
+  Eye,
+  Package,
+  Pen,
 } from 'lucide-react'
 import type { Task } from '@/lib/api'
 
@@ -34,13 +35,14 @@ interface TaskCardProps {
 }
 
 const taskTypeConfig: Record<string, { icon: typeof CheckCircle; label: string; color: string }> = {
-  proposal: { icon: FileText, label: 'Proposal', color: 'bg-emerald-50 text-emerald-700' },
-  gap: { icon: AlertCircle, label: 'Gap', color: 'bg-emerald-100 text-emerald-800' },
-  manual: { icon: CheckCircle, label: 'Manual', color: 'bg-gray-100 text-gray-700' },
-  enrichment: { icon: Sparkles, label: 'Enrichment', color: 'bg-teal-50 text-teal-700' },
-  validation: { icon: Target, label: 'Validation', color: 'bg-emerald-100 text-emerald-700' },
-  research: { icon: Search, label: 'Research', color: 'bg-emerald-50 text-emerald-600' },
-  collaboration: { icon: MessageSquare, label: 'Client', color: 'bg-teal-100 text-teal-700' },
+  signal_review: { icon: FileText, label: 'Review', color: 'bg-emerald-50 text-emerald-700' },
+  action_item: { icon: Send, label: 'Action', color: 'bg-[#3FAF7A]/10 text-[#25785A]' },
+  meeting_prep: { icon: Calendar, label: 'Prep', color: 'bg-[#0A1E2F]/5 text-[#0A1E2F]' },
+  reminder: { icon: Bell, label: 'Reminder', color: 'bg-gray-100 text-gray-700' },
+  review_request: { icon: Eye, label: 'Review', color: 'bg-emerald-100 text-emerald-700' },
+  book_meeting: { icon: Calendar, label: 'Meeting', color: 'bg-[#0A1E2F]/5 text-[#0A1E2F]' },
+  deliverable: { icon: Package, label: 'Deliverable', color: 'bg-[#3FAF7A]/10 text-[#25785A]' },
+  custom: { icon: Pen, label: 'Task', color: 'bg-gray-100 text-gray-700' },
 }
 
 const priorityConfig: Record<string, { color: string; label: string }> = {
@@ -66,7 +68,7 @@ export function TaskCard({
   const [isCompleting, setIsCompleting] = useState(false)
   const [isDismissing, setIsDismissing] = useState(false)
 
-  const typeConfig = taskTypeConfig[task.task_type] || taskTypeConfig.manual
+  const typeConfig = taskTypeConfig[task.task_type] || taskTypeConfig.custom
   const TypeIcon = typeConfig.icon
   const priorityLevel = getPriorityLevel(task.priority_score)
   const priority = priorityConfig[priorityLevel]
@@ -144,9 +146,9 @@ export function TaskCard({
                 Client Input
               </span>
             )}
-            {task.gate_stage && (
-              <span className="text-xs text-gray-500">
-                Gate: {task.gate_stage.replace(/_/g, ' ')}
+            {task.action_verb && (
+              <span className="text-xs text-gray-500 capitalize">
+                {task.action_verb.replace(/_/g, ' ')}
               </span>
             )}
           </div>

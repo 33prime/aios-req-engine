@@ -14,14 +14,15 @@ from pydantic import BaseModel, Field
 
 
 class TaskType(str, Enum):
-    """Type of task - indicates its origin and purpose."""
-    PROPOSAL = "proposal"           # From signal processing (entity changes)
-    GAP = "gap"                     # From DI Agent (missing requirements)
-    MANUAL = "manual"               # User or AI assistant created
-    ENRICHMENT = "enrichment"       # Entity needs deeper analysis
-    VALIDATION = "validation"       # Needs client confirmation
-    RESEARCH = "research"           # Needs external research
-    COLLABORATION = "collaboration"  # Requires client input
+    """Type of task — reflects consulting workflow types."""
+    SIGNAL_REVIEW = "signal_review"       # Review entities extracted from a signal
+    ACTION_ITEM = "action_item"           # Action item from meeting transcript
+    MEETING_PREP = "meeting_prep"         # Prepare for an upcoming meeting
+    REMINDER = "reminder"                 # Personal reminder
+    REVIEW_REQUEST = "review_request"     # Request a teammate to review something
+    BOOK_MEETING = "book_meeting"         # Schedule a meeting
+    DELIVERABLE = "deliverable"           # Client-facing deliverable
+    CUSTOM = "custom"                     # Freeform task
 
 
 class TaskStatus(str, Enum):
@@ -34,11 +35,10 @@ class TaskStatus(str, Enum):
 
 class TaskSourceType(str, Enum):
     """Where the task originated."""
-    DI_AGENT = "di_agent"
     SIGNAL_PROCESSING = "signal_processing"
     MANUAL = "manual"
-    ENRICHMENT_TRIGGER = "enrichment_trigger"
     AI_ASSISTANT = "ai_assistant"
+    ACTION_EXTRACTION = "action_extraction"
 
 
 class TaskCompletionMethod(str, Enum):
@@ -61,18 +61,39 @@ class AnchoredEntityType(str, Enum):
     RISK = "risk"
 
 
-class GateStage(str, Enum):
-    """Gate stages for priority calculation."""
-    # Phase 1 - Prototype (higher priority)
-    CORE_PAIN = "core_pain"
-    PRIMARY_PERSONA = "primary_persona"
-    WOW_MOMENT = "wow_moment"
-    DESIGN_PREFERENCES = "design_preferences"
-    # Phase 2 - Build (standard priority)
-    BUSINESS_CASE = "business_case"
-    BUDGET_CONSTRAINTS = "budget_constraints"
-    FULL_REQUIREMENTS = "full_requirements"
-    CONFIRMED_SCOPE = "confirmed_scope"
+class ReviewStatus(str, Enum):
+    """Review workflow status for review_request tasks."""
+    PENDING_REVIEW = "pending_review"
+    IN_REVIEW = "in_review"
+    APPROVED = "approved"
+    CHANGES_REQUESTED = "changes_requested"
+
+
+class MeetingType(str, Enum):
+    """Meeting types for meeting_prep and book_meeting tasks."""
+    DISCOVERY = "discovery"
+    EVENT_MODELING = "event_modeling"
+    PROPOSAL = "proposal"
+    PROTOTYPE_REVIEW = "prototype_review"
+    KICKOFF = "kickoff"
+    STAKEHOLDER_INTERVIEW = "stakeholder_interview"
+    TECHNICAL_DEEP_DIVE = "technical_deep_dive"
+    INTERNAL_STRATEGY = "internal_strategy"
+    INTRODUCTION = "introduction"
+    MONTHLY_CHECK_IN = "monthly_check_in"
+    HAND_OFF = "hand_off"
+
+
+class ActionVerb(str, Enum):
+    """Action verbs for action_item tasks."""
+    SEND = "send"
+    EMAIL = "email"
+    SCHEDULE = "schedule"
+    PREPARE = "prepare"
+    REVIEW = "review"
+    FOLLOW_UP = "follow_up"
+    SHARE = "share"
+    CREATE = "create"
 
 
 class TaskPriority(str, Enum):
@@ -95,6 +116,8 @@ class TaskActivityAction(str, Enum):
     ASSIGNED = "assigned"
     COMMENTED = "commented"
     DUE_DATE_CHANGED = "due_date_changed"
+    REVIEW_STATUS_CHANGED = "review_status_changed"
+    REMINDER_SENT = "reminder_sent"
 
 
 class TaskActorType(str, Enum):
@@ -113,12 +136,17 @@ class TaskBase(BaseModel):
     """Base task fields."""
     title: str
     description: Optional[str] = None
-    task_type: TaskType = TaskType.MANUAL
+    task_type: TaskType = TaskType.CUSTOM
     anchored_entity_type: Optional[AnchoredEntityType] = None
     anchored_entity_id: Optional[UUID] = None
-    gate_stage: Optional[GateStage] = None
     requires_client_input: bool = False
     metadata: dict[str, Any] = Field(default_factory=dict)
+    review_status: Optional[str] = None
+    remind_at: Optional[datetime] = None
+    meeting_type: Optional[str] = None
+    meeting_date: Optional[datetime] = None
+    signal_id: Optional[UUID] = None
+    action_verb: Optional[str] = None
 
 
 class TaskCreate(TaskBase):
@@ -130,6 +158,7 @@ class TaskCreate(TaskBase):
     assigned_to: Optional[UUID] = None
     due_date: Optional[datetime] = None
     priority: Optional[str] = None  # none/low/medium/high
+    patches_snapshot: Optional[dict] = None
 
 
 class TaskUpdate(BaseModel):
@@ -143,6 +172,11 @@ class TaskUpdate(BaseModel):
     assigned_to: Optional[UUID] = None
     due_date: Optional[datetime] = None
     priority: Optional[str] = None  # none/low/medium/high
+    review_status: Optional[str] = None
+    remind_at: Optional[datetime] = None
+    meeting_type: Optional[str] = None
+    meeting_date: Optional[datetime] = None
+    action_verb: Optional[str] = None
 
 
 class TaskComplete(BaseModel):
@@ -174,6 +208,7 @@ class Task(TaskBase):
     due_date: Optional[datetime] = None
     created_by: Optional[UUID] = None
     priority: Optional[str] = "none"
+    patches_snapshot: Optional[dict] = None
     created_at: datetime
     updated_at: datetime
 
@@ -191,13 +226,17 @@ class TaskSummary(BaseModel):
     priority_score: float
     requires_client_input: bool
     anchored_entity_type: Optional[AnchoredEntityType] = None
-    gate_stage: Optional[GateStage] = None
     source_type: Optional[TaskSourceType] = None
     source_id: Optional[UUID] = None
     assigned_to: Optional[UUID] = None
     due_date: Optional[datetime] = None
     created_by: Optional[UUID] = None
     priority: Optional[str] = "none"
+    review_status: Optional[str] = None
+    remind_at: Optional[datetime] = None
+    meeting_type: Optional[str] = None
+    meeting_date: Optional[datetime] = None
+    action_verb: Optional[str] = None
     created_at: datetime
 
     class Config:
@@ -273,7 +312,6 @@ class TaskFilter(BaseModel):
     requires_client_input: Optional[bool] = None
     anchored_entity_type: Optional[AnchoredEntityType] = None
     anchored_entity_id: Optional[UUID] = None
-    gate_stage: Optional[GateStage] = None
     source_type: Optional[TaskSourceType] = None
     limit: int = 50
     offset: int = 0
@@ -331,12 +369,18 @@ class TaskWithProject(BaseModel):
     priority: Optional[str] = "none"
     requires_client_input: bool
     anchored_entity_type: Optional[AnchoredEntityType] = None
-    gate_stage: Optional[GateStage] = None
     assigned_to: Optional[UUID] = None
     assigned_to_name: Optional[str] = None
     assigned_to_photo_url: Optional[str] = None
     due_date: Optional[datetime] = None
     created_by: Optional[UUID] = None
+    review_status: Optional[str] = None
+    remind_at: Optional[datetime] = None
+    meeting_type: Optional[str] = None
+    meeting_date: Optional[datetime] = None
+    action_verb: Optional[str] = None
+    patches_snapshot: Optional[dict] = None
+    signal_id: Optional[UUID] = None
     created_at: datetime
     updated_at: datetime
 

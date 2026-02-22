@@ -579,6 +579,8 @@ async def _update_business_driver_entity(entity_id: UUID, project_id: UUID, fiel
 
 async def _create_task(project_id: UUID, params: Dict[str, Any]) -> Dict[str, Any]:
     """Create a project task from the chat assistant."""
+    from datetime import datetime as dt
+
     from app.core.schemas_tasks import TaskCreate, TaskSourceType, TaskType, AnchoredEntityType
     from app.db.tasks import create_task
 
@@ -587,9 +589,9 @@ async def _create_task(project_id: UUID, params: Dict[str, Any]) -> Dict[str, An
         return {"error": "title is required"}
 
     # Map task_type string to enum
-    task_type_str = params.get("task_type", "manual")
+    task_type_str = params.get("task_type", "custom")
     task_type_map = {t.value: t for t in TaskType}
-    task_type = task_type_map.get(task_type_str, TaskType.MANUAL)
+    task_type = task_type_map.get(task_type_str, TaskType.CUSTOM)
 
     # Map anchored_entity_type string to enum
     anchored_type = None
@@ -606,6 +608,26 @@ async def _create_task(project_id: UUID, params: Dict[str, Any]) -> Dict[str, An
         except (ValueError, TypeError):
             pass
 
+    # Parse datetime fields
+    remind_at = None
+    if params.get("remind_at"):
+        try:
+            remind_at = dt.fromisoformat(params["remind_at"])
+        except (ValueError, TypeError):
+            pass
+
+    meeting_date = None
+    if params.get("meeting_date"):
+        try:
+            meeting_date = dt.fromisoformat(params["meeting_date"])
+        except (ValueError, TypeError):
+            pass
+
+    # Smart defaults
+    review_status = None
+    if task_type == TaskType.REVIEW_REQUEST:
+        review_status = "pending_review"
+
     task_data = TaskCreate(
         title=title,
         description=params.get("description"),
@@ -614,6 +636,11 @@ async def _create_task(project_id: UUID, params: Dict[str, Any]) -> Dict[str, An
         anchored_entity_type=anchored_type,
         anchored_entity_id=anchored_id,
         source_type=TaskSourceType.AI_ASSISTANT,
+        remind_at=remind_at,
+        meeting_type=params.get("meeting_type"),
+        meeting_date=meeting_date,
+        action_verb=params.get("action_verb"),
+        review_status=review_status,
     )
 
     try:
@@ -622,6 +649,7 @@ async def _create_task(project_id: UUID, params: Dict[str, Any]) -> Dict[str, An
             "success": True,
             "task_id": str(task.id),
             "title": title,
+            "task_type": task_type.value,
         }
     except Exception as e:
         logger.error(f"Failed to create task: {e}", exc_info=True)

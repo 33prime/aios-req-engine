@@ -39,8 +39,15 @@ export function PropertyPills({ task, members, onUpdate }: PropertyPillsProps) {
     setEditingField(null)
   }
 
+  const typeLabel = task.task_type.replace(/_/g, ' ')
+
   return (
     <div className="flex flex-wrap items-center gap-2 mb-6">
+      {/* Type pill (read-only) */}
+      <span className="px-2.5 py-1 text-[12px] bg-[#3FAF7A]/10 text-[#25785A] rounded-md font-medium capitalize">
+        {typeLabel}
+      </span>
+
       {/* Status pill */}
       <PillDropdown
         label={task.status.replace('_', ' ')}

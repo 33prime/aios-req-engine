@@ -476,7 +476,7 @@ def get_tool_definitions() -> List[Dict[str, Any]]:
         # Task Creation
         {
             "name": "create_task",
-            "description": "Create a project task for tracking follow-ups and action items. Use when: user says 'create a task', 'remind me to', 'follow up on', 'add a todo', 'track this'. Title should start with a verb.",
+            "description": "Create a project task. Infer the type from context: 'remind me...' → reminder (set remind_at), 'follow up with...' / 'email them...' → action_item (set action_verb), 'schedule/book a meeting...' → book_meeting (set meeting_type), 'prepare for the meeting...' → meeting_prep, 'send the proposal...' → deliverable, 'can you review...' → review_request, otherwise → custom. Title should start with a verb.",
             "input_schema": {
                 "type": "object",
                 "properties": {
@@ -490,9 +490,9 @@ def get_tool_definitions() -> List[Dict[str, Any]]:
                     },
                     "task_type": {
                         "type": "string",
-                        "enum": ["manual", "gap", "enrichment", "validation", "research", "collaboration"],
-                        "description": "Type of task. Default: manual",
-                        "default": "manual",
+                        "enum": ["signal_review", "action_item", "meeting_prep", "reminder", "review_request", "book_meeting", "deliverable", "custom"],
+                        "description": "Type of task. Default: custom",
+                        "default": "custom",
                     },
                     "requires_client_input": {
                         "type": "boolean",
@@ -507,6 +507,24 @@ def get_tool_definitions() -> List[Dict[str, Any]]:
                     "anchored_entity_id": {
                         "type": "string",
                         "description": "Optional UUID of the anchored entity",
+                    },
+                    "remind_at": {
+                        "type": "string",
+                        "description": "ISO datetime for reminder tasks (e.g. '2026-02-24T09:00:00')",
+                    },
+                    "meeting_type": {
+                        "type": "string",
+                        "enum": ["discovery", "event_modeling", "proposal", "prototype_review", "kickoff", "stakeholder_interview", "technical_deep_dive", "internal_strategy", "introduction", "monthly_check_in", "hand_off"],
+                        "description": "Meeting type for meeting_prep or book_meeting tasks",
+                    },
+                    "meeting_date": {
+                        "type": "string",
+                        "description": "ISO datetime for the meeting date",
+                    },
+                    "action_verb": {
+                        "type": "string",
+                        "enum": ["send", "email", "schedule", "prepare", "review", "follow_up", "share", "create"],
+                        "description": "Action verb for action_item tasks",
                     },
                 },
                 "required": ["title"],
