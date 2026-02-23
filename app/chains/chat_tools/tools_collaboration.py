@@ -158,10 +158,10 @@ async def _synthesize_and_preview(project_id: UUID, params: Dict[str, Any]) -> D
         supabase = get_supabase()
         pid = str(project_id)
 
-        # Check pending items count
-        pending_resp = supabase.table("pending_items").select("id, item_type, title").eq(
-            "project_id", pid
-        ).eq("status", "pending").execute()
+        # Fetch pending items (need full data for synthesis prompt)
+        pending_resp = supabase.table("pending_items").select(
+            "id, item_type, title, description, why_needed, priority"
+        ).eq("project_id", pid).eq("status", "pending").execute()
 
         pending_items = pending_resp.data or []
         if not pending_items:
@@ -170,33 +170,29 @@ async def _synthesize_and_preview(project_id: UUID, params: Dict[str, Any]) -> D
                 "error": "No pending items to synthesize. Mark entities for review or draft questions first.",
             }
 
-        # Call the generate package endpoint logic directly
-        from app.chains.synthesize_client_package import synthesize_questions, suggest_assets
-        from app.core.phase_state_machine import get_all_phases_status
+        # Call the synthesis chain directly
+        from app.chains.synthesize_client_package import synthesize_questions
 
         # Build project context
-        project_resp = supabase.table("projects").select("name, description").eq("id", pid).single().execute()
-        project_name = project_resp.data.get("name", "Project") if project_resp.data else "Project"
+        project_resp = supabase.table("projects").select(
+            "name, description, collaboration_phase"
+        ).eq("id", pid).single().execute()
 
-        phases = get_all_phases_status(UUID(pid))
-        current_phase = "discovery"
-        for p in phases:
-            if p.get("status") == "active":
-                current_phase = p.get("phase", "discovery")
-                break
-
+        project_data = project_resp.data or {}
         project_context = {
-            "project_name": project_name,
-            "current_phase": current_phase,
+            "goal": project_data.get("description", ""),
+            "industry": "Technology",
+            "existing_context": f"Project: {project_data.get('name', 'Project')}",
         }
 
         max_questions = params.get("max_questions", 8)
 
-        # Synthesize questions
+        # Synthesize questions (pass project_id for Tier 3 retrieval context)
         questions = await synthesize_questions(
             pending_items=pending_items,
             project_context=project_context,
             target_questions=max_questions,
+            project_id=pid,
         )
 
         # Summarize by type

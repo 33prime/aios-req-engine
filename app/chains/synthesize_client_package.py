@@ -360,25 +360,36 @@ async def synthesize_questions(
     """
     items_formatted = _format_pending_items(pending_items)
 
-    # Optional retrieval context
+    # Tier 3 retrieval — this is a client-facing deliverable, completeness matters.
+    # Per retrieval-rules.md: full pipeline with reranking for packages.
     retrieval_section = ""
     if project_id:
         try:
             from app.core.retrieval import retrieve
             from app.core.retrieval_format import format_retrieval_for_context
 
+            # Build a query grounded in the actual pending items
+            item_types = {i.get("item_type", "") for i in pending_items}
+            item_titles = [i.get("title", "") for i in pending_items[:8]]
+            context_hint = f"Synthesizing client package covering: {', '.join(item_titles)}"
+
             result = await retrieve(
-                query="project goals requirements pain points workflows",
+                query=f"project context for client questions about {' '.join(item_types)}",
                 project_id=project_id,
-                entity_types=["feature", "persona", "workflow", "business_driver"],
-                skip_evaluation=True,
-                skip_reranking=True,
+                entity_types=[
+                    "feature", "persona", "workflow", "business_driver",
+                    "stakeholder", "constraint", "competitor",
+                ],
+                context_hint=context_hint,
+                max_rounds=2,
             )
-            evidence = format_retrieval_for_context(result, style="generation", max_tokens=1500)
+            evidence = format_retrieval_for_context(
+                result, style="generation", max_tokens=3000
+            )
             if evidence:
                 retrieval_section = f"## What We Already Know\n{evidence}\n\n"
-        except Exception:
-            pass  # Non-blocking — continue without retrieval
+        except Exception as e:
+            logger.warning(f"Retrieval for package synthesis failed (non-blocking): {e}")
 
     user_text = QUESTION_SYNTHESIS_USER.format(
         industry=project_context.get("industry", "Technology"),
