@@ -18,6 +18,7 @@ class EvidenceItem(BaseModel):
 class PainPointSummary(BaseModel):
     """Pain point from business_drivers (type=pain)."""
     id: str
+    title: str | None = None
     description: str = ""
     severity: str | None = None
     business_impact: str | None = None
@@ -41,6 +42,7 @@ class PainPointSummary(BaseModel):
 class GoalSummary(BaseModel):
     """Business goal from business_drivers (type=goal)."""
     id: str
+    title: str | None = None
     description: str = ""
     success_criteria: str | None = None
     owner: str | None = None
@@ -63,6 +65,7 @@ class GoalSummary(BaseModel):
 class KPISummary(BaseModel):
     """KPI/success metric from business_drivers (type=kpi)."""
     id: str
+    title: str | None = None
     description: str = ""
     baseline_value: str | None = None
     target_value: str | None = None
@@ -297,6 +300,7 @@ class RevisionEntry(BaseModel):
 class BusinessDriverDetail(BaseModel):
     """Full detail for a single business driver (for detail drawer)."""
     id: str
+    title: str | None = None
     description: str = ""
     driver_type: str = ""
     severity: str | None = None

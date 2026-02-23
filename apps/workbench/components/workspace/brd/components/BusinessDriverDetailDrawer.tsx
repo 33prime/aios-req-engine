@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import {
   AlertTriangle,
   Target,
@@ -12,12 +12,13 @@ import {
   ChevronDown,
   ChevronRight,
   Workflow,
-  Sparkles,
+  FileSearch,
   CheckCircle2,
   Circle,
   Info,
   DollarSign,
   Pencil,
+  Clock,
 } from 'lucide-react'
 import { DrawerShell, type DrawerTab } from '@/components/ui/DrawerShell'
 import { EmptyState } from '@/components/ui/EmptyState'
@@ -29,7 +30,8 @@ import { ConfirmActions } from './ConfirmActions'
 import { EvidenceBlock } from './EvidenceBlock'
 import { WhoHasTheData } from './WhoHasTheData'
 import { FinancialImpactCard } from './FinancialImpactCard'
-import { getBRDDriverDetail, updateDriverFinancials } from '@/lib/api'
+import { FieldEditor } from './FieldEditor'
+import { getBRDDriverDetail, updateDriverFinancials, updateBusinessDriver } from '@/lib/api'
 import { getTopicsForDriverType, inferTopicsFromText } from '@/lib/topic-role-map'
 import type {
   BusinessDriver,
@@ -41,7 +43,7 @@ import type {
 } from '@/types/workspace'
 
 type DriverType = 'pain' | 'goal' | 'kpi'
-type TabId = 'intelligence' | 'who_has_data' | 'evidence_history' | 'connections'
+type TabId = 'overview' | 'provenance' | 'connections' | 'history'
 
 interface BusinessDriverDetailDrawerProps {
   driverId: string
@@ -70,23 +72,25 @@ export function BusinessDriverDetailDrawer({
   onConfirm,
   onNeedsReview,
 }: BusinessDriverDetailDrawerProps) {
-  const [activeTab, setActiveTab] = useState<TabId>('intelligence')
+  const [activeTab, setActiveTab] = useState<TabId>('overview')
   const [detail, setDetail] = useState<BusinessDriverDetail | null>(null)
   const [loading, setLoading] = useState(true)
+
+  const fetchDetail = useCallback(() => {
+    setLoading(true)
+    getBRDDriverDetail(projectId, driverId)
+      .then((data) => setDetail(data))
+      .catch((err) => console.error('Failed to load driver detail:', err))
+      .finally(() => setLoading(false))
+  }, [projectId, driverId])
 
   useEffect(() => {
     let cancelled = false
     setLoading(true)
     getBRDDriverDetail(projectId, driverId)
-      .then((data) => {
-        if (!cancelled) setDetail(data)
-      })
-      .catch((err) => {
-        console.error('Failed to load driver detail:', err)
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false)
-      })
+      .then((data) => { if (!cancelled) setDetail(data) })
+      .catch((err) => console.error('Failed to load driver detail:', err))
+      .finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
   }, [projectId, driverId])
 
@@ -104,10 +108,20 @@ export function BusinessDriverDetailDrawer({
       (initialData.linked_workflow_count ?? 0)
   }, [detail, initialData])
 
+  const evidenceCount = detail?.evidence?.length ?? initialData.evidence?.length ?? 0
+
   const tabs: DrawerTab[] = useMemo(() => [
-    { id: 'intelligence', label: 'Intelligence', icon: Sparkles },
-    { id: 'who_has_data', label: 'Who Has Data', icon: Users },
-    { id: 'evidence_history', label: 'Evidence', icon: FileText },
+    { id: 'overview', label: 'Overview', icon: FileText },
+    {
+      id: 'provenance',
+      label: 'Provenance',
+      icon: FileSearch,
+      badge: evidenceCount > 0 ? (
+        <span className="ml-1 text-[10px] bg-[#E8F5E9] text-[#25785A] px-1.5 py-0.5 rounded-full">
+          {evidenceCount}
+        </span>
+      ) : undefined,
+    },
     {
       id: 'connections',
       label: 'Connections',
@@ -118,14 +132,17 @@ export function BusinessDriverDetailDrawer({
         </span>
       ) : undefined,
     },
-  ], [connectionCount])
+    { id: 'history', label: 'History', icon: Clock },
+  ], [connectionCount, evidenceCount])
+
+  const displayTitle = initialData.title || initialData.description
 
   return (
     <DrawerShell
       onClose={onClose}
       icon={Icon}
       entityLabel={config.label}
-      title={initialData.description}
+      title={displayTitle}
       headerRight={<BRDStatusBadge status={initialData.confirmation_status} />}
       headerActions={
         <ConfirmActions
@@ -139,8 +156,8 @@ export function BusinessDriverDetailDrawer({
       activeTab={activeTab}
       onTabChange={(id) => setActiveTab(id as TabId)}
     >
-      {activeTab === 'intelligence' && (
-        <IntelligenceTab
+      {activeTab === 'overview' && (
+        <OverviewTab
           driverType={driverType}
           projectId={projectId}
           driverId={driverId}
@@ -148,22 +165,12 @@ export function BusinessDriverDetailDrawer({
           detail={detail}
           loading={loading}
           onDetailUpdate={setDetail}
+          onRefresh={fetchDetail}
         />
       )}
-      {activeTab === 'who_has_data' && (
-        <WhoHasTheData
-          topics={[
-            ...getTopicsForDriverType(driverType),
-            ...inferTopicsFromText(initialData.description),
-          ]}
-          stakeholders={stakeholders}
+      {activeTab === 'provenance' && (
+        <ProvenanceTab
           evidence={detail?.evidence || initialData.evidence || []}
-        />
-      )}
-      {activeTab === 'evidence_history' && (
-        <EvidenceHistoryTab
-          evidence={detail?.evidence || initialData.evidence || []}
-          revisions={detail?.revisions || []}
           loading={loading}
         />
       )}
@@ -174,15 +181,21 @@ export function BusinessDriverDetailDrawer({
           loading={loading}
         />
       )}
+      {activeTab === 'history' && (
+        <HistoryTab
+          revisions={detail?.revisions || []}
+          loading={loading}
+        />
+      )}
     </DrawerShell>
   )
 }
 
 // ============================================================================
-// Intelligence Tab (replaces Details)
+// Overview Tab (editable fields + narrative + relevance)
 // ============================================================================
 
-function IntelligenceTab({
+function OverviewTab({
   driverType,
   projectId,
   driverId,
@@ -190,6 +203,7 @@ function IntelligenceTab({
   detail,
   loading,
   onDetailUpdate,
+  onRefresh,
 }: {
   driverType: DriverType
   projectId: string
@@ -198,25 +212,24 @@ function IntelligenceTab({
   detail: BusinessDriverDetail | null
   loading: boolean
   onDetailUpdate: (d: BusinessDriverDetail) => void
+  onRefresh: () => void
 }) {
   const d = detail || initialData
   const [editingFinancial, setEditingFinancial] = useState(false)
   const [savingFinancial, setSavingFinancial] = useState(false)
 
-  // Build narrative from available data
   const narrative = useMemo(() => buildNarrative(driverType, d), [driverType, d])
   const score = d.relatability_score ?? 0
   const va = d.vision_alignment
 
-  // Detect missing data
   const missingData = useMemo(() => {
     const items: string[] = []
     if (!d.linked_persona_count && !(detail?.associated_personas?.length))
-      items.push('Not linked to any persona — consider mapping who experiences this')
+      items.push('Not linked to any persona')
     if (!d.linked_workflow_count)
-      items.push('Not linked to any workflow — consider mapping where this occurs')
+      items.push('Not linked to any workflow')
     if (!d.linked_feature_count && !(detail?.associated_features?.length))
-      items.push('Not linked to any feature — consider mapping what addresses this')
+      items.push('Not linked to any feature')
     if (driverType === 'kpi') {
       if (!d.baseline_value) items.push('Missing baseline value')
       if (!d.target_value) items.push('Missing target value')
@@ -227,35 +240,42 @@ function IntelligenceTab({
     return items
   }, [d, detail, driverType])
 
+  const handleFieldSave = async (fieldName: string, value: string) => {
+    try {
+      await updateBusinessDriver(projectId, driverId, { [fieldName]: value })
+      onRefresh()
+    } catch (err) {
+      console.error(`Failed to save ${fieldName}:`, err)
+    }
+  }
+
   return (
     <div className="space-y-6">
-      {/* Financial Impact Overview (KPI only — top position) */}
-      {driverType === 'kpi' && (
-        <FinancialOverview
-          d={d}
-          editing={editingFinancial}
-          saving={savingFinancial}
-          onEdit={() => setEditingFinancial(true)}
-          onCancel={() => setEditingFinancial(false)}
-          onSave={async (values) => {
-            setSavingFinancial(true)
-            try {
-              await updateDriverFinancials(projectId, driverId, values)
-              const updated = await getBRDDriverDetail(projectId, driverId)
-              onDetailUpdate(updated)
-              setEditingFinancial(false)
-            } catch (err) {
-              console.error('Failed to save financial impact:', err)
-            } finally {
-              setSavingFinancial(false)
-            }
-          }}
-        />
-      )}
+      {/* Editable Title */}
+      <FieldEditor
+        fieldName="title"
+        fieldLabel="Title"
+        currentValue={d.title}
+        driverId={driverId}
+        projectId={projectId}
+        onSave={(v) => handleFieldSave('title', v)}
+      />
+
+      {/* Editable Description */}
+      <FieldEditor
+        fieldName="description"
+        fieldLabel="Description"
+        currentValue={d.description}
+        driverId={driverId}
+        projectId={projectId}
+        onSave={(v) => handleFieldSave('description', v)}
+        multiline
+      />
 
       {/* AI Narrative */}
       {narrative && (
         <div className="bg-[#F4F4F4] border border-[#E5E5E5] rounded-xl px-4 py-3">
+          <p className="text-[11px] font-medium text-[#999999] uppercase tracking-wide mb-1">AI Narrative</p>
           <p className="text-[13px] text-[#333333] leading-relaxed">{narrative}</p>
         </div>
       )}
@@ -279,9 +299,72 @@ function IntelligenceTab({
         {va && <VisionAlignmentBadge alignment={va} />}
       </div>
 
+      {/* Financial Impact Overview (KPI only) */}
+      {driverType === 'kpi' && (
+        <FinancialOverview
+          d={d}
+          editing={editingFinancial}
+          saving={savingFinancial}
+          onEdit={() => setEditingFinancial(true)}
+          onCancel={() => setEditingFinancial(false)}
+          onSave={async (values) => {
+            setSavingFinancial(true)
+            try {
+              await updateDriverFinancials(projectId, driverId, values)
+              onRefresh()
+              setEditingFinancial(false)
+            } catch (err) {
+              console.error('Failed to save financial impact:', err)
+            } finally {
+              setSavingFinancial(false)
+            }
+          }}
+        />
+      )}
+
+      {/* Type-specific editable fields */}
+      <div>
+        <h4 className="text-[11px] font-medium text-[#999999] uppercase tracking-wide mb-3">
+          {driverType === 'pain' ? 'Pain Details' : driverType === 'goal' ? 'Goal Details' : 'Metric Details'}
+        </h4>
+
+        <div className="space-y-4">
+          {driverType === 'pain' && (
+            <>
+              <FieldEditor fieldName="severity" fieldLabel="Severity" currentValue={d.severity} driverId={driverId} projectId={projectId} onSave={(v) => handleFieldSave('severity', v)} />
+              <FieldEditor fieldName="business_impact" fieldLabel="Business Impact" currentValue={d.business_impact} driverId={driverId} projectId={projectId} onSave={(v) => handleFieldSave('business_impact', v)} multiline />
+              <FieldEditor fieldName="affected_users" fieldLabel="Affected Users" currentValue={d.affected_users} driverId={driverId} projectId={projectId} onSave={(v) => handleFieldSave('affected_users', v)} />
+              <FieldEditor fieldName="current_workaround" fieldLabel="Current Workaround" currentValue={d.current_workaround} driverId={driverId} projectId={projectId} onSave={(v) => handleFieldSave('current_workaround', v)} multiline />
+              <FieldEditor fieldName="frequency" fieldLabel="Frequency" currentValue={d.frequency} driverId={driverId} projectId={projectId} onSave={(v) => handleFieldSave('frequency', v)} />
+            </>
+          )}
+
+          {driverType === 'goal' && (
+            <>
+              <FieldEditor fieldName="success_criteria" fieldLabel="Success Criteria" currentValue={d.success_criteria} driverId={driverId} projectId={projectId} onSave={(v) => handleFieldSave('success_criteria', v)} multiline />
+              <FieldEditor fieldName="owner" fieldLabel="Owner" currentValue={d.owner} driverId={driverId} projectId={projectId} onSave={(v) => handleFieldSave('owner', v)} />
+              <FieldEditor fieldName="goal_timeframe" fieldLabel="Timeframe" currentValue={d.goal_timeframe} driverId={driverId} projectId={projectId} onSave={(v) => handleFieldSave('goal_timeframe', v)} />
+              <FieldEditor fieldName="dependencies" fieldLabel="Dependencies" currentValue={d.dependencies} driverId={driverId} projectId={projectId} onSave={(v) => handleFieldSave('dependencies', v)} multiline />
+            </>
+          )}
+
+          {driverType === 'kpi' && (
+            <>
+              <FieldEditor fieldName="baseline_value" fieldLabel="Baseline" currentValue={d.baseline_value} driverId={driverId} projectId={projectId} onSave={(v) => handleFieldSave('baseline_value', v)} />
+              <FieldEditor fieldName="target_value" fieldLabel="Target" currentValue={d.target_value} driverId={driverId} projectId={projectId} onSave={(v) => handleFieldSave('target_value', v)} />
+              <FieldEditor fieldName="measurement_method" fieldLabel="Measurement Method" currentValue={d.measurement_method} driverId={driverId} projectId={projectId} onSave={(v) => handleFieldSave('measurement_method', v)} />
+              <FieldEditor fieldName="tracking_frequency" fieldLabel="Tracking Frequency" currentValue={d.tracking_frequency} driverId={driverId} projectId={projectId} onSave={(v) => handleFieldSave('tracking_frequency', v)} />
+              <FieldEditor fieldName="data_source" fieldLabel="Data Source" currentValue={d.data_source} driverId={driverId} projectId={projectId} onSave={(v) => handleFieldSave('data_source', v)} />
+              <FieldEditor fieldName="responsible_team" fieldLabel="Responsible Team" currentValue={d.responsible_team} driverId={driverId} projectId={projectId} onSave={(v) => handleFieldSave('responsible_team', v)} />
+            </>
+          )}
+        </div>
+      </div>
+
       {/* Missing Data Callouts */}
       {missingData.length > 0 && (
         <div className="space-y-1.5">
+          <h4 className="text-[11px] font-medium text-[#999999] uppercase tracking-wide">Missing Data</h4>
           {missingData.map((msg, i) => (
             <div
               key={i}
@@ -294,44 +377,6 @@ function IntelligenceTab({
         </div>
       )}
 
-      {/* Type-specific fields */}
-      <div>
-        <h4 className="text-[11px] font-medium text-[#999999] uppercase tracking-wide mb-3">
-          {driverType === 'pain' ? 'Pain Details' : driverType === 'goal' ? 'Goal Details' : 'Metric Details'}
-        </h4>
-
-        {driverType === 'pain' && (
-          <div className="space-y-3">
-            <FieldRow label="Severity" value={d.severity} badge />
-            <FieldRow label="Business Impact" value={d.business_impact} />
-            <FieldRow label="Affected Users" value={d.affected_users} />
-            <FieldRow label="Current Workaround" value={d.current_workaround} />
-            <FieldRow label="Frequency" value={d.frequency} />
-          </div>
-        )}
-
-        {driverType === 'goal' && (
-          <div className="space-y-3">
-            <FieldRow label="Success Criteria" value={d.success_criteria} />
-            <FieldRow label="Owner" value={d.owner} />
-            <FieldRow label="Timeframe" value={d.goal_timeframe} />
-            <FieldRow label="Dependencies" value={d.dependencies} />
-          </div>
-        )}
-
-        {driverType === 'kpi' && (
-          <div className="space-y-3">
-            <KPIField label="Baseline" value={d.baseline_value} />
-            <KPIField label="Target" value={d.target_value} />
-            <KPIField label="Measurement Method" value={d.measurement_method} />
-            <KPIField label="Tracking Frequency" value={d.tracking_frequency} />
-            <KPIField label="Data Source" value={d.data_source} />
-            <KPIField label="Responsible Team" value={d.responsible_team} />
-          </div>
-        )}
-
-      </div>
-
       {loading && !detail && (
         <Spinner size="sm" label="Loading details..." />
       )}
@@ -340,7 +385,87 @@ function IntelligenceTab({
 }
 
 // ============================================================================
-// Financial Overview (inline at top of KPI Intelligence tab)
+// Provenance Tab (Evidence Showcase)
+// ============================================================================
+
+const SOURCE_COLORS: Record<string, string> = {
+  signal: 'border-l-[#3FAF7A]',
+  research: 'border-l-[#0A1E2F]',
+  inferred: 'border-l-[#E5E5E5]',
+}
+
+const SOURCE_LABELS: Record<string, string> = {
+  signal: 'Signal',
+  research: 'Research',
+  inferred: 'Inferred',
+}
+
+function ProvenanceTab({
+  evidence,
+  loading,
+}: {
+  evidence: import('@/types/workspace').BRDEvidence[]
+  loading: boolean
+}) {
+  if (loading && evidence.length === 0) {
+    return <Spinner size="sm" label="Loading evidence..." />
+  }
+
+  if (evidence.length === 0) {
+    return (
+      <EmptyState
+        icon={<FileSearch className="w-8 h-8 text-[#E5E5E5]" />}
+        title="No evidence sources"
+        description="Process more signals to build the evidence trail for this driver."
+      />
+    )
+  }
+
+  return (
+    <div className="space-y-4">
+      <h4 className="text-[11px] font-medium text-[#999999] uppercase tracking-wide">
+        Evidence Sources ({evidence.length})
+      </h4>
+      {evidence.map((item, idx) => {
+        const borderColor = SOURCE_COLORS[item.source_type] || 'border-l-[#E5E5E5]'
+        return (
+          <div
+            key={item.chunk_id || idx}
+            className={`border-l-[3px] ${borderColor} rounded-lg border border-[#E5E5E5] bg-white overflow-hidden`}
+          >
+            <div className="px-4 py-3">
+              {/* Source type badge */}
+              <div className="flex items-center gap-2 mb-2">
+                <span className={`text-[10px] font-medium uppercase px-1.5 py-0.5 rounded ${
+                  item.source_type === 'signal' ? 'bg-[#E8F5E9] text-[#25785A]' :
+                  item.source_type === 'research' ? 'bg-[#E8EDF2] text-[#0A1E2F]' :
+                  'bg-[#F0F0F0] text-[#666666]'
+                }`}>
+                  {SOURCE_LABELS[item.source_type] || item.source_type}
+                </span>
+              </div>
+
+              {/* Quote */}
+              <p className="text-[13px] text-[#333333] italic leading-relaxed">
+                &ldquo;{item.excerpt}&rdquo;
+              </p>
+
+              {/* Rationale */}
+              {item.rationale && (
+                <p className="text-[11px] text-[#999999] mt-2">
+                  {item.rationale}
+                </p>
+              )}
+            </div>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+// ============================================================================
+// Financial Overview (inline at top of KPI Overview tab)
 // ============================================================================
 
 const IMPACT_TYPES = [
@@ -431,7 +556,6 @@ function FinancialOverview({
         </div>
       </div>
       <div className="p-4 space-y-3">
-        {/* Impact Type */}
         <div>
           <span className="text-[11px] font-medium text-[#999999] uppercase tracking-wide block mb-1.5">Type</span>
           <div className="flex flex-wrap gap-1.5">
@@ -450,36 +574,20 @@ function FinancialOverview({
             ))}
           </div>
         </div>
-
-        {/* Range */}
         <div>
           <span className="text-[11px] font-medium text-[#999999] uppercase tracking-wide block mb-1.5">Value Range</span>
           <div className="flex items-center gap-2">
             <div className="relative flex-1">
               <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[12px] text-[#999999]">$</span>
-              <input
-                type="text"
-                value={low}
-                onChange={(e) => setLow(e.target.value)}
-                placeholder="Low"
-                className="w-full pl-6 pr-3 py-1.5 text-[12px] border border-[#E5E5E5] rounded-lg bg-white text-[#333333] placeholder:text-[#999999] focus:outline-none focus:border-[#3FAF7A]"
-              />
+              <input type="text" value={low} onChange={(e) => setLow(e.target.value)} placeholder="Low" className="w-full pl-6 pr-3 py-1.5 text-[12px] border border-[#E5E5E5] rounded-lg bg-white text-[#333333] placeholder:text-[#999999] focus:outline-none focus:border-[#3FAF7A]" />
             </div>
             <span className="text-[12px] text-[#999999]">—</span>
             <div className="relative flex-1">
               <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[12px] text-[#999999]">$</span>
-              <input
-                type="text"
-                value={high}
-                onChange={(e) => setHigh(e.target.value)}
-                placeholder="High"
-                className="w-full pl-6 pr-3 py-1.5 text-[12px] border border-[#E5E5E5] rounded-lg bg-white text-[#333333] placeholder:text-[#999999] focus:outline-none focus:border-[#3FAF7A]"
-              />
+              <input type="text" value={high} onChange={(e) => setHigh(e.target.value)} placeholder="High" className="w-full pl-6 pr-3 py-1.5 text-[12px] border border-[#E5E5E5] rounded-lg bg-white text-[#333333] placeholder:text-[#999999] focus:outline-none focus:border-[#3FAF7A]" />
             </div>
           </div>
         </div>
-
-        {/* Timeframe */}
         <div>
           <span className="text-[11px] font-medium text-[#999999] uppercase tracking-wide block mb-1.5">Timeframe</span>
           <div className="flex gap-1">
@@ -498,43 +606,19 @@ function FinancialOverview({
             ))}
           </div>
         </div>
-
-        {/* Confidence */}
         <div>
           <div className="flex items-center justify-between mb-1">
             <span className="text-[11px] font-medium text-[#999999] uppercase tracking-wide">Confidence</span>
             <span className="text-[12px] font-semibold text-[#333333]">{confidence}%</span>
           </div>
-          <input
-            type="range"
-            min={0}
-            max={100}
-            value={confidence}
-            onChange={(e) => setConfidence(parseInt(e.target.value))}
-            className="w-full h-1.5 bg-[#E5E5E5] rounded-full appearance-none cursor-pointer accent-[#3FAF7A]"
-          />
+          <input type="range" min={0} max={100} value={confidence} onChange={(e) => setConfidence(parseInt(e.target.value))} className="w-full h-1.5 bg-[#E5E5E5] rounded-full appearance-none cursor-pointer accent-[#3FAF7A]" />
         </div>
-
-        {/* Source */}
         <div>
           <span className="text-[11px] font-medium text-[#999999] uppercase tracking-wide block mb-1.5">Source (optional)</span>
-          <input
-            type="text"
-            value={source}
-            onChange={(e) => setSource(e.target.value)}
-            placeholder="e.g. CFO estimate, industry benchmark..."
-            className="w-full px-3 py-1.5 text-[12px] border border-[#E5E5E5] rounded-lg bg-white text-[#333333] placeholder:text-[#999999] focus:outline-none focus:border-[#3FAF7A]"
-          />
+          <input type="text" value={source} onChange={(e) => setSource(e.target.value)} placeholder="e.g. CFO estimate, industry benchmark..." className="w-full px-3 py-1.5 text-[12px] border border-[#E5E5E5] rounded-lg bg-white text-[#333333] placeholder:text-[#999999] focus:outline-none focus:border-[#3FAF7A]" />
         </div>
-
-        {/* Actions */}
         <div className="flex items-center justify-end gap-2 pt-1">
-          <button
-            onClick={onCancel}
-            className="px-3 py-1.5 text-[12px] font-medium text-[#666666] hover:text-[#333333] rounded-lg hover:bg-[#F0F0F0] transition-colors"
-          >
-            Cancel
-          </button>
+          <button onClick={onCancel} className="px-3 py-1.5 text-[12px] font-medium text-[#666666] hover:text-[#333333] rounded-lg hover:bg-[#F0F0F0] transition-colors">Cancel</button>
           <button
             onClick={() => onSave({
               monetary_type: type || null,
@@ -557,7 +641,6 @@ function FinancialOverview({
 
 function buildNarrative(driverType: DriverType, d: BusinessDriver | BusinessDriverDetail): string | null {
   const parts: string[] = []
-  const desc = d.description
 
   if (driverType === 'pain') {
     parts.push(`This pain point`)
@@ -657,63 +740,29 @@ function ConnectionsTab({
 
   return (
     <div className="space-y-6">
-      {/* Actors */}
       {personas.length > 0 && (
-        <ConnectionGroup
-          icon={Users}
-          title="Actors"
-          count={personas.length}
-        >
+        <ConnectionGroup icon={Users} title="Actors" count={personas.length}>
           {personas.map((p) => (
-            <ConnectionItem
-              key={p.id}
-              name={p.name}
-              subtitle={p.role || undefined}
-              reason={p.association_reason}
-            />
+            <ConnectionItem key={p.id} name={p.name} subtitle={p.role || undefined} reason={p.association_reason} />
           ))}
         </ConnectionGroup>
       )}
-
-      {/* Features */}
       {features.length > 0 && (
-        <ConnectionGroup
-          icon={Puzzle}
-          title="Features"
-          count={features.length}
-        >
+        <ConnectionGroup icon={Puzzle} title="Features" count={features.length}>
           {features.map((f) => (
-            <ConnectionItem
-              key={f.id}
-              name={f.name}
-              subtitle={f.category || undefined}
-              reason={f.association_reason}
-              confirmed={f.confirmation_status === 'confirmed_consultant' || f.confirmation_status === 'confirmed_client'}
-            />
+            <ConnectionItem key={f.id} name={f.name} subtitle={f.category || undefined} reason={f.association_reason} confirmed={f.confirmation_status === 'confirmed_consultant' || f.confirmation_status === 'confirmed_client'} />
           ))}
         </ConnectionGroup>
       )}
-
-      {/* Workflows */}
       {workflowCount > 0 && (
-        <ConnectionGroup
-          icon={Workflow}
-          title="Workflow Steps"
-          count={workflowCount}
-        >
+        <ConnectionGroup icon={Workflow} title="Workflow Steps" count={workflowCount}>
           <p className="text-[12px] text-[#999999] px-3 py-2">
             {workflowCount} workflow step{workflowCount > 1 ? 's' : ''} linked via enrichment analysis.
           </p>
         </ConnectionGroup>
       )}
-
-      {/* Related Drivers */}
       {relatedDrivers.length > 0 && (
-        <ConnectionGroup
-          icon={Link2}
-          title="Related Drivers"
-          count={relatedDrivers.length}
-        >
+        <ConnectionGroup icon={Link2} title="Related Drivers" count={relatedDrivers.length}>
           {relatedDrivers.map((r) => (
             <div key={r.id} className="px-3 py-2 border-b border-[#F0F0F0] last:border-0">
               <div className="flex items-center gap-2">
@@ -765,49 +814,38 @@ function ConnectionItem({
 }
 
 // ============================================================================
-// Evidence & History Tab (combined)
+// History Tab
 // ============================================================================
 
-function EvidenceHistoryTab({
-  evidence,
+function HistoryTab({
   revisions,
   loading,
 }: {
-  evidence: import('@/types/workspace').BRDEvidence[]
   revisions: RevisionEntry[]
   loading: boolean
 }) {
-  if (loading && evidence.length === 0 && revisions.length === 0) {
-    return <Spinner size="sm" label="Loading..." />
+  if (loading && revisions.length === 0) {
+    return <Spinner size="sm" label="Loading history..." />
+  }
+
+  if (revisions.length === 0) {
+    return (
+      <EmptyState
+        icon={<Clock className="w-8 h-8 text-[#E5E5E5]" />}
+        title="No revision history"
+        description="Changes will appear here as the driver is updated."
+      />
+    )
   }
 
   return (
-    <div className="space-y-6">
-      {/* Evidence */}
-      <div>
-        <h4 className="text-[11px] font-medium text-[#999999] uppercase tracking-wide mb-2">
-          Evidence Sources
-        </h4>
-        {evidence.length > 0 ? (
-          <EvidenceBlock evidence={evidence} maxItems={100} />
-        ) : (
-          <p className="text-[13px] text-[#999999] italic">No evidence sources linked.</p>
-        )}
-      </div>
-
-      {/* History */}
-      {revisions.length > 0 && (
-        <div>
-          <h4 className="text-[11px] font-medium text-[#999999] uppercase tracking-wide mb-2">
-            Change History
-          </h4>
-          <div className="space-y-3">
-            {revisions.map((rev, idx) => (
-              <RevisionCard key={idx} revision={rev} />
-            ))}
-          </div>
-        </div>
-      )}
+    <div className="space-y-3">
+      <h4 className="text-[11px] font-medium text-[#999999] uppercase tracking-wide">
+        Change History ({revisions.length})
+      </h4>
+      {revisions.map((rev, idx) => (
+        <RevisionCard key={idx} revision={rev} />
+      ))}
     </div>
   )
 }
@@ -863,48 +901,5 @@ function RevisionCard({ revision }: { revision: RevisionEntry }) {
         </div>
       )}
     </div>
-  )
-}
-
-// ============================================================================
-// Shared helpers
-// ============================================================================
-
-function FieldRow({ label, value, badge }: { label: string; value?: string | null; badge?: boolean }) {
-  if (!value) return null
-  return (
-    <div className="flex items-start gap-3">
-      <span className="text-[12px] font-medium text-[#999999] min-w-[120px] pt-0.5">{label}</span>
-      {badge ? (
-        <SeverityBadge value={value} />
-      ) : (
-        <span className="text-[13px] text-[#333333] leading-relaxed">{value}</span>
-      )}
-    </div>
-  )
-}
-
-function KPIField({ label, value }: { label: string; value?: string | null }) {
-  const isMissing = !value
-  return (
-    <div className={`flex items-start gap-3 ${isMissing ? 'rounded-lg border border-dashed border-[#E5E5E5] bg-[#F4F4F4] px-3 py-2 -mx-3' : ''}`}>
-      <span className="text-[12px] font-medium text-[#999999] min-w-[140px] pt-0.5">{label}</span>
-      {isMissing ? (
-        <span className="text-[12px] text-[#999999] italic">Data needed</span>
-      ) : (
-        <span className="text-[13px] text-[#333333] leading-relaxed">{value}</span>
-      )}
-    </div>
-  )
-}
-
-function SeverityBadge({ value }: { value: string }) {
-  const isHigh = value.toLowerCase() === 'critical' || value.toLowerCase() === 'high'
-  return (
-    <span className={`inline-flex px-2 py-0.5 text-[11px] font-medium rounded-full ${
-      isHigh ? 'bg-red-100 text-red-700' : 'bg-[#F0F0F0] text-[#666666]'
-    }`}>
-      {value}
-    </span>
   )
 }

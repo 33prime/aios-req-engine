@@ -232,6 +232,7 @@ async def get_brd_workspace_data(
             if dtype == "pain":
                 pain_points.append(PainPointSummary(
                     id=d["id"],
+                    title=d.get("title"),
                     description=d.get("description", ""),
                     severity=d.get("severity"),
                     business_impact=d.get("business_impact"),
@@ -247,6 +248,7 @@ async def get_brd_workspace_data(
             elif dtype == "goal":
                 goals.append(GoalSummary(
                     id=d["id"],
+                    title=d.get("title"),
                     description=d.get("description", ""),
                     success_criteria=d.get("success_criteria"),
                     owner=d.get("owner"),
@@ -262,6 +264,7 @@ async def get_brd_workspace_data(
                 missing = sum(1 for f in [d.get("baseline_value"), d.get("target_value"), d.get("measurement_method")] if not f)
                 success_metrics.append(KPISummary(
                     id=d["id"],
+                    title=d.get("title"),
                     description=d.get("description", ""),
                     baseline_value=d.get("baseline_value"),
                     target_value=d.get("target_value"),

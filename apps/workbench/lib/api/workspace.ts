@@ -149,6 +149,26 @@ export const updateDriverFinancials = (
     { method: 'PATCH', body: JSON.stringify(data) }
   )
 
+export const updateBusinessDriver = (
+  projectId: string,
+  driverId: string,
+  data: Record<string, string | null>
+) =>
+  apiRequest<Record<string, unknown>>(
+    `/projects/${projectId}/workspace/brd/drivers/${driverId}`,
+    { method: 'PATCH', body: JSON.stringify(data) }
+  )
+
+export const enhanceDriverField = (
+  projectId: string,
+  driverId: string,
+  data: { field_name: string; mode: 'rewrite' | 'notes'; user_notes?: string }
+) =>
+  apiRequest<{ suggestion: string }>(
+    `/projects/${projectId}/workspace/brd/drivers/${driverId}/enhance`,
+    { method: 'POST', body: JSON.stringify(data) }
+  )
+
 export const updateProjectBackground = (projectId: string, background: string) =>
   apiRequest<{ success: boolean; background: string }>(
     `/projects/${projectId}/workspace/brd/background`,

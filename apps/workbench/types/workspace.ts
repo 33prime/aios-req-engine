@@ -81,6 +81,7 @@ export type VisionAlignment = 'high' | 'medium' | 'low' | 'unrelated'
 
 export interface BusinessDriver {
   id: string
+  title?: string | null
   description: string
   driver_type: 'kpi' | 'pain' | 'goal'
   severity?: string | null
@@ -815,6 +816,7 @@ export interface RevisionEntry {
 
 export interface BusinessDriverDetail {
   id: string
+  title?: string | null
   description: string
   driver_type: string
   severity?: string | null

@@ -6,6 +6,8 @@ import { SectionHeader } from '../components/SectionHeader'
 import { BRDStatusBadge } from '../components/StatusBadge'
 import { ConfirmActions } from '../components/ConfirmActions'
 import { BusinessDriverDetailDrawer } from '../components/BusinessDriverDetailDrawer'
+import { DriverContainer } from '../components/DriverContainer'
+import { DriverItemRow } from '../components/DriverItemRow'
 import { enhanceVision } from '@/lib/api'
 import type { BRDWorkspaceData, BusinessDriver, VisionAlignment, SectionScore, StakeholderBRDSummary } from '@/types/workspace'
 
@@ -24,15 +26,14 @@ interface BusinessContextSectionProps {
   stakeholders?: StakeholderBRDSummary[]
 }
 
-const SHOW_MAX_PAINS = 8
-const SHOW_MAX_GOALS = 8
+const SHOW_MAX_DRIVERS = 6
 const SHOW_MAX_METRICS = 8
 
 type SortKey = 'relevance' | 'linked' | 'confirmed' | 'newest'
 type FilterKey = 'all' | 'linked' | 'orphaned'
 
 // ============================================================================
-// Vision Alignment Dot
+// Vision Alignment Dot (used by KPI DriverCards)
 // ============================================================================
 
 function VisionDot({ alignment }: { alignment?: VisionAlignment | null }) {
@@ -58,7 +59,7 @@ function VisionDot({ alignment }: { alignment?: VisionAlignment | null }) {
 }
 
 // ============================================================================
-// Link Summary Line (line 2 of collapsed card)
+// Link Summary Line (used by KPI DriverCards)
 // ============================================================================
 
 function LinkSummary({ driver }: { driver: BusinessDriver }) {
@@ -108,19 +109,13 @@ function LinkSummary({ driver }: { driver: BusinessDriver }) {
 }
 
 // ============================================================================
-// Metric Line (line 3 of collapsed card — type-specific)
+// Metric Line (used by KPI DriverCards)
 // ============================================================================
 
 function MetricLine({ driver }: { driver: BusinessDriver }) {
   const parts: string[] = []
 
-  if (driver.driver_type === 'pain') {
-    if (driver.severity) parts.push(`Severity: ${driver.severity}`)
-    if (driver.business_impact) parts.push(`Impact: ${driver.business_impact}`)
-  } else if (driver.driver_type === 'goal') {
-    if (driver.goal_timeframe) parts.push(`Timeframe: ${driver.goal_timeframe}`)
-    if (driver.owner) parts.push(`Owner: ${driver.owner}`)
-  } else if (driver.driver_type === 'kpi') {
+  if (driver.driver_type === 'kpi') {
     if (driver.baseline_value && driver.target_value) {
       parts.push(`${driver.baseline_value} → ${driver.target_value}`)
     } else if (driver.target_value) {
@@ -133,7 +128,6 @@ function MetricLine({ driver }: { driver: BusinessDriver }) {
     }
   }
 
-  // Show first evidence excerpt as a preview
   const firstEvidence = driver.evidence?.[0]
 
   if (parts.length === 0 && !firstEvidence) return null
@@ -153,7 +147,7 @@ function MetricLine({ driver }: { driver: BusinessDriver }) {
 }
 
 // ============================================================================
-// Unified Driver Card (3-line collapsed, rich expanded)
+// Unified Driver Card (still used by KPIs / Success Metrics)
 // ============================================================================
 
 function DriverCard({
@@ -180,12 +174,10 @@ function DriverCard({
     <div className={`bg-white rounded-2xl shadow-md border overflow-hidden ${
       driver.is_stale ? 'border-orange-200' : 'border-[#E5E5E5]'
     }`}>
-      {/* Collapsed: 3-line display */}
       <button
         onClick={() => { const next = !expanded; setExpanded(next); if (next && !hasBeenExpanded) setHasBeenExpanded(true) }}
         className="w-full px-5 py-3.5 text-left hover:bg-gray-50/50 transition-colors"
       >
-        {/* Line 1: Title + status + vision dot */}
         <div className="flex items-center gap-3">
           <ChevronRight
             className={`w-4 h-4 text-[#999999] shrink-0 transition-transform duration-200 ${expanded ? 'rotate-90' : ''}`}
@@ -197,23 +189,17 @@ function DriverCard({
             <BRDStatusBadge status={driver.confirmation_status} onClick={onStatusClick} />
           </span>
         </div>
-
-        {/* Line 2: Evidence sources + entity links */}
         <div className="ml-[52px] mt-1.5">
           <LinkSummary driver={driver} />
         </div>
-
-        {/* Line 3: Key metrics + first evidence excerpt */}
         <div className="ml-[52px] mt-1">
           <MetricLine driver={driver} />
         </div>
       </button>
 
-      {/* Expanded view — evidence + actions */}
       {hasBeenExpanded && (
         <div className={`overflow-hidden transition-all duration-200 ${expanded ? 'max-h-[800px] opacity-100' : 'max-h-0 opacity-0'}`}>
           <div className="px-5 pb-4 pt-2 border-t border-[#E5E5E5] space-y-3">
-            {/* Evidence excerpts */}
             {driver.evidence && driver.evidence.length > 0 && (
               <div className="space-y-2">
                 <span className="text-[11px] font-semibold text-[#999999] uppercase tracking-wider">Evidence</span>
@@ -235,7 +221,6 @@ function DriverCard({
                 )}
               </div>
             )}
-            {/* Actions row */}
             <div className="flex items-center justify-between pt-1">
               <ConfirmActions status={driver.confirmation_status} onConfirm={onConfirm} onNeedsReview={onNeedsReview} />
               <button
@@ -253,7 +238,7 @@ function DriverCard({
 }
 
 // ============================================================================
-// Sort / Filter Bar
+// Sort / Filter Bar (still used by KPIs)
 // ============================================================================
 
 function SortFilterBar({
@@ -319,7 +304,7 @@ function SortFilterBar({
 }
 
 // ============================================================================
-// Sorting + Filtering Helpers
+// Sorting + Filtering Helpers (still used by KPIs)
 // ============================================================================
 
 function getDriverLinkScore(d: BusinessDriver): number {
@@ -383,10 +368,13 @@ export function BusinessContextSection({
   const [visionDraft, setVisionDraft] = useState(data.vision || '')
   const [editingBackground, setEditingBackground] = useState(false)
   const [backgroundDraft, setBackgroundDraft] = useState(data.background || '')
-  const [showAllPains, setShowAllPains] = useState(false)
   const [showAllGoals, setShowAllGoals] = useState(false)
+  const [showAllPains, setShowAllPains] = useState(false)
   const [showAllMetrics, setShowAllMetrics] = useState(false)
   const [selectedDriver, setSelectedDriver] = useState<{ id: string; type: 'pain' | 'goal' | 'kpi'; data: BusinessDriver } | null>(null)
+
+  // Which driver row is expanded inline (only one at a time)
+  const [expandedId, setExpandedId] = useState<string | null>(null)
 
   // Vision AI Enhance state
   const [showEnhanceMenu, setShowEnhanceMenu] = useState(false)
@@ -424,11 +412,7 @@ export function BusinessContextSection({
     }
   }
 
-  // Sort + filter state
-  const [painSort, setPainSort] = useState<SortKey>('relevance')
-  const [painFilter, setPainFilter] = useState<FilterKey>('all')
-  const [goalSort, setGoalSort] = useState<SortKey>('relevance')
-  const [goalFilter, setGoalFilter] = useState<FilterKey>('all')
+  // Sort + filter state (KPIs only)
   const [metricSort, setMetricSort] = useState<SortKey>('relevance')
   const [metricFilter, setMetricFilter] = useState<FilterKey>('all')
 
@@ -452,21 +436,23 @@ export function BusinessContextSection({
     (m) => m.confirmation_status === 'confirmed_consultant' || m.confirmation_status === 'confirmed_client'
   ).length
 
-  const processedPains = useMemo(
-    () => sortDrivers(filterDrivers(data.pain_points, painFilter), painSort),
-    [data.pain_points, painSort, painFilter]
+  // Sort goals + pains by relatability_score descending (built into container)
+  const sortedPains = useMemo(
+    () => [...data.pain_points].sort((a, b) => (b.relatability_score ?? 0) - (a.relatability_score ?? 0)),
+    [data.pain_points]
   )
-  const processedGoals = useMemo(
-    () => sortDrivers(filterDrivers(data.goals, goalFilter), goalSort),
-    [data.goals, goalSort, goalFilter]
+  const sortedGoals = useMemo(
+    () => [...data.goals].sort((a, b) => (b.relatability_score ?? 0) - (a.relatability_score ?? 0)),
+    [data.goals]
   )
+
   const processedMetrics = useMemo(
     () => sortDrivers(filterDrivers(data.success_metrics, metricFilter), metricSort),
     [data.success_metrics, metricSort, metricFilter]
   )
 
-  const visiblePains = showAllPains ? processedPains : processedPains.slice(0, SHOW_MAX_PAINS)
-  const visibleGoals = showAllGoals ? processedGoals : processedGoals.slice(0, SHOW_MAX_GOALS)
+  const visibleGoals = showAllGoals ? sortedGoals : sortedGoals.slice(0, SHOW_MAX_DRIVERS)
+  const visiblePains = showAllPains ? sortedPains : sortedPains.slice(0, SHOW_MAX_DRIVERS)
   const visibleMetrics = showAllMetrics ? processedMetrics : processedMetrics.slice(0, SHOW_MAX_METRICS)
 
   return (
@@ -672,92 +658,81 @@ export function BusinessContextSection({
         </div>
       </div>
 
-      {/* Pain Points */}
-      <div>
-        <SectionHeader
-          title="Pain Points"
-          count={data.pain_points.length}
-          confirmedCount={confirmedPains}
-          onConfirmAll={() => onConfirmAll('business_driver', data.pain_points.map((p) => p.id))}
-          sectionScore={sectionScore}
-        />
-        {data.pain_points.length === 0 ? (
-          <p className="text-[13px] text-[#999999] italic">No pain points identified yet</p>
-        ) : (
-          <div>
-            {data.pain_points.length > 3 && (
-              <SortFilterBar sortKey={painSort} filterKey={painFilter} onSortChange={setPainSort} onFilterChange={setPainFilter} />
-            )}
-            <div className="space-y-3">
-              {visiblePains.map((pain) => (
-                <DriverCard
-                  key={pain.id}
-                  driver={pain}
-                  icon={AlertTriangle}
-                  iconColor="text-[#999999]"
-                  onConfirm={() => onConfirm('business_driver', pain.id)}
-                  onNeedsReview={() => onNeedsReview('business_driver', pain.id)}
-                  onStatusClick={onStatusClick ? () => onStatusClick('business_driver', pain.id, pain.description.slice(0, 60), pain.confirmation_status) : undefined}
-                  onDetailClick={() => setSelectedDriver({ id: pain.id, type: 'pain', data: pain })}
-                />
-              ))}
-              {processedPains.length > SHOW_MAX_PAINS && !showAllPains && (
-                <button
-                  onClick={() => setShowAllPains(true)}
-                  className="flex items-center gap-1.5 px-3 py-2 text-[12px] font-medium text-[#999999] hover:text-[#3FAF7A] transition-colors w-full justify-center"
-                >
-                  <ChevronDown className="w-3.5 h-3.5" />
-                  Show all {processedPains.length} pain points
-                </button>
-              )}
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Business Goals */}
-      <div>
-        <SectionHeader
-          title="Business Goals"
-          count={data.goals.length}
-          confirmedCount={confirmedGoals}
-          onConfirmAll={() => onConfirmAll('business_driver', data.goals.map((g) => g.id))}
-        />
+      {/* Business Goals — Action Queue pattern */}
+      <DriverContainer
+        icon={Target}
+        title="BUSINESS GOALS"
+        count={data.goals.length}
+        confirmedCount={confirmedGoals}
+        onConfirmAll={() => onConfirmAll('business_driver', data.goals.map(g => g.id))}
+      >
         {data.goals.length === 0 ? (
-          <p className="text-[13px] text-[#999999] italic">No business goals identified yet</p>
+          <p className="px-5 py-4 text-[13px] text-[#999999] italic">No business goals identified yet</p>
         ) : (
-          <div>
-            {data.goals.length > 3 && (
-              <SortFilterBar sortKey={goalSort} filterKey={goalFilter} onSortChange={setGoalSort} onFilterChange={setGoalFilter} />
+          <>
+            {visibleGoals.map((goal) => (
+              <DriverItemRow
+                key={goal.id}
+                driver={goal}
+                driverType="goal"
+                isExpanded={expandedId === goal.id}
+                onToggle={() => setExpandedId(expandedId === goal.id ? null : goal.id)}
+                onDrawerOpen={() => setSelectedDriver({ id: goal.id, type: 'goal', data: goal })}
+                onConfirm={() => onConfirm('business_driver', goal.id)}
+                onNeedsReview={() => onNeedsReview('business_driver', goal.id)}
+                onStatusClick={onStatusClick ? () => onStatusClick('business_driver', goal.id, goal.description.slice(0, 60), goal.confirmation_status) : undefined}
+              />
+            ))}
+            {sortedGoals.length > SHOW_MAX_DRIVERS && (
+              <button
+                onClick={() => setShowAllGoals(!showAllGoals)}
+                className="w-full px-4 py-2.5 text-[12px] font-medium text-[#3FAF7A] hover:bg-[#FAFAFA] transition-colors border-t border-[#F0F0F0]"
+              >
+                {showAllGoals ? 'Show less' : `Show all ${sortedGoals.length} goals`}
+              </button>
             )}
-            <div className="space-y-3">
-              {visibleGoals.map((goal) => (
-                <DriverCard
-                  key={goal.id}
-                  driver={goal}
-                  icon={Target}
-                  iconColor="text-[#3FAF7A]"
-                  onConfirm={() => onConfirm('business_driver', goal.id)}
-                  onNeedsReview={() => onNeedsReview('business_driver', goal.id)}
-                  onStatusClick={onStatusClick ? () => onStatusClick('business_driver', goal.id, goal.description.slice(0, 60), goal.confirmation_status) : undefined}
-                  onDetailClick={() => setSelectedDriver({ id: goal.id, type: 'goal', data: goal })}
-                />
-              ))}
-              {processedGoals.length > SHOW_MAX_GOALS && !showAllGoals && (
-                <button
-                  onClick={() => setShowAllGoals(true)}
-                  className="flex items-center gap-1.5 px-3 py-2 text-[12px] font-medium text-[#999999] hover:text-[#3FAF7A] transition-colors w-full justify-center"
-                >
-                  <ChevronDown className="w-3.5 h-3.5" />
-                  Show all {processedGoals.length} goals
-                </button>
-              )}
-            </div>
-          </div>
+          </>
         )}
-      </div>
+      </DriverContainer>
 
-      {/* Success Metrics */}
+      {/* Business Pain Points — Action Queue pattern */}
+      <DriverContainer
+        icon={AlertTriangle}
+        title="BUSINESS PAIN POINTS"
+        count={data.pain_points.length}
+        confirmedCount={confirmedPains}
+        onConfirmAll={() => onConfirmAll('business_driver', data.pain_points.map(p => p.id))}
+      >
+        {data.pain_points.length === 0 ? (
+          <p className="px-5 py-4 text-[13px] text-[#999999] italic">No pain points identified yet</p>
+        ) : (
+          <>
+            {visiblePains.map((pain) => (
+              <DriverItemRow
+                key={pain.id}
+                driver={pain}
+                driverType="pain"
+                isExpanded={expandedId === pain.id}
+                onToggle={() => setExpandedId(expandedId === pain.id ? null : pain.id)}
+                onDrawerOpen={() => setSelectedDriver({ id: pain.id, type: 'pain', data: pain })}
+                onConfirm={() => onConfirm('business_driver', pain.id)}
+                onNeedsReview={() => onNeedsReview('business_driver', pain.id)}
+                onStatusClick={onStatusClick ? () => onStatusClick('business_driver', pain.id, pain.description.slice(0, 60), pain.confirmation_status) : undefined}
+              />
+            ))}
+            {sortedPains.length > SHOW_MAX_DRIVERS && (
+              <button
+                onClick={() => setShowAllPains(!showAllPains)}
+                className="w-full px-4 py-2.5 text-[12px] font-medium text-[#3FAF7A] hover:bg-[#FAFAFA] transition-colors border-t border-[#F0F0F0]"
+              >
+                {showAllPains ? 'Show less' : `Show all ${sortedPains.length} pain points`}
+              </button>
+            )}
+          </>
+        )}
+      </DriverContainer>
+
+      {/* Success Metrics (unchanged — keeps DriverCard pattern) */}
       <div>
         <SectionHeader
           title="Success Metrics"

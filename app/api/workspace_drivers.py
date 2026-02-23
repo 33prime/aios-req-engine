@@ -1,10 +1,11 @@
-"""Workspace endpoints for business driver detail and financials."""
+"""Workspace endpoints for business driver detail, financials, and AI-assisted editing."""
 
 import asyncio
 import logging
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel
 
 from app.api.workspace_helpers import _parse_evidence
 from app.core.schemas_brd import (
@@ -194,6 +195,7 @@ async def get_brd_driver_detail(project_id: UUID, driver_id: UUID) -> BusinessDr
 
         return BusinessDriverDetail(
             id=driver["id"],
+            title=driver.get("title"),
             description=driver.get("description", ""),
             driver_type=dtype,
             severity=driver.get("severity"),
@@ -295,4 +297,116 @@ async def update_driver_financials(
         raise
     except Exception as e:
         logger.exception(f"Failed to update driver financials for {driver_id}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================================
+# Generic field update
+# ============================================================================
+
+# Fields allowed for direct PATCH updates
+_ALLOWED_FIELDS = {
+    "title", "description", "severity", "business_impact", "affected_users",
+    "current_workaround", "frequency", "success_criteria", "owner",
+    "goal_timeframe", "dependencies", "baseline_value", "target_value",
+    "measurement_method", "tracking_frequency", "data_source", "responsible_team",
+}
+
+
+@router.patch("/brd/drivers/{driver_id}")
+async def update_business_driver(
+    project_id: UUID,
+    driver_id: UUID,
+    data: dict,
+) -> dict:
+    """Update one or more fields on a business driver."""
+    from app.db.business_drivers import get_business_driver
+
+    client = get_client()
+
+    try:
+        driver = get_business_driver(str(driver_id))
+        if not driver:
+            raise HTTPException(status_code=404, detail="Business driver not found")
+        if driver.get("project_id") != str(project_id):
+            raise HTTPException(status_code=403, detail="Driver does not belong to this project")
+
+        update_fields: dict = {}
+        for field, value in data.items():
+            if field in _ALLOWED_FIELDS:
+                update_fields[field] = value
+
+        if not update_fields:
+            raise HTTPException(status_code=400, detail="No valid fields to update")
+
+        update_fields["updated_at"] = "now()"
+
+        result = (
+            client.table("business_drivers")
+            .update(update_fields)
+            .eq("id", str(driver_id))
+            .execute()
+        )
+
+        if result.data:
+            return result.data[0]
+        raise HTTPException(status_code=500, detail="Update returned no data")
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"Failed to update driver {driver_id}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================================
+# AI-assisted field enhancement
+# ============================================================================
+
+
+class EnhanceFieldRequest(BaseModel):
+    field_name: str
+    mode: str  # 'rewrite' or 'notes'
+    user_notes: str | None = None
+
+
+class EnhanceFieldResponse(BaseModel):
+    suggestion: str
+
+
+@router.post("/brd/drivers/{driver_id}/enhance", response_model=EnhanceFieldResponse)
+async def enhance_driver_field_endpoint(
+    project_id: UUID,
+    driver_id: UUID,
+    body: EnhanceFieldRequest,
+) -> EnhanceFieldResponse:
+    """Generate an AI-enhanced version of a business driver field."""
+    from app.chains.enhance_driver_field import enhance_driver_field
+    from app.db.business_drivers import get_business_driver
+
+    try:
+        driver = get_business_driver(str(driver_id))
+        if not driver:
+            raise HTTPException(status_code=404, detail="Business driver not found")
+        if driver.get("project_id") != str(project_id):
+            raise HTTPException(status_code=403, detail="Driver does not belong to this project")
+
+        if body.mode not in ("rewrite", "notes"):
+            raise HTTPException(status_code=400, detail="mode must be 'rewrite' or 'notes'")
+
+        suggestion = await asyncio.to_thread(
+            enhance_driver_field,
+            project_id=str(project_id),
+            driver_id=str(driver_id),
+            field_name=body.field_name,
+            mode=body.mode,
+            user_notes=body.user_notes,
+        )
+
+        return EnhanceFieldResponse(suggestion=suggestion)
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"Failed to enhance driver field for {driver_id}")
         raise HTTPException(status_code=500, detail=str(e))
