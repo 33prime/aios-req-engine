@@ -1,12 +1,13 @@
 'use client'
 
 import { useState } from 'react'
-import { Zap, CheckCircle, Send, Calendar, ChevronDown, ChevronRight, ArrowRight, AlertCircle, FileQuestion, Upload } from 'lucide-react'
-import { useCollaborationCurrent, useUpcomingMeetings, useClientPulse } from '@/lib/hooks/use-api'
+import { Zap, CheckCircle, Send, Calendar, ChevronDown, ChevronRight, ArrowRight, AlertCircle, FileQuestion } from 'lucide-react'
+import { useCollaborationCurrent, useUpcomingMeetings, useClientPulse, usePendingItems } from '@/lib/hooks/use-api'
 
 interface ActionQueueSectionProps {
   projectId: string
   onScrollToSection?: (sectionId: string) => void
+  onTriggerSynthesize?: () => void
 }
 
 interface ActionItem {
@@ -15,32 +16,35 @@ interface ActionItem {
   type: 'client' | 'consultant' | 'system'
   icon: typeof CheckCircle
   cta: string
-  targetSection: string
+  action: () => void
 }
 
-export function ActionQueueSection({ projectId, onScrollToSection }: ActionQueueSectionProps) {
+export function ActionQueueSection({ projectId, onScrollToSection, onTriggerSynthesize }: ActionQueueSectionProps) {
   const [isOpen, setIsOpen] = useState(true)
   const { data: collab } = useCollaborationCurrent(projectId)
   const { data: meetings } = useUpcomingMeetings(5)
   const { data: pulse } = useClientPulse(projectId)
+  const { data: pending } = usePendingItems(projectId)
 
   const actions: ActionItem[] = []
 
-  // Entities marked "needs review" waiting to be packaged → scroll to Question Board
-  const reviewCount = collab?.pending_review_count ?? 0
+  // Entities marked "needs review" waiting to be packaged → trigger synthesize
+  const reviewCount = pending?.count ?? collab?.pending_review_count ?? 0
   if (reviewCount > 0) {
     actions.push({
       id: 'needs-review',
-      label: `${reviewCount} item${reviewCount > 1 ? 's' : ''} marked for client review — ready to package`,
+      label: `${reviewCount} item${reviewCount > 1 ? 's' : ''} ready to package for client`,
       type: 'consultant',
       icon: FileQuestion,
       cta: 'Package & Send',
-      targetSection: 'collab-questions',
+      action: () => {
+        onScrollToSection?.('collab-questions')
+        onTriggerSynthesize?.()
+      },
     })
   }
 
-  // Client answers waiting for review → scroll to Question Board
-  // Use pulse unread_count (answered package questions) OR portal_sync fallback
+  // Client answers waiting for review → scroll to Activity
   const answeredCount = pulse?.unread_count ?? collab?.portal_sync?.questions?.completed ?? 0
   if (answeredCount > 0) {
     actions.push({
@@ -49,11 +53,11 @@ export function ActionQueueSection({ projectId, onScrollToSection }: ActionQueue
       type: 'client',
       icon: CheckCircle,
       cta: 'View Answers',
-      targetSection: 'collab-questions',
+      action: () => onScrollToSection?.('collab-activity'),
     })
   }
 
-  // Questions ready to push → scroll to Question Board
+  // Questions ready to push → scroll to Pipeline
   const pendingQuestions = collab?.portal_sync?.questions?.pending ?? 0
   if (pendingQuestions > 0) {
     actions.push({
@@ -62,7 +66,7 @@ export function ActionQueueSection({ projectId, onScrollToSection }: ActionQueue
       type: 'consultant',
       icon: Send,
       cta: 'Review & Send',
-      targetSection: 'collab-questions',
+      action: () => onScrollToSection?.('collab-questions'),
     })
   }
 
@@ -76,7 +80,7 @@ export function ActionQueueSection({ projectId, onScrollToSection }: ActionQueue
       type: 'system',
       icon: Calendar,
       cta: 'View Agenda',
-      targetSection: 'collab-agenda',
+      action: () => onScrollToSection?.('collab-agenda'),
     })
   }
 
@@ -89,7 +93,7 @@ export function ActionQueueSection({ projectId, onScrollToSection }: ActionQueue
       type: 'consultant',
       icon: AlertCircle,
       cta: 'View Items',
-      targetSection: 'collab-activity',
+      action: () => onScrollToSection?.('collab-activity'),
     })
   }
 
@@ -131,7 +135,7 @@ export function ActionQueueSection({ projectId, onScrollToSection }: ActionQueue
               return (
                 <div
                   key={action.id}
-                  onClick={() => onScrollToSection?.(action.targetSection)}
+                  onClick={action.action}
                   className={`border-l-[3px] ${borderColor} rounded-lg p-3 bg-[#F9F9F9] hover:bg-[#F4F4F4] transition-colors cursor-pointer`}
                 >
                   <div className="flex items-center justify-between gap-3">

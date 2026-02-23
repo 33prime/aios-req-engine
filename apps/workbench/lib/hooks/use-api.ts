@@ -42,6 +42,7 @@ import {
   getClientActivity,
   getCollaborationCurrent,
   getPhaseProgress,
+  listPendingItems,
 } from '@/lib/api'
 import type {
   NextAction,
@@ -653,6 +654,18 @@ export function usePhaseProgress(
       dedupingInterval: MED_CACHE,
       revalidateOnFocus: false,
       ...config,
+    },
+  )
+}
+
+// --- Pending items queue (entities awaiting package synthesis) ---
+export function usePendingItems(projectId: string | undefined) {
+  return useSWR(
+    projectId ? `pending-items:${projectId}` : null,
+    () => listPendingItems(projectId!),
+    {
+      dedupingInterval: SHORT_CACHE,
+      revalidateOnFocus: true,
     },
   )
 }

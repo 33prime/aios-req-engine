@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback } from 'react'
+import { useCallback, useState } from 'react'
 import { Users } from 'lucide-react'
 import { ClientHeaderBar } from './ClientHeaderBar'
 import { ActionQueueSection } from './ActionQueueSection'
@@ -16,14 +16,19 @@ interface CollaborateViewProps {
 }
 
 export function CollaborateView({ projectId, onNavigateToPhase }: CollaborateViewProps) {
+  const [synthesizeTrigger, setSynthesizeTrigger] = useState(0)
+
   const scrollToSection = useCallback((sectionId: string) => {
     const el = document.getElementById(sectionId)
     if (el) {
       el.scrollIntoView({ behavior: 'smooth', block: 'start' })
-      // Brief highlight flash
       el.classList.add('ring-2', 'ring-[#3FAF7A]/30')
       setTimeout(() => el.classList.remove('ring-2', 'ring-[#3FAF7A]/30'), 2000)
     }
+  }, [])
+
+  const handleTriggerSynthesize = useCallback(() => {
+    setSynthesizeTrigger(prev => prev + 1)
   }, [])
 
   return (
@@ -49,9 +54,13 @@ export function CollaborateView({ projectId, onNavigateToPhase }: CollaborateVie
         <ActionQueueSection
           projectId={projectId}
           onScrollToSection={scrollToSection}
+          onTriggerSynthesize={handleTriggerSynthesize}
         />
         <div id="collab-questions" className="rounded-2xl transition-all duration-500">
-          <QuestionBoardSection projectId={projectId} />
+          <QuestionBoardSection
+            projectId={projectId}
+            synthesizeTrigger={synthesizeTrigger}
+          />
         </div>
         <div id="collab-agenda" className="rounded-2xl transition-all duration-500">
           <AgendaCenterSection projectId={projectId} />
