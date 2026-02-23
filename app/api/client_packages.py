@@ -523,16 +523,21 @@ async def save_package(project_id: UUID, package_data: dict) -> dict:
         action_items.append(result.data[0])
 
     # Save asset suggestions
+    valid_categories = {"sample_data", "process", "data_systems", "integration"}
     assets = []
     for asset in package_data.get("suggested_assets", []):
+        # LLM may hallucinate categories outside the DB constraint
+        category = asset["category"]
+        if category not in valid_categories:
+            category = "process"  # safe default
         asset_record = {
             "package_id": package_id,
-            "category": asset["category"],
+            "category": category,
             "title": asset["title"],
             "description": asset["description"],
             "why_valuable": asset["why_valuable"],
             "examples": asset.get("examples", []),
-            "priority": asset.get("priority", "medium"),
+            "priority": asset.get("priority", "medium") if asset.get("priority") in {"high", "medium", "low"} else "medium",
             "phase_relevant": asset.get("phase_relevant", []),
         }
         result = client.table("package_asset_suggestions").insert(asset_record).execute()
