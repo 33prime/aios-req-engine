@@ -16,6 +16,7 @@
 
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { detectChatEntities, saveChatAsSignal, getConversationMessages, type ChatEntityDetectionResult } from '@/lib/api'
+import { getAccessToken } from '@/lib/api/core'
 
 export interface ChatMessage {
   id?: string
@@ -152,12 +153,17 @@ export function useChat({
         abortControllerRef.current = new AbortController()
 
         // Make SSE request
+        const authHeaders: Record<string, string> = {}
+        const token = getAccessToken()
+        if (token) authHeaders['Authorization'] = `Bearer ${token}`
+
         const response = await fetch(
           `${process.env.NEXT_PUBLIC_API_BASE}/v1/chat?project_id=${projectId}`,
           {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
+              ...authHeaders,
             },
             body: JSON.stringify({
               message: content,
@@ -330,12 +336,17 @@ export function useChat({
         abortControllerRef.current = new AbortController()
 
         // Send signal through the chat API with add_signal tool
+        const authHeaders: Record<string, string> = {}
+        const token = getAccessToken()
+        if (token) authHeaders['Authorization'] = `Bearer ${token}`
+
         const response = await fetch(
           `${process.env.NEXT_PUBLIC_API_BASE}/v1/chat?project_id=${projectId}`,
           {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
+              ...authHeaders,
             },
             body: JSON.stringify({
               message: `Add this ${type} signal and process it:\n\n${content}\n\nSource: ${source}`,
