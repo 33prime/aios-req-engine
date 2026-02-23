@@ -1,20 +1,27 @@
-"""
-AI Synthesis Agent for Client Packages
+"""AI Synthesis Agent for Client Packages — Anthropic V2.
 
-This agent analyzes pending items (features, personas, questions, etc.) and
-synthesizes them into minimal, high-impact questions for clients.
+Analyzes pending items (features, personas, questions, etc.) and synthesizes
+them into minimal, high-impact questions for clients.
 
 Philosophy: Minimum client input → Maximum AIOS inference
+
+Uses Anthropic tool_use for structured output (same pattern as
+generate_unlocks.py and extract_entity_patches.py).
 """
 
-from typing import Any, Optional
+from __future__ import annotations
+
+import asyncio
+import json
+import logging
+import time
+from typing import Any
 from uuid import UUID, uuid4
 
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_openai import ChatOpenAI
-from pydantic import BaseModel, Field
+logger = logging.getLogger(__name__)
 
-from app.core.config import get_settings
+_MAX_RETRIES = 2
+_INITIAL_DELAY = 1.0
 
 
 # ============================================================================
@@ -38,14 +45,14 @@ You will receive:
 
 You will output:
 1. Synthesized questions (fewer is better, aim for 3-5 total)
-2. For each question: hint, suggested answerer, and which items it covers
-"""
+2. For each question: hint, suggested answerer, and which items it covers"""
 
 QUESTION_SYNTHESIS_USER = """## Project Context
 Industry: {industry}
 Project Goal: {project_goal}
 What We Know: {existing_context}
 
+{retrieval_section}
 ## Pending Items Needing Client Input
 
 {pending_items_formatted}
@@ -54,35 +61,11 @@ What We Know: {existing_context}
 
 Synthesize these {item_count} items into {target_questions} smart questions.
 
-For each question, provide:
-1. question_text: The actual question (open-ended, conversational)
-2. hint: Guidance on how to answer (what to think about, examples)
-3. suggested_answerer: Role(s) in their organization who would know this
-4. why_asking: Brief explanation of value (helps build trust)
-5. covers_items: List of item IDs this question will help answer
-
 Remember:
 - Cluster related items into single questions
 - Make questions feel natural, not like a checklist
 - Hints should be genuinely helpful, not condescending
-- "Suggested answerer" should be specific roles, not "someone"
-
-Output as JSON array of questions."""
-
-
-HINT_GENERATION_SYSTEM = """You are helping craft helpful hints for client questions.
-
-Good hints:
-- Give specific things to think about
-- Mention what format of answer is most useful
-- Are warm and conversational, not corporate
-- Don't repeat the question
-
-Bad hints:
-- Vague ("think about your needs")
-- Condescending ("this is important because...")
-- Too long (keep to 1-2 sentences)
-"""
+- "Suggested answerer" should be specific roles, not "someone" """
 
 
 ASSET_SUGGESTION_SYSTEM = """You are a Design Intelligence Agent suggesting documents and assets that would provide maximum inference value for understanding a client's needs.
@@ -99,8 +82,7 @@ For each suggestion:
 3. Give examples of acceptable formats
 4. Make it feel easy ("screenshots work great", "even rough drafts help")
 
-Goal: Get artifacts that let us "wow" them with accuracy - showing we understand their exact data model, terminology, and workflows.
-"""
+Goal: Get artifacts that let us "wow" them with accuracy — showing we understand their exact data model, terminology, and workflows."""
 
 ASSET_SUGGESTION_USER = """## Project Context
 Phase: {phase}
@@ -124,98 +106,233 @@ Prioritize assets that would let us:
 1. Model their exact data entities (wow moment: "here's your data model")
 2. Use their terminology correctly
 3. Build realistic prototypes with their actual workflows
-4. Demonstrate understanding of their specific pain points
-
-For each suggestion:
-- category: 'sample_data' | 'process' | 'data_systems' | 'integration'
-- title: Specific name for the asset
-- description: What exactly we're asking for
-- why_valuable: What we can infer/build from it (be specific)
-- examples: 2-3 acceptable formats
-- priority: 'high' | 'medium' | 'low'
-
-Output as JSON array."""
-
-
-RESPONSE_PARSER_SYSTEM = """You are parsing a client's answer to extract information that updates our internal items.
-
-Given:
-1. The original synthesized question
-2. The items that question was designed to cover
-3. The client's answer
-
-Extract:
-1. Direct answers to specific items
-2. New information we didn't ask about
-3. Items that are now validated/confirmed
-4. Items that need follow-up (answer was unclear or raised new questions)
-5. New entities to create (personas, pain points, etc. mentioned in answer)
-
-Be thorough but don't over-interpret. If something is ambiguous, flag it for follow-up rather than assuming.
-"""
+4. Demonstrate understanding of their specific pain points"""
 
 
 # ============================================================================
-# Pydantic Models for Structured Output
+# Tool Schemas (forced structured output)
+# ============================================================================
+
+QUESTIONS_TOOL = {
+    "name": "submit_synthesized_questions",
+    "description": "Submit the synthesized client questions.",
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "questions": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "question_text": {
+                            "type": "string",
+                            "description": "The question to ask the client",
+                        },
+                        "hint": {
+                            "type": "string",
+                            "description": "Helpful guidance on how to answer (1-2 sentences)",
+                        },
+                        "suggested_answerer": {
+                            "type": "string",
+                            "description": "Specific role(s) in their org who would know this",
+                        },
+                        "why_asking": {
+                            "type": "string",
+                            "description": "Brief explanation of value (builds trust)",
+                        },
+                        "covers_items": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "description": "IDs of pending items this question covers",
+                        },
+                    },
+                    "required": [
+                        "question_text",
+                        "hint",
+                        "suggested_answerer",
+                        "why_asking",
+                        "covers_items",
+                    ],
+                },
+            },
+            "synthesis_notes": {
+                "type": "string",
+                "description": "Brief notes about synthesis choices made",
+            },
+        },
+        "required": ["questions"],
+    },
+}
+
+ASSETS_TOOL = {
+    "name": "submit_asset_suggestions",
+    "description": "Submit the asset suggestions for the client.",
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "suggestions": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "category": {
+                            "type": "string",
+                            "enum": [
+                                "sample_data",
+                                "process",
+                                "data_systems",
+                                "integration",
+                            ],
+                            "description": "Asset category",
+                        },
+                        "title": {
+                            "type": "string",
+                            "description": "Specific name for the asset",
+                        },
+                        "description": {
+                            "type": "string",
+                            "description": "What exactly we're asking for",
+                        },
+                        "why_valuable": {
+                            "type": "string",
+                            "description": "What we can infer/build from it",
+                        },
+                        "examples": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "description": "2-3 acceptable formats",
+                        },
+                        "priority": {
+                            "type": "string",
+                            "enum": ["high", "medium", "low"],
+                            "description": "Priority level",
+                        },
+                    },
+                    "required": [
+                        "category",
+                        "title",
+                        "description",
+                        "why_valuable",
+                        "examples",
+                        "priority",
+                    ],
+                },
+            },
+        },
+        "required": ["suggestions"],
+    },
+}
+
+
+# ============================================================================
+# Shared LLM Helper
 # ============================================================================
 
 
-class SynthesizedQuestionOutput(BaseModel):
-    """Output format for a synthesized question."""
-    question_text: str = Field(description="The question to ask the client")
-    hint: str = Field(description="Helpful guidance on how to answer")
-    suggested_answerer: str = Field(description="Role(s) who would know this")
-    why_asking: str = Field(description="Brief explanation of value")
-    covers_items: list[str] = Field(description="IDs of pending items this covers")
+async def _call_with_tool(
+    *,
+    model: str,
+    system_text: str,
+    user_text: str,
+    tool: dict,
+    tool_name: str,
+    temperature: float,
+    max_tokens: int,
+    workflow: str,
+    chain: str,
+    project_id: str | None = None,
+) -> dict[str, Any]:
+    """Call Anthropic with tool_use, retries, string-bug guard, and usage logging.
 
-
-class QuestionSynthesisOutput(BaseModel):
-    """Output format for question synthesis."""
-    questions: list[SynthesizedQuestionOutput]
-    synthesis_notes: Optional[str] = Field(
-        default=None,
-        description="Notes about synthesis choices"
+    Returns the raw tool input dict from the response.
+    """
+    from anthropic import (
+        APIConnectionError,
+        APITimeoutError,
+        AsyncAnthropic,
+        InternalServerError,
+        RateLimitError,
     )
 
+    from app.core.config import Settings
+    from app.core.llm_usage import log_llm_usage
 
-class AssetSuggestionOutput(BaseModel):
-    """Output format for an asset suggestion."""
-    category: str = Field(description="sample_data, process, data_systems, or integration")
-    title: str = Field(description="Specific name for the asset")
-    description: str = Field(description="What exactly we're asking for")
-    why_valuable: str = Field(description="What we can infer from it")
-    examples: list[str] = Field(description="Acceptable formats")
-    priority: str = Field(description="high, medium, or low")
+    settings = Settings()
+    client = AsyncAnthropic(api_key=settings.ANTHROPIC_API_KEY)
+
+    system_blocks = [
+        {"type": "text", "text": system_text, "cache_control": {"type": "ephemeral"}},
+    ]
+
+    last_error: Exception | None = None
+    for attempt in range(_MAX_RETRIES + 1):
+        try:
+            t0 = time.monotonic()
+            response = await client.messages.create(
+                model=model,
+                max_tokens=max_tokens,
+                system=system_blocks,
+                messages=[{"role": "user", "content": user_text}],
+                temperature=temperature,
+                tools=[tool],
+                tool_choice={"type": "tool", "name": tool_name},
+            )
+            elapsed_ms = int((time.monotonic() - t0) * 1000)
+
+            # Log usage
+            log_llm_usage(
+                workflow=workflow,
+                model=model,
+                provider="anthropic",
+                tokens_input=response.usage.input_tokens,
+                tokens_output=response.usage.output_tokens,
+                duration_ms=elapsed_ms,
+                project_id=project_id,
+                chain=chain,
+                tokens_cache_read=getattr(response.usage, "cache_read_input_tokens", 0) or 0,
+                tokens_cache_create=getattr(response.usage, "cache_creation_input_tokens", 0) or 0,
+            )
+
+            # Extract tool input from response
+            for block in response.content:
+                if block.type == "tool_use" and block.name == tool_name:
+                    return block.input
+
+            logger.warning(f"No tool_use block for {tool_name} in response, returning empty")
+            return {}
+
+        except (
+            APIConnectionError,
+            APITimeoutError,
+            InternalServerError,
+            RateLimitError,
+        ) as e:
+            last_error = e
+            if attempt < _MAX_RETRIES:
+                delay = _INITIAL_DELAY * (2**attempt)
+                logger.warning(
+                    f"{chain} attempt {attempt + 1}/{_MAX_RETRIES + 1} failed "
+                    f"({type(e).__name__}), retrying in {delay}s"
+                )
+                await asyncio.sleep(delay)
+            else:
+                logger.error(f"{chain}: all {_MAX_RETRIES + 1} attempts failed: {e}")
+
+    if last_error:
+        raise last_error
+    return {}
 
 
-class AssetSuggestionsOutput(BaseModel):
-    """Output format for asset suggestions."""
-    suggestions: list[AssetSuggestionOutput]
-
-
-class ItemUpdate(BaseModel):
-    """An update to apply to a pending item."""
-    item_id: str
-    action: str = Field(description="validate, update, needs_followup, or skip")
-    extracted_value: Optional[str] = None
-    confidence: str = Field(default="medium", description="high, medium, low")
-    notes: Optional[str] = None
-
-
-class NewEntity(BaseModel):
-    """A new entity to create from the response."""
-    entity_type: str = Field(description="persona, pain_point, goal, etc.")
-    name: str
-    description: str
-    source: str = "client_response"
-
-
-class ResponseParseOutput(BaseModel):
-    """Output format for response parsing."""
-    item_updates: list[ItemUpdate]
-    new_entities: list[NewEntity] = Field(default_factory=list)
-    follow_up_needed: bool = False
-    follow_up_reason: Optional[str] = None
+def _extract_list(data: dict, key: str) -> list[dict]:
+    """Extract a list from tool output, handling the Anthropic string bug."""
+    raw = data.get(key, [])
+    if isinstance(raw, str):
+        try:
+            raw = json.loads(raw)
+        except json.JSONDecodeError:
+            logger.error(f"Failed to parse {key} string as JSON")
+            raw = []
+    return raw
 
 
 # ============================================================================
@@ -223,54 +340,70 @@ class ResponseParseOutput(BaseModel):
 # ============================================================================
 
 
-def get_llm(temperature: float = 0.7) -> ChatOpenAI:
-    """Get configured LLM for synthesis."""
-    settings = get_settings()
-    return ChatOpenAI(
-        model="gpt-4o",
-        temperature=temperature,
-        api_key=settings.OPENAI_API_KEY,
-    )
-
-
 async def synthesize_questions(
     pending_items: list[dict],
     project_context: dict,
     target_questions: int = 4,
-) -> QuestionSynthesisOutput:
-    """
-    Synthesize pending items into minimal client questions.
+    project_id: str | None = None,
+) -> list[dict]:
+    """Synthesize pending items into minimal client questions.
 
     Args:
         pending_items: List of items needing client input
         project_context: Industry, goals, existing knowledge
         target_questions: Target number of questions (fewer is better)
+        project_id: Optional project ID for retrieval context
 
     Returns:
-        Synthesized questions with hints and coverage mapping
+        List of question dicts with question_text, hint, suggested_answerer,
+        why_asking, covers_items keys.
     """
-    llm = get_llm(temperature=0.7)
-
-    # Format pending items for the prompt
     items_formatted = _format_pending_items(pending_items)
 
-    prompt = ChatPromptTemplate.from_messages([
-        ("system", QUESTION_SYNTHESIS_SYSTEM),
-        ("user", QUESTION_SYNTHESIS_USER),
-    ])
+    # Optional retrieval context
+    retrieval_section = ""
+    if project_id:
+        try:
+            from app.core.retrieval import retrieve
+            from app.core.retrieval_format import format_retrieval_for_context
 
-    chain = prompt | llm.with_structured_output(QuestionSynthesisOutput)
+            result = await retrieve(
+                query="project goals requirements pain points workflows",
+                project_id=project_id,
+                entity_types=["feature", "persona", "workflow", "business_driver"],
+                skip_evaluation=True,
+                skip_reranking=True,
+            )
+            evidence = format_retrieval_for_context(result, style="generation", max_tokens=1500)
+            if evidence:
+                retrieval_section = f"## What We Already Know\n{evidence}\n\n"
+        except Exception:
+            pass  # Non-blocking — continue without retrieval
 
-    result = await chain.ainvoke({
-        "industry": project_context.get("industry", "Technology"),
-        "project_goal": project_context.get("goal", "Build a software solution"),
-        "existing_context": project_context.get("existing_context", "Initial discovery phase"),
-        "pending_items_formatted": items_formatted,
-        "item_count": len(pending_items),
-        "target_questions": target_questions,
-    })
+    user_text = QUESTION_SYNTHESIS_USER.format(
+        industry=project_context.get("industry", "Technology"),
+        project_goal=project_context.get("goal", "Build a software solution"),
+        existing_context=project_context.get("existing_context", "Initial discovery phase"),
+        retrieval_section=retrieval_section,
+        pending_items_formatted=items_formatted,
+        item_count=len(pending_items),
+        target_questions=target_questions,
+    )
 
-    return result
+    data = await _call_with_tool(
+        model="claude-sonnet-4-6",
+        system_text=QUESTION_SYNTHESIS_SYSTEM,
+        user_text=user_text,
+        tool=QUESTIONS_TOOL,
+        tool_name="submit_synthesized_questions",
+        temperature=0.5,
+        max_tokens=4000,
+        workflow="client_package",
+        chain="synthesize_questions",
+        project_id=project_id,
+    )
+
+    return _extract_list(data, "questions")
 
 
 async def suggest_assets(
@@ -279,9 +412,9 @@ async def suggest_assets(
     pending_items: list[dict],
     existing_assets: list[str],
     target_count: int = 4,
-) -> AssetSuggestionsOutput:
-    """
-    Suggest high-value assets the client could provide.
+    project_id: str | None = None,
+) -> list[dict]:
+    """Suggest high-value assets the client could provide.
 
     Args:
         phase: Current collaboration phase
@@ -289,92 +422,38 @@ async def suggest_assets(
         pending_items: Items that would benefit from assets
         existing_assets: What we already have
         target_count: Number of suggestions to generate
+        project_id: Optional project ID for usage logging
 
     Returns:
-        Asset suggestions with explanations
+        List of asset suggestion dicts with category, title, description,
+        why_valuable, examples, priority keys.
     """
-    llm = get_llm(temperature=0.6)
-
-    prompt = ChatPromptTemplate.from_messages([
-        ("system", ASSET_SUGGESTION_SYSTEM),
-        ("user", ASSET_SUGGESTION_USER),
-    ])
-
-    chain = prompt | llm.with_structured_output(AssetSuggestionsOutput)
-
-    # Summarize pending items for asset context
     items_summary = _summarize_pending_items(pending_items)
 
-    result = await chain.ainvoke({
-        "phase": phase,
-        "industry": project_context.get("industry", "Technology"),
-        "project_goal": project_context.get("goal", "Build a software solution"),
-        "solution_summary": project_context.get("solution_summary", "Custom software solution"),
-        "existing_assets": "\n".join(existing_assets) if existing_assets else "None yet",
-        "pending_items_summary": items_summary,
-        "target_count": target_count,
-    })
+    user_text = ASSET_SUGGESTION_USER.format(
+        phase=phase,
+        industry=project_context.get("industry", "Technology"),
+        project_goal=project_context.get("goal", "Build a software solution"),
+        solution_summary=project_context.get("solution_summary", "Custom software solution"),
+        existing_assets="\n".join(existing_assets) if existing_assets else "None yet",
+        pending_items_summary=items_summary,
+        target_count=target_count,
+    )
 
-    return result
+    data = await _call_with_tool(
+        model="claude-haiku-4-5-20251001",
+        system_text=ASSET_SUGGESTION_SYSTEM,
+        user_text=user_text,
+        tool=ASSETS_TOOL,
+        tool_name="submit_asset_suggestions",
+        temperature=0.3,
+        max_tokens=3000,
+        workflow="client_package",
+        chain="suggest_assets",
+        project_id=project_id,
+    )
 
-
-async def parse_client_response(
-    question: dict,
-    covered_items: list[dict],
-    answer_text: str,
-) -> ResponseParseOutput:
-    """
-    Parse a client's answer to update internal items.
-
-    Args:
-        question: The synthesized question that was asked
-        covered_items: The pending items this question covered
-        answer_text: The client's answer
-
-    Returns:
-        Updates to apply to items, new entities to create
-    """
-    llm = get_llm(temperature=0.3)  # Lower temperature for parsing
-
-    prompt = ChatPromptTemplate.from_messages([
-        ("system", RESPONSE_PARSER_SYSTEM),
-        ("user", """## Question Asked
-{question_text}
-
-Hint provided: {hint}
-
-## Items This Question Covered
-{covered_items_formatted}
-
-## Client's Answer
-{answer_text}
-
-## Your Task
-Parse this answer to determine:
-1. Which items can be validated/updated
-2. What specific values to extract
-3. Whether follow-up is needed
-4. Any new entities mentioned
-
-Output as structured JSON."""),
-    ])
-
-    chain = prompt | llm.with_structured_output(ResponseParseOutput)
-
-    # Format covered items
-    items_formatted = "\n".join([
-        f"- [{item['id']}] {item['item_type']}: {item['title']}"
-        for item in covered_items
-    ])
-
-    result = await chain.ainvoke({
-        "question_text": question.get("question_text", ""),
-        "hint": question.get("hint", ""),
-        "covered_items_formatted": items_formatted,
-        "answer_text": answer_text,
-    })
-
-    return result
+    return _extract_list(data, "suggestions")
 
 
 # ============================================================================
@@ -384,7 +463,7 @@ Output as structured JSON."""),
 
 def _format_pending_items(items: list[dict]) -> str:
     """Format pending items for the synthesis prompt."""
-    sections = {}
+    sections: dict[str, list[str]] = {}
 
     for item in items:
         item_type = item.get("item_type", "other")
@@ -410,7 +489,7 @@ def _format_pending_items(items: list[dict]) -> str:
 
 def _summarize_pending_items(items: list[dict]) -> str:
     """Create a brief summary of pending items for asset context."""
-    by_type = {}
+    by_type: dict[str, int] = {}
     for item in items:
         item_type = item.get("item_type", "other")
         by_type[item_type] = by_type.get(item_type, 0) + 1
@@ -432,13 +511,9 @@ async def generate_client_package(
     include_asset_suggestions: bool = True,
     max_questions: int = 5,
 ) -> dict:
-    """
-    Generate a complete client package from pending items.
+    """Generate a complete client package from pending items.
 
-    This is the main entry point that orchestrates:
-    1. Question synthesis
-    2. Asset suggestions
-    3. Package assembly
+    Orchestrates question synthesis and asset suggestions in parallel.
 
     Args:
         project_id: The project ID
@@ -449,26 +524,37 @@ async def generate_client_package(
         max_questions: Maximum number of questions to generate
 
     Returns:
-        Complete client package ready for review/sending
+        Complete client package dict ready for review/sending
     """
-    # Synthesize questions
-    questions_output = await synthesize_questions(
-        pending_items=pending_items,
-        project_context=project_context,
-        target_questions=min(max_questions, max(3, len(pending_items) // 3)),
-    )
+    pid = str(project_id)
+    target_q = min(max_questions, max(3, len(pending_items) // 3))
 
-    # Generate asset suggestions if requested
-    asset_suggestions = []
+    # Run questions + assets in parallel when both are needed
     if include_asset_suggestions:
-        assets_output = await suggest_assets(
-            phase=phase,
-            project_context=project_context,
-            pending_items=pending_items,
-            existing_assets=[],  # TODO: Load from DB
-            target_count=4,
+        questions, asset_suggestions = await asyncio.gather(
+            synthesize_questions(
+                pending_items=pending_items,
+                project_context=project_context,
+                target_questions=target_q,
+                project_id=pid,
+            ),
+            suggest_assets(
+                phase=phase,
+                project_context=project_context,
+                pending_items=pending_items,
+                existing_assets=[],
+                target_count=4,
+                project_id=pid,
+            ),
         )
-        asset_suggestions = assets_output.suggestions
+    else:
+        questions = await synthesize_questions(
+            pending_items=pending_items,
+            project_context=project_context,
+            target_questions=target_q,
+            project_id=pid,
+        )
+        asset_suggestions = []
 
     # Identify action items (document requests from pending items)
     action_items = _extract_action_items(pending_items)
@@ -476,41 +562,43 @@ async def generate_client_package(
     # Assemble package
     package = {
         "id": str(uuid4()),
-        "project_id": str(project_id),
+        "project_id": pid,
         "status": "draft",
         "questions": [
             {
                 "id": str(uuid4()),
-                "question_text": q.question_text,
-                "hint": q.hint,
-                "suggested_answerer": q.suggested_answerer,
-                "why_asking": q.why_asking,
-                "covers_items": q.covers_items,
-                "covers_summary": _generate_covers_summary(q.covers_items, pending_items),
+                "question_text": q.get("question_text", ""),
+                "hint": q.get("hint", ""),
+                "suggested_answerer": q.get("suggested_answerer", ""),
+                "why_asking": q.get("why_asking", ""),
+                "covers_items": q.get("covers_items", []),
+                "covers_summary": _generate_covers_summary(
+                    q.get("covers_items", []), pending_items
+                ),
                 "sequence_order": i,
             }
-            for i, q in enumerate(questions_output.questions)
+            for i, q in enumerate(questions)
         ],
         "action_items": action_items,
         "suggested_assets": [
             {
                 "id": str(uuid4()),
-                "category": a.category,
-                "title": a.title,
-                "description": a.description,
-                "why_valuable": a.why_valuable,
-                "examples": a.examples,
-                "priority": a.priority,
+                "category": a.get("category", "process"),
+                "title": a.get("title", ""),
+                "description": a.get("description", ""),
+                "why_valuable": a.get("why_valuable", ""),
+                "examples": a.get("examples", []),
+                "priority": a.get("priority", "medium"),
                 "phase_relevant": [phase],
             }
             for a in asset_suggestions
         ],
         "source_items": [item["id"] for item in pending_items],
         "source_items_count": len(pending_items),
-        "questions_count": len(questions_output.questions),
+        "questions_count": len(questions),
         "action_items_count": len(action_items),
         "suggestions_count": len(asset_suggestions),
-        "synthesis_notes": questions_output.synthesis_notes,
+        "synthesis_notes": None,
     }
 
     return package
@@ -522,16 +610,18 @@ def _extract_action_items(pending_items: list[dict]) -> list[dict]:
 
     for item in pending_items:
         if item.get("item_type") == "document":
-            action_items.append({
-                "id": str(uuid4()),
-                "title": item.get("title", "Document request"),
-                "description": item.get("description"),
-                "item_type": "document",
-                "hint": item.get("why_needed"),
-                "why_needed": item.get("why_needed"),
-                "covers_items": [item["id"]],
-                "sequence_order": len(action_items),
-            })
+            action_items.append(
+                {
+                    "id": str(uuid4()),
+                    "title": item.get("title", "Document request"),
+                    "description": item.get("description"),
+                    "item_type": "document",
+                    "hint": item.get("why_needed"),
+                    "why_needed": item.get("why_needed"),
+                    "covers_items": [item["id"]],
+                    "sequence_order": len(action_items),
+                }
+            )
 
     return action_items
 
@@ -540,7 +630,7 @@ def _generate_covers_summary(item_ids: list[str], all_items: list[dict]) -> str:
     """Generate a human-readable summary of what a question covers."""
     items_map = {item["id"]: item for item in all_items}
 
-    by_type = {}
+    by_type: dict[str, int] = {}
     for item_id in item_ids:
         if item_id in items_map:
             item_type = items_map[item_id].get("item_type", "item")
