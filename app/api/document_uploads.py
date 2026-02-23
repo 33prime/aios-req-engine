@@ -3,8 +3,10 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, File, Form, HTTPException, Path, Query, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Path, Query, UploadFile
 from pydantic import BaseModel
+
+from app.core.auth_middleware import get_current_user
 
 from app.core.document_processing import (
     detect_document_type,
@@ -107,6 +109,7 @@ async def upload_document(
     file: UploadFile = File(...),
     upload_source: str = Form(default="workbench"),
     authority: str = Form(default="consultant"),
+    user=Depends(get_current_user),
 ) -> DocumentUploadResponse:
     """Upload a document for processing.
 
@@ -189,6 +192,7 @@ async def upload_document(
             checksum=checksum,
             upload_source=upload_source,
             authority=authority,
+            uploaded_by=UUID(user.user.id) if user and hasattr(user, "user") else None,
         )
 
         logger.info(f"Document uploaded: {doc['id']} ({file.filename})")

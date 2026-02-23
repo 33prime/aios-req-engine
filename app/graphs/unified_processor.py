@@ -123,6 +123,8 @@ def _create_document_review_task(state: V2ProcessorState) -> None:
     Non-critical — failures are logged, never fatal.
     """
     try:
+        from datetime import datetime, timezone
+
         r = state.application_result
         if not r or r.total_applied == 0:
             return
@@ -132,7 +134,7 @@ def _create_document_review_task(state: V2ProcessorState) -> None:
         # Look up document_uploads where signal_id matches
         doc_resp = (
             sb.table("document_uploads")
-            .select("id, original_filename")
+            .select("id, original_filename, uploaded_by")
             .eq("signal_id", str(state.signal_id))
             .limit(1)
             .execute()
@@ -141,7 +143,9 @@ def _create_document_review_task(state: V2ProcessorState) -> None:
         if not doc_resp.data:
             return  # Not a document upload signal
 
-        filename = doc_resp.data[0].get("original_filename", "document")
+        doc_data = doc_resp.data[0]
+        filename = doc_data.get("original_filename", "document")
+        uploaded_by = doc_data.get("uploaded_by")
         entity_count = r.total_applied
 
         # Build patches snapshot from application result
@@ -152,18 +156,23 @@ def _create_document_review_task(state: V2ProcessorState) -> None:
                 "applied": r.applied[:50],  # Cap to avoid oversized JSONB
             }
 
-        sb.table("tasks").insert(
-            {
-                "project_id": str(state.project_id),
-                "title": f"Review {entity_count} entities extracted from {filename}",
-                "task_type": "signal_review",
-                "status": "pending",
-                "source_type": "signal_processing",
-                "priority_score": 80,
-                "signal_id": str(state.signal_id),
-                "patches_snapshot": patches_snapshot,
-            }
-        ).execute()
+        task_data: dict[str, Any] = {
+            "project_id": str(state.project_id),
+            "title": f"Review {entity_count} entities extracted from {filename}",
+            "task_type": "signal_review",
+            "status": "in_progress",
+            "source_type": "signal_processing",
+            "priority": "high",
+            "priority_score": 90,
+            "due_date": datetime.now(timezone.utc).isoformat(),
+            "signal_id": str(state.signal_id),
+            "patches_snapshot": patches_snapshot,
+        }
+
+        if uploaded_by:
+            task_data["assigned_to"] = uploaded_by
+
+        sb.table("tasks").insert(task_data).execute()
 
         logger.info(
             f"[v2] Created review task for {filename} ({entity_count} entities)",
