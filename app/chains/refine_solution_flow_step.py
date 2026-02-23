@@ -76,15 +76,43 @@ _SUBMIT_TOOL = {
             "ai_config": {
                 "type": "object",
                 "properties": {
-                    "role": {"type": "string"},
-                    "behaviors": {"type": "array", "items": {"type": "string"}},
-                    "guardrails": {"type": "array", "items": {"type": "string"}},
+                    "role": {"type": "string", "description": "What the AI does — shown as DATA IN"},
+                    "behaviors": {"type": "array", "items": {"type": "string"}, "description": "Specific AI behaviors — shown as WHAT THE AI DOES"},
+                    "guardrails": {"type": "array", "items": {"type": "string"}, "description": "Constraints/limits — shown as GUARDRAILS"},
+                    "confidence_display": {"type": "string", "enum": ["hidden", "subtle", "prominent"], "description": "How confidence is shown to user — part of WHAT COMES OUT"},
+                    "fallback": {"type": "string", "description": "What happens when AI fails — part of WHAT COMES OUT"},
                 },
-                "description": "AI behavior configuration for this step",
+                "description": "AI behavior configuration. Has 4 visual sections: DATA IN (role), WHAT THE AI DOES (behaviors), GUARDRAILS (guardrails), WHAT COMES OUT (confidence_display + fallback). Preserve all sections when updating.",
             },
         },
     },
 }
+
+_FIELD_DISPLAY_NAMES: dict[str, str] = {
+    "ai_config": "AI flow",
+    "goal": "goal",
+    "title": "title",
+    "actors": "actors",
+    "phase": "phase",
+    "information_fields": "information fields",
+    "open_questions": "open questions",
+    "implied_pattern": "implied pattern",
+    "success_criteria": "success criteria",
+    "pain_points_addressed": "pain points",
+    "goals_addressed": "goals",
+    "mock_data_narrative": "experience narrative",
+}
+
+
+def _friendly_refine_summary(changes: dict[str, Any]) -> str:
+    """Human-readable diff summary for AI refinement."""
+    fields = [_FIELD_DISPLAY_NAMES.get(k, k.replace("_", " ")) for k in changes]
+    if len(fields) == 1:
+        return f"AI refined {fields[0]}"
+    if len(fields) == 2:
+        return f"AI refined {fields[0]} and {fields[1]}"
+    return f"AI refined {', '.join(fields[:-1])}, and {fields[-1]}"
+
 
 # Fields that should not be overwritten if confirmed by client/consultant
 _PROTECTED_STATUSES = {"confirmed_client", "confirmed_consultant"}
@@ -159,6 +187,48 @@ async def refine_solution_flow_step(
             status = q.get("status", "open")
             open_qs_str += f"\n  - [{status}] {q.get('question', '?')}"
 
+    # Build ai_config context
+    ai_config = step.get("ai_config")
+    ai_config_str = "None"
+    if isinstance(ai_config, dict) and any(ai_config.values()):
+        ai_parts = []
+        role = ai_config.get("role") or ai_config.get("ai_role")
+        if role:
+            ai_parts.append(f"  DATA IN (role): {role}")
+        if ai_config.get("behaviors"):
+            ai_parts.append("  WHAT THE AI DOES (behaviors):")
+            for b in ai_config["behaviors"]:
+                ai_parts.append(f"    - {b}")
+        if ai_config.get("guardrails"):
+            ai_parts.append("  GUARDRAILS:")
+            for g in ai_config["guardrails"]:
+                ai_parts.append(f"    - {g}")
+        if ai_config.get("confidence_display"):
+            ai_parts.append(f"  WHAT COMES OUT — confidence display: {ai_config['confidence_display']}")
+        if ai_config.get("fallback"):
+            ai_parts.append(f"  WHAT COMES OUT — fallback: {ai_config['fallback']}")
+        if ai_parts:
+            ai_config_str = "\n".join(ai_parts)
+
+    # Build success tab context
+    success_parts = []
+    criteria = step.get("success_criteria") or []
+    if criteria:
+        success_parts.append("Success Criteria: " + "; ".join(criteria))
+    pps = step.get("pain_points_addressed") or []
+    if pps:
+        pp_strs = []
+        for pp in pps:
+            if isinstance(pp, dict):
+                pp_strs.append(pp.get("text", "?") + (f" ({pp.get('persona')})" if pp.get("persona") else ""))
+            else:
+                pp_strs.append(str(pp))
+        success_parts.append("Pain Points: " + "; ".join(pp_strs))
+    goals = step.get("goals_addressed") or []
+    if goals:
+        success_parts.append("Goals Addressed: " + "; ".join(goals))
+    success_str = "\n".join(success_parts) if success_parts else "None"
+
     prompt = f"""You are refining a single solution flow step. Return ONLY the fields that should change using the submit_step_changes tool.
 
 ## Current Step
@@ -173,6 +243,12 @@ async def refine_solution_flow_step(
 
 ## Open Questions{open_qs_str or ' None'}
 
+## AI Configuration
+{ai_config_str}
+
+## Success & Outcomes
+{success_str}
+
 ## Linked Entities
 {linked_str}
 
@@ -183,6 +259,7 @@ Rules:
 - Only return fields that need to change based on the instruction.
 - Preserve existing open questions and information fields unless the instruction specifically asks to change them.
 - If adding new information fields, include the full set (existing + new).
+- For ai_config: it has 4 visual sections (DATA IN, WHAT THE AI DOES, GUARDRAILS, WHAT COMES OUT). When updating, ALWAYS include ALL existing sections plus your changes — do NOT drop sections the user didn't mention.
 - Keep responses focused and minimal."""
 
     try:
@@ -246,7 +323,7 @@ Rules:
             revision_type="updated",
             trigger_event="refine_chat_tool",
             changes=change_diff,
-            diff_summary=f"AI refined: {', '.join(changes.keys())}",
+            diff_summary=_friendly_refine_summary(changes),
             created_by="chat_assistant",
         )
     except Exception:
@@ -281,7 +358,16 @@ Rules:
     if "goals_addressed" in changes:
         summary_parts.append(f"{len(changes['goals_addressed'])} goals")
     if "ai_config" in changes:
-        summary_parts.append("AI config")
+        ai = changes["ai_config"]
+        ai_sub = []
+        if isinstance(ai, dict):
+            if ai.get("behaviors"):
+                ai_sub.append("behaviors")
+            if ai.get("guardrails"):
+                ai_sub.append("guardrails")
+            if ai.get("confidence_display") or ai.get("fallback"):
+                ai_sub.append("output")
+        summary_parts.append(f"AI flow ({', '.join(ai_sub)})" if ai_sub else "AI flow")
 
     changes_summary = "; ".join(summary_parts) if summary_parts else "minor adjustments"
 

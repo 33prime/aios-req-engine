@@ -460,7 +460,7 @@ function MessageBubble({ message, isStreaming }: { message: ChatMessage; isStrea
 // =============================================================================
 
 const FIELD_LABELS: Record<string, string> = {
-  ai_config: 'AI configuration',
+  ai_config: 'AI flow',
   goal: 'goal',
   title: 'title',
   actors: 'actors',
@@ -471,7 +471,7 @@ const FIELD_LABELS: Record<string, string> = {
   success_criteria: 'success criteria',
   pain_points_addressed: 'pain points',
   goals_addressed: 'goals addressed',
-  mock_data_narrative: 'preview narrative',
+  mock_data_narrative: 'experience narrative',
   linked_feature_ids: 'linked features',
   linked_workflow_ids: 'linked workflows',
   linked_data_entity_ids: 'linked data entities',

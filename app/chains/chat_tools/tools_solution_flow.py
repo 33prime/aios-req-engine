@@ -42,6 +42,55 @@ def _match_question(questions: list, params: Dict[str, Any]) -> tuple[int | None
     return None, None
 
 
+_FIELD_DISPLAY_NAMES: Dict[str, str] = {
+    "ai_config": "AI flow",
+    "goal": "goal",
+    "title": "title",
+    "actors": "actors",
+    "phase": "phase",
+    "information_fields": "information fields",
+    "open_questions": "open questions",
+    "implied_pattern": "implied pattern",
+    "success_criteria": "success criteria",
+    "pain_points_addressed": "pain points",
+    "goals_addressed": "goals",
+    "mock_data_narrative": "experience narrative",
+    "linked_feature_ids": "linked features",
+    "linked_workflow_ids": "linked workflows",
+    "linked_data_entity_ids": "linked data entities",
+    "background_narrative": "background narrative",
+}
+
+
+def _friendly_diff_summary(params: Dict[str, Any], changes: Dict[str, Any]) -> str:
+    """Build a human-readable diff summary from updated params and changes."""
+    field_names = [_FIELD_DISPLAY_NAMES.get(k, k.replace("_", " ")) for k in params]
+
+    # For ai_config, try to extract what specifically changed
+    if "ai_config" in params and "ai_config" in changes:
+        ai_change = changes["ai_config"]
+        new_ai = ai_change.get("new") if isinstance(ai_change, dict) else None
+        if isinstance(new_ai, dict):
+            ai_sub = []
+            if new_ai.get("role"):
+                ai_sub.append("role")
+            if new_ai.get("behaviors"):
+                ai_sub.append(f"{len(new_ai['behaviors'])} behaviors")
+            if new_ai.get("guardrails"):
+                ai_sub.append(f"{len(new_ai['guardrails'])} guardrails")
+            if new_ai.get("fallback"):
+                ai_sub.append("fallback")
+            if ai_sub:
+                idx = field_names.index("AI flow")
+                field_names[idx] = f"AI flow ({', '.join(ai_sub)})"
+
+    if len(field_names) == 1:
+        return f"Updated {field_names[0]}"
+    if len(field_names) == 2:
+        return f"Updated {field_names[0]} and {field_names[1]}"
+    return f"Updated {', '.join(field_names[:-1])}, and {field_names[-1]}"
+
+
 async def _update_solution_flow_step(project_id: UUID, params: Dict[str, Any]) -> Dict[str, Any]:
     """Update fields on a solution flow step."""
     from app.db.solution_flow import get_flow_step, update_flow_step
@@ -74,7 +123,7 @@ async def _update_solution_flow_step(project_id: UUID, params: Dict[str, Any]) -
                 revision_type="updated",
                 trigger_event="chat_tool",
                 changes=changes,
-                diff_summary=f"Updated {', '.join(params.keys())}",
+                diff_summary=_friendly_diff_summary(params, changes),
                 created_by="chat_assistant",
             )
         except Exception:

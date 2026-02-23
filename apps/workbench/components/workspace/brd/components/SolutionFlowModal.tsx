@@ -248,16 +248,24 @@ export function SolutionFlowModal({
       }
       case 'update_solution_flow_step':
       case 'refine_solution_flow_step': {
+        // Flash field highlights immediately as a "preview pulse" —
+        // user sees existing content shimmer, then new data drops in 700ms later
+        const fields = result?.updated_fields as string[] | undefined
+        flashFields(fields)
+
         if (result?.step_data) {
           const detail = result.step_data as StepDetail
-          setStepDetail(detail)
-          stepCache.current.set(selectedStepId, detail)
-          patchFlowStep(detail)
+          setTimeout(() => {
+            setStepDetail(detail)
+            stepCache.current.set(selectedStepId, detail)
+            patchFlowStep(detail)
+          }, 700)
         } else {
-          refreshStepDetail(selectedStepId)
-          refreshFlow()
+          setTimeout(() => {
+            refreshStepDetail(selectedStepId)
+            refreshFlow()
+          }, 700)
         }
-        flashFields(result?.updated_fields as string[] | undefined)
         break
       }
       case 'add_solution_flow_step': {

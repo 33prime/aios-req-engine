@@ -128,11 +128,19 @@ const ANIMATION_STYLES = `
   30% { opacity: 1; filter: saturate(1); background-color: rgba(63, 175, 122, 0.08); }
   100% { opacity: 1; filter: saturate(1); background-color: transparent; }
 }
+@keyframes previewPulse {
+  0% { opacity: 1; }
+  40% { opacity: 0.5; }
+  60% { opacity: 0.9; }
+  80% { opacity: 0.5; }
+  100% { opacity: 0.4; filter: saturate(0.3); }
+}
 .animate-slideInLeft { animation: slideInLeft 0.4s ease-out; }
 .animate-pulseGreen { animation: pulseGreen 2.5s ease-out; }
-.animate-highlightFlash { animation: highlightFlash 2.5s ease-out; border-radius: 12px; }
+.animate-highlightFlash { animation: previewPulse 0.7s ease-in-out forwards; border-radius: 12px; }
 .animate-dimOut { animation: dimOut 0.5s ease-out forwards; }
 .animate-dimInPulse { animation: dimInPulse 2.5s ease-out forwards; }
+.animate-previewPulse { animation: previewPulse 0.7s ease-in-out forwards; }
 `
 
 type TabId = 'experience' | 'success' | 'ai' | 'history'
@@ -1013,6 +1021,9 @@ function AITab({
             <div className="w-[34px] h-[34px] rounded-lg bg-[#3FAF7A]/15 flex items-center justify-center">
               <ArrowRight className="w-4 h-4 text-[#25785A]" />
             </div>
+            {(step.success_criteria?.length || step.pain_points_addressed?.length) ? (
+              <div className="w-0.5 flex-1 bg-[#3FAF7A]/20 mt-0.5" />
+            ) : null}
           </div>
           <div className="flex-1 pb-2">
             <div className="text-[10px] font-bold uppercase tracking-wider text-[#999999] mb-1.5">What Comes Out</div>
@@ -1030,6 +1041,40 @@ function AITab({
           </div>
         </div>
       )}
+
+      {/* Stage 4 — What Success Looks Like */}
+      {(step.success_criteria?.length || step.pain_points_addressed?.length) ? (
+        <div className="flex gap-3">
+          <div className="flex flex-col items-center shrink-0" style={{ width: 36 }}>
+            <div className="w-[34px] h-[34px] rounded-lg bg-[#3FAF7A]/20 flex items-center justify-center">
+              <Trophy className="w-4 h-4 text-[#25785A]" />
+            </div>
+          </div>
+          <div className="flex-1 pb-2">
+            <div className="text-[10px] font-bold uppercase tracking-wider text-[#999999] mb-1.5">What Success Looks Like</div>
+            <div className="space-y-1.5">
+              {(step.success_criteria || []).map((c, i) => (
+                <div key={`c-${i}`} className="flex items-start gap-2 py-1 px-3 rounded-lg bg-[#3FAF7A]/5">
+                  <Target className="w-3.5 h-3.5 text-[#3FAF7A] shrink-0 mt-0.5" />
+                  <span className="text-[12px] text-[#333333]">{c}</span>
+                </div>
+              ))}
+              {(step.pain_points_addressed || []).map((pp, i) => {
+                const text = typeof pp === 'string' ? pp : pp.text
+                const persona = typeof pp === 'string' ? undefined : pp.persona
+                return (
+                  <div key={`pp-${i}`} className="flex items-start gap-2 py-1 px-3 rounded-lg bg-[#0A1E2F]/3">
+                    <Heart className="w-3.5 h-3.5 text-[#25785A] shrink-0 mt-0.5" />
+                    <span className="text-[12px] text-[#333333]">
+                      {text}{persona && <span className="text-[#999999] ml-1">({persona})</span>}
+                    </span>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   )
 }
@@ -1123,7 +1168,7 @@ function HistoryTimeline({ revisions, loading }: { revisions: RevisionEntry[]; l
 
               {/* Diff summary */}
               {rev.diff_summary && !qResolved && !qEscalated && (
-                <p className="text-[12px] text-[#666666]">{rev.diff_summary}</p>
+                <p className="text-[12px] text-[#666666]">{friendlyDiffSummary(rev.diff_summary)}</p>
               )}
 
               {/* Q&A inline */}
@@ -1230,4 +1275,30 @@ function formatTimeAgo(dateStr: string): string {
 
 function truncate(str: string, max: number): string {
   return str.length > max ? str.slice(0, max) + '...' : str
+}
+
+/** Transform raw diff_summary like "Updated ai_config, information_fields" into friendly labels. */
+const DIFF_FIELD_MAP: Record<string, string> = {
+  ai_config: 'AI flow',
+  information_fields: 'information fields',
+  implied_pattern: 'implied pattern',
+  mock_data_narrative: 'experience narrative',
+  open_questions: 'open questions',
+  success_criteria: 'success criteria',
+  pain_points_addressed: 'pain points',
+  goals_addressed: 'goals',
+  linked_feature_ids: 'linked features',
+  linked_workflow_ids: 'linked workflows',
+  linked_data_entity_ids: 'linked data entities',
+  background_narrative: 'background narrative',
+}
+
+function friendlyDiffSummary(summary: string): string {
+  // Match "Updated field1, field2, field3" pattern
+  const match = summary.match(/^Updated\s+(.+)$/)
+  if (!match) return summary
+  const fields = match[1].split(/,\s*/).map(f => DIFF_FIELD_MAP[f.trim()] || f.trim().replace(/_/g, ' '))
+  if (fields.length === 1) return `Updated ${fields[0]}`
+  if (fields.length === 2) return `Updated ${fields[0]} and ${fields[1]}`
+  return `Updated ${fields.slice(0, -1).join(', ')}, and ${fields[fields.length - 1]}`
 }

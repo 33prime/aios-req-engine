@@ -75,7 +75,7 @@ def _resolve_entity_names_batch(
 
 
 def _build_flow_summary(steps: list[dict[str, Any]]) -> str:
-    """Layer 1: One line per step, ~50 tokens each."""
+    """Layer 1: Two lines per step — title/phase/status + goal. ~80 tokens each."""
     if not steps:
         return "No steps defined yet."
 
@@ -85,6 +85,7 @@ def _build_flow_summary(steps: list[dict[str, Any]]) -> str:
         title = step.get("title", "Untitled")
         actors = step.get("actors") or []
         actor_str = ", ".join(actors) if actors else "no actors"
+        status = step.get("confirmation_status", "ai_generated")
 
         info_fields = step.get("information_fields") or []
         known = sum(
@@ -99,9 +100,18 @@ def _build_flow_summary(steps: list[dict[str, Any]]) -> str:
             if isinstance(q, dict) and q.get("status") == "open"
         )
 
-        pending = " [PENDING UPDATES]" if step.get("has_pending_updates") else ""
+        has_ai = bool(step.get("ai_config") and isinstance(step["ai_config"], dict) and (step["ai_config"].get("role") or step["ai_config"].get("ai_role")))
+        flags = []
+        if step.get("has_pending_updates"):
+            flags.append("PENDING UPDATES")
+        if step.get("confidence_impact") and step["confidence_impact"] > 0:
+            flags.append(f"STALE:{int(step['confidence_impact'] * 100)}%")
+        flag_str = f" [{', '.join(flags)}]" if flags else ""
 
-        line = f"[{phase}] {title} — {actor_str} | fields: {known} known, {guess} guess | explore: {open_count} open{pending}"
+        line = f"[{phase}] {title} ({status}) — {actor_str} | fields: {known}/{known + guess} | questions: {open_count} open | AI: {'yes' if has_ai else 'no'}{flag_str}"
+        goal = step.get("goal", "")
+        if goal:
+            line += f"\n  Goal: {goal}"
         lines.append(line)
 
     return "\n".join(lines)
@@ -123,6 +133,13 @@ def _build_focused_step(
     parts.append(f"Title: {step.get('title', '?')}")
     parts.append(f"Phase: {step.get('phase', '?')}")
     parts.append(f"Goal: {step.get('goal', '?')}")
+
+    # Status / provenance
+    status = step.get("confirmation_status", "ai_generated")
+    version = step.get("generation_version", 1)
+    parts.append(f"Status: {status} (v{version})")
+    if step.get("confidence_impact") and step["confidence_impact"] > 0:
+        parts.append(f"Staleness: {int(step['confidence_impact'] * 100)}% of linked entities changed")
 
     actors = step.get("actors") or []
     if actors:
@@ -185,7 +202,9 @@ def _build_focused_step(
     if step.get("implied_pattern"):
         parts.append(f"Implied Pattern: {step['implied_pattern']}")
     if step.get("mock_data_narrative"):
-        parts.append(f"Preview Narrative: {step['mock_data_narrative']}")
+        parts.append(f"Experience Narrative: {step['mock_data_narrative']}")
+    if step.get("background_narrative"):
+        parts.append(f"Provenance: {step['background_narrative']}")
     if step.get("success_criteria"):
         criteria = step["success_criteria"]
         if isinstance(criteria, list):
@@ -209,8 +228,28 @@ def _build_focused_step(
             parts.append("Goals Addressed:\n" + "\n".join(f"  - {g}" for g in goals))
     if step.get("ai_config"):
         ai = step["ai_config"]
-        if isinstance(ai, dict) and ai.get("role"):
-            parts.append(f"AI Role: {ai['role']}")
+        if isinstance(ai, dict):
+            ai_parts: list[str] = []
+            role = ai.get("role") or ai.get("ai_role")
+            if role:
+                ai_parts.append(f"  [DATA IN] {role}")
+            if ai.get("behaviors"):
+                ai_parts.append("  [WHAT THE AI DOES]")
+                for b in ai["behaviors"]:
+                    ai_parts.append(f"    - {b}")
+            if ai.get("guardrails"):
+                ai_parts.append("  [GUARDRAILS]")
+                for g in ai["guardrails"]:
+                    ai_parts.append(f"    - {g}")
+            has_output = ai.get("confidence_display") or ai.get("fallback")
+            if has_output:
+                ai_parts.append("  [WHAT COMES OUT]")
+                if ai.get("confidence_display"):
+                    ai_parts.append(f"    Confidence display: {ai['confidence_display']}")
+                if ai.get("fallback"):
+                    ai_parts.append(f"    Fallback: {ai['fallback']}")
+            if ai_parts:
+                parts.append("AI Configuration (4 sections — DATA IN, WHAT THE AI DOES, GUARDRAILS, WHAT COMES OUT):\n" + "\n".join(ai_parts))
 
     return "\n".join(parts)
 
