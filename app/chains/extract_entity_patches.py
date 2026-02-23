@@ -175,7 +175,7 @@ create: {{name, entity_category (domain|reference|transactional|analytical), fie
 merge/update: append fields, update category
 
 ### business_driver
-create: {{description, driver_type (pain|goal|kpi), business_impact, affected_users, measurement, baseline_value, target_value}}
+create: {{title (10 words max — punchy summary), description, driver_type (pain|goal|kpi), business_impact, affected_users, measurement, baseline_value, target_value}}
 merge/update: any subset
 
 ### constraint

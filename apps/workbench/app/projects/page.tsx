@@ -12,7 +12,7 @@
 'use client'
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 import type { NextAction, TaskStatsResponse } from '@/lib/api'
 import { useProfile, useProjects, useUpcomingMeetings, useBatchDashboardData } from '@/lib/hooks/use-api'
 import { ProjectsTopNav } from './components/ProjectsTopNav'
@@ -33,7 +33,6 @@ interface ActiveBuild {
 
 export default function ProjectsPage() {
   const router = useRouter()
-  const searchParams = useSearchParams()
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [viewMode, setViewMode] = useState<ViewMode>('cards')
   const [searchQuery, setSearchQuery] = useState('')
@@ -56,19 +55,7 @@ export default function ProjectsPage() {
   const currentUser = profileData ?? null
   const meetings = meetingsData ?? []
 
-  // Read URL params on mount to detect a fresh launch
-  useEffect(() => {
-    const buildingId = searchParams.get('building')
-    const launchId = searchParams.get('launch')
-    if (buildingId && launchId) {
-      setActiveBuild({ projectId: buildingId, launchId })
-      setShowBuildModal(true)
-      // Clean URL params
-      router.replace('/projects')
-    }
-  }, [searchParams, router])
-
-  // Fallback: if no activeBuild but a project is building, track it (don't auto-show modal)
+  // Detect if any project is currently building (for card overlays, not auto-showing modal)
   useEffect(() => {
     if (activeBuild) return
     const buildingProject = projects.find((p) => p.launch_status === 'building')

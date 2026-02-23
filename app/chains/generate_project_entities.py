@@ -38,6 +38,7 @@ class GeneratedPersona(BaseModel):
 
 
 class GeneratedDriver(BaseModel):
+    title: str | None = None  # 10 words max — concise label
     driver_type: str  # pain, goal, kpi
     description: str
     priority: int = 3  # 1-5
@@ -132,7 +133,7 @@ Produce a JSON object with:
   - At least 4 with driver_type "pain" — current problems (include severity, frequency, business_impact)
   - At least 4 with driver_type "goal" — desired outcomes (include goal_timeframe, success_criteria)
   - At least 4 with driver_type "kpi" — measurable metrics (include baseline_value, target_value, measurement_method)
-  - Each driver has: driver_type, description (specific, not generic), priority (1=highest, 5=lowest), confidence (0.0-1.0), evidence_quotes (1-3 exact verbatim quotes)
+  - Each driver has: title (10 words max — concise label), driver_type, description (specific, not generic), priority (1=highest, 5=lowest), confidence (0.0-1.0), evidence_quotes (1-3 exact verbatim quotes)
 - requirements: array of 5+ system requirements. Each has: name (short feature name), overview (starts with "The system must..." or "The system should..."), category (core/integration/reporting/ux), priority_group (must_have/should_have/could_have — at least 60% should be must_have), confidence (0.0-1.0), evidence_quotes (1-3 exact verbatim quotes)
 
 Rules:

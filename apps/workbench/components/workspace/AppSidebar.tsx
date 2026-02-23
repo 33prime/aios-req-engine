@@ -113,10 +113,10 @@ export function AppSidebar({ isCollapsed: controlledCollapsed, onToggleCollapse 
       : []),
   ]
 
-  // Handle project launched — navigate to projects list with build context
+  // Handle project launched — navigate directly to project workspace with launch overlay
   const handleProjectLaunched = (response: { project_id: string; launch_id: string }) => {
     setShowCreateProject(false)
-    router.push(`/projects?building=${response.project_id}&launch=${response.launch_id}`)
+    router.push(`/projects/${response.project_id}?launch=${response.launch_id}`)
   }
 
   return (

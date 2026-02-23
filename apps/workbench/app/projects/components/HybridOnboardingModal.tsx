@@ -299,10 +299,9 @@ export function HybridOnboardingModal({
         auto_discovery: false,
       })
 
-      // Immediately transition to building animation
-      setBuildProjectId(response.project_id)
-      setBuildLaunchId(response.launch_id)
-      setPhase('building')
+      // Skip building phase in modal — go straight to project workspace
+      onLaunched({ project_id: response.project_id, launch_id: response.launch_id })
+      handleClose()
     } catch (err) {
       console.error('Launch failed:', err)
       setPhase('confirm')

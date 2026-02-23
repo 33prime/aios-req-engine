@@ -446,6 +446,12 @@ def _apply_create(
     # Normalize payload fields to match actual DB columns
     payload = _normalize_payload(table, payload)
 
+    # Auto-generate title for business_drivers if missing
+    if table == "business_drivers" and not payload.get("title"):
+        desc = payload.get("description", "")
+        words = desc.split()[:10]
+        payload["title"] = " ".join(words) + ("..." if len(desc.split()) > 10 else "")
+
     # Resolve display name for logging (check all common name columns)
     display_name = (
         payload.get("name")
