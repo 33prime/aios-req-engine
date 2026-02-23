@@ -1,6 +1,16 @@
-"""AI-assisted field rewriting for business drivers using evidence context."""
+"""AI-assisted field rewriting for business drivers using evidence context.
+
+CONTEXT STRATEGY: Graph neighborhood + manual DB (user-facing, quality-critical).
+
+This chain uses get_entity_neighborhood() to pull the 1-hop graph around the driver —
+co-occurring entities via shared signal chunks, plus actual evidence chunk text. This
+gives the LLM far richer grounding than the driver's own JSONB evidence array alone.
+
+See docs/context/retrieval-rules.md for when to use graph/retrieval/manual patterns.
+"""
 
 import logging
+from uuid import UUID
 
 from anthropic import Anthropic
 
@@ -47,7 +57,13 @@ def enhance_driver_field(
     driver_type = driver.get("driver_type", "unknown")
     current_value = driver.get(field_name, "") or ""
 
-    # Build context block
+    # ── Graph neighborhood: pull co-occurring entities + evidence chunks ──
+    # This is the key context upgrade — the graph finds related entities the
+    # driver's own linked_*_ids may have missed, plus raw signal chunk text
+    # that's richer than the truncated evidence excerpts in the JSONB array.
+    graph_context = _build_graph_context(driver_id, project_id)
+
+    # ── Driver's own fields ──
     context_parts = [f"Driver type: {driver_type}"]
     context_parts.append(f"Description: {driver.get('description', '')}")
 
@@ -68,7 +84,7 @@ def enhance_driver_field(
             if driver.get(f):
                 context_parts.append(f"{f.replace('_', ' ').title()}: {driver[f]}")
 
-    # Evidence
+    # ── Evidence from JSONB (driver's own excerpts) ──
     evidence = driver.get("evidence") or []
     if isinstance(evidence, list) and evidence:
         context_parts.append("\nEvidence sources:")
@@ -80,7 +96,17 @@ def enhance_driver_field(
             if rationale:
                 context_parts.append(f"      Rationale: {rationale}")
 
-    # Linked entities (names only for context)
+    # ── Graph evidence chunks (raw signal text, often richer) ──
+    if graph_context.get("evidence_chunks"):
+        context_parts.append("\nRaw signal excerpts (from source documents):")
+        for i, chunk in enumerate(graph_context["evidence_chunks"][:6], 1):
+            content = chunk.get("content", "")[:500]
+            meta = chunk.get("metadata") or {}
+            speaker = meta.get("speaker_name", "")
+            speaker_str = f" — {speaker}" if speaker else ""
+            context_parts.append(f"  [{i}] \"{content}\"{speaker_str}")
+
+    # ── Linked entities (explicit + graph-discovered) ──
     linked_feature_ids = driver.get("linked_feature_ids") or []
     if linked_feature_ids:
         try:
@@ -100,6 +126,20 @@ def enhance_driver_field(
                 context_parts.append(f"Linked personas: {', '.join(names)}")
         except Exception:
             pass
+
+    # ── Graph-discovered related entities (co-occurrence) ──
+    if graph_context.get("related"):
+        related_strs = []
+        for rel in graph_context["related"][:8]:
+            etype = rel.get("entity_type", "")
+            ename = rel.get("entity_name", "")
+            shared = rel.get("shared_chunks", 0)
+            if ename:
+                related_strs.append(f"{etype}: {ename} ({shared} shared signals)")
+        if related_strs:
+            context_parts.append(f"\nRelated entities (discovered via signal co-occurrence):")
+            for r in related_strs:
+                context_parts.append(f"  - {r}")
 
     context_block = "\n".join(context_parts)
 
@@ -131,9 +171,36 @@ def enhance_driver_field(
 
     suggestion = response.content[0].text.strip()
     logger.info(
-        "Enhanced driver field %s.%s (mode=%s, tokens=%d/%d)",
+        "Enhanced driver field %s.%s (mode=%s, graph_chunks=%d, graph_related=%d, tokens=%d/%d)",
         driver_id[:8], field_name, mode,
+        len(graph_context.get("evidence_chunks", [])),
+        len(graph_context.get("related", [])),
         response.usage.input_tokens, response.usage.output_tokens,
     )
 
     return suggestion
+
+
+def _build_graph_context(driver_id: str, project_id: str) -> dict:
+    """Pull entity neighborhood from the graph — evidence chunks + co-occurring entities.
+
+    This is ~50ms of pure SQL (free, no LLM calls). Always use this for user-facing
+    chains that rewrite or generate content — the graph finds connections the explicit
+    linked_*_ids arrays miss.
+    """
+    try:
+        from app.db.graph_queries import get_entity_neighborhood
+
+        neighborhood = get_entity_neighborhood(
+            entity_id=UUID(driver_id),
+            entity_type="business_driver",
+            project_id=UUID(project_id),
+            max_related=10,
+        )
+        return {
+            "evidence_chunks": neighborhood.get("evidence_chunks", []),
+            "related": neighborhood.get("related", []),
+        }
+    except Exception as e:
+        logger.warning("Graph neighborhood lookup failed for driver %s: %s", driver_id[:8], e)
+        return {"evidence_chunks": [], "related": []}
