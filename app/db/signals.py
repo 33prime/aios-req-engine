@@ -318,7 +318,7 @@ def get_signal_processing_results(signal_id: UUID) -> dict[str, Any]:
         # Query memory_nodes for this signal
         memory_resp = (
             supabase.table("memory_nodes")
-            .select("id, node_type, content, confidence, status, created_at")
+            .select("id, node_type, content, confidence, is_active, created_at")
             .eq("source_id", sid)
             .order("created_at", desc=True)
             .execute()
@@ -346,7 +346,7 @@ def get_signal_processing_results(signal_id: UUID) -> dict[str, Any]:
                 "node_type": m.get("node_type", "fact"),
                 "content": m.get("content", ""),
                 "confidence": m.get("confidence"),
-                "status": m.get("status", "active"),
+                "status": "active" if m.get("is_active", True) else "archived",
                 "created_at": m["created_at"],
             }
             for m in memory_nodes

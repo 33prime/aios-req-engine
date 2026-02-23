@@ -499,10 +499,13 @@ def create_signal_and_embed(state: DocumentProcessingState) -> dict[str, Any]:
                 logger.warning(f"Meta-tagging failed (non-fatal): {e}")
                 return [{} for _ in chunks_for_tagging]
 
-        embeddings, meta_tags = _run_async(asyncio.gather(
-            _async_embed(chunk_texts),
-            _async_meta_tag(chunk_dicts, doc_type),
-        ))
+        async def _embed_and_tag():
+            return await asyncio.gather(
+                _async_embed(chunk_texts),
+                _async_meta_tag(chunk_dicts, doc_type),
+            )
+
+        embeddings, meta_tags = _run_async(_embed_and_tag())
 
         # Merge meta-tags into chunk metadata
         for i, chunk in enumerate(state.chunks):

@@ -79,6 +79,7 @@ export function WorkspaceChat({
   const [input, setInput] = useState('')
   const [isDragging, setIsDragging] = useState(false)
   const [uploadingFiles, setUploadingFiles] = useState(false)
+  const [processingDocuments, setProcessingDocuments] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -143,11 +144,15 @@ export function WorkspaceChat({
       const results: { file: string; success: boolean; error?: string }[] = []
       const documentIds: string[] = []
 
+      const duplicateIds: string[] = []
+
       for (const file of validFiles) {
         try {
           const response = await uploadDocument(projectId, file)
           results.push({ file: file.name, success: true })
-          if (!response.is_duplicate) {
+          if (response.is_duplicate) {
+            duplicateIds.push(response.id)
+          } else {
             processDocument(response.id).catch(() => {})
             documentIds.push(response.id)
           }
@@ -162,20 +167,66 @@ export function WorkspaceChat({
       const failedFiles = results.filter((r) => !r.success)
       const successNames = results.filter((r) => r.success).map((r) => r.file)
 
-      if (successCount > 0) {
+      if (failedFiles.length > 0) {
+        const errors = failedFiles.map((f) => `${f.file}: ${f.error}`).join('\n- ')
+        onAddLocalMessage?.({ role: 'assistant', content: `Hmm, had trouble with:\n- ${errors}\n\nThe other files are still processing.` })
+      }
+
+      // Handle duplicates — already processed, show results immediately
+      if (duplicateIds.length > 0 && documentIds.length === 0) {
+        // All files were duplicates — skip warm message, go straight to LLM analysis
+        const bold = successNames.map((n) => `**${n}**`).join(', ')
+        onAddLocalMessage?.({
+          role: 'assistant',
+          content: `I've already analyzed ${bold} — let me pull up what I found.`,
+        })
+        setProcessingDocuments(true)
+        // Show results for each duplicate
+        for (const docId of duplicateIds) {
+          try {
+            const status = await getDocumentStatus(docId)
+            if (status.signal_id) {
+              onAddLocalMessage?.({
+                role: 'system',
+                content: '',
+                metadata: {
+                  card_type: 'processing_results',
+                  signal_id: status.signal_id,
+                  filename: status.original_filename || 'document',
+                  project_id: projectId,
+                },
+              })
+              setTimeout(() => {
+                externalSendMessage(
+                  `I previously processed **${status.original_filename}**. The results card is showing above. Based on what was extracted, ask me 1-2 smart follow-up questions about the project — things that would help clarify requirements or fill gaps.`
+                )
+              }, 500)
+            } else {
+              // Duplicate but no signal — was never fully processed, reprocess it
+              processDocument(docId).catch(() => {})
+              documentIds.push(docId)
+            }
+          } catch {
+            // Fall back to just mentioning it
+          }
+        }
+        setProcessingDocuments(false)
+        if (documentIds.length === 0) return
+      }
+
+      // New files being processed — show warm message + thinking indicator
+      if (successCount > 0 && documentIds.length > 0) {
         const bold = successNames.map((n) => `**${n}**`).join(', ')
         onAddLocalMessage?.({
           role: 'assistant',
           content: `Give me a minute to dig into ${bold} — I'll come back with some questions for you.`,
         })
       }
-      if (failedFiles.length > 0) {
-        const errors = failedFiles.map((f) => `${f.file}: ${f.error}`).join('\n- ')
-        onAddLocalMessage?.({ role: 'assistant', content: `Hmm, had trouble with:\n- ${errors}\n\nThe other files are still processing.` })
-      }
+
+      setProcessingDocuments(true)
 
       // Two-phase polling for processing completion
-      if (documentIds.length === 0) return
+      if (documentIds.length === 0) { setProcessingDocuments(false); return }
 
       for (const docId of documentIds) {
         let attempts = 0
@@ -189,6 +240,7 @@ export function WorkspaceChat({
           if (attempts > maxAttempts) {
             done = true
             clearInterval(poll)
+            setProcessingDocuments(false)
             return
           }
           try {
@@ -198,6 +250,12 @@ export function WorkspaceChat({
             if (status.processing_status === 'failed') {
               done = true
               clearInterval(poll)
+              setProcessingDocuments(false)
+              const fname = status.original_filename || 'the document'
+              onAddLocalMessage?.({
+                role: 'assistant',
+                content: `Something went wrong processing **${fname}**. You can try uploading it again, or let me know if you'd like to troubleshoot.`,
+              })
               return
             }
 
@@ -208,6 +266,7 @@ export function WorkspaceChat({
                 if (status.needs_clarification) {
                   done = true
                   clearInterval(poll)
+                  setProcessingDocuments(false)
                   onAddLocalMessage?.({
                     role: 'assistant',
                     content: status.clarification_question || 'I have a question about this document — what type of document is it?',
@@ -229,6 +288,7 @@ export function WorkspaceChat({
                 if (!status.signal_id || status.entity_extraction_status === 'not_applicable') {
                   done = true
                   clearInterval(poll)
+                  setProcessingDocuments(false)
                   setTimeout(() => {
                     externalSendMessage(
                       `I just uploaded **${fname}** (classified as ${label}). Check the document status and give me a quick take — what's in there?`
@@ -251,6 +311,7 @@ export function WorkspaceChat({
               if (status.entity_extraction_status === 'completed') {
                 done = true
                 clearInterval(poll)
+                setProcessingDocuments(false)
 
                 const fname = status.original_filename || 'document'
                 const sid = status.signal_id
@@ -285,6 +346,7 @@ export function WorkspaceChat({
           } catch {
             done = true
             clearInterval(poll)
+            setProcessingDocuments(false)
           }
         }, 2000)
       }
@@ -318,9 +380,9 @@ export function WorkspaceChat({
     [processFiles]
   )
 
-  // Determine if thinking (loading but no streamed content yet)
+  // Determine if thinking (loading but no streamed content yet, OR processing documents)
   const lastMessage = externalMessages[externalMessages.length - 1]
-  const isThinking = externalLoading && (!lastMessage || lastMessage.role === 'user' || !lastMessage.isStreaming)
+  const isThinking = (externalLoading && (!lastMessage || lastMessage.role === 'user' || !lastMessage.isStreaming)) || processingDocuments
 
   // Build conversational starters — NOT the same as action cards
   // These are chat prompts that help the user start a conversation
