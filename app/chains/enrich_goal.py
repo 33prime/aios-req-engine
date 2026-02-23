@@ -1,5 +1,8 @@
 """
 Goal Enrichment Chain - Extracts goal achievement criteria and dependencies.
+
+CONTEXT STRATEGY: Tier 2 — Graph Neighborhood + Manual DB.
+See docs/context/retrieval-rules.md for context tier rules.
 """
 
 from typing import Any
@@ -48,6 +51,14 @@ async def enrich_goal(driver_id: UUID, project_id: UUID, depth: str = "standard"
             return result
 
         description = driver.get("description", "")
+
+        # ── Tier 2: Graph neighborhood for richer signal context ──
+        from app.chains._graph_context import build_graph_context_block
+        graph_block = build_graph_context_block(
+            entity_id=str(driver_id),
+            entity_type="business_driver",
+            project_id=str(project_id),
+        )
         evidence = driver.get("evidence", []) or []
         source_signal_ids = driver.get("source_signal_ids", []) or []
 
@@ -136,13 +147,15 @@ async def enrich_goal(driver_id: UUID, project_id: UUID, depth: str = "standard"
 Only include explicit information. If not found, leave null.
 {parser.get_format_instructions()}"""
 
+        graph_section = f"\n{graph_block}\n" if graph_block else ""
+
         user_prompt = f"""**Goal to Enrich:**
 {description}
 {existing_goals_str}
 {vision_section}{personas_section}{workflows_section}
 **Context:**
 {context_str}
-
+{graph_section}
 **Task:**
 Extract goal enrichment details. Review existing goals and suggest merging if this is a duplicate. Assess vision alignment and identify related actors/workflows."""
 

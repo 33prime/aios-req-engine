@@ -1,5 +1,8 @@
 """
 Competitor Enrichment Chain - Analyzes competitive positioning and features.
+
+CONTEXT STRATEGY: Tier 2 — Graph Neighborhood + Manual DB.
+See docs/context/retrieval-rules.md for context tier rules.
 """
 
 from typing import Any, Literal
@@ -47,6 +50,14 @@ async def enrich_competitor(ref_id: UUID, project_id: UUID, depth: str = "standa
         evidence = ref.get("evidence", []) or []
         source_signal_ids = ref.get("source_signal_ids", []) or []
 
+        # ── Tier 2: Graph neighborhood for richer signal context ──
+        from app.chains._graph_context import build_graph_context_block
+        graph_block = build_graph_context_block(
+            entity_id=str(ref_id),
+            entity_type="competitor",
+            project_id=str(project_id),
+        )
+
         # Gather context
         signal_context = [research_notes] if research_notes else []
         for ev in evidence[:5]:
@@ -67,11 +78,13 @@ async def enrich_competitor(ref_id: UUID, project_id: UUID, depth: str = "standa
 Only include explicit information.
 {parser.get_format_instructions()}"""
 
+        graph_section = f"\n{graph_block}\n" if graph_block else ""
+
         user_prompt = f"""Competitor: {name}
 
 Context:
 {context_str}
-
+{graph_section}
 Extract competitive intelligence."""
 
         model = ChatAnthropic(model="claude-sonnet-4-6", temperature=0.1, api_key=settings.ANTHROPIC_API_KEY)

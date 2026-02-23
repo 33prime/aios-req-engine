@@ -9,6 +9,9 @@ Extracts detailed pain analysis for pain business drivers:
 - Current workaround
 
 This chain helps prioritize pain points and understand their true cost.
+
+CONTEXT STRATEGY: Tier 2 — Graph Neighborhood + Manual DB.
+See docs/context/retrieval-rules.md for context tier rules.
 """
 
 from typing import Any, Literal
@@ -123,6 +126,14 @@ async def enrich_pain_point(
         source_signal_ids = driver.get("source_signal_ids", []) or []
 
         logger.info(f"Enriching pain point '{description[:50]}' for project {project_id}")
+
+        # ── Tier 2: Graph neighborhood for richer signal context ──
+        from app.chains._graph_context import build_graph_context_block
+        graph_block = build_graph_context_block(
+            entity_id=str(driver_id),
+            entity_type="business_driver",
+            project_id=str(project_id),
+        )
 
         # Get existing pain points for merge detection
         existing_pains = list_business_drivers(project_id, driver_type="pain", limit=50)
@@ -288,13 +299,15 @@ Given a pain point description and related context, extract:
 
 {parser.get_format_instructions()}"""
 
+        graph_section = f"\n{graph_block}\n" if graph_block else ""
+
         user_prompt = f"""**Pain Point to Enrich:**
 {description}
 {existing_pains_str}
 {vision_section}{personas_section}{workflows_section}
 **Signal Context:**
 {signal_context_str}
-
+{graph_section}
 **Task:**
 Extract pain point enrichment details from the above context. Review existing pains and suggest merging if this is a duplicate. Be objective in assessing severity and frequency. Assess vision alignment and identify related actors/workflows."""
 

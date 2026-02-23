@@ -10,6 +10,9 @@ Extracts detailed measurement information for KPI business drivers:
 - Responsible team/person
 
 This chain analyzes signals and existing KPI data to provide actionable metrics.
+
+CONTEXT STRATEGY: Tier 2 — Graph Neighborhood + Manual DB.
+See docs/context/retrieval-rules.md for context tier rules.
 """
 
 from typing import Any
@@ -154,6 +157,14 @@ async def enrich_kpi(
         source_signal_ids = driver.get("source_signal_ids", []) or []
 
         logger.info(f"Enriching KPI '{description[:50]}' for project {project_id}")
+
+        # ── Tier 2: Graph neighborhood for richer signal context ──
+        from app.chains._graph_context import build_graph_context_block
+        graph_block = build_graph_context_block(
+            entity_id=str(driver_id),
+            entity_type="business_driver",
+            project_id=str(project_id),
+        )
 
         # Get existing KPIs for merge detection
         existing_kpis = list_business_drivers(project_id, driver_type="kpi", limit=50)
@@ -316,6 +327,8 @@ Given a KPI description and related signal context, extract:
 
 {parser.get_format_instructions()}"""
 
+        graph_section = f"\n{graph_block}\n" if graph_block else ""
+
         user_prompt = f"""**KPI to Enrich:**
 {description}
 
@@ -325,7 +338,7 @@ Given a KPI description and related signal context, extract:
 {vision_section}{personas_section}{workflows_section}{pain_financial_context}
 **Signal Context:**
 {signal_context_str}
-
+{graph_section}
 **Task:**
 Extract KPI enrichment details from the above context. Review existing KPIs and suggest merging if this is a duplicate. Assess vision alignment and identify related actors/workflows. Estimate monetary impact where possible — look for explicit dollar amounts in signals, compute deltas from baseline/target if monetary, or cross-reference pain point business impacts. If information is missing, leave those fields as null."""
 
