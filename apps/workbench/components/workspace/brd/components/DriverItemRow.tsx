@@ -28,7 +28,7 @@ function truncateToWords(text: string, maxWords: number): string {
 
 function getDisplayTitle(driver: BusinessDriver): string {
   const raw = driver.title || driver.description || ''
-  return truncateToWords(raw, 10)
+  return truncateToWords(raw, 8)
 }
 
 export function DriverItemRow({

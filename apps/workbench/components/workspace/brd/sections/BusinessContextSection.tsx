@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { Building2, AlertTriangle, Target, Eye, BarChart3, Pencil, Sparkles, Loader2, Check, X } from 'lucide-react'
+import { Building2, AlertTriangle, Target, Eye, Pencil, Sparkles, Loader2, Check, X } from 'lucide-react'
 import { BusinessDriverDetailDrawer } from '../components/BusinessDriverDetailDrawer'
 import { DriverContainer } from '../components/DriverContainer'
 import { DriverItemRow } from '../components/DriverItemRow'
@@ -24,7 +24,6 @@ interface BusinessContextSectionProps {
 }
 
 const SHOW_MAX_DRIVERS = 6
-const SHOW_MAX_METRICS = 8
 
 // ============================================================================
 // Main Section
@@ -50,7 +49,6 @@ export function BusinessContextSection({
   const [backgroundDraft, setBackgroundDraft] = useState(data.background || '')
   const [showAllGoals, setShowAllGoals] = useState(false)
   const [showAllPains, setShowAllPains] = useState(false)
-  const [showAllMetrics, setShowAllMetrics] = useState(false)
   const [selectedDriver, setSelectedDriver] = useState<{ id: string; type: 'pain' | 'goal' | 'kpi'; data: BusinessDriver } | null>(null)
 
   // Which driver row is expanded inline (only one at a time)
@@ -108,10 +106,6 @@ export function BusinessContextSection({
   const confirmedGoals = data.goals.filter(
     (g) => g.confirmation_status === 'confirmed_consultant' || g.confirmation_status === 'confirmed_client'
   ).length
-  const confirmedMetrics = data.success_metrics.filter(
-    (m) => m.confirmation_status === 'confirmed_consultant' || m.confirmation_status === 'confirmed_client'
-  ).length
-
   // Sort goals + pains by relatability_score descending (built into container)
   const sortedPains = useMemo(
     () => [...data.pain_points].sort((a, b) => (b.relatability_score ?? 0) - (a.relatability_score ?? 0)),
@@ -122,14 +116,8 @@ export function BusinessContextSection({
     [data.goals]
   )
 
-  const sortedMetrics = useMemo(
-    () => [...data.success_metrics].sort((a, b) => (b.relatability_score ?? 0) - (a.relatability_score ?? 0)),
-    [data.success_metrics]
-  )
-
   const visibleGoals = showAllGoals ? sortedGoals : sortedGoals.slice(0, SHOW_MAX_DRIVERS)
   const visiblePains = showAllPains ? sortedPains : sortedPains.slice(0, SHOW_MAX_DRIVERS)
-  const visibleMetrics = showAllMetrics ? sortedMetrics : sortedMetrics.slice(0, SHOW_MAX_METRICS)
 
   return (
     <section id="brd-section-business-context" className="space-y-8">
@@ -402,43 +390,6 @@ export function BusinessContextSection({
                 className="w-full px-4 py-2.5 text-[12px] font-medium text-brand-primary hover:bg-surface-page transition-colors border-t border-[#F0F0F0]"
               >
                 {showAllPains ? 'Show less' : `Show all ${sortedPains.length} pain points`}
-              </button>
-            )}
-          </>
-        )}
-      </DriverContainer>
-
-      {/* Success Metrics — unified DriverContainer+DriverItemRow pattern */}
-      <DriverContainer
-        icon={BarChart3}
-        title="SUCCESS METRICS"
-        count={data.success_metrics.length}
-        confirmedCount={confirmedMetrics}
-        onConfirmAll={() => onConfirmAll('business_driver', data.success_metrics.map(m => m.id))}
-      >
-        {data.success_metrics.length === 0 ? (
-          <p className="px-5 py-4 text-[13px] text-text-placeholder italic">No success metrics defined yet</p>
-        ) : (
-          <>
-            {visibleMetrics.map((metric) => (
-              <DriverItemRow
-                key={metric.id}
-                driver={metric}
-                driverType="kpi"
-                isExpanded={expandedId === metric.id}
-                onToggle={() => setExpandedId(expandedId === metric.id ? null : metric.id)}
-                onDrawerOpen={() => setSelectedDriver({ id: metric.id, type: 'kpi', data: metric })}
-                onConfirm={() => onConfirm('business_driver', metric.id)}
-                onNeedsReview={() => onNeedsReview('business_driver', metric.id)}
-                onStatusClick={onStatusClick ? () => onStatusClick('business_driver', metric.id, metric.description.slice(0, 60), metric.confirmation_status) : undefined}
-              />
-            ))}
-            {sortedMetrics.length > SHOW_MAX_METRICS && (
-              <button
-                onClick={() => setShowAllMetrics(!showAllMetrics)}
-                className="w-full px-4 py-2.5 text-[12px] font-medium text-brand-primary hover:bg-surface-page transition-colors border-t border-[#F0F0F0]"
-              >
-                {showAllMetrics ? 'Show less' : `Show all ${sortedMetrics.length} metrics`}
               </button>
             )}
           </>

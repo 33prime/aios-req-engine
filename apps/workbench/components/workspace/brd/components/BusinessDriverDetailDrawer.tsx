@@ -8,17 +8,18 @@ import {
   FileText,
   Users,
   Puzzle,
-  Link2,
   ChevronDown,
   ChevronRight,
   Workflow,
   FileSearch,
-  CheckCircle2,
-  Circle,
   Info,
   DollarSign,
   Pencil,
   Clock,
+  Compass,
+  TrendingUp,
+  TrendingDown,
+  Minus,
 } from 'lucide-react'
 import { DrawerShell, type DrawerTab } from '@/components/ui/DrawerShell'
 import { EmptyState } from '@/components/ui/EmptyState'
@@ -31,7 +32,8 @@ import { EvidenceBlock } from './EvidenceBlock'
 import { WhoHasTheData } from './WhoHasTheData'
 import { FinancialImpactCard } from './FinancialImpactCard'
 import { FieldEditor } from './FieldEditor'
-import { getBRDDriverDetail, updateDriverFinancials, updateBusinessDriver } from '@/lib/api'
+import { LinkedPillGroup } from './FeatureDrawer'
+import { getBRDDriverDetail, updateDriverFinancials, updateBusinessDriver, getDriverHorizons } from '@/lib/api'
 import { getTopicsForDriverType, inferTopicsFromText } from '@/lib/topic-role-map'
 import type {
   BusinessDriver,
@@ -40,10 +42,11 @@ import type {
   AssociatedPersona,
   VisionAlignment,
   StakeholderBRDSummary,
+  LinkedEntityPill,
 } from '@/types/workspace'
 
 type DriverType = 'pain' | 'goal' | 'kpi'
-type TabId = 'overview' | 'provenance' | 'connections' | 'history'
+type TabId = 'overview' | 'history' | 'horizons'
 
 interface BusinessDriverDetailDrawerProps {
   driverId: string
@@ -97,43 +100,11 @@ export function BusinessDriverDetailDrawer({
   const config = TYPE_CONFIG[driverType]
   const Icon = config.icon
 
-  const connectionCount = useMemo(() => {
-    if (detail) {
-      return (detail.associated_personas?.length || 0) +
-        (detail.associated_features?.length || 0) +
-        (detail.related_drivers?.length || 0)
-    }
-    return (initialData.linked_persona_count ?? 0) +
-      (initialData.linked_feature_count ?? 0) +
-      (initialData.linked_workflow_count ?? 0)
-  }, [detail, initialData])
-
-  const evidenceCount = detail?.evidence?.length ?? initialData.evidence?.length ?? 0
-
   const tabs: DrawerTab[] = useMemo(() => [
     { id: 'overview', label: 'Overview', icon: FileText },
-    {
-      id: 'provenance',
-      label: 'Provenance',
-      icon: FileSearch,
-      badge: evidenceCount > 0 ? (
-        <span className="ml-1 text-[10px] bg-[#E8F5E9] text-[#25785A] px-1.5 py-0.5 rounded-full">
-          {evidenceCount}
-        </span>
-      ) : undefined,
-    },
-    {
-      id: 'connections',
-      label: 'Connections',
-      icon: Link2,
-      badge: connectionCount > 0 ? (
-        <span className="ml-1 text-[10px] bg-[#F0F0F0] text-[#666666] px-1.5 py-0.5 rounded-full">
-          {connectionCount}
-        </span>
-      ) : undefined,
-    },
     { id: 'history', label: 'History', icon: Clock },
-  ], [connectionCount, evidenceCount])
+    { id: 'horizons', label: 'Horizons', icon: Compass },
+  ], [])
 
   const displayTitle = initialData.title || initialData.description
 
@@ -168,23 +139,16 @@ export function BusinessDriverDetailDrawer({
           onRefresh={fetchDetail}
         />
       )}
-      {activeTab === 'provenance' && (
-        <ProvenanceTab
-          evidence={detail?.evidence || initialData.evidence || []}
-          loading={loading}
-        />
-      )}
-      {activeTab === 'connections' && (
-        <ConnectionsTab
-          detail={detail}
-          initialData={initialData}
-          loading={loading}
-        />
-      )}
       {activeTab === 'history' && (
         <HistoryTab
           revisions={detail?.revisions || []}
           loading={loading}
+        />
+      )}
+      {activeTab === 'horizons' && (
+        <HorizonsTab
+          projectId={projectId}
+          driverId={driverId}
         />
       )}
     </DrawerShell>
@@ -192,7 +156,7 @@ export function BusinessDriverDetailDrawer({
 }
 
 // ============================================================================
-// Overview Tab (editable fields + narrative + relevance)
+// Overview Tab (editable fields + narrative + relevance + connections + evidence)
 // ============================================================================
 
 function OverviewTab({
@@ -217,6 +181,7 @@ function OverviewTab({
   const d = detail || initialData
   const [editingFinancial, setEditingFinancial] = useState(false)
   const [savingFinancial, setSavingFinancial] = useState(false)
+  const [evidenceExpanded, setEvidenceExpanded] = useState(false)
 
   const narrative = useMemo(() => buildNarrative(driverType, d), [driverType, d])
   const score = d.relatability_score ?? 0
@@ -240,6 +205,31 @@ function OverviewTab({
     return items
   }, [d, detail, driverType])
 
+  // Build LinkedEntityPills from detail associations
+  const linkedPersonaPills: LinkedEntityPill[] = useMemo(() => {
+    if (!detail?.associated_personas?.length) return []
+    return detail.associated_personas.map((p) => ({
+      id: p.id,
+      entity_type: 'persona',
+      name: p.name,
+      subtitle: p.role || null,
+      dependency_type: 'associated',
+      strength: 0,
+    }))
+  }, [detail])
+
+  const linkedFeaturePills: LinkedEntityPill[] = useMemo(() => {
+    if (!detail?.associated_features?.length) return []
+    return detail.associated_features.map((f) => ({
+      id: f.id,
+      entity_type: 'feature',
+      name: f.name,
+      subtitle: f.category || null,
+      dependency_type: 'associated',
+      strength: 0,
+    }))
+  }, [detail])
+
   const handleFieldSave = async (fieldName: string, value: string) => {
     try {
       await updateBusinessDriver(projectId, driverId, { [fieldName]: value })
@@ -248,6 +238,8 @@ function OverviewTab({
       console.error(`Failed to save ${fieldName}:`, err)
     }
   }
+
+  const evidence = detail?.evidence || initialData.evidence || []
 
   return (
     <div className="space-y-6">
@@ -377,89 +369,55 @@ function OverviewTab({
         </div>
       )}
 
+      {/* Linked Entities (from connections, merged into overview) */}
+      {loading && !detail ? (
+        <Spinner size="sm" label="Loading connections..." />
+      ) : (
+        <>
+          {linkedPersonaPills.length > 0 && (
+            <LinkedPillGroup
+              icon={Users}
+              title="Linked Personas"
+              pills={linkedPersonaPills}
+              emptyText=""
+            />
+          )}
+          {linkedFeaturePills.length > 0 && (
+            <LinkedPillGroup
+              icon={Puzzle}
+              title="Linked Features"
+              pills={linkedFeaturePills}
+              emptyText=""
+            />
+          )}
+        </>
+      )}
+
+      {/* Evidence strip (collapsed, from provenance) */}
+      {evidence.length > 0 && (
+        <div>
+          <button
+            onClick={() => setEvidenceExpanded(!evidenceExpanded)}
+            className="flex items-center gap-1.5 text-[11px] font-medium text-text-placeholder hover:text-[#666666] transition-colors"
+          >
+            {evidenceExpanded ? (
+              <ChevronDown className="w-3 h-3" />
+            ) : (
+              <ChevronRight className="w-3 h-3" />
+            )}
+            Evidence ({evidence.length} source{evidence.length !== 1 ? 's' : ''})
+          </button>
+          {evidenceExpanded && (
+            <div className="mt-2">
+              <EvidenceBlock evidence={evidence} maxItems={5} />
+            </div>
+          )}
+        </div>
+      )}
+
       {loading && !detail && (
         <Spinner size="sm" label="Loading details..." />
       )}
-    </div>
-  )
-}
-
-// ============================================================================
-// Provenance Tab (Evidence Showcase)
-// ============================================================================
-
-const SOURCE_COLORS: Record<string, string> = {
-  signal: 'border-l-brand-primary',
-  research: 'border-l-[#0A1E2F]',
-  inferred: 'border-l-border',
-}
-
-const SOURCE_LABELS: Record<string, string> = {
-  signal: 'Signal',
-  research: 'Research',
-  inferred: 'Inferred',
-}
-
-function ProvenanceTab({
-  evidence,
-  loading,
-}: {
-  evidence: import('@/types/workspace').BRDEvidence[]
-  loading: boolean
-}) {
-  if (loading && evidence.length === 0) {
-    return <Spinner size="sm" label="Loading evidence..." />
-  }
-
-  if (evidence.length === 0) {
-    return (
-      <EmptyState
-        icon={<FileSearch className="w-8 h-8 text-border" />}
-        title="No evidence sources"
-        description="Process more signals to build the evidence trail for this driver."
-      />
-    )
-  }
-
-  return (
-    <div className="space-y-4">
-      <h4 className="text-[11px] font-medium text-text-placeholder uppercase tracking-wide">
-        Evidence Sources ({evidence.length})
-      </h4>
-      {evidence.map((item, idx) => {
-        const borderColor = SOURCE_COLORS[item.source_type] || 'border-l-border'
-        return (
-          <div
-            key={item.chunk_id || idx}
-            className={`border-l-[3px] ${borderColor} rounded-lg border border-border bg-white overflow-hidden`}
-          >
-            <div className="px-4 py-3">
-              {/* Source type badge */}
-              <div className="flex items-center gap-2 mb-2">
-                <span className={`text-[10px] font-medium uppercase px-1.5 py-0.5 rounded ${
-                  item.source_type === 'signal' ? 'bg-[#E8F5E9] text-[#25785A]' :
-                  item.source_type === 'research' ? 'bg-[#E8EDF2] text-[#0A1E2F]' :
-                  'bg-[#F0F0F0] text-[#666666]'
-                }`}>
-                  {SOURCE_LABELS[item.source_type] || item.source_type}
-                </span>
-              </div>
-
-              {/* Quote */}
-              <p className="text-[13px] text-text-body italic leading-relaxed">
-                &ldquo;{item.excerpt}&rdquo;
-              </p>
-
-              {/* Rationale */}
-              {item.rationale && (
-                <p className="text-[11px] text-text-placeholder mt-2">
-                  {item.rationale}
-                </p>
-              )}
-            </div>
-          </div>
-        )
-      })}
     </div>
   )
 }
@@ -705,110 +663,114 @@ function VisionAlignmentBadge({ alignment }: { alignment: VisionAlignment }) {
 }
 
 // ============================================================================
-// Connections Tab
+// Horizons Tab
 // ============================================================================
 
-function ConnectionsTab({
-  detail,
-  initialData,
-  loading,
-}: {
-  detail: BusinessDriverDetail | null
-  initialData: BusinessDriver
-  loading: boolean
-}) {
-  const personas = detail?.associated_personas || []
-  const features = detail?.associated_features || []
-  const relatedDrivers = detail?.related_drivers || []
-  const workflowCount = (detail || initialData).linked_workflow_count ?? 0
+interface HorizonOutcome {
+  id: string
+  title: string
+  threshold?: string | null
+  current_value?: string | null
+  progress: number
+  trend?: string | null
+  horizon_title: string
+}
 
-  if (loading && !detail) {
-    return <Spinner size="sm" label="Loading connections..." />
+interface HorizonGroup {
+  horizon_number: number
+  outcomes: HorizonOutcome[]
+}
+
+const HORIZON_COLORS: Record<number, string> = {
+  1: 'bg-[#E8F5E9] text-[#25785A]',
+  2: 'bg-[#E8EDF2] text-[#0A1E2F]',
+  3: 'bg-[#F0F0F0] text-[#666666]',
+}
+
+const TrendIcon = ({ trend }: { trend?: string | null }) => {
+  if (trend === 'up') return <TrendingUp className="w-3 h-3 text-[#25785A]" />
+  if (trend === 'down') return <TrendingDown className="w-3 h-3 text-red-400" />
+  return <Minus className="w-3 h-3 text-text-placeholder" />
+}
+
+function HorizonsTab({
+  projectId,
+  driverId,
+}: {
+  projectId: string
+  driverId: string
+}) {
+  const [data, setData] = useState<HorizonGroup[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    let cancelled = false
+    setLoading(true)
+    getDriverHorizons(projectId, driverId)
+      .then((resp) => { if (!cancelled) setData(resp.horizons || []) })
+      .catch((err) => console.error('Failed to load horizons:', err))
+      .finally(() => { if (!cancelled) setLoading(false) })
+    return () => { cancelled = true }
+  }, [projectId, driverId])
+
+  if (loading) {
+    return <Spinner size="sm" label="Loading horizons..." />
   }
 
-  const isEmpty = personas.length === 0 && features.length === 0 && relatedDrivers.length === 0 && workflowCount === 0
-
-  if (isEmpty) {
+  if (data.length === 0) {
     return (
       <EmptyState
-        icon={<Link2 className="w-8 h-8 text-border" />}
-        title="No connections found"
-        description="Run enrichment or manually link entities to build the relationship graph."
+        icon={<Compass className="w-8 h-8 text-border" />}
+        title="No horizon outcomes linked yet"
+        description="Horizon outcomes will appear here once they are linked to this driver."
       />
     )
   }
 
   return (
     <div className="space-y-6">
-      {personas.length > 0 && (
-        <ConnectionGroup icon={Users} title="Actors" count={personas.length}>
-          {personas.map((p) => (
-            <ConnectionItem key={p.id} name={p.name} subtitle={p.role || undefined} reason={p.association_reason} />
-          ))}
-        </ConnectionGroup>
-      )}
-      {features.length > 0 && (
-        <ConnectionGroup icon={Puzzle} title="Features" count={features.length}>
-          {features.map((f) => (
-            <ConnectionItem key={f.id} name={f.name} subtitle={f.category || undefined} reason={f.association_reason} confirmed={f.confirmation_status === 'confirmed_consultant' || f.confirmation_status === 'confirmed_client'} />
-          ))}
-        </ConnectionGroup>
-      )}
-      {workflowCount > 0 && (
-        <ConnectionGroup icon={Workflow} title="Workflow Steps" count={workflowCount}>
-          <p className="text-[12px] text-text-placeholder px-3 py-2">
-            {workflowCount} workflow step{workflowCount > 1 ? 's' : ''} linked via enrichment analysis.
-          </p>
-        </ConnectionGroup>
-      )}
-      {relatedDrivers.length > 0 && (
-        <ConnectionGroup icon={Link2} title="Related Drivers" count={relatedDrivers.length}>
-          {relatedDrivers.map((r) => (
-            <div key={r.id} className="px-3 py-2 border-b border-[#F0F0F0] last:border-0">
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] font-medium uppercase px-1.5 py-0.5 rounded bg-[#F0F0F0] text-[#666666]">
-                  {r.driver_type}
-                </span>
-                <span className="text-[13px] text-text-body line-clamp-1">{r.description}</span>
+      {data.map((group) => (
+        <div key={group.horizon_number}>
+          <div className="flex items-center gap-2 mb-3">
+            <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded ${HORIZON_COLORS[group.horizon_number] || HORIZON_COLORS[3]}`}>
+              H{group.horizon_number}
+            </span>
+            {group.outcomes[0]?.horizon_title && (
+              <span className="text-[12px] text-[#666666] font-medium">{group.outcomes[0].horizon_title}</span>
+            )}
+          </div>
+          <div className="space-y-2">
+            {group.outcomes.map((o) => (
+              <div key={o.id} className="bg-[#F4F4F4] border border-border rounded-lg px-3 py-2.5">
+                <div className="flex items-center gap-2 mb-1.5">
+                  <span className="text-[13px] text-text-body font-medium flex-1 min-w-0 truncate">
+                    {o.title}
+                  </span>
+                  <TrendIcon trend={o.trend} />
+                </div>
+                {/* Progress bar */}
+                <div className="flex items-center gap-2">
+                  <div className="flex-1 h-2 bg-[#E8E8E8] rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-brand-primary rounded-full transition-all duration-500"
+                      style={{ width: `${Math.min(Math.max(o.progress * 100, 0), 100)}%` }}
+                    />
+                  </div>
+                  <span className="text-[11px] font-semibold text-text-body w-10 text-right">
+                    {Math.round(o.progress * 100)}%
+                  </span>
+                </div>
+                {(o.current_value || o.threshold) && (
+                  <div className="flex items-center gap-3 mt-1.5 text-[11px] text-text-placeholder">
+                    {o.current_value && <span>Current: {o.current_value}</span>}
+                    {o.threshold && <span>Target: {o.threshold}</span>}
+                  </div>
+                )}
               </div>
-              {r.relationship && (
-                <p className="text-[11px] text-text-placeholder mt-1 pl-0.5">{r.relationship}</p>
-              )}
-            </div>
-          ))}
-        </ConnectionGroup>
-      )}
-    </div>
-  )
-}
-
-function ConnectionItem({
-  name,
-  subtitle,
-  reason,
-  confirmed,
-}: {
-  name: string
-  subtitle?: string
-  reason?: string
-  confirmed?: boolean
-}) {
-  return (
-    <div className="px-3 py-2.5 border-b border-[#F0F0F0] last:border-0">
-      <div className="flex items-center gap-2">
-        {confirmed !== undefined && (
-          confirmed
-            ? <CheckCircle2 className="w-3.5 h-3.5 text-brand-primary flex-shrink-0" />
-            : <Circle className="w-3.5 h-3.5 text-border flex-shrink-0" />
-        )}
-        <span className="text-[13px] text-text-body font-medium">{name}</span>
-        {subtitle && (
-          <span className="text-[11px] text-text-placeholder">{subtitle}</span>
-        )}
-      </div>
-      {reason && (
-        <p className="text-[11px] text-text-placeholder mt-0.5 pl-5">{reason}</p>
-      )}
+            ))}
+          </div>
+        </div>
+      ))}
     </div>
   )
 }

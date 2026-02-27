@@ -148,7 +148,7 @@ Your output is EntityPatch[] — surgical create/merge/update operations targeti
 ## ENTITY TYPES & FIELDS
 
 ### feature
-create: {{name, overview, priority_group (must_have|should_have|could_have|out_of_scope), category, is_mvp}}
+create: {{name (8 words max — noun-phrase headline), overview, priority_group (must_have|should_have|could_have|out_of_scope), category, is_mvp}}
 merge/update: any subset of above fields
 
 ### persona
@@ -173,7 +173,7 @@ create: {{name, entity_category (domain|reference|transactional|analytical), fie
 merge/update: append fields, update category
 
 ### business_driver
-create: {{title (10 words max — punchy summary), description, driver_type (pain|goal|kpi), business_impact, affected_users, measurement, baseline_value, target_value}}
+create: {{title (8 words max — punchy summary), description, driver_type (pain|goal|kpi), business_impact, affected_users, measurement, baseline_value, target_value}}
 merge/update: any subset
 
 ### constraint

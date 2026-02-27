@@ -7,7 +7,7 @@ from app.core.schemas_data_entities import DataEntityBRDSummary
 from app.core.schemas_workflows import ROISummary, WorkflowPair
 
 
-def _truncate_title(title: str | None, max_words: int = 10) -> str | None:
+def _truncate_title(title: str | None, max_words: int = 8) -> str | None:
     """Truncate a title to max_words, adding '...' if truncated."""
     if not title:
         return title
@@ -342,6 +342,39 @@ class RevisionEntry(BaseModel):
     changes: dict | None = None
     created_at: str = ""
     created_by: str | None = None
+
+
+class LinkedEntityPill(BaseModel):
+    """A linked entity pill for display in drawers."""
+    id: str
+    entity_type: str
+    name: str
+    subtitle: str | None = None
+    dependency_type: str = ""
+    strength: float = 0.0
+
+
+class FeatureDetailResponse(BaseModel):
+    """Full detail for a feature with linked entities (for feature drawer)."""
+    id: str
+    name: str
+    description: str | None = None
+    category: str | None = None
+    is_mvp: bool = False
+    priority_group: str | None = None
+    confirmation_status: str | None = None
+    evidence: list[EvidenceItem] = []
+    is_stale: bool = False
+    stale_reason: str | None = None
+    created_at: str | None = None
+    version: int | None = None
+    # Linked entities
+    linked_drivers: list[LinkedEntityPill] = []
+    linked_personas: list[LinkedEntityPill] = []
+    linked_vp_steps: list[LinkedEntityPill] = []
+    # Revision history
+    revisions: list[RevisionEntry] = []
+    revision_count: int = 0
 
 
 class BusinessDriverDetail(BaseModel):

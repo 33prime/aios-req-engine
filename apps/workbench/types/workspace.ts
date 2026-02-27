@@ -188,6 +188,35 @@ export interface FeatureBRDSummary {
   version?: number | null
 }
 
+export interface LinkedEntityPill {
+  id: string
+  entity_type: string
+  name: string
+  subtitle?: string | null
+  dependency_type: string
+  strength: number
+}
+
+export interface FeatureDetailResponse {
+  id: string
+  name: string
+  description?: string | null
+  category?: string | null
+  is_mvp: boolean
+  priority_group?: string | null
+  confirmation_status?: string | null
+  evidence?: BRDEvidence[]
+  is_stale?: boolean
+  stale_reason?: string | null
+  created_at?: string | null
+  version?: number | null
+  linked_drivers: LinkedEntityPill[]
+  linked_personas: LinkedEntityPill[]
+  linked_vp_steps: LinkedEntityPill[]
+  revisions: RevisionEntry[]
+  revision_count: number
+}
+
 export type MoSCoWGroup = 'must_have' | 'should_have' | 'could_have' | 'out_of_scope'
 
 // ============================================

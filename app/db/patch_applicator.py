@@ -23,7 +23,7 @@ from __future__ import annotations
 import logging
 import re
 from typing import Any
-from uuid import UUID, uuid4
+from uuid import UUID
 
 from app.core.schemas_entity_patch import (
     ConfidenceTier,
@@ -215,6 +215,13 @@ async def apply_entity_patches(
             _record_evidence_links(patches, result.applied)
         except Exception as e:
             logger.warning(f"Evidence link recording failed: {e}")
+
+    # Compute co-occurrence links from shared signal chunks
+    if result.applied:
+        try:
+            _link_entities_by_cooccurrence(project_id, result.applied)
+        except Exception as e:
+            logger.warning(f"Entity co-occurrence linking failed: {e}")
 
     logger.info(
         f"Patch application complete: {result.total_applied} applied, "
@@ -449,8 +456,8 @@ def _apply_create(
     # Auto-generate title for business_drivers if missing
     if table == "business_drivers" and not payload.get("title"):
         desc = payload.get("description", "")
-        words = desc.split()[:10]
-        payload["title"] = " ".join(words) + ("..." if len(desc.split()) > 10 else "")
+        words = desc.split()[:8]
+        payload["title"] = " ".join(words) + ("..." if len(desc.split()) > 8 else "")
 
     # Resolve display name for logging (check all common name columns)
     display_name = (
@@ -822,7 +829,7 @@ def _embed_modified_entities(applied_results: list[dict]) -> None:
     Batches queries by table to avoid N+1 round-trips.
     """
     try:
-        from app.db.entity_embeddings import embed_entity, ENTITY_TABLE_MAP
+        from app.db.entity_embeddings import ENTITY_TABLE_MAP, embed_entity
 
         # Group entity IDs by (table, entity_type)
         by_table: dict[str, list[tuple[str, str]]] = {}  # table -> [(entity_type, entity_id)]
@@ -918,6 +925,109 @@ def _record_entity_revision(
         )
     except Exception as e:
         logger.debug(f"Revision tracking failed for {entity_type} {entity_id}: {e}")
+
+
+def _link_entities_by_cooccurrence(
+    project_id: UUID,
+    applied_results: list[dict],
+) -> None:
+    """Compute co-occurrence links from shared signal chunks.
+
+    For each applied entity (create/merge/update):
+      1. Query signal_impact for its chunk_ids
+      2. Find co-occurring entities in those chunks
+      3. Filter to cross-type only (feature↔driver, feature↔persona, etc.)
+      4. Rank by count, take top 5
+      5. register_dependency() with type="co_occurrence", strength=normalized count
+    """
+    from app.db.entity_dependencies import register_dependency
+
+    sb = get_supabase()
+
+    # Cross-type pairs we care about
+    CROSS_TYPE_PAIRS = {
+        frozenset({"feature", "business_driver"}),
+        frozenset({"feature", "persona"}),
+        frozenset({"business_driver", "persona"}),
+        frozenset({"feature", "vp_step"}),
+        frozenset({"business_driver", "vp_step"}),
+        frozenset({"persona", "vp_step"}),
+    }
+
+    for applied in applied_results:
+        op = applied.get("operation")
+        if op not in ("create", "merge", "update"):
+            continue
+
+        entity_type = applied.get("entity_type")
+        entity_id = applied.get("entity_id")
+        if not entity_type or not entity_id:
+            continue
+
+        # 1. Get chunk_ids for this entity
+        try:
+            impact_resp = (
+                sb.table("signal_impact")
+                .select("chunk_id")
+                .eq("entity_id", str(entity_id))
+                .limit(50)
+                .execute()
+            )
+            chunk_ids = list({r["chunk_id"] for r in (impact_resp.data or []) if r.get("chunk_id")})
+        except Exception:
+            continue
+
+        if not chunk_ids:
+            continue
+
+        # 2. Find co-occurring entities in those chunks
+        try:
+            cooccur_resp = (
+                sb.table("signal_impact")
+                .select("entity_id, entity_type")
+                .in_("chunk_id", chunk_ids[:20])
+                .neq("entity_id", str(entity_id))
+                .limit(200)
+                .execute()
+            )
+        except Exception:
+            continue
+
+        # 3. Count co-occurrences, filter to cross-type
+        counts: dict[tuple[str, str], int] = {}  # (other_type, other_id) -> count
+        for row in (cooccur_resp.data or []):
+            other_type = row.get("entity_type", "")
+            other_id = row.get("entity_id", "")
+            if not other_type or not other_id:
+                continue
+            pair = frozenset({entity_type, other_type})
+            if pair not in CROSS_TYPE_PAIRS:
+                continue
+            key = (other_type, other_id)
+            counts[key] = counts.get(key, 0) + 1
+
+        if not counts:
+            continue
+
+        # 4. Rank by count, take top 5
+        sorted_pairs = sorted(counts.items(), key=lambda x: x[1], reverse=True)[:5]
+        max_count = sorted_pairs[0][1] if sorted_pairs else 1
+
+        # 5. Register dependencies with normalized strength
+        for (other_type, other_id), count in sorted_pairs:
+            strength = round(min(count / max(max_count, 1), 1.0), 2)
+            try:
+                register_dependency(
+                    project_id=project_id,
+                    source_type=entity_type,
+                    source_id=UUID(entity_id),
+                    target_type=other_type,
+                    target_id=UUID(other_id),
+                    dependency_type="co_occurrence",
+                    strength=strength,
+                )
+            except Exception as e:
+                logger.debug(f"Co-occurrence link failed {entity_id}->{other_id}: {e}")
 
 
 def _record_evidence_links(

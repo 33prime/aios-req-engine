@@ -244,6 +244,67 @@ async def get_brd_driver_detail(project_id: UUID, driver_id: UUID) -> BusinessDr
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.get("/brd/drivers/{driver_id}/horizons")
+async def get_driver_horizons(project_id: UUID, driver_id: UUID) -> dict:
+    """Get horizon outcomes linked to a business driver."""
+    client = get_client()
+    did = str(driver_id)
+
+    try:
+        resp = (
+            client.table("horizon_outcomes")
+            .select("id, title, threshold, current_value, progress, trend, horizon_id")
+            .eq("driver_id", did)
+            .execute()
+        )
+        outcomes = resp.data or []
+
+        if not outcomes:
+            return {"horizons": []}
+
+        # Resolve horizon numbers
+        horizon_ids = list({o["horizon_id"] for o in outcomes if o.get("horizon_id")})
+        horizon_map: dict[str, dict] = {}
+        if horizon_ids:
+            h_resp = (
+                client.table("project_horizons")
+                .select("id, horizon_number, title")
+                .in_("id", horizon_ids)
+                .execute()
+            )
+            for h in (h_resp.data or []):
+                horizon_map[h["id"]] = {
+                    "horizon_number": h.get("horizon_number", 0),
+                    "title": h.get("title", ""),
+                }
+
+        # Group by horizon
+        grouped: dict[int, list[dict]] = {}
+        for o in outcomes:
+            hinfo = horizon_map.get(o.get("horizon_id", ""), {})
+            hnum = hinfo.get("horizon_number", 0)
+            grouped.setdefault(hnum, []).append({
+                "id": o["id"],
+                "title": o.get("title", ""),
+                "threshold": o.get("threshold"),
+                "current_value": o.get("current_value"),
+                "progress": o.get("progress", 0),
+                "trend": o.get("trend"),
+                "horizon_title": hinfo.get("title", ""),
+            })
+
+        return {
+            "horizons": [
+                {"horizon_number": k, "outcomes": v}
+                for k, v in sorted(grouped.items())
+            ]
+        }
+
+    except Exception as e:
+        logger.exception(f"Failed to get horizons for driver {driver_id}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.patch("/brd/drivers/{driver_id}/financials")
 async def update_driver_financials(
     project_id: UUID,

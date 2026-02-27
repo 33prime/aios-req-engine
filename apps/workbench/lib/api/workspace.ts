@@ -99,6 +99,22 @@ export const updateFeaturePriority = (
   )
 
 /**
+ * Get full feature detail with linked entities (drivers, personas, vp_steps).
+ */
+export const getFeatureDetail = (projectId: string, featureId: string) =>
+  apiRequest<import('@/types/workspace').FeatureDetailResponse>(
+    `/projects/${projectId}/workspace/brd/features/${featureId}/detail`
+  )
+
+/**
+ * Get horizon outcomes linked to a business driver.
+ */
+export const getDriverHorizons = (projectId: string, driverId: string) =>
+  apiRequest<{ horizons: Array<{ horizon_number: number; outcomes: Array<{ id: string; title: string; threshold?: string | null; current_value?: string | null; progress: number; trend?: string | null; horizon_title: string }> }> }>(
+    `/projects/${projectId}/workspace/brd/drivers/${driverId}/horizons`
+  )
+
+/**
  * Batch confirm multiple entities.
  */
 export const batchConfirmEntities = (

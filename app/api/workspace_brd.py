@@ -382,7 +382,7 @@ async def get_brd_workspace_data(
                 _priority_rank.get(f.get("priority_group", "should_have"), 1),
                 0 if f.get("confirmation_status") in _confirmed_set else 1,
             ),
-        )[:20]
+        )[:10]
 
         requirements = RequirementsSection()
         for f in all_feature_rows:
