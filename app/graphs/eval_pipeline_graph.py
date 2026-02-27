@@ -186,8 +186,25 @@ def _scan_feature_ids(
     local_path: str,
     file_tree: list[str],
 ) -> dict[str, list[str]]:
-    """Scan tsx/jsx files for data-feature-id attributes."""
+    """Scan tsx/jsx files for feature references.
+
+    Detects three patterns:
+    1. Raw data-feature-id="uuid" attributes
+    2. <Feature id="slug-or-uuid"> component usage
+    3. useFeatureProps('slug-or-uuid') hook usage
+
+    Resolves slugs → UUIDs via registry.ts when available.
+    """
     import re
+
+    # Try to parse registry.ts for slug → UUID mapping
+    slug_to_uuid: dict[str, str] = {}
+    try:
+        registry = git.read_file(local_path, "src/lib/aios/registry.ts")
+        for m in re.finditer(r"'([^']+)':\s*\{\s*id:\s*'([^']+)'", registry):
+            slug_to_uuid[m.group(1)] = m.group(2)
+    except Exception:
+        pass
 
     feature_scan: dict[str, list[str]] = {}
     for f in file_tree:
@@ -195,9 +212,22 @@ def _scan_feature_ids(
             continue
         try:
             content = git.read_file(local_path, f)
+
+            # Strategy 1: literal data-feature-id="uuid"
             ids = re.findall(r'data-feature-id=["\']([^"\']+)["\']', content)
             for fid in ids:
                 feature_scan.setdefault(fid, []).append(f)
+
+            # Strategy 2: <Feature id="slug-or-uuid">
+            refs = re.findall(r'<Feature[^>]+id=["\']([^"\']+)["\']', content)
+
+            # Strategy 3: useFeatureProps('slug-or-uuid')
+            hook_refs = re.findall(r"useFeatureProps\(['\"]([^'\"]+)['\"]\)", content)
+
+            # Resolve slugs → UUIDs via registry
+            for ref in refs + hook_refs:
+                resolved = slug_to_uuid.get(ref, ref)
+                feature_scan.setdefault(resolved, []).append(f)
         except Exception:
             pass
     return feature_scan

@@ -25,8 +25,11 @@ functional React + Tailwind prototype.
 
 === CRITICAL REQUIREMENTS FOR THE PROMPT YOU GENERATE ===
 
-1. FEATURE TRACKING: Every interactive element MUST have a `data-feature-id="{uuid}"` \
-attribute matching the AIOS feature UUID. This is how we link prototype UI to requirements.
+1. FEATURE TRACKING: A pre-built AIOS bridge library at `src/lib/aios/` provides \
+`<Feature id="slug">` wrappers, `<Screen name="PageName">` wrappers, and \
+`useFeatureProps('slug')` hooks. Feature slugs are defined in `src/lib/aios/registry.ts`. \
+Use slugs instead of raw UUIDs. Every interactive element MUST be wrapped with \
+`<Feature>` or use `useFeatureProps()` to link prototype UI to requirements.
 
 2. HANDOFF.MD: The prompt MUST instruct v0 to create a HANDOFF.md file at the repo root with:
    - Feature inventory (name, ID, file path, component)

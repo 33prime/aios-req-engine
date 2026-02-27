@@ -16,7 +16,7 @@ Produce an UpdatePlan with:
 
 Rules:
 - Minimize changes — only change what feedback requires
-- Preserve existing data-feature-id attributes
+- Preserve existing `<Feature>` wrappers and `data-feature-id` attributes
 - Keep HANDOFF.md in sync with changes
 - Group related changes together
 - Put low-risk changes first when no dependency
@@ -46,7 +46,7 @@ You have access to file read/write tools.
 For each task in your plan:
 1. Read the target file
 2. Make the specified change
-3. Preserve all data-feature-id attributes
+3. Preserve all `<Feature>` wrappers and `data-feature-id` attributes
 4. Keep code style consistent
 5. For high-risk changes, verify the build still works
 
@@ -60,7 +60,7 @@ Rules:
 
 VALIDATION_SYSTEM_PROMPT = """\
 You are reviewing code changes made to a prototype. Check for:
-1. All data-feature-id attributes are still present
+1. All `<Feature>` wrappers and `data-feature-id` attributes are still present
 2. No broken imports or references
 3. Mock data is still consistent
 4. No TypeScript errors (basic check)
