@@ -7,7 +7,7 @@ import { ConfirmActions } from './ConfirmActions'
 import { ImportanceDots } from './ImportanceDots'
 import type { BusinessDriver } from '@/types/workspace'
 
-type DriverType = 'pain' | 'goal'
+type DriverType = 'pain' | 'goal' | 'kpi'
 
 interface DriverItemRowProps {
   driver: BusinessDriver
@@ -68,11 +68,13 @@ export function DriverItemRow({
         <span className="text-[13px] font-medium text-text-body truncate flex-1 min-w-0">
           {displayTitle}
         </span>
-        {evidenceCount > 0 && (
+        {evidenceCount > 0 ? (
           <span className="flex items-center gap-1 text-[11px] text-[#25785A] flex-shrink-0">
             <FileText className="w-3 h-3" />
             {evidenceCount} src
           </span>
+        ) : (
+          <span className="text-[10px] text-text-placeholder/60 flex-shrink-0 italic">No signal evidence</span>
         )}
         <span onClick={(e) => e.stopPropagation()} className="flex-shrink-0">
           <BRDStatusBadge status={driver.confirmation_status} onClick={onStatusClick} />
@@ -128,6 +130,10 @@ function KeyFields({ driver, driverType }: { driver: BusinessDriver; driverType:
   } else if (driverType === 'goal') {
     if (driver.goal_timeframe) parts.push({ label: 'Timeframe', value: driver.goal_timeframe })
     if (driver.owner) parts.push({ label: 'Owner', value: driver.owner })
+  } else if (driverType === 'kpi') {
+    if (driver.baseline_value && driver.target_value) parts.push({ label: 'Target', value: `${driver.baseline_value} → ${driver.target_value}` })
+    else if (driver.target_value) parts.push({ label: 'Target', value: driver.target_value })
+    if (driver.measurement_method) parts.push({ label: 'Method', value: driver.measurement_method })
   }
 
   if (parts.length === 0) return null

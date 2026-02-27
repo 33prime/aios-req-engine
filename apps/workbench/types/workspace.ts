@@ -746,6 +746,20 @@ export interface SolutionFlowOverview {
   steps: SolutionFlowStepSummary[]
 }
 
+export interface GapClusterSummary {
+  cluster_id: string
+  theme: string
+  gap_count: number
+  knowledge_type?: string | null
+  priority_score: number
+}
+
+export interface NeedNarrative {
+  text: string
+  anchors: BRDEvidence[]
+  generated_at?: string | null
+}
+
 export interface BRDWorkspaceData {
   business_context: {
     background?: string | null
@@ -777,6 +791,12 @@ export interface BRDWorkspaceData {
   completeness?: BRDCompleteness | null
   next_actions?: import('@/lib/api').NextAction[]
   solution_flow?: SolutionFlowOverview | null
+  // Intelligence metrics
+  provenance_pct?: number
+  gap_cluster_count?: number
+  gap_clusters?: GapClusterSummary[]
+  // Need narrative
+  need_narrative?: NeedNarrative | null
 }
 
 // ============================================

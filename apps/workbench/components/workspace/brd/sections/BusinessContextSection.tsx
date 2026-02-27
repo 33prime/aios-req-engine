@@ -1,15 +1,12 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { Building2, AlertTriangle, Target, Eye, BarChart3, Pencil, ChevronDown, ChevronRight, Users, Puzzle, Zap, FileText, Sparkles, Loader2, Check, X } from 'lucide-react'
-import { SectionHeader } from '../components/SectionHeader'
-import { BRDStatusBadge } from '../components/StatusBadge'
-import { ConfirmActions } from '../components/ConfirmActions'
+import { Building2, AlertTriangle, Target, Eye, BarChart3, Pencil, Sparkles, Loader2, Check, X } from 'lucide-react'
 import { BusinessDriverDetailDrawer } from '../components/BusinessDriverDetailDrawer'
 import { DriverContainer } from '../components/DriverContainer'
 import { DriverItemRow } from '../components/DriverItemRow'
 import { enhanceVision } from '@/lib/api'
-import type { BRDWorkspaceData, BusinessDriver, VisionAlignment, SectionScore, StakeholderBRDSummary } from '@/types/workspace'
+import type { BRDWorkspaceData, BusinessDriver, SectionScore, StakeholderBRDSummary } from '@/types/workspace'
 
 interface BusinessContextSectionProps {
   data: BRDWorkspaceData['business_context']
@@ -28,323 +25,6 @@ interface BusinessContextSectionProps {
 
 const SHOW_MAX_DRIVERS = 6
 const SHOW_MAX_METRICS = 8
-
-type SortKey = 'relevance' | 'linked' | 'confirmed' | 'newest'
-type FilterKey = 'all' | 'linked' | 'orphaned'
-
-// ============================================================================
-// Vision Alignment Dot (used by KPI DriverCards)
-// ============================================================================
-
-function VisionDot({ alignment }: { alignment?: VisionAlignment | null }) {
-  if (!alignment) return null
-  const colors: Record<string, string> = {
-    high: 'bg-brand-primary',
-    medium: 'bg-[#4CC08C]',
-    low: 'bg-border',
-    unrelated: 'bg-border',
-  }
-  const labels: Record<string, string> = {
-    high: 'High vision alignment',
-    medium: 'Medium vision alignment',
-    low: 'Low vision alignment',
-    unrelated: 'Unrelated to vision',
-  }
-  return (
-    <span
-      className={`w-2 h-2 rounded-full shrink-0 ${colors[alignment] || 'bg-border'}`}
-      title={labels[alignment] || ''}
-    />
-  )
-}
-
-// ============================================================================
-// Link Summary Line (used by KPI DriverCards)
-// ============================================================================
-
-function LinkSummary({ driver }: { driver: BusinessDriver }) {
-  const evidenceCount = driver.evidence?.length ?? 0
-  const personaCount = driver.linked_persona_count ?? 0
-  const featureCount = driver.linked_feature_count ?? 0
-  const workflowCount = driver.linked_workflow_count ?? 0
-  const totalLinks = personaCount + featureCount + workflowCount
-
-  if (evidenceCount === 0 && totalLinks === 0) {
-    return (
-      <span className="text-[11px] text-text-placeholder bg-[#F0F0F0] px-2 py-0.5 rounded-full">
-        No evidence yet
-      </span>
-    )
-  }
-
-  return (
-    <div className="flex items-center gap-3 text-[11px] text-[#666666]">
-      {evidenceCount > 0 && (
-        <span className="flex items-center gap-1 text-[#25785A]">
-          <FileText className="w-3 h-3" />
-          {evidenceCount} source{evidenceCount !== 1 ? 's' : ''}
-        </span>
-      )}
-      {driver.associated_persona_names && driver.associated_persona_names.length > 0 && (
-        <span className="flex items-center gap-1">
-          <Users className="w-3 h-3 text-text-placeholder" />
-          {driver.associated_persona_names.slice(0, 2).join(', ')}
-          {driver.associated_persona_names.length > 2 && ` +${driver.associated_persona_names.length - 2}`}
-        </span>
-      )}
-      {featureCount > 0 && (
-        <span className="flex items-center gap-1">
-          <Puzzle className="w-3 h-3 text-text-placeholder" />
-          {featureCount} feature{featureCount !== 1 ? 's' : ''}
-        </span>
-      )}
-      {workflowCount > 0 && (
-        <span className="flex items-center gap-1">
-          <Zap className="w-3 h-3 text-text-placeholder" />
-          {workflowCount} workflow{workflowCount !== 1 ? 's' : ''}
-        </span>
-      )}
-    </div>
-  )
-}
-
-// ============================================================================
-// Metric Line (used by KPI DriverCards)
-// ============================================================================
-
-function MetricLine({ driver }: { driver: BusinessDriver }) {
-  const parts: string[] = []
-
-  if (driver.driver_type === 'kpi') {
-    if (driver.baseline_value && driver.target_value) {
-      parts.push(`${driver.baseline_value} → ${driver.target_value}`)
-    } else if (driver.target_value) {
-      parts.push(`Target: ${driver.target_value}`)
-    }
-    if (driver.monetary_value_high) {
-      const val = driver.monetary_value_high
-      const formatted = val >= 1_000_000 ? `$${(val / 1_000_000).toFixed(1)}M` : val >= 1_000 ? `$${Math.round(val / 1_000)}K` : `$${val}`
-      parts.push(`~${formatted}/yr impact`)
-    }
-  }
-
-  const firstEvidence = driver.evidence?.[0]
-
-  if (parts.length === 0 && !firstEvidence) return null
-
-  return (
-    <div className="space-y-1">
-      {parts.length > 0 && (
-        <div className="text-[11px] text-text-placeholder">{parts.join('  ·  ')}</div>
-      )}
-      {firstEvidence && (
-        <div className="text-[11px] text-[#666666] italic line-clamp-1">
-          &ldquo;{firstEvidence.excerpt}&rdquo;
-        </div>
-      )}
-    </div>
-  )
-}
-
-// ============================================================================
-// Unified Driver Card (still used by KPIs / Success Metrics)
-// ============================================================================
-
-function DriverCard({
-  driver,
-  icon: Icon,
-  iconColor,
-  onConfirm,
-  onNeedsReview,
-  onStatusClick,
-  onDetailClick,
-}: {
-  driver: BusinessDriver
-  icon: typeof AlertTriangle
-  iconColor: string
-  onConfirm: () => void
-  onNeedsReview: () => void
-  onStatusClick?: () => void
-  onDetailClick: () => void
-}) {
-  const [expanded, setExpanded] = useState(false)
-  const [hasBeenExpanded, setHasBeenExpanded] = useState(false)
-
-  return (
-    <div className={`bg-white rounded-2xl shadow-md border overflow-hidden ${
-      driver.is_stale ? 'border-orange-200' : 'border-border'
-    }`}>
-      <button
-        onClick={() => { const next = !expanded; setExpanded(next); if (next && !hasBeenExpanded) setHasBeenExpanded(true) }}
-        className="w-full px-5 py-3.5 text-left hover:bg-gray-50/50 transition-colors"
-      >
-        <div className="flex items-center gap-3">
-          <ChevronRight
-            className={`w-4 h-4 text-text-placeholder shrink-0 transition-transform duration-200 ${expanded ? 'rotate-90' : ''}`}
-          />
-          <Icon className={`w-4 h-4 shrink-0 ${iconColor}`} />
-          <span className="text-[14px] font-semibold text-text-body truncate flex-1">{driver.description}</span>
-          <VisionDot alignment={driver.vision_alignment} />
-          <span onClick={(e) => e.stopPropagation()}>
-            <BRDStatusBadge status={driver.confirmation_status} onClick={onStatusClick} />
-          </span>
-        </div>
-        <div className="ml-[52px] mt-1.5">
-          <LinkSummary driver={driver} />
-        </div>
-        <div className="ml-[52px] mt-1">
-          <MetricLine driver={driver} />
-        </div>
-      </button>
-
-      {hasBeenExpanded && (
-        <div className={`overflow-hidden transition-all duration-200 ${expanded ? 'max-h-[800px] opacity-100' : 'max-h-0 opacity-0'}`}>
-          <div className="px-5 pb-4 pt-2 border-t border-border space-y-3">
-            {driver.evidence && driver.evidence.length > 0 && (
-              <div className="space-y-2">
-                <span className="text-[11px] font-semibold text-text-placeholder uppercase tracking-wider">Evidence</span>
-                {driver.evidence.slice(0, 3).map((ev, i) => (
-                  <div key={i} className="flex items-start gap-2 pl-2 border-l-2 border-brand-primary/30">
-                    <div className="flex-1 min-w-0">
-                      <p className="text-[12px] text-text-body italic leading-relaxed">&ldquo;{ev.excerpt}&rdquo;</p>
-                      <p className="text-[10px] text-text-placeholder mt-0.5">{ev.rationale}</p>
-                    </div>
-                    <span className="text-[10px] text-text-placeholder bg-[#F0F0F0] px-1.5 py-0.5 rounded shrink-0">
-                      {ev.source_type}
-                    </span>
-                  </div>
-                ))}
-                {driver.evidence.length > 3 && (
-                  <button onClick={onDetailClick} className="text-[11px] text-text-placeholder hover:text-brand-primary transition-colors pl-2">
-                    +{driver.evidence.length - 3} more source{driver.evidence.length - 3 !== 1 ? 's' : ''} →
-                  </button>
-                )}
-              </div>
-            )}
-            <div className="flex items-center justify-between pt-1">
-              <ConfirmActions status={driver.confirmation_status} onConfirm={onConfirm} onNeedsReview={onNeedsReview} />
-              <button
-                onClick={onDetailClick}
-                className="text-[11px] text-text-placeholder hover:text-brand-primary transition-colors"
-              >
-                View details →
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  )
-}
-
-// ============================================================================
-// Sort / Filter Bar (still used by KPIs)
-// ============================================================================
-
-function SortFilterBar({
-  sortKey,
-  filterKey,
-  onSortChange,
-  onFilterChange,
-}: {
-  sortKey: SortKey
-  filterKey: FilterKey
-  onSortChange: (key: SortKey) => void
-  onFilterChange: (key: FilterKey) => void
-}) {
-  const sortOptions: { key: SortKey; label: string }[] = [
-    { key: 'relevance', label: 'Relevance' },
-    { key: 'linked', label: 'Most Linked' },
-    { key: 'confirmed', label: 'Confirmed' },
-    { key: 'newest', label: 'Newest' },
-  ]
-
-  const filterOptions: { key: FilterKey; label: string }[] = [
-    { key: 'all', label: 'All' },
-    { key: 'linked', label: 'With Evidence' },
-    { key: 'orphaned', label: 'No Evidence' },
-  ]
-
-  return (
-    <div className="flex items-center gap-4 mb-3">
-      <div className="flex items-center gap-1.5">
-        <span className="text-[11px] text-text-placeholder">Sort:</span>
-        {sortOptions.map((opt) => (
-          <button
-            key={opt.key}
-            onClick={() => onSortChange(opt.key)}
-            className={`px-2 py-0.5 text-[11px] rounded-md transition-colors ${
-              sortKey === opt.key
-                ? 'bg-[#E8F5E9] text-[#25785A] font-medium'
-                : 'text-text-placeholder hover:text-[#666666] hover:bg-[#F0F0F0]'
-            }`}
-          >
-            {opt.label}
-          </button>
-        ))}
-      </div>
-      <div className="flex items-center gap-1.5">
-        <span className="text-[11px] text-text-placeholder">Filter:</span>
-        {filterOptions.map((opt) => (
-          <button
-            key={opt.key}
-            onClick={() => onFilterChange(opt.key)}
-            className={`px-2 py-0.5 text-[11px] rounded-md transition-colors ${
-              filterKey === opt.key
-                ? 'bg-[#E8F5E9] text-[#25785A] font-medium'
-                : 'text-text-placeholder hover:text-[#666666] hover:bg-[#F0F0F0]'
-            }`}
-          >
-            {opt.label}
-          </button>
-        ))}
-      </div>
-    </div>
-  )
-}
-
-// ============================================================================
-// Sorting + Filtering Helpers (still used by KPIs)
-// ============================================================================
-
-function getDriverLinkScore(d: BusinessDriver): number {
-  return (d.evidence?.length ?? 0) + (d.linked_feature_count ?? 0) + (d.linked_persona_count ?? 0) + (d.linked_workflow_count ?? 0)
-}
-
-function sortDrivers(drivers: BusinessDriver[], key: SortKey): BusinessDriver[] {
-  const sorted = [...drivers]
-  switch (key) {
-    case 'relevance':
-      sorted.sort((a, b) => (b.relatability_score ?? 0) - (a.relatability_score ?? 0))
-      break
-    case 'linked':
-      sorted.sort((a, b) => getDriverLinkScore(b) - getDriverLinkScore(a))
-      break
-    case 'confirmed': {
-      const confirmedSet = new Set(['confirmed_consultant', 'confirmed_client'])
-      sorted.sort((a, b) => {
-        const aConf = confirmedSet.has(a.confirmation_status ?? '') ? 1 : 0
-        const bConf = confirmedSet.has(b.confirmation_status ?? '') ? 1 : 0
-        return bConf - aConf
-      })
-      break
-    }
-    case 'newest':
-      break
-  }
-  return sorted
-}
-
-function filterDrivers(drivers: BusinessDriver[], key: FilterKey): BusinessDriver[] {
-  if (key === 'all') return drivers
-  if (key === 'linked') {
-    return drivers.filter((d) => getDriverLinkScore(d) > 0)
-  }
-  if (key === 'orphaned') {
-    return drivers.filter((d) => getDriverLinkScore(d) === 0)
-  }
-  return drivers
-}
 
 // ============================================================================
 // Main Section
@@ -412,10 +92,6 @@ export function BusinessContextSection({
     }
   }
 
-  // Sort + filter state (KPIs only)
-  const [metricSort, setMetricSort] = useState<SortKey>('relevance')
-  const [metricFilter, setMetricFilter] = useState<FilterKey>('all')
-
   const handleSaveVision = () => {
     onUpdateVision(visionDraft)
     setEditingVision(false)
@@ -446,14 +122,14 @@ export function BusinessContextSection({
     [data.goals]
   )
 
-  const processedMetrics = useMemo(
-    () => sortDrivers(filterDrivers(data.success_metrics, metricFilter), metricSort),
-    [data.success_metrics, metricSort, metricFilter]
+  const sortedMetrics = useMemo(
+    () => [...data.success_metrics].sort((a, b) => (b.relatability_score ?? 0) - (a.relatability_score ?? 0)),
+    [data.success_metrics]
   )
 
   const visibleGoals = showAllGoals ? sortedGoals : sortedGoals.slice(0, SHOW_MAX_DRIVERS)
   const visiblePains = showAllPains ? sortedPains : sortedPains.slice(0, SHOW_MAX_DRIVERS)
-  const visibleMetrics = showAllMetrics ? processedMetrics : processedMetrics.slice(0, SHOW_MAX_METRICS)
+  const visibleMetrics = showAllMetrics ? sortedMetrics : sortedMetrics.slice(0, SHOW_MAX_METRICS)
 
   return (
     <section id="brd-section-business-context" className="space-y-8">
@@ -732,47 +408,42 @@ export function BusinessContextSection({
         )}
       </DriverContainer>
 
-      {/* Success Metrics (unchanged — keeps DriverCard pattern) */}
-      <div>
-        <SectionHeader
-          title="Success Metrics"
-          count={data.success_metrics.length}
-          confirmedCount={confirmedMetrics}
-          onConfirmAll={() => onConfirmAll('business_driver', data.success_metrics.map((m) => m.id))}
-        />
+      {/* Success Metrics — unified DriverContainer+DriverItemRow pattern */}
+      <DriverContainer
+        icon={BarChart3}
+        title="SUCCESS METRICS"
+        count={data.success_metrics.length}
+        confirmedCount={confirmedMetrics}
+        onConfirmAll={() => onConfirmAll('business_driver', data.success_metrics.map(m => m.id))}
+      >
         {data.success_metrics.length === 0 ? (
-          <p className="text-[13px] text-text-placeholder italic">No success metrics defined yet</p>
+          <p className="px-5 py-4 text-[13px] text-text-placeholder italic">No success metrics defined yet</p>
         ) : (
-          <div>
-            {data.success_metrics.length > 3 && (
-              <SortFilterBar sortKey={metricSort} filterKey={metricFilter} onSortChange={setMetricSort} onFilterChange={setMetricFilter} />
+          <>
+            {visibleMetrics.map((metric) => (
+              <DriverItemRow
+                key={metric.id}
+                driver={metric}
+                driverType="kpi"
+                isExpanded={expandedId === metric.id}
+                onToggle={() => setExpandedId(expandedId === metric.id ? null : metric.id)}
+                onDrawerOpen={() => setSelectedDriver({ id: metric.id, type: 'kpi', data: metric })}
+                onConfirm={() => onConfirm('business_driver', metric.id)}
+                onNeedsReview={() => onNeedsReview('business_driver', metric.id)}
+                onStatusClick={onStatusClick ? () => onStatusClick('business_driver', metric.id, metric.description.slice(0, 60), metric.confirmation_status) : undefined}
+              />
+            ))}
+            {sortedMetrics.length > SHOW_MAX_METRICS && (
+              <button
+                onClick={() => setShowAllMetrics(!showAllMetrics)}
+                className="w-full px-4 py-2.5 text-[12px] font-medium text-brand-primary hover:bg-surface-page transition-colors border-t border-[#F0F0F0]"
+              >
+                {showAllMetrics ? 'Show less' : `Show all ${sortedMetrics.length} metrics`}
+              </button>
             )}
-            <div className="space-y-3">
-              {visibleMetrics.map((metric) => (
-                <DriverCard
-                  key={metric.id}
-                  driver={metric}
-                  icon={BarChart3}
-                  iconColor="text-brand-primary"
-                  onConfirm={() => onConfirm('business_driver', metric.id)}
-                  onNeedsReview={() => onNeedsReview('business_driver', metric.id)}
-                  onStatusClick={onStatusClick ? () => onStatusClick('business_driver', metric.id, metric.description.slice(0, 60), metric.confirmation_status) : undefined}
-                  onDetailClick={() => setSelectedDriver({ id: metric.id, type: 'kpi', data: metric })}
-                />
-              ))}
-              {processedMetrics.length > SHOW_MAX_METRICS && !showAllMetrics && (
-                <button
-                  onClick={() => setShowAllMetrics(true)}
-                  className="flex items-center gap-1.5 px-3 py-2 text-[12px] font-medium text-text-placeholder hover:text-brand-primary transition-colors w-full justify-center"
-                >
-                  <ChevronDown className="w-3.5 h-3.5" />
-                  Show all {processedMetrics.length} metrics
-                </button>
-              )}
-            </div>
-          </div>
+          </>
         )}
-      </div>
+      </DriverContainer>
 
       {/* Detail Drawer */}
       {selectedDriver && (

@@ -493,7 +493,7 @@ export function WorkflowsSection({
       <div className="flex items-center justify-between mb-4">
         <SectionHeader
           title="Key Workflows"
-          count={hasWorkflowPairs ? workflowPairs.length : workflows.length}
+          count={workflowPairs.length}
           confirmedCount={confirmedCount}
           onConfirmAll={() =>
             hasWorkflowPairs

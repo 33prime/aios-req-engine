@@ -1,10 +1,20 @@
 """Pydantic schemas for BRD (Business Requirements Document) workspace data."""
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from app.core.brd_completeness import BRDCompleteness
 from app.core.schemas_data_entities import DataEntityBRDSummary
 from app.core.schemas_workflows import ROISummary, WorkflowPair
+
+
+def _truncate_title(title: str | None, max_words: int = 10) -> str | None:
+    """Truncate a title to max_words, adding '...' if truncated."""
+    if not title:
+        return title
+    words = title.split()
+    if len(words) <= max_words:
+        return title
+    return " ".join(words[:max_words]) + "..."
 
 
 class EvidenceItem(BaseModel):
@@ -38,6 +48,11 @@ class PainPointSummary(BaseModel):
     is_stale: bool = False
     stale_reason: str | None = None
 
+    @field_validator("title", mode="before")
+    @classmethod
+    def truncate_title(cls, v: str | None) -> str | None:
+        return _truncate_title(v)
+
 
 class GoalSummary(BaseModel):
     """Business goal from business_drivers (type=goal)."""
@@ -61,12 +76,22 @@ class GoalSummary(BaseModel):
     is_stale: bool = False
     stale_reason: str | None = None
 
+    @field_validator("title", mode="before")
+    @classmethod
+    def truncate_title(cls, v: str | None) -> str | None:
+        return _truncate_title(v)
+
 
 class KPISummary(BaseModel):
     """KPI/success metric from business_drivers (type=kpi)."""
     id: str
     title: str | None = None
     description: str = ""
+
+    @field_validator("title", mode="before")
+    @classmethod
+    def truncate_title(cls, v: str | None) -> str | None:
+        return _truncate_title(v)
     baseline_value: str | None = None
     target_value: str | None = None
     measurement_method: str | None = None
@@ -238,6 +263,22 @@ class RequirementsSection(BaseModel):
     out_of_scope: list[FeatureBRDSummary] = []
 
 
+class GapClusterSummary(BaseModel):
+    """Compact gap cluster summary for BRD awareness strip."""
+    cluster_id: str
+    theme: str
+    gap_count: int = 0
+    knowledge_type: str | None = None
+    priority_score: float = 0.0
+
+
+class NeedNarrative(BaseModel):
+    """Cached 'What Drove the Need' narrative."""
+    text: str
+    anchors: list[EvidenceItem] = []
+    generated_at: str | None = None
+
+
 class BRDWorkspaceData(BaseModel):
     """Complete BRD workspace data returned by the /brd endpoint."""
     business_context: BusinessContextSection = Field(default_factory=BusinessContextSection)
@@ -255,6 +296,12 @@ class BRDWorkspaceData(BaseModel):
     completeness: BRDCompleteness | None = None
     next_actions: list[dict] = Field(default_factory=list, description="Top 3 next best actions computed from BRD state")
     solution_flow: dict | None = None
+    # Phase C: Provenance + Gap intelligence
+    provenance_pct: float = 0.0
+    gap_cluster_count: int = 0
+    gap_clusters: list[GapClusterSummary] = []
+    # Phase D: Need narrative
+    need_narrative: NeedNarrative | None = None
 
 
 # ============================================================================

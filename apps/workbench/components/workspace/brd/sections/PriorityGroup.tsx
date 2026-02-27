@@ -109,6 +109,9 @@ function FeatureAccordionCard({
           {feature.category && (
             <span className="text-[12px] text-text-placeholder shrink-0">({feature.category})</span>
           )}
+          {(!feature.confirmation_status || feature.confirmation_status === 'ai_generated') && (
+            <span className="text-[10px] text-[#F59E0B]/80 italic shrink-0">Needs validation</span>
+          )}
           <span className="ml-auto shrink-0" onClick={(e) => e.stopPropagation()}>
             <BRDStatusBadge
               status={feature.confirmation_status}

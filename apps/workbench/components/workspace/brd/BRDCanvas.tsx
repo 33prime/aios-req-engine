@@ -6,9 +6,10 @@ import { ActorsSection } from './sections/ActorsSection'
 import { WorkflowsSection } from './sections/WorkflowsSection'
 import { RequirementsSection } from './sections/RequirementsSection'
 import { ConstraintsSection } from './sections/ConstraintsSection'
-import { DataEntitiesSection } from './sections/DataEntitiesSection'
-import { StakeholdersSection } from './sections/StakeholdersSection'
+// DataEntitiesSection and StakeholdersSection removed from BRD view (data still in DB)
 import { IntelligenceSection } from './sections/IntelligenceSection'
+import { NeedNarrativeSection } from './sections/NeedNarrativeSection'
+import { GapClusterStrip } from './sections/GapClusterStrip'
 import { SolutionFlowSection } from './sections/SolutionFlowSection'
 import { SolutionFlowModal } from './components/SolutionFlowModal'
 import { WorkflowCreateModal } from './components/WorkflowCreateModal'
@@ -168,7 +169,17 @@ export function BRDCanvas({ projectId, initialData, initialNextActions, onRefres
             )}
           </div>
 
-          {/* Intelligence Dashboard */}
+          {/* 1. Solution Flow — promoted to top (hero anchor) */}
+          <div id="brd-section-solution-flow" className="mb-8">
+            <SolutionFlowSection
+              flow={data.solution_flow}
+              onOpen={() => workflows.setShowSolutionFlowModal(true)}
+              onGenerate={workflows.handleGenerateSolutionFlow}
+              isGenerating={workflows.isGeneratingSolutionFlow}
+            />
+          </div>
+
+          {/* 2. Intelligence Dashboard */}
           <IntelligenceSection
             data={data}
             health={dataState.health}
@@ -177,7 +188,7 @@ export function BRDCanvas({ projectId, initialData, initialNextActions, onRefres
             isRefreshing={dataState.isRefreshingHealth}
           />
 
-          {/* Confirmation Clusters */}
+          {/* 3. Confirmation Clusters */}
           {dataState.clusters.length > 0 && (
             <div className="mb-6">
               <ConfirmationClusters
@@ -188,7 +199,7 @@ export function BRDCanvas({ projectId, initialData, initialNextActions, onRefres
             </div>
           )}
 
-          {/* Open Questions (collapsed by default) */}
+          {/* 4. Open Questions (collapsed by default) */}
           <div id="brd-section-questions">
             <OpenQuestionsPanel
               projectId={projectId}
@@ -198,8 +209,15 @@ export function BRDCanvas({ projectId, initialData, initialNextActions, onRefres
             />
           </div>
 
+          {/* 5. What Drove the Need narrative */}
+          <div className="mb-8">
+            <NeedNarrativeSection narrative={data.need_narrative} />
+          </div>
+
           {/* BRD Sections */}
           <div className="space-y-10">
+
+        {/* 6. Business Context (vision, drivers, metrics) */}
         <div id="brd-section-business-context">
         <BusinessContextSection
           data={data.business_context}
@@ -219,6 +237,7 @@ export function BRDCanvas({ projectId, initialData, initialNextActions, onRefres
 
         <div className="border-t border-[#e9e9e7]" />
 
+        {/* 7. Actors & Personas */}
         <div id="brd-section-personas">
         <ActorsSection
           actors={data.actors}
@@ -234,6 +253,7 @@ export function BRDCanvas({ projectId, initialData, initialNextActions, onRefres
 
         <div className="border-t border-[#e9e9e7]" />
 
+        {/* 8. Key Workflows */}
         <div id="brd-section-workflows">
         <WorkflowsSection
           workflows={data.workflows}
@@ -261,17 +281,7 @@ export function BRDCanvas({ projectId, initialData, initialNextActions, onRefres
 
         <div className="border-t border-[#e9e9e7]" />
 
-        <div id="brd-section-solution-flow">
-        <SolutionFlowSection
-          flow={data.solution_flow}
-          onOpen={() => workflows.setShowSolutionFlowModal(true)}
-          onGenerate={workflows.handleGenerateSolutionFlow}
-          isGenerating={workflows.isGeneratingSolutionFlow}
-        />
-        </div>
-
-        <div className="border-t border-[#e9e9e7]" />
-
+        {/* 9. Requirements (max 20, MoSCoW) */}
         <div id="brd-section-features">
         <RequirementsSection
           requirements={data.requirements}
@@ -287,42 +297,7 @@ export function BRDCanvas({ projectId, initialData, initialNextActions, onRefres
 
         <div className="border-t border-[#e9e9e7]" />
 
-        <div id="brd-section-data-entities">
-        <DataEntitiesSection
-          projectId={projectId}
-          dataEntities={data.data_entities}
-          onConfirm={actions.handleConfirm}
-          onNeedsReview={actions.handleNeedsReview}
-          onConfirmAll={actions.handleConfirmAll}
-          onCreateEntity={() => workflows.setShowCreateDataEntity(true)}
-          onDeleteEntity={workflows.handleDeleteDataEntityWithPreview}
-          onRefreshEntity={actions.handleRefreshEntity}
-          onStatusClick={drawers.handleOpenConfidence}
-          onOpenDetail={drawers.handleOpenDataEntityDetail}
-          sectionScore={sectionScoreMap['data_entities'] || null}
-        />
-        </div>
-
-        <div className="border-t border-[#e9e9e7]" />
-
-        <div id="brd-section-stakeholders">
-        <StakeholdersSection
-          stakeholders={data.stakeholders}
-          onConfirm={actions.handleConfirm}
-          onNeedsReview={actions.handleNeedsReview}
-          onConfirmAll={actions.handleConfirmAll}
-          onOpenDetail={(stakeholder) => {
-            drawers.setConfidenceDrawer((prev) => ({ ...prev, open: false }))
-            drawers.setStakeholderDrawer({ open: true, stakeholder })
-          }}
-          onRefreshEntity={actions.handleRefreshEntity}
-          onStatusClick={drawers.handleOpenConfidence}
-          sectionScore={sectionScoreMap['stakeholders'] || null}
-        />
-        </div>
-
-        <div className="border-t border-[#e9e9e7]" />
-
+        {/* 10. Constraints */}
         <div id="brd-section-constraints">
         <ConstraintsSection
           constraints={data.constraints}
@@ -341,6 +316,9 @@ export function BRDCanvas({ projectId, initialData, initialNextActions, onRefres
           sectionScore={sectionScoreMap['constraints'] || null}
         />
         </div>
+
+        {/* 11. Gap Clusters (awareness strip) */}
+        <GapClusterStrip clusters={data.gap_clusters || []} />
       </div>
         </div>{/* end max-w-4xl */}
       </div>{/* end flex-1 overflow-y-auto (BRD content) */}

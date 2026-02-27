@@ -44,9 +44,7 @@ function MetricCard({
 }
 
 // ============================================================================
-// Gap item
-// ============================================================================
-// Alert pill (restyled from HealthPanel)
+// Alert pill
 // ============================================================================
 
 function AlertPill({ alert }: { alert: ScopeAlert }) {
@@ -69,7 +67,6 @@ export function IntelligenceSection({
   onRefreshAll,
   isRefreshing,
 }: IntelligenceSectionProps) {
-  // Compute metrics from BRD data
   const metrics = useMemo(() => {
     const allFeatures = [
       ...data.requirements.must_have,
@@ -85,8 +82,6 @@ export function IntelligenceSection({
       ...data.workflows,
       ...allFeatures,
       ...data.constraints,
-      ...data.data_entities,
-      ...data.stakeholders,
     ]
 
     const isConfirmed = (s?: string | null) =>
@@ -96,37 +91,20 @@ export function IntelligenceSection({
     const total = allEntities.length
     const confirmedPct = total > 0 ? Math.round((confirmed / total) * 100) : 0
 
-    // Enrichment: features with details, personas with enrichment
-    const enrichedFeatures = allFeatures.filter((f) => f.description).length
-    const enrichedPersonas = data.actors.filter((a) => a.goals && a.goals.length > 0).length
-    const enrichable = allFeatures.length + data.actors.length
-    const enriched = enrichedFeatures + enrichedPersonas
-    const enrichedPct = enrichable > 0 ? Math.round((enriched / enrichable) * 100) : 0
+    // Provenance % from backend
+    const provenancePct = Math.round(data.provenance_pct ?? 0)
 
-    // Staleness
-    const staleCount =
-      data.actors.filter((a) => a.is_stale).length +
-      data.workflows.filter((w) => w.is_stale).length +
-      allFeatures.filter((f) => f.is_stale).length +
-      data.data_entities.filter((d) => d.is_stale).length
-
-    // Risk score from health alerts
-    const alertCount = health?.scope_alerts.length || 0
-    const warningCount = health?.scope_alerts.filter((a) => a.severity === 'warning').length || 0
-    const riskScore = warningCount > 0 ? 'High' : alertCount > 0 ? 'Medium' : 'Low'
+    // Gap cluster count from backend
+    const gapCount = data.gap_cluster_count ?? 0
 
     return {
       confirmed,
       total,
       confirmedPct,
-      enriched,
-      enrichable,
-      enrichedPct,
-      staleCount,
-      riskScore,
-      alertCount,
+      provenancePct,
+      gapCount,
     }
-  }, [data, health])
+  }, [data])
 
   return (
     <section className="mb-8">
@@ -151,7 +129,7 @@ export function IntelligenceSection({
         )}
       </div>
 
-      {/* Metrics row */}
+      {/* 3-card metrics row */}
       <div className="flex gap-3 mb-4">
         <MetricCard
           value={`${metrics.confirmedPct}%`}
@@ -160,22 +138,16 @@ export function IntelligenceSection({
           accent={metrics.confirmedPct >= 75 ? 'green' : 'default'}
         />
         <MetricCard
-          value={`${metrics.enrichedPct}%`}
-          label="Enriched"
-          detail={`${metrics.enriched} / ${metrics.enrichable} entities`}
-          accent={metrics.enrichedPct >= 75 ? 'green' : 'default'}
+          value={`${metrics.provenancePct}%`}
+          label="Provenance"
+          detail="Entities traced to source signals"
+          accent={metrics.provenancePct >= 75 ? 'green' : metrics.provenancePct < 30 ? 'orange' : 'default'}
         />
         <MetricCard
-          value={String(metrics.staleCount)}
-          label="Stale"
-          detail={metrics.staleCount === 0 ? 'All up to date' : 'May be outdated'}
-          accent={metrics.staleCount > 0 ? 'orange' : 'default'}
-        />
-        <MetricCard
-          value={metrics.riskScore}
-          label="Risk"
-          detail={`${metrics.alertCount} scope ${metrics.alertCount === 1 ? 'alert' : 'alerts'}`}
-          accent={metrics.riskScore === 'High' ? 'orange' : 'default'}
+          value={String(metrics.gapCount)}
+          label="Gaps Detected"
+          detail={metrics.gapCount === 0 ? 'No intelligence gaps' : `${metrics.gapCount} intelligence gap${metrics.gapCount !== 1 ? 's' : ''} found`}
+          accent={metrics.gapCount === 0 ? 'green' : metrics.gapCount > 3 ? 'orange' : 'default'}
         />
       </div>
 
@@ -187,7 +159,6 @@ export function IntelligenceSection({
           ))}
         </div>
       )}
-
     </section>
   )
 }

@@ -16,9 +16,12 @@ from app.core.schemas_brd import (
     CompetitorBRDSummary,
     ConstraintSummary,
     DataEntityBRDSummary,
+    EvidenceItem,
     FeatureBRDSummary,
+    GapClusterSummary,
     GoalSummary,
     KPISummary,
+    NeedNarrative,
     PainPointSummary,
     PersonaBRDSummary,
     RequirementsSection,
@@ -169,12 +172,34 @@ async def get_brd_workspace_data(
             except Exception:
                 return None
 
+        def _q_provenance_entity_ids():
+            """Get distinct entity IDs that have signal provenance."""
+            try:
+                r = client.table("signal_impacts").select(
+                    "entity_id"
+                ).eq("project_id", pid).execute()
+                return set(row["entity_id"] for row in (r.data or []) if row.get("entity_id"))
+            except Exception:
+                return set()
+
+        def _q_gap_clusters():
+            """Get top-3 gap clusters by priority_score."""
+            try:
+                r = client.table("gap_clusters").select(
+                    "id, theme, gap_count, knowledge_type, priority_score"
+                ).eq("project_id", pid).order(
+                    "priority_score", desc=True
+                ).limit(3).execute()
+                return r.data or []
+            except Exception:
+                return []
+
         (
             project_result, company_info, drivers_result,
             personas_result, vp_result, features_result,
             constraints_result, de_result, sh_result,
             comp_result, pending_result, workflow_pairs_raw,
-            solution_flow_raw,
+            solution_flow_raw, provenance_entity_ids_raw, gap_clusters_raw,
         ) = await asyncio.gather(
             asyncio.to_thread(_q_project),
             asyncio.to_thread(_q_company_info),
@@ -189,6 +214,8 @@ async def get_brd_workspace_data(
             asyncio.to_thread(_q_pending),
             asyncio.to_thread(_q_workflow_pairs),
             asyncio.to_thread(_q_solution_flow),
+            asyncio.to_thread(_q_provenance_entity_ids),
+            asyncio.to_thread(_q_gap_clusters),
         )
 
         # Validate project exists
@@ -345,8 +372,20 @@ async def get_brd_workspace_data(
         # 4. VP Steps + Features
         raw_vp_steps = vp_result.data or []
 
+        # Build feature summaries, sort by priority rank + confirmed first, cap at 20
+        _priority_rank = {"must_have": 0, "should_have": 1, "could_have": 2, "out_of_scope": 3}
+        _confirmed_set = {"confirmed_consultant", "confirmed_client"}
+
+        all_feature_rows = sorted(
+            features_result.data or [],
+            key=lambda f: (
+                _priority_rank.get(f.get("priority_group", "should_have"), 1),
+                0 if f.get("confirmation_status") in _confirmed_set else 1,
+            ),
+        )[:20]
+
         requirements = RequirementsSection()
-        for f in (features_result.data or []):
+        for f in all_feature_rows:
             summary = FeatureBRDSummary(
                 id=f["id"],
                 name=f["name"],
@@ -541,6 +580,19 @@ async def get_brd_workspace_data(
         goals.sort(key=lambda d: d.relatability_score, reverse=True)
         success_metrics.sort(key=lambda d: d.relatability_score, reverse=True)
 
+        # Cap business drivers to 8 per type (confirmed first, then by recency)
+        def _cap_drivers(drivers: list, limit: int = 8) -> list:
+            confirmed_set = {"confirmed_consultant", "confirmed_client"}
+            drivers.sort(key=lambda d: (
+                0 if d.confirmation_status in confirmed_set else 1,
+                -(d.relatability_score or 0),
+            ))
+            return drivers[:limit]
+
+        pain_points = _cap_drivers(pain_points)
+        goals = _cap_drivers(goals)
+        success_metrics = _cap_drivers(success_metrics)
+
         # 11. Compute BRD completeness score
         all_features_flat = []
         for group_name in ["must_have", "should_have", "could_have", "out_of_scope"]:
@@ -589,7 +641,61 @@ async def get_brd_workspace_data(
             features=all_features_flat,
         )
 
-        # 12. Compute next actions inline (avoids separate API call + duplicate BRD load)
+        # 12. Compute provenance percentage
+        all_brd_entity_ids = set()
+        for d in pain_points + goals + success_metrics:
+            all_brd_entity_ids.add(d.id)
+        for a in actors:
+            all_brd_entity_ids.add(a.id)
+        for w in workflows:
+            all_brd_entity_ids.add(w.id)
+        for group_name in ["must_have", "should_have", "could_have", "out_of_scope"]:
+            for f in getattr(requirements, group_name):
+                all_brd_entity_ids.add(f.id)
+        for c in constraints:
+            all_brd_entity_ids.add(c.id)
+
+        provenance_ids = provenance_entity_ids_raw if isinstance(provenance_entity_ids_raw, set) else set()
+        entities_with_provenance = len(all_brd_entity_ids & provenance_ids)
+        total_brd_entities = len(all_brd_entity_ids)
+        provenance_pct = round((entities_with_provenance / total_brd_entities) * 100) if total_brd_entities > 0 else 0.0
+
+        # 12b. Build gap cluster summaries
+        gap_cluster_summaries = [
+            GapClusterSummary(
+                cluster_id=gc.get("id", ""),
+                theme=gc.get("theme", ""),
+                gap_count=gc.get("gap_count", 0),
+                knowledge_type=gc.get("knowledge_type"),
+                priority_score=gc.get("priority_score", 0),
+            )
+            for gc in gap_clusters_raw
+        ]
+        gap_cluster_count = len(gap_clusters_raw)
+
+        # 12c. Load cached need narrative
+        from app.chains.compose_need_narrative import get_cached_need_narrative
+
+        need_narrative_data = None
+        try:
+            cached = get_cached_need_narrative(pid)
+            if cached:
+                need_narrative_data = NeedNarrative(
+                    text=cached.get("text", ""),
+                    anchors=[
+                        EvidenceItem(
+                            excerpt=a.get("excerpt", ""),
+                            source_type=a.get("source_type", "signal"),
+                            rationale=a.get("rationale", ""),
+                        )
+                        for a in cached.get("anchors", [])
+                    ],
+                    generated_at=cached.get("generated_at"),
+                )
+        except Exception:
+            logger.debug(f"Failed to load need narrative for project {project_id}")
+
+        # 13. Compute next actions inline (avoids separate API call + duplicate BRD load)
         from app.core.next_actions import compute_next_actions
 
         brd_result = BRDWorkspaceData(
@@ -617,6 +723,10 @@ async def get_brd_workspace_data(
             roi_summary=roi_summary_list,
             completeness=completeness,
             solution_flow=solution_flow_raw,
+            provenance_pct=provenance_pct,
+            gap_cluster_count=gap_cluster_count,
+            gap_clusters=gap_cluster_summaries,
+            need_narrative=need_narrative_data,
         )
 
         try:

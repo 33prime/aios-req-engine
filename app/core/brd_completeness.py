@@ -473,32 +473,26 @@ def compute_brd_completeness(
     """
     Compute overall BRD completeness from raw data.
 
-    Weights: vision 10%, constraints 10%, data_entities 15%,
-             stakeholders 15%, workflows 25%, features 25%
+    Weights: vision 15%, constraints 10%, workflows 35%, features 25%
+    (data_entities and stakeholders removed from BRD view — weight redistributed)
     """
     vision_score = compute_vision_score(vision, pain_points, goals, kpis)
     constraints_score = compute_constraints_score(constraints)
-    data_entities_score = compute_data_entities_score(data_entities, entity_workflow_counts)
-    stakeholders_score = compute_stakeholders_score(stakeholders)
     workflows_score = compute_workflows_score(workflow_pairs, legacy_steps, roi_summaries)
     features_score = compute_features_score(features)
 
     sections = [
         vision_score,
         constraints_score,
-        data_entities_score,
-        stakeholders_score,
         workflows_score,
         features_score,
     ]
 
     # Weighted average
     weights = {
-        "vision": 0.10,
+        "vision": 0.15,
         "constraints": 0.10,
-        "data_entities": 0.15,
-        "stakeholders": 0.15,
-        "workflows": 0.25,
+        "workflows": 0.35,
         "features": 0.25,
     }
 
