@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 
 
 class ContextSnapshot(BaseModel):
-    """Pre-rendered 4-layer context for extraction prompts.
+    """Pre-rendered 5-layer context for extraction prompts.
 
     Each layer is a ready-to-inject prompt string.
     """
@@ -39,6 +39,9 @@ class ContextSnapshot(BaseModel):
 
     # Layer 4: Extraction directive (Pulse Engine or Haiku fallback)
     extraction_briefing_prompt: str = ""
+
+    # Layer 5: Entity relationship hints (graph neighborhoods for connected entities)
+    relationship_hints_prompt: str = ""
 
     # Raw data for downstream use (scoring, resolution)
     entity_inventory: dict[str, list[dict]] = Field(default_factory=dict)
@@ -92,6 +95,9 @@ async def build_context_snapshot(project_id: UUID) -> ContextSnapshot:
 
     entity_prompt = _render_entity_inventory_prompt(entity_inventory)
 
+    # Layer 5: Entity relationship hints (runs after inventory is available)
+    relationship_hints = await _build_relationship_hints(project_id, entity_inventory)
+
     # Layer 4: Pulse Engine directive (deterministic, $0) with Haiku fallback
     pulse = None
     briefing_prompt = ""
@@ -122,11 +128,124 @@ async def build_context_snapshot(project_id: UUID) -> ContextSnapshot:
         memory_prompt=memory_prompt,
         gaps_prompt=gaps_prompt,
         extraction_briefing_prompt=briefing_prompt,
+        relationship_hints_prompt=relationship_hints,
         entity_inventory=entity_inventory,
         beliefs=beliefs,
         open_questions=open_questions,
         pulse=pulse,
     )
+
+
+# =============================================================================
+# Layer 5: Entity relationship hints (graph neighborhoods)
+# =============================================================================
+
+
+async def _build_relationship_hints(
+    project_id: UUID,
+    entity_inventory: dict[str, list[dict]],
+    max_seeds: int = 5,
+    max_related_per_seed: int = 4,
+) -> str:
+    """Build relationship hint text from graph neighborhoods of top entities.
+
+    Picks diverse seed entities (1 per type, preferring confirmed, most recent)
+    and shows their graph relationships so the extractor understands entity
+    connectivity — helps merge instead of duplicate, detect implicit links.
+
+    Args:
+        project_id: Project UUID
+        entity_inventory: Pre-loaded entity inventory from Layer 1
+        max_seeds: Max seed entities to expand
+        max_related_per_seed: Max related entities per seed
+
+    Returns:
+        Formatted prompt string showing relationship clusters
+    """
+    if not entity_inventory:
+        return ""
+
+    try:
+        from app.db.graph_queries import get_entity_neighborhood
+
+        # Pick 1 seed per entity type — prefer confirmed, then any
+        seeds: list[tuple[str, str, str]] = []  # (entity_id, entity_type, entity_name)
+        priority_types = ["feature", "persona", "workflow", "business_driver", "stakeholder"]
+
+        for etype in priority_types:
+            entities = entity_inventory.get(etype, [])
+            if not entities:
+                continue
+
+            # Prefer confirmed entities
+            confirmed = [
+                e for e in entities
+                if str(e.get("confirmation_status", "")).startswith("confirmed")
+            ]
+            pick = confirmed[0] if confirmed else entities[0]
+            seeds.append((pick["id"], etype, pick.get("name", "unnamed")))
+
+            if len(seeds) >= max_seeds:
+                break
+
+        if not seeds:
+            return ""
+
+        # Expand each seed in parallel via threadpool
+        async def _expand(entity_id: str, entity_type: str) -> dict:
+            return await asyncio.to_thread(
+                get_entity_neighborhood,
+                entity_id=UUID(entity_id),
+                entity_type=entity_type,
+                project_id=project_id,
+                max_related=max_related_per_seed,
+                depth=1,
+                apply_confidence=True,
+            )
+
+        results = await asyncio.gather(
+            *[_expand(eid, etype) for eid, etype, _ in seeds],
+            return_exceptions=True,
+        )
+
+        # Format output
+        lines = ["## Entity Relationship Map (Top Connected Clusters)"]
+        has_content = False
+
+        for (eid, etype, ename), result in zip(seeds, results):
+            if isinstance(result, Exception) or not result:
+                continue
+
+            related = result.get("related", [])
+            if not related:
+                continue
+
+            has_content = True
+            entity_data = result.get("entity", {})
+            status = entity_data.get("confirmation_status", "")
+            status_tag = f" [{status}]" if status else ""
+            lines.append(f"\n### {etype}: \"{ename}\"{status_tag}")
+
+            for rel in related[:max_related_per_seed]:
+                rel_type = rel.get("entity_type", "?")
+                rel_name = rel.get("entity_name", "?")
+                relationship = rel.get("relationship", "co_occurrence")
+                weight = rel.get("weight", 0)
+                strength = rel.get("strength", "weak")
+                certainty = rel.get("certainty", "")
+                cert_tag = f", {certainty}" if certainty else ""
+                lines.append(
+                    f"  → {rel_type}: \"{rel_name}\" ({relationship}, weight={weight}, {strength}{cert_tag})"
+                )
+
+        if not has_content:
+            return ""
+
+        return "\n".join(lines)
+
+    except Exception as e:
+        logger.debug(f"Relationship hints build failed: {e}")
+        return ""
 
 
 # =============================================================================
@@ -441,7 +560,11 @@ async def _build_gaps_layer(
         project_data: Pre-loaded project data (avoids duplicate DB call)
     """
     try:
-        from app.core.action_engine import _build_structural_gaps, _detect_context_phase, _load_project_data
+        from app.core.action_engine import (
+            _build_structural_gaps,
+            _detect_context_phase,
+            _load_project_data,
+        )
 
         if project_data is not None:
             data = project_data

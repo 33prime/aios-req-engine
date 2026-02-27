@@ -5,9 +5,9 @@ Risk Enrichment Chain - Enriches risk records with mitigation analysis.
 from typing import Any, Literal
 from uuid import UUID
 
+from langchain_anthropic import ChatAnthropic
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_core.output_parsers import PydanticOutputParser
-from langchain_anthropic import ChatAnthropic
 from pydantic import BaseModel, Field
 
 from app.core.config import get_settings
@@ -63,6 +63,21 @@ async def enrich_risk(risk_id: UUID, project_id: UUID, depth: str = "standard") 
                     signal_context.append(chunks[0].get("content", "")[:1500])
             except Exception:
                 pass
+
+        # Add graph neighborhood context (Tier 2.5)
+        try:
+            from app.chains._graph_context import build_graph_context_block
+            graph_block = build_graph_context_block(
+                entity_id=str(risk_id),
+                entity_type="risk",
+                project_id=str(project_id),
+                entity_types=["feature", "constraint", "business_driver"],
+                apply_confidence=True,
+            )
+            if graph_block:
+                signal_context.append(f"\n{graph_block}")
+        except Exception:
+            pass  # Non-blocking
 
         context_str = "\n\n".join(signal_context)
 

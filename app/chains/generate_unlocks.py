@@ -395,18 +395,27 @@ async def generate_unlocks(project_id: UUID) -> list[dict[str, Any]]:
                 project_id=str(project_id),
                 entity_types=["workflow", "feature"],
                 skip_evaluation=True, skip_reranking=True,
+                graph_depth=2,
+                apply_recency=True,
+                apply_confidence=True,
             ),
             retrieve(
                 query="competitive advantage differentiation market position",
                 project_id=str(project_id),
                 entity_types=["competitor", "business_driver"],
                 skip_evaluation=True, skip_reranking=True,
+                graph_depth=2,
+                apply_recency=True,
+                apply_confidence=True,
             ),
             retrieve(
                 query="vision future state transformation scale",
                 project_id=str(project_id),
                 entity_types=["feature", "business_driver"],
                 skip_evaluation=True, skip_reranking=True,
+                graph_depth=2,
+                apply_recency=True,
+                apply_confidence=True,
             ),
         )
         tier_evidence = []

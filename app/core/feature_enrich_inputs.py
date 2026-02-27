@@ -114,6 +114,7 @@ def build_feature_enrich_prompt(
     chunks: list[dict[str, Any]],
     include_research: bool,
     state_snapshot: str | None = None,
+    graph_context: str = "",
 ) -> str:
     """
     Build the prompt for feature enrichment.
@@ -146,14 +147,22 @@ def build_feature_enrich_prompt(
             "",
         ])
 
+    # Add graph relationship context (Tier 2.5)
+    if graph_context:
+        prompt_parts.extend([
+            "## Related Entities (Graph Context)",
+            graph_context,
+            "",
+        ])
+
     prompt_parts.extend([
-        f"# Feature Enrichment Task",
-        f"",
+        "# Feature Enrichment Task",
+        "",
         f"**Feature to enrich:** {feature_name}",
         f"**Category:** {feature_category}",
         f"**MVP Status:** {'Yes' if is_mvp else 'No'}",
         f"**Current Description:** {current_description}",
-        f"",
+        "",
     ])
 
     # Add resolved decisions from confirmations
@@ -163,8 +172,8 @@ def build_feature_enrich_prompt(
     ]
     if resolved_decisions:
         prompt_parts.extend([
-            f"## Resolved Decisions (Reference Only)",
-            f"These decisions have already been confirmed - use them for context but do not re-question:",
+            "## Resolved Decisions (Reference Only)",
+            "These decisions have already been confirmed - use them for context but do not re-question:",
         ])
         for decision in resolved_decisions[:5]:  # Limit to 5 most recent
             prompt_parts.append(f"- **{decision.get('title', 'Unknown')}**: {decision.get('why', '')}")
@@ -173,8 +182,8 @@ def build_feature_enrich_prompt(
     # Add extracted facts
     if facts:
         prompt_parts.extend([
-            f"## Extracted Facts",
-            f"Recent facts extracted from signals:",
+            "## Extracted Facts",
+            "Recent facts extracted from signals:",
         ])
         for fact in facts[:10]:  # Limit to 10 facts
             summary = fact.get("summary", "")
@@ -185,11 +194,11 @@ def build_feature_enrich_prompt(
     # Add context chunks
     if chunks:
         prompt_parts.extend([
-            f"## Supporting Context",
+            "## Supporting Context",
             f"Relevant excerpts from project signals{' (including research)' if include_research else ''}:",
-            f"",
-            f"Each chunk has a chunk_id in [ID:uuid] format that you MUST use when referencing evidence.",
-            f"",
+            "",
+            "Each chunk has a chunk_id in [ID:uuid] format that you MUST use when referencing evidence.",
+            "",
         ])
         for i, chunk in enumerate(chunks[:20], 1):  # Limit to 20 chunks
             chunk_id = chunk.get("chunk_id", "")
@@ -203,30 +212,30 @@ def build_feature_enrich_prompt(
 
     # Add output instructions
     prompt_parts.extend([
-        f"## Enrichment Instructions",
-        f"Analyze this feature and provide structured enrichment details. Focus on:",
-        f"",
-        f"1. **Summary**: Concise description of the feature's purpose and scope",
-        f"2. **Data Requirements**: Entities and fields this feature needs",
-        f"3. **Business Rules**: Logic and validation rules",
-        f"4. **Acceptance Criteria**: What must be true for this feature to be complete",
-        f"5. **Dependencies**: Other features, systems, or processes required",
-        f"6. **Integrations**: External systems this feature connects to",
-        f"7. **Telemetry Events**: Events this feature should emit for monitoring",
-        f"8. **Risks**: Potential issues and their mitigations",
-        f"",
-        f"**IMPORTANT RULES:**",
-        f"- Every item MUST include evidence references (chunk_id + excerpt + rationale)",
-        f"- chunk_id MUST be an exact UUID copied from the [ID:uuid] prefix in Supporting Context above",
-        f"- DO NOT make up or fabricate chunk_ids - only use the exact UUIDs provided",
-        f"- If no chunks support a section, use an empty evidence array []",
-        f"- Excerpts must be verbatim from the provided chunks (max 280 chars)",
-        f"- Empty arrays are allowed if no evidence exists for a section",
-        f"- Do not make assumptions - base everything on provided context",
-        f"- If information is unclear, add to open_questions instead of guessing",
-        f"",
-        f"## Output Format",
-        f"Output ONLY valid JSON matching the required schema. No markdown, no explanation.",
+        "## Enrichment Instructions",
+        "Analyze this feature and provide structured enrichment details. Focus on:",
+        "",
+        "1. **Summary**: Concise description of the feature's purpose and scope",
+        "2. **Data Requirements**: Entities and fields this feature needs",
+        "3. **Business Rules**: Logic and validation rules",
+        "4. **Acceptance Criteria**: What must be true for this feature to be complete",
+        "5. **Dependencies**: Other features, systems, or processes required",
+        "6. **Integrations**: External systems this feature connects to",
+        "7. **Telemetry Events**: Events this feature should emit for monitoring",
+        "8. **Risks**: Potential issues and their mitigations",
+        "",
+        "**IMPORTANT RULES:**",
+        "- Every item MUST include evidence references (chunk_id + excerpt + rationale)",
+        "- chunk_id MUST be an exact UUID copied from the [ID:uuid] prefix in Supporting Context above",
+        "- DO NOT make up or fabricate chunk_ids - only use the exact UUIDs provided",
+        "- If no chunks support a section, use an empty evidence array []",
+        "- Excerpts must be verbatim from the provided chunks (max 280 chars)",
+        "- Empty arrays are allowed if no evidence exists for a section",
+        "- Do not make assumptions - base everything on provided context",
+        "- If information is unclear, add to open_questions instead of guessing",
+        "",
+        "## Output Format",
+        "Output ONLY valid JSON matching the required schema. No markdown, no explanation.",
     ])
 
     return "\n".join(prompt_parts)
@@ -301,6 +310,25 @@ def get_feature_enrich_context(
         include_research=include_research,
     )
 
+    # Build per-feature graph neighborhood blocks (Tier 2.5)
+    graph_blocks: dict[str, str] = {}
+    try:
+        from app.chains._graph_context import build_graph_context_block
+
+        for feature in features:
+            fid = str(feature.get("id", ""))
+            if fid:
+                graph_blocks[fid] = build_graph_context_block(
+                    entity_id=fid,
+                    entity_type="feature",
+                    project_id=str(project_id),
+                    entity_types=["persona", "business_driver", "workflow", "data_entity"],
+                    apply_recency=True,
+                    apply_confidence=True,
+                )
+    except Exception:
+        pass  # Non-blocking — graph context is supplemental
+
     context = {
         "features": features,
         "facts": facts,
@@ -309,6 +337,7 @@ def get_feature_enrich_context(
         "chunks": chunks,
         "state_snapshot": state_snapshot,
         "include_research": include_research,
+        "graph_blocks": graph_blocks,
     }
 
     logger.info(

@@ -382,6 +382,8 @@ async def synthesize_questions(
                 ],
                 context_hint=context_hint,
                 max_rounds=2,
+                graph_depth=2,
+                apply_confidence=True,
             )
             evidence = format_retrieval_for_context(
                 result, style="generation", max_tokens=3000

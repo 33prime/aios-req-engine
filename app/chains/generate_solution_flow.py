@@ -907,6 +907,9 @@ async def generate_solution_flow(
             evaluation_criteria="Need: current pain, desired outcome, user goals, technical constraints",
             context_hint="generating solution architecture",
             skip_reranking=True,
+            graph_depth=2,
+            apply_recency=True,
+            apply_confidence=True,
         )
         retrieval_evidence = format_retrieval_for_context(
             retrieval_result, style="generation", max_tokens=2000

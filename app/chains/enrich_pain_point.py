@@ -135,6 +135,8 @@ async def enrich_pain_point(
             entity_type="business_driver",
             project_id=str(project_id),
             entity_types=["persona", "vp_step", "feature"],
+            apply_recency=True,
+            apply_confidence=True,
         )
 
         # Get existing pain points for merge detection

@@ -119,6 +119,8 @@ def enrich_vp_step(
     )
 
     # Build prompt with full project context
+    graph_blocks = context.get("graph_blocks", {})
+    step_graph = graph_blocks.get(str(step.get("id", "")), "")
     prompt = build_vp_enrich_prompt(
         step=step,
         canonical_vp=context["canonical_vp"],
@@ -127,6 +129,7 @@ def enrich_vp_step(
         chunks=context["chunks"],
         include_research=context.get("include_research", False),
         state_snapshot=context.get("state_snapshot"),
+        graph_context=step_graph,
     )
 
     # Use override if provided, else fall back to settings

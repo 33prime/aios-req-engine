@@ -166,6 +166,8 @@ async def enrich_kpi(
             entity_type="business_driver",
             project_id=str(project_id),
             entity_types=["persona", "vp_step", "feature"],
+            apply_recency=True,
+            apply_confidence=True,
         )
 
         # Get existing KPIs for merge detection

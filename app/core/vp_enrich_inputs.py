@@ -122,7 +122,7 @@ def retrieve_supporting_chunks(
         )
     else:
         logger.warning(
-            f"No chunks retrieved for VP enrichment - checking why",
+            "No chunks retrieved for VP enrichment - checking why",
             extra={"project_id": str(project_id), "include_research": include_research},
         )
 
@@ -137,6 +137,7 @@ def build_vp_enrich_prompt(
     chunks: list[dict[str, Any]],
     include_research: bool,
     state_snapshot: str | None = None,
+    graph_context: str = "",
 ) -> str:
     """
     Build the prompt for VP step enrichment.
@@ -171,15 +172,23 @@ def build_vp_enrich_prompt(
             "",
         ])
 
+    # Add graph relationship context (Tier 2.5)
+    if graph_context:
+        prompt_parts.extend([
+            "## Related Entities (Graph Context)",
+            graph_context,
+            "",
+        ])
+
     prompt_parts.extend([
-        f"# Value Path Step Enrichment Task",
-        f"",
+        "# Value Path Step Enrichment Task",
+        "",
         f"**Step to enrich:** Step {step_index} - {step_label}",
         f"**Current Description:** {step_description}",
         f"**UI Overview:** {step_ui_overview}",
         f"**Value Created:** {step_value_created}",
         f"**KPI Impact:** {step_kpi_impact}",
-        f"",
+        "",
     ])
 
     # Add resolved decisions from confirmations
@@ -189,8 +198,8 @@ def build_vp_enrich_prompt(
     ]
     if resolved_decisions:
         prompt_parts.extend([
-            f"## Resolved Decisions (Reference Only)",
-            f"These decisions have already been confirmed - use them for context but do not re-question:",
+            "## Resolved Decisions (Reference Only)",
+            "These decisions have already been confirmed - use them for context but do not re-question:",
         ])
         for decision in resolved_decisions[:5]:  # Limit to 5 most recent
             prompt_parts.append(f"- **{decision.get('title', 'Unknown')}**: {decision.get('why', '')}")
@@ -200,8 +209,8 @@ def build_vp_enrich_prompt(
     other_steps = [s for s in canonical_vp if s["id"] != step["id"]]
     if other_steps:
         prompt_parts.extend([
-            f"## Related Value Path Steps",
-            f"Context from other steps in this value path:",
+            "## Related Value Path Steps",
+            "Context from other steps in this value path:",
         ])
         for other in other_steps[:3]:  # Limit to 3 related steps
             other_desc = other.get("description", "")
@@ -213,8 +222,8 @@ def build_vp_enrich_prompt(
     # Add extracted facts
     if facts:
         prompt_parts.extend([
-            f"## Extracted Facts",
-            f"Recent facts extracted from signals:",
+            "## Extracted Facts",
+            "Recent facts extracted from signals:",
         ])
         for fact in facts[:8]:  # Limit to 8 facts
             summary = fact.get("summary", "")
@@ -225,7 +234,7 @@ def build_vp_enrich_prompt(
     # Add context chunks
     if chunks:
         prompt_parts.extend([
-            f"## Supporting Context",
+            "## Supporting Context",
             f"Relevant excerpts from project signals{' (including research)' if include_research else ''}:",
         ])
         for i, chunk in enumerate(chunks[:15], 1):  # Limit to 15 chunks
@@ -245,32 +254,32 @@ def build_vp_enrich_prompt(
     step_instructions = get_step_specific_instructions(step_label, step_description)
     if step_instructions:
         prompt_parts.extend([
-            f"## Step-Specific Instructions",
+            "## Step-Specific Instructions",
             step_instructions,
-            f"",
+            "",
         ])
 
     # Add output instructions
     prompt_parts.extend([
-        f"## Enrichment Instructions",
-        f"Analyze this Value Path step and provide enrichment details. Focus on:",
-        f"",
-        f"1. **Enhanced Fields**: Improve description, UI overview, value created, KPI impact, and experiments",
-        f"2. **Proposed Needs**: Suggest additional needed items if gaps are identified",
-        f"",
-        f"**IMPORTANT RULES:**",
-        f"- Do NOT change the step's status or any canonical fields",
-        f"- Enhanced fields should improve clarity and add implementation details",
-        f"- Proposed needs should only be added if there are genuine gaps in understanding",
-        f"- Every proposal MUST include evidence references (chunk_id + excerpt + rationale)",
-        f"- chunk_id MUST be copied exactly from the [ID:uuid] prefix in Supporting Context above",
-        f"- DO NOT fabricate or make up chunk_ids - only use the exact UUIDs provided",
-        f"- If no chunks support a section, use an empty evidence array []",
-        f"- Excerpts must be verbatim from the provided chunks (max 280 chars)",
-        f"- If no improvements are needed, return minimal enhancements",
-        f"",
-        f"## Output Format",
-        f"Output ONLY valid JSON matching the required schema. No markdown, no explanation.",
+        "## Enrichment Instructions",
+        "Analyze this Value Path step and provide enrichment details. Focus on:",
+        "",
+        "1. **Enhanced Fields**: Improve description, UI overview, value created, KPI impact, and experiments",
+        "2. **Proposed Needs**: Suggest additional needed items if gaps are identified",
+        "",
+        "**IMPORTANT RULES:**",
+        "- Do NOT change the step's status or any canonical fields",
+        "- Enhanced fields should improve clarity and add implementation details",
+        "- Proposed needs should only be added if there are genuine gaps in understanding",
+        "- Every proposal MUST include evidence references (chunk_id + excerpt + rationale)",
+        "- chunk_id MUST be copied exactly from the [ID:uuid] prefix in Supporting Context above",
+        "- DO NOT fabricate or make up chunk_ids - only use the exact UUIDs provided",
+        "- If no chunks support a section, use an empty evidence array []",
+        "- Excerpts must be verbatim from the provided chunks (max 280 chars)",
+        "- If no improvements are needed, return minimal enhancements",
+        "",
+        "## Output Format",
+        "Output ONLY valid JSON matching the required schema. No markdown, no explanation.",
     ])
 
     return "\n".join(prompt_parts)
@@ -388,6 +397,25 @@ def get_vp_enrich_context(
         include_research=include_research,
     )
 
+    # Build per-step graph neighborhood blocks (Tier 2.5)
+    graph_blocks: dict[str, str] = {}
+    try:
+        from app.chains._graph_context import build_graph_context_block
+
+        for step in steps:
+            sid = str(step.get("id", ""))
+            if sid:
+                graph_blocks[sid] = build_graph_context_block(
+                    entity_id=sid,
+                    entity_type="vp_step",
+                    project_id=str(project_id),
+                    entity_types=["feature", "persona", "workflow", "data_entity"],
+                    apply_recency=True,
+                    apply_confidence=True,
+                )
+    except Exception:
+        pass  # Non-blocking — graph context is supplemental
+
     context = {
         "steps": steps,
         "canonical_vp": all_steps,
@@ -397,6 +425,7 @@ def get_vp_enrich_context(
         "chunks": chunks,
         "state_snapshot": state_snapshot,
         "include_research": include_research,
+        "graph_blocks": graph_blocks,
     }
 
     logger.info(

@@ -11,15 +11,15 @@ compatibility with the existing enrichment pipeline.
 from typing import Any, Literal
 from uuid import UUID
 
+from langchain_anthropic import ChatAnthropic
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_core.output_parsers import PydanticOutputParser
-from langchain_anthropic import ChatAnthropic
 from pydantic import BaseModel, Field
 
-from app.core.logging import get_logger
 from app.core.config import get_settings
-from app.db.stakeholders import get_stakeholder, update_stakeholder
+from app.core.logging import get_logger
 from app.db.signals import list_signal_chunks
+from app.db.stakeholders import get_stakeholder, update_stakeholder
 
 logger = get_logger(__name__)
 
@@ -72,6 +72,21 @@ async def enrich_stakeholder(stakeholder_id: UUID, project_id: UUID, depth: str 
                     signal_context.append(chunks[0].get("content", "")[:1000])
             except Exception:
                 pass
+
+        # Add graph neighborhood context (Tier 2.5)
+        try:
+            from app.chains._graph_context import build_graph_context_block
+            graph_block = build_graph_context_block(
+                entity_id=str(stakeholder_id),
+                entity_type="stakeholder",
+                project_id=str(project_id),
+                entity_types=["feature", "persona", "business_driver"],
+                apply_confidence=True,
+            )
+            if graph_block:
+                signal_context.append(f"\n{graph_block}")
+        except Exception:
+            pass  # Non-blocking
 
         context_str = "\n\n".join(signal_context)
 

@@ -56,6 +56,8 @@ async def enrich_competitor(ref_id: UUID, project_id: UUID, depth: str = "standa
             entity_id=str(ref_id),
             entity_type="competitor",
             project_id=str(project_id),
+            apply_recency=True,
+            apply_confidence=True,
         )
 
         # Gather context

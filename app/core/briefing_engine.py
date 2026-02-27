@@ -191,6 +191,8 @@ async def compute_intelligence_briefing(
                         include_beliefs=True,
                         evaluation_criteria="Need supporting AND contradicting evidence with quotes",
                         skip_reranking=True,
+                        apply_confidence=True,
+                        apply_recency=True,
                     )
                     evidence = format_retrieval_for_context(retrieval_result, style="analysis", max_tokens=1500)
                     if evidence:

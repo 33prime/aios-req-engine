@@ -60,6 +60,7 @@ async def plan_updates(
                 max_rounds=2,
                 evaluation_criteria="Need original requirements evidence for these features",
                 skip_reranking=True,
+                apply_recency=True,
             )
             discovery_context = format_retrieval_for_context(
                 retrieval_result, style="generation", max_tokens=3000

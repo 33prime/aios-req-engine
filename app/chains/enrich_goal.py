@@ -60,6 +60,8 @@ async def enrich_goal(driver_id: UUID, project_id: UUID, depth: str = "standard"
             entity_type="business_driver",
             project_id=str(project_id),
             entity_types=["persona", "vp_step", "feature"],
+            apply_recency=True,
+            apply_confidence=True,
         )
         evidence = driver.get("evidence", []) or []
         source_signal_ids = driver.get("source_signal_ids", []) or []

@@ -89,6 +89,7 @@ def build_persona_enrich_prompt(
     chunks: list[dict[str, Any]],
     include_research: bool,
     state_snapshot: str | None = None,
+    graph_context: str = "",
 ) -> str:
     """
     Build the prompt for persona enrichment.
@@ -119,6 +120,14 @@ def build_persona_enrich_prompt(
             state_snapshot,
             "",
             "---",
+            "",
+        ])
+
+    # Add graph relationship context (Tier 2.5)
+    if graph_context:
+        prompt_parts.extend([
+            "## Related Entities (Graph Context)",
+            graph_context,
             "",
         ])
 
@@ -303,6 +312,25 @@ def get_persona_enrich_context(
         include_research=include_research,
     )
 
+    # Build per-persona graph neighborhood blocks (Tier 2.5)
+    graph_blocks: dict[str, str] = {}
+    try:
+        from app.chains._graph_context import build_graph_context_block
+
+        for persona in personas:
+            pid = str(persona.get("id", ""))
+            if pid:
+                graph_blocks[pid] = build_graph_context_block(
+                    entity_id=pid,
+                    entity_type="persona",
+                    project_id=str(project_id),
+                    entity_types=["feature", "vp_step", "stakeholder", "workflow"],
+                    apply_recency=True,
+                    apply_confidence=True,
+                )
+    except Exception:
+        pass  # Non-blocking — graph context is supplemental
+
     context = {
         "personas": personas,
         "features": features,
@@ -311,6 +339,7 @@ def get_persona_enrich_context(
         "chunks": chunks,
         "state_snapshot": state_snapshot,
         "include_research": include_research,
+        "graph_blocks": graph_blocks,
     }
 
     logger.info(

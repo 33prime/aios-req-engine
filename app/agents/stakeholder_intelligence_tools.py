@@ -152,6 +152,8 @@ def _load_stakeholder_context(stakeholder: dict, project_id: UUID) -> str:
                 skip_reranking=True,
                 skip_evaluation=True,
                 evaluation_criteria="Need: what this person cares about, decisions made, concerns raised",
+                entity_types=["stakeholder", "persona", "feature"],
+                apply_confidence=True,
             ))
             evidence = format_retrieval_for_context(retrieval_result, style="chat", max_tokens=1000)
             if evidence:

@@ -155,6 +155,8 @@ def enrich_feature(
     )
 
     # Build prompt with full project context
+    graph_blocks = context.get("graph_blocks", {})
+    feature_graph = graph_blocks.get(str(feature.get("id", "")), "")
     prompt = build_feature_enrich_prompt(
         project_id=project_id,
         feature=feature,
@@ -163,6 +165,7 @@ def enrich_feature(
         chunks=context["chunks"],
         include_research=context.get("include_research", False),
         state_snapshot=context.get("state_snapshot"),
+        graph_context=feature_graph,
     )
 
     # Use override if provided, else fall back to settings

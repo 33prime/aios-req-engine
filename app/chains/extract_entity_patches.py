@@ -34,10 +34,8 @@ from typing import Any
 from pydantic import ValidationError
 
 from app.core.schemas_entity_patch import (
-    BeliefImpact,
     EntityPatch,
     EntityPatchList,
-    EvidenceRef,
 )
 
 logger = logging.getLogger(__name__)
@@ -222,7 +220,9 @@ EXTRACTION_CONTEXT_TEMPLATE = """{strategy_block}
 
 {memory}
 
-{gaps}"""
+{gaps}
+
+{relationship_hints}"""
 
 
 # =============================================================================
@@ -329,6 +329,7 @@ async def extract_entity_patches(
         entity_inventory=getattr(context_snapshot, "entity_inventory_prompt", "No entity inventory available."),
         memory=getattr(context_snapshot, "memory_prompt", "No memory available."),
         gaps=getattr(context_snapshot, "gaps_prompt", "No gap analysis available."),
+        relationship_hints=getattr(context_snapshot, "relationship_hints_prompt", ""),
     )
 
     system_blocks = [
@@ -586,6 +587,7 @@ async def _extract_single_chunk(
         entity_inventory=getattr(context_snapshot, "entity_inventory_prompt", "No entity inventory available."),
         memory=getattr(context_snapshot, "memory_prompt", "No memory available."),
         gaps=getattr(context_snapshot, "gaps_prompt", "No gap analysis available."),
+        relationship_hints=getattr(context_snapshot, "relationship_hints_prompt", ""),
     )
 
     system_blocks = [
