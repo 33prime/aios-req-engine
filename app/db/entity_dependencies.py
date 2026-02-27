@@ -1,6 +1,6 @@
 """Database operations for entity dependency graph."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from uuid import UUID
 
 from app.core.logging import get_logger
@@ -10,9 +10,9 @@ logger = get_logger(__name__)
 
 
 # Valid entity types
-SOURCE_ENTITY_TYPES = {"persona", "feature", "vp_step", "strategic_context", "stakeholder", "data_entity"}
-TARGET_ENTITY_TYPES = {"persona", "feature", "vp_step", "signal", "research_chunk", "data_entity"}
-DEPENDENCY_TYPES = {"uses", "targets", "derived_from", "informed_by", "actor_of"}
+SOURCE_ENTITY_TYPES = {"persona", "feature", "vp_step", "strategic_context", "stakeholder", "data_entity", "business_driver", "unlock"}
+TARGET_ENTITY_TYPES = {"persona", "feature", "vp_step", "signal", "research_chunk", "data_entity", "business_driver", "unlock"}
+DEPENDENCY_TYPES = {"uses", "targets", "derived_from", "informed_by", "actor_of", "spawns", "enables", "constrains"}
 
 
 def register_dependency(
@@ -59,7 +59,7 @@ def register_dependency(
         "target_entity_id": str(target_id),
         "dependency_type": dependency_type,
         "strength": strength,
-        "updated_at": datetime.now(timezone.utc).isoformat(),
+        "updated_at": datetime.now(UTC).isoformat(),
     }
 
     response = (

@@ -17,7 +17,6 @@ from pydantic import BaseModel, Field
 from app.core.schemas_actions import ContextPhase, TerseAction
 from app.core.schemas_discovery import DiscoveryProbe, NorthStarProgress
 
-
 # =============================================================================
 # Conversation Starter (signal-informed)
 # =============================================================================
@@ -263,6 +262,11 @@ class IntelligenceBriefing(BaseModel):
     # Discovery Protocol (Phase 3c)
     north_star_progress: NorthStarProgress | None = None
     discovery_probes: list[DiscoveryProbe] = Field(default_factory=list)
+
+    # Horizon Intelligence
+    compound_decisions: list[dict] = Field(default_factory=list)
+    outcome_trajectory: dict | None = None
+    horizon_summary: dict | None = None
 
     # Metadata
     computed_at: datetime = Field(default_factory=datetime.utcnow)

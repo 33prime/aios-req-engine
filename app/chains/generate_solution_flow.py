@@ -991,6 +991,26 @@ async def generate_solution_flow(
     except Exception:
         pass
 
+    # Crystallize horizons on first generation (fire-and-forget, non-fatal)
+    try:
+        from app.core.horizon_crystallization import crystallize_horizons
+
+        async def _crystallize():
+            try:
+                await crystallize_horizons(project_id)
+            except Exception as e:
+                logger.debug(f"Horizon crystallization failed (non-fatal): {e}")
+
+        import threading
+
+        def _run_crystallize():
+            import asyncio as _aio
+            _aio.run(_crystallize())
+
+        threading.Thread(target=_run_crystallize, daemon=True).start()
+    except Exception:
+        pass
+
     return {
         "flow_id": str(flow_id),
         "summary": summary,

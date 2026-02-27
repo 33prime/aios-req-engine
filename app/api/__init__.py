@@ -63,6 +63,7 @@ from app.api import (
     tasks,
     workspace,
     workspace_discovery,
+    workspace_horizons,
 )
 
 router = APIRouter()
@@ -244,6 +245,9 @@ router.include_router(workspace_discovery.router, tags=["discovery_protocol"])
 
 # Include Prototype Builder routes (payload assembly, plan generation, rendering)
 router.include_router(prototype_builder.router, tags=["prototype_builder"])
+
+# Include Horizon Intelligence routes (H1/H2/H3 tracking, outcomes, measurements)
+router.include_router(workspace_horizons.router, tags=["horizons"])
 
 # Include Debug Graph routes (dev-only — Tier 2.5 diagnostics)
 if os.environ.get("REQ_ENGINE_ENV", "dev") == "dev":

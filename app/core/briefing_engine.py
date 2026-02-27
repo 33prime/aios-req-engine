@@ -103,11 +103,11 @@ async def compute_intelligence_briefing(
     def _run_intelligence_loop():
         """Detect gaps + run sub-phases 2-5 (clustering, fan-out, accuracy, sources)."""
         try:
-            from app.core.gap_detector import detect_gaps as _detect_gaps_sync
-            from app.core.intelligence_loop import run_intelligence_loop
-
             # detect_gaps is async — run its sync internals
             import asyncio as _aio
+
+            from app.core.gap_detector import detect_gaps as _detect_gaps_sync
+            from app.core.intelligence_loop import run_intelligence_loop
             gaps = _aio.run(_detect_gaps_sync(project_id))
             return run_intelligence_loop(gaps, project_id)
         except Exception as e:
@@ -123,9 +123,28 @@ async def compute_intelligence_briefing(
             logger.warning(f"Belief categorization failed (non-fatal): {e}")
             return {}
 
+    def _run_horizon_scan():
+        """Build horizon summary for briefing."""
+        try:
+            from app.core.horizon_briefing import build_horizon_summary
+            return build_horizon_summary(project_id)
+        except Exception as e:
+            logger.warning(f"Horizon scan failed (non-fatal): {e}")
+            return None
+
+    def _run_outcome_trajectory():
+        """Build outcome trajectory for briefing."""
+        try:
+            from app.core.horizon_briefing import build_outcome_trajectory
+            return build_outcome_trajectory(project_id)
+        except Exception as e:
+            logger.warning(f"Outcome trajectory failed (non-fatal): {e}")
+            return None
+
     (
         tensions, scanned_hyps, active_hyps, heartbeat, temporal_diff,
         gap_clusters_raw, categorized_beliefs,
+        horizon_summary, outcome_trajectory,
     ) = await asyncio.gather(
         asyncio.to_thread(_run_tensions),
         asyncio.to_thread(_run_scan),
@@ -134,6 +153,8 @@ async def compute_intelligence_briefing(
         asyncio.to_thread(_run_temporal),
         asyncio.to_thread(_run_intelligence_loop),
         asyncio.to_thread(_run_categorize_beliefs),
+        asyncio.to_thread(_run_horizon_scan),
+        asyncio.to_thread(_run_outcome_trajectory),
     )
 
     hypotheses = _merge_hypotheses(scanned_hyps, active_hyps)
@@ -350,11 +371,31 @@ async def compute_intelligence_briefing(
     # ── Phase 5: Actions (reuse v3 context frame) ──
     actions = _build_terse_actions(structural_gaps, max_actions)
 
-    # ── Phase 5b: Score and rank gap clusters ──
+    # ── Phase 5b: Score and rank gap clusters (with horizon urgency boost) ──
     gap_clusters: list[GapCluster] = []
     gap_stats: dict = {}
+    urgency_multiplier = 0.0
+    try:
+        from app.core.horizon_briefing import compute_urgency_multiplier
+        urgency_multiplier = compute_urgency_multiplier(horizon_summary, outcome_trajectory)
+    except Exception:
+        pass
+
     if gap_clusters_raw:
         gap_clusters, gap_stats = _finalize_gap_clusters(gap_clusters_raw)
+        # Boost priority for gaps affecting H1 blocking outcomes
+        if urgency_multiplier > 0:
+            for gc in gap_clusters:
+                gc.priority_score = round(min(1.0, gc.priority_score + urgency_multiplier), 3)
+            gap_clusters.sort(key=lambda c: c.priority_score, reverse=True)
+
+    # ── Phase 5b2: Compound decision detection ──
+    compound_decisions: list[dict] = []
+    try:
+        from app.core.compound_decisions import detect_compound_decisions
+        compound_decisions = detect_compound_decisions(project_id)[:10]
+    except Exception as e:
+        logger.debug(f"Compound decision detection failed (non-fatal): {e}")
 
     # ── Phase 5c: Build NorthStarProgress ──
     north_star_progress = None
@@ -412,6 +453,9 @@ async def compute_intelligence_briefing(
         gap_stats=gap_stats,
         north_star_progress=north_star_progress,
         discovery_probes=discovery_probes,
+        compound_decisions=compound_decisions,
+        outcome_trajectory=outcome_trajectory,
+        horizon_summary=horizon_summary,
         computed_at=datetime.now(UTC),
         narrative_cached=narrative_cached,
         phase=phase,

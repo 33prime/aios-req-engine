@@ -86,7 +86,7 @@ async def update_unlock_endpoint(project_id: UUID, unlock_id: UUID, body: dict):
 
 @router.post("/unlocks/{unlock_id}/promote")
 async def promote_unlock_endpoint(project_id: UUID, unlock_id: UUID, body: dict | None = None):
-    """Promote an unlock to a feature."""
+    """Promote an unlock to a feature with horizon intelligence."""
     from app.db.unlocks import get_unlock, promote_unlock
 
     unlock = get_unlock(unlock_id)
@@ -105,6 +105,7 @@ async def promote_unlock_endpoint(project_id: UUID, unlock_id: UUID, body: dict 
         "priority_group": priority_group,
         "confirmation_status": "ai_generated",
         "origin": "unlock",
+        "origin_unlock_id": str(unlock_id),
     }
     feat_resp = supabase.table("features").insert(feature_data).execute()
     if not feat_resp.data:
@@ -113,7 +114,21 @@ async def promote_unlock_endpoint(project_id: UUID, unlock_id: UUID, body: dict 
     new_feature = feat_resp.data[0]
     updated_unlock = promote_unlock(unlock_id, project_id, UUID(new_feature["id"]))
 
-    return {"unlock": updated_unlock, "feature": new_feature}
+    # Enhanced promotion: horizon tagging, graph edges, derivative drivers
+    horizon_intel = {}
+    try:
+        from app.core.promotion_pipeline import enhanced_promote_unlock
+
+        horizon_intel = await enhanced_promote_unlock(
+            unlock_id=unlock_id,
+            project_id=project_id,
+            feature_id=UUID(new_feature["id"]),
+            priority_group=priority_group,
+        )
+    except Exception as e:
+        logger.warning(f"Enhanced promotion failed (non-fatal): {e}")
+
+    return {"unlock": updated_unlock, "feature": new_feature, "horizon_intel": horizon_intel}
 
 
 @router.post("/unlocks/{unlock_id}/dismiss")

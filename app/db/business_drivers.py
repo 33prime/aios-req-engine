@@ -1,6 +1,6 @@
 """CRUD operations for business_drivers entity."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any, Literal
 from uuid import UUID
 
@@ -221,7 +221,7 @@ def update_business_driver_status(
 
     updates = {
         "confirmation_status": status,
-        "confirmed_at": datetime.now(timezone.utc).isoformat(),
+        "confirmed_at": datetime.now(UTC).isoformat(),
     }
     if confirmed_by:
         updates["confirmed_by"] = str(confirmed_by)
@@ -361,6 +361,9 @@ def smart_upsert_business_driver(
     success_criteria: str | None = None,
     dependencies: str | None = None,
     owner: str | None = None,
+    # Lineage (horizon intelligence)
+    parent_driver_id: UUID | None = None,
+    spawned_from_unlock_id: UUID | None = None,
 ) -> tuple[UUID, Literal["created", "updated", "merged"]]:
     """
     Smart upsert for business drivers with evidence merging.
@@ -580,6 +583,12 @@ def smart_upsert_business_driver(
             data["timeframe"] = timeframe
         if stakeholder_id is not None:
             data["stakeholder_id"] = str(stakeholder_id)
+
+        # Lineage fields (horizon intelligence)
+        if parent_driver_id is not None:
+            data["parent_driver_id"] = str(parent_driver_id)
+        if spawned_from_unlock_id is not None:
+            data["spawned_from_unlock_id"] = str(spawned_from_unlock_id)
 
         # Type-specific enrichment fields
         if driver_type == "kpi":
