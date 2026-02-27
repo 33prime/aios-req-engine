@@ -15,6 +15,7 @@ from enum import Enum
 from pydantic import BaseModel, Field
 
 from app.core.schemas_actions import ContextPhase, TerseAction
+from app.core.schemas_discovery import DiscoveryProbe, NorthStarProgress
 
 
 # =============================================================================
@@ -258,6 +259,10 @@ class IntelligenceBriefing(BaseModel):
     # Intelligence Loop (Phase 5)
     gap_clusters: list[GapCluster] = Field(default_factory=list)
     gap_stats: dict = Field(default_factory=dict)
+
+    # Discovery Protocol (Phase 3c)
+    north_star_progress: NorthStarProgress | None = None
+    discovery_probes: list[DiscoveryProbe] = Field(default_factory=list)
 
     # Metadata
     computed_at: datetime = Field(default_factory=datetime.utcnow)

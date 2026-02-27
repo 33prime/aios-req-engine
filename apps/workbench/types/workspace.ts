@@ -1738,6 +1738,17 @@ export interface ConversationStarter {
   generated_at?: string | null
 }
 
+export interface DiscoveryProbe {
+  probe_id: string
+  category: string
+  context: string
+  question: string
+  why: string
+  linked_belief_ids?: string[]
+  linked_gap_cluster_ids?: string[]
+  priority: number
+}
+
 export interface IntelligenceBriefing {
   situation: BriefingSituation
   what_changed: TemporalDiff
@@ -1747,6 +1758,8 @@ export interface IntelligenceBriefing {
   heartbeat: ProjectHeartbeat
   actions: TerseAction[]
   conversation_starters?: ConversationStarter[]
+  discovery_probes?: DiscoveryProbe[]
+  north_star_progress?: Record<string, any> | null
   computed_at: string
   narrative_cached: boolean
   phase: string

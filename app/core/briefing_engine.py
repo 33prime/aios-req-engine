@@ -114,9 +114,18 @@ async def compute_intelligence_briefing(
             logger.warning(f"Intelligence loop failed (non-fatal): {e}")
             return []
 
+    def _run_categorize_beliefs():
+        """Categorize beliefs into North Star categories."""
+        try:
+            from app.core.discovery_protocol import categorize_beliefs
+            return categorize_beliefs(project_id)
+        except Exception as e:
+            logger.warning(f"Belief categorization failed (non-fatal): {e}")
+            return {}
+
     (
         tensions, scanned_hyps, active_hyps, heartbeat, temporal_diff,
-        gap_clusters_raw,
+        gap_clusters_raw, categorized_beliefs,
     ) = await asyncio.gather(
         asyncio.to_thread(_run_tensions),
         asyncio.to_thread(_run_scan),
@@ -124,6 +133,7 @@ async def compute_intelligence_briefing(
         asyncio.to_thread(_run_heartbeat),
         asyncio.to_thread(_run_temporal),
         asyncio.to_thread(_run_intelligence_loop),
+        asyncio.to_thread(_run_categorize_beliefs),
     )
 
     hypotheses = _merge_hypotheses(scanned_hyps, active_hyps)
@@ -249,14 +259,42 @@ async def compute_intelligence_briefing(
         except Exception as e:
             logger.warning(f"Knowledge classification failed (non-fatal): {e}")
 
+    async def _run_discovery_protocol() -> tuple:
+        """Discovery Protocol: classify uncategorized beliefs, score ambiguity, generate probes."""
+        from app.core.discovery_protocol import classify_uncategorized_beliefs, score_ambiguity
+
+        try:
+            # Classify uncategorized beliefs via Haiku if needed
+            classified = await classify_uncategorized_beliefs(categorized_beliefs)
+
+            # Score ambiguity (deterministic)
+            ambiguity_scores = score_ambiguity(project_id, classified, gap_clusters_raw)
+
+            # Generate probes for high-ambiguity categories
+            from app.chains.generate_discovery_probes import generate_discovery_probes
+            probes = await generate_discovery_probes(
+                ambiguity_scores, classified, gap_clusters_raw, str(project_id),
+            )
+
+            return ambiguity_scores, probes, classified
+        except Exception as e:
+            logger.warning(f"Discovery protocol failed (non-fatal): {e}")
+            return {}, [], {}
+
     # Fire all LLM calls concurrently
-    temporal_summary, narrative_result, hyp_suggestions, cs_result, _ = await asyncio.gather(
+    (
+        temporal_summary, narrative_result, hyp_suggestions, cs_result, _,
+        discovery_result,
+    ) = await asyncio.gather(
         _run_temporal_summary(),
         _run_narrative(),
         _run_hypothesis_suggestions(),
         _run_conversation_starters(),
         _run_knowledge_classification(),
+        _run_discovery_protocol(),
     )
+
+    ambiguity_scores, discovery_probes, _ = discovery_result
 
     # ── Phase 4: Process results ──
 
@@ -316,6 +354,36 @@ async def compute_intelligence_briefing(
     if gap_clusters_raw:
         gap_clusters, gap_stats = _finalize_gap_clusters(gap_clusters_raw)
 
+    # ── Phase 5c: Build NorthStarProgress ──
+    north_star_progress = None
+    if ambiguity_scores:
+        try:
+            from app.core.discovery_protocol import save_north_star_progress
+            north_star_progress = save_north_star_progress(
+                project_id, ambiguity_scores, probes_generated=len(discovery_probes),
+            )
+        except Exception as e:
+            logger.warning(f"North star progress save failed (non-fatal): {e}")
+
+    # ── Phase 5d: Soft gate — boost probes if clarity is low ──
+    if (
+        north_star_progress
+        and north_star_progress.overall_clarity < 0.5
+        and phase.value in ("empty", "seeding", "exploring")
+        and discovery_probes
+    ):
+        from app.core.schemas_actions import CTAType
+        actions.insert(0, TerseAction(
+            action_id="north_star_gate",
+            sentence="North Star categories need clarification before proceeding to technical requirements",
+            cta_type=CTAType.INLINE_ANSWER,
+            cta_label="Review",
+            gap_source="discovery_protocol",
+            gap_type="north_star",
+            impact_score=0.95,
+            priority=0,
+        ))
+
     # ── Phase 6: Assembly ──
     # Prefer the 5-sentence narrative; fall back to starter summary only if narrative empty
     final_narrative = situation_narrative or cs_result.get("situation_summary", "")
@@ -340,6 +408,8 @@ async def compute_intelligence_briefing(
         conversation_starters=conversation_starters,
         gap_clusters=gap_clusters,
         gap_stats=gap_stats,
+        north_star_progress=north_star_progress,
+        discovery_probes=discovery_probes,
         computed_at=datetime.now(UTC),
         narrative_cached=narrative_cached,
         phase=phase,

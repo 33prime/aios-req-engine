@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useRef } from 'react'
-import { Loader2, Paperclip, Sparkles, Clock, Lightbulb } from 'lucide-react'
+import { Loader2, Paperclip, Sparkles, Clock, Lightbulb, Compass } from 'lucide-react'
 import { useIntelligenceBriefing } from '@/lib/hooks/use-api'
 import { getIntelligenceBriefing } from '@/lib/api'
 import { PHASE_DESCRIPTIONS, CHANGE_TYPE_COLORS } from '@/lib/action-constants'
@@ -129,6 +129,7 @@ export function IntelligenceBriefingPanel({
   const narrative = briefing?.situation?.narrative ?? ''
   const whatChanged = briefing?.what_changed
   const whatYouShouldKnow = briefing?.what_you_should_know
+  const discoveryProbes = briefing?.discovery_probes ?? []
   const hasContent = narrative || starters.length > 0
 
   return (
@@ -162,6 +163,14 @@ export function IntelligenceBriefingPanel({
             {/* What you should know — insight card */}
             {whatYouShouldKnow && (whatYouShouldKnow.narrative || whatYouShouldKnow.bullets.length > 0) && (
               <WhatYouShouldKnowSection data={whatYouShouldKnow} />
+            )}
+
+            {/* Discovery Probes — between insights and conversation starters */}
+            {discoveryProbes.length > 0 && onStartConversation && (
+              <DiscoveryProbesSection
+                probes={discoveryProbes}
+                onStartConversation={onStartConversation}
+              />
             )}
 
             {/* Conversation starter cards */}
@@ -295,6 +304,82 @@ function WhatYouShouldKnowSection({ data }: { data: WhatYouShouldKnow }) {
           ))}
         </div>
       )}
+    </div>
+  )
+}
+
+const PROBE_CATEGORY_STYLES: Record<string, { bg: string; text: string; label: string }> = {
+  organizational_impact: { bg: '#DBEAFE', text: '#1D4ED8', label: 'Org Impact' },
+  human_behavioral_goal: { bg: '#E8F5E9', text: '#25785A', label: 'Behavior' },
+  success_metrics: { bg: '#FEF3C7', text: '#B45309', label: 'Metrics' },
+  cultural_constraints: { bg: '#F3E8FF', text: '#7C3AED', label: 'Culture' },
+}
+
+interface DiscoveryProbe {
+  probe_id: string
+  category: string
+  context: string
+  question: string
+  why: string
+  priority: number
+}
+
+function DiscoveryProbesSection({
+  probes,
+  onStartConversation,
+}: {
+  probes: DiscoveryProbe[]
+  onStartConversation: (starter: ConversationStarter) => void
+}) {
+  if (probes.length === 0) return null
+
+  return (
+    <div className="mx-4 mt-3 mb-2">
+      <div className="flex items-center gap-1.5 mb-2">
+        <Compass className="w-3 h-3 text-brand-primary" />
+        <span className="text-[11px] font-semibold text-[#25785A] uppercase tracking-wide">
+          Discovery Probes
+        </span>
+      </div>
+      <div className="space-y-2">
+        {probes.slice(0, 5).map((probe) => {
+          const style = PROBE_CATEGORY_STYLES[probe.category] || PROBE_CATEGORY_STYLES.organizational_impact
+          return (
+            <button
+              key={probe.probe_id}
+              onClick={() =>
+                onStartConversation({
+                  starter_id: probe.probe_id,
+                  hook: probe.context,
+                  question: probe.question,
+                  action_type: 'deep_dive',
+                  anchors: [],
+                  chat_context: `Discovery probe: ${probe.why}`,
+                  topic_domain: probe.category,
+                  is_fallback: false,
+                  generated_at: null,
+                })
+              }
+              className="w-full text-left rounded-lg border border-[#E5EDE5] bg-[#F8FAF8] p-3 hover:border-brand-primary transition-colors group"
+            >
+              <div className="flex items-center gap-1.5 mb-1">
+                <span
+                  className="text-[9px] rounded-full px-1.5 py-0.5 font-medium"
+                  style={{ backgroundColor: style.bg, color: style.text }}
+                >
+                  {style.label}
+                </span>
+              </div>
+              <p className="text-[12px] font-medium text-[#333] leading-snug group-hover:text-brand-primary transition-colors">
+                {probe.question}
+              </p>
+              {probe.why && (
+                <p className="text-[10px] italic text-[#999] mt-0.5">{probe.why}</p>
+              )}
+            </button>
+          )
+        })}
+      </div>
     </div>
   )
 }

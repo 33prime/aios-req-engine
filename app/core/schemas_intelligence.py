@@ -75,6 +75,8 @@ class IntelligenceOverviewResponse(BaseModel):
     recent_activity: list[RecentActivityItem] = Field(default_factory=list)
     gap_clusters: list[dict] = Field(default_factory=list)
     gap_stats: dict = Field(default_factory=dict)
+    north_star_progress: dict | None = None
+    discovery_probes: list[dict] = Field(default_factory=list)
 
 
 # =============================================================================

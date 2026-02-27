@@ -1,6 +1,75 @@
-"""Pydantic schemas for the Discovery Pipeline."""
+"""Pydantic schemas for the Discovery Pipeline and Discovery Protocol."""
+
+from datetime import datetime
+from enum import Enum
 
 from pydantic import BaseModel, Field
+
+
+# =============================================================================
+# Discovery Protocol — North Star Categorization + Mission Alignment
+# =============================================================================
+
+
+class NorthStarCategory(str, Enum):
+    """The 4 North Star dimensions that frame discovery."""
+
+    ORGANIZATIONAL_IMPACT = "organizational_impact"
+    HUMAN_BEHAVIORAL_GOAL = "human_behavioral_goal"
+    SUCCESS_METRICS = "success_metrics"
+    CULTURAL_CONSTRAINTS = "cultural_constraints"
+
+
+class AmbiguityScore(BaseModel):
+    """Ambiguity assessment for a single North Star category."""
+
+    category: NorthStarCategory
+    score: float  # 0-1 (0=clear, 1=fully ambiguous)
+    belief_count: int  # Total beliefs in this category
+    avg_confidence: float  # Avg belief confidence
+    contradiction_rate: float  # % with contradictions
+    coverage_sparsity: float  # Fraction of entity types with 0 beliefs
+    gap_density: float  # % of gap clusters touching entities in this category
+
+
+class DiscoveryProbe(BaseModel):
+    """A clarifying question targeting a North Star category."""
+
+    probe_id: str  # "probe:{hash[:12]}"
+    category: NorthStarCategory
+    context: str  # 1-2 sentences: why this matters
+    question: str  # The clarifying question
+    why: str  # Why we're asking this specific question
+    linked_belief_ids: list[str] = Field(default_factory=list)
+    linked_gap_cluster_ids: list[str] = Field(default_factory=list)
+    priority: float = 0.0  # Higher = more urgent to resolve
+
+
+class NorthStarProgress(BaseModel):
+    """Discovery progress — stored as JSONB on projects.north_star_progress."""
+
+    category_scores: dict[str, AmbiguityScore] = Field(default_factory=dict)
+    probes_generated: int = 0
+    probes_resolved: int = 0
+    overall_clarity: float = 0.0  # 1 - avg(ambiguity scores)
+    last_computed: datetime | None = None
+
+
+class MissionSignOff(BaseModel):
+    """Mission alignment sign-off — stored as JSONB on projects.north_star_sign_off."""
+
+    consultant_approved: bool = False
+    consultant_approved_at: datetime | None = None
+    consultant_name: str | None = None
+    client_approved: bool = False
+    client_approved_at: datetime | None = None
+    client_name: str | None = None
+    notes: str = ""
+
+
+# =============================================================================
+# Discovery Pipeline — Source Mapping + Enrichment
+# =============================================================================
 
 
 class SourceURL(BaseModel):

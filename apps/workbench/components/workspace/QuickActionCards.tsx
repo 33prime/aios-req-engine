@@ -94,6 +94,22 @@ interface EvidenceData {
   items: EvidenceItem[]
 }
 
+interface DiscoveryProbeData {
+  probe_id: string
+  category: string // "organizational_impact" etc.
+  context: string
+  question: string
+  why: string
+  priority: number
+}
+
+const NORTH_STAR_CATEGORY_STYLES: Record<string, { bg: string; text: string; label: string }> = {
+  organizational_impact: { bg: '#DBEAFE', text: '#1D4ED8', label: 'Org Impact' },
+  human_behavioral_goal: { bg: '#E8F5E9', text: '#25785A', label: 'Behavior' },
+  success_metrics: { bg: '#FEF3C7', text: '#B45309', label: 'Metrics' },
+  cultural_constraints: { bg: '#F3E8FF', text: '#7C3AED', label: 'Culture' },
+}
+
 // =============================================================================
 // Main Renderer
 // =============================================================================
@@ -126,6 +142,8 @@ export function QuickActionCards({ cards, onAction }: QuickActionCardsProps) {
             return <SmartSummaryCard key={card.id} data={card.data} onAction={onAction} />
           case 'evidence':
             return <EvidenceCard key={card.id} data={card.data} onAction={onAction} />
+          case 'discovery_probe':
+            return <DiscoveryProbeCard key={card.id} data={card.data} onAction={onAction} />
           default:
             return null
         }
@@ -604,6 +622,61 @@ function EvidenceItem({ item, onAction }: { item: EvidenceItem; onAction: (cmd: 
             {tag}
           </button>
         ))}
+      </div>
+    </div>
+  )
+}
+
+// =============================================================================
+// Discovery Probe
+// =============================================================================
+
+function DiscoveryProbeCard({ data, onAction }: { data: DiscoveryProbeData; onAction: (cmd: string) => void }) {
+  const [resolved, setResolved] = useState(false)
+  const categoryStyle = NORTH_STAR_CATEGORY_STYLES[data.category] || NORTH_STAR_CATEGORY_STYLES.organizational_impact
+
+  if (resolved) {
+    return (
+      <div className={CARD_RESOLVED}>
+        <CheckCircle2 className="h-3.5 w-3.5 text-brand-primary" />
+        <span className="text-[12px] text-[#25785A] font-medium">Probe resolved</span>
+      </div>
+    )
+  }
+
+  return (
+    <div className={CARD_BASE}>
+      <div className="flex items-center gap-2 mb-2">
+        <span
+          className="text-[10px] rounded-full px-2 py-0.5 font-medium"
+          style={{ backgroundColor: categoryStyle.bg, color: categoryStyle.text }}
+        >
+          {categoryStyle.label}
+        </span>
+      </div>
+      {data.context && (
+        <p className="text-[11px] text-text-muted mb-1.5">{data.context}</p>
+      )}
+      <p className="text-[13px] font-medium text-[#333] mb-1">{data.question}</p>
+      {data.why && (
+        <p className="text-[11px] italic text-[#999] mb-3">{data.why}</p>
+      )}
+      <div className="flex items-center gap-2">
+        <button
+          onClick={() => onAction(data.question)}
+          className={BTN_PRIMARY_OUTLINE}
+        >
+          Discuss in Chat
+        </button>
+        <button
+          onClick={() => {
+            setResolved(true)
+            onAction(`Mark probe resolved: ${data.question.slice(0, 60)}`)
+          }}
+          className={BTN_SECONDARY}
+        >
+          Mark Resolved
+        </button>
       </div>
     </div>
   )
