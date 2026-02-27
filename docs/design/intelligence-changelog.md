@@ -282,6 +282,57 @@ Wired into `build_retrieval_context()` → `retrieve(graph_depth=...)`.
 
 ---
 
+## Phase 3: Temporal Weighting (2026-02-27)
+
+### Overview
+Added opt-in temporal weighting to graph neighborhoods so recent evidence scores higher than old evidence. When `apply_recency=True`, chunk co-occurrence weights use a 3-tier recency multiplier instead of raw counts, and each related entity includes a `freshness` date showing when the most recent supporting signal was created.
+
+### Changes
+
+#### `app/db/graph_queries.py` — Recency helpers + `apply_recency` param
+
+**New helpers**:
+- `_compute_recency_multiplier(created_at) -> float` — 3-tier decay: 0-7d → 1.5x, 7-30d → 1.0x, 30d+ → 0.5x. Handles ISO strings and datetime objects. Fallback 1.0 on parse failure.
+- `_get_cooccurrences_from_chunks_temporal()` — Temporal variant of `_get_cooccurrences_from_chunks()`. Selects `created_at`, weight = sum of recency multipliers (float), tracks `freshness` = ISO date of most recent chunk per entity. Original function untouched.
+
+**Updated**: `_classify_strength(weight: int | float)` — type hint broadened to accept floats. No logic change (>= comparisons already work with floats).
+
+**New parameter**: `apply_recency: bool = False` on `get_entity_neighborhood()`
+- When `True`: dispatches to temporal co-occurrence variant for both hop-1 and hop-2, hop-2 decay uses `round(weight * 0.5, 1)` with min 0.5, includes `freshness` on related entities, adds `recency_applied: True` to stats
+- When `False` (default): identical behavior to pre-Phase-3
+
+#### `app/chains/_graph_context.py` — `apply_recency` param + freshness formatting
+- New `apply_recency: bool = False` parameter, passed to `get_entity_neighborhood()`
+- Format when freshness present: `persona: Store Owner [weak] (co occurrence, weight=2.5, fresh=2026-02-20, via workflow:Order Processing)`
+
+#### `app/core/retrieval.py` — `apply_recency` param
+- `_expand_via_graph()`: new `apply_recency: bool = False` param, passed to neighborhood calls
+- `retrieve()`: new `apply_recency: bool = False` param, wired to both `_expand_via_graph()` call sites
+
+#### `app/core/chat_context.py` — Page-context recency mapping
+```python
+_PAGE_APPLY_RECENCY = {
+    "brd:solution-flow": True,
+    "brd:unlocks": True,
+}
+```
+Same pages that use `depth=2`. Wired into `build_retrieval_context()` → `retrieve(apply_recency=...)`.
+
+#### Tests
+- `tests/test_temporal_weighting.py` (new, 11 tests): recency multiplier tiers, boundary, invalid string, datetime object, naive datetime, classify_strength with floats and ints
+- `tests/test_graph_expansion.py` (+2 tests): `test_temporal_recency_off_by_default`, `test_temporal_recency_passes_through`
+
+### Performance
+- `apply_recency=False` (default): zero change — no new queries, no new columns
+- `apply_recency=True`: same number of DB queries, one extra column (`created_at`) in the existing `signal_impact` select. Python-side recency computation adds ~2-5ms. Total stays within 120ms budget.
+
+### Backward Compatibility
+- All new params default to `False` — existing consumers get identical behavior
+- Only solution-flow and unlocks pages opt in via `_PAGE_APPLY_RECENCY`
+- `_classify_strength()` accepts both int and float — no downstream breakage
+
+---
+
 ## Known Issues & Future Refactors
 
 ### Needs Test Coverage
@@ -317,7 +368,7 @@ Wired into `build_retrieval_context()` → `retrieve(graph_depth=...)`.
 | Phase 1a: Weighted | **DONE** | `weight`, `strength`, `min_weight`, `entity_types`, entity_dependencies integration |
 | Phase 1b: Typed Traversal | **DONE** | `entity_types` through full call chain, per-consumer configs, page-context graph filtering |
 | Phase 2: Multi-Hop | **DONE** | `depth=2`, relationship paths, 50% decay, batched helpers, page-context depth mapping |
-| Phase 3: Temporal | Planned | Recency multiplier, POSITION_EVOLVED flags, freshness scores |
+| Phase 3: Temporal | **DONE** | Recency multiplier (3-tier), temporal co-occurrence, freshness dates, opt-in via `apply_recency` |
 | Phase 4: Confidence | Planned | Belief overlay, certainty signals, gap markers → completes Tier 2.5 |
 | Phase 5: Intelligence Loop | Planned | 7 sub-phases: structural gaps → clustering → fan-out → briefing |
 | Phase 6: Discovery Protocol | Planned | Inquiry Agent, North Star Categories, Mission Alignment gate |

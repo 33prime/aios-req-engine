@@ -8,6 +8,7 @@ FKs and the signal_impact table — no new DB structures needed.
 from __future__ import annotations
 
 import logging
+from datetime import datetime, timezone
 from typing import Any
 from uuid import UUID
 
@@ -44,7 +45,84 @@ _NAME_COL = {
 }
 
 
-def _classify_strength(weight: int) -> str:
+# ── Temporal recency helpers ──
+
+_RECENCY_TIERS = [(7, 1.5), (30, 1.0)]  # 0-7d: 1.5x, 7-30d: 1.0x
+_RECENCY_DEFAULT = 0.5  # 30d+: 0.5x
+
+
+def _compute_recency_multiplier(created_at: str | datetime) -> float:
+    """3-tier recency multiplier: 0-7d → 1.5x, 7-30d → 1.0x, 30d+ → 0.5x.
+
+    Accepts ISO strings or datetime objects. Returns 1.0 on parse failure.
+    """
+    try:
+        if isinstance(created_at, str):
+            dt = datetime.fromisoformat(created_at.replace("Z", "+00:00"))
+        else:
+            dt = created_at
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        age_days = (datetime.now(timezone.utc) - dt).days
+        for threshold, multiplier in _RECENCY_TIERS:
+            if age_days <= threshold:
+                return multiplier
+        return _RECENCY_DEFAULT
+    except Exception:
+        return 1.0
+
+
+def _get_cooccurrences_from_chunks_temporal(
+    sb: Any,
+    chunk_ids: list[str],
+    exclude_entity_id: str,
+    limit: int = 50,
+) -> dict[str, dict]:
+    """Temporal variant of _get_cooccurrences_from_chunks.
+
+    Weight = sum of recency multipliers (float). Tracks freshness = ISO date of
+    most recent shared chunk per entity.
+
+    Returns {entity_id: {entity_id, entity_type, weight (float), freshness (str)}}.
+    """
+    if not chunk_ids:
+        return {}
+    try:
+        cooccur_resp = (
+            sb.table("signal_impact")
+            .select("entity_id, entity_type, created_at")
+            .in_("chunk_id", chunk_ids[:20])
+            .neq("entity_id", exclude_entity_id)
+            .limit(limit)
+            .execute()
+        )
+        seen: dict[str, dict] = {}
+        for row in cooccur_resp.data or []:
+            eid = row["entity_id"]
+            row_created = row.get("created_at", "")
+            multiplier = _compute_recency_multiplier(row_created) if row_created else 1.0
+            if eid not in seen:
+                seen[eid] = {
+                    "entity_id": eid,
+                    "entity_type": row["entity_type"],
+                    "weight": multiplier,
+                    "freshness": row_created[:10] if row_created else "",
+                }
+            else:
+                seen[eid]["weight"] += multiplier
+                # Track most recent
+                if row_created and row_created[:10] > seen[eid]["freshness"]:
+                    seen[eid]["freshness"] = row_created[:10]
+        # Round weights to 1 decimal
+        for ent in seen.values():
+            ent["weight"] = round(ent["weight"], 1)
+        return seen
+    except Exception as e:
+        logger.debug(f"Temporal co-occurrence lookup failed: {e}")
+        return {}
+
+
+def _classify_strength(weight: int | float) -> str:
     """Classify relationship strength from shared chunk count.
 
     - strong: 5+ shared chunks (high co-occurrence)
@@ -158,10 +236,12 @@ def get_entity_neighborhood(
     min_weight: int = 0,
     entity_types: list[str] | None = None,
     depth: int = 1,
+    apply_recency: bool = False,
 ) -> dict[str, Any]:
     """Get an entity and its neighbors via signal co-occurrence + explicit dependencies.
 
     Phase 2: Optional 2-hop traversal with weight decay and path tracking.
+    Phase 3: Optional temporal weighting via apply_recency.
 
     Args:
         entity_id: Entity UUID
@@ -171,6 +251,8 @@ def get_entity_neighborhood(
         min_weight: Minimum shared_chunk_count to include (0 = all)
         entity_types: Optional filter — only return related entities of these types
         depth: Traversal depth (1 = direct neighbors, 2 = neighbors-of-neighbors)
+        apply_recency: When True, weight = sum of recency multipliers (float) and
+            freshness date is included. When False (default), identical to pre-Phase-3.
 
     Returns:
         {
@@ -181,10 +263,11 @@ def get_entity_neighborhood(
                 "entity_type": str,
                 "entity_id": str,
                 "entity_name": str,
-                "weight": int,           # shared chunk count (co-occurrence strength)
+                "weight": int | float,   # int (default) or float (recency)
                 "strength": str,          # "strong" | "moderate" | "weak"
                 "hop": int,              # 1 = direct, 2 = via intermediary
                 "path": list[dict],      # [] for hop-1, [{entity_type, entity_id, entity_name}] for hop-2
+                "freshness": str,        # ISO date of most recent chunk (only when apply_recency=True)
             }],
             "stats": {
                 "total_chunks": int,
@@ -193,6 +276,7 @@ def get_entity_neighborhood(
                 "filtered_by_type": int,
                 "hop2_candidates": int,  # entities found at hop-2 before dedup
                 "hop2_added": int,       # entities added from hop-2 after dedup
+                "recency_applied": bool, # True when apply_recency was used
             }
         }
     """
@@ -229,8 +313,9 @@ def get_entity_neighborhood(
         except Exception as e:
             logger.debug(f"Evidence chunk loading failed: {e}")
 
-    # Find hop-1 co-occurrences
-    hop1_seen = _get_cooccurrences_from_chunks(sb, chunk_ids, seed_id, limit=max_related * 5)
+    # Find hop-1 co-occurrences (temporal variant when recency is enabled)
+    _cooccur_fn = _get_cooccurrences_from_chunks_temporal if apply_recency else _get_cooccurrences_from_chunks
+    hop1_seen = _cooccur_fn(sb, chunk_ids, seed_id, limit=max_related * 5)
 
     stats = {
         "total_chunks": len(chunk_ids),
@@ -239,6 +324,7 @@ def get_entity_neighborhood(
         "filtered_by_type": 0,
         "hop2_candidates": 0,
         "hop2_added": 0,
+        "recency_applied": apply_recency,
     }
 
     # Tag hop-1 entities
@@ -275,7 +361,7 @@ def get_entity_neighborhood(
 
         if hop2_chunk_ids:
             # Single co-occurrence query from all hop-2 chunks
-            raw_hop2 = _get_cooccurrences_from_chunks(
+            raw_hop2 = _cooccur_fn(
                 sb, hop2_chunk_ids, seed_id, limit=max_related * 5,
             )
 
@@ -318,7 +404,10 @@ def get_entity_neighborhood(
                             break
 
                 # Apply 50% weight decay
-                decayed_weight = max(1, int(h2_ent["weight"] * 0.5))
+                if apply_recency:
+                    decayed_weight = max(0.5, round(h2_ent["weight"] * 0.5, 1))
+                else:
+                    decayed_weight = max(1, int(h2_ent["weight"] * 0.5))
                 h2_ent["weight"] = decayed_weight
                 h2_ent["hop"] = 2
                 h2_ent["path"] = []
@@ -362,7 +451,7 @@ def get_entity_neighborhood(
     for rel in ranked:
         if not rel.get("entity_name") and not _TABLE_MAP.get(rel.get("entity_type", "")):
             continue
-        related.append({
+        entry = {
             "relationship": "co_occurrence",
             "entity_type": rel["entity_type"],
             "entity_id": rel["entity_id"],
@@ -371,7 +460,10 @@ def get_entity_neighborhood(
             "strength": _classify_strength(rel["weight"]),
             "hop": rel.get("hop", 1),
             "path": rel.get("path", []),
-        })
+        }
+        if apply_recency and "freshness" in rel:
+            entry["freshness"] = rel["freshness"]
+        related.append(entry)
 
     # Also pull explicit dependencies from entity_dependencies
     try:

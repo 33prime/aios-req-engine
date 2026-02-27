@@ -34,6 +34,13 @@ _PAGE_GRAPH_DEPTH: dict[str, int] = {
     # All other pages default to 1
 }
 
+# Page-context → temporal recency weighting
+# Same pages that use depth=2 benefit from recency-weighted co-occurrence
+_PAGE_APPLY_RECENCY: dict[str, bool] = {
+    "brd:solution-flow": True,
+    "brd:unlocks": True,
+}
+
 
 @dataclass
 class ChatContext:
@@ -77,6 +84,7 @@ async def build_retrieval_context(
 
         entity_types = _PAGE_ENTITY_TYPES.get(page_context or "")
         graph_depth = _PAGE_GRAPH_DEPTH.get(page_context or "", 1)
+        apply_recency = _PAGE_APPLY_RECENCY.get(page_context or "", False)
         retrieval_result = await retrieve(
             query=message,
             project_id=project_id,
@@ -87,6 +95,7 @@ async def build_retrieval_context(
             context_hint=context_hint,
             entity_types=entity_types,
             graph_depth=graph_depth,
+            apply_recency=apply_recency,
         )
         return format_retrieval_for_context(
             retrieval_result, style="chat", max_tokens=2000

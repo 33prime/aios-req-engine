@@ -24,6 +24,7 @@ def build_graph_context_block(
     entity_types: list[str] | None = None,
     min_weight: int = 0,
     depth: int = 1,
+    apply_recency: bool = False,
 ) -> str:
     """Pull graph neighborhood and format as a prompt context block.
 
@@ -37,6 +38,7 @@ def build_graph_context_block(
         entity_types: Only return related entities of these types (None = all)
         min_weight: Minimum co-occurrence weight to include (0 = all)
         depth: Graph traversal depth (1 = direct, 2 = multi-hop)
+        apply_recency: When True, use temporal weighting and include freshness dates
 
     Returns:
         Formatted context string ready to inject into a prompt.
@@ -53,6 +55,7 @@ def build_graph_context_block(
             min_weight=min_weight,
             entity_types=entity_types,
             depth=depth,
+            apply_recency=apply_recency,
         )
     except Exception as e:
         logger.warning(
@@ -93,7 +96,11 @@ def build_graph_context_block(
                     via_label = f", via {via.get('entity_type', '')}:{via.get('entity_name', '')}"
                 else:
                     via_label = ""
-                parts.append(f"  - {etype}: {ename} [{strength}] ({rel_label}, weight={weight}{via_label})")
+                fresh_label = ""
+                freshness = rel.get("freshness", "")
+                if freshness:
+                    fresh_label = f", fresh={freshness}"
+                parts.append(f"  - {etype}: {ename} [{strength}] ({rel_label}, weight={weight}{fresh_label}{via_label})")
 
     block = "\n".join(parts)
 

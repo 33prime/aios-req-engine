@@ -395,3 +395,86 @@ async def test_depth_2_dedup():
     e6_entries = [e for e in out.entities if e.get("entity_id") == E6]
     assert len(e6_entries) == 1
     assert e6_entries[0]["hop"] == 2
+
+
+# ── Phase 3: Temporal recency threading tests ──
+
+
+@pytest.mark.asyncio
+async def test_temporal_recency_off_by_default():
+    """apply_recency=False (default) produces int weights and no freshness field."""
+    result = RetrievalResult(
+        entities=[
+            {"entity_id": E1, "entity_type": "feature", "similarity": 0.95},
+        ],
+        chunks=[],
+    )
+
+    def mock_neighborhood(entity_id, entity_type, project_id, max_related=5, **kwargs):
+        # Verify apply_recency defaults to False
+        assert kwargs.get("apply_recency", False) is False
+        return {
+            "entity": {"id": str(entity_id)},
+            "evidence_chunks": [],
+            "related": [
+                {
+                    "entity_id": E2,
+                    "entity_type": "workflow",
+                    "entity_name": "Order Processing",
+                    "weight": 4,
+                    "strength": "moderate",
+                    "hop": 1,
+                    "path": [],
+                },
+            ],
+        }
+
+    with patch("app.db.graph_queries.get_entity_neighborhood", mock_neighborhood):
+        from app.core.retrieval import _expand_via_graph
+
+        out = await _expand_via_graph(result, PROJECT)
+
+    graph_entities = [e for e in out.entities if e.get("source") == "graph_expansion"]
+    assert len(graph_entities) == 1
+    assert isinstance(graph_entities[0]["weight"], int)
+    assert "freshness" not in graph_entities[0]
+
+
+@pytest.mark.asyncio
+async def test_temporal_recency_passes_through():
+    """apply_recency=True threads to neighborhood calls and freshness appears."""
+    result = RetrievalResult(
+        entities=[
+            {"entity_id": E1, "entity_type": "feature", "similarity": 0.95},
+        ],
+        chunks=[],
+    )
+
+    def mock_neighborhood(entity_id, entity_type, project_id, max_related=5, **kwargs):
+        assert kwargs.get("apply_recency") is True
+        return {
+            "entity": {"id": str(entity_id)},
+            "evidence_chunks": [],
+            "related": [
+                {
+                    "entity_id": E2,
+                    "entity_type": "workflow",
+                    "entity_name": "Order Processing",
+                    "weight": 3.5,
+                    "strength": "moderate",
+                    "hop": 1,
+                    "path": [],
+                    "freshness": "2026-02-25",
+                },
+            ],
+        }
+
+    with patch("app.db.graph_queries.get_entity_neighborhood", mock_neighborhood):
+        from app.core.retrieval import _expand_via_graph
+
+        out = await _expand_via_graph(result, PROJECT, apply_recency=True)
+
+    graph_entities = [e for e in out.entities if e.get("source") == "graph_expansion"]
+    assert len(graph_entities) == 1
+    assert graph_entities[0]["weight"] == 3.5
+    assert graph_entities[0]["freshness"] == "2026-02-25"
