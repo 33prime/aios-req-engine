@@ -596,7 +596,7 @@ def get_tool_definitions() -> List[Dict[str, Any]]:
         # Interactive Action Cards
         {
             "name": "suggest_actions",
-            "description": "Present interactive action cards in the chat UI. You MUST use this for any structured content — never output bullet lists or numbered options as text. Card types: gap_closer, action_buttons, choice, proposal, email_draft, meeting, smart_summary, evidence. Max 3 cards per response.",
+            "description": "Present interactive action cards in the chat UI. You MUST use this for any structured content — never output bullet lists or numbered options as text. Card types: gap_closer, action_buttons, choice, proposal, email_draft, meeting, smart_summary, evidence, discovery_probe. Use discovery_probe when surfacing clarifying questions about North Star categories (organizational impact, behavioral goals, success metrics, cultural constraints). Max 3 cards per response.",
             "input_schema": {
                 "type": "object",
                 "properties": {
@@ -616,6 +616,7 @@ def get_tool_definitions() -> List[Dict[str, Any]]:
                                         "meeting",
                                         "smart_summary",
                                         "evidence",
+                                        "discovery_probe",
                                     ],
                                 },
                                 "id": {"type": "string"},
