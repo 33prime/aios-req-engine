@@ -21,6 +21,8 @@ def build_graph_context_block(
     project_id: str,
     max_chunks: int = 6,
     max_related: int = 8,
+    entity_types: list[str] | None = None,
+    min_weight: int = 0,
 ) -> str:
     """Pull graph neighborhood and format as a prompt context block.
 
@@ -31,6 +33,8 @@ def build_graph_context_block(
         project_id: Project UUID string
         max_chunks: Max evidence chunks to include
         max_related: Max co-occurring entities to include
+        entity_types: Only return related entities of these types (None = all)
+        min_weight: Minimum co-occurrence weight to include (0 = all)
 
     Returns:
         Formatted context string ready to inject into a prompt.
@@ -44,6 +48,8 @@ def build_graph_context_block(
             entity_type=entity_type,
             project_id=UUID(project_id),
             max_related=max_related,
+            min_weight=min_weight,
+            entity_types=entity_types,
         )
     except Exception as e:
         logger.warning(

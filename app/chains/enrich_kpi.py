@@ -159,11 +159,13 @@ async def enrich_kpi(
         logger.info(f"Enriching KPI '{description[:50]}' for project {project_id}")
 
         # ── Tier 2: Graph neighborhood for richer signal context ──
+        # KPI enrichment only needs personas (actors) and vp_steps (workflow context)
         from app.chains._graph_context import build_graph_context_block
         graph_block = build_graph_context_block(
             entity_id=str(driver_id),
             entity_type="business_driver",
             project_id=str(project_id),
+            entity_types=["persona", "vp_step", "feature"],
         )
 
         # Get existing KPIs for merge detection

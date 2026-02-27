@@ -128,11 +128,13 @@ async def enrich_pain_point(
         logger.info(f"Enriching pain point '{description[:50]}' for project {project_id}")
 
         # ── Tier 2: Graph neighborhood for richer signal context ──
+        # Pain enrichment needs personas (affected users) and vp_steps (workflow context)
         from app.chains._graph_context import build_graph_context_block
         graph_block = build_graph_context_block(
             entity_id=str(driver_id),
             entity_type="business_driver",
             project_id=str(project_id),
+            entity_types=["persona", "vp_step", "feature"],
         )
 
         # Get existing pain points for merge detection

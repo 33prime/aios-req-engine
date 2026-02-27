@@ -60,7 +60,7 @@ async def test_expands_top_entities():
 
     calls = []
 
-    def mock_neighborhood(entity_id, entity_type, project_id, max_related=5):
+    def mock_neighborhood(entity_id, entity_type, project_id, max_related=5, **kwargs):
         calls.append(str(entity_id))
         return _neighborhood(str(entity_id))
 
@@ -89,7 +89,7 @@ async def test_deduplicates_entities():
         chunks=[],
     )
 
-    def mock_neighborhood(entity_id, entity_type, project_id, max_related=5):
+    def mock_neighborhood(entity_id, entity_type, project_id, max_related=5, **kwargs):
         return {
             "entity": {"id": str(entity_id)},
             "evidence_chunks": [],
@@ -120,7 +120,7 @@ async def test_deduplicates_chunks():
         chunks=[{"id": "existing-chunk", "content": "existing"}],
     )
 
-    def mock_neighborhood(entity_id, entity_type, project_id, max_related=5):
+    def mock_neighborhood(entity_id, entity_type, project_id, max_related=5, **kwargs):
         return {
             "entity": {"id": str(entity_id)},
             "evidence_chunks": [
@@ -153,7 +153,7 @@ async def test_caps_at_max_total():
     ]
     result = RetrievalResult(entities=seeds, chunks=[])
 
-    def mock_neighborhood(entity_id, entity_type, project_id, max_related=5):
+    def mock_neighborhood(entity_id, entity_type, project_id, max_related=5, **kwargs):
         # Each seed returns 10 related — total would be 30 without cap
         return {
             "entity": {"id": str(entity_id)},
@@ -227,7 +227,7 @@ async def test_marks_source():
         chunks=[],
     )
 
-    def mock_neighborhood(entity_id, entity_type, project_id, max_related=5):
+    def mock_neighborhood(entity_id, entity_type, project_id, max_related=5, **kwargs):
         return {
             "entity": {"id": str(entity_id)},
             "evidence_chunks": [{"id": "graph-chunk-1", "content": "evidence"}],

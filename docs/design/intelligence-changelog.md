@@ -150,6 +150,75 @@ neighborhood = get_entity_neighborhood(
 
 ---
 
+## Phase 1b: Typed Traversal (2026-02-27)
+
+### Overview
+Thread the `entity_types` filter through the full call chain so each consumer gets only the related entity types it needs. This reduces noise in LLM prompts and improves retrieval precision.
+
+### Consumer Analysis
+
+Before Phase 1b, ALL consumers received ALL entity types in their neighborhoods. Now:
+
+| Consumer | File | Entity Types Filter | Rationale |
+|----------|------|-------------------|-----------|
+| KPI enrichment | `enrich_kpi.py` | `["persona", "vp_step", "feature"]` | Only needs actors and workflow context |
+| Goal enrichment | `enrich_goal.py` | `["persona", "vp_step", "feature"]` | Only needs owners and workflow context |
+| Pain enrichment | `enrich_pain_point.py` | `["persona", "vp_step", "feature"]` | Only needs affected users and workflow context |
+| Competitor enrichment | `enrich_competitor.py` | `None` (all types) | Benefits from broad market context |
+| Driver field enhancement | `enhance_driver_field.py` | `None` (all types) | Generic rewrite — all context helps |
+| **Chat retrieval** | `retrieval.py` → `chat_context.py` | **Per-page from `_PAGE_ENTITY_TYPES`** | brd:features→feature+unlock, brd:personas→persona, etc. |
+
+### Changes
+
+#### `app/chains/_graph_context.py` — `build_graph_context_block()`
+- **New params**: `entity_types: list[str] | None = None`, `min_weight: int = 0`
+- Passed through to `get_entity_neighborhood()` call
+- All enrichment chains that call this now have a clean entry point for typed traversal
+
+#### `app/core/retrieval.py` — `_expand_via_graph()`
+- **New param**: `entity_types: list[str] | None = None`
+- Passed through to `get_entity_neighborhood()` via `asyncio.to_thread()`
+- Both call sites in `retrieve()` now pass `entity_types` from the top-level parameter
+- **Key wiring**: `chat_context.py:_PAGE_ENTITY_TYPES` → `retrieve(entity_types=...)` → `_expand_via_graph(entity_types=...)` → `get_entity_neighborhood(entity_types=...)`
+
+#### `app/chains/enrich_kpi.py`, `enrich_goal.py`, `enrich_pain_point.py`
+- Each now passes `entity_types=["persona", "vp_step", "feature"]` to `build_graph_context_block()`
+- These are the only enrichment chains that do downstream field matching against specific entity types
+
+#### `tests/test_graph_expansion.py`
+- Updated 6 mock function signatures to accept `**kwargs` for forward compatibility with new neighborhood params
+
+### Page-Context Entity Type Mapping (existing, now wired to graph expansion)
+
+This mapping in `app/core/chat_context.py` was already used for entity SEARCH filtering. Phase 1b extended it to also filter graph EXPANSION results:
+
+```python
+_PAGE_ENTITY_TYPES = {
+    "brd:features": ["feature", "unlock"],
+    "brd:personas": ["persona"],
+    "brd:workflows": ["workflow", "workflow_step"],
+    "brd:data-entities": ["data_entity"],
+    "brd:stakeholders": ["stakeholder"],
+    "brd:constraints": ["constraint"],
+    "brd:solution-flow": ["solution_flow_step", "feature", "workflow", "unlock"],
+    "brd:business-drivers": ["business_driver"],
+    "brd:unlocks": ["unlock", "feature", "competitor"],
+    "prototype": ["prototype_feedback", "feature"],
+    # Canvas / overview pages get all types (None = no filter)
+}
+```
+
+### Impact
+- **Chat on BRD pages**: Graph expansion now returns only relevant entity types. E.g., when on the Features page, graph expansion only adds features and unlocks — skipping personas, workflows, etc. that would dilute the context.
+- **Enrichment chains**: KPI/Goal/Pain enrichment gets cleaner neighborhoods focused on personas and workflow steps, reducing prompt noise.
+- **No breaking changes**: All params are optional with `None` defaults. Existing consumers that don't pass `entity_types` get the same behavior as before.
+
+### Test Results
+- 7/7 graph expansion tests pass
+- 5/5 tension detector tests pass
+
+---
+
 ## Known Issues & Future Refactors
 
 ### Needs Test Coverage
@@ -170,9 +239,10 @@ neighborhood = get_entity_neighborhood(
 - [ ] `signal_impact` could benefit from a `weight` column to pre-compute co-occurrence strength at ingestion time (Phase 4: temporal weighting)
 
 ### Debt Noted
-- `test_graph_expansion.py` mock still uses `shared_chunks` key — should be updated to `weight` for accuracy
+- `test_graph_expansion.py` mock still uses `shared_chunks` key in mock data — should be updated to `weight` for accuracy (mocks updated with `**kwargs` in Phase 1b)
 - `graph_queries.py` has a comment stub where `detect_tensions()` was removed — can be cleaned up
 - Three divergent stage models: `stage_progression.py` (6), `pulse_engine.py` (5), `schemas_collaboration.py` (7) — needs unification in a future pass
+- `enrich_competitor.py` and `enhance_driver_field.py` still use unfiltered neighborhoods — acceptable for now, could be optimized later if prompts get too long
 
 ---
 
@@ -182,8 +252,8 @@ neighborhood = get_entity_neighborhood(
 |-------|--------|------|
 | Phase 0: Foundation | **DONE** | 7 fixes: pulse bug, contradiction wiring, async, prd cleanup, reflection trigger, convergence→beliefs, tension unification |
 | Phase 1a: Weighted | **DONE** | `weight`, `strength`, `min_weight`, `entity_types`, entity_dependencies integration |
-| Phase 1b: Typed Traversal | NEXT | Per-consumer entity_type configs, caller-specific neighborhood shapes |
-| Phase 2: Multi-Hop | Planned | `depth=2`, relationship paths, 50% decay, fan-out foundation |
+| Phase 1b: Typed Traversal | **DONE** | `entity_types` through full call chain, per-consumer configs, page-context graph filtering |
+| Phase 2: Multi-Hop | NEXT | `depth=2`, relationship paths, 50% decay, fan-out foundation |
 | Phase 3: Temporal | Planned | Recency multiplier, POSITION_EVOLVED flags, freshness scores |
 | Phase 4: Confidence | Planned | Belief overlay, certainty signals, gap markers → completes Tier 2.5 |
 | Phase 5: Intelligence Loop | Planned | 7 sub-phases: structural gaps → clustering → fan-out → briefing |
