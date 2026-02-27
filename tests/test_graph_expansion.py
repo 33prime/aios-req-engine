@@ -246,3 +246,152 @@ async def test_marks_source():
 
     assert len(graph_entities) == 1
     assert graph_chunks[0]["id"] == "graph-chunk-1"
+
+
+# ── Phase 2: Multi-hop traversal tests ──
+
+
+E5 = "00000000-0000-0000-0000-000000000005"
+E6 = "00000000-0000-0000-0000-000000000006"
+
+
+@pytest.mark.asyncio
+async def test_depth_2_traversal():
+    """depth=2 returns hop-2 entities with weight decay and path fields."""
+    result = RetrievalResult(
+        entities=[
+            {"entity_id": E1, "entity_type": "feature", "similarity": 0.95},
+        ],
+        chunks=[],
+    )
+
+    def mock_neighborhood(entity_id, entity_type, project_id, max_related=5, **kwargs):
+        depth = kwargs.get("depth", 1)
+        if depth >= 2:
+            return {
+                "entity": {"id": str(entity_id)},
+                "evidence_chunks": [],
+                "related": [
+                    # hop-1 entity
+                    {
+                        "entity_id": E2,
+                        "entity_type": "workflow",
+                        "entity_name": "Order Processing",
+                        "weight": 4,
+                        "strength": "moderate",
+                        "hop": 1,
+                        "path": [],
+                    },
+                    # hop-2 entity (discovered via E2)
+                    {
+                        "entity_id": E5,
+                        "entity_type": "persona",
+                        "entity_name": "Store Owner",
+                        "weight": 2,
+                        "strength": "weak",
+                        "hop": 2,
+                        "path": [{"entity_type": "workflow", "entity_id": E2, "entity_name": "Order Processing"}],
+                    },
+                ],
+            }
+        return {
+            "entity": {"id": str(entity_id)},
+            "evidence_chunks": [],
+            "related": [
+                {
+                    "entity_id": E2,
+                    "entity_type": "workflow",
+                    "entity_name": "Order Processing",
+                    "weight": 4,
+                    "strength": "moderate",
+                    "hop": 1,
+                    "path": [],
+                },
+            ],
+        }
+
+    with patch("app.db.graph_queries.get_entity_neighborhood", mock_neighborhood):
+        from app.core.retrieval import _expand_via_graph
+
+        out = await _expand_via_graph(result, PROJECT, graph_depth=2)
+
+    # Should have original E1 + graph-expanded E2 + graph-expanded E5
+    entity_ids = [e.get("entity_id", e.get("id", "")) for e in out.entities]
+    assert E1 in entity_ids
+    assert E2 in entity_ids
+    assert E5 in entity_ids
+
+    # Check hop-2 entity has correct fields
+    hop2_entities = [e for e in out.entities if e.get("hop") == 2]
+    assert len(hop2_entities) == 1
+    assert hop2_entities[0]["entity_id"] == E5
+    assert hop2_entities[0]["entity_name"] == "Store Owner"
+    assert hop2_entities[0]["weight"] == 2  # decayed
+    assert len(hop2_entities[0]["path"]) == 1
+    assert hop2_entities[0]["path"][0]["entity_type"] == "workflow"
+
+
+@pytest.mark.asyncio
+async def test_depth_2_dedup():
+    """Entity found at both hop-1 and hop-2 only appears once (hop-1 version)."""
+    result = RetrievalResult(
+        entities=[
+            {"entity_id": E1, "entity_type": "feature", "similarity": 0.95},
+        ],
+        chunks=[],
+    )
+
+    def mock_neighborhood(entity_id, entity_type, project_id, max_related=5, **kwargs):
+        return {
+            "entity": {"id": str(entity_id)},
+            "evidence_chunks": [],
+            "related": [
+                # E2 at hop-1 with weight=4
+                {
+                    "entity_id": E2,
+                    "entity_type": "workflow",
+                    "entity_name": "Order Processing",
+                    "weight": 4,
+                    "strength": "moderate",
+                    "hop": 1,
+                    "path": [],
+                },
+                # E2 also at hop-2 with weight=1 (decayed) — should be deduped
+                {
+                    "entity_id": E2,
+                    "entity_type": "workflow",
+                    "entity_name": "Order Processing",
+                    "weight": 1,
+                    "strength": "weak",
+                    "hop": 2,
+                    "path": [{"entity_type": "persona", "entity_id": E3, "entity_name": "User"}],
+                },
+                # E6 only at hop-2
+                {
+                    "entity_id": E6,
+                    "entity_type": "persona",
+                    "entity_name": "Admin",
+                    "weight": 1,
+                    "strength": "weak",
+                    "hop": 2,
+                    "path": [{"entity_type": "workflow", "entity_id": E2, "entity_name": "Order Processing"}],
+                },
+            ],
+        }
+
+    with patch("app.db.graph_queries.get_entity_neighborhood", mock_neighborhood):
+        from app.core.retrieval import _expand_via_graph
+
+        out = await _expand_via_graph(result, PROJECT, graph_depth=2)
+
+    # E2 should appear only once (as graph_expansion)
+    e2_entries = [e for e in out.entities if e.get("entity_id") == E2]
+    assert len(e2_entries) == 1
+    # Should be the hop-1 version with weight=4
+    assert e2_entries[0]["weight"] == 4
+    assert e2_entries[0]["hop"] == 1
+
+    # E6 should also be present
+    e6_entries = [e for e in out.entities if e.get("entity_id") == E6]
+    assert len(e6_entries) == 1
+    assert e6_entries[0]["hop"] == 2

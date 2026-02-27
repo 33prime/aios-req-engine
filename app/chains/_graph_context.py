@@ -23,6 +23,7 @@ def build_graph_context_block(
     max_related: int = 8,
     entity_types: list[str] | None = None,
     min_weight: int = 0,
+    depth: int = 1,
 ) -> str:
     """Pull graph neighborhood and format as a prompt context block.
 
@@ -35,6 +36,7 @@ def build_graph_context_block(
         max_related: Max co-occurring entities to include
         entity_types: Only return related entities of these types (None = all)
         min_weight: Minimum co-occurrence weight to include (0 = all)
+        depth: Graph traversal depth (1 = direct, 2 = multi-hop)
 
     Returns:
         Formatted context string ready to inject into a prompt.
@@ -50,6 +52,7 @@ def build_graph_context_block(
             max_related=max_related,
             min_weight=min_weight,
             entity_types=entity_types,
+            depth=depth,
         )
     except Exception as e:
         logger.warning(
@@ -83,7 +86,14 @@ def build_graph_context_block(
             relationship = rel.get("relationship", "co_occurrence")
             if ename:
                 rel_label = relationship.replace("_", " ")
-                parts.append(f"  - {etype}: {ename} [{strength}] ({rel_label}, weight={weight})")
+                # Show path for hop-2 entities
+                path = rel.get("path", [])
+                if path:
+                    via = path[0]
+                    via_label = f", via {via.get('entity_type', '')}:{via.get('entity_name', '')}"
+                else:
+                    via_label = ""
+                parts.append(f"  - {etype}: {ename} [{strength}] ({rel_label}, weight={weight}{via_label})")
 
     block = "\n".join(parts)
 

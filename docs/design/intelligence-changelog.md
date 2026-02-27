@@ -219,6 +219,69 @@ _PAGE_ENTITY_TYPES = {
 
 ---
 
+## Phase 2: Multi-Hop Traversal (2026-02-27)
+
+### Overview
+Added optional 2-hop graph traversal so the system discovers indirect relationships (e.g., Feature → Workflow → Persona) that 1-hop misses. Critical for solution-flow and unlocks pages where cross-entity reasoning needs richer context.
+
+### Changes
+
+#### `app/db/graph_queries.py` — Extracted helpers + `depth` param
+
+**New helpers** (refactored from monolithic function):
+- `_get_chunk_ids_for_entity(sb, entity_id, limit=50)` — signal_impact chunk_id lookup
+- `_get_cooccurrences_from_chunks(sb, chunk_ids, exclude_entity_id, limit)` — shared chunk counting
+- `_resolve_entity_names_batch(sb, entities)` — batch name resolution: groups by type, 1 `.in_()` query per type instead of N individual queries
+
+**New parameter**: `depth: int = 1` (1 or 2)
+
+When `depth=2`:
+1. Normal hop-1 via existing helpers
+2. Batched hop-2: single signal_impact query for all hop-1 entity chunk_ids → single co-occurrence query → batch name resolution (3-4 extra DB round-trips, NOT N)
+3. 50% weight decay: `max(1, int(weight * 0.5))` on hop-2 entities
+4. Intermediary mapping: tracks which hop-1 entity bridged to each hop-2 entity via shared chunk overlap
+5. Dedup: hop-1 version wins when entity appears at both depths
+
+**New fields on related entities**:
+- `hop: int` — 1 (direct) or 2 (via intermediary)
+- `path: list[dict]` — empty for hop-1, `[{entity_type, entity_id, entity_name}]` for hop-2
+
+**New stats fields**: `hop2_candidates` (before dedup), `hop2_added` (after dedup)
+
+#### `app/chains/_graph_context.py` — `depth` param + path formatting
+- New `depth: int = 1` parameter, passed to `get_entity_neighborhood()`
+- Hop-2 entities formatted with intermediary: `persona: Store Owner [weak] (co occurrence, weight=2, via workflow:Order Processing)`
+
+#### `app/core/retrieval.py` — `graph_depth` param
+- `_expand_via_graph()`: new `graph_depth: int = 1` param, passed as `depth` to neighborhood calls
+- `retrieve()`: new `graph_depth: int = 1` param, wired to both `_expand_via_graph()` call sites
+
+#### `app/core/chat_context.py` — Page-context graph depth mapping
+```python
+_PAGE_GRAPH_DEPTH = {
+    "brd:solution-flow": 2,
+    "brd:unlocks": 2,
+    # All other pages default to 1
+}
+```
+Wired into `build_retrieval_context()` → `retrieve(graph_depth=...)`.
+
+#### `tests/test_graph_expansion.py` — 2 new tests
+- `test_depth_2_traversal` — verifies hop/path fields, weight decay, multi-hop entity discovery
+- `test_depth_2_dedup` — entity at both hop-1 and hop-2 appears once (hop-1 version, higher weight)
+
+### Performance
+- `depth=1` (default): identical behavior to pre-Phase-2, no extra queries
+- `depth=2`: ~3-4 extra DB round-trips (batched), targeting ~80ms total (vs ~50ms for depth=1)
+- Batch name resolution reduces per-entity queries across both depths
+
+### Backward Compatibility
+- All new params have default values matching pre-Phase-2 behavior
+- `depth=1` produces identical output (hop=1, path=[] on all entities)
+- Existing consumers unaffected — only solution-flow and unlocks pages opt into `depth=2`
+
+---
+
 ## Known Issues & Future Refactors
 
 ### Needs Test Coverage
@@ -229,7 +292,7 @@ _PAGE_ENTITY_TYPES = {
 - [ ] `get_entity_neighborhood()` entity_dependencies integration
 
 ### Performance Optimization Candidates
-- [ ] `get_entity_neighborhood()` loads entity details one-by-one per related entity. Could batch into fewer queries by grouping by entity_type.
+- [x] `get_entity_neighborhood()` loads entity details one-by-one per related entity. → Fixed in Phase 2: `_resolve_entity_names_batch()` groups by type, 1 query per type.
 - [ ] `_should_reflect()` does 2 DB queries on every signal. Could use an in-memory counter per project_id (reset on deploy) as a fast path.
 - [ ] `_record_convergence_facts()` does 2 lookups (session→prototype→project). Could accept `project_id` as param from callers that already have it.
 
@@ -253,7 +316,7 @@ _PAGE_ENTITY_TYPES = {
 | Phase 0: Foundation | **DONE** | 7 fixes: pulse bug, contradiction wiring, async, prd cleanup, reflection trigger, convergence→beliefs, tension unification |
 | Phase 1a: Weighted | **DONE** | `weight`, `strength`, `min_weight`, `entity_types`, entity_dependencies integration |
 | Phase 1b: Typed Traversal | **DONE** | `entity_types` through full call chain, per-consumer configs, page-context graph filtering |
-| Phase 2: Multi-Hop | NEXT | `depth=2`, relationship paths, 50% decay, fan-out foundation |
+| Phase 2: Multi-Hop | **DONE** | `depth=2`, relationship paths, 50% decay, batched helpers, page-context depth mapping |
 | Phase 3: Temporal | Planned | Recency multiplier, POSITION_EVOLVED flags, freshness scores |
 | Phase 4: Confidence | Planned | Belief overlay, certainty signals, gap markers → completes Tier 2.5 |
 | Phase 5: Intelligence Loop | Planned | 7 sub-phases: structural gaps → clustering → fan-out → briefing |

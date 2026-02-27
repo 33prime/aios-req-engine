@@ -26,6 +26,14 @@ _PAGE_ENTITY_TYPES: dict[str, list[str]] = {
     # Canvas / overview pages get all types (None = no filter)
 }
 
+# Page-context → graph traversal depth
+# Solution flow and unlocks benefit from 2-hop to discover indirect relationships
+_PAGE_GRAPH_DEPTH: dict[str, int] = {
+    "brd:solution-flow": 2,
+    "brd:unlocks": 2,
+    # All other pages default to 1
+}
+
 
 @dataclass
 class ChatContext:
@@ -68,6 +76,7 @@ async def build_retrieval_context(
                 context_hint = " ".join(parts)
 
         entity_types = _PAGE_ENTITY_TYPES.get(page_context or "")
+        graph_depth = _PAGE_GRAPH_DEPTH.get(page_context or "", 1)
         retrieval_result = await retrieve(
             query=message,
             project_id=project_id,
@@ -77,6 +86,7 @@ async def build_retrieval_context(
             evaluation_criteria="Enough context to answer the user's question",
             context_hint=context_hint,
             entity_types=entity_types,
+            graph_depth=graph_depth,
         )
         return format_retrieval_for_context(
             retrieval_result, style="chat", max_tokens=2000

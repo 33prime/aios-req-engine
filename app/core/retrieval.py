@@ -365,8 +365,9 @@ async def _expand_via_graph(
     result: RetrievalResult,
     project_id: str,
     entity_types: list[str] | None = None,
+    graph_depth: int = 1,
 ) -> RetrievalResult:
-    """Expand retrieval results with 1-hop graph neighbors from top entities.
+    """Expand retrieval results with graph neighbors from top entities.
 
     Takes the top 3 entities by similarity, fetches their neighborhoods in
     parallel, and merges new entities + evidence chunks into the result.
@@ -376,6 +377,7 @@ async def _expand_via_graph(
         result: Current retrieval results
         project_id: Project UUID string
         entity_types: Only expand with related entities of these types (None = all)
+        graph_depth: Graph traversal depth (1 = direct, 2 = multi-hop)
     """
     if not result.entities:
         return result
@@ -403,6 +405,7 @@ async def _expand_via_graph(
                 UUID(project_id),
                 max_related=5,
                 entity_types=entity_types,
+                depth=graph_depth,
             )
 
         neighborhoods = await asyncio.gather(
@@ -551,6 +554,7 @@ async def retrieve(
     skip_reranking: bool = False,
     skip_evaluation: bool = False,
     include_graph_expansion: bool = True,
+    graph_depth: int = 1,
 ) -> RetrievalResult:
     """THE unified retrieval entry point.
 
@@ -594,7 +598,7 @@ async def retrieve(
 
     # Stage 2.5: Graph expansion (typed traversal — filters by page entity types)
     if include_graph_expansion and include_entities and result.entities:
-        result = await _expand_via_graph(result, project_id, entity_types=entity_types)
+        result = await _expand_via_graph(result, project_id, entity_types=entity_types, graph_depth=graph_depth)
 
     # Stage 3: Rerank (Cohere → Haiku → cosine order)
     if not skip_reranking and len(result.chunks) > top_k:
@@ -648,7 +652,7 @@ async def retrieve(
 
             # Graph expand additional results
             if include_graph_expansion and include_entities and additional.entities:
-                result = await _expand_via_graph(result, project_id, entity_types=entity_types)
+                result = await _expand_via_graph(result, project_id, entity_types=entity_types, graph_depth=graph_depth)
 
             # Re-rerank after merge
             if not skip_reranking and len(result.chunks) > top_k:

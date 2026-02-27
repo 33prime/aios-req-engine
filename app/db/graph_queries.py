@@ -58,6 +58,98 @@ def _classify_strength(weight: int) -> str:
     return "weak"
 
 
+def _get_chunk_ids_for_entity(
+    sb: Any,
+    entity_id: str | UUID,
+    limit: int = 50,
+) -> list[str]:
+    """Look up signal_impact chunk_ids for an entity."""
+    try:
+        impact_resp = (
+            sb.table("signal_impact")
+            .select("chunk_id")
+            .eq("entity_id", str(entity_id))
+            .limit(limit)
+            .execute()
+        )
+        return list({r["chunk_id"] for r in (impact_resp.data or []) if r.get("chunk_id")})
+    except Exception as e:
+        logger.debug(f"signal_impact lookup failed: {e}")
+        return []
+
+
+def _get_cooccurrences_from_chunks(
+    sb: Any,
+    chunk_ids: list[str],
+    exclude_entity_id: str,
+    limit: int = 50,
+) -> dict[str, dict]:
+    """Find co-occurring entities from shared chunks. Returns {entity_id: {entity_id, entity_type, weight}}."""
+    if not chunk_ids:
+        return {}
+    try:
+        cooccur_resp = (
+            sb.table("signal_impact")
+            .select("entity_id, entity_type")
+            .in_("chunk_id", chunk_ids[:20])
+            .neq("entity_id", exclude_entity_id)
+            .limit(limit)
+            .execute()
+        )
+        seen: dict[str, dict] = {}
+        for row in cooccur_resp.data or []:
+            eid = row["entity_id"]
+            if eid not in seen:
+                seen[eid] = {
+                    "entity_id": eid,
+                    "entity_type": row["entity_type"],
+                    "weight": 1,
+                }
+            else:
+                seen[eid]["weight"] += 1
+        return seen
+    except Exception as e:
+        logger.debug(f"Co-occurrence lookup failed: {e}")
+        return {}
+
+
+def _resolve_entity_names_batch(
+    sb: Any,
+    entities: list[dict],
+) -> list[dict]:
+    """Batch name resolution — 1 query per entity type instead of N individual queries.
+
+    Mutates and returns the input dicts with ``entity_name`` added.
+    """
+    # Group by type
+    by_type: dict[str, list[dict]] = {}
+    for ent in entities:
+        etype = ent.get("entity_type", "")
+        by_type.setdefault(etype, []).append(ent)
+
+    for etype, group in by_type.items():
+        table = _TABLE_MAP.get(etype)
+        if not table:
+            continue
+        name_col = _NAME_COL.get(table, "name")
+        ids = [e["entity_id"] for e in group]
+        try:
+            resp = (
+                sb.table(table)
+                .select(f"id, {name_col}")
+                .in_("id", ids)
+                .execute()
+            )
+            name_map = {r["id"]: r.get(name_col, "") for r in (resp.data or [])}
+            for ent in group:
+                ent["entity_name"] = name_map.get(ent["entity_id"], "")
+        except Exception:
+            for ent in group:
+                ent.setdefault("entity_name", "")
+
+    return entities
+
+
 def get_entity_neighborhood(
     entity_id: UUID,
     entity_type: str,
@@ -65,10 +157,11 @@ def get_entity_neighborhood(
     max_related: int = 10,
     min_weight: int = 0,
     entity_types: list[str] | None = None,
+    depth: int = 1,
 ) -> dict[str, Any]:
-    """Get an entity and its 1-hop neighbors via signal co-occurrence + explicit dependencies.
+    """Get an entity and its neighbors via signal co-occurrence + explicit dependencies.
 
-    Phase 1a: Weighted neighborhoods with relationship strength classification.
+    Phase 2: Optional 2-hop traversal with weight decay and path tracking.
 
     Args:
         entity_id: Entity UUID
@@ -77,6 +170,7 @@ def get_entity_neighborhood(
         max_related: Maximum related entities to return
         min_weight: Minimum shared_chunk_count to include (0 = all)
         entity_types: Optional filter — only return related entities of these types
+        depth: Traversal depth (1 = direct neighbors, 2 = neighbors-of-neighbors)
 
     Returns:
         {
@@ -89,12 +183,16 @@ def get_entity_neighborhood(
                 "entity_name": str,
                 "weight": int,           # shared chunk count (co-occurrence strength)
                 "strength": str,          # "strong" | "moderate" | "weak"
+                "hop": int,              # 1 = direct, 2 = via intermediary
+                "path": list[dict],      # [] for hop-1, [{entity_type, entity_id, entity_name}] for hop-2
             }],
             "stats": {
                 "total_chunks": int,
                 "total_co_occurrences": int,
                 "filtered_by_weight": int,
                 "filtered_by_type": int,
+                "hop2_candidates": int,  # entities found at hop-2 before dedup
+                "hop2_added": int,       # entities added from hop-2 after dedup
             }
         }
     """
@@ -113,19 +211,9 @@ def get_entity_neighborhood(
     if not entity:
         return {"entity": {}, "evidence_chunks": [], "related": [], "stats": {}}
 
-    # Find chunk_ids that reference this entity
-    try:
-        impact_resp = (
-            sb.table("signal_impact")
-            .select("chunk_id")
-            .eq("entity_id", str(entity_id))
-            .limit(50)
-            .execute()
-        )
-        chunk_ids = list({r["chunk_id"] for r in (impact_resp.data or []) if r.get("chunk_id")})
-    except Exception as e:
-        logger.debug(f"signal_impact lookup failed: {e}")
-        chunk_ids = []
+    # ── Hop 1: direct co-occurrence ──
+    seed_id = str(entity_id)
+    chunk_ids = _get_chunk_ids_for_entity(sb, seed_id)
 
     # Load evidence chunks
     evidence_chunks: list[dict] = []
@@ -141,91 +229,156 @@ def get_entity_neighborhood(
         except Exception as e:
             logger.debug(f"Evidence chunk loading failed: {e}")
 
-    # Find related entities via shared chunks (co-occurrence)
-    related: list[dict] = []
+    # Find hop-1 co-occurrences
+    hop1_seen = _get_cooccurrences_from_chunks(sb, chunk_ids, seed_id, limit=max_related * 5)
+
     stats = {
         "total_chunks": len(chunk_ids),
-        "total_co_occurrences": 0,
+        "total_co_occurrences": len(hop1_seen),
         "filtered_by_weight": 0,
         "filtered_by_type": 0,
+        "hop2_candidates": 0,
+        "hop2_added": 0,
     }
 
-    if chunk_ids:
+    # Tag hop-1 entities
+    for ent in hop1_seen.values():
+        ent["hop"] = 1
+        ent["path"] = []
+
+    # ── Hop 2: neighbors-of-neighbors ──
+    # Batched: 1 query for all hop-1 chunk_ids, 1 co-occurrence query, 1 batch name resolution
+    hop2_seen: dict[str, dict] = {}
+    if depth >= 2 and hop1_seen:
+        hop1_ids = list(hop1_seen.keys())
+
+        # Single batched signal_impact query for all hop-1 entity chunk_ids
+        # Track which chunks belong to which hop-1 entity for intermediary mapping
+        h1_chunks_by_entity: dict[str, set[str]] = {}
         try:
-            cooccur_resp = (
+            h1_impact_resp = (
                 sb.table("signal_impact")
-                .select("entity_id, entity_type")
-                .in_("chunk_id", chunk_ids[:20])
-                .neq("entity_id", str(entity_id))
-                .limit(max_related * 5)  # Over-fetch to dedupe and filter
+                .select("entity_id, chunk_id")
+                .in_("entity_id", hop1_ids[:20])
+                .limit(500)
                 .execute()
             )
-
-            # Deduplicate by entity_id, count as weight
-            seen: dict[str, dict] = {}
-            for row in cooccur_resp.data or []:
+            for row in h1_impact_resp.data or []:
                 eid = row["entity_id"]
-                if eid not in seen:
-                    seen[eid] = {
-                        "entity_id": eid,
-                        "entity_type": row["entity_type"],
-                        "weight": 1,
-                    }
-                else:
-                    seen[eid]["weight"] += 1
+                cid = row.get("chunk_id")
+                if cid:
+                    h1_chunks_by_entity.setdefault(eid, set()).add(cid)
+        except Exception as e:
+            logger.debug(f"Hop-2 chunk lookup failed: {e}")
 
-            stats["total_co_occurrences"] = len(seen)
+        hop2_chunk_ids = list({cid for chunks in h1_chunks_by_entity.values() for cid in chunks})
 
-            # Apply min_weight filter
-            if min_weight > 0:
-                before = len(seen)
-                seen = {k: v for k, v in seen.items() if v["weight"] >= min_weight}
-                stats["filtered_by_weight"] = before - len(seen)
+        if hop2_chunk_ids:
+            # Single co-occurrence query from all hop-2 chunks
+            raw_hop2 = _get_cooccurrences_from_chunks(
+                sb, hop2_chunk_ids, seed_id, limit=max_related * 5,
+            )
 
-            # Apply entity_types filter
-            if entity_types:
-                before = len(seen)
-                seen = {k: v for k, v in seen.items() if v["entity_type"] in entity_types}
-                stats["filtered_by_type"] = before - len(seen)
-
-            # Sort by weight descending, take top N
-            ranked = sorted(seen.values(), key=lambda x: x["weight"], reverse=True)[:max_related]
-
-            # Load entity details for related
-            for rel in ranked:
-                rel_table = _TABLE_MAP.get(rel["entity_type"])
-                if not rel_table:
-                    continue
-                name_col = _NAME_COL.get(rel_table, "name")
+            # Also get chunk_ids for hop-2 entities to find intermediaries
+            # Single batched query for all new hop-2 entity chunk_ids
+            h2_entity_ids = [eid for eid in raw_hop2 if eid not in hop1_seen]
+            h2_chunks_by_entity: dict[str, set[str]] = {}
+            if h2_entity_ids:
                 try:
-                    rel_resp = (
-                        sb.table(rel_table)
-                        .select(f"id, {name_col}")
-                        .eq("id", rel["entity_id"])
-                        .single()
+                    h2_impact_resp = (
+                        sb.table("signal_impact")
+                        .select("entity_id, chunk_id")
+                        .in_("entity_id", h2_entity_ids[:30])
+                        .limit(500)
                         .execute()
                     )
-                    if rel_resp.data:
-                        related.append({
-                            "relationship": "co_occurrence",
-                            "entity_type": rel["entity_type"],
-                            "entity_id": rel["entity_id"],
-                            "entity_name": rel_resp.data.get(name_col, ""),
-                            "weight": rel["weight"],
-                            "strength": _classify_strength(rel["weight"]),
-                        })
-                except Exception:
-                    pass
+                    for row in h2_impact_resp.data or []:
+                        eid = row["entity_id"]
+                        cid = row.get("chunk_id")
+                        if cid:
+                            h2_chunks_by_entity.setdefault(eid, set()).add(cid)
+                except Exception as e:
+                    logger.debug(f"Hop-2 entity chunk lookup failed: {e}")
 
-        except Exception as e:
-            logger.debug(f"Co-occurrence lookup failed: {e}")
+            # Build intermediary mapping using pre-fetched chunk sets
+            for h2_id, h2_ent in raw_hop2.items():
+                if h2_id in hop1_seen:
+                    continue  # Will keep hop-1 version (dedup below)
+
+                # Find which hop-1 entity bridged to this hop-2 entity
+                intermediary = None
+                h2_chunks = h2_chunks_by_entity.get(h2_id, set())
+                if h2_chunks:
+                    for h1_id in hop1_ids:
+                        if h1_id == h2_id:
+                            continue
+                        h1_chunks = h1_chunks_by_entity.get(h1_id, set())
+                        if h1_chunks & h2_chunks:
+                            intermediary = hop1_seen[h1_id]
+                            break
+
+                # Apply 50% weight decay
+                decayed_weight = max(1, int(h2_ent["weight"] * 0.5))
+                h2_ent["weight"] = decayed_weight
+                h2_ent["hop"] = 2
+                h2_ent["path"] = []
+                if intermediary:
+                    h2_ent["path"] = [{
+                        "entity_type": intermediary["entity_type"],
+                        "entity_id": intermediary["entity_id"],
+                        "entity_name": intermediary.get("entity_name", ""),
+                    }]
+
+                hop2_seen[h2_id] = h2_ent
+
+            stats["hop2_candidates"] = len(hop2_seen)
+
+    # ── Merge hop-1 and hop-2 (hop-1 wins on overlap) ──
+    merged: dict[str, dict] = dict(hop1_seen)
+    for h2_id, h2_ent in hop2_seen.items():
+        if h2_id not in merged:
+            merged[h2_id] = h2_ent
+    stats["hop2_added"] = len(merged) - len(hop1_seen)
+
+    # ── Apply filters AFTER merge ──
+    if min_weight > 0:
+        before = len(merged)
+        merged = {k: v for k, v in merged.items() if v["weight"] >= min_weight}
+        stats["filtered_by_weight"] = before - len(merged)
+
+    if entity_types:
+        before = len(merged)
+        merged = {k: v for k, v in merged.items() if v["entity_type"] in entity_types}
+        stats["filtered_by_type"] = before - len(merged)
+
+    # Sort by weight descending, take top N
+    ranked = sorted(merged.values(), key=lambda x: x["weight"], reverse=True)[:max_related]
+
+    # ── Batch name resolution ──
+    _resolve_entity_names_batch(sb, ranked)
+
+    # Build final related list with all fields
+    related: list[dict] = []
+    for rel in ranked:
+        if not rel.get("entity_name") and not _TABLE_MAP.get(rel.get("entity_type", "")):
+            continue
+        related.append({
+            "relationship": "co_occurrence",
+            "entity_type": rel["entity_type"],
+            "entity_id": rel["entity_id"],
+            "entity_name": rel.get("entity_name", ""),
+            "weight": rel["weight"],
+            "strength": _classify_strength(rel["weight"]),
+            "hop": rel.get("hop", 1),
+            "path": rel.get("path", []),
+        })
 
     # Also pull explicit dependencies from entity_dependencies
     try:
         dep_resp = (
             sb.table("entity_dependencies")
             .select("target_id, target_type, dependency_type")
-            .eq("source_id", str(entity_id))
+            .eq("source_id", seed_id)
             .limit(20)
             .execute()
         )
@@ -272,6 +425,8 @@ def get_entity_neighborhood(
                         "entity_name": dep_entity.data.get(name_col, ""),
                         "weight": 3,  # Explicit dependencies get moderate baseline
                         "strength": "moderate",
+                        "hop": 1,
+                        "path": [],
                     })
             except Exception:
                 pass
@@ -280,7 +435,7 @@ def get_entity_neighborhood(
         rev_dep_resp = (
             sb.table("entity_dependencies")
             .select("source_id, source_type, dependency_type")
-            .eq("target_id", str(entity_id))
+            .eq("target_id", seed_id)
             .limit(20)
             .execute()
         )
@@ -315,6 +470,8 @@ def get_entity_neighborhood(
                         "entity_name": dep_entity.data.get(name_col, ""),
                         "weight": 3,
                         "strength": "moderate",
+                        "hop": 1,
+                        "path": [],
                     })
             except Exception:
                 pass
