@@ -87,13 +87,13 @@ export function ClientSourcesTab({ clientId, projects }: ClientSourcesTabProps) 
               onClick={() => setTypeFilter(type)}
               className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium transition-colors ${
                 isActive
-                  ? 'bg-[#3FAF7A]/10 text-[#3FAF7A]'
+                  ? 'bg-brand-primary-light text-brand-primary'
                   : 'text-[#999] hover:text-[#666] hover:bg-[#F0F0F0]'
               }`}
             >
               {type === 'all' ? 'All' : type.charAt(0).toUpperCase() + type.slice(1)}
               {count > 0 && (
-                <span className={`text-[10px] ${isActive ? 'text-[#3FAF7A]' : 'text-[#999]'}`}>{count}</span>
+                <span className={`text-[10px] ${isActive ? 'text-brand-primary' : 'text-[#999]'}`}>{count}</span>
               )}
             </button>
           )
@@ -108,7 +108,7 @@ export function ClientSourcesTab({ clientId, projects }: ClientSourcesTabProps) 
           { label: 'Emails', count: typeCounts['email'] || 0, icon: <Mail className="w-3.5 h-3.5" /> },
           { label: 'Documents', count: typeCounts['document'] || 0, icon: <File className="w-3.5 h-3.5" /> },
         ].map((stat) => (
-          <div key={stat.label} className="bg-white rounded-2xl border border-[#E5E5E5] shadow-md p-4 flex items-center gap-3">
+          <div key={stat.label} className="bg-white rounded-2xl border border-border shadow-md p-4 flex items-center gap-3">
             <div className="w-7 h-7 rounded-full bg-[#E8F5E9] flex items-center justify-center text-[#25785A] flex-shrink-0">
               {stat.icon}
             </div>
@@ -123,10 +123,10 @@ export function ClientSourcesTab({ clientId, projects }: ClientSourcesTabProps) 
       {/* Signal list */}
       {loading ? (
         <div className="flex items-center justify-center py-12">
-          <Loader2 className="w-5 h-5 text-[#3FAF7A] animate-spin" />
+          <Loader2 className="w-5 h-5 text-brand-primary animate-spin" />
         </div>
       ) : signals.length === 0 ? (
-        <div className="text-center py-12 bg-white rounded-2xl border border-[#E5E5E5] shadow-md">
+        <div className="text-center py-12 bg-white rounded-2xl border border-border shadow-md">
           <FileText className="w-8 h-8 text-[#CCC] mx-auto mb-2" />
           <p className="text-[13px] text-[#666] mb-1">No signals yet</p>
           <p className="text-[12px] text-[#999]">
@@ -140,7 +140,7 @@ export function ClientSourcesTab({ clientId, projects }: ClientSourcesTabProps) 
             return (
               <div
                 key={signal.id}
-                className="bg-white rounded-xl border border-[#E5E5E5] p-4 border-l-4 border-l-[#E5E5E5] hover:border-l-[#3FAF7A] transition-colors cursor-pointer"
+                className="bg-white rounded-xl border border-border p-4 border-l-4 border-l-border hover:border-l-brand-primary transition-colors cursor-pointer"
                 onClick={() => setExpandedId(isExpanded ? null : signal.id)}
               >
                 <div className="flex items-start gap-3">
@@ -178,7 +178,7 @@ export function ClientSourcesTab({ clientId, projects }: ClientSourcesTabProps) 
             <button
               onClick={() => loadSignals(false)}
               disabled={loadingMore}
-              className="w-full py-3 text-[13px] font-medium text-[#3FAF7A] bg-white rounded-xl border border-[#E5E5E5] hover:bg-[#E8F5E9] transition-colors disabled:opacity-50"
+              className="w-full py-3 text-[13px] font-medium text-brand-primary bg-white rounded-xl border border-border hover:bg-[#E8F5E9] transition-colors disabled:opacity-50"
             >
               {loadingMore ? 'Loading...' : `Load more (${signals.length} of ${total})`}
             </button>

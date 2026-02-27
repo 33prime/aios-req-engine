@@ -18,29 +18,29 @@ export function AgendaCenterSection({ projectId }: AgendaCenterSectionProps) {
     .slice(0, 5)
 
   return (
-    <div className="bg-white rounded-2xl border border-[#E5E5E5] shadow-[0_1px_2px_rgba(0,0,0,0.04)] overflow-hidden">
+    <div className="bg-white rounded-2xl border border-border shadow-sm overflow-hidden">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full flex items-center justify-between px-5 py-4 hover:bg-[#FAFAFA] transition-colors"
+        className="w-full flex items-center justify-between px-5 py-4 hover:bg-surface-page transition-colors"
       >
         <div className="flex items-center gap-2.5">
-          <Calendar className="w-4 h-4 text-[#3FAF7A]" />
-          <span className="text-[11px] uppercase tracking-wider text-[#999999] font-semibold">
+          <Calendar className="w-4 h-4 text-brand-primary" />
+          <span className="text-[11px] uppercase tracking-wider text-text-placeholder font-semibold">
             Agenda Center
           </span>
           {upcoming.length > 0 && (
-            <span className="px-1.5 py-0.5 bg-[#3FAF7A]/10 text-[#25785A] text-[10px] font-bold rounded-full min-w-[18px] text-center">
+            <span className="px-1.5 py-0.5 bg-brand-primary-light text-[#25785A] text-[10px] font-bold rounded-full min-w-[18px] text-center">
               {upcoming.length}
             </span>
           )}
         </div>
-        {isOpen ? <ChevronDown className="w-4 h-4 text-[#999999]" /> : <ChevronRight className="w-4 h-4 text-[#999999]" />}
+        {isOpen ? <ChevronDown className="w-4 h-4 text-text-placeholder" /> : <ChevronRight className="w-4 h-4 text-text-placeholder" />}
       </button>
 
       {isOpen && (
         <div className="px-5 pb-4 space-y-3">
           {upcoming.length === 0 ? (
-            <p className="text-[12px] text-[#999999] py-2">No upcoming meetings scheduled.</p>
+            <p className="text-[12px] text-text-placeholder py-2">No upcoming meetings scheduled.</p>
           ) : (
             upcoming.map(meeting => {
               const date = new Date(meeting.meeting_date)
@@ -49,15 +49,15 @@ export function AgendaCenterSection({ projectId }: AgendaCenterSectionProps) {
               const agendaItems = (meeting.agenda as { items?: string[] })?.items ?? []
 
               return (
-                <div key={meeting.id} className="bg-white rounded-xl border border-[#E5E5E5] p-4">
+                <div key={meeting.id} className="bg-white rounded-xl border border-border p-4">
                   <div className="flex items-start justify-between mb-2">
                     <div>
-                      <h4 className="text-sm font-semibold text-[#333333]">{meeting.title}</h4>
+                      <h4 className="text-sm font-semibold text-text-body">{meeting.title}</h4>
                       {meeting.description && (
-                        <p className="text-[11px] text-[#999999] mt-0.5 line-clamp-1">{meeting.description}</p>
+                        <p className="text-[11px] text-text-placeholder mt-0.5 line-clamp-1">{meeting.description}</p>
                       )}
                     </div>
-                    <span className="text-[11px] uppercase tracking-wider text-[#999999] whitespace-nowrap ml-3">
+                    <span className="text-[11px] uppercase tracking-wider text-text-placeholder whitespace-nowrap ml-3">
                       {dateLabel}, {time}
                     </span>
                   </div>
@@ -70,7 +70,7 @@ export function AgendaCenterSection({ projectId }: AgendaCenterSectionProps) {
                       <ul className="space-y-1">
                         {agendaItems.map((item, i) => (
                           <li key={i} className="flex items-start gap-2 text-sm text-[#666666]">
-                            <span className="w-1.5 h-1.5 rounded-full bg-[#3FAF7A] mt-1.5 flex-shrink-0" />
+                            <span className="w-1.5 h-1.5 rounded-full bg-brand-primary mt-1.5 flex-shrink-0" />
                             {item}
                           </li>
                         ))}
@@ -79,11 +79,11 @@ export function AgendaCenterSection({ projectId }: AgendaCenterSectionProps) {
                   )}
 
                   <div className="flex items-center justify-between mt-3 pt-3 border-t border-[#F4F4F4]">
-                    <button className="text-[11px] text-[#3FAF7A] hover:text-[#25785A] font-medium flex items-center gap-1">
+                    <button className="text-[11px] text-brand-primary hover:text-[#25785A] font-medium flex items-center gap-1">
                       <Plus className="w-3 h-3" />
                       Add Item
                     </button>
-                    <button className="text-[11px] text-[#666666] hover:text-[#333333] font-medium">
+                    <button className="text-[11px] text-[#666666] hover:text-text-body font-medium">
                       Push to Portal
                     </button>
                   </div>

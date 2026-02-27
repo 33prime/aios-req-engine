@@ -123,11 +123,11 @@ export function OverviewPanel({
           onNavigateToPhase={onNavigateToPhase}
         />
 
-        <div className="bg-white rounded-2xl border border-[#E5E5E5] shadow-md p-5 overflow-hidden">
+        <div className="bg-white rounded-2xl border border-border shadow-md p-5 overflow-hidden">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-1.5">
-              <ListTodo className="w-4 h-4 text-[#3FAF7A]" />
-              <h2 className="text-[13px] font-semibold text-[#333333]">Tasks</h2>
+              <ListTodo className="w-4 h-4 text-brand-primary" />
+              <h2 className="text-[13px] font-semibold text-text-body">Tasks</h2>
             </div>
             {pendingCount > 0 && (
               <span className="text-[10px] font-medium text-[#25785A] bg-[#E8F5E9] px-1.5 py-0.5 rounded-full">
@@ -193,7 +193,7 @@ function HeroDashboard({
   }
 
   return (
-    <div className="bg-white rounded-2xl shadow-md border border-[#E5E5E5] p-6 flex items-center gap-6">
+    <div className="bg-white rounded-2xl shadow-md border border-border p-6 flex items-center gap-6">
       {/* Clickable completeness ring */}
       <button
         onClick={onClickScore}
@@ -217,23 +217,23 @@ function HeroDashboard({
             />
           </svg>
           <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <span className="text-[20px] font-bold text-[#333333] leading-none group-hover:text-[#3FAF7A] transition-colors">
+            <span className="text-[20px] font-bold text-text-body leading-none group-hover:text-brand-primary transition-colors">
               {Math.round(overallScore)}%
             </span>
-            <span className="text-[10px] text-[#999999] mt-0.5">{overallLabel}</span>
+            <span className="text-[10px] text-text-placeholder mt-0.5">{overallLabel}</span>
           </div>
         </div>
       </button>
 
       {/* Project info */}
       <div className="flex-1 min-w-0">
-        <p className="text-[12px] text-[#999999] mb-0.5">Welcome back</p>
-        <h1 className="text-[18px] font-bold text-[#333333] truncate">{projectName}</h1>
+        <p className="text-[12px] text-text-placeholder mb-0.5">Welcome back</p>
+        <h1 className="text-[18px] font-bold text-text-body truncate">{projectName}</h1>
         {summary && (
           <p className="text-[13px] text-[#666666] mt-1 leading-relaxed line-clamp-2">{summary}</p>
         )}
         {lastActivity && (
-          <p className="text-[11px] text-[#999999] mt-1.5">
+          <p className="text-[11px] text-text-placeholder mt-1.5">
             Last updated {formatRelativeTime(lastActivity)}
           </p>
         )}
@@ -242,7 +242,7 @@ function HeroDashboard({
       {/* CTA */}
       <button
         onClick={() => onNavigateToPhase('discovery')}
-        className="flex-shrink-0 inline-flex items-center gap-1.5 px-5 py-2.5 text-[13px] font-medium text-white bg-[#3FAF7A] rounded-xl hover:bg-[#25785A] transition-colors"
+        className="flex-shrink-0 inline-flex items-center gap-1.5 px-5 py-2.5 text-[13px] font-medium text-white bg-brand-primary rounded-xl hover:bg-[#25785A] transition-colors"
       >
         Open BRD
         <ArrowRight className="w-4 h-4" />
@@ -275,10 +275,10 @@ function ProjectPulseCard({
   const needsWork = sections.filter(s => s.max_score > 0 && (s.score / s.max_score) < 0.6)
 
   return (
-    <div className="bg-white rounded-2xl border border-[#E5E5E5] shadow-md p-5">
+    <div className="bg-white rounded-2xl border border-border shadow-md p-5">
       <div className="flex items-center gap-1.5 mb-4">
-        <Activity className="w-4 h-4 text-[#3FAF7A]" />
-        <h2 className="text-[13px] font-semibold text-[#333333]">Project Pulse</h2>
+        <Activity className="w-4 h-4 text-brand-primary" />
+        <h2 className="text-[13px] font-semibold text-text-body">Project Pulse</h2>
       </div>
 
       {/* Section bars */}
@@ -287,8 +287,8 @@ function ProjectPulseCard({
           ['Vision', 'Constraints', 'Data Entities', 'Stakeholders', 'Workflows', 'Features'].map((label) => (
             <div key={label} className="flex items-center gap-3 animate-pulse">
               <span className="text-[12px] text-[#999] w-[90px] flex-shrink-0">{label}</span>
-              <div className="flex-1 h-2 bg-[#E5E5E5] rounded-full" />
-              <div className="w-8 h-3 bg-[#E5E5E5] rounded" />
+              <div className="flex-1 h-2 bg-border rounded-full" />
+              <div className="w-8 h-3 bg-border rounded" />
             </div>
           ))
         ) : (
@@ -302,7 +302,7 @@ function ProjectPulseCard({
               />
             ))}
             {sections.length === 0 && (
-              <p className="text-[11px] text-[#999999] py-2">No data yet — start uploading signals</p>
+              <p className="text-[11px] text-text-placeholder py-2">No data yet — start uploading signals</p>
             )}
           </>
         )}
@@ -310,7 +310,7 @@ function ProjectPulseCard({
 
       {/* Strength / Needs work one-liner */}
       {sections.length > 0 && (
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pt-2 border-t border-[#E5E5E5] mb-2">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pt-2 border-t border-border mb-2">
           {strengths.map((s) => (
             <span key={s.section} className="inline-flex items-center gap-1 text-[11px] text-[#25785A]">
               <CheckCircle className="w-3 h-3" />
@@ -318,7 +318,7 @@ function ProjectPulseCard({
             </span>
           ))}
           {needsWork.map((s) => (
-            <span key={s.section} className="inline-flex items-center gap-1 text-[11px] text-[#999999]">
+            <span key={s.section} className="inline-flex items-center gap-1 text-[11px] text-text-placeholder">
               <Circle className="w-3 h-3" />
               {SECTION_LABELS[s.section] || s.section}
             </span>
@@ -329,7 +329,7 @@ function ProjectPulseCard({
       {/* Open questions */}
       {questionCounts && questionCounts.open > 0 && (
         <div className="flex items-center gap-1 pt-1">
-          <span className="inline-flex items-center gap-1 text-[11px] text-[#999999]">
+          <span className="inline-flex items-center gap-1 text-[11px] text-text-placeholder">
             <MessageCircle className="w-3 h-3" />
             {questionCounts.open} open question{questionCounts.open !== 1 ? 's' : ''}
             {questionCounts.critical_open > 0 && (
@@ -343,7 +343,7 @@ function ProjectPulseCard({
 
       {/* Health alerts */}
       {hasAlerts && (
-        <div className="space-y-1.5 pt-2 mt-2 border-t border-[#E5E5E5]">
+        <div className="space-y-1.5 pt-2 mt-2 border-t border-border">
           {totalStale > 0 && (
             <div className="flex items-center gap-2 px-2.5 py-1.5 bg-[#FFF8F0] rounded-lg">
               <RefreshCw className="w-3 h-3 text-amber-500 flex-shrink-0" />
@@ -374,12 +374,12 @@ function SectionBar({
   maxScore: number
 }) {
   const pct = maxScore > 0 ? Math.round((score / maxScore) * 100) : 0
-  const fillBg = pct >= 80 ? 'bg-[#25785A]' : pct >= 60 ? 'bg-[#3FAF7A]' : 'bg-[#999999]'
+  const fillBg = pct >= 80 ? 'bg-[#25785A]' : pct >= 60 ? 'bg-brand-primary' : 'bg-text-placeholder'
 
   return (
     <div className="flex items-center gap-1.5">
       <span className="text-[10px] text-[#666666] w-20 truncate">{label}</span>
-      <div className="flex-1 h-1.5 bg-[#E5E5E5] rounded-full overflow-hidden">
+      <div className="flex-1 h-1.5 bg-border rounded-full overflow-hidden">
         <div
           className={`h-full rounded-full transition-all duration-300 ${fillBg}`}
           style={{ width: `${pct}%` }}
@@ -404,20 +404,20 @@ function ContextActionsCard({
   onNavigateToPhase: (phase: 'discovery' | 'build') => void
 }) {
   return (
-    <div className="bg-white rounded-2xl border border-[#E5E5E5] shadow-md p-5 flex flex-col">
+    <div className="bg-white rounded-2xl border border-border shadow-md p-5 flex flex-col">
       <div className="flex items-center gap-1.5 mb-3">
-        <Sparkles className="w-4 h-4 text-[#3FAF7A]" />
-        <h2 className="text-[13px] font-semibold text-[#333333]">Next Best Actions</h2>
+        <Sparkles className="w-4 h-4 text-brand-primary" />
+        <h2 className="text-[13px] font-semibold text-text-body">Next Best Actions</h2>
       </div>
 
       {isLoading ? (
         <div className="flex-1 flex flex-col gap-2">
           {[1, 2, 3].map((i) => (
             <div key={i} className="flex items-start gap-3 p-3 bg-[#F4F4F4] rounded-xl animate-pulse">
-              <div className="w-5 h-5 rounded-full bg-[#E5E5E5] flex-shrink-0" />
+              <div className="w-5 h-5 rounded-full bg-border flex-shrink-0" />
               <div className="flex-1 space-y-1.5">
-                <div className="h-2.5 bg-[#E5E5E5] rounded w-16" />
-                <div className="h-3 bg-[#E5E5E5] rounded w-full" />
+                <div className="h-2.5 bg-border rounded w-16" />
+                <div className="h-3 bg-border rounded w-full" />
               </div>
             </div>
           ))}
@@ -452,9 +452,9 @@ function ContextActionsCard({
                       {action.gap_source}
                     </span>
                   </div>
-                  <p className="text-[12px] text-[#333333] leading-relaxed">{action.sentence}</p>
+                  <p className="text-[12px] text-text-body leading-relaxed">{action.sentence}</p>
                 </div>
-                <ArrowRight className="w-3.5 h-3.5 text-[#E5E5E5] group-hover:text-[#3FAF7A] transition-colors flex-shrink-0 mt-0.5" />
+                <ArrowRight className="w-3.5 h-3.5 text-border group-hover:text-brand-primary transition-colors flex-shrink-0 mt-0.5" />
               </button>
             )
           })}
@@ -464,8 +464,8 @@ function ContextActionsCard({
           <div className="w-10 h-10 rounded-full bg-[#E8F5E9] flex items-center justify-center mb-2">
             <CheckCircle className="w-5 h-5 text-[#25785A]" />
           </div>
-          <p className="text-[12px] font-medium text-[#333333]">Looking good</p>
-          <p className="text-[11px] text-[#999999] mt-0.5">No actions needed right now</p>
+          <p className="text-[12px] font-medium text-text-body">Looking good</p>
+          <p className="text-[11px] text-text-placeholder mt-0.5">No actions needed right now</p>
         </div>
       )}
     </div>
@@ -499,10 +499,10 @@ function ActivityCard({
   }
 
   return (
-    <div className="bg-white rounded-2xl border border-[#E5E5E5] shadow-md p-5">
+    <div className="bg-white rounded-2xl border border-border shadow-md p-5">
       <div className="flex items-center gap-1.5 mb-3">
-        <Activity className="w-4 h-4 text-[#3FAF7A]" />
-        <h2 className="text-[13px] font-semibold text-[#333333]">Recent Activity</h2>
+        <Activity className="w-4 h-4 text-brand-primary" />
+        <h2 className="text-[13px] font-semibold text-text-body">Recent Activity</h2>
       </div>
 
       {items.length > 0 ? (
@@ -512,14 +512,14 @@ function ActivityCard({
               key={tp.id}
               className="flex items-center gap-2.5 p-2.5 bg-[#F4F4F4] rounded-xl"
             >
-              <Activity className="w-3 h-3 text-[#999999] flex-shrink-0" />
+              <Activity className="w-3 h-3 text-text-placeholder flex-shrink-0" />
               <div className="flex-1 min-w-0">
-                <p className="text-[11px] font-medium text-[#333333] truncate">{tp.title}</p>
+                <p className="text-[11px] font-medium text-text-body truncate">{tp.title}</p>
                 <div className="flex items-center gap-1.5 mt-0.5">
                   <span className={`px-1.5 py-0.5 text-[10px] font-medium rounded-full ${statusBadgeClass(tp.status)}`}>
                     {tp.status}
                   </span>
-                  <span className="text-[10px] text-[#999999]">
+                  <span className="text-[10px] text-text-placeholder">
                     {formatRelativeTime(tp.completed_at || tp.created_at)}
                   </span>
                 </div>
@@ -529,8 +529,8 @@ function ActivityCard({
         </div>
       ) : (
         <div className="flex flex-col items-center justify-center py-4">
-          <Activity className="w-6 h-6 text-[#E5E5E5] mb-2" />
-          <p className="text-[11px] text-[#999999]">No activity yet</p>
+          <Activity className="w-6 h-6 text-border mb-2" />
+          <p className="text-[11px] text-text-placeholder">No activity yet</p>
         </div>
       )}
     </div>
@@ -543,10 +543,10 @@ function ActivityCard({
 
 function UpcomingMeetingsCard({ meetings }: { meetings: Meeting[] }) {
   return (
-    <div className="bg-white rounded-2xl border border-[#E5E5E5] shadow-md p-5">
+    <div className="bg-white rounded-2xl border border-border shadow-md p-5">
       <div className="flex items-center gap-1.5 mb-3">
-        <Calendar className="w-4 h-4 text-[#3FAF7A]" />
-        <h2 className="text-[13px] font-semibold text-[#333333]">Upcoming Meetings</h2>
+        <Calendar className="w-4 h-4 text-brand-primary" />
+        <h2 className="text-[13px] font-semibold text-text-body">Upcoming Meetings</h2>
       </div>
 
       {meetings.length > 0 ? (
@@ -560,15 +560,15 @@ function UpcomingMeetingsCard({ meetings }: { meetings: Meeting[] }) {
 
             return (
               <div key={m.id} className="flex items-start gap-2.5 p-2.5 bg-[#F4F4F4] rounded-xl">
-                <div className="w-2 h-2 rounded-full bg-[#3FAF7A] flex-shrink-0 mt-[5px]" />
+                <div className="w-2 h-2 rounded-full bg-brand-primary flex-shrink-0 mt-[5px]" />
                 <div className="flex-1 min-w-0">
-                  <p className="text-[11px] font-medium text-[#333333] truncate">{m.title}</p>
+                  <p className="text-[11px] font-medium text-text-body truncate">{m.title}</p>
                   <div className="flex items-center gap-1.5 mt-0.5">
-                    <span className="text-[10px] font-medium text-[#3FAF7A]">
+                    <span className="text-[10px] font-medium text-brand-primary">
                       {dayLabel}{timeLabel ? ` at ${timeLabel}` : ''}
                     </span>
                     {m.meeting_type && (
-                      <span className="text-[10px] text-[#999999]">{m.meeting_type}</span>
+                      <span className="text-[10px] text-text-placeholder">{m.meeting_type}</span>
                     )}
                   </div>
                 </div>
@@ -579,10 +579,10 @@ function UpcomingMeetingsCard({ meetings }: { meetings: Meeting[] }) {
       ) : (
         <div className="flex flex-col items-center justify-center py-4">
           <div className="w-10 h-10 rounded-full bg-[#F4F4F4] flex items-center justify-center mb-2">
-            <Calendar className="w-5 h-5 text-[#E5E5E5]" />
+            <Calendar className="w-5 h-5 text-border" />
           </div>
-          <p className="text-[12px] font-medium text-[#333333]">No upcoming meetings</p>
-          <p className="text-[11px] text-[#999999] mt-0.5 text-center">
+          <p className="text-[12px] font-medium text-text-body">No upcoming meetings</p>
+          <p className="text-[11px] text-text-placeholder mt-0.5 text-center">
             Schedule a meeting to see it here
           </p>
         </div>
@@ -597,17 +597,17 @@ function UpcomingMeetingsCard({ meetings }: { meetings: Meeting[] }) {
 
 function ClientPortalCard() {
   return (
-    <div className="bg-white rounded-2xl border border-[#E5E5E5] shadow-md p-5">
+    <div className="bg-white rounded-2xl border border-border shadow-md p-5">
       <div className="flex items-center gap-1.5 mb-3">
-        <Globe className="w-4 h-4 text-[#3FAF7A]" />
-        <h2 className="text-[13px] font-semibold text-[#333333]">Client Portal</h2>
+        <Globe className="w-4 h-4 text-brand-primary" />
+        <h2 className="text-[13px] font-semibold text-text-body">Client Portal</h2>
       </div>
       <div className="flex flex-col items-center justify-center py-4">
         <div className="w-10 h-10 rounded-full bg-[#F4F4F4] flex items-center justify-center mb-2">
-          <Globe className="w-5 h-5 text-[#E5E5E5]" />
+          <Globe className="w-5 h-5 text-border" />
         </div>
-        <p className="text-[12px] font-medium text-[#333333]">Coming soon</p>
-        <p className="text-[11px] text-[#999999] mt-0.5 text-center">
+        <p className="text-[12px] font-medium text-text-body">Coming soon</p>
+        <p className="text-[11px] text-text-placeholder mt-0.5 text-center">
           Client review notifications
         </p>
       </div>

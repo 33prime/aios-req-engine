@@ -84,22 +84,22 @@ export function OpenQuestionsPanel({ projectId, questions, loading, onMutate }: 
   }
 
   return (
-    <div className="mb-6 border border-[#E5E5E5] rounded-2xl bg-white shadow-md overflow-hidden">
+    <div className="mb-6 border border-border rounded-2xl bg-white shadow-md overflow-hidden">
       {/* Collapsible header */}
       <button
         onClick={() => setExpanded(!expanded)}
-        className="w-full px-5 py-3 bg-[#F4F4F4] border-b border-[#E5E5E5] flex items-center gap-2 hover:bg-[#EEEEEE] transition-colors"
+        className="w-full px-5 py-3 bg-[#F4F4F4] border-b border-border flex items-center gap-2 hover:bg-[#EEEEEE] transition-colors"
       >
         {expanded ? (
           <ChevronDown className="w-4 h-4 text-[#666666]" />
         ) : (
           <ChevronRight className="w-4 h-4 text-[#666666]" />
         )}
-        <MessageCircle className="w-4 h-4 text-[#3FAF7A]" />
-        <span className="text-[13px] font-semibold text-[#333333]">
+        <MessageCircle className="w-4 h-4 text-brand-primary" />
+        <span className="text-[13px] font-semibold text-text-body">
           Open Questions
         </span>
-        <span className="text-[11px] text-[#999999]">
+        <span className="text-[11px] text-text-placeholder">
           {openQuestions.length} open
         </span>
         {criticalCount > 0 && (
@@ -118,7 +118,7 @@ export function OpenQuestionsPanel({ projectId, questions, loading, onMutate }: 
 
       {/* Question list */}
       {expanded && (
-        <div className="divide-y divide-[#E5E5E5]">
+        <div className="divide-y divide-border">
           {sorted.map(q => {
             const pl = PRIORITY_LABELS[q.priority] || PRIORITY_LABELS.medium
             const isSubmitting = submitting[q.id]
@@ -127,10 +127,10 @@ export function OpenQuestionsPanel({ projectId, questions, loading, onMutate }: 
             return (
               <div key={q.id} className="px-5 py-3">
                 <div className="flex items-start gap-2">
-                  <MessageCircle className="w-3.5 h-3.5 text-[#999999] mt-0.5 flex-shrink-0" />
+                  <MessageCircle className="w-3.5 h-3.5 text-text-placeholder mt-0.5 flex-shrink-0" />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <p className="text-[13px] font-medium text-[#333333]">{q.question}</p>
+                      <p className="text-[13px] font-medium text-text-body">{q.question}</p>
                       <span
                         className="inline-flex items-center px-1.5 py-0.5 text-[10px] font-medium rounded-full"
                         style={{ backgroundColor: pl.bg, color: pl.text }}
@@ -144,7 +144,7 @@ export function OpenQuestionsPanel({ projectId, questions, loading, onMutate }: 
                     {q.target_entity_id && (
                       <a
                         href={`#entity-${q.target_entity_type}-${q.target_entity_id}`}
-                        className="inline-flex items-center gap-1 text-[11px] text-[#3FAF7A] mt-1 hover:underline"
+                        className="inline-flex items-center gap-1 text-[11px] text-brand-primary mt-1 hover:underline"
                       >
                         <ExternalLink className="w-2.5 h-2.5" />
                         View linked {q.target_entity_type}
@@ -159,14 +159,14 @@ export function OpenQuestionsPanel({ projectId, questions, loading, onMutate }: 
                           value={answerInputs[q.id] || ''}
                           onChange={e => setAnswerInputs(prev => ({ ...prev, [q.id]: e.target.value }))}
                           placeholder="Type your answer..."
-                          className="flex-1 px-3 py-1.5 text-[12px] border border-[#E5E5E5] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#3FAF7A]"
+                          className="flex-1 px-3 py-1.5 text-[12px] border border-border rounded-lg focus:outline-none focus:ring-1 focus:ring-brand-primary"
                           onKeyDown={e => { if (e.key === 'Enter') handleAnswer(q.id) }}
                           disabled={isSubmitting}
                         />
                         <button
                           onClick={() => handleAnswer(q.id)}
                           disabled={isSubmitting || !answerInputs[q.id]?.trim()}
-                          className="p-1.5 text-[#3FAF7A] hover:bg-[#E8F5E9] rounded-lg disabled:opacity-40"
+                          className="p-1.5 text-brand-primary hover:bg-[#E8F5E9] rounded-lg disabled:opacity-40"
                         >
                           {isSubmitting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
                         </button>
@@ -176,7 +176,7 @@ export function OpenQuestionsPanel({ projectId, questions, loading, onMutate }: 
                             delete next[q.id]
                             return next
                           })}
-                          className="p-1.5 text-[#999999] hover:bg-[#F0F0F0] rounded-lg"
+                          className="p-1.5 text-text-placeholder hover:bg-[#F0F0F0] rounded-lg"
                         >
                           <X className="w-3.5 h-3.5" />
                         </button>
@@ -188,14 +188,14 @@ export function OpenQuestionsPanel({ projectId, questions, loading, onMutate }: 
                       <div className="flex items-center gap-2 mt-2">
                         <button
                           onClick={() => setAnswerInputs(prev => ({ ...prev, [q.id]: '' }))}
-                          className="text-[11px] font-medium text-[#3FAF7A] hover:underline"
+                          className="text-[11px] font-medium text-brand-primary hover:underline"
                           disabled={isSubmitting}
                         >
                           Answer
                         </button>
                         <button
                           onClick={() => handleDismiss(q.id)}
-                          className="text-[11px] font-medium text-[#999999] hover:underline"
+                          className="text-[11px] font-medium text-text-placeholder hover:underline"
                           disabled={isSubmitting}
                         >
                           {isSubmitting ? 'Dismissing...' : 'Dismiss'}

@@ -231,16 +231,16 @@ export function FlowStepChat({
 
   return (
     <div
-      className={`flex flex-col h-full bg-[#FAFAFA] ${isDragging ? 'ring-2 ring-[#3FAF7A] ring-inset' : ''}`}
+      className={`flex flex-col h-full bg-surface-page ${isDragging ? 'ring-2 ring-brand-primary ring-inset' : ''}`}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
     >
       {/* Chat header with compact question counter */}
-      <div className="flex items-center justify-between px-4 py-2.5 border-b border-[#E5E5E5] bg-white shrink-0">
+      <div className="flex items-center justify-between px-4 py-2.5 border-b border-border bg-white shrink-0">
         <div className="flex items-center gap-2">
-          <MessageCircle className="w-3.5 h-3.5 text-[#999999]" />
-          <span className="text-[11px] font-medium text-[#999999] uppercase tracking-wider">Step Chat</span>
+          <MessageCircle className="w-3.5 h-3.5 text-text-placeholder" />
+          <span className="text-[11px] font-medium text-text-placeholder uppercase tracking-wider">Step Chat</span>
         </div>
 
         {/* Question counter strip */}
@@ -268,14 +268,14 @@ export function FlowStepChat({
 
       {/* Expandable question list dropdown */}
       {questionListOpen && activeQuestions.length > 0 && (
-        <div className="px-3 py-2 border-b border-[#E5E5E5] bg-white shrink-0 max-h-[200px] overflow-y-auto">
+        <div className="px-3 py-2 border-b border-border bg-white shrink-0 max-h-[200px] overflow-y-auto">
           <div className="space-y-1.5">
             {activeQuestions.map((q, i) => (
               <div
                 key={i}
-                className="rounded-lg border border-[#E5E5E5] bg-[#FAFAFA] px-3 py-2"
+                className="rounded-lg border border-border bg-surface-page px-3 py-2"
               >
-                <p className="text-[12px] text-[#333333] leading-snug mb-1.5">{q.question}</p>
+                <p className="text-[12px] text-text-body leading-snug mb-1.5">{q.question}</p>
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => handleSolveQuestion(q)}
@@ -284,11 +284,11 @@ export function FlowStepChat({
                   >
                     Solve
                   </button>
-                  <span className="text-[#E5E5E5]">|</span>
+                  <span className="text-border">|</span>
                   <button
                     onClick={() => handleAskClient(q)}
                     disabled={isLoading}
-                    className="text-[11px] font-medium text-[#666666] hover:text-[#333333] flex items-center gap-0.5 disabled:opacity-50"
+                    className="text-[11px] font-medium text-[#666666] hover:text-text-body flex items-center gap-0.5 disabled:opacity-50"
                   >
                     Ask Client <ArrowUpRight className="w-3 h-3" />
                   </button>
@@ -322,11 +322,11 @@ export function FlowStepChat({
           return !last || last.role === 'user' || (last.role === 'assistant' && !last.content)
         })() && (
           <div className="flex justify-start">
-            <div className="flex items-center gap-2 px-4 py-3 bg-white border border-[#E5E5E5] rounded-2xl">
+            <div className="flex items-center gap-2 px-4 py-3 bg-white border border-border rounded-2xl">
               <div className="flex gap-[3px] items-end h-[10px]">
-                <div className="w-[5px] h-[5px] rounded-full bg-[#999999] animate-typing" />
-                <div className="w-[5px] h-[5px] rounded-full bg-[#999999] animate-typing [animation-delay:200ms]" />
-                <div className="w-[5px] h-[5px] rounded-full bg-[#999999] animate-typing [animation-delay:400ms]" />
+                <div className="w-[5px] h-[5px] rounded-full bg-text-placeholder animate-typing" />
+                <div className="w-[5px] h-[5px] rounded-full bg-text-placeholder animate-typing [animation-delay:200ms]" />
+                <div className="w-[5px] h-[5px] rounded-full bg-text-placeholder animate-typing [animation-delay:400ms]" />
               </div>
             </div>
           </div>
@@ -347,8 +347,8 @@ export function FlowStepChat({
 
       {/* Resolved flash */}
       {resolvedFlash && (
-        <div className="px-4 py-2 bg-[#F0FFF4] border-t border-[#3FAF7A]/20 shrink-0 flex items-center gap-2">
-          <CheckCircle2 className="w-3.5 h-3.5 text-[#3FAF7A]" />
+        <div className="px-4 py-2 bg-[#F0FFF4] border-t border-brand-primary/20 shrink-0 flex items-center gap-2">
+          <CheckCircle2 className="w-3.5 h-3.5 text-brand-primary" />
           <span className="text-[12px] font-medium text-[#25785A]">Resolved</span>
         </div>
       )}
@@ -361,11 +361,11 @@ export function FlowStepChat({
               <div className="text-[10px] uppercase tracking-wider text-[#0A1E2F]/60 mb-0.5 font-medium">
                 Answering
               </div>
-              <p className="text-[12px] text-[#333333] leading-snug">{solvingQuestion.question}</p>
+              <p className="text-[12px] text-text-body leading-snug">{solvingQuestion.question}</p>
             </div>
             <button
               onClick={handleCancelSolve}
-              className="shrink-0 mt-0.5 text-[#BBBBBB] hover:text-[#999999]"
+              className="shrink-0 mt-0.5 text-[#BBBBBB] hover:text-text-placeholder"
             >
               <X className="w-3.5 h-3.5" />
             </button>
@@ -374,12 +374,12 @@ export function FlowStepChat({
       )}
 
       {/* Input bar */}
-      <form onSubmit={handleSubmit} className="flex items-center gap-2 px-3 py-2.5 border-t border-[#E5E5E5] bg-white">
+      <form onSubmit={handleSubmit} className="flex items-center gap-2 px-3 py-2.5 border-t border-border bg-white">
         <button
           type="button"
           onClick={() => fileInputRef.current?.click()}
           disabled={uploadingFiles || isLoading}
-          className="w-8 h-8 flex items-center justify-center rounded-lg text-[#999999] hover:text-[#666666] hover:bg-[#F4F4F4] transition-colors disabled:opacity-30"
+          className="w-8 h-8 flex items-center justify-center rounded-lg text-text-placeholder hover:text-[#666666] hover:bg-[#F4F4F4] transition-colors disabled:opacity-30"
           title="Upload file"
         >
           {uploadingFiles ? <Loader2 className="w-4 h-4 animate-spin" /> : <Paperclip className="w-4 h-4" />}
@@ -389,7 +389,7 @@ export function FlowStepChat({
           value={input}
           onChange={e => setInput(e.target.value)}
           placeholder={solvingQuestion ? 'Your answer...' : 'Refine this step...'}
-          className="flex-1 text-[13px] px-3 py-2 rounded-lg bg-[#F4F4F4] border border-[#E5E5E5] focus:outline-none focus:border-[#3FAF7A]/40 focus:ring-1 focus:ring-[#3FAF7A]/10 placeholder:text-[#BBBBBB]"
+          className="flex-1 text-[13px] px-3 py-2 rounded-lg bg-[#F4F4F4] border border-border focus:outline-none focus:border-brand-primary/40 focus:ring-1 focus:ring-brand-primary-light placeholder:text-[#BBBBBB]"
           disabled={isLoading}
           onKeyDown={e => {
             if (e.key === 'Enter' && !e.shiftKey && solvingQuestion && input.trim()) {
@@ -434,7 +434,7 @@ function MessageBubble({ message, isStreaming }: { message: ChatMessage; isStrea
         className={`max-w-[90%] rounded-xl px-3 py-2 text-[13px] leading-relaxed ${
           isUser
             ? 'bg-[#0A1E2F] text-white'
-            : 'bg-white border border-[#E5E5E5] text-[#333333]'
+            : 'bg-white border border-border text-text-body'
         }`}
       >
         {/* Message content — Markdown for assistant, plain for user */}
@@ -492,7 +492,7 @@ function ToolResultCard({ toolName, result }: { toolName: string; result?: any }
     case 'resolve_solution_flow_question':
       return (
         <div className="mt-2">
-          <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#3FAF7A]/10 text-[#25785A]">
+          <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-brand-primary-light text-[#25785A]">
             <CheckCircle2 className="w-3 h-3" /> Resolved
           </span>
           {result.answer && <p className="mt-1 text-[11px] text-[#666666]">{result.answer}</p>}
@@ -502,7 +502,7 @@ function ToolResultCard({ toolName, result }: { toolName: string; result?: any }
     case 'update_solution_flow_step':
       return (
         <div className="mt-2">
-          <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#3FAF7A]/10 text-[#25785A]">
+          <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-brand-primary-light text-[#25785A]">
             <CheckCircle2 className="w-3 h-3" /> Updated
           </span>
           {(result.updated_fields || []).length > 0 && (
@@ -514,7 +514,7 @@ function ToolResultCard({ toolName, result }: { toolName: string; result?: any }
     case 'refine_solution_flow_step':
       return (
         <div className="mt-2">
-          <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#3FAF7A]/10 text-[#25785A]">
+          <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-brand-primary-light text-[#25785A]">
             <Sparkles className="w-3 h-3" /> Refined
           </span>
           {result.changes_summary && <p className="mt-1 text-[11px] text-[#666666]">{result.changes_summary}</p>}
@@ -533,7 +533,7 @@ function ToolResultCard({ toolName, result }: { toolName: string; result?: any }
     case 'add_solution_flow_step':
       return (
         <div className="mt-2">
-          <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#3FAF7A]/10 text-[#25785A]">
+          <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-brand-primary-light text-[#25785A]">
             <Plus className="w-3 h-3" /> Added
           </span>
           {result.title && <p className="mt-1 text-[11px] text-[#666666]">{result.title}</p>}
@@ -543,7 +543,7 @@ function ToolResultCard({ toolName, result }: { toolName: string; result?: any }
     case 'remove_solution_flow_step':
       return (
         <div className="mt-2">
-          <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#F4F4F4] text-[#999999]">
+          <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#F4F4F4] text-text-placeholder">
             <Trash2 className="w-3 h-3" /> Removed
           </span>
         </div>
@@ -552,7 +552,7 @@ function ToolResultCard({ toolName, result }: { toolName: string; result?: any }
     case 'reorder_solution_flow_steps':
       return (
         <div className="mt-2">
-          <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#3FAF7A]/10 text-[#25785A]">
+          <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-brand-primary-light text-[#25785A]">
             <Shuffle className="w-3 h-3" /> Reordered
           </span>
         </div>

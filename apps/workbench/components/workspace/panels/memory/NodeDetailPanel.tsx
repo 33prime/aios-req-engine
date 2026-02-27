@@ -103,14 +103,14 @@ export function NodeDetailPanel({ projectId, node, onClose, onFeedback }: NodeDe
         </div>
         <button
           onClick={onClose}
-          className="p-1 rounded hover:bg-gray-100 text-[#999999]"
+          className="p-1 rounded hover:bg-gray-100 text-text-placeholder"
         >
           <X className="w-4 h-4" />
         </button>
       </div>
 
       {/* Summary */}
-      <p className="text-sm font-medium text-[#333333] mb-2">{node.summary}</p>
+      <p className="text-sm font-medium text-text-body mb-2">{node.summary}</p>
 
       {/* Content */}
       <p className="text-[12px] text-[#666666] mb-4 whitespace-pre-wrap leading-relaxed">
@@ -122,11 +122,11 @@ export function NodeDetailPanel({ projectId, node, onClose, onFeedback }: NodeDe
         <div className="mb-4">
           <div className="flex items-center justify-between text-[11px] mb-1">
             <span className="text-[#666666]">Confidence</span>
-            <span className="font-medium text-[#333333]">{confidencePct}%</span>
+            <span className="font-medium text-text-body">{confidencePct}%</span>
           </div>
           <div className="w-full bg-[#F0F0F0] rounded-full h-2">
             <div
-              className="h-2 rounded-full bg-[#3FAF7A] transition-all"
+              className="h-2 rounded-full bg-brand-primary transition-all"
               style={{ width: `${confidencePct}%` }}
             />
           </div>
@@ -153,7 +153,7 @@ export function NodeDetailPanel({ projectId, node, onClose, onFeedback }: NodeDe
       )}
 
       {/* Feedback actions */}
-      <div className="flex items-center gap-2 mb-4 pb-4 border-b border-[#E5E5E5]">
+      <div className="flex items-center gap-2 mb-4 pb-4 border-b border-border">
         <button
           onClick={handleConfirm}
           disabled={feedbackPending || node.consultant_status === 'confirmed'}
@@ -185,7 +185,7 @@ export function NodeDetailPanel({ projectId, node, onClose, onFeedback }: NodeDe
         <button
           onClick={handleArchive}
           disabled={feedbackPending}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-medium text-[#999999] hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-medium text-text-placeholder hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50"
         >
           <Archive className="w-3.5 h-3.5" />
         </button>
@@ -193,19 +193,19 @@ export function NodeDetailPanel({ projectId, node, onClose, onFeedback }: NodeDe
 
       {/* Dispute note input */}
       {showDisputeInput && (
-        <div className="mb-4 pb-4 border-b border-[#E5E5E5]">
+        <div className="mb-4 pb-4 border-b border-border">
           <textarea
             value={disputeNote}
             onChange={(e) => setDisputeNote(e.target.value)}
             placeholder="Why do you dispute this? (optional)"
-            className="w-full text-[12px] border border-[#E5E5E5] rounded-lg px-3 py-2 text-[#333333] placeholder:text-[#999999] focus:outline-none focus:ring-1 focus:ring-[#3FAF7A] resize-none"
+            className="w-full text-[12px] border border-border rounded-lg px-3 py-2 text-text-body placeholder:text-text-placeholder focus:outline-none focus:ring-1 focus:ring-brand-primary resize-none"
             rows={2}
           />
           <div className="flex gap-2 mt-2">
             <button
               onClick={handleDispute}
               disabled={feedbackPending}
-              className="px-3 py-1 text-[11px] font-medium text-white bg-[#333333] hover:bg-[#0A1E2F] rounded-lg transition-colors disabled:opacity-50"
+              className="px-3 py-1 text-[11px] font-medium text-white bg-text-body hover:bg-[#0A1E2F] rounded-lg transition-colors disabled:opacity-50"
             >
               Submit Dispute
             </button>
@@ -222,27 +222,27 @@ export function NodeDetailPanel({ projectId, node, onClose, onFeedback }: NodeDe
       {/* Metadata */}
       <div className="space-y-1.5 text-[11px] text-[#666666] mb-4">
         {node.belief_domain && (
-          <p>Domain: <span className="font-medium text-[#333333]">{node.belief_domain.replace('_', ' ')}</span></p>
+          <p>Domain: <span className="font-medium text-text-body">{node.belief_domain.replace('_', ' ')}</span></p>
         )}
         {node.source_type && (
-          <p>Source: <span className="font-medium text-[#333333]">{node.source_type}</span></p>
+          <p>Source: <span className="font-medium text-text-body">{node.source_type}</span></p>
         )}
         {node.linked_entity_type && (
-          <p>Linked to: <span className="font-medium text-[#333333]">{node.linked_entity_type}</span></p>
+          <p>Linked to: <span className="font-medium text-text-body">{node.linked_entity_type}</span></p>
         )}
-        <p>Created: <span className="font-medium text-[#333333]">{new Date(node.created_at).toLocaleDateString()}</span></p>
+        <p>Created: <span className="font-medium text-text-body">{new Date(node.created_at).toLocaleDateString()}</span></p>
       </div>
 
       {isLoading ? (
         <div className="flex justify-center py-4">
-          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-[#3FAF7A]" />
+          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-brand-primary" />
         </div>
       ) : detail && (
         <>
           {/* Supporting facts */}
           {detail.supporting_facts.length > 0 && (
             <div className="mb-4">
-              <h6 className="text-[11px] font-semibold text-[#333333] uppercase tracking-wide mb-2">
+              <h6 className="text-[11px] font-semibold text-text-body uppercase tracking-wide mb-2">
                 Supporting ({detail.supporting_facts.length})
               </h6>
               <div className="space-y-1.5">
@@ -251,7 +251,7 @@ export function NodeDetailPanel({ projectId, node, onClose, onFeedback }: NodeDe
                     <div className="flex items-center gap-1.5 mb-0.5">
                       <span className="text-[9px] font-semibold uppercase text-emerald-600">{f.node_type}</span>
                     </div>
-                    <p className="text-[11px] text-[#333333]">{f.summary}</p>
+                    <p className="text-[11px] text-text-body">{f.summary}</p>
                   </div>
                 ))}
               </div>
@@ -261,13 +261,13 @@ export function NodeDetailPanel({ projectId, node, onClose, onFeedback }: NodeDe
           {/* Contradicting facts */}
           {detail.contradicting_facts.length > 0 && (
             <div className="mb-4">
-              <h6 className="text-[11px] font-semibold text-[#333333] uppercase tracking-wide mb-2">
+              <h6 className="text-[11px] font-semibold text-text-body uppercase tracking-wide mb-2">
                 Contradicting ({detail.contradicting_facts.length})
               </h6>
               <div className="space-y-1.5">
                 {detail.contradicting_facts.map((f) => (
                   <div key={f.id} className="bg-[#F4F4F4] rounded-lg px-3 py-2 border-l-2 border-gray-400">
-                    <p className="text-[11px] text-[#333333]">{f.summary}</p>
+                    <p className="text-[11px] text-text-body">{f.summary}</p>
                   </div>
                 ))}
               </div>
@@ -277,15 +277,15 @@ export function NodeDetailPanel({ projectId, node, onClose, onFeedback }: NodeDe
           {/* History */}
           {detail.history.length > 0 && (
             <div>
-              <h6 className="text-[11px] font-semibold text-[#333333] uppercase tracking-wide mb-2">
+              <h6 className="text-[11px] font-semibold text-text-body uppercase tracking-wide mb-2">
                 History ({detail.history.length})
               </h6>
               <div className="space-y-2">
                 {detail.history.slice(0, 5).map((h) => (
                   <div key={h.id} className="flex items-start gap-2">
-                    <div className="w-1.5 h-1.5 rounded-full bg-[#3FAF7A] mt-1.5 shrink-0" />
+                    <div className="w-1.5 h-1.5 rounded-full bg-brand-primary mt-1.5 shrink-0" />
                     <div className="min-w-0">
-                      <div className="flex items-center gap-2 text-[10px] text-[#999999]">
+                      <div className="flex items-center gap-2 text-[10px] text-text-placeholder">
                         <span className="font-medium text-[#666666]">
                           {h.change_type.replace('_', ' ')}
                         </span>
@@ -296,7 +296,7 @@ export function NodeDetailPanel({ projectId, node, onClose, onFeedback }: NodeDe
                         )}
                       </div>
                       <p className="text-[11px] text-[#666666] mt-0.5">{h.change_reason}</p>
-                      <p className="text-[10px] text-[#999999] mt-0.5">
+                      <p className="text-[10px] text-text-placeholder mt-0.5">
                         {new Date(h.created_at).toLocaleDateString()}
                       </p>
                     </div>
@@ -310,7 +310,7 @@ export function NodeDetailPanel({ projectId, node, onClose, onFeedback }: NodeDe
 
       {/* Consultant note (if disputed) */}
       {node.consultant_note && (
-        <div className="mt-4 pt-4 border-t border-[#E5E5E5]">
+        <div className="mt-4 pt-4 border-t border-border">
           <p className="text-[11px] text-[#666666]">
             <span className="font-medium">Consultant note:</span> {node.consultant_note}
           </p>

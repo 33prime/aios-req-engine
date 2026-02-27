@@ -28,7 +28,7 @@ interface TaskActivityFeedProps {
 }
 
 const actionConfig: Record<string, { icon: typeof CheckCircle; color: string; label: string; bgColor: string }> = {
-  created: { icon: PlusCircle, label: 'Created', color: 'text-blue-600', bgColor: 'bg-blue-50' },
+  created: { icon: PlusCircle, label: 'Created', color: 'text-brand-primary', bgColor: 'bg-blue-50' },
   completed: { icon: CheckCircle, label: 'Completed', color: 'text-green-600', bgColor: 'bg-green-50' },
   dismissed: { icon: XCircle, label: 'Dismissed', color: 'text-gray-500', bgColor: 'bg-gray-50' },
   updated: { icon: RefreshCw, label: 'Updated', color: 'text-amber-600', bgColor: 'bg-amber-50' },

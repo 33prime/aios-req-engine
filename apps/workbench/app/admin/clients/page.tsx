@@ -39,7 +39,7 @@ export default function AdminClientsPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="w-5 h-5 border-2 border-[#3FAF7A] border-t-transparent rounded-full animate-spin" />
+        <div className="w-5 h-5 border-2 border-brand-primary border-t-transparent rounded-full animate-spin" />
       </div>
     )
   }
@@ -47,7 +47,7 @@ export default function AdminClientsPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-[22px] font-bold text-[#333333]">Clients</h1>
+        <h1 className="text-[22px] font-bold text-text-body">Clients</h1>
         <span className="px-3 py-1 text-[13px] rounded-full bg-[#F0F0F0] text-[#666666]">
           {filtered.length} client{filtered.length !== 1 ? 's' : ''}
         </span>
@@ -55,13 +55,13 @@ export default function AdminClientsPage() {
 
       {/* Search */}
       <div className="relative max-w-sm">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#999999]" />
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-placeholder" />
         <input
           type="text"
           placeholder="Search clients..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="w-full pl-10 pr-4 py-2 text-[13px] border border-[#E5E5E5] rounded-xl bg-white focus:outline-none focus:border-[#3FAF7A] transition-colors"
+          className="w-full pl-10 pr-4 py-2 text-[13px] border border-border rounded-xl bg-white focus:outline-none focus:border-brand-primary transition-colors"
         />
       </div>
 
@@ -71,16 +71,16 @@ export default function AdminClientsPage() {
           <Link
             key={client.id}
             href={`/clients/${client.id}`}
-            className="bg-white rounded-2xl shadow-md border border-[#E5E5E5] p-5 hover:shadow-lg transition-shadow block"
+            className="bg-white rounded-2xl shadow-md border border-border p-5 hover:shadow-lg transition-shadow block"
           >
             <div className="flex items-center gap-3 mb-3">
-              <div className="p-2.5 rounded-xl bg-[#3FAF7A]/10">
-                <Building2 className="w-5 h-5 text-[#3FAF7A]" />
+              <div className="p-2.5 rounded-xl bg-brand-primary-light">
+                <Building2 className="w-5 h-5 text-brand-primary" />
               </div>
               <div className="min-w-0 flex-1">
-                <h3 className="text-[14px] font-medium text-[#333333] truncate">{client.name}</h3>
+                <h3 className="text-[14px] font-medium text-text-body truncate">{client.name}</h3>
                 {client.industry && (
-                  <p className="text-[12px] text-[#999999]">{client.industry}</p>
+                  <p className="text-[12px] text-text-placeholder">{client.industry}</p>
                 )}
               </div>
             </div>
@@ -90,12 +90,12 @@ export default function AdminClientsPage() {
                 <span className="px-2 py-0.5 rounded-full bg-[#F0F0F0] text-[#666666]">{client.company_size}</span>
               )}
               {client.profile_completeness != null && (
-                <span className="text-[#999999]">{client.profile_completeness}% complete</span>
+                <span className="text-text-placeholder">{client.profile_completeness}% complete</span>
               )}
             </div>
 
             {client.last_analyzed_at && (
-              <p className="text-[11px] text-[#999999] mt-2">
+              <p className="text-[11px] text-text-placeholder mt-2">
                 Analyzed {new Date(client.last_analyzed_at).toLocaleDateString()}
               </p>
             )}
@@ -104,7 +104,7 @@ export default function AdminClientsPage() {
       </div>
 
       {filtered.length === 0 && (
-        <div className="text-center py-12 text-[#999999] text-sm">No clients found</div>
+        <div className="text-center py-12 text-text-placeholder text-sm">No clients found</div>
       )}
     </div>
   )

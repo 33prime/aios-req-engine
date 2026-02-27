@@ -90,7 +90,7 @@ export function MeetingCreateModal({ open, projects, googleConnected, onClose, o
   }
 
   const labelCls = 'block text-[12px] font-medium text-[#666666] mb-1'
-  const inputCls = 'w-full px-3 py-1.5 text-[13px] bg-white border border-gray-200 rounded-md focus:outline-none focus:ring-1 focus:ring-[#3FAF7A] focus:border-[#3FAF7A]'
+  const inputCls = 'w-full px-3 py-1.5 text-[13px] bg-white border border-gray-200 rounded-md focus:outline-none focus:ring-1 focus:ring-brand-primary focus:border-brand-primary'
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -145,7 +145,7 @@ export function MeetingCreateModal({ open, projects, googleConnected, onClose, o
                   className={`
                     px-3 py-1.5 text-[12px] font-medium rounded-full border transition-colors
                     ${meetingType === t.value
-                      ? 'bg-[#E8F5E9] text-[#25785A] border-[#3FAF7A]'
+                      ? 'bg-[#E8F5E9] text-[#25785A] border-brand-primary'
                       : 'bg-white text-[#666] border-gray-200 hover:border-gray-300'
                     }
                   `}
@@ -225,7 +225,7 @@ export function MeetingCreateModal({ open, projects, googleConnected, onClose, o
                 <div>
                   <p className="text-[13px] font-medium text-[#37352f]">Create Google Calendar event</p>
                   {googleConnected ? (
-                    <p className="text-[11px] text-[#999999]">Auto-generates a Google Meet link</p>
+                    <p className="text-[11px] text-text-placeholder">Auto-generates a Google Meet link</p>
                   ) : (
                     <p className="text-[11px] text-[#999] flex items-center gap-1">
                       <AlertCircle className="w-3 h-3" />
@@ -240,7 +240,7 @@ export function MeetingCreateModal({ open, projects, googleConnected, onClose, o
                 onClick={() => setCreateCalendarEvent(!createCalendarEvent)}
                 className={`
                   relative w-9 h-5 rounded-full transition-colors flex-shrink-0
-                  ${!googleConnected ? 'bg-gray-100 cursor-not-allowed' : createCalendarEvent ? 'bg-[#3FAF7A]' : 'bg-gray-200'}
+                  ${!googleConnected ? 'bg-gray-100 cursor-not-allowed' : createCalendarEvent ? 'bg-brand-primary' : 'bg-gray-200'}
                 `}
               >
                 <span
@@ -258,7 +258,7 @@ export function MeetingCreateModal({ open, projects, googleConnected, onClose, o
                 <Video className="w-4 h-4 text-[#999]" />
                 <div>
                   <p className="text-[13px] font-medium text-[#37352f]">Auto-record this meeting</p>
-                  <p className="text-[11px] text-[#999999]">Participants receive consent notifications</p>
+                  <p className="text-[11px] text-text-placeholder">Participants receive consent notifications</p>
                 </div>
               </div>
               <button
@@ -266,7 +266,7 @@ export function MeetingCreateModal({ open, projects, googleConnected, onClose, o
                 onClick={() => setAutoRecord(!autoRecord)}
                 className={`
                   relative w-9 h-5 rounded-full transition-colors flex-shrink-0
-                  ${autoRecord ? 'bg-[#3FAF7A]' : 'bg-gray-200'}
+                  ${autoRecord ? 'bg-brand-primary' : 'bg-gray-200'}
                 `}
               >
                 <span
@@ -291,7 +291,7 @@ export function MeetingCreateModal({ open, projects, googleConnected, onClose, o
           <button
             onClick={handleSave}
             disabled={!title.trim() || !projectId || !date || !time || saving}
-            className="px-3 py-1.5 text-[13px] font-medium text-white bg-[#3FAF7A] rounded-md hover:bg-[#25785A] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-3 py-1.5 text-[13px] font-medium text-white bg-brand-primary rounded-md hover:bg-[#25785A] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {saving ? 'Scheduling...' : 'Schedule Meeting'}
           </button>

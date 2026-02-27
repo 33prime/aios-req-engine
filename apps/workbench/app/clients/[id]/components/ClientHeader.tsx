@@ -102,7 +102,7 @@ export function ClientHeader({ client, enriching, analyzing, intelligence, onBac
           <button
             onClick={onAnalyze}
             disabled={analyzing}
-            className="inline-flex items-center gap-1.5 px-4 py-2 text-[13px] font-medium text-[#3FAF7A] border border-[#3FAF7A] rounded-xl hover:bg-[#E8F5E9] transition-colors disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 px-4 py-2 text-[13px] font-medium text-brand-primary border border-brand-primary rounded-xl hover:bg-[#E8F5E9] transition-colors disabled:opacity-50"
           >
             {analyzing ? (
               <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -115,7 +115,7 @@ export function ClientHeader({ client, enriching, analyzing, intelligence, onBac
             <button
               onClick={onEnrich}
               disabled={enriching}
-              className="inline-flex items-center gap-1.5 px-4 py-2 text-[13px] font-medium text-white bg-[#3FAF7A] rounded-xl hover:bg-[#25785A] transition-colors disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 px-4 py-2 text-[13px] font-medium text-white bg-brand-primary rounded-xl hover:bg-[#25785A] transition-colors disabled:opacity-50"
             >
               {enriching ? (
                 <Loader2 className="w-3.5 h-3.5 animate-spin" />

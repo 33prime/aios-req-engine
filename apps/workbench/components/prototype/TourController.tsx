@@ -229,7 +229,7 @@ const PHASE_LABELS: Record<TourPhase, string> = {
 
 const STATUS_COLORS: Record<StepStatus, string> = {
   pending: 'bg-gray-200',
-  current: 'bg-[#3FAF7A]',
+  current: 'bg-brand-primary',
   completed: 'bg-emerald-400',
   skipped: 'bg-amber-400',
 }
@@ -369,16 +369,16 @@ export default function TourController({
   // Idle state: show start button
   if (state.status === 'idle') {
     return (
-      <div className="bg-white border-b border-[#E5E5E5] px-6 py-2 flex items-center justify-between">
+      <div className="bg-white border-b border-border px-6 py-2 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <span className="text-sm text-[#333333]">
+          <span className="text-sm text-text-body">
             {plan.totalSteps} features to review
           </span>
         </div>
         <button
           onClick={handleStart}
           disabled={!isFrameReady}
-          className="px-4 py-1.5 bg-[#3FAF7A] text-white text-sm font-medium rounded-lg hover:bg-[#033344] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="px-4 py-1.5 bg-brand-primary text-white text-sm font-medium rounded-lg hover:bg-accent-hover transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           Start Guided Tour
         </button>
@@ -391,37 +391,37 @@ export default function TourController({
   const isFirst = state.currentIndex <= 0
 
   return (
-    <div className="bg-white border-b border-[#E5E5E5]">
+    <div className="bg-white border-b border-border">
       {/* Control bar */}
       <div className="px-4 py-2 flex items-center gap-3">
         <button
           onClick={handlePrev}
           disabled={isFirst}
-          className="p-1.5 rounded hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed text-[#333333]"
+          className="p-1.5 rounded hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed text-text-body"
           title="Previous step"
         >
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 12L6 8L10 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
         </button>
 
         <div className="flex-1 min-w-0 text-center">
-          <span className="text-sm font-medium text-[#333333]">
+          <span className="text-sm font-medium text-text-body">
             Step {state.currentIndex + 1}/{plan.totalSteps}
             {currentStep && (
               <>
-                <span className="text-[#999999] mx-1.5">&middot;</span>
-                <span className="text-[#333333] font-normal truncate">{currentStep.featureName}</span>
+                <span className="text-text-placeholder mx-1.5">&middot;</span>
+                <span className="text-text-body font-normal truncate">{currentStep.featureName}</span>
               </>
             )}
           </span>
           {currentStep?.vpStepLabel && (
-            <span className="text-xs text-[#999999] ml-2">({currentStep.vpStepLabel})</span>
+            <span className="text-xs text-text-placeholder ml-2">({currentStep.vpStepLabel})</span>
           )}
         </div>
 
         <button
           onClick={handleNext}
           disabled={isLast}
-          className="p-1.5 rounded hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed text-[#333333]"
+          className="p-1.5 rounded hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed text-text-body"
           title="Next step"
         >
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M6 4L10 8L6 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
@@ -429,7 +429,7 @@ export default function TourController({
 
         <button
           onClick={() => dispatch({ type: 'TOGGLE_PLAY' })}
-          className="p-1.5 rounded hover:bg-gray-100 text-[#333333]"
+          className="p-1.5 rounded hover:bg-gray-100 text-text-body"
           title={state.isPlaying ? 'Pause auto-advance' : 'Auto-advance'}
         >
           {state.isPlaying ? (
@@ -442,7 +442,7 @@ export default function TourController({
         <select
           value={state.activePhase}
           onChange={(e) => dispatch({ type: 'SET_PHASE', phase: e.target.value as TourPhase })}
-          className="text-xs border border-[#E5E5E5] rounded px-2 py-1 text-[#333333] bg-white"
+          className="text-xs border border-border rounded px-2 py-1 text-text-body bg-white"
         >
           {(Object.entries(PHASE_LABELS) as [TourPhase, string][]).map(([key, label]) => (
             <option key={key} value={key} disabled={plan.phases[key].length === 0}>
@@ -453,7 +453,7 @@ export default function TourController({
 
         <button
           onClick={handleStop}
-          className="p-1.5 rounded hover:bg-red-50 text-[#999999] hover:text-red-600"
+          className="p-1.5 rounded hover:bg-red-50 text-text-placeholder hover:text-red-600"
           title="End tour"
         >
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M4 4L12 12M12 4L4 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>

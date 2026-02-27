@@ -325,7 +325,7 @@ export function SolutionFlowModal({
       {/* Modal */}
       <div className="relative w-[92vw] h-[88vh] max-w-[1600px] bg-white rounded-2xl shadow-2xl flex flex-col overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-3 border-b border-[#E5E5E5] shrink-0">
+        <div className="flex items-center justify-between px-5 py-3 border-b border-border shrink-0">
           <div className="flex items-center gap-3">
             {/* Sidebar toggle */}
             <button
@@ -339,7 +339,7 @@ export function SolutionFlowModal({
                 <PanelLeftOpen className="w-4 h-4" />
               )}
             </button>
-            <h2 className="text-base font-semibold text-[#333333]">
+            <h2 className="text-base font-semibold text-text-body">
               {flow?.title || 'Solution Flow'}
             </h2>
             <div className="flex gap-1.5">
@@ -361,7 +361,7 @@ export function SolutionFlowModal({
               <button
                 onClick={() => handleGenerate()}
                 disabled={isGenerating}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-[#3FAF7A] bg-[#3FAF7A]/5 rounded-lg hover:bg-[#3FAF7A]/10 transition-colors disabled:opacity-50"
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-brand-primary bg-brand-primary-light rounded-lg hover:bg-brand-primary-light transition-colors disabled:opacity-50"
               >
                 {isGenerating ? (
                   <RefreshCw className="w-3.5 h-3.5 animate-spin" />
@@ -375,7 +375,7 @@ export function SolutionFlowModal({
               onClick={onClose}
               className="w-7 h-7 flex items-center justify-center rounded-md hover:bg-gray-100 transition-colors"
             >
-              <X className="w-4 h-4 text-[#999999]" />
+              <X className="w-4 h-4 text-text-placeholder" />
             </button>
           </div>
         </div>
@@ -383,17 +383,17 @@ export function SolutionFlowModal({
         {/* Body */}
         <div className="flex-1 flex min-h-0">
           {loading ? (
-            <div className="flex-1 flex items-center justify-center text-sm text-[#999999]">
+            <div className="flex-1 flex items-center justify-center text-sm text-text-placeholder">
               Loading solution flow...
             </div>
           ) : steps.length === 0 ? (
             /* No steps — readiness gate or generate CTA */
             <div className="flex-1 flex items-center justify-center">
               <div className="text-center max-w-sm">
-                <div className="w-14 h-14 rounded-full bg-[#3FAF7A]/10 flex items-center justify-center mx-auto mb-4">
-                  <Sparkles className="w-7 h-7 text-[#3FAF7A]" />
+                <div className="w-14 h-14 rounded-full bg-brand-primary-light flex items-center justify-center mx-auto mb-4">
+                  <Sparkles className="w-7 h-7 text-brand-primary" />
                 </div>
-                <h3 className="text-base font-semibold text-[#333333] mb-2">
+                <h3 className="text-base font-semibold text-text-body mb-2">
                   {readiness && !readiness.ready ? 'Almost ready' : 'No steps yet'}
                 </h3>
                 {readiness && !readiness.ready ? (
@@ -409,17 +409,17 @@ export function SolutionFlowModal({
                         return (
                           <div key={key} className="flex items-center gap-2">
                             <div className={`w-5 h-5 rounded-full flex items-center justify-center ${
-                              isMet ? 'bg-[#3FAF7A]/15' : 'bg-[#E5E5E5]'
+                              isMet ? 'bg-brand-primary/15' : 'bg-border'
                             }`}>
                               {isMet ? (
-                                <svg className="w-3 h-3 text-[#3FAF7A]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                                <svg className="w-3 h-3 text-brand-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
                                   <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                                 </svg>
                               ) : (
-                                <span className="text-[9px] font-bold text-[#999999]">{current}/{required}</span>
+                                <span className="text-[9px] font-bold text-text-placeholder">{current}/{required}</span>
                               )}
                             </div>
-                            <span className={`text-sm capitalize ${isMet ? 'text-[#333333]' : 'text-[#999999]'}`}>
+                            <span className={`text-sm capitalize ${isMet ? 'text-text-body' : 'text-text-placeholder'}`}>
                               {label}
                             </span>
                             {!isMet && (
@@ -442,8 +442,8 @@ export function SolutionFlowModal({
                   disabled={isGenerating}
                   className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition-colors disabled:opacity-50 ${
                     readiness && !readiness.ready
-                      ? 'bg-[#E5E5E5] text-[#666666] hover:bg-[#D5D5D5]'
-                      : 'bg-[#3FAF7A] text-white hover:bg-[#25785A]'
+                      ? 'bg-border text-[#666666] hover:bg-[#D5D5D5]'
+                      : 'bg-brand-primary text-white hover:bg-[#25785A]'
                   }`}
                 >
                   {isGenerating ? (
@@ -464,7 +464,7 @@ export function SolutionFlowModal({
             <>
               {/* Left: Step list (collapsible) */}
               <div
-                className={`border-r border-[#E5E5E5] shrink-0 transition-all duration-200 overflow-hidden ${
+                className={`border-r border-border shrink-0 transition-all duration-200 overflow-hidden ${
                   sidebarOpen ? 'w-[280px]' : 'w-0'
                 }`}
               >
@@ -492,7 +492,7 @@ export function SolutionFlowModal({
                     highlightFields={highlightFields}
                   />
                 ) : (
-                  <div className="flex-1 flex items-center justify-center h-full text-sm text-[#999999]">
+                  <div className="flex-1 flex items-center justify-center h-full text-sm text-text-placeholder">
                     Select a step to view details
                   </div>
                 )}
@@ -500,7 +500,7 @@ export function SolutionFlowModal({
 
               {/* Right: Chat */}
               {selectedStep && (
-                <div className="w-[340px] shrink-0 border-l border-[#E5E5E5]">
+                <div className="w-[340px] shrink-0 border-l border-border">
                   <FlowStepChat
                     projectId={projectId}
                     stepId={selectedStep.id}

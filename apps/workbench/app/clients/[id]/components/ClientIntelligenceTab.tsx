@@ -76,10 +76,10 @@ function CollapsibleSection({ title, icon, children, defaultOpen = false }: {
 }) {
   const [open, setOpen] = useState(defaultOpen)
   return (
-    <div className="bg-white rounded-2xl border border-[#E5E5E5] shadow-md overflow-hidden">
+    <div className="bg-white rounded-2xl border border-border shadow-md overflow-hidden">
       <button
         onClick={() => setOpen(!open)}
-        className="w-full flex items-center gap-2 px-5 py-4 text-left hover:bg-[#FAFAFA] transition-colors"
+        className="w-full flex items-center gap-2 px-5 py-4 text-left hover:bg-surface-page transition-colors"
       >
         <ChevronRight className={`w-4 h-4 text-[#999] transition-transform ${open ? 'rotate-90' : ''}`} />
         {icon}
@@ -90,7 +90,7 @@ function CollapsibleSection({ title, icon, children, defaultOpen = false }: {
           open ? 'max-h-[2000px] opacity-100' : 'max-h-0 opacity-0'
         }`}
       >
-        <div className="px-5 pb-5 border-t border-[#E5E5E5]">
+        <div className="px-5 pb-5 border-t border-border">
           {children}
         </div>
       </div>
@@ -131,7 +131,7 @@ export function ClientIntelligenceTab({ clientId, client, intelligence }: Client
 
   if (!intelligence) {
     return (
-      <div className="text-center py-12 bg-white rounded-2xl border border-[#E5E5E5] shadow-md">
+      <div className="text-center py-12 bg-white rounded-2xl border border-border shadow-md">
         <Sparkles className="w-8 h-8 text-[#CCC] mx-auto mb-2" />
         <p className="text-[13px] text-[#666] mb-1">No intelligence data yet</p>
         <p className="text-[12px] text-[#999]">Run the Analyze action to generate a client intelligence profile</p>
@@ -144,7 +144,7 @@ export function ClientIntelligenceTab({ clientId, client, intelligence }: Client
   return (
     <div className="space-y-6">
       {/* Profile Completeness */}
-      <div className="bg-white rounded-2xl border border-[#E5E5E5] shadow-md p-5">
+      <div className="bg-white rounded-2xl border border-border shadow-md p-5">
         <div className="flex items-center gap-4 mb-5">
           <CompletenessRing score={completeness} size="lg" />
           <div>
@@ -161,7 +161,7 @@ export function ClientIntelligenceTab({ clientId, client, intelligence }: Client
                 <span className="w-36 text-[12px] text-[#666] flex-shrink-0">{label}</span>
                 <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
                   <div
-                    className="h-full bg-[#3FAF7A] rounded-full transition-all"
+                    className="h-full bg-brand-primary rounded-full transition-all"
                     style={{ width: `${pct}%` }}
                   />
                 </div>
@@ -176,7 +176,7 @@ export function ClientIntelligenceTab({ clientId, client, intelligence }: Client
       {intelligence.sections.vision && (
         <CollapsibleSection
           title="Vision Synthesis"
-          icon={<Sparkles className="w-4 h-4 text-[#3FAF7A]" />}
+          icon={<Sparkles className="w-4 h-4 text-brand-primary" />}
           defaultOpen
         >
           <p className="text-[13px] text-[#666] leading-relaxed pt-3">{intelligence.sections.vision}</p>
@@ -209,10 +209,10 @@ export function ClientIntelligenceTab({ clientId, client, intelligence }: Client
               <div key={i} className="bg-[#F4F4F4] rounded-xl p-3">
                 <div className="flex items-center gap-2 mb-1">
                   <span className="text-[13px] font-semibold text-[#333]">{c.title}</span>
-                  <span className="px-1.5 py-0.5 text-[10px] font-medium text-[#666] bg-[#E5E5E5] rounded">
+                  <span className="px-1.5 py-0.5 text-[10px] font-medium text-[#666] bg-border rounded">
                     {c.severity}
                   </span>
-                  <span className="px-1.5 py-0.5 text-[10px] font-medium text-[#666] bg-[#E5E5E5] rounded">
+                  <span className="px-1.5 py-0.5 text-[10px] font-medium text-[#666] bg-border rounded">
                     {c.category}
                   </span>
                 </div>
@@ -223,7 +223,7 @@ export function ClientIntelligenceTab({ clientId, client, intelligence }: Client
                 {c.impacts && c.impacts.length > 0 && (
                   <div className="flex flex-wrap gap-1 mt-1.5">
                     {c.impacts.map((impact, j) => (
-                      <span key={j} className="px-1.5 py-0.5 text-[10px] text-[#999] bg-white rounded border border-[#E5E5E5]">
+                      <span key={j} className="px-1.5 py-0.5 text-[10px] text-[#999] bg-white rounded border border-border">
                         {impact}
                       </span>
                     ))}
@@ -246,7 +246,7 @@ export function ClientIntelligenceTab({ clientId, client, intelligence }: Client
               <div key={i} className="bg-[#F4F4F4] rounded-xl p-3">
                 <div className="flex items-center gap-2">
                   <span className="text-[13px] font-semibold text-[#333]">{gap.role}</span>
-                  <span className="px-1.5 py-0.5 text-[10px] font-medium text-[#666] bg-[#E5E5E5] rounded">
+                  <span className="px-1.5 py-0.5 text-[10px] font-medium text-[#666] bg-border rounded">
                     {gap.urgency}
                   </span>
                 </div>
@@ -254,7 +254,7 @@ export function ClientIntelligenceTab({ clientId, client, intelligence }: Client
                 {gap.which_areas && gap.which_areas.length > 0 && (
                   <div className="flex flex-wrap gap-1 mt-1.5">
                     {gap.which_areas.map((area, j) => (
-                      <span key={j} className="px-1.5 py-0.5 text-[10px] text-[#999] bg-white rounded border border-[#E5E5E5]">
+                      <span key={j} className="px-1.5 py-0.5 text-[10px] text-[#999] bg-white rounded border border-border">
                         {area}
                       </span>
                     ))}
@@ -267,11 +267,11 @@ export function ClientIntelligenceTab({ clientId, client, intelligence }: Client
       )}
 
       {/* Analysis History */}
-      <div className="bg-white rounded-2xl border border-[#E5E5E5] shadow-md p-5">
+      <div className="bg-white rounded-2xl border border-border shadow-md p-5">
         <h3 className="text-[14px] font-semibold text-[#333] mb-4">Analysis History</h3>
         {logsLoading ? (
           <div className="flex items-center justify-center py-8">
-            <Loader2 className="w-5 h-5 text-[#3FAF7A] animate-spin" />
+            <Loader2 className="w-5 h-5 text-brand-primary animate-spin" />
           </div>
         ) : logs.length === 0 ? (
           <div className="bg-[#F4F4F4] rounded-lg px-4 py-6 text-center">
@@ -285,7 +285,7 @@ export function ClientIntelligenceTab({ clientId, client, intelligence }: Client
               {logs.map((log) => {
                 const isExpanded = expandedLog === log.id
                 const hasError = log.error_message || log.status === 'error'
-                const dotColor = hasError ? 'bg-red-400' : 'bg-[#3FAF7A]'
+                const dotColor = hasError ? 'bg-red-400' : 'bg-brand-primary'
 
                 // Build summary line from tool results
                 const toolSummaries = (log.tools_called || []).map(tc =>
@@ -309,7 +309,7 @@ export function ClientIntelligenceTab({ clientId, client, intelligence }: Client
                     >
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="text-[12px] text-[#999]">{formatTimeAgo(log.created_at)}</span>
-                        <span className="px-1.5 py-0.5 text-[10px] font-medium text-[#666] bg-[#E5E5E5] rounded">
+                        <span className="px-1.5 py-0.5 text-[10px] font-medium text-[#666] bg-border rounded">
                           {log.trigger?.replace(/_/g, ' ')}
                         </span>
                         {summaryText && (
@@ -326,7 +326,7 @@ export function ClientIntelligenceTab({ clientId, client, intelligence }: Client
                         )}
                         {log.profile_completeness_before != null && log.profile_completeness_after != null && (
                           <span className={`text-[12px] font-semibold ${
-                            log.profile_completeness_after! > log.profile_completeness_before! ? 'text-[#3FAF7A]' : 'text-[#999]'
+                            log.profile_completeness_after! > log.profile_completeness_before! ? 'text-brand-primary' : 'text-[#999]'
                           }`}>
                             {log.profile_completeness_before}% → {log.profile_completeness_after}%
                           </span>
@@ -346,16 +346,16 @@ export function ClientIntelligenceTab({ clientId, client, intelligence }: Client
                       )}
 
                       {isExpanded && (
-                        <div className="mt-3 pt-3 border-t border-[#E5E5E5] space-y-3">
+                        <div className="mt-3 pt-3 border-t border-border space-y-3">
                           {/* Tool results with details */}
                           {log.tools_called && log.tools_called.length > 0 && (
                             <div className="space-y-2">
                               {log.tools_called.map((tc, j) => {
                                 const details = getToolResultDetails(tc.tool_name, tc.result)
                                 return (
-                                  <div key={j} className="bg-white rounded-lg p-2.5 border border-[#E5E5E5]">
+                                  <div key={j} className="bg-white rounded-lg p-2.5 border border-border">
                                     <div className="flex items-center gap-2 mb-1">
-                                      <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${tc.success ? 'bg-[#3FAF7A]' : 'bg-red-400'}`} />
+                                      <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${tc.success ? 'bg-brand-primary' : 'bg-red-400'}`} />
                                       <span className="text-[12px] font-medium text-[#333]">
                                         {summarizeToolResult(tc.tool_name, tc.result)}
                                       </span>

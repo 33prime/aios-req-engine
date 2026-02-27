@@ -57,7 +57,7 @@ export function StakeholderHeader({ stakeholder, onBack, completeness, analyzing
           <div className="flex items-center gap-3 mb-1">
             <h1 className="text-[28px] font-bold text-[#333] leading-tight">{s.name}</h1>
             {s.stakeholder_type && (
-              <span className="inline-flex items-center px-3 py-1 rounded-full text-[11px] font-medium bg-[#3FAF7A]/10 text-[#25785A]">
+              <span className="inline-flex items-center px-3 py-1 rounded-full text-[11px] font-medium bg-brand-primary-light text-[#25785A]">
                 {formatType(s.stakeholder_type)}
               </span>
             )}
@@ -87,7 +87,7 @@ export function StakeholderHeader({ stakeholder, onBack, completeness, analyzing
             {s.project_name && (
               <span className="inline-flex items-center gap-1">
                 <FileText className="w-[13px] h-[13px]" />
-                <span className="text-[#3FAF7A]">{s.project_name}</span>
+                <span className="text-brand-primary">{s.project_name}</span>
               </span>
             )}
             {s.linkedin_profile && (
@@ -98,7 +98,7 @@ export function StakeholderHeader({ stakeholder, onBack, completeness, analyzing
                   href={s.linkedin_profile}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-[#3FAF7A] hover:text-[#25785A] hover:underline transition-colors"
+                  className="text-brand-primary hover:text-[#25785A] hover:underline transition-colors"
                 >
                   LinkedIn
                 </a>
@@ -118,7 +118,7 @@ export function StakeholderHeader({ stakeholder, onBack, completeness, analyzing
           <button
             onClick={onAnalyze}
             disabled={analyzing}
-            className="inline-flex items-center gap-1.5 px-4 py-2 text-[13px] font-medium text-[#3FAF7A] border border-[#3FAF7A] rounded-xl hover:bg-[#E8F5E9] transition-colors disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 px-4 py-2 text-[13px] font-medium text-brand-primary border border-brand-primary rounded-xl hover:bg-[#E8F5E9] transition-colors disabled:opacity-50"
           >
             {analyzing ? (
               <Loader2 className="w-3.5 h-3.5 animate-spin" />

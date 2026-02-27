@@ -12,10 +12,10 @@ interface StakeholderEvidenceTabProps {
 }
 
 const SIGNAL_TYPE_STYLE: Record<string, { bg: string; text: string; label: string }> = {
-  transcript: { bg: 'bg-[#3FAF7A]/10', text: 'text-[#3FAF7A]', label: 'Transcript' },
+  transcript: { bg: 'bg-brand-primary-light', text: 'text-brand-primary', label: 'Transcript' },
   email: { bg: 'bg-[#0A1E2F]/10', text: 'text-[#0A1E2F]', label: 'Email' },
-  document: { bg: 'bg-[#3FAF7A]/10', text: 'text-[#25785A]', label: 'Document' },
-  research: { bg: 'bg-[#3FAF7A]/10', text: 'text-[#25785A]', label: 'Research' },
+  document: { bg: 'bg-brand-primary-light', text: 'text-[#25785A]', label: 'Document' },
+  research: { bg: 'bg-brand-primary-light', text: 'text-[#25785A]', label: 'Research' },
 }
 
 export function StakeholderEvidenceTab({ projectId, stakeholderId }: StakeholderEvidenceTabProps) {
@@ -40,7 +40,7 @@ export function StakeholderEvidenceTab({ projectId, stakeholderId }: Stakeholder
   if (loading) {
     return (
       <div className="flex items-center justify-center py-16">
-        <Loader2 className="w-6 h-6 text-[#3FAF7A] animate-spin" />
+        <Loader2 className="w-6 h-6 text-brand-primary animate-spin" />
         <span className="ml-2 text-[13px] text-[#999]">Loading evidence...</span>
       </div>
     )
@@ -77,7 +77,7 @@ export function StakeholderEvidenceTab({ projectId, stakeholderId }: Stakeholder
     <div className="space-y-6">
       {/* Source Signals */}
       {data.source_signals.length > 0 && (
-        <div className="bg-white border border-[#E5E5E5] rounded-2xl shadow-sm p-6">
+        <div className="bg-white border border-border rounded-2xl shadow-sm p-6">
           <div className="flex items-center justify-between mb-5">
             <h3 className="text-[12px] font-semibold text-[#999] uppercase tracking-[0.05em]">Source Signals</h3>
             <span className="text-[12px] text-[#999]">Mentioned in {data.source_signals.length} signal{data.source_signals.length !== 1 ? 's' : ''}</span>
@@ -88,7 +88,7 @@ export function StakeholderEvidenceTab({ projectId, stakeholderId }: Stakeholder
               return (
                 <div
                   key={sig.id}
-                  className="p-4 rounded-xl bg-white border border-[#E5E5E5] cursor-pointer hover:bg-[#FAFAFA] transition-colors"
+                  className="p-4 rounded-xl bg-white border border-border cursor-pointer hover:bg-surface-page transition-colors"
                   style={{ borderLeft: '3px solid transparent' }}
                   onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.borderLeftColor = '#3FAF7A' }}
                   onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.borderLeftColor = 'transparent' }}
@@ -111,7 +111,7 @@ export function StakeholderEvidenceTab({ projectId, stakeholderId }: Stakeholder
 
       {/* Topic Frequency */}
       {topicEntries.length > 0 && (
-        <div className="bg-white border border-[#E5E5E5] rounded-2xl shadow-sm p-6">
+        <div className="bg-white border border-border rounded-2xl shadow-sm p-6">
           <h3 className="text-[12px] font-semibold text-[#999] uppercase tracking-[0.05em] mb-2">Topic Frequency</h3>
           <p className="text-[13px] text-[#999] mb-5">What this stakeholder discusses most across all signals</p>
           <div className="space-y-3">
@@ -122,7 +122,7 @@ export function StakeholderEvidenceTab({ projectId, stakeholderId }: Stakeholder
                   <span className="text-[13px] text-[#666] w-28 text-right flex-shrink-0 font-medium capitalize">{topic}</span>
                   <div className="flex-1 h-7 bg-[#F4F4F4] rounded-full overflow-hidden">
                     <div
-                      className="h-full bg-[#3FAF7A] rounded-full flex items-center justify-end pr-3 transition-all duration-600"
+                      className="h-full bg-brand-primary rounded-full flex items-center justify-end pr-3 transition-all duration-600"
                       style={{ width: `${pct}%` }}
                     >
                       <span className={`text-[11px] font-semibold ${pct > 30 ? 'text-white' : 'text-[#25785A]'}`}>{count}</span>
@@ -137,10 +137,10 @@ export function StakeholderEvidenceTab({ projectId, stakeholderId }: Stakeholder
 
       {/* Field Attributions */}
       {data.field_attributions.length > 0 && (
-        <div className="bg-white border border-[#E5E5E5] rounded-2xl shadow-sm p-6">
+        <div className="bg-white border border-border rounded-2xl shadow-sm p-6">
           <h3 className="text-[12px] font-semibold text-[#999] uppercase tracking-[0.05em] mb-2">Field Attributions</h3>
           <p className="text-[13px] text-[#999] mb-5">Where each piece of information was learned</p>
-          <div className="divide-y divide-[#E5E5E5]">
+          <div className="divide-y divide-border">
             {data.field_attributions.map((fa, i) => (
               <div key={i} className="flex items-center gap-4 py-3">
                 <span className="text-[13px] font-medium text-[#333] w-36 flex-shrink-0">
@@ -148,9 +148,9 @@ export function StakeholderEvidenceTab({ projectId, stakeholderId }: Stakeholder
                 </span>
                 <span className="text-[13px] text-[#666] flex-1">{fa.signal_label || fa.signal_source || '—'}</span>
                 {fa.signal_label ? (
-                  <span className="text-[12px] text-[#3FAF7A] whitespace-nowrap">{fa.signal_label}</span>
+                  <span className="text-[12px] text-brand-primary whitespace-nowrap">{fa.signal_label}</span>
                 ) : (
-                  <span className="text-[11px] px-2.5 py-0.5 rounded-full bg-[#3FAF7A]/10 text-[#25785A] font-medium">AI inferred</span>
+                  <span className="text-[11px] px-2.5 py-0.5 rounded-full bg-brand-primary-light text-[#25785A] font-medium">AI inferred</span>
                 )}
               </div>
             ))}
@@ -160,7 +160,7 @@ export function StakeholderEvidenceTab({ projectId, stakeholderId }: Stakeholder
 
       {/* Evidence Citations */}
       {data.evidence_items.length > 0 && (
-        <div className="bg-white border border-[#E5E5E5] rounded-2xl shadow-sm p-6">
+        <div className="bg-white border border-border rounded-2xl shadow-sm p-6">
           <h3 className="text-[12px] font-semibold text-[#999] uppercase tracking-[0.05em] mb-5">Evidence Citations</h3>
           <div className="space-y-3">
             {data.evidence_items.map((ev, i) => {
@@ -175,7 +175,7 @@ export function StakeholderEvidenceTab({ projectId, stakeholderId }: Stakeholder
                 >
                   <p className="text-[13px] text-[#666] leading-relaxed italic mb-2.5">&ldquo;{excerpt}&rdquo;</p>
                   <div className="flex items-center gap-2">
-                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${isInferred ? 'bg-[#3FAF7A]/10 text-[#25785A]' : 'bg-[#3FAF7A]/10 text-[#3FAF7A]'}`}>
+                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${isInferred ? 'bg-brand-primary-light text-[#25785A]' : 'bg-brand-primary-light text-brand-primary'}`}>
                       {isInferred ? 'Inferred' : 'Signal'}
                     </span>
                     {ev.source_label ? (

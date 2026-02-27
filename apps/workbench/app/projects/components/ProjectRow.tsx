@@ -17,7 +17,7 @@ const STAGE_COLORS = {
   discovery: 'bg-emerald-100 text-emerald-700 border-emerald-200',
   validation: 'bg-emerald-50 text-emerald-600 border-emerald-100',
   prototype: 'bg-teal-50 text-teal-700 border-teal-100',
-  proposal: 'bg-[#3FAF7A]/10 text-[#3FAF7A] border-[#3FAF7A]/20',
+  proposal: 'bg-brand-primary-light text-brand-primary border-brand-primary/20',
   build: 'bg-emerald-200 text-emerald-800 border-emerald-300',
   live: 'bg-emerald-100 text-emerald-700 border-emerald-200',
   prototype_refinement: 'bg-emerald-50 text-emerald-600 border-emerald-100',
@@ -37,7 +37,7 @@ export function ProjectRow({ project, ownerProfile, currentUser, onClick }: Proj
   const isBuilding = project.launch_status === 'building'
   const stageLabel = STAGE_LABELS[project.stage as keyof typeof STAGE_LABELS] || project.stage
   const stageColor = isBuilding
-    ? 'bg-[#E8F5E9] text-[#25785A] border-[#3FAF7A]/30'
+    ? 'bg-[#E8F5E9] text-[#25785A] border-brand-primary/30'
     : STAGE_COLORS[project.stage as keyof typeof STAGE_COLORS] || 'bg-gray-100 text-gray-700 border-gray-200'
 
   // Owner display logic with current user fallback
@@ -47,15 +47,15 @@ export function ProjectRow({ project, ownerProfile, currentUser, onClick }: Proj
   return (
     <tr
       onClick={onClick}
-      className={`hover:bg-[#FAFAFA] cursor-pointer transition-colors ${isBuilding ? 'opacity-70' : ''}`}
+      className={`hover:bg-surface-page cursor-pointer transition-colors ${isBuilding ? 'opacity-70' : ''}`}
     >
       <td className="px-3 py-2">
         <div className="flex items-center gap-2">
           <ProjectAvatar name={project.name} clientName={project.client_name} />
           <div className="min-w-0">
-            <div className="text-xs font-medium text-[#333333] truncate">{project.name}</div>
+            <div className="text-xs font-medium text-text-body truncate">{project.name}</div>
             {isBuilding ? null : project.description ? (
-              <div className="text-xs text-[#999999] truncate max-w-md">
+              <div className="text-xs text-text-placeholder truncate max-w-md">
                 {project.description}
               </div>
             ) : null}
@@ -70,7 +70,7 @@ export function ProjectRow({ project, ownerProfile, currentUser, onClick }: Proj
       </td>
 
       <td className="px-3 py-2">
-        <div className="text-xs text-[#333333]">
+        <div className="text-xs text-text-body">
           {project.client_name || '-'}
         </div>
       </td>
@@ -90,12 +90,12 @@ export function ProjectRow({ project, ownerProfile, currentUser, onClick }: Proj
       <td className="px-3 py-2">
         <div className="flex items-center gap-1.5">
           <UserAvatar name={ownerName} photoUrl={ownerPhotoUrl} size="small" />
-          <span className="text-xs text-[#333333]">{ownerName}</span>
+          <span className="text-xs text-text-body">{ownerName}</span>
         </div>
       </td>
 
       <td className="px-3 py-2">
-        <div className="text-xs text-[#999999]">
+        <div className="text-xs text-text-placeholder">
           {formatDistanceToNow(new Date(project.updated_at || project.created_at), {
             addSuffix: true,
           })}

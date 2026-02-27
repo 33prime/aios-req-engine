@@ -79,19 +79,19 @@ export function ProposalPreview({ proposal, onApply, onDiscard, isApplying }: Pr
   }
 
   return (
-    <div className="border border-[#E5E5E5] rounded-lg bg-white shadow-sm overflow-hidden">
+    <div className="border border-border rounded-lg bg-white shadow-sm overflow-hidden">
       {/* Header */}
-      <div className="bg-gradient-to-r from-[#3FAF7A]/5 to-[#3FAF7A]/10 px-4 py-3 border-b border-[#E5E5E5]">
+      <div className="bg-gradient-to-r from-brand-primary-light to-brand-primary-light px-4 py-3 border-b border-border">
         <div className="flex items-start justify-between">
           <div className="flex-1">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-[#3FAF7A]/10 rounded-lg flex items-center justify-center">
-                <Layers className="h-4 w-4 text-[#3FAF7A]" />
+              <div className="w-8 h-8 bg-brand-primary-light rounded-lg flex items-center justify-center">
+                <Layers className="h-4 w-4 text-brand-primary" />
               </div>
               <div>
-                <h3 className="font-semibold text-[#333333] text-sm">{proposal.title}</h3>
+                <h3 className="font-semibold text-text-body text-sm">{proposal.title}</h3>
                 {proposal.description && (
-                  <p className="text-xs text-[#999999] mt-0.5">{proposal.description}</p>
+                  <p className="text-xs text-text-placeholder mt-0.5">{proposal.description}</p>
                 )}
               </div>
             </div>
@@ -101,7 +101,7 @@ export function ProposalPreview({ proposal, onApply, onDiscard, isApplying }: Pr
       </div>
 
       {/* Summary Stats */}
-      <div className="px-4 py-3 bg-[#F9F9F9] border-b border-[#E5E5E5]">
+      <div className="px-4 py-3 bg-surface-muted border-b border-border">
         <div className="flex items-center gap-4 text-sm">
           {proposal.creates > 0 && (
             <div className="flex items-center gap-1.5">
@@ -133,20 +133,20 @@ export function ProposalPreview({ proposal, onApply, onDiscard, isApplying }: Pr
               </span>
             </div>
           )}
-          <div className="ml-auto text-xs text-[#999999]">
+          <div className="ml-auto text-xs text-text-placeholder">
             {proposal.total_changes} total {proposal.total_changes === 1 ? 'change' : 'changes'}
           </div>
         </div>
       </div>
 
       {/* Changes List */}
-      <div className="divide-y divide-[#E5E5E5] max-h-96 overflow-y-auto">
+      <div className="divide-y divide-border max-h-96 overflow-y-auto">
         {proposal.changes_by_type &&
           Object.entries(proposal.changes_by_type).map(([entityType, changes]) => (
             <div key={entityType} className="p-4">
               <div className="flex items-center gap-2 mb-3">
                 {getEntityIcon(entityType)}
-                <h4 className="text-sm font-medium text-[#333333] capitalize">
+                <h4 className="text-sm font-medium text-text-body capitalize">
                   {entityType.replace('_', ' ')}s ({changes.length})
                 </h4>
               </div>
@@ -158,23 +158,23 @@ export function ProposalPreview({ proposal, onApply, onDiscard, isApplying }: Pr
                   return (
                     <div
                       key={changeKey}
-                      className="border border-[#E5E5E5] rounded-lg overflow-hidden bg-white"
+                      className="border border-border rounded-lg overflow-hidden bg-white"
                     >
                       {/* Change Header */}
                       <button
                         onClick={() => toggleChange(changeKey)}
-                        className="w-full flex items-center gap-3 p-3 hover:bg-[#F9F9F9] transition-colors text-left"
+                        className="w-full flex items-center gap-3 p-3 hover:bg-surface-muted transition-colors text-left"
                       >
                         <div className="flex-shrink-0">
                           {isExpanded ? (
-                            <ChevronDown className="h-4 w-4 text-[#999999]" />
+                            <ChevronDown className="h-4 w-4 text-text-placeholder" />
                           ) : (
-                            <ChevronRight className="h-4 w-4 text-[#999999]" />
+                            <ChevronRight className="h-4 w-4 text-text-placeholder" />
                           )}
                         </div>
                         <OperationBadge operation={change.operation} />
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm text-[#333333] truncate">
+                          <p className="text-sm text-text-body truncate">
                             {getChangeName(change)}
                           </p>
                         </div>
@@ -188,12 +188,12 @@ export function ProposalPreview({ proposal, onApply, onDiscard, isApplying }: Pr
 
                       {/* Change Details (Expanded) */}
                       {isExpanded && (
-                        <div className="px-3 pb-3 pt-0 space-y-3 border-t border-[#E5E5E5] bg-[#F9F9F9]">
+                        <div className="px-3 pb-3 pt-0 space-y-3 border-t border-border bg-surface-muted">
                           {/* Rationale */}
                           {change.rationale && (
                             <div className="pt-3">
                               <p className="text-xs font-medium text-[#666666] mb-1">Why:</p>
-                              <p className="text-sm text-[#333333]">{change.rationale}</p>
+                              <p className="text-sm text-text-body">{change.rationale}</p>
                             </div>
                           )}
 
@@ -257,7 +257,7 @@ export function ProposalPreview({ proposal, onApply, onDiscard, isApplying }: Pr
 
       {/* Actions */}
       {proposal.status !== 'applied' && proposal.status !== 'discarded' && (
-        <div className="px-4 py-3 bg-[#F9F9F9] border-t border-[#E5E5E5]">
+        <div className="px-4 py-3 bg-surface-muted border-t border-border">
           {showConfirmation ? (
             <div className="space-y-3">
               <div className="flex items-start gap-2 p-3 bg-emerald-50 border border-emerald-200 rounded-lg">
@@ -274,7 +274,7 @@ export function ProposalPreview({ proposal, onApply, onDiscard, isApplying }: Pr
                 <button
                   onClick={handleApply}
                   disabled={isApplying}
-                  className="flex-1 px-4 py-2 text-sm font-medium text-white bg-[#3FAF7A] hover:bg-[#25785A] rounded-lg transition-colors disabled:opacity-50"
+                  className="flex-1 px-4 py-2 text-sm font-medium text-white bg-brand-primary hover:bg-[#25785A] rounded-lg transition-colors disabled:opacity-50"
                 >
                   {isApplying ? 'Applying...' : 'Confirm & Apply'}
                 </button>
@@ -292,7 +292,7 @@ export function ProposalPreview({ proposal, onApply, onDiscard, isApplying }: Pr
               <button
                 onClick={handleApply}
                 disabled={isApplying}
-                className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-white bg-[#3FAF7A] hover:bg-[#25785A] rounded-lg transition-colors disabled:opacity-50"
+                className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-white bg-brand-primary hover:bg-[#25785A] rounded-lg transition-colors disabled:opacity-50"
               >
                 {isApplying ? (
                   <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />

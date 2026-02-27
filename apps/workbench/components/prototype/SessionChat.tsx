@@ -83,10 +83,10 @@ export default function SessionChat({
 
   if (isCollapsed) {
     return (
-      <div className="border-t border-[#E5E5E5] bg-white">
+      <div className="border-t border-border bg-white">
         <button
           onClick={() => setIsCollapsed(false)}
-          className="w-full px-4 py-2 text-sm text-[#999999] hover:text-[#333333] flex items-center justify-between transition-colors"
+          className="w-full px-4 py-2 text-sm text-text-placeholder hover:text-text-body flex items-center justify-between transition-colors"
         >
           <span>Session Chat ({messages.filter((m) => m.role !== 'system').length} messages)</span>
           <span className="text-xs">{'\u25B2'} Expand</span>
@@ -96,21 +96,21 @@ export default function SessionChat({
   }
 
   return (
-    <div className="border-t border-[#E5E5E5] bg-white flex flex-col h-[240px]">
+    <div className="border-t border-border bg-white flex flex-col h-[240px]">
       {/* Context bar + collapse */}
-      <div className="px-4 py-2 bg-[#F4F4F4] text-[12px] text-[#999999] flex items-center justify-between border-b border-[#E5E5E5]">
+      <div className="px-4 py-2 bg-[#F4F4F4] text-[12px] text-text-placeholder flex items-center justify-between border-b border-border">
         <div className="flex items-center gap-3 truncate">
           <span>Page: {context.current_page || '/'}</span>
           {context.active_feature_name && (
             <>
-              <span className="text-[#E5E5E5]">|</span>
+              <span className="text-border">|</span>
               <span>Feature: {context.active_feature_name}</span>
             </>
           )}
         </div>
         <button
           onClick={() => setIsCollapsed(true)}
-          className="text-xs text-[#999999] hover:text-[#333333] ml-2 flex-shrink-0"
+          className="text-xs text-text-placeholder hover:text-text-body ml-2 flex-shrink-0"
         >
           {'\u25BC'} Collapse
         </button>
@@ -121,10 +121,10 @@ export default function SessionChat({
         {messages.map((msg, i) => {
           if (msg.role === 'system') {
             return (
-              <div key={i} className="text-center text-[12px] text-[#999999] my-2 flex items-center gap-2">
-                <div className="flex-1 border-t border-dashed border-[#E5E5E5]" />
+              <div key={i} className="text-center text-[12px] text-text-placeholder my-2 flex items-center gap-2">
+                <div className="flex-1 border-t border-dashed border-border" />
                 <span className="px-2">{msg.content}</span>
-                <div className="flex-1 border-t border-dashed border-[#E5E5E5]" />
+                <div className="flex-1 border-t border-dashed border-border" />
               </div>
             )
           }
@@ -138,7 +138,7 @@ export default function SessionChat({
                 className={`max-w-[80%] text-sm ${
                   msg.role === 'user'
                     ? 'bg-[#0A1E2F] text-white rounded-2xl rounded-br-md px-4 py-3 shadow-sm'
-                    : 'bg-white border border-[#E5E5E5] rounded-2xl rounded-bl-md px-4 py-3 shadow-[0_1px_2px_rgba(0,0,0,0.04)] text-[#333333]'
+                    : 'bg-white border border-border rounded-2xl rounded-bl-md px-4 py-3 shadow-sm text-text-body'
                 }`}
               >
                 {msg.content}
@@ -149,14 +149,14 @@ export default function SessionChat({
 
         {isLoading && (
           <div className="flex justify-start">
-            <div className="bg-white border border-[#E5E5E5] rounded-2xl rounded-bl-md px-4 py-3 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+            <div className="bg-white border border-border rounded-2xl rounded-bl-md px-4 py-3 shadow-sm">
               <div className="flex items-center gap-2">
                 <div className="flex gap-1">
-                  <div className="w-1.5 h-1.5 bg-[#3FAF7A] rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                  <div className="w-1.5 h-1.5 bg-[#3FAF7A] rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                  <div className="w-1.5 h-1.5 bg-[#3FAF7A] rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                  <div className="w-1.5 h-1.5 bg-brand-primary rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                  <div className="w-1.5 h-1.5 bg-brand-primary rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                  <div className="w-1.5 h-1.5 bg-brand-primary rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
                 </div>
-                <span className="text-[12px] text-[#999999]">Thinking...</span>
+                <span className="text-[12px] text-text-placeholder">Thinking...</span>
               </div>
             </div>
           </div>
@@ -166,7 +166,7 @@ export default function SessionChat({
       </div>
 
       {/* Input */}
-      <form onSubmit={handleSubmit} className="px-4 py-3 border-t border-[#E5E5E5]">
+      <form onSubmit={handleSubmit} className="px-4 py-3 border-t border-border">
         <div className="flex gap-2">
           <input
             type="text"
@@ -174,12 +174,12 @@ export default function SessionChat({
             onChange={(e) => setInput(e.target.value)}
             placeholder="Ask about this feature, report observations..."
             disabled={isLoading}
-            className="flex-1 px-4 py-3 text-sm bg-[#F4F4F4] focus:bg-white border border-[#E5E5E5] rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#3FAF7A]/20 focus:border-[#3FAF7A] disabled:opacity-50 transition-all"
+            className="flex-1 px-4 py-3 text-sm bg-[#F4F4F4] focus:bg-white border border-border rounded-2xl focus:outline-none focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary disabled:opacity-50 transition-all"
           />
           <button
             type="submit"
             disabled={isLoading || !input.trim()}
-            className="px-4 py-3 bg-[#3FAF7A] text-white text-sm font-medium rounded-2xl hover:bg-[#25785A] transition-all duration-200 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-4 py-3 bg-brand-primary text-white text-sm font-medium rounded-2xl hover:bg-[#25785A] transition-all duration-200 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Send
           </button>

@@ -200,8 +200,8 @@ export function WorkflowStepDetailDrawer({
 function AutomationBadge({ level }: { level: string }) {
   const config: Record<string, { dot: string; label: string; bg: string; text: string }> = {
     manual: { dot: 'bg-gray-400', label: 'Manual', bg: 'bg-gray-100', text: 'text-gray-600' },
-    semi_automated: { dot: 'bg-[#999999]', label: 'Semi-auto', bg: 'bg-[#F0F0F0]', text: 'text-[#666666]' },
-    fully_automated: { dot: 'bg-[#3FAF7A]', label: 'Automated', bg: 'bg-[#E8F5E9]', text: 'text-[#25785A]' },
+    semi_automated: { dot: 'bg-text-placeholder', label: 'Semi-auto', bg: 'bg-[#F0F0F0]', text: 'text-[#666666]' },
+    fully_automated: { dot: 'bg-brand-primary', label: 'Automated', bg: 'bg-[#E8F5E9]', text: 'text-[#25785A]' },
   }
   const c = config[level] || config.manual
   return (
@@ -253,8 +253,8 @@ function OverviewTab({
   return (
     <div className="space-y-6">
       {/* Narrative */}
-      <div className="bg-[#F4F4F4] border border-[#E5E5E5] rounded-xl px-4 py-3">
-        <p className="text-[13px] text-[#333333] leading-relaxed">{narrative}</p>
+      <div className="bg-[#F4F4F4] border border-border rounded-xl px-4 py-3">
+        <p className="text-[13px] text-text-body leading-relaxed">{narrative}</p>
       </div>
 
       {/* Time Comparison (if counterpart exists) */}
@@ -269,13 +269,13 @@ function OverviewTab({
 
       {/* Automation Progression (if counterpart) */}
       {detail.automation_delta && (
-        <div className="bg-white border border-[#E5E5E5] rounded-xl px-4 py-3">
-          <h4 className="text-[11px] font-medium text-[#999999] uppercase tracking-wide mb-2">
+        <div className="bg-white border border-border rounded-xl px-4 py-3">
+          <h4 className="text-[11px] font-medium text-text-placeholder uppercase tracking-wide mb-2">
             Automation Progression
           </h4>
           <div className="flex items-center gap-3">
             <AutomationBadge level={detail.automation_delta.split(' → ')[0] || 'manual'} />
-            <ArrowRight className="w-4 h-4 text-[#999999]" />
+            <ArrowRight className="w-4 h-4 text-text-placeholder" />
             <AutomationBadge level={detail.automation_delta.split(' → ')[1] || 'manual'} />
           </div>
         </div>
@@ -284,18 +284,18 @@ function OverviewTab({
       {/* Key Metrics */}
       <div className="flex flex-wrap gap-2">
         {detail.time_minutes != null && (
-          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium bg-[#F4F4F4] text-[#333333] rounded-lg border border-[#E5E5E5]">
-            <Clock className="w-3.5 h-3.5 text-[#999999]" />
+          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium bg-[#F4F4F4] text-text-body rounded-lg border border-border">
+            <Clock className="w-3.5 h-3.5 text-text-placeholder" />
             {detail.time_minutes}min
           </span>
         )}
-        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium bg-[#F4F4F4] text-[#333333] rounded-lg border border-[#E5E5E5]">
-          <Zap className="w-3.5 h-3.5 text-[#999999]" />
+        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium bg-[#F4F4F4] text-text-body rounded-lg border border-border">
+          <Zap className="w-3.5 h-3.5 text-text-placeholder" />
           {AUTOMATION_LABELS[detail.automation_level] || detail.automation_level}
         </span>
         {detail.operation_type && (
-          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium bg-[#F4F4F4] text-[#333333] rounded-lg border border-[#E5E5E5]">
-            <Database className="w-3.5 h-3.5 text-[#999999]" />
+          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium bg-[#F4F4F4] text-text-body rounded-lg border border-border">
+            <Database className="w-3.5 h-3.5 text-text-placeholder" />
             {detail.operation_type}
           </span>
         )}
@@ -303,17 +303,17 @@ function OverviewTab({
 
       {/* Pain / Benefit Card */}
       {(detail.pain_description || detail.benefit_description) && (
-        <div className="border border-[#E5E5E5] rounded-xl overflow-hidden">
+        <div className="border border-border rounded-xl overflow-hidden">
           {detail.pain_description && (
-            <div className="px-4 py-3 border-b border-[#E5E5E5] last:border-b-0">
-              <h4 className="text-[11px] font-medium text-[#999999] uppercase tracking-wide mb-1">Pain</h4>
-              <p className="text-[13px] text-[#333333] leading-relaxed">{detail.pain_description}</p>
+            <div className="px-4 py-3 border-b border-border last:border-b-0">
+              <h4 className="text-[11px] font-medium text-text-placeholder uppercase tracking-wide mb-1">Pain</h4>
+              <p className="text-[13px] text-text-body leading-relaxed">{detail.pain_description}</p>
             </div>
           )}
           {detail.benefit_description && (
             <div className="px-4 py-3">
               <h4 className="text-[11px] font-medium text-[#25785A] uppercase tracking-wide mb-1">Benefit</h4>
-              <p className="text-[13px] text-[#333333] leading-relaxed">{detail.benefit_description}</p>
+              <p className="text-[13px] text-text-body leading-relaxed">{detail.benefit_description}</p>
             </div>
           )}
         </div>
@@ -321,8 +321,8 @@ function OverviewTab({
 
       {/* Enrichment Section */}
       {hasEnrichment && (
-        <div className="border border-[#E5E5E5] rounded-xl overflow-hidden">
-          <div className="px-4 py-3 bg-[#E8F5E9] border-b border-[#E5E5E5]">
+        <div className="border border-border rounded-xl overflow-hidden">
+          <div className="px-4 py-3 bg-[#E8F5E9] border-b border-border">
             <div className="flex items-center gap-1.5">
               <Sparkles className="w-3.5 h-3.5 text-[#25785A]" />
               <span className="text-[11px] font-semibold text-[#25785A] uppercase tracking-wide">AI Analysis</span>
@@ -330,17 +330,17 @@ function OverviewTab({
           </div>
           <div className="px-4 py-3 space-y-3">
             {enrichment.narrative && (
-              <p className="text-[13px] text-[#333333] leading-relaxed">{enrichment.narrative}</p>
+              <p className="text-[13px] text-text-body leading-relaxed">{enrichment.narrative}</p>
             )}
             {enrichment.optimization_suggestions && enrichment.optimization_suggestions.length > 0 && (
               <div>
-                <h5 className="text-[11px] font-medium text-[#999999] uppercase tracking-wide mb-1.5">
+                <h5 className="text-[11px] font-medium text-text-placeholder uppercase tracking-wide mb-1.5">
                   Optimization Suggestions
                 </h5>
                 <ul className="space-y-1">
                   {enrichment.optimization_suggestions.map((s, i) => (
                     <li key={i} className="text-[12px] text-[#666666] flex items-start gap-1.5">
-                      <span className="text-[#3FAF7A] mt-0.5">-</span>
+                      <span className="text-brand-primary mt-0.5">-</span>
                       {s}
                     </li>
                   ))}
@@ -349,17 +349,17 @@ function OverviewTab({
             )}
             {enrichment.automation_opportunity_score != null && enrichment.automation_opportunity_score > 0 && (
               <div>
-                <h5 className="text-[11px] font-medium text-[#999999] uppercase tracking-wide mb-1.5">
+                <h5 className="text-[11px] font-medium text-text-placeholder uppercase tracking-wide mb-1.5">
                   Automation Score
                 </h5>
                 <div className="flex items-center gap-2">
                   <div className="flex-1 h-2 bg-[#F0F0F0] rounded-full overflow-hidden">
                     <div
-                      className="h-full bg-[#3FAF7A] rounded-full transition-all"
+                      className="h-full bg-brand-primary rounded-full transition-all"
                       style={{ width: `${Math.min(enrichment.automation_opportunity_score * 100, 100)}%` }}
                     />
                   </div>
-                  <span className="text-[12px] font-medium text-[#333333]">
+                  <span className="text-[12px] font-medium text-text-body">
                     {(enrichment.automation_opportunity_score * 100).toFixed(0)}%
                   </span>
                 </div>
@@ -395,8 +395,8 @@ function TimeComparison({
   const pctSaved = currentTime && currentTime > 0 ? Math.round((timeDelta / currentTime) * 100) : 0
 
   return (
-    <div className="bg-white border border-[#E5E5E5] rounded-xl px-4 py-3">
-      <h4 className="text-[11px] font-medium text-[#999999] uppercase tracking-wide mb-3">
+    <div className="bg-white border border-border rounded-xl px-4 py-3">
+      <h4 className="text-[11px] font-medium text-text-placeholder uppercase tracking-wide mb-3">
         Time Comparison
       </h4>
       <div className="space-y-2">
@@ -405,11 +405,11 @@ function TimeComparison({
           <span className="text-[11px] text-[#666666] w-14 shrink-0">Current</span>
           <div className="flex-1 h-3 bg-[#F0F0F0] rounded-full overflow-hidden">
             <div
-              className="h-full bg-[#999999] rounded-full transition-all"
+              className="h-full bg-text-placeholder rounded-full transition-all"
               style={{ width: maxTime > 0 ? `${((currentTime || 0) / maxTime) * 100}%` : '0%' }}
             />
           </div>
-          <span className="text-[12px] font-medium text-[#333333] w-14 text-right">
+          <span className="text-[12px] font-medium text-text-body w-14 text-right">
             {currentTime ?? '?'}min
           </span>
         </div>
@@ -418,7 +418,7 @@ function TimeComparison({
           <span className="text-[11px] text-[#25785A] w-14 shrink-0">Future</span>
           <div className="flex-1 h-3 bg-[#F0F0F0] rounded-full overflow-hidden">
             <div
-              className="h-full bg-[#3FAF7A] rounded-full transition-all"
+              className="h-full bg-brand-primary rounded-full transition-all"
               style={{ width: maxTime > 0 ? `${((futureTime || 0) / maxTime) * 100}%` : '0%' }}
             />
           </div>
@@ -452,9 +452,9 @@ function EvidenceTab({ evidence }: { evidence: Array<Record<string, unknown>> })
   if (!evidence || evidence.length === 0) {
     return (
       <div className="text-center py-8">
-        <FileText className="w-8 h-8 text-[#E5E5E5] mx-auto mb-3" />
+        <FileText className="w-8 h-8 text-border mx-auto mb-3" />
         <p className="text-[13px] text-[#666666] mb-1">No evidence sources</p>
-        <p className="text-[12px] text-[#999999]">
+        <p className="text-[12px] text-text-placeholder">
           Process more signals to build evidence for this step.
         </p>
       </div>
@@ -463,7 +463,7 @@ function EvidenceTab({ evidence }: { evidence: Array<Record<string, unknown>> })
 
   return (
     <div className="space-y-3">
-      <p className="text-[11px] font-medium text-[#999999] uppercase tracking-wide">
+      <p className="text-[11px] font-medium text-text-placeholder uppercase tracking-wide">
         {evidence.length} source{evidence.length !== 1 ? 's' : ''}
       </p>
       {evidence.map((item, idx) => {
@@ -473,9 +473,9 @@ function EvidenceTab({ evidence }: { evidence: Array<Record<string, unknown>> })
         return (
           <div
             key={idx}
-            className="border border-[#E5E5E5] rounded-xl px-4 py-3"
+            className="border border-border rounded-xl px-4 py-3"
           >
-            <div className="text-[13px] text-[#333333] leading-relaxed italic [&_p]:mb-1 [&_p:last-child]:mb-0 [&_ul]:my-1 [&_ol]:my-1 [&_li]:ml-2 [&_strong]:font-semibold [&_strong]:not-italic">
+            <div className="text-[13px] text-text-body leading-relaxed italic [&_p]:mb-1 [&_p:last-child]:mb-0 [&_ul]:my-1 [&_ol]:my-1 [&_li]:ml-2 [&_strong]:font-semibold [&_strong]:not-italic">
               <Markdown content={`\u201C${excerpt}\u201D`} />
             </div>
             <div className="flex items-center gap-2 mt-2">
@@ -483,7 +483,7 @@ function EvidenceTab({ evidence }: { evidence: Array<Record<string, unknown>> })
                 {SOURCE_LABELS[sourceType] || sourceType}
               </span>
               {rationale && (
-                <span className="text-[11px] text-[#999999]">{rationale}</span>
+                <span className="text-[11px] text-text-placeholder">{rationale}</span>
               )}
             </div>
           </div>
@@ -507,9 +507,9 @@ function ConnectionsTab({ detail }: { detail: WorkflowStepDetail }) {
   if (isEmpty) {
     return (
       <div className="text-center py-8">
-        <Link2 className="w-8 h-8 text-[#E5E5E5] mx-auto mb-3" />
+        <Link2 className="w-8 h-8 text-border mx-auto mb-3" />
         <p className="text-[13px] text-[#666666] mb-1">No connections found</p>
-        <p className="text-[12px] text-[#999999]">
+        <p className="text-[12px] text-text-placeholder">
           Run enrichment or process more signals to build connections.
         </p>
       </div>
@@ -532,9 +532,9 @@ function ConnectionsTab({ detail }: { detail: WorkflowStepDetail }) {
         <ConnectionGroup icon={Users} title="Actor" count={1}>
           <div className="px-3 py-2.5">
             <div className="flex items-center gap-2">
-              <span className="text-[13px] text-[#333333] font-medium">{detail.actor.name}</span>
+              <span className="text-[13px] text-text-body font-medium">{detail.actor.name}</span>
               {detail.actor.role && (
-                <span className="text-[11px] text-[#999999]">{detail.actor.role}</span>
+                <span className="text-[11px] text-text-placeholder">{detail.actor.role}</span>
               )}
             </div>
           </div>
@@ -557,14 +557,14 @@ function ConnectionsTab({ detail }: { detail: WorkflowStepDetail }) {
                   <span className="text-[10px] font-medium uppercase px-1.5 py-0.5 rounded bg-[#F0F0F0] text-[#666666]">
                     {d.driver_type}
                   </span>
-                  <span className="text-[13px] text-[#333333] line-clamp-2 flex-1">{d.description}</span>
+                  <span className="text-[13px] text-text-body line-clamp-2 flex-1">{d.description}</span>
                 </div>
                 <div className="flex items-center gap-2 mt-1">
                   {d.severity && (
-                    <span className="text-[10px] text-[#999999]">Severity: {d.severity}</span>
+                    <span className="text-[10px] text-text-placeholder">Severity: {d.severity}</span>
                   )}
                   {d.vision_alignment && (
-                    <span className="text-[10px] text-[#999999]">Vision: {d.vision_alignment}</span>
+                    <span className="text-[10px] text-text-placeholder">Vision: {d.vision_alignment}</span>
                   )}
                 </div>
               </div>
@@ -582,16 +582,16 @@ function ConnectionsTab({ detail }: { detail: WorkflowStepDetail }) {
               <div key={f.id} className="px-3 py-2.5 border-b border-[#F0F0F0] last:border-0">
                 <div className="flex items-center gap-2">
                   {isConfirmed
-                    ? <CheckCircle2 className="w-3.5 h-3.5 text-[#3FAF7A] flex-shrink-0" />
-                    : <Circle className="w-3.5 h-3.5 text-[#E5E5E5] flex-shrink-0" />
+                    ? <CheckCircle2 className="w-3.5 h-3.5 text-brand-primary flex-shrink-0" />
+                    : <Circle className="w-3.5 h-3.5 text-border flex-shrink-0" />
                   }
-                  <span className="text-[13px] text-[#333333] font-medium">{f.name}</span>
+                  <span className="text-[13px] text-text-body font-medium">{f.name}</span>
                   {f.category && (
-                    <span className="text-[10px] text-[#999999] bg-[#F0F0F0] px-1.5 py-0.5 rounded">{f.category}</span>
+                    <span className="text-[10px] text-text-placeholder bg-[#F0F0F0] px-1.5 py-0.5 rounded">{f.category}</span>
                   )}
                 </div>
                 {f.priority_group && (
-                  <span className="text-[10px] text-[#999999] ml-5.5 mt-0.5 block">
+                  <span className="text-[10px] text-text-placeholder ml-5.5 mt-0.5 block">
                     {f.priority_group.replace('_', ' ')}
                   </span>
                 )}
@@ -601,8 +601,8 @@ function ConnectionsTab({ detail }: { detail: WorkflowStepDetail }) {
         </ConnectionGroup>
       )}
       {!hasFeatures && detail.state_type === 'future' && (
-        <div className="flex items-start gap-2 text-[12px] text-[#666666] bg-[#F4F4F4] border border-[#E5E5E5] rounded-lg px-3 py-2">
-          <Info className="w-3.5 h-3.5 mt-0.5 flex-shrink-0 text-[#999999]" />
+        <div className="flex items-start gap-2 text-[12px] text-[#666666] bg-[#F4F4F4] border border-border rounded-lg px-3 py-2">
+          <Info className="w-3.5 h-3.5 mt-0.5 flex-shrink-0 text-text-placeholder" />
           No features linked — how will this step be implemented?
         </div>
       )}
@@ -613,8 +613,8 @@ function ConnectionsTab({ detail }: { detail: WorkflowStepDetail }) {
           {detail.data_entities.map((de) => (
             <div key={de.id} className="px-3 py-2.5 border-b border-[#F0F0F0] last:border-0">
               <div className="flex items-center gap-2">
-                <span className="text-[13px] text-[#333333] font-medium">{de.name}</span>
-                <span className="text-[10px] text-[#999999] bg-[#F0F0F0] px-1.5 py-0.5 rounded">
+                <span className="text-[13px] text-text-body font-medium">{de.name}</span>
+                <span className="text-[10px] text-text-placeholder bg-[#F0F0F0] px-1.5 py-0.5 rounded">
                   {de.entity_category}
                 </span>
                 <OperationBadge type={de.operation_type} />
@@ -646,9 +646,9 @@ function InsightsTab({ insights }: { insights: StepInsight[] }) {
   if (!insights || insights.length === 0) {
     return (
       <div className="text-center py-8">
-        <CheckCircle2 className="w-8 h-8 text-[#3FAF7A] mx-auto mb-3" />
+        <CheckCircle2 className="w-8 h-8 text-brand-primary mx-auto mb-3" />
         <p className="text-[13px] text-[#666666] mb-1">No issues detected</p>
-        <p className="text-[12px] text-[#999999]">
+        <p className="text-[12px] text-text-placeholder">
           This step is well-connected.
         </p>
       </div>
@@ -656,10 +656,10 @@ function InsightsTab({ insights }: { insights: StepInsight[] }) {
   }
 
   const typeConfig: Record<string, { icon: typeof Info; borderColor: string; iconColor: string }> = {
-    gap: { icon: Info, borderColor: 'border-[#E5E5E5]', iconColor: 'text-[#999999]' },
-    warning: { icon: AlertTriangle, borderColor: 'border-[#E5E5E5]', iconColor: 'text-[#999999]' },
-    opportunity: { icon: Sparkles, borderColor: 'border-[#3FAF7A]/30', iconColor: 'text-[#3FAF7A]' },
-    overlap: { icon: Layers, borderColor: 'border-[#E5E5E5]', iconColor: 'text-[#999999]' },
+    gap: { icon: Info, borderColor: 'border-border', iconColor: 'text-text-placeholder' },
+    warning: { icon: AlertTriangle, borderColor: 'border-border', iconColor: 'text-text-placeholder' },
+    opportunity: { icon: Sparkles, borderColor: 'border-brand-primary/30', iconColor: 'text-brand-primary' },
+    overlap: { icon: Layers, borderColor: 'border-border', iconColor: 'text-text-placeholder' },
   }
 
   return (
@@ -680,9 +680,9 @@ function InsightsTab({ insights }: { insights: StepInsight[] }) {
                     {insight.insight_type}
                   </span>
                 </div>
-                <p className="text-[13px] text-[#333333] leading-relaxed">{insight.message}</p>
+                <p className="text-[13px] text-text-body leading-relaxed">{insight.message}</p>
                 {insight.suggestion && (
-                  <p className="text-[12px] text-[#999999] mt-1">{insight.suggestion}</p>
+                  <p className="text-[12px] text-text-placeholder mt-1">{insight.suggestion}</p>
                 )}
               </div>
             </div>
@@ -701,9 +701,9 @@ function HistoryTab({ revisions }: { revisions: RevisionEntry[] }) {
   if (!revisions || revisions.length === 0) {
     return (
       <div className="text-center py-8">
-        <Clock className="w-8 h-8 text-[#E5E5E5] mx-auto mb-3" />
+        <Clock className="w-8 h-8 text-border mx-auto mb-3" />
         <p className="text-[13px] text-[#666666] mb-1">No revision history</p>
-        <p className="text-[12px] text-[#999999]">
+        <p className="text-[12px] text-text-placeholder">
           Changes will be tracked here as signals are processed.
         </p>
       </div>
@@ -714,15 +714,15 @@ function HistoryTab({ revisions }: { revisions: RevisionEntry[] }) {
     <div className="space-y-3">
       {revisions.map((rev, i) => {
         return (
-          <div key={i} className="border border-[#E5E5E5] rounded-xl px-4 py-3">
+          <div key={i} className="border border-border rounded-xl px-4 py-3">
             <div className="flex items-center gap-2 mb-1">
               <span className={`text-[10px] font-medium uppercase px-1.5 py-0.5 rounded ${REVISION_TYPE_COLORS[rev.revision_type] || REVISION_TYPE_COLORS.updated}`}>
                 {rev.revision_type}
               </span>
-              <span className="text-[10px] text-[#999999]">
+              <span className="text-[10px] text-text-placeholder">
                 {rev.created_at ? formatRelativeTime(rev.created_at) : ''}
               </span>
-              <span className="text-[10px] text-[#999999]">
+              <span className="text-[10px] text-text-placeholder">
                 by {formatRevisionAuthor(rev.created_by)}
               </span>
             </div>

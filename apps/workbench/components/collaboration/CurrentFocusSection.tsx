@@ -83,7 +83,7 @@ const phaseConfig: Record<string, {
   discovery: {
     icon: Sparkles,
     label: 'Discovery',
-    color: 'text-blue-700',
+    color: 'text-brand-primary-hover',
     bgColor: 'bg-blue-100',
   },
   validation: {
@@ -413,12 +413,12 @@ function DiscoveryActiveContent() {
   return (
     <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-100">
       <div className="flex items-start gap-3">
-        <Sparkles className="w-5 h-5 text-blue-600 mt-0.5" />
+        <Sparkles className="w-5 h-5 text-brand-primary mt-0.5" />
         <div className="flex-1">
           <p className="text-sm text-blue-900 font-medium">
             Discovery call in progress
           </p>
-          <p className="text-xs text-blue-700 mt-1">
+          <p className="text-xs text-brand-primary-hover mt-1">
             The client is actively engaged with your discovery preparation.
             Monitor responses in the client portal section.
           </p>

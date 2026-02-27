@@ -66,10 +66,10 @@ const STEP_SUB_LABELS: Record<string, string[]> = {
 }
 
 const STEP_ICON = {
-  completed: <Check className="w-4 h-4 text-[#3FAF7A]" />,
-  running: <Loader2 className="w-4 h-4 text-[#3FAF7A] animate-spin" />,
-  pending: <Circle className="w-4 h-4 text-[#E5E5E5]" />,
-  skipped: <Check className="w-4 h-4 text-[#999999]" />,
+  completed: <Check className="w-4 h-4 text-brand-primary" />,
+  running: <Loader2 className="w-4 h-4 text-brand-primary animate-spin" />,
+  pending: <Circle className="w-4 h-4 text-border" />,
+  skipped: <Check className="w-4 h-4 text-text-placeholder" />,
   failed: <AlertCircle className="w-4 h-4 text-red-500" />,
 } as const
 
@@ -94,7 +94,7 @@ function BuildCyclingLabel({ stepKey }: { stepKey: string }) {
 
   return (
     <p
-      className={`text-xs text-[#999999] mt-0.5 transition-opacity duration-200 ${
+      className={`text-xs text-text-placeholder mt-0.5 transition-opacity duration-200 ${
         fade ? 'opacity-100' : 'opacity-0'
       }`}
     >
@@ -381,7 +381,7 @@ export function HybridOnboardingModal({
                 className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
                   msg.role === 'user'
                     ? 'bg-[#0A1E2F] text-white'
-                    : 'bg-[#F4F4F4] text-[#333333]'
+                    : 'bg-[#F4F4F4] text-text-body'
                 }`}
                 dangerouslySetInnerHTML={{
                   __html: renderMarkdown(msg.content),
@@ -395,9 +395,9 @@ export function HybridOnboardingModal({
             <div className="flex justify-start">
               <div className="bg-[#F4F4F4] rounded-2xl px-4 py-3">
                 <div className="flex gap-1">
-                  <div className="w-2 h-2 bg-[#999999] rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                  <div className="w-2 h-2 bg-[#999999] rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                  <div className="w-2 h-2 bg-[#999999] rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                  <div className="w-2 h-2 bg-text-placeholder rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                  <div className="w-2 h-2 bg-text-placeholder rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                  <div className="w-2 h-2 bg-text-placeholder rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
                 </div>
               </div>
             </div>
@@ -406,7 +406,7 @@ export function HybridOnboardingModal({
           {/* Client Card (inline after chat) */}
           {phase === 'client_card' && !clientCardDone && (
             <div className="flex justify-start">
-              <div className="bg-[#F4F4F4] rounded-2xl px-4 py-3 text-sm text-[#333333] max-w-[85%]">
+              <div className="bg-[#F4F4F4] rounded-2xl px-4 py-3 text-sm text-text-body max-w-[85%]">
                 A few more details to get started.
               </div>
             </div>
@@ -415,27 +415,27 @@ export function HybridOnboardingModal({
             <div className="flex justify-start w-full">
               {clientCardDone ? (
                 // Collapsed state
-                <div className="bg-white border border-[#E5E5E5] rounded-xl px-4 py-3 flex items-center gap-3 max-w-[85%]">
+                <div className="bg-white border border-border rounded-xl px-4 py-3 flex items-center gap-3 max-w-[85%]">
                   <div className="w-8 h-8 rounded-full bg-[#E8F5E9] flex items-center justify-center">
                     <Check className="w-4 h-4 text-[#25785A]" />
                   </div>
-                  <div className="text-sm text-[#333333]">
+                  <div className="text-sm text-text-body">
                     {clientName ? (
                       <span><strong>{clientName}</strong>{clientWebsite ? ` (${clientWebsite})` : ''}</span>
                     ) : (
-                      <span className="text-[#999999]">Client info skipped</span>
+                      <span className="text-text-placeholder">Client info skipped</span>
                     )}
                   </div>
                 </div>
               ) : (
                 // Expanded card
-                <div className="w-full max-w-md bg-white border border-[#E5E5E5] rounded-xl shadow-md p-5">
+                <div className="w-full max-w-md bg-white border border-border rounded-xl shadow-md p-5">
                   <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center gap-2">
                       <Building2 className="w-4 h-4 text-[#666666]" />
-                      <span className="font-medium text-sm text-[#333333]">Client Information</span>
+                      <span className="font-medium text-sm text-text-body">Client Information</span>
                     </div>
-                    <span className="text-xs text-[#999999]">1/2</span>
+                    <span className="text-xs text-text-placeholder">1/2</span>
                   </div>
                   <div className="space-y-3">
                     <input
@@ -443,33 +443,33 @@ export function HybridOnboardingModal({
                       placeholder="Company Name"
                       value={clientName}
                       onChange={(e) => setClientName(e.target.value)}
-                      className="w-full px-3 py-2 text-sm border border-[#E5E5E5] rounded-lg bg-[#F4F4F4] focus:outline-none focus:ring-2 focus:ring-[#3FAF7A]/20 focus:border-[#3FAF7A]"
+                      className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-[#F4F4F4] focus:outline-none focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary"
                     />
                     <input
                       type="text"
                       placeholder="Website"
                       value={clientWebsite}
                       onChange={(e) => setClientWebsite(e.target.value)}
-                      className="w-full px-3 py-2 text-sm border border-[#E5E5E5] rounded-lg bg-[#F4F4F4] focus:outline-none focus:ring-2 focus:ring-[#3FAF7A]/20 focus:border-[#3FAF7A]"
+                      className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-[#F4F4F4] focus:outline-none focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary"
                     />
                     <input
                       type="text"
                       placeholder="Industry"
                       value={clientIndustry}
                       onChange={(e) => setClientIndustry(e.target.value)}
-                      className="w-full px-3 py-2 text-sm border border-[#E5E5E5] rounded-lg bg-[#F4F4F4] focus:outline-none focus:ring-2 focus:ring-[#3FAF7A]/20 focus:border-[#3FAF7A]"
+                      className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-[#F4F4F4] focus:outline-none focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary"
                     />
                   </div>
                   <div className="flex justify-between mt-4">
                     <button
                       onClick={handleClientSkip}
-                      className="text-sm text-[#999999] hover:text-[#666666] px-3 py-2"
+                      className="text-sm text-text-placeholder hover:text-[#666666] px-3 py-2"
                     >
                       Skip
                     </button>
                     <button
                       onClick={handleClientContinue}
-                      className="flex items-center gap-1.5 text-sm bg-[#3FAF7A] text-white px-4 py-2 rounded-lg hover:bg-[#25785A] transition-colors"
+                      className="flex items-center gap-1.5 text-sm bg-brand-primary text-white px-4 py-2 rounded-lg hover:bg-[#25785A] transition-colors"
                     >
                       Continue <ChevronRight className="w-3.5 h-3.5" />
                     </button>
@@ -484,27 +484,27 @@ export function HybridOnboardingModal({
             <div className="flex justify-start w-full">
               {phase === 'confirm' ? (
                 // Collapsed state
-                <div className="bg-white border border-[#E5E5E5] rounded-xl px-4 py-3 flex items-center gap-3 max-w-[85%]">
+                <div className="bg-white border border-border rounded-xl px-4 py-3 flex items-center gap-3 max-w-[85%]">
                   <div className="w-8 h-8 rounded-full bg-[#E8F5E9] flex items-center justify-center">
                     <Check className="w-4 h-4 text-[#25785A]" />
                   </div>
-                  <div className="text-sm text-[#333333]">
+                  <div className="text-sm text-text-body">
                     {stakeholders.length > 0 ? (
                       <span>{stakeholders.length} stakeholder{stakeholders.length > 1 ? 's' : ''} added</span>
                     ) : (
-                      <span className="text-[#999999]">No stakeholders added</span>
+                      <span className="text-text-placeholder">No stakeholders added</span>
                     )}
                   </div>
                 </div>
               ) : (
                 // Expanded card
-                <div className="w-full max-w-md bg-white border border-[#E5E5E5] rounded-xl shadow-md p-5">
+                <div className="w-full max-w-md bg-white border border-border rounded-xl shadow-md p-5">
                   <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center gap-2">
                       <User className="w-4 h-4 text-[#666666]" />
-                      <span className="font-medium text-sm text-[#333333]">Key Stakeholder</span>
+                      <span className="font-medium text-sm text-text-body">Key Stakeholder</span>
                     </div>
-                    <span className="text-xs text-[#999999]">2/2</span>
+                    <span className="text-xs text-text-placeholder">2/2</span>
                   </div>
 
                   {/* Added stakeholders list */}
@@ -515,13 +515,13 @@ export function HybridOnboardingModal({
                           key={i}
                           className="flex items-center justify-between bg-[#F4F4F4] rounded-lg px-3 py-2"
                         >
-                          <span className="text-sm text-[#333333]">
+                          <span className="text-sm text-text-body">
                             {s.first_name} {s.last_name}
                             {s.role ? ` — ${s.role}` : ''}
                           </span>
                           <button
                             onClick={() => removeStakeholder(i)}
-                            className="text-[#999999] hover:text-red-500"
+                            className="text-text-placeholder hover:text-red-500"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
@@ -538,14 +538,14 @@ export function HybridOnboardingModal({
                         placeholder="First Name"
                         value={sFirstName}
                         onChange={(e) => setSFirstName(e.target.value)}
-                        className="flex-1 px-3 py-2 text-sm border border-[#E5E5E5] rounded-lg bg-[#F4F4F4] focus:outline-none focus:ring-2 focus:ring-[#3FAF7A]/20 focus:border-[#3FAF7A]"
+                        className="flex-1 px-3 py-2 text-sm border border-border rounded-lg bg-[#F4F4F4] focus:outline-none focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary"
                       />
                       <input
                         type="text"
                         placeholder="Last Name"
                         value={sLastName}
                         onChange={(e) => setSLastName(e.target.value)}
-                        className="flex-1 px-3 py-2 text-sm border border-[#E5E5E5] rounded-lg bg-[#F4F4F4] focus:outline-none focus:ring-2 focus:ring-[#3FAF7A]/20 focus:border-[#3FAF7A]"
+                        className="flex-1 px-3 py-2 text-sm border border-border rounded-lg bg-[#F4F4F4] focus:outline-none focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary"
                       />
                     </div>
                     <input
@@ -553,14 +553,14 @@ export function HybridOnboardingModal({
                       placeholder="Email"
                       value={sEmail}
                       onChange={(e) => setSEmail(e.target.value)}
-                      className="w-full px-3 py-2 text-sm border border-[#E5E5E5] rounded-lg bg-[#F4F4F4] focus:outline-none focus:ring-2 focus:ring-[#3FAF7A]/20 focus:border-[#3FAF7A]"
+                      className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-[#F4F4F4] focus:outline-none focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary"
                     />
                     <input
                       type="text"
                       placeholder="LinkedIn URL"
                       value={sLinkedin}
                       onChange={(e) => setSLinkedin(e.target.value)}
-                      className="w-full px-3 py-2 text-sm border border-[#E5E5E5] rounded-lg bg-[#F4F4F4] focus:outline-none focus:ring-2 focus:ring-[#3FAF7A]/20 focus:border-[#3FAF7A]"
+                      className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-[#F4F4F4] focus:outline-none focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary"
                     />
                     <div className="flex gap-2">
                       <input
@@ -568,12 +568,12 @@ export function HybridOnboardingModal({
                         placeholder="Role"
                         value={sRole}
                         onChange={(e) => setSRole(e.target.value)}
-                        className="flex-1 px-3 py-2 text-sm border border-[#E5E5E5] rounded-lg bg-[#F4F4F4] focus:outline-none focus:ring-2 focus:ring-[#3FAF7A]/20 focus:border-[#3FAF7A]"
+                        className="flex-1 px-3 py-2 text-sm border border-border rounded-lg bg-[#F4F4F4] focus:outline-none focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary"
                       />
                       <select
                         value={sType}
                         onChange={(e) => setSType(e.target.value)}
-                        className="px-3 py-2 text-sm border border-[#E5E5E5] rounded-lg bg-[#F4F4F4] focus:outline-none focus:ring-2 focus:ring-[#3FAF7A]/20 focus:border-[#3FAF7A]"
+                        className="px-3 py-2 text-sm border border-border rounded-lg bg-[#F4F4F4] focus:outline-none focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary"
                       >
                         {STAKEHOLDER_TYPES.map((t) => (
                           <option key={t.value} value={t.value}>
@@ -585,7 +585,7 @@ export function HybridOnboardingModal({
                     <button
                       onClick={addStakeholder}
                       disabled={!sFirstName.trim()}
-                      className="flex items-center gap-1.5 text-sm text-[#3FAF7A] hover:text-[#25785A] disabled:text-[#999999] px-1 py-1"
+                      className="flex items-center gap-1.5 text-sm text-brand-primary hover:text-[#25785A] disabled:text-text-placeholder px-1 py-1"
                     >
                       <Plus className="w-3.5 h-3.5" /> Add stakeholder
                     </button>
@@ -594,7 +594,7 @@ export function HybridOnboardingModal({
                   <div className="flex justify-end mt-4">
                     <button
                       onClick={handleStakeholderContinue}
-                      className="flex items-center gap-1.5 text-sm bg-[#3FAF7A] text-white px-4 py-2 rounded-lg hover:bg-[#25785A] transition-colors"
+                      className="flex items-center gap-1.5 text-sm bg-brand-primary text-white px-4 py-2 rounded-lg hover:bg-[#25785A] transition-colors"
                     >
                       Continue <ChevronRight className="w-3.5 h-3.5" />
                     </button>
@@ -607,29 +607,29 @@ export function HybridOnboardingModal({
           {/* Launch confirmation */}
           {phase === 'confirm' && summary && (
             <div className="flex justify-start w-full">
-              <div className="w-full max-w-md bg-white border border-[#E5E5E5] rounded-xl shadow-md p-5">
-                <p className="text-sm text-[#333333] mb-4">
+              <div className="w-full max-w-md bg-white border border-border rounded-xl shadow-md p-5">
+                <p className="text-sm text-text-body mb-4">
                   Everything looks great. Here&apos;s what I&apos;ll set up:
                 </p>
                 <ul className="space-y-1.5 text-sm text-[#666666] mb-5">
                   <li className="flex items-start gap-2">
-                    <span className="text-[#999999] mt-0.5">•</span>
-                    <span><strong className="text-[#333333]">Project:</strong> {summary.name}</span>
+                    <span className="text-text-placeholder mt-0.5">•</span>
+                    <span><strong className="text-text-body">Project:</strong> {summary.name}</span>
                   </li>
                   {clientName && (
                     <li className="flex items-start gap-2">
-                      <span className="text-[#999999] mt-0.5">•</span>
+                      <span className="text-text-placeholder mt-0.5">•</span>
                       <span>
-                        <strong className="text-[#333333]">Client:</strong> {clientName}
+                        <strong className="text-text-body">Client:</strong> {clientName}
                         {clientWebsite ? ` (${clientWebsite})` : ''}
                       </span>
                     </li>
                   )}
                   {stakeholders.length > 0 && (
                     <li className="flex items-start gap-2">
-                      <span className="text-[#999999] mt-0.5">•</span>
+                      <span className="text-text-placeholder mt-0.5">•</span>
                       <span>
-                        <strong className="text-[#333333]">Contacts:</strong>{' '}
+                        <strong className="text-text-body">Contacts:</strong>{' '}
                         {stakeholders.map((s) => `${s.first_name} ${s.last_name}`).join(', ')}
                       </span>
                     </li>
@@ -637,7 +637,7 @@ export function HybridOnboardingModal({
                 </ul>
                 <button
                   onClick={handleLaunch}
-                  className="w-full flex items-center justify-center gap-2 bg-[#3FAF7A] text-white font-medium py-3 rounded-xl hover:bg-[#25785A] transition-colors"
+                  className="w-full flex items-center justify-center gap-2 bg-brand-primary text-white font-medium py-3 rounded-xl hover:bg-[#25785A] transition-colors"
                 >
                   <Rocket className="w-4 h-4" /> Launch Project
                 </button>
@@ -649,7 +649,7 @@ export function HybridOnboardingModal({
           {phase === 'launching' && (
             <div className="flex justify-center py-8">
               <div className="text-center">
-                <Loader2 className="w-10 h-10 text-[#3FAF7A] animate-spin mx-auto mb-4" />
+                <Loader2 className="w-10 h-10 text-brand-primary animate-spin mx-auto mb-4" />
                 <p className="text-sm text-[#666666]">Setting things up...</p>
               </div>
             </div>
@@ -666,17 +666,17 @@ export function HybridOnboardingModal({
                 <div className="text-center mb-5">
                   {isDone && !isFailed ? (
                     <div className="flex items-center gap-2 justify-center mb-1">
-                      <CheckCircle2 className="w-6 h-6 text-[#3FAF7A]" />
-                      <h3 className="text-lg font-semibold text-[#333333]">Build Complete</h3>
+                      <CheckCircle2 className="w-6 h-6 text-brand-primary" />
+                      <h3 className="text-lg font-semibold text-text-body">Build Complete</h3>
                     </div>
                   ) : isFailed ? (
                     <div className="flex items-center gap-2 justify-center mb-1">
                       <AlertCircle className="w-6 h-6 text-red-500" />
-                      <h3 className="text-lg font-semibold text-[#333333]">Build Failed</h3>
+                      <h3 className="text-lg font-semibold text-text-body">Build Failed</h3>
                     </div>
                   ) : (
                     <>
-                      <Loader2 className="w-10 h-10 text-[#3FAF7A] animate-spin mx-auto mb-3" />
+                      <Loader2 className="w-10 h-10 text-brand-primary animate-spin mx-auto mb-3" />
                       <p className="text-sm text-[#666666]">Building your project...</p>
                     </>
                   )}
@@ -684,10 +684,10 @@ export function HybridOnboardingModal({
 
                 {/* Progress bar */}
                 <div className="w-full max-w-sm">
-                  <div className="h-2 bg-[#E5E5E5] rounded-full overflow-hidden mb-5">
+                  <div className="h-2 bg-border rounded-full overflow-hidden mb-5">
                     <div
                       className={`h-full rounded-full transition-all duration-500 ${
-                        isFailed ? 'bg-red-500' : 'bg-[#3FAF7A]'
+                        isFailed ? 'bg-red-500' : 'bg-brand-primary'
                       }`}
                       style={{ width: `${buildProgressPct}%` }}
                     />
@@ -703,10 +703,10 @@ export function HybridOnboardingModal({
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className={`text-sm ${
-                          step.status === 'running' ? 'text-[#333333] font-medium' :
-                          step.status === 'completed' ? 'text-[#333333]' :
+                          step.status === 'running' ? 'text-text-body font-medium' :
+                          step.status === 'completed' ? 'text-text-body' :
                           step.status === 'failed' ? 'text-red-600' :
-                          'text-[#999999]'
+                          'text-text-placeholder'
                         }`}>
                           {step.step_label}
                           {step.status === 'running' && '...'}
@@ -715,7 +715,7 @@ export function HybridOnboardingModal({
                           <BuildCyclingLabel stepKey={step.step_key} />
                         )}
                         {step.result_summary && step.status === 'completed' && (
-                          <p className="text-xs text-[#999999] mt-0.5">{step.result_summary}</p>
+                          <p className="text-xs text-text-placeholder mt-0.5">{step.result_summary}</p>
                         )}
                         {step.error_message && (
                           <p className="text-xs text-red-500 mt-0.5">{step.error_message}</p>
@@ -730,19 +730,19 @@ export function HybridOnboardingModal({
                   {isDone && !isFailed ? (
                     <button
                       onClick={handleBuildDismiss}
-                      className="flex items-center gap-2 bg-[#3FAF7A] text-white font-medium px-5 py-2.5 rounded-xl hover:bg-[#25785A] transition-colors"
+                      className="flex items-center gap-2 bg-brand-primary text-white font-medium px-5 py-2.5 rounded-xl hover:bg-[#25785A] transition-colors"
                     >
                       Go to Project <ArrowRight className="w-4 h-4" />
                     </button>
                   ) : isFailed ? (
                     <button
                       onClick={handleBuildDismiss}
-                      className="text-sm text-[#666666] hover:text-[#333333] px-4 py-2"
+                      className="text-sm text-[#666666] hover:text-text-body px-4 py-2"
                     >
                       Close
                     </button>
                   ) : (
-                    <p className="text-xs text-[#999999] text-center">
+                    <p className="text-xs text-text-placeholder text-center">
                       You can close this and check back later.
                     </p>
                   )}
@@ -756,7 +756,7 @@ export function HybridOnboardingModal({
 
         {/* Input area — only visible during chat phase */}
         {phase === 'chat' && (
-          <div className="border-t border-[#E5E5E5] px-6 py-4 shrink-0">
+          <div className="border-t border-border px-6 py-4 shrink-0">
             <div className="flex items-center gap-3">
               <input
                 type="text"
@@ -765,13 +765,13 @@ export function HybridOnboardingModal({
                 onKeyDown={handleKeyDown}
                 placeholder="Type your response..."
                 disabled={isLoading}
-                className="flex-1 px-4 py-2.5 text-sm border border-[#E5E5E5] rounded-xl bg-[#F4F4F4] focus:outline-none focus:ring-2 focus:ring-[#3FAF7A]/20 focus:border-[#3FAF7A] disabled:opacity-50"
+                className="flex-1 px-4 py-2.5 text-sm border border-border rounded-xl bg-[#F4F4F4] focus:outline-none focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary disabled:opacity-50"
                 autoFocus
               />
               <button
                 onClick={handleSend}
                 disabled={isLoading || !input.trim()}
-                className="p-2.5 bg-[#3FAF7A] text-white rounded-xl hover:bg-[#25785A] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="p-2.5 bg-brand-primary text-white rounded-xl hover:bg-[#25785A] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 <Send className="w-4 h-4" />
               </button>

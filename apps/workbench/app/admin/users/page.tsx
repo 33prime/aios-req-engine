@@ -43,7 +43,7 @@ export default function AdminUsersPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="w-5 h-5 border-2 border-[#3FAF7A] border-t-transparent rounded-full animate-spin" />
+        <div className="w-5 h-5 border-2 border-brand-primary border-t-transparent rounded-full animate-spin" />
       </div>
     )
   }
@@ -51,7 +51,7 @@ export default function AdminUsersPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-[22px] font-bold text-[#333333]">Users</h1>
+        <h1 className="text-[22px] font-bold text-text-body">Users</h1>
         <span className="px-3 py-1 text-[13px] rounded-full bg-[#F0F0F0] text-[#666666]">
           {filtered.length} user{filtered.length !== 1 ? 's' : ''}
         </span>
@@ -60,19 +60,19 @@ export default function AdminUsersPage() {
       {/* Filters */}
       <div className="flex items-center gap-3">
         <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#999999]" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-placeholder" />
           <input
             type="text"
             placeholder="Search users..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 text-[13px] border border-[#E5E5E5] rounded-xl bg-white focus:outline-none focus:border-[#3FAF7A] transition-colors"
+            className="w-full pl-10 pr-4 py-2 text-[13px] border border-border rounded-xl bg-white focus:outline-none focus:border-brand-primary transition-colors"
           />
         </div>
         <select
           value={roleFilter}
           onChange={(e) => setRoleFilter(e.target.value)}
-          className="px-3 py-2 text-[13px] border border-[#E5E5E5] rounded-xl bg-white focus:outline-none focus:border-[#3FAF7A]"
+          className="px-3 py-2 text-[13px] border border-border rounded-xl bg-white focus:outline-none focus:border-brand-primary"
         >
           <option value="">All Roles</option>
           {roles.map(r => (
@@ -89,7 +89,7 @@ export default function AdminUsersPage() {
       </div>
 
       {filtered.length === 0 && (
-        <div className="text-center py-12 text-[#999999] text-sm">
+        <div className="text-center py-12 text-text-placeholder text-sm">
           No users found
         </div>
       )}

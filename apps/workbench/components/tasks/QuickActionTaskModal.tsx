@@ -27,12 +27,12 @@ interface QuickActionTaskModalProps {
 }
 
 const typeConfig: Record<string, { icon: typeof FileText; label: string; bg: string; text: string }> = {
-  signal_review:  { icon: FileText, label: 'Signal Review',  bg: 'bg-[#3FAF7A]/10', text: 'text-[#25785A]' },
+  signal_review:  { icon: FileText, label: 'Signal Review',  bg: 'bg-brand-primary-light', text: 'text-[#25785A]' },
   action_item:    { icon: Send,     label: 'Action Item',    bg: 'bg-[#0A1E2F]/5',  text: 'text-[#0A1E2F]' },
-  meeting_prep:   { icon: Calendar, label: 'Meeting Prep',   bg: 'bg-[#3FAF7A]/10', text: 'text-[#25785A]' },
-  book_meeting:   { icon: Calendar, label: 'Book Meeting',   bg: 'bg-[#3FAF7A]/10', text: 'text-[#25785A]' },
+  meeting_prep:   { icon: Calendar, label: 'Meeting Prep',   bg: 'bg-brand-primary-light', text: 'text-[#25785A]' },
+  book_meeting:   { icon: Calendar, label: 'Book Meeting',   bg: 'bg-brand-primary-light', text: 'text-[#25785A]' },
   reminder:       { icon: Bell,     label: 'Reminder',       bg: 'bg-[#F4F4F4]',    text: 'text-[#666]' },
-  review_request: { icon: Eye,      label: 'Review Request', bg: 'bg-[#3FAF7A]/10', text: 'text-[#25785A]' },
+  review_request: { icon: Eye,      label: 'Review Request', bg: 'bg-brand-primary-light', text: 'text-[#25785A]' },
   deliverable:    { icon: Package,  label: 'Deliverable',    bg: 'bg-[#0A1E2F]/5',  text: 'text-[#0A1E2F]' },
   custom:         { icon: Pen,      label: 'Task',           bg: 'bg-[#F4F4F4]',    text: 'text-[#666]' },
 }
@@ -163,7 +163,7 @@ export function QuickActionTaskModal({
               </span>
               <button
                 onClick={handleOpenDetail}
-                className="text-[12px] font-medium text-[#3FAF7A] hover:text-[#25785A] transition-colors"
+                className="text-[12px] font-medium text-brand-primary hover:text-[#25785A] transition-colors"
               >
                 Review All
               </button>
@@ -181,10 +181,10 @@ export function QuickActionTaskModal({
         </div>
 
         {/* Actions */}
-        <div className="flex items-center justify-between px-5 py-3 border-t border-[#E5E5E5]">
+        <div className="flex items-center justify-between px-5 py-3 border-t border-border">
           <button
             onClick={handleOpenDetail}
-            className="flex items-center gap-1.5 text-[13px] font-medium text-[#3FAF7A] hover:text-[#25785A] transition-colors"
+            className="flex items-center gap-1.5 text-[13px] font-medium text-brand-primary hover:text-[#25785A] transition-colors"
           >
             Open Full Detail
             <ArrowUpRight className="w-3.5 h-3.5" />
@@ -200,7 +200,7 @@ export function QuickActionTaskModal({
             <button
               onClick={handleComplete}
               disabled={completing}
-              className="px-3 py-1.5 text-[13px] font-medium rounded-lg bg-[#3FAF7A] text-white hover:bg-[#25785A] disabled:opacity-40 transition-colors"
+              className="px-3 py-1.5 text-[13px] font-medium rounded-lg bg-brand-primary text-white hover:bg-[#25785A] disabled:opacity-40 transition-colors"
             >
               {completing ? (
                 <span className="flex items-center gap-1.5">

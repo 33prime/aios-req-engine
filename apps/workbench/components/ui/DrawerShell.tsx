@@ -63,7 +63,7 @@ export function DrawerShell({
       {/* Drawer */}
       <div className="fixed right-0 top-0 h-full max-w-full bg-white shadow-xl z-50 flex flex-col animate-slide-in-right" style={{ width }}>
         {/* Header */}
-        <div className="flex-shrink-0 border-b border-[#E5E5E5] px-6 py-4">
+        <div className="flex-shrink-0 border-b border-border px-6 py-4">
           <div className="flex items-start justify-between gap-3">
             <div className="flex items-start gap-3 min-w-0 flex-1">
               <div className="w-8 h-8 rounded-full bg-[#0A1E2F] flex items-center justify-center flex-shrink-0 mt-0.5">
@@ -71,11 +71,11 @@ export function DrawerShell({
               </div>
               <div className="min-w-0">
                 {entityLabel && (
-                  <p className="text-[11px] font-medium text-[#999999] uppercase tracking-wide mb-1">
+                  <p className="text-[11px] font-medium text-text-placeholder uppercase tracking-wide mb-1">
                     {entityLabel}
                   </p>
                 )}
-                <h2 className="text-[15px] font-semibold text-[#333333] line-clamp-2 leading-snug">
+                <h2 className="text-[15px] font-semibold text-text-body line-clamp-2 leading-snug">
                   {title}
                 </h2>
                 {headerExtra}
@@ -85,7 +85,7 @@ export function DrawerShell({
               {headerRight}
               <button
                 onClick={onClose}
-                className="p-1.5 rounded-md text-[#999999] hover:text-[#666666] hover:bg-[#F0F0F0] transition-colors"
+                className="p-1.5 rounded-md text-text-placeholder hover:text-[#666666] hover:bg-[#F0F0F0] transition-colors"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -105,8 +105,8 @@ export function DrawerShell({
                     onClick={() => onTabChange?.(tab.id)}
                     className={`flex items-center gap-1.5 px-3 py-2 text-[12px] font-medium border-b-2 transition-colors ${
                       isActive
-                        ? 'border-[#3FAF7A] text-[#25785A]'
-                        : 'border-transparent text-[#999999] hover:text-[#666666]'
+                        ? 'border-brand-primary text-[#25785A]'
+                        : 'border-transparent text-text-placeholder hover:text-[#666666]'
                     }`}
                   >
                     <TabIcon className="w-3.5 h-3.5" />

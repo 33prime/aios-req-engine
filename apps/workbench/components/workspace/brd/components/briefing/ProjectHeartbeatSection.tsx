@@ -12,10 +12,10 @@ export function ProjectHeartbeatSection({ heartbeat }: ProjectHeartbeatSectionPr
   const [expanded, setExpanded] = useState(false) // collapsed by default
 
   return (
-    <div className="border-b border-[#E5E5E5]">
+    <div className="border-b border-border">
       <button
         onClick={() => setExpanded(!expanded)}
-        className="w-full px-4 py-2.5 flex items-center justify-between hover:bg-[#FAFAFA] transition-colors"
+        className="w-full px-4 py-2.5 flex items-center justify-between hover:bg-surface-page transition-colors"
       >
         <div className="flex items-center gap-2">
           <Activity className="w-3.5 h-3.5 text-[#666666]" />
@@ -36,7 +36,7 @@ export function ProjectHeartbeatSection({ heartbeat }: ProjectHeartbeatSectionPr
           />
         </div>
         <ChevronDown
-          className={`w-3.5 h-3.5 text-[#999999] transition-transform duration-200 ${
+          className={`w-3.5 h-3.5 text-text-placeholder transition-transform duration-200 ${
             expanded ? 'rotate-180' : ''
           }`}
         />
@@ -115,13 +115,13 @@ function HeartbeatStat({
 }) {
   return (
     <div className="p-2.5 bg-[#F4F4F4] rounded-xl">
-      <span className="text-[10px] text-[#999999] uppercase tracking-wide">{label}</span>
+      <span className="text-[10px] text-text-placeholder uppercase tracking-wide">{label}</span>
       <div className="flex items-baseline gap-1 mt-1">
-        <span className="text-[16px] font-semibold text-[#333333]">{value}</span>
-        {subtitle && <span className="text-[10px] text-[#999999]">{subtitle}</span>}
+        <span className="text-[16px] font-semibold text-text-body">{value}</span>
+        {subtitle && <span className="text-[10px] text-text-placeholder">{subtitle}</span>}
       </div>
       {progress != null && (
-        <div className="mt-1.5 h-1 bg-[#E5E5E5] rounded-full overflow-hidden">
+        <div className="mt-1.5 h-1 bg-border rounded-full overflow-hidden">
           <div
             className="h-full rounded-full transition-all duration-500"
             style={{

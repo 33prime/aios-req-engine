@@ -18,30 +18,30 @@ export function ClientHeaderBar({ projectId }: ClientHeaderBarProps) {
 
   return (
     <>
-      <div className="bg-white rounded-2xl border border-[#E5E5E5] shadow-[0_1px_2px_rgba(0,0,0,0.04)] p-4">
+      <div className="bg-white rounded-2xl border border-border shadow-sm p-4">
         <div className="flex items-center gap-4 flex-wrap">
           {clientsInvited > 0 ? (
             <div className="flex items-center gap-3">
-              <span className="text-[11px] text-[#999999] uppercase tracking-wider font-semibold">Team</span>
+              <span className="text-[11px] text-text-placeholder uppercase tracking-wider font-semibold">Team</span>
               <div className="flex items-center gap-1.5">
-                <span className={`w-2 h-2 rounded-full ${clientsActive > 0 ? 'bg-[#3FAF7A]' : 'bg-[#E5E5E5]'}`} />
-                <span className="text-sm font-medium text-[#333333]">
+                <span className={`w-2 h-2 rounded-full ${clientsActive > 0 ? 'bg-brand-primary' : 'bg-border'}`} />
+                <span className="text-sm font-medium text-text-body">
                   {clientsInvited} invited
                 </span>
                 {clientsActive > 0 && (
-                  <span className="text-[11px] text-[#999999]">
+                  <span className="text-[11px] text-text-placeholder">
                     &middot; {clientsActive} active
                   </span>
                 )}
               </div>
             </div>
           ) : (
-            <span className="text-[12px] text-[#999999]">No clients invited yet</span>
+            <span className="text-[12px] text-text-placeholder">No clients invited yet</span>
           )}
 
           <button
             onClick={() => setShowInvite(true)}
-            className="ml-auto border border-dashed border-[#E5E5E5] rounded-xl px-3 py-1.5 text-[12px] text-[#3FAF7A] hover:bg-[#3FAF7A]/5 transition-colors font-medium flex items-center gap-1.5"
+            className="ml-auto border border-dashed border-border rounded-xl px-3 py-1.5 text-[12px] text-brand-primary hover:bg-brand-primary-light transition-colors font-medium flex items-center gap-1.5"
           >
             <Plus className="w-3.5 h-3.5" />
             Invite

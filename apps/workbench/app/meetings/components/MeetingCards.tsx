@@ -38,10 +38,10 @@ function formatTime(timeStr: string): string {
 export function MeetingCards({ meetings, onCardClick }: MeetingCardsProps) {
   if (meetings.length === 0) {
     return (
-      <div className="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-[#E5E5E5] p-12 text-center">
+      <div className="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-border p-12 text-center">
         <Calendar className="w-10 h-10 text-gray-300 mx-auto mb-3" />
         <p className="text-[14px] font-medium text-[#37352f] mb-1">No meetings found</p>
-        <p className="text-[13px] text-[#999999]">
+        <p className="text-[13px] text-text-placeholder">
           Try adjusting your filters or schedule a new meeting.
         </p>
       </div>
@@ -60,13 +60,13 @@ export function MeetingCards({ meetings, onCardClick }: MeetingCardsProps) {
           <div
             key={m.id}
             onClick={() => onCardClick(m)}
-            className="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-[#E5E5E5] hover:shadow-[0_4px_12px_rgba(0,0,0,0.08)] cursor-pointer transition-shadow"
+            className="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-border hover:shadow-[0_4px_12px_rgba(0,0,0,0.08)] cursor-pointer transition-shadow"
             style={{ padding: '20px' }}
           >
             {/* Header: title + type badge + arrow */}
             <div className="flex items-start justify-between gap-3">
               <div className="flex-1 min-w-0">
-                <p className="text-[16px] font-bold text-[#1D1D1F] truncate">{m.title}</p>
+                <p className="text-[16px] font-bold text-text-primary truncate">{m.title}</p>
                 {m.project_name && (
                   <p className="text-[13px] text-[#666] truncate mt-0.5">{m.project_name}</p>
                 )}
@@ -86,7 +86,7 @@ export function MeetingCards({ meetings, onCardClick }: MeetingCardsProps) {
                 </div>
               </div>
               <div
-                className="w-8 h-8 rounded-full bg-[#3FAF7A] flex items-center justify-center hover:scale-110 transition-transform flex-shrink-0"
+                className="w-8 h-8 rounded-full bg-brand-primary flex items-center justify-center hover:scale-110 transition-transform flex-shrink-0"
               >
                 <ArrowUpRight className="w-4 h-4 text-white" />
               </div>
@@ -96,10 +96,10 @@ export function MeetingCards({ meetings, onCardClick }: MeetingCardsProps) {
             <div className="grid grid-cols-2 gap-4 mt-5">
               {/* Date & Time */}
               <div>
-                <p className="text-[14px] font-bold text-[#1D1D1F] mb-2">When</p>
+                <p className="text-[14px] font-bold text-text-primary mb-2">When</p>
                 <div className="space-y-1.5">
                   <div className="flex items-center gap-2">
-                    <Calendar className="w-3.5 h-3.5 text-[#3FAF7A] flex-shrink-0" />
+                    <Calendar className="w-3.5 h-3.5 text-brand-primary flex-shrink-0" />
                     <span className="text-[13px] text-[#333]">{formatDate(m.meeting_date)}</span>
                   </div>
                   <div className="flex items-center gap-2">
@@ -112,8 +112,8 @@ export function MeetingCards({ meetings, onCardClick }: MeetingCardsProps) {
               </div>
 
               {/* Participants */}
-              <div className="border-l border-[#E5E5E5] pl-4">
-                <p className="text-[14px] font-bold text-[#1D1D1F] mb-2">Participants</p>
+              <div className="border-l border-border pl-4">
+                <p className="text-[14px] font-bold text-text-primary mb-2">Participants</p>
                 {participantCount > 0 ? (
                   <div className="flex items-center">
                     {Array.from({ length: Math.min(participantCount, 4) }).map((_, i) => (

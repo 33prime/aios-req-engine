@@ -52,7 +52,7 @@ export function MeetingAgenda({ agenda, isUpcoming }: MeetingAgendaProps) {
   return (
     <div className="mt-7">
       <div className="flex items-center justify-between mb-3.5">
-        <div className="text-[15px] font-semibold text-[#1D1D1F]">Agenda</div>
+        <div className="text-[15px] font-semibold text-text-primary">Agenda</div>
       </div>
 
       {items.length > 0 ? (
@@ -63,20 +63,20 @@ export function MeetingAgenda({ agenda, isUpcoming }: MeetingAgendaProps) {
               return (
                 <div
                   key={i}
-                  className="bg-white border border-[#E5E5E5] rounded-lg overflow-hidden mb-2 hover:shadow-[0_2px_4px_rgba(0,0,0,0.04)] transition-shadow"
+                  className="bg-white border border-border rounded-lg overflow-hidden mb-2 hover:shadow-[0_2px_4px_rgba(0,0,0,0.04)] transition-shadow"
                 >
                   <button
                     onClick={() => toggleItem(i)}
                     className="w-full flex items-center gap-2.5 px-3.5 py-3 text-left"
                   >
-                    <div className="w-6 h-6 rounded-full bg-[#E0EFF3] text-[#044159] text-[11px] font-bold flex items-center justify-center flex-shrink-0">
+                    <div className="w-6 h-6 rounded-full bg-[#E0EFF3] text-accent text-[11px] font-bold flex items-center justify-center flex-shrink-0">
                       {i + 1}
                     </div>
-                    <div className="flex-1 text-[14px] font-medium text-[#1D1D1F]">
+                    <div className="flex-1 text-[14px] font-medium text-text-primary">
                       {item.title}
                     </div>
                     {item.duration && (
-                      <span className="text-[11px] font-semibold text-[#7B7B7B] bg-[#F5F5F5] px-2 py-[2px] rounded whitespace-nowrap">
+                      <span className="text-[11px] font-semibold text-text-muted bg-surface-subtle px-2 py-[2px] rounded whitespace-nowrap">
                         {typeof item.duration === 'number' ? `${item.duration} min` : item.duration}
                       </span>
                     )}
@@ -87,14 +87,14 @@ export function MeetingAgenda({ agenda, isUpcoming }: MeetingAgendaProps) {
                   {isExpanded && (item.description || item.questions) && (
                     <div className="px-3.5 pb-3.5 pl-12">
                       {item.description && (
-                        <p className="text-[13px] text-[#7B7B7B] leading-relaxed mb-2">
+                        <p className="text-[13px] text-text-muted leading-relaxed mb-2">
                           {item.description}
                         </p>
                       )}
                       {item.questions && item.questions.length > 0 && (
                         <ul className="space-y-1">
                           {item.questions.map((q, qi) => (
-                            <li key={qi} className="text-[12px] text-[#4B4B4B] pl-3.5 relative">
+                            <li key={qi} className="text-[12px] text-text-secondary pl-3.5 relative">
                               <span className="absolute left-0 text-[#88BABF] font-bold">?</span>
                               {q}
                             </li>
@@ -109,15 +109,15 @@ export function MeetingAgenda({ agenda, isUpcoming }: MeetingAgendaProps) {
           </div>
 
           {totalDuration > 0 && (
-            <div className="flex items-center justify-between pt-3 text-[13px] font-medium text-[#7B7B7B]">
+            <div className="flex items-center justify-between pt-3 text-[13px] font-medium text-text-muted">
               <span>{totalDuration} min total</span>
             </div>
           )}
         </>
       ) : (
-        <div className="bg-white border border-[#E5E5E5] rounded-lg py-8 text-center">
+        <div className="bg-white border border-border rounded-lg py-8 text-center">
           <Calendar className="w-8 h-8 text-[#D0D0D0] mx-auto mb-2" />
-          <p className="text-[13px] text-[#7B7B7B]">
+          <p className="text-[13px] text-text-muted">
             {isUpcoming
               ? 'No agenda items yet — use chat to generate one'
               : 'No agenda was set for this meeting'}

@@ -151,7 +151,7 @@ export default function InviteAcceptPage() {
             <span className="text-[12px] text-zinc-500">Your role</span>
             <span className={`px-2 py-0.5 rounded-full text-[11px] font-medium ${
               invitation?.organization_role === 'Admin'
-                ? 'bg-blue-100 text-blue-700'
+                ? 'bg-blue-100 text-brand-primary-hover'
                 : 'bg-zinc-100 text-zinc-700'
             }`}>
               {invitation?.organization_role}

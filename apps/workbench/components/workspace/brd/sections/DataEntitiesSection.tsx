@@ -55,12 +55,12 @@ function DataEntityCard({
   const remainingCount = fields.length - 3
 
   return (
-    <div className="bg-white rounded-2xl shadow-md border border-[#E5E5E5] overflow-hidden group/card">
+    <div className="bg-white rounded-2xl shadow-md border border-border overflow-hidden group/card">
       <div className="px-6 py-5">
         {/* Title row */}
         <div className="flex items-start gap-3 mb-1">
           <div className="flex-1 min-w-0">
-            <h4 className="text-[15px] font-bold text-[#333333]">
+            <h4 className="text-[15px] font-bold text-text-body">
               {entity.name}
             </h4>
           </div>
@@ -83,7 +83,7 @@ function DataEntityCard({
             <p className="text-[13px] text-[#666666] leading-relaxed">
               {visibleFields.map(f => f.name).join(', ')}
               {remainingCount > 0 && (
-                <span className="text-[#999999]"> +{remainingCount} more</span>
+                <span className="text-text-placeholder"> +{remainingCount} more</span>
               )}
             </p>
           </div>
@@ -93,13 +93,13 @@ function DataEntityCard({
 
         {/* Workflow links note */}
         {entity.workflow_step_count > 0 && (
-          <p className="mt-2 text-[12px] text-[#999999]">
+          <p className="mt-2 text-[12px] text-text-placeholder">
             Linked to {entity.workflow_step_count} workflow {entity.workflow_step_count === 1 ? 'step' : 'steps'}
           </p>
         )}
 
         {/* Actions row */}
-        <div className="mt-4 pt-3 border-t border-[#E5E5E5] flex items-center justify-between">
+        <div className="mt-4 pt-3 border-t border-border flex items-center justify-between">
           <ConfirmActions
             status={entity.confirmation_status}
             onConfirm={() => onConfirm('data_entity', entity.id)}
@@ -109,14 +109,14 @@ function DataEntityCard({
             {onOpenDetail && (
               <button
                 onClick={() => onOpenDetail(entity.id)}
-                className="text-[11px] text-[#999999] hover:text-[#3FAF7A] transition-colors"
+                className="text-[11px] text-text-placeholder hover:text-brand-primary transition-colors"
               >
                 View Details →
               </button>
             )}
             <button
               onClick={() => onDeleteEntity(entity.id, entity.name)}
-              className="p-1.5 rounded-md text-[#999999] hover:text-red-500 hover:bg-red-50 transition-colors opacity-0 group-hover/card:opacity-100"
+              className="p-1.5 rounded-md text-text-placeholder hover:text-red-500 hover:bg-red-50 transition-colors opacity-0 group-hover/card:opacity-100"
               title="Delete data entity"
             >
               <Trash2 className="w-3.5 h-3.5" />
@@ -159,7 +159,7 @@ export function DataEntitiesSection({
         <div className="flex items-center gap-2">
           <button
             onClick={onCreateEntity}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-[#666666] bg-white border border-[#E5E5E5] rounded-xl hover:bg-[#E8F5E9] hover:text-[#25785A] hover:border-[#3FAF7A] transition-colors"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-[#666666] bg-white border border-border rounded-xl hover:bg-[#E8F5E9] hover:text-[#25785A] hover:border-brand-primary transition-colors"
           >
             <Plus className="w-3.5 h-3.5" />
             Add Data Entity
@@ -168,7 +168,7 @@ export function DataEntitiesSection({
       </div>
 
       {dataEntities.length === 0 ? (
-        <p className="text-[13px] text-[#999999] italic">No data entities identified yet</p>
+        <p className="text-[13px] text-text-placeholder italic">No data entities identified yet</p>
       ) : (
         <div className="space-y-3">
           {dataEntities.map((entity) => (

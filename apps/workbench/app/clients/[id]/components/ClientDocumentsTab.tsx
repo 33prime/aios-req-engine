@@ -19,7 +19,7 @@ export function ClientDocumentsTab({ docs }: ClientDocumentsTabProps) {
 
   return (
     <div className="space-y-6">
-      <div className="bg-white rounded-2xl border border-[#E5E5E5] shadow-md p-6">
+      <div className="bg-white rounded-2xl border border-border shadow-md p-6">
         <div className="flex items-center gap-2 mb-1">
           <FileText className="w-4 h-4 text-[#666]" />
           <h3 className="text-[14px] font-semibold text-[#333]">Process Documents</h3>

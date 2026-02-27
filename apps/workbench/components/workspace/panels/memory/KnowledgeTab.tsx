@@ -104,7 +104,7 @@ function MemoryGraphNode({ data }: NodeProps) {
 
   // Consultant status visual
   if (consultantStatus === 'confirmed') {
-    extraClasses = 'ring-2 ring-[#3FAF7A] ring-offset-1'
+    extraClasses = 'ring-2 ring-brand-primary ring-offset-1'
   } else if (consultantStatus === 'disputed') {
     extraClasses = 'border-2 border-dashed border-gray-400'
   }
@@ -248,7 +248,7 @@ export function KnowledgeTab({ projectId, data: vizData }: KnowledgeTabProps) {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-full">
-        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#3FAF7A]" />
+        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-brand-primary" />
       </div>
     )
   }
@@ -257,15 +257,15 @@ export function KnowledgeTab({ projectId, data: vizData }: KnowledgeTabProps) {
     return (
       <div className="flex items-center justify-center h-full">
         <div className="text-center">
-          <p className="text-sm text-[#999999] mb-2">
+          <p className="text-sm text-text-placeholder mb-2">
             No knowledge graph data yet.
           </p>
-          <p className="text-xs text-[#999999]">
+          <p className="text-xs text-text-placeholder">
             Process signals to build the knowledge graph, or add beliefs manually.
           </p>
           <button
             onClick={() => setShowAddBelief(true)}
-            className="mt-4 inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-[#3FAF7A] hover:bg-[#25785A] rounded-xl transition-colors"
+            className="mt-4 inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-brand-primary hover:bg-[#25785A] rounded-xl transition-colors"
           >
             <Plus className="w-4 h-4" />
             Add Belief
@@ -287,7 +287,7 @@ export function KnowledgeTab({ projectId, data: vizData }: KnowledgeTabProps) {
       {/* Graph area */}
       <div className={`relative ${selectedNode ? 'w-[70%]' : 'w-full'} h-full transition-all`}>
         {/* Filter bar */}
-        <div className="absolute top-3 left-3 z-10 flex items-center gap-2 bg-white/90 backdrop-blur rounded-lg px-3 py-1.5 shadow-sm border border-[#E5E5E5]">
+        <div className="absolute top-3 left-3 z-10 flex items-center gap-2 bg-white/90 backdrop-blur rounded-lg px-3 py-1.5 shadow-sm border border-border">
           {(['all', 'fact', 'belief', 'insight'] as const).map((f) => (
             <button
               key={f}
@@ -295,13 +295,13 @@ export function KnowledgeTab({ projectId, data: vizData }: KnowledgeTabProps) {
               className={`px-2.5 py-1 rounded text-[11px] font-medium transition-colors ${
                 filter === f
                   ? 'bg-[#E8F5E9] text-[#25785A]'
-                  : 'text-[#666666] hover:text-[#333333]'
+                  : 'text-[#666666] hover:text-text-body'
               }`}
             >
               {f === 'all' ? 'All' : f.charAt(0).toUpperCase() + f.slice(1) + 's'}
             </button>
           ))}
-          <div className="w-px h-4 bg-[#E5E5E5] mx-1" />
+          <div className="w-px h-4 bg-border mx-1" />
           {(['all', 'confirmed', 'disputed', 'unreviewed'] as const).map((cf) => (
             <button
               key={cf}
@@ -309,7 +309,7 @@ export function KnowledgeTab({ projectId, data: vizData }: KnowledgeTabProps) {
               className={`px-2 py-1 rounded text-[11px] font-medium transition-colors ${
                 consultantFilter === cf
                   ? 'bg-[#E8F5E9] text-[#25785A]'
-                  : 'text-[#666666] hover:text-[#333333]'
+                  : 'text-[#666666] hover:text-text-body'
               }`}
             >
               {cf.charAt(0).toUpperCase() + cf.slice(1)}
@@ -321,7 +321,7 @@ export function KnowledgeTab({ projectId, data: vizData }: KnowledgeTabProps) {
         <div className="absolute top-3 right-3 z-10">
           <button
             onClick={() => setShowAddBelief(true)}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-medium text-white bg-[#3FAF7A] hover:bg-[#25785A] rounded-lg shadow-sm transition-colors"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-medium text-white bg-brand-primary hover:bg-[#25785A] rounded-lg shadow-sm transition-colors"
           >
             <Plus className="w-3.5 h-3.5" />
             Add Belief
@@ -357,7 +357,7 @@ export function KnowledgeTab({ projectId, data: vizData }: KnowledgeTabProps) {
 
       {/* Node detail slide-in */}
       {selectedNode && (
-        <div className="w-[30%] h-full border-l border-[#E5E5E5] bg-white overflow-y-auto">
+        <div className="w-[30%] h-full border-l border-border bg-white overflow-y-auto">
           <NodeDetailPanel
             projectId={projectId}
             node={selectedNode}

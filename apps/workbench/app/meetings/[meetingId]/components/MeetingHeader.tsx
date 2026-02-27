@@ -40,21 +40,21 @@ export function MeetingHeader({ meeting }: MeetingHeaderProps) {
 
   return (
     <div>
-      <h1 className="text-[22px] font-bold text-[#1D1D1F] mb-3 leading-[1.3]">
+      <h1 className="text-[22px] font-bold text-text-primary mb-3 leading-[1.3]">
         {meeting.title}
       </h1>
       {meeting.description && (
-        <p className="text-[14px] text-[#4B4B4B] mb-3">{meeting.description}</p>
+        <p className="text-[14px] text-text-secondary mb-3">{meeting.description}</p>
       )}
 
       {/* Meta pills row */}
       <div className="flex flex-wrap items-center gap-2 mb-2">
-        <span className="inline-flex items-center gap-[5px] px-3 py-1 rounded-full text-[12px] font-medium bg-[#F5F5F5] text-[#4B4B4B] border border-[#E5E5E5]">
-          <Calendar className="w-[13px] h-[13px] text-[#7B7B7B]" />
+        <span className="inline-flex items-center gap-[5px] px-3 py-1 rounded-full text-[12px] font-medium bg-surface-subtle text-text-secondary border border-border">
+          <Calendar className="w-[13px] h-[13px] text-text-muted" />
           {dateStr}, {timeRange} {meeting.timezone}
         </span>
-        <span className="inline-flex items-center gap-[5px] px-3 py-1 rounded-full text-[12px] font-medium bg-[#F5F5F5] text-[#4B4B4B] border border-[#E5E5E5]">
-          <Clock className="w-[13px] h-[13px] text-[#7B7B7B]" />
+        <span className="inline-flex items-center gap-[5px] px-3 py-1 rounded-full text-[12px] font-medium bg-surface-subtle text-text-secondary border border-border">
+          <Clock className="w-[13px] h-[13px] text-text-muted" />
           {meeting.duration_minutes} min
         </span>
         <span className={`inline-flex items-center px-2.5 py-[3px] rounded-[10px] text-[11px] font-semibold ${type.bg} ${type.text}`}>

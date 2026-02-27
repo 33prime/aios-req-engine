@@ -40,9 +40,9 @@ interface MeetingSidePanelProps {
 
 function DetailRow({ label, value, children }: { label: string; value?: string; children?: React.ReactNode }) {
   return (
-    <div className="flex items-start py-2 border-b border-[#F5F5F5]">
-      <span className="w-[120px] text-[12px] text-[#7B7B7B] flex-shrink-0 pt-[2px]">{label}</span>
-      {children || <span className="text-[13px] text-[#1D1D1F] flex-1">{value}</span>}
+    <div className="flex items-start py-2 border-b border-surface-subtle">
+      <span className="w-[120px] text-[12px] text-text-muted flex-shrink-0 pt-[2px]">{label}</span>
+      {children || <span className="text-[13px] text-text-primary flex-1">{value}</span>}
     </div>
   )
 }
@@ -61,17 +61,17 @@ export function MeetingSidePanel({ meeting, bot, participants, onDeployBot }: Me
   ]
 
   return (
-    <div className="w-[45%] border-l border-[#E5E5E5] bg-white flex flex-col flex-shrink-0 overflow-hidden">
+    <div className="w-[45%] border-l border-border bg-white flex flex-col flex-shrink-0 overflow-hidden">
       {/* Tabs */}
-      <div className="flex border-b border-[#E5E5E5] flex-shrink-0">
+      <div className="flex border-b border-border flex-shrink-0">
         {tabs.map((tab) => (
           <button
             key={tab.key}
             onClick={() => setActiveTab(tab.key)}
             className={`flex-1 px-[18px] py-3 text-[13px] font-medium transition-colors border-b-2 ${
               activeTab === tab.key
-                ? 'text-[#044159] border-[#044159]'
-                : 'text-[#7B7B7B] border-transparent hover:text-[#4B4B4B]'
+                ? 'text-accent border-accent'
+                : 'text-text-muted border-transparent hover:text-text-secondary'
             }`}
           >
             {tab.label}
@@ -93,13 +93,13 @@ export function MeetingSidePanel({ meeting, bot, participants, onDeployBot }: Me
                         bot.status === 'recording'
                           ? 'bg-red-500 animate-pulse'
                           : bot.status === 'done'
-                          ? 'bg-[#3FAF7A]'
+                          ? 'bg-brand-primary'
                           : bot.status === 'failed'
                           ? 'bg-red-400'
                           : 'bg-[#88BABF]'
                       }`}
                     />
-                    <span className="text-[13px] font-medium text-[#1D1D1F] capitalize">{bot.status}</span>
+                    <span className="text-[13px] font-medium text-text-primary capitalize">{bot.status}</span>
                   </div>
 
                   <DetailRow label="Consent" value={bot.consent_status.replace('_', ' ')} />
@@ -119,7 +119,7 @@ export function MeetingSidePanel({ meeting, bot, participants, onDeployBot }: Me
                       href={bot.transcript_url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-[#4B4B4B] bg-[#F5F5F5] rounded-md hover:bg-[#EBEBEB] transition-colors"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-text-secondary bg-surface-subtle rounded-md hover:bg-[#EBEBEB] transition-colors"
                     >
                       View Transcript
                       <ExternalLink className="w-3 h-3" />
@@ -130,7 +130,7 @@ export function MeetingSidePanel({ meeting, bot, participants, onDeployBot }: Me
                       href={bot.recording_url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-[#4B4B4B] bg-[#F5F5F5] rounded-md hover:bg-[#EBEBEB] transition-colors ml-2"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-text-secondary bg-surface-subtle rounded-md hover:bg-[#EBEBEB] transition-colors ml-2"
                     >
                       View Recording
                       <ExternalLink className="w-3 h-3" />
@@ -142,19 +142,19 @@ export function MeetingSidePanel({ meeting, bot, participants, onDeployBot }: Me
                   <Mic className="w-10 h-10 text-[#D0D0D0] mb-3" />
                   {isUpcoming && meeting.google_meet_link ? (
                     <>
-                      <p className="text-[13px] text-[#7B7B7B] mb-3">
+                      <p className="text-[13px] text-text-muted mb-3">
                         Recording will appear here after the meeting
                       </p>
                       <button
                         onClick={onDeployBot}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-white bg-[#044159] rounded-md hover:bg-[#033344] transition-colors"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-white bg-accent rounded-md hover:bg-accent-hover transition-colors"
                       >
                         <Video className="w-3.5 h-3.5" />
                         Deploy Recording Bot
                       </button>
                     </>
                   ) : (
-                    <p className="text-[13px] text-[#7B7B7B]">
+                    <p className="text-[13px] text-text-muted">
                       {isUpcoming
                         ? 'Add a Google Meet link to enable recording'
                         : 'No recording was captured for this meeting'}
@@ -203,17 +203,17 @@ export function MeetingSidePanel({ meeting, bot, participants, onDeployBot }: Me
 
               {/* Integrations section */}
               <div className="mt-4 pt-3 border-t border-[#F0F0F0]">
-                <div className="text-[11px] font-semibold text-[#999999] uppercase tracking-[0.3px] mb-2.5">
+                <div className="text-[11px] font-semibold text-text-placeholder uppercase tracking-[0.3px] mb-2.5">
                   Integrations
                 </div>
                 <DetailRow label="Google Calendar">
                   {meeting.google_calendar_event_id ? (
-                    <span className="inline-flex items-center gap-1 text-[#3FAF7A] text-[12px]">
+                    <span className="inline-flex items-center gap-1 text-brand-primary text-[12px]">
                       <Check className="w-3.5 h-3.5" />
                       Synced
                     </span>
                   ) : (
-                    <span className="text-[12px] text-[#7B7B7B]">Not synced</span>
+                    <span className="text-[12px] text-text-muted">Not synced</span>
                   )}
                 </DetailRow>
                 {meeting.google_meet_link && (
@@ -222,7 +222,7 @@ export function MeetingSidePanel({ meeting, bot, participants, onDeployBot }: Me
                       href={meeting.google_meet_link}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-[12px] text-[#044159] hover:underline truncate block"
+                      className="text-[12px] text-accent hover:underline truncate block"
                     >
                       {meeting.google_meet_link.replace('https://', '')}
                     </a>
@@ -235,7 +235,7 @@ export function MeetingSidePanel({ meeting, bot, participants, onDeployBot }: Me
           {/* Signals Tab */}
           {activeTab === 'signals' && (
             <div>
-              <div className="text-[11px] font-semibold text-[#999999] uppercase tracking-[0.3px] mb-3">
+              <div className="text-[11px] font-semibold text-text-placeholder uppercase tracking-[0.3px] mb-3">
                 Extracted Signals
               </div>
               <div className="flex flex-col items-center justify-center py-12 text-center">
@@ -249,7 +249,7 @@ export function MeetingSidePanel({ meeting, bot, participants, onDeployBot }: Me
                 >
                   <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
                 </svg>
-                <p className="text-[13px] text-[#7B7B7B]">
+                <p className="text-[13px] text-text-muted">
                   Signals extracted from this meeting will appear here
                 </p>
                 <p className="text-[11px] text-[#B0B0B0] mt-1">

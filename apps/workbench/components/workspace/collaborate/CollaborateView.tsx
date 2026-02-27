@@ -22,8 +22,8 @@ export function CollaborateView({ projectId, onNavigateToPhase }: CollaborateVie
     const el = document.getElementById(sectionId)
     if (el) {
       el.scrollIntoView({ behavior: 'smooth', block: 'start' })
-      el.classList.add('ring-2', 'ring-[#3FAF7A]/30')
-      setTimeout(() => el.classList.remove('ring-2', 'ring-[#3FAF7A]/30'), 2000)
+      el.classList.add('ring-2', 'ring-brand-primary/30')
+      setTimeout(() => el.classList.remove('ring-2', 'ring-brand-primary/30'), 2000)
     }
   }, [])
 
@@ -36,12 +36,12 @@ export function CollaborateView({ projectId, onNavigateToPhase }: CollaborateVie
       {/* Page Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-[#3FAF7A]/10 flex items-center justify-center">
-            <Users className="w-5 h-5 text-[#3FAF7A]" />
+          <div className="w-9 h-9 rounded-xl bg-brand-primary-light flex items-center justify-center">
+            <Users className="w-5 h-5 text-brand-primary" />
           </div>
           <div>
-            <h1 className="text-xl font-semibold text-[#333333]">Collaborate</h1>
-            <p className="text-[12px] text-[#999999]">Manage client engagement & portal</p>
+            <h1 className="text-xl font-semibold text-text-body">Collaborate</h1>
+            <p className="text-[12px] text-text-placeholder">Manage client engagement & portal</p>
           </div>
         </div>
       </div>

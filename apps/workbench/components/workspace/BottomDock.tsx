@@ -53,20 +53,20 @@ export function BottomDock({ projectId, activePanel, onPanelChange }: BottomDock
       {activePanel && (
         <div className="fixed inset-0 z-30 flex items-center justify-center p-8 pointer-events-none">
           <div
-            className={`bg-white rounded-xl border border-[#E5E5E5] shadow-xl overflow-hidden flex flex-col pointer-events-auto ${
+            className={`bg-white rounded-xl border border-border shadow-xl overflow-hidden flex flex-col pointer-events-auto ${
               isFullScreen
                 ? 'w-[75vw] h-[75vh]'
                 : 'w-full max-w-5xl max-h-[75vh]'
             }`}
           >
             {/* Header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-[#E5E5E5] bg-[#F9F9F9] shrink-0">
-              <h3 className="text-base font-semibold text-[#333333]">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-surface-muted shrink-0">
+              <h3 className="text-base font-semibold text-text-body">
                 {PANEL_TITLES[activePanel] || activePanel}
               </h3>
               <button
                 onClick={() => onPanelChange(null)}
-                className="p-1.5 rounded-lg text-[#999999] hover:text-[#333333] hover:bg-white transition-colors"
+                className="p-1.5 rounded-lg text-text-placeholder hover:text-text-body hover:bg-white transition-colors"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -83,7 +83,7 @@ export function BottomDock({ projectId, activePanel, onPanelChange }: BottomDock
 
       {/* Dock bar */}
       <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-40">
-        <div className="flex items-center gap-1 bg-white rounded-full border border-[#E5E5E5] shadow-lg px-2 py-1.5">
+        <div className="flex items-center gap-1 bg-white rounded-full border border-border shadow-lg px-2 py-1.5">
           {DOCK_BUTTONS.map((btn) => {
             const Icon = btn.icon
             const isActive = activePanel === btn.id
@@ -94,8 +94,8 @@ export function BottomDock({ projectId, activePanel, onPanelChange }: BottomDock
                 className={`
                   flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all
                   ${isActive
-                    ? 'bg-[#3FAF7A]/10 text-[#3FAF7A]'
-                    : 'text-[#999999] hover:text-[#333333] hover:bg-[#F9F9F9]'
+                    ? 'bg-brand-primary-light text-brand-primary'
+                    : 'text-text-placeholder hover:text-text-body hover:bg-surface-muted'
                   }
                 `}
                 title={btn.label}

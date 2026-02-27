@@ -38,7 +38,7 @@ export function FlowStepList({ steps, selectedStepId, onSelectStep, onAddStep }:
           <div key={phase} className="mb-3">
             {/* Phase header */}
             <div className="flex items-center justify-between px-4 py-2">
-              <span className="text-[10px] font-semibold uppercase tracking-wider text-[#999999]">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-text-placeholder">
                 {SOLUTION_FLOW_PHASES[phase]?.fullLabel || phase}
                 {phaseSteps?.length ? ` (${phaseSteps.length})` : ''}
               </span>
@@ -64,7 +64,7 @@ export function FlowStepList({ steps, selectedStepId, onSelectStep, onAddStep }:
                       {/* Title — wraps instead of truncating */}
                       <div className="flex items-center gap-1.5">
                         <div className={`text-[13px] font-medium leading-snug ${
-                          isSelected ? 'text-[#0A1E2F]' : 'text-[#333333]'
+                          isSelected ? 'text-[#0A1E2F]' : 'text-text-body'
                         }`}>
                           {step.title}
                         </div>
@@ -82,13 +82,13 @@ export function FlowStepList({ steps, selectedStepId, onSelectStep, onAddStep }:
                           {step.actors.slice(0, 2).map(actor => (
                             <span
                               key={actor}
-                              className="text-[10px] px-1.5 py-0.5 rounded-full bg-[#F4F4F4] text-[#999999]"
+                              className="text-[10px] px-1.5 py-0.5 rounded-full bg-[#F4F4F4] text-text-placeholder"
                             >
                               {actor}
                             </span>
                           ))}
                           {step.actors.length > 2 && (
-                            <span className="text-[10px] text-[#999999]">
+                            <span className="text-[10px] text-text-placeholder">
                               +{step.actors.length - 2}
                             </span>
                           )}
@@ -102,7 +102,7 @@ export function FlowStepList({ steps, selectedStepId, onSelectStep, onAddStep }:
                         <div
                           key={i}
                           className={`w-[5px] h-[5px] rounded-full ${
-                            i < getStepDepth(step) ? 'bg-[#3FAF7A]' : 'bg-[#E5E5E5]'
+                            i < getStepDepth(step) ? 'bg-brand-primary' : 'bg-border'
                           }`}
                         />
                       ))}
@@ -123,7 +123,7 @@ export function FlowStepList({ steps, selectedStepId, onSelectStep, onAddStep }:
             {onAddStep && (
               <button
                 onClick={() => onAddStep(phase)}
-                className="w-full flex items-center gap-1.5 px-4 py-2 text-xs text-[#999999] hover:text-[#3FAF7A] hover:bg-[#F4F4F4] transition-colors"
+                className="w-full flex items-center gap-1.5 px-4 py-2 text-xs text-text-placeholder hover:text-brand-primary hover:bg-[#F4F4F4] transition-colors"
               >
                 <Plus className="w-3 h-3" />
                 Add step

@@ -105,13 +105,13 @@ export function PrepReviewModal({
 
   const footer = bundle && !isSent ? (
     <div className="flex items-center justify-between w-full">
-      <p className="text-sm text-[#999999]">
+      <p className="text-sm text-text-placeholder">
         {confirmedQuestions}/{totalQuestions} questions, {confirmedDocs}/{totalDocs} documents confirmed
       </p>
       <button
         onClick={() => onSendRequest?.(confirmedQuestions, confirmedDocs)}
         disabled={confirmedQuestions === 0 && confirmedDocs === 0}
-        className="flex items-center gap-1.5 px-4 py-2 bg-[#3FAF7A] text-white text-sm font-medium rounded-lg hover:bg-[#25785A] disabled:opacity-50 transition-colors"
+        className="flex items-center gap-1.5 px-4 py-2 bg-brand-primary text-white text-sm font-medium rounded-lg hover:bg-[#25785A] disabled:opacity-50 transition-colors"
       >
         <Send className="h-4 w-4" />
         Send to Portal
@@ -123,19 +123,19 @@ export function PrepReviewModal({
     <Modal isOpen={isOpen} onClose={onClose} title="Discovery Prep Review" size="xl" footer={footer}>
       {loading ? (
         <div className="flex items-center justify-center py-16">
-          <Loader2 className="h-6 w-6 text-[#3FAF7A] animate-spin" />
+          <Loader2 className="h-6 w-6 text-brand-primary animate-spin" />
         </div>
       ) : !bundle ? (
         <div className="text-center py-16">
-          <HelpCircle className="h-10 w-10 text-[#999999]/40 mx-auto mb-3" />
-          <p className="text-[#333333] font-medium mb-1">No prep generated yet</p>
-          <p className="text-sm text-[#999999] mb-4">
+          <HelpCircle className="h-10 w-10 text-text-placeholder/40 mx-auto mb-3" />
+          <p className="text-text-body font-medium mb-1">No prep generated yet</p>
+          <p className="text-sm text-text-placeholder mb-4">
             Generate discovery prep questions and document recommendations.
           </p>
           <button
             onClick={handleGenerate}
             disabled={generating}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-[#3FAF7A] text-white text-sm font-medium rounded-lg hover:bg-[#25785A] disabled:opacity-50 transition-colors"
+            className="inline-flex items-center gap-2 px-4 py-2 bg-brand-primary text-white text-sm font-medium rounded-lg hover:bg-[#25785A] disabled:opacity-50 transition-colors"
           >
             {generating ? (
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -162,13 +162,13 @@ export function PrepReviewModal({
 
           {/* Agenda Summary */}
           {bundle.agenda_summary && (
-            <div className="bg-[#F9F9F9] rounded-lg p-4">
-              <h3 className="text-sm font-semibold text-[#333333] mb-2">Agenda Summary</h3>
-              <p className="text-sm text-[#333333] mb-2">{bundle.agenda_summary}</p>
+            <div className="bg-surface-muted rounded-lg p-4">
+              <h3 className="text-sm font-semibold text-text-body mb-2">Agenda Summary</h3>
+              <p className="text-sm text-text-body mb-2">{bundle.agenda_summary}</p>
               {bundle.agenda_bullets.length > 0 && (
                 <ul className="list-disc list-inside space-y-1">
                   {bundle.agenda_bullets.map((bullet, i) => (
-                    <li key={i} className="text-sm text-[#333333]">{bullet}</li>
+                    <li key={i} className="text-sm text-text-body">{bullet}</li>
                   ))}
                 </ul>
               )}
@@ -178,8 +178,8 @@ export function PrepReviewModal({
           {/* Questions */}
           {totalQuestions > 0 && (
             <div>
-              <h3 className="text-sm font-semibold text-[#333333] mb-3 flex items-center gap-2">
-                <HelpCircle className="h-4 w-4 text-[#3FAF7A]" />
+              <h3 className="text-sm font-semibold text-text-body mb-3 flex items-center gap-2">
+                <HelpCircle className="h-4 w-4 text-brand-primary" />
                 Questions ({confirmedQuestions}/{totalQuestions} confirmed)
               </h3>
               <div className="space-y-2">
@@ -199,8 +199,8 @@ export function PrepReviewModal({
           {/* Documents */}
           {totalDocs > 0 && (
             <div>
-              <h3 className="text-sm font-semibold text-[#333333] mb-3 flex items-center gap-2">
-                <FileText className="h-4 w-4 text-[#3FAF7A]" />
+              <h3 className="text-sm font-semibold text-text-body mb-3 flex items-center gap-2">
+                <FileText className="h-4 w-4 text-brand-primary" />
                 Requested Documents ({confirmedDocs}/{totalDocs} confirmed)
               </h3>
               <div className="space-y-2">
@@ -219,11 +219,11 @@ export function PrepReviewModal({
 
           {/* Regenerate */}
           {!isSent && (
-            <div className="pt-2 border-t border-[#E5E5E5]">
+            <div className="pt-2 border-t border-border">
               <button
                 onClick={handleGenerate}
                 disabled={generating}
-                className="flex items-center gap-1.5 text-sm text-[#999999] hover:text-[#3FAF7A] transition-colors"
+                className="flex items-center gap-1.5 text-sm text-text-placeholder hover:text-brand-primary transition-colors"
               >
                 {generating ? (
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -257,7 +257,7 @@ function QuestionRow({
 }) {
   return (
     <div className={`flex items-start gap-3 p-3 rounded-lg border ${
-      question.confirmed ? 'border-green-200 bg-green-50/50' : 'border-[#E5E5E5] bg-white'
+      question.confirmed ? 'border-green-200 bg-green-50/50' : 'border-border bg-white'
     }`}>
       <button
         onClick={onToggle}
@@ -265,23 +265,23 @@ function QuestionRow({
         className="mt-0.5 flex-shrink-0 disabled:opacity-50"
       >
         {toggling ? (
-          <Loader2 className="h-5 w-5 text-[#999999] animate-spin" />
+          <Loader2 className="h-5 w-5 text-text-placeholder animate-spin" />
         ) : question.confirmed ? (
           <CheckCircle className="h-5 w-5 text-green-600" />
         ) : (
-          <XCircle className="h-5 w-5 text-[#E5E5E5] hover:text-red-400 transition-colors" />
+          <XCircle className="h-5 w-5 text-border hover:text-red-400 transition-colors" />
         )}
       </button>
       <div className="flex-1 min-w-0">
-        <p className="text-sm text-[#333333]">{question.question}</p>
+        <p className="text-sm text-text-body">{question.question}</p>
         <div className="flex items-center gap-3 mt-1.5">
-          <span className="inline-flex items-center gap-1 text-xs text-[#999999]">
+          <span className="inline-flex items-center gap-1 text-xs text-text-placeholder">
             <User className="h-3 w-3" />
             {question.best_answered_by}
           </span>
         </div>
         {question.why_important && (
-          <p className="text-xs text-[#999999] mt-1">{question.why_important}</p>
+          <p className="text-xs text-text-placeholder mt-1">{question.why_important}</p>
         )}
       </div>
     </div>
@@ -307,7 +307,7 @@ function DocumentRow({
 
   return (
     <div className={`flex items-start gap-3 p-3 rounded-lg border ${
-      document.confirmed ? 'border-green-200 bg-green-50/50' : 'border-[#E5E5E5] bg-white'
+      document.confirmed ? 'border-green-200 bg-green-50/50' : 'border-border bg-white'
     }`}>
       <button
         onClick={onToggle}
@@ -315,16 +315,16 @@ function DocumentRow({
         className="mt-0.5 flex-shrink-0 disabled:opacity-50"
       >
         {toggling ? (
-          <Loader2 className="h-5 w-5 text-[#999999] animate-spin" />
+          <Loader2 className="h-5 w-5 text-text-placeholder animate-spin" />
         ) : document.confirmed ? (
           <CheckCircle className="h-5 w-5 text-green-600" />
         ) : (
-          <XCircle className="h-5 w-5 text-[#E5E5E5] hover:text-red-400 transition-colors" />
+          <XCircle className="h-5 w-5 text-border hover:text-red-400 transition-colors" />
         )}
       </button>
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
-          <p className="text-sm font-medium text-[#333333]">{document.document_name}</p>
+          <p className="text-sm font-medium text-text-body">{document.document_name}</p>
           <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${
             priorityClasses[document.priority] || priorityClasses.low
           }`}>
@@ -332,7 +332,7 @@ function DocumentRow({
           </span>
         </div>
         {document.why_important && (
-          <p className="text-xs text-[#999999] mt-1">{document.why_important}</p>
+          <p className="text-xs text-text-placeholder mt-1">{document.why_important}</p>
         )}
       </div>
     </div>

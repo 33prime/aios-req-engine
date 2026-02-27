@@ -43,7 +43,7 @@ function renderMarkdown(text: string): React.ReactNode {
           className="flex items-start gap-2"
           style={{ marginLeft: `${indentLevel * 16}px` }}
         >
-          <span className="text-[#3FAF7A] mt-0.5">•</span>
+          <span className="text-brand-primary mt-0.5">•</span>
           <span>{renderInlineMarkdown(content)}</span>
         </div>
       )
@@ -187,8 +187,8 @@ export function SmartProjectCreation({ isOpen, onClose, onSuccess }: SmartProjec
                 <div className="max-w-[80%]">
                   {msg.role === 'assistant' ? (
                     /* AI Message — white card */
-                    <div className="bg-white border border-[#E5E5E5] rounded-2xl rounded-bl-md px-4 py-3 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
-                      <div className="text-[13px] leading-relaxed text-[#333333]">
+                    <div className="bg-white border border-border rounded-2xl rounded-bl-md px-4 py-3 shadow-sm">
+                      <div className="text-[13px] leading-relaxed text-text-body">
                         {renderMarkdown(msg.content)}
                       </div>
                     </div>
@@ -208,23 +208,23 @@ export function SmartProjectCreation({ isOpen, onClose, onSuccess }: SmartProjec
             {isLoading && !messages.some(m => m.isStreaming) && (
               <div className="flex items-start message-enter">
                 <div className="max-w-[80%]">
-                  <div className="bg-white border border-[#E5E5E5] rounded-2xl rounded-bl-md px-4 py-3 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+                  <div className="bg-white border border-border rounded-2xl rounded-bl-md px-4 py-3 shadow-sm">
                     <div className="flex items-center gap-2">
                       <div className="flex gap-1">
                         <div
-                          className="w-1.5 h-1.5 bg-[#3FAF7A] rounded-full animate-bounce"
+                          className="w-1.5 h-1.5 bg-brand-primary rounded-full animate-bounce"
                           style={{ animationDelay: '0ms' }}
                         />
                         <div
-                          className="w-1.5 h-1.5 bg-[#3FAF7A] rounded-full animate-bounce"
+                          className="w-1.5 h-1.5 bg-brand-primary rounded-full animate-bounce"
                           style={{ animationDelay: '150ms' }}
                         />
                         <div
-                          className="w-1.5 h-1.5 bg-[#3FAF7A] rounded-full animate-bounce"
+                          className="w-1.5 h-1.5 bg-brand-primary rounded-full animate-bounce"
                           style={{ animationDelay: '300ms' }}
                         />
                       </div>
-                      <span className="text-[12px] text-[#999999]">Thinking...</span>
+                      <span className="text-[12px] text-text-placeholder">Thinking...</span>
                     </div>
                   </div>
                 </div>
@@ -235,15 +235,15 @@ export function SmartProjectCreation({ isOpen, onClose, onSuccess }: SmartProjec
             {projectCreated && (
               <div className="flex items-start message-enter">
                 <div className="max-w-[80%]">
-                  <div className="bg-[#E8F5E9] border border-[#3FAF7A]/20 rounded-2xl rounded-bl-md px-4 py-3">
+                  <div className="bg-[#E8F5E9] border border-brand-primary/20 rounded-2xl rounded-bl-md px-4 py-3">
                     <div className="flex items-start gap-2.5">
-                      <div className="w-6 h-6 rounded-full bg-[#3FAF7A] flex items-center justify-center flex-shrink-0">
+                      <div className="w-6 h-6 rounded-full bg-brand-primary flex items-center justify-center flex-shrink-0">
                         <svg className="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                         </svg>
                       </div>
                       <div className="flex-1">
-                        <p className="text-[13px] font-medium text-[#333333]">
+                        <p className="text-[13px] font-medium text-text-body">
                           Project &ldquo;{projectCreated.name}&rdquo; created successfully!
                         </p>
                         <p className="text-[11px] text-[#666666] mt-0.5">
@@ -262,7 +262,7 @@ export function SmartProjectCreation({ isOpen, onClose, onSuccess }: SmartProjec
           {/* Input area */}
           <form
             onSubmit={handleSubmit}
-            className="border-t border-[#E5E5E5] px-4 py-3.5 bg-white flex-shrink-0"
+            className="border-t border-border px-4 py-3.5 bg-white flex-shrink-0"
           >
             <div className="flex items-center gap-2.5">
               <input
@@ -270,14 +270,14 @@ export function SmartProjectCreation({ isOpen, onClose, onSuccess }: SmartProjec
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 placeholder="Write your answer"
-                className="flex-1 px-3.5 py-2.5 bg-[#F4F4F4] focus:bg-white border border-[#E5E5E5] rounded-2xl text-[13px] focus:outline-none focus:ring-2 focus:ring-[#3FAF7A]/20 focus:border-[#3FAF7A] transition-all"
+                className="flex-1 px-3.5 py-2.5 bg-[#F4F4F4] focus:bg-white border border-border rounded-2xl text-[13px] focus:outline-none focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary transition-all"
                 disabled={isLoading || !!projectCreated}
                 autoFocus
               />
               <button
                 type="submit"
                 disabled={!input.trim() || isLoading || !!projectCreated}
-                className="px-4 py-2.5 bg-[#3FAF7A] text-white rounded-2xl hover:bg-[#25785A] transition-colors font-medium flex items-center gap-1.5 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-4 py-2.5 bg-brand-primary text-white rounded-2xl hover:bg-[#25785A] transition-colors font-medium flex items-center gap-1.5 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <ArrowRight className="w-4 h-4" />
               </button>

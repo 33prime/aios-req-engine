@@ -55,8 +55,8 @@ export function ImportanceDots({ driver }: ImportanceDotsProps) {
             dot.strong
               ? 'bg-[#25785A]'
               : dot.filled
-                ? 'bg-[#3FAF7A]'
-                : 'bg-[#E5E5E5]'
+                ? 'bg-brand-primary'
+                : 'bg-border'
           }`}
         />
       ))}

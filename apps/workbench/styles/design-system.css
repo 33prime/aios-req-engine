@@ -82,7 +82,7 @@
 /* Smooth focus rings (accessibility) */
 .focus-ring {
   @apply focus:outline-none focus:ring-2 focus:ring-offset-2;
-  --tw-ring-color: rgba(4, 65, 89, 0.3); /* primary with 30% opacity */
+  --tw-ring-color: rgba(63, 175, 122, 0.25); /* brand primary with 25% opacity */
 }
 
 /* Hover lift effect for cards */
@@ -128,13 +128,13 @@
 }
 
 .list-item-base:hover {
-  border-color: #044159;
+  border-color: #3FAF7A;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
 }
 
 .list-item-base.active {
-  border-color: #044159;
-  background: rgba(4, 65, 89, 0.02);
+  border-color: #3FAF7A;
+  background: rgba(63, 175, 122, 0.04);
 }
 
 /* Input base */
@@ -150,8 +150,8 @@
 
 .input-base:focus {
   outline: none;
-  border-color: #044159;
-  box-shadow: 0 0 0 3px rgba(4, 65, 89, 0.1);
+  border-color: #3FAF7A;
+  box-shadow: 0 0 0 3px rgba(63, 175, 122, 0.15);
 }
 
 .input-base::placeholder {
@@ -338,6 +338,6 @@
 }
 
 .focus-visible-only:focus-visible {
-  outline: 2px solid #044159;
+  outline: 2px solid #3FAF7A;
   outline-offset: 2px;
 }

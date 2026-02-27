@@ -36,7 +36,7 @@ import { getDocumentStatus, getSolutionFlowStepRevisions } from '@/lib/api'
 
 // ─── Confidence dot colors ───────────────────────────────────────────────────
 const CONFIDENCE_DOT: Record<string, { color: string; label: string }> = {
-  known: { color: 'bg-[#3FAF7A]', label: 'Known' },
+  known: { color: 'bg-brand-primary', label: 'Known' },
   inferred: { color: 'bg-[#0A1E2F]', label: 'Inferred' },
   guess: { color: 'bg-[#C4A97D]', label: 'Guess' },
   unknown: { color: 'bg-[#CCCCCC]', label: 'Unknown' },
@@ -54,22 +54,22 @@ function arraysChanged(a: unknown[] | undefined | null, b: unknown[] | undefined
 
 const ENTITY_CONFIG: Record<string, { icon: typeof GitBranch; label: string; color: string; bg: string }> = {
   workflow: { icon: GitBranch, label: 'Workflow', color: 'text-[#0A1E2F]', bg: 'bg-[#0A1E2F]/5 border-[#0A1E2F]/15' },
-  feature: { icon: Box, label: 'Feature', color: 'text-[#25785A]', bg: 'bg-[#3FAF7A]/5 border-[#3FAF7A]/15' },
+  feature: { icon: Box, label: 'Feature', color: 'text-[#25785A]', bg: 'bg-brand-primary-light border-brand-primary/15' },
   data_entity: { icon: Database, label: 'Data Entity', color: 'text-[#0D2A35]', bg: 'bg-[#0D2A35]/5 border-[#0D2A35]/15' },
 }
 
 // ─── Beat config — green monochrome palette with explicit icon colors ────────
 const BEAT_CONFIG: Record<string, { verb: string; icon: typeof Target; iconColor: string; bg: string; border: string }> = {
-  captured: { verb: 'User provides', icon: Target, iconColor: 'text-[#25785A]', bg: 'bg-[#3FAF7A]/5', border: 'border-[#3FAF7A]/15' },
-  computed: { verb: 'System generates', icon: Zap, iconColor: 'text-[#3FAF7A]', bg: 'bg-[#3FAF7A]/8', border: 'border-[#3FAF7A]/20' },
-  displayed: { verb: 'Shows', icon: FileSearch, iconColor: 'text-[#3FAF7A]/60', bg: 'bg-[#3FAF7A]/3', border: 'border-[#3FAF7A]/10' },
+  captured: { verb: 'User provides', icon: Target, iconColor: 'text-[#25785A]', bg: 'bg-brand-primary-light', border: 'border-brand-primary/15' },
+  computed: { verb: 'System generates', icon: Zap, iconColor: 'text-brand-primary', bg: 'bg-brand-primary/8', border: 'border-brand-primary/20' },
+  displayed: { verb: 'Shows', icon: FileSearch, iconColor: 'text-brand-primary/60', bg: 'bg-brand-primary/3', border: 'border-brand-primary-light' },
 }
 
 // ─── Revision badge config ───────────────────────────────────────────────────
 const REVISION_BADGE: Record<string, { label: string; color: string; icon: typeof Sparkles }> = {
-  chat_tool: { label: 'Updated', color: 'bg-[#3FAF7A]/10 text-[#25785A]', icon: CheckCircle2 },
+  chat_tool: { label: 'Updated', color: 'bg-brand-primary-light text-[#25785A]', icon: CheckCircle2 },
   refine_chat_tool: { label: 'AI Refined', color: 'bg-[#0A1E2F]/10 text-[#0A1E2F]', icon: Sparkles },
-  question_resolved: { label: 'Q&A', color: 'bg-[#3FAF7A]/10 text-[#25785A]', icon: MessageCircle },
+  question_resolved: { label: 'Q&A', color: 'bg-brand-primary-light text-[#25785A]', icon: MessageCircle },
   question_escalated: { label: 'Escalated', color: 'bg-[#0A1E2F]/10 text-[#0A1E2F]', icon: ArrowUpRight },
 }
 
@@ -268,7 +268,7 @@ export function FlowStepDetail({ step, loading, onConfirm, onNeedsReview, entity
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-48 text-sm text-[#999999]">
+      <div className="flex items-center justify-center h-48 text-sm text-text-placeholder">
         Loading step details...
       </div>
     )
@@ -276,7 +276,7 @@ export function FlowStepDetail({ step, loading, onConfirm, onNeedsReview, entity
 
   if (!step) {
     return (
-      <div className="flex items-center justify-center h-48 text-sm text-[#999999]">
+      <div className="flex items-center justify-center h-48 text-sm text-text-placeholder">
         Step not found
       </div>
     )
@@ -344,7 +344,7 @@ export function FlowStepDetail({ step, loading, onConfirm, onNeedsReview, entity
       {/* Header with confirm actions */}
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h2 className="text-lg font-semibold text-[#333333]">{step.title}</h2>
+          <h2 className="text-lg font-semibold text-text-body">{step.title}</h2>
           <div className="flex items-center gap-2 mt-1">
             {step.actors.map((actor, i) => (
               <span
@@ -376,8 +376,8 @@ export function FlowStepDetail({ step, loading, onConfirm, onNeedsReview, entity
               onClick={() => setActiveTab(tab.id)}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
                 activeTab === tab.id
-                  ? 'bg-white text-[#333333] shadow-sm'
-                  : 'text-[#999999] hover:text-[#666666]'
+                  ? 'bg-white text-text-body shadow-sm'
+                  : 'text-text-placeholder hover:text-[#666666]'
               }`}
             >
               <Icon className="w-3.5 h-3.5" />
@@ -487,7 +487,7 @@ function ExperienceTab({
 
       {/* Background narrative (provenance) */}
       {step.background_narrative && (
-        <div className="text-xs text-[#999999] leading-relaxed px-1 -mt-2">
+        <div className="text-xs text-text-placeholder leading-relaxed px-1 -mt-2">
           {step.background_narrative}
         </div>
       )}
@@ -514,7 +514,7 @@ function ExperienceTab({
             </div>
           )}
 
-          <h3 className="text-[11px] font-semibold uppercase tracking-wider text-[#999999] mb-3">
+          <h3 className="text-[11px] font-semibold uppercase tracking-wider text-text-placeholder mb-3">
             Narrative Beats
           </h3>
 
@@ -536,10 +536,10 @@ function ExperienceTab({
                           <div className="w-[34px] h-[34px] rounded-lg bg-[#0A1E2F]/8 flex items-center justify-center">
                             <Layout className="w-4 h-4 text-[#0A1E2F]/50" />
                           </div>
-                          {!isLast && <div className="w-0.5 flex-1 bg-[#3FAF7A]/15 mt-0.5" />}
+                          {!isLast && <div className="w-0.5 flex-1 bg-brand-primary/15 mt-0.5" />}
                         </div>
                         <div className="flex-1 py-2 group">
-                          <div className="text-[10px] font-bold uppercase tracking-wider text-[#999999] mb-0.5">Layout</div>
+                          <div className="text-[10px] font-bold uppercase tracking-wider text-text-placeholder mb-0.5">Layout</div>
                           <span className="text-[12px] text-[#666666]">
                             Renders as a <span className="font-medium text-[#0A1E2F]">{step.implied_pattern}</span>
                           </span>
@@ -567,13 +567,13 @@ function ExperienceTab({
 
       {/* Step connections */}
       {(prevStepTitle || nextStepTitle) && (
-        <div className="flex items-center gap-3 px-3 py-2 rounded-lg bg-[#F4F4F4]/60 text-[12px] text-[#999999]">
+        <div className="flex items-center gap-3 px-3 py-2 rounded-lg bg-[#F4F4F4]/60 text-[12px] text-text-placeholder">
           {prevStepTitle && (
             <span className="flex items-center gap-1">
               <ArrowLeft className="w-3 h-3" /> from {prevStepTitle}
             </span>
           )}
-          {prevStepTitle && nextStepTitle && <span className="text-[#E5E5E5]">|</span>}
+          {prevStepTitle && nextStepTitle && <span className="text-border">|</span>}
           {nextStepTitle && (
             <span className="flex items-center gap-1">
               feeds {nextStepTitle} <ArrowRight className="w-3 h-3" />
@@ -585,25 +585,25 @@ function ExperienceTab({
       {/* Evidence & Uploads */}
       {evidenceFiles.length > 0 && (
         <div>
-          <h3 className="text-[11px] font-semibold uppercase tracking-wider text-[#999999] mb-2">
+          <h3 className="text-[11px] font-semibold uppercase tracking-wider text-text-placeholder mb-2">
             Client References ({evidenceFiles.length})
           </h3>
           <div className="flex flex-wrap gap-2">
             {evidenceFiles.map(file => (
               <div
                 key={file.id}
-                className={`flex items-start gap-2 px-3 py-2 bg-white border border-[#E5E5E5] rounded-lg ${file.quote ? 'w-full' : ''}`}
+                className={`flex items-start gap-2 px-3 py-2 bg-white border border-border rounded-lg ${file.quote ? 'w-full' : ''}`}
               >
                 <div className="w-7 h-7 rounded-md bg-[#F4F4F4] flex items-center justify-center text-[#666666] shrink-0">
                   {fileIcon(file.fileType)}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <div className="text-[12px] font-medium text-[#333333] truncate max-w-[200px]">{file.filename}</div>
+                  <div className="text-[12px] font-medium text-text-body truncate max-w-[200px]">{file.filename}</div>
                   {file.quote && (
                     <>
                       <p className="text-[12px] text-[#666666] italic leading-snug mt-1 line-clamp-3">{file.quote}</p>
                       {file.attribution && (
-                        <p className="text-[10px] text-[#999999] mt-0.5">&mdash; {file.attribution}</p>
+                        <p className="text-[10px] text-text-placeholder mt-0.5">&mdash; {file.attribution}</p>
                       )}
                     </>
                   )}
@@ -617,18 +617,18 @@ function ExperienceTab({
       {/* Things to Explore — reframed open questions */}
       {openQuestions.length > 0 && (
         <div className={phaseClass('questions') || (hlSet.has('open_questions') ? 'animate-highlightFlash' : '')}>
-          <h3 className="text-[11px] font-semibold uppercase tracking-wider text-[#999999] mb-2">
+          <h3 className="text-[11px] font-semibold uppercase tracking-wider text-text-placeholder mb-2">
             Things to Explore ({openQuestions.length})
           </h3>
           <div className="space-y-2">
             {openQuestions.map((q, i) => (
-              <div key={i} className="border border-[#E5E5E5] bg-[#FAFAFA] rounded-xl p-3">
+              <div key={i} className="border border-border bg-surface-page rounded-xl p-3">
                 <div className="flex items-start gap-2">
                   <Compass className="w-4 h-4 text-[#0A1E2F]/40 shrink-0 mt-0.5" />
                   <div className="flex-1">
-                    <p className="text-[13px] text-[#333333]">{q.question}</p>
+                    <p className="text-[13px] text-text-body">{q.question}</p>
                     {q.context && (
-                      <p className="text-xs text-[#999999] mt-1">{q.context}</p>
+                      <p className="text-xs text-text-placeholder mt-1">{q.context}</p>
                     )}
                   </div>
                 </div>
@@ -641,7 +641,7 @@ function ExperienceTab({
       {/* Escalated Questions */}
       {escalatedQuestions.length > 0 && (
         <div>
-          <h3 className="text-[11px] font-semibold uppercase tracking-wider text-[#999999] mb-2">
+          <h3 className="text-[11px] font-semibold uppercase tracking-wider text-text-placeholder mb-2">
             Queued for Client ({escalatedQuestions.length})
           </h3>
           <div className="space-y-2">
@@ -667,17 +667,17 @@ function ExperienceTab({
       {/* Resolved Questions */}
       {resolvedQuestions.length > 0 && (
         <div>
-          <h3 className="text-[11px] font-semibold uppercase tracking-wider text-[#999999] mb-2">
+          <h3 className="text-[11px] font-semibold uppercase tracking-wider text-text-placeholder mb-2">
             Resolved ({resolvedQuestions.length})
           </h3>
           <div className="space-y-2">
             {resolvedQuestions.map((q, i) => (
-              <div key={i} className="border-l-[3px] border-[#3FAF7A]/40 bg-[#3FAF7A]/5 rounded-r-lg p-3">
+              <div key={i} className="border-l-[3px] border-brand-primary/40 bg-brand-primary-light rounded-r-lg p-3">
                 <div className="flex items-start gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-[#3FAF7A] shrink-0 mt-0.5" />
+                  <CheckCircle2 className="w-4 h-4 text-brand-primary shrink-0 mt-0.5" />
                   <div>
                     <p className="text-[13px] text-[#666666] line-through opacity-60">{q.question}</p>
-                    <p className="text-[13px] text-[#333333] mt-1">{q.resolved_answer}</p>
+                    <p className="text-[13px] text-text-body mt-1">{q.resolved_answer}</p>
                   </div>
                 </div>
               </div>
@@ -691,7 +691,7 @@ function ExperienceTab({
         <div>
           <button
             onClick={() => setDataFieldsExpanded(!dataFieldsExpanded)}
-            className="flex items-center gap-1.5 text-[11px] font-medium text-[#999999] hover:text-[#666666]"
+            className="flex items-center gap-1.5 text-[11px] font-medium text-text-placeholder hover:text-[#666666]"
           >
             {dataFieldsExpanded ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
             {dataFieldsExpanded ? 'Hide' : 'Show'} {infoFields.length} data field{infoFields.length !== 1 ? 's' : ''}
@@ -747,13 +747,13 @@ function NarrativeBeat({
         <div className={`w-[34px] h-[34px] rounded-lg ${config.bg} ${config.border} border flex items-center justify-center`}>
           <Icon className={`w-4 h-4 ${config.iconColor}`} />
         </div>
-        {!isLast && <div className="w-0.5 flex-1 bg-[#3FAF7A]/15 mt-0.5" />}
+        {!isLast && <div className="w-0.5 flex-1 bg-brand-primary/15 mt-0.5" />}
       </div>
 
       {/* Content */}
-      <div className="flex-1 py-1.5 group-hover:bg-[#F9F9F9] rounded-lg">
+      <div className="flex-1 py-1.5 group-hover:bg-surface-muted rounded-lg">
         <div className="flex items-center gap-2 mb-0.5">
-          <span className="text-[10px] font-bold text-[#999999] uppercase tracking-wider">
+          <span className="text-[10px] font-bold text-text-placeholder uppercase tracking-wider">
             {config.verb}
           </span>
           {beatType === 'captured' && actors?.length ? (
@@ -763,9 +763,9 @@ function NarrativeBeat({
           ) : null}
         </div>
         <div className="flex items-baseline gap-1.5">
-          <span className="text-[13px] font-medium text-[#333333]">{field.name}</span>
+          <span className="text-[13px] font-medium text-text-body">{field.name}</span>
           {field.mock_value && (
-            <span className="text-[12px] text-[#999999]">&mdash; {field.mock_value}</span>
+            <span className="text-[12px] text-text-placeholder">&mdash; {field.mock_value}</span>
           )}
         </div>
       </div>
@@ -807,7 +807,7 @@ function SuccessTab({
     return (
       <div className="flex flex-col items-center justify-center h-48 text-center">
         <Trophy className="w-6 h-6 text-[#CCCCCC] mb-3" />
-        <p className="text-sm text-[#999999] mb-1">No success criteria yet</p>
+        <p className="text-sm text-text-placeholder mb-1">No success criteria yet</p>
         <p className="text-xs text-[#BBBBBB]">Use the chat to discuss what makes this step successful</p>
       </div>
     )
@@ -818,20 +818,20 @@ function SuccessTab({
       {/* Solves For — pain points */}
       {painPoints.length > 0 && (
         <div className={phaseClass('pain_points') || (hlSet.has('pain_points_addressed') ? 'animate-highlightFlash' : '')}>
-          <h3 className="text-[11px] font-semibold uppercase tracking-wider text-[#999999] mb-2">
+          <h3 className="text-[11px] font-semibold uppercase tracking-wider text-text-placeholder mb-2">
             Solves For
           </h3>
           <div className="space-y-2">
             {painPoints.map((pp, i) => (
               <div
                 key={i}
-                className="border border-[#E5E5E5] bg-white rounded-xl p-3 animate-slideInLeft"
+                className="border border-border bg-white rounded-xl p-3 animate-slideInLeft"
                 style={{ animationDelay: `${i * 60}ms` }}
               >
                 <div className="flex items-start gap-2">
                   <Heart className="w-4 h-4 text-[#25785A] shrink-0 mt-0.5" />
                   <div>
-                    <p className="text-[13px] text-[#333333]">{pp.text}</p>
+                    <p className="text-[13px] text-text-body">{pp.text}</p>
                     {pp.persona && (
                       <span className="inline-block text-[10px] px-2 py-0.5 rounded-full bg-[#0A1E2F]/5 text-[#0A1E2F] mt-1.5">
                         {pp.persona}
@@ -848,14 +848,14 @@ function SuccessTab({
       {/* Achieves — goals */}
       {goals.length > 0 && (
         <div className={phaseClass('goals_addressed') || (hlSet.has('goals_addressed') ? 'animate-highlightFlash' : '')}>
-          <h3 className="text-[11px] font-semibold uppercase tracking-wider text-[#999999] mb-2">
+          <h3 className="text-[11px] font-semibold uppercase tracking-wider text-text-placeholder mb-2">
             Achieves
           </h3>
           <div className="flex flex-wrap gap-2">
             {goals.map((goal, i) => (
               <span
                 key={i}
-                className="inline-flex items-center gap-1.5 text-[12px] px-3 py-1.5 rounded-full bg-[#3FAF7A]/10 text-[#25785A] font-medium"
+                className="inline-flex items-center gap-1.5 text-[12px] px-3 py-1.5 rounded-full bg-brand-primary-light text-[#25785A] font-medium"
               >
                 <CheckCircle2 className="w-3 h-3" />
                 {goal}
@@ -868,14 +868,14 @@ function SuccessTab({
       {/* What Makes This Step Successful — criteria */}
       {criteria.length > 0 && (
         <div className={phaseClass('success_criteria') || (hlSet.has('success_criteria') ? 'animate-highlightFlash' : '')}>
-          <h3 className="text-[11px] font-semibold uppercase tracking-wider text-[#999999] mb-2">
+          <h3 className="text-[11px] font-semibold uppercase tracking-wider text-text-placeholder mb-2">
             What Makes This Step Successful
           </h3>
           <div className="space-y-1.5">
             {criteria.map((c, i) => (
-              <div key={i} className="flex items-start gap-2 py-1.5 px-3 rounded-lg hover:bg-[#F9F9F9]">
-                <Target className="w-4 h-4 text-[#3FAF7A] shrink-0 mt-0.5" />
-                <span className="text-[13px] text-[#333333]">{c}</span>
+              <div key={i} className="flex items-start gap-2 py-1.5 px-3 rounded-lg hover:bg-surface-muted">
+                <Target className="w-4 h-4 text-brand-primary shrink-0 mt-0.5" />
+                <span className="text-[13px] text-text-body">{c}</span>
               </div>
             ))}
           </div>
@@ -885,7 +885,7 @@ function SuccessTab({
       {/* Connected Entities */}
       {linkedEntities.length > 0 && (
         <div>
-          <h3 className="text-[11px] font-semibold uppercase tracking-wider text-[#999999] mb-2">
+          <h3 className="text-[11px] font-semibold uppercase tracking-wider text-text-placeholder mb-2">
             Connected Entities
           </h3>
           <div className="flex flex-wrap gap-2">
@@ -900,7 +900,7 @@ function SuccessTab({
                   <Icon className={`w-3.5 h-3.5 ${config.color}`} />
                   <div className="min-w-0">
                     <span className={`text-[10px] font-medium ${config.color} mr-1.5`}>{config.label}</span>
-                    <span className="text-[12px] font-medium text-[#333333]">{name}</span>
+                    <span className="text-[12px] font-medium text-text-body">{name}</span>
                   </div>
                 </div>
               )
@@ -940,7 +940,7 @@ function AITab({
       <div className="flex flex-col items-center justify-center h-48 text-center">
         <Bot className="w-6 h-6 text-[#CCCCCC] mb-3" />
         <p className="text-sm font-medium text-[#666666] mb-1">Does this step use AI?</p>
-        <p className="text-xs text-[#999999] max-w-xs mb-4">
+        <p className="text-xs text-text-placeholder max-w-xs mb-4">
           If this step involves AI-driven behavior — recommendations, scoring, generation — define the role, behaviors, and guardrails.
         </p>
         <p className="text-xs text-[#BBBBBB]">
@@ -960,10 +960,10 @@ function AITab({
           <div className="w-[34px] h-[34px] rounded-lg bg-[#0A1E2F]/8 flex items-center justify-center">
             <Database className="w-4 h-4 text-[#0A1E2F]/50" />
           </div>
-          <div className="w-0.5 flex-1 bg-[#3FAF7A]/20 mt-0.5" />
+          <div className="w-0.5 flex-1 bg-brand-primary/20 mt-0.5" />
         </div>
         <div className="flex-1 pb-4">
-          <div className="text-[10px] font-bold uppercase tracking-wider text-[#999999] mb-1.5">Data In</div>
+          <div className="text-[10px] font-bold uppercase tracking-wider text-text-placeholder mb-1.5">Data In</div>
           <div className="bg-[#0A1E2F] rounded-xl p-4">
             <p className="text-sm text-white/90 leading-relaxed">
               {role || 'No role defined'}
@@ -975,23 +975,23 @@ function AITab({
       {/* Stage 2 — What the AI Does */}
       <div className="flex gap-3">
         <div className="flex flex-col items-center shrink-0" style={{ width: 36 }}>
-          <div className="w-[34px] h-[34px] rounded-lg bg-[#3FAF7A]/10 flex items-center justify-center">
-            <Sparkles className="w-4 h-4 text-[#3FAF7A]" />
+          <div className="w-[34px] h-[34px] rounded-lg bg-brand-primary-light flex items-center justify-center">
+            <Sparkles className="w-4 h-4 text-brand-primary" />
           </div>
           {(aiConfig.confidence_display || aiConfig.fallback) && (
-            <div className="w-0.5 flex-1 bg-[#3FAF7A]/20 mt-0.5" />
+            <div className="w-0.5 flex-1 bg-brand-primary/20 mt-0.5" />
           )}
         </div>
         <div className="flex-1 pb-4">
-          <div className="text-[10px] font-bold uppercase tracking-wider text-[#999999] mb-1.5">What the AI Does</div>
+          <div className="text-[10px] font-bold uppercase tracking-wider text-text-placeholder mb-1.5">What the AI Does</div>
 
           {/* Behaviors */}
           {aiConfig.behaviors && aiConfig.behaviors.length > 0 && (
             <div className="space-y-1.5 mb-3">
               {aiConfig.behaviors.map((b, i) => (
-                <div key={i} className="flex items-start gap-2 py-1.5 px-3 rounded-lg bg-[#3FAF7A]/5">
-                  <Zap className="w-3.5 h-3.5 text-[#3FAF7A] shrink-0 mt-0.5" />
-                  <span className="text-[13px] text-[#333333]">{b}</span>
+                <div key={i} className="flex items-start gap-2 py-1.5 px-3 rounded-lg bg-brand-primary-light">
+                  <Zap className="w-3.5 h-3.5 text-brand-primary shrink-0 mt-0.5" />
+                  <span className="text-[13px] text-text-body">{b}</span>
                 </div>
               ))}
             </div>
@@ -1000,12 +1000,12 @@ function AITab({
           {/* Guardrails sub-section */}
           {aiConfig.guardrails && aiConfig.guardrails.length > 0 && (
             <div>
-              <div className="text-[10px] font-semibold uppercase tracking-wider text-[#999999] mb-1.5 mt-1">Guardrails</div>
+              <div className="text-[10px] font-semibold uppercase tracking-wider text-text-placeholder mb-1.5 mt-1">Guardrails</div>
               <div className="space-y-1.5">
                 {aiConfig.guardrails.map((g, i) => (
                   <div key={i} className="flex items-start gap-2 py-1.5 px-3 rounded-lg bg-[#0A1E2F]/3">
                     <Shield className="w-3.5 h-3.5 text-[#0A1E2F]/50 shrink-0 mt-0.5" />
-                    <span className="text-[13px] text-[#333333]">{g}</span>
+                    <span className="text-[13px] text-text-body">{g}</span>
                   </div>
                 ))}
               </div>
@@ -1018,23 +1018,23 @@ function AITab({
       {(aiConfig.confidence_display || aiConfig.fallback) && (
         <div className="flex gap-3">
           <div className="flex flex-col items-center shrink-0" style={{ width: 36 }}>
-            <div className="w-[34px] h-[34px] rounded-lg bg-[#3FAF7A]/15 flex items-center justify-center">
+            <div className="w-[34px] h-[34px] rounded-lg bg-brand-primary/15 flex items-center justify-center">
               <ArrowRight className="w-4 h-4 text-[#25785A]" />
             </div>
             {(step.success_criteria?.length || step.pain_points_addressed?.length) ? (
-              <div className="w-0.5 flex-1 bg-[#3FAF7A]/20 mt-0.5" />
+              <div className="w-0.5 flex-1 bg-brand-primary/20 mt-0.5" />
             ) : null}
           </div>
           <div className="flex-1 pb-2">
-            <div className="text-[10px] font-bold uppercase tracking-wider text-[#999999] mb-1.5">What Comes Out</div>
+            <div className="text-[10px] font-bold uppercase tracking-wider text-text-placeholder mb-1.5">What Comes Out</div>
             {aiConfig.confidence_display && (
-              <span className="inline-flex text-[12px] px-2 py-0.5 rounded-full bg-[#3FAF7A]/10 text-[#25785A] font-medium mb-2">
+              <span className="inline-flex text-[12px] px-2 py-0.5 rounded-full bg-brand-primary-light text-[#25785A] font-medium mb-2">
                 {aiConfig.confidence_display}
               </span>
             )}
             {aiConfig.fallback && (
-              <div className="flex items-start gap-2 py-1.5 px-3 rounded-lg bg-[#F4F4F4] border border-[#E5E5E5] mt-1">
-                <Shield className="w-3.5 h-3.5 text-[#999999] shrink-0 mt-0.5" />
+              <div className="flex items-start gap-2 py-1.5 px-3 rounded-lg bg-[#F4F4F4] border border-border mt-1">
+                <Shield className="w-3.5 h-3.5 text-text-placeholder shrink-0 mt-0.5" />
                 <span className="text-[13px] text-[#666666]">{aiConfig.fallback}</span>
               </div>
             )}
@@ -1046,17 +1046,17 @@ function AITab({
       {(step.success_criteria?.length || step.pain_points_addressed?.length) ? (
         <div className="flex gap-3">
           <div className="flex flex-col items-center shrink-0" style={{ width: 36 }}>
-            <div className="w-[34px] h-[34px] rounded-lg bg-[#3FAF7A]/20 flex items-center justify-center">
+            <div className="w-[34px] h-[34px] rounded-lg bg-brand-primary/20 flex items-center justify-center">
               <Trophy className="w-4 h-4 text-[#25785A]" />
             </div>
           </div>
           <div className="flex-1 pb-2">
-            <div className="text-[10px] font-bold uppercase tracking-wider text-[#999999] mb-1.5">What Success Looks Like</div>
+            <div className="text-[10px] font-bold uppercase tracking-wider text-text-placeholder mb-1.5">What Success Looks Like</div>
             <div className="space-y-1.5">
               {(step.success_criteria || []).map((c, i) => (
-                <div key={`c-${i}`} className="flex items-start gap-2 py-1 px-3 rounded-lg bg-[#3FAF7A]/5">
-                  <Target className="w-3.5 h-3.5 text-[#3FAF7A] shrink-0 mt-0.5" />
-                  <span className="text-[12px] text-[#333333]">{c}</span>
+                <div key={`c-${i}`} className="flex items-start gap-2 py-1 px-3 rounded-lg bg-brand-primary-light">
+                  <Target className="w-3.5 h-3.5 text-brand-primary shrink-0 mt-0.5" />
+                  <span className="text-[12px] text-text-body">{c}</span>
                 </div>
               ))}
               {(step.pain_points_addressed || []).map((pp, i) => {
@@ -1065,8 +1065,8 @@ function AITab({
                 return (
                   <div key={`pp-${i}`} className="flex items-start gap-2 py-1 px-3 rounded-lg bg-[#0A1E2F]/3">
                     <Heart className="w-3.5 h-3.5 text-[#25785A] shrink-0 mt-0.5" />
-                    <span className="text-[12px] text-[#333333]">
-                      {text}{persona && <span className="text-[#999999] ml-1">({persona})</span>}
+                    <span className="text-[12px] text-text-body">
+                      {text}{persona && <span className="text-text-placeholder ml-1">({persona})</span>}
                     </span>
                   </div>
                 )
@@ -1095,17 +1095,17 @@ function FieldRow({
     <div
       className={`flex items-start gap-2.5 py-2 px-3 rounded-lg transition-all duration-500 ${
         highlighted
-          ? `animate-pulseGreen ring-1 ring-[#3FAF7A]/20${isNew ? ' animate-slideInLeft' : ''}`
-          : 'hover:bg-[#F9F9F9]'
+          ? `animate-pulseGreen ring-1 ring-brand-primary/20${isNew ? ' animate-slideInLeft' : ''}`
+          : 'hover:bg-surface-muted'
       }`}
     >
       <div className="flex items-center gap-2 shrink-0 mt-0.5" title={dot.label}>
         <span className={`w-2 h-2 rounded-full ${dot.color}`} />
       </div>
       <div className="flex-1 min-w-0">
-        <span className="text-[13px] font-medium text-[#333333]">{field.name}</span>
+        <span className="text-[13px] font-medium text-text-body">{field.name}</span>
         {field.mock_value && (
-          <span className="text-[13px] text-[#999999] ml-1.5">&mdash; {field.mock_value}</span>
+          <span className="text-[13px] text-text-placeholder ml-1.5">&mdash; {field.mock_value}</span>
         )}
       </div>
     </div>
@@ -1117,7 +1117,7 @@ function FieldRow({
 function HistoryTimeline({ revisions, loading }: { revisions: RevisionEntry[]; loading: boolean }) {
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-32 text-sm text-[#999999]">
+      <div className="flex items-center justify-center h-32 text-sm text-text-placeholder">
         Loading history...
       </div>
     )
@@ -1127,7 +1127,7 @@ function HistoryTimeline({ revisions, loading }: { revisions: RevisionEntry[]; l
     return (
       <div className="flex flex-col items-center justify-center h-32 text-center">
         <History className="w-5 h-5 text-[#CCCCCC] mb-2" />
-        <p className="text-sm text-[#999999]">No changes recorded yet</p>
+        <p className="text-sm text-text-placeholder">No changes recorded yet</p>
       </div>
     )
   }
@@ -1149,8 +1149,8 @@ function HistoryTimeline({ revisions, loading }: { revisions: RevisionEntry[]; l
           <div key={i} className="flex gap-3">
             {/* Timeline line + dot */}
             <div className="flex flex-col items-center shrink-0">
-              <div className={`w-2 h-2 rounded-full mt-1.5 ${i === 0 ? 'bg-[#3FAF7A]' : 'bg-[#E5E5E5]'}`} />
-              {i < revisions.length - 1 && <div className="w-px flex-1 bg-[#E5E5E5] mt-1" />}
+              <div className={`w-2 h-2 rounded-full mt-1.5 ${i === 0 ? 'bg-brand-primary' : 'bg-border'}`} />
+              {i < revisions.length - 1 && <div className="w-px flex-1 bg-border mt-1" />}
             </div>
 
             {/* Content */}
@@ -1160,7 +1160,7 @@ function HistoryTimeline({ revisions, loading }: { revisions: RevisionEntry[]; l
                   <BadgeIcon className="w-3 h-3" />
                   {badgeConfig.label}
                 </span>
-                <span className="text-[10px] text-[#999999]">{timeAgo}</span>
+                <span className="text-[10px] text-text-placeholder">{timeAgo}</span>
                 {rev.created_by && (
                   <span className="text-[10px] text-[#BBBBBB]">by {rev.created_by}</span>
                 )}
@@ -1175,7 +1175,7 @@ function HistoryTimeline({ revisions, loading }: { revisions: RevisionEntry[]; l
               {qResolved && (
                 <div className="mt-1 bg-[#F0FFF4] rounded-lg px-3 py-2">
                   <p className="text-[12px] text-[#666666] mb-1">Q: {qResolved.question}</p>
-                  <p className="text-[12px] text-[#333333] font-medium">A: {qResolved.answer}</p>
+                  <p className="text-[12px] text-text-body font-medium">A: {qResolved.answer}</p>
                 </div>
               )}
 
@@ -1230,7 +1230,7 @@ function FieldChanges({ changes }: { changes: Record<string, unknown> }) {
     <div className="mt-1">
       <button
         onClick={() => setExpanded(!expanded)}
-        className="text-[11px] text-[#999999] hover:text-[#666666]"
+        className="text-[11px] text-text-placeholder hover:text-[#666666]"
       >
         {expanded ? 'Hide' : 'Show'} {fieldKeys.length} field change{fieldKeys.length !== 1 ? 's' : ''}
       </button>
@@ -1245,7 +1245,7 @@ function FieldChanges({ changes }: { changes: Record<string, unknown> }) {
               <div key={key} className="text-[11px] bg-[#F4F4F4] rounded px-2 py-1.5">
                 <span className="font-medium text-[#666666]">{HISTORY_FIELD_LABELS[key] || key.replace(/_/g, ' ')}:</span>{' '}
                 {oldStr && <span className="text-[#CC4444] line-through">{truncate(oldStr, 60)}</span>}
-                {oldStr && newStr && <span className="text-[#999999]"> &rarr; </span>}
+                {oldStr && newStr && <span className="text-text-placeholder"> &rarr; </span>}
                 {newStr && <span className="text-[#25785A]">{truncate(newStr, 60)}</span>}
               </div>
             )

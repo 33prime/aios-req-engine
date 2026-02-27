@@ -175,7 +175,7 @@ function SyncProgressBar({
       bg: 'bg-blue-100',
       filled: 'bg-blue-500',
       inProgress: 'bg-blue-300',
-      text: 'text-blue-700',
+      text: 'text-brand-primary-hover',
       icon: 'text-blue-500',
     },
     green: {

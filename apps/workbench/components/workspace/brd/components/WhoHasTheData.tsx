@@ -78,7 +78,7 @@ export function WhoHasTheData({ topics, stakeholders, evidence }: WhoHasTheDataP
   if (totalCount === 0) {
     return (
       <div className="text-center py-8">
-        <Users className="w-8 h-8 text-[#E5E5E5] mx-auto mb-3" />
+        <Users className="w-8 h-8 text-border mx-auto mb-3" />
         <p className="text-[13px] text-[#666666]">No knowledge areas to analyze</p>
       </div>
     )
@@ -87,18 +87,18 @@ export function WhoHasTheData({ topics, stakeholders, evidence }: WhoHasTheDataP
   return (
     <div className="space-y-5">
       {/* Summary */}
-      <div className="border border-[#E5E5E5] rounded-xl px-4 py-3 bg-[#F4F4F4]">
+      <div className="border border-border rounded-xl px-4 py-3 bg-[#F4F4F4]">
         <div className="flex items-center justify-between">
-          <span className="text-[12px] font-medium text-[#333333]">
+          <span className="text-[12px] font-medium text-text-body">
             Knowledge Coverage
           </span>
-          <span className="text-[12px] font-semibold text-[#333333]">
+          <span className="text-[12px] font-semibold text-text-body">
             {confirmedCount} of {totalCount} areas covered
           </span>
         </div>
-        <div className="mt-2 h-2 bg-[#E5E5E5] rounded-full overflow-hidden">
+        <div className="mt-2 h-2 bg-border rounded-full overflow-hidden">
           <div
-            className="h-full bg-[#3FAF7A] rounded-full transition-all duration-300"
+            className="h-full bg-brand-primary rounded-full transition-all duration-300"
             style={{ width: `${totalCount > 0 ? (confirmedCount / totalCount) * 100 : 0}%` }}
           />
         </div>
@@ -113,8 +113,8 @@ export function WhoHasTheData({ topics, stakeholders, evidence }: WhoHasTheDataP
 
       {/* Artifact suggestions */}
       {knowledgeAreas.some(a => a.artifacts.length > 0 && a.status !== 'confirmed') && (
-        <div className="border border-[#E5E5E5] rounded-xl px-4 py-3">
-          <h4 className="text-[11px] font-medium text-[#999999] uppercase tracking-wide mb-2 flex items-center gap-1.5">
+        <div className="border border-border rounded-xl px-4 py-3">
+          <h4 className="text-[11px] font-medium text-text-placeholder uppercase tracking-wide mb-2 flex items-center gap-1.5">
             <FileText className="w-3.5 h-3.5" />
             Suggested Artifacts to Request
           </h4>
@@ -142,7 +142,7 @@ function KnowledgeAreaCard({ area }: { area: KnowledgeArea }) {
   const statusConfig = {
     confirmed: {
       icon: Check,
-      color: 'text-[#3FAF7A]',
+      color: 'text-brand-primary',
       bg: 'bg-[#E8F5E9]',
       label: 'Covered',
     },
@@ -154,7 +154,7 @@ function KnowledgeAreaCard({ area }: { area: KnowledgeArea }) {
     },
     not_consulted: {
       icon: AlertTriangle,
-      color: 'text-[#999999]',
+      color: 'text-text-placeholder',
       bg: 'bg-[#F0F0F0]',
       label: 'Not consulted',
     },
@@ -164,10 +164,10 @@ function KnowledgeAreaCard({ area }: { area: KnowledgeArea }) {
   const StatusIcon = config.icon
 
   return (
-    <div className="border border-[#E5E5E5] rounded-xl px-4 py-3">
+    <div className="border border-border rounded-xl px-4 py-3">
       <div className="flex items-center gap-2 mb-2">
         <StatusIcon className={`w-4 h-4 ${config.color}`} />
-        <span className="text-[13px] font-medium text-[#333333] capitalize flex-1">
+        <span className="text-[13px] font-medium text-text-body capitalize flex-1">
           {area.topic}
         </span>
         <span className={`px-2 py-0.5 text-[10px] font-medium rounded-full ${config.bg} ${config.color}`}>
@@ -182,18 +182,18 @@ function KnowledgeAreaCard({ area }: { area: KnowledgeArea }) {
               <span className={`w-1.5 h-1.5 rounded-full ${
                 stakeholder.confirmation_status === 'confirmed_consultant' ||
                 stakeholder.confirmation_status === 'confirmed_client'
-                  ? 'bg-[#3FAF7A]' : 'bg-[#E5E5E5]'
+                  ? 'bg-brand-primary' : 'bg-border'
               }`} />
-              <span className="text-[#333333] font-medium">{stakeholder.name}</span>
+              <span className="text-text-body font-medium">{stakeholder.name}</span>
               {stakeholder.role && (
-                <span className="text-[#999999]">({stakeholder.role})</span>
+                <span className="text-text-placeholder">({stakeholder.role})</span>
               )}
             </div>
           ))}
         </div>
       ) : (
         <div className="ml-6">
-          <p className="text-[12px] text-[#999999] mb-1.5">
+          <p className="text-[12px] text-text-placeholder mb-1.5">
             Suggested roles to consult:
           </p>
           <div className="flex flex-wrap gap-1">

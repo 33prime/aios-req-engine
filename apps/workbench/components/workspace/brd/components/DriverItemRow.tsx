@@ -56,16 +56,16 @@ export function DriverItemRow({
       {/* Collapsed row */}
       <button
         onClick={handleToggle}
-        className={`w-full flex items-center gap-3 px-4 py-3 hover:bg-[#FAFAFA] transition-colors cursor-pointer border-b border-[#F0F0F0] last:border-b-0 text-left ${
-          isExpanded ? 'bg-[#FAFAFA]' : ''
+        className={`w-full flex items-center gap-3 px-4 py-3 hover:bg-surface-page transition-colors cursor-pointer border-b border-[#F0F0F0] last:border-b-0 text-left ${
+          isExpanded ? 'bg-surface-page' : ''
         }`}
       >
         <ChevronRight
-          className={`w-3.5 h-3.5 text-[#999999] flex-shrink-0 transition-transform duration-200 ${
+          className={`w-3.5 h-3.5 text-text-placeholder flex-shrink-0 transition-transform duration-200 ${
             isExpanded ? 'rotate-90' : ''
           }`}
         />
-        <span className="text-[13px] font-medium text-[#333333] truncate flex-1 min-w-0">
+        <span className="text-[13px] font-medium text-text-body truncate flex-1 min-w-0">
           {displayTitle}
         </span>
         {evidenceCount > 0 && (
@@ -87,7 +87,7 @@ export function DriverItemRow({
             isExpanded ? 'max-h-[400px] opacity-100' : 'max-h-0 opacity-0'
           }`}
         >
-          <div className="px-4 pb-3 bg-[#FAFAFA] border-b border-[#F0F0F0]">
+          <div className="px-4 pb-3 bg-surface-page border-b border-[#F0F0F0]">
             <div className="pl-6">
               {/* Description */}
               <p className="text-[12px] text-[#666666] leading-relaxed mb-2">
@@ -98,7 +98,7 @@ export function DriverItemRow({
               <KeyFields driver={driver} driverType={driverType} />
 
               {/* Actions row */}
-              <div className="flex items-center justify-between pt-2 mt-2 border-t border-[#E5E5E5]">
+              <div className="flex items-center justify-between pt-2 mt-2 border-t border-border">
                 <ConfirmActions
                   status={driver.confirmation_status}
                   onConfirm={onConfirm}
@@ -106,7 +106,7 @@ export function DriverItemRow({
                 />
                 <button
                   onClick={(e) => { e.stopPropagation(); onDrawerOpen() }}
-                  className="text-[11px] text-[#999999] hover:text-[#3FAF7A] transition-colors"
+                  className="text-[11px] text-text-placeholder hover:text-brand-primary transition-colors"
                 >
                   Open detail →
                 </button>
@@ -133,7 +133,7 @@ function KeyFields({ driver, driverType }: { driver: BusinessDriver; driverType:
   if (parts.length === 0) return null
 
   return (
-    <div className="text-[11px] text-[#999999] mb-2">
+    <div className="text-[11px] text-text-placeholder mb-2">
       {parts.map((p, i) => (
         <span key={p.label}>
           {i > 0 && <span className="mx-1.5">·</span>}

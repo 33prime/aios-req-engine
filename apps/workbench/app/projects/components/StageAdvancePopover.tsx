@@ -92,8 +92,8 @@ export function StageAdvancePopover({
       >
         {loading ? (
           <div className="p-4 text-center">
-            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-[#3FAF7A] mx-auto mb-2" />
-            <p className="text-xs text-[#999999]">Loading criteria...</p>
+            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-brand-primary mx-auto mb-2" />
+            <p className="text-xs text-text-placeholder">Loading criteria...</p>
           </div>
         ) : error && !status ? (
           <div className="p-4 text-center">
@@ -102,16 +102,16 @@ export function StageAdvancePopover({
         ) : status ? (
           <div>
             {/* Header */}
-            <div className="px-4 pt-3 pb-2 border-b border-[#E5E5E5]">
-              <div className="flex items-center gap-1.5 text-sm font-medium text-[#333333]">
+            <div className="px-4 pt-3 pb-2 border-b border-border">
+              <div className="flex items-center gap-1.5 text-sm font-medium text-text-body">
                 <span>{STAGE_LABELS[status.current_stage] || status.current_stage}</span>
-                <svg className="w-3.5 h-3.5 text-[#999999]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <svg className="w-3.5 h-3.5 text-text-placeholder" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" />
                 </svg>
                 <span>{status.next_stage ? (STAGE_LABELS[status.next_stage] || status.next_stage) : 'Final'}</span>
               </div>
               {status.transition_description && (
-                <p className="text-xs text-[#999999] mt-0.5">{status.transition_description}</p>
+                <p className="text-xs text-text-placeholder mt-0.5">{status.transition_description}</p>
               )}
             </div>
 
@@ -119,10 +119,10 @@ export function StageAdvancePopover({
             {status.criteria_total > 0 && (
               <div className="px-4 pt-2">
                 <div className="flex items-center justify-between mb-1">
-                  <span className="text-xs text-[#999999]">
+                  <span className="text-xs text-text-placeholder">
                     {status.criteria_met} / {status.criteria_total} criteria met
                   </span>
-                  <span className="text-xs font-medium text-[#333333]">
+                  <span className="text-xs font-medium text-text-body">
                     {Math.round(status.progress_pct)}%
                   </span>
                 </div>
@@ -154,12 +154,12 @@ export function StageAdvancePopover({
             )}
 
             {/* Actions */}
-            <div className="px-4 py-3 border-t border-[#E5E5E5] space-y-2">
+            <div className="px-4 py-3 border-t border-border space-y-2">
               {status.can_advance && status.next_stage && (
                 <button
                   onClick={() => handleAdvance(false)}
                   disabled={advancing}
-                  className="w-full px-3 py-1.5 text-xs font-medium text-white bg-[#3FAF7A] rounded-md hover:bg-[#008574] disabled:opacity-50 transition-colors"
+                  className="w-full px-3 py-1.5 text-xs font-medium text-white bg-brand-primary rounded-md hover:bg-[#008574] disabled:opacity-50 transition-colors"
                 >
                   {advancing ? 'Advancing...' : `Advance to ${STAGE_LABELS[status.next_stage] || status.next_stage}`}
                 </button>
@@ -170,7 +170,7 @@ export function StageAdvancePopover({
                   {!showForce ? (
                     <button
                       onClick={() => setShowForce(true)}
-                      className="w-full text-xs text-[#999999] hover:text-[#333333] transition-colors"
+                      className="w-full text-xs text-text-placeholder hover:text-text-body transition-colors"
                     >
                       Override...
                     </button>
@@ -181,7 +181,7 @@ export function StageAdvancePopover({
                         placeholder="Reason for override"
                         value={forceReason}
                         onChange={(e) => setForceReason(e.target.value)}
-                        className="w-full px-2 py-1 text-xs border border-[#E5E5E5] rounded-md focus:outline-none focus:ring-1 focus:ring-[#3FAF7A]"
+                        className="w-full px-2 py-1 text-xs border border-border rounded-md focus:outline-none focus:ring-1 focus:ring-brand-primary"
                       />
                       <button
                         onClick={() => handleAdvance(true)}
@@ -221,12 +221,12 @@ function CriterionRow({ criterion }: { criterion: StageGateCriterion }) {
             <circle cx="12" cy="12" r="10" />
           </svg>
         )}
-        <span className={`text-xs ${criterion.satisfied ? 'text-[#333333]' : 'text-[#999999]'}`}>
+        <span className={`text-xs ${criterion.satisfied ? 'text-text-body' : 'text-text-placeholder'}`}>
           {criterion.gate_label}
         </span>
         {hasDetails && (
           <svg
-            className={`w-3 h-3 text-[#999999] ml-auto mt-0.5 flex-shrink-0 transition-transform ${expanded ? 'rotate-90' : ''}`}
+            className={`w-3 h-3 text-text-placeholder ml-auto mt-0.5 flex-shrink-0 transition-transform ${expanded ? 'rotate-90' : ''}`}
             fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
           >
             <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
@@ -238,8 +238,8 @@ function CriterionRow({ criterion }: { criterion: StageGateCriterion }) {
         <div className="ml-6 mt-1 space-y-1">
           {criterion.missing.length > 0 && (
             <div>
-              <p className="text-[10px] font-medium text-[#999999] uppercase tracking-wide">Missing</p>
-              <ul className="text-[11px] text-[#333333] space-y-0.5">
+              <p className="text-[10px] font-medium text-text-placeholder uppercase tracking-wide">Missing</p>
+              <ul className="text-[11px] text-text-body space-y-0.5">
                 {criterion.missing.map((m, i) => (
                   <li key={i} className="flex items-start gap-1">
                     <span className="text-red-400 mt-px">-</span>
@@ -251,11 +251,11 @@ function CriterionRow({ criterion }: { criterion: StageGateCriterion }) {
           )}
           {criterion.how_to_acquire.length > 0 && (
             <div>
-              <p className="text-[10px] font-medium text-[#999999] uppercase tracking-wide">How to acquire</p>
-              <ul className="text-[11px] text-[#333333] space-y-0.5">
+              <p className="text-[10px] font-medium text-text-placeholder uppercase tracking-wide">How to acquire</p>
+              <ul className="text-[11px] text-text-body space-y-0.5">
                 {criterion.how_to_acquire.map((h, i) => (
                   <li key={i} className="flex items-start gap-1">
-                    <span className="text-[#3FAF7A] mt-px">+</span>
+                    <span className="text-brand-primary mt-px">+</span>
                     <span>{h}</span>
                   </li>
                 ))}

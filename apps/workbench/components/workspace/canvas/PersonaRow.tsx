@@ -24,17 +24,17 @@ function getStatusIndicator(status?: string | null) {
     case 'needs_confirmation':
       return { icon: AlertCircle, color: 'text-amber-500', bg: 'bg-amber-50', border: 'border-l-amber-400' }
     default:
-      return { icon: null, color: 'text-[#999999]', bg: 'bg-[#F9F9F9]', border: 'border-l-gray-300' }
+      return { icon: null, color: 'text-text-placeholder', bg: 'bg-surface-muted', border: 'border-l-gray-300' }
   }
 }
 
 export function PersonaRow({ personas, onPersonaClick }: PersonaRowProps) {
   if (personas.length === 0) {
     return (
-      <div className="bg-[#F9F9F9] rounded-lg border border-dashed border-[#E5E5E5] p-8 text-center">
+      <div className="bg-surface-muted rounded-lg border border-dashed border-border p-8 text-center">
         <User className="w-10 h-10 text-gray-300 mx-auto mb-3" />
-        <p className="text-sm text-[#999999]">No personas defined yet</p>
-        <p className="text-[12px] text-[#999999] mt-1">
+        <p className="text-sm text-text-placeholder">No personas defined yet</p>
+        <p className="text-[12px] text-text-placeholder mt-1">
           Add signals about your users to generate personas
         </p>
       </div>
@@ -52,9 +52,9 @@ export function PersonaRow({ personas, onPersonaClick }: PersonaRowProps) {
             key={persona.id}
             onClick={() => onPersonaClick?.(persona.id)}
             className={`
-              flex-shrink-0 w-56 bg-white rounded-lg border border-[#E5E5E5] shadow-sm p-4
+              flex-shrink-0 w-56 bg-white rounded-lg border border-border shadow-sm p-4
               border-l-[3px] ${status.border}
-              hover:border-[#3FAF7A]/30 hover:shadow-md transition-all text-left
+              hover:border-brand-primary/30 hover:shadow-md transition-all text-left
             `}
           >
             <div className="flex items-start gap-3">
@@ -63,7 +63,7 @@ export function PersonaRow({ personas, onPersonaClick }: PersonaRowProps) {
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-1.5">
-                  <h3 className="text-sm font-semibold text-[#333333] truncate">
+                  <h3 className="text-sm font-semibold text-text-body truncate">
                     {persona.name}
                   </h3>
                   {StatusIcon && (
@@ -83,17 +83,17 @@ export function PersonaRow({ personas, onPersonaClick }: PersonaRowProps) {
                   })()}
                 </div>
                 {persona.role && (
-                  <p className="text-[12px] text-[#999999] truncate mt-0.5">
+                  <p className="text-[12px] text-text-placeholder truncate mt-0.5">
                     {persona.role}
                   </p>
                 )}
                 {persona.description && (
-                  <p className="text-[12px] text-[#333333] mt-1 line-clamp-2">
+                  <p className="text-[12px] text-text-body mt-1 line-clamp-2">
                     {persona.description}
                   </p>
                 )}
                 {persona.persona_type && (
-                  <span className="inline-block mt-1.5 px-2 py-0.5 text-xs font-semibold rounded-full bg-[#F9F9F9] text-[#333333] capitalize">
+                  <span className="inline-block mt-1.5 px-2 py-0.5 text-xs font-semibold rounded-full bg-surface-muted text-text-body capitalize">
                     {persona.persona_type.replace('_', ' ')}
                   </span>
                 )}

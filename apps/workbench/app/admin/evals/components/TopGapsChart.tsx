@@ -16,7 +16,7 @@ interface Props {
 
 export function TopGapsChart({ data }: Props) {
   if (!data.length) {
-    return <p className="text-[13px] text-[#999999] py-8 text-center">No gaps recorded</p>
+    return <p className="text-[13px] text-text-placeholder py-8 text-center">No gaps recorded</p>
   }
 
   return (

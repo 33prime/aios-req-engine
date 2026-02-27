@@ -228,8 +228,8 @@ function OverviewTab({
     <div className="space-y-6">
       {/* Description */}
       {detail.description && (
-        <div className="bg-[#F4F4F4] border border-[#E5E5E5] rounded-xl px-4 py-3">
-          <p className="text-[13px] text-[#333333] leading-relaxed">{detail.description}</p>
+        <div className="bg-[#F4F4F4] border border-border rounded-xl px-4 py-3">
+          <p className="text-[13px] text-text-body leading-relaxed">{detail.description}</p>
         </div>
       )}
 
@@ -255,7 +255,7 @@ function OverviewTab({
         <button
           onClick={onEnrich}
           disabled={enriching}
-          className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-[13px] font-medium text-white bg-[#3FAF7A] hover:bg-[#25785A] rounded-xl transition-colors disabled:opacity-50"
+          className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-[13px] font-medium text-white bg-brand-primary hover:bg-[#25785A] rounded-xl transition-colors disabled:opacity-50"
         >
           {enriching ? (
             <>
@@ -280,10 +280,10 @@ function OverviewTab({
 
 function ROICard({ roi }: { roi: NonNullable<WorkflowDetail['roi']> }) {
   return (
-    <div className="border border-[#E5E5E5] rounded-xl overflow-hidden">
+    <div className="border border-border rounded-xl overflow-hidden">
       <div className="px-4 py-3 bg-[#0A1E2F]">
         <div className="flex items-center gap-1.5">
-          <TrendingDown className="w-3.5 h-3.5 text-[#3FAF7A]" />
+          <TrendingDown className="w-3.5 h-3.5 text-brand-primary" />
           <span className="text-[11px] font-semibold text-white uppercase tracking-wide">
             ROI Summary
           </span>
@@ -292,25 +292,25 @@ function ROICard({ roi }: { roi: NonNullable<WorkflowDetail['roi']> }) {
       <div className="px-4 py-4">
         {/* Time comparison bars */}
         <div className="space-y-2 mb-4">
-          <TimeBar label="Current" minutes={roi.current_total_minutes} max={roi.current_total_minutes} color="bg-[#999999]" />
-          <TimeBar label="Future" minutes={roi.future_total_minutes} max={roi.current_total_minutes} color="bg-[#3FAF7A]" />
+          <TimeBar label="Current" minutes={roi.current_total_minutes} max={roi.current_total_minutes} color="bg-text-placeholder" />
+          <TimeBar label="Future" minutes={roi.future_total_minutes} max={roi.current_total_minutes} color="bg-brand-primary" />
         </div>
 
         {/* Savings row */}
         <div className="grid grid-cols-3 gap-3 pt-3 border-t border-[#F0F0F0]">
           <div className="text-center">
             <p className="text-[18px] font-bold text-[#25785A]">{roi.time_saved_percent}%</p>
-            <p className="text-[10px] text-[#999999] uppercase">Time Saved</p>
+            <p className="text-[10px] text-text-placeholder uppercase">Time Saved</p>
           </div>
           <div className="text-center">
-            <p className="text-[18px] font-bold text-[#333333]">{roi.time_saved_minutes}min</p>
-            <p className="text-[10px] text-[#999999] uppercase">Per Run</p>
+            <p className="text-[18px] font-bold text-text-body">{roi.time_saved_minutes}min</p>
+            <p className="text-[10px] text-text-placeholder uppercase">Per Run</p>
           </div>
           <div className="text-center">
-            <p className="text-[18px] font-bold text-[#333333]">
+            <p className="text-[18px] font-bold text-text-body">
               ${roi.cost_saved_per_year > 0 ? formatCurrency(roi.cost_saved_per_year) : '—'}
             </p>
-            <p className="text-[10px] text-[#999999] uppercase">Saved / Year</p>
+            <p className="text-[10px] text-text-placeholder uppercase">Saved / Year</p>
           </div>
         </div>
 
@@ -319,13 +319,13 @@ function ROICard({ roi }: { roi: NonNullable<WorkflowDetail['roi']> }) {
           <div className="mt-3 pt-3 border-t border-[#F0F0F0]">
             <div className="flex items-center justify-between mb-1.5">
               <span className="text-[11px] text-[#666666]">Automation Coverage</span>
-              <span className="text-[11px] font-medium text-[#333333]">
+              <span className="text-[11px] font-medium text-text-body">
                 {roi.steps_automated}/{roi.steps_total} steps
               </span>
             </div>
             <div className="h-2 bg-[#F0F0F0] rounded-full overflow-hidden">
               <div
-                className="h-full bg-[#3FAF7A] rounded-full transition-all"
+                className="h-full bg-brand-primary rounded-full transition-all"
                 style={{ width: `${(roi.steps_automated / roi.steps_total) * 100}%` }}
               />
             </div>
@@ -354,7 +354,7 @@ function TimeBar({
       <div className="flex-1 h-3 bg-[#F0F0F0] rounded-full overflow-hidden">
         <div className={`h-full ${color} rounded-full transition-all`} style={{ width: `${pct}%` }} />
       </div>
-      <span className="text-[12px] font-medium text-[#333333] w-16 text-right">{minutes}min</span>
+      <span className="text-[12px] font-medium text-text-body w-16 text-right">{minutes}min</span>
     </div>
   )
 }
@@ -390,7 +390,7 @@ function HealthStats({ detail }: { detail: WorkflowDetail }) {
 
   return (
     <div>
-      <h4 className="text-[11px] font-medium text-[#999999] uppercase tracking-wide mb-2 flex items-center gap-1.5">
+      <h4 className="text-[11px] font-medium text-text-placeholder uppercase tracking-wide mb-2 flex items-center gap-1.5">
         <Shield className="w-3.5 h-3.5" />
         Completeness
       </h4>
@@ -402,14 +402,14 @@ function HealthStats({ detail }: { detail: WorkflowDetail }) {
             <div
               key={stat.label}
               className={`border rounded-xl px-3 py-2.5 text-center ${
-                isClean ? 'border-[#E5E5E5] bg-white' : 'border-[#E5E5E5] bg-[#F4F4F4]'
+                isClean ? 'border-border bg-white' : 'border-border bg-[#F4F4F4]'
               }`}
             >
-              <StatIcon className={`w-4 h-4 mx-auto mb-1 ${isClean ? 'text-[#3FAF7A]' : 'text-[#999999]'}`} />
-              <p className={`text-[14px] font-bold ${isClean ? 'text-[#3FAF7A]' : 'text-[#333333]'}`}>
+              <StatIcon className={`w-4 h-4 mx-auto mb-1 ${isClean ? 'text-brand-primary' : 'text-text-placeholder'}`} />
+              <p className={`text-[14px] font-bold ${isClean ? 'text-brand-primary' : 'text-text-body'}`}>
                 {isClean ? '✓' : stat.value}
               </p>
-              <p className="text-[10px] text-[#999999]">{stat.label}</p>
+              <p className="text-[10px] text-text-placeholder">{stat.label}</p>
             </div>
           )
         })}
@@ -433,14 +433,14 @@ function StepOverview({
 }) {
   return (
     <div>
-      <h4 className="text-[11px] font-medium text-[#999999] uppercase tracking-wide mb-2 flex items-center gap-1.5">
+      <h4 className="text-[11px] font-medium text-text-placeholder uppercase tracking-wide mb-2 flex items-center gap-1.5">
         <Layers className="w-3.5 h-3.5" />
         Steps ({currentSteps.length + futureSteps.length})
       </h4>
-      <div className="border border-[#E5E5E5] rounded-xl overflow-hidden">
+      <div className="border border-border rounded-xl overflow-hidden">
         {currentSteps.length > 0 && (
           <>
-            <div className="px-3 py-1.5 bg-[#F4F4F4] border-b border-[#E5E5E5]">
+            <div className="px-3 py-1.5 bg-[#F4F4F4] border-b border-border">
               <span className="text-[10px] font-medium text-[#666666] uppercase">Current State</span>
             </div>
             {currentSteps.map((step) => (
@@ -450,7 +450,7 @@ function StepOverview({
         )}
         {futureSteps.length > 0 && (
           <>
-            <div className="px-3 py-1.5 bg-[#E8F5E9]/50 border-b border-[#E5E5E5] border-t border-t-[#E5E5E5]">
+            <div className="px-3 py-1.5 bg-[#E8F5E9]/50 border-b border-border border-t border-t-border">
               <span className="text-[10px] font-medium text-[#25785A] uppercase">Future State</span>
             </div>
             {futureSteps.map((step) => (
@@ -466,8 +466,8 @@ function StepOverview({
 function StepRow({ step, onClick }: { step: WorkflowStepSummary; onClick?: () => void }) {
   const automationConfig: Record<string, { dot: string }> = {
     manual: { dot: 'bg-gray-400' },
-    semi_automated: { dot: 'bg-[#999999]' },
-    fully_automated: { dot: 'bg-[#3FAF7A]' },
+    semi_automated: { dot: 'bg-text-placeholder' },
+    fully_automated: { dot: 'bg-brand-primary' },
   }
   const c = automationConfig[step.automation_level] || automationConfig.manual
 
@@ -477,13 +477,13 @@ function StepRow({ step, onClick }: { step: WorkflowStepSummary; onClick?: () =>
       disabled={!onClick}
       className="w-full flex items-center gap-2.5 px-3 py-2 border-b border-[#F0F0F0] last:border-0 text-left hover:bg-[#F4F4F4]/50 transition-colors disabled:hover:bg-transparent"
     >
-      <span className="text-[11px] font-bold text-[#999999] w-5 text-center shrink-0">
+      <span className="text-[11px] font-bold text-text-placeholder w-5 text-center shrink-0">
         {step.step_index}
       </span>
       <span className={`w-1.5 h-1.5 rounded-full ${c.dot} shrink-0`} />
-      <span className="text-[12px] text-[#333333] truncate flex-1">{step.label}</span>
+      <span className="text-[12px] text-text-body truncate flex-1">{step.label}</span>
       {step.time_minutes != null && (
-        <span className="text-[10px] text-[#999999] shrink-0">{step.time_minutes}min</span>
+        <span className="text-[10px] text-text-placeholder shrink-0">{step.time_minutes}min</span>
       )}
     </button>
   )
@@ -507,9 +507,9 @@ function EvidenceTab({ evidence }: { evidence: Array<Record<string, unknown>> })
   if (!evidence || evidence.length === 0) {
     return (
       <div className="text-center py-8">
-        <FileText className="w-8 h-8 text-[#E5E5E5] mx-auto mb-3" />
+        <FileText className="w-8 h-8 text-border mx-auto mb-3" />
         <p className="text-[13px] text-[#666666] mb-1">No evidence sources</p>
-        <p className="text-[12px] text-[#999999]">
+        <p className="text-[12px] text-text-placeholder">
           Process more signals to build evidence for this workflow.
         </p>
       </div>
@@ -518,7 +518,7 @@ function EvidenceTab({ evidence }: { evidence: Array<Record<string, unknown>> })
 
   return (
     <div className="space-y-3">
-      <p className="text-[11px] font-medium text-[#999999] uppercase tracking-wide">
+      <p className="text-[11px] font-medium text-text-placeholder uppercase tracking-wide">
         {evidence.length} source{evidence.length !== 1 ? 's' : ''}
       </p>
       {evidence.map((item, idx) => {
@@ -528,9 +528,9 @@ function EvidenceTab({ evidence }: { evidence: Array<Record<string, unknown>> })
         return (
           <div
             key={idx}
-            className="border border-[#E5E5E5] rounded-xl px-4 py-3"
+            className="border border-border rounded-xl px-4 py-3"
           >
-            <div className="text-[13px] text-[#333333] leading-relaxed italic [&_p]:mb-1 [&_p:last-child]:mb-0 [&_ul]:my-1 [&_ol]:my-1 [&_li]:ml-2 [&_strong]:font-semibold [&_strong]:not-italic">
+            <div className="text-[13px] text-text-body leading-relaxed italic [&_p]:mb-1 [&_p:last-child]:mb-0 [&_ul]:my-1 [&_ol]:my-1 [&_li]:ml-2 [&_strong]:font-semibold [&_strong]:not-italic">
               <Markdown content={`\u201C${excerpt}\u201D`} />
             </div>
             <div className="flex items-center gap-2 mt-2">
@@ -538,7 +538,7 @@ function EvidenceTab({ evidence }: { evidence: Array<Record<string, unknown>> })
                 {SOURCE_LABELS[sourceType] || sourceType}
               </span>
               {rationale && (
-                <span className="text-[11px] text-[#999999]">{rationale}</span>
+                <span className="text-[11px] text-text-placeholder">{rationale}</span>
               )}
             </div>
           </div>
@@ -562,9 +562,9 @@ function ConnectionsTab({ detail }: { detail: WorkflowDetail }) {
   if (isEmpty) {
     return (
       <div className="text-center py-8">
-        <Link2 className="w-8 h-8 text-[#E5E5E5] mx-auto mb-3" />
+        <Link2 className="w-8 h-8 text-border mx-auto mb-3" />
         <p className="text-[13px] text-[#666666] mb-1">No connections found</p>
-        <p className="text-[12px] text-[#999999]">
+        <p className="text-[12px] text-text-placeholder">
           Process more signals or enrich steps to build connections.
         </p>
       </div>
@@ -588,9 +588,9 @@ function ConnectionsTab({ detail }: { detail: WorkflowDetail }) {
           {detail.actor_personas.map((p) => (
             <div key={p.id} className="px-3 py-2.5 border-b border-[#F0F0F0] last:border-0">
               <div className="flex items-center gap-2">
-                <span className="text-[13px] text-[#333333] font-medium">{p.name}</span>
+                <span className="text-[13px] text-text-body font-medium">{p.name}</span>
                 {p.role && (
-                  <span className="text-[11px] text-[#999999]">{p.role}</span>
+                  <span className="text-[11px] text-text-placeholder">{p.role}</span>
                 )}
               </div>
             </div>
@@ -614,14 +614,14 @@ function ConnectionsTab({ detail }: { detail: WorkflowDetail }) {
                   <span className="text-[10px] font-medium uppercase px-1.5 py-0.5 rounded bg-[#F0F0F0] text-[#666666]">
                     {d.driver_type}
                   </span>
-                  <span className="text-[13px] text-[#333333] line-clamp-2 flex-1">{d.description}</span>
+                  <span className="text-[13px] text-text-body line-clamp-2 flex-1">{d.description}</span>
                 </div>
                 <div className="flex items-center gap-2 mt-1">
                   {d.severity && (
-                    <span className="text-[10px] text-[#999999]">Severity: {d.severity}</span>
+                    <span className="text-[10px] text-text-placeholder">Severity: {d.severity}</span>
                   )}
                   {d.vision_alignment && (
-                    <span className="text-[10px] text-[#999999]">Vision: {d.vision_alignment}</span>
+                    <span className="text-[10px] text-text-placeholder">Vision: {d.vision_alignment}</span>
                   )}
                 </div>
               </div>
@@ -639,16 +639,16 @@ function ConnectionsTab({ detail }: { detail: WorkflowDetail }) {
               <div key={f.id} className="px-3 py-2.5 border-b border-[#F0F0F0] last:border-0">
                 <div className="flex items-center gap-2">
                   {isConfirmed
-                    ? <CheckCircle2 className="w-3.5 h-3.5 text-[#3FAF7A] flex-shrink-0" />
-                    : <Circle className="w-3.5 h-3.5 text-[#E5E5E5] flex-shrink-0" />
+                    ? <CheckCircle2 className="w-3.5 h-3.5 text-brand-primary flex-shrink-0" />
+                    : <Circle className="w-3.5 h-3.5 text-border flex-shrink-0" />
                   }
-                  <span className="text-[13px] text-[#333333] font-medium">{f.name}</span>
+                  <span className="text-[13px] text-text-body font-medium">{f.name}</span>
                   {f.category && (
-                    <span className="text-[10px] text-[#999999] bg-[#F0F0F0] px-1.5 py-0.5 rounded">{f.category}</span>
+                    <span className="text-[10px] text-text-placeholder bg-[#F0F0F0] px-1.5 py-0.5 rounded">{f.category}</span>
                   )}
                 </div>
                 {f.priority_group && (
-                  <span className="text-[10px] text-[#999999] ml-5.5 mt-0.5 block">
+                  <span className="text-[10px] text-text-placeholder ml-5.5 mt-0.5 block">
                     {f.priority_group.replace('_', ' ')}
                   </span>
                 )}
@@ -664,8 +664,8 @@ function ConnectionsTab({ detail }: { detail: WorkflowDetail }) {
           {detail.data_entities.map((de) => (
             <div key={de.id} className="px-3 py-2.5 border-b border-[#F0F0F0] last:border-0">
               <div className="flex items-center gap-2">
-                <span className="text-[13px] text-[#333333] font-medium">{de.name}</span>
-                <span className="text-[10px] text-[#999999] bg-[#F0F0F0] px-1.5 py-0.5 rounded">
+                <span className="text-[13px] text-text-body font-medium">{de.name}</span>
+                <span className="text-[10px] text-text-placeholder bg-[#F0F0F0] px-1.5 py-0.5 rounded">
                   {de.entity_category}
                 </span>
                 <OperationBadge type={de.operation_type} />
@@ -697,9 +697,9 @@ function InsightsTab({ insights }: { insights: WorkflowInsight[] }) {
   if (!insights || insights.length === 0) {
     return (
       <div className="text-center py-8">
-        <CheckCircle2 className="w-8 h-8 text-[#3FAF7A] mx-auto mb-3" />
+        <CheckCircle2 className="w-8 h-8 text-brand-primary mx-auto mb-3" />
         <p className="text-[13px] text-[#666666] mb-1">No issues detected</p>
-        <p className="text-[12px] text-[#999999]">
+        <p className="text-[12px] text-text-placeholder">
           This workflow is well-connected and balanced.
         </p>
       </div>
@@ -707,10 +707,10 @@ function InsightsTab({ insights }: { insights: WorkflowInsight[] }) {
   }
 
   const typeConfig: Record<string, { icon: typeof Info; borderColor: string; iconColor: string }> = {
-    gap: { icon: Info, borderColor: 'border-[#E5E5E5]', iconColor: 'text-[#999999]' },
-    warning: { icon: AlertTriangle, borderColor: 'border-[#E5E5E5]', iconColor: 'text-[#999999]' },
-    opportunity: { icon: Sparkles, borderColor: 'border-[#3FAF7A]/30', iconColor: 'text-[#3FAF7A]' },
-    strength: { icon: CheckCircle2, borderColor: 'border-[#3FAF7A]/30', iconColor: 'text-[#3FAF7A]' },
+    gap: { icon: Info, borderColor: 'border-border', iconColor: 'text-text-placeholder' },
+    warning: { icon: AlertTriangle, borderColor: 'border-border', iconColor: 'text-text-placeholder' },
+    opportunity: { icon: Sparkles, borderColor: 'border-brand-primary/30', iconColor: 'text-brand-primary' },
+    strength: { icon: CheckCircle2, borderColor: 'border-brand-primary/30', iconColor: 'text-brand-primary' },
   }
 
   return (
@@ -731,9 +731,9 @@ function InsightsTab({ insights }: { insights: WorkflowInsight[] }) {
                     {insight.insight_type}
                   </span>
                 </div>
-                <p className="text-[13px] text-[#333333] leading-relaxed">{insight.message}</p>
+                <p className="text-[13px] text-text-body leading-relaxed">{insight.message}</p>
                 {insight.suggestion && (
-                  <p className="text-[12px] text-[#999999] mt-1">{insight.suggestion}</p>
+                  <p className="text-[12px] text-text-placeholder mt-1">{insight.suggestion}</p>
                 )}
               </div>
             </div>
@@ -752,9 +752,9 @@ function HistoryTab({ revisions }: { revisions: RevisionEntry[] }) {
   if (!revisions || revisions.length === 0) {
     return (
       <div className="text-center py-8">
-        <Clock className="w-8 h-8 text-[#E5E5E5] mx-auto mb-3" />
+        <Clock className="w-8 h-8 text-border mx-auto mb-3" />
         <p className="text-[13px] text-[#666666] mb-1">No revision history</p>
-        <p className="text-[12px] text-[#999999]">
+        <p className="text-[12px] text-text-placeholder">
           Changes will be tracked here as signals are processed.
         </p>
       </div>
@@ -765,15 +765,15 @@ function HistoryTab({ revisions }: { revisions: RevisionEntry[] }) {
     <div className="space-y-3">
       {revisions.map((rev, i) => {
         return (
-          <div key={i} className="border border-[#E5E5E5] rounded-xl px-4 py-3">
+          <div key={i} className="border border-border rounded-xl px-4 py-3">
             <div className="flex items-center gap-2 mb-1">
               <span className={`text-[10px] font-medium uppercase px-1.5 py-0.5 rounded ${REVISION_TYPE_COLORS[rev.revision_type] || REVISION_TYPE_COLORS.updated}`}>
                 {rev.revision_type}
               </span>
-              <span className="text-[10px] text-[#999999]">
+              <span className="text-[10px] text-text-placeholder">
                 {rev.created_at ? formatRelativeTime(rev.created_at) : ''}
               </span>
-              <span className="text-[10px] text-[#999999]">
+              <span className="text-[10px] text-text-placeholder">
                 by {formatRevisionAuthor(rev.created_by)}
               </span>
             </div>

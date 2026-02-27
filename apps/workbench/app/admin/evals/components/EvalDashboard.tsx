@@ -23,13 +23,13 @@ export function EvalDashboard() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="w-5 h-5 border-2 border-[#3FAF7A] border-t-transparent rounded-full animate-spin" />
+        <div className="w-5 h-5 border-2 border-brand-primary border-t-transparent rounded-full animate-spin" />
       </div>
     )
   }
 
   if (!stats) {
-    return <div className="text-[#999999] text-sm">Failed to load eval dashboard</div>
+    return <div className="text-text-placeholder text-sm">Failed to load eval dashboard</div>
   }
 
   return (
@@ -61,18 +61,18 @@ export function EvalDashboard() {
 
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white rounded-2xl shadow-md border border-[#E5E5E5] p-6">
-          <h2 className="text-[15px] font-semibold text-[#333333] mb-4">Score Trend</h2>
+        <div className="bg-white rounded-2xl shadow-md border border-border p-6">
+          <h2 className="text-[15px] font-semibold text-text-body mb-4">Score Trend</h2>
           <ScoreTrendChart data={stats.score_trend} />
         </div>
 
-        <div className="bg-white rounded-2xl shadow-md border border-[#E5E5E5] p-6">
-          <h2 className="text-[15px] font-semibold text-[#333333] mb-4">Top Unresolved Gaps</h2>
+        <div className="bg-white rounded-2xl shadow-md border border-border p-6">
+          <h2 className="text-[15px] font-semibold text-text-body mb-4">Top Unresolved Gaps</h2>
           <TopGapsChart data={stats.top_gaps} />
         </div>
 
-        <div className="bg-white rounded-2xl shadow-md border border-[#E5E5E5] p-6">
-          <h2 className="text-[15px] font-semibold text-[#333333] mb-4">
+        <div className="bg-white rounded-2xl shadow-md border border-border p-6">
+          <h2 className="text-[15px] font-semibold text-text-body mb-4">
             Outcome Distribution
           </h2>
           <VersionDistributionChart data={stats.version_distribution} />

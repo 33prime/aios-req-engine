@@ -29,7 +29,7 @@ export function SalesTab({ projectId }: SalesTabProps) {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-[#3FAF7A]" />
+        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-brand-primary" />
       </div>
     )
   }
@@ -37,9 +37,9 @@ export function SalesTab({ projectId }: SalesTabProps) {
   if (!data || !data.has_client) {
     return (
       <div className="text-center py-12">
-        <Users className="w-8 h-8 text-[#999999] mx-auto mb-3" />
+        <Users className="w-8 h-8 text-text-placeholder mx-auto mb-3" />
         <p className="text-sm text-[#666666] mb-1">No client linked to this project.</p>
-        <p className="text-xs text-[#999999]">Link a client organization to see sales intelligence.</p>
+        <p className="text-xs text-text-placeholder">Link a client organization to see sales intelligence.</p>
       </div>
     )
   }
@@ -49,12 +49,12 @@ export function SalesTab({ projectId }: SalesTabProps) {
   return (
     <div className="space-y-6">
       {/* Deal Readiness Score */}
-      <div className="bg-white rounded-2xl border border-[#E5E5E5] p-5 shadow-sm">
+      <div className="bg-white rounded-2xl border border-border p-5 shadow-sm">
         <div className="flex items-center justify-between mb-3">
-          <h4 className="text-[12px] font-semibold text-[#333333] uppercase tracking-wide">
+          <h4 className="text-[12px] font-semibold text-text-body uppercase tracking-wide">
             Deal Readiness
           </h4>
-          <span className="text-2xl font-bold text-[#333333]">{Math.round(score)}/100</span>
+          <span className="text-2xl font-bold text-text-body">{Math.round(score)}/100</span>
         </div>
         {/* Progress bar */}
         <div className="w-full bg-[#F0F0F0] rounded-full h-3 mb-4">
@@ -70,9 +70,9 @@ export function SalesTab({ projectId }: SalesTabProps) {
         <div className="grid grid-cols-4 gap-3">
           {data.components.map((c) => (
             <div key={c.name} className="bg-[#F4F4F4] rounded-lg px-3 py-2 text-center">
-              <p className="text-[10px] text-[#999999] mb-0.5">{c.name}</p>
-              <p className="text-sm font-semibold text-[#333333]">{Math.round(c.score)}%</p>
-              <p className="text-[9px] text-[#999999] mt-0.5 truncate">{c.details}</p>
+              <p className="text-[10px] text-text-placeholder mb-0.5">{c.name}</p>
+              <p className="text-sm font-semibold text-text-body">{Math.round(c.score)}%</p>
+              <p className="text-[9px] text-text-placeholder mt-0.5 truncate">{c.details}</p>
             </div>
           ))}
         </div>
@@ -80,49 +80,49 @@ export function SalesTab({ projectId }: SalesTabProps) {
 
       <div className="grid grid-cols-2 gap-6">
         {/* Client Profile */}
-        <div className="bg-white rounded-2xl border border-[#E5E5E5] p-5 shadow-sm">
-          <h4 className="text-[12px] font-semibold text-[#333333] uppercase tracking-wide mb-3">
+        <div className="bg-white rounded-2xl border border-border p-5 shadow-sm">
+          <h4 className="text-[12px] font-semibold text-text-body uppercase tracking-wide mb-3">
             Client Profile
           </h4>
           <div className="space-y-2">
             {data.client_name && (
               <div className="flex items-center gap-2">
-                <span className="text-sm font-semibold text-[#333333]">{data.client_name}</span>
+                <span className="text-sm font-semibold text-text-body">{data.client_name}</span>
               </div>
             )}
             {data.client_industry && (
               <p className="text-[12px] text-[#666666]">
-                Industry: <span className="font-medium text-[#333333]">{data.client_industry}</span>
+                Industry: <span className="font-medium text-text-body">{data.client_industry}</span>
               </p>
             )}
             {data.client_size && (
               <p className="text-[12px] text-[#666666]">
-                Size: <span className="font-medium text-[#333333]">{data.client_size}</span>
+                Size: <span className="font-medium text-text-body">{data.client_size}</span>
               </p>
             )}
             {data.profile_completeness !== null && data.profile_completeness !== undefined && (
               <div className="mt-2">
                 <div className="flex justify-between text-[11px] mb-1">
                   <span className="text-[#666666]">Profile completeness</span>
-                  <span className="font-medium text-[#333333]">{Math.round(data.profile_completeness)}%</span>
+                  <span className="font-medium text-text-body">{Math.round(data.profile_completeness)}%</span>
                 </div>
                 <div className="w-full bg-[#F0F0F0] rounded-full h-1.5">
                   <div
-                    className="h-1.5 rounded-full bg-[#3FAF7A]"
+                    className="h-1.5 rounded-full bg-brand-primary"
                     style={{ width: `${Math.min(data.profile_completeness, 100)}%` }}
                   />
                 </div>
               </div>
             )}
             {data.vision && (
-              <div className="mt-3 pt-3 border-t border-[#E5E5E5]">
-                <p className="text-[11px] font-medium text-[#333333] mb-1">Vision</p>
+              <div className="mt-3 pt-3 border-t border-border">
+                <p className="text-[11px] font-medium text-text-body mb-1">Vision</p>
                 <p className="text-[12px] text-[#666666] leading-relaxed line-clamp-3">{data.vision}</p>
               </div>
             )}
             {data.constraints_summary && (
               <div className="mt-2">
-                <p className="text-[11px] font-medium text-[#333333] mb-1">Constraints</p>
+                <p className="text-[11px] font-medium text-text-body mb-1">Constraints</p>
                 <p className="text-[12px] text-[#666666] leading-relaxed line-clamp-2">{data.constraints_summary}</p>
               </div>
             )}
@@ -130,12 +130,12 @@ export function SalesTab({ projectId }: SalesTabProps) {
         </div>
 
         {/* Stakeholder Map */}
-        <div className="bg-white rounded-2xl border border-[#E5E5E5] p-5 shadow-sm">
-          <h4 className="text-[12px] font-semibold text-[#333333] uppercase tracking-wide mb-3">
+        <div className="bg-white rounded-2xl border border-border p-5 shadow-sm">
+          <h4 className="text-[12px] font-semibold text-text-body uppercase tracking-wide mb-3">
             Stakeholder Map
           </h4>
           {data.stakeholder_map.length === 0 ? (
-            <p className="text-[12px] text-[#999999]">No stakeholders identified yet.</p>
+            <p className="text-[12px] text-text-placeholder">No stakeholders identified yet.</p>
           ) : (
             <div className="space-y-2">
               {data.stakeholder_map.map((s) => (
@@ -148,8 +148,8 @@ export function SalesTab({ projectId }: SalesTabProps) {
 
       {/* Opportunities & Next Steps (formerly "Gaps & Risks") */}
       {data.gaps_and_risks.length > 0 && (
-        <div className="bg-white rounded-2xl border border-[#E5E5E5] p-5 shadow-sm">
-          <h4 className="text-[12px] font-semibold text-[#333333] uppercase tracking-wide mb-3">
+        <div className="bg-white rounded-2xl border border-border p-5 shadow-sm">
+          <h4 className="text-[12px] font-semibold text-text-body uppercase tracking-wide mb-3">
             Opportunities & Next Steps
           </h4>
           <div className="space-y-2">
@@ -175,8 +175,8 @@ function StakeholderRow({ stakeholder }: { stakeholder: IntelStakeholderMapEntry
         <Icon className={`w-3.5 h-3.5 ${icon.color}`} />
       </div>
       <div className="min-w-0 flex-1">
-        <p className="text-[12px] font-medium text-[#333333] truncate">{stakeholder.name}</p>
-        <div className="flex items-center gap-2 text-[10px] text-[#999999]">
+        <p className="text-[12px] font-medium text-text-body truncate">{stakeholder.name}</p>
+        <div className="flex items-center gap-2 text-[10px] text-text-placeholder">
           {stakeholder.stakeholder_type && (
             <span className="capitalize">{stakeholder.stakeholder_type}</span>
           )}
@@ -187,7 +187,7 @@ function StakeholderRow({ stakeholder }: { stakeholder: IntelStakeholderMapEntry
         </div>
       </div>
       {!stakeholder.is_addressed && (
-        <Lightbulb className="w-3.5 h-3.5 text-[#3FAF7A] shrink-0" />
+        <Lightbulb className="w-3.5 h-3.5 text-brand-primary shrink-0" />
       )}
     </div>
   )
@@ -209,7 +209,7 @@ function getStakeholderIcon(type: string | null) {
 function GapRow({ gap }: { gap: IntelGapOrRisk }) {
   const severityConfig = {
     warning: { icon: Lightbulb, bg: 'bg-[#E8F5E9]', color: 'text-[#25785A]' },
-    info: { icon: Info, bg: 'bg-gray-100', color: 'text-[#999999]' },
+    info: { icon: Info, bg: 'bg-gray-100', color: 'text-text-placeholder' },
     success: { icon: CheckCircle, bg: 'bg-[#E8F5E9]', color: 'text-[#25785A]' },
   }
   const config = severityConfig[gap.severity as keyof typeof severityConfig] || severityConfig.info
@@ -218,7 +218,7 @@ function GapRow({ gap }: { gap: IntelGapOrRisk }) {
   return (
     <div className="flex items-center gap-3 py-1">
       <Icon className={`w-3.5 h-3.5 ${config.color} shrink-0`} />
-      <p className="text-[12px] text-[#333333]">{gap.message}</p>
+      <p className="text-[12px] text-text-body">{gap.message}</p>
     </div>
   )
 }

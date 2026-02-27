@@ -123,7 +123,7 @@ function ToastItem({ toast, onRemove }: ToastItemProps) {
       case 'warning':
         return <AlertTriangle className="h-5 w-5 text-yellow-600" />
       default:
-        return <Info className="h-5 w-5 text-blue-600" />
+        return <Info className="h-5 w-5 text-brand-primary" />
     }
   }
 
@@ -152,14 +152,14 @@ function ToastItem({ toast, onRemove }: ToastItemProps) {
       <div className="flex items-start gap-3">
         <div className="flex-shrink-0 mt-0.5">{getIcon()}</div>
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium text-[#333333]">{toast.title}</p>
+          <p className="text-sm font-medium text-text-body">{toast.title}</p>
           {toast.message && (
-            <p className="text-xs text-[#999999] mt-1">{toast.message}</p>
+            <p className="text-xs text-text-placeholder mt-1">{toast.message}</p>
           )}
           {toast.action && (
             <button
               onClick={() => { toast.action!.onClick(); handleRemove() }}
-              className="text-xs font-medium text-[#3FAF7A] hover:text-[#25785A] mt-1.5 transition-colors"
+              className="text-xs font-medium text-brand-primary hover:text-[#25785A] mt-1.5 transition-colors"
             >
               {toast.action.label} &rarr;
             </button>
@@ -167,7 +167,7 @@ function ToastItem({ toast, onRemove }: ToastItemProps) {
         </div>
         <button
           onClick={handleRemove}
-          className="flex-shrink-0 text-[#999999] hover:text-[#333333] transition-colors"
+          className="flex-shrink-0 text-text-placeholder hover:text-text-body transition-colors"
         >
           <X className="h-4 w-4" />
         </button>

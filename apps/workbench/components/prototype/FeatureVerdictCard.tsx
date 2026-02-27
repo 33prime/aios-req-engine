@@ -25,15 +25,15 @@ const VERDICT_OPTIONS: { value: FeatureVerdict; label: string; icon: string }[] 
 
 const VERDICT_STYLES: Record<FeatureVerdict, { button: string; active: string }> = {
   aligned: {
-    button: 'border-[#E5E5E5] hover:border-[#3FAF7A] hover:bg-[#E8F5E9]',
-    active: 'border-[#3FAF7A] bg-[#E8F5E9] text-[#25785A]',
+    button: 'border-border hover:border-brand-primary hover:bg-[#E8F5E9]',
+    active: 'border-brand-primary bg-[#E8F5E9] text-[#25785A]',
   },
   needs_adjustment: {
-    button: 'border-[#E5E5E5] hover:border-amber-400 hover:bg-amber-50',
+    button: 'border-border hover:border-amber-400 hover:bg-amber-50',
     active: 'border-amber-400 bg-amber-50 text-amber-800',
   },
   off_track: {
-    button: 'border-[#E5E5E5] hover:border-red-400 hover:bg-red-50',
+    button: 'border-border hover:border-red-400 hover:bg-red-50',
     active: 'border-red-400 bg-red-50 text-red-800',
   },
 }
@@ -41,7 +41,7 @@ const VERDICT_STYLES: Record<FeatureVerdict, { button: string; active: string }>
 const IMPL_STYLES: Record<string, string> = {
   functional: 'bg-[#E8F5E9] text-[#25785A]',
   partial: 'bg-gray-100 text-[#666666]',
-  placeholder: 'bg-gray-100 text-[#999999]',
+  placeholder: 'bg-gray-100 text-text-placeholder',
 }
 
 export default function FeatureVerdictCard({
@@ -103,14 +103,14 @@ export default function FeatureVerdictCard({
   return (
     <div
       className={`rounded-2xl border bg-white shadow-md transition-all duration-300 ${
-        flash ? 'border-[#3FAF7A] shadow-[#3FAF7A]/20' : 'border-[#E5E5E5]'
+        flash ? 'border-brand-primary shadow-brand-primary/20' : 'border-border'
       }`}
     >
       {/* Header */}
-      <div className="px-5 py-4 border-b border-[#E5E5E5]">
+      <div className="px-5 py-4 border-b border-border">
         <div className="flex items-start justify-between gap-3">
           <div className="flex-1 min-w-0">
-            <h3 className="text-sm font-semibold text-[#333333] truncate">
+            <h3 className="text-sm font-semibold text-text-body truncate">
               {content.feature_name}
             </h3>
             <div className="flex items-center gap-2 mt-1">
@@ -119,13 +119,13 @@ export default function FeatureVerdictCard({
                   {implStatus}
                 </span>
               )}
-              <span className="text-[11px] text-[#999999]">
+              <span className="text-[11px] text-text-placeholder">
                 {Math.round((content.confidence ?? 0) * 100)}% confidence
               </span>
             </div>
           </div>
           {suggestedVerdict && (
-            <span className="text-[10px] text-[#999999] whitespace-nowrap">
+            <span className="text-[10px] text-text-placeholder whitespace-nowrap">
               AI: {suggestedVerdict.replace('_', ' ')}
             </span>
           )}
@@ -134,7 +134,7 @@ export default function FeatureVerdictCard({
 
       {/* Consultant context (client view only) */}
       {consultantContext?.verdict && (
-        <div className="px-5 py-3 border-b border-[#E5E5E5] bg-[#F4F4F4]">
+        <div className="px-5 py-3 border-b border-border bg-[#F4F4F4]">
           <div className="flex items-center gap-2 mb-1">
             <span className="text-[11px] font-medium text-[#666666] uppercase tracking-wide">
               Consultant says:
@@ -158,7 +158,7 @@ export default function FeatureVerdictCard({
       )}
 
       {/* Verdict buttons */}
-      <div className="px-5 py-3 border-b border-[#E5E5E5]">
+      <div className="px-5 py-3 border-b border-border">
         <p className="text-[11px] font-medium text-[#666666] uppercase tracking-wide mb-2">
           Your Verdict
         </p>
@@ -185,11 +185,11 @@ export default function FeatureVerdictCard({
 
       {/* Validation question */}
       {gap && (
-        <div className="px-5 py-3 border-b border-[#E5E5E5]">
+        <div className="px-5 py-3 border-b border-border">
           <p className="text-[11px] font-medium text-[#666666] uppercase tracking-wide mb-2">
             Key Question
           </p>
-          <p className="text-sm text-[#333333] leading-relaxed">
+          <p className="text-sm text-text-body leading-relaxed">
             &ldquo;{gap.question}&rdquo;
           </p>
           <div className="flex items-center gap-2 mt-1.5">
@@ -197,7 +197,7 @@ export default function FeatureVerdictCard({
               {gap.requirement_area.replace('_', ' ')}
             </span>
             {gap.why_it_matters && (
-              <span className="text-[10px] text-[#999999] italic truncate">
+              <span className="text-[10px] text-text-placeholder italic truncate">
                 {gap.why_it_matters}
               </span>
             )}
@@ -218,13 +218,13 @@ export default function FeatureVerdictCard({
               onBlur={handleNotesBlur}
               rows={2}
               placeholder="Anything else about this feature..."
-              className="w-full px-3 py-2 text-sm border border-[#E5E5E5] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#3FAF7A]/20 focus:border-[#3FAF7A] resize-none text-[#333333] placeholder:text-[#999999]"
+              className="w-full px-3 py-2 text-sm border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary resize-none text-text-body placeholder:text-text-placeholder"
             />
           </div>
         ) : (
           <button
             onClick={() => setShowNotes(true)}
-            className="text-xs text-[#999999] hover:text-[#666666] transition-colors"
+            className="text-xs text-text-placeholder hover:text-[#666666] transition-colors"
           >
             + Add notes
           </button>

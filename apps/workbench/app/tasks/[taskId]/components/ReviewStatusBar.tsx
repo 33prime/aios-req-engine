@@ -55,10 +55,10 @@ export function ReviewStatusBar({ status, projectId, taskId, onUpdate }: ReviewS
               onClick={() => handleAdvance(step.value)}
               className={`flex-1 py-2 px-3 text-[13px] font-medium rounded-lg border transition-colors ${
                 isCurrent
-                  ? 'bg-[#3FAF7A] text-white border-[#3FAF7A]'
+                  ? 'bg-brand-primary text-white border-brand-primary'
                   : isActive
-                  ? 'bg-[#3FAF7A]/10 text-[#25785A] border-[#3FAF7A]/20'
-                  : 'bg-white text-[#999] border-[#E5E5E5] hover:border-[#3FAF7A] hover:text-[#333]'
+                  ? 'bg-brand-primary-light text-[#25785A] border-brand-primary/20'
+                  : 'bg-white text-[#999] border-border hover:border-brand-primary hover:text-[#333]'
               } disabled:cursor-default disabled:hover:border-current`}
             >
               {step.label}

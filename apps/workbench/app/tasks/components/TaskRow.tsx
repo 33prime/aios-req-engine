@@ -39,16 +39,16 @@ export function TaskRow({ task, onToggleComplete }: TaskRowProps) {
 
   return (
     <div
-      className="group flex items-center gap-3 px-3 py-2.5 hover:bg-[#FAFAFA] rounded-lg cursor-pointer transition-colors"
+      className="group flex items-center gap-3 px-3 py-2.5 hover:bg-surface-page rounded-lg cursor-pointer transition-colors"
       onClick={() => router.push(`/tasks/${task.id}`)}
     >
       {/* Status circle */}
       <button
         onClick={(e) => { e.stopPropagation(); onToggleComplete(task) }}
-        className="flex-shrink-0 text-[#CCC] hover:text-[#3FAF7A] transition-colors"
+        className="flex-shrink-0 text-[#CCC] hover:text-brand-primary transition-colors"
       >
         {isCompleted ? (
-          <CheckCircle2 className="w-[18px] h-[18px] text-[#3FAF7A]" />
+          <CheckCircle2 className="w-[18px] h-[18px] text-brand-primary" />
         ) : (
           <Circle className="w-[18px] h-[18px]" />
         )}
@@ -95,7 +95,7 @@ export function TaskRow({ task, onToggleComplete }: TaskRowProps) {
           {task.assigned_to_photo_url ? (
             <Image src={task.assigned_to_photo_url} alt="" width={24} height={24} className="w-full h-full object-cover" />
           ) : (
-            <User className="w-3 h-3 text-[#3FAF7A]" />
+            <User className="w-3 h-3 text-brand-primary" />
           )}
         </div>
       )}

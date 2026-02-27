@@ -267,7 +267,7 @@ export default function PrototypeSessionPage() {
   if (status === 'loading') {
     return (
       <div className="flex items-center justify-center h-full">
-        <p className="text-[#999999]">Loading prototype...</p>
+        <p className="text-text-placeholder">Loading prototype...</p>
       </div>
     )
   }
@@ -277,7 +277,7 @@ export default function PrototypeSessionPage() {
     return (
       <div className="flex items-center justify-center h-full">
         <div className="text-center space-y-4">
-          <h2 className="text-xl text-[#333333]">No Prototype Yet</h2>
+          <h2 className="text-xl text-text-body">No Prototype Yet</h2>
           <p className="text-sm text-[#666666] max-w-md">
             Generate a prototype from your discovery data to begin the refinement process.
           </p>
@@ -308,12 +308,12 @@ export default function PrototypeSessionPage() {
       <div className="flex items-center justify-center h-full bg-[#F4F4F4]">
         <div className="max-w-lg w-full space-y-6 px-6">
           <div className="text-center">
-            <h2 className="text-lg font-semibold text-[#333333]">Review Complete</h2>
+            <h2 className="text-lg font-semibold text-text-body">Review Complete</h2>
             <p className="text-sm text-[#666666] mt-1">What would you like to do next?</p>
           </div>
 
           {/* Verdict summary */}
-          <div className="rounded-2xl border border-[#E5E5E5] bg-white p-5 shadow-md">
+          <div className="rounded-2xl border border-border bg-white p-5 shadow-md">
             <p className="text-xs font-medium text-[#666666] uppercase tracking-wide mb-3">
               Your Verdict Summary
             </p>
@@ -334,7 +334,7 @@ export default function PrototypeSessionPage() {
           </div>
 
           {/* Share link */}
-          <div className="rounded-2xl border border-[#E5E5E5] bg-white p-5 shadow-md">
+          <div className="rounded-2xl border border-border bg-white p-5 shadow-md">
             <p className="text-xs font-medium text-[#666666] uppercase tracking-wide mb-2">
               Client Review Link
             </p>
@@ -342,11 +342,11 @@ export default function PrototypeSessionPage() {
               <input
                 readOnly
                 value={fullUrl}
-                className="flex-1 text-xs px-3 py-2 border border-[#E5E5E5] rounded-lg bg-[#F4F4F4] text-[#333333] truncate"
+                className="flex-1 text-xs px-3 py-2 border border-border rounded-lg bg-[#F4F4F4] text-text-body truncate"
               />
               <button
                 onClick={() => navigator.clipboard.writeText(fullUrl)}
-                className="px-3 py-2 text-xs font-medium border border-[#E5E5E5] rounded-lg hover:bg-[#F4F4F4] transition-colors text-[#333333]"
+                className="px-3 py-2 text-xs font-medium border border-border rounded-lg hover:bg-[#F4F4F4] transition-colors text-text-body"
               >
                 Copy
               </button>
@@ -359,13 +359,13 @@ export default function PrototypeSessionPage() {
               onClick={() => {
                 navigator.clipboard.writeText(fullUrl)
               }}
-              className="w-full px-6 py-3 bg-[#3FAF7A] text-white font-medium rounded-xl hover:bg-[#25785A] transition-all duration-200 shadow-md"
+              className="w-full px-6 py-3 bg-brand-primary text-white font-medium rounded-xl hover:bg-[#25785A] transition-all duration-200 shadow-md"
             >
               Share with Client — All Good
             </button>
             <button
               onClick={handleRunSynthesis}
-              className="w-full px-6 py-3 bg-white border border-[#E5E5E5] text-[#333333] font-medium rounded-xl hover:bg-[#F4F4F4] transition-all duration-200 shadow-md"
+              className="w-full px-6 py-3 bg-white border border-border text-text-body font-medium rounded-xl hover:bg-[#F4F4F4] transition-all duration-200 shadow-md"
             >
               Fix First, Then Share
             </button>
@@ -374,14 +374,14 @@ export default function PrototypeSessionPage() {
                 setStatus('reviewing')
                 setClientShareData(null)
               }}
-              className="w-full px-4 py-2 text-sm text-[#666666] hover:text-[#333333] transition-colors"
+              className="w-full px-4 py-2 text-sm text-[#666666] hover:text-text-body transition-colors"
             >
               Not Ready — Keep Working
             </button>
           </div>
 
           {/* Polling indicator */}
-          <p className="text-center text-[10px] text-[#999999]">
+          <p className="text-center text-[10px] text-text-placeholder">
             Listening for client feedback...
           </p>
         </div>
@@ -394,14 +394,14 @@ export default function PrototypeSessionPage() {
     return (
       <div className="flex items-center justify-center h-full">
         <div className="text-center space-y-4">
-          <h2 className="text-xl text-[#333333]">Prototype Ready for Review</h2>
+          <h2 className="text-xl text-text-body">Prototype Ready for Review</h2>
           <p className="text-sm text-[#666666] max-w-md">
             {overlays.length} features analyzed. Start a session to review the prototype
             and capture requirements.
           </p>
           <button
             onClick={startSession}
-            className="px-6 py-2.5 bg-[#3FAF7A] text-white font-medium rounded-lg hover:bg-[#033344] transition-all duration-200"
+            className="px-6 py-2.5 bg-brand-primary text-white font-medium rounded-lg hover:bg-accent-hover transition-all duration-200"
           >
             Start Review Session
           </button>
@@ -412,28 +412,28 @@ export default function PrototypeSessionPage() {
 
   // Active session
   return (
-    <div className="flex flex-col h-full bg-[#F9F9F9]">
+    <div className="flex flex-col h-full bg-surface-muted">
       {/* Header */}
-      <div className="bg-white border-b border-[#E5E5E5] px-6 py-3 flex items-center justify-between sticky top-0 z-10">
+      <div className="bg-white border-b border-border px-6 py-3 flex items-center justify-between sticky top-0 z-10">
         <div className="flex items-center gap-6">
-          <h2 className="text-sm font-semibold text-[#333333]">
+          <h2 className="text-sm font-semibold text-text-body">
             Session {session?.session_number || 1}
           </h2>
-          <span className="text-[12px] text-[#999999]">
+          <span className="text-[12px] text-text-placeholder">
             Coverage: {sessionContext.features_reviewed.length}/{overlays.length}
           </span>
         </div>
         <div className="flex items-center gap-3">
           {status === 'synthesizing' && (
-            <span className="text-[12px] text-[#3FAF7A]">Synthesizing feedback...</span>
+            <span className="text-[12px] text-brand-primary">Synthesizing feedback...</span>
           )}
           {status === 'updating' && (
-            <span className="text-[12px] text-[#3FAF7A]">Updating code...</span>
+            <span className="text-[12px] text-brand-primary">Updating code...</span>
           )}
           {status === 'reviewing' && (
             <button
               onClick={handleEndReview}
-              className="px-4 py-2 bg-[#3FAF7A] text-white text-sm font-medium rounded-lg hover:bg-[#033344] transition-all duration-200"
+              className="px-4 py-2 bg-brand-primary text-white text-sm font-medium rounded-lg hover:bg-accent-hover transition-all duration-200"
             >
               End Review
             </button>
@@ -466,7 +466,7 @@ export default function PrototypeSessionPage() {
             onIframeReady={() => setIsFrameReady(true)}
           />
         ) : (
-          <div className="flex-1 flex items-center justify-center text-[#999999]">
+          <div className="flex-1 flex items-center justify-center text-text-placeholder">
             No deploy URL available
           </div>
         )}

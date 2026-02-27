@@ -25,7 +25,7 @@ export function ConfirmActions({ status, onConfirm, onNeedsReview, size = 'sm' }
         className={`${btnBase} font-medium inline-flex items-center gap-1 transition-colors ${
           isConfirmed
             ? 'bg-[#E8F5E9] text-[#25785A] cursor-default'
-            : 'bg-white border border-gray-200 text-gray-600 hover:bg-[#E8F5E9] hover:text-[#25785A] hover:border-[#3FAF7A]'
+            : 'bg-white border border-gray-200 text-gray-600 hover:bg-[#E8F5E9] hover:text-[#25785A] hover:border-brand-primary'
         }`}
       >
         <Check className="w-3 h-3" />

@@ -73,7 +73,7 @@ export function TopActionsSection({
   if (actions.length === 0) return null
 
   return (
-    <div className="border-b border-[#E5E5E5]">
+    <div className="border-b border-border">
       <div className="px-4 py-2.5">
         <span className="text-[11px] font-semibold text-[#666666] uppercase tracking-wide">
           Next Actions
@@ -90,7 +90,7 @@ export function TopActionsSection({
             <div
               key={action.action_id}
               className={`
-                border border-[#E5E5E5] rounded-xl bg-white overflow-hidden
+                border border-border rounded-xl bg-white overflow-hidden
                 transition-all duration-500 shadow-sm hover:shadow-md
                 ${isFading ? 'opacity-0 scale-95 -translate-y-2' : 'opacity-100'}
               `}
@@ -117,7 +117,7 @@ export function TopActionsSection({
                         {action.gap_source}
                       </span>
                     </div>
-                    <p className="text-[13px] text-[#333333] leading-relaxed">
+                    <p className="text-[13px] text-text-body leading-relaxed">
                       {action.sentence}
                     </p>
                   </div>
@@ -138,7 +138,7 @@ export function TopActionsSection({
                           setAnswerInputs(prev => ({ ...prev, [action.action_id]: e.target.value }))
                         }
                         placeholder={action.question_placeholder || 'Type your answer...'}
-                        className="flex-1 px-3 py-1.5 text-[12px] border border-[#E5E5E5] rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-[#3FAF7A] placeholder:text-[#CCCCCC]"
+                        className="flex-1 px-3 py-1.5 text-[12px] border border-border rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-brand-primary placeholder:text-[#CCCCCC]"
                         onKeyDown={e => {
                           if (e.key === 'Enter' && (answerInputs[action.action_id] ?? '').trim()) {
                             handleAnswer(action)
@@ -149,7 +149,7 @@ export function TopActionsSection({
                       <button
                         onClick={() => handleAnswer(action)}
                         disabled={(submitting[action.action_id] ?? false) || !(answerInputs[action.action_id] ?? '').trim()}
-                        className="p-1.5 text-white bg-[#3FAF7A] hover:bg-[#25785A] rounded-lg disabled:opacity-40 transition-colors"
+                        className="p-1.5 text-white bg-brand-primary hover:bg-[#25785A] rounded-lg disabled:opacity-40 transition-colors"
                       >
                         {submitting[action.action_id] ? (
                           <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -161,7 +161,7 @@ export function TopActionsSection({
                   ) : action.cta_type === 'upload_doc' ? (
                     <button
                       onClick={() => onNavigate?.('signal', null)}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-[#0A1E2F] bg-[#F0F0F0] hover:bg-[#E5E5E5] rounded-lg transition-colors"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-[#0A1E2F] bg-[#F0F0F0] hover:bg-border rounded-lg transition-colors"
                     >
                       <Upload className="w-3 h-3" />
                       {action.cta_label}
@@ -169,7 +169,7 @@ export function TopActionsSection({
                   ) : (
                     <button
                       onClick={() => onDiscussInChat ? onDiscussInChat(action) : onNavigate?.('chat', null)}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-[#3FAF7A] bg-[#E8F5E9] hover:bg-[#D4EDD9] rounded-lg transition-colors"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-brand-primary bg-[#E8F5E9] hover:bg-[#D4EDD9] rounded-lg transition-colors"
                     >
                       <MessageSquare className="w-3 h-3" />
                       {action.cta_label}
@@ -179,7 +179,7 @@ export function TopActionsSection({
                   {action.entity_type && action.entity_id && action.entity_type !== 'project' && (
                     <button
                       onClick={() => onNavigate?.(action.entity_type!, action.entity_id)}
-                      className="mt-1.5 inline-flex items-center gap-1 text-[11px] text-[#3FAF7A] hover:underline"
+                      className="mt-1.5 inline-flex items-center gap-1 text-[11px] text-brand-primary hover:underline"
                     >
                       <ArrowRight className="w-3 h-3" />
                       {action.entity_name || 'View entity'}

@@ -55,7 +55,7 @@ const ACTION_VERBS = [
   { value: 'create', label: 'Create' },
 ]
 
-const selectClass = 'text-[13px] px-3 py-1.5 rounded-md border border-[#E5E5E5] bg-white text-[#333] outline-none focus:border-[#3FAF7A] transition-colors'
+const selectClass = 'text-[13px] px-3 py-1.5 rounded-md border border-border bg-white text-[#333] outline-none focus:border-brand-primary transition-colors'
 
 export function AddTaskModal({ open, onClose, onCreated }: AddTaskModalProps) {
   const [title, setTitle] = useState('')
@@ -146,7 +146,7 @@ export function AddTaskModal({ open, onClose, onCreated }: AddTaskModalProps) {
       <div className="absolute inset-0 bg-black/30" onClick={onClose} />
       <div className="relative bg-white rounded-xl shadow-xl w-full max-w-lg mx-4">
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-[#E5E5E5]">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-border">
           <h2 className="text-[15px] font-semibold text-[#0A1E2F]">Add task</h2>
           <button onClick={onClose} className="text-[#999] hover:text-[#333] transition-colors">
             <X className="w-4 h-4" />
@@ -163,8 +163,8 @@ export function AddTaskModal({ open, onClose, onCreated }: AddTaskModalProps) {
                 onClick={() => setTaskType(t.value)}
                 className={`px-2.5 py-1 text-[12px] rounded-md font-medium transition-colors ${
                   taskType === t.value
-                    ? 'bg-[#3FAF7A]/10 text-[#25785A] border border-[#3FAF7A]/30'
-                    : 'bg-[#F4F4F4] text-[#666] border border-transparent hover:border-[#E5E5E5]'
+                    ? 'bg-brand-primary-light text-[#25785A] border border-brand-primary/30'
+                    : 'bg-[#F4F4F4] text-[#666] border border-transparent hover:border-border'
                 }`}
               >
                 {t.label}
@@ -178,7 +178,7 @@ export function AddTaskModal({ open, onClose, onCreated }: AddTaskModalProps) {
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder="Task title"
-            className="w-full text-[15px] text-[#333] placeholder-[#CCC] outline-none border-b border-[#E5E5E5] pb-2 focus:border-[#3FAF7A] transition-colors"
+            className="w-full text-[15px] text-[#333] placeholder-[#CCC] outline-none border-b border-border pb-2 focus:border-brand-primary transition-colors"
           />
 
           {/* Description */}
@@ -187,7 +187,7 @@ export function AddTaskModal({ open, onClose, onCreated }: AddTaskModalProps) {
             onChange={(e) => setDescription(e.target.value)}
             placeholder="Add description..."
             rows={3}
-            className="w-full text-[13px] text-[#333] placeholder-[#CCC] outline-none border border-[#E5E5E5] rounded-lg p-2.5 resize-none focus:border-[#3FAF7A] transition-colors"
+            className="w-full text-[13px] text-[#333] placeholder-[#CCC] outline-none border border-border rounded-lg p-2.5 resize-none focus:border-brand-primary transition-colors"
           />
 
           {/* Type-specific fields */}
@@ -274,7 +274,7 @@ export function AddTaskModal({ open, onClose, onCreated }: AddTaskModalProps) {
         </div>
 
         {/* Footer */}
-        <div className="flex justify-end gap-2 px-5 py-3 border-t border-[#E5E5E5]">
+        <div className="flex justify-end gap-2 px-5 py-3 border-t border-border">
           <button
             onClick={onClose}
             className="px-4 py-1.5 text-[13px] text-[#666] hover:text-[#333] transition-colors"
@@ -284,7 +284,7 @@ export function AddTaskModal({ open, onClose, onCreated }: AddTaskModalProps) {
           <button
             onClick={handleSubmit}
             disabled={!title.trim() || !projectId || saving}
-            className="px-4 py-1.5 text-[13px] font-medium rounded-lg bg-[#3FAF7A] text-white hover:bg-[#25785A] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            className="px-4 py-1.5 text-[13px] font-medium rounded-lg bg-brand-primary text-white hover:bg-[#25785A] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
           >
             {saving ? 'Adding...' : 'Add'}
           </button>

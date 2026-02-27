@@ -142,12 +142,12 @@ export default function MeetingDetailPage() {
           onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
         />
         <div
-          className="min-h-screen bg-[#FAFAFA] flex items-center justify-center transition-all duration-300"
+          className="min-h-screen bg-surface-page flex items-center justify-center transition-all duration-300"
           style={{ marginLeft: sidebarWidth }}
         >
           <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#3FAF7A] mx-auto mb-4" />
-            <p className="text-sm text-[#999999]">Loading meeting...</p>
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-primary mx-auto mb-4" />
+            <p className="text-sm text-text-placeholder">Loading meeting...</p>
           </div>
         </div>
       </>
@@ -162,7 +162,7 @@ export default function MeetingDetailPage() {
           onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
         />
         <div
-          className="min-h-screen bg-[#FAFAFA] flex items-center justify-center transition-all duration-300"
+          className="min-h-screen bg-surface-page flex items-center justify-center transition-all duration-300"
           style={{ marginLeft: sidebarWidth }}
         >
           <div className="text-center">
@@ -170,7 +170,7 @@ export default function MeetingDetailPage() {
             <p className="text-[14px] font-medium text-[#37352f] mb-1">Meeting not found</p>
             <button
               onClick={() => router.push('/meetings')}
-              className="text-[13px] text-[#3FAF7A] hover:underline mt-2"
+              className="text-[13px] text-brand-primary hover:underline mt-2"
             >
               Back to meetings
             </button>
@@ -189,22 +189,22 @@ export default function MeetingDetailPage() {
         onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
       />
       <div
-        className="min-h-screen bg-[#FAFAFA] transition-all duration-300"
+        className="min-h-screen bg-surface-page transition-all duration-300"
         style={{ marginLeft: sidebarWidth }}
       >
         <div className="flex flex-col h-screen">
           {/* Top Bar — 52px */}
-          <div className="h-[52px] bg-white border-b border-[#E5E5E5] flex items-center justify-between px-6 flex-shrink-0">
+          <div className="h-[52px] bg-white border-b border-border flex items-center justify-between px-6 flex-shrink-0">
             {/* Breadcrumb */}
             <div className="flex items-center gap-1.5 text-[13px]">
               <button
                 onClick={() => router.push('/meetings')}
-                className="text-[#7B7B7B] hover:text-[#044159] transition-colors"
+                className="text-text-muted hover:text-accent transition-colors"
               >
                 Meetings
               </button>
               <span className="text-[#D0D0D0]">/</span>
-              <span className="text-[#1D1D1F] font-medium truncate max-w-[300px]">
+              <span className="text-text-primary font-medium truncate max-w-[300px]">
                 {meeting.title}
               </span>
             </div>
@@ -213,7 +213,7 @@ export default function MeetingDetailPage() {
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setShowEmailModal(true)}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-[#044159] bg-white border border-[#D0D0D0] rounded-md hover:border-[#044159] hover:bg-[#f0f7fa] transition-colors"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-accent bg-white border border-[#D0D0D0] rounded-md hover:border-accent hover:bg-[#f0f7fa] transition-colors"
               >
                 <Mail className="w-3.5 h-3.5" />
                 Email Agenda
@@ -222,7 +222,7 @@ export default function MeetingDetailPage() {
               {!editing && (
                 <button
                   onClick={() => setEditing(true)}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-[#4B4B4B] bg-[#F5F5F5] rounded-md hover:bg-[#E8E8E8] transition-colors"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-text-secondary bg-surface-subtle rounded-md hover:bg-[#E8E8E8] transition-colors"
                 >
                   <Pencil className="w-3 h-3" />
                   Edit
@@ -233,7 +233,7 @@ export default function MeetingDetailPage() {
               <div className="relative">
                 <button
                   onClick={() => setShowMenu(!showMenu)}
-                  className="p-1.5 rounded-md text-[#7B7B7B] hover:bg-[#F0F0F0] transition-colors"
+                  className="p-1.5 rounded-md text-text-muted hover:bg-[#F0F0F0] transition-colors"
                 >
                   <MoreHorizontal className="w-4 h-4" />
                 </button>
@@ -277,8 +277,8 @@ export default function MeetingDetailPage() {
                 title="Toggle side panel"
                 className={`w-8 h-8 rounded-md border flex items-center justify-center transition-all ${
                   sidePanelOpen
-                    ? 'bg-[#E0EFF3] text-[#044159] border-[#044159]'
-                    : 'bg-white text-[#7B7B7B] border-[#E5E5E5] hover:bg-[#F0F0F0] hover:border-[#D0D0D0]'
+                    ? 'bg-[#E0EFF3] text-accent border-accent'
+                    : 'bg-white text-text-muted border-border hover:bg-[#F0F0F0] hover:border-[#D0D0D0]'
                 }`}
               >
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
@@ -301,19 +301,19 @@ export default function MeetingDetailPage() {
                       type="text"
                       value={editTitle}
                       onChange={(e) => setEditTitle(e.target.value)}
-                      className="w-full text-[22px] font-bold text-[#1D1D1F] bg-transparent border-b-2 border-[#044159] outline-none pb-1"
+                      className="w-full text-[22px] font-bold text-text-primary bg-transparent border-b-2 border-accent outline-none pb-1"
                     />
                     <textarea
                       value={editDescription}
                       onChange={(e) => setEditDescription(e.target.value)}
                       placeholder="Add a description..."
                       rows={2}
-                      className="w-full text-[14px] text-[#4B4B4B] bg-transparent border border-gray-200 rounded-md px-3 py-2 outline-none focus:ring-1 focus:ring-[#044159] resize-none"
+                      className="w-full text-[14px] text-text-secondary bg-transparent border border-gray-200 rounded-md px-3 py-2 outline-none focus:ring-1 focus:ring-accent resize-none"
                     />
                     <div className="flex gap-2">
                       <button
                         onClick={handleSaveEdit}
-                        className="px-3 py-1.5 text-[12px] font-medium text-white bg-[#044159] rounded-md hover:bg-[#033344] transition-colors"
+                        className="px-3 py-1.5 text-[12px] font-medium text-white bg-accent rounded-md hover:bg-accent-hover transition-colors"
                       >
                         Save
                       </button>
@@ -323,7 +323,7 @@ export default function MeetingDetailPage() {
                           setEditTitle(meeting.title)
                           setEditDescription(meeting.description || '')
                         }}
-                        className="px-3 py-1.5 text-[12px] font-medium text-[#666] bg-[#F5F5F5] rounded-md hover:bg-[#EBEBEB] transition-colors"
+                        className="px-3 py-1.5 text-[12px] font-medium text-[#666] bg-surface-subtle rounded-md hover:bg-[#EBEBEB] transition-colors"
                       >
                         Cancel
                       </button>
@@ -336,9 +336,9 @@ export default function MeetingDetailPage() {
                 {/* Participants */}
                 <div className="mt-7">
                   <div className="flex items-center justify-between mb-3.5">
-                    <div className="text-[15px] font-semibold text-[#1D1D1F] flex items-center gap-2">
+                    <div className="text-[15px] font-semibold text-text-primary flex items-center gap-2">
                       Participants
-                      <span className="text-[12px] font-medium text-[#7B7B7B] bg-[#F0F0F0] px-[7px] py-[1px] rounded-lg">
+                      <span className="text-[12px] font-medium text-text-muted bg-[#F0F0F0] px-[7px] py-[1px] rounded-lg">
                         {participants.length}
                       </span>
                     </div>
@@ -359,7 +359,7 @@ export default function MeetingDetailPage() {
                         blocker: { bg: 'bg-[#0A1E2F]', text: 'text-white' },
                         influencer: { bg: 'bg-[#F0F0F0]', text: 'text-[#666]' },
                         end_user: { bg: 'bg-[#F0F0F0]', text: 'text-[#666]' },
-                        consultant: { bg: 'bg-[#E0EFF3]', text: 'text-[#044159]' },
+                        consultant: { bg: 'bg-[#E0EFF3]', text: 'text-accent' },
                       }
                       const initials = p.name.split(' ').map((w) => w[0]).join('').toUpperCase().slice(0, 2)
                       const roleConfig = p.stakeholder_type ? roleBadgeConfig[p.stakeholder_type] : null
@@ -370,7 +370,7 @@ export default function MeetingDetailPage() {
                       return (
                         <div
                           key={p.id}
-                          className="flex items-center gap-2.5 px-3.5 py-2 bg-white border border-[#E5E5E5] rounded-lg min-w-[180px] hover:border-[#D0D0D0] hover:shadow-[0_2px_4px_rgba(0,0,0,0.04)] transition-all"
+                          className="flex items-center gap-2.5 px-3.5 py-2 bg-white border border-border rounded-lg min-w-[180px] hover:border-[#D0D0D0] hover:shadow-[0_2px_4px_rgba(0,0,0,0.04)] transition-all"
                         >
                           <div
                             className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold text-white flex-shrink-0"
@@ -381,8 +381,8 @@ export default function MeetingDetailPage() {
                             {initials}
                           </div>
                           <div className="min-w-0">
-                            <div className="text-[13px] font-semibold text-[#1D1D1F] truncate">{p.name}</div>
-                            <div className="flex items-center gap-1 text-[11px] text-[#7B7B7B]">
+                            <div className="text-[13px] font-semibold text-text-primary truncate">{p.name}</div>
+                            <div className="flex items-center gap-1 text-[11px] text-text-muted">
                               {roleConfig && roleLabel && (
                                 <span className={`text-[10px] font-semibold px-1.5 py-[1px] rounded ${roleConfig.bg} ${roleConfig.text}`}>
                                   {roleLabel}
@@ -396,7 +396,7 @@ export default function MeetingDetailPage() {
                     })}
 
                     {participants.length === 0 && (
-                      <div className="text-[13px] text-[#7B7B7B] py-2">
+                      <div className="text-[13px] text-text-muted py-2">
                         No participants added yet
                       </div>
                     )}

@@ -46,9 +46,9 @@ export function ReadinessCell({ project }: ReadinessCellProps) {
   // Color based on score
   const getColor = () => {
     if (roundedScore >= 80) return {
-      bar: 'bg-[#3FAF7A]',
-      text: 'text-[#3FAF7A]',
-      dot: 'bg-[#3FAF7A]',
+      bar: 'bg-brand-primary',
+      text: 'text-brand-primary',
+      dot: 'bg-brand-primary',
     }
     if (roundedScore >= 50) return {
       bar: 'bg-[#4CC08C]',

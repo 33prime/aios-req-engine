@@ -19,7 +19,7 @@ export function ConnectionsTab({ data }: ConnectionsTabProps) {
   if (!data || data.nodes.length === 0) {
     return (
       <div className="text-center py-8">
-        <p className="text-sm text-[#999999]">No connections to display yet.</p>
+        <p className="text-sm text-text-placeholder">No connections to display yet.</p>
       </div>
     )
   }
@@ -36,7 +36,7 @@ export function ConnectionsTab({ data }: ConnectionsTabProps) {
   if (beliefs.length === 0) {
     return (
       <div className="text-center py-8">
-        <p className="text-sm text-[#999999]">No beliefs formed yet. Process more signals to build connections.</p>
+        <p className="text-sm text-text-placeholder">No beliefs formed yet. Process more signals to build connections.</p>
       </div>
     )
   }
@@ -77,7 +77,7 @@ function BeliefChain({ belief, edges, nodeMap }: {
   )
 
   return (
-    <div className="bg-[#F9F9F9] rounded-lg overflow-hidden">
+    <div className="bg-surface-muted rounded-lg overflow-hidden">
       {/* Belief header */}
       <button
         onClick={() => setExpanded(!expanded)}
@@ -100,12 +100,12 @@ function BeliefChain({ belief, edges, nodeMap }: {
               </span>
             </div>
           </div>
-          <p className="text-sm font-medium text-[#333333]">{belief.summary}</p>
+          <p className="text-sm font-medium text-text-body">{belief.summary}</p>
         </div>
         {expanded ? (
-          <ChevronUp className="w-4 h-4 text-[#999999] flex-shrink-0" />
+          <ChevronUp className="w-4 h-4 text-text-placeholder flex-shrink-0" />
         ) : (
-          <ChevronDown className="w-4 h-4 text-[#999999] flex-shrink-0" />
+          <ChevronDown className="w-4 h-4 text-text-placeholder flex-shrink-0" />
         )}
       </button>
 
@@ -169,7 +169,7 @@ function ChainSection({ title, titleColor, borderColor, icon, edges, nodeMap, di
         </span>
       </div>
       {edges.length === 0 ? (
-        <p className="text-[11px] text-[#999999] pl-5">None</p>
+        <p className="text-[11px] text-text-placeholder pl-5">None</p>
       ) : (
         <div className={`border-l-2 ${borderColor} ml-1 pl-4 space-y-2`}>
           {edges.map((edge) => {
@@ -185,21 +185,21 @@ function ChainSection({ title, titleColor, borderColor, icon, edges, nodeMap, di
                   }`}>
                     {nodeType}
                   </span>
-                  <span className="text-[10px] text-[#999999]">
+                  <span className="text-[10px] text-text-placeholder">
                     Source: {linkedNode.source_type || 'unknown'}
                   </span>
-                  <span className="text-[10px] text-[#999999]">
+                  <span className="text-[10px] text-text-placeholder">
                     Strength: {edge.strength?.toFixed(2) || '—'}
                   </span>
                 </div>
-                <p className="text-sm text-[#333333]">{linkedNode.summary}</p>
+                <p className="text-sm text-text-body">{linkedNode.summary}</p>
                 {linkedNode.node_type === 'belief' && (
                   <span className="text-[10px] text-teal-600">
                     Confidence: {Math.round(linkedNode.confidence * 100)}%
                   </span>
                 )}
                 {edge.rationale && (
-                  <p className="text-[11px] text-[#999999] italic mt-1">
+                  <p className="text-[11px] text-text-placeholder italic mt-1">
                     {edge.rationale}
                   </p>
                 )}

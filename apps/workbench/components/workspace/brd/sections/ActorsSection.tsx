@@ -29,7 +29,7 @@ function CanvasRoleToggle({
   if (role === 'primary') {
     return (
       <button onClick={onToggle} className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#E8F5E9] text-[#25785A] text-[10px] font-medium hover:bg-[#d0ecd6] transition-colors" title="Click to change canvas role">
-        <Star className="w-3 h-3 fill-[#3FAF7A] text-[#3FAF7A]" />
+        <Star className="w-3 h-3 fill-brand-primary text-brand-primary" />
         Primary
       </button>
     )
@@ -37,13 +37,13 @@ function CanvasRoleToggle({
   if (role === 'secondary') {
     return (
       <button onClick={onToggle} className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#F0F0F0] text-[#666666] text-[10px] font-medium hover:bg-[#e5e5e5] transition-colors" title="Click to change canvas role">
-        <Star className="w-3 h-3 fill-[#999999] text-[#999999]" />
+        <Star className="w-3 h-3 fill-text-placeholder text-text-placeholder" />
         Secondary
       </button>
     )
   }
   return (
-    <button onClick={onToggle} className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[#999999] text-[10px] font-medium hover:bg-[#F0F0F0] transition-colors" title="Set canvas role">
+    <button onClick={onToggle} className="flex items-center gap-1 px-2 py-0.5 rounded-full text-text-placeholder text-[10px] font-medium hover:bg-[#F0F0F0] transition-colors" title="Set canvas role">
       <Star className="w-3 h-3" />
     </button>
   )
@@ -68,19 +68,19 @@ function ActorAccordionCard({
   const [hasBeenExpanded, setHasBeenExpanded] = useState(false)
 
   return (
-    <div className="bg-white rounded-2xl shadow-md border border-[#E5E5E5] overflow-hidden">
+    <div className="bg-white rounded-2xl shadow-md border border-border overflow-hidden">
       {/* Header row */}
       <button
         onClick={() => { const next = !expanded; setExpanded(next); if (next && !hasBeenExpanded) setHasBeenExpanded(true) }}
         className="w-full flex items-center gap-3 px-5 py-4 text-left hover:bg-gray-50/50 transition-colors"
       >
         <ChevronRight
-          className={`w-4 h-4 text-[#999999] shrink-0 transition-transform duration-200 ${expanded ? 'rotate-90' : ''}`}
+          className={`w-4 h-4 text-text-placeholder shrink-0 transition-transform duration-200 ${expanded ? 'rotate-90' : ''}`}
         />
-        <Users className="w-4 h-4 text-[#3FAF7A] shrink-0" />
-        <span className="text-[14px] font-semibold text-[#333333] shrink-0">{actor.name}</span>
+        <Users className="w-4 h-4 text-brand-primary shrink-0" />
+        <span className="text-[14px] font-semibold text-text-body shrink-0">{actor.name}</span>
         {actor.role && (
-          <span className="text-[12px] text-[#999999] truncate">({actor.role})</span>
+          <span className="text-[12px] text-text-placeholder truncate">({actor.role})</span>
         )}
         {onCanvasRoleUpdate && (
           <span className="shrink-0" onClick={(e) => e.stopPropagation()}>
@@ -127,7 +127,7 @@ function ActorAccordionCard({
                     <ul className="space-y-2">
                       {actor.goals.map((goal, i) => (
                         <li key={i} className="flex items-start gap-2 text-[13px] text-[#666666]">
-                          <span className="text-[#3FAF7A] mt-0.5 shrink-0">&#8226;</span>
+                          <span className="text-brand-primary mt-0.5 shrink-0">&#8226;</span>
                           <span>{goal}</span>
                         </li>
                       ))}
@@ -144,7 +144,7 @@ function ActorAccordionCard({
                     <ul className="space-y-2">
                       {actor.pain_points.map((pain, i) => (
                         <li key={i} className="flex items-start gap-2 text-[13px] text-[#666666]">
-                          <span className="text-[#999999] mt-0.5 shrink-0">&#8226;</span>
+                          <span className="text-text-placeholder mt-0.5 shrink-0">&#8226;</span>
                           <span>{pain}</span>
                         </li>
                       ))}
@@ -155,7 +155,7 @@ function ActorAccordionCard({
             )}
 
             {/* Confirm / Review actions */}
-            <div className="mt-4 pt-3 border-t border-[#E5E5E5]">
+            <div className="mt-4 pt-3 border-t border-border">
               <ConfirmActions
                 status={actor.confirmation_status}
                 onConfirm={() => onConfirm('persona', actor.id)}
@@ -205,12 +205,12 @@ export function ActorsSection({ actors, workflows = [], onConfirm, onNeedsReview
         onConfirmAll={() => onConfirmAll('persona', actors.map((a) => a.id))}
       />
       {actors.length === 0 ? (
-        <p className="text-[13px] text-[#999999] italic">No personas identified yet</p>
+        <p className="text-[13px] text-text-placeholder italic">No personas identified yet</p>
       ) : hasSplit ? (
         <div className="space-y-6">
           {/* Primary Actors */}
           <div>
-            <h3 className="text-[11px] font-semibold text-[#999999] uppercase tracking-wider mb-3">
+            <h3 className="text-[11px] font-semibold text-text-placeholder uppercase tracking-wider mb-3">
               Primary Actors ({primaryActors.length})
             </h3>
             <div className="space-y-3">
@@ -220,7 +220,7 @@ export function ActorsSection({ actors, workflows = [], onConfirm, onNeedsReview
 
           {/* Supporting Actors */}
           <div>
-            <h3 className="text-[11px] font-semibold text-[#999999] uppercase tracking-wider mb-3">
+            <h3 className="text-[11px] font-semibold text-text-placeholder uppercase tracking-wider mb-3">
               Supporting Actors ({secondaryActors.length})
             </h3>
             <div className="space-y-3">

@@ -16,13 +16,13 @@ import { URGENCY_COLORS } from '@/lib/action-constants'
 // Shared Style Constants
 // =============================================================================
 
-const CARD_BASE = 'border border-[#E5E5E5] rounded-2xl bg-[#F7F8FA] px-4 py-4'
-const CARD_RESOLVED = 'border border-[#3FAF7A]/40 bg-[#E8F5E9]/30 rounded-2xl px-4 py-3.5 flex items-center gap-2'
+const CARD_BASE = 'border border-border rounded-2xl bg-[#F7F8FA] px-4 py-4'
+const CARD_RESOLVED = 'border border-brand-primary/40 bg-[#E8F5E9]/30 rounded-2xl px-4 py-3.5 flex items-center gap-2'
 const CARD_HEADER = 'text-[10px] text-[#999] uppercase tracking-wider font-semibold mb-2.5'
-const BTN_PRIMARY_OUTLINE = 'text-[12px] font-medium px-4 py-1.5 rounded-full border border-[#3FAF7A] text-[#3FAF7A] hover:bg-[#E8F5E9] transition-colors'
-const BTN_PRIMARY_FILLED = 'text-[12px] font-medium px-4 py-1.5 rounded-full bg-[#3FAF7A] text-white hover:bg-[#25785A] transition-colors'
-const BTN_SECONDARY = 'text-[12px] font-medium px-4 py-1.5 rounded-full border border-[#D5D5D5] text-[#4B4B4B] hover:bg-[#F5F5F5] transition-colors'
-const BTN_GHOST = 'text-[12px] font-medium px-3 py-1.5 text-[#999] hover:text-[#4B4B4B] transition-colors'
+const BTN_PRIMARY_OUTLINE = 'text-[12px] font-medium px-4 py-1.5 rounded-full border border-brand-primary text-brand-primary hover:bg-[#E8F5E9] transition-colors'
+const BTN_PRIMARY_FILLED = 'text-[12px] font-medium px-4 py-1.5 rounded-full bg-brand-primary text-white hover:bg-[#25785A] transition-colors'
+const BTN_SECONDARY = 'text-[12px] font-medium px-4 py-1.5 rounded-full border border-[#D5D5D5] text-text-secondary hover:bg-surface-subtle transition-colors'
+const BTN_GHOST = 'text-[12px] font-medium px-3 py-1.5 text-[#999] hover:text-text-secondary transition-colors'
 const BTN_CONFIRMED = 'text-[12px] font-medium px-4 py-1.5 rounded-full bg-[#E8F5E9] text-[#25785A] pointer-events-none flex items-center gap-1'
 
 // =============================================================================
@@ -145,7 +145,7 @@ function GapCloserCard({ data, onAction }: { data: GapCloserData; onAction: (cmd
   if (resolved) {
     return (
       <div className={CARD_RESOLVED}>
-        <CheckCircle2 className="h-3.5 w-3.5 text-[#3FAF7A]" />
+        <CheckCircle2 className="h-3.5 w-3.5 text-brand-primary" />
         <span className="text-[12px] text-[#25785A] font-medium">Resolved</span>
       </div>
     )
@@ -163,7 +163,7 @@ function GapCloserCard({ data, onAction }: { data: GapCloserData; onAction: (cmd
         </span>
       </div>
       {data.resolution && (
-        <p className="text-[11px] text-[#7B7B7B] border-l-2 border-[#E5E5E5] pl-2 mt-1.5">{data.resolution}</p>
+        <p className="text-[11px] text-text-muted border-l-2 border-border pl-2 mt-1.5">{data.resolution}</p>
       )}
       <div className="flex items-center gap-2 mt-3">
         {data.actions?.map((action, i) => (
@@ -249,10 +249,10 @@ function ChoiceCard({ data, onAction }: { data: ChoiceData; onAction: (cmd: stri
               }}
               className={`rounded-full px-4 py-1.5 text-[12px] font-medium border transition-all ${
                 isSelected
-                  ? 'bg-[#3FAF7A] text-white border-[#3FAF7A]'
+                  ? 'bg-brand-primary text-white border-brand-primary'
                   : isOther
                     ? 'border-[#D5D5D5] text-[#999] opacity-30 pointer-events-none'
-                    : 'border-[#D5D5D5] text-[#4B4B4B] hover:border-[#3FAF7A] hover:text-[#3FAF7A]'
+                    : 'border-[#D5D5D5] text-text-secondary hover:border-brand-primary hover:text-brand-primary'
               }`}
             >
               {opt.label}
@@ -261,7 +261,7 @@ function ChoiceCard({ data, onAction }: { data: ChoiceData; onAction: (cmd: stri
         })}
       </div>
       {selected && (
-        <p className="text-[11px] text-[#3FAF7A] mt-1.5 animate-in fade-in duration-300">
+        <p className="text-[11px] text-brand-primary mt-1.5 animate-in fade-in duration-300">
           <Check className="h-3 w-3 inline mr-0.5 -mt-0.5" />
           Saved
         </p>
@@ -280,7 +280,7 @@ function ProposalCard({ data, onAction }: { data: ProposalData; onAction: (cmd: 
   if (approved) {
     return (
       <div className={CARD_RESOLVED}>
-        <CheckCircle2 className="h-3.5 w-3.5 text-[#3FAF7A]" />
+        <CheckCircle2 className="h-3.5 w-3.5 text-brand-primary" />
         <span className="text-[12px] text-[#25785A] font-medium">Added to BRD</span>
       </div>
     )
@@ -301,17 +301,17 @@ function ProposalCard({ data, onAction }: { data: ProposalData; onAction: (cmd: 
       {data.bullets && data.bullets.length > 0 && (
         <ul className="mt-1.5 space-y-1">
           {data.bullets.map((b, i) => (
-            <li key={i} className="text-[12px] text-[#4B4B4B] flex items-start gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-[#3FAF7A] mt-1.5 shrink-0" />
+            <li key={i} className="text-[12px] text-text-secondary flex items-start gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-brand-primary mt-1.5 shrink-0" />
               {b}
             </li>
           ))}
         </ul>
       )}
       {data.body && !data.bullets && (
-        <p className="text-[12px] text-[#4B4B4B] mt-1.5">{data.body}</p>
+        <p className="text-[12px] text-text-secondary mt-1.5">{data.body}</p>
       )}
-      <div className="border-t border-[#E5E5E5] mt-3 pt-3 flex items-center gap-2">
+      <div className="border-t border-border mt-3 pt-3 flex items-center gap-2">
         {data.actions?.map((action, i) => {
           const variant = action.variant || 'primary'
           const cls =
@@ -348,15 +348,15 @@ function EmailDraftCard({ data, onAction }: { data: EmailDraftData; onAction: (c
   if (sent) {
     return (
       <div className={CARD_RESOLVED}>
-        <Mail className="h-3.5 w-3.5 text-[#3FAF7A]" />
+        <Mail className="h-3.5 w-3.5 text-brand-primary" />
         <span className="text-[12px] text-[#25785A] font-medium">Draft copied</span>
       </div>
     )
   }
 
   return (
-    <div className="border border-[#E5E5E5] rounded-2xl bg-[#F7F8FA] overflow-hidden">
-      <div className="px-4 py-3 bg-[#F0F1F3] border-b border-[#E5E5E5] flex items-center gap-2">
+    <div className="border border-border rounded-2xl bg-[#F7F8FA] overflow-hidden">
+      <div className="px-4 py-3 bg-[#F0F1F3] border-b border-border flex items-center gap-2">
         <Mail className="h-3 w-3 text-[#999]" />
         <span className="text-[10px] text-[#999] uppercase tracking-wider font-semibold">Email Draft</span>
       </div>
@@ -369,11 +369,11 @@ function EmailDraftCard({ data, onAction }: { data: EmailDraftData; onAction: (c
           <span className="text-[10px] text-[#999] uppercase tracking-wider w-10">Subj</span>
           <span className="text-[12px] text-[#333] font-medium">{data.subject}</span>
         </div>
-        <div className="border-t border-[#E5E5E5] mt-1.5 pt-1.5">
-          <p className="text-[12px] text-[#4B4B4B] line-clamp-4 whitespace-pre-line">{data.body}</p>
+        <div className="border-t border-border mt-1.5 pt-1.5">
+          <p className="text-[12px] text-text-secondary line-clamp-4 whitespace-pre-line">{data.body}</p>
         </div>
       </div>
-      <div className="border-t border-[#E5E5E5] px-4 py-3 flex items-center gap-2">
+      <div className="border-t border-border px-4 py-3 flex items-center gap-2">
         <button
           onClick={() => {
             setSent(true)
@@ -404,27 +404,27 @@ function MeetingCard({ data, onAction }: { data: MeetingData; onAction: (cmd: st
   if (booked) {
     return (
       <div className={CARD_RESOLVED}>
-        <Calendar className="h-3.5 w-3.5 text-[#3FAF7A]" />
+        <Calendar className="h-3.5 w-3.5 text-brand-primary" />
         <span className="text-[12px] text-[#25785A] font-medium">Meeting prep saved</span>
       </div>
     )
   }
 
   return (
-    <div className="border border-[#E5E5E5] rounded-2xl bg-[#F7F8FA] overflow-hidden">
-      <div className="px-4 py-3 bg-[#F0F1F3] border-b border-[#E5E5E5] flex items-center gap-2">
+    <div className="border border-border rounded-2xl bg-[#F7F8FA] overflow-hidden">
+      <div className="px-4 py-3 bg-[#F0F1F3] border-b border-border flex items-center gap-2">
         <Calendar className="h-3 w-3 text-[#999]" />
         <span className="text-[10px] text-[#999] uppercase tracking-wider font-semibold">Meeting</span>
       </div>
       <div className="px-4 py-3 space-y-1.5">
         <p className="text-[13px] font-medium text-[#333]">{data.topic}</p>
         {data.attendees?.length > 0 && (
-          <p className="text-[11px] text-[#7B7B7B]">With: {data.attendees.join(', ')}</p>
+          <p className="text-[11px] text-text-muted">With: {data.attendees.join(', ')}</p>
         )}
         {data.agenda?.length > 0 && (
           <ol className="space-y-0.5 mt-1">
             {data.agenda.map((item, i) => (
-              <li key={i} className="text-[12px] text-[#4B4B4B] flex items-start gap-1.5">
+              <li key={i} className="text-[12px] text-text-secondary flex items-start gap-1.5">
                 <span className="text-[10px] text-[#999] mt-0.5 w-3 shrink-0">{i + 1}.</span>
                 {item}
               </li>
@@ -432,7 +432,7 @@ function MeetingCard({ data, onAction }: { data: MeetingData; onAction: (cmd: st
           </ol>
         )}
       </div>
-      <div className="border-t border-[#E5E5E5] px-4 py-3 flex items-center gap-2">
+      <div className="border-t border-border px-4 py-3 flex items-center gap-2">
         <button
           onClick={() => {
             setBooked(true)
@@ -493,7 +493,7 @@ function SmartSummaryCard({ data, onAction }: { data: SmartSummaryData; onAction
   if (saved) {
     return (
       <div className={CARD_RESOLVED}>
-        <CheckCircle2 className="h-3.5 w-3.5 text-[#3FAF7A]" />
+        <CheckCircle2 className="h-3.5 w-3.5 text-brand-primary" />
         <span className="text-[12px] text-[#25785A] font-medium">
           {selectedCount} item{selectedCount !== 1 ? 's' : ''} saved to BRD
         </span>
@@ -514,8 +514,8 @@ function SmartSummaryCard({ data, onAction }: { data: SmartSummaryData; onAction
             <span
               className={`w-[18px] h-[18px] rounded border flex items-center justify-center shrink-0 mt-0.5 transition-colors ${
                 checks[i]
-                  ? 'bg-[#3FAF7A] border-[#3FAF7A]'
-                  : 'border-[#D5D5D5] group-hover:border-[#3FAF7A]'
+                  ? 'bg-brand-primary border-brand-primary'
+                  : 'border-[#D5D5D5] group-hover:border-brand-primary'
               }`}
             >
               {checks[i] && <Check className="h-3 w-3 text-white" />}
@@ -533,7 +533,7 @@ function SmartSummaryCard({ data, onAction }: { data: SmartSummaryData; onAction
           </label>
         ))}
       </div>
-      <div className="border-t border-[#E5E5E5] mt-3 pt-3 flex items-center justify-between">
+      <div className="border-t border-border mt-3 pt-3 flex items-center justify-between">
         <span className="text-[11px] text-[#999]">
           {selectedCount} of {data.items?.length || 0} selected
         </span>
@@ -554,10 +554,10 @@ function SmartSummaryCard({ data, onAction }: { data: SmartSummaryData; onAction
 // =============================================================================
 
 const EVIDENCE_TAG_STYLES: Record<string, string> = {
-  feature: 'hover:bg-[#E8F5E9] hover:text-[#25785A] hover:border-[#3FAF7A]',
+  feature: 'hover:bg-[#E8F5E9] hover:text-[#25785A] hover:border-brand-primary',
   constraint: 'hover:bg-[#FEF3C7] hover:text-[#B45309] hover:border-[#B45309]',
   assumption: 'hover:bg-[#F3E8FF] hover:text-[#7C3AED] hover:border-[#7C3AED]',
-  dismiss: 'hover:bg-[#F5F5F5] hover:text-[#999] hover:border-[#999]',
+  dismiss: 'hover:bg-surface-subtle hover:text-[#999] hover:border-[#999]',
 }
 
 function EvidenceCard({ data, onAction }: { data: EvidenceData; onAction: (cmd: string) => void }) {
@@ -575,12 +575,12 @@ function EvidenceItem({ item, onAction }: { item: EvidenceItem; onAction: (cmd: 
 
   return (
     <div
-      className={`border border-[#E5E5E5] rounded-2xl bg-[#F7F8FA] px-4 py-4 transition-all duration-300 ${
+      className={`border border-border rounded-2xl bg-[#F7F8FA] px-4 py-4 transition-all duration-300 ${
         tagged ? 'opacity-0 max-h-0 py-0 px-0 mt-0 overflow-hidden border-0' : ''
       }`}
     >
-      <div className="border-l-[3px] border-[#3FAF7A] pl-3 mb-2">
-        <p className="text-[12px] italic text-[#4B4B4B]">&ldquo;{item.quote}&rdquo;</p>
+      <div className="border-l-[3px] border-brand-primary pl-3 mb-2">
+        <p className="text-[12px] italic text-text-secondary">&ldquo;{item.quote}&rdquo;</p>
         <p className="text-[10px] text-[#999] mt-0.5">
           {item.source}{item.section ? ` — ${item.section}` : ''}
         </p>
@@ -597,7 +597,7 @@ function EvidenceItem({ item, onAction }: { item: EvidenceItem; onAction: (cmd: 
                 onAction(`Tag as ${tag}: "${item.quote.slice(0, 60)}..." from ${item.source}`)
               }
             }}
-            className={`text-[12px] font-medium px-3 py-1 rounded-full border border-[#E5E5E5] text-[#4B4B4B] transition-colors capitalize ${
+            className={`text-[12px] font-medium px-3 py-1 rounded-full border border-border text-text-secondary transition-colors capitalize ${
               EVIDENCE_TAG_STYLES[tag] || ''
             }`}
           >

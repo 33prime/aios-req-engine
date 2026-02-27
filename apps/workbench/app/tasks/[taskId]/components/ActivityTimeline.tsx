@@ -57,7 +57,7 @@ export function ActivityTimeline({ comments, activities, onDeleteComment, curren
                 {c.author_photo_url ? (
                   <Image src={c.author_photo_url} alt="" width={28} height={28} className="w-full h-full object-cover" />
                 ) : (
-                  <User className="w-3.5 h-3.5 text-[#3FAF7A]" />
+                  <User className="w-3.5 h-3.5 text-brand-primary" />
                 )}
               </div>
               <div className="flex-1 min-w-0">

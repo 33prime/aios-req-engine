@@ -72,15 +72,15 @@ export function EmailAgendaModal({ open, meeting, participants, onClose }: Email
       >
         {/* Header */}
         <div className="px-6 pt-5 pb-4 border-b border-[#F0F0F0] flex items-center justify-between">
-          <h3 className="text-[16px] font-semibold text-[#1D1D1F]">Send Agenda to Participants</h3>
-          <button onClick={onClose} className="w-7 h-7 rounded-md flex items-center justify-center text-[#7B7B7B] hover:bg-[#F0F0F0] transition-colors">
+          <h3 className="text-[16px] font-semibold text-text-primary">Send Agenda to Participants</h3>
+          <button onClick={onClose} className="w-7 h-7 rounded-md flex items-center justify-center text-text-muted hover:bg-[#F0F0F0] transition-colors">
             <X className="w-4 h-4" />
           </button>
         </div>
 
         {/* Body */}
         <div className="px-6 py-5">
-          <div className="text-[11px] font-semibold text-[#999999] uppercase tracking-[0.3px] mb-2">
+          <div className="text-[11px] font-semibold text-text-placeholder uppercase tracking-[0.3px] mb-2">
             Recipients
           </div>
           <div className="flex flex-col gap-1.5 mb-4">
@@ -93,7 +93,7 @@ export function EmailAgendaModal({ open, meeting, participants, onClose }: Email
                   type="checkbox"
                   checked={selectedIds.has(p.id)}
                   onChange={() => toggleRecipient(p.id)}
-                  className="accent-[#044159]"
+                  className="accent-accent"
                 />
                 <div
                   className="w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-bold text-white flex-shrink-0"
@@ -102,65 +102,65 @@ export function EmailAgendaModal({ open, meeting, participants, onClose }: Email
                   {p.name.split(' ').map((w) => w[0]).join('').toUpperCase().slice(0, 2)}
                 </div>
                 <div>
-                  <div className="text-[13px] font-medium text-[#1D1D1F]">{p.name}</div>
-                  {p.email && <div className="text-[11px] text-[#7B7B7B]">{p.email}</div>}
+                  <div className="text-[13px] font-medium text-text-primary">{p.name}</div>
+                  {p.email && <div className="text-[11px] text-text-muted">{p.email}</div>}
                 </div>
               </label>
             ))}
           </div>
 
-          <div className="text-[11px] font-semibold text-[#999999] uppercase tracking-[0.3px] mb-2">
+          <div className="text-[11px] font-semibold text-text-placeholder uppercase tracking-[0.3px] mb-2">
             Email Preview
           </div>
-          <div className="bg-[#FAFAFA] border border-[#E5E5E5] rounded-md p-4 mb-4 max-h-[200px] overflow-y-auto">
-            <h4 className="text-[13px] font-semibold text-[#1D1D1F] mb-2">
+          <div className="bg-surface-page border border-border rounded-md p-4 mb-4 max-h-[200px] overflow-y-auto">
+            <h4 className="text-[13px] font-semibold text-text-primary mb-2">
               {meeting.title} — Agenda
             </h4>
-            <p className="text-[11px] text-[#7B7B7B] mb-2">
+            <p className="text-[11px] text-text-muted mb-2">
               {dateStr} &middot; {timeRange} {meeting.google_meet_link ? '· Google Meet' : ''}
             </p>
             {agendaItems.length > 0 ? (
               agendaItems.map((item, i) => (
-                <div key={i} className="text-[12px] text-[#4B4B4B] py-[3px] border-b border-[#F0F0F0]">
+                <div key={i} className="text-[12px] text-text-secondary py-[3px] border-b border-[#F0F0F0]">
                   <strong>{i + 1}.</strong> {item.title} {item.duration}
                 </div>
               ))
             ) : (
-              <p className="text-[12px] text-[#7B7B7B] italic">No agenda items to include</p>
+              <p className="text-[12px] text-text-muted italic">No agenda items to include</p>
             )}
-            <p className="text-[11px] text-[#7B7B7B] mt-2">
+            <p className="text-[11px] text-text-muted mt-2">
               Please review and come prepared with any items you'd like to add.
             </p>
           </div>
 
-          <div className="text-[11px] font-semibold text-[#999999] uppercase tracking-[0.3px] mb-2">
+          <div className="text-[11px] font-semibold text-text-placeholder uppercase tracking-[0.3px] mb-2">
             Personal Message (optional)
           </div>
           <textarea
             value={customMessage}
             onChange={(e) => setCustomMessage(e.target.value)}
             placeholder="Add a note to participants..."
-            className="w-full px-3 py-2 border border-[#E5E5E5] rounded-md text-[13px] font-inherit resize-y min-h-[60px] outline-none focus:border-[#88BABF]"
+            className="w-full px-3 py-2 border border-border rounded-md text-[13px] font-inherit resize-y min-h-[60px] outline-none focus:border-[#88BABF]"
           />
         </div>
 
         {/* Footer */}
         <div className="px-6 py-4 border-t border-[#F0F0F0] flex items-center justify-between">
-          <div className="flex items-center gap-1 text-[11px] text-[#7B7B7B]">
+          <div className="flex items-center gap-1 text-[11px] text-text-muted">
             <Info className="w-3.5 h-3.5" />
             Sent on your behalf via connected Google account
           </div>
           <div className="flex gap-2">
             <button
               onClick={onClose}
-              className="px-3 py-1.5 text-[12px] font-medium text-[#4B4B4B] bg-[#F5F5F5] rounded-md hover:bg-[#EBEBEB] transition-colors"
+              className="px-3 py-1.5 text-[12px] font-medium text-text-secondary bg-surface-subtle rounded-md hover:bg-[#EBEBEB] transition-colors"
             >
               Cancel
             </button>
             <button
               onClick={handleSend}
               disabled={selectedIds.size === 0}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-white bg-[#044159] rounded-md hover:bg-[#033344] transition-colors disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-white bg-accent rounded-md hover:bg-accent-hover transition-colors disabled:opacity-50"
             >
               <Send className="w-3.5 h-3.5" />
               Send via Gmail

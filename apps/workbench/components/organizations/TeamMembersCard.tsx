@@ -52,7 +52,7 @@ export default function TeamMembersCard({
       case 'Owner':
         return 'bg-emerald-100 text-emerald-700'
       case 'Admin':
-        return 'bg-blue-100 text-blue-700'
+        return 'bg-blue-100 text-brand-primary-hover'
       case 'Member':
         return 'bg-zinc-100 text-zinc-700'
       default:

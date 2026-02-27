@@ -244,7 +244,7 @@ function ActionItemCard({ item }: ActionItemCardProps) {
       <span
         className={`text-xs px-2 py-1 rounded-full ${
           item.item_type === 'document'
-            ? 'bg-blue-100 text-blue-700'
+            ? 'bg-blue-100 text-brand-primary-hover'
             : item.item_type === 'task'
             ? 'bg-green-100 text-green-700'
             : 'bg-purple-100 text-purple-700'
@@ -262,7 +262,7 @@ interface AssetSuggestionCardProps {
 
 function AssetSuggestionCard({ asset }: AssetSuggestionCardProps) {
   const categoryStyles: Record<string, string> = {
-    sample_data: 'bg-blue-100 text-blue-700',
+    sample_data: 'bg-blue-100 text-brand-primary-hover',
     process: 'bg-green-100 text-green-700',
     data_systems: 'bg-purple-100 text-purple-700',
     integration: 'bg-orange-100 text-orange-700',

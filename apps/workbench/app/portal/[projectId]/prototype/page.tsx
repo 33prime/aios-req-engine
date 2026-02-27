@@ -29,15 +29,15 @@ const VERDICT_OPTIONS: { value: FeatureVerdict; label: string; icon: string }[] 
 
 const VERDICT_STYLES: Record<FeatureVerdict, { button: string; active: string }> = {
   aligned: {
-    button: 'border-[#E5E5E5] hover:border-[#3FAF7A] hover:bg-[#E8F5E9]',
-    active: 'border-[#3FAF7A] bg-[#E8F5E9] text-[#25785A]',
+    button: 'border-border hover:border-brand-primary hover:bg-[#E8F5E9]',
+    active: 'border-brand-primary bg-[#E8F5E9] text-[#25785A]',
   },
   needs_adjustment: {
-    button: 'border-[#E5E5E5] hover:border-amber-400 hover:bg-amber-50',
+    button: 'border-border hover:border-amber-400 hover:bg-amber-50',
     active: 'border-amber-400 bg-amber-50 text-amber-800',
   },
   off_track: {
-    button: 'border-[#E5E5E5] hover:border-red-400 hover:bg-red-50',
+    button: 'border-border hover:border-red-400 hover:bg-red-50',
     active: 'border-red-400 bg-red-50 text-red-800',
   },
 }
@@ -133,7 +133,7 @@ export default function PortalPrototypePage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-[#F4F4F4]">
-        <p className="text-[#999999]">Loading prototype review...</p>
+        <p className="text-text-placeholder">Loading prototype review...</p>
       </div>
     )
   }
@@ -142,7 +142,7 @@ export default function PortalPrototypePage() {
     return (
       <div className="flex items-center justify-center min-h-screen bg-[#F4F4F4]">
         <div className="text-center max-w-md">
-          <h2 className="text-lg font-semibold text-[#333333] mb-2">Review Unavailable</h2>
+          <h2 className="text-lg font-semibold text-text-body mb-2">Review Unavailable</h2>
           <p className="text-sm text-[#666666]">{error}</p>
         </div>
       </div>
@@ -154,13 +154,13 @@ export default function PortalPrototypePage() {
       <div className="flex items-center justify-center min-h-screen bg-[#F4F4F4]">
         <div className="text-center max-w-md">
           <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-[#E8F5E9] flex items-center justify-center">
-            <span className="text-2xl text-[#3FAF7A]">{'\u2713'}</span>
+            <span className="text-2xl text-brand-primary">{'\u2713'}</span>
           </div>
-          <h2 className="text-lg font-semibold text-[#333333] mb-2">Thank You!</h2>
+          <h2 className="text-lg font-semibold text-text-body mb-2">Thank You!</h2>
           <p className="text-sm text-[#666666]">
             Your review has been submitted. The team will incorporate your feedback into the next iteration.
           </p>
-          <p className="text-xs text-[#999999] mt-3">
+          <p className="text-xs text-text-placeholder mt-3">
             {reviewedCount} of {featureReviews.length} features reviewed
           </p>
         </div>
@@ -187,14 +187,14 @@ export default function PortalPrototypePage() {
             onPageChange={() => {}}
           />
         ) : (
-          <div className="flex items-center justify-center h-full text-[#999999]">
+          <div className="flex items-center justify-center h-full text-text-placeholder">
             Prototype preview unavailable
           </div>
         )}
       </div>
 
       {/* Per-feature review cards — bottom 45% */}
-      <div className="flex-[45] border-t border-[#E5E5E5] bg-[#F4F4F4] overflow-y-auto">
+      <div className="flex-[45] border-t border-border bg-[#F4F4F4] overflow-y-auto">
         <div className="max-w-3xl mx-auto p-6 space-y-4">
           {/* Progress bar */}
           <div className="flex items-center justify-between mb-2">
@@ -210,15 +210,15 @@ export default function PortalPrototypePage() {
             return (
               <div
                 key={review.overlay_id}
-                className="rounded-2xl border border-[#E5E5E5] bg-white shadow-md"
+                className="rounded-2xl border border-border bg-white shadow-md"
               >
                 {/* Feature header */}
-                <div className="px-5 py-4 border-b border-[#E5E5E5]">
+                <div className="px-5 py-4 border-b border-border">
                   <div className="flex items-start justify-between">
-                    <h3 className="text-sm font-semibold text-[#333333]">
+                    <h3 className="text-sm font-semibold text-text-body">
                       {review.feature_name}
                     </h3>
-                    <span className="text-[10px] text-[#999999]">
+                    <span className="text-[10px] text-text-placeholder">
                       {Math.round(review.confidence * 100)}% confidence
                     </span>
                   </div>
@@ -226,7 +226,7 @@ export default function PortalPrototypePage() {
 
                 {/* Consultant context */}
                 {review.consultant_verdict && (
-                  <div className="px-5 py-3 border-b border-[#E5E5E5] bg-[#F4F4F4]">
+                  <div className="px-5 py-3 border-b border-border bg-[#F4F4F4]">
                     <div className="flex items-center gap-2 mb-1">
                       <span className="text-[11px] font-medium text-[#666666] uppercase tracking-wide">
                         Consultant says:
@@ -251,11 +251,11 @@ export default function PortalPrototypePage() {
 
                 {/* Validation question */}
                 {review.validation_question && (
-                  <div className="px-5 py-3 border-b border-[#E5E5E5]">
+                  <div className="px-5 py-3 border-b border-border">
                     <p className="text-[11px] font-medium text-[#666666] uppercase tracking-wide mb-1">
                       Key Question
                     </p>
-                    <p className="text-sm text-[#333333] leading-relaxed">
+                    <p className="text-sm text-text-body leading-relaxed">
                       &ldquo;{review.validation_question}&rdquo;
                     </p>
                     {review.validation_area && (
@@ -267,7 +267,7 @@ export default function PortalPrototypePage() {
                 )}
 
                 {/* Client verdict buttons */}
-                <div className="px-5 py-3 border-b border-[#E5E5E5]">
+                <div className="px-5 py-3 border-b border-border">
                   <p className="text-[11px] font-medium text-[#666666] uppercase tracking-wide mb-2">
                     Your Verdict
                   </p>
@@ -299,7 +299,7 @@ export default function PortalPrototypePage() {
                     onBlur={() => handleNotesBlur(review.overlay_id)}
                     rows={2}
                     placeholder="Your feedback (optional)..."
-                    className="w-full px-3 py-2 text-sm border border-[#E5E5E5] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#3FAF7A]/20 focus:border-[#3FAF7A] resize-none text-[#333333] placeholder:text-[#999999]"
+                    className="w-full px-3 py-2 text-sm border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary resize-none text-text-body placeholder:text-text-placeholder"
                   />
                 </div>
               </div>
@@ -311,7 +311,7 @@ export default function PortalPrototypePage() {
             <button
               onClick={handleCompleteReview}
               disabled={submitting}
-              className="w-full px-6 py-3 bg-[#3FAF7A] text-white font-medium rounded-xl hover:bg-[#25785A] transition-all duration-200 shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full px-6 py-3 bg-brand-primary text-white font-medium rounded-xl hover:bg-[#25785A] transition-all duration-200 shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {submitting ? 'Submitting...' : 'Complete Review'}
             </button>

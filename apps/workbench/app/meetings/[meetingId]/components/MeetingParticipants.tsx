@@ -11,7 +11,7 @@ const ROLE_BADGE_CONFIG: Record<string, { bg: string; text: string }> = {
   blocker: { bg: 'bg-[#0A1E2F]', text: 'text-white' },
   influencer: { bg: 'bg-[#F0F0F0]', text: 'text-[#666]' },
   end_user: { bg: 'bg-[#F0F0F0]', text: 'text-[#666]' },
-  consultant: { bg: 'bg-[#E0EFF3]', text: 'text-[#044159]' },
+  consultant: { bg: 'bg-[#E0EFF3]', text: 'text-accent' },
 }
 
 function getInitials(name: string): string {
@@ -43,15 +43,15 @@ export function MeetingParticipants({ participants, onAddParticipant }: MeetingP
   return (
     <div className="mt-7">
       <div className="flex items-center justify-between mb-3.5">
-        <div className="text-[15px] font-semibold text-[#1D1D1F] flex items-center gap-2">
+        <div className="text-[15px] font-semibold text-text-primary flex items-center gap-2">
           Participants
-          <span className="text-[12px] font-medium text-[#7B7B7B] bg-[#F0F0F0] px-[7px] py-[1px] rounded-lg">
+          <span className="text-[12px] font-medium text-text-muted bg-[#F0F0F0] px-[7px] py-[1px] rounded-lg">
             {participants.length}
           </span>
         </div>
         <button
           onClick={onAddParticipant}
-          className="w-7 h-7 rounded-md border border-dashed border-[#D0D0D0] flex items-center justify-center text-[#7B7B7B] hover:border-[#044159] hover:text-[#044159] hover:bg-[#f0f7fa] transition-colors"
+          className="w-7 h-7 rounded-md border border-dashed border-[#D0D0D0] flex items-center justify-center text-text-muted hover:border-accent hover:text-accent hover:bg-[#f0f7fa] transition-colors"
         >
           <Plus className="w-3.5 h-3.5" />
         </button>
@@ -61,7 +61,7 @@ export function MeetingParticipants({ participants, onAddParticipant }: MeetingP
         {participants.map((p, i) => (
           <div
             key={p.id}
-            className="flex items-center gap-2.5 px-3.5 py-2 bg-white border border-[#E5E5E5] rounded-lg min-w-[180px] hover:border-[#D0D0D0] hover:shadow-[0_2px_4px_rgba(0,0,0,0.04)] transition-all"
+            className="flex items-center gap-2.5 px-3.5 py-2 bg-white border border-border rounded-lg min-w-[180px] hover:border-[#D0D0D0] hover:shadow-[0_2px_4px_rgba(0,0,0,0.04)] transition-all"
           >
             <div
               className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold text-white flex-shrink-0"
@@ -72,10 +72,10 @@ export function MeetingParticipants({ participants, onAddParticipant }: MeetingP
               {getInitials(p.name)}
             </div>
             <div className="min-w-0">
-              <div className="text-[13px] font-semibold text-[#1D1D1F] truncate">
+              <div className="text-[13px] font-semibold text-text-primary truncate">
                 {p.name}
               </div>
-              <div className="flex items-center gap-1 text-[11px] text-[#7B7B7B]">
+              <div className="flex items-center gap-1 text-[11px] text-text-muted">
                 {getRoleBadge(p.stakeholder_type)}
                 {p.organization && <span className="truncate">{p.organization}</span>}
               </div>
@@ -84,7 +84,7 @@ export function MeetingParticipants({ participants, onAddParticipant }: MeetingP
         ))}
 
         {participants.length === 0 && (
-          <div className="text-[13px] text-[#7B7B7B] py-2">
+          <div className="text-[13px] text-text-muted py-2">
             No participants added yet
           </div>
         )}

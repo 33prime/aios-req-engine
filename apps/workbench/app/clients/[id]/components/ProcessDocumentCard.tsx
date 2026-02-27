@@ -28,11 +28,11 @@ export function ProcessDocumentCard({ doc, onClick }: ProcessDocumentCardProps) 
   return (
     <button
       onClick={() => onClick(doc)}
-      className="w-full text-left bg-white rounded-xl border border-[#E5E5E5] p-4 hover:border-[#3FAF7A] hover:shadow-sm transition-all group"
+      className="w-full text-left bg-white rounded-xl border border-border p-4 hover:border-brand-primary hover:shadow-sm transition-all group"
     >
       <div className="flex items-start gap-3">
         <div className="p-2 bg-[#F4F4F4] rounded-lg group-hover:bg-[#E8F5E9] transition-colors">
-          <FileText className="w-4 h-4 text-[#666] group-hover:text-[#3FAF7A] transition-colors" />
+          <FileText className="w-4 h-4 text-[#666] group-hover:text-brand-primary transition-colors" />
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-[13px] font-medium text-[#333] line-clamp-1">{doc.title}</p>
@@ -50,7 +50,7 @@ export function ProcessDocumentCard({ doc, onClick }: ProcessDocumentCardProps) 
             </span>
           </div>
         </div>
-        <ArrowRight className="w-4 h-4 text-[#CCC] group-hover:text-[#3FAF7A] transition-colors flex-shrink-0 mt-1" />
+        <ArrowRight className="w-4 h-4 text-[#CCC] group-hover:text-brand-primary transition-colors flex-shrink-0 mt-1" />
       </div>
     </button>
   )

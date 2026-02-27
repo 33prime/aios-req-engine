@@ -89,7 +89,7 @@ export function IntelligencePanel({
       <div className="flex flex-col h-full">
         <PanelHeader phase={null} progress={0} />
         <div className="flex-1 flex items-center justify-center p-6">
-          <div className="flex items-center gap-2 text-[12px] text-[#999999]">
+          <div className="flex items-center gap-2 text-[12px] text-text-placeholder">
             <Loader2 className="w-4 h-4 animate-spin" />
             Analyzing project...
           </div>
@@ -104,10 +104,10 @@ export function IntelligencePanel({
         <PanelHeader phase={null} progress={0} />
         <div className="flex-1 flex items-center justify-center p-6">
           <div className="text-center">
-            <p className="text-[12px] text-[#999999]">{error}</p>
+            <p className="text-[12px] text-text-placeholder">{error}</p>
             <button
               onClick={loadActions}
-              className="mt-2 text-[11px] font-medium text-[#3FAF7A] hover:underline"
+              className="mt-2 text-[11px] font-medium text-brand-primary hover:underline"
             >
               Try again
             </button>
@@ -121,7 +121,7 @@ export function IntelligencePanel({
   const phase = frame?.phase ?? 'empty'
 
   return (
-    <div className="flex flex-col h-full bg-white border-r border-[#E5E5E5]">
+    <div className="flex flex-col h-full bg-white border-r border-border">
       <PanelHeader
         phase={phase}
         progress={frame?.phase_progress ?? 0}
@@ -186,10 +186,10 @@ function PanelHeader({
   const progressPct = Math.round(progress * 100)
 
   return (
-    <div className="px-4 py-3 border-b border-[#E5E5E5] bg-[#0A1E2F] flex-shrink-0">
+    <div className="px-4 py-3 border-b border-border bg-[#0A1E2F] flex-shrink-0">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Sparkles className="w-4 h-4 text-[#3FAF7A]" />
+          <Sparkles className="w-4 h-4 text-brand-primary" />
           <h2 className="text-[13px] font-semibold text-white">Next Actions</h2>
         </div>
         {onRefresh && (
@@ -209,7 +209,7 @@ function PanelHeader({
         <span className="text-[11px] text-white/60">{phaseLabel}</span>
         <div className="flex-1 h-1 bg-white/10 rounded-full overflow-hidden">
           <div
-            className="h-full bg-[#3FAF7A] rounded-full transition-all duration-500"
+            className="h-full bg-brand-primary rounded-full transition-all duration-500"
             style={{ width: `${progressPct}%` }}
           />
         </div>
@@ -228,11 +228,11 @@ function PhaseEmptyState({ phase }: { phase: string }) {
 
   return (
     <div className="p-6 text-center">
-      <Sparkles className="w-8 h-8 text-[#3FAF7A] mx-auto mb-3 opacity-50" />
-      <p className="text-[13px] font-medium text-[#333333]">
+      <Sparkles className="w-8 h-8 text-brand-primary mx-auto mb-3 opacity-50" />
+      <p className="text-[13px] font-medium text-text-body">
         {phase === 'refining' ? 'Looking good' : 'Ready when you are'}
       </p>
-      <p className="text-[12px] text-[#999999] mt-1">{description}</p>
+      <p className="text-[12px] text-text-placeholder mt-1">{description}</p>
     </div>
   )
 }
@@ -266,7 +266,7 @@ function TerseActionCard({
   return (
     <div
       className={`
-        border border-[#E5E5E5] rounded-xl bg-white overflow-hidden
+        border border-border rounded-xl bg-white overflow-hidden
         transition-all duration-500
         ${isFading ? 'opacity-0 scale-95 -translate-y-2' : 'opacity-100'}
         shadow-sm hover:shadow-md
@@ -299,7 +299,7 @@ function TerseActionCard({
             </div>
 
             {/* The sentence */}
-            <p className="text-[13px] text-[#333333] leading-relaxed">
+            <p className="text-[13px] text-text-body leading-relaxed">
               {action.sentence}
             </p>
           </div>
@@ -321,7 +321,7 @@ function TerseActionCard({
                 value={answerText}
                 onChange={e => onAnswerChange(e.target.value)}
                 placeholder={action.question_placeholder || 'Type your answer...'}
-                className="flex-1 px-3 py-1.5 text-[12px] border border-[#E5E5E5] rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-[#3FAF7A] placeholder:text-[#CCCCCC]"
+                className="flex-1 px-3 py-1.5 text-[12px] border border-border rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-brand-primary placeholder:text-[#CCCCCC]"
                 onKeyDown={e => {
                   if (e.key === 'Enter' && answerText.trim()) onSubmitAnswer()
                 }}
@@ -330,7 +330,7 @@ function TerseActionCard({
               <button
                 onClick={onSubmitAnswer}
                 disabled={isSubmitting || !answerText.trim()}
-                className="p-1.5 text-white bg-[#3FAF7A] hover:bg-[#25785A] rounded-lg disabled:opacity-40 transition-colors"
+                className="p-1.5 text-white bg-brand-primary hover:bg-[#25785A] rounded-lg disabled:opacity-40 transition-colors"
                 title="Submit answer"
               >
                 {isSubmitting ? (
@@ -344,7 +344,7 @@ function TerseActionCard({
             /* Upload CTA */
             <button
               onClick={() => onNavigate?.('signal', null)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-[#0A1E2F] bg-[#F0F0F0] hover:bg-[#E5E5E5] rounded-lg transition-colors"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-[#0A1E2F] bg-[#F0F0F0] hover:bg-border rounded-lg transition-colors"
             >
               <Upload className="w-3 h-3" />
               {action.cta_label}
@@ -353,7 +353,7 @@ function TerseActionCard({
             /* Discuss CTA */
             <button
               onClick={() => onNavigate?.('chat', null)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-[#3FAF7A] bg-[#E8F5E9] hover:bg-[#D4EDD9] rounded-lg transition-colors"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-brand-primary bg-[#E8F5E9] hover:bg-[#D4EDD9] rounded-lg transition-colors"
             >
               <MessageSquare className="w-3 h-3" />
               {action.cta_label}
@@ -365,7 +365,7 @@ function TerseActionCard({
             action.entity_type !== 'project' && (
               <button
                 onClick={() => onNavigate?.(action.entity_type!, action.entity_id)}
-                className="mt-1.5 inline-flex items-center gap-1 text-[11px] text-[#3FAF7A] hover:underline"
+                className="mt-1.5 inline-flex items-center gap-1 text-[11px] text-brand-primary hover:underline"
               >
                 <ArrowRight className="w-3 h-3" />
                 {action.entity_name || 'View entity'}
@@ -392,7 +392,7 @@ function OpenQuestionsSummary({
   const highCount = questions.filter(q => q.priority === 'high').length
 
   return (
-    <div className="border border-[#E5E5E5] rounded-xl bg-[#FAFAFA] p-3">
+    <div className="border border-border rounded-xl bg-surface-page p-3">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <span className="text-[11px] font-medium text-[#666666]">
@@ -411,7 +411,7 @@ function OpenQuestionsSummary({
         </div>
         <button
           onClick={onNavigate}
-          className="text-[11px] font-medium text-[#3FAF7A] hover:underline"
+          className="text-[11px] font-medium text-brand-primary hover:underline"
         >
           View all
         </button>

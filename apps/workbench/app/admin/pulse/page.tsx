@@ -8,9 +8,9 @@ import { getAdminProjectPulses, getAdminPulseConfigs } from '@/lib/api'
 import type { AdminProjectPulse, AdminPulseConfigSummary } from '@/types/api'
 
 const STAGE_COLORS: Record<string, string> = {
-  discovery: 'bg-[#3FAF7A]/15 text-[#25785A]',
-  validation: 'bg-[#3FAF7A]/15 text-[#25785A]',
-  prototype: 'bg-[#3FAF7A]/20 text-[#25785A]',
+  discovery: 'bg-brand-primary/15 text-[#25785A]',
+  validation: 'bg-brand-primary/15 text-[#25785A]',
+  prototype: 'bg-brand-primary/20 text-[#25785A]',
   specification: 'bg-[#0A1E2F]/10 text-[#0A1E2F]',
   handoff: 'bg-[#0A1E2F]/15 text-[#0A1E2F]',
 }
@@ -39,7 +39,7 @@ export default function AdminPulsePage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="w-5 h-5 border-2 border-[#3FAF7A] border-t-transparent rounded-full animate-spin" />
+        <div className="w-5 h-5 border-2 border-brand-primary border-t-transparent rounded-full animate-spin" />
       </div>
     )
   }
@@ -67,7 +67,7 @@ export default function AdminPulsePage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-[22px] font-bold text-[#333333]">Pulse Engine</h1>
+      <h1 className="text-[22px] font-bold text-text-body">Pulse Engine</h1>
 
       {/* Top stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -78,13 +78,13 @@ export default function AdminPulsePage() {
       </div>
 
       {/* Active projects heatmap */}
-      <div className="bg-white rounded-2xl shadow-md border border-[#E5E5E5] p-6">
-        <h2 className="text-[15px] font-semibold text-[#333333] mb-5">Project Health</h2>
+      <div className="bg-white rounded-2xl shadow-md border border-border p-6">
+        <h2 className="text-[15px] font-semibold text-text-body mb-5">Project Health</h2>
 
         {activeProjects.length === 0 ? (
           <div className="text-center py-8">
-            <Activity className="w-8 h-8 text-[#E5E5E5] mx-auto mb-3" />
-            <p className="text-[13px] text-[#999999] mb-1">No pulse snapshots yet</p>
+            <Activity className="w-8 h-8 text-border mx-auto mb-3" />
+            <p className="text-[13px] text-text-placeholder mb-1">No pulse snapshots yet</p>
             <p className="text-[12px] text-[#CCCCCC]">
               Snapshots are recorded when signals are processed or entities are confirmed.
               You can also trigger one via the API: GET /projects/:id/pulse
@@ -94,28 +94,28 @@ export default function AdminPulsePage() {
           <div className="overflow-x-auto">
             <table className="w-full text-[13px]">
               <thead>
-                <tr className="border-b border-[#E5E5E5]">
-                  <th className="text-left py-2 pr-3 text-[#999999] font-medium">Project</th>
-                  <th className="text-left py-2 px-3 text-[#999999] font-medium">Stage</th>
+                <tr className="border-b border-border">
+                  <th className="text-left py-2 pr-3 text-text-placeholder font-medium">Project</th>
+                  <th className="text-left py-2 px-3 text-text-placeholder font-medium">Stage</th>
                   {allEntityTypes.map((et) => (
-                    <th key={et} className="text-center py-2 px-2 text-[#999999] font-medium whitespace-nowrap">
+                    <th key={et} className="text-center py-2 px-2 text-text-placeholder font-medium whitespace-nowrap">
                       {et.replace(/_/g, ' ')}
                     </th>
                   ))}
-                  <th className="text-center py-2 px-3 text-[#999999] font-medium">Risk</th>
-                  <th className="text-left py-2 px-3 text-[#999999] font-medium">Top Action</th>
-                  <th className="text-center py-2 px-3 text-[#999999] font-medium">Snaps</th>
+                  <th className="text-center py-2 px-3 text-text-placeholder font-medium">Risk</th>
+                  <th className="text-left py-2 px-3 text-text-placeholder font-medium">Top Action</th>
+                  <th className="text-center py-2 px-3 text-text-placeholder font-medium">Snaps</th>
                   <th className="py-2 pl-3 w-8" />
                 </tr>
               </thead>
               <tbody>
                 {activeProjects.map((proj) => (
-                  <tr key={proj.project_id} className="border-b border-[#F4F4F4] hover:bg-[#FAFAFA] transition-colors">
-                    <td className="py-2.5 pr-3 font-medium text-[#333333] max-w-[160px] truncate">
+                  <tr key={proj.project_id} className="border-b border-[#F4F4F4] hover:bg-surface-page transition-colors">
+                    <td className="py-2.5 pr-3 font-medium text-text-body max-w-[160px] truncate">
                       {proj.project_name || proj.project_id.slice(0, 8)}
                     </td>
                     <td className="py-2.5 px-3">
-                      <span className={`inline-block px-2 py-0.5 rounded-full text-[11px] font-medium ${STAGE_COLORS[proj.stage] || 'bg-[#E5E5E5] text-[#666666]'}`}>
+                      <span className={`inline-block px-2 py-0.5 rounded-full text-[11px] font-medium ${STAGE_COLORS[proj.stage] || 'bg-border text-[#666666]'}`}>
                         {proj.stage}
                       </span>
                     </td>
@@ -133,7 +133,7 @@ export default function AdminPulsePage() {
                               {formatScore(score)}
                             </span>
                           ) : (
-                            <span className="text-[#E5E5E5]">—</span>
+                            <span className="text-border">—</span>
                           )}
                         </td>
                       )
@@ -145,7 +145,7 @@ export default function AdminPulsePage() {
                             ? 'bg-[#EF4444]/15 text-[#991B1B]'
                             : proj.risk_score >= 20
                               ? 'bg-[#F59E0B]/15 text-[#92400E]'
-                              : 'bg-[#3FAF7A]/15 text-[#25785A]'
+                              : 'bg-brand-primary/15 text-[#25785A]'
                         }`}
                       >
                         {formatScore(proj.risk_score)}
@@ -154,11 +154,11 @@ export default function AdminPulsePage() {
                     <td className="py-2.5 px-3 text-[#666666] max-w-[220px] truncate">
                       {proj.top_action || '—'}
                     </td>
-                    <td className="text-center py-2.5 px-3 text-[#999999] font-mono">
+                    <td className="text-center py-2.5 px-3 text-text-placeholder font-mono">
                       {proj.snapshot_count}
                     </td>
                     <td className="py-2.5 pl-3">
-                      <Link href={`/admin/pulse/${proj.project_id}`} className="text-[#3FAF7A] hover:text-[#25785A]">
+                      <Link href={`/admin/pulse/${proj.project_id}`} className="text-brand-primary hover:text-[#25785A]">
                         <ChevronRight className="w-4 h-4" />
                       </Link>
                     </td>
@@ -172,16 +172,16 @@ export default function AdminPulsePage() {
 
       {/* Pending projects */}
       {pendingProjects.length > 0 && (
-        <div className="bg-white rounded-2xl shadow-md border border-[#E5E5E5] p-6">
-          <h2 className="text-[15px] font-semibold text-[#333333] mb-3">
+        <div className="bg-white rounded-2xl shadow-md border border-border p-6">
+          <h2 className="text-[15px] font-semibold text-text-body mb-3">
             Awaiting First Signal
-            <span className="text-[12px] font-normal text-[#999999] ml-2">{pendingProjects.length} projects</span>
+            <span className="text-[12px] font-normal text-text-placeholder ml-2">{pendingProjects.length} projects</span>
           </h2>
           <div className="flex flex-wrap gap-2">
             {pendingProjects.map((proj) => (
               <span key={proj.project_id} className="px-3 py-1.5 bg-[#F4F4F4] rounded-lg text-[12px] text-[#666666]">
                 {proj.project_name || proj.project_id.slice(0, 8)}
-                <span className={`ml-2 px-1.5 py-0.5 rounded-full text-[10px] font-medium ${STAGE_COLORS[proj.stage] || 'bg-[#E5E5E5] text-[#666666]'}`}>
+                <span className={`ml-2 px-1.5 py-0.5 rounded-full text-[10px] font-medium ${STAGE_COLORS[proj.stage] || 'bg-border text-[#666666]'}`}>
                   {proj.stage}
                 </span>
               </span>
@@ -191,38 +191,38 @@ export default function AdminPulsePage() {
       )}
 
       {/* Configs table */}
-      <div className="bg-white rounded-2xl shadow-md border border-[#E5E5E5] p-6">
-        <h2 className="text-[15px] font-semibold text-[#333333] mb-5">Pulse Configs</h2>
+      <div className="bg-white rounded-2xl shadow-md border border-border p-6">
+        <h2 className="text-[15px] font-semibold text-text-body mb-5">Pulse Configs</h2>
 
         {configs.length === 0 ? (
-          <p className="text-[13px] text-[#999999]">No custom configs — all projects using default v1.0.</p>
+          <p className="text-[13px] text-text-placeholder">No custom configs — all projects using default v1.0.</p>
         ) : (
           <table className="w-full text-[13px]">
             <thead>
-              <tr className="border-b border-[#E5E5E5]">
-                <th className="text-left py-2 pr-3 text-[#999999] font-medium">Version</th>
-                <th className="text-left py-2 px-3 text-[#999999] font-medium">Label</th>
-                <th className="text-left py-2 px-3 text-[#999999] font-medium">Scope</th>
-                <th className="text-center py-2 px-3 text-[#999999] font-medium">Active</th>
-                <th className="text-left py-2 px-3 text-[#999999] font-medium">Created</th>
+              <tr className="border-b border-border">
+                <th className="text-left py-2 pr-3 text-text-placeholder font-medium">Version</th>
+                <th className="text-left py-2 px-3 text-text-placeholder font-medium">Label</th>
+                <th className="text-left py-2 px-3 text-text-placeholder font-medium">Scope</th>
+                <th className="text-center py-2 px-3 text-text-placeholder font-medium">Active</th>
+                <th className="text-left py-2 px-3 text-text-placeholder font-medium">Created</th>
               </tr>
             </thead>
             <tbody>
               {configs.map((cfg) => (
                 <tr key={cfg.id} className="border-b border-[#F4F4F4]">
-                  <td className="py-2.5 pr-3 font-mono text-[#333333]">{cfg.version}</td>
+                  <td className="py-2.5 pr-3 font-mono text-text-body">{cfg.version}</td>
                   <td className="py-2.5 px-3 text-[#666666]">{cfg.label || '—'}</td>
                   <td className="py-2.5 px-3 text-[#666666]">
                     {cfg.project_id ? `Project ${cfg.project_id.slice(0, 8)}…` : 'Global'}
                   </td>
                   <td className="text-center py-2.5 px-3">
                     {cfg.is_active ? (
-                      <span className="inline-block w-2 h-2 rounded-full bg-[#3FAF7A]" />
+                      <span className="inline-block w-2 h-2 rounded-full bg-brand-primary" />
                     ) : (
-                      <span className="inline-block w-2 h-2 rounded-full bg-[#E5E5E5]" />
+                      <span className="inline-block w-2 h-2 rounded-full bg-border" />
                     )}
                   </td>
-                  <td className="py-2.5 px-3 text-[#999999]">
+                  <td className="py-2.5 px-3 text-text-placeholder">
                     {cfg.created_at ? new Date(cfg.created_at).toLocaleDateString() : '—'}
                   </td>
                 </tr>

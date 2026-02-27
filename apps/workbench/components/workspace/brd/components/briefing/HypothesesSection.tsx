@@ -21,10 +21,10 @@ export function HypothesesSection({ hypotheses, projectId }: HypothesesSectionPr
   if (active.length === 0) return null
 
   return (
-    <div className="border-b border-[#E5E5E5]">
+    <div className="border-b border-border">
       <button
         onClick={() => setExpanded(!expanded)}
-        className="w-full px-4 py-2.5 flex items-center justify-between hover:bg-[#FAFAFA] transition-colors"
+        className="w-full px-4 py-2.5 flex items-center justify-between hover:bg-surface-page transition-colors"
       >
         <div className="flex items-center gap-2">
           <FlaskConical className="w-3.5 h-3.5 text-[#666666]" />
@@ -36,7 +36,7 @@ export function HypothesesSection({ hypotheses, projectId }: HypothesesSectionPr
           </span>
         </div>
         <ChevronDown
-          className={`w-3.5 h-3.5 text-[#999999] transition-transform duration-200 ${
+          className={`w-3.5 h-3.5 text-text-placeholder transition-transform duration-200 ${
             expanded ? 'rotate-180' : ''
           }`}
         />
@@ -59,7 +59,7 @@ function HypothesisCard({ hypothesis }: { hypothesis: Hypothesis }) {
   const confidencePct = Math.round(hypothesis.confidence * 100)
 
   return (
-    <div className="border border-[#E5E5E5] rounded-xl p-3 bg-white">
+    <div className="border border-border rounded-xl p-3 bg-white">
       {/* Status + domain */}
       <div className="flex items-center gap-2 mb-1.5">
         <span
@@ -72,18 +72,18 @@ function HypothesisCard({ hypothesis }: { hypothesis: Hypothesis }) {
           {statusLabel}
         </span>
         {hypothesis.domain && (
-          <span className="text-[10px] text-[#999999]">{hypothesis.domain}</span>
+          <span className="text-[10px] text-text-placeholder">{hypothesis.domain}</span>
         )}
       </div>
 
       {/* Statement */}
-      <p className="text-[12px] text-[#333333] leading-relaxed mb-2">
+      <p className="text-[12px] text-text-body leading-relaxed mb-2">
         {hypothesis.statement}
       </p>
 
       {/* Confidence bar */}
       <div className="flex items-center gap-2 mb-2">
-        <div className="flex-1 h-1.5 bg-[#E5E5E5] rounded-full overflow-hidden">
+        <div className="flex-1 h-1.5 bg-border rounded-full overflow-hidden">
           <div
             className="h-full rounded-full transition-all duration-500"
             style={{
@@ -97,10 +97,10 @@ function HypothesisCard({ hypothesis }: { hypothesis: Hypothesis }) {
 
       {/* Evidence counts */}
       <div className="flex items-center gap-3">
-        <span className="text-[10px] text-[#3FAF7A]">
+        <span className="text-[10px] text-brand-primary">
           {hypothesis.evidence_for} supporting
         </span>
-        <span className="text-[10px] text-[#999999]">
+        <span className="text-[10px] text-text-placeholder">
           {hypothesis.evidence_against} contradicting
         </span>
       </div>

@@ -54,7 +54,7 @@ function ProjectCard({ project, clientName, nextAction, onView, onUnlink }: {
 
   return (
     <div
-      className="bg-white rounded-2xl shadow-md border border-[#E5E5E5] p-5 hover:shadow-lg cursor-pointer transition-shadow flex flex-col"
+      className="bg-white rounded-2xl shadow-md border border-border p-5 hover:shadow-lg cursor-pointer transition-shadow flex flex-col"
       onClick={onView}
     >
       {/* Top row: avatar + name + stage */}
@@ -73,14 +73,14 @@ function ProjectCard({ project, clientName, nextAction, onView, onUnlink }: {
 
       {/* Readiness bar */}
       <div className="mt-3 flex items-center gap-2">
-        <span className={`w-2 h-2 rounded-full flex-shrink-0 ${score > 0 ? 'bg-[#3FAF7A]' : 'bg-[#3FAF7A]'}`} />
-        <div className="flex-1 h-1.5 bg-[#E5E5E5] rounded-full overflow-hidden">
+        <span className={`w-2 h-2 rounded-full flex-shrink-0 ${score > 0 ? 'bg-brand-primary' : 'bg-brand-primary'}`} />
+        <div className="flex-1 h-1.5 bg-border rounded-full overflow-hidden">
           <div
-            className="h-full bg-[#3FAF7A] rounded-full transition-all"
+            className="h-full bg-brand-primary rounded-full transition-all"
             style={{ width: `${Math.min(score, 100)}%` }}
           />
         </div>
-        <span className={`text-sm font-semibold tabular-nums ${score > 0 ? 'text-[#3FAF7A]' : 'text-[#3FAF7A]'}`}>
+        <span className={`text-sm font-semibold tabular-nums ${score > 0 ? 'text-brand-primary' : 'text-brand-primary'}`}>
           {Math.round(score)}%
         </span>
       </div>
@@ -89,8 +89,8 @@ function ProjectCard({ project, clientName, nextAction, onView, onUnlink }: {
       <div className="mt-3">
         {nextAction ? (
           <div className="flex items-center gap-1.5 bg-[#E8F5E9] rounded-lg px-3 py-2">
-            <ArrowRight className="w-3 h-3 text-[#3FAF7A] flex-shrink-0" />
-            <span className="text-[12px] text-[#3FAF7A] truncate">{nextAction.title}</span>
+            <ArrowRight className="w-3 h-3 text-brand-primary flex-shrink-0" />
+            <span className="text-[12px] text-brand-primary truncate">{nextAction.title}</span>
           </div>
         ) : (
           <p className="text-[12px] text-[#999]">All caught up</p>
@@ -116,7 +116,7 @@ function ProjectCard({ project, clientName, nextAction, onView, onUnlink }: {
       <div className="flex-1" />
 
       {/* Footer */}
-      <div className="flex items-center justify-between mt-3 pt-3 border-t border-[#E5E5E5]">
+      <div className="flex items-center justify-between mt-3 pt-3 border-t border-border">
         <span className="text-[10px] text-[#999]">
           {project.updated_at
             ? formatDistanceToNow(new Date(project.updated_at), { addSuffix: true })
@@ -218,14 +218,14 @@ export function ClientProjectsTab({ client, onRefresh }: ClientProjectsTabProps)
         <div className="relative">
           <button
             onClick={handleToggleLinkDropdown}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-[#3FAF7A] border border-[#3FAF7A] rounded-xl hover:bg-[#E8F5E9] transition-colors"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-brand-primary border border-brand-primary rounded-xl hover:bg-[#E8F5E9] transition-colors"
           >
             <Plus className="w-3 h-3" />
             Link Project
           </button>
 
           {showLinkDropdown && (
-            <div className="absolute right-0 top-full mt-1 w-64 bg-white rounded-xl border border-[#E5E5E5] shadow-lg z-10 max-h-[240px] overflow-y-auto">
+            <div className="absolute right-0 top-full mt-1 w-64 bg-white rounded-xl border border-border shadow-lg z-10 max-h-[240px] overflow-y-auto">
               {loadingProjects ? (
                 <div className="px-3 py-4 text-center text-[12px] text-[#999]">Loading...</div>
               ) : availableProjects.length === 0 ? (
@@ -250,7 +250,7 @@ export function ClientProjectsTab({ client, onRefresh }: ClientProjectsTabProps)
 
       {/* Projects grid */}
       {client.projects.length === 0 ? (
-        <div className="text-center py-12 bg-white rounded-2xl border border-[#E5E5E5] shadow-md">
+        <div className="text-center py-12 bg-white rounded-2xl border border-border shadow-md">
           <FolderKanban className="w-8 h-8 text-[#CCC] mx-auto mb-2" />
           <p className="text-[13px] text-[#666] mb-1">No linked projects</p>
           <p className="text-[12px] text-[#999]">Link existing projects to this client</p>

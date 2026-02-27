@@ -72,23 +72,23 @@ export function ConversationStarterCard({
   return (
     <button
       onClick={() => onStartConversation(starter)}
-      className="w-full text-left flex items-start gap-3 px-3 py-3 border-b border-[#F0F0F0] last:border-b-0 hover:bg-[#FAFAFA] transition-colors group"
+      className="w-full text-left flex items-start gap-3 px-3 py-3 border-b border-[#F0F0F0] last:border-b-0 hover:bg-surface-page transition-colors group"
     >
       {/* Action type icon */}
       <div className="w-7 h-7 rounded-lg bg-[#F4F4F4] group-hover:bg-[#E8F5E9] flex items-center justify-center flex-shrink-0 mt-0.5 transition-colors">
-        <ActionIcon className="w-3.5 h-3.5 text-[#999999] group-hover:text-[#3FAF7A] transition-colors" />
+        <ActionIcon className="w-3.5 h-3.5 text-text-placeholder group-hover:text-brand-primary transition-colors" />
       </div>
 
       {/* Content */}
       <div className="flex-1 min-w-0">
-        <p className="text-[13px] text-[#333333] leading-snug pr-4">
+        <p className="text-[13px] text-text-body leading-snug pr-4">
           {renderHook(starter.hook)}
         </p>
 
         {/* Bottom: source chip + action label + arrow */}
         <div className="flex items-center gap-2 mt-1.5">
           {anchorLabel && (
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[#F4F4F4] text-[10px] text-[#999999]">
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[#F4F4F4] text-[10px] text-text-placeholder">
               <FileText className="w-2.5 h-2.5" />
               {anchorLabel}
             </span>
@@ -97,7 +97,7 @@ export function ConversationStarterCard({
             {actionLabel}
           </span>
           <div className="flex-1" />
-          <ChevronRight className="w-3.5 h-3.5 text-[#E5E5E5] group-hover:text-[#3FAF7A] transition-colors flex-shrink-0" />
+          <ChevronRight className="w-3.5 h-3.5 text-border group-hover:text-brand-primary transition-colors flex-shrink-0" />
         </div>
       </div>
     </button>

@@ -88,7 +88,7 @@ export function OrgContextDisplay({ orgContext, variant }: OrgContextDisplayProp
 
       {/* Key Insight */}
       {assessment.key_insight && (
-        <div className="border-l-2 border-[#3FAF7A] pl-3 bg-[#F4F4F4] rounded-lg p-3">
+        <div className="border-l-2 border-brand-primary pl-3 bg-[#F4F4F4] rounded-lg p-3">
           <p className="text-[11px] text-[#999] font-medium uppercase tracking-wide mb-1">Key Insight</p>
           <p className="text-[13px] text-[#333] leading-relaxed">{assessment.key_insight}</p>
         </div>
@@ -124,7 +124,7 @@ export function OrgContextDisplay({ orgContext, variant }: OrgContextDisplayProp
 
           {/* Stakeholder Analysis */}
           {stakeholderAnalysis && Object.keys(stakeholderAnalysis).length > 0 && (
-            <div className="pt-3 border-t border-[#E5E5E5]">
+            <div className="pt-3 border-t border-border">
               <p className="text-[12px] font-semibold text-[#333] mb-2">Stakeholder Analysis</p>
 
               {/* Decision Makers */}

@@ -123,7 +123,7 @@ export function ClientPeopleTab({ clientId, roleGaps }: ClientPeopleTabProps) {
 
       {/* Role Gaps */}
       {roleGaps.length > 0 && (
-        <div className="bg-white rounded-2xl border border-[#E5E5E5] shadow-md p-5">
+        <div className="bg-white rounded-2xl border border-border shadow-md p-5">
           <div className="flex items-center gap-2 mb-3">
             <AlertTriangle className="w-4 h-4 text-[#666]" />
             <h3 className="text-[14px] font-semibold text-[#333]">Role Gaps</h3>
@@ -133,7 +133,7 @@ export function ClientPeopleTab({ clientId, roleGaps }: ClientPeopleTabProps) {
               <div key={i} className="bg-[#F4F4F4] rounded-xl p-3">
                 <div className="flex items-center gap-2">
                   <span className="text-[13px] font-semibold text-[#333]">Missing: {gap.role}</span>
-                  <span className="px-1.5 py-0.5 text-[10px] font-medium text-[#666] bg-[#E5E5E5] rounded">
+                  <span className="px-1.5 py-0.5 text-[10px] font-medium text-[#666] bg-border rounded">
                     {gap.urgency}
                   </span>
                 </div>
@@ -141,7 +141,7 @@ export function ClientPeopleTab({ clientId, roleGaps }: ClientPeopleTabProps) {
                 {gap.which_areas && gap.which_areas.length > 0 && (
                   <div className="flex flex-wrap gap-1 mt-1.5">
                     {gap.which_areas.map((area, j) => (
-                      <span key={j} className="px-1.5 py-0.5 text-[10px] text-[#999] bg-white rounded border border-[#E5E5E5]">
+                      <span key={j} className="px-1.5 py-0.5 text-[10px] text-[#999] bg-white rounded border border-border">
                         {area}
                       </span>
                     ))}
@@ -154,9 +154,9 @@ export function ClientPeopleTab({ clientId, roleGaps }: ClientPeopleTabProps) {
       )}
 
       {/* Stakeholder Table */}
-      <div className="bg-white rounded-2xl border border-[#E5E5E5] shadow-md overflow-hidden">
+      <div className="bg-white rounded-2xl border border-border shadow-md overflow-hidden">
         {/* Filter bar */}
-        <div className="flex items-center gap-3 px-4 py-3 border-b border-[#E5E5E5]">
+        <div className="flex items-center gap-3 px-4 py-3 border-b border-border">
           <select
             value={typeFilter}
             onChange={(e) => setTypeFilter(e.target.value)}
@@ -182,7 +182,7 @@ export function ClientPeopleTab({ clientId, roleGaps }: ClientPeopleTabProps) {
 
         {loading ? (
           <div className="flex items-center justify-center py-12">
-            <Loader2 className="w-5 h-5 text-[#3FAF7A] animate-spin" />
+            <Loader2 className="w-5 h-5 text-brand-primary animate-spin" />
           </div>
         ) : filtered.length === 0 ? (
           <div className="text-center py-12">
@@ -192,7 +192,7 @@ export function ClientPeopleTab({ clientId, roleGaps }: ClientPeopleTabProps) {
         ) : (
           <table className="w-full">
             <thead>
-              <tr className="border-b border-[#E5E5E5]">
+              <tr className="border-b border-border">
                 <th className="text-left px-4 py-2.5 text-[11px] font-medium text-[#999] uppercase tracking-wide">Name</th>
                 <th className="text-left px-4 py-2.5 text-[11px] font-medium text-[#999] uppercase tracking-wide">Role</th>
                 <th className="text-left px-4 py-2.5 text-[11px] font-medium text-[#999] uppercase tracking-wide">Type</th>
@@ -204,12 +204,12 @@ export function ClientPeopleTab({ clientId, roleGaps }: ClientPeopleTabProps) {
               {filtered.map((s) => (
                 <tr
                   key={s.id}
-                  className="border-b border-[#F0F0F0] last:border-0 hover:bg-[#FAFAFA] transition-colors cursor-pointer"
+                  className="border-b border-[#F0F0F0] last:border-0 hover:bg-surface-page transition-colors cursor-pointer"
                   onClick={() => router.push(`/people/${s.id}${s.project_id ? `?project_id=${s.project_id}` : ''}`)}
                 >
                   <td className="px-4 py-2.5">
                     <div className="flex items-center gap-2">
-                      <div className="w-7 h-7 rounded-full bg-gradient-to-br from-[#3FAF7A] to-[#25785A] flex items-center justify-center flex-shrink-0">
+                      <div className="w-7 h-7 rounded-full bg-gradient-to-br from-brand-primary to-[#25785A] flex items-center justify-center flex-shrink-0">
                         <span className="text-[10px] font-bold text-white">{getInitials(s)}</span>
                       </div>
                       <span className="text-[13px] font-medium text-[#333]">{getDisplayName(s)}</span>
@@ -243,7 +243,7 @@ export function ClientPeopleTab({ clientId, roleGaps }: ClientPeopleTabProps) {
       </div>
 
       {/* Org Chart */}
-      <div className="bg-white rounded-2xl border border-[#E5E5E5] shadow-md p-5">
+      <div className="bg-white rounded-2xl border border-border shadow-md p-5">
         <h3 className="text-[14px] font-semibold text-[#333] mb-3">Organization Map</h3>
         {!hasOrgData ? (
           <div className="bg-[#F4F4F4] rounded-lg px-4 py-6 text-center">
@@ -265,7 +265,7 @@ function OrgNode({ person, children: childNodes, byReportsTo }: { person: Stakeh
   return (
     <div>
       <div className="flex items-center gap-2 py-1.5 px-2 rounded-lg hover:bg-[#F4F4F4]">
-        <div className="w-7 h-7 rounded-full bg-gradient-to-br from-[#3FAF7A] to-[#25785A] flex items-center justify-center flex-shrink-0">
+        <div className="w-7 h-7 rounded-full bg-gradient-to-br from-brand-primary to-[#25785A] flex items-center justify-center flex-shrink-0">
           <span className="text-[10px] font-bold text-white">{getInitials(person)}</span>
         </div>
         <span className="text-[13px] font-medium text-[#333]">{getDisplayName(person)}</span>
@@ -281,7 +281,7 @@ function OrgNode({ person, children: childNodes, byReportsTo }: { person: Stakeh
         )}
       </div>
       {childNodes.length > 0 && (
-        <div className="ml-5 border-l-2 border-[#E5E5E5] pl-3">
+        <div className="ml-5 border-l-2 border-border pl-3">
           {childNodes.map((child) => (
             <OrgNode key={child.id} person={child} children={byReportsTo[child.id] || []} byReportsTo={byReportsTo} />
           ))}

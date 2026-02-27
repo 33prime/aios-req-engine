@@ -31,12 +31,12 @@ export function AdminSidebar() {
   const pathname = usePathname()
 
   return (
-    <div className="w-[200px] bg-white border-r border-[#E5E5E5] flex flex-col flex-shrink-0">
+    <div className="w-[200px] bg-white border-r border-border flex flex-col flex-shrink-0">
       {/* Header */}
-      <div className="px-4 py-4 border-b border-[#E5E5E5]">
+      <div className="px-4 py-4 border-b border-border">
         <div className="flex items-center gap-2">
-          <Shield className="w-4 h-4 text-[#3FAF7A]" />
-          <span className="text-[14px] font-semibold text-[#333333]">Admin</span>
+          <Shield className="w-4 h-4 text-brand-primary" />
+          <span className="text-[14px] font-semibold text-text-body">Admin</span>
         </div>
       </div>
 
@@ -54,8 +54,8 @@ export function AdminSidebar() {
               className={`
                 flex items-center gap-2.5 px-4 py-2 text-[13px] transition-colors
                 ${isActive
-                  ? 'bg-[#E8F5E9] text-[#3FAF7A] font-medium border-l-[3px] border-l-[#3FAF7A]'
-                  : 'text-[#666666] hover:bg-[#F4F4F4] hover:text-[#333333] border-l-[3px] border-l-transparent'
+                  ? 'bg-[#E8F5E9] text-brand-primary font-medium border-l-[3px] border-l-brand-primary'
+                  : 'text-[#666666] hover:bg-[#F4F4F4] hover:text-text-body border-l-[3px] border-l-transparent'
                 }
               `}
             >

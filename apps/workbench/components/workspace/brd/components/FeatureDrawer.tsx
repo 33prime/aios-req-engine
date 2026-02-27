@@ -39,7 +39,7 @@ const PRIORITY_COLORS: Record<string, string> = {
   must_have: 'bg-[#0A1E2F] text-white',
   should_have: 'bg-[#E8F5E9] text-[#25785A]',
   could_have: 'bg-[#F0F0F0] text-[#666666]',
-  out_of_scope: 'bg-[#F0F0F0] text-[#999999]',
+  out_of_scope: 'bg-[#F0F0F0] text-text-placeholder',
 }
 
 export function FeatureDrawer({
@@ -105,8 +105,8 @@ function OverviewTab({ feature }: { feature: FeatureBRDSummary }) {
   return (
     <div className="space-y-5">
       {feature.description && (
-        <div className="bg-[#F4F4F4] border border-[#E5E5E5] rounded-xl px-4 py-3">
-          <p className="text-[13px] text-[#333333] leading-relaxed">{feature.description}</p>
+        <div className="bg-[#F4F4F4] border border-border rounded-xl px-4 py-3">
+          <p className="text-[13px] text-text-body leading-relaxed">{feature.description}</p>
         </div>
       )}
 
@@ -143,7 +143,7 @@ function OverviewTab({ feature }: { feature: FeatureBRDSummary }) {
 
       {!feature.description && (!feature.evidence || feature.evidence.length === 0) && (
         <EmptyState
-          icon={<Puzzle className="w-8 h-8 text-[#E5E5E5]" />}
+          icon={<Puzzle className="w-8 h-8 text-border" />}
           title="No details yet"
           description="Process more signals to enrich this feature with details and evidence."
         />
@@ -196,7 +196,7 @@ function HistoryTab({ featureId }: { featureId: string }) {
   if (!revisions || revisions.length === 0) {
     return (
       <EmptyState
-        icon={<Clock className="w-8 h-8 text-[#E5E5E5]" />}
+        icon={<Clock className="w-8 h-8 text-border" />}
         title="No revision history"
         description="Changes will be tracked here as signals are processed."
       />
@@ -210,7 +210,7 @@ function HistoryTab({ featureId }: { featureId: string }) {
         const hasChanges = rev.changes && Object.keys(rev.changes).length > 0
 
         return (
-          <div key={i} className="border border-[#E5E5E5] rounded-xl px-4 py-3">
+          <div key={i} className="border border-border rounded-xl px-4 py-3">
             <div className="flex items-center gap-2 mb-1">
               <span
                 className={`text-[10px] font-medium uppercase px-1.5 py-0.5 rounded ${
@@ -219,10 +219,10 @@ function HistoryTab({ featureId }: { featureId: string }) {
               >
                 {rev.change_type}
               </span>
-              <span className="text-[10px] text-[#999999]">
+              <span className="text-[10px] text-text-placeholder">
                 {rev.created_at ? formatRelativeTime(rev.created_at) : ''}
               </span>
-              <span className="text-[10px] text-[#999999]">
+              <span className="text-[10px] text-text-placeholder">
                 by {formatRevisionAuthor(rev.created_by)}
               </span>
             </div>
@@ -232,7 +232,7 @@ function HistoryTab({ featureId }: { featureId: string }) {
             {hasChanges && (
               <button
                 onClick={() => setExpandedIdx(isExpanded ? null : i)}
-                className="flex items-center gap-1 mt-2 text-[11px] font-medium text-[#999999] hover:text-[#666666] transition-colors"
+                className="flex items-center gap-1 mt-2 text-[11px] font-medium text-text-placeholder hover:text-[#666666] transition-colors"
               >
                 {isExpanded ? (
                   <ChevronDown className="w-3 h-3" />
@@ -243,7 +243,7 @@ function HistoryTab({ featureId }: { featureId: string }) {
               </button>
             )}
             {isExpanded && hasChanges && (
-              <div className="mt-2 bg-[#F4F4F4] border border-[#E5E5E5] rounded-lg px-3 py-2">
+              <div className="mt-2 bg-[#F4F4F4] border border-border rounded-lg px-3 py-2">
                 <pre className="text-[11px] text-[#666666] whitespace-pre-wrap break-words font-mono leading-relaxed">
                   {JSON.stringify(rev.changes, null, 2)}
                 </pre>

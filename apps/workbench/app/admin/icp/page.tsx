@@ -142,7 +142,7 @@ export default function AdminICPPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="w-5 h-5 border-2 border-[#3FAF7A] border-t-transparent rounded-full animate-spin" />
+        <div className="w-5 h-5 border-2 border-brand-primary border-t-transparent rounded-full animate-spin" />
       </div>
     )
   }
@@ -150,19 +150,19 @@ export default function AdminICPPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-[22px] font-bold text-[#333333]">ICP Management</h1>
+        <h1 className="text-[22px] font-bold text-text-body">ICP Management</h1>
       </div>
 
       {/* Tab bar */}
-      <div className="flex items-center gap-1 border-b border-[#E5E5E5]">
+      <div className="flex items-center gap-1 border-b border-border">
         {tabs.map(t => (
           <button
             key={t.key}
             onClick={() => setTab(t.key)}
             className={`px-4 py-2.5 text-[13px] transition-colors border-b-2 -mb-px ${
               tab === t.key
-                ? 'text-[#3FAF7A] border-[#3FAF7A] font-medium'
-                : 'text-[#666666] border-transparent hover:text-[#333333]'
+                ? 'text-brand-primary border-brand-primary font-medium'
+                : 'text-[#666666] border-transparent hover:text-text-body'
             }`}
           >
             {t.label}
@@ -181,25 +181,25 @@ export default function AdminICPPage() {
             </div>
           ) : (
             <div className="text-center py-12">
-              <Target className="w-10 h-10 text-[#E5E5E5] mx-auto mb-3" />
+              <Target className="w-10 h-10 text-border mx-auto mb-3" />
               <p className="text-[14px] text-[#666666]">No ICP profiles yet</p>
-              <p className="text-[12px] text-[#999999] mt-1">Create one via the /icp/profiles API</p>
+              <p className="text-[12px] text-text-placeholder mt-1">Create one via the /icp/profiles API</p>
             </div>
           )}
         </div>
       )}
 
       {tab === 'signals' && (
-        <div className="bg-white rounded-2xl shadow-md border border-[#E5E5E5] overflow-hidden">
+        <div className="bg-white rounded-2xl shadow-md border border-border overflow-hidden">
           {signals.length > 0 ? (
             <table className="w-full">
               <thead>
-                <tr className="border-b border-[#E5E5E5] bg-[#F8F9FB]">
-                  <th className="text-left text-[11px] text-[#999999] uppercase tracking-wide px-4 py-3">User</th>
-                  <th className="text-left text-[11px] text-[#999999] uppercase tracking-wide px-4 py-3">Event</th>
-                  <th className="text-left text-[11px] text-[#999999] uppercase tracking-wide px-4 py-3">Properties</th>
-                  <th className="text-left text-[11px] text-[#999999] uppercase tracking-wide px-4 py-3">Confidence</th>
-                  <th className="text-left text-[11px] text-[#999999] uppercase tracking-wide px-4 py-3">Actions</th>
+                <tr className="border-b border-border bg-[#F8F9FB]">
+                  <th className="text-left text-[11px] text-text-placeholder uppercase tracking-wide px-4 py-3">User</th>
+                  <th className="text-left text-[11px] text-text-placeholder uppercase tracking-wide px-4 py-3">Event</th>
+                  <th className="text-left text-[11px] text-text-placeholder uppercase tracking-wide px-4 py-3">Properties</th>
+                  <th className="text-left text-[11px] text-text-placeholder uppercase tracking-wide px-4 py-3">Confidence</th>
+                  <th className="text-left text-[11px] text-text-placeholder uppercase tracking-wide px-4 py-3">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -214,7 +214,7 @@ export default function AdminICPPage() {
               </tbody>
             </table>
           ) : (
-            <div className="text-center py-12 text-[#999999] text-sm">No signals pending review</div>
+            <div className="text-center py-12 text-text-placeholder text-sm">No signals pending review</div>
           )}
         </div>
       )}
@@ -225,7 +225,7 @@ export default function AdminICPPage() {
             <select
               value={selectedProfile}
               onChange={(e) => setSelectedProfile(e.target.value)}
-              className="px-3 py-2 text-[13px] border border-[#E5E5E5] rounded-xl bg-white focus:outline-none focus:border-[#3FAF7A]"
+              className="px-3 py-2 text-[13px] border border-border rounded-xl bg-white focus:outline-none focus:border-brand-primary"
             >
               {profiles.map(p => (
                 <option key={p.id} value={p.id}>{p.name}</option>
@@ -234,48 +234,48 @@ export default function AdminICPPage() {
             <button
               onClick={handleRecompute}
               disabled={computing}
-              className="flex items-center gap-2 px-4 py-2 text-[13px] bg-[#3FAF7A] text-white rounded-xl hover:bg-[#25785A] transition-colors disabled:opacity-50"
+              className="flex items-center gap-2 px-4 py-2 text-[13px] bg-brand-primary text-white rounded-xl hover:bg-[#25785A] transition-colors disabled:opacity-50"
             >
               <RefreshCw className={`w-4 h-4 ${computing ? 'animate-spin' : ''}`} />
               Recompute All
             </button>
           </div>
 
-          <div className="bg-white rounded-2xl shadow-md border border-[#E5E5E5] overflow-hidden">
+          <div className="bg-white rounded-2xl shadow-md border border-border overflow-hidden">
             {leaderboard.length > 0 ? (
               <table className="w-full">
                 <thead>
-                  <tr className="border-b border-[#E5E5E5] bg-[#F8F9FB]">
-                    <th className="text-left text-[11px] text-[#999999] uppercase tracking-wide px-4 py-3 w-12">Rank</th>
-                    <th className="text-left text-[11px] text-[#999999] uppercase tracking-wide px-4 py-3">User</th>
-                    <th className="text-right text-[11px] text-[#999999] uppercase tracking-wide px-4 py-3">Score</th>
-                    <th className="text-right text-[11px] text-[#999999] uppercase tracking-wide px-4 py-3">Signals</th>
-                    <th className="text-left text-[11px] text-[#999999] uppercase tracking-wide px-4 py-3">Computed</th>
+                  <tr className="border-b border-border bg-[#F8F9FB]">
+                    <th className="text-left text-[11px] text-text-placeholder uppercase tracking-wide px-4 py-3 w-12">Rank</th>
+                    <th className="text-left text-[11px] text-text-placeholder uppercase tracking-wide px-4 py-3">User</th>
+                    <th className="text-right text-[11px] text-text-placeholder uppercase tracking-wide px-4 py-3">Score</th>
+                    <th className="text-right text-[11px] text-text-placeholder uppercase tracking-wide px-4 py-3">Signals</th>
+                    <th className="text-left text-[11px] text-text-placeholder uppercase tracking-wide px-4 py-3">Computed</th>
                   </tr>
                 </thead>
                 <tbody>
                   {leaderboard.map((entry) => (
-                    <tr key={entry.user_id} className="border-b border-[#E5E5E5] hover:bg-[#F4F4F4] transition-colors">
-                      <td className="px-4 py-3 text-[14px] font-semibold text-[#333333]">{entry.rank}</td>
+                    <tr key={entry.user_id} className="border-b border-border hover:bg-[#F4F4F4] transition-colors">
+                      <td className="px-4 py-3 text-[14px] font-semibold text-text-body">{entry.rank}</td>
                       <td className="px-4 py-3">
-                        <a href={`/admin/users/${entry.user_id}`} className="text-[13px] text-[#3FAF7A] hover:underline">
+                        <a href={`/admin/users/${entry.user_id}`} className="text-[13px] text-brand-primary hover:underline">
                           {entry.name}
                         </a>
-                        <div className="text-[11px] text-[#999999]">{entry.email}</div>
+                        <div className="text-[11px] text-text-placeholder">{entry.email}</div>
                       </td>
                       <td className="px-4 py-3 text-right">
                         <div className="flex items-center justify-end gap-2">
-                          <div className="w-20 h-2 bg-[#E5E5E5] rounded-full overflow-hidden">
+                          <div className="w-20 h-2 bg-border rounded-full overflow-hidden">
                             <div
-                              className="h-full bg-[#3FAF7A] rounded-full"
+                              className="h-full bg-brand-primary rounded-full"
                               style={{ width: `${Math.min(100, entry.score)}%` }}
                             />
                           </div>
-                          <span className="text-[13px] font-medium text-[#333333] w-8">{entry.score}</span>
+                          <span className="text-[13px] font-medium text-text-body w-8">{entry.score}</span>
                         </div>
                       </td>
                       <td className="px-4 py-3 text-[13px] text-[#666666] text-right">{entry.signal_count}</td>
-                      <td className="px-4 py-3 text-[12px] text-[#999999]">
+                      <td className="px-4 py-3 text-[12px] text-text-placeholder">
                         {entry.computed_at ? new Date(entry.computed_at).toLocaleDateString() : '-'}
                       </td>
                     </tr>
@@ -283,7 +283,7 @@ export default function AdminICPPage() {
                 </tbody>
               </table>
             ) : (
-              <div className="text-center py-12 text-[#999999] text-sm">
+              <div className="text-center py-12 text-text-placeholder text-sm">
                 {selectedProfile ? 'No scores computed yet' : 'Select a profile'}
               </div>
             )}

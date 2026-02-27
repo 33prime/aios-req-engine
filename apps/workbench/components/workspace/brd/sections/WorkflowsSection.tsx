@@ -44,7 +44,7 @@ function AutomationBadge({ level }: { level: AutomationLevel }) {
   const config: Record<AutomationLevel, { dot: string; label: string; bg: string; text: string }> = {
     manual: { dot: 'bg-gray-400', label: 'Manual', bg: 'bg-gray-100', text: 'text-gray-600' },
     semi_automated: { dot: 'bg-amber-400', label: 'Semi-auto', bg: 'bg-amber-50', text: 'text-amber-700' },
-    fully_automated: { dot: 'bg-[#3FAF7A]', label: 'Automated', bg: 'bg-[#E8F5E9]', text: 'text-[#25785A]' },
+    fully_automated: { dot: 'bg-brand-primary', label: 'Automated', bg: 'bg-[#E8F5E9]', text: 'text-[#25785A]' },
   }
   const c = config[level] || config.manual
   return (
@@ -62,17 +62,17 @@ function AutomationBadge({ level }: { level: AutomationLevel }) {
 function ROIFooter({ roi }: { roi: ROISummary }) {
   const pct = Math.min(Math.max(roi.time_saved_percent, 0), 100)
   return (
-    <div className="mt-4 pt-4 border-t border-[#E5E5E5] space-y-2">
+    <div className="mt-4 pt-4 border-t border-border space-y-2">
       {/* Progress bar */}
       <div className="flex items-center gap-2">
         <span className="text-[11px] text-[#666666] w-16 shrink-0">Time saved</span>
         <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
           <div
-            className="h-full bg-[#3FAF7A] rounded-full transition-all"
+            className="h-full bg-brand-primary rounded-full transition-all"
             style={{ width: `${pct}%` }}
           />
         </div>
-        <span className="text-[11px] font-medium text-[#333333] w-10 text-right">
+        <span className="text-[11px] font-medium text-text-body w-10 text-right">
           {roi.time_saved_percent}%
         </span>
       </div>
@@ -126,23 +126,23 @@ function StepCard({
           <span className="text-[11px] font-bold text-white">{index}</span>
         </div>
         {!isLast && (
-          <div className="w-0 flex-1 border-l-2 border-dashed border-[#E5E5E5] min-h-[16px]" />
+          <div className="w-0 flex-1 border-l-2 border-dashed border-border min-h-[16px]" />
         )}
       </div>
 
       {/* Right: step content */}
       <div className="flex-1 min-w-0 pb-4">
         <div
-          className={`bg-white border border-[#E5E5E5] rounded-xl px-3.5 py-2.5 hover:shadow-sm transition-shadow ${onViewDetail ? 'cursor-pointer' : ''}`}
+          className={`bg-white border border-border rounded-xl px-3.5 py-2.5 hover:shadow-sm transition-shadow ${onViewDetail ? 'cursor-pointer' : ''}`}
           onClick={onViewDetail}
         >
           <div className="flex items-start justify-between gap-2">
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-1.5 flex-wrap">
-                <span className="text-[13px] font-medium text-[#333333]">{step.label}</span>
+                <span className="text-[13px] font-medium text-text-body">{step.label}</span>
                 <AutomationBadge level={step.automation_level} />
                 {step.time_minutes != null && (
-                  <span className="inline-flex items-center gap-0.5 text-[11px] text-[#999999]">
+                  <span className="inline-flex items-center gap-0.5 text-[11px] text-text-placeholder">
                     <Clock className="w-3 h-3" />
                     {step.time_minutes}m
                   </span>
@@ -157,12 +157,12 @@ function StepCard({
             {(onEdit || onDelete) && (
               <div className="flex items-center gap-0.5 opacity-0 group-hover/step:opacity-100 transition-opacity shrink-0" onClick={(e) => e.stopPropagation()}>
                 {onEdit && (
-                  <button onClick={onEdit} className="p-1 rounded hover:bg-gray-100 text-[#999999] hover:text-[#333333]" title="Edit step">
+                  <button onClick={onEdit} className="p-1 rounded hover:bg-gray-100 text-text-placeholder hover:text-text-body" title="Edit step">
                     <Pencil className="w-3 h-3" />
                   </button>
                 )}
                 {onDelete && (
-                  <button onClick={onDelete} className="p-1 rounded hover:bg-red-50 text-[#999999] hover:text-red-500" title="Delete step">
+                  <button onClick={onDelete} className="p-1 rounded hover:bg-red-50 text-text-placeholder hover:text-red-500" title="Delete step">
                     <Trash2 className="w-3 h-3" />
                   </button>
                 )}
@@ -172,7 +172,7 @@ function StepCard({
 
           {/* Pain / Benefit text (grey italic, no red) */}
           {stateType === 'current' && step.pain_description && (
-            <p className="text-[11px] text-[#999999] mt-1.5 italic">Pain: {step.pain_description}</p>
+            <p className="text-[11px] text-text-placeholder mt-1.5 italic">Pain: {step.pain_description}</p>
           )}
           {stateType === 'future' && step.benefit_description && (
             <p className="text-[11px] text-[#25785A] mt-1.5 italic">Benefit: {step.benefit_description}</p>
@@ -193,7 +193,7 @@ function StepCard({
               {step.feature_names.map((name, i) => (
                 <span
                   key={step.feature_ids?.[i] || i}
-                  className="px-1.5 py-0.5 text-[10px] font-medium bg-blue-50 text-blue-700 rounded"
+                  className="px-1.5 py-0.5 text-[10px] font-medium bg-blue-50 text-brand-primary-hover rounded"
                 >
                   {name}
                 </span>
@@ -280,7 +280,7 @@ function StepColumn({
           ))}
         </div>
       ) : (
-        <p className="text-[12px] text-[#999999] italic py-3 px-3">No steps yet</p>
+        <p className="text-[12px] text-text-placeholder italic py-3 px-3">No steps yet</p>
       )}
 
       {/* Add Step button */}
@@ -350,28 +350,28 @@ function WorkflowAccordionCard({
     : undefined
 
   return (
-    <div className="bg-white rounded-2xl shadow-md border border-[#E5E5E5] overflow-hidden">
+    <div className="bg-white rounded-2xl shadow-md border border-border overflow-hidden">
       {/* Header row — clickable */}
       <button
         onClick={() => { const next = !expanded; setExpanded(next); if (next && !hasBeenExpanded) setHasBeenExpanded(true) }}
         className="w-full flex items-center gap-3 px-5 py-4 text-left hover:bg-gray-50/50 transition-colors"
       >
         <ChevronRight
-          className={`w-4 h-4 text-[#999999] shrink-0 transition-transform duration-200 ${expanded ? 'rotate-90' : ''}`}
+          className={`w-4 h-4 text-text-placeholder shrink-0 transition-transform duration-200 ${expanded ? 'rotate-90' : ''}`}
         />
-        <Workflow className="w-4 h-4 text-[#3FAF7A] shrink-0" />
+        <Workflow className="w-4 h-4 text-brand-primary shrink-0" />
         <span
-          className={`text-[14px] font-semibold text-[#333333] truncate ${onViewWorkflowDetail ? 'hover:text-[#25785A] hover:underline cursor-pointer' : ''}`}
+          className={`text-[14px] font-semibold text-text-body truncate ${onViewWorkflowDetail ? 'hover:text-[#25785A] hover:underline cursor-pointer' : ''}`}
           onClick={onViewWorkflowDetail ? (e) => { e.stopPropagation(); onViewWorkflowDetail(pair.id) } : undefined}
         >
           {pair.name}
         </span>
         {/* Time summaries */}
         {currentMin > 0 && (
-          <span className="text-[11px] text-[#999999] shrink-0">Current: {currentMin}min</span>
+          <span className="text-[11px] text-text-placeholder shrink-0">Current: {currentMin}min</span>
         )}
         {futureMin > 0 && (
-          <span className="text-[11px] text-[#999999] shrink-0">Future: {futureMin}min</span>
+          <span className="text-[11px] text-text-placeholder shrink-0">Future: {futureMin}min</span>
         )}
 
         {/* Staleness indicator */}
@@ -391,17 +391,17 @@ function WorkflowAccordionCard({
             </span>
           )}
           {onPairWorkflow && !pair.current_workflow_id && (
-            <button onClick={() => onPairWorkflow(pair.id)} className="p-1 rounded text-[#999999] hover:text-blue-600 hover:bg-blue-50" title="Pair with current-state workflow">
+            <button onClick={() => onPairWorkflow(pair.id)} className="p-1 rounded text-text-placeholder hover:text-brand-primary hover:bg-blue-50" title="Pair with current-state workflow">
               <Link2 className="w-3.5 h-3.5" />
             </button>
           )}
           {onEditWorkflow && (
-            <button onClick={() => onEditWorkflow(pair.id)} className="p-1 rounded text-[#999999] hover:text-[#333333] hover:bg-gray-100" title="Edit workflow">
+            <button onClick={() => onEditWorkflow(pair.id)} className="p-1 rounded text-text-placeholder hover:text-text-body hover:bg-gray-100" title="Edit workflow">
               <Pencil className="w-3.5 h-3.5" />
             </button>
           )}
           {onDeleteWorkflow && (
-            <button onClick={() => onDeleteWorkflow(pair.id)} className="p-1 rounded text-[#999999] hover:text-red-500 hover:bg-red-50" title="Delete workflow">
+            <button onClick={() => onDeleteWorkflow(pair.id)} className="p-1 rounded text-text-placeholder hover:text-red-500 hover:bg-red-50" title="Delete workflow">
               <Trash2 className="w-3.5 h-3.5" />
             </button>
           )}
@@ -443,7 +443,7 @@ function WorkflowAccordionCard({
                 />
               </div>
             ) : (
-              <p className="text-[12px] text-[#999999] italic py-2">No steps added yet</p>
+              <p className="text-[12px] text-text-placeholder italic py-2">No steps added yet</p>
             )}
 
             {pair.roi && <ROIFooter roi={pair.roi} />}
@@ -505,7 +505,7 @@ export function WorkflowsSection({
         {onCreateWorkflow && (
           <button
             onClick={onCreateWorkflow}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-[#666666] bg-white border border-[#E5E5E5] rounded-xl hover:bg-[#E8F5E9] hover:text-[#25785A] hover:border-[#3FAF7A] transition-colors"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-[#666666] bg-white border border-border rounded-xl hover:bg-[#E8F5E9] hover:text-[#25785A] hover:border-brand-primary transition-colors"
           >
             <Plus className="w-3.5 h-3.5" />
             Add Workflow
@@ -541,7 +541,7 @@ export function WorkflowsSection({
       {!hasWorkflowPairs && (
         <>
           {workflows.length === 0 ? (
-            <p className="text-[13px] text-[#999999] italic">No workflows mapped yet</p>
+            <p className="text-[13px] text-text-placeholder italic">No workflows mapped yet</p>
           ) : (
             <div className="space-y-3">
               {workflows.map((step, idx) => (
@@ -586,18 +586,18 @@ function LegacyStepCard({
   const [hasBeenExpanded, setHasBeenExpanded] = useState(false)
 
   return (
-    <div className="bg-white rounded-2xl shadow-md border border-[#E5E5E5] overflow-hidden">
+    <div className="bg-white rounded-2xl shadow-md border border-border overflow-hidden">
       <button
         onClick={() => { const next = !expanded; setExpanded(next); if (next && !hasBeenExpanded) setHasBeenExpanded(true) }}
         className="w-full flex items-center gap-3 px-5 py-4 text-left hover:bg-gray-50/50 transition-colors"
       >
         <ChevronRight
-          className={`w-4 h-4 text-[#999999] shrink-0 transition-transform duration-200 ${expanded ? 'rotate-90' : ''}`}
+          className={`w-4 h-4 text-text-placeholder shrink-0 transition-transform duration-200 ${expanded ? 'rotate-90' : ''}`}
         />
         <div className="w-7 h-7 rounded-full bg-[#0A1E2F] flex items-center justify-center shrink-0">
           <span className="text-[11px] font-bold text-white">{index}</span>
         </div>
-        <span className="text-[14px] font-semibold text-[#333333] truncate">{step.title}</span>
+        <span className="text-[14px] font-semibold text-text-body truncate">{step.title}</span>
         {step.actor_persona_name && (
           <span className="px-2 py-0.5 text-[10px] font-medium bg-[#E8F5E9] text-[#25785A] rounded-full shrink-0">
             {step.actor_persona_name}
@@ -627,7 +627,7 @@ function LegacyStepCard({
 
             {step.actor_persona_name && (
               <div className="flex items-center gap-1.5">
-                <span className="text-[11px] text-[#999999]">Actor:</span>
+                <span className="text-[11px] text-text-placeholder">Actor:</span>
                 <span className="px-2 py-0.5 text-[11px] font-medium bg-[#E8F5E9] text-[#25785A] rounded-full">
                   {step.actor_persona_name}
                 </span>
@@ -636,12 +636,12 @@ function LegacyStepCard({
 
             {step.feature_names && step.feature_names.length > 0 && (
               <div>
-                <span className="text-[11px] text-[#999999] block mb-1">Features:</span>
+                <span className="text-[11px] text-text-placeholder block mb-1">Features:</span>
                 <div className="flex flex-wrap gap-1">
                   {step.feature_names.map((name, i) => (
                     <span
                       key={step.feature_ids?.[i] || i}
-                      className="px-2 py-0.5 text-[11px] font-medium bg-blue-50 text-blue-700 rounded-full"
+                      className="px-2 py-0.5 text-[11px] font-medium bg-blue-50 text-brand-primary-hover rounded-full"
                     >
                       {name}
                     </span>

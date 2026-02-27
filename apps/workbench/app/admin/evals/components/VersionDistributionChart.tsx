@@ -17,7 +17,7 @@ export function VersionDistributionChart({ data }: Props) {
   const entries = Object.entries(data).map(([name, value]) => ({ name, value }))
 
   if (!entries.length) {
-    return <p className="text-[13px] text-[#999999] py-8 text-center">No outcomes yet</p>
+    return <p className="text-[13px] text-text-placeholder py-8 text-center">No outcomes yet</p>
   }
 
   return (

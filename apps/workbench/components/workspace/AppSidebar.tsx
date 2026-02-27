@@ -52,14 +52,14 @@ function NavItem({ href, icon, label, isActive, isCollapsed }: NavItemProps) {
       className={`
         flex items-center gap-2.5 px-3 py-2 transition-all duration-200
         ${isActive
-          ? 'bg-[#E8F5E9] text-[#3FAF7A] font-medium border-l-[3px] border-l-[#3FAF7A] -ml-px'
-          : 'text-[#333333] hover:bg-[#F4F4F4] hover:text-[#333333]'
+          ? 'bg-[#E8F5E9] text-brand-primary font-medium border-l-[3px] border-l-brand-primary -ml-px'
+          : 'text-text-body hover:bg-[#F4F4F4] hover:text-text-body'
         }
         ${isCollapsed ? 'justify-center' : ''}
       `}
       title={isCollapsed ? label : undefined}
     >
-      <span className={`flex-shrink-0 ${isActive ? 'text-[#3FAF7A]' : ''}`}>
+      <span className={`flex-shrink-0 ${isActive ? 'text-brand-primary' : ''}`}>
         {icon}
       </span>
       {!isCollapsed && <span className="text-[13px]">{label}</span>}
@@ -123,7 +123,7 @@ export function AppSidebar({ isCollapsed: controlledCollapsed, onToggleCollapse 
     <>
       <aside
         className={`
-          fixed left-0 top-0 h-screen bg-[#F8F9FB] border-r border-[#E5E5E5]
+          fixed left-0 top-0 h-screen bg-[#F8F9FB] border-r border-border
           flex flex-col z-40 transition-all duration-300
           ${isCollapsed ? 'w-16' : 'w-56'}
         `}
@@ -160,7 +160,7 @@ export function AppSidebar({ isCollapsed: controlledCollapsed, onToggleCollapse 
             {/* Green "+" button */}
             <button
               onClick={() => setShowCreateProject(true)}
-              className="p-1 rounded-full bg-[#3FAF7A] text-white hover:bg-[#25785A] transition-colors"
+              className="p-1 rounded-full bg-brand-primary text-white hover:bg-[#25785A] transition-colors"
               title="New project"
             >
               <Plus className="w-3 h-3" />
@@ -185,7 +185,7 @@ export function AppSidebar({ isCollapsed: controlledCollapsed, onToggleCollapse 
         {/* Collapse Toggle */}
         <button
           onClick={handleToggle}
-          className="mx-3 mb-2 p-1.5 rounded-lg text-[#999999] hover:bg-[#F4F4F4] hover:text-[#333333] transition-colors"
+          className="mx-3 mb-2 p-1.5 rounded-lg text-text-placeholder hover:bg-[#F4F4F4] hover:text-text-body transition-colors"
           title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
         >
           {isCollapsed ? (
@@ -197,17 +197,17 @@ export function AppSidebar({ isCollapsed: controlledCollapsed, onToggleCollapse 
 
         {/* User Profile */}
         {user && (
-          <div className={`border-t border-[#E5E5E5] p-2.5 ${isCollapsed ? 'px-2' : ''}`}>
+          <div className={`border-t border-border p-2.5 ${isCollapsed ? 'px-2' : ''}`}>
             <Link
               href="/settings"
               className={`
                 flex items-center gap-2.5 rounded-lg p-1.5 transition-colors
-                hover:bg-[#F4F4F4] text-[#333333]
+                hover:bg-[#F4F4F4] text-text-body
                 ${isCollapsed ? 'justify-center' : ''}
               `}
               title={isCollapsed ? displayName : undefined}
             >
-              <div className="w-7 h-7 rounded-full bg-gradient-to-br from-[#3FAF7A] to-[#25785A] flex items-center justify-center overflow-hidden flex-shrink-0">
+              <div className="w-7 h-7 rounded-full bg-gradient-to-br from-brand-primary to-[#25785A] flex items-center justify-center overflow-hidden flex-shrink-0">
                 {avatarUrl ? (
                   <Image
                     src={avatarUrl}
@@ -222,10 +222,10 @@ export function AppSidebar({ isCollapsed: controlledCollapsed, onToggleCollapse 
               </div>
               {!isCollapsed && (
                 <div className="flex-1 min-w-0">
-                  <p className="text-[13px] font-medium text-[#333333] truncate">
+                  <p className="text-[13px] font-medium text-text-body truncate">
                     {displayName}
                   </p>
-                  <p className="text-[11px] text-[#999999] truncate">
+                  <p className="text-[11px] text-text-placeholder truncate">
                     {user.email}
                   </p>
                 </div>

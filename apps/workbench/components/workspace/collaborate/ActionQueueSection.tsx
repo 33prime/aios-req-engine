@@ -100,50 +100,50 @@ export function ActionQueueSection({ projectId, onScrollToSection, onTriggerSynt
   const count = actions.length
 
   return (
-    <div className="bg-white rounded-2xl border border-[#E5E5E5] shadow-[0_1px_2px_rgba(0,0,0,0.04)] overflow-hidden">
+    <div className="bg-white rounded-2xl border border-border shadow-sm overflow-hidden">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full flex items-center justify-between px-5 py-4 hover:bg-[#FAFAFA] transition-colors"
+        className="w-full flex items-center justify-between px-5 py-4 hover:bg-surface-page transition-colors"
       >
         <div className="flex items-center gap-2.5">
-          <Zap className="w-4 h-4 text-[#3FAF7A]" />
-          <span className="text-[11px] uppercase tracking-wider text-[#999999] font-semibold">
+          <Zap className="w-4 h-4 text-brand-primary" />
+          <span className="text-[11px] uppercase tracking-wider text-text-placeholder font-semibold">
             Action Queue
           </span>
           {count > 0 && (
-            <span className="px-1.5 py-0.5 bg-[#3FAF7A]/10 text-[#25785A] text-[10px] font-bold rounded-full min-w-[18px] text-center">
+            <span className="px-1.5 py-0.5 bg-brand-primary-light text-[#25785A] text-[10px] font-bold rounded-full min-w-[18px] text-center">
               {count}
             </span>
           )}
         </div>
-        {isOpen ? <ChevronDown className="w-4 h-4 text-[#999999]" /> : <ChevronRight className="w-4 h-4 text-[#999999]" />}
+        {isOpen ? <ChevronDown className="w-4 h-4 text-text-placeholder" /> : <ChevronRight className="w-4 h-4 text-text-placeholder" />}
       </button>
 
       {isOpen && (
         <div className="px-5 pb-4 space-y-2">
           {actions.length === 0 ? (
-            <p className="text-[12px] text-[#999999] py-2">All caught up — no pending actions.</p>
+            <p className="text-[12px] text-text-placeholder py-2">All caught up — no pending actions.</p>
           ) : (
             actions.map(action => {
               const Icon = action.icon
               const borderColor = action.type === 'client'
-                ? 'border-l-[#3FAF7A]'
+                ? 'border-l-brand-primary'
                 : action.type === 'consultant'
                   ? 'border-l-[#0A1E2F]'
-                  : 'border-l-[#E5E5E5]'
+                  : 'border-l-border'
 
               return (
                 <div
                   key={action.id}
                   onClick={action.action}
-                  className={`border-l-[3px] ${borderColor} rounded-lg p-3 bg-[#F9F9F9] hover:bg-[#F4F4F4] transition-colors cursor-pointer`}
+                  className={`border-l-[3px] ${borderColor} rounded-lg p-3 bg-surface-muted hover:bg-[#F4F4F4] transition-colors cursor-pointer`}
                 >
                   <div className="flex items-center justify-between gap-3">
                     <div className="flex items-center gap-2.5 min-w-0">
                       <Icon className="w-4 h-4 text-[#666666] flex-shrink-0" />
-                      <span className="text-sm text-[#333333] truncate">{action.label}</span>
+                      <span className="text-sm text-text-body truncate">{action.label}</span>
                     </div>
-                    <span className="text-[12px] font-medium text-[#3FAF7A] flex items-center gap-1 flex-shrink-0">
+                    <span className="text-[12px] font-medium text-brand-primary flex items-center gap-1 flex-shrink-0">
                       {action.cta}
                       <ArrowRight className="w-3 h-3" />
                     </span>

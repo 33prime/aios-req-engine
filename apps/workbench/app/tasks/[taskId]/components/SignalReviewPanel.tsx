@@ -45,9 +45,9 @@ export function SignalReviewPanel({ patches }: SignalReviewPanelProps) {
       </h3>
       <div className="space-y-2">
         {Object.entries(grouped).map(([type, items]) => (
-          <div key={type} className="bg-white border border-[#E5E5E5] rounded-lg p-3">
+          <div key={type} className="bg-white border border-border rounded-lg p-3">
             <div className="flex items-center gap-2 mb-2">
-              <FileText className="w-3.5 h-3.5 text-[#3FAF7A]" />
+              <FileText className="w-3.5 h-3.5 text-brand-primary" />
               <span className="text-[13px] font-medium text-[#0A1E2F]">
                 {entityTypeLabels[type] || type} ({items.length})
               </span>
@@ -59,7 +59,7 @@ export function SignalReviewPanel({ patches }: SignalReviewPanelProps) {
                 return (
                   <div key={idx} className="flex items-center gap-2 text-[13px]">
                     <span className={`px-1.5 py-0.5 rounded text-[11px] font-medium ${
-                      op === 'create' ? 'bg-[#3FAF7A]/10 text-[#25785A]' :
+                      op === 'create' ? 'bg-brand-primary-light text-[#25785A]' :
                       op === 'merge' ? 'bg-[#0A1E2F]/5 text-[#0A1E2F]' :
                       op === 'update' ? 'bg-amber-50 text-amber-700' :
                       'bg-gray-100 text-gray-600'

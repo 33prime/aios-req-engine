@@ -18,10 +18,10 @@ export default function EvalsPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-[22px] font-bold text-[#333333]">Prototype Evals</h1>
+      <h1 className="text-[22px] font-bold text-text-body">Prototype Evals</h1>
 
       {/* Tabs */}
-      <div className="flex gap-0 border-b border-[#E5E5E5]">
+      <div className="flex gap-0 border-b border-border">
         {tabs.map((tab) => (
           <button
             key={tab.id}
@@ -29,14 +29,14 @@ export default function EvalsPage() {
             className={`
               px-4 py-2.5 text-[13px] font-medium transition-colors relative
               ${activeTab === tab.id
-                ? 'text-[#3FAF7A]'
-                : 'text-[#666666] hover:text-[#333333]'
+                ? 'text-brand-primary'
+                : 'text-[#666666] hover:text-text-body'
               }
             `}
           >
             {tab.label}
             {activeTab === tab.id && (
-              <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-[#3FAF7A]" />
+              <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-brand-primary" />
             )}
           </button>
         ))}

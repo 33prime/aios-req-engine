@@ -45,7 +45,7 @@ export function ClientsTopNav({
             placeholder="Search clients..."
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
-            className="w-full pl-9 pr-3 py-2 text-[13px] bg-white border border-[#E5E5E5] rounded-xl focus:outline-none focus:border-[#3FAF7A] focus:ring-1 focus:ring-[#3FAF7A]/20 transition-colors"
+            className="w-full pl-9 pr-3 py-2 text-[13px] bg-white border border-border rounded-xl focus:outline-none focus:border-brand-primary focus:ring-1 focus:ring-brand-primary/20 transition-colors"
           />
         </div>
 
@@ -53,7 +53,7 @@ export function ClientsTopNav({
         <select
           value={industryFilter}
           onChange={(e) => onIndustryFilterChange(e.target.value)}
-          className="px-3 py-2 text-[13px] bg-white border border-[#E5E5E5] rounded-xl focus:outline-none focus:border-[#3FAF7A] transition-colors appearance-none cursor-pointer"
+          className="px-3 py-2 text-[13px] bg-white border border-border rounded-xl focus:outline-none focus:border-brand-primary transition-colors appearance-none cursor-pointer"
         >
           {INDUSTRIES.map((ind) => (
             <option key={ind} value={ind === 'All Industries' ? 'all' : ind}>
@@ -75,7 +75,7 @@ export function ClientsTopNav({
       {/* Add Client */}
       <button
         onClick={onCreateClient}
-        className="inline-flex items-center gap-1.5 px-4 py-2 text-[13px] font-medium text-white bg-[#3FAF7A] rounded-xl hover:bg-[#25785A] transition-colors"
+        className="inline-flex items-center gap-1.5 px-4 py-2 text-[13px] font-medium text-white bg-brand-primary rounded-xl hover:bg-[#25785A] transition-colors"
       >
         <Plus className="w-3.5 h-3.5" />
         Add Client

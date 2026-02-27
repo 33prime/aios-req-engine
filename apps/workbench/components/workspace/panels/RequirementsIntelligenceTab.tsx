@@ -30,15 +30,15 @@ export function RequirementsIntelligenceTab({ data, isLoading }: RequirementsInt
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center py-12 gap-3">
-        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#3FAF7A]" />
-        <p className="text-xs text-[#999999]">Analyzing project intelligence...</p>
+        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-brand-primary" />
+        <p className="text-xs text-text-placeholder">Analyzing project intelligence...</p>
       </div>
     )
   }
 
   if (!data) {
     return (
-      <p className="text-sm text-[#999999] text-center py-8">
+      <p className="text-sm text-text-placeholder text-center py-8">
         Unable to load intelligence data.
       </p>
     )
@@ -52,8 +52,8 @@ export function RequirementsIntelligenceTab({ data, isLoading }: RequirementsInt
         <div className="w-10 h-10 rounded-full bg-emerald-50 flex items-center justify-center">
           <CheckCircle className="w-5 h-5 text-emerald-500" />
         </div>
-        <p className="text-sm font-medium text-[#333333]">No significant gaps detected</p>
-        <p className="text-xs text-[#999999] text-center max-w-[240px]">
+        <p className="text-sm font-medium text-text-body">No significant gaps detected</p>
+        <p className="text-xs text-text-placeholder text-center max-w-[240px]">
           Your project has strong coverage across all areas.
         </p>
       </div>
@@ -97,20 +97,20 @@ function SummaryBanner({ data }: { data: RequirementsIntelligenceResponse }) {
   const phaseLabel = data.phase.charAt(0).toUpperCase() + data.phase.slice(1)
 
   return (
-    <div className="flex items-center gap-3 bg-[#F9F9F9] rounded-lg px-3 py-2.5">
+    <div className="flex items-center gap-3 bg-surface-muted rounded-lg px-3 py-2.5">
       <span className="px-2 py-0.5 text-[10px] font-semibold rounded-full bg-teal-50 text-teal-700 uppercase tracking-wide">
         {phaseLabel}
       </span>
       <div className="flex items-center gap-1.5">
         <div className="w-16 h-1.5 bg-gray-200 rounded-full overflow-hidden">
           <div
-            className="h-full bg-[#3FAF7A] rounded-full transition-all"
+            className="h-full bg-brand-primary rounded-full transition-all"
             style={{ width: `${readinessPercent}%` }}
           />
         </div>
-        <span className="text-[11px] font-medium text-[#333333]">{readinessPercent}%</span>
+        <span className="text-[11px] font-medium text-text-body">{readinessPercent}%</span>
       </div>
-      <span className="text-[11px] text-[#999999] flex-1 text-right truncate">
+      <span className="text-[11px] text-text-placeholder flex-1 text-right truncate">
         {data.summary}
       </span>
     </div>
@@ -143,7 +143,7 @@ function InformationGapsSection({ gaps }: { gaps: RequirementsIntelligenceRespon
     <div>
       <SectionHeader
         title="Information Gaps"
-        right={<span className="text-[11px] text-[#999999]">{severitySummary}</span>}
+        right={<span className="text-[11px] text-text-placeholder">{severitySummary}</span>}
       />
       <div className="space-y-2">
         {gaps.map((gap) => {
@@ -155,16 +155,16 @@ function InformationGapsSection({ gaps }: { gaps: RequirementsIntelligenceRespon
                 <div className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${style.dot}`} />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <h5 className="text-sm font-medium text-[#333333]">{gap.title}</h5>
+                    <h5 className="text-sm font-medium text-text-body">{gap.title}</h5>
                     {isFoundation && (
                       <span className="px-1.5 py-0.5 text-[9px] font-medium rounded bg-teal-50 text-teal-700">
                         Foundation
                       </span>
                     )}
                   </div>
-                  <p className="text-xs text-[#333333] mt-0.5">{gap.description}</p>
+                  <p className="text-xs text-text-body mt-0.5">{gap.description}</p>
                   {gap.how_to_fix && (
-                    <p className="text-[11px] text-[#999999] italic mt-1">
+                    <p className="text-[11px] text-text-placeholder italic mt-1">
                       How to fix: {gap.how_to_fix}
                     </p>
                   )}
@@ -200,7 +200,7 @@ function SuggestedSourcesSection({ sources }: { sources: RequirementsIntelligenc
     <div>
       <SectionHeader
         title="Suggested Sources"
-        right={<span className="text-[11px] text-[#999999]">Key documents and artifacts to pursue</span>}
+        right={<span className="text-[11px] text-text-placeholder">Key documents and artifacts to pursue</span>}
       />
       <div className="grid grid-cols-2 gap-2">
         {sources.map((src, i) => {
@@ -213,8 +213,8 @@ function SuggestedSourcesSection({ sources }: { sources: RequirementsIntelligenc
                   <Icon className="w-3 h-3 text-teal-600" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h5 className="text-xs font-medium text-[#333333] leading-tight">{src.title}</h5>
-                  <p className="text-[11px] text-[#333333] mt-0.5">{src.description}</p>
+                  <h5 className="text-xs font-medium text-text-body leading-tight">{src.title}</h5>
+                  <p className="text-[11px] text-text-body mt-0.5">{src.description}</p>
                   <p className="text-[11px] text-teal-600 italic mt-1">{src.why_valuable}</p>
                   <div className="flex items-center gap-2 mt-1.5">
                     <span className="px-1.5 py-0.5 text-[10px] rounded bg-gray-100 text-gray-600">
@@ -267,7 +267,7 @@ function StakeholderIntelligenceSection({
       <SectionHeader
         title="Who Knows What"
         right={
-          <span className="text-[11px] text-[#999999]">
+          <span className="text-[11px] text-text-placeholder">
             {counts.stakeholders_known} known, {counts.stakeholders_suggested} suggested
           </span>
         }
@@ -287,14 +287,14 @@ function StakeholderIntelligenceSection({
                 ? TYPE_BADGE_STYLES[s.stakeholder_type] || 'bg-gray-100 text-gray-600'
                 : null
               return (
-                <div key={s.stakeholder_id || i} className="bg-[#F9F9F9] rounded-lg px-3 py-2.5">
+                <div key={s.stakeholder_id || i} className="bg-surface-muted rounded-lg px-3 py-2.5">
                   <div className="flex items-start gap-2.5">
                     <div className="w-8 h-8 rounded-full bg-teal-50 flex items-center justify-center flex-shrink-0">
                       <span className="text-[11px] font-semibold text-teal-600">{initials}</span>
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <span className="text-xs font-medium text-[#333333]">{s.name || 'Unknown'}</span>
+                        <span className="text-xs font-medium text-text-body">{s.name || 'Unknown'}</span>
                         {s.is_primary_contact && (
                           <Star className="w-3 h-3 text-amber-500 fill-amber-500" />
                         )}
@@ -304,23 +304,23 @@ function StakeholderIntelligenceSection({
                           </span>
                         )}
                         {s.influence_level && (
-                          <span className="text-[9px] text-[#999999]">
+                          <span className="text-[9px] text-text-placeholder">
                             {s.influence_level} influence
                           </span>
                         )}
                       </div>
-                      <p className="text-[11px] text-[#999999] mt-0.5">
+                      <p className="text-[11px] text-text-placeholder mt-0.5">
                         {s.role}
                         {s.organization && ` · ${s.organization}`}
                       </p>
                       {s.likely_knowledge.length > 0 && (
-                        <p className="text-[11px] text-[#333333] mt-1">
-                          <span className="text-[#999999]">Likely knows about: </span>
+                        <p className="text-[11px] text-text-body mt-1">
+                          <span className="text-text-placeholder">Likely knows about: </span>
                           {s.likely_knowledge.join(', ')}
                         </p>
                       )}
                       {s.engagement_tip && (
-                        <p className="text-[10px] text-[#999999] italic mt-1">{s.engagement_tip}</p>
+                        <p className="text-[10px] text-text-placeholder italic mt-1">{s.engagement_tip}</p>
                       )}
                     </div>
                   </div>
@@ -341,8 +341,8 @@ function StakeholderIntelligenceSection({
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <span className="text-xs font-medium text-[#333333]">{s.role}</span>
-                      <span className="text-[9px] text-[#999999] italic">Not yet identified</span>
+                      <span className="text-xs font-medium text-text-body">{s.role}</span>
+                      <span className="text-[9px] text-text-placeholder italic">Not yet identified</span>
                     </div>
                     {s.likely_knowledge.length > 0 && (
                       <div className="flex flex-wrap gap-1 mt-1">
@@ -354,7 +354,7 @@ function StakeholderIntelligenceSection({
                       </div>
                     )}
                     {s.engagement_tip && (
-                      <p className="text-[11px] text-[#333333] mt-1">{s.engagement_tip}</p>
+                      <p className="text-[11px] text-text-body mt-1">{s.engagement_tip}</p>
                     )}
                   </div>
                 </div>
@@ -376,7 +376,7 @@ function TribalKnowledgeSection({ items }: { items: RequirementsIntelligenceResp
     <div>
       <SectionHeader
         title="Conversations to Have"
-        right={<span className="text-[11px] text-[#999999]">Knowledge that only comes from people</span>}
+        right={<span className="text-[11px] text-text-placeholder">Knowledge that only comes from people</span>}
       />
       <div className="space-y-2">
         {items.map((item, i) => (
@@ -384,9 +384,9 @@ function TribalKnowledgeSection({ items }: { items: RequirementsIntelligenceResp
             <div className="flex items-start gap-2">
               <MessageSquare className="w-3.5 h-3.5 text-teal-500 mt-0.5 flex-shrink-0" />
               <div className="flex-1 min-w-0">
-                <h5 className="text-xs font-medium text-[#333333]">{item.title}</h5>
-                <p className="text-[11px] text-[#333333] mt-0.5">{item.description}</p>
-                <p className="text-[10px] text-[#999999] italic mt-1">{item.why_undocumented}</p>
+                <h5 className="text-xs font-medium text-text-body">{item.title}</h5>
+                <p className="text-[11px] text-text-body mt-0.5">{item.description}</p>
+                <p className="text-[10px] text-text-placeholder italic mt-1">{item.why_undocumented}</p>
                 <div className="mt-1.5">
                   <span className="px-1.5 py-0.5 text-[10px] rounded bg-gray-100 text-gray-600">
                     Best asked of: {item.best_asked_of}
@@ -395,7 +395,7 @@ function TribalKnowledgeSection({ items }: { items: RequirementsIntelligenceResp
                 {item.conversation_starters.length > 0 && (
                   <ul className="mt-2 space-y-1">
                     {item.conversation_starters.map((starter, j) => (
-                      <li key={j} className="text-[11px] text-[#333333] pl-2 border-l-2 border-teal-200">
+                      <li key={j} className="text-[11px] text-text-body pl-2 border-l-2 border-teal-200">
                         &ldquo;{starter}&rdquo;
                       </li>
                     ))}
@@ -417,9 +417,9 @@ function TribalKnowledgeSection({ items }: { items: RequirementsIntelligenceResp
 function SectionHeader({ title, right }: { title: string; right?: React.ReactNode }) {
   return (
     <div className="flex items-center justify-between mb-2.5">
-      <h4 className="text-xs font-semibold text-[#333333] uppercase tracking-wide">{title}</h4>
+      <h4 className="text-xs font-semibold text-text-body uppercase tracking-wide">{title}</h4>
       {typeof right === 'string' ? (
-        <span className="text-[11px] text-[#999999]">{right}</span>
+        <span className="text-[11px] text-text-placeholder">{right}</span>
       ) : (
         right
       )}

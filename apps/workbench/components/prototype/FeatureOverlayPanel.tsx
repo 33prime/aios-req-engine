@@ -11,7 +11,7 @@ interface FeatureOverlayPanelProps {
 
 const STATUS_STYLES = {
   understood: 'bg-emerald-100 text-emerald-800',
-  partial: 'bg-[#3FAF7A]/10 text-[#3FAF7A]',
+  partial: 'bg-brand-primary-light text-brand-primary',
   unknown: 'bg-gray-100 text-gray-600',
 }
 
@@ -50,12 +50,12 @@ export default function FeatureOverlayPanel({
   const total = overlays.length
 
   return (
-    <div className="w-[380px] flex-shrink-0 bg-white border-l border-[#E5E5E5] flex flex-col h-full overflow-hidden">
+    <div className="w-[380px] flex-shrink-0 bg-white border-l border-border flex flex-col h-full overflow-hidden">
       {/* Header */}
-      <div className="px-4 py-3 border-b border-[#E5E5E5]">
+      <div className="px-4 py-3 border-b border-border">
         <div className="flex items-center justify-between mb-2">
-          <h3 className="text-sm font-semibold text-[#333333]">Feature Overlays</h3>
-          <span className="text-[12px] text-[#999999]">
+          <h3 className="text-sm font-semibold text-text-body">Feature Overlays</h3>
+          <span className="text-[12px] text-text-placeholder">
             {understood}/{total}
           </span>
         </div>
@@ -64,7 +64,7 @@ export default function FeatureOverlayPanel({
           placeholder="Search features..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full px-3 py-1.5 text-sm border border-[#E5E5E5] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3FAF7A]/20 focus:border-[#3FAF7A]"
+          className="w-full px-3 py-1.5 text-sm border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary"
         />
       </div>
 
@@ -81,8 +81,8 @@ export default function FeatureOverlayPanel({
               key={overlay.id}
               className={`border rounded-lg transition-all duration-200 ${
                 isActive
-                  ? 'border-[#3FAF7A] bg-[#3FAF7A]/[0.02]'
-                  : 'border-[#E5E5E5] bg-white hover:border-[#3FAF7A]'
+                  ? 'border-brand-primary bg-brand-primary-light'
+                  : 'border-border bg-white hover:border-brand-primary'
               }`}
             >
               {/* Card header — always visible */}
@@ -95,10 +95,10 @@ export default function FeatureOverlayPanel({
                 }}
               >
                 <div className="flex items-center gap-2 min-w-0">
-                  <span className="text-xs text-[#999999]">
+                  <span className="text-xs text-text-placeholder">
                     {isExpanded ? '\u25BC' : '\u25B6'}
                   </span>
-                  <span className="text-sm font-medium text-[#333333] truncate">
+                  <span className="text-sm font-medium text-text-body truncate">
                     {featureName}
                   </span>
                 </div>
@@ -113,9 +113,9 @@ export default function FeatureOverlayPanel({
 
               {/* Expanded content */}
               {isExpanded && content && (
-                <div className="px-4 pb-4 space-y-3 border-t border-[#E5E5E5]/50">
+                <div className="px-4 pb-4 space-y-3 border-t border-border/50">
                   {/* Confidence + implementation status */}
-                  <div className="flex items-center gap-4 pt-3 text-[12px] text-[#999999]">
+                  <div className="flex items-center gap-4 pt-3 text-[12px] text-text-placeholder">
                     <span>Confidence: {Math.round(content.confidence * 100)}%</span>
                     {content.overview?.implementation_status && (
                       <span>{IMPL_STATUS_LABELS[content.overview.implementation_status] || content.overview.implementation_status}</span>
@@ -125,13 +125,13 @@ export default function FeatureOverlayPanel({
                   {/* Delta */}
                   {content.overview?.delta && content.overview.delta.length > 0 && (
                     <div>
-                      <h4 className="text-xs font-semibold text-[#333333] uppercase tracking-wide mb-1">
+                      <h4 className="text-xs font-semibold text-text-body uppercase tracking-wide mb-1">
                         Spec vs Code Gaps
                       </h4>
                       <ul className="space-y-0.5">
                         {content.overview.delta.map((d, i) => (
-                          <li key={i} className="text-sm text-[#333333] flex items-start gap-1.5">
-                            <span className="text-[#999999] mt-1">&bull;</span>
+                          <li key={i} className="text-sm text-text-body flex items-start gap-1.5">
+                            <span className="text-text-placeholder mt-1">&bull;</span>
                             {d}
                           </li>
                         ))}
@@ -142,13 +142,13 @@ export default function FeatureOverlayPanel({
                   {/* Gap questions */}
                   {content.gaps && content.gaps.length > 0 && (
                     <div>
-                      <h4 className="text-xs font-semibold text-[#333333] uppercase tracking-wide mb-1">
+                      <h4 className="text-xs font-semibold text-text-body uppercase tracking-wide mb-1">
                         Gap Questions ({content.gaps.length})
                       </h4>
                       <ul className="space-y-1">
                         {content.gaps.map((g, i) => (
-                          <li key={i} className="flex items-start gap-2 text-sm text-[#333333]">
-                            <span className="mt-1.5 w-2 h-2 rounded-full flex-shrink-0 bg-[#3FAF7A]" />
+                          <li key={i} className="flex items-start gap-2 text-sm text-text-body">
+                            <span className="mt-1.5 w-2 h-2 rounded-full flex-shrink-0 bg-brand-primary" />
                             <span>{g.question}</span>
                           </li>
                         ))}
@@ -159,14 +159,14 @@ export default function FeatureOverlayPanel({
                   {/* Personas affected */}
                   {content.impact?.personas_affected && content.impact.personas_affected.length > 0 && (
                     <div>
-                      <h4 className="text-xs font-semibold text-[#333333] uppercase tracking-wide mb-1">
+                      <h4 className="text-xs font-semibold text-text-body uppercase tracking-wide mb-1">
                         Personas Affected
                       </h4>
                       <div className="flex flex-wrap gap-1.5">
                         {content.impact.personas_affected.map((p, i) => (
                           <span
                             key={i}
-                            className="text-[12px] bg-[#F5F5F5] px-2 py-0.5 rounded"
+                            className="text-[12px] bg-surface-subtle px-2 py-0.5 rounded"
                             title={p.how_affected}
                           >
                             {p.name}
@@ -179,10 +179,10 @@ export default function FeatureOverlayPanel({
                   {/* Downstream risk */}
                   {content.impact?.downstream_risk && (
                     <div>
-                      <h4 className="text-xs font-semibold text-[#333333] uppercase tracking-wide mb-1">
+                      <h4 className="text-xs font-semibold text-text-body uppercase tracking-wide mb-1">
                         Downstream Risk
                       </h4>
-                      <p className="text-sm text-[#333333]">{content.impact.downstream_risk}</p>
+                      <p className="text-sm text-text-body">{content.impact.downstream_risk}</p>
                     </div>
                   )}
                 </div>
@@ -192,7 +192,7 @@ export default function FeatureOverlayPanel({
         })}
 
         {filtered.length === 0 && (
-          <p className="text-sm text-[#999999] text-center py-8">
+          <p className="text-sm text-text-placeholder text-center py-8">
             {searchTerm ? 'No features match your search.' : 'No overlays yet.'}
           </p>
         )}

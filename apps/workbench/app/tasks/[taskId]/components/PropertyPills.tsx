@@ -44,14 +44,14 @@ export function PropertyPills({ task, members, onUpdate }: PropertyPillsProps) {
   return (
     <div className="flex flex-wrap items-center gap-2 mb-6">
       {/* Type pill (read-only) */}
-      <span className="px-2.5 py-1 text-[12px] bg-[#3FAF7A]/10 text-[#25785A] rounded-md font-medium capitalize">
+      <span className="px-2.5 py-1 text-[12px] bg-brand-primary-light text-[#25785A] rounded-md font-medium capitalize">
         {typeLabel}
       </span>
 
       {/* Status pill */}
       <PillDropdown
         label={task.status.replace('_', ' ')}
-        icon={task.status === 'completed' ? <CheckCircle2 className="w-3.5 h-3.5 text-[#3FAF7A]" /> : <Circle className="w-3.5 h-3.5 text-[#999]" />}
+        icon={task.status === 'completed' ? <CheckCircle2 className="w-3.5 h-3.5 text-brand-primary" /> : <Circle className="w-3.5 h-3.5 text-[#999]" />}
         isOpen={editingField === 'status'}
         onToggle={() => setEditingField(editingField === 'status' ? null : 'status')}
         onClose={() => setEditingField(null)}
@@ -61,7 +61,7 @@ export function PropertyPills({ task, members, onUpdate }: PropertyPillsProps) {
             key={s.value}
             onClick={() => handleUpdate({ status: s.value })}
             className={`w-full text-left px-3 py-2 text-[13px] hover:bg-[#F4F4F4] ${
-              s.value === task.status ? 'text-[#3FAF7A] font-medium' : 'text-[#333]'
+              s.value === task.status ? 'text-brand-primary font-medium' : 'text-[#333]'
             }`}
           >
             {s.label}
@@ -82,7 +82,7 @@ export function PropertyPills({ task, members, onUpdate }: PropertyPillsProps) {
             key={p.value}
             onClick={() => handleUpdate({ priority: p.value })}
             className={`w-full text-left px-3 py-2 text-[13px] hover:bg-[#F4F4F4] flex items-center gap-2 ${
-              p.value === task.priority ? 'text-[#3FAF7A] font-medium' : 'text-[#333]'
+              p.value === task.priority ? 'text-brand-primary font-medium' : 'text-[#333]'
             }`}
           >
             <div className="w-2 h-2 rounded-full" style={{ backgroundColor: p.color }} />
@@ -100,7 +100,7 @@ export function PropertyPills({ task, members, onUpdate }: PropertyPillsProps) {
       />
 
       {/* Due date pill */}
-      <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-[#E5E5E5] bg-white text-[13px]">
+      <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-border bg-white text-[13px]">
         <Calendar className="w-3.5 h-3.5 text-[#999]" />
         <input
           type="date"
@@ -149,13 +149,13 @@ function PillDropdown({
     <div ref={ref} className="relative">
       <button
         onClick={onToggle}
-        className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-[#E5E5E5] bg-white hover:border-[#3FAF7A] transition-colors text-[13px] text-[#333] capitalize"
+        className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-border bg-white hover:border-brand-primary transition-colors text-[13px] text-[#333] capitalize"
       >
         {icon}
         {label}
       </button>
       {isOpen && (
-        <div className="absolute z-50 top-full mt-1 left-0 w-40 bg-white border border-[#E5E5E5] rounded-lg shadow-lg py-1">
+        <div className="absolute z-50 top-full mt-1 left-0 w-40 bg-white border border-border rounded-lg shadow-lg py-1">
           {children}
         </div>
       )}

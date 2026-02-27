@@ -55,9 +55,9 @@ export function CanvasActorsRow({
     <section>
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
-          <Users className="w-4 h-4 text-[#3FAF7A]" />
-          <h2 className="text-[16px] font-semibold text-[#333333]">Canvas Actors</h2>
-          <span className="text-[12px] text-[#999999]">({actors.length})</span>
+          <Users className="w-4 h-4 text-brand-primary" />
+          <h2 className="text-[16px] font-semibold text-text-body">Canvas Actors</h2>
+          <span className="text-[12px] text-text-placeholder">({actors.length})</span>
         </div>
 
         <div className="flex items-center gap-2">
@@ -70,7 +70,7 @@ export function CanvasActorsRow({
           <button
             onClick={onSynthesize}
             disabled={isSynthesizing || actors.length === 0}
-            className="inline-flex items-center gap-1.5 px-4 py-2 text-[12px] font-semibold text-white bg-[#3FAF7A] rounded-xl hover:bg-[#25785A] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="inline-flex items-center gap-1.5 px-4 py-2 text-[12px] font-semibold text-white bg-brand-primary rounded-xl hover:bg-[#25785A] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             {isSynthesizing ? (
               <>
@@ -128,8 +128,8 @@ function ActorCard({
   return (
     <div
       className={`flex-1 min-w-[260px] max-w-[400px] text-left bg-white rounded-2xl shadow-md border transition-all ${
-        isPrimary ? 'border-l-4 border-l-[#3FAF7A]' : 'border-l-4 border-l-[#0A1E2F]'
-      } border-[#E5E5E5] ${onClick ? 'cursor-pointer hover:shadow-lg hover:border-[#3FAF7A]/40' : ''}`}
+        isPrimary ? 'border-l-4 border-l-brand-primary' : 'border-l-4 border-l-[#0A1E2F]'
+      } border-border ${onClick ? 'cursor-pointer hover:shadow-lg hover:border-brand-primary/40' : ''}`}
       onClick={onClick}
       role={onClick ? 'button' : undefined}
       tabIndex={onClick ? 0 : undefined}
@@ -142,9 +142,9 @@ function ActorCard({
             <Users className="w-4 h-4 text-[#666666]" />
           </div>
           <div className="min-w-0">
-            <p className="text-[14px] font-semibold text-[#333333] truncate">{actor.name}</p>
+            <p className="text-[14px] font-semibold text-text-body truncate">{actor.name}</p>
             {actor.role && (
-              <p className="text-[11px] text-[#999999] truncate">{actor.role}</p>
+              <p className="text-[11px] text-text-placeholder truncate">{actor.role}</p>
             )}
           </div>
           <span className={`ml-auto shrink-0 px-2 py-0.5 text-[10px] font-medium rounded-full ${
@@ -157,7 +157,7 @@ function ActorCard({
         </div>
 
         {painPoints.length > 0 && (
-          <p className="text-[11px] text-[#999999] mt-2 line-clamp-1 italic">
+          <p className="text-[11px] text-text-placeholder mt-2 line-clamp-1 italic">
             Pain: {painPoints[0]}
           </p>
         )}
@@ -170,7 +170,7 @@ function ActorCard({
 
       {/* Bottom section: inline journey */}
       {journeySteps.length > 0 && (
-        <div className="border-t border-[#E5E5E5] px-4 py-2.5 bg-[#FAFAFA] rounded-b-2xl">
+        <div className="border-t border-border px-4 py-2.5 bg-surface-page rounded-b-2xl">
           <div className="flex items-center gap-1 overflow-x-auto scrollbar-hide">
             {journeySteps.slice(0, 6).map((step, idx) => (
               <div key={step.id} className="flex items-center shrink-0">
@@ -182,12 +182,12 @@ function ActorCard({
                   {step.label}
                 </span>
                 {idx < Math.min(journeySteps.length, 6) - 1 && (
-                  <ArrowRight className="w-2.5 h-2.5 text-[#E5E5E5] shrink-0 mx-0.5" />
+                  <ArrowRight className="w-2.5 h-2.5 text-border shrink-0 mx-0.5" />
                 )}
               </div>
             ))}
             {journeySteps.length > 6 && (
-              <span className="text-[10px] text-[#999999] ml-1">+{journeySteps.length - 6}</span>
+              <span className="text-[10px] text-text-placeholder ml-1">+{journeySteps.length - 6}</span>
             )}
           </div>
         </div>

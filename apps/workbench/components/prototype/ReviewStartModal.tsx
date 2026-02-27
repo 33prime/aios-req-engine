@@ -144,28 +144,28 @@ export default function ReviewStartModal({
         {/* Close button */}
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 p-1.5 rounded-lg text-[#999999] hover:bg-[#F4F4F4] hover:text-[#666666] transition-colors z-10"
+          className="absolute top-4 right-4 p-1.5 rounded-lg text-text-placeholder hover:bg-[#F4F4F4] hover:text-[#666666] transition-colors z-10"
         >
           <X className="w-4 h-4" />
         </button>
 
         {loading ? (
           <div className="flex items-center justify-center py-20">
-            <Loader2 className="w-6 h-6 text-[#3FAF7A] animate-spin" />
+            <Loader2 className="w-6 h-6 text-brand-primary animate-spin" />
           </div>
         ) : error ? (
           <div className="p-8 text-center">
             <p className="text-sm text-red-600 mb-3">{error}</p>
             <button
               onClick={onClose}
-              className="text-sm text-[#666666] hover:text-[#333333]"
+              className="text-sm text-[#666666] hover:text-text-body"
             >
               Close
             </button>
           </div>
         ) : (
           <div className="p-6">
-            <h2 className="text-lg font-semibold text-[#333333] mb-1">
+            <h2 className="text-lg font-semibold text-text-body mb-1">
               Prototype Review
             </h2>
             <p className="text-sm text-[#666666] mb-5">
@@ -173,29 +173,29 @@ export default function ReviewStartModal({
             </p>
 
             {/* Feature breakdown */}
-            <div className="rounded-2xl border border-[#E5E5E5] bg-[#FAFAFA] px-4 py-3 mb-5">
+            <div className="rounded-2xl border border-border bg-surface-page px-4 py-3 mb-5">
               <p className="text-[11px] font-medium text-[#666666] uppercase tracking-wide mb-2">Tour Breakdown</p>
               <div className="flex items-center gap-3 text-xs text-[#666666]">
                 {primaryCount > 0 && (
                   <span>
-                    <strong className="text-[#333333]">{primaryCount}</strong>{' '}
+                    <strong className="text-text-body">{primaryCount}</strong>{' '}
                     primary flow
                   </span>
                 )}
                 {supportingCount > 0 && (
                   <>
-                    <span className="text-[#E5E5E5]">&middot;</span>
+                    <span className="text-border">&middot;</span>
                     <span>
-                      <strong className="text-[#333333]">{supportingCount}</strong>{' '}
+                      <strong className="text-text-body">{supportingCount}</strong>{' '}
                       supporting
                     </span>
                   </>
                 )}
                 {unmappedCount > 0 && (
                   <>
-                    <span className="text-[#E5E5E5]">&middot;</span>
+                    <span className="text-border">&middot;</span>
                     <span>
-                      <strong className="text-[#333333]">{unmappedCount}</strong>{' '}
+                      <strong className="text-text-body">{unmappedCount}</strong>{' '}
                       unmapped
                     </span>
                   </>
@@ -205,21 +205,21 @@ export default function ReviewStartModal({
 
             {/* Resumable session */}
             {resumableSession && resumeVerdictCounts && (
-              <div className="rounded-2xl border border-[#3FAF7A]/30 bg-[#E8F5E9]/30 px-4 py-4 mb-5">
+              <div className="rounded-2xl border border-brand-primary/30 bg-[#E8F5E9]/30 px-4 py-4 mb-5">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-medium text-[#333333]">
+                  <span className="text-xs font-medium text-text-body">
                     Session #{resumableSession.session_number} &mdash;{' '}
                     {resumeProgress}/{overlays.length} reviewed
                   </span>
-                  <span className="text-[10px] text-[#999999]">
+                  <span className="text-[10px] text-text-placeholder">
                     {Math.round((resumeProgress / Math.max(overlays.length, 1)) * 100)}%
                   </span>
                 </div>
 
                 {/* Progress bar */}
-                <div className="h-1.5 rounded-full bg-[#E5E5E5] overflow-hidden mb-3">
+                <div className="h-1.5 rounded-full bg-border overflow-hidden mb-3">
                   <div
-                    className="h-full bg-[#3FAF7A] transition-all"
+                    className="h-full bg-brand-primary transition-all"
                     style={{
                       width: `${(resumeProgress / Math.max(overlays.length, 1)) * 100}%`,
                     }}
@@ -250,7 +250,7 @@ export default function ReviewStartModal({
                   <button
                     onClick={() => handleStart('tour', resumableSession)}
                     disabled={starting}
-                    className="flex-1 flex items-center justify-center gap-1.5 px-4 py-2 bg-[#3FAF7A] text-white text-xs font-medium rounded-xl hover:bg-[#25785A] transition-all disabled:opacity-60"
+                    className="flex-1 flex items-center justify-center gap-1.5 px-4 py-2 bg-brand-primary text-white text-xs font-medium rounded-xl hover:bg-[#25785A] transition-all disabled:opacity-60"
                   >
                     <RotateCcw className="w-3.5 h-3.5" />
                     Resume Tour
@@ -258,7 +258,7 @@ export default function ReviewStartModal({
                   <button
                     onClick={() => handleStart('explore', resumableSession)}
                     disabled={starting}
-                    className="flex-1 flex items-center justify-center gap-1.5 px-4 py-2 border border-[#E5E5E5] text-[#333333] text-xs font-medium rounded-xl hover:bg-[#F4F4F4] transition-all disabled:opacity-60"
+                    className="flex-1 flex items-center justify-center gap-1.5 px-4 py-2 border border-border text-text-body text-xs font-medium rounded-xl hover:bg-[#F4F4F4] transition-all disabled:opacity-60"
                   >
                     <Eye className="w-3.5 h-3.5" />
                     Resume Free
@@ -272,7 +272,7 @@ export default function ReviewStartModal({
               <button
                 onClick={() => handleStart('tour')}
                 disabled={starting}
-                className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-[#3FAF7A] text-white font-medium rounded-xl hover:bg-[#25785A] transition-all shadow-md disabled:opacity-60"
+                className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-brand-primary text-white font-medium rounded-xl hover:bg-[#25785A] transition-all shadow-md disabled:opacity-60"
               >
                 {starting ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
@@ -284,7 +284,7 @@ export default function ReviewStartModal({
               <button
                 onClick={() => handleStart('explore')}
                 disabled={starting}
-                className="flex-1 flex items-center justify-center gap-2 px-6 py-3 border border-[#E5E5E5] text-[#333333] font-medium rounded-xl hover:bg-[#F4F4F4] transition-all shadow-md disabled:opacity-60"
+                className="flex-1 flex items-center justify-center gap-2 px-6 py-3 border border-border text-text-body font-medium rounded-xl hover:bg-[#F4F4F4] transition-all shadow-md disabled:opacity-60"
               >
                 <Eye className="w-4 h-4" />
                 Free Explore

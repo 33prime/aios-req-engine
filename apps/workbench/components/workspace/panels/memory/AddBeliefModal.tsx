@@ -63,13 +63,13 @@ export function AddBeliefModal({ projectId, onCreated, onClose }: AddBeliefModal
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-8">
       <div className="absolute inset-0 bg-black/20" onClick={onClose} />
-      <div className="relative bg-white rounded-2xl shadow-xl border border-[#E5E5E5] w-full max-w-md p-6">
+      <div className="relative bg-white rounded-2xl shadow-xl border border-border w-full max-w-md p-6">
         {/* Header */}
         <div className="flex items-center justify-between mb-5">
-          <h3 className="text-base font-semibold text-[#333333]">Add Belief</h3>
+          <h3 className="text-base font-semibold text-text-body">Add Belief</h3>
           <button
             onClick={onClose}
-            className="p-1 rounded-lg hover:bg-gray-100 text-[#999999]"
+            className="p-1 rounded-lg hover:bg-gray-100 text-text-placeholder"
           >
             <X className="w-5 h-5" />
           </button>
@@ -77,14 +77,14 @@ export function AddBeliefModal({ projectId, onCreated, onClose }: AddBeliefModal
 
         {/* Statement */}
         <div className="mb-4">
-          <label className="block text-[12px] font-medium text-[#333333] mb-1.5">
+          <label className="block text-[12px] font-medium text-text-body mb-1.5">
             Belief statement
           </label>
           <textarea
             value={statement}
             onChange={(e) => setStatement(e.target.value)}
             placeholder="e.g., Users prefer mobile-first onboarding"
-            className="w-full text-sm border border-[#E5E5E5] rounded-xl px-4 py-3 text-[#333333] placeholder:text-[#999999] focus:outline-none focus:ring-2 focus:ring-[#3FAF7A]/30 focus:border-[#3FAF7A] resize-none"
+            className="w-full text-sm border border-border rounded-xl px-4 py-3 text-text-body placeholder:text-text-placeholder focus:outline-none focus:ring-2 focus:ring-brand-primary/30 focus:border-brand-primary resize-none"
             rows={3}
             autoFocus
           />
@@ -92,13 +92,13 @@ export function AddBeliefModal({ projectId, onCreated, onClose }: AddBeliefModal
 
         {/* Domain */}
         <div className="mb-4">
-          <label className="block text-[12px] font-medium text-[#333333] mb-1.5">
+          <label className="block text-[12px] font-medium text-text-body mb-1.5">
             Domain
           </label>
           <select
             value={domain}
             onChange={(e) => setDomain(e.target.value)}
-            className="w-full text-sm border border-[#E5E5E5] rounded-xl px-4 py-2.5 text-[#333333] focus:outline-none focus:ring-2 focus:ring-[#3FAF7A]/30 focus:border-[#3FAF7A] bg-white"
+            className="w-full text-sm border border-border rounded-xl px-4 py-2.5 text-text-body focus:outline-none focus:ring-2 focus:ring-brand-primary/30 focus:border-brand-primary bg-white"
           >
             {DOMAINS.map((d) => (
               <option key={d.value} value={d.value}>
@@ -111,10 +111,10 @@ export function AddBeliefModal({ projectId, onCreated, onClose }: AddBeliefModal
         {/* Confidence slider */}
         <div className="mb-5">
           <div className="flex items-center justify-between mb-1.5">
-            <label className="text-[12px] font-medium text-[#333333]">
+            <label className="text-[12px] font-medium text-text-body">
               Confidence
             </label>
-            <span className="text-[12px] font-medium text-[#3FAF7A]">{confidence}%</span>
+            <span className="text-[12px] font-medium text-brand-primary">{confidence}%</span>
           </div>
           <input
             type="range"
@@ -122,9 +122,9 @@ export function AddBeliefModal({ projectId, onCreated, onClose }: AddBeliefModal
             max={100}
             value={confidence}
             onChange={(e) => setConfidence(Number(e.target.value))}
-            className="w-full h-2 bg-[#F0F0F0] rounded-full appearance-none cursor-pointer accent-[#3FAF7A]"
+            className="w-full h-2 bg-[#F0F0F0] rounded-full appearance-none cursor-pointer accent-brand-primary"
           />
-          <div className="flex justify-between text-[10px] text-[#999999] mt-1">
+          <div className="flex justify-between text-[10px] text-text-placeholder mt-1">
             <span>Low</span>
             <span>High</span>
           </div>
@@ -146,7 +146,7 @@ export function AddBeliefModal({ projectId, onCreated, onClose }: AddBeliefModal
           <button
             onClick={handleSubmit}
             disabled={isSubmitting || statement.trim().length < 5}
-            className="px-6 py-2 text-sm font-medium text-white bg-[#3FAF7A] hover:bg-[#25785A] rounded-xl transition-colors disabled:opacity-50"
+            className="px-6 py-2 text-sm font-medium text-white bg-brand-primary hover:bg-[#25785A] rounded-xl transition-colors disabled:opacity-50"
           >
             {isSubmitting ? 'Creating...' : 'Add Belief'}
           </button>

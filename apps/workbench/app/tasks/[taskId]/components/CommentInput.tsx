@@ -37,10 +37,10 @@ export function CommentInput({ avatarUrl, onSubmit }: CommentInputProps) {
         {avatarUrl ? (
           <Image src={avatarUrl} alt="" width={28} height={28} className="w-full h-full object-cover" />
         ) : (
-          <User className="w-3.5 h-3.5 text-[#3FAF7A]" />
+          <User className="w-3.5 h-3.5 text-brand-primary" />
         )}
       </div>
-      <div className="flex-1 flex items-center gap-2 border border-[#E5E5E5] rounded-lg px-3 py-2 focus-within:border-[#3FAF7A] transition-colors">
+      <div className="flex-1 flex items-center gap-2 border border-border rounded-lg px-3 py-2 focus-within:border-brand-primary transition-colors">
         <input
           value={body}
           onChange={(e) => setBody(e.target.value)}
@@ -51,7 +51,7 @@ export function CommentInput({ avatarUrl, onSubmit }: CommentInputProps) {
         <button
           onClick={handleSubmit}
           disabled={!body.trim() || sending}
-          className="text-[#3FAF7A] hover:text-[#25785A] disabled:text-[#CCC] transition-colors"
+          className="text-brand-primary hover:text-[#25785A] disabled:text-[#CCC] transition-colors"
         >
           <Send className="w-4 h-4" />
         </button>

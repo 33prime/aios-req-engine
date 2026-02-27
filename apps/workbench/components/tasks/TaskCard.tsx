@@ -36,12 +36,12 @@ interface TaskCardProps {
 
 const taskTypeConfig: Record<string, { icon: typeof CheckCircle; label: string; color: string }> = {
   signal_review: { icon: FileText, label: 'Review', color: 'bg-emerald-50 text-emerald-700' },
-  action_item: { icon: Send, label: 'Action', color: 'bg-[#3FAF7A]/10 text-[#25785A]' },
+  action_item: { icon: Send, label: 'Action', color: 'bg-brand-primary-light text-[#25785A]' },
   meeting_prep: { icon: Calendar, label: 'Prep', color: 'bg-[#0A1E2F]/5 text-[#0A1E2F]' },
   reminder: { icon: Bell, label: 'Reminder', color: 'bg-gray-100 text-gray-700' },
   review_request: { icon: Eye, label: 'Review', color: 'bg-emerald-100 text-emerald-700' },
   book_meeting: { icon: Calendar, label: 'Meeting', color: 'bg-[#0A1E2F]/5 text-[#0A1E2F]' },
-  deliverable: { icon: Package, label: 'Deliverable', color: 'bg-[#3FAF7A]/10 text-[#25785A]' },
+  deliverable: { icon: Package, label: 'Deliverable', color: 'bg-brand-primary-light text-[#25785A]' },
   custom: { icon: Pen, label: 'Task', color: 'bg-gray-100 text-gray-700' },
 }
 

@@ -10,7 +10,7 @@ interface ClientCardProps {
 
 function EnrichmentIndicator({ status }: { status: string }) {
   if (status === 'completed') {
-    return <CheckCircle2 className="w-3.5 h-3.5 text-[#3FAF7A]" />
+    return <CheckCircle2 className="w-3.5 h-3.5 text-brand-primary" />
   }
   if (status === 'in_progress') {
     return <Loader2 className="w-3.5 h-3.5 text-[#999] animate-spin" />
@@ -29,7 +29,7 @@ export function ClientCard({ client, onClick }: ClientCardProps) {
   return (
     <button
       onClick={onClick}
-      className="w-full text-left bg-white rounded-2xl border border-[#E5E5E5] shadow-md p-6 hover:shadow-lg hover:border-[#3FAF7A]/30 transition-all duration-200 group"
+      className="w-full text-left bg-white rounded-2xl border border-border shadow-md p-6 hover:shadow-lg hover:border-brand-primary/30 transition-all duration-200 group"
     >
       {/* Top row: avatar + name + enrichment */}
       <div className="flex items-start gap-3 mb-3">
@@ -45,7 +45,7 @@ export function ClientCard({ client, onClick }: ClientCardProps) {
           </div>
         )}
         <div className="flex-1 min-w-0">
-          <h3 className="text-[14px] font-semibold text-[#333] truncate group-hover:text-[#3FAF7A] transition-colors">
+          <h3 className="text-[14px] font-semibold text-[#333] truncate group-hover:text-brand-primary transition-colors">
             {client.name}
           </h3>
           {client.industry && (

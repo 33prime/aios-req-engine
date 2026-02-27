@@ -69,13 +69,13 @@ export default function ReviewEndModal({
         {/* Close button */}
         <button
           onClick={onKeepWorking}
-          className="absolute top-4 right-4 p-1.5 rounded-lg text-[#999999] hover:bg-[#F4F4F4] hover:text-[#666666] transition-colors z-10"
+          className="absolute top-4 right-4 p-1.5 rounded-lg text-text-placeholder hover:bg-[#F4F4F4] hover:text-[#666666] transition-colors z-10"
         >
           <X className="w-4 h-4" />
         </button>
 
         <div className="p-6">
-          <h2 className="text-lg font-semibold text-[#333333] mb-1">
+          <h2 className="text-lg font-semibold text-text-body mb-1">
             Review Complete
           </h2>
           <p className="text-sm text-[#666666] mb-5">
@@ -83,7 +83,7 @@ export default function ReviewEndModal({
           </p>
 
           {/* Verdict summary card */}
-          <div className="rounded-2xl border border-[#E5E5E5] bg-white p-5 shadow-md mb-5">
+          <div className="rounded-2xl border border-border bg-white p-5 shadow-md mb-5">
             <p className="text-[11px] font-medium text-[#666666] uppercase tracking-wide mb-3">
               Verdict Summary
             </p>
@@ -109,10 +109,10 @@ export default function ReviewEndModal({
             </div>
 
             {/* Tri-color progress bar */}
-            <div className="h-2 rounded-full bg-[#E5E5E5] overflow-hidden flex">
+            <div className="h-2 rounded-full bg-border overflow-hidden flex">
               {alignedPct > 0 && (
                 <div
-                  className="h-full bg-[#3FAF7A] transition-all"
+                  className="h-full bg-brand-primary transition-all"
                   style={{ width: `${alignedPct}%` }}
                 />
               )}
@@ -130,14 +130,14 @@ export default function ReviewEndModal({
               )}
             </div>
             <div className="text-right mt-1.5">
-              <span className="text-xs font-medium text-[#333333]">
+              <span className="text-xs font-medium text-text-body">
                 {overallScore}% aligned
               </span>
             </div>
           </div>
 
           {/* Client review link */}
-          <div className="rounded-2xl border border-[#E5E5E5] bg-white p-5 shadow-md mb-5">
+          <div className="rounded-2xl border border-border bg-white p-5 shadow-md mb-5">
             <p className="text-[11px] font-medium text-[#666666] uppercase tracking-wide mb-2">
               Client Review Link
             </p>
@@ -145,15 +145,15 @@ export default function ReviewEndModal({
               <input
                 readOnly
                 value={fullUrl}
-                className="flex-1 text-xs px-3 py-2 border border-[#E5E5E5] rounded-lg bg-[#F4F4F4] text-[#333333] truncate"
+                className="flex-1 text-xs px-3 py-2 border border-border rounded-lg bg-[#F4F4F4] text-text-body truncate"
               />
               <button
                 onClick={handleCopy}
-                className="flex items-center gap-1 px-3 py-2 text-xs font-medium border border-[#E5E5E5] rounded-lg hover:bg-[#F4F4F4] transition-colors text-[#333333]"
+                className="flex items-center gap-1 px-3 py-2 text-xs font-medium border border-border rounded-lg hover:bg-[#F4F4F4] transition-colors text-text-body"
               >
                 {copied ? (
                   <>
-                    <Check className="w-3 h-3 text-[#3FAF7A]" />
+                    <Check className="w-3 h-3 text-brand-primary" />
                     Copied
                   </>
                 ) : (
@@ -171,7 +171,7 @@ export default function ReviewEndModal({
             <button
               onClick={handleShare}
               disabled={isSharing}
-              className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-[#3FAF7A] text-white font-medium rounded-xl hover:bg-[#25785A] transition-all duration-200 shadow-md disabled:opacity-60"
+              className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-brand-primary text-white font-medium rounded-xl hover:bg-[#25785A] transition-all duration-200 shadow-md disabled:opacity-60"
             >
               {isSharing ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
@@ -180,13 +180,13 @@ export default function ReviewEndModal({
             </button>
             <button
               onClick={onFixFirst}
-              className="w-full px-6 py-3 bg-white border border-[#E5E5E5] text-[#333333] font-medium rounded-xl hover:bg-[#F4F4F4] transition-all duration-200 shadow-md"
+              className="w-full px-6 py-3 bg-white border border-border text-text-body font-medium rounded-xl hover:bg-[#F4F4F4] transition-all duration-200 shadow-md"
             >
               Fix First, Then Share
             </button>
             <button
               onClick={onKeepWorking}
-              className="w-full px-4 py-2 text-sm text-[#666666] hover:text-[#333333] transition-colors"
+              className="w-full px-4 py-2 text-sm text-[#666666] hover:text-text-body transition-colors"
             >
               Not Ready — Keep Working
             </button>
@@ -194,8 +194,8 @@ export default function ReviewEndModal({
 
           {/* Polling indicator */}
           <div className="flex items-center justify-center gap-2 mt-5">
-            <Radio className="w-3 h-3 text-[#3FAF7A] animate-pulse" />
-            <span className="text-[10px] text-[#999999]">
+            <Radio className="w-3 h-3 text-brand-primary animate-pulse" />
+            <span className="text-[10px] text-text-placeholder">
               Listening for client feedback...
             </span>
           </div>

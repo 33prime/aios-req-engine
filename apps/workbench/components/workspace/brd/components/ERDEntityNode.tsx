@@ -13,10 +13,10 @@ export interface ERDEntityNodeData extends Record<string, unknown> {
 }
 
 const CATEGORY_BORDER: Record<string, string> = {
-  domain: 'border-l-[#3FAF7A]',
+  domain: 'border-l-brand-primary',
   reference: 'border-l-[#0A1E2F]',
   transactional: 'border-l-[#666666]',
-  system: 'border-l-[#999999]',
+  system: 'border-l-text-placeholder',
 }
 
 const CATEGORY_LABEL: Record<string, string> = {
@@ -36,19 +36,19 @@ function ERDEntityNodeComponent({ data }: NodeProps) {
 
   return (
     <>
-      <Handle type="target" position={Position.Left} className="!w-2 !h-2 !bg-[#E5E5E5] !border-[#999999]" />
-      <Handle type="source" position={Position.Right} className="!w-2 !h-2 !bg-[#E5E5E5] !border-[#999999]" />
-      <Handle type="target" position={Position.Top} className="!w-2 !h-2 !bg-[#E5E5E5] !border-[#999999]" />
-      <Handle type="source" position={Position.Bottom} className="!w-2 !h-2 !bg-[#E5E5E5] !border-[#999999]" />
+      <Handle type="target" position={Position.Left} className="!w-2 !h-2 !bg-border !border-text-placeholder" />
+      <Handle type="source" position={Position.Right} className="!w-2 !h-2 !bg-border !border-text-placeholder" />
+      <Handle type="target" position={Position.Top} className="!w-2 !h-2 !bg-border !border-text-placeholder" />
+      <Handle type="source" position={Position.Bottom} className="!w-2 !h-2 !bg-border !border-text-placeholder" />
 
-      <div className={`bg-white rounded-xl border border-[#E5E5E5] shadow-sm w-[200px] border-l-4 ${borderClass} overflow-hidden`}>
+      <div className={`bg-white rounded-xl border border-border shadow-sm w-[200px] border-l-4 ${borderClass} overflow-hidden`}>
         {/* Header */}
-        <div className="px-3 py-2 border-b border-[#E5E5E5]">
+        <div className="px-3 py-2 border-b border-border">
           <div className="flex items-center gap-1.5">
-            <Database className="w-3 h-3 text-[#999999]" />
-            <span className="text-[13px] font-semibold text-[#333333] truncate">{nodeData.name}</span>
+            <Database className="w-3 h-3 text-text-placeholder" />
+            <span className="text-[13px] font-semibold text-text-body truncate">{nodeData.name}</span>
           </div>
-          <span className="text-[10px] text-[#999999] font-medium">{categoryLabel}</span>
+          <span className="text-[10px] text-text-placeholder font-medium">{categoryLabel}</span>
         </div>
 
         {/* Fields */}
@@ -56,25 +56,25 @@ function ERDEntityNodeComponent({ data }: NodeProps) {
           <div className="px-3 py-1.5">
             {displayFields.map((field, i) => (
               <div key={i} className="flex items-center gap-1 py-0.5">
-                <span className="text-[11px] text-[#333333] truncate">{field.name}</span>
+                <span className="text-[11px] text-text-body truncate">{field.name}</span>
                 {field.type && (
-                  <span className="text-[10px] text-[#999999]">: {field.type}</span>
+                  <span className="text-[10px] text-text-placeholder">: {field.type}</span>
                 )}
                 {field.required && (
-                  <span className="text-[10px] text-[#3FAF7A]">*</span>
+                  <span className="text-[10px] text-brand-primary">*</span>
                 )}
               </div>
             ))}
             {extraCount > 0 && (
-              <span className="text-[10px] text-[#999999] italic">+{extraCount} more fields</span>
+              <span className="text-[10px] text-text-placeholder italic">+{extraCount} more fields</span>
             )}
           </div>
         )}
 
         {/* Footer */}
         {nodeData.workflow_step_count > 0 && (
-          <div className="px-3 py-1 border-t border-[#E5E5E5]">
-            <span className="text-[10px] text-[#999999]">
+          <div className="px-3 py-1 border-t border-border">
+            <span className="text-[10px] text-text-placeholder">
               {nodeData.workflow_step_count} workflow {nodeData.workflow_step_count === 1 ? 'link' : 'links'}
             </span>
           </div>

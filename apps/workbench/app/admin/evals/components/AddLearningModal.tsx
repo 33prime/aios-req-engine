@@ -53,9 +53,9 @@ export function AddLearningModal({ onClose, onCreated }: Props) {
     <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-[#E5E5E5]">
-          <h3 className="text-[15px] font-semibold text-[#333333]">Add Learning</h3>
-          <button onClick={onClose} className="text-[#999999] hover:text-[#333333]">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+          <h3 className="text-[15px] font-semibold text-text-body">Add Learning</h3>
+          <button onClick={onClose} className="text-text-placeholder hover:text-text-body">
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -69,7 +69,7 @@ export function AddLearningModal({ onClose, onCreated }: Props) {
             <select
               value={category}
               onChange={(e) => setCategory(e.target.value)}
-              className="w-full border border-[#E5E5E5] rounded-lg px-3 py-2 text-[13px] text-[#333333] focus:outline-none focus:ring-1 focus:ring-[#3FAF7A]"
+              className="w-full border border-border rounded-lg px-3 py-2 text-[13px] text-text-body focus:outline-none focus:ring-1 focus:ring-brand-primary"
             >
               {DIMENSIONS.map((d) => (
                 <option key={d} value={d}>{d}</option>
@@ -86,7 +86,7 @@ export function AddLearningModal({ onClose, onCreated }: Props) {
               onChange={(e) => setLearning(e.target.value)}
               rows={3}
               placeholder="Concise, actionable instruction..."
-              className="w-full border border-[#E5E5E5] rounded-lg px-3 py-2 text-[13px] text-[#333333] focus:outline-none focus:ring-1 focus:ring-[#3FAF7A] resize-none"
+              className="w-full border border-border rounded-lg px-3 py-2 text-[13px] text-text-body focus:outline-none focus:ring-1 focus:ring-brand-primary resize-none"
             />
           </div>
 
@@ -98,7 +98,7 @@ export function AddLearningModal({ onClose, onCreated }: Props) {
               <select
                 value={dimension}
                 onChange={(e) => setDimension(e.target.value)}
-                className="w-full border border-[#E5E5E5] rounded-lg px-3 py-2 text-[13px] text-[#333333] focus:outline-none focus:ring-1 focus:ring-[#3FAF7A]"
+                className="w-full border border-border rounded-lg px-3 py-2 text-[13px] text-text-body focus:outline-none focus:ring-1 focus:ring-brand-primary"
               >
                 <option value="">None</option>
                 {DIMENSIONS.filter(d => d !== 'general').map((d) => (
@@ -116,7 +116,7 @@ export function AddLearningModal({ onClose, onCreated }: Props) {
                 value={gapPattern}
                 onChange={(e) => setGapPattern(e.target.value)}
                 placeholder="e.g., missing_handoff_template"
-                className="w-full border border-[#E5E5E5] rounded-lg px-3 py-2 text-[13px] text-[#333333] focus:outline-none focus:ring-1 focus:ring-[#3FAF7A]"
+                className="w-full border border-border rounded-lg px-3 py-2 text-[13px] text-text-body focus:outline-none focus:ring-1 focus:ring-brand-primary"
               />
             </div>
           </div>
@@ -125,14 +125,14 @@ export function AddLearningModal({ onClose, onCreated }: Props) {
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-[13px] text-[#666666] hover:text-[#333333]"
+              className="px-4 py-2 text-[13px] text-[#666666] hover:text-text-body"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={!learning.trim() || saving}
-              className="px-4 py-2 bg-[#3FAF7A] text-white text-[13px] font-medium rounded-lg hover:bg-[#35965A] disabled:opacity-50 transition-colors"
+              className="px-4 py-2 bg-brand-primary text-white text-[13px] font-medium rounded-lg hover:bg-[#35965A] disabled:opacity-50 transition-colors"
             >
               {saving ? 'Saving...' : 'Add Learning'}
             </button>

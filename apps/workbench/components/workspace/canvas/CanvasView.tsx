@@ -184,8 +184,8 @@ export function CanvasView({ projectId, onRefresh }: CanvasViewProps) {
   if (isLoading) {
     return (
       <div className="max-w-5xl mx-auto py-16 text-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#3FAF7A] mx-auto mb-3" />
-        <p className="text-[13px] text-[#999999]">Loading Canvas View...</p>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-primary mx-auto mb-3" />
+        <p className="text-[13px] text-text-placeholder">Loading Canvas View...</p>
       </div>
     )
   }
@@ -196,7 +196,7 @@ export function CanvasView({ projectId, onRefresh }: CanvasViewProps) {
         <p className="text-red-500 mb-3">{error || 'No data available'}</p>
         <button
           onClick={loadData}
-          className="px-4 py-2 text-sm text-white bg-[#3FAF7A] rounded-xl hover:bg-[#25785A] transition-colors"
+          className="px-4 py-2 text-sm text-white bg-brand-primary rounded-xl hover:bg-[#25785A] transition-colors"
         >
           Retry
         </button>
@@ -212,10 +212,10 @@ export function CanvasView({ projectId, onRefresh }: CanvasViewProps) {
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div className="flex items-center gap-3">
-          <Cpu className="w-6 h-6 text-[#3FAF7A]" />
+          <Cpu className="w-6 h-6 text-brand-primary" />
           <div>
-            <h1 className="text-[24px] font-bold text-[#333333]">Product Intelligence Canvas</h1>
-            <p className="text-[13px] text-[#999999] mt-0.5">
+            <h1 className="text-[24px] font-bold text-text-body">Product Intelligence Canvas</h1>
+            <p className="text-[13px] text-text-placeholder mt-0.5">
               AI-synthesized product blueprint — the translation from discovery to build
             </p>
           </div>
@@ -226,7 +226,7 @@ export function CanvasView({ projectId, onRefresh }: CanvasViewProps) {
             loadContext()
             onRefresh?.()
           }}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-[#666666] bg-white border border-[#E5E5E5] rounded-xl hover:bg-gray-50 transition-colors"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-[#666666] bg-white border border-border rounded-xl hover:bg-gray-50 transition-colors"
         >
           <RefreshCw className="w-3.5 h-3.5" />
           Refresh
@@ -245,11 +245,11 @@ export function CanvasView({ projectId, onRefresh }: CanvasViewProps) {
 
       {/* Empty state when no actors selected */}
       {!hasActors && (
-        <div className="bg-white rounded-2xl shadow-md border border-[#E5E5E5] p-12 text-center">
+        <div className="bg-white rounded-2xl shadow-md border border-border p-12 text-center">
           <div className="w-14 h-14 mx-auto mb-4 rounded-full bg-[#F4F4F4] flex items-center justify-center">
-            <Cpu className="w-7 h-7 text-[#999999]" />
+            <Cpu className="w-7 h-7 text-text-placeholder" />
           </div>
-          <h3 className="text-[16px] font-semibold text-[#333333] mb-2">No canvas actors selected</h3>
+          <h3 className="text-[16px] font-semibold text-text-body mb-2">No canvas actors selected</h3>
           <p className="text-[13px] text-[#666666] max-w-md mx-auto">
             Switch to BRD View and click the star icon on personas to select them as canvas actors
             (max 2 primary + 1 secondary). Then return here to synthesize the value path.

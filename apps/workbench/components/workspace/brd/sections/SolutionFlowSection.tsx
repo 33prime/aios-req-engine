@@ -35,20 +35,20 @@ export function SolutionFlowSection({ flow, onOpen, onGenerate, isGenerating }: 
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <Zap className="w-5 h-5 text-[#0A1E2F]" />
-          <h2 className="text-lg font-semibold text-[#333333]">Solution Flow</h2>
+          <h2 className="text-lg font-semibold text-text-body">Solution Flow</h2>
           {steps.length > 0 && (
-            <span className="text-xs text-[#999999] ml-1">({steps.length})</span>
+            <span className="text-xs text-text-placeholder ml-1">({steps.length})</span>
           )}
         </div>
       </div>
 
       {!hasSteps ? (
         /* Empty state — generate CTA */
-        <div className="bg-gradient-to-br from-[#0A1E2F]/5 to-[#3FAF7A]/5 rounded-2xl border border-[#E5E5E5] p-8 text-center">
-          <div className="w-12 h-12 rounded-full bg-[#3FAF7A]/10 flex items-center justify-center mx-auto mb-4">
-            <Sparkles className="w-6 h-6 text-[#3FAF7A]" />
+        <div className="bg-gradient-to-br from-[#0A1E2F]/5 to-brand-primary-light rounded-2xl border border-border p-8 text-center">
+          <div className="w-12 h-12 rounded-full bg-brand-primary-light flex items-center justify-center mx-auto mb-4">
+            <Sparkles className="w-6 h-6 text-brand-primary" />
           </div>
-          <h3 className="text-lg font-semibold text-[#333333] mb-2">
+          <h3 className="text-lg font-semibold text-text-body mb-2">
             Generate Solution Flow
           </h3>
           <p className="text-sm text-[#666666] mb-6 max-w-md mx-auto">
@@ -57,7 +57,7 @@ export function SolutionFlowSection({ flow, onOpen, onGenerate, isGenerating }: 
           <button
             onClick={onGenerate}
             disabled={isGenerating}
-            className="inline-flex items-center gap-2 px-6 py-3 bg-[#3FAF7A] text-white rounded-xl text-sm font-semibold hover:bg-[#25785A] transition-colors disabled:opacity-50"
+            className="inline-flex items-center gap-2 px-6 py-3 bg-brand-primary text-white rounded-xl text-sm font-semibold hover:bg-[#25785A] transition-colors disabled:opacity-50"
           >
             {isGenerating ? (
               <>
@@ -75,7 +75,7 @@ export function SolutionFlowSection({ flow, onOpen, onGenerate, isGenerating }: 
       ) : (
         /* Hero card */
         <div
-          className="bg-white rounded-2xl border border-[#E5E5E5] shadow-[0_1px_2px_rgba(0,0,0,0.04)] hover:shadow-[0_4px_6px_rgba(0,0,0,0.08)] transition-shadow cursor-pointer"
+          className="bg-white rounded-2xl border border-border shadow-sm hover:shadow-md transition-shadow cursor-pointer"
           onClick={onOpen}
         >
           <div className="p-6">
@@ -86,15 +86,15 @@ export function SolutionFlowSection({ flow, onOpen, onGenerate, isGenerating }: 
                   <Zap className="w-5 h-5 text-[#0A1E2F]" />
                 </div>
                 <div>
-                  <h3 className="text-base font-semibold text-[#333333]">
+                  <h3 className="text-base font-semibold text-text-body">
                     {flow?.title || 'Solution Flow'}
                   </h3>
-                  <p className="text-xs text-[#999999]">
+                  <p className="text-xs text-text-placeholder">
                     {steps.length} steps across {Object.keys(phaseCountMap).length} phases
                   </p>
                 </div>
               </div>
-              <button className="flex items-center gap-1.5 text-sm text-[#3FAF7A] font-medium hover:underline">
+              <button className="flex items-center gap-1.5 text-sm text-brand-primary font-medium hover:underline">
                 Open
                 <ArrowRight className="w-4 h-4" />
               </button>
@@ -119,11 +119,11 @@ export function SolutionFlowSection({ flow, onOpen, onGenerate, isGenerating }: 
             <div className="flex items-center gap-3">
               <div className="flex-1 h-1.5 bg-[#F4F4F4] rounded-full overflow-hidden">
                 <div
-                  className="h-full bg-[#3FAF7A] rounded-full transition-all"
+                  className="h-full bg-brand-primary rounded-full transition-all"
                   style={{ width: `${progressPct}%` }}
                 />
               </div>
-              <span className="text-xs text-[#999999] whitespace-nowrap">
+              <span className="text-xs text-text-placeholder whitespace-nowrap">
                 {confirmedCount}/{steps.length} confirmed
               </span>
             </div>

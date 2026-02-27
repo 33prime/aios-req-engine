@@ -118,7 +118,7 @@ export function KnowledgeItemDetailDrawer({
       {/* Drawer */}
       <div className="fixed right-0 top-0 h-full w-[560px] max-w-[90vw] bg-white shadow-xl z-50 flex flex-col">
         {/* Header */}
-        <div className="flex items-start justify-between px-6 py-5 border-b border-[#E5E5E5]">
+        <div className="flex items-start justify-between px-6 py-5 border-b border-border">
           <div className="flex-1 min-w-0 mr-4">
             <p className="text-[14px] font-semibold text-[#333] line-clamp-2 leading-snug">
               {item.text}
@@ -141,7 +141,7 @@ export function KnowledgeItemDetailDrawer({
         </div>
 
         {/* Tabs */}
-        <div className="border-b border-[#E5E5E5] px-6">
+        <div className="border-b border-border px-6">
           <div className="flex gap-5">
             {tabs.map((tab) => (
               <button
@@ -149,7 +149,7 @@ export function KnowledgeItemDetailDrawer({
                 onClick={() => setActiveTab(tab.id)}
                 className={`py-2.5 text-[12px] font-medium border-b-2 transition-colors ${
                   activeTab === tab.id
-                    ? 'text-[#3FAF7A] border-[#3FAF7A]'
+                    ? 'text-brand-primary border-brand-primary'
                     : 'text-[#999] border-transparent hover:text-[#666]'
                 }`}
               >
@@ -276,7 +276,7 @@ export function KnowledgeItemDetailDrawer({
         </div>
 
         {/* Footer Actions */}
-        <div className="border-t border-[#E5E5E5] px-6 py-4">
+        <div className="border-t border-border px-6 py-4">
           <div className="flex items-center justify-between">
             {/* Generate / View Process Doc */}
             {canGenerate && projects.length > 0 && (
@@ -312,7 +312,7 @@ export function KnowledgeItemDetailDrawer({
                 ) : (
                   <button
                     onClick={handleGenerateClick}
-                    className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-white bg-[#3FAF7A] rounded-lg hover:bg-[#25785A] transition-colors"
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-white bg-brand-primary rounded-lg hover:bg-[#25785A] transition-colors"
                   >
                     <Sparkles className="w-3.5 h-3.5" />
                     Generate Document

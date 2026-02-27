@@ -99,7 +99,7 @@ export default function WhoWouldKnow({
 
   const getMatchBadgeColor = (score: number) => {
     if (score >= 15) return 'bg-green-100 text-green-700'
-    if (score >= 10) return 'bg-blue-100 text-blue-700'
+    if (score >= 10) return 'bg-blue-100 text-brand-primary-hover'
     if (score >= 5) return 'bg-yellow-100 text-yellow-700'
     return 'bg-gray-100 text-gray-600'
   }
@@ -119,22 +119,22 @@ export default function WhoWouldKnow({
         className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-[#88BABF]/10 transition-colors rounded-lg"
       >
         <div className="flex items-center gap-2">
-          <Lightbulb className="w-4 h-4 text-[#044159]" />
-          <span className="text-sm font-medium text-[#044159]">
+          <Lightbulb className="w-4 h-4 text-accent" />
+          <span className="text-sm font-medium text-accent">
             Who would know?
           </span>
           {hasFetched && suggestions.length > 0 && (
-            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-[#044159]/10 text-[#044159]">
+            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-accent-light text-accent">
               {suggestions.length} suggestion{suggestions.length !== 1 ? 's' : ''}
             </span>
           )}
         </div>
         {loading ? (
-          <Loader2 className="w-4 h-4 text-[#044159] animate-spin" />
+          <Loader2 className="w-4 h-4 text-accent animate-spin" />
         ) : expanded ? (
-          <ChevronUp className="w-4 h-4 text-[#044159]" />
+          <ChevronUp className="w-4 h-4 text-accent" />
         ) : (
-          <ChevronDown className="w-4 h-4 text-[#044159]" />
+          <ChevronDown className="w-4 h-4 text-accent" />
         )}
       </button>
 
@@ -143,9 +143,9 @@ export default function WhoWouldKnow({
         <div className="px-4 pb-4 space-y-4">
           {/* Gap description if provided */}
           {gapDescription && (
-            <div className="flex items-start gap-2 p-3 bg-white/50 rounded-lg border border-[#E5E5E5]">
-              <HelpCircle className="w-4 h-4 text-[#7B7B7B] mt-0.5 flex-shrink-0" />
-              <p className="text-sm text-[#4B4B4B]">{gapDescription}</p>
+            <div className="flex items-start gap-2 p-3 bg-white/50 rounded-lg border border-border">
+              <HelpCircle className="w-4 h-4 text-text-muted mt-0.5 flex-shrink-0" />
+              <p className="text-sm text-text-secondary">{gapDescription}</p>
             </div>
           )}
 
@@ -168,19 +168,19 @@ export default function WhoWouldKnow({
           {/* Loading state */}
           {loading && (
             <div className="flex items-center justify-center py-6">
-              <Loader2 className="w-5 h-5 text-[#044159] animate-spin" />
-              <span className="ml-2 text-sm text-[#7B7B7B]">Finding stakeholders...</span>
+              <Loader2 className="w-5 h-5 text-accent animate-spin" />
+              <span className="ml-2 text-sm text-text-muted">Finding stakeholders...</span>
             </div>
           )}
 
           {/* No suggestions */}
           {!loading && !error && hasFetched && suggestions.length === 0 && (
             <div className="text-center py-6">
-              <User className="w-8 h-8 text-[#7B7B7B] mx-auto mb-2" />
-              <p className="text-sm text-[#7B7B7B]">
+              <User className="w-8 h-8 text-text-muted mx-auto mb-2" />
+              <p className="text-sm text-text-muted">
                 No stakeholders found with matching expertise.
               </p>
-              <p className="text-xs text-[#7B7B7B] mt-1">
+              <p className="text-xs text-text-muted mt-1">
                 Try adding stakeholders with domain expertise in related areas.
               </p>
             </div>
@@ -192,21 +192,21 @@ export default function WhoWouldKnow({
               {suggestions.map((suggestion) => (
                 <div
                   key={suggestion.stakeholder_id}
-                  className="p-3 bg-white rounded-lg border border-[#E5E5E5] hover:border-[#88BABF] transition-colors"
+                  className="p-3 bg-white rounded-lg border border-border hover:border-[#88BABF] transition-colors"
                 >
                   {/* Stakeholder header */}
                   <div className="flex items-start justify-between">
                     <div className="flex items-center gap-2">
                       <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                        suggestion.is_primary_contact ? 'bg-[#044159]/10' : 'bg-gray-100'
+                        suggestion.is_primary_contact ? 'bg-accent-light' : 'bg-gray-100'
                       }`}>
                         <User className={`w-4 h-4 ${
-                          suggestion.is_primary_contact ? 'text-[#044159]' : 'text-gray-500'
+                          suggestion.is_primary_contact ? 'text-accent' : 'text-gray-500'
                         }`} />
                       </div>
                       <div>
                         <div className="flex items-center gap-1.5">
-                          <span className="font-medium text-[#1D1D1F] text-sm">
+                          <span className="font-medium text-text-primary text-sm">
                             {suggestion.stakeholder_name}
                           </span>
                           {suggestion.is_primary_contact && (
@@ -214,7 +214,7 @@ export default function WhoWouldKnow({
                           )}
                         </div>
                         {suggestion.role && (
-                          <p className="text-xs text-[#7B7B7B]">{suggestion.role}</p>
+                          <p className="text-xs text-text-muted">{suggestion.role}</p>
                         )}
                       </div>
                     </div>
@@ -231,7 +231,7 @@ export default function WhoWouldKnow({
                       {suggestion.topic_matches.slice(0, 5).map((topic, idx) => (
                         <span
                           key={idx}
-                          className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-[#88BABF]/10 text-[#044159]"
+                          className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-[#88BABF]/10 text-accent"
                         >
                           <Sparkles className="w-3 h-3 mr-1" />
                           {topic}
@@ -242,7 +242,7 @@ export default function WhoWouldKnow({
 
                   {/* Match reasons */}
                   {suggestion.reasons.length > 0 && (
-                    <div className="mt-2 text-xs text-[#7B7B7B]">
+                    <div className="mt-2 text-xs text-text-muted">
                       {suggestion.reasons.slice(0, 2).map((reason, idx) => (
                         <span key={idx} className="block">
                           • {reason.replace(/expertise:|mentioned:/g, '')}
@@ -257,7 +257,7 @@ export default function WhoWouldKnow({
                       <>
                         <button
                           onClick={() => onAskStakeholder(suggestion.stakeholder_id, suggestion.stakeholder_name)}
-                          className="inline-flex items-center px-3 py-1.5 text-xs font-medium bg-[#044159] text-white rounded hover:bg-[#033344] transition-colors"
+                          className="inline-flex items-center px-3 py-1.5 text-xs font-medium bg-accent text-white rounded hover:bg-accent-hover transition-colors"
                         >
                           <MessageCircle className="w-3.5 h-3.5 mr-1.5" />
                           Ask {suggestion.stakeholder_name.split(' ')[0]}
@@ -279,15 +279,15 @@ export default function WhoWouldKnow({
 
           {/* Topics extracted (collapsed by default) */}
           {topicsExtracted.length > 0 && (
-            <details className="text-xs text-[#7B7B7B]">
-              <summary className="cursor-pointer hover:text-[#4B4B4B]">
+            <details className="text-xs text-text-muted">
+              <summary className="cursor-pointer hover:text-text-secondary">
                 Topics analyzed ({topicsExtracted.length})
               </summary>
               <div className="mt-2 flex flex-wrap gap-1">
                 {topicsExtracted.map((topic, idx) => (
                   <span
                     key={idx}
-                    className="px-2 py-0.5 bg-gray-100 rounded text-[#7B7B7B]"
+                    className="px-2 py-0.5 bg-gray-100 rounded text-text-muted"
                   >
                     {topic}
                   </span>
@@ -298,10 +298,10 @@ export default function WhoWouldKnow({
 
           {/* Mark resolved action */}
           {onMarkResolved && hasFetched && (
-            <div className="pt-3 border-t border-[#E5E5E5]">
+            <div className="pt-3 border-t border-border">
               <button
                 onClick={onMarkResolved}
-                className="text-xs text-[#7B7B7B] hover:text-[#4B4B4B] underline"
+                className="text-xs text-text-muted hover:text-text-secondary underline"
               >
                 Mark as resolved
               </button>

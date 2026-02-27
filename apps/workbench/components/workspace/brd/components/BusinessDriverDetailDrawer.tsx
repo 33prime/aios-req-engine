@@ -274,9 +274,9 @@ function OverviewTab({
 
       {/* AI Narrative */}
       {narrative && (
-        <div className="bg-[#F4F4F4] border border-[#E5E5E5] rounded-xl px-4 py-3">
-          <p className="text-[11px] font-medium text-[#999999] uppercase tracking-wide mb-1">AI Narrative</p>
-          <p className="text-[13px] text-[#333333] leading-relaxed">{narrative}</p>
+        <div className="bg-[#F4F4F4] border border-border rounded-xl px-4 py-3">
+          <p className="text-[11px] font-medium text-text-placeholder uppercase tracking-wide mb-1">AI Narrative</p>
+          <p className="text-[13px] text-text-body leading-relaxed">{narrative}</p>
         </div>
       )}
 
@@ -284,14 +284,14 @@ function OverviewTab({
       <div className="flex items-center gap-4">
         <div className="flex-1">
           <div className="flex items-center justify-between mb-1.5">
-            <span className="text-[11px] font-medium text-[#999999] uppercase tracking-wide">
+            <span className="text-[11px] font-medium text-text-placeholder uppercase tracking-wide">
               Relevance Score
             </span>
-            <span className="text-[12px] font-semibold text-[#333333]">{score.toFixed(1)}</span>
+            <span className="text-[12px] font-semibold text-text-body">{score.toFixed(1)}</span>
           </div>
           <div className="h-2 bg-[#F0F0F0] rounded-full overflow-hidden">
             <div
-              className="h-full bg-[#3FAF7A] rounded-full transition-all duration-500"
+              className="h-full bg-brand-primary rounded-full transition-all duration-500"
               style={{ width: `${Math.min((score / 30) * 100, 100)}%` }}
             />
           </div>
@@ -324,7 +324,7 @@ function OverviewTab({
 
       {/* Type-specific editable fields */}
       <div>
-        <h4 className="text-[11px] font-medium text-[#999999] uppercase tracking-wide mb-3">
+        <h4 className="text-[11px] font-medium text-text-placeholder uppercase tracking-wide mb-3">
           {driverType === 'pain' ? 'Pain Details' : driverType === 'goal' ? 'Goal Details' : 'Metric Details'}
         </h4>
 
@@ -364,13 +364,13 @@ function OverviewTab({
       {/* Missing Data Callouts */}
       {missingData.length > 0 && (
         <div className="space-y-1.5">
-          <h4 className="text-[11px] font-medium text-[#999999] uppercase tracking-wide">Missing Data</h4>
+          <h4 className="text-[11px] font-medium text-text-placeholder uppercase tracking-wide">Missing Data</h4>
           {missingData.map((msg, i) => (
             <div
               key={i}
-              className="flex items-start gap-2 text-[12px] text-[#666666] bg-[#F4F4F4] border border-[#E5E5E5] rounded-lg px-3 py-2"
+              className="flex items-start gap-2 text-[12px] text-[#666666] bg-[#F4F4F4] border border-border rounded-lg px-3 py-2"
             >
-              <Info className="w-3.5 h-3.5 mt-0.5 flex-shrink-0 text-[#999999]" />
+              <Info className="w-3.5 h-3.5 mt-0.5 flex-shrink-0 text-text-placeholder" />
               {msg}
             </div>
           ))}
@@ -389,9 +389,9 @@ function OverviewTab({
 // ============================================================================
 
 const SOURCE_COLORS: Record<string, string> = {
-  signal: 'border-l-[#3FAF7A]',
+  signal: 'border-l-brand-primary',
   research: 'border-l-[#0A1E2F]',
-  inferred: 'border-l-[#E5E5E5]',
+  inferred: 'border-l-border',
 }
 
 const SOURCE_LABELS: Record<string, string> = {
@@ -414,7 +414,7 @@ function ProvenanceTab({
   if (evidence.length === 0) {
     return (
       <EmptyState
-        icon={<FileSearch className="w-8 h-8 text-[#E5E5E5]" />}
+        icon={<FileSearch className="w-8 h-8 text-border" />}
         title="No evidence sources"
         description="Process more signals to build the evidence trail for this driver."
       />
@@ -423,15 +423,15 @@ function ProvenanceTab({
 
   return (
     <div className="space-y-4">
-      <h4 className="text-[11px] font-medium text-[#999999] uppercase tracking-wide">
+      <h4 className="text-[11px] font-medium text-text-placeholder uppercase tracking-wide">
         Evidence Sources ({evidence.length})
       </h4>
       {evidence.map((item, idx) => {
-        const borderColor = SOURCE_COLORS[item.source_type] || 'border-l-[#E5E5E5]'
+        const borderColor = SOURCE_COLORS[item.source_type] || 'border-l-border'
         return (
           <div
             key={item.chunk_id || idx}
-            className={`border-l-[3px] ${borderColor} rounded-lg border border-[#E5E5E5] bg-white overflow-hidden`}
+            className={`border-l-[3px] ${borderColor} rounded-lg border border-border bg-white overflow-hidden`}
           >
             <div className="px-4 py-3">
               {/* Source type badge */}
@@ -446,13 +446,13 @@ function ProvenanceTab({
               </div>
 
               {/* Quote */}
-              <p className="text-[13px] text-[#333333] italic leading-relaxed">
+              <p className="text-[13px] text-text-body italic leading-relaxed">
                 &ldquo;{item.excerpt}&rdquo;
               </p>
 
               {/* Rationale */}
               {item.rationale && (
-                <p className="text-[11px] text-[#999999] mt-2">
+                <p className="text-[11px] text-text-placeholder mt-2">
                   {item.rationale}
                 </p>
               )}
@@ -517,7 +517,7 @@ function FinancialOverview({
     return (
       <button
         onClick={onEdit}
-        className="flex items-center gap-2 w-full px-3 py-2.5 text-[12px] font-medium text-[#25785A] bg-white border border-[#3FAF7A] border-dashed rounded-lg hover:bg-[#E8F5E9] transition-colors"
+        className="flex items-center gap-2 w-full px-3 py-2.5 text-[12px] font-medium text-[#25785A] bg-white border border-brand-primary border-dashed rounded-lg hover:bg-[#E8F5E9] transition-colors"
       >
         <DollarSign className="w-3.5 h-3.5" />
         Add Financial Impact
@@ -548,16 +548,16 @@ function FinancialOverview({
   }
 
   return (
-    <div className="border border-[#E5E5E5] rounded-xl overflow-hidden bg-white">
-      <div className="px-4 py-3 bg-[#F4F4F4] border-b border-[#E5E5E5]">
+    <div className="border border-border rounded-xl overflow-hidden bg-white">
+      <div className="px-4 py-3 bg-[#F4F4F4] border-b border-border">
         <div className="flex items-center gap-2">
-          <DollarSign className="w-4 h-4 text-[#3FAF7A]" />
-          <span className="text-[13px] font-semibold text-[#333333]">Financial Impact</span>
+          <DollarSign className="w-4 h-4 text-brand-primary" />
+          <span className="text-[13px] font-semibold text-text-body">Financial Impact</span>
         </div>
       </div>
       <div className="p-4 space-y-3">
         <div>
-          <span className="text-[11px] font-medium text-[#999999] uppercase tracking-wide block mb-1.5">Type</span>
+          <span className="text-[11px] font-medium text-text-placeholder uppercase tracking-wide block mb-1.5">Type</span>
           <div className="flex flex-wrap gap-1.5">
             {IMPACT_TYPES.map((t) => (
               <button
@@ -565,8 +565,8 @@ function FinancialOverview({
                 onClick={() => setType(t.id)}
                 className={`px-2.5 py-1 text-[11px] font-medium rounded-lg transition-colors ${
                   type === t.id
-                    ? 'bg-[#3FAF7A] text-white'
-                    : 'bg-white border border-[#E5E5E5] text-[#666666] hover:border-[#3FAF7A]'
+                    ? 'bg-brand-primary text-white'
+                    : 'bg-white border border-border text-[#666666] hover:border-brand-primary'
                 }`}
               >
                 {t.label}
@@ -575,21 +575,21 @@ function FinancialOverview({
           </div>
         </div>
         <div>
-          <span className="text-[11px] font-medium text-[#999999] uppercase tracking-wide block mb-1.5">Value Range</span>
+          <span className="text-[11px] font-medium text-text-placeholder uppercase tracking-wide block mb-1.5">Value Range</span>
           <div className="flex items-center gap-2">
             <div className="relative flex-1">
-              <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[12px] text-[#999999]">$</span>
-              <input type="text" value={low} onChange={(e) => setLow(e.target.value)} placeholder="Low" className="w-full pl-6 pr-3 py-1.5 text-[12px] border border-[#E5E5E5] rounded-lg bg-white text-[#333333] placeholder:text-[#999999] focus:outline-none focus:border-[#3FAF7A]" />
+              <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[12px] text-text-placeholder">$</span>
+              <input type="text" value={low} onChange={(e) => setLow(e.target.value)} placeholder="Low" className="w-full pl-6 pr-3 py-1.5 text-[12px] border border-border rounded-lg bg-white text-text-body placeholder:text-text-placeholder focus:outline-none focus:border-brand-primary" />
             </div>
-            <span className="text-[12px] text-[#999999]">—</span>
+            <span className="text-[12px] text-text-placeholder">—</span>
             <div className="relative flex-1">
-              <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[12px] text-[#999999]">$</span>
-              <input type="text" value={high} onChange={(e) => setHigh(e.target.value)} placeholder="High" className="w-full pl-6 pr-3 py-1.5 text-[12px] border border-[#E5E5E5] rounded-lg bg-white text-[#333333] placeholder:text-[#999999] focus:outline-none focus:border-[#3FAF7A]" />
+              <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[12px] text-text-placeholder">$</span>
+              <input type="text" value={high} onChange={(e) => setHigh(e.target.value)} placeholder="High" className="w-full pl-6 pr-3 py-1.5 text-[12px] border border-border rounded-lg bg-white text-text-body placeholder:text-text-placeholder focus:outline-none focus:border-brand-primary" />
             </div>
           </div>
         </div>
         <div>
-          <span className="text-[11px] font-medium text-[#999999] uppercase tracking-wide block mb-1.5">Timeframe</span>
+          <span className="text-[11px] font-medium text-text-placeholder uppercase tracking-wide block mb-1.5">Timeframe</span>
           <div className="flex gap-1">
             {TIMEFRAMES.map((tf) => (
               <button
@@ -597,8 +597,8 @@ function FinancialOverview({
                 onClick={() => setTimeframe(tf.id)}
                 className={`flex-1 px-2 py-1.5 text-[11px] font-medium rounded-lg transition-colors ${
                   timeframe === tf.id
-                    ? 'bg-[#3FAF7A] text-white'
-                    : 'bg-white border border-[#E5E5E5] text-[#666666] hover:border-[#3FAF7A]'
+                    ? 'bg-brand-primary text-white'
+                    : 'bg-white border border-border text-[#666666] hover:border-brand-primary'
                 }`}
               >
                 {tf.label}
@@ -608,17 +608,17 @@ function FinancialOverview({
         </div>
         <div>
           <div className="flex items-center justify-between mb-1">
-            <span className="text-[11px] font-medium text-[#999999] uppercase tracking-wide">Confidence</span>
-            <span className="text-[12px] font-semibold text-[#333333]">{confidence}%</span>
+            <span className="text-[11px] font-medium text-text-placeholder uppercase tracking-wide">Confidence</span>
+            <span className="text-[12px] font-semibold text-text-body">{confidence}%</span>
           </div>
-          <input type="range" min={0} max={100} value={confidence} onChange={(e) => setConfidence(parseInt(e.target.value))} className="w-full h-1.5 bg-[#E5E5E5] rounded-full appearance-none cursor-pointer accent-[#3FAF7A]" />
+          <input type="range" min={0} max={100} value={confidence} onChange={(e) => setConfidence(parseInt(e.target.value))} className="w-full h-1.5 bg-border rounded-full appearance-none cursor-pointer accent-brand-primary" />
         </div>
         <div>
-          <span className="text-[11px] font-medium text-[#999999] uppercase tracking-wide block mb-1.5">Source (optional)</span>
-          <input type="text" value={source} onChange={(e) => setSource(e.target.value)} placeholder="e.g. CFO estimate, industry benchmark..." className="w-full px-3 py-1.5 text-[12px] border border-[#E5E5E5] rounded-lg bg-white text-[#333333] placeholder:text-[#999999] focus:outline-none focus:border-[#3FAF7A]" />
+          <span className="text-[11px] font-medium text-text-placeholder uppercase tracking-wide block mb-1.5">Source (optional)</span>
+          <input type="text" value={source} onChange={(e) => setSource(e.target.value)} placeholder="e.g. CFO estimate, industry benchmark..." className="w-full px-3 py-1.5 text-[12px] border border-border rounded-lg bg-white text-text-body placeholder:text-text-placeholder focus:outline-none focus:border-brand-primary" />
         </div>
         <div className="flex items-center justify-end gap-2 pt-1">
-          <button onClick={onCancel} className="px-3 py-1.5 text-[12px] font-medium text-[#666666] hover:text-[#333333] rounded-lg hover:bg-[#F0F0F0] transition-colors">Cancel</button>
+          <button onClick={onCancel} className="px-3 py-1.5 text-[12px] font-medium text-[#666666] hover:text-text-body rounded-lg hover:bg-[#F0F0F0] transition-colors">Cancel</button>
           <button
             onClick={() => onSave({
               monetary_type: type || null,
@@ -629,7 +629,7 @@ function FinancialOverview({
               monetary_source: source || null,
             })}
             disabled={saving}
-            className="px-4 py-1.5 text-[12px] font-medium rounded-lg bg-[#3FAF7A] text-white hover:bg-[#25785A] transition-colors disabled:opacity-50"
+            className="px-4 py-1.5 text-[12px] font-medium rounded-lg bg-brand-primary text-white hover:bg-[#25785A] transition-colors disabled:opacity-50"
           >
             {saving ? 'Saving...' : 'Save'}
           </button>
@@ -690,13 +690,13 @@ function VisionAlignmentBadge({ alignment }: { alignment: VisionAlignment }) {
   const config: Record<string, { bg: string; text: string; label: string }> = {
     high: { bg: 'bg-[#E8F5E9]', text: 'text-[#25785A]', label: 'High alignment' },
     medium: { bg: 'bg-[#F0F0F0]', text: 'text-[#666666]', label: 'Medium alignment' },
-    low: { bg: 'bg-[#F0F0F0]', text: 'text-[#999999]', label: 'Low alignment' },
-    unrelated: { bg: 'bg-[#F0F0F0]', text: 'text-[#999999]', label: 'Unrelated' },
+    low: { bg: 'bg-[#F0F0F0]', text: 'text-text-placeholder', label: 'Low alignment' },
+    unrelated: { bg: 'bg-[#F0F0F0]', text: 'text-text-placeholder', label: 'Unrelated' },
   }
   const c = config[alignment] || config.low
   return (
     <div className="flex-shrink-0 text-center">
-      <span className="text-[10px] font-medium text-[#999999] uppercase tracking-wide block mb-1">Vision</span>
+      <span className="text-[10px] font-medium text-text-placeholder uppercase tracking-wide block mb-1">Vision</span>
       <span className={`inline-flex px-2.5 py-1 text-[11px] font-medium rounded-full ${c.bg} ${c.text}`}>
         {c.label}
       </span>
@@ -731,7 +731,7 @@ function ConnectionsTab({
   if (isEmpty) {
     return (
       <EmptyState
-        icon={<Link2 className="w-8 h-8 text-[#E5E5E5]" />}
+        icon={<Link2 className="w-8 h-8 text-border" />}
         title="No connections found"
         description="Run enrichment or manually link entities to build the relationship graph."
       />
@@ -756,7 +756,7 @@ function ConnectionsTab({
       )}
       {workflowCount > 0 && (
         <ConnectionGroup icon={Workflow} title="Workflow Steps" count={workflowCount}>
-          <p className="text-[12px] text-[#999999] px-3 py-2">
+          <p className="text-[12px] text-text-placeholder px-3 py-2">
             {workflowCount} workflow step{workflowCount > 1 ? 's' : ''} linked via enrichment analysis.
           </p>
         </ConnectionGroup>
@@ -769,10 +769,10 @@ function ConnectionsTab({
                 <span className="text-[10px] font-medium uppercase px-1.5 py-0.5 rounded bg-[#F0F0F0] text-[#666666]">
                   {r.driver_type}
                 </span>
-                <span className="text-[13px] text-[#333333] line-clamp-1">{r.description}</span>
+                <span className="text-[13px] text-text-body line-clamp-1">{r.description}</span>
               </div>
               {r.relationship && (
-                <p className="text-[11px] text-[#999999] mt-1 pl-0.5">{r.relationship}</p>
+                <p className="text-[11px] text-text-placeholder mt-1 pl-0.5">{r.relationship}</p>
               )}
             </div>
           ))}
@@ -798,16 +798,16 @@ function ConnectionItem({
       <div className="flex items-center gap-2">
         {confirmed !== undefined && (
           confirmed
-            ? <CheckCircle2 className="w-3.5 h-3.5 text-[#3FAF7A] flex-shrink-0" />
-            : <Circle className="w-3.5 h-3.5 text-[#E5E5E5] flex-shrink-0" />
+            ? <CheckCircle2 className="w-3.5 h-3.5 text-brand-primary flex-shrink-0" />
+            : <Circle className="w-3.5 h-3.5 text-border flex-shrink-0" />
         )}
-        <span className="text-[13px] text-[#333333] font-medium">{name}</span>
+        <span className="text-[13px] text-text-body font-medium">{name}</span>
         {subtitle && (
-          <span className="text-[11px] text-[#999999]">{subtitle}</span>
+          <span className="text-[11px] text-text-placeholder">{subtitle}</span>
         )}
       </div>
       {reason && (
-        <p className="text-[11px] text-[#999999] mt-0.5 pl-5">{reason}</p>
+        <p className="text-[11px] text-text-placeholder mt-0.5 pl-5">{reason}</p>
       )}
     </div>
   )
@@ -831,7 +831,7 @@ function HistoryTab({
   if (revisions.length === 0) {
     return (
       <EmptyState
-        icon={<Clock className="w-8 h-8 text-[#E5E5E5]" />}
+        icon={<Clock className="w-8 h-8 text-border" />}
         title="No revision history"
         description="Changes will appear here as the driver is updated."
       />
@@ -840,7 +840,7 @@ function HistoryTab({
 
   return (
     <div className="space-y-3">
-      <h4 className="text-[11px] font-medium text-[#999999] uppercase tracking-wide">
+      <h4 className="text-[11px] font-medium text-text-placeholder uppercase tracking-wide">
         Change History ({revisions.length})
       </h4>
       {revisions.map((rev, idx) => (
@@ -858,13 +858,13 @@ function RevisionCard({ revision }: { revision: RevisionEntry }) {
   const timeAgo = formatRelativeTime(revision.created_at)
 
   return (
-    <div className="bg-[#F4F4F4] border border-[#E5E5E5] rounded-xl px-3 py-2.5">
+    <div className="bg-[#F4F4F4] border border-border rounded-xl px-3 py-2.5">
       <div className="flex items-center gap-2 mb-1">
         <span className={`inline-flex px-1.5 py-0.5 text-[10px] font-medium rounded ${typeCls}`}>
           {revision.revision_type}
         </span>
-        <span className="text-[11px] text-[#999999]">{timeAgo}</span>
-        <span className="text-[11px] text-[#999999]">
+        <span className="text-[11px] text-text-placeholder">{timeAgo}</span>
+        <span className="text-[11px] text-text-placeholder">
           by {formatRevisionAuthor(revision.created_by)}
         </span>
       </div>
@@ -876,14 +876,14 @@ function RevisionCard({ revision }: { revision: RevisionEntry }) {
       {hasChanges && (
         <button
           onClick={() => setExpanded(!expanded)}
-          className="mt-1.5 flex items-center gap-1 text-[11px] text-[#999999] hover:text-[#666666] transition-colors"
+          className="mt-1.5 flex items-center gap-1 text-[11px] text-text-placeholder hover:text-[#666666] transition-colors"
         >
           {expanded ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
           Field changes
         </button>
       )}
       {expanded && revision.changes && (
-        <div className="mt-2 space-y-1 pl-2 border-l-2 border-[#E5E5E5]">
+        <div className="mt-2 space-y-1 pl-2 border-l-2 border-border">
           {Object.entries(revision.changes).map(([field, change]) => (
             <div key={field} className="text-[11px]">
               <span className="font-medium text-[#666666]">{field}:</span>{' '}
@@ -891,7 +891,7 @@ function RevisionCard({ revision }: { revision: RevisionEntry }) {
                 <>
                   <span className="text-red-400 line-through">{String((change as { old: unknown }).old || '—')}</span>
                   {' → '}
-                  <span className="text-[#3FAF7A]">{String((change as { new: unknown }).new || '—')}</span>
+                  <span className="text-brand-primary">{String((change as { new: unknown }).new || '—')}</span>
                 </>
               ) : (
                 <span className="text-[#666666]">{String(change)}</span>

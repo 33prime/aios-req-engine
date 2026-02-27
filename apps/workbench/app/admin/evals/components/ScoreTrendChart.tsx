@@ -18,7 +18,7 @@ interface Props {
 
 export function ScoreTrendChart({ data }: Props) {
   if (!data.length) {
-    return <p className="text-[13px] text-[#999999] py-8 text-center">No eval data yet</p>
+    return <p className="text-[13px] text-text-placeholder py-8 text-center">No eval data yet</p>
   }
 
   const formatted = data.map((d) => ({

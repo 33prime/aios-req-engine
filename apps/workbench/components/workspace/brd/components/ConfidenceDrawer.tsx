@@ -46,7 +46,7 @@ const CATEGORY_CONFIG: Record<ConfidenceCategory, { bg: string; text: string; la
 const SOURCE_TYPE_CONFIG: Record<string, { bg: string; text: string; label: string }> = {
   signal: { bg: 'bg-[#E8F5E9]', text: 'text-[#25785A]', label: 'Signal' },
   research: { bg: 'bg-[#E8F5E9]', text: 'text-[#25785A]', label: 'Research' },
-  inferred: { bg: 'bg-[#E5E5E5]', text: 'text-[#666666]', label: 'Inferred' },
+  inferred: { bg: 'bg-border', text: 'text-[#666666]', label: 'Inferred' },
 }
 
 export function ConfidenceDrawer({
@@ -114,7 +114,7 @@ export function ConfidenceDrawer({
       {loading ? (
         <Spinner />
       ) : !data ? (
-        <p className="text-[13px] text-[#999999] text-center py-8">Failed to load confidence data</p>
+        <p className="text-[13px] text-text-placeholder text-center py-8">Failed to load confidence data</p>
       ) : activeTab === 'overview' ? (
         <OverviewTab data={data} />
       ) : activeTab === 'evidence' ? (
@@ -158,16 +158,16 @@ function OverviewTab({ data }: { data: EntityConfidenceData }) {
       {/* Completeness progress */}
       <div>
         <div className="flex items-center justify-between mb-2">
-          <span className="text-[13px] font-medium text-[#333333]">Confidence Score</span>
-          <span className="text-[13px] font-semibold text-[#333333]">{data.completeness_met}/{data.completeness_total}</span>
+          <span className="text-[13px] font-medium text-text-body">Confidence Score</span>
+          <span className="text-[13px] font-semibold text-text-body">{data.completeness_met}/{data.completeness_total}</span>
         </div>
-        <div className="h-2.5 bg-[#E5E5E5] rounded-full overflow-hidden">
+        <div className="h-2.5 bg-border rounded-full overflow-hidden">
           <div
-            className="h-full bg-[#3FAF7A] rounded-full transition-all duration-300"
+            className="h-full bg-brand-primary rounded-full transition-all duration-300"
             style={{ width: `${pct}%` }}
           />
         </div>
-        <p className="text-[11px] text-[#999999] mt-1">{pct}% of confidence criteria met</p>
+        <p className="text-[11px] text-text-placeholder mt-1">{pct}% of confidence criteria met</p>
       </div>
 
       {/* Grouped checklist */}
@@ -184,11 +184,11 @@ function OverviewTab({ data }: { data: EntityConfidenceData }) {
               {items.map((item, i) => (
                 <div key={i} className="flex items-start gap-2">
                   {item.is_met ? (
-                    <CheckCircle2 className="w-4 h-4 text-[#3FAF7A] flex-shrink-0 mt-0.5" />
+                    <CheckCircle2 className="w-4 h-4 text-brand-primary flex-shrink-0 mt-0.5" />
                   ) : (
-                    <Circle className="w-4 h-4 text-[#E5E5E5] flex-shrink-0 mt-0.5" />
+                    <Circle className="w-4 h-4 text-border flex-shrink-0 mt-0.5" />
                   )}
-                  <span className={`text-[13px] ${item.is_met ? 'text-[#666666]' : 'text-[#333333]'}`}>
+                  <span className={`text-[13px] ${item.is_met ? 'text-[#666666]' : 'text-text-body'}`}>
                     {item.label}
                   </span>
                 </div>
@@ -200,10 +200,10 @@ function OverviewTab({ data }: { data: EntityConfidenceData }) {
 
       {/* Dependencies summary */}
       {(dependsOnCount > 0 || dependedByCount > 0) && (
-        <div className="pt-3 border-t border-[#E5E5E5]">
+        <div className="pt-3 border-t border-border">
           <div className="flex items-center gap-2 mb-2">
-            <Link2 className="w-3.5 h-3.5 text-[#999999]" />
-            <span className="text-[12px] font-semibold text-[#999999] uppercase tracking-wider">Dependencies</span>
+            <Link2 className="w-3.5 h-3.5 text-text-placeholder" />
+            <span className="text-[12px] font-semibold text-text-placeholder uppercase tracking-wider">Dependencies</span>
           </div>
           <div className="flex gap-4 text-[13px] text-[#666666]">
             {dependsOnCount > 0 && (
@@ -230,9 +230,9 @@ function EvidenceTab({ data }: { data: EntityConfidenceData }) {
   if (!hasEvidence && !hasAttributions) {
     return (
       <div className="text-center py-10">
-        <FileText className="w-8 h-8 text-[#E5E5E5] mx-auto mb-2" />
-        <p className="text-[13px] text-[#999999]">No evidence tracked yet</p>
-        <p className="text-[12px] text-[#999999] mt-1">Process a signal to establish provenance</p>
+        <FileText className="w-8 h-8 text-border mx-auto mb-2" />
+        <p className="text-[13px] text-text-placeholder">No evidence tracked yet</p>
+        <p className="text-[12px] text-text-placeholder mt-1">Process a signal to establish provenance</p>
       </div>
     )
   }
@@ -242,33 +242,33 @@ function EvidenceTab({ data }: { data: EntityConfidenceData }) {
       {/* Evidence items */}
       {hasEvidence && (
         <div>
-          <h4 className="text-[12px] font-semibold text-[#999999] uppercase tracking-wider mb-3">
+          <h4 className="text-[12px] font-semibold text-text-placeholder uppercase tracking-wider mb-3">
             Evidence ({data.evidence.length})
           </h4>
           <div className="space-y-3">
             {data.evidence.map((ev, i) => {
               const srcConfig = SOURCE_TYPE_CONFIG[ev.source_type] || SOURCE_TYPE_CONFIG.inferred
               return (
-                <div key={i} className="border border-[#E5E5E5] rounded-md p-3">
+                <div key={i} className="border border-border rounded-md p-3">
                   {ev.excerpt && (
-                    <blockquote className="text-[13px] text-[#666666] italic border-l-2 border-[#3FAF7A] pl-3 mb-2">
+                    <blockquote className="text-[13px] text-[#666666] italic border-l-2 border-brand-primary pl-3 mb-2">
                       {ev.excerpt}
                     </blockquote>
                   )}
                   {ev.rationale && (
-                    <p className="text-[12px] text-[#999999] mb-2">{ev.rationale}</p>
+                    <p className="text-[12px] text-text-placeholder mb-2">{ev.rationale}</p>
                   )}
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium ${srcConfig.bg} ${srcConfig.text}`}>
                       {srcConfig.label}
                     </span>
                     {ev.signal_label && (
-                      <span className="text-[11px] text-[#999999]">
+                      <span className="text-[11px] text-text-placeholder">
                         {ev.signal_label}
                       </span>
                     )}
                     {ev.signal_created_at && (
-                      <span className="text-[11px] text-[#999999]">
+                      <span className="text-[11px] text-text-placeholder">
                         {formatRelativeTime(ev.signal_created_at)}
                       </span>
                     )}
@@ -283,16 +283,16 @@ function EvidenceTab({ data }: { data: EntityConfidenceData }) {
       {/* Field attributions */}
       {hasAttributions && (
         <div>
-          <h4 className="text-[12px] font-semibold text-[#999999] uppercase tracking-wider mb-3">
+          <h4 className="text-[12px] font-semibold text-text-placeholder uppercase tracking-wider mb-3">
             Field Attributions ({data.field_attributions.length})
           </h4>
-          <div className="overflow-hidden rounded-md border border-[#E5E5E5]">
+          <div className="overflow-hidden rounded-md border border-border">
             <table className="w-full text-[12px]">
               <thead>
                 <tr className="bg-gray-50/50">
-                  <th className="text-left px-3 py-2 font-medium text-[#999999]">Field</th>
-                  <th className="text-left px-3 py-2 font-medium text-[#999999]">Source</th>
-                  <th className="text-left px-3 py-2 font-medium text-[#999999]">Date</th>
+                  <th className="text-left px-3 py-2 font-medium text-text-placeholder">Field</th>
+                  <th className="text-left px-3 py-2 font-medium text-text-placeholder">Source</th>
+                  <th className="text-left px-3 py-2 font-medium text-text-placeholder">Date</th>
                 </tr>
               </thead>
               <tbody>
@@ -300,7 +300,7 @@ function EvidenceTab({ data }: { data: EntityConfidenceData }) {
                   <tr key={i} className="border-t border-gray-50">
                     <td className="px-3 py-2 text-[#666666] font-mono text-[11px]">{attr.field_path}</td>
                     <td className="px-3 py-2 text-[#666666]">{attr.signal_label || '\u2014'}</td>
-                    <td className="px-3 py-2 text-[#999999]">{attr.contributed_at ? formatRelativeTime(attr.contributed_at) : ''}</td>
+                    <td className="px-3 py-2 text-text-placeholder">{attr.contributed_at ? formatRelativeTime(attr.contributed_at) : ''}</td>
                   </tr>
                 ))}
               </tbody>
@@ -320,33 +320,33 @@ function GapsTab({ gaps }: { gaps: ConfidenceGap[] }) {
   if (gaps.length === 0) {
     return (
       <div className="text-center py-10">
-        <CheckCircle2 className="w-8 h-8 text-[#3FAF7A] mx-auto mb-2" />
-        <p className="text-[14px] font-medium text-[#333333]">All confidence criteria met</p>
-        <p className="text-[12px] text-[#999999] mt-1">This entity has full evidence and confirmation coverage</p>
+        <CheckCircle2 className="w-8 h-8 text-brand-primary mx-auto mb-2" />
+        <p className="text-[14px] font-medium text-text-body">All confidence criteria met</p>
+        <p className="text-[12px] text-text-placeholder mt-1">This entity has full evidence and confirmation coverage</p>
       </div>
     )
   }
 
   return (
     <div className="space-y-3">
-      <p className="text-[12px] text-[#999999] mb-1">
+      <p className="text-[12px] text-text-placeholder mb-1">
         {gaps.length} {gaps.length === 1 ? 'gap' : 'gaps'} to address for full confidence
       </p>
       {gaps.map((gap, i) => {
         const catConfig = CATEGORY_CONFIG[gap.category as ConfidenceCategory] || CATEGORY_CONFIG.detail
         return (
-          <div key={i} className="border border-[#E5E5E5] rounded-md p-3">
+          <div key={i} className="border border-border rounded-md p-3">
             <div className="flex items-start gap-2">
-              <Circle className="w-4 h-4 text-[#E5E5E5] flex-shrink-0 mt-0.5" />
+              <Circle className="w-4 h-4 text-border flex-shrink-0 mt-0.5" />
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1">
-                  <span className="text-[13px] font-medium text-[#333333]">{gap.label}</span>
+                  <span className="text-[13px] font-medium text-text-body">{gap.label}</span>
                   <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium ${catConfig.bg} ${catConfig.text}`}>
                     {catConfig.label}
                   </span>
                 </div>
                 {gap.suggestion && (
-                  <p className="text-[12px] text-[#999999]">{gap.suggestion}</p>
+                  <p className="text-[12px] text-text-placeholder">{gap.suggestion}</p>
                 )}
               </div>
             </div>
@@ -367,8 +367,8 @@ function HistoryTab({ data }: { data: EntityConfidenceData }) {
   if (data.revisions.length === 0) {
     return (
       <div className="text-center py-10">
-        <Clock className="w-8 h-8 text-[#E5E5E5] mx-auto mb-2" />
-        <p className="text-[13px] text-[#999999]">No revision history available</p>
+        <Clock className="w-8 h-8 text-border mx-auto mb-2" />
+        <p className="text-[13px] text-text-placeholder">No revision history available</p>
       </div>
     )
   }
@@ -386,22 +386,22 @@ function HistoryTab({ data }: { data: EntityConfidenceData }) {
             <div key={i} className="relative flex gap-3">
               {/* Timeline line + dot */}
               <div className="flex flex-col items-center flex-shrink-0">
-                <div className="w-2.5 h-2.5 rounded-full bg-[#3FAF7A] border-2 border-white shadow-sm mt-1.5" />
-                {!isLast && <div className="w-px flex-1 bg-[#E5E5E5] mt-1" />}
+                <div className="w-2.5 h-2.5 rounded-full bg-brand-primary border-2 border-white shadow-sm mt-1.5" />
+                {!isLast && <div className="w-px flex-1 bg-border mt-1" />}
               </div>
 
               {/* Content */}
               <div className={`flex-1 min-w-0 ${isLast ? 'pb-0' : 'pb-4'}`}>
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-[12px] text-[#999999]">
+                  <span className="text-[12px] text-text-placeholder">
                     {formatRelativeTime(rev.created_at)}
                   </span>
                   {rev.revision_type && (
-                    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-[#E5E5E5] text-[#666666]">
+                    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-border text-[#666666]">
                       {rev.revision_type}
                     </span>
                   )}
-                  <span className="text-[11px] text-[#999999]">
+                  <span className="text-[11px] text-text-placeholder">
                     by {formatRevisionAuthor(rev.created_by)}
                   </span>
                 </div>
@@ -411,7 +411,7 @@ function HistoryTab({ data }: { data: EntityConfidenceData }) {
                 {hasChanges && (
                   <button
                     onClick={() => setExpandedIdx(isExpanded ? null : i)}
-                    className="flex items-center gap-1 mt-1 text-[11px] text-[#3FAF7A] hover:text-[#25785A] transition-colors"
+                    className="flex items-center gap-1 mt-1 text-[11px] text-brand-primary hover:text-[#25785A] transition-colors"
                   >
                     {isExpanded ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
                     {isExpanded ? 'Hide changes' : 'Show changes'}
@@ -429,14 +429,14 @@ function HistoryTab({ data }: { data: EntityConfidenceData }) {
       </div>
 
       {/* Entity timestamps */}
-      <div className="mt-4 pt-3 border-t border-[#E5E5E5] space-y-1">
+      <div className="mt-4 pt-3 border-t border-border space-y-1">
         {data.created_at && (
-          <p className="text-[11px] text-[#999999]">
+          <p className="text-[11px] text-text-placeholder">
             Created {new Date(data.created_at).toLocaleDateString()} at {new Date(data.created_at).toLocaleTimeString()}
           </p>
         )}
         {data.updated_at && (
-          <p className="text-[11px] text-[#999999]">
+          <p className="text-[11px] text-text-placeholder">
             Last updated {formatRelativeTime(data.updated_at)}
           </p>
         )}

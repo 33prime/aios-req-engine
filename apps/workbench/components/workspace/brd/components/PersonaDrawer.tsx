@@ -132,28 +132,28 @@ function ProfileTab({
     <div className="space-y-6">
       {/* Role & Description */}
       <div>
-        <h4 className="text-[11px] font-medium text-[#999999] uppercase tracking-wide mb-2">
+        <h4 className="text-[11px] font-medium text-text-placeholder uppercase tracking-wide mb-2">
           Overview
         </h4>
-        <div className="border border-[#E5E5E5] rounded-xl px-4 py-3">
+        <div className="border border-border rounded-xl px-4 py-3">
           {persona.role && (
             <div className="mb-2">
-              <span className="text-[12px] font-medium text-[#999999]">Role: </span>
-              <span className="text-[13px] text-[#333333]">{persona.role}</span>
+              <span className="text-[12px] font-medium text-text-placeholder">Role: </span>
+              <span className="text-[13px] text-text-body">{persona.role}</span>
             </div>
           )}
           {persona.persona_type && (
             <div className="mb-2">
-              <span className="text-[12px] font-medium text-[#999999]">Type: </span>
-              <span className="text-[13px] text-[#333333] capitalize">{persona.persona_type}</span>
+              <span className="text-[12px] font-medium text-text-placeholder">Type: </span>
+              <span className="text-[13px] text-text-body capitalize">{persona.persona_type}</span>
             </div>
           )}
           {persona.description ? (
-            <p className="text-[13px] text-[#333333] leading-relaxed">
+            <p className="text-[13px] text-text-body leading-relaxed">
               {persona.description}
             </p>
           ) : (
-            <p className="text-[12px] text-[#999999] italic">
+            <p className="text-[12px] text-text-placeholder italic">
               No description available. Process more signals to build this persona profile.
             </p>
           )}
@@ -162,25 +162,25 @@ function ProfileTab({
 
       {/* Goals */}
       <div>
-        <h4 className="text-[11px] font-medium text-[#999999] uppercase tracking-wide mb-2 flex items-center gap-1.5">
+        <h4 className="text-[11px] font-medium text-text-placeholder uppercase tracking-wide mb-2 flex items-center gap-1.5">
           <Target className="w-3.5 h-3.5" />
           Goals
         </h4>
         {persona.goals && persona.goals.length > 0 ? (
-          <div className="border border-[#E5E5E5] rounded-xl overflow-hidden">
+          <div className="border border-border rounded-xl overflow-hidden">
             {persona.goals.map((goal, i) => (
               <div
                 key={i}
                 className="flex items-start gap-2.5 px-4 py-2.5 border-b border-[#F0F0F0] last:border-0"
               >
-                <Target className="w-3.5 h-3.5 mt-0.5 text-[#3FAF7A] flex-shrink-0" />
-                <span className="text-[13px] text-[#333333] leading-relaxed">{goal}</span>
+                <Target className="w-3.5 h-3.5 mt-0.5 text-brand-primary flex-shrink-0" />
+                <span className="text-[13px] text-text-body leading-relaxed">{goal}</span>
               </div>
             ))}
           </div>
         ) : (
-          <div className="border border-dashed border-[#E5E5E5] rounded-xl px-4 py-3">
-            <p className="text-[12px] text-[#999999] italic">
+          <div className="border border-dashed border-border rounded-xl px-4 py-3">
+            <p className="text-[12px] text-text-placeholder italic">
               No goals identified yet. Goals will be extracted from signals mentioning this persona.
             </p>
           </div>
@@ -189,25 +189,25 @@ function ProfileTab({
 
       {/* Pain Points */}
       <div>
-        <h4 className="text-[11px] font-medium text-[#999999] uppercase tracking-wide mb-2 flex items-center gap-1.5">
+        <h4 className="text-[11px] font-medium text-text-placeholder uppercase tracking-wide mb-2 flex items-center gap-1.5">
           <AlertTriangle className="w-3.5 h-3.5" />
           Pain Points
         </h4>
         {persona.pain_points && persona.pain_points.length > 0 ? (
-          <div className="border border-[#E5E5E5] rounded-xl overflow-hidden">
+          <div className="border border-border rounded-xl overflow-hidden">
             {persona.pain_points.map((pain, i) => (
               <div
                 key={i}
                 className="flex items-start gap-2.5 px-4 py-2.5 border-b border-[#F0F0F0] last:border-0"
               >
-                <AlertTriangle className="w-3.5 h-3.5 mt-0.5 text-[#999999] flex-shrink-0" />
-                <span className="text-[13px] text-[#333333] leading-relaxed">{pain}</span>
+                <AlertTriangle className="w-3.5 h-3.5 mt-0.5 text-text-placeholder flex-shrink-0" />
+                <span className="text-[13px] text-text-body leading-relaxed">{pain}</span>
               </div>
             ))}
           </div>
         ) : (
-          <div className="border border-dashed border-[#E5E5E5] rounded-xl px-4 py-3">
-            <p className="text-[12px] text-[#999999] italic">
+          <div className="border border-dashed border-border rounded-xl px-4 py-3">
+            <p className="text-[12px] text-text-placeholder italic">
               No pain points identified yet. Pain points will be extracted from signals mentioning this persona.
             </p>
           </div>
@@ -216,7 +216,7 @@ function ProfileTab({
 
       {/* Linked Features */}
       <div>
-        <h4 className="text-[11px] font-medium text-[#999999] uppercase tracking-wide mb-2 flex items-center gap-1.5">
+        <h4 className="text-[11px] font-medium text-text-placeholder uppercase tracking-wide mb-2 flex items-center gap-1.5">
           <Puzzle className="w-3.5 h-3.5" />
           Linked Features
           {features.length > 0 && (
@@ -226,7 +226,7 @@ function ProfileTab({
           )}
         </h4>
         {features.length > 0 ? (
-          <div className="border border-[#E5E5E5] rounded-xl overflow-hidden">
+          <div className="border border-border rounded-xl overflow-hidden">
             {features.map((feature) => {
               const isConfirmed =
                 feature.confirmation_status === 'confirmed_consultant' ||
@@ -236,25 +236,25 @@ function ProfileTab({
                   key={feature.id}
                   className="flex items-center gap-2.5 px-4 py-2.5 border-b border-[#F0F0F0] last:border-0"
                 >
-                  <Puzzle className="w-3.5 h-3.5 text-[#999999] flex-shrink-0" />
-                  <span className="text-[13px] text-[#333333] font-medium flex-1 truncate">
+                  <Puzzle className="w-3.5 h-3.5 text-text-placeholder flex-shrink-0" />
+                  <span className="text-[13px] text-text-body font-medium flex-1 truncate">
                     {feature.name}
                   </span>
                   {feature.category && (
-                    <span className="text-[10px] text-[#999999] bg-[#F0F0F0] px-1.5 py-0.5 rounded">
+                    <span className="text-[10px] text-text-placeholder bg-[#F0F0F0] px-1.5 py-0.5 rounded">
                       {feature.category}
                     </span>
                   )}
                   {isConfirmed && (
-                    <Check className="w-3.5 h-3.5 text-[#3FAF7A] flex-shrink-0" />
+                    <Check className="w-3.5 h-3.5 text-brand-primary flex-shrink-0" />
                   )}
                 </div>
               )
             })}
           </div>
         ) : (
-          <div className="border border-dashed border-[#E5E5E5] rounded-xl px-4 py-3">
-            <p className="text-[12px] text-[#999999] italic">
+          <div className="border border-dashed border-border rounded-xl px-4 py-3">
+            <p className="text-[12px] text-text-placeholder italic">
               No features linked to this persona yet.
             </p>
           </div>
@@ -285,10 +285,10 @@ function ValidationTab({
     <div className="space-y-6">
       {/* Missing Voice Alert */}
       {!hasVoice && (
-        <div className="flex items-start gap-2.5 bg-[#F4F4F4] border border-[#E5E5E5] rounded-xl px-4 py-3">
-          <Info className="w-4 h-4 mt-0.5 text-[#999999] flex-shrink-0" />
+        <div className="flex items-start gap-2.5 bg-[#F4F4F4] border border-border rounded-xl px-4 py-3">
+          <Info className="w-4 h-4 mt-0.5 text-text-placeholder flex-shrink-0" />
           <div>
-            <p className="text-[13px] font-medium text-[#333333] mb-1">Missing Voice</p>
+            <p className="text-[13px] font-medium text-text-body mb-1">Missing Voice</p>
             <p className="text-[12px] text-[#666666] leading-relaxed">
               No real stakeholders mapped to this persona. Consider interviewing someone who matches this role.
             </p>
@@ -298,7 +298,7 @@ function ValidationTab({
 
       {/* Matched Stakeholders */}
       <div>
-        <h4 className="text-[11px] font-medium text-[#999999] uppercase tracking-wide mb-2 flex items-center gap-1.5">
+        <h4 className="text-[11px] font-medium text-text-placeholder uppercase tracking-wide mb-2 flex items-center gap-1.5">
           <Users className="w-3.5 h-3.5" />
           Matched Stakeholders
           {matchedStakeholders.length > 0 && (
@@ -308,17 +308,17 @@ function ValidationTab({
           )}
         </h4>
         {matchedStakeholders.length > 0 ? (
-          <div className="border border-[#E5E5E5] rounded-xl overflow-hidden">
+          <div className="border border-border rounded-xl overflow-hidden">
             {matchedStakeholders.map((s) => (
               <div
                 key={s.id}
                 className="flex items-center gap-2.5 px-4 py-2.5 border-b border-[#F0F0F0] last:border-0"
               >
-                <Users className="w-3.5 h-3.5 text-[#999999] flex-shrink-0" />
+                <Users className="w-3.5 h-3.5 text-text-placeholder flex-shrink-0" />
                 <div className="flex-1 min-w-0">
-                  <span className="text-[13px] text-[#333333] font-medium">{s.name}</span>
+                  <span className="text-[13px] text-text-body font-medium">{s.name}</span>
                   {s.role && (
-                    <span className="text-[11px] text-[#999999] ml-2">{s.role}</span>
+                    <span className="text-[11px] text-text-placeholder ml-2">{s.role}</span>
                   )}
                 </div>
                 {s.stakeholder_type && (
@@ -335,8 +335,8 @@ function ValidationTab({
             ))}
           </div>
         ) : (
-          <div className="border border-dashed border-[#E5E5E5] rounded-xl px-4 py-3">
-            <p className="text-[12px] text-[#999999] italic">
+          <div className="border border-dashed border-border rounded-xl px-4 py-3">
+            <p className="text-[12px] text-text-placeholder italic">
               No stakeholders with a matching role found.
             </p>
           </div>
@@ -345,26 +345,26 @@ function ValidationTab({
 
       {/* Stakeholder Coverage Summary */}
       <div>
-        <h4 className="text-[11px] font-medium text-[#999999] uppercase tracking-wide mb-2">
+        <h4 className="text-[11px] font-medium text-text-placeholder uppercase tracking-wide mb-2">
           Stakeholder Coverage
         </h4>
-        <div className="border border-[#E5E5E5] rounded-xl px-4 py-3">
+        <div className="border border-border rounded-xl px-4 py-3">
           <div className="grid grid-cols-3 gap-3">
             <div className="text-center">
-              <p className="text-[18px] font-bold text-[#333333]">{totalStakeholders}</p>
-              <p className="text-[10px] text-[#999999] uppercase">Total</p>
+              <p className="text-[18px] font-bold text-text-body">{totalStakeholders}</p>
+              <p className="text-[10px] text-text-placeholder uppercase">Total</p>
             </div>
             <div className="text-center">
-              <p className={`text-[18px] font-bold ${matchedStakeholders.length > 0 ? 'text-[#3FAF7A]' : 'text-[#999999]'}`}>
+              <p className={`text-[18px] font-bold ${matchedStakeholders.length > 0 ? 'text-brand-primary' : 'text-text-placeholder'}`}>
                 {matchedStakeholders.length}
               </p>
-              <p className="text-[10px] text-[#999999] uppercase">Matched</p>
+              <p className="text-[10px] text-text-placeholder uppercase">Matched</p>
             </div>
             <div className="text-center">
-              <p className={`text-[18px] font-bold ${!hasVoice ? 'text-[#999999]' : 'text-[#25785A]'}`}>
+              <p className={`text-[18px] font-bold ${!hasVoice ? 'text-text-placeholder' : 'text-[#25785A]'}`}>
                 {hasVoice ? 'Yes' : 'No'}
               </p>
-              <p className="text-[10px] text-[#999999] uppercase">Has Voice</p>
+              <p className="text-[10px] text-text-placeholder uppercase">Has Voice</p>
             </div>
           </div>
 
@@ -373,13 +373,13 @@ function ValidationTab({
             <div className="mt-3 pt-3 border-t border-[#F0F0F0]">
               <div className="flex items-center justify-between mb-1.5">
                 <span className="text-[11px] text-[#666666]">Role Match Rate</span>
-                <span className="text-[11px] font-medium text-[#333333]">
+                <span className="text-[11px] font-medium text-text-body">
                   {matchedStakeholders.length}/{totalStakeholders}
                 </span>
               </div>
               <div className="h-2 bg-[#F0F0F0] rounded-full overflow-hidden">
                 <div
-                  className="h-full bg-[#3FAF7A] rounded-full transition-all"
+                  className="h-full bg-brand-primary rounded-full transition-all"
                   style={{ width: `${(matchedStakeholders.length / totalStakeholders) * 100}%` }}
                 />
               </div>
@@ -398,7 +398,7 @@ function ValidationTab({
 function EvidenceTab() {
   return (
     <EmptyState
-      icon={<FileText className="w-8 h-8 text-[#E5E5E5]" />}
+      icon={<FileText className="w-8 h-8 text-border" />}
       title="Evidence sources available through signal analysis"
       description="Process signals referencing this persona to build an evidence trail."
     />

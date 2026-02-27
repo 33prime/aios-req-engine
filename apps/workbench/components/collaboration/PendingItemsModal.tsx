@@ -79,12 +79,12 @@ export function PendingItemsModal({
     <Modal isOpen={isOpen} onClose={onClose} title="Pending Items" size="lg">
       {loading ? (
         <div className="flex items-center justify-center py-12">
-          <Loader2 className="h-6 w-6 text-[#3FAF7A] animate-spin" />
+          <Loader2 className="h-6 w-6 text-brand-primary animate-spin" />
         </div>
       ) : queue && queue.total_count === 0 ? (
         <div className="text-center py-12">
-          <p className="text-[#333333] font-medium mb-1">All caught up</p>
-          <p className="text-sm text-[#999999]">No items need confirmation right now.</p>
+          <p className="text-text-body font-medium mb-1">All caught up</p>
+          <p className="text-sm text-text-placeholder">No items need confirmation right now.</p>
         </div>
       ) : queue ? (
         <PendingQueue

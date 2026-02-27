@@ -21,10 +21,10 @@ export function WorkflowDiagramCard({ pair, index }: WorkflowDiagramCardProps) {
   const totalSteps = pair.future_steps.length
 
   return (
-    <div className="bg-white rounded-2xl shadow-md border border-[#E5E5E5] overflow-hidden">
+    <div className="bg-white rounded-2xl shadow-md border border-border overflow-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between px-5 py-3 border-b border-[#E5E5E5]">
-        <span className="text-[14px] font-semibold text-[#333333]">{pair.name}</span>
+      <div className="flex items-center justify-between px-5 py-3 border-b border-border">
+        <span className="text-[14px] font-semibold text-text-body">{pair.name}</span>
         {pair.roi && pair.roi.time_saved_percent > 0 && (
           <span className="text-[12px] font-medium text-[#25785A] bg-[#E8F5E9] px-2.5 py-1 rounded-lg">
             ROI: {pair.roi.time_saved_percent}% time saved
@@ -35,7 +35,7 @@ export function WorkflowDiagramCard({ pair, index }: WorkflowDiagramCardProps) {
       {/* Diagram */}
       <div className="px-5 py-4">
         {error ? (
-          <p className="text-[12px] text-[#999999] italic py-4 text-center">{error}</p>
+          <p className="text-[12px] text-text-placeholder italic py-4 text-center">{error}</p>
         ) : (
           <div
             ref={ref}
@@ -46,7 +46,7 @@ export function WorkflowDiagramCard({ pair, index }: WorkflowDiagramCardProps) {
 
       {/* ROI footer */}
       {currentMin > 0 && (
-        <div className="px-5 py-3 border-t border-[#E5E5E5] flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-[#666666]">
+        <div className="px-5 py-3 border-t border-border flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-[#666666]">
           <span>
             Time: {currentMin}m → {futureMin}m
             {savedMin > 0 && (

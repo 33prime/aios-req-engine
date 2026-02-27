@@ -516,12 +516,12 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
           className="transition-all duration-300 flex items-center justify-center min-h-screen"
           style={{ marginLeft: sidebarWidth }}
         >
-          <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl border border-[#E5E5E5] p-8 text-center">
-            <Settings className="w-12 h-12 text-[#3FAF7A] animate-spin mx-auto mb-4" style={{ animationDuration: '3s' }} />
-            <h2 className="text-lg font-semibold text-[#333333] mb-2">Building Your Project</h2>
+          <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl border border-border p-8 text-center">
+            <Settings className="w-12 h-12 text-brand-primary animate-spin mx-auto mb-4" style={{ animationDuration: '3s' }} />
+            <h2 className="text-lg font-semibold text-text-body mb-2">Building Your Project</h2>
             <a
               href="/projects"
-              className="inline-flex items-center gap-1.5 text-sm text-[#3FAF7A] hover:text-[#25785A] transition-colors mb-4"
+              className="inline-flex items-center gap-1.5 text-sm text-brand-primary hover:text-[#25785A] transition-colors mb-4"
             >
               <ArrowLeft className="w-3.5 h-3.5" />
               Back to Projects
@@ -534,11 +534,11 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
             <div className="mb-6">
               <div className="h-2 bg-[#F0F0F0] rounded-full overflow-hidden">
                 <div
-                  className="h-full bg-[#3FAF7A] rounded-full transition-all duration-500 ease-out"
+                  className="h-full bg-brand-primary rounded-full transition-all duration-500 ease-out"
                   style={{ width: `${progressPct}%` }}
                 />
               </div>
-              <p className="text-xs text-[#999999] mt-1.5 text-right">{progressPct}%</p>
+              <p className="text-xs text-text-placeholder mt-1.5 text-right">{progressPct}%</p>
             </div>
 
             {/* Steps */}
@@ -549,18 +549,18 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
                     : step.status === 'running' ? Loader2
                     : step.status === 'failed' ? XCircle
                     : Clock
-                  const iconClass = step.status === 'completed' ? 'text-[#3FAF7A]'
-                    : step.status === 'running' ? 'text-[#3FAF7A] animate-spin'
+                  const iconClass = step.status === 'completed' ? 'text-brand-primary'
+                    : step.status === 'running' ? 'text-brand-primary animate-spin'
                     : step.status === 'failed' ? 'text-red-500'
-                    : 'text-[#999999]'
+                    : 'text-text-placeholder'
 
                   return (
                     <div key={step.step_key} className="flex items-center gap-3">
                       <StepIcon className={`w-4 h-4 flex-shrink-0 ${iconClass}`} />
                       <span className={`text-sm ${
                         step.status === 'completed' || step.status === 'running'
-                          ? 'text-[#333333]'
-                          : 'text-[#999999]'
+                          ? 'text-text-body'
+                          : 'text-text-placeholder'
                       }`}>
                         {step.step_label}
                       </span>
@@ -570,7 +570,7 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
               </div>
             )}
 
-            <p className="text-xs text-[#999999] mt-6">
+            <p className="text-xs text-text-placeholder mt-6">
               We&apos;ll notify you when it&apos;s ready.
             </p>
           </div>
@@ -581,10 +581,10 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
 
   if (isWorkspaceLoading && !canvasData) {
     return (
-      <div className="min-h-screen bg-[#F9F9F9] flex items-center justify-center">
+      <div className="min-h-screen bg-surface-muted flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#3FAF7A] mx-auto mb-4" />
-          <p className="text-[12px] text-[#999999]">Loading workspace...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-primary mx-auto mb-4" />
+          <p className="text-[12px] text-text-placeholder">Loading workspace...</p>
         </div>
       </div>
     )
@@ -592,12 +592,12 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-[#F9F9F9] flex items-center justify-center">
+      <div className="min-h-screen bg-surface-muted flex items-center justify-center">
         <div className="text-center">
           <p className="text-red-600 mb-4">{error}</p>
           <button
             onClick={loadData}
-            className="px-4 py-2 bg-[#3FAF7A] text-white rounded-lg hover:bg-[#25785A] transition-colors"
+            className="px-4 py-2 bg-brand-primary text-white rounded-lg hover:bg-[#25785A] transition-colors"
           >
             Retry
           </button>
@@ -628,15 +628,15 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
           }}
         >
           {/* Header with Phase Switcher */}
-          <header className="sticky top-0 z-20 bg-white border-b border-[#E5E5E5]">
+          <header className="sticky top-0 z-20 bg-white border-b border-border">
             <div className="flex items-center justify-between px-6 py-4">
               <div className="flex items-center gap-4">
                 <div>
-                  <h1 className="text-xl font-medium text-[#333333]">
+                  <h1 className="text-xl font-medium text-text-body">
                     {canvasData?.project_name}
                   </h1>
                   {canvasData?.pitch_line && (
-                    <p className="text-[12px] text-[#999999] mt-0.5 truncate max-w-xl">
+                    <p className="text-[12px] text-text-placeholder mt-0.5 truncate max-w-xl">
                       {canvasData.pitch_line}
                     </p>
                   )}
@@ -647,7 +647,7 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
                   className="p-1.5 rounded-lg hover:bg-[#F4F4F4] transition-colors group"
                   title="Project Health"
                 >
-                  <Activity className="w-4 h-4 text-[#3FAF7A] group-hover:text-[#25785A]" />
+                  <Activity className="w-4 h-4 text-brand-primary group-hover:text-[#25785A]" />
                 </button>
               </div>
 
@@ -656,19 +656,19 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
                   currentPhase={phase}
                   onPhaseChange={setPhase}
                 />
-                <div className="w-px h-6 bg-[#E5E5E5]" />
+                <div className="w-px h-6 bg-border" />
                 <button
                   onClick={() => setPhase('collaborate')}
                   className={`flex items-center gap-2 px-4 py-2 rounded-lg text-[13px] font-medium transition-all duration-200 ${
                     phase === 'collaborate'
-                      ? 'bg-white text-[#3FAF7A] shadow-sm border border-[#E5E5E5]'
-                      : 'text-[#666666] hover:text-[#333333]'
+                      ? 'bg-white text-brand-primary shadow-sm border border-border'
+                      : 'text-[#666666] hover:text-text-body'
                   }`}
                 >
                   <Users className="w-4 h-4" />
                   Collaborate
                   {(pulseData?.unread_count ?? 0) > 0 && (
-                    <span className="px-1.5 py-0.5 bg-[#3FAF7A] text-white text-[10px] font-bold rounded-full min-w-[18px] text-center">
+                    <span className="px-1.5 py-0.5 bg-brand-primary text-white text-[10px] font-bold rounded-full min-w-[18px] text-center">
                       {pulseData!.unread_count}
                     </span>
                   )}
@@ -724,7 +724,7 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
                 </div>
 
                 {discoveryViewMode === 'brd' ? (
-                  <div className="flex-1 min-h-0 rounded-2xl border border-[#E5E5E5] bg-white shadow-md overflow-hidden">
+                  <div className="flex-1 min-h-0 rounded-2xl border border-border bg-white shadow-md overflow-hidden">
                     <BRDCanvas
                       projectId={projectId}
                       initialData={brdData}
@@ -744,11 +744,11 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
             )}
 
             {phase === 'build' && canvasData && (
-              <div className="h-[calc(100vh-140px)] bg-white rounded-lg border border-[#E5E5E5] overflow-hidden relative">
+              <div className="h-[calc(100vh-140px)] bg-white rounded-lg border border-border overflow-hidden relative">
                 {/* Synthesizing banner — floats over prototype */}
                 {reviewPhase === 'synthesizing' && (
-                  <div className="absolute top-0 left-0 right-0 z-10 flex items-center justify-center gap-2 px-4 py-2 bg-[#3FAF7A]/10 border-b border-[#3FAF7A]/20 text-sm text-[#25785A]">
-                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-[#3FAF7A] border-t-transparent" />
+                  <div className="absolute top-0 left-0 right-0 z-10 flex items-center justify-center gap-2 px-4 py-2 bg-brand-primary-light border-b border-brand-primary/20 text-sm text-[#25785A]">
+                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-brand-primary border-t-transparent" />
                     <span className="font-medium">Synthesizing feedback...</span>
                     <span className="text-xs text-[#666666]">Generating code updates from review verdicts</span>
                   </div>
@@ -784,13 +784,13 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
             {phase === 'live' && (
               <div className="flex items-center justify-center h-[calc(100vh-200px)]">
                 <div className="text-center">
-                  <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-[#F9F9F9] flex items-center justify-center">
+                  <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-surface-muted flex items-center justify-center">
                     <span className="text-2xl">🚀</span>
                   </div>
-                  <h3 className="text-base font-semibold text-[#333333] mb-2">
+                  <h3 className="text-base font-semibold text-text-body mb-2">
                     Live Product View
                   </h3>
-                  <p className="text-[12px] text-[#999999]">
+                  <p className="text-[12px] text-text-placeholder">
                     Coming soon - track your product post-launch
                   </p>
                 </div>

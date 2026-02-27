@@ -70,7 +70,7 @@ export default function DiagnosticsPage() {
     <div className="container mx-auto p-6 space-y-6">
       <div>
         <h1 className="text-2xl font-bold mb-2">Diagnostics</h1>
-        <p className="text-[#999999]">Debug auto-trigger workflow and job execution</p>
+        <p className="text-text-placeholder">Debug auto-trigger workflow and job execution</p>
       </div>
 
       {error && (
@@ -84,11 +84,11 @@ export default function DiagnosticsPage() {
         <CardHeader title="Project Configuration" />
         <div className="space-y-3">
           <div>
-            <div className="text-sm font-medium text-[#333333] mb-1">Project Name</div>
-            <div className="text-lg text-[#333333]">{project?.name || 'Unknown'}</div>
+            <div className="text-sm font-medium text-text-body mb-1">Project Name</div>
+            <div className="text-lg text-text-body">{project?.name || 'Unknown'}</div>
           </div>
           <div>
-            <div className="text-sm font-medium text-[#333333] mb-1">PRD Mode</div>
+            <div className="text-sm font-medium text-text-body mb-1">PRD Mode</div>
             <div className="flex items-center gap-2">
               <span className={`px-3 py-1 rounded-full text-sm font-medium ${
                 project?.prd_mode === 'initial'
@@ -97,7 +97,7 @@ export default function DiagnosticsPage() {
               }`}>
                 {project?.prd_mode || 'unknown'}
               </span>
-              <span className="text-sm text-[#999999]">
+              <span className="text-sm text-text-placeholder">
                 {project?.prd_mode === 'initial'
                   ? '→ Runs extract_facts after signal ingestion'
                   : '→ Runs surgical_update after signal ingestion'}
@@ -115,7 +115,7 @@ export default function DiagnosticsPage() {
         />
 
         {jobs.length === 0 ? (
-          <div className="text-center py-8 text-[#999999]">
+          <div className="text-center py-8 text-text-placeholder">
             No jobs found. This is unusual - signal ingestion should create jobs.
           </div>
         ) : (
@@ -123,11 +123,11 @@ export default function DiagnosticsPage() {
             {jobs.map((job) => (
               <div
                 key={job.id}
-                className="bg-[#F9F9F9] border border-[#E5E5E5] rounded-lg p-4"
+                className="bg-surface-muted border border-border rounded-lg p-4"
               >
                 <div className="flex items-start justify-between mb-2">
                   <div className="flex items-center gap-2">
-                    <span className="font-mono text-sm font-medium text-[#333333]">
+                    <span className="font-mono text-sm font-medium text-text-body">
                       {job.job_type}
                     </span>
                     <span className={`px-2 py-0.5 rounded text-xs font-medium ${
@@ -139,7 +139,7 @@ export default function DiagnosticsPage() {
                       {job.status}
                     </span>
                   </div>
-                  <span className="text-xs text-[#999999]">
+                  <span className="text-xs text-text-placeholder">
                     {new Date(job.created_at).toLocaleString()}
                   </span>
                 </div>
@@ -152,20 +152,20 @@ export default function DiagnosticsPage() {
 
                 <div className="grid grid-cols-2 gap-4 text-xs">
                   <div>
-                    <div className="text-[#999999] mb-1">Input</div>
+                    <div className="text-text-placeholder mb-1">Input</div>
                     <pre className="bg-gray-50 p-2 rounded overflow-x-auto">
                       {JSON.stringify(job.input_json, null, 2)}
                     </pre>
                   </div>
                   <div>
-                    <div className="text-[#999999] mb-1">Output</div>
+                    <div className="text-text-placeholder mb-1">Output</div>
                     <pre className="bg-gray-50 p-2 rounded overflow-x-auto">
                       {JSON.stringify(job.output_json, null, 2)}
                     </pre>
                   </div>
                 </div>
 
-                <div className="mt-2 text-xs text-[#999999] font-mono">
+                <div className="mt-2 text-xs text-text-placeholder font-mono">
                   ID: {job.id}
                 </div>
               </div>
@@ -179,10 +179,10 @@ export default function DiagnosticsPage() {
         <CardHeader title="Troubleshooting Guide" />
         <div className="space-y-4 text-sm">
           <div>
-            <h4 className="font-medium text-[#333333] mb-2">
+            <h4 className="font-medium text-text-body mb-2">
               ❌ Problem: "No jobs recorded" after adding signal
             </h4>
-            <ul className="list-disc list-inside space-y-1 text-[#999999] ml-4">
+            <ul className="list-disc list-inside space-y-1 text-text-placeholder ml-4">
               <li>Check if "ingest" jobs appear above - these should be created for every signal</li>
               <li>If no ingest jobs: signal ingestion is failing completely (check backend logs)</li>
               <li>If ingest jobs exist: signal was ingested successfully</li>
@@ -190,10 +190,10 @@ export default function DiagnosticsPage() {
           </div>
 
           <div>
-            <h4 className="font-medium text-[#333333] mb-2">
+            <h4 className="font-medium text-text-body mb-2">
               ❌ Problem: "Zero impact" shown for signal
             </h4>
-            <ul className="list-disc list-inside space-y-1 text-[#999999] ml-4">
+            <ul className="list-disc list-inside space-y-1 text-text-placeholder ml-4">
               <li>Impact is recorded when PRD/VP/Features are created with evidence from signal chunks</li>
               <li>In <strong>initial mode</strong>: extract_facts runs automatically (no job created for this!)</li>
               <li>In <strong>maintenance mode</strong>: surgical_update runs automatically (no job created for this!)</li>
@@ -203,10 +203,10 @@ export default function DiagnosticsPage() {
           </div>
 
           <div>
-            <h4 className="font-medium text-[#333333] mb-2">
+            <h4 className="font-medium text-text-body mb-2">
               ✅ How to verify auto-trigger ran
             </h4>
-            <ul className="list-disc list-inside space-y-1 text-[#999999] ml-4">
+            <ul className="list-disc list-inside space-y-1 text-text-placeholder ml-4">
               <li>Check backend logs for: "Auto-triggering processing for signal..."</li>
               <li>Check for: "Project in initial mode, triggering extract_facts" (or surgical_update)</li>
               <li>Check for errors: "Extract facts failed: ..." or "Surgical update failed: ..."</li>
@@ -215,10 +215,10 @@ export default function DiagnosticsPage() {
           </div>
 
           <div>
-            <h4 className="font-medium text-[#333333] mb-2">
+            <h4 className="font-medium text-text-body mb-2">
               🔧 Next Steps
             </h4>
-            <ol className="list-decimal list-inside space-y-1 text-[#999999] ml-4">
+            <ol className="list-decimal list-inside space-y-1 text-text-placeholder ml-4">
               <li>Check your PRD mode above (initial vs maintenance)</li>
               <li>Look for "ingest" jobs in the list above from when you added the signal</li>
               <li>Check backend logs for auto-trigger execution and any errors</li>

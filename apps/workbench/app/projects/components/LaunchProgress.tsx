@@ -24,11 +24,11 @@ const STATUS_ICONS: Record<
   string,
   { icon: typeof Clock; className: string; spin?: boolean }
 > = {
-  pending: { icon: Clock, className: 'text-[#999999]' },
-  running: { icon: Loader2, className: 'text-[#3FAF7A]', spin: true },
-  completed: { icon: CheckCircle2, className: 'text-[#3FAF7A]' },
+  pending: { icon: Clock, className: 'text-text-placeholder' },
+  running: { icon: Loader2, className: 'text-brand-primary', spin: true },
+  completed: { icon: CheckCircle2, className: 'text-brand-primary' },
   failed: { icon: XCircle, className: 'text-[#DC2626]' },
-  skipped: { icon: SkipForward, className: 'text-[#999999]' },
+  skipped: { icon: SkipForward, className: 'text-text-placeholder' },
 }
 
 const TERMINAL_STATUSES = new Set(['completed', 'completed_with_errors', 'failed'])
@@ -74,34 +74,34 @@ export function LaunchProgress({
   const hasErrors = progress?.status === 'completed_with_errors' || progress?.status === 'failed'
 
   return (
-    <div className="bg-white border border-[#E5E5E5] rounded-2xl shadow-md mx-4 mt-4 overflow-hidden">
+    <div className="bg-white border border-border rounded-2xl shadow-md mx-4 mt-4 overflow-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between px-5 py-3 border-b border-[#E5E5E5]">
+      <div className="flex items-center justify-between px-5 py-3 border-b border-border">
         <div className="flex items-center gap-2">
           {!isTerminal && (
-            <Loader2 className="w-4 h-4 text-[#3FAF7A] animate-spin" />
+            <Loader2 className="w-4 h-4 text-brand-primary animate-spin" />
           )}
           {isTerminal && !hasErrors && (
-            <CheckCircle2 className="w-4 h-4 text-[#3FAF7A]" />
+            <CheckCircle2 className="w-4 h-4 text-brand-primary" />
           )}
           {isTerminal && hasErrors && (
             <XCircle className="w-4 h-4 text-[#DC2626]" />
           )}
-          <span className="text-[14px] font-semibold text-[#333333]">
+          <span className="text-[14px] font-semibold text-text-body">
             {isTerminal ? `Setup complete for "${projectName}"` : `Setting up "${projectName}"`}
           </span>
         </div>
         <div className="flex items-center gap-3">
           <button
             onClick={onDismiss}
-            className="flex items-center gap-1.5 text-[13px] font-medium text-[#3FAF7A] hover:text-[#25785A] transition-colors"
+            className="flex items-center gap-1.5 text-[13px] font-medium text-brand-primary hover:text-[#25785A] transition-colors"
           >
             Go to Workspace
             <ArrowRight className="w-3.5 h-3.5" />
           </button>
           <button
             onClick={onDismiss}
-            className="text-[#999999] hover:text-[#666666] transition-colors"
+            className="text-text-placeholder hover:text-[#666666] transition-colors"
           >
             <X className="w-4 h-4" />
           </button>
@@ -112,11 +112,11 @@ export function LaunchProgress({
       <div className="px-5 pt-3">
         <div className="h-2 bg-[#F0F0F0] rounded-full overflow-hidden">
           <div
-            className="h-full bg-[#3FAF7A] rounded-full transition-all duration-500 ease-out"
+            className="h-full bg-brand-primary rounded-full transition-all duration-500 ease-out"
             style={{ width: `${progress?.progress_pct || 0}%` }}
           />
         </div>
-        <p className="text-[12px] text-[#999999] mt-1 text-right">
+        <p className="text-[12px] text-text-placeholder mt-1 text-right">
           {progress?.progress_pct || 0}%
         </p>
       </div>
@@ -131,7 +131,7 @@ export function LaunchProgress({
       {/* Error summary */}
       {hasErrors && isTerminal && (
         <div className="px-5 pb-4">
-          <p className="text-[13px] text-[#999999]">
+          <p className="text-[13px] text-text-placeholder">
             Some steps couldn&apos;t complete — you can run them manually from the workspace.
           </p>
         </div>
@@ -152,17 +152,17 @@ function StepRow({ step }: { step: LaunchStepStatus }) {
       <span
         className={`text-[13px] font-medium flex-shrink-0 ${
           step.status === 'completed'
-            ? 'text-[#333333]'
+            ? 'text-text-body'
             : step.status === 'failed'
               ? 'text-[#DC2626]'
               : step.status === 'running'
-                ? 'text-[#333333]'
-                : 'text-[#999999]'
+                ? 'text-text-body'
+                : 'text-text-placeholder'
         }`}
       >
         {step.step_label}
       </span>
-      <span className="text-[12px] text-[#999999] truncate">
+      <span className="text-[12px] text-text-placeholder truncate">
         {step.status === 'running' && 'Running...'}
         {step.status === 'completed' && step.result_summary}
         {step.status === 'failed' && step.error_message}

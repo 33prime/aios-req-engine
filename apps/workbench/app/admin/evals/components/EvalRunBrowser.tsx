@@ -22,23 +22,23 @@ export function EvalRunBrowser() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="w-5 h-5 border-2 border-[#3FAF7A] border-t-transparent rounded-full animate-spin" />
+        <div className="w-5 h-5 border-2 border-brand-primary border-t-transparent rounded-full animate-spin" />
       </div>
     )
   }
 
   if (!runs.length) {
     return (
-      <div className="bg-white rounded-2xl shadow-md border border-[#E5E5E5] p-8 text-center">
-        <p className="text-[#999999] text-[13px]">No eval runs yet. Trigger an eval from a prototype to get started.</p>
+      <div className="bg-white rounded-2xl shadow-md border border-border p-8 text-center">
+        <p className="text-text-placeholder text-[13px]">No eval runs yet. Trigger an eval from a prototype to get started.</p>
       </div>
     )
   }
 
   return (
-    <div className="bg-white rounded-2xl shadow-md border border-[#E5E5E5] overflow-hidden">
+    <div className="bg-white rounded-2xl shadow-md border border-border overflow-hidden">
       {/* Header */}
-      <div className="grid grid-cols-[40px_1fr_80px_100px_80px_80px_80px_140px] gap-2 px-4 py-2.5 bg-[#FAFAFA] border-b border-[#E5E5E5] text-[11px] font-medium text-[#999999] uppercase tracking-wide">
+      <div className="grid grid-cols-[40px_1fr_80px_100px_80px_80px_80px_140px] gap-2 px-4 py-2.5 bg-surface-page border-b border-border text-[11px] font-medium text-text-placeholder uppercase tracking-wide">
         <span />
         <span>Prototype</span>
         <span>Iter</span>
@@ -54,16 +54,16 @@ export function EvalRunBrowser() {
         <div key={run.id}>
           <button
             onClick={() => setExpandedId(expandedId === run.id ? null : run.id)}
-            className="w-full grid grid-cols-[40px_1fr_80px_100px_80px_80px_80px_140px] gap-2 px-4 py-3 hover:bg-[#F4F4F4] transition-colors items-center text-left border-b border-[#E5E5E5]"
+            className="w-full grid grid-cols-[40px_1fr_80px_100px_80px_80px_80px_140px] gap-2 px-4 py-3 hover:bg-[#F4F4F4] transition-colors items-center text-left border-b border-border"
           >
-            <span className="text-[#999999]">
+            <span className="text-text-placeholder">
               {expandedId === run.id ? (
                 <ChevronDown className="w-3.5 h-3.5" />
               ) : (
                 <ChevronRight className="w-3.5 h-3.5" />
               )}
             </span>
-            <span className="text-[12px] text-[#333333] font-mono truncate">
+            <span className="text-[12px] text-text-body font-mono truncate">
               {run.prototype_id.slice(0, 8)}…
             </span>
             <span className="text-[12px] text-[#666666]">#{run.iteration_number}</span>
@@ -77,13 +77,13 @@ export function EvalRunBrowser() {
               {(run.llm_overall * 100).toFixed(0)}%
             </span>
             <ActionBadge action={run.action} />
-            <span className="text-[11px] text-[#999999]">
+            <span className="text-[11px] text-text-placeholder">
               {new Date(run.created_at).toLocaleDateString()} {new Date(run.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
             </span>
           </button>
 
           {expandedId === run.id && (
-            <div className="px-4 py-3 border-b border-[#E5E5E5]">
+            <div className="px-4 py-3 border-b border-border">
               <EvalRunDetail runId={run.id} />
             </div>
           )}

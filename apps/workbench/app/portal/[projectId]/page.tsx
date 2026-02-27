@@ -403,7 +403,7 @@ export default function PortalPage() {
                   <span
                     className={`text-xs px-2 py-1 rounded-full ${
                       item.item_type === 'document'
-                        ? 'bg-blue-100 text-blue-700'
+                        ? 'bg-blue-100 text-brand-primary-hover'
                         : 'bg-gray-100 text-gray-600'
                     }`}
                   >

@@ -21,7 +21,7 @@ export function ScoreBreakdownBar({ score, label, showValue = true }: Props) {
       {label && (
         <span className="text-[11px] text-[#666666] w-24 truncate">{label}</span>
       )}
-      <div className="flex-1 h-2 bg-[#E5E5E5] rounded-full overflow-hidden">
+      <div className="flex-1 h-2 bg-border rounded-full overflow-hidden">
         <div
           className="h-full rounded-full transition-all"
           style={{ width: `${pct}%`, backgroundColor: color }}
@@ -38,7 +38,7 @@ export function ScoreBreakdownBar({ score, label, showValue = true }: Props) {
 
 export function ActionBadge({ action }: { action: string }) {
   const styles: Record<string, string> = {
-    accept: 'bg-[#E8F5E9] text-[#3FAF7A]',
+    accept: 'bg-[#E8F5E9] text-brand-primary',
     retry: 'bg-[#FEF3C7] text-[#92400e]',
     notify: 'bg-[#FEE2E2] text-[#991b1b]',
     pending: 'bg-[#F0F0F0] text-[#666666]',

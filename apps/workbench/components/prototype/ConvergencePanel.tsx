@@ -6,14 +6,14 @@ import type { ConvergenceSnapshot, FeatureConvergence } from '@/types/prototype'
 import { getPrototypeConvergence } from '@/lib/api'
 
 const TREND_CONFIG = {
-  improving: { icon: TrendingUp, label: 'Improving', color: 'text-[#3FAF7A]' },
+  improving: { icon: TrendingUp, label: 'Improving', color: 'text-brand-primary' },
   declining: { icon: TrendingDown, label: 'Declining', color: 'text-[#E5634E]' },
   stable: { icon: Minus, label: 'Stable', color: 'text-[#666666]' },
-  insufficient_data: { icon: HelpCircle, label: 'Not enough data', color: 'text-[#999999]' },
+  insufficient_data: { icon: HelpCircle, label: 'Not enough data', color: 'text-text-placeholder' },
 }
 
 const VERDICT_COLORS: Record<string, string> = {
-  aligned: 'bg-[#3FAF7A]/10 text-[#25785A]',
+  aligned: 'bg-brand-primary-light text-[#25785A]',
   needs_adjustment: 'bg-[#F5A623]/10 text-[#B47B1A]',
   off_track: 'bg-[#E5634E]/10 text-[#C43D2A]',
 }
@@ -42,13 +42,13 @@ export function ConvergencePanel({ prototypeId }: ConvergencePanelProps) {
 
   if (loading) {
     return (
-      <div className="p-4 text-sm text-[#999999]">Loading convergence data...</div>
+      <div className="p-4 text-sm text-text-placeholder">Loading convergence data...</div>
     )
   }
 
   if (!data || data.total_features === 0) {
     return (
-      <div className="p-4 text-sm text-[#999999]">No feature overlays to track yet.</div>
+      <div className="p-4 text-sm text-text-placeholder">No feature overlays to track yet.</div>
     )
   }
 
@@ -74,8 +74,8 @@ export function ConvergencePanel({ prototypeId }: ConvergencePanelProps) {
           value={`${data.feedback_total}`}
           sub={`${data.feedback_concerns} concerns`}
         />
-        <div className="border border-[#E5E5E5] rounded-lg px-3 py-2">
-          <p className="text-[10px] text-[#999999] font-medium uppercase tracking-wide mb-1">Trend</p>
+        <div className="border border-border rounded-lg px-3 py-2">
+          <p className="text-[10px] text-text-placeholder font-medium uppercase tracking-wide mb-1">Trend</p>
           <div className={`flex items-center gap-1.5 ${trendConfig.color}`}>
             <TrendIcon className="w-4 h-4" />
             <span className="text-sm font-semibold">{trendConfig.label}</span>
@@ -86,19 +86,19 @@ export function ConvergencePanel({ prototypeId }: ConvergencePanelProps) {
 
       {/* Per-feature breakdown */}
       <div>
-        <h4 className="text-xs font-semibold text-[#333333] uppercase tracking-wide mb-2">
+        <h4 className="text-xs font-semibold text-text-body uppercase tracking-wide mb-2">
           Per-Feature Convergence
         </h4>
         <div className="space-y-1.5">
           {data.per_feature.map((f: FeatureConvergence) => (
             <div
               key={f.feature_id || f.feature_name}
-              className="flex items-center gap-2 px-3 py-2 rounded-lg border border-[#E5E5E5] text-xs"
+              className="flex items-center gap-2 px-3 py-2 rounded-lg border border-border text-xs"
             >
               {/* Alignment indicator */}
               <div className="shrink-0">
                 {f.aligned ? (
-                  <CheckCircle2 className="w-3.5 h-3.5 text-[#3FAF7A]" />
+                  <CheckCircle2 className="w-3.5 h-3.5 text-brand-primary" />
                 ) : f.consultant_verdict && f.client_verdict ? (
                   <AlertCircle className="w-3.5 h-3.5 text-[#F5A623]" />
                 ) : (
@@ -107,7 +107,7 @@ export function ConvergencePanel({ prototypeId }: ConvergencePanelProps) {
               </div>
 
               {/* Feature name */}
-              <span className="flex-1 min-w-0 truncate text-[#333333] font-medium">
+              <span className="flex-1 min-w-0 truncate text-text-body font-medium">
                 {f.feature_name}
               </span>
 
@@ -135,7 +135,7 @@ export function ConvergencePanel({ prototypeId }: ConvergencePanelProps) {
 
               {/* Questions */}
               {f.questions_total > 0 && (
-                <span className="text-[10px] text-[#999999] shrink-0">
+                <span className="text-[10px] text-text-placeholder shrink-0">
                   Q: {f.questions_answered}/{f.questions_total}
                 </span>
               )}
@@ -149,9 +149,9 @@ export function ConvergencePanel({ prototypeId }: ConvergencePanelProps) {
 
 function MetricCard({ label, value, sub }: { label: string; value: string; sub: string }) {
   return (
-    <div className="border border-[#E5E5E5] rounded-lg px-3 py-2">
-      <p className="text-[10px] text-[#999999] font-medium uppercase tracking-wide mb-1">{label}</p>
-      <p className="text-lg font-bold text-[#333333] leading-tight">{value}</p>
+    <div className="border border-border rounded-lg px-3 py-2">
+      <p className="text-[10px] text-text-placeholder font-medium uppercase tracking-wide mb-1">{label}</p>
+      <p className="text-lg font-bold text-text-body leading-tight">{value}</p>
       <p className="text-[10px] text-[#BBBBBB] mt-0.5">{sub}</p>
     </div>
   )

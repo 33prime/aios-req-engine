@@ -31,7 +31,7 @@ export function TaskTimeGroup({
       {/* Header */}
       <button
         onClick={() => setCollapsed(!collapsed)}
-        className="flex items-center gap-2 w-full px-3 py-2 hover:bg-[#FAFAFA] rounded-lg transition-colors"
+        className="flex items-center gap-2 w-full px-3 py-2 hover:bg-surface-page rounded-lg transition-colors"
       >
         {collapsed ? (
           <ChevronRight className="w-3.5 h-3.5 text-[#999]" />

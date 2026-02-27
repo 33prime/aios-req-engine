@@ -41,7 +41,7 @@ function StakeholderAvatar({ name, size = 'sm' }: { name: string; size?: 'sm' | 
   const initial = name[0]?.toUpperCase() || '?'
   const dim = size === 'sm' ? 'w-7 h-7 text-[10px]' : 'w-9 h-9 text-[12px]'
   return (
-    <div className={`${dim} rounded-full bg-gradient-to-br from-[#3FAF7A] to-[#25785A] flex items-center justify-center text-white font-medium flex-shrink-0`}>
+    <div className={`${dim} rounded-full bg-gradient-to-br from-brand-primary to-[#25785A] flex items-center justify-center text-white font-medium flex-shrink-0`}>
       {initial}
     </div>
   )
@@ -69,12 +69,12 @@ export function StakeholderOverviewTab({ stakeholder }: StakeholderOverviewTabPr
       {/* LEFT COLUMN */}
       <div className="space-y-6">
         {/* Contact & Identity */}
-        <div className="bg-white border border-[#E5E5E5] rounded-2xl shadow-sm p-6">
+        <div className="bg-white border border-border rounded-2xl shadow-sm p-6">
           <SectionLabel>Contact & Identity</SectionLabel>
           <div className="grid grid-cols-2 gap-x-6 gap-y-4">
             <FieldRow label="Email">
               {s.email ? (
-                <a href={`mailto:${s.email}`} className="text-[#3FAF7A] hover:text-[#25785A] hover:underline transition-colors">{s.email}</a>
+                <a href={`mailto:${s.email}`} className="text-brand-primary hover:text-[#25785A] hover:underline transition-colors">{s.email}</a>
               ) : (
                 <span className="text-[#BBB] italic">Not set</span>
               )}
@@ -87,7 +87,7 @@ export function StakeholderOverviewTab({ stakeholder }: StakeholderOverviewTabPr
             </FieldRow>
             <FieldRow label="LinkedIn">
               {s.linkedin_profile ? (
-                <a href={s.linkedin_profile} target="_blank" rel="noopener noreferrer" className="text-[#3FAF7A] hover:text-[#25785A] hover:underline transition-colors truncate block">
+                <a href={s.linkedin_profile} target="_blank" rel="noopener noreferrer" className="text-brand-primary hover:text-[#25785A] hover:underline transition-colors truncate block">
                   {s.linkedin_profile.replace(/^https?:\/\/(www\.)?/, '')}
                 </a>
               ) : (
@@ -111,11 +111,11 @@ export function StakeholderOverviewTab({ stakeholder }: StakeholderOverviewTabPr
 
         {/* Domain Expertise */}
         {s.domain_expertise && s.domain_expertise.length > 0 && (
-          <div className="bg-white border border-[#E5E5E5] rounded-2xl shadow-sm p-6">
+          <div className="bg-white border border-border rounded-2xl shadow-sm p-6">
             <SectionLabel>Domain Expertise</SectionLabel>
             <div className="flex flex-wrap gap-2">
               {s.domain_expertise.map((area, i) => (
-                <span key={i} className="px-3 py-1 rounded-full text-[12px] font-medium bg-[#3FAF7A]/10 text-[#3FAF7A]">
+                <span key={i} className="px-3 py-1 rounded-full text-[12px] font-medium bg-brand-primary-light text-brand-primary">
                   {area}
                 </span>
               ))}
@@ -125,7 +125,7 @@ export function StakeholderOverviewTab({ stakeholder }: StakeholderOverviewTabPr
 
         {/* Priorities & Concerns */}
         {((s.priorities && s.priorities.length > 0) || (s.concerns && s.concerns.length > 0)) && (
-          <div className="bg-white border border-[#E5E5E5] rounded-2xl shadow-sm p-6">
+          <div className="bg-white border border-border rounded-2xl shadow-sm p-6">
             <div className="grid grid-cols-2 gap-8">
               {s.priorities && s.priorities.length > 0 && (
                 <div>
@@ -133,7 +133,7 @@ export function StakeholderOverviewTab({ stakeholder }: StakeholderOverviewTabPr
                   <ul className="space-y-2.5">
                     {s.priorities.map((p, i) => (
                       <li key={i} className="flex items-start gap-2.5 text-[13px] text-[#666]">
-                        <span className="text-[#3FAF7A] mt-0.5 text-lg leading-none">&bull;</span>
+                        <span className="text-brand-primary mt-0.5 text-lg leading-none">&bull;</span>
                         <span>{p}</span>
                       </li>
                     ))}
@@ -159,7 +159,7 @@ export function StakeholderOverviewTab({ stakeholder }: StakeholderOverviewTabPr
 
         {/* Notes */}
         {s.notes && (
-          <div className="bg-white border border-[#E5E5E5] rounded-2xl shadow-sm p-6">
+          <div className="bg-white border border-border rounded-2xl shadow-sm p-6">
             <SectionLabel>Notes</SectionLabel>
             <p className="text-[14px] text-[#666] leading-relaxed whitespace-pre-wrap">{s.notes}</p>
           </div>
@@ -169,7 +169,7 @@ export function StakeholderOverviewTab({ stakeholder }: StakeholderOverviewTabPr
       {/* RIGHT COLUMN */}
       <div className="space-y-6">
         {/* Decision Scope */}
-        <div className="bg-white border border-[#E5E5E5] rounded-2xl shadow-sm p-6">
+        <div className="bg-white border border-border rounded-2xl shadow-sm p-6">
           <SectionLabel>Decision Scope</SectionLabel>
           <div className="space-y-4">
             <div>
@@ -183,7 +183,7 @@ export function StakeholderOverviewTab({ stakeholder }: StakeholderOverviewTabPr
                 <p className="text-[11px] text-[#BBB] mb-1.5">Approval Required For</p>
                 <div className="flex flex-wrap gap-1.5">
                   {s.approval_required_for.map((item, i) => (
-                    <span key={i} className="px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-[#3FAF7A]/10 text-[#25785A]">{item}</span>
+                    <span key={i} className="px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-brand-primary-light text-[#25785A]">{item}</span>
                   ))}
                 </div>
               </div>
@@ -203,16 +203,16 @@ export function StakeholderOverviewTab({ stakeholder }: StakeholderOverviewTabPr
 
         {/* Requirement Connections */}
         {((s.linked_features && s.linked_features.length > 0) || (s.linked_drivers && s.linked_drivers.length > 0)) && (
-          <div className="bg-white border border-[#E5E5E5] rounded-2xl shadow-sm p-6">
+          <div className="bg-white border border-border rounded-2xl shadow-sm p-6">
             <SectionLabel>Requirement Connections</SectionLabel>
             {s.linked_features && s.linked_features.length > 0 && (
               <div className="space-y-1">
                 {s.linked_features.map((f) => (
-                  <div key={f.id} className="flex items-center gap-2.5 px-2.5 py-2 rounded-xl hover:bg-[#3FAF7A]/[0.06] transition-colors cursor-pointer">
-                    <div className="w-1.5 h-1.5 rounded-full bg-[#3FAF7A] flex-shrink-0" />
+                  <div key={f.id} className="flex items-center gap-2.5 px-2.5 py-2 rounded-xl hover:bg-brand-primary/[0.06] transition-colors cursor-pointer">
+                    <div className="w-1.5 h-1.5 rounded-full bg-brand-primary flex-shrink-0" />
                     <span className="text-[13px] font-medium text-[#333] flex-1 truncate">{f.name}</span>
                     {f.priority_group && (
-                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#3FAF7A]/10 text-[#25785A] font-medium">
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-brand-primary-light text-[#25785A] font-medium">
                         {MOSCOW_LABEL[f.priority_group] || f.priority_group}
                       </span>
                     )}
@@ -222,11 +222,11 @@ export function StakeholderOverviewTab({ stakeholder }: StakeholderOverviewTabPr
             )}
             {s.linked_drivers && s.linked_drivers.length > 0 && (
               <>
-                <div className="mt-4 pt-4 border-t border-[#E5E5E5]">
+                <div className="mt-4 pt-4 border-t border-border">
                   <p className="text-[12px] font-semibold text-[#999] uppercase tracking-[0.05em] mb-3">Business Drivers</p>
                   <div className="space-y-1">
                     {s.linked_drivers.map((d) => (
-                      <div key={d.id} className="flex items-center gap-2.5 px-2.5 py-2 rounded-xl hover:bg-[#3FAF7A]/[0.06] transition-colors cursor-pointer">
+                      <div key={d.id} className="flex items-center gap-2.5 px-2.5 py-2 rounded-xl hover:bg-brand-primary/[0.06] transition-colors cursor-pointer">
                         <div className="w-1.5 h-1.5 rounded-full bg-[#0A1E2F]/30 flex-shrink-0" />
                         <span className="text-[13px] text-[#666] flex-1 truncate">{d.description}</span>
                         <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#0A1E2F]/10 text-[#0A1E2F] font-medium">
@@ -243,7 +243,7 @@ export function StakeholderOverviewTab({ stakeholder }: StakeholderOverviewTabPr
 
         {/* Relationships */}
         {(s.reports_to || (s.allies_resolved && s.allies_resolved.length > 0) || (s.potential_blockers_resolved && s.potential_blockers_resolved.length > 0)) && (
-          <div className="bg-white border border-[#E5E5E5] rounded-2xl shadow-sm p-6">
+          <div className="bg-white border border-border rounded-2xl shadow-sm p-6">
             <SectionLabel>Relationships</SectionLabel>
             <div className="space-y-4">
               {s.reports_to && (
@@ -284,11 +284,11 @@ export function StakeholderOverviewTab({ stakeholder }: StakeholderOverviewTabPr
 
         {/* Linked Persona */}
         {s.linked_persona ? (
-          <div className="bg-white border border-[#E5E5E5] rounded-2xl shadow-sm p-6">
+          <div className="bg-white border border-border rounded-2xl shadow-sm p-6">
             <SectionLabel>Linked Persona</SectionLabel>
             <div className="flex items-center gap-3 p-3 bg-[#F4F4F4] rounded-xl">
-              <div className="w-9 h-9 rounded-xl bg-[#3FAF7A]/10 flex items-center justify-center">
-                <User className="w-4 h-4 text-[#3FAF7A]" />
+              <div className="w-9 h-9 rounded-xl bg-brand-primary-light flex items-center justify-center">
+                <User className="w-4 h-4 text-brand-primary" />
               </div>
               <div>
                 <p className="text-[13px] font-medium text-[#333]">{s.linked_persona.name}</p>
@@ -299,7 +299,7 @@ export function StakeholderOverviewTab({ stakeholder }: StakeholderOverviewTabPr
             </div>
           </div>
         ) : (
-          <div className="bg-white border border-[#E5E5E5] rounded-2xl shadow-sm p-6">
+          <div className="bg-white border border-border rounded-2xl shadow-sm p-6">
             <SectionLabel>Linked Persona</SectionLabel>
             <div className="flex items-center gap-3 p-3 bg-[#F4F4F4] rounded-xl">
               <div className="w-9 h-9 rounded-xl bg-gray-100 flex items-center justify-center">

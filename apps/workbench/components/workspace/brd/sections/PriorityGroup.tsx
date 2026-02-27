@@ -20,10 +20,10 @@ const GROUP_CONFIG: Record<MoSCoWGroup, {
   must_have: {
     label: 'Must Have',
     dotColor: '#3FAF7A',
-    headerBg: 'bg-[#3FAF7A]',
+    headerBg: 'bg-brand-primary',
     headerText: 'text-white',
     accentColor: '#3FAF7A',
-    bgActive: 'border-[#3FAF7A] bg-[#E8F5E9]/50',
+    bgActive: 'border-brand-primary bg-[#E8F5E9]/50',
   },
   should_have: {
     label: 'Should Have',
@@ -45,9 +45,9 @@ const GROUP_CONFIG: Record<MoSCoWGroup, {
     label: 'Out of Scope',
     dotColor: '#999999',
     headerBg: 'bg-[#F0F0F0]',
-    headerText: 'text-[#999999]',
+    headerText: 'text-text-placeholder',
     accentColor: '#999999',
-    bgActive: 'border-[#999999] bg-[#F0F0F0]/50',
+    bgActive: 'border-text-placeholder bg-[#F0F0F0]/50',
   },
 }
 
@@ -86,7 +86,7 @@ function FeatureAccordionCard({
 
   return (
     <div ref={setNodeRef} style={style}>
-      <div className="bg-white rounded-2xl shadow-md border border-[#E5E5E5] overflow-hidden">
+      <div className="bg-white rounded-2xl shadow-md border border-border overflow-hidden">
         {/* Header row */}
         <button
           onClick={() => { const next = !expanded; setExpanded(next); if (next && !hasBeenExpanded) setHasBeenExpanded(true) }}
@@ -97,17 +97,17 @@ function FeatureAccordionCard({
             {...listeners}
             {...attributes}
             onClick={(e) => e.stopPropagation()}
-            className="cursor-grab active:cursor-grabbing text-[#999999] hover:text-[#666666] -ml-1 shrink-0"
+            className="cursor-grab active:cursor-grabbing text-text-placeholder hover:text-[#666666] -ml-1 shrink-0"
           >
             <GripVertical className="w-4 h-4" />
           </div>
           <ChevronRight
-            className={`w-4 h-4 text-[#999999] shrink-0 transition-transform duration-200 ${expanded ? 'rotate-90' : ''}`}
+            className={`w-4 h-4 text-text-placeholder shrink-0 transition-transform duration-200 ${expanded ? 'rotate-90' : ''}`}
           />
           <Package className="w-4 h-4 shrink-0" style={{ color: config.accentColor }} />
-          <span className="text-[14px] font-semibold text-[#333333] truncate">{feature.name}</span>
+          <span className="text-[14px] font-semibold text-text-body truncate">{feature.name}</span>
           {feature.category && (
-            <span className="text-[12px] text-[#999999] shrink-0">({feature.category})</span>
+            <span className="text-[12px] text-text-placeholder shrink-0">({feature.category})</span>
           )}
           <span className="ml-auto shrink-0" onClick={(e) => e.stopPropagation()}>
             <BRDStatusBadge
@@ -140,12 +140,12 @@ function FeatureAccordionCard({
                   <ul className="space-y-2">
                     {feature.evidence.slice(0, 3).map((ev, i) => (
                       <li key={i} className="flex items-start gap-2 text-[13px] text-[#666666]">
-                        <span className="text-[#999999] mt-0.5 shrink-0">&#8226;</span>
+                        <span className="text-text-placeholder mt-0.5 shrink-0">&#8226;</span>
                         <span className="line-clamp-2">{ev.rationale || ev.excerpt || 'Source evidence'}</span>
                       </li>
                     ))}
                     {feature.evidence.length > 3 && (
-                      <li className="text-[12px] text-[#999999] ml-4">
+                      <li className="text-[12px] text-text-placeholder ml-4">
                         +{feature.evidence.length - 3} more
                       </li>
                     )}
@@ -154,7 +154,7 @@ function FeatureAccordionCard({
               )}
 
               {/* Actions */}
-              <div className="mt-4 pt-3 border-t border-[#E5E5E5] flex items-center justify-between">
+              <div className="mt-4 pt-3 border-t border-border flex items-center justify-between">
                 <ConfirmActions
                   status={feature.confirmation_status}
                   onConfirm={onConfirm}
@@ -166,7 +166,7 @@ function FeatureAccordionCard({
                     onChange={(e) => {
                       if (e.target.value) onMove(feature.id, e.target.value as MoSCoWGroup)
                     }}
-                    className="text-[11px] text-[#999999] bg-transparent border border-[#E5E5E5] rounded-md px-2 py-1 hover:text-[#666666] hover:border-[#999999] focus:outline-none focus:ring-1 focus:ring-[#3FAF7A] cursor-pointer"
+                    className="text-[11px] text-text-placeholder bg-transparent border border-border rounded-md px-2 py-1 hover:text-[#666666] hover:border-text-placeholder focus:outline-none focus:ring-1 focus:ring-brand-primary cursor-pointer"
                   >
                     <option value="">Move to...</option>
                     {moveTargets.map((t) => (
@@ -219,7 +219,7 @@ export function PriorityGroup({ group, features, onConfirm, onNeedsReview, onMov
       </div>
 
       {features.length === 0 ? (
-        <div className="py-6 text-center text-[13px] text-[#999999] italic border border-dashed border-[#E5E5E5] rounded-xl bg-white/50">
+        <div className="py-6 text-center text-[13px] text-text-placeholder italic border border-dashed border-border rounded-xl bg-white/50">
           {isOver ? 'Drop here' : 'No features'}
         </div>
       ) : (

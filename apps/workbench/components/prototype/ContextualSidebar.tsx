@@ -60,7 +60,7 @@ export default function ContextualSidebar({
   const reviewedCount = verdictCounts.total - verdictCounts.unreviewed
 
   return (
-    <div className="w-[380px] flex-shrink-0 bg-white border-l border-[#E5E5E5] flex flex-col h-full overflow-hidden">
+    <div className="w-[380px] flex-shrink-0 bg-white border-l border-border flex flex-col h-full overflow-hidden">
       {/* Current step: verdict card */}
       {currentStep && currentOverlay && (
         <div className="flex-1 overflow-y-auto p-3 custom-scrollbar">
@@ -75,36 +75,36 @@ export default function ContextualSidebar({
           {currentOverlay.overlay_content && (
             <div className="mt-3 space-y-3">
               {currentOverlay.overlay_content.overview?.spec_summary && (
-                <div className="rounded-xl border border-[#E5E5E5] p-3">
+                <div className="rounded-xl border border-border p-3">
                   <h4 className="text-[11px] font-semibold text-[#666666] uppercase tracking-wide mb-1">
                     What AIOS says
                   </h4>
-                  <p className="text-xs text-[#333333] leading-relaxed">
+                  <p className="text-xs text-text-body leading-relaxed">
                     {currentOverlay.overlay_content.overview.spec_summary}
                   </p>
                 </div>
               )}
               {currentOverlay.overlay_content.overview?.delta &&
                 currentOverlay.overlay_content.overview.delta.length > 0 && (
-                <div className="rounded-xl border border-[#E5E5E5] p-3">
+                <div className="rounded-xl border border-border p-3">
                   <h4 className="text-[11px] font-semibold text-[#666666] uppercase tracking-wide mb-1">
                     Spec vs Code Gaps
                   </h4>
                   <ul className="space-y-0.5">
                     {currentOverlay.overlay_content.overview.delta.map((d, i) => (
-                      <li key={i} className="text-xs text-[#333333] flex items-start gap-1.5">
-                        <span className="text-[#999999] mt-0.5">&bull;</span>{d}
+                      <li key={i} className="text-xs text-text-body flex items-start gap-1.5">
+                        <span className="text-text-placeholder mt-0.5">&bull;</span>{d}
                       </li>
                     ))}
                   </ul>
                 </div>
               )}
               {currentOverlay.overlay_content.impact?.downstream_risk && (
-                <div className="rounded-xl border border-[#E5E5E5] p-3">
+                <div className="rounded-xl border border-border p-3">
                   <h4 className="text-[11px] font-semibold text-[#666666] uppercase tracking-wide mb-1">
                     Downstream Risk
                   </h4>
-                  <p className="text-xs text-[#333333]">
+                  <p className="text-xs text-text-body">
                     {currentOverlay.overlay_content.impact.downstream_risk}
                   </p>
                 </div>
@@ -117,20 +117,20 @@ export default function ContextualSidebar({
       {/* No step active: show visible features or scorecard */}
       {!currentStep && (
         <>
-          <div className="px-4 py-3 border-b border-[#E5E5E5]">
+          <div className="px-4 py-3 border-b border-border">
             <div className="flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-[#333333]">
+              <h3 className="text-sm font-semibold text-text-body">
                 {showScorecard ? 'Review Scorecard' : 'Features'}
               </h3>
               <button
                 onClick={() => setShowScorecard(!showScorecard)}
-                className="text-xs text-[#3FAF7A] hover:text-[#25785A] transition-colors"
+                className="text-xs text-brand-primary hover:text-[#25785A] transition-colors"
               >
                 {showScorecard ? 'Show Contextual' : 'View Scorecard'}
               </button>
             </div>
             {!showScorecard && visibleOverlays.length > 0 && (
-              <p className="text-xs text-[#999999] mt-1">
+              <p className="text-xs text-text-placeholder mt-1">
                 {visibleOverlays.length} feature{visibleOverlays.length !== 1 ? 's' : ''} on this page
               </p>
             )}
@@ -150,14 +150,14 @@ export default function ContextualSidebar({
                     >
                       <span
                         className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${
-                          v === 'aligned' ? 'bg-[#3FAF7A]' :
+                          v === 'aligned' ? 'bg-brand-primary' :
                           v === 'needs_adjustment' ? 'bg-amber-400' :
                           v === 'off_track' ? 'bg-red-400' :
                           'bg-gray-300'
                         }`}
                       />
-                      <span className="text-sm text-[#333333] truncate flex-1">{name}</span>
-                      <span className="text-[10px] text-[#999999]">
+                      <span className="text-sm text-text-body truncate flex-1">{name}</span>
+                      <span className="text-[10px] text-text-placeholder">
                         {Math.round((o.confidence ?? 0) * 100)}%
                       </span>
                     </div>
@@ -176,7 +176,7 @@ export default function ContextualSidebar({
                 />
               ))
             ) : (
-              <p className="text-sm text-[#999999] text-center py-8">
+              <p className="text-sm text-text-placeholder text-center py-8">
                 Navigate the prototype or start the guided tour to see features.
               </p>
             )}
@@ -185,16 +185,16 @@ export default function ContextualSidebar({
       )}
 
       {/* Progress footer */}
-      <div className="px-4 py-3 border-t border-[#E5E5E5]">
+      <div className="px-4 py-3 border-t border-border">
         <div className="flex items-center justify-between mb-2">
-          <span className="text-xs text-[#999999]">
+          <span className="text-xs text-text-placeholder">
             {reviewedCount}/{verdictCounts.total} features reviewed
           </span>
         </div>
         <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden flex">
           {verdictCounts.aligned > 0 && (
             <div
-              className="h-full bg-[#3FAF7A] transition-all duration-300"
+              className="h-full bg-brand-primary transition-all duration-300"
               style={{ width: `${(verdictCounts.aligned / verdictCounts.total) * 100}%` }}
             />
           )}

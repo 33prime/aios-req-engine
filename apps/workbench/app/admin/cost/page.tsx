@@ -32,13 +32,13 @@ export default function AdminCostPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="w-5 h-5 border-2 border-[#3FAF7A] border-t-transparent rounded-full animate-spin" />
+        <div className="w-5 h-5 border-2 border-brand-primary border-t-transparent rounded-full animate-spin" />
       </div>
     )
   }
 
   if (!data) {
-    return <div className="text-[#999999] text-sm">Failed to load cost data</div>
+    return <div className="text-text-placeholder text-sm">Failed to load cost data</div>
   }
 
   const maxWorkflowCost = Math.max(...data.cost_by_workflow.map(w => w.cost), 0.01)
@@ -47,7 +47,7 @@ export default function AdminCostPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-[22px] font-bold text-[#333333]">Cost & Usage</h1>
+      <h1 className="text-[22px] font-bold text-text-body">Cost & Usage</h1>
 
       {/* Top stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -58,27 +58,27 @@ export default function AdminCostPage() {
       </div>
 
       {/* Cost by Workflow */}
-      <div className="bg-white rounded-2xl shadow-md border border-[#E5E5E5] p-6">
-        <h2 className="text-[15px] font-semibold text-[#333333] mb-5">Cost by Workflow</h2>
+      <div className="bg-white rounded-2xl shadow-md border border-border p-6">
+        <h2 className="text-[15px] font-semibold text-text-body mb-5">Cost by Workflow</h2>
         <div className="space-y-3">
           {data.cost_by_workflow.map((item) => {
             const pct = totalWorkflowCost > 0 ? ((item.cost / totalWorkflowCost) * 100).toFixed(0) : '0'
             return (
               <div key={item.workflow} className="flex items-center gap-4">
                 <span className="text-[13px] text-[#666666] w-40 truncate font-mono">{item.workflow}</span>
-                <div className="flex-1 h-5 bg-[#E5E5E5] rounded-full overflow-hidden">
+                <div className="flex-1 h-5 bg-border rounded-full overflow-hidden">
                   <div
-                    className="h-full bg-[#3FAF7A] rounded-full transition-all"
+                    className="h-full bg-brand-primary rounded-full transition-all"
                     style={{ width: `${(item.cost / maxWorkflowCost) * 100}%` }}
                   />
                 </div>
-                <span className="text-[13px] font-medium text-[#333333] w-20 text-right">{formatCost(item.cost)}</span>
-                <span className="text-[12px] text-[#999999] w-10 text-right">{pct}%</span>
+                <span className="text-[13px] font-medium text-text-body w-20 text-right">{formatCost(item.cost)}</span>
+                <span className="text-[12px] text-text-placeholder w-10 text-right">{pct}%</span>
               </div>
             )
           })}
           {data.cost_by_workflow.length === 0 && (
-            <p className="text-[13px] text-[#999999]">No usage data yet</p>
+            <p className="text-[13px] text-text-placeholder">No usage data yet</p>
           )}
         </div>
       </div>
@@ -86,84 +86,84 @@ export default function AdminCostPage() {
       {/* Two-column: Model + Top Spenders */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Cost by Model */}
-        <div className="bg-white rounded-2xl shadow-md border border-[#E5E5E5] p-6">
-          <h2 className="text-[15px] font-semibold text-[#333333] mb-4">Cost by Model</h2>
+        <div className="bg-white rounded-2xl shadow-md border border-border p-6">
+          <h2 className="text-[15px] font-semibold text-text-body mb-4">Cost by Model</h2>
           <div className="space-y-3">
             {data.cost_by_model.map((item) => (
-              <div key={item.model} className="flex items-center justify-between p-3 rounded-xl border border-[#E5E5E5] bg-[#F8F9FB]">
+              <div key={item.model} className="flex items-center justify-between p-3 rounded-xl border border-border bg-[#F8F9FB]">
                 <div>
-                  <div className="text-[13px] font-medium text-[#333333]">{item.model}</div>
+                  <div className="text-[13px] font-medium text-text-body">{item.model}</div>
                   <div className="flex items-center gap-2 mt-1">
                     <span className="px-1.5 py-0.5 text-[10px] rounded bg-[#F0F0F0] text-[#666666]">{item.provider}</span>
-                    <span className="text-[11px] text-[#999999]">{item.calls} calls</span>
-                    <span className="text-[11px] text-[#999999]">{formatTokens(item.tokens)} tokens</span>
+                    <span className="text-[11px] text-text-placeholder">{item.calls} calls</span>
+                    <span className="text-[11px] text-text-placeholder">{formatTokens(item.tokens)} tokens</span>
                   </div>
                 </div>
-                <span className="text-[15px] font-semibold text-[#333333]">{formatCost(item.cost)}</span>
+                <span className="text-[15px] font-semibold text-text-body">{formatCost(item.cost)}</span>
               </div>
             ))}
             {data.cost_by_model.length === 0 && (
-              <p className="text-[13px] text-[#999999]">No model data</p>
+              <p className="text-[13px] text-text-placeholder">No model data</p>
             )}
           </div>
         </div>
 
         {/* Top Spenders */}
-        <div className="bg-white rounded-2xl shadow-md border border-[#E5E5E5] p-6">
-          <h2 className="text-[15px] font-semibold text-[#333333] mb-4">Top Spenders</h2>
+        <div className="bg-white rounded-2xl shadow-md border border-border p-6">
+          <h2 className="text-[15px] font-semibold text-text-body mb-4">Top Spenders</h2>
           <div className="overflow-auto">
             <table className="w-full">
               <thead>
-                <tr className="border-b border-[#E5E5E5]">
-                  <th className="text-left text-[10px] text-[#999999] uppercase pb-2 pr-3">#</th>
-                  <th className="text-left text-[10px] text-[#999999] uppercase pb-2 pr-3">User</th>
-                  <th className="text-right text-[10px] text-[#999999] uppercase pb-2 pr-3">Cost</th>
-                  <th className="text-right text-[10px] text-[#999999] uppercase pb-2">Calls</th>
+                <tr className="border-b border-border">
+                  <th className="text-left text-[10px] text-text-placeholder uppercase pb-2 pr-3">#</th>
+                  <th className="text-left text-[10px] text-text-placeholder uppercase pb-2 pr-3">User</th>
+                  <th className="text-right text-[10px] text-text-placeholder uppercase pb-2 pr-3">Cost</th>
+                  <th className="text-right text-[10px] text-text-placeholder uppercase pb-2">Calls</th>
                 </tr>
               </thead>
               <tbody>
                 {data.cost_by_user.map((item, i) => (
-                  <tr key={item.user_id} className="border-b border-[#E5E5E5] hover:bg-[#F4F4F4] transition-colors">
-                    <td className="py-2 pr-3 text-[12px] text-[#999999]">{i + 1}</td>
+                  <tr key={item.user_id} className="border-b border-border hover:bg-[#F4F4F4] transition-colors">
+                    <td className="py-2 pr-3 text-[12px] text-text-placeholder">{i + 1}</td>
                     <td className="py-2 pr-3">
                       {item.user_id !== 'system' ? (
-                        <Link href={`/admin/users/${item.user_id}`} className="text-[13px] text-[#3FAF7A] hover:underline">
+                        <Link href={`/admin/users/${item.user_id}`} className="text-[13px] text-brand-primary hover:underline">
                           {item.name || item.email}
                         </Link>
                       ) : (
                         <span className="text-[13px] text-[#666666]">System</span>
                       )}
                     </td>
-                    <td className="py-2 pr-3 text-[13px] font-medium text-[#333333] text-right">{formatCost(item.cost)}</td>
-                    <td className="py-2 text-[12px] text-[#999999] text-right">{item.calls}</td>
+                    <td className="py-2 pr-3 text-[13px] font-medium text-text-body text-right">{formatCost(item.cost)}</td>
+                    <td className="py-2 text-[12px] text-text-placeholder text-right">{item.calls}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
           {data.cost_by_user.length === 0 && (
-            <p className="text-[13px] text-[#999999]">No user data</p>
+            <p className="text-[13px] text-text-placeholder">No user data</p>
           )}
         </div>
       </div>
 
       {/* Daily Spend Chart */}
       {data.daily_cost.length > 0 && (
-        <div className="bg-white rounded-2xl shadow-md border border-[#E5E5E5] p-6">
-          <h2 className="text-[15px] font-semibold text-[#333333] mb-4">Daily Spend (30 Days)</h2>
+        <div className="bg-white rounded-2xl shadow-md border border-border p-6">
+          <h2 className="text-[15px] font-semibold text-text-body mb-4">Daily Spend (30 Days)</h2>
           <div className="flex items-end gap-1 h-40">
             {data.daily_cost.map((day, i) => {
               const heightPct = (day.cost / maxDailyCost) * 100
               return (
                 <div key={day.date} className="flex-1 flex flex-col items-center justify-end group relative">
                   <div
-                    className="w-full bg-[#3FAF7A] rounded-t-sm min-h-[2px] transition-all hover:bg-[#25785A]"
+                    className="w-full bg-brand-primary rounded-t-sm min-h-[2px] transition-all hover:bg-[#25785A]"
                     style={{ height: `${Math.max(heightPct, 1)}%` }}
                     title={`${day.date}: ${formatCost(day.cost)} (${day.calls} calls)`}
                   />
                   {/* Label every 5 days */}
                   {i % 5 === 0 && (
-                    <span className="text-[9px] text-[#999999] mt-1 whitespace-nowrap">
+                    <span className="text-[9px] text-text-placeholder mt-1 whitespace-nowrap">
                       {day.date.slice(5)}
                     </span>
                   )}

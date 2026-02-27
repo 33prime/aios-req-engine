@@ -96,7 +96,7 @@ export function NotificationBell() {
       {/* Bell button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="relative p-1.5 rounded-lg text-[#999999] hover:bg-[#F4F4F4] hover:text-[#333333] transition-colors"
+        className="relative p-1.5 rounded-lg text-text-placeholder hover:bg-[#F4F4F4] hover:text-text-body transition-colors"
         title="Notifications"
       >
         <Bell className="w-4 h-4" />
@@ -109,22 +109,22 @@ export function NotificationBell() {
 
       {/* Dropdown panel */}
       {isOpen && (
-        <div className="absolute left-0 top-full mt-2 w-80 bg-white rounded-xl shadow-2xl border border-[#E5E5E5] z-50 overflow-hidden">
+        <div className="absolute left-0 top-full mt-2 w-80 bg-white rounded-xl shadow-2xl border border-border z-50 overflow-hidden">
           {/* Header */}
-          <div className="px-4 py-3 border-b border-[#E5E5E5]">
-            <h3 className="text-sm font-semibold text-[#333333]">Notifications</h3>
+          <div className="px-4 py-3 border-b border-border">
+            <h3 className="text-sm font-semibold text-text-body">Notifications</h3>
           </div>
 
           {/* Notification list */}
           <div className="max-h-80 overflow-y-auto">
             {loading && (
-              <div className="px-4 py-6 text-center text-sm text-[#999999]">
+              <div className="px-4 py-6 text-center text-sm text-text-placeholder">
                 Loading...
               </div>
             )}
 
             {!loading && notifications.length === 0 && (
-              <div className="px-4 py-6 text-center text-sm text-[#999999]">
+              <div className="px-4 py-6 text-center text-sm text-text-placeholder">
                 No notifications yet
               </div>
             )}
@@ -139,17 +139,17 @@ export function NotificationBell() {
                   <div className="flex items-start gap-2.5">
                     <div
                       className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${
-                        notif.read ? 'bg-transparent' : 'bg-[#3FAF7A]'
+                        notif.read ? 'bg-transparent' : 'bg-brand-primary'
                       }`}
                     />
                     <div className="flex-1 min-w-0">
                       <p className={`text-sm leading-snug ${
-                        notif.read ? 'text-[#666666]' : 'text-[#333333] font-medium'
+                        notif.read ? 'text-[#666666]' : 'text-text-body font-medium'
                       }`}>
                         {notif.title}
                       </p>
                       {notif.body && (
-                        <p className="text-xs text-[#999999] mt-0.5 line-clamp-2">
+                        <p className="text-xs text-text-placeholder mt-0.5 line-clamp-2">
                           {notif.body}
                         </p>
                       )}
@@ -164,10 +164,10 @@ export function NotificationBell() {
 
           {/* Footer */}
           {notifications.length > 0 && unreadCount > 0 && (
-            <div className="border-t border-[#E5E5E5] px-4 py-2.5">
+            <div className="border-t border-border px-4 py-2.5">
               <button
                 onClick={handleMarkAllRead}
-                className="text-xs text-[#3FAF7A] hover:text-[#25785A] font-medium"
+                className="text-xs text-brand-primary hover:text-[#25785A] font-medium"
               >
                 Mark all as read
               </button>

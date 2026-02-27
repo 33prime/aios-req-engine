@@ -124,7 +124,7 @@ export function VisionDetailDrawer({
       title="Product Vision"
       headerExtra={
         detail?.vision_updated_at ? (
-          <p className="text-[11px] text-[#999999] mt-1">
+          <p className="text-[11px] text-text-placeholder mt-1">
             Last updated {formatDate(detail.vision_updated_at)}
           </p>
         ) : undefined
@@ -192,11 +192,11 @@ function CurrentTab({
       {/* Vision Text */}
       <div>
         <div className="flex items-center justify-between mb-2">
-          <h3 className="text-[13px] font-semibold text-[#333333]">Vision Statement</h3>
+          <h3 className="text-[13px] font-semibold text-text-body">Vision Statement</h3>
           {!editing && (
             <button
               onClick={onEdit}
-              className="inline-flex items-center gap-1 text-[11px] text-[#999999] hover:text-[#3FAF7A] transition-colors"
+              className="inline-flex items-center gap-1 text-[11px] text-text-placeholder hover:text-brand-primary transition-colors"
             >
               <Pencil className="w-3 h-3" />
               Edit
@@ -208,7 +208,7 @@ function CurrentTab({
             <textarea
               value={draft}
               onChange={(e) => onDraftChange(e.target.value)}
-              className="w-full p-3 text-[14px] text-[#333333] border border-[#E5E5E5] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#3FAF7A]/30 focus:border-[#3FAF7A] resize-y min-h-[100px]"
+              className="w-full p-3 text-[14px] text-text-body border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-primary/30 focus:border-brand-primary resize-y min-h-[100px]"
               placeholder="Describe the product vision..."
               autoFocus
             />
@@ -216,27 +216,27 @@ function CurrentTab({
               <button
                 onClick={onSave}
                 disabled={saving}
-                className="px-3 py-1.5 text-[12px] font-medium text-white bg-[#3FAF7A] rounded-xl hover:bg-[#25785A] transition-colors disabled:opacity-50"
+                className="px-3 py-1.5 text-[12px] font-medium text-white bg-brand-primary rounded-xl hover:bg-[#25785A] transition-colors disabled:opacity-50"
               >
                 {saving ? 'Saving...' : 'Save'}
               </button>
               <button
                 onClick={onCancel}
-                className="px-3 py-1.5 text-[12px] font-medium text-[#666666] bg-white border border-[#E5E5E5] rounded-xl hover:bg-gray-50 transition-colors"
+                className="px-3 py-1.5 text-[12px] font-medium text-[#666666] bg-white border border-border rounded-xl hover:bg-gray-50 transition-colors"
               >
                 Cancel
               </button>
             </div>
-            <p className="text-[11px] text-[#999999]">
+            <p className="text-[11px] text-text-placeholder">
               Saving will trigger an AI clarity analysis (~3 seconds).
             </p>
           </div>
         ) : (
-          <div className="bg-[#F9F9F9] rounded-xl p-4">
+          <div className="bg-surface-muted rounded-xl p-4">
             {detail?.vision ? (
-              <p className="text-[14px] text-[#333333] leading-relaxed">{detail.vision}</p>
+              <p className="text-[14px] text-text-body leading-relaxed">{detail.vision}</p>
             ) : (
-              <p className="text-[13px] text-[#999999] italic">
+              <p className="text-[13px] text-text-placeholder italic">
                 No vision statement yet. Click Edit to add one.
               </p>
             )}
@@ -248,14 +248,14 @@ function CurrentTab({
       {analysis && (
         <div>
           <div className="flex items-center gap-2 mb-3">
-            <Sparkles className="w-4 h-4 text-[#3FAF7A]" />
-            <h3 className="text-[13px] font-semibold text-[#333333]">Clarity Analysis</h3>
+            <Sparkles className="w-4 h-4 text-brand-primary" />
+            <h3 className="text-[13px] font-semibold text-text-body">Clarity Analysis</h3>
             <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${
               analysis.overall_score >= 0.8
                 ? 'bg-[#E8F5E9] text-[#25785A]'
                 : analysis.overall_score >= 0.6
-                  ? 'bg-[#E8F5E9] text-[#3FAF7A]'
-                  : 'bg-[#F0F0F0] text-[#999999]'
+                  ? 'bg-[#E8F5E9] text-brand-primary'
+                  : 'bg-[#F0F0F0] text-text-placeholder'
             }`}>
               {Math.round(analysis.overall_score * 100)}% overall
             </span>
@@ -274,7 +274,7 @@ function CurrentTab({
 
           {/* Summary */}
           {analysis.summary && (
-            <div className="bg-[#F9F9F9] rounded-xl p-3 mb-4">
+            <div className="bg-surface-muted rounded-xl p-3 mb-4">
               <p className="text-[13px] text-[#666666] leading-relaxed">{analysis.summary}</p>
             </div>
           )}
@@ -283,13 +283,13 @@ function CurrentTab({
           {analysis.suggestions && analysis.suggestions.length > 0 && (
             <div>
               <div className="flex items-center gap-1.5 mb-2">
-                <Lightbulb className="w-3.5 h-3.5 text-[#3FAF7A]" />
-                <h4 className="text-[12px] font-medium text-[#333333]">Improvement Suggestions</h4>
+                <Lightbulb className="w-3.5 h-3.5 text-brand-primary" />
+                <h4 className="text-[12px] font-medium text-text-body">Improvement Suggestions</h4>
               </div>
               <ul className="space-y-2">
                 {analysis.suggestions.map((suggestion, i) => (
                   <li key={i} className="flex items-start gap-2 text-[13px] text-[#666666]">
-                    <span className="w-5 h-5 rounded-full bg-[#F0F0F0] flex items-center justify-center text-[10px] font-medium text-[#999999] flex-shrink-0 mt-0.5">
+                    <span className="w-5 h-5 rounded-full bg-[#F0F0F0] flex items-center justify-center text-[10px] font-medium text-text-placeholder flex-shrink-0 mt-0.5">
                       {i + 1}
                     </span>
                     {suggestion}
@@ -303,9 +303,9 @@ function CurrentTab({
 
       {/* Feature Count Context */}
       {detail && detail.total_features > 0 && (
-        <div className="bg-[#F9F9F9] rounded-xl p-3">
+        <div className="bg-surface-muted rounded-xl p-3">
           <div className="flex items-center gap-2 text-[12px] text-[#666666]">
-            <FileText className="w-3.5 h-3.5 text-[#999999]" />
+            <FileText className="w-3.5 h-3.5 text-text-placeholder" />
             <span>
               Vision evaluated against <strong>{detail.total_features}</strong> feature{detail.total_features !== 1 ? 's' : ''} in this project.
             </span>
@@ -315,9 +315,9 @@ function CurrentTab({
 
       {/* No analysis yet */}
       {!analysis && detail?.vision && (
-        <div className="bg-[#F9F9F9] rounded-xl p-4 text-center">
-          <Sparkles className="w-5 h-5 text-[#999999] mx-auto mb-2" />
-          <p className="text-[13px] text-[#999999]">
+        <div className="bg-surface-muted rounded-xl p-4 text-center">
+          <Sparkles className="w-5 h-5 text-text-placeholder mx-auto mb-2" />
+          <p className="text-[13px] text-text-placeholder">
             Clarity analysis not yet available. Edit and save the vision to trigger analysis.
           </p>
         </div>
@@ -334,45 +334,45 @@ function EvolutionTab({ revisions }: { revisions: RevisionEntry[] }) {
   if (revisions.length === 0) {
     return (
       <div className="text-center py-12">
-        <Clock className="w-6 h-6 text-[#999999] mx-auto mb-2" />
-        <p className="text-[13px] text-[#999999]">No revision history yet.</p>
-        <p className="text-[11px] text-[#999999] mt-1">Edit the vision to start tracking changes.</p>
+        <Clock className="w-6 h-6 text-text-placeholder mx-auto mb-2" />
+        <p className="text-[13px] text-text-placeholder">No revision history yet.</p>
+        <p className="text-[11px] text-text-placeholder mt-1">Edit the vision to start tracking changes.</p>
       </div>
     )
   }
 
   return (
     <div className="space-y-4">
-      <h3 className="text-[13px] font-semibold text-[#333333]">Vision Evolution</h3>
+      <h3 className="text-[13px] font-semibold text-text-body">Vision Evolution</h3>
       <div className="relative">
         {/* Timeline line */}
-        <div className="absolute left-3 top-2 bottom-2 w-px bg-[#E5E5E5]" />
+        <div className="absolute left-3 top-2 bottom-2 w-px bg-border" />
 
         <div className="space-y-4">
           {revisions.map((rev, i) => (
             <div key={i} className="flex gap-3 relative">
               {/* Dot */}
               <div className={`w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 z-10 ${
-                i === 0 ? 'bg-[#3FAF7A]' : 'bg-[#E5E5E5]'
+                i === 0 ? 'bg-brand-primary' : 'bg-border'
               }`}>
-                <span className={`text-[9px] font-bold ${i === 0 ? 'text-white' : 'text-[#999999]'}`}>
+                <span className={`text-[9px] font-bold ${i === 0 ? 'text-white' : 'text-text-placeholder'}`}>
                   {rev.revision_number}
                 </span>
               </div>
 
               {/* Content */}
-              <div className="flex-1 bg-white rounded-xl border border-[#E5E5E5] p-3">
+              <div className="flex-1 bg-white rounded-xl border border-border p-3">
                 <div className="flex items-center justify-between mb-1">
-                  <span className="text-[11px] font-medium text-[#333333]">
+                  <span className="text-[11px] font-medium text-text-body">
                     Revision {rev.revision_number}
                   </span>
-                  <span className="text-[10px] text-[#999999]">
+                  <span className="text-[10px] text-text-placeholder">
                     {formatDate(rev.created_at)}
                   </span>
                 </div>
                 <p className="text-[12px] text-[#666666]">{rev.diff_summary}</p>
                 {rev.revision_type && (
-                  <span className="inline-block mt-1.5 text-[10px] px-1.5 py-0.5 rounded bg-[#F0F0F0] text-[#999999]">
+                  <span className="inline-block mt-1.5 text-[10px] px-1.5 py-0.5 rounded bg-[#F0F0F0] text-text-placeholder">
                     {rev.revision_type}
                   </span>
                 )}
@@ -392,9 +392,9 @@ function EvolutionTab({ revisions }: { revisions: RevisionEntry[] }) {
 function SourcesTab() {
   return (
     <div className="text-center py-12">
-      <FileText className="w-6 h-6 text-[#999999] mx-auto mb-2" />
-      <p className="text-[13px] text-[#999999]">Evidence sources coming soon.</p>
-      <p className="text-[11px] text-[#999999] mt-1">
+      <FileText className="w-6 h-6 text-text-placeholder mx-auto mb-2" />
+      <p className="text-[13px] text-text-placeholder">Evidence sources coming soon.</p>
+      <p className="text-[11px] text-text-placeholder mt-1">
         This will show signal citations that contributed to the vision statement.
       </p>
     </div>

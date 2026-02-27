@@ -90,7 +90,7 @@ export function UnlocksPanel({ projectId }: UnlocksPanelProps) {
   return (
     <div className="flex flex-col h-full">
       {/* Tab bar */}
-      <div className="flex items-center px-6 py-3 border-b border-[#E5E5E5] bg-white shrink-0">
+      <div className="flex items-center px-6 py-3 border-b border-border bg-white shrink-0">
         <div className="flex gap-1">
           {TABS.map((tab) => {
             const Icon = tab.icon
@@ -102,7 +102,7 @@ export function UnlocksPanel({ projectId }: UnlocksPanelProps) {
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium transition-colors ${
                   isActive
                     ? 'bg-[#E8F5E9] text-[#25785A]'
-                    : 'text-[#999999] hover:text-[#333333] hover:bg-[#F4F4F4]'
+                    : 'text-text-placeholder hover:text-text-body hover:bg-[#F4F4F4]'
                 }`}
               >
                 <Icon className="w-3.5 h-3.5" />
@@ -231,7 +231,7 @@ function UnlocksTab({ projectId }: { projectId: string }) {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-16">
-        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#3FAF7A]" />
+        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-brand-primary" />
       </div>
     )
   }
@@ -242,11 +242,11 @@ function UnlocksTab({ projectId }: { projectId: string }) {
     return (
       <div className="text-center py-16">
         <div className="w-14 h-14 mx-auto mb-4 rounded-full bg-[#E8F5E9] flex items-center justify-center">
-          <Zap className="w-7 h-7 text-[#3FAF7A]" />
+          <Zap className="w-7 h-7 text-brand-primary" />
         </div>
         {isGenerating ? (
           <>
-            <h3 className="text-[16px] font-semibold text-[#333333] mb-4">
+            <h3 className="text-[16px] font-semibold text-text-body mb-4">
               Generating Unlocks
             </h3>
             <div className="max-w-xs mx-auto space-y-2 mb-6">
@@ -255,16 +255,16 @@ function UnlocksTab({ projectId }: { projectId: string }) {
                   key={stage}
                   className={`flex items-center gap-2 text-[12px] transition-all duration-500 ${
                     i < generationStage
-                      ? 'text-[#3FAF7A]'
+                      ? 'text-brand-primary'
                       : i === generationStage
-                        ? 'text-[#333333] font-medium'
+                        ? 'text-text-body font-medium'
                         : 'text-[#CCCCCC]'
                   }`}
                 >
                   {i < generationStage ? (
-                    <span className="w-4 h-4 flex items-center justify-center text-[#3FAF7A]">✓</span>
+                    <span className="w-4 h-4 flex items-center justify-center text-brand-primary">✓</span>
                   ) : i === generationStage ? (
-                    <RefreshCw className="w-4 h-4 animate-spin text-[#3FAF7A]" />
+                    <RefreshCw className="w-4 h-4 animate-spin text-brand-primary" />
                   ) : (
                     <span className="w-4 h-4 flex items-center justify-center text-[#CCCCCC]">○</span>
                   )}
@@ -275,7 +275,7 @@ function UnlocksTab({ projectId }: { projectId: string }) {
           </>
         ) : (
           <>
-            <h3 className="text-[16px] font-semibold text-[#333333] mb-2">
+            <h3 className="text-[16px] font-semibold text-text-body mb-2">
               Discover Strategic Unlocks
             </h3>
             <p className="text-[13px] text-[#666666] max-w-md mx-auto mb-6">
@@ -284,7 +284,7 @@ function UnlocksTab({ projectId }: { projectId: string }) {
             </p>
             <button
               onClick={handleGenerate}
-              className="inline-flex items-center gap-2 px-5 py-2.5 text-[13px] font-medium text-white bg-[#3FAF7A] hover:bg-[#25785A] rounded-xl transition-colors"
+              className="inline-flex items-center gap-2 px-5 py-2.5 text-[13px] font-medium text-white bg-brand-primary hover:bg-[#25785A] rounded-xl transition-colors"
             >
               <Sparkles className="w-4 h-4" />
               Generate Unlocks
@@ -308,7 +308,7 @@ function UnlocksTab({ projectId }: { projectId: string }) {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-2">
-          <h3 className="text-[15px] font-semibold text-[#333333]">
+          <h3 className="text-[15px] font-semibold text-text-body">
             Strategic Unlocks
           </h3>
           <span className="px-2 py-0.5 text-[11px] font-medium bg-[#F0F0F0] text-[#666666] rounded-full">
@@ -318,7 +318,7 @@ function UnlocksTab({ projectId }: { projectId: string }) {
         <button
           onClick={handleGenerate}
           disabled={isGenerating}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-[#3FAF7A] hover:bg-[#E8F5E9] rounded-lg transition-colors disabled:opacity-50"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-brand-primary hover:bg-[#E8F5E9] rounded-lg transition-colors disabled:opacity-50"
         >
           <RefreshCw className={`w-3.5 h-3.5 ${isGenerating ? 'animate-spin' : ''}`} />
           {isGenerating ? 'Analyzing...' : 'Regenerate'}
@@ -332,10 +332,10 @@ function UnlocksTab({ projectId }: { projectId: string }) {
             <div key={tier}>
               {/* Tier header */}
               <div className="mb-3">
-                <h4 className="text-[13px] font-semibold text-[#333333]">
+                <h4 className="text-[13px] font-semibold text-text-body">
                   {config.label}
                 </h4>
-                <p className="text-[11px] text-[#999999]">{config.subtitle}</p>
+                <p className="text-[11px] text-text-placeholder">{config.subtitle}</p>
               </div>
 
               {/* Unlock cards */}
@@ -375,10 +375,10 @@ function UnlockCard({
 }) {
   const [expanded, setExpanded] = useState(false)
   const statusStyles: Record<UnlockStatus, string> = {
-    generated: 'border-[#E5E5E5]',
-    curated: 'border-[#3FAF7A]/40',
-    promoted: 'border-[#3FAF7A] bg-[#F8FFF8]',
-    dismissed: 'border-[#E5E5E5] opacity-50',
+    generated: 'border-border',
+    curated: 'border-brand-primary/40',
+    promoted: 'border-brand-primary bg-[#F8FFF8]',
+    dismissed: 'border-border opacity-50',
   }
 
   return (
@@ -395,19 +395,19 @@ function UnlockCard({
               {IMPACT_LABELS[unlock.impact_type] || unlock.impact_type}
             </span>
             {unlock.status === 'promoted' && (
-              <span className="px-2 py-0.5 text-[10px] font-medium bg-[#3FAF7A] text-white rounded-full">
+              <span className="px-2 py-0.5 text-[10px] font-medium bg-brand-primary text-white rounded-full">
                 Promoted
               </span>
             )}
             {unlock.status === 'curated' && (
-              <span className="px-2 py-0.5 text-[10px] font-medium bg-[#E8F5E9] text-[#25785A] rounded-full border border-[#3FAF7A]/30">
+              <span className="px-2 py-0.5 text-[10px] font-medium bg-[#E8F5E9] text-[#25785A] rounded-full border border-brand-primary/30">
                 Curated
               </span>
             )}
           </div>
 
           {/* Title */}
-          <h5 className="text-[13px] font-semibold text-[#333333] leading-snug">
+          <h5 className="text-[13px] font-semibold text-text-body leading-snug">
             {unlock.title}
           </h5>
 
@@ -418,9 +418,9 @@ function UnlockCard({
 
           {/* Feature sketch — the key actionable output */}
           {unlock.feature_sketch && (
-            <div className="mt-2 px-3 py-2 bg-[#F4F4F4] border border-[#E5E5E5] rounded-lg">
-              <span className="text-[10px] font-semibold text-[#999999] uppercase tracking-wide">Feature Sketch</span>
-              <p className="text-[12px] text-[#333333] mt-0.5 leading-relaxed">
+            <div className="mt-2 px-3 py-2 bg-[#F4F4F4] border border-border rounded-lg">
+              <span className="text-[10px] font-semibold text-text-placeholder uppercase tracking-wide">Feature Sketch</span>
+              <p className="text-[12px] text-text-body mt-0.5 leading-relaxed">
                 {unlock.feature_sketch}
               </p>
             </div>
@@ -428,8 +428,8 @@ function UnlockCard({
 
           {/* Magnitude + KPI impact */}
           {unlock.magnitude && (
-            <div className="flex items-start gap-2 mt-2 px-3 py-1.5 bg-[#E8F5E9] border border-[#3FAF7A]/20 rounded-lg">
-              <ChevronRight className="w-3.5 h-3.5 text-[#3FAF7A] mt-0.5 shrink-0" />
+            <div className="flex items-start gap-2 mt-2 px-3 py-1.5 bg-[#E8F5E9] border border-brand-primary/20 rounded-lg">
+              <ChevronRight className="w-3.5 h-3.5 text-brand-primary mt-0.5 shrink-0" />
               <p className="text-[12px] text-[#25785A] font-medium leading-relaxed">
                 {unlock.magnitude}
               </p>
@@ -445,7 +445,7 @@ function UnlockCard({
                   className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] bg-[#F4F4F4] text-[#666666] rounded-lg"
                   title={`${prov.relationship}: ${prov.entity_name}`}
                 >
-                  <span className="text-[#999999]">{RELATIONSHIP_ICONS[prov.relationship] || '\u2022'}</span>
+                  <span className="text-text-placeholder">{RELATIONSHIP_ICONS[prov.relationship] || '\u2022'}</span>
                   {prov.entity_name}
                 </span>
               ))}
@@ -456,7 +456,7 @@ function UnlockCard({
         {/* Expand toggle */}
         <button
           onClick={() => setExpanded(!expanded)}
-          className="p-1 rounded-lg text-[#999999] hover:text-[#333333] hover:bg-[#F4F4F4] transition-colors shrink-0"
+          className="p-1 rounded-lg text-text-placeholder hover:text-text-body hover:bg-[#F4F4F4] transition-colors shrink-0"
         >
           {expanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
         </button>
@@ -464,16 +464,16 @@ function UnlockCard({
 
       {/* Expanded detail */}
       {expanded && (
-        <div className="mt-3 pt-3 border-t border-[#E5E5E5] space-y-2">
+        <div className="mt-3 pt-3 border-t border-border space-y-2">
           {unlock.why_now && (
             <div>
-              <span className="text-[10px] font-semibold text-[#999999] uppercase tracking-wide">Why Now</span>
+              <span className="text-[10px] font-semibold text-text-placeholder uppercase tracking-wide">Why Now</span>
               <p className="text-[12px] text-[#666666] mt-0.5">{unlock.why_now}</p>
             </div>
           )}
           {unlock.non_obvious && (
             <div>
-              <span className="text-[10px] font-semibold text-[#999999] uppercase tracking-wide">Non-Obvious Insight</span>
+              <span className="text-[10px] font-semibold text-text-placeholder uppercase tracking-wide">Non-Obvious Insight</span>
               <p className="text-[12px] text-[#666666] mt-0.5 italic">{unlock.non_obvious}</p>
             </div>
           )}
@@ -482,7 +482,7 @@ function UnlockCard({
 
       {/* Actions */}
       {unlock.status !== 'promoted' && unlock.status !== 'dismissed' && (
-        <div className="flex items-center gap-2 mt-3 pt-3 border-t border-[#E5E5E5]">
+        <div className="flex items-center gap-2 mt-3 pt-3 border-t border-border">
           {unlock.status === 'generated' && (
             <button
               onClick={onCurate}
@@ -493,14 +493,14 @@ function UnlockCard({
           )}
           <button
             onClick={onPromote}
-            className="inline-flex items-center gap-1 px-3 py-1 text-[11px] font-medium text-white bg-[#3FAF7A] hover:bg-[#25785A] rounded-lg transition-colors"
+            className="inline-flex items-center gap-1 px-3 py-1 text-[11px] font-medium text-white bg-brand-primary hover:bg-[#25785A] rounded-lg transition-colors"
           >
             <ArrowUpRight className="w-3 h-3" />
             Promote to Feature
           </button>
           <button
             onClick={onDismiss}
-            className="px-3 py-1 text-[11px] font-medium text-[#999999] hover:text-[#666666] hover:bg-[#F4F4F4] rounded-lg transition-colors ml-auto"
+            className="px-3 py-1 text-[11px] font-medium text-text-placeholder hover:text-[#666666] hover:bg-[#F4F4F4] rounded-lg transition-colors ml-auto"
           >
             Dismiss
           </button>
@@ -543,7 +543,7 @@ function SimilarCompaniesTab({ projectId }: { projectId: string }) {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-16">
-        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#3FAF7A]" />
+        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-brand-primary" />
       </div>
     )
   }
@@ -556,9 +556,9 @@ function SimilarCompaniesTab({ projectId }: { projectId: string }) {
     return (
       <div className="text-center py-16">
         <div className="w-14 h-14 mx-auto mb-4 rounded-full bg-[#F4F4F4] flex items-center justify-center">
-          <Globe className="w-7 h-7 text-[#999999]" />
+          <Globe className="w-7 h-7 text-text-placeholder" />
         </div>
-        <h3 className="text-[16px] font-semibold text-[#333333] mb-2">No Similar Companies Yet</h3>
+        <h3 className="text-[16px] font-semibold text-text-body mb-2">No Similar Companies Yet</h3>
         <p className="text-[13px] text-[#666666] max-w-md mx-auto">
           Upload competitive research documents or discovery transcripts to automatically
           extract similar companies and market references.
@@ -586,7 +586,7 @@ function CompetitorGroup({ title, items }: { title: string; items: CompetitorRef
   return (
     <div>
       <div className="flex items-center gap-2 mb-3">
-        <h4 className="text-[13px] font-semibold text-[#333333]">{title}</h4>
+        <h4 className="text-[13px] font-semibold text-text-body">{title}</h4>
         <span className="px-2 py-0.5 text-[10px] font-medium bg-[#F0F0F0] text-[#666666] rounded-full">
           {items.length}
         </span>
@@ -604,11 +604,11 @@ function CompetitorCard({ competitor: c }: { competitor: CompetitorRef }) {
   const [expanded, setExpanded] = useState(false)
 
   return (
-    <div className="bg-white rounded-xl border border-[#E5E5E5] p-4">
+    <div className="bg-white rounded-xl border border-border p-4">
       <div className="flex items-start justify-between">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            <h5 className="text-[13px] font-semibold text-[#333333]">{c.name}</h5>
+            <h5 className="text-[13px] font-semibold text-text-body">{c.name}</h5>
             {c.category && (
               <span className="px-2 py-0.5 text-[10px] font-medium bg-[#F0F0F0] text-[#666666] rounded-full">
                 {c.category}
@@ -623,7 +623,7 @@ function CompetitorCard({ competitor: c }: { competitor: CompetitorRef }) {
               href={c.url}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 text-[11px] text-[#3FAF7A] hover:text-[#25785A] mt-1"
+              className="inline-flex items-center gap-1 text-[11px] text-brand-primary hover:text-[#25785A] mt-1"
             >
               <ExternalLink className="w-3 h-3" />
               {c.url}
@@ -632,21 +632,21 @@ function CompetitorCard({ competitor: c }: { competitor: CompetitorRef }) {
         </div>
         <button
           onClick={() => setExpanded(!expanded)}
-          className="p-1 rounded-lg text-[#999999] hover:text-[#333333] hover:bg-[#F4F4F4] transition-colors shrink-0"
+          className="p-1 rounded-lg text-text-placeholder hover:text-text-body hover:bg-[#F4F4F4] transition-colors shrink-0"
         >
           {expanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
         </button>
       </div>
 
       {expanded && (
-        <div className="mt-3 pt-3 border-t border-[#E5E5E5] space-y-2">
+        <div className="mt-3 pt-3 border-t border-border space-y-2">
           {c.strengths && c.strengths.length > 0 && (
             <div>
-              <span className="text-[10px] font-semibold text-[#999999] uppercase tracking-wide">Strengths</span>
+              <span className="text-[10px] font-semibold text-text-placeholder uppercase tracking-wide">Strengths</span>
               <ul className="mt-1 space-y-0.5">
                 {c.strengths.map((s, i) => (
                   <li key={i} className="text-[12px] text-[#666666] flex items-start gap-1.5">
-                    <span className="text-[#3FAF7A] mt-0.5">+</span>
+                    <span className="text-brand-primary mt-0.5">+</span>
                     {s}
                   </li>
                 ))}
@@ -655,7 +655,7 @@ function CompetitorCard({ competitor: c }: { competitor: CompetitorRef }) {
           )}
           {c.weaknesses && c.weaknesses.length > 0 && (
             <div>
-              <span className="text-[10px] font-semibold text-[#999999] uppercase tracking-wide">Weaknesses</span>
+              <span className="text-[10px] font-semibold text-text-placeholder uppercase tracking-wide">Weaknesses</span>
               <ul className="mt-1 space-y-0.5">
                 {c.weaknesses.map((w, i) => (
                   <li key={i} className="text-[12px] text-[#666666] flex items-start gap-1.5">
@@ -668,7 +668,7 @@ function CompetitorCard({ competitor: c }: { competitor: CompetitorRef }) {
           )}
           {c.research_notes && (
             <div>
-              <span className="text-[10px] font-semibold text-[#999999] uppercase tracking-wide">Research Notes</span>
+              <span className="text-[10px] font-semibold text-text-placeholder uppercase tracking-wide">Research Notes</span>
               <p className="text-[12px] text-[#666666] mt-0.5">{c.research_notes}</p>
             </div>
           )}
@@ -686,9 +686,9 @@ function ResearchTab() {
   return (
     <div className="text-center py-16">
       <div className="w-14 h-14 mx-auto mb-4 rounded-full bg-[#F4F4F4] flex items-center justify-center">
-        <Search className="w-7 h-7 text-[#999999]" />
+        <Search className="w-7 h-7 text-text-placeholder" />
       </div>
-      <h3 className="text-[16px] font-semibold text-[#333333] mb-2">Unlock Research</h3>
+      <h3 className="text-[16px] font-semibold text-text-body mb-2">Unlock Research</h3>
       <p className="text-[13px] text-[#666666] max-w-md mx-auto">
         Targeted research to discover and validate strategic unlocks is coming soon.
         For now, generate unlocks from your existing project data.

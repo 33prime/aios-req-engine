@@ -44,7 +44,7 @@ export default function PendingInvitationsCard({
   const getRoleBadgeColor = (role: OrganizationRole) => {
     switch (role) {
       case 'Admin':
-        return 'bg-blue-100 text-blue-700'
+        return 'bg-blue-100 text-brand-primary-hover'
       case 'Member':
         return 'bg-zinc-100 text-zinc-700'
       default:

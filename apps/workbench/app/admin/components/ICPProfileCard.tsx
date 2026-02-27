@@ -18,14 +18,14 @@ export function ICPProfileCard({ profile, onToggleActive }: ICPProfileCardProps)
   const patternCount = Array.isArray(profile.signal_patterns) ? profile.signal_patterns.length : 0
 
   return (
-    <div className="bg-white rounded-2xl shadow-md border border-[#E5E5E5] p-5">
+    <div className="bg-white rounded-2xl shadow-md border border-border p-5">
       <div className="flex items-start justify-between mb-3">
         <div className="flex items-center gap-2">
-          <div className="p-2 rounded-xl bg-[#3FAF7A]/10">
-            <Target className="w-4 h-4 text-[#3FAF7A]" />
+          <div className="p-2 rounded-xl bg-brand-primary-light">
+            <Target className="w-4 h-4 text-brand-primary" />
           </div>
           <div>
-            <h3 className="text-[14px] font-medium text-[#333333]">{profile.name}</h3>
+            <h3 className="text-[14px] font-medium text-text-body">{profile.name}</h3>
             {profile.description && (
               <p className="text-[12px] text-[#666666] mt-0.5 line-clamp-2">{profile.description}</p>
             )}
@@ -43,7 +43,7 @@ export function ICPProfileCard({ profile, onToggleActive }: ICPProfileCardProps)
         </button>
       </div>
 
-      <div className="flex items-center gap-4 text-[12px] text-[#999999]">
+      <div className="flex items-center gap-4 text-[12px] text-text-placeholder">
         <span>{patternCount} signal patterns</span>
       </div>
     </div>

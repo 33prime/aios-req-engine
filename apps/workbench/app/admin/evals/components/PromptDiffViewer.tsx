@@ -35,17 +35,17 @@ export function PromptDiffViewer({ versionId }: Props) {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-32">
-        <div className="w-4 h-4 border-2 border-[#3FAF7A] border-t-transparent rounded-full animate-spin" />
+        <div className="w-4 h-4 border-2 border-brand-primary border-t-transparent rounded-full animate-spin" />
       </div>
     )
   }
 
   if (!diff) {
-    return <p className="text-[13px] text-[#999999]">Failed to load diff</p>
+    return <p className="text-[13px] text-text-placeholder">Failed to load diff</p>
   }
 
   return (
-    <div className="text-[12px] overflow-x-auto rounded-lg border border-[#E5E5E5]">
+    <div className="text-[12px] overflow-x-auto rounded-lg border border-border">
       <ReactDiffViewer
         oldValue={diff.version_a.prompt_text}
         newValue={diff.version_b.prompt_text}

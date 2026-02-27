@@ -25,7 +25,7 @@ export function BriefingHeader({
   const strokeDashoffset = circumference - (progress * circumference)
 
   return (
-    <div className="px-4 py-3 border-b border-[#E5E5E5] bg-[#0A1E2F] flex-shrink-0">
+    <div className="px-4 py-3 border-b border-border bg-[#0A1E2F] flex-shrink-0">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           {/* Circular progress arc */}
@@ -55,7 +55,7 @@ export function BriefingHeader({
 
           <div>
             <div className="flex items-center gap-2">
-              <Sparkles className="w-3.5 h-3.5 text-[#3FAF7A]" />
+              <Sparkles className="w-3.5 h-3.5 text-brand-primary" />
               <h2 className="text-[13px] font-semibold text-white">Briefing</h2>
             </div>
             <div className="flex items-center gap-2 mt-0.5">

@@ -447,10 +447,10 @@ export function WorkspaceChat({
     >
       {/* Drag overlay */}
       {isDragging && (
-        <div className="absolute inset-0 z-50 bg-[#3FAF7A]/5 border-2 border-dashed border-[#3FAF7A] rounded-2xl flex items-center justify-center pointer-events-none">
+        <div className="absolute inset-0 z-50 bg-brand-primary-light border-2 border-dashed border-brand-primary rounded-2xl flex items-center justify-center pointer-events-none">
           <div className="text-center p-4">
-            <Upload className="h-8 w-8 text-[#3FAF7A] mx-auto mb-2" />
-            <p className="text-sm font-medium text-[#3FAF7A]">Drop files here</p>
+            <Upload className="h-8 w-8 text-brand-primary mx-auto mb-2" />
+            <p className="text-sm font-medium text-brand-primary">Drop files here</p>
             <p className="text-xs text-[#666666] mt-0.5">PDF, DOCX, XLSX, PPTX, images (max 5)</p>
           </div>
         </div>
@@ -460,8 +460,8 @@ export function WorkspaceChat({
       {uploadingFiles && (
         <div className="absolute inset-0 z-50 bg-white/90 flex items-center justify-center">
           <div className="text-center p-4">
-            <Loader2 className="h-8 w-8 text-[#3FAF7A] mx-auto mb-2 animate-spin" />
-            <p className="text-sm font-medium text-[#333333]">Uploading...</p>
+            <Loader2 className="h-8 w-8 text-brand-primary mx-auto mb-2 animate-spin" />
+            <p className="text-sm font-medium text-text-body">Uploading...</p>
           </div>
         </div>
       )}
@@ -472,9 +472,9 @@ export function WorkspaceChat({
           <div className="flex flex-col items-center justify-start pt-12 h-full px-4">
             {/* Branded empty state */}
             <div className="w-14 h-14 rounded-2xl bg-[#E8F5E9] flex items-center justify-center mb-3">
-              <Sparkles className="h-7 w-7 text-[#3FAF7A]" />
+              <Sparkles className="h-7 w-7 text-brand-primary" />
             </div>
-            <p className="text-[14px] font-semibold text-[#333333] mb-1">AIOS Assistant</p>
+            <p className="text-[14px] font-semibold text-text-body mb-1">AIOS Assistant</p>
             <p className="text-[12px] text-[#666666] text-center mb-4">
               Your AI partner for requirements engineering
             </p>
@@ -490,13 +490,13 @@ export function WorkspaceChat({
                       ? fileInputRef.current?.click()
                       : externalSendMessage(card.prompt)
                     }
-                    className="w-full flex items-center gap-3 p-3 bg-white border border-[#E5E5E5] rounded-2xl hover:border-[#3FAF7A] hover:shadow-sm transition-all text-left group"
+                    className="w-full flex items-center gap-3 p-3 bg-white border border-border rounded-2xl hover:border-brand-primary hover:shadow-sm transition-all text-left group"
                   >
                     <div className="w-8 h-8 rounded-xl bg-[#F4F4F4] flex items-center justify-center flex-shrink-0 group-hover:bg-[#E8F5E9] transition-colors">
-                      <Icon className="h-4 w-4 text-[#666666] group-hover:text-[#3FAF7A] transition-colors" />
+                      <Icon className="h-4 w-4 text-[#666666] group-hover:text-brand-primary transition-colors" />
                     </div>
-                    <p className="flex-1 text-[13px] font-medium text-[#333333] min-w-0">{card.label}</p>
-                    <ArrowRight className="h-3.5 w-3.5 text-[#E5E5E5] group-hover:text-[#3FAF7A] transition-colors flex-shrink-0" />
+                    <p className="flex-1 text-[13px] font-medium text-text-body min-w-0">{card.label}</p>
+                    <ArrowRight className="h-3.5 w-3.5 text-border group-hover:text-brand-primary transition-colors flex-shrink-0" />
                   </button>
                 )
               })}
@@ -522,7 +522,7 @@ export function WorkspaceChat({
       </div>
 
       {/* Input Area */}
-      <div className="border-t border-[#E5E5E5] bg-white px-3 py-2.5 flex-shrink-0">
+      <div className="border-t border-border bg-white px-3 py-2.5 flex-shrink-0">
         {/* Hidden file input */}
         <input
           id="workspace-chat-file-input"
@@ -538,7 +538,7 @@ export function WorkspaceChat({
           <button
             type="button"
             onClick={handleFileSelect}
-            className="p-2 text-[#999999] hover:text-[#3FAF7A] hover:bg-[#E8F5E9] rounded-xl transition-colors flex-shrink-0"
+            className="p-2 text-text-placeholder hover:text-brand-primary hover:bg-[#E8F5E9] rounded-xl transition-colors flex-shrink-0"
             title="Attach file"
           >
             <Paperclip className="h-4 w-4" />
@@ -552,19 +552,19 @@ export function WorkspaceChat({
               placeholder="Ask anything..."
               disabled={externalLoading}
               rows={1}
-              className="w-full px-3 py-2 bg-[#F4F4F4] focus:bg-white border border-[#E5E5E5] rounded-2xl resize-none focus:outline-none focus:ring-2 focus:ring-[#3FAF7A]/20 focus:border-[#3FAF7A] disabled:bg-[#F4F4F4] disabled:text-[#999999] text-[13px]"
+              className="w-full px-3 py-2 bg-[#F4F4F4] focus:bg-white border border-border rounded-2xl resize-none focus:outline-none focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary disabled:bg-[#F4F4F4] disabled:text-text-placeholder text-[13px]"
               style={{ minHeight: '36px', maxHeight: '80px' }}
             />
           </div>
           <button
             type="submit"
             disabled={!input.trim() || externalLoading}
-            className="p-2 bg-[#3FAF7A] hover:bg-[#25785A] text-white rounded-2xl shadow-sm disabled:opacity-50 transition-colors flex-shrink-0"
+            className="p-2 bg-brand-primary hover:bg-[#25785A] text-white rounded-2xl shadow-sm disabled:opacity-50 transition-colors flex-shrink-0"
           >
             {externalLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
           </button>
         </form>
-        <p className="text-[11px] text-[#999999] mt-1.5">
+        <p className="text-[11px] text-text-placeholder mt-1.5">
           Enter to send &middot; Drop files to upload
         </p>
       </div>
@@ -579,11 +579,11 @@ export function WorkspaceChat({
 function ThinkingIndicator() {
   return (
     <div className="flex justify-start">
-      <div className="flex items-center gap-2 px-4 py-3 bg-white border border-[#E5E5E5] rounded-2xl rounded-bl-md shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+      <div className="flex items-center gap-2 px-4 py-3 bg-white border border-border rounded-2xl rounded-bl-md shadow-sm">
         <div className="flex gap-[3px] items-center">
-          <div className="w-[6px] h-[6px] rounded-full bg-[#3FAF7A] animate-typing" />
-          <div className="w-[6px] h-[6px] rounded-full bg-[#3FAF7A] animate-typing [animation-delay:200ms]" />
-          <div className="w-[6px] h-[6px] rounded-full bg-[#3FAF7A] animate-typing [animation-delay:400ms]" />
+          <div className="w-[6px] h-[6px] rounded-full bg-brand-primary animate-typing" />
+          <div className="w-[6px] h-[6px] rounded-full bg-brand-primary animate-typing [animation-delay:200ms]" />
+          <div className="w-[6px] h-[6px] rounded-full bg-brand-primary animate-typing [animation-delay:400ms]" />
         </div>
       </div>
     </div>
@@ -661,7 +661,7 @@ function SidebarMessageBubble({
             className={
               isUser
                 ? 'bg-[#0A1E2F] text-white rounded-2xl rounded-br-md px-4 py-3 shadow-sm ml-auto'
-                : 'bg-white border border-[#E5E5E5] rounded-2xl rounded-bl-md px-4 py-3 shadow-[0_1px_2px_rgba(0,0,0,0.04)] text-[#333333]'
+                : 'bg-white border border-border rounded-2xl rounded-bl-md px-4 py-3 shadow-sm text-text-body'
             }
           >
             {isUser ? (
@@ -670,7 +670,7 @@ function SidebarMessageBubble({
               <>
                 <Markdown content={message.content} className="text-[13px] leading-relaxed" />
                 {message.isStreaming && (
-                  <span className="inline-block w-0.5 h-[18px] ml-0.5 bg-[#3FAF7A] rounded-full animate-pulse" />
+                  <span className="inline-block w-0.5 h-[18px] ml-0.5 bg-brand-primary rounded-full animate-pulse" />
                 )}
               </>
             )}
@@ -679,24 +679,24 @@ function SidebarMessageBubble({
 
         {/* Signal Result Card */}
         {signalResult && signalResult.proposal_id && (
-          <div className="mt-1.5 border border-[#E5E5E5] rounded-2xl bg-white shadow-sm overflow-hidden">
-            <div className="flex items-center gap-2 px-3 py-2 bg-[#F4F4F4] border-b border-[#E5E5E5]">
-              <Layers className="h-3.5 w-3.5 text-[#3FAF7A]" />
-              <span className="text-xs font-medium text-[#333333]">
+          <div className="mt-1.5 border border-border rounded-2xl bg-white shadow-sm overflow-hidden">
+            <div className="flex items-center gap-2 px-3 py-2 bg-[#F4F4F4] border-b border-border">
+              <Layers className="h-3.5 w-3.5 text-brand-primary" />
+              <span className="text-xs font-medium text-text-body">
                 Proposal: {signalResult.total_changes || 0} changes
               </span>
             </div>
             <div className="flex items-center gap-1.5 px-3 py-2">
               <button
                 onClick={() => onSendMessage?.(`Apply proposal ${signalResult.proposal_id}`)}
-                className="px-3 py-1.5 bg-[#3FAF7A] hover:bg-[#25785A] text-white text-[11px] font-medium rounded-xl transition-colors flex items-center gap-1"
+                className="px-3 py-1.5 bg-brand-primary hover:bg-[#25785A] text-white text-[11px] font-medium rounded-xl transition-colors flex items-center gap-1"
               >
                 <CheckCircle2 className="h-3 w-3" />
                 Apply
               </button>
               <button
                 onClick={() => onSendMessage?.(`Discard proposal ${signalResult.proposal_id}`)}
-                className="px-3 py-1.5 bg-[#F0F0F0] hover:bg-[#E5E5E5] text-[#666666] text-[11px] font-medium rounded-xl transition-colors"
+                className="px-3 py-1.5 bg-[#F0F0F0] hover:bg-border text-[#666666] text-[11px] font-medium rounded-xl transition-colors"
               >
                 Discard
               </button>
@@ -721,7 +721,7 @@ function SidebarMessageBubble({
 
         {/* Timestamp */}
         {message.timestamp && (
-          <p className="text-[10px] text-[#999999] mt-0.5">
+          <p className="text-[10px] text-text-placeholder mt-0.5">
             {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
           </p>
         )}

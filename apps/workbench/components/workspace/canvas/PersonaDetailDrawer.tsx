@@ -85,7 +85,7 @@ export function PersonaDetailDrawer({
       title={persona?.name || 'Loading...'}
       headerExtra={
         persona?.role ? (
-          <p className="text-[13px] text-[#999999] truncate mt-0.5">{persona.role}</p>
+          <p className="text-[13px] text-text-placeholder truncate mt-0.5">{persona.role}</p>
         ) : undefined
       }
       headerRight={
@@ -98,7 +98,7 @@ export function PersonaDetailDrawer({
       {isLoading ? (
         <Spinner label="Loading persona..." />
       ) : !persona ? (
-        <p className="text-[13px] text-[#999999] text-center py-8">
+        <p className="text-[13px] text-text-placeholder text-center py-8">
           Persona data not available.
         </p>
       ) : (
@@ -127,7 +127,7 @@ function ProfileTab({ persona, coverage }: { persona: any; coverage: PersonaFeat
       {/* Description */}
       {persona.description && (
         <div>
-          <h4 className="text-[13px] font-semibold text-[#333333] mb-1.5">Overview</h4>
+          <h4 className="text-[13px] font-semibold text-text-body mb-1.5">Overview</h4>
           <p className="text-[13px] text-[#666666]">{persona.description}</p>
         </div>
       )}
@@ -135,11 +135,11 @@ function ProfileTab({ persona, coverage }: { persona: any; coverage: PersonaFeat
       {/* Demographics */}
       {persona.demographics && Object.keys(persona.demographics).length > 0 && (
         <div>
-          <h4 className="text-[13px] font-semibold text-[#333333] mb-2">Demographics</h4>
+          <h4 className="text-[13px] font-semibold text-text-body mb-2">Demographics</h4>
           <div className="grid grid-cols-2 gap-2">
             {Object.entries(persona.demographics).map(([key, value]) => (
-              <div key={key} className="bg-[#F9F9F9] rounded-lg px-3 py-2">
-                <span className="text-[11px] text-[#999999] capitalize">{key.replace(/_/g, ' ')}</span>
+              <div key={key} className="bg-surface-muted rounded-lg px-3 py-2">
+                <span className="text-[11px] text-text-placeholder capitalize">{key.replace(/_/g, ' ')}</span>
                 <p className="text-[13px] text-[#666666]">{String(value)}</p>
               </div>
             ))}
@@ -150,11 +150,11 @@ function ProfileTab({ persona, coverage }: { persona: any; coverage: PersonaFeat
       {/* Psychographics */}
       {persona.psychographics && Object.keys(persona.psychographics).length > 0 && (
         <div>
-          <h4 className="text-[13px] font-semibold text-[#333333] mb-2">Psychographics</h4>
+          <h4 className="text-[13px] font-semibold text-text-body mb-2">Psychographics</h4>
           <div className="space-y-2">
             {Object.entries(persona.psychographics).map(([key, value]) => (
-              <div key={key} className="bg-[#F9F9F9] rounded-lg px-3 py-2">
-                <span className="text-[11px] text-[#999999] capitalize">{key.replace(/_/g, ' ')}</span>
+              <div key={key} className="bg-surface-muted rounded-lg px-3 py-2">
+                <span className="text-[11px] text-text-placeholder capitalize">{key.replace(/_/g, ' ')}</span>
                 <p className="text-[13px] text-[#666666]">{String(value)}</p>
               </div>
             ))}
@@ -165,16 +165,16 @@ function ProfileTab({ persona, coverage }: { persona: any; coverage: PersonaFeat
       {/* Goals */}
       {persona.goals && persona.goals.length > 0 && (
         <div>
-          <h4 className="text-[13px] font-semibold text-[#333333] mb-2">Goals</h4>
+          <h4 className="text-[13px] font-semibold text-text-body mb-2">Goals</h4>
           <ul className="space-y-1.5">
             {persona.goals.map((goal: string, i: number) => {
               const isAddressed = coverage?.addressed_goals?.includes(goal)
               return (
                 <li key={i} className="flex items-start gap-2 text-[13px]">
                   {isAddressed ? (
-                    <CheckCircle className="w-4 h-4 text-[#3FAF7A] flex-shrink-0 mt-0.5" />
+                    <CheckCircle className="w-4 h-4 text-brand-primary flex-shrink-0 mt-0.5" />
                   ) : (
-                    <div className="w-4 h-4 rounded-full border-2 border-[#E5E5E5] flex-shrink-0 mt-0.5" />
+                    <div className="w-4 h-4 rounded-full border-2 border-border flex-shrink-0 mt-0.5" />
                   )}
                   <span className="text-[#666666]">{goal}</span>
                 </li>
@@ -187,11 +187,11 @@ function ProfileTab({ persona, coverage }: { persona: any; coverage: PersonaFeat
       {/* Pain Points */}
       {persona.pain_points && persona.pain_points.length > 0 && (
         <div>
-          <h4 className="text-[13px] font-semibold text-[#333333] mb-2">Pain Points</h4>
+          <h4 className="text-[13px] font-semibold text-text-body mb-2">Pain Points</h4>
           <ul className="space-y-1.5">
             {persona.pain_points.map((pain: string, i: number) => (
               <li key={i} className="flex items-start gap-2 text-[13px] text-[#666666]">
-                <AlertCircle className="w-4 h-4 text-[#999999] flex-shrink-0 mt-0.5" />
+                <AlertCircle className="w-4 h-4 text-text-placeholder flex-shrink-0 mt-0.5" />
                 {pain}
               </li>
             ))}
@@ -202,7 +202,7 @@ function ProfileTab({ persona, coverage }: { persona: any; coverage: PersonaFeat
       {/* Type badge */}
       {persona.persona_type && (
         <div className="pt-2">
-          <span className="inline-block px-2 py-0.5 text-xs font-semibold rounded-full bg-[#F9F9F9] text-[#666666] capitalize">
+          <span className="inline-block px-2 py-0.5 text-xs font-semibold rounded-full bg-surface-muted text-[#666666] capitalize">
             {persona.persona_type.replace('_', ' ')}
           </span>
         </div>
@@ -214,7 +214,7 @@ function ProfileTab({ persona, coverage }: { persona: any; coverage: PersonaFeat
 function JourneyTab({ steps, personaName }: { steps: VpStepSummary[]; personaName: string }) {
   if (steps.length === 0) {
     return (
-      <p className="text-[13px] text-[#999999] text-center py-8">
+      <p className="text-[13px] text-text-placeholder text-center py-8">
         No journey steps assigned to {personaName}.
       </p>
     )
@@ -227,13 +227,13 @@ function JourneyTab({ steps, personaName }: { steps: VpStepSummary[]; personaNam
         .map((step) => (
           <div
             key={step.id}
-            className="bg-[#F9F9F9] rounded-lg p-4 border border-[#E5E5E5]"
+            className="bg-surface-muted rounded-lg p-4 border border-border"
           >
             <div className="flex items-center gap-2 mb-1.5">
-              <span className="flex items-center justify-center w-6 h-6 rounded-full bg-[#3FAF7A] text-white text-[11px] font-bold">
+              <span className="flex items-center justify-center w-6 h-6 rounded-full bg-brand-primary text-white text-[11px] font-bold">
                 {step.step_index + 1}
               </span>
-              <h4 className="text-[13px] font-semibold text-[#333333]">{step.title}</h4>
+              <h4 className="text-[13px] font-semibold text-text-body">{step.title}</h4>
             </div>
             {step.description && (
               <p className="text-[13px] text-[#666666] mt-1">{step.description}</p>
@@ -259,7 +259,7 @@ function JourneyTab({ steps, personaName }: { steps: VpStepSummary[]; personaNam
 function FeaturesTab({ features }: { features: FeatureSummary[] }) {
   if (features.length === 0) {
     return (
-      <p className="text-[13px] text-[#999999] text-center py-8">
+      <p className="text-[13px] text-text-placeholder text-center py-8">
         No features linked to this persona&apos;s journey steps.
       </p>
     )
@@ -270,11 +270,11 @@ function FeaturesTab({ features }: { features: FeatureSummary[] }) {
       {features.map((f) => (
         <div
           key={f.id}
-          className="flex items-start gap-3 bg-[#F9F9F9] rounded-lg p-3 border border-[#E5E5E5]"
+          className="flex items-start gap-3 bg-surface-muted rounded-lg p-3 border border-border"
         >
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
-              <span className="text-[13px] font-medium text-[#333333]">{f.name}</span>
+              <span className="text-[13px] font-medium text-text-body">{f.name}</span>
               {f.is_mvp && (
                 <span className="px-1.5 py-0.5 text-[10px] font-bold rounded bg-[#E8F5E9] text-[#25785A]">
                   MVP
@@ -282,7 +282,7 @@ function FeaturesTab({ features }: { features: FeatureSummary[] }) {
               )}
             </div>
             {f.description && (
-              <p className="text-[13px] text-[#999999] mt-0.5 line-clamp-2">{f.description}</p>
+              <p className="text-[13px] text-text-placeholder mt-0.5 line-clamp-2">{f.description}</p>
             )}
           </div>
           <BRDStatusBadge status={f.confirmation_status} className="flex-shrink-0" />
@@ -295,7 +295,7 @@ function FeaturesTab({ features }: { features: FeatureSummary[] }) {
 function GapsTab({ coverage }: { coverage: PersonaFeatureCoverage | null }) {
   if (!coverage) {
     return (
-      <p className="text-[13px] text-[#999999] text-center py-8">
+      <p className="text-[13px] text-text-placeholder text-center py-8">
         Coverage analysis not available. Run the DI Agent to generate coverage data.
       </p>
     )
@@ -306,16 +306,16 @@ function GapsTab({ coverage }: { coverage: PersonaFeatureCoverage | null }) {
   return (
     <div className="space-y-5">
       {/* Coverage Score */}
-      <div className="bg-[#F9F9F9] rounded-lg p-4">
+      <div className="bg-surface-muted rounded-lg p-4">
         <div className="flex items-center justify-between mb-2">
-          <h4 className="text-[13px] font-semibold text-[#333333]">Coverage Score</h4>
-          <span className={`text-[16px] font-bold ${score >= 70 ? 'text-[#3FAF7A]' : score >= 40 ? 'text-[#999999]' : 'text-red-600'}`}>
+          <h4 className="text-[13px] font-semibold text-text-body">Coverage Score</h4>
+          <span className={`text-[16px] font-bold ${score >= 70 ? 'text-brand-primary' : score >= 40 ? 'text-text-placeholder' : 'text-red-600'}`}>
             {score}%
           </span>
         </div>
-        <div className="h-2 bg-[#E5E5E5] rounded-full overflow-hidden">
+        <div className="h-2 bg-border rounded-full overflow-hidden">
           <div
-            className={`h-full rounded-full transition-all ${score >= 70 ? 'bg-[#3FAF7A]' : score >= 40 ? 'bg-[#999999]' : 'bg-red-500'}`}
+            className={`h-full rounded-full transition-all ${score >= 70 ? 'bg-brand-primary' : score >= 40 ? 'bg-text-placeholder' : 'bg-red-500'}`}
             style={{ width: `${score}%` }}
           />
         </div>
@@ -324,7 +324,7 @@ function GapsTab({ coverage }: { coverage: PersonaFeatureCoverage | null }) {
       {/* Unaddressed Goals */}
       {coverage.unaddressed_goals.length > 0 && (
         <div>
-          <h4 className="text-[13px] font-semibold text-[#333333] mb-2">
+          <h4 className="text-[13px] font-semibold text-text-body mb-2">
             Unaddressed Goals ({coverage.unaddressed_goals.length})
           </h4>
           <ul className="space-y-1.5">
@@ -341,13 +341,13 @@ function GapsTab({ coverage }: { coverage: PersonaFeatureCoverage | null }) {
       {/* Addressed Goals */}
       {coverage.addressed_goals.length > 0 && (
         <div>
-          <h4 className="text-[13px] font-semibold text-[#333333] mb-2">
+          <h4 className="text-[13px] font-semibold text-text-body mb-2">
             Addressed Goals ({coverage.addressed_goals.length})
           </h4>
           <ul className="space-y-1.5">
             {coverage.addressed_goals.map((goal, i) => (
               <li key={i} className="flex items-start gap-2 text-[13px] text-[#666666] bg-[#E8F5E9] rounded-lg px-3 py-2">
-                <CheckCircle className="w-4 h-4 text-[#3FAF7A] flex-shrink-0 mt-0.5" />
+                <CheckCircle className="w-4 h-4 text-brand-primary flex-shrink-0 mt-0.5" />
                 {goal}
               </li>
             ))}
@@ -358,11 +358,11 @@ function GapsTab({ coverage }: { coverage: PersonaFeatureCoverage | null }) {
       {/* Feature Matches */}
       {coverage.feature_matches.length > 0 && (
         <div>
-          <h4 className="text-[13px] font-semibold text-[#333333] mb-2">Feature Coverage</h4>
+          <h4 className="text-[13px] font-semibold text-text-body mb-2">Feature Coverage</h4>
           <div className="space-y-2">
             {coverage.feature_matches.map((match, i) => (
-              <div key={i} className="bg-[#F9F9F9] rounded-lg px-3 py-2">
-                <p className="text-[13px] font-medium text-[#333333] mb-1">{match.goal}</p>
+              <div key={i} className="bg-surface-muted rounded-lg px-3 py-2">
+                <p className="text-[13px] font-medium text-text-body mb-1">{match.goal}</p>
                 <div className="flex flex-wrap gap-1">
                   {match.features.map((f) => (
                     <span

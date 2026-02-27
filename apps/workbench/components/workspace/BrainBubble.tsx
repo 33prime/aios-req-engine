@@ -204,18 +204,18 @@ export function BrainBubble({
           `}
           title="Open assistant (⌘J)"
         >
-          <MessageSquare className="w-5 h-5 text-[#3FAF7A]" />
+          <MessageSquare className="w-5 h-5 text-brand-primary" />
 
           {/* Badge — action count */}
           {actionCount > 0 && (
-            <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full bg-[#3FAF7A] text-white text-[10px] font-bold">
+            <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full bg-brand-primary text-white text-[10px] font-bold">
               {actionCount > 9 ? '9+' : actionCount}
             </span>
           )}
 
           {/* Green dot — new insight */}
           {hasNewInsight && actionCount === 0 && (
-            <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-[#3FAF7A] ring-2 ring-white" />
+            <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-brand-primary ring-2 ring-white" />
           )}
         </button>
       )}
@@ -225,7 +225,7 @@ export function BrainBubble({
         ref={panelRef}
         className={`
           fixed top-0 right-0 h-screen z-40
-          bg-white border-l border-[#E5E5E5]
+          bg-white border-l border-border
           shadow-2xl
           flex flex-col
           transition-all duration-300 ease-in-out
@@ -234,7 +234,7 @@ export function BrainBubble({
         style={{ width: BRAIN_PANEL_WIDTH }}
       >
         {/* Tab Header */}
-        <div className="px-4 py-3 border-b border-[#E5E5E5] flex-shrink-0">
+        <div className="px-4 py-3 border-b border-border flex-shrink-0">
           <div className="flex items-center gap-2">
             {/* Pill Toggle */}
             <div className="flex-1 flex items-center bg-[#F4F4F4] rounded-xl p-1">
@@ -245,14 +245,14 @@ export function BrainBubble({
                   text-[12px] font-medium transition-all duration-150
                   ${activeTab === 'actions'
                     ? 'bg-white text-[#0A1E2F] shadow-sm'
-                    : 'text-[#666666] hover:text-[#333333]'
+                    : 'text-[#666666] hover:text-text-body'
                   }
                 `}
               >
                 <Zap className="w-3.5 h-3.5" />
                 Briefing
                 {actionCount > 0 && (
-                  <span className="ml-1 min-w-[16px] h-[16px] px-1 flex items-center justify-center rounded-full bg-[#3FAF7A] text-white text-[9px] font-bold">
+                  <span className="ml-1 min-w-[16px] h-[16px] px-1 flex items-center justify-center rounded-full bg-brand-primary text-white text-[9px] font-bold">
                     {actionCount}
                   </span>
                 )}
@@ -264,7 +264,7 @@ export function BrainBubble({
                   text-[12px] font-medium transition-all duration-150
                   ${activeTab === 'chat'
                     ? 'bg-white text-[#0A1E2F] shadow-sm'
-                    : 'text-[#666666] hover:text-[#333333]'
+                    : 'text-[#666666] hover:text-text-body'
                   }
                 `}
               >
@@ -290,7 +290,7 @@ export function BrainBubble({
               className="p-1.5 rounded-lg hover:bg-[#F4F4F4] transition-colors"
               title="Close (Esc)"
             >
-              <X className="w-4 h-4 text-[#999999]" />
+              <X className="w-4 h-4 text-text-placeholder" />
             </button>
           </div>
         </div>
@@ -325,13 +325,13 @@ export function BrainBubble({
           {/* Chat-as-Signal Detection Card */}
           {activeTab === 'chat' && entityDetection && entityDetection.should_extract && (
             <div className="absolute bottom-2 left-2 right-2 z-10">
-              <div className="bg-white border border-[#E5E5E5] rounded-xl shadow-lg p-3">
+              <div className="bg-white border border-border rounded-xl shadow-lg p-3">
                 <div className="flex items-start gap-2.5">
                   <div className="w-8 h-8 rounded-lg bg-[#E8F5E9] flex items-center justify-center flex-shrink-0">
                     <FileText className="w-4 h-4 text-[#25785A]" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-[12px] font-medium text-[#333333]">
+                    <p className="text-[12px] font-medium text-text-body">
                       Found requirements in our chat
                     </p>
                     <p className="text-[11px] text-[#666666] mt-0.5">
@@ -342,7 +342,7 @@ export function BrainBubble({
                       <button
                         onClick={onSaveAsSignal}
                         disabled={isSavingAsSignal}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-medium text-white bg-[#3FAF7A] hover:bg-[#25785A] rounded-lg transition-colors disabled:opacity-50"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-medium text-white bg-brand-primary hover:bg-[#25785A] rounded-lg transition-colors disabled:opacity-50"
                       >
                         {isSavingAsSignal ? (
                           <Loader2 className="w-3 h-3 animate-spin" />
@@ -353,7 +353,7 @@ export function BrainBubble({
                       </button>
                       <button
                         onClick={onDismissDetection}
-                        className="px-3 py-1.5 text-[11px] font-medium text-[#666666] hover:text-[#333333] transition-colors"
+                        className="px-3 py-1.5 text-[11px] font-medium text-[#666666] hover:text-text-body transition-colors"
                       >
                         Keep Going
                       </button>

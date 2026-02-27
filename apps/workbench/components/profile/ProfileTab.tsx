@@ -660,7 +660,7 @@ function ConsultantEnrichmentCard({ profile, onEnriched }: EnrichmentCardProps) 
     <div className="rounded-xl border border-zinc-200 bg-white shadow-sm p-6">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
-          <div className="p-1.5 rounded-full bg-[#3FAF7A]/10 text-[#3FAF7A]">
+          <div className="p-1.5 rounded-full bg-brand-primary-light text-brand-primary">
             <Sparkles className="w-4 h-4" />
           </div>
           <div>
@@ -682,7 +682,7 @@ function ConsultantEnrichmentCard({ profile, onEnriched }: EnrichmentCardProps) 
             </div>
             <div className="w-full h-1.5 bg-zinc-100 rounded-full">
               <div
-                className="h-full bg-[#3FAF7A] rounded-full transition-all"
+                className="h-full bg-brand-primary rounded-full transition-all"
                 style={{ width: `${enrichmentData.profile_completeness}%` }}
               />
             </div>
@@ -733,7 +733,7 @@ function ConsultantEnrichmentCard({ profile, onEnriched }: EnrichmentCardProps) 
             value={linkedinText}
             onChange={(e) => setLinkedinText(e.target.value)}
             rows={3}
-            className="w-full text-[13px] text-zinc-700 border border-zinc-300 rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-[#3FAF7A] resize-none"
+            className="w-full text-[13px] text-zinc-700 border border-zinc-300 rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-brand-primary resize-none"
             placeholder="Copy and paste your LinkedIn About section, Experience, etc..."
           />
         </div>
@@ -743,7 +743,7 @@ function ConsultantEnrichmentCard({ profile, onEnriched }: EnrichmentCardProps) 
             value={websiteText}
             onChange={(e) => setWebsiteText(e.target.value)}
             rows={3}
-            className="w-full text-[13px] text-zinc-700 border border-zinc-300 rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-[#3FAF7A] resize-none"
+            className="w-full text-[13px] text-zinc-700 border border-zinc-300 rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-brand-primary resize-none"
             placeholder="Paste your website bio or about page content..."
           />
         </div>
@@ -755,7 +755,7 @@ function ConsultantEnrichmentCard({ profile, onEnriched }: EnrichmentCardProps) 
         <button
           onClick={handleEnrich}
           disabled={isEnriching || (!linkedinText && !websiteText)}
-          className="flex items-center gap-2 px-4 py-2 bg-[#3FAF7A] hover:bg-[#25785A] text-white text-[13px] font-medium rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          className="flex items-center gap-2 px-4 py-2 bg-brand-primary hover:bg-[#25785A] text-white text-[13px] font-medium rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {isEnriching ? (
             <>

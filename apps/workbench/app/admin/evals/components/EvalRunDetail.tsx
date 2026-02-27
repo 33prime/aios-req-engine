@@ -27,34 +27,34 @@ export function EvalRunDetail({ runId }: Props) {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-32">
-        <div className="w-4 h-4 border-2 border-[#3FAF7A] border-t-transparent rounded-full animate-spin" />
+        <div className="w-4 h-4 border-2 border-brand-primary border-t-transparent rounded-full animate-spin" />
       </div>
     )
   }
 
   if (!run) {
-    return <p className="text-[13px] text-[#999999]">Failed to load run detail</p>
+    return <p className="text-[13px] text-text-placeholder">Failed to load run detail</p>
   }
 
   return (
-    <div className="space-y-4 p-4 bg-[#FAFAFA] rounded-xl border border-[#E5E5E5]">
+    <div className="space-y-4 p-4 bg-surface-page rounded-xl border border-border">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <span className="text-[15px] font-semibold text-[#333333]">
+          <span className="text-[15px] font-semibold text-text-body">
             Iteration {run.iteration_number}
           </span>
           <ActionBadge action={run.action} />
-          <span className="text-[13px] text-[#999999]">
+          <span className="text-[13px] text-text-placeholder">
             Overall: {(run.overall_score * 100).toFixed(1)}%
           </span>
         </div>
-        <div className="flex items-center gap-4 text-[11px] text-[#999999]">
+        <div className="flex items-center gap-4 text-[11px] text-text-placeholder">
           <span>Det: {run.deterministic_duration_ms}ms</span>
           <span>LLM: {run.llm_duration_ms}ms</span>
           <span>${run.estimated_cost_usd.toFixed(4)}</span>
           {run.tokens_cache_read > 0 && (
-            <span className="text-[#3FAF7A]">
+            <span className="text-brand-primary">
               {((run.tokens_cache_read / Math.max(run.tokens_input, 1)) * 100).toFixed(0)}% cached
             </span>
           )}
@@ -80,19 +80,19 @@ export function EvalRunDetail({ runId }: Props) {
         />
 
         <div className="space-y-3">
-          <h3 className="text-[13px] font-semibold text-[#333333]">Deterministic</h3>
+          <h3 className="text-[13px] font-semibold text-text-body">Deterministic</h3>
           <ScoreBreakdownBar score={run.det_feature_id_coverage} label="Feature IDs" />
           <ScoreBreakdownBar score={run.det_file_structure} label="File Structure" />
           <ScoreBreakdownBar score={run.det_route_count} label="Routes" />
           <ScoreBreakdownBar score={run.det_jsdoc_coverage} label="JSDoc" />
           <div className="flex items-center gap-2 text-[11px] text-[#666666]">
             <span>HANDOFF.md:</span>
-            <span className={run.det_handoff_present ? 'text-[#3FAF7A]' : 'text-[#ef4444]'}>
+            <span className={run.det_handoff_present ? 'text-brand-primary' : 'text-[#ef4444]'}>
               {run.det_handoff_present ? 'Present' : 'Missing'}
             </span>
           </div>
 
-          <h3 className="text-[13px] font-semibold text-[#333333] mt-4">LLM-Judged</h3>
+          <h3 className="text-[13px] font-semibold text-text-body mt-4">LLM-Judged</h3>
           <ScoreBreakdownBar score={run.llm_feature_coverage} label="Coverage" />
           <ScoreBreakdownBar score={run.llm_structure} label="Structure" />
           <ScoreBreakdownBar score={run.llm_mock_data} label="Mock Data" />
@@ -104,14 +104,14 @@ export function EvalRunDetail({ runId }: Props) {
       {/* Gaps */}
       {run.gaps.length > 0 && (
         <div>
-          <h3 className="text-[13px] font-semibold text-[#333333] mb-2">
+          <h3 className="text-[13px] font-semibold text-text-body mb-2">
             Gaps ({run.gaps.length})
           </h3>
           <div className="space-y-1.5">
             {run.gaps.map((gap) => (
               <div
                 key={gap.id}
-                className="flex items-start gap-2 text-[12px] bg-white rounded-lg px-3 py-2 border border-[#E5E5E5]"
+                className="flex items-start gap-2 text-[12px] bg-white rounded-lg px-3 py-2 border border-border"
               >
                 <span
                   className={`
@@ -124,9 +124,9 @@ export function EvalRunDetail({ runId }: Props) {
                   {gap.severity}
                 </span>
                 <span className="text-[#666666] w-24 flex-shrink-0">{gap.dimension}</span>
-                <span className="text-[#333333]">{gap.description}</span>
+                <span className="text-text-body">{gap.description}</span>
                 {gap.resolved_in_run_id && (
-                  <span className="text-[#3FAF7A] text-[10px] flex-shrink-0">resolved</span>
+                  <span className="text-brand-primary text-[10px] flex-shrink-0">resolved</span>
                 )}
               </div>
             ))}
@@ -137,7 +137,7 @@ export function EvalRunDetail({ runId }: Props) {
       {/* Recommendations */}
       {run.recommendations.length > 0 && (
         <div>
-          <h3 className="text-[13px] font-semibold text-[#333333] mb-2">Recommendations</h3>
+          <h3 className="text-[13px] font-semibold text-text-body mb-2">Recommendations</h3>
           <ul className="space-y-1">
             {run.recommendations.map((rec, i) => (
               <li key={i} className="text-[12px] text-[#666666]">
@@ -152,7 +152,7 @@ export function EvalRunDetail({ runId }: Props) {
       <div>
         <button
           onClick={() => setShowDiff(!showDiff)}
-          className="text-[12px] text-[#3FAF7A] hover:underline"
+          className="text-[12px] text-brand-primary hover:underline"
         >
           {showDiff ? 'Hide' : 'Show'} Prompt Diff
         </button>

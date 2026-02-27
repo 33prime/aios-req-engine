@@ -29,7 +29,7 @@ const ANALYSIS_STATUS_LABELS: Record<string, { label: string; color: string }> =
   completed: { label: 'Analyzed', color: 'text-[#25785A] bg-[#E8F5E9]' },
   analyzing: { label: 'Analyzing...', color: 'text-[#666666] bg-[#F0F0F0]' },
   failed: { label: 'Failed', color: 'text-[#666666] bg-[#F0F0F0]' },
-  pending: { label: 'Not analyzed', color: 'text-[#999999] bg-[#F0F0F0]' },
+  pending: { label: 'Not analyzed', color: 'text-text-placeholder bg-[#F0F0F0]' },
 }
 
 export function CompetitorsSection({
@@ -94,15 +94,15 @@ export function CompetitorsSection({
             <button
               key={comp.id}
               onClick={() => onOpenDetail(comp)}
-              className="w-full text-left p-3 border border-[#E5E5E5] rounded-xl hover:border-[#3FAF7A]/30 hover:shadow-sm transition-all bg-white group"
+              className="w-full text-left p-3 border border-border rounded-xl hover:border-brand-primary/30 hover:shadow-sm transition-all bg-white group"
             >
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#3FAF7A] to-[#25785A] flex items-center justify-center text-white text-[11px] font-medium flex-shrink-0">
+                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-brand-primary to-[#25785A] flex items-center justify-center text-white text-[11px] font-medium flex-shrink-0">
                   {comp.name[0]?.toUpperCase() || '?'}
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <span className="text-[13px] font-medium text-[#333333] truncate">{comp.name}</span>
+                    <span className="text-[13px] font-medium text-text-body truncate">{comp.name}</span>
                     {comp.is_design_reference && (
                       <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-medium bg-[#E8F5E9] text-[#25785A]">
                         design ref
@@ -110,11 +110,11 @@ export function CompetitorsSection({
                     )}
                   </div>
                   <div className="flex items-center gap-2 mt-0.5">
-                    <span className="text-[11px] text-[#999999]">{posLabel}</span>
+                    <span className="text-[11px] text-text-placeholder">{posLabel}</span>
                     {comp.category && (
                       <>
-                        <span className="text-[#E5E5E5]">·</span>
-                        <span className="text-[11px] text-[#999999]">{comp.category}</span>
+                        <span className="text-border">·</span>
+                        <span className="text-[11px] text-text-placeholder">{comp.category}</span>
                       </>
                     )}
                     <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${analysisInfo.color}`}>
@@ -131,7 +131,7 @@ export function CompetitorsSection({
                       size="sm"
                     />
                   </span>
-                  <ChevronRight className="w-4 h-4 text-[#E5E5E5] group-hover:text-[#3FAF7A] transition-colors" />
+                  <ChevronRight className="w-4 h-4 text-border group-hover:text-brand-primary transition-colors" />
                 </div>
               </div>
               {comp.key_differentiator && (
@@ -146,7 +146,7 @@ export function CompetitorsSection({
 
       {/* Max count note */}
       {competitors.length >= 4 && (
-        <p className="mt-3 text-[11px] text-[#999999] italic">
+        <p className="mt-3 text-[11px] text-text-placeholder italic">
           Maximum 4 competitors tracked
         </p>
       )}
@@ -155,7 +155,7 @@ export function CompetitorsSection({
       {competitors.length > SHOW_MAX && (
         <button
           onClick={() => setShowAll(!showAll)}
-          className="mt-2 text-[12px] text-[#3FAF7A] hover:text-[#25785A] transition-colors"
+          className="mt-2 text-[12px] text-brand-primary hover:text-[#25785A] transition-colors"
         >
           {showAll ? 'Show less' : `Show ${competitors.length - SHOW_MAX} more`}
         </button>

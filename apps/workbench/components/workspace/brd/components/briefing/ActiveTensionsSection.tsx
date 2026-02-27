@@ -14,10 +14,10 @@ export function ActiveTensionsSection({ tensions }: ActiveTensionsSectionProps) 
   if (tensions.length === 0) return null
 
   return (
-    <div className="border-b border-[#E5E5E5]">
+    <div className="border-b border-border">
       <button
         onClick={() => setExpanded(!expanded)}
-        className="w-full px-4 py-2.5 flex items-center justify-between hover:bg-[#FAFAFA] transition-colors"
+        className="w-full px-4 py-2.5 flex items-center justify-between hover:bg-surface-page transition-colors"
       >
         <div className="flex items-center gap-2">
           <Swords className="w-3.5 h-3.5 text-[#666666]" />
@@ -29,7 +29,7 @@ export function ActiveTensionsSection({ tensions }: ActiveTensionsSectionProps) 
           </span>
         </div>
         <ChevronDown
-          className={`w-3.5 h-3.5 text-[#999999] transition-transform duration-200 ${
+          className={`w-3.5 h-3.5 text-text-placeholder transition-transform duration-200 ${
             expanded ? 'rotate-180' : ''
           }`}
         />
@@ -40,9 +40,9 @@ export function ActiveTensionsSection({ tensions }: ActiveTensionsSectionProps) 
           {tensions.map((tension) => (
             <div
               key={tension.tension_id}
-              className="border border-[#E5E5E5] rounded-xl p-3 bg-white"
+              className="border border-border rounded-xl p-3 bg-white"
             >
-              <p className="text-[12px] text-[#333333] font-medium mb-2">
+              <p className="text-[12px] text-text-body font-medium mb-2">
                 {tension.summary}
               </p>
 
@@ -56,7 +56,7 @@ export function ActiveTensionsSection({ tensions }: ActiveTensionsSectionProps) 
 
                 {/* VS divider */}
                 <div className="flex items-center">
-                  <span className="text-[9px] font-bold text-[#999999]">vs</span>
+                  <span className="text-[9px] font-bold text-text-placeholder">vs</span>
                 </div>
 
                 {/* Side B */}
@@ -69,13 +69,13 @@ export function ActiveTensionsSection({ tensions }: ActiveTensionsSectionProps) 
 
               {/* Confidence */}
               <div className="mt-2 flex items-center gap-2">
-                <div className="flex-1 h-1 bg-[#E5E5E5] rounded-full overflow-hidden">
+                <div className="flex-1 h-1 bg-border rounded-full overflow-hidden">
                   <div
-                    className="h-full bg-[#999999] rounded-full"
+                    className="h-full bg-text-placeholder rounded-full"
                     style={{ width: `${tension.confidence * 100}%` }}
                   />
                 </div>
-                <span className="text-[10px] text-[#999999]">
+                <span className="text-[10px] text-text-placeholder">
                   {Math.round(tension.confidence * 100)}%
                 </span>
               </div>

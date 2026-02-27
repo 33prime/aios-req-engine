@@ -24,11 +24,11 @@ export function UnmappedFeatures({ features }: UnmappedFeaturesProps) {
     <div
       ref={setNodeRef}
       className={`
-        bg-[#F9F9F9] rounded-lg border-2 border-dashed p-4 min-h-[100px]
+        bg-surface-muted rounded-lg border-2 border-dashed p-4 min-h-[100px]
         transition-all duration-200
         ${isOver
-          ? 'border-[#3FAF7A] bg-emerald-50/50'
-          : 'border-[#E5E5E5]'
+          ? 'border-brand-primary bg-emerald-50/50'
+          : 'border-border'
         }
       `}
     >
@@ -42,7 +42,7 @@ export function UnmappedFeatures({ features }: UnmappedFeaturesProps) {
         <div className="flex items-center justify-center h-full min-h-[60px] text-center">
           <div>
             <Package className="w-8 h-8 text-gray-300 mx-auto mb-2" />
-            <p className="text-sm text-[#999999]">
+            <p className="text-sm text-text-placeholder">
               {isOver ? 'Drop here to unassign' : 'All features are mapped to journey steps'}
             </p>
           </div>

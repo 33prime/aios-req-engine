@@ -94,7 +94,7 @@ export function IntelligenceBriefingPanel({
       <div className="flex flex-col h-full">
         <BriefingHeader phase={null} progress={0} />
         <div className="flex-1 flex items-center justify-center p-6">
-          <div className="flex items-center gap-2 text-[12px] text-[#999999]">
+          <div className="flex items-center gap-2 text-[12px] text-text-placeholder">
             <Loader2 className="w-4 h-4 animate-spin" />
             Preparing briefing...
           </div>
@@ -110,10 +110,10 @@ export function IntelligenceBriefingPanel({
         <BriefingHeader phase={null} progress={0} />
         <div className="flex-1 flex items-center justify-center p-6">
           <div className="text-center">
-            <p className="text-[12px] text-[#999999]">Failed to load briefing</p>
+            <p className="text-[12px] text-text-placeholder">Failed to load briefing</p>
             <button
               onClick={handleRefresh}
-              className="mt-2 text-[11px] font-medium text-[#3FAF7A] hover:underline"
+              className="mt-2 text-[11px] font-medium text-brand-primary hover:underline"
             >
               Try again
             </button>
@@ -132,7 +132,7 @@ export function IntelligenceBriefingPanel({
   const hasContent = narrative || starters.length > 0
 
   return (
-    <div className="flex flex-col h-full bg-white border-r border-[#E5E5E5]">
+    <div className="flex flex-col h-full bg-white border-r border-border">
       <BriefingHeader
         phase={phase}
         progress={progress}
@@ -149,7 +149,7 @@ export function IntelligenceBriefingPanel({
           <>
             {/* Situation narrative (4-5 sentences) */}
             {narrative && (
-              <p className="text-[13px] text-[#333333] leading-[1.6] px-4 pt-4 pb-1">
+              <p className="text-[13px] text-text-body leading-[1.6] px-4 pt-4 pb-1">
                 <InlineMarkdown text={narrative} />
               </p>
             )}
@@ -166,7 +166,7 @@ export function IntelligenceBriefingPanel({
 
             {/* Conversation starter cards */}
             {starters.length > 0 && onStartConversation && (
-              <div className="mt-1 mx-4 mb-3 rounded-xl border border-[#E5E5E5] overflow-hidden bg-white">
+              <div className="mt-1 mx-4 mb-3 rounded-xl border border-border overflow-hidden bg-white">
                 {starters.map((starter) => (
                   <ConversationStarterCard
                     key={starter.starter_id}
@@ -181,7 +181,7 @@ export function IntelligenceBriefingPanel({
             <div className="px-4 pb-4">
               <button
                 onClick={handleUploadClick}
-                className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-[13px] text-[#666666] hover:text-[#333333] hover:bg-[#F8F8F8] transition-colors"
+                className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-[13px] text-[#666666] hover:text-text-body hover:bg-[#F8F8F8] transition-colors"
               >
                 <Paperclip className="w-4 h-4 flex-shrink-0" />
                 Upload a document
@@ -221,8 +221,8 @@ function WhatChangedSection({ diff }: { diff: TemporalDiff }) {
     <div className="mx-4 mt-3 mb-1">
       {/* Section header */}
       <div className="flex items-center gap-1.5 mb-2">
-        <Clock className="w-3 h-3 text-[#999999]" />
-        <span className="text-[11px] font-medium text-[#999999] uppercase tracking-wide">
+        <Clock className="w-3 h-3 text-text-placeholder" />
+        <span className="text-[11px] font-medium text-text-placeholder uppercase tracking-wide">
           Since {since_label}
         </span>
       </div>
@@ -269,7 +269,7 @@ function WhatYouShouldKnowSection({ data }: { data: WhatYouShouldKnow }) {
     <div className="mx-4 mt-3 mb-2 rounded-lg bg-[#F8FAF8] border border-[#E5EDE5] p-3">
       {/* Section header */}
       <div className="flex items-center gap-1.5 mb-2">
-        <Lightbulb className="w-3 h-3 text-[#3FAF7A]" />
+        <Lightbulb className="w-3 h-3 text-brand-primary" />
         <span className="text-[11px] font-semibold text-[#25785A] uppercase tracking-wide">
           Worth knowing
         </span>
@@ -277,7 +277,7 @@ function WhatYouShouldKnowSection({ data }: { data: WhatYouShouldKnow }) {
 
       {/* Narrative */}
       {narrative && (
-        <p className="text-[12px] text-[#333333] leading-relaxed mb-2">
+        <p className="text-[12px] text-text-body leading-relaxed mb-2">
           <InlineMarkdown text={narrative} />
         </p>
       )}
@@ -287,7 +287,7 @@ function WhatYouShouldKnowSection({ data }: { data: WhatYouShouldKnow }) {
         <div className="space-y-1.5">
           {bullets.map((bullet, i) => (
             <div key={i} className="flex items-start gap-2">
-              <span className="w-1.5 h-1.5 rounded-full bg-[#3FAF7A] mt-[5px] flex-shrink-0" />
+              <span className="w-1.5 h-1.5 rounded-full bg-brand-primary mt-[5px] flex-shrink-0" />
               <span className="text-[12px] text-[#444444] leading-snug">
                 <InlineMarkdown text={bullet} />
               </span>
@@ -304,14 +304,14 @@ function PhaseEmptyState({ phase, onUpload }: { phase: string; onUpload: () => v
 
   return (
     <div className="p-6 text-center">
-      <Sparkles className="w-8 h-8 text-[#3FAF7A] mx-auto mb-3 opacity-50" />
-      <p className="text-[13px] font-medium text-[#333333]">
+      <Sparkles className="w-8 h-8 text-brand-primary mx-auto mb-3 opacity-50" />
+      <p className="text-[13px] font-medium text-text-body">
         {phase === 'refining' ? 'Looking good' : 'Ready when you are'}
       </p>
-      <p className="text-[12px] text-[#999999] mt-1 mb-4">{description}</p>
+      <p className="text-[12px] text-text-placeholder mt-1 mb-4">{description}</p>
       <button
         onClick={onUpload}
-        className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-[12px] font-medium text-[#3FAF7A] border border-[#3FAF7A] hover:bg-[#E8F5E9] transition-colors"
+        className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-[12px] font-medium text-brand-primary border border-brand-primary hover:bg-[#E8F5E9] transition-colors"
       >
         <Paperclip className="w-3.5 h-3.5" />
         Upload a document

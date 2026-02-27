@@ -64,8 +64,8 @@ export function VpStepDetailDrawer({
       headerExtra={
         step?.actor_persona_name ? (
           <div className="flex items-center gap-1 mt-0.5">
-            <User className="w-3 h-3 text-[#999999]" />
-            <span className="text-[13px] text-[#999999]">{step.actor_persona_name}</span>
+            <User className="w-3 h-3 text-text-placeholder" />
+            <span className="text-[13px] text-text-placeholder">{step.actor_persona_name}</span>
           </div>
         ) : undefined
       }
@@ -90,7 +90,7 @@ export function VpStepDetailDrawer({
               <Section icon={Workflow} title="Narratives">
                 <div className="grid grid-cols-1 gap-3">
                   {fullStep.narrative_user && (
-                    <div className="bg-[#E8F5E9] rounded-lg p-4 border border-[#3FAF7A]/20">
+                    <div className="bg-[#E8F5E9] rounded-lg p-4 border border-brand-primary/20">
                       <h5 className="text-[11px] font-semibold text-[#25785A] uppercase tracking-wide mb-1.5">
                         User Experience
                       </h5>
@@ -98,7 +98,7 @@ export function VpStepDetailDrawer({
                     </div>
                   )}
                   {fullStep.narrative_system && (
-                    <div className="bg-[#F0F0F0] rounded-lg p-4 border border-[#E5E5E5]">
+                    <div className="bg-[#F0F0F0] rounded-lg p-4 border border-border">
                       <h5 className="text-[11px] font-semibold text-[#666666] uppercase tracking-wide mb-1.5">
                         System Behavior
                       </h5>
@@ -116,11 +116,11 @@ export function VpStepDetailDrawer({
                   {summaryStep.features.map((f) => (
                     <div
                       key={f.id}
-                      className="flex items-start gap-3 bg-[#F9F9F9] rounded-lg p-3 border border-[#E5E5E5]"
+                      className="flex items-start gap-3 bg-surface-muted rounded-lg p-3 border border-border"
                     >
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
-                          <span className="text-[13px] font-medium text-[#333333]">{f.name}</span>
+                          <span className="text-[13px] font-medium text-text-body">{f.name}</span>
                           {f.is_mvp && (
                             <span className="px-1.5 py-0.5 text-[10px] font-bold rounded bg-[#F0F0F0] text-[#666666]">
                               MVP
@@ -128,7 +128,7 @@ export function VpStepDetailDrawer({
                           )}
                         </div>
                         {f.description && (
-                          <p className="text-[13px] text-[#999999] mt-0.5 line-clamp-2">{f.description}</p>
+                          <p className="text-[13px] text-text-placeholder mt-0.5 line-clamp-2">{f.description}</p>
                         )}
                       </div>
                       <BRDStatusBadge status={f.confirmation_status} />
@@ -144,7 +144,7 @@ export function VpStepDetailDrawer({
                 <ul className="space-y-1.5">
                   {enrichment.ui_highlights.map((item: string, i: number) => (
                     <li key={i} className="flex items-start gap-2 text-[13px] text-[#666666]">
-                      <Monitor className="w-4 h-4 text-[#3FAF7A] flex-shrink-0 mt-0.5" />
+                      <Monitor className="w-4 h-4 text-brand-primary flex-shrink-0 mt-0.5" />
                       {item}
                     </li>
                   ))}
@@ -159,7 +159,7 @@ export function VpStepDetailDrawer({
                   {enrichment.integrations.map((item: string, i: number) => (
                     <span
                       key={i}
-                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[13px] bg-[#F0F0F0] text-[#666666] border border-[#E5E5E5]"
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[13px] bg-[#F0F0F0] text-[#666666] border border-border"
                     >
                       <Plug className="w-3 h-3" />
                       {item}
@@ -175,7 +175,7 @@ export function VpStepDetailDrawer({
                 <ul className="space-y-1.5">
                   {enrichment.rules_applied.map((rule: string, i: number) => (
                     <li key={i} className="flex items-start gap-2 text-[13px] text-[#666666]">
-                      <ShieldCheck className="w-4 h-4 text-[#3FAF7A] flex-shrink-0 mt-0.5" />
+                      <ShieldCheck className="w-4 h-4 text-brand-primary flex-shrink-0 mt-0.5" />
                       {rule}
                     </li>
                   ))}
@@ -201,7 +201,7 @@ export function VpStepDetailDrawer({
 
             {/* Empty state if nothing loaded */}
             {!step?.description && !fullStep?.narrative_user && summaryStep?.features.length === 0 && (
-              <p className="text-[13px] text-[#999999] text-center py-8">
+              <p className="text-[13px] text-text-placeholder text-center py-8">
                 No detailed data available for this step yet.
               </p>
             )}
@@ -224,8 +224,8 @@ function Section({
   return (
     <div>
       <div className="flex items-center gap-2 mb-3">
-        <Icon className="w-4 h-4 text-[#999999]" />
-        <h4 className="text-[13px] font-semibold text-[#333333]">{title}</h4>
+        <Icon className="w-4 h-4 text-text-placeholder" />
+        <h4 className="text-[13px] font-semibold text-text-body">{title}</h4>
       </div>
       {children}
     </div>

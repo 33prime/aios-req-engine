@@ -23,8 +23,8 @@ export default function FeaturesPage() {
   return (
     <div className="p-6 flex items-center justify-center">
       <div className="text-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#3FAF7A] mx-auto mb-4"></div>
-        <p className="text-[12px] text-[#999999]">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-primary mx-auto mb-4"></div>
+        <p className="text-[12px] text-text-placeholder">
           Redirecting to Product Requirements...
         </p>
       </div>

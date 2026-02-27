@@ -104,7 +104,7 @@ function KnowledgeSection({
         <p className="text-[12px] font-semibold text-[#999] uppercase tracking-wide">{title}</p>
         <button
           onClick={() => setAdding(!adding)}
-          className="p-0.5 text-[#999] hover:text-[#3FAF7A] transition-colors"
+          className="p-0.5 text-[#999] hover:text-brand-primary transition-colors"
           title={`Add ${title.toLowerCase()}`}
         >
           <Plus className="w-3.5 h-3.5" />
@@ -117,13 +117,13 @@ function KnowledgeSection({
             value={newText}
             onChange={(e) => setNewText(e.target.value)}
             placeholder={`Add ${title.toLowerCase()} item...`}
-            className="flex-1 px-2 py-1.5 text-[12px] border border-[#E5E5E5] rounded-lg focus:outline-none focus:border-[#3FAF7A]"
+            className="flex-1 px-2 py-1.5 text-[12px] border border-border rounded-lg focus:outline-none focus:border-brand-primary"
             onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
             autoFocus
           />
           <button
             onClick={handleAdd}
-            className="px-3 py-1.5 text-[11px] font-medium text-white bg-[#3FAF7A] rounded-lg hover:bg-[#25785A] transition-colors"
+            className="px-3 py-1.5 text-[11px] font-medium text-white bg-brand-primary rounded-lg hover:bg-[#25785A] transition-colors"
           >
             Add
           </button>
@@ -143,7 +143,7 @@ function KnowledgeSection({
             >
               <p className="text-[12px] text-[#333] line-clamp-2">{item.text}</p>
               <div className="flex items-center gap-1.5 mt-1">
-                <span className="px-1.5 py-0.5 text-[9px] font-medium text-[#666] bg-[#E5E5E5] rounded">
+                <span className="px-1.5 py-0.5 text-[9px] font-medium text-[#666] bg-border rounded">
                   {SOURCE_LABELS[item.source] || item.source}
                 </span>
                 <span className={`px-1.5 py-0.5 text-[9px] font-medium rounded ${CONFIDENCE_STYLES[item.confidence] || CONFIDENCE_STYLES.medium}`}>
@@ -194,7 +194,7 @@ export function ClientOverviewTab({ client, intelligence, knowledgeBase, onKnowl
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Left: Company Details */}
         <div className="space-y-6">
-          <div className="bg-white rounded-2xl border border-[#E5E5E5] shadow-md p-6">
+          <div className="bg-white rounded-2xl border border-border shadow-md p-6">
             <h3 className="text-[14px] font-semibold text-[#333] mb-4">Company Details</h3>
             <div className="space-y-1">
               {client.website && (
@@ -240,7 +240,7 @@ export function ClientOverviewTab({ client, intelligence, knowledgeBase, onKnowl
                 />
               )}
               {client.description && (
-                <div className="pt-3 mt-2 border-t border-[#E5E5E5]">
+                <div className="pt-3 mt-2 border-t border-border">
                   <p className="text-[11px] text-[#999] font-medium uppercase tracking-wide mb-1">Description</p>
                   <p className="text-[13px] text-[#666] leading-relaxed">{client.description}</p>
                 </div>
@@ -249,7 +249,7 @@ export function ClientOverviewTab({ client, intelligence, knowledgeBase, onKnowl
           </div>
 
           {/* Knowledge Base */}
-          <div className="bg-white rounded-2xl border border-[#E5E5E5] shadow-md p-6">
+          <div className="bg-white rounded-2xl border border-border shadow-md p-6">
             <div className="flex items-center gap-2 mb-4">
               <BookOpen className="w-4 h-4 text-[#666]" />
               <h3 className="text-[14px] font-semibold text-[#333]">Knowledge Base</h3>
@@ -306,9 +306,9 @@ export function ClientOverviewTab({ client, intelligence, knowledgeBase, onKnowl
 
         {/* Right: AI Intelligence + CI Data */}
         <div className="space-y-6">
-          <div className="bg-white rounded-2xl border border-[#E5E5E5] shadow-md p-6">
+          <div className="bg-white rounded-2xl border border-border shadow-md p-6">
             <div className="flex items-center gap-2 mb-4">
-              <Sparkles className="w-4 h-4 text-[#3FAF7A]" />
+              <Sparkles className="w-4 h-4 text-brand-primary" />
               <h3 className="text-[14px] font-semibold text-[#333]">AI Intelligence</h3>
               {completeness > 0 && (
                 <div className="ml-auto">
@@ -339,21 +339,21 @@ export function ClientOverviewTab({ client, intelligence, knowledgeBase, onKnowl
                     <p className="text-[13px] text-[#666] leading-relaxed">{client.market_position}</p>
                   </div>
                 )}
-                <div className="pt-2 border-t border-[#E5E5E5]">
+                <div className="pt-2 border-t border-border">
                   <MaturityBadge label="Technology Maturity" value={client.technology_maturity} />
                   <MaturityBadge label="Digital Readiness" value={client.digital_readiness} />
                 </div>
                 {client.innovation_score != null && (
-                  <div className="pt-2 border-t border-[#E5E5E5]">
+                  <div className="pt-2 border-t border-border">
                     <div className="flex items-center justify-between">
                       <span className="text-[12px] text-[#666]">Innovation Score</span>
-                      <span className="text-[13px] font-semibold text-[#3FAF7A]">
+                      <span className="text-[13px] font-semibold text-brand-primary">
                         {Math.round(client.innovation_score * 100)}%
                       </span>
                     </div>
                     <div className="mt-1 h-2 bg-[#F0F0F0] rounded-full overflow-hidden">
                       <div
-                        className="h-full bg-[#3FAF7A] rounded-full transition-all"
+                        className="h-full bg-brand-primary rounded-full transition-all"
                         style={{ width: `${client.innovation_score * 100}%` }}
                       />
                     </div>
@@ -365,9 +365,9 @@ export function ClientOverviewTab({ client, intelligence, knowledgeBase, onKnowl
 
           {/* Vision Synthesis */}
           {vision && (
-            <div className="bg-white rounded-2xl border border-[#E5E5E5] shadow-md p-6">
+            <div className="bg-white rounded-2xl border border-border shadow-md p-6">
               <div className="flex items-center gap-2 mb-3">
-                <Sparkles className="w-4 h-4 text-[#3FAF7A]" />
+                <Sparkles className="w-4 h-4 text-brand-primary" />
                 <h3 className="text-[14px] font-semibold text-[#333]">Vision Synthesis</h3>
               </div>
               <p className="text-[13px] text-[#666] leading-relaxed">{vision}</p>
@@ -376,7 +376,7 @@ export function ClientOverviewTab({ client, intelligence, knowledgeBase, onKnowl
 
           {/* Top Constraints preview */}
           {constraints.length > 0 && (
-            <div className="bg-white rounded-2xl border border-[#E5E5E5] shadow-md p-6">
+            <div className="bg-white rounded-2xl border border-border shadow-md p-6">
               <div className="flex items-center gap-2 mb-3">
                 <AlertTriangle className="w-4 h-4 text-[#666]" />
                 <h3 className="text-[14px] font-semibold text-[#333]">Top Constraints</h3>
@@ -386,7 +386,7 @@ export function ClientOverviewTab({ client, intelligence, knowledgeBase, onKnowl
                   <div key={i} className="bg-[#F4F4F4] rounded-lg px-3 py-2">
                     <div className="flex items-center gap-2">
                       <span className="text-[13px] font-medium text-[#333]">{c.title}</span>
-                      <span className="px-1.5 py-0.5 text-[10px] font-medium text-[#666] bg-[#E5E5E5] rounded">
+                      <span className="px-1.5 py-0.5 text-[10px] font-medium text-[#666] bg-border rounded">
                         {c.severity}
                       </span>
                     </div>
@@ -395,7 +395,7 @@ export function ClientOverviewTab({ client, intelligence, knowledgeBase, onKnowl
                 ))}
               </div>
               {constraints.length > 3 && (
-                <p className="text-[12px] text-[#3FAF7A] mt-2 font-medium">
+                <p className="text-[12px] text-brand-primary mt-2 font-medium">
                   View all {constraints.length} in Intelligence tab
                 </p>
               )}
@@ -404,7 +404,7 @@ export function ClientOverviewTab({ client, intelligence, knowledgeBase, onKnowl
 
           {/* Org Context */}
           {orgContext && Object.keys(orgContext).length > 0 && (
-            <div className="bg-white rounded-2xl border border-[#E5E5E5] shadow-md p-6">
+            <div className="bg-white rounded-2xl border border-border shadow-md p-6">
               <h3 className="text-[14px] font-semibold text-[#333] mb-3">Organizational Context</h3>
               <OrgContextDisplay orgContext={orgContext} variant="compact" />
             </div>
@@ -414,7 +414,7 @@ export function ClientOverviewTab({ client, intelligence, knowledgeBase, onKnowl
 
       {/* Tech Stack */}
       {client.tech_stack && client.tech_stack.length > 0 && (
-        <div className="bg-white rounded-2xl border border-[#E5E5E5] shadow-md p-6">
+        <div className="bg-white rounded-2xl border border-border shadow-md p-6">
           <div className="flex items-center gap-2 mb-3">
             <Cpu className="w-4 h-4 text-[#666]" />
             <h3 className="text-[14px] font-semibold text-[#333]">Tech Stack</h3>
@@ -434,7 +434,7 @@ export function ClientOverviewTab({ client, intelligence, knowledgeBase, onKnowl
 
       {/* Growth Signals */}
       {client.growth_signals && client.growth_signals.length > 0 && (
-        <div className="bg-white rounded-2xl border border-[#E5E5E5] shadow-md p-6">
+        <div className="bg-white rounded-2xl border border-border shadow-md p-6">
           <div className="flex items-center gap-2 mb-3">
             <TrendingUp className="w-4 h-4 text-[#666]" />
             <h3 className="text-[14px] font-semibold text-[#333]">Growth Signals</h3>
@@ -454,7 +454,7 @@ export function ClientOverviewTab({ client, intelligence, knowledgeBase, onKnowl
 
       {/* Competitors */}
       {client.competitors && client.competitors.length > 0 && (
-        <div className="bg-white rounded-2xl border border-[#E5E5E5] shadow-md p-6">
+        <div className="bg-white rounded-2xl border border-border shadow-md p-6">
           <div className="flex items-center gap-2 mb-3">
             <Swords className="w-4 h-4 text-[#666]" />
             <h3 className="text-[14px] font-semibold text-[#333]">Competitors</h3>
@@ -463,7 +463,7 @@ export function ClientOverviewTab({ client, intelligence, knowledgeBase, onKnowl
             {client.competitors.map((comp, i) => (
               <div
                 key={i}
-                className="p-3 bg-[#FAFAFA] rounded-xl border border-[#E5E5E5]"
+                className="p-3 bg-surface-page rounded-xl border border-border"
               >
                 <p className="text-[13px] font-medium text-[#333]">{comp.name}</p>
                 <p className="text-[12px] text-[#666] mt-0.5">{comp.relationship}</p>

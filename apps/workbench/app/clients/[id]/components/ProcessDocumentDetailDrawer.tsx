@@ -69,7 +69,7 @@ export function ProcessDocumentDetailDrawer({ docId, onClose }: ProcessDocumentD
       <div className="fixed inset-0 bg-black/20 z-40" onClick={onClose} />
       <div className="fixed right-0 top-0 h-full w-[640px] max-w-[95vw] bg-white shadow-xl z-50 flex flex-col">
         {/* Header */}
-        <div className="flex items-start justify-between px-6 py-5 border-b border-[#E5E5E5]">
+        <div className="flex items-start justify-between px-6 py-5 border-b border-border">
           <div className="flex-1 min-w-0 mr-4">
             {loading ? (
               <div className="h-5 w-48 bg-[#F0F0F0] rounded animate-pulse" />
@@ -101,7 +101,7 @@ export function ProcessDocumentDetailDrawer({ docId, onClose }: ProcessDocumentD
         </div>
 
         {/* Tabs */}
-        <div className="border-b border-[#E5E5E5] px-6">
+        <div className="border-b border-border px-6">
           <div className="flex gap-4 overflow-x-auto">
             {tabs.map((tab) => (
               <button
@@ -109,7 +109,7 @@ export function ProcessDocumentDetailDrawer({ docId, onClose }: ProcessDocumentD
                 onClick={() => setActiveTab(tab.id)}
                 className={`flex items-center gap-1.5 py-2.5 text-[12px] font-medium border-b-2 transition-colors whitespace-nowrap ${
                   activeTab === tab.id
-                    ? 'text-[#3FAF7A] border-[#3FAF7A]'
+                    ? 'text-brand-primary border-brand-primary'
                     : 'text-[#999] border-transparent hover:text-[#666]'
                 }`}
               >
@@ -184,7 +184,7 @@ function OverviewTab({ doc }: { doc: ProcessDocument }) {
         </div>
       </div>
       {doc.generation_duration_ms && (
-        <div className="pt-2 border-t border-[#E5E5E5]">
+        <div className="pt-2 border-t border-border">
           <p className="text-[11px] text-[#999]">
             Generated in {(doc.generation_duration_ms / 1000).toFixed(1)}s
             {doc.generation_model && ` using ${doc.generation_model}`}
@@ -204,7 +204,7 @@ function StepsTab({ doc }: { doc: ProcessDocument }) {
         doc.steps.map((step, i) => (
           <div key={i} className="bg-[#F4F4F4] rounded-xl p-4">
             <div className="flex items-start gap-3">
-              <div className="w-7 h-7 bg-white rounded-lg flex items-center justify-center border border-[#E5E5E5] flex-shrink-0">
+              <div className="w-7 h-7 bg-white rounded-lg flex items-center justify-center border border-border flex-shrink-0">
                 <span className="text-[12px] font-semibold text-[#333]">{step.step_index}</span>
               </div>
               <div className="flex-1 min-w-0">
@@ -214,7 +214,7 @@ function StepsTab({ doc }: { doc: ProcessDocument }) {
                 )}
                 <div className="flex flex-wrap items-center gap-2 mt-2">
                   {step.actor_persona_name && (
-                    <span className="flex items-center gap-1 px-2 py-0.5 text-[10px] font-medium text-[#666] bg-white rounded-md border border-[#E5E5E5]">
+                    <span className="flex items-center gap-1 px-2 py-0.5 text-[10px] font-medium text-[#666] bg-white rounded-md border border-border">
                       <Users className="w-3 h-3" />
                       {step.actor_persona_name}
                     </span>
@@ -233,7 +233,7 @@ function StepsTab({ doc }: { doc: ProcessDocument }) {
                   )}
                 </div>
                 {step.decision_points && step.decision_points.length > 0 && (
-                  <div className="mt-2 pl-3 border-l-2 border-[#E5E5E5]">
+                  <div className="mt-2 pl-3 border-l-2 border-border">
                     {step.decision_points.map((dp, j) => (
                       <p key={j} className="text-[11px] text-[#666]">&bull; {dp}</p>
                     ))}
@@ -263,7 +263,7 @@ function RolesDataTab({ doc }: { doc: ProcessDocument }) {
                 <div className="flex items-center gap-2 mb-1">
                   <p className="text-[13px] font-medium text-[#333]">{role.persona_name}</p>
                   {role.authority_level && (
-                    <span className="px-1.5 py-0.5 text-[9px] font-medium text-[#666] bg-[#E5E5E5] rounded">
+                    <span className="px-1.5 py-0.5 text-[9px] font-medium text-[#666] bg-border rounded">
                       {AUTHORITY_LABELS[role.authority_level] || role.authority_level}
                     </span>
                   )}
@@ -381,7 +381,7 @@ function IntelligenceTab({ doc }: { doc: ProcessDocument }) {
         ) : (
           <div className="space-y-2">
             {doc.tribal_knowledge_callouts.map((tk, i) => (
-              <div key={i} className="bg-white rounded-xl p-3 border-l-3 border-[#3FAF7A]" style={{ borderLeftWidth: 3 }}>
+              <div key={i} className="bg-white rounded-xl p-3 border-l-3 border-brand-primary" style={{ borderLeftWidth: 3 }}>
                 <p className="text-[13px] text-[#333] leading-relaxed">{tk.text}</p>
                 {tk.stakeholder_name && (
                   <p className="text-[11px] text-[#25785A] font-medium mt-1.5">
@@ -424,7 +424,7 @@ function EvidenceTab({ doc }: { doc: ProcessDocument }) {
                 </span>
               )}
               {ev.section && (
-                <span className="px-1.5 py-0.5 text-[9px] text-[#666] bg-[#E5E5E5] rounded">
+                <span className="px-1.5 py-0.5 text-[9px] text-[#666] bg-border rounded">
                   {ev.section}
                 </span>
               )}

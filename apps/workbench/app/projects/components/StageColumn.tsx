@@ -16,7 +16,7 @@ const STAGE_COLORS = {
   discovery: 'bg-emerald-100 border-emerald-300',
   validation: 'bg-emerald-50 border-emerald-200',
   prototype: 'bg-teal-50 border-teal-200',
-  proposal: 'bg-[#3FAF7A]/10 border-[#3FAF7A]/30',
+  proposal: 'bg-brand-primary-light border-brand-primary/30',
   build: 'bg-emerald-200 border-emerald-400',
   live: 'bg-emerald-100 border-emerald-300',
 }
@@ -36,8 +36,8 @@ export function StageColumn({
     <div className="flex-shrink-0 min-w-60 w-60">
       <div className={`rounded-t-card border-t-4 ${stageColor} px-3 py-1.5 mb-2`}>
         <div className="flex items-center justify-between">
-          <h3 className="text-xs font-semibold text-[#333333]">{label}</h3>
-          <span className="text-[10px] font-medium text-[#999999] bg-white px-1.5 py-0.5 rounded-full border border-[#E5E5E5]">
+          <h3 className="text-xs font-semibold text-text-body">{label}</h3>
+          <span className="text-[10px] font-medium text-text-placeholder bg-white px-1.5 py-0.5 rounded-full border border-border">
             {projects.length}
           </span>
         </div>
@@ -45,8 +45,8 @@ export function StageColumn({
 
       <div className="space-y-2 min-h-[200px]">
         {projects.length === 0 ? (
-          <div className="bg-white border-2 border-dashed border-[#E5E5E5] rounded-lg p-6 text-center">
-            <p className="text-xs text-[#999999]">No projects</p>
+          <div className="bg-white border-2 border-dashed border-border rounded-lg p-6 text-center">
+            <p className="text-xs text-text-placeholder">No projects</p>
           </div>
         ) : (
           projects.map((project) => (

@@ -22,22 +22,22 @@ export function ProjectKanbanCard({ project, ownerProfile, currentUser, onClick,
   return (
     <div
       onClick={onClick}
-      className="bg-white border border-[#E5E5E5] rounded-lg shadow-sm p-3 hover:shadow-lg transition-shadow cursor-pointer"
+      className="bg-white border border-border rounded-lg shadow-sm p-3 hover:shadow-lg transition-shadow cursor-pointer"
     >
       {/* Header */}
       <div className="flex flex-col items-center gap-1 mb-2">
         <ProjectAvatar name={project.name} clientName={project.client_name} />
         <div className="text-center min-w-0 w-full">
-          <h4 className="text-xs font-medium text-[#333333] truncate">{project.name}</h4>
+          <h4 className="text-xs font-medium text-text-body truncate">{project.name}</h4>
           {project.client_name && (
-            <p className="text-xs text-[#999999] truncate">{project.client_name}</p>
+            <p className="text-xs text-text-placeholder truncate">{project.client_name}</p>
           )}
         </div>
       </div>
 
       {/* Description */}
       {project.description && (
-        <p className="text-xs text-[#333333] leading-relaxed mb-2 line-clamp-2">
+        <p className="text-xs text-text-body leading-relaxed mb-2 line-clamp-2">
           {project.description}
         </p>
       )}
@@ -48,7 +48,7 @@ export function ProjectKanbanCard({ project, ownerProfile, currentUser, onClick,
       </div>
 
       {/* Footer */}
-      <div className="flex items-center justify-between pt-2 border-t border-[#E5E5E5]">
+      <div className="flex items-center justify-between pt-2 border-t border-border">
         <UserAvatar name={ownerName} photoUrl={ownerPhotoUrl} size="small" />
         <div className="flex items-center gap-1.5">
           {project.stage_eligible === true && (
@@ -70,7 +70,7 @@ export function ProjectKanbanCard({ project, ownerProfile, currentUser, onClick,
               </button>
             </StageAdvancePopover>
           )}
-          <div className="text-xs text-[#999999]">
+          <div className="text-xs text-text-placeholder">
             {formatDistanceToNow(new Date(project.updated_at || project.created_at), {
               addSuffix: true,
             })}

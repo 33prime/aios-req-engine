@@ -142,7 +142,7 @@ export default function PersonDetailPage() {
         <AppSidebar isCollapsed={sidebarCollapsed} onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)} />
         <div className="min-h-screen bg-[#F4F4F4] flex items-center justify-center transition-all duration-300" style={{ marginLeft: sidebarWidth }}>
           <div className="text-center">
-            <Loader2 className="w-8 h-8 text-[#3FAF7A] animate-spin mx-auto mb-3" />
+            <Loader2 className="w-8 h-8 text-brand-primary animate-spin mx-auto mb-3" />
             <p className="text-[13px] text-[#999]">Loading stakeholder...</p>
           </div>
         </div>
@@ -159,7 +159,7 @@ export default function PersonDetailPage() {
             <p className="text-[14px] text-[#666] mb-3">{error || 'Stakeholder not found'}</p>
             <button
               onClick={() => router.push('/people')}
-              className="px-6 py-3 text-[13px] font-medium text-white bg-[#3FAF7A] rounded-xl hover:bg-[#25785A] transition-colors"
+              className="px-6 py-3 text-[13px] font-medium text-white bg-brand-primary rounded-xl hover:bg-[#25785A] transition-colors"
             >
               Back to People
             </button>
@@ -183,7 +183,7 @@ export default function PersonDetailPage() {
           />
 
           {/* Tabs */}
-          <div className="border-b border-[#E5E5E5] mb-6">
+          <div className="border-b border-border mb-6">
             <div className="flex gap-6">
               {tabs.map((tab) => (
                 <button
@@ -191,7 +191,7 @@ export default function PersonDetailPage() {
                   onClick={() => setActiveTab(tab.id)}
                   className={`inline-flex items-center gap-1.5 pb-2.5 text-[13px] font-medium border-b-2 transition-colors ${
                     activeTab === tab.id
-                      ? 'text-[#3FAF7A] border-[#3FAF7A]'
+                      ? 'text-brand-primary border-brand-primary'
                       : 'text-[#999] border-transparent hover:text-[#666]'
                   }`}
                 >

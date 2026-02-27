@@ -33,8 +33,8 @@ import type { NextAction, Task, HomeDashboardMeeting } from '@/lib/api'
 const STAGE_CONFIG: Record<string, { label: string; bg: string; text: string }> = {
   discovery:            { label: 'Discovery',  bg: 'bg-[#E8F5E9]', text: 'text-[#25785A]' },
   validation:           { label: 'Validation', bg: 'bg-[#E8F5E9]', text: 'text-[#25785A]' },
-  prototype:            { label: 'Prototype',  bg: 'bg-[#3FAF7A]', text: 'text-white' },
-  prototype_refinement: { label: 'Refinement', bg: 'bg-[#3FAF7A]', text: 'text-white' },
+  prototype:            { label: 'Prototype',  bg: 'bg-brand-primary', text: 'text-white' },
+  prototype_refinement: { label: 'Refinement', bg: 'bg-brand-primary', text: 'text-white' },
   proposal:             { label: 'Proposal',   bg: 'bg-[#F0F0F0]', text: 'text-[#666]' },
   build:                { label: 'Build',      bg: 'bg-[#0A1E2F]', text: 'text-white' },
   live:                 { label: 'Live',       bg: 'bg-[#0A1E2F]', text: 'text-white' },
@@ -80,7 +80,7 @@ function GreetingHeader({
   return (
     <div className="flex items-start justify-between mb-6">
       <div>
-        <h1 className="text-[22px] font-bold text-[#1D1D1F]">
+        <h1 className="text-[22px] font-bold text-text-primary">
           Daily Snapshot
         </h1>
         <p className="text-[14px] text-[#666] mt-1">
@@ -90,7 +90,7 @@ function GreetingHeader({
         <p className="text-[12px] text-[#999] mt-1">{stats.join(' \u00B7 ')}</p>
       </div>
       <div className="flex items-center gap-2 mt-1">
-        <button className="w-8 h-8 rounded-lg bg-white border border-[#E5E5E5] flex items-center justify-center text-[#999] hover:text-[#333] hover:border-[#ccc] transition-colors">
+        <button className="w-8 h-8 rounded-lg bg-white border border-border flex items-center justify-center text-[#999] hover:text-[#333] hover:border-[#ccc] transition-colors">
           <Search className="w-4 h-4" />
         </button>
       </div>
@@ -140,8 +140,8 @@ function ProjectCard({
   return (
     <div
       onClick={() => router.push(`/projects/${project.id}`)}
-      className={`bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-[#E5E5E5] hover:shadow-[0_4px_12px_rgba(0,0,0,0.08)] cursor-pointer transition-shadow relative overflow-hidden ${
-        isBuilding ? 'border-[#3FAF7A]/30' : ''
+      className={`bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-border hover:shadow-[0_4px_12px_rgba(0,0,0,0.08)] cursor-pointer transition-shadow relative overflow-hidden ${
+        isBuilding ? 'border-brand-primary/30' : ''
       }`}
       style={{ padding: '20px' }}
     >
@@ -155,7 +155,7 @@ function ProjectCard({
       {/* Header: name + client + stage + readiness + arrow */}
       <div className={`flex items-start justify-between gap-3 ${isBuilding ? 'opacity-30 blur-sm' : ''}`}>
         <div className="flex-1 min-w-0">
-          <p className="text-[16px] font-bold text-[#1D1D1F] truncate">{project.name}</p>
+          <p className="text-[16px] font-bold text-text-primary truncate">{project.name}</p>
           {project.client_name && (
             <p className="text-[13px] text-[#666] truncate mt-0.5">{project.client_name}</p>
           )}
@@ -169,16 +169,16 @@ function ProjectCard({
           {!isBuilding && (
             <div className="text-right">
               <p className="text-[12px] font-medium text-[#666]">Readiness: {Math.round(score)}%</p>
-              <div className="w-24 h-1.5 bg-[#E5E5E5] rounded-full overflow-hidden mt-1">
+              <div className="w-24 h-1.5 bg-border rounded-full overflow-hidden mt-1">
                 <div
-                  className="h-full bg-[#3FAF7A] rounded-full transition-all"
+                  className="h-full bg-brand-primary rounded-full transition-all"
                   style={{ width: `${Math.min(score, 100)}%` }}
                 />
               </div>
             </div>
           )}
           <div
-            className="w-8 h-8 rounded-full bg-[#3FAF7A] flex items-center justify-center hover:scale-110 transition-transform"
+            className="w-8 h-8 rounded-full bg-brand-primary flex items-center justify-center hover:scale-110 transition-transform"
             onClick={(e) => { e.stopPropagation(); router.push(`/projects/${project.id}`) }}
           >
             <ArrowUpRight className="w-4 h-4 text-white" />
@@ -191,14 +191,14 @@ function ProjectCard({
         <div className="grid grid-cols-2 gap-4 mt-5">
           {/* Next Steps */}
           <div>
-            <p className="text-[14px] font-bold text-[#1D1D1F] mb-3">
+            <p className="text-[14px] font-bold text-text-primary mb-3">
               Next Steps
             </p>
             {topActions.length > 0 ? (
               <div className="space-y-2.5">
                 {topActions.map((a, i) => (
                   <div key={`${a.action_type}-${i}`} className="flex items-start gap-2.5">
-                    <CheckCircle2 className="w-[18px] h-[18px] text-[#3FAF7A] flex-shrink-0 mt-px" />
+                    <CheckCircle2 className="w-[18px] h-[18px] text-brand-primary flex-shrink-0 mt-px" />
                     <span className="text-[13px] text-[#333] leading-snug">{a.title}</span>
                   </div>
                 ))}
@@ -209,8 +209,8 @@ function ProjectCard({
           </div>
 
           {/* Client Updates */}
-          <div className="border-l border-[#E5E5E5] pl-4">
-            <p className="text-[14px] font-bold text-[#1D1D1F] mb-3">
+          <div className="border-l border-border pl-4">
+            <p className="text-[14px] font-bold text-text-primary mb-3">
               Client Updates
             </p>
             {portal && portal.items.length > 0 ? (
@@ -269,14 +269,14 @@ function GlobalTasksPanel({
   }
 
   return (
-    <div className="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-[#E5E5E5] p-5">
+    <div className="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-border p-5">
       <div className="flex items-center justify-between mb-3">
-        <h3 className="text-[14px] font-bold text-[#1D1D1F] flex items-center gap-2">
+        <h3 className="text-[14px] font-bold text-text-primary flex items-center gap-2">
           <ListTodo className="w-4 h-4 text-[#999]" />
           Tasks
         </h3>
         <span
-          className="text-[12px] text-[#3FAF7A] font-medium cursor-pointer hover:underline"
+          className="text-[12px] text-brand-primary font-medium cursor-pointer hover:underline"
           onClick={() => router.push('/tasks')}
         >
           View all
@@ -285,7 +285,7 @@ function GlobalTasksPanel({
 
       {tasks.length === 0 ? (
         <div className="flex items-center gap-2 py-4 justify-center">
-          <Inbox className="w-4 h-4 text-[#E5E5E5]" />
+          <Inbox className="w-4 h-4 text-border" />
           <span className="text-[13px] text-[#999]">All caught up</span>
         </div>
       ) : (
@@ -300,7 +300,7 @@ function GlobalTasksPanel({
             return (
               <div
                 key={task.id}
-                className="flex items-center gap-2.5 py-2.5 border-b border-[#F0F0F0] last:border-b-0 cursor-pointer hover:bg-[#FAFAFA] -mx-1 px-1 rounded transition-colors"
+                className="flex items-center gap-2.5 py-2.5 border-b border-[#F0F0F0] last:border-b-0 cursor-pointer hover:bg-surface-page -mx-1 px-1 rounded transition-colors"
                 onClick={() => onTaskClick(task)}
               >
                 <div
@@ -377,14 +377,14 @@ function SchedulePanel({ meetings }: { meetings: HomeDashboardMeeting[]; }) {
   }, [meetings])
 
   return (
-    <div className="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-[#E5E5E5] p-5">
+    <div className="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-border p-5">
       <div className="flex items-center justify-between mb-3">
-        <h3 className="text-[14px] font-bold text-[#1D1D1F] flex items-center gap-2">
+        <h3 className="text-[14px] font-bold text-text-primary flex items-center gap-2">
           <Calendar className="w-4 h-4 text-[#999]" />
           Schedule
         </h3>
         <span
-          className="text-[12px] text-[#3FAF7A] font-medium cursor-pointer hover:underline"
+          className="text-[12px] text-brand-primary font-medium cursor-pointer hover:underline"
           onClick={() => router.push('/meetings')}
         >
           View all
@@ -393,7 +393,7 @@ function SchedulePanel({ meetings }: { meetings: HomeDashboardMeeting[]; }) {
 
       {grouped.length === 0 ? (
         <div className="flex items-center gap-2 py-4 justify-center">
-          <Calendar className="w-4 h-4 text-[#E5E5E5]" />
+          <Calendar className="w-4 h-4 text-border" />
           <span className="text-[13px] text-[#999]">No upcoming meetings</span>
         </div>
       ) : (
@@ -407,16 +407,16 @@ function SchedulePanel({ meetings }: { meetings: HomeDashboardMeeting[]; }) {
                 {group.items.map((m, idx) => {
                   const isLast = idx === group.items.length - 1
                   return (
-                    <div key={m.id} className="flex items-start gap-3 cursor-pointer hover:bg-[#FAFAFA] -mx-1 px-1 rounded transition-colors" onClick={() => router.push('/meetings')}>
+                    <div key={m.id} className="flex items-start gap-3 cursor-pointer hover:bg-surface-page -mx-1 px-1 rounded transition-colors" onClick={() => router.push('/meetings')}>
                       {/* Timeline dot + line */}
                       <div className="flex flex-col items-center flex-shrink-0">
-                        <div className="w-2 h-2 rounded-full bg-[#3FAF7A] mt-[5px]" />
-                        {!isLast && <div className="w-px h-7 bg-[#E5E5E5]" />}
+                        <div className="w-2 h-2 rounded-full bg-brand-primary mt-[5px]" />
+                        {!isLast && <div className="w-px h-7 bg-border" />}
                       </div>
                       {/* Content */}
                       <div className={`flex-1 min-w-0 ${isLast ? '' : 'pb-2'}`}>
                         <div className="flex items-center gap-2">
-                          <span className="text-[12px] font-semibold text-[#3FAF7A]">
+                          <span className="text-[12px] font-semibold text-brand-primary">
                             {m.meeting_time
                               ? format(new Date(`2000-01-01T${m.meeting_time}`), 'h:mm a')
                               : '\u2014'}
@@ -540,7 +540,7 @@ export default function HomeDashboard() {
           style={{ marginLeft: sidebarWidth }}
         >
           <div className="text-center">
-            <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#3FAF7A] mx-auto mb-3" />
+            <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-brand-primary mx-auto mb-3" />
             <p className="text-sm text-[#999]">Loading dashboard...</p>
           </div>
         </div>
@@ -571,7 +571,7 @@ export default function HomeDashboard() {
 
             {/* Left 2/3: Project Cards */}
             <div className="lg:col-span-2" style={{ display: 'flex', flexDirection: 'column', gap: `${SECTION_GAP}px` }}>
-              <p className="text-[18px] font-bold text-[#1D1D1F]">
+              <p className="text-[18px] font-bold text-text-primary">
                 Latest Projects
               </p>
               {dashboardProjects.length === 0 ? (
@@ -591,7 +591,7 @@ export default function HomeDashboard() {
             {/* Right 1/3: Tasks + Schedule */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: `${SECTION_GAP}px` }}>
               {/* Spacer to match "Latest Projects" heading height */}
-              <p className="text-[18px] font-bold text-[#1D1D1F]">
+              <p className="text-[18px] font-bold text-text-primary">
                 Overview
               </p>
               <GlobalTasksPanel

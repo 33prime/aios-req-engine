@@ -113,10 +113,10 @@ export function CollaborationPanel({
   // Collapsed state — icon strip
   if (isCollapsed) {
     return (
-      <aside className="fixed right-0 top-0 h-screen w-12 bg-white border-l border-[#E5E5E5] flex flex-col items-center py-4 z-30">
+      <aside className="fixed right-0 top-0 h-screen w-12 bg-white border-l border-border flex flex-col items-center py-4 z-30">
         <button
           onClick={handleToggleCollapse}
-          className="p-2 rounded-lg text-[#999999] hover:bg-[#F9F9F9] hover:text-[#333333] transition-colors mb-4"
+          className="p-2 rounded-lg text-text-placeholder hover:bg-surface-muted hover:text-text-body transition-colors mb-4"
           title="Expand panel"
         >
           <ChevronLeft className="w-4 h-4" />
@@ -126,7 +126,7 @@ export function CollaborationPanel({
           <button
             onClick={() => { setActiveTab('chat'); handleToggleCollapse() }}
             className={`p-2 rounded-lg transition-colors ${
-              activeTab === 'chat' ? 'bg-[#3FAF7A]/10 text-[#3FAF7A]' : 'text-[#999999] hover:bg-[#F9F9F9]'
+              activeTab === 'chat' ? 'bg-brand-primary-light text-brand-primary' : 'text-text-placeholder hover:bg-surface-muted'
             }`}
             title={isReviewActive ? 'Review' : 'Chat'}
           >
@@ -135,7 +135,7 @@ export function CollaborationPanel({
           <button
             onClick={() => { setActiveTab('activity'); handleToggleCollapse() }}
             className={`p-2 rounded-lg transition-colors relative ${
-              activeTab === 'activity' ? 'bg-[#3FAF7A]/10 text-[#3FAF7A]' : 'text-[#999999] hover:bg-[#F9F9F9]'
+              activeTab === 'activity' ? 'bg-brand-primary-light text-brand-primary' : 'text-text-placeholder hover:bg-surface-muted'
             }`}
             title="Activity"
           >
@@ -155,23 +155,23 @@ export function CollaborationPanel({
   const panelWidth = isWide ? 'w-[400px]' : 'w-80'
 
   return (
-    <aside className={`fixed right-0 top-0 h-screen ${panelWidth} bg-white border-l border-[#E5E5E5] flex flex-col z-30 transition-all duration-200`}>
+    <aside className={`fixed right-0 top-0 h-screen ${panelWidth} bg-white border-l border-border flex flex-col z-30 transition-all duration-200`}>
       {/* Header — aligned with main header height */}
-      <div className="flex items-center gap-2 px-3 py-4 border-b border-[#E5E5E5] flex-shrink-0">
-        <div className="flex items-center gap-1 bg-[#F4F4F4] rounded-xl p-1 border border-[#E5E5E5] flex-1 min-w-0">
+      <div className="flex items-center gap-2 px-3 py-4 border-b border-border flex-shrink-0">
+        <div className="flex items-center gap-1 bg-[#F4F4F4] rounded-xl p-1 border border-border flex-1 min-w-0">
           <button
             onClick={() => setActiveTab('chat')}
             className={`flex-1 px-3 py-1.5 text-[13px] font-medium rounded-lg transition-colors text-center ${
               activeTab === 'chat'
-                ? 'bg-white text-[#3FAF7A] shadow-sm'
-                : 'text-[#666666] hover:text-[#333333]'
+                ? 'bg-white text-brand-primary shadow-sm'
+                : 'text-[#666666] hover:text-text-body'
             }`}
           >
             {isReviewActive ? (
               <>
                 Review
                 {totalOverlays > 0 && (
-                  <span className="ml-1 text-[10px] font-normal text-[#999999]">
+                  <span className="ml-1 text-[10px] font-normal text-text-placeholder">
                     {reviewedCount}/{totalOverlays}
                   </span>
                 )}
@@ -182,13 +182,13 @@ export function CollaborationPanel({
             onClick={() => setActiveTab('activity')}
             className={`flex-1 px-3 py-1.5 text-[13px] font-medium rounded-lg transition-colors text-center relative ${
               activeTab === 'activity'
-                ? 'bg-white text-[#3FAF7A] shadow-sm'
-                : 'text-[#666666] hover:text-[#333333]'
+                ? 'bg-white text-brand-primary shadow-sm'
+                : 'text-[#666666] hover:text-text-body'
             }`}
           >
             Activity
             {pendingCount > 0 && (
-              <span className="ml-1 px-1.5 py-0.5 bg-[#3FAF7A] text-white text-[10px] font-bold rounded-full">
+              <span className="ml-1 px-1.5 py-0.5 bg-brand-primary text-white text-[10px] font-bold rounded-full">
                 {pendingCount}
               </span>
             )}
@@ -197,14 +197,14 @@ export function CollaborationPanel({
         <div className="flex items-center gap-0.5 shrink-0">
           <button
             onClick={handleToggleWide}
-            className="p-1.5 rounded-lg text-[#999999] hover:bg-[#F4F4F4] hover:text-[#666666] transition-colors"
+            className="p-1.5 rounded-lg text-text-placeholder hover:bg-[#F4F4F4] hover:text-[#666666] transition-colors"
             title={isWide ? 'Normal width' : 'Wide mode'}
           >
             {isWide ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
           </button>
           <button
             onClick={handleToggleCollapse}
-            className="p-1.5 rounded-lg text-[#999999] hover:bg-[#F4F4F4] hover:text-[#666666] transition-colors"
+            className="p-1.5 rounded-lg text-text-placeholder hover:bg-[#F4F4F4] hover:text-[#666666] transition-colors"
             title="Collapse panel"
           >
             <ChevronRight className="w-4 h-4" />
@@ -297,7 +297,7 @@ function ReviewPanel({
           <div className="p-3">
             {tourStep?.vpStepLabel && (
               <div className="flex items-center gap-2 mb-2">
-                <span className="text-[10px] font-medium text-[#3FAF7A]">{tourStep.vpStepLabel}</span>
+                <span className="text-[10px] font-medium text-brand-primary">{tourStep.vpStepLabel}</span>
               </div>
             )}
             <FeatureVerdictCard
@@ -325,7 +325,7 @@ function ReviewPanel({
           /* No feature selected — show compact scorecard */
           <div className="p-3">
             <div className="text-center py-4 mb-3">
-              <Layers className="w-8 h-8 mx-auto mb-2 text-[#999999]" />
+              <Layers className="w-8 h-8 mx-auto mb-2 text-text-placeholder" />
               <p className="text-xs text-[#666666]">
                 {isTourActive ? 'Navigating to feature...' : 'Start the guided tour or click a feature'}
               </p>
@@ -341,9 +341,9 @@ function ReviewPanel({
                       v === 'aligned' ? 'bg-[#25785A]' :
                       v === 'needs_adjustment' ? 'bg-amber-500' :
                       v === 'off_track' ? 'bg-red-500' :
-                      'bg-[#E5E5E5]'
+                      'bg-border'
                     }`} />
-                    <span className="text-xs text-[#333333] truncate flex-1">
+                    <span className="text-xs text-text-body truncate flex-1">
                       {o.overlay_content!.feature_name}
                     </span>
                     {v && (
@@ -365,17 +365,17 @@ function ReviewPanel({
 
       {/* Progress footer */}
       {total > 0 && (
-        <div className="flex-shrink-0 border-t border-[#E5E5E5] px-3 py-2.5 bg-[#FAFAFA]">
+        <div className="flex-shrink-0 border-t border-border px-3 py-2.5 bg-surface-page">
           <div className="flex items-center justify-between mb-1.5">
-            <span className="text-[11px] font-medium text-[#333333]">
+            <span className="text-[11px] font-medium text-text-body">
               {reviewed}/{total} reviewed
             </span>
-            <span className="text-[10px] text-[#999999]">
+            <span className="text-[10px] text-text-placeholder">
               {total - reviewed > 0 ? `${total - reviewed} remaining` : 'All done'}
             </span>
           </div>
           {/* Tri-color progress bar */}
-          <div className="flex h-1.5 rounded-full overflow-hidden bg-[#E5E5E5]">
+          <div className="flex h-1.5 rounded-full overflow-hidden bg-border">
             {verdictCounts.aligned > 0 && (
               <div
                 className="bg-[#25785A] transition-all"
@@ -459,7 +459,7 @@ function ActivityFeed({ projectId }: { projectId: string }) {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-full">
-        <Loader2 className="h-5 w-5 text-[#3FAF7A] animate-spin" />
+        <Loader2 className="h-5 w-5 text-brand-primary animate-spin" />
       </div>
     )
   }
@@ -467,9 +467,9 @@ function ActivityFeed({ projectId }: { projectId: string }) {
   if (events.length === 0) {
     return (
       <div className="p-4 text-center">
-        <Bell className="w-8 h-8 mx-auto mb-2 text-[#999999]/50" />
-        <p className="text-xs text-[#999999]">No activity yet</p>
-        <p className="text-[11px] text-[#999999] mt-1">
+        <Bell className="w-8 h-8 mx-auto mb-2 text-text-placeholder/50" />
+        <p className="text-xs text-text-placeholder">No activity yet</p>
+        <p className="text-[11px] text-text-placeholder mt-1">
           Events will appear as you collaborate with clients
         </p>
       </div>
@@ -480,14 +480,14 @@ function ActivityFeed({ projectId }: { projectId: string }) {
     <div className="h-full overflow-y-auto p-3">
       <div className="space-y-1">
         {events.map((event) => (
-          <div key={event.id} className="flex items-start gap-2.5 py-2 border-b border-[#E5E5E5]/50 last:border-0">
+          <div key={event.id} className="flex items-start gap-2.5 py-2 border-b border-border/50 last:border-0">
             <ActivityIcon type={event.type} status={event.status} />
             <div className="flex-1 min-w-0">
-              <p className="text-xs text-[#333333] leading-tight">{event.title}</p>
+              <p className="text-xs text-text-body leading-tight">{event.title}</p>
               {event.detail && (
-                <p className="text-[11px] text-[#999999] mt-0.5 truncate">{event.detail}</p>
+                <p className="text-[11px] text-text-placeholder mt-0.5 truncate">{event.detail}</p>
               )}
-              <p className="text-[10px] text-[#999999] mt-0.5">
+              <p className="text-[10px] text-text-placeholder mt-0.5">
                 {formatActivityTime(event.timestamp)}
               </p>
             </div>
@@ -507,7 +507,7 @@ function ActivityIcon({ type, status }: { type: string; status?: string }) {
           {status === 'completed' ? (
             <CheckCircle className="w-3 h-3 text-green-600" />
           ) : (
-            <Clock className="w-3 h-3 text-blue-600" />
+            <Clock className="w-3 h-3 text-brand-primary" />
           )}
         </div>
       )

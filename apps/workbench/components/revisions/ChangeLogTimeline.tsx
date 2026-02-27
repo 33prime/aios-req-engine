@@ -136,7 +136,7 @@ export default function ChangeLogTimeline({
   if (loading) {
     return (
       <div className="flex items-center justify-center py-8">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-primary"></div>
       </div>
     )
   }
@@ -218,7 +218,7 @@ export default function ChangeLogTimeline({
                       {Object.keys(revision.changes).length > 2 && !expandedIds.has(revision.id) && (
                         <button
                           onClick={() => toggleExpanded(revision.id)}
-                          className="text-xs text-blue-600 hover:text-blue-800"
+                          className="text-xs text-brand-primary hover:text-blue-800"
                         >
                           +{Object.keys(revision.changes).length - 2} more changes
                         </button>

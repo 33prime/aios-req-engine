@@ -58,11 +58,11 @@ export function FinancialImpactCard({
   }
 
   return (
-    <div className="border border-[#E5E5E5] rounded-xl overflow-hidden bg-white">
+    <div className="border border-border rounded-xl overflow-hidden bg-white">
       {/* Header: big number */}
-      <div className="px-4 py-3 bg-[#F4F4F4] border-b border-[#E5E5E5]">
+      <div className="px-4 py-3 bg-[#F4F4F4] border-b border-border">
         <div className="flex items-baseline gap-2">
-          <span className="text-[20px] font-bold text-[#333333]">{rangeText}</span>
+          <span className="text-[20px] font-bold text-text-body">{rangeText}</span>
           <span className="text-[13px] text-[#666666]">{timeLabel}</span>
         </div>
       </div>
@@ -81,14 +81,14 @@ export function FinancialImpactCard({
         {monetaryConfidence != null && (
           <div>
             <div className="flex items-center justify-between mb-1">
-              <span className="text-[11px] text-[#999999]">Confidence</span>
+              <span className="text-[11px] text-text-placeholder">Confidence</span>
               <span className="text-[11px] font-medium text-[#666666]">
                 {Math.round(monetaryConfidence * 100)}%
               </span>
             </div>
             <div className="h-1.5 bg-[#F0F0F0] rounded-full overflow-hidden">
               <div
-                className="h-full bg-[#3FAF7A] rounded-full transition-all"
+                className="h-full bg-brand-primary rounded-full transition-all"
                 style={{ width: `${monetaryConfidence * 100}%` }}
               />
             </div>
@@ -97,7 +97,7 @@ export function FinancialImpactCard({
 
         {/* Source explanation */}
         {monetarySource && (
-          <p className="text-[11px] text-[#999999] leading-relaxed">{monetarySource}</p>
+          <p className="text-[11px] text-text-placeholder leading-relaxed">{monetarySource}</p>
         )}
       </div>
     </div>

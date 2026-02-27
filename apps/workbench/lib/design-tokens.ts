@@ -10,29 +10,47 @@
 // ============================================================================
 
 export const colors = {
-  // Primary & Accent
-  primary: '#044159',      // Deep Ocean Blue - CTA, highlights
-  accent: '#88BABF',       // Soft Aqua - subtle highlights, borders
-  deepText: '#011F26',     // Midnight Navy - deep text, high contrast
-  warmSand: '#F2E4BB',     // Warm Sand - neutral badge accent (optional)
+  // Brand Primary (Green)
+  primary: '#3FAF7A',
+  primaryHover: '#33a06d',
+  primaryActive: '#2a8f5f',
+  primaryLight: 'rgba(63, 175, 122, 0.08)',
+  primaryRing: 'rgba(63, 175, 122, 0.25)',
 
-  // UI Grays
-  background: '#FAFAFA',   // Page background
-  cardBorder: '#E5E5E5',   // Card borders
-  bodyText: '#4B4B4B',     // Body text
-  supportText: '#7B7B7B',  // Supporting/secondary text
+  // Accent (Deep Blue)
+  accent: '#044159',
+  accentHover: '#033344',
+  accentLight: 'rgba(4, 65, 89, 0.06)',
 
-  // Headings
-  headingDark: '#1D1D1F',  // H1, section headers
-  headingPrimary: '#044159', // H2, tab titles
+  // Neutrals
+  background: '#FAFAFA',
+  cardBg: '#FFFFFF',
+  subtle: '#F5F5F5',
+  muted: '#F9F9F9',
 
-  // Brand Accent
-  teal: '#009b87',
-  tealDark: '#008775',
+  // Borders
+  border: '#E5E5E5',
+  borderStrong: '#D4D4D4',
 
-  // UI Element Colors
+  // Text
+  textPrimary: '#1D1D1F',
+  textBody: '#333333',
+  textSecondary: '#4B4B4B',
+  textMuted: '#7B7B7B',
+  textPlaceholder: '#999999',
+
+  // Legacy aliases (keep for backward compat, remove over time)
+  deepText: '#1D1D1F',
+  bodyText: '#333333',
+  supportText: '#7B7B7B',
+  headingDark: '#1D1D1F',
+  headingPrimary: '#044159',
+  cardBorder: '#E5E5E5',
   buttonGray: '#F5F5F5',
   buttonGrayHover: '#E5E5E5',
+  warmSand: '#F2E4BB',
+  teal: '#3FAF7A',
+  tealDark: '#33a06d',
 } as const
 
 // Status Badge Colors
@@ -205,14 +223,14 @@ export const shadows = {
 // ============================================================================
 
 export const componentClasses = {
-  card: 'bg-white border border-[#E5E5E5] rounded-lg p-4 shadow-[0_1px_2px_rgba(0,0,0,0.04)]',
-  cardHover: 'hover:shadow-[0_4px_6px_rgba(0,0,0,0.08)] transition-shadow',
+  card: 'bg-surface-card border border-border rounded-md p-4 shadow-sm',
+  cardHover: 'hover:shadow-md hover:border-brand-primary transition-all duration-200',
 
   button: {
-    base: 'px-4 py-2 rounded-lg font-medium transition-all duration-200 inline-flex items-center justify-center',
-    primary: 'bg-[#044159] text-white hover:bg-[#033344]',
-    secondary: 'bg-[#F5F5F5] text-[#4B4B4B] hover:bg-[#E5E5E5]',
-    outline: 'bg-white border border-[#044159] text-[#044159] hover:bg-[#044159]/5',
+    base: 'px-4 py-2 rounded-md font-medium transition-all duration-200 inline-flex items-center justify-center',
+    primary: 'bg-brand-primary text-white hover:bg-brand-primary-hover active:bg-brand-primary-active',
+    secondary: 'bg-surface-subtle text-text-body hover:bg-border',
+    outline: 'bg-white border border-brand-primary text-brand-primary hover:bg-brand-primary-light',
     disabled: 'opacity-50 cursor-not-allowed'
   },
 
@@ -220,13 +238,7 @@ export const componentClasses = {
     base: 'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold uppercase tracking-wide',
   },
 
-  input: 'w-full px-3 py-2 border border-[#E5E5E5] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#044159]/20 focus:border-[#044159]',
-
-  twoColumn: {
-    container: 'grid grid-cols-1 lg:grid-cols-12 gap-6',
-    leftCol: 'lg:col-span-4 space-y-4',
-    rightCol: 'lg:col-span-8'
-  }
+  input: 'w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-brand-primary-ring focus:border-brand-primary',
 } as const
 
 // ============================================================================

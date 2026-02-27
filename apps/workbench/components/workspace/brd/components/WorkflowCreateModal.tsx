@@ -81,7 +81,7 @@ export function WorkflowCreateModal({ open, onClose, onSave, initialData }: Work
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="e.g. Client Onboarding"
-              className="w-full px-3 py-2 text-[13px] border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3FAF7A]/30 focus:border-[#3FAF7A]"
+              className="w-full px-3 py-2 text-[13px] border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-brand-primary/30 focus:border-brand-primary"
               autoFocus
             />
           </div>
@@ -92,7 +92,7 @@ export function WorkflowCreateModal({ open, onClose, onSave, initialData }: Work
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Brief description of this workflow..."
               rows={2}
-              className="w-full px-3 py-2 text-[13px] border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3FAF7A]/30 focus:border-[#3FAF7A] resize-none"
+              className="w-full px-3 py-2 text-[13px] border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-brand-primary/30 focus:border-brand-primary resize-none"
             />
           </div>
           <div>
@@ -102,7 +102,7 @@ export function WorkflowCreateModal({ open, onClose, onSave, initialData }: Work
               value={owner}
               onChange={(e) => setOwner(e.target.value)}
               placeholder="e.g. Account Manager"
-              className="w-full px-3 py-2 text-[13px] border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3FAF7A]/30 focus:border-[#3FAF7A]"
+              className="w-full px-3 py-2 text-[13px] border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-brand-primary/30 focus:border-brand-primary"
             />
           </div>
           <div>
@@ -113,7 +113,7 @@ export function WorkflowCreateModal({ open, onClose, onSave, initialData }: Work
                 onClick={() => setStateType('future')}
                 className={`flex-1 px-3 py-2 text-[12px] font-medium rounded-md border transition-colors ${
                   stateType === 'future'
-                    ? 'bg-[#E8F5E9] border-[#3FAF7A] text-[#25785A]'
+                    ? 'bg-[#E8F5E9] border-brand-primary text-[#25785A]'
                     : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50'
                 }`}
               >
@@ -142,7 +142,7 @@ export function WorkflowCreateModal({ open, onClose, onSave, initialData }: Work
                 placeholder="0"
                 min="0"
                 step="0.5"
-                className="w-full px-3 py-2 text-[13px] border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3FAF7A]/30 focus:border-[#3FAF7A]"
+                className="w-full px-3 py-2 text-[13px] border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-brand-primary/30 focus:border-brand-primary"
               />
             </div>
             <div>
@@ -154,7 +154,7 @@ export function WorkflowCreateModal({ open, onClose, onSave, initialData }: Work
                 placeholder="0"
                 min="0"
                 step="5"
-                className="w-full px-3 py-2 text-[13px] border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3FAF7A]/30 focus:border-[#3FAF7A]"
+                className="w-full px-3 py-2 text-[13px] border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-brand-primary/30 focus:border-brand-primary"
               />
             </div>
           </div>
@@ -169,7 +169,7 @@ export function WorkflowCreateModal({ open, onClose, onSave, initialData }: Work
             <button
               type="submit"
               disabled={!name.trim()}
-              className="px-4 py-2 text-[13px] font-medium text-white bg-[#3FAF7A] rounded-md hover:bg-[#25785A] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              className="px-4 py-2 text-[13px] font-medium text-white bg-brand-primary rounded-md hover:bg-[#25785A] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
             >
               {isEdit ? 'Save Changes' : 'Create'}
             </button>

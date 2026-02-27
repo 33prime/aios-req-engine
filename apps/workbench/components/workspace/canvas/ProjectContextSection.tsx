@@ -126,7 +126,7 @@ export function ProjectContextSection({
     <section>
       <div
         className={`bg-white rounded-2xl shadow-md border overflow-hidden transition-all ${
-          isStale ? 'border-gray-300' : 'border-[#E5E5E5]'
+          isStale ? 'border-gray-300' : 'border-border'
         }`}
       >
         {/* Clickable header */}
@@ -134,12 +134,12 @@ export function ProjectContextSection({
           type="button"
           onClick={() => hasContext && setIsExpanded((prev) => !prev)}
           className={`w-full flex items-center gap-3 px-5 py-4 text-left ${
-            hasContext ? 'cursor-pointer hover:bg-[#FAFAFA]' : 'cursor-default'
+            hasContext ? 'cursor-pointer hover:bg-surface-page' : 'cursor-default'
           } transition-colors`}
         >
           <div className="flex items-center gap-2.5 shrink-0">
-            <FileText className="w-4.5 h-4.5 text-[#3FAF7A]" />
-            <h2 className="text-[16px] font-semibold text-[#333333]">Software Summary</h2>
+            <FileText className="w-4.5 h-4.5 text-brand-primary" />
+            <h2 className="text-[16px] font-semibold text-text-body">Software Summary</h2>
             {hasContext && (
               <span className="px-2 py-0.5 text-[11px] font-medium bg-[#E8F5E9] text-[#25785A] rounded-full">
                 v{version}
@@ -158,7 +158,7 @@ export function ProjectContextSection({
                   handleGenerate()
                 }}
                 disabled={isGenerating}
-                className="inline-flex items-center gap-1.5 px-4 py-1.5 text-[12px] font-medium text-white bg-[#3FAF7A] rounded-xl hover:bg-[#25785A] transition-colors disabled:opacity-50"
+                className="inline-flex items-center gap-1.5 px-4 py-1.5 text-[12px] font-medium text-white bg-brand-primary rounded-xl hover:bg-[#25785A] transition-colors disabled:opacity-50"
               >
                 {isGenerating ? (
                   <>
@@ -183,9 +183,9 @@ export function ProjectContextSection({
                 </span>
               )}
               {isExpanded ? (
-                <ChevronUp className="w-4 h-4 text-[#999999]" />
+                <ChevronUp className="w-4 h-4 text-text-placeholder" />
               ) : (
-                <ChevronDown className="w-4 h-4 text-[#999999]" />
+                <ChevronDown className="w-4 h-4 text-text-placeholder" />
               )}
             </div>
           )}
@@ -197,10 +197,10 @@ export function ProjectContextSection({
           style={{ maxHeight: isExpanded ? '2000px' : '0px' }}
         >
           {hasContext && context && (
-            <div className="border-t border-[#E5E5E5] px-6 py-5">
+            <div className="border-t border-border px-6 py-5">
               {/* Vision — hero section */}
               {context.product_vision && (
-                <p className="text-[15px] text-[#333333] leading-relaxed mb-5 whitespace-pre-line">
+                <p className="text-[15px] text-text-body leading-relaxed mb-5 whitespace-pre-line">
                   {context.product_vision}
                 </p>
               )}
@@ -224,13 +224,13 @@ export function ProjectContextSection({
                 <div className="mt-5 pt-4 border-t border-[#F0F0F0]">
                   {context.assumptions.length > 0 && (
                     <div className="mb-3">
-                      <span className="text-[11px] font-semibold text-[#999999] uppercase tracking-wide">
+                      <span className="text-[11px] font-semibold text-text-placeholder uppercase tracking-wide">
                         Assumptions
                       </span>
                       <ul className="mt-1.5 space-y-1">
                         {context.assumptions.map((a, i) => (
                           <li key={i} className="flex items-start gap-2">
-                            <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-[#E5E5E5] shrink-0" />
+                            <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-border shrink-0" />
                             <span className="text-[13px] text-[#666666] leading-relaxed">{a}</span>
                           </li>
                         ))}
@@ -245,7 +245,7 @@ export function ProjectContextSection({
                       <ul className="mt-1.5 space-y-1">
                         {context.open_questions.map((q, i) => (
                           <li key={i} className="flex items-start gap-2">
-                            <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-[#3FAF7A] shrink-0" />
+                            <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-brand-primary shrink-0" />
                             <span className="text-[13px] text-[#666666] leading-relaxed">{q}</span>
                           </li>
                         ))}
@@ -256,8 +256,8 @@ export function ProjectContextSection({
               )}
 
               {/* Footer */}
-              <div className="mt-5 pt-4 border-t border-[#E5E5E5] flex items-center justify-between flex-wrap gap-3">
-                <span className="text-[12px] text-[#999999]">
+              <div className="mt-5 pt-4 border-t border-border flex items-center justify-between flex-wrap gap-3">
+                <span className="text-[12px] text-text-placeholder">
                   v{version}
                   {context.generated_at && ` · Updated ${relativeTime(context.generated_at)}`}
                 </span>
@@ -270,11 +270,11 @@ export function ProjectContextSection({
                       handleGenerate()
                     }}
                     disabled={isGenerating}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-[#3FAF7A] bg-white border border-[#3FAF7A] rounded-xl hover:bg-[#E8F5E9] transition-colors disabled:opacity-50"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-brand-primary bg-white border border-brand-primary rounded-xl hover:bg-[#E8F5E9] transition-colors disabled:opacity-50"
                   >
                     {isGenerating ? (
                       <>
-                        <div className="w-3 h-3 border-2 border-[#3FAF7A] border-t-transparent rounded-full animate-spin" />
+                        <div className="w-3 h-3 border-2 border-brand-primary border-t-transparent rounded-full animate-spin" />
                         Regenerating...
                       </>
                     ) : (
@@ -290,7 +290,7 @@ export function ProjectContextSection({
                       e.stopPropagation()
                       handleExport()
                     }}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-[#666666] bg-white border border-[#E5E5E5] rounded-xl hover:bg-gray-50 transition-colors"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-[#666666] bg-white border border-border rounded-xl hover:bg-gray-50 transition-colors"
                   >
                     <Download className="w-3.5 h-3.5" />
                     Export
@@ -309,7 +309,7 @@ function ContextField({ label, content }: { label: string; content: string }) {
   if (!content) return null
   return (
     <div>
-      <span className="text-[11px] font-semibold text-[#999999] uppercase tracking-wide">
+      <span className="text-[11px] font-semibold text-text-placeholder uppercase tracking-wide">
         {label}
       </span>
       <p className="text-[13px] text-[#666666] leading-relaxed mt-1 whitespace-pre-line">{content}</p>

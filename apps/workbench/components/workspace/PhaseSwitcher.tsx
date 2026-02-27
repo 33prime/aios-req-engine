@@ -46,7 +46,7 @@ const PHASES = [
 
 export function PhaseSwitcher({ currentPhase, onPhaseChange, disabled }: PhaseSwitcherProps) {
   return (
-    <div className="inline-flex items-center bg-[#F4F4F4] rounded-xl p-1 border border-[#E5E5E5]">
+    <div className="inline-flex items-center bg-[#F4F4F4] rounded-xl p-1 border border-border">
       {PHASES.map((phase) => {
         const isActive = currentPhase === phase.id
         const Icon = phase.icon
@@ -60,8 +60,8 @@ export function PhaseSwitcher({ currentPhase, onPhaseChange, disabled }: PhaseSw
               flex items-center gap-2 px-4 py-2 rounded-lg text-[13px] font-medium
               transition-all duration-200
               ${isActive
-                ? 'bg-white text-[#3FAF7A] shadow-sm'
-                : 'text-[#666666] hover:text-[#333333]'
+                ? 'bg-white text-brand-primary shadow-sm'
+                : 'text-[#666666] hover:text-text-body'
               }
               ${disabled ? 'opacity-50 cursor-not-allowed' : ''}
             `}

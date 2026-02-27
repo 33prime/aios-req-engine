@@ -65,7 +65,7 @@ export default function ClientsPage() {
           style={{ marginLeft: sidebarWidth }}
         >
           <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#3FAF7A] mx-auto mb-4" />
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-primary mx-auto mb-4" />
             <p className="text-sm text-[#999]">Loading clients...</p>
           </div>
         </div>
@@ -112,7 +112,7 @@ export default function ClientsPage() {
               </p>
               <button
                 onClick={() => setShowCreate(true)}
-                className="px-6 py-3 text-[13px] font-medium text-white bg-[#3FAF7A] rounded-xl hover:bg-[#25785A] transition-colors"
+                className="px-6 py-3 text-[13px] font-medium text-white bg-brand-primary rounded-xl hover:bg-[#25785A] transition-colors"
               >
                 Add Client
               </button>

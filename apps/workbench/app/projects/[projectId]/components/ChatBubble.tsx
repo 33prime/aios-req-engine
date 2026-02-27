@@ -42,7 +42,7 @@ export function ChatBubble({ isOpen, onToggle, unreadCount = 0 }: ChatBubbleProp
           relative
           flex items-center justify-center
           w-14 h-14
-          bg-[#3FAF7A] hover:bg-[#25785A]
+          bg-brand-primary hover:bg-[#25785A]
           text-white
           rounded-full
           shadow-lg hover:shadow-xl
@@ -70,7 +70,7 @@ export function ChatBubble({ isOpen, onToggle, unreadCount = 0 }: ChatBubbleProp
 
         {/* Pulse Animation Ring (when closed) */}
         {!isOpen && (
-          <div className="absolute inset-0 rounded-full bg-[#3FAF7A] animate-ping opacity-20" />
+          <div className="absolute inset-0 rounded-full bg-brand-primary animate-ping opacity-20" />
         )}
       </button>
 

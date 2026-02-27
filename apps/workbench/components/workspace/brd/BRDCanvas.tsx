@@ -86,8 +86,8 @@ export function BRDCanvas({ projectId, initialData, initialNextActions, onRefres
   if (isLoading) {
     return (
       <div className="max-w-4xl mx-auto py-16 text-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#3FAF7A] mx-auto mb-3" />
-        <p className="text-[13px] text-[#999999]">Loading BRD...</p>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-primary mx-auto mb-3" />
+        <p className="text-[13px] text-text-placeholder">Loading BRD...</p>
       </div>
     )
   }
@@ -98,7 +98,7 @@ export function BRDCanvas({ projectId, initialData, initialNextActions, onRefres
         <p className="text-red-500 mb-3">{error || 'No data available'}</p>
         <button
           onClick={loadData}
-          className="px-4 py-2 text-sm text-white bg-[#3FAF7A] rounded-md hover:bg-[#25785A] transition-colors"
+          className="px-4 py-2 text-sm text-white bg-brand-primary rounded-md hover:bg-[#25785A] transition-colors"
         >
           Retry
         </button>
@@ -129,7 +129,7 @@ export function BRDCanvas({ projectId, initialData, initialNextActions, onRefres
           <div className="mb-8">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-3">
-                <FileText className="w-6 h-6 text-[#999999]" />
+                <FileText className="w-6 h-6 text-text-placeholder" />
                 <h1 className="text-[28px] font-bold text-[#37352f]">Business Requirements Document</h1>
                 {data.completeness && (
                   <CompletenessRing score={data.completeness.overall_score} size="md" />
@@ -148,7 +148,7 @@ export function BRDCanvas({ projectId, initialData, initialNextActions, onRefres
             <div className="flex items-center gap-3">
               <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
                 <div
-                  className="h-full bg-[#3FAF7A] rounded-full transition-all duration-300"
+                  className="h-full bg-brand-primary rounded-full transition-all duration-300"
                   style={{ width: `${readinessPercent}%` }}
                 />
               </div>

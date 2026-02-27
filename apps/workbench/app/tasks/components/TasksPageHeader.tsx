@@ -43,19 +43,19 @@ export function TasksPageHeader({ view, counts, onViewChange, onAddTask }: Tasks
           >
             <span>{VIEW_LABELS[view]}</span>
             {totalActive > 0 && (
-              <span className="text-[11px] font-medium text-[#3FAF7A]">{totalActive}</span>
+              <span className="text-[11px] font-medium text-brand-primary">{totalActive}</span>
             )}
             <ChevronDown className="w-3 h-3 text-[#999]" />
           </button>
 
           {showDropdown && (
-            <div className="absolute z-50 top-full mt-1 left-0 w-48 bg-white border border-[#E5E5E5] rounded-lg shadow-lg py-1">
+            <div className="absolute z-50 top-full mt-1 left-0 w-48 bg-white border border-border rounded-lg shadow-lg py-1">
               {Object.entries(VIEW_LABELS).map(([key, label]) => (
                 <button
                   key={key}
                   onClick={() => { onViewChange(key as typeof view); setShowDropdown(false) }}
                   className={`w-full text-left px-3 py-2 text-[13px] hover:bg-[#F4F4F4] transition-colors ${
-                    key === view ? 'text-[#3FAF7A] font-medium' : 'text-[#333]'
+                    key === view ? 'text-brand-primary font-medium' : 'text-[#333]'
                   }`}
                 >
                   {label}
@@ -69,7 +69,7 @@ export function TasksPageHeader({ view, counts, onViewChange, onAddTask }: Tasks
       {/* Add task button */}
       <button
         onClick={onAddTask}
-        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#3FAF7A] text-white text-[13px] font-medium hover:bg-[#25785A] transition-colors"
+        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-brand-primary text-white text-[13px] font-medium hover:bg-[#25785A] transition-colors"
       >
         <Plus className="w-3.5 h-3.5" />
         Add task

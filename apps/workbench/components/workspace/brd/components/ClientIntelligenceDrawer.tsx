@@ -57,7 +57,7 @@ function FreshnessBadge({ dateStr }: { dateStr?: string | null }) {
   const d = new Date(dateStr)
   const daysAgo = Math.floor((Date.now() - d.getTime()) / (1000 * 60 * 60 * 24))
   const label = daysAgo === 0 ? 'Today' : daysAgo === 1 ? '1 day ago' : `${daysAgo} days ago`
-  const color = daysAgo <= 7 ? 'text-[#25785A] bg-[#E8F5E9]' : daysAgo <= 30 ? 'text-[#666666] bg-[#F0F0F0]' : 'text-[#999999] bg-[#F0F0F0]'
+  const color = daysAgo <= 7 ? 'text-[#25785A] bg-[#E8F5E9]' : daysAgo <= 30 ? 'text-[#666666] bg-[#F0F0F0]' : 'text-text-placeholder bg-[#F0F0F0]'
 
   return (
     <span className={`inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded ${color}`}>
@@ -76,7 +76,7 @@ function SourceBadge({ source }: { source?: string | null }) {
     manual: 'Manual',
   }
   return (
-    <span className="text-[10px] text-[#999999] bg-[#F0F0F0] px-1.5 py-0.5 rounded">
+    <span className="text-[10px] text-text-placeholder bg-[#F0F0F0] px-1.5 py-0.5 rounded">
       {labels[source] || source}
     </span>
   )
@@ -98,22 +98,22 @@ function AccordionSection({
   const [open, setOpen] = useState(defaultOpen ?? false)
 
   return (
-    <div className="border border-[#E5E5E5] rounded-xl overflow-hidden">
+    <div className="border border-border rounded-xl overflow-hidden">
       <button
         onClick={() => setOpen(!open)}
         className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50/50 transition-colors"
       >
         {open ? (
-          <ChevronDown className="w-3.5 h-3.5 text-[#999999] flex-shrink-0" />
+          <ChevronDown className="w-3.5 h-3.5 text-text-placeholder flex-shrink-0" />
         ) : (
-          <ChevronRight className="w-3.5 h-3.5 text-[#999999] flex-shrink-0" />
+          <ChevronRight className="w-3.5 h-3.5 text-text-placeholder flex-shrink-0" />
         )}
-        <Icon className="w-4 h-4 text-[#3FAF7A] flex-shrink-0" />
-        <span className="text-[13px] font-semibold text-[#333333] flex-1 text-left">{title}</span>
+        <Icon className="w-4 h-4 text-brand-primary flex-shrink-0" />
+        <span className="text-[13px] font-semibold text-text-body flex-1 text-left">{title}</span>
         {badge}
       </button>
       {open && (
-        <div className="px-4 pb-4 pt-1 border-t border-[#E5E5E5]">
+        <div className="px-4 pb-4 pt-1 border-t border-border">
           {children}
         </div>
       )}
@@ -127,8 +127,8 @@ function FieldRow({ label, value }: { label: string; value?: unknown }) {
   if (!display) return null
   return (
     <div className="flex items-start gap-2 text-[13px]">
-      <span className="text-[#999999] min-w-[120px] flex-shrink-0">{label}</span>
-      <span className="text-[#333333]">{display}</span>
+      <span className="text-text-placeholder min-w-[120px] flex-shrink-0">{label}</span>
+      <span className="text-text-body">{display}</span>
     </div>
   )
 }
@@ -136,7 +136,7 @@ function FieldRow({ label, value }: { label: string; value?: unknown }) {
 function TagList({ items, emptyText }: { items?: unknown[] | null; emptyText?: string }) {
   const filtered = (items || []).filter(Boolean)
   if (filtered.length === 0) {
-    return emptyText ? <p className="text-[12px] text-[#999999] italic">{emptyText}</p> : null
+    return emptyText ? <p className="text-[12px] text-text-placeholder italic">{emptyText}</p> : null
   }
   return (
     <div className="flex flex-wrap gap-1.5">
@@ -200,11 +200,11 @@ export function ClientIntelligenceDrawer({
     <div className="flex items-center gap-2 mt-1.5">
       <div className="w-20 h-1.5 bg-[#F0F0F0] rounded-full overflow-hidden">
         <div
-          className="h-full bg-[#3FAF7A] rounded-full"
+          className="h-full bg-brand-primary rounded-full"
           style={{ width: `${cd.profile_completeness}%` }}
         />
       </div>
-      <span className="text-[10px] text-[#999999]">{cd.profile_completeness}% complete</span>
+      <span className="text-[10px] text-text-placeholder">{cd.profile_completeness}% complete</span>
     </div>
   ) : undefined
 
@@ -242,8 +242,8 @@ export function ClientIntelligenceDrawer({
               <FieldRow label="Location" value={cp.location} />
               {(cp.website || cd.website) && (
                 <div className="flex items-start gap-2 text-[13px]">
-                  <span className="text-[#999999] min-w-[120px] flex-shrink-0">Website</span>
-                  <span className="text-[#3FAF7A] flex items-center gap-1">
+                  <span className="text-text-placeholder min-w-[120px] flex-shrink-0">Website</span>
+                  <span className="text-brand-primary flex items-center gap-1">
                     <Globe className="w-3 h-3" />
                     {cp.website || cd.website}
                   </span>
@@ -255,9 +255,9 @@ export function ClientIntelligenceDrawer({
                 </div>
               )}
               {cp.unique_selling_point && (
-                <div className="mt-2 bg-[#F9F9F9] rounded-lg p-3">
-                  <p className="text-[11px] font-medium text-[#999999] uppercase tracking-wide mb-1">Unique Selling Point</p>
-                  <p className="text-[13px] text-[#333333]">{cp.unique_selling_point}</p>
+                <div className="mt-2 bg-surface-muted rounded-lg p-3">
+                  <p className="text-[11px] font-medium text-text-placeholder uppercase tracking-wide mb-1">Unique Selling Point</p>
+                  <p className="text-[13px] text-text-body">{cp.unique_selling_point}</p>
                 </div>
               )}
             </div>
@@ -273,14 +273,14 @@ export function ClientIntelligenceDrawer({
               <div className="space-y-3">
                 {cd.company_summary && (
                   <div>
-                    <p className="text-[11px] font-medium text-[#999999] uppercase tracking-wide mb-1">Summary</p>
+                    <p className="text-[11px] font-medium text-text-placeholder uppercase tracking-wide mb-1">Summary</p>
                     <p className="text-[13px] text-[#666666] leading-relaxed">{cd.company_summary}</p>
                   </div>
                 )}
                 {cd.organizational_context && Object.keys(cd.organizational_context).length > 0 && (
                   <div>
-                    <p className="text-[11px] font-medium text-[#999999] uppercase tracking-wide mb-1">Org Context</p>
-                    <div className="bg-[#F9F9F9] rounded-lg p-3 space-y-2">
+                    <p className="text-[11px] font-medium text-text-placeholder uppercase tracking-wide mb-1">Org Context</p>
+                    <div className="bg-surface-muted rounded-lg p-3 space-y-2">
                       {Object.entries(cd.organizational_context).map(([key, val]) => {
                         // For nested objects (e.g. assessment, stakeholder_analysis), render their sub-fields
                         if (val && typeof val === 'object' && !Array.isArray(val)) {
@@ -295,15 +295,15 @@ export function ClientIntelligenceDrawer({
                               <div className="space-y-0.5 pl-2">
                                 {subEntries.map(([sk, sv]) => (
                                   <div key={sk} className="text-[12px]">
-                                    <span className="text-[#999999] capitalize">{sk.replace(/_/g, ' ')}:</span>{' '}
-                                    <span className="text-[#333333]">{toLabel(sv)}</span>
+                                    <span className="text-text-placeholder capitalize">{sk.replace(/_/g, ' ')}:</span>{' '}
+                                    <span className="text-text-body">{toLabel(sv)}</span>
                                   </div>
                                 ))}
                               </div>
                               {/* Render array sub-fields (e.g. watch_out_for) */}
                               {Object.entries(sub).filter(([, v]) => Array.isArray(v)).map(([sk, sv]) => (
                                 <div key={sk} className="mt-1">
-                                  <span className="text-[11px] text-[#999999] capitalize">{sk.replace(/_/g, ' ')}:</span>
+                                  <span className="text-[11px] text-text-placeholder capitalize">{sk.replace(/_/g, ' ')}:</span>
                                   <div className="flex flex-wrap gap-1 mt-0.5">
                                     {(sv as unknown[]).map((item, idx) => (
                                       <span key={idx} className="px-2 py-0.5 text-[11px] bg-[#F0F0F0] text-[#666666] rounded-full">
@@ -318,8 +318,8 @@ export function ClientIntelligenceDrawer({
                         }
                         return (
                           <div key={key} className="text-[12px]">
-                            <span className="text-[#999999] capitalize">{key.replace(/_/g, ' ')}:</span>{' '}
-                            <span className="text-[#333333]">{toLabel(val)}</span>
+                            <span className="text-text-placeholder capitalize">{key.replace(/_/g, ' ')}:</span>{' '}
+                            <span className="text-text-body">{toLabel(val)}</span>
                           </div>
                         )
                       })}
@@ -330,10 +330,10 @@ export function ClientIntelligenceDrawer({
                 <FieldRow label="Tech Maturity" value={cd.technology_maturity} />
                 {cd.role_gaps.length > 0 && (
                   <div>
-                    <p className="text-[11px] font-medium text-[#999999] uppercase tracking-wide mb-1">Role Gaps</p>
+                    <p className="text-[11px] font-medium text-text-placeholder uppercase tracking-wide mb-1">Role Gaps</p>
                     <div className="space-y-1">
                       {cd.role_gaps.map((gap, i) => (
-                        <div key={i} className="text-[12px] text-[#666666] bg-[#F9F9F9] rounded-lg px-3 py-2">
+                        <div key={i} className="text-[12px] text-[#666666] bg-surface-muted rounded-lg px-3 py-2">
                           {typeof gap === 'string' ? gap : (gap.title || gap.role || JSON.stringify(gap)) as string}
                         </div>
                       ))}
@@ -342,12 +342,12 @@ export function ClientIntelligenceDrawer({
                 )}
                 {cd.tech_stack && (
                   <div>
-                    <p className="text-[11px] font-medium text-[#999999] uppercase tracking-wide mb-1">Tech Stack</p>
+                    <p className="text-[11px] font-medium text-text-placeholder uppercase tracking-wide mb-1">Tech Stack</p>
                     <TagList items={cd.tech_stack} emptyText="No tech stack data" />
                   </div>
                 )}
                 {!cd.company_summary && Object.keys(cd.organizational_context).length === 0 && (
-                  <p className="text-[12px] text-[#999999] italic">
+                  <p className="text-[12px] text-text-placeholder italic">
                     Run the Client Intelligence Agent to populate this section.
                   </p>
                 )}
@@ -364,7 +364,7 @@ export function ClientIntelligenceDrawer({
                 <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${
                   sc.confirmation_status === 'confirmed_consultant' || sc.confirmation_status === 'confirmed_client'
                     ? 'bg-[#E8F5E9] text-[#25785A]'
-                    : 'bg-[#F0F0F0] text-[#999999]'
+                    : 'bg-[#F0F0F0] text-text-placeholder'
                 }`}>
                   {sc.confirmation_status === 'confirmed_consultant' ? 'Confirmed' : sc.confirmation_status?.replace(/_/g, ' ')}
                 </span>
@@ -374,19 +374,19 @@ export function ClientIntelligenceDrawer({
             <div className="space-y-3">
               {sc.executive_summary && (
                 <div>
-                  <p className="text-[11px] font-medium text-[#999999] uppercase tracking-wide mb-1">Executive Summary</p>
+                  <p className="text-[11px] font-medium text-text-placeholder uppercase tracking-wide mb-1">Executive Summary</p>
                   <p className="text-[13px] text-[#666666] leading-relaxed">{sc.executive_summary}</p>
                 </div>
               )}
               {sc.opportunity && Object.keys(sc.opportunity).length > 0 && (
                 <div>
-                  <p className="text-[11px] font-medium text-[#999999] uppercase tracking-wide mb-1">Opportunity</p>
-                  <div className="bg-[#F9F9F9] rounded-lg p-3 space-y-1 text-[12px]">
+                  <p className="text-[11px] font-medium text-text-placeholder uppercase tracking-wide mb-1">Opportunity</p>
+                  <div className="bg-surface-muted rounded-lg p-3 space-y-1 text-[12px]">
                     {Object.entries(sc.opportunity).map(([key, val]) => (
                       val ? (
                         <div key={key}>
-                          <span className="text-[#999999] capitalize">{key.replace(/_/g, ' ')}:</span>{' '}
-                          <span className="text-[#333333]">{toLabel(val)}</span>
+                          <span className="text-text-placeholder capitalize">{key.replace(/_/g, ' ')}:</span>{' '}
+                          <span className="text-text-body">{toLabel(val)}</span>
                         </div>
                       ) : null
                     ))}
@@ -395,41 +395,41 @@ export function ClientIntelligenceDrawer({
               )}
               {cd.market_position && (
                 <div>
-                  <p className="text-[11px] font-medium text-[#999999] uppercase tracking-wide mb-1">Market Position</p>
+                  <p className="text-[11px] font-medium text-text-placeholder uppercase tracking-wide mb-1">Market Position</p>
                   <p className="text-[13px] text-[#666666]">{cd.market_position}</p>
                 </div>
               )}
               {cd.vision_synthesis && (
                 <div>
-                  <p className="text-[11px] font-medium text-[#999999] uppercase tracking-wide mb-1">Vision Synthesis</p>
+                  <p className="text-[11px] font-medium text-text-placeholder uppercase tracking-wide mb-1">Vision Synthesis</p>
                   <p className="text-[13px] text-[#666666]">{cd.vision_synthesis}</p>
                 </div>
               )}
               {cd.growth_signals.length > 0 && (
                 <div>
-                  <p className="text-[11px] font-medium text-[#999999] uppercase tracking-wide mb-1">Growth Signals</p>
+                  <p className="text-[11px] font-medium text-text-placeholder uppercase tracking-wide mb-1">Growth Signals</p>
                   <TagList items={cd.growth_signals} />
                 </div>
               )}
               {cd.competitors.length > 0 && (
                 <div>
-                  <p className="text-[11px] font-medium text-[#999999] uppercase tracking-wide mb-1">Competitors</p>
+                  <p className="text-[11px] font-medium text-text-placeholder uppercase tracking-wide mb-1">Competitors</p>
                   <TagList items={cd.competitors} />
                 </div>
               )}
               {sc.risks.length > 0 && (
                 <div>
-                  <p className="text-[11px] font-medium text-[#999999] uppercase tracking-wide mb-1">Risks</p>
+                  <p className="text-[11px] font-medium text-text-placeholder uppercase tracking-wide mb-1">Risks</p>
                   <div className="space-y-1.5">
                     {sc.risks.slice(0, 5).map((risk, i) => (
-                      <div key={i} className="flex items-start gap-2 text-[12px] bg-[#F9F9F9] rounded-lg px-3 py-2">
-                        <Shield className="w-3 h-3 text-[#999999] mt-0.5 flex-shrink-0" />
+                      <div key={i} className="flex items-start gap-2 text-[12px] bg-surface-muted rounded-lg px-3 py-2">
+                        <Shield className="w-3 h-3 text-text-placeholder mt-0.5 flex-shrink-0" />
                         <div>
-                          <span className="text-[#333333]">
+                          <span className="text-text-body">
                             {typeof risk === 'string' ? risk : (risk.description || JSON.stringify(risk)) as string}
                           </span>
                           {typeof risk.severity === 'string' && (
-                            <span className="ml-1.5 text-[10px] text-[#999999]">({risk.severity})</span>
+                            <span className="ml-1.5 text-[10px] text-text-placeholder">({risk.severity})</span>
                           )}
                         </div>
                       </div>
@@ -438,7 +438,7 @@ export function ClientIntelligenceDrawer({
                 </div>
               )}
               {!sc.executive_summary && Object.keys(sc.opportunity).length === 0 && !cd.market_position && (
-                <p className="text-[12px] text-[#999999] italic">
+                <p className="text-[12px] text-text-placeholder italic">
                   No strategic context available yet. Process more signals to build this section.
                 </p>
               )}
@@ -458,7 +458,7 @@ export function ClientIntelligenceDrawer({
             }
           >
             {oq.length === 0 ? (
-              <p className="text-[12px] text-[#999999] italic">
+              <p className="text-[12px] text-text-placeholder italic">
                 No open questions recorded. Questions surface as the Discovery Agent interacts with signals.
               </p>
             ) : (
@@ -470,7 +470,7 @@ export function ClientIntelligenceDrawer({
                     <div
                       key={i}
                       className={`flex items-start gap-2 text-[13px] rounded-lg px-3 py-2 ${
-                        answered ? 'bg-[#E8F5E9]/50 text-[#25785A]' : 'bg-[#F9F9F9] text-[#666666]'
+                        answered ? 'bg-[#E8F5E9]/50 text-[#25785A]' : 'bg-surface-muted text-[#666666]'
                       }`}
                     >
                       <HelpCircle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />

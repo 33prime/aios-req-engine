@@ -46,7 +46,7 @@ export function Markdown({ content, className = '' }: MarkdownProps) {
         // Links
         a: ({ node, ...props }) => (
           <a
-            className="text-[#3FAF7A] hover:text-[#25785A] underline"
+            className="text-brand-primary hover:text-[#25785A] underline"
             target="_blank"
             rel="noopener noreferrer"
             {...props}

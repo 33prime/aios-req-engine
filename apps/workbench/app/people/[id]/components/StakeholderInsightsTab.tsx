@@ -24,8 +24,8 @@ const PROFILE_SECTIONS = [
 ] as const
 
 const ENGAGEMENT_STYLE: Record<string, { bg: string; text: string }> = {
-  high: { bg: 'bg-[#3FAF7A]/10', text: 'text-[#3FAF7A]' },
-  medium: { bg: 'bg-[#3FAF7A]/10', text: 'text-[#25785A]' },
+  high: { bg: 'bg-brand-primary-light', text: 'text-brand-primary' },
+  medium: { bg: 'bg-brand-primary-light', text: 'text-[#25785A]' },
   low: { bg: 'bg-[#0A1E2F]/10', text: 'text-[#0A1E2F]' },
 }
 
@@ -43,7 +43,7 @@ function PersonCard({ person, variant = 'default' }: { person: ResolvedStakehold
   return (
     <div className="flex items-center gap-2.5 p-2.5 rounded-xl bg-[#F4F4F4]">
       <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-[11px] font-medium flex-shrink-0 ${
-        isBlocker ? 'bg-gradient-to-br from-gray-400 to-gray-500' : 'bg-gradient-to-br from-[#3FAF7A] to-[#25785A]'
+        isBlocker ? 'bg-gradient-to-br from-gray-400 to-gray-500' : 'bg-gradient-to-br from-brand-primary to-[#25785A]'
       }`}>
         {initial}
       </div>
@@ -100,7 +100,7 @@ export function AnalysisHistoryTimeline({
   if (logsLoading) {
     return (
       <div className="flex items-center justify-center py-8">
-        <Loader2 className="w-5 h-5 text-[#3FAF7A] animate-spin" />
+        <Loader2 className="w-5 h-5 text-brand-primary animate-spin" />
       </div>
     )
   }
@@ -119,7 +119,7 @@ export function AnalysisHistoryTimeline({
       <div className="space-y-4">
         {logs.map((log) => {
           const isExpanded = expandedLog === log.id
-          const dotColor = log.success ? 'bg-[#3FAF7A]' : 'bg-red-400'
+          const dotColor = log.success ? 'bg-brand-primary' : 'bg-red-400'
 
           return (
             <div key={log.id} className="relative">
@@ -131,7 +131,7 @@ export function AnalysisHistoryTimeline({
               >
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="text-[12px] text-[#999]">{formatTimeAgo(log.created_at)}</span>
-                  <span className="px-1.5 py-0.5 text-[10px] font-medium text-[#666] bg-[#E5E5E5] rounded">
+                  <span className="px-1.5 py-0.5 text-[10px] font-medium text-[#666] bg-border rounded">
                     {log.trigger?.replace(/_/g, ' ')}
                   </span>
                   {log.action_summary && (
@@ -148,7 +148,7 @@ export function AnalysisHistoryTimeline({
                   )}
                   {log.profile_completeness_before != null && log.profile_completeness_after != null && (
                     <span className={`text-[12px] font-semibold ${
-                      log.profile_completeness_after! > log.profile_completeness_before! ? 'text-[#3FAF7A]' : 'text-[#999]'
+                      log.profile_completeness_after! > log.profile_completeness_before! ? 'text-brand-primary' : 'text-[#999]'
                     }`}>
                       {log.profile_completeness_before}% &rarr; {log.profile_completeness_after}%
                     </span>
@@ -169,7 +169,7 @@ export function AnalysisHistoryTimeline({
 
                 {/* Expanded details */}
                 {isExpanded && (
-                  <div className="mt-3 pt-3 border-t border-[#E5E5E5] space-y-3">
+                  <div className="mt-3 pt-3 border-t border-border space-y-3">
                     {log.action_type && (
                       <div>
                         <p className="text-[11px] text-[#999] font-medium uppercase tracking-wide">Action Type</p>
@@ -216,7 +216,7 @@ export function StakeholderInsightsTab({ stakeholder, intelligence, projectId, s
 
     if (!hasEnrichment) {
       return (
-        <div className="bg-white border border-[#E5E5E5] rounded-2xl shadow-sm p-12 text-center">
+        <div className="bg-white border border-border rounded-2xl shadow-sm p-12 text-center">
           <div className="w-16 h-16 rounded-2xl bg-[#F4F4F4] flex items-center justify-center mx-auto mb-4">
             <Brain className="w-7 h-7 text-[#BBB]" />
           </div>
@@ -236,7 +236,7 @@ export function StakeholderInsightsTab({ stakeholder, intelligence, projectId, s
     <div className="space-y-6">
       {/* Profile Completeness */}
       {intelligence && (
-        <div className="bg-white rounded-2xl border border-[#E5E5E5] shadow-md p-5">
+        <div className="bg-white rounded-2xl border border-border shadow-md p-5">
           <div className="flex items-center gap-4 mb-5">
             <CompletenessRing score={completeness} size="lg" />
             <div>
@@ -258,7 +258,7 @@ export function StakeholderInsightsTab({ stakeholder, intelligence, projectId, s
                   <span className="w-36 text-[12px] text-[#666] flex-shrink-0">{label}</span>
                   <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
                     <div
-                      className="h-full bg-[#3FAF7A] rounded-full transition-all"
+                      className="h-full bg-brand-primary rounded-full transition-all"
                       style={{ width: `${pct}%` }}
                     />
                   </div>
@@ -273,7 +273,7 @@ export function StakeholderInsightsTab({ stakeholder, intelligence, projectId, s
       {/* 2x2 Enrichment Grid */}
       <div className="grid grid-cols-2 gap-4">
         {/* Engagement Assessment */}
-        <div className="bg-white border border-[#E5E5E5] rounded-2xl shadow-sm p-6">
+        <div className="bg-white border border-border rounded-2xl shadow-sm p-6">
           <SectionLabel>Engagement Assessment</SectionLabel>
           {s.engagement_level ? (
             <div>
@@ -292,7 +292,7 @@ export function StakeholderInsightsTab({ stakeholder, intelligence, projectId, s
         </div>
 
         {/* Engagement Strategy */}
-        <div className="bg-white border border-[#E5E5E5] rounded-2xl shadow-sm p-6">
+        <div className="bg-white border border-border rounded-2xl shadow-sm p-6">
           <SectionLabel>Engagement Strategy</SectionLabel>
           {s.engagement_strategy ? (
             <p className="text-[13px] text-[#666] leading-relaxed">{s.engagement_strategy}</p>
@@ -302,7 +302,7 @@ export function StakeholderInsightsTab({ stakeholder, intelligence, projectId, s
         </div>
 
         {/* Risk if Disengaged */}
-        <div className="bg-white border border-[#E5E5E5] rounded-2xl shadow-sm p-6">
+        <div className="bg-white border border-border rounded-2xl shadow-sm p-6">
           <SectionLabel>Risk if Disengaged</SectionLabel>
           {s.risk_if_disengaged ? (
             <div>
@@ -315,7 +315,7 @@ export function StakeholderInsightsTab({ stakeholder, intelligence, projectId, s
         </div>
 
         {/* Decision Power */}
-        <div className="bg-white border border-[#E5E5E5] rounded-2xl shadow-sm p-6">
+        <div className="bg-white border border-border rounded-2xl shadow-sm p-6">
           <SectionLabel>Decision Power</SectionLabel>
           {s.decision_authority ? (
             <div className="space-y-3">
@@ -325,7 +325,7 @@ export function StakeholderInsightsTab({ stakeholder, intelligence, projectId, s
                   <p className="text-[11px] text-[#BBB] mb-1.5">Approval Required</p>
                   <div className="flex flex-wrap gap-1.5">
                     {s.approval_required_for.map((item, i) => (
-                      <span key={i} className="px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-[#3FAF7A]/10 text-[#25785A]">{item}</span>
+                      <span key={i} className="px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-brand-primary-light text-[#25785A]">{item}</span>
                     ))}
                   </div>
                 </div>
@@ -349,7 +349,7 @@ export function StakeholderInsightsTab({ stakeholder, intelligence, projectId, s
 
       {/* Win Conditions & Key Concerns */}
       {((s.win_conditions && s.win_conditions.length > 0) || (s.key_concerns && s.key_concerns.length > 0)) && (
-        <div className="bg-white border border-[#E5E5E5] rounded-2xl shadow-sm p-6">
+        <div className="bg-white border border-border rounded-2xl shadow-sm p-6">
           <div className="grid grid-cols-2 gap-8">
             {s.win_conditions && s.win_conditions.length > 0 && (
               <div>
@@ -357,7 +357,7 @@ export function StakeholderInsightsTab({ stakeholder, intelligence, projectId, s
                 <ul className="space-y-2.5">
                   {s.win_conditions.map((wc, i) => (
                     <li key={i} className="flex items-start gap-2.5 text-[13px] text-[#666]">
-                      <span className="text-[#3FAF7A] mt-0.5 text-lg leading-none">&bull;</span>
+                      <span className="text-brand-primary mt-0.5 text-lg leading-none">&bull;</span>
                       <span>{wc}</span>
                     </li>
                   ))}
@@ -383,7 +383,7 @@ export function StakeholderInsightsTab({ stakeholder, intelligence, projectId, s
 
       {/* Relationship Map */}
       {(s.reports_to || (s.allies_resolved && s.allies_resolved.length > 0) || (s.potential_blockers_resolved && s.potential_blockers_resolved.length > 0)) && (
-        <div className="bg-white border border-[#E5E5E5] rounded-2xl shadow-sm p-6">
+        <div className="bg-white border border-border rounded-2xl shadow-sm p-6">
           <SectionLabel>Relationship Map</SectionLabel>
           <div className="grid grid-cols-3 gap-6">
             <div>
@@ -423,7 +423,7 @@ export function StakeholderInsightsTab({ stakeholder, intelligence, projectId, s
       )}
 
       {/* Analysis History */}
-      <div className="bg-white rounded-2xl border border-[#E5E5E5] shadow-md p-5">
+      <div className="bg-white rounded-2xl border border-border shadow-md p-5">
         <h3 className="text-[14px] font-semibold text-[#333] mb-4">Analysis History</h3>
         <AnalysisHistoryTimeline projectId={projectId} stakeholderId={stakeholderId} />
       </div>

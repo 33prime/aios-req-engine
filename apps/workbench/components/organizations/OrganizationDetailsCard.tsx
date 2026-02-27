@@ -151,7 +151,7 @@ export default function OrganizationDetailsCard({
                 userRole === 'Owner'
                   ? 'bg-emerald-100 text-emerald-700'
                   : userRole === 'Admin'
-                  ? 'bg-blue-100 text-blue-700'
+                  ? 'bg-blue-100 text-brand-primary-hover'
                   : 'bg-zinc-100 text-zinc-700'
               }`}>
                 {userRole}

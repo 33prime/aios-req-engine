@@ -134,12 +134,12 @@ export default function MeetingsPage() {
           onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
         />
         <div
-          className="min-h-screen bg-[#FAFAFA] flex items-center justify-center transition-all duration-300"
+          className="min-h-screen bg-surface-page flex items-center justify-center transition-all duration-300"
           style={{ marginLeft: sidebarWidth }}
         >
           <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#3FAF7A] mx-auto mb-4" />
-            <p className="text-sm text-[#999999]">Loading meetings...</p>
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-primary mx-auto mb-4" />
+            <p className="text-sm text-text-placeholder">Loading meetings...</p>
           </div>
         </div>
       </>
@@ -153,7 +153,7 @@ export default function MeetingsPage() {
         onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
       />
       <div
-        className="min-h-screen bg-[#FAFAFA] transition-all duration-300"
+        className="min-h-screen bg-surface-page transition-all duration-300"
         style={{ marginLeft: sidebarWidth }}
       >
         <div className="max-w-[1400px] mx-auto px-4 py-4">
@@ -174,7 +174,7 @@ export default function MeetingsPage() {
             onCreateMeeting={() => setShowCreate(true)}
           />
 
-          <div className="mb-3 text-[12px] text-[#999999]">
+          <div className="mb-3 text-[12px] text-text-placeholder">
             {filtered.length} {filtered.length === 1 ? 'meeting' : 'meetings'} found
           </div>
 

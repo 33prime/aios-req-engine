@@ -100,8 +100,8 @@ export function ProjectsCards({
                 onProjectClick(project.id)
               }
             }}
-            className={`bg-white rounded-2xl shadow-md border border-[#E5E5E5] p-5 hover:shadow-lg cursor-pointer transition-shadow flex flex-col relative overflow-hidden ${
-              isBuilding ? 'border-[#3FAF7A]/30' : ''
+            className={`bg-white rounded-2xl shadow-md border border-border p-5 hover:shadow-lg cursor-pointer transition-shadow flex flex-col relative overflow-hidden ${
+              isBuilding ? 'border-brand-primary/30' : ''
             }`}
           >
             {/* Building overlay */}
@@ -142,7 +142,7 @@ export function ProjectsCards({
               const ActionIcon = ACTION_ICONS[nextAction.action_type] || ArrowRight
               return (
                 <div className="mt-3 flex items-start gap-2 bg-[#F0FAF5] rounded-lg px-3 py-2">
-                  <ActionIcon className="w-3.5 h-3.5 text-[#3FAF7A] flex-shrink-0 mt-0.5" />
+                  <ActionIcon className="w-3.5 h-3.5 text-brand-primary flex-shrink-0 mt-0.5" />
                   <span className="text-[12px] text-[#25785A] leading-snug line-clamp-2">
                     {nextAction.title}
                   </span>
@@ -168,7 +168,7 @@ export function ProjectsCards({
                         <>{pendingTasks} pending</>
                       ) : (
                         <span className="flex items-center gap-0.5">
-                          <CheckCircle2 className="w-2.5 h-2.5 text-[#3FAF7A]" />
+                          <CheckCircle2 className="w-2.5 h-2.5 text-brand-primary" />
                           All done
                         </span>
                       )}
@@ -186,8 +186,8 @@ export function ProjectsCards({
                 {/* Next meeting detail */}
                 {projectMeetings?.next && (
                   <div className="flex items-center gap-1.5 text-[11px]">
-                    <CalendarDays className="w-3 h-3 text-[#3FAF7A] flex-shrink-0" />
-                    <span className="text-[#3FAF7A] font-medium">
+                    <CalendarDays className="w-3 h-3 text-brand-primary flex-shrink-0" />
+                    <span className="text-brand-primary font-medium">
                       {isToday(new Date(projectMeetings.next.meeting_date))
                         ? 'Today'
                         : isTomorrow(new Date(projectMeetings.next.meeting_date))
@@ -207,7 +207,7 @@ export function ProjectsCards({
             <div className="flex-1" />
 
             {/* Footer: owner + time + stage advance */}
-            <div className={`flex items-center justify-between mt-3 pt-3 border-t border-[#E5E5E5] ${isBuilding ? 'opacity-30 blur-sm' : ''}`}>
+            <div className={`flex items-center justify-between mt-3 pt-3 border-t border-border ${isBuilding ? 'opacity-30 blur-sm' : ''}`}>
               <UserAvatar name={ownerName} photoUrl={ownerPhotoUrl} size="small" />
               <div className="flex items-center gap-1.5">
                 {project.stage_eligible === true && !isBuilding && (
@@ -218,7 +218,7 @@ export function ProjectsCards({
                       title="Ready to advance stage"
                     >
                       <svg
-                        className="w-3.5 h-3.5 text-[#3FAF7A]"
+                        className="w-3.5 h-3.5 text-brand-primary"
                         fill="none"
                         viewBox="0 0 24 24"
                         stroke="currentColor"

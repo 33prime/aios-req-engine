@@ -85,7 +85,7 @@ export function ValuePathStepDrawer({
       ? {
           ...tab,
           badge: (
-            <span className="text-[9px] font-bold bg-[#3FAF7A] text-white px-1 py-0.5 rounded-full min-w-[16px] text-center">
+            <span className="text-[9px] font-bold bg-brand-primary text-white px-1 py-0.5 rounded-full min-w-[16px] text-center">
               {unlockCount}
             </span>
           ),
@@ -155,15 +155,15 @@ function AutomationBadge({ level }: { level: string }) {
 
 function RoiImpactDot({ impact }: { impact: string }) {
   const config: Record<string, { color: string; label: string }> = {
-    high: { color: 'bg-[#3FAF7A]', label: 'High ROI' },
-    medium: { color: 'bg-[#999999]', label: 'Medium ROI' },
-    low: { color: 'bg-[#E5E5E5]', label: 'Low ROI' },
+    high: { color: 'bg-brand-primary', label: 'High ROI' },
+    medium: { color: 'bg-text-placeholder', label: 'Medium ROI' },
+    low: { color: 'bg-border', label: 'Low ROI' },
   }
   const c = config[impact] || config.low
   return (
     <span className="flex items-center gap-1">
       <span className={`w-2 h-2 rounded-full ${c.color}`} />
-      <span className="text-[10px] text-[#999999]">{c.label}</span>
+      <span className="text-[10px] text-text-placeholder">{c.label}</span>
     </span>
   )
 }
@@ -177,8 +177,8 @@ function ActorsTab({ detail }: { detail: ValuePathStepDetail }) {
     <div className="space-y-4">
       {/* Combined Value callout */}
       {detail.combined_value && (
-        <div className="bg-[#E8F5E9] border border-[#3FAF7A]/20 rounded-xl p-4">
-          <p className="text-[13px] text-[#333333] leading-relaxed">
+        <div className="bg-[#E8F5E9] border border-brand-primary/20 rounded-xl p-4">
+          <p className="text-[13px] text-text-body leading-relaxed">
             {detail.combined_value}
           </p>
         </div>
@@ -193,7 +193,7 @@ function ActorsTab({ detail }: { detail: ValuePathStepDetail }) {
         </div>
       ) : (
         <EmptyState
-          icon={<User className="w-8 h-8 text-[#E5E5E5]" />}
+          icon={<User className="w-8 h-8 text-border" />}
           title="No actors mapped"
           description="Actors will appear here once personas are linked to this value path step."
         />
@@ -204,14 +204,14 @@ function ActorsTab({ detail }: { detail: ValuePathStepDetail }) {
 
 function ActorCard({ actor }: { actor: StepActor }) {
   return (
-    <div className="bg-white border border-[#E5E5E5] rounded-xl p-4">
+    <div className="bg-white border border-border rounded-xl p-4">
       <div className="flex items-start gap-3">
         <div className="w-8 h-8 rounded-full bg-[#F4F4F4] flex items-center justify-center flex-shrink-0">
           <User className="w-4 h-4 text-[#666666]" />
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            <span className="text-[14px] font-semibold text-[#333333]">
+            <span className="text-[14px] font-semibold text-text-body">
               {actor.persona_name}
             </span>
             <span
@@ -228,7 +228,7 @@ function ActorCard({ actor }: { actor: StepActor }) {
             <p className="text-[13px] text-[#666666] mt-0.5">{actor.role}</p>
           )}
           {actor.pain_at_step && (
-            <p className="text-[12px] text-[#999999] italic mt-2">
+            <p className="text-[12px] text-text-placeholder italic mt-2">
               Pain: {actor.pain_at_step}
             </p>
           )}
@@ -252,18 +252,18 @@ function SystemFlowTab({ detail }: { detail: ValuePathStepDetail }) {
     <div className="space-y-6">
       {/* Data Operations */}
       <div>
-        <h4 className="text-[11px] font-medium text-[#999999] uppercase tracking-wide mb-3">
+        <h4 className="text-[11px] font-medium text-text-placeholder uppercase tracking-wide mb-3">
           Data Operations
         </h4>
         {detail.data_operations.length > 0 ? (
-          <div className="border border-[#E5E5E5] rounded-xl overflow-hidden bg-white">
+          <div className="border border-border rounded-xl overflow-hidden bg-white">
             {detail.data_operations.map((op, i) => (
               <DataOperationRow key={`${op.entity_id}-${i}`} operation={op} />
             ))}
           </div>
         ) : (
           <EmptyState
-            icon={<Cpu className="w-8 h-8 text-[#E5E5E5]" />}
+            icon={<Cpu className="w-8 h-8 text-border" />}
             title="No data operations mapped"
             description="No data operations mapped to this step."
           />
@@ -272,14 +272,14 @@ function SystemFlowTab({ detail }: { detail: ValuePathStepDetail }) {
 
       {/* Dependencies */}
       <div>
-        <h4 className="text-[11px] font-medium text-[#999999] uppercase tracking-wide mb-3">
+        <h4 className="text-[11px] font-medium text-text-placeholder uppercase tracking-wide mb-3">
           Dependencies
         </h4>
         <div className="space-y-4">
           {/* Input Dependencies */}
           <div>
             <div className="flex items-center gap-1.5 mb-2">
-              <ArrowDownRight className="w-3.5 h-3.5 text-[#999999]" />
+              <ArrowDownRight className="w-3.5 h-3.5 text-text-placeholder" />
               <span className="text-[12px] font-medium text-[#666666]">
                 Input Dependencies
               </span>
@@ -289,14 +289,14 @@ function SystemFlowTab({ detail }: { detail: ValuePathStepDetail }) {
                 {detail.input_dependencies.map((dep, i) => (
                   <li
                     key={i}
-                    className="text-[13px] text-[#333333] leading-relaxed list-disc"
+                    className="text-[13px] text-text-body leading-relaxed list-disc"
                   >
                     {dep}
                   </li>
                 ))}
               </ul>
             ) : (
-              <p className="text-[12px] text-[#999999] italic pl-5">
+              <p className="text-[12px] text-text-placeholder italic pl-5">
                 No input dependencies identified.
               </p>
             )}
@@ -305,7 +305,7 @@ function SystemFlowTab({ detail }: { detail: ValuePathStepDetail }) {
           {/* Output Effects */}
           <div>
             <div className="flex items-center gap-1.5 mb-2">
-              <ArrowUpRight className="w-3.5 h-3.5 text-[#999999]" />
+              <ArrowUpRight className="w-3.5 h-3.5 text-text-placeholder" />
               <span className="text-[12px] font-medium text-[#666666]">
                 Output Effects
               </span>
@@ -315,14 +315,14 @@ function SystemFlowTab({ detail }: { detail: ValuePathStepDetail }) {
                 {detail.output_effects.map((effect, i) => (
                   <li
                     key={i}
-                    className="text-[13px] text-[#333333] leading-relaxed list-disc"
+                    className="text-[13px] text-text-body leading-relaxed list-disc"
                   >
                     {effect}
                   </li>
                 ))}
               </ul>
             ) : (
-              <p className="text-[12px] text-[#999999] italic pl-5">
+              <p className="text-[12px] text-text-placeholder italic pl-5">
                 No output effects identified.
               </p>
             )}
@@ -338,7 +338,7 @@ function DataOperationRow({ operation }: { operation: StepDataOperation }) {
     <div className="px-4 py-3 border-b border-[#F0F0F0] last:border-0">
       <div className="flex items-center gap-2 mb-1">
         <OperationBadge operation={operation.operation} />
-        <span className="text-[13px] font-medium text-[#333333]">
+        <span className="text-[13px] font-medium text-text-body">
           {operation.entity_name}
         </span>
         <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-[#F0F0F0] text-[#666666]">
@@ -385,7 +385,7 @@ function BusinessCalculationsTab({ logic }: { logic: StepBusinessLogic }) {
   if (!hasContent) {
     return (
       <EmptyState
-        icon={<TrendingUp className="w-8 h-8 text-[#E5E5E5]" />}
+        icon={<TrendingUp className="w-8 h-8 text-border" />}
         title="No business calculations yet"
         description="Calculations will appear once workflows have time and automation data."
       />
@@ -397,20 +397,20 @@ function BusinessCalculationsTab({ logic }: { logic: StepBusinessLogic }) {
       {/* ROI Impact — from decision_points (time savings, volume impact) */}
       {logic.decision_points.length > 0 && (
         <div>
-          <h4 className="text-[11px] font-medium text-[#999999] uppercase tracking-wide mb-2 flex items-center gap-1.5">
-            <TrendingUp className="w-4 h-4 text-[#3FAF7A]" />
+          <h4 className="text-[11px] font-medium text-text-placeholder uppercase tracking-wide mb-2 flex items-center gap-1.5">
+            <TrendingUp className="w-4 h-4 text-brand-primary" />
             ROI Impact
           </h4>
-          <div className="bg-[#E8F5E9] border border-[#3FAF7A]/20 rounded-xl overflow-hidden">
+          <div className="bg-[#E8F5E9] border border-brand-primary/20 rounded-xl overflow-hidden">
             {logic.decision_points.map((point, i) => (
               <div
                 key={i}
                 className={`px-4 py-3 flex items-start gap-2.5 ${
-                  i > 0 ? 'border-t border-[#3FAF7A]/10' : ''
+                  i > 0 ? 'border-t border-brand-primary-light' : ''
                 }`}
               >
                 <TrendingUp className="w-3.5 h-3.5 text-[#25785A] flex-shrink-0 mt-0.5" />
-                <p className="text-[13px] text-[#333333] leading-relaxed">{point}</p>
+                <p className="text-[13px] text-text-body leading-relaxed">{point}</p>
               </div>
             ))}
           </div>
@@ -420,11 +420,11 @@ function BusinessCalculationsTab({ logic }: { logic: StepBusinessLogic }) {
       {/* Before / After — from validation_rules */}
       {logic.validation_rules.length > 0 && (
         <div>
-          <h4 className="text-[11px] font-medium text-[#999999] uppercase tracking-wide mb-2 flex items-center gap-1.5">
+          <h4 className="text-[11px] font-medium text-text-placeholder uppercase tracking-wide mb-2 flex items-center gap-1.5">
             <ArrowDownRight className="w-4 h-4 text-[#666666]" />
             Before / After
           </h4>
-          <div className="bg-white border border-[#E5E5E5] rounded-xl overflow-hidden">
+          <div className="bg-white border border-border rounded-xl overflow-hidden">
             {logic.validation_rules.map((rule, i) => {
               const isBefore = rule.toLowerCase().startsWith('before:')
               return (
@@ -441,7 +441,7 @@ function BusinessCalculationsTab({ logic }: { logic: StepBusinessLogic }) {
                   }`}>
                     {isBefore ? 'BEFORE' : 'AFTER'}
                   </span>
-                  <p className="text-[13px] text-[#333333] leading-relaxed">
+                  <p className="text-[13px] text-text-body leading-relaxed">
                     {rule.replace(/^(before|after):\s*/i, '')}
                   </p>
                 </div>
@@ -454,16 +454,16 @@ function BusinessCalculationsTab({ logic }: { logic: StepBusinessLogic }) {
       {/* Automation Impact — from edge_cases */}
       {logic.edge_cases.length > 0 && (
         <div>
-          <h4 className="text-[11px] font-medium text-[#999999] uppercase tracking-wide mb-2 flex items-center gap-1.5">
+          <h4 className="text-[11px] font-medium text-text-placeholder uppercase tracking-wide mb-2 flex items-center gap-1.5">
             <Zap className="w-4 h-4 text-[#666666]" />
             Automation Impact
           </h4>
           <div className="space-y-2">
             {logic.edge_cases.map((item, i) => (
-              <div key={i} className="bg-white border border-[#E5E5E5] rounded-xl px-4 py-3">
+              <div key={i} className="bg-white border border-border rounded-xl px-4 py-3">
                 <div className="flex items-start gap-2">
-                  <Zap className="w-3.5 h-3.5 text-[#999999] flex-shrink-0 mt-0.5" />
-                  <p className="text-[13px] text-[#333333] leading-relaxed">{item}</p>
+                  <Zap className="w-3.5 h-3.5 text-text-placeholder flex-shrink-0 mt-0.5" />
+                  <p className="text-[13px] text-text-body leading-relaxed">{item}</p>
                 </div>
               </div>
             ))}
@@ -474,15 +474,15 @@ function BusinessCalculationsTab({ logic }: { logic: StepBusinessLogic }) {
       {/* Data Operations Summary — from error_states (repurposed) */}
       {logic.error_states.length > 0 && (
         <div>
-          <h4 className="text-[11px] font-medium text-[#999999] uppercase tracking-wide mb-2 flex items-center gap-1.5">
+          <h4 className="text-[11px] font-medium text-text-placeholder uppercase tracking-wide mb-2 flex items-center gap-1.5">
             <Database className="w-4 h-4 text-[#666666]" />
             Data Operations
           </h4>
           <div className="space-y-2">
             {logic.error_states.map((item, i) => (
-              <div key={i} className="bg-white border border-[#E5E5E5] rounded-xl px-4 py-3">
+              <div key={i} className="bg-white border border-border rounded-xl px-4 py-3">
                 <div className="flex items-start gap-2">
-                  <Database className="w-3.5 h-3.5 text-[#999999] flex-shrink-0 mt-0.5" />
+                  <Database className="w-3.5 h-3.5 text-text-placeholder flex-shrink-0 mt-0.5" />
                   <p className="text-[13px] text-[#666666] leading-relaxed">{item}</p>
                 </div>
               </div>
@@ -494,14 +494,14 @@ function BusinessCalculationsTab({ logic }: { logic: StepBusinessLogic }) {
       {/* Success Criteria */}
       {logic.success_criteria && (
         <div>
-          <h4 className="text-[11px] font-medium text-[#999999] uppercase tracking-wide mb-2 flex items-center gap-1.5">
-            <Target className="w-4 h-4 text-[#3FAF7A]" />
+          <h4 className="text-[11px] font-medium text-text-placeholder uppercase tracking-wide mb-2 flex items-center gap-1.5">
+            <Target className="w-4 h-4 text-brand-primary" />
             Success Criteria
           </h4>
-          <div className="bg-[#E8F5E9] border border-[#3FAF7A]/20 rounded-xl p-4">
+          <div className="bg-[#E8F5E9] border border-brand-primary/20 rounded-xl p-4">
             <div className="flex items-start gap-2">
-              <CheckCircle className="w-4 h-4 text-[#3FAF7A] flex-shrink-0 mt-0.5" />
-              <p className="text-[13px] text-[#333333] leading-relaxed">
+              <CheckCircle className="w-4 h-4 text-brand-primary flex-shrink-0 mt-0.5" />
+              <p className="text-[13px] text-text-body leading-relaxed">
                 {logic.success_criteria}
               </p>
             </div>
@@ -535,10 +535,10 @@ function UnlocksTab({ unlocks }: { unlocks: ValuePathUnlock[] }) {
     return (
       <div className="text-center py-10">
         <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-[#E8F5E9] flex items-center justify-center">
-          <Sparkles className="w-6 h-6 text-[#3FAF7A]" />
+          <Sparkles className="w-6 h-6 text-brand-primary" />
         </div>
         <p className="text-[13px] text-[#666666] mb-1">No unlocks yet</p>
-        <p className="text-[12px] text-[#999999]">
+        <p className="text-[12px] text-text-placeholder">
           Regenerate the value path to discover bonus capabilities this step enables.
         </p>
       </div>
@@ -548,14 +548,14 @@ function UnlocksTab({ unlocks }: { unlocks: ValuePathUnlock[] }) {
   return (
     <div className="space-y-4">
       {/* Header callout */}
-      <div className="bg-[#E8F5E9] border border-[#3FAF7A]/20 rounded-xl p-4">
+      <div className="bg-[#E8F5E9] border border-brand-primary/20 rounded-xl p-4">
         <div className="flex items-start gap-2.5">
-          <Sparkles className="w-4 h-4 text-[#3FAF7A] flex-shrink-0 mt-0.5" />
+          <Sparkles className="w-4 h-4 text-brand-primary flex-shrink-0 mt-0.5" />
           <div>
             <p className="text-[13px] font-medium text-[#25785A]">
               Not only does this step solve the core problem...
             </p>
-            <p className="text-[12px] text-[#333333] mt-0.5">
+            <p className="text-[12px] text-text-body mt-0.5">
               It also enables {unlocks.length} additional capabilit{unlocks.length === 1 ? 'y' : 'ies'} that weren&apos;t originally contemplated.
             </p>
           </div>
@@ -576,7 +576,7 @@ function UnlockDetailCard({ unlock, index }: { unlock: ValuePathUnlock; index: n
   const typeDesc = UNLOCK_DESCRIPTIONS[unlock.unlock_type] || ''
 
   return (
-    <div className="bg-white border border-[#3FAF7A]/20 rounded-xl overflow-hidden">
+    <div className="bg-white border border-brand-primary/20 rounded-xl overflow-hidden">
       {/* Type header bar */}
       <div className="bg-[#E8F5E9] px-4 py-2.5 flex items-center gap-2">
         <div className="w-6 h-6 rounded-full bg-white flex items-center justify-center">
@@ -592,15 +592,15 @@ function UnlockDetailCard({ unlock, index }: { unlock: ValuePathUnlock; index: n
 
       {/* Content */}
       <div className="px-4 py-3.5 space-y-3">
-        <p className="text-[13px] text-[#333333] leading-relaxed">
+        <p className="text-[13px] text-text-body leading-relaxed">
           {unlock.description}
         </p>
 
         {unlock.strategic_value && (
           <div className="flex items-start gap-2">
-            <Target className="w-3.5 h-3.5 text-[#999999] flex-shrink-0 mt-0.5" />
+            <Target className="w-3.5 h-3.5 text-text-placeholder flex-shrink-0 mt-0.5" />
             <div>
-              <span className="text-[10px] font-semibold text-[#999999] uppercase tracking-wide">
+              <span className="text-[10px] font-semibold text-text-placeholder uppercase tracking-wide">
                 Strategic Value
               </span>
               <p className="text-[12px] text-[#666666] mt-0.5">{unlock.strategic_value}</p>
@@ -610,9 +610,9 @@ function UnlockDetailCard({ unlock, index }: { unlock: ValuePathUnlock; index: n
 
         {unlock.enabled_by && (
           <div className="flex items-start gap-2">
-            <Zap className="w-3.5 h-3.5 text-[#999999] flex-shrink-0 mt-0.5" />
+            <Zap className="w-3.5 h-3.5 text-text-placeholder flex-shrink-0 mt-0.5" />
             <div>
-              <span className="text-[10px] font-semibold text-[#999999] uppercase tracking-wide">
+              <span className="text-[10px] font-semibold text-text-placeholder uppercase tracking-wide">
                 Enabled By
               </span>
               <p className="text-[12px] text-[#666666] mt-0.5">{unlock.enabled_by}</p>
@@ -621,14 +621,14 @@ function UnlockDetailCard({ unlock, index }: { unlock: ValuePathUnlock; index: n
         )}
 
         {unlock.suggested_feature && (
-          <div className="bg-[#F8FFF8] border border-[#3FAF7A]/10 rounded-lg px-3 py-2.5">
+          <div className="bg-[#F8FFF8] border border-brand-primary-light rounded-lg px-3 py-2.5">
             <div className="flex items-start gap-2">
-              <Lightbulb className="w-3.5 h-3.5 text-[#3FAF7A] flex-shrink-0 mt-0.5" />
+              <Lightbulb className="w-3.5 h-3.5 text-brand-primary flex-shrink-0 mt-0.5" />
               <div>
                 <span className="text-[10px] font-semibold text-[#25785A] uppercase tracking-wide">
                   Feature Idea
                 </span>
-                <p className="text-[12px] text-[#333333] mt-0.5 font-medium">{unlock.suggested_feature}</p>
+                <p className="text-[12px] text-text-body mt-0.5 font-medium">{unlock.suggested_feature}</p>
               </div>
             </div>
           </div>
@@ -647,7 +647,7 @@ function ComponentsTab({ detail }: { detail: ValuePathStepDetail }) {
     <div className="space-y-6">
       {/* Recommended Components */}
       <div>
-        <h4 className="text-[11px] font-medium text-[#999999] uppercase tracking-wide mb-3">
+        <h4 className="text-[11px] font-medium text-text-placeholder uppercase tracking-wide mb-3">
           Recommended Components
         </h4>
         {detail.recommended_components.length > 0 ? (
@@ -657,7 +657,7 @@ function ComponentsTab({ detail }: { detail: ValuePathStepDetail }) {
             ))}
           </div>
         ) : (
-          <p className="text-[12px] text-[#999999] italic">
+          <p className="text-[12px] text-text-placeholder italic">
             No component recommendations yet.
           </p>
         )}
@@ -665,7 +665,7 @@ function ComponentsTab({ detail }: { detail: ValuePathStepDetail }) {
 
       {/* Linked Features */}
       <div>
-        <h4 className="text-[11px] font-medium text-[#999999] uppercase tracking-wide mb-3 flex items-center gap-1.5">
+        <h4 className="text-[11px] font-medium text-text-placeholder uppercase tracking-wide mb-3 flex items-center gap-1.5">
           <Puzzle className="w-3.5 h-3.5" />
           Linked Features
           {detail.linked_features.length > 0 && (
@@ -675,13 +675,13 @@ function ComponentsTab({ detail }: { detail: ValuePathStepDetail }) {
           )}
         </h4>
         {detail.linked_features.length > 0 ? (
-          <div className="border border-[#E5E5E5] rounded-xl overflow-hidden bg-white">
+          <div className="border border-border rounded-xl overflow-hidden bg-white">
             {detail.linked_features.map((feature) => (
               <LinkedFeatureRow key={feature.feature_id} feature={feature} />
             ))}
           </div>
         ) : (
-          <p className="text-[12px] text-[#999999] italic">
+          <p className="text-[12px] text-text-placeholder italic">
             No features linked to this step.
           </p>
         )}
@@ -690,16 +690,16 @@ function ComponentsTab({ detail }: { detail: ValuePathStepDetail }) {
       {/* AI Suggestions */}
       {detail.ai_suggestions.length > 0 && (
         <div>
-          <h4 className="text-[11px] font-medium text-[#999999] uppercase tracking-wide mb-3 flex items-center gap-1.5">
-            <Sparkles className="w-3.5 h-3.5 text-[#3FAF7A]" />
+          <h4 className="text-[11px] font-medium text-text-placeholder uppercase tracking-wide mb-3 flex items-center gap-1.5">
+            <Sparkles className="w-3.5 h-3.5 text-brand-primary" />
             AI Suggestions
           </h4>
-          <div className="border border-[#3FAF7A]/20 rounded-xl overflow-hidden bg-[#E8F5E9]/30">
-            <div className="divide-y divide-[#3FAF7A]/10">
+          <div className="border border-brand-primary/20 rounded-xl overflow-hidden bg-[#E8F5E9]/30">
+            <div className="divide-y divide-brand-primary-light">
               {detail.ai_suggestions.map((suggestion, i) => (
                 <div key={i} className="px-4 py-3 flex items-start gap-2">
-                  <Sparkles className="w-3.5 h-3.5 text-[#3FAF7A] flex-shrink-0 mt-0.5" />
-                  <p className="text-[13px] text-[#333333] leading-relaxed">
+                  <Sparkles className="w-3.5 h-3.5 text-brand-primary flex-shrink-0 mt-0.5" />
+                  <p className="text-[13px] text-text-body leading-relaxed">
                     {suggestion}
                   </p>
                 </div>
@@ -711,7 +711,7 @@ function ComponentsTab({ detail }: { detail: ValuePathStepDetail }) {
 
       {/* Effort Level */}
       <div>
-        <h4 className="text-[11px] font-medium text-[#999999] uppercase tracking-wide mb-3">
+        <h4 className="text-[11px] font-medium text-text-placeholder uppercase tracking-wide mb-3">
           Effort Level
         </h4>
         <EffortIndicator level={detail.effort_level} />
@@ -728,20 +728,20 @@ function RecommendedComponentCard({ component }: { component: RecommendedCompone
   const pConfig = priorityConfig[component.priority] || priorityConfig.nice_to_have
 
   return (
-    <div className="bg-white border border-[#E5E5E5] rounded-xl p-4">
+    <div className="bg-white border border-border rounded-xl p-4">
       <div className="flex items-center gap-2 mb-2">
-        <span className="text-[14px] font-semibold text-[#333333]">
+        <span className="text-[14px] font-semibold text-text-body">
           {component.name}
         </span>
         <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${pConfig.bg} ${pConfig.text}`}>
           {component.priority.replace('_', ' ')}
         </span>
       </div>
-      <p className="text-[13px] text-[#333333] leading-relaxed">
+      <p className="text-[13px] text-text-body leading-relaxed">
         {component.description}
       </p>
       {component.rationale && (
-        <p className="text-[12px] text-[#999999] italic mt-2">
+        <p className="text-[12px] text-text-placeholder italic mt-2">
           {component.rationale}
         </p>
       )}
@@ -757,18 +757,18 @@ function LinkedFeatureRow({ feature }: { feature: StepLinkedFeature }) {
   const priorityConfig: Record<string, { bg: string; text: string }> = {
     must_have: { bg: 'bg-[#E8F5E9]', text: 'text-[#25785A]' },
     should_have: { bg: 'bg-[#F0F0F0]', text: 'text-[#666666]' },
-    could_have: { bg: 'bg-[#F0F0F0]', text: 'text-[#999999]' },
-    out_of_scope: { bg: 'bg-[#F0F0F0]', text: 'text-[#999999]' },
+    could_have: { bg: 'bg-[#F0F0F0]', text: 'text-text-placeholder' },
+    out_of_scope: { bg: 'bg-[#F0F0F0]', text: 'text-text-placeholder' },
   }
 
   return (
     <div className="px-4 py-3 border-b border-[#F0F0F0] last:border-0 flex items-center gap-2">
       <span
         className={`w-2 h-2 rounded-full flex-shrink-0 ${
-          isConfirmed ? 'bg-[#3FAF7A]' : 'bg-[#E5E5E5]'
+          isConfirmed ? 'bg-brand-primary' : 'bg-border'
         }`}
       />
-      <span className="text-[13px] font-medium text-[#333333] truncate flex-1">
+      <span className="text-[13px] font-medium text-text-body truncate flex-1">
         {feature.feature_name}
       </span>
       {feature.category && (
@@ -801,18 +801,18 @@ function EffortIndicator({ level }: { level: string }) {
     normalized === 'light' ? 0 : normalized === 'medium' ? 1 : normalized === 'heavy' ? 2 : -1
 
   return (
-    <div className="flex items-center gap-4 bg-[#F9F9F9] border border-[#E5E5E5] rounded-xl px-4 py-3">
+    <div className="flex items-center gap-4 bg-surface-muted border border-border rounded-xl px-4 py-3">
       <div className="flex items-center gap-2">
         {levels.map((l, i) => (
           <div key={l.key} className="flex flex-col items-center gap-1">
             <span
               className={`w-3.5 h-3.5 rounded-full ${
-                i <= activeIndex ? 'bg-[#3FAF7A]' : 'bg-[#E5E5E5]'
+                i <= activeIndex ? 'bg-brand-primary' : 'bg-border'
               }`}
             />
             <span
               className={`text-[10px] ${
-                i === activeIndex ? 'font-semibold text-[#333333]' : 'text-[#999999]'
+                i === activeIndex ? 'font-semibold text-text-body' : 'text-text-placeholder'
               }`}
             >
               {l.label}

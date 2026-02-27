@@ -23,7 +23,7 @@ type TabId = 'details' | 'evidence' | 'enrichment'
 
 const TYPE_CONFIG: Record<string, { bg: string; text: string; label: string }> = {
   champion: { bg: 'bg-green-50', text: 'text-green-700', label: 'Champion' },
-  sponsor: { bg: 'bg-blue-50', text: 'text-blue-700', label: 'Sponsor' },
+  sponsor: { bg: 'bg-blue-50', text: 'text-brand-primary-hover', label: 'Sponsor' },
   blocker: { bg: 'bg-red-50', text: 'text-red-700', label: 'Blocker' },
   influencer: { bg: 'bg-purple-50', text: 'text-purple-700', label: 'Influencer' },
   end_user: { bg: 'bg-[#F0F0F0]', text: 'text-[#666666]', label: 'End User' },
@@ -66,7 +66,7 @@ export function StakeholderDetailDrawer({
       headerExtra={
         <div>
           {initialData.role && (
-            <p className="text-[13px] text-[#999999] truncate">
+            <p className="text-[13px] text-text-placeholder truncate">
               {initialData.role}{initialData.organization ? ` @ ${initialData.organization}` : ''}
             </p>
           )}
@@ -105,29 +105,29 @@ export function StakeholderDetailDrawer({
 }
 
 function DetailsTab({ data }: { data: StakeholderDetail | null }) {
-  if (!data) return <p className="text-[13px] text-[#999999]">No details available</p>
+  if (!data) return <p className="text-[13px] text-text-placeholder">No details available</p>
 
   return (
     <div className="space-y-5">
       {/* Contact */}
       <div>
-        <h4 className="text-[12px] font-semibold text-[#999999] uppercase tracking-wider mb-2">Contact</h4>
+        <h4 className="text-[12px] font-semibold text-text-placeholder uppercase tracking-wider mb-2">Contact</h4>
         <div className="space-y-1.5">
           {data.email && (
             <div className="flex items-center gap-2 text-[13px] text-[#666666]">
-              <Mail className="w-3.5 h-3.5 text-[#999999]" />
+              <Mail className="w-3.5 h-3.5 text-text-placeholder" />
               <span>{data.email}</span>
             </div>
           )}
           {data.phone && (
             <div className="flex items-center gap-2 text-[13px] text-[#666666]">
-              <Phone className="w-3.5 h-3.5 text-[#999999]" />
+              <Phone className="w-3.5 h-3.5 text-text-placeholder" />
               <span>{data.phone}</span>
             </div>
           )}
           {data.organization && (
             <div className="flex items-center gap-2 text-[13px] text-[#666666]">
-              <Building2 className="w-3.5 h-3.5 text-[#999999]" />
+              <Building2 className="w-3.5 h-3.5 text-text-placeholder" />
               <span>{data.organization}</span>
             </div>
           )}
@@ -137,7 +137,7 @@ function DetailsTab({ data }: { data: StakeholderDetail | null }) {
       {/* Domain Expertise */}
       {data.domain_expertise && data.domain_expertise.length > 0 && (
         <div>
-          <h4 className="text-[12px] font-semibold text-[#999999] uppercase tracking-wider mb-2">Domain Expertise</h4>
+          <h4 className="text-[12px] font-semibold text-text-placeholder uppercase tracking-wider mb-2">Domain Expertise</h4>
           <div className="flex flex-wrap gap-1.5">
             {data.domain_expertise.map((area, i) => (
               <span key={i} className="px-2 py-0.5 rounded-full text-[11px] font-medium bg-[#E8F5E9] text-[#25785A]">{area}</span>
@@ -149,11 +149,11 @@ function DetailsTab({ data }: { data: StakeholderDetail | null }) {
       {/* Priorities */}
       {data.priorities && data.priorities.length > 0 && (
         <div>
-          <h4 className="text-[12px] font-semibold text-[#999999] uppercase tracking-wider mb-2">Priorities</h4>
+          <h4 className="text-[12px] font-semibold text-text-placeholder uppercase tracking-wider mb-2">Priorities</h4>
           <ul className="space-y-1">
             {data.priorities.map((p, i) => (
               <li key={i} className="text-[13px] text-[#666666] flex items-start gap-2">
-                <span className="text-[#3FAF7A] mt-1">•</span><span>{p}</span>
+                <span className="text-brand-primary mt-1">•</span><span>{p}</span>
               </li>
             ))}
           </ul>
@@ -163,11 +163,11 @@ function DetailsTab({ data }: { data: StakeholderDetail | null }) {
       {/* Concerns */}
       {data.concerns && data.concerns.length > 0 && (
         <div>
-          <h4 className="text-[12px] font-semibold text-[#999999] uppercase tracking-wider mb-2">Concerns</h4>
+          <h4 className="text-[12px] font-semibold text-text-placeholder uppercase tracking-wider mb-2">Concerns</h4>
           <ul className="space-y-1">
             {data.concerns.map((c, i) => (
               <li key={i} className="text-[13px] text-[#666666] flex items-start gap-2">
-                <span className="text-[#999999] mt-1">•</span><span>{c}</span>
+                <span className="text-text-placeholder mt-1">•</span><span>{c}</span>
               </li>
             ))}
           </ul>
@@ -177,7 +177,7 @@ function DetailsTab({ data }: { data: StakeholderDetail | null }) {
       {/* Notes */}
       {data.notes && (
         <div>
-          <h4 className="text-[12px] font-semibold text-[#999999] uppercase tracking-wider mb-2">Notes</h4>
+          <h4 className="text-[12px] font-semibold text-text-placeholder uppercase tracking-wider mb-2">Notes</h4>
           <p className="text-[13px] text-[#666666] leading-relaxed whitespace-pre-wrap">{data.notes}</p>
         </div>
       )}
@@ -186,7 +186,7 @@ function DetailsTab({ data }: { data: StakeholderDetail | null }) {
 }
 
 function EnrichmentTab({ data }: { data: StakeholderDetail | null }) {
-  if (!data) return <p className="text-[13px] text-[#999999]">No enrichment data</p>
+  if (!data) return <p className="text-[13px] text-text-placeholder">No enrichment data</p>
 
   const hasEnrichment = data.engagement_level || data.decision_authority || data.engagement_strategy ||
     data.risk_if_disengaged || (data.win_conditions && data.win_conditions.length > 0) ||
@@ -195,8 +195,8 @@ function EnrichmentTab({ data }: { data: StakeholderDetail | null }) {
   if (!hasEnrichment) {
     return (
       <div className="text-center py-8">
-        <Brain className="w-8 h-8 text-[#E5E5E5] mx-auto mb-2" />
-        <p className="text-[13px] text-[#999999]">No enrichment data available yet.</p>
+        <Brain className="w-8 h-8 text-border mx-auto mb-2" />
+        <p className="text-[13px] text-text-placeholder">No enrichment data available yet.</p>
       </div>
     )
   }
@@ -205,31 +205,31 @@ function EnrichmentTab({ data }: { data: StakeholderDetail | null }) {
     <div className="space-y-4">
       {data.engagement_level && (
         <div>
-          <h4 className="text-[12px] font-semibold text-[#999999] uppercase tracking-wider mb-1">Engagement Level</h4>
+          <h4 className="text-[12px] font-semibold text-text-placeholder uppercase tracking-wider mb-1">Engagement Level</h4>
           <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[12px] font-medium bg-[#E8F5E9] text-[#25785A]">{data.engagement_level}</span>
         </div>
       )}
       {data.decision_authority && (
         <div>
-          <h4 className="text-[12px] font-semibold text-[#999999] uppercase tracking-wider mb-1">Decision Authority</h4>
+          <h4 className="text-[12px] font-semibold text-text-placeholder uppercase tracking-wider mb-1">Decision Authority</h4>
           <p className="text-[13px] text-[#666666]">{data.decision_authority}</p>
         </div>
       )}
       {data.engagement_strategy && (
         <div>
-          <h4 className="text-[12px] font-semibold text-[#999999] uppercase tracking-wider mb-1">Engagement Strategy</h4>
+          <h4 className="text-[12px] font-semibold text-text-placeholder uppercase tracking-wider mb-1">Engagement Strategy</h4>
           <p className="text-[13px] text-[#666666] leading-relaxed">{data.engagement_strategy}</p>
         </div>
       )}
       {data.risk_if_disengaged && (
         <div>
-          <h4 className="text-[12px] font-semibold text-[#999999] uppercase tracking-wider mb-1">Risk if Disengaged</h4>
+          <h4 className="text-[12px] font-semibold text-text-placeholder uppercase tracking-wider mb-1">Risk if Disengaged</h4>
           <p className="text-[13px] text-[#666666] leading-relaxed">{data.risk_if_disengaged}</p>
         </div>
       )}
       {data.win_conditions && data.win_conditions.length > 0 && (
         <div>
-          <h4 className="text-[12px] font-semibold text-[#999999] uppercase tracking-wider mb-1">Win Conditions</h4>
+          <h4 className="text-[12px] font-semibold text-text-placeholder uppercase tracking-wider mb-1">Win Conditions</h4>
           <ul className="space-y-1">
             {data.win_conditions.map((wc, i) => (
               <li key={i} className="text-[13px] text-[#666666]">• {wc}</li>
@@ -239,7 +239,7 @@ function EnrichmentTab({ data }: { data: StakeholderDetail | null }) {
       )}
       {data.key_concerns && data.key_concerns.length > 0 && (
         <div>
-          <h4 className="text-[12px] font-semibold text-[#999999] uppercase tracking-wider mb-1">Key Concerns</h4>
+          <h4 className="text-[12px] font-semibold text-text-placeholder uppercase tracking-wider mb-1">Key Concerns</h4>
           <ul className="space-y-1">
             {data.key_concerns.map((kc, i) => (
               <li key={i} className="text-[13px] text-[#666666]">• {kc}</li>

@@ -22,13 +22,13 @@ export default function AdminDashboard() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="w-5 h-5 border-2 border-[#3FAF7A] border-t-transparent rounded-full animate-spin" />
+        <div className="w-5 h-5 border-2 border-brand-primary border-t-transparent rounded-full animate-spin" />
       </div>
     )
   }
 
   if (!stats) {
-    return <div className="text-[#999999] text-sm">Failed to load dashboard</div>
+    return <div className="text-text-placeholder text-sm">Failed to load dashboard</div>
   }
 
   const stageEntries = Object.entries(stats.projects_by_stage).sort((a, b) => b[1] - a[1])
@@ -39,7 +39,7 @@ export default function AdminDashboard() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-[22px] font-bold text-[#333333]">Dashboard</h1>
+      <h1 className="text-[22px] font-bold text-text-body">Dashboard</h1>
 
       {/* Metric cards */}
       <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4">
@@ -53,54 +53,54 @@ export default function AdminDashboard() {
       {/* Bottom row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Projects by Stage */}
-        <div className="bg-white rounded-2xl shadow-md border border-[#E5E5E5] p-6">
-          <h2 className="text-[15px] font-semibold text-[#333333] mb-4">Projects by Stage</h2>
+        <div className="bg-white rounded-2xl shadow-md border border-border p-6">
+          <h2 className="text-[15px] font-semibold text-text-body mb-4">Projects by Stage</h2>
           <div className="space-y-3">
             {stageEntries.map(([stage, count]) => (
               <div key={stage} className="flex items-center gap-3">
                 <span className="text-[13px] text-[#666666] w-28 truncate">{stage}</span>
-                <div className="flex-1 h-5 bg-[#E5E5E5] rounded-full overflow-hidden">
+                <div className="flex-1 h-5 bg-border rounded-full overflow-hidden">
                   <div
-                    className="h-full bg-[#3FAF7A] rounded-full transition-all"
+                    className="h-full bg-brand-primary rounded-full transition-all"
                     style={{ width: `${(count / maxStage) * 100}%` }}
                   />
                 </div>
-                <span className="text-[13px] font-medium text-[#333333] w-8 text-right">{count}</span>
+                <span className="text-[13px] font-medium text-text-body w-8 text-right">{count}</span>
               </div>
             ))}
             {stageEntries.length === 0 && (
-              <p className="text-[13px] text-[#999999]">No projects yet</p>
+              <p className="text-[13px] text-text-placeholder">No projects yet</p>
             )}
           </div>
         </div>
 
         {/* Users by Role */}
-        <div className="bg-white rounded-2xl shadow-md border border-[#E5E5E5] p-6">
-          <h2 className="text-[15px] font-semibold text-[#333333] mb-4">Users by Role</h2>
+        <div className="bg-white rounded-2xl shadow-md border border-border p-6">
+          <h2 className="text-[15px] font-semibold text-text-body mb-4">Users by Role</h2>
           <div className="space-y-3">
             {roleEntries.map(([role, count]) => (
               <div key={role} className="flex items-center gap-3">
                 <span className="text-[13px] text-[#666666] w-28 truncate">{role}</span>
-                <div className="flex-1 h-5 bg-[#E5E5E5] rounded-full overflow-hidden">
+                <div className="flex-1 h-5 bg-border rounded-full overflow-hidden">
                   <div
-                    className="h-full bg-[#3FAF7A] rounded-full transition-all"
+                    className="h-full bg-brand-primary rounded-full transition-all"
                     style={{ width: `${(count / maxRole) * 100}%` }}
                   />
                 </div>
-                <span className="text-[13px] font-medium text-[#333333] w-8 text-right">{count}</span>
+                <span className="text-[13px] font-medium text-text-body w-8 text-right">{count}</span>
               </div>
             ))}
           </div>
         </div>
 
         {/* Recent Signups */}
-        <div className="bg-white rounded-2xl shadow-md border border-[#E5E5E5] p-6">
-          <h2 className="text-[15px] font-semibold text-[#333333] mb-4">Recent Signups</h2>
+        <div className="bg-white rounded-2xl shadow-md border border-border p-6">
+          <h2 className="text-[15px] font-semibold text-text-body mb-4">Recent Signups</h2>
           <div className="space-y-3">
             {stats.recent_signups.map((signup: any) => (
               <Link key={signup.user_id} href={`/admin/users/${signup.user_id}`} className="flex items-center justify-between hover:bg-[#F4F4F4] -mx-2 px-2 py-1 rounded-lg transition-colors">
                 <div className="flex items-center gap-2.5">
-                  <div className="w-7 h-7 rounded-full bg-gradient-to-br from-[#3FAF7A] to-[#25785A] flex items-center justify-center overflow-hidden flex-shrink-0">
+                  <div className="w-7 h-7 rounded-full bg-gradient-to-br from-brand-primary to-[#25785A] flex items-center justify-center overflow-hidden flex-shrink-0">
                     {signup.photo_url ? (
                       <Image src={signup.photo_url} alt="" width={28} height={28} className="w-full h-full object-cover" />
                     ) : (
@@ -108,15 +108,15 @@ export default function AdminDashboard() {
                     )}
                   </div>
                   <div>
-                    <span className="text-[13px] text-[#333333] font-medium">{signup.name || signup.email?.split('@')[0]}</span>
-                    {signup.email && <span className="text-[11px] text-[#999999] ml-2">{signup.email}</span>}
+                    <span className="text-[13px] text-text-body font-medium">{signup.name || signup.email?.split('@')[0]}</span>
+                    {signup.email && <span className="text-[11px] text-text-placeholder ml-2">{signup.email}</span>}
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="px-2 py-0.5 text-[11px] rounded-full bg-[#F0F0F0] text-[#666666]">
                     {signup.platform_role}
                   </span>
-                  <span className="text-[11px] text-[#999999]">
+                  <span className="text-[11px] text-text-placeholder">
                     {new Date(signup.created_at).toLocaleDateString()}
                   </span>
                 </div>
@@ -126,24 +126,24 @@ export default function AdminDashboard() {
         </div>
 
         {/* Quick Stats */}
-        <div className="bg-white rounded-2xl shadow-md border border-[#E5E5E5] p-6">
-          <h2 className="text-[15px] font-semibold text-[#333333] mb-4">Platform Summary</h2>
+        <div className="bg-white rounded-2xl shadow-md border border-border p-6">
+          <h2 className="text-[15px] font-semibold text-text-body mb-4">Platform Summary</h2>
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <span className="text-[13px] text-[#666666]">Total Signals Processed</span>
-              <span className="text-[15px] font-semibold text-[#333333]">{stats.total_signals.toLocaleString()}</span>
+              <span className="text-[15px] font-semibold text-text-body">{stats.total_signals.toLocaleString()}</span>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-[13px] text-[#666666]">Active Users (7d)</span>
-              <span className="text-[15px] font-semibold text-[#333333]">{stats.active_users_7d}</span>
+              <span className="text-[15px] font-semibold text-text-body">{stats.active_users_7d}</span>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-[13px] text-[#666666]">Total Tokens Used</span>
-              <span className="text-[15px] font-semibold text-[#333333]">{(stats.total_tokens / 1_000_000).toFixed(2)}M</span>
+              <span className="text-[15px] font-semibold text-text-body">{(stats.total_tokens / 1_000_000).toFixed(2)}M</span>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-[13px] text-[#666666]">7-Day LLM Cost</span>
-              <span className="text-[15px] font-semibold text-[#3FAF7A]">${stats.cost_7d_usd.toFixed(2)}</span>
+              <span className="text-[15px] font-semibold text-brand-primary">${stats.cost_7d_usd.toFixed(2)}</span>
             </div>
           </div>
         </div>

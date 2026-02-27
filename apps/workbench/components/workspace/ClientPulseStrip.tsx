@@ -28,21 +28,21 @@ export function ClientPulseStrip({ projectId, onClick }: ClientPulseStripProps) 
   return (
     <button
       onClick={onClick}
-      className="flex items-center justify-between w-full bg-[#F9F9F9] rounded-lg p-2.5 mx-3 mb-2 border border-[#E5E5E5] cursor-pointer hover:bg-[#F4F4F4] transition-colors"
+      className="flex items-center justify-between w-full bg-surface-muted rounded-lg p-2.5 mx-3 mb-2 border border-border cursor-pointer hover:bg-[#F4F4F4] transition-colors"
       style={{ width: 'calc(100% - 24px)' }}
     >
       <div className="flex items-center gap-2">
-        <span className="w-2 h-2 rounded-full bg-[#3FAF7A] flex-shrink-0" />
+        <span className="w-2 h-2 rounded-full bg-brand-primary flex-shrink-0" />
         <span className="text-[11px] text-[#666666]">
           {stats.map((s, i) => (
             <span key={i}>
               {i > 0 && <span className="mx-1 text-[#CCCCCC]">&middot;</span>}
-              <span className="font-medium text-[#333333]">{s}</span>
+              <span className="font-medium text-text-body">{s}</span>
             </span>
           ))}
         </span>
       </div>
-      <ChevronRight className="w-3.5 h-3.5 text-[#999999] flex-shrink-0" />
+      <ChevronRight className="w-3.5 h-3.5 text-text-placeholder flex-shrink-0" />
     </button>
   )
 }

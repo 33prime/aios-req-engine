@@ -32,12 +32,12 @@ function MetricCard({
       ? 'text-[#25785A]'
       : accent === 'orange'
         ? 'text-orange-600'
-        : 'text-[#333333]'
+        : 'text-text-body'
 
   return (
-    <div className="bg-white rounded-xl border border-[#E5E5E5] p-4 flex-1 min-w-0">
+    <div className="bg-white rounded-xl border border-border p-4 flex-1 min-w-0">
       <div className={`text-[24px] font-bold ${valueColor} leading-tight`}>{value}</div>
-      <div className="text-[11px] text-[#999999] mt-0.5">{label}</div>
+      <div className="text-[11px] text-text-placeholder mt-0.5">{label}</div>
       <div className="text-[11px] text-[#666666]">{detail}</div>
     </div>
   )
@@ -52,7 +52,7 @@ function MetricCard({
 function AlertPill({ alert }: { alert: ScopeAlert }) {
   return (
     <div className="flex items-start gap-2 px-3 py-2 rounded-lg bg-[#F0F0F0] text-[12px] text-[#666666]">
-      <AlertTriangle className="w-3.5 h-3.5 text-[#999999] shrink-0 mt-0.5" />
+      <AlertTriangle className="w-3.5 h-3.5 text-text-placeholder shrink-0 mt-0.5" />
       <span>{alert.message}</span>
     </div>
   )
@@ -132,14 +132,14 @@ export function IntelligenceSection({
     <section className="mb-8">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
-          <Brain className="w-5 h-5 text-[#3FAF7A]" />
+          <Brain className="w-5 h-5 text-brand-primary" />
           <h2 className="text-lg font-semibold text-[#37352f]">Project Intelligence</h2>
         </div>
         {onRefreshAll && (
           <button
             onClick={onRefreshAll}
             disabled={isRefreshing}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-[#666666] bg-white border border-[#E5E5E5] rounded-xl hover:bg-gray-50 transition-colors disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-[#666666] bg-white border border-border rounded-xl hover:bg-gray-50 transition-colors disabled:opacity-50"
           >
             {isRefreshing ? (
               <Loader2 className="w-3.5 h-3.5 animate-spin" />

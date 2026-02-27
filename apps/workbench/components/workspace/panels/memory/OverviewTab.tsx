@@ -57,7 +57,7 @@ export function OverviewTab({ projectId, data: vizData }: OverviewTabProps) {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#3FAF7A]" />
+        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-brand-primary" />
       </div>
     )
   }
@@ -80,8 +80,8 @@ export function OverviewTab({ projectId, data: vizData }: OverviewTabProps) {
       <div className="col-span-3 space-y-6">
         {/* Narrative */}
         {narrative ? (
-          <div className="bg-white rounded-2xl border border-[#E5E5E5] p-5 shadow-sm">
-            <p className="text-sm text-[#333333] leading-relaxed">{narrative}</p>
+          <div className="bg-white rounded-2xl border border-border p-5 shadow-sm">
+            <p className="text-sm text-text-body leading-relaxed">{narrative}</p>
           </div>
         ) : null}
 
@@ -91,7 +91,7 @@ export function OverviewTab({ projectId, data: vizData }: OverviewTabProps) {
         {/* What You Should Know */}
         {wysk?.narrative ? (
           <div className="bg-[#F4F4F4] rounded-2xl p-5">
-            <h4 className="text-[12px] font-semibold text-[#333333] uppercase tracking-wide mb-2">
+            <h4 className="text-[12px] font-semibold text-text-body uppercase tracking-wide mb-2">
               What You Should Know
             </h4>
             <p className="text-[13px] text-[#666666] leading-relaxed">
@@ -101,7 +101,7 @@ export function OverviewTab({ projectId, data: vizData }: OverviewTabProps) {
               <ul className="mt-2 space-y-1">
                 {(wysk.bullets as string[]).map((b: string, i: number) => (
                   <li key={i} className="text-[12px] text-[#666666] flex items-start gap-2">
-                    <span className="text-[#3FAF7A] mt-0.5">-</span>
+                    <span className="text-brand-primary mt-0.5">-</span>
                     {b}
                   </li>
                 ))}
@@ -113,22 +113,22 @@ export function OverviewTab({ projectId, data: vizData }: OverviewTabProps) {
         {/* Open Threads (formerly "Active Tensions") */}
         {tensions.length > 0 && (
           <div>
-            <h4 className="text-[12px] font-semibold text-[#333333] uppercase tracking-wide mb-3">
+            <h4 className="text-[12px] font-semibold text-text-body uppercase tracking-wide mb-3">
               Open Threads
             </h4>
             <div className="space-y-2">
               {tensions.slice(0, 3).map((t, i) => (
                 <div
                   key={t.tension_id || i}
-                  className="bg-white rounded-xl border border-[#E5E5E5] px-4 py-3 shadow-sm"
+                  className="bg-white rounded-xl border border-border px-4 py-3 shadow-sm"
                 >
                   <div className="flex items-center gap-2 mb-1">
                     <ArrowLeftRight className="w-3.5 h-3.5 text-[#666666]" />
-                    <span className="text-[12px] font-medium text-[#333333]">
+                    <span className="text-[12px] font-medium text-text-body">
                       {t.summary}
                     </span>
                   </div>
-                  <div className="flex items-center gap-3 text-[11px] text-[#999999]">
+                  <div className="flex items-center gap-3 text-[11px] text-text-placeholder">
                     <span>{t.side_a}</span>
                     <span className="text-[#CCCCCC]">&harr;</span>
                     <span>{t.side_b}</span>
@@ -145,23 +145,23 @@ export function OverviewTab({ projectId, data: vizData }: OverviewTabProps) {
         {/* Hypotheses */}
         {hypotheses.length > 0 && (
           <div>
-            <h4 className="text-[12px] font-semibold text-[#333333] uppercase tracking-wide mb-3">
+            <h4 className="text-[12px] font-semibold text-text-body uppercase tracking-wide mb-3">
               Active Hypotheses
             </h4>
             <div className="space-y-2">
               {hypotheses.slice(0, 5).map((h) => (
                 <div
                   key={h.hypothesis_id}
-                  className="bg-white rounded-xl border border-[#E5E5E5] px-4 py-3 shadow-sm"
+                  className="bg-white rounded-xl border border-border px-4 py-3 shadow-sm"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex items-start gap-2 min-w-0">
                       <FlaskConical className="w-3.5 h-3.5 text-[#666666] mt-0.5 shrink-0" />
                       <div className="min-w-0">
-                        <p className="text-[12px] font-medium text-[#333333] truncate">
+                        <p className="text-[12px] font-medium text-text-body truncate">
                           {h.statement}
                         </p>
-                        <div className="flex items-center gap-2 mt-1 text-[10px] text-[#999999]">
+                        <div className="flex items-center gap-2 mt-1 text-[10px] text-text-placeholder">
                           <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-[#F0F0F0] text-[#666666]">
                             {h.status}
                           </span>
@@ -174,14 +174,14 @@ export function OverviewTab({ projectId, data: vizData }: OverviewTabProps) {
                     <div className="flex items-center gap-1 shrink-0">
                       <button
                         onClick={() => handleHypothesisFeedback(h.hypothesis_id, 'confirm')}
-                        className="p-1 rounded hover:bg-[#E8F5E9] text-[#999999] hover:text-[#25785A] transition-colors"
+                        className="p-1 rounded hover:bg-[#E8F5E9] text-text-placeholder hover:text-[#25785A] transition-colors"
                         title="Confirm"
                       >
                         <ThumbsUp className="w-3.5 h-3.5" />
                       </button>
                       <button
                         onClick={() => handleHypothesisFeedback(h.hypothesis_id, 'dispute')}
-                        className="p-1 rounded hover:bg-gray-100 text-[#999999] hover:text-[#666666] transition-colors"
+                        className="p-1 rounded hover:bg-gray-100 text-text-placeholder hover:text-[#666666] transition-colors"
                         title="Dispute"
                       >
                         <ThumbsDown className="w-3.5 h-3.5" />
@@ -189,7 +189,7 @@ export function OverviewTab({ projectId, data: vizData }: OverviewTabProps) {
                     </div>
                   </div>
                   {h.test_suggestion && (
-                    <p className="text-[11px] text-[#3FAF7A] mt-1.5 ml-5">
+                    <p className="text-[11px] text-brand-primary mt-1.5 ml-5">
                       Test: {h.test_suggestion}
                     </p>
                   )}
@@ -202,7 +202,7 @@ export function OverviewTab({ projectId, data: vizData }: OverviewTabProps) {
         {/* What Changed */}
         {changes.length > 0 && (
           <div>
-            <h4 className="text-[12px] font-semibold text-[#333333] uppercase tracking-wide mb-3">
+            <h4 className="text-[12px] font-semibold text-text-body uppercase tracking-wide mb-3">
               What Changed
             </h4>
             <p className="text-[12px] text-[#666666]">
@@ -215,8 +215,8 @@ export function OverviewTab({ projectId, data: vizData }: OverviewTabProps) {
       {/* Right column — 2/5 */}
       <div className="col-span-2 space-y-6">
         {/* Pulse Stats */}
-        <div className="bg-white rounded-2xl border border-[#E5E5E5] p-5 shadow-sm">
-          <h4 className="text-[12px] font-semibold text-[#333333] uppercase tracking-wide mb-3">
+        <div className="bg-white rounded-2xl border border-border p-5 shadow-sm">
+          <h4 className="text-[12px] font-semibold text-text-body uppercase tracking-wide mb-3">
             Pulse
           </h4>
           <div className="grid grid-cols-2 gap-3">
@@ -236,8 +236,8 @@ export function OverviewTab({ projectId, data: vizData }: OverviewTabProps) {
 
         {/* Recent Activity */}
         {overview.recent_activity.length > 0 && (
-          <div className="bg-white rounded-2xl border border-[#E5E5E5] p-5 shadow-sm">
-            <h4 className="text-[12px] font-semibold text-[#333333] uppercase tracking-wide mb-3">
+          <div className="bg-white rounded-2xl border border-border p-5 shadow-sm">
+            <h4 className="text-[12px] font-semibold text-text-body uppercase tracking-wide mb-3">
               Recent Activity
             </h4>
             <div className="space-y-2.5">
@@ -300,9 +300,9 @@ function CoreBeliefsSection({
 
   if (beliefs.length === 0) {
     return (
-      <div className="bg-white rounded-2xl border border-[#E5E5E5] p-5 shadow-sm">
+      <div className="bg-white rounded-2xl border border-border p-5 shadow-sm">
         <div className="flex items-center justify-between mb-3">
-          <h4 className="text-[12px] font-semibold text-[#333333] uppercase tracking-wide">
+          <h4 className="text-[12px] font-semibold text-text-body uppercase tracking-wide">
             Core Beliefs
           </h4>
         </div>
@@ -312,7 +312,7 @@ function CoreBeliefsSection({
         <button
           onClick={handleGenerate}
           disabled={isGenerating}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-white bg-[#3FAF7A] hover:bg-[#25785A] rounded-lg transition-colors disabled:opacity-50"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-white bg-brand-primary hover:bg-[#25785A] rounded-lg transition-colors disabled:opacity-50"
         >
           {isGenerating ? (
             <>
@@ -333,13 +333,13 @@ function CoreBeliefsSection({
   return (
     <div>
       <div className="flex items-center justify-between mb-3">
-        <h4 className="text-[12px] font-semibold text-[#333333] uppercase tracking-wide">
+        <h4 className="text-[12px] font-semibold text-text-body uppercase tracking-wide">
           Core Beliefs
         </h4>
         <button
           onClick={handleGenerate}
           disabled={isGenerating}
-          className="inline-flex items-center gap-1 text-[11px] font-medium text-[#3FAF7A] hover:text-[#25785A] transition-colors disabled:opacity-50"
+          className="inline-flex items-center gap-1 text-[11px] font-medium text-brand-primary hover:text-[#25785A] transition-colors disabled:opacity-50"
         >
           <RefreshCw className={`w-3 h-3 ${isGenerating ? 'animate-spin' : ''}`} />
           {isGenerating ? 'Refreshing...' : 'Refresh'}
@@ -352,11 +352,11 @@ function CoreBeliefsSection({
           return (
             <div
               key={b.id}
-              className="bg-white rounded-xl border border-[#E5E5E5] px-4 py-3 shadow-sm"
+              className="bg-white rounded-xl border border-border px-4 py-3 shadow-sm"
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="flex-1 min-w-0">
-                  <p className="text-[12px] text-[#333333] leading-relaxed">
+                  <p className="text-[12px] text-text-body leading-relaxed">
                     {b.content || b.summary}
                   </p>
                   <div className="flex items-center gap-2 mt-1.5">
@@ -366,14 +366,14 @@ function CoreBeliefsSection({
                     >
                       {domain.replace('_', ' ')}
                     </span>
-                    <span className="text-[10px] text-[#999999]">
+                    <span className="text-[10px] text-text-placeholder">
                       {Math.round(b.confidence * 100)}% confidence
                     </span>
                     {b.consultant_status === 'confirmed' && (
-                      <span className="text-[10px] font-medium text-[#3FAF7A]">Confirmed</span>
+                      <span className="text-[10px] font-medium text-brand-primary">Confirmed</span>
                     )}
                     {b.consultant_status === 'disputed' && (
-                      <span className="text-[10px] font-medium text-[#999999]">Disputed</span>
+                      <span className="text-[10px] font-medium text-text-placeholder">Disputed</span>
                     )}
                   </div>
                 </div>
@@ -381,14 +381,14 @@ function CoreBeliefsSection({
                   <div className="flex items-center gap-1 shrink-0">
                     <button
                       onClick={() => handleFeedback(b.id, 'confirm')}
-                      className="p-1 rounded hover:bg-[#E8F5E9] text-[#999999] hover:text-[#25785A] transition-colors"
+                      className="p-1 rounded hover:bg-[#E8F5E9] text-text-placeholder hover:text-[#25785A] transition-colors"
                       title="Confirm"
                     >
                       <ThumbsUp className="w-3.5 h-3.5" />
                     </button>
                     <button
                       onClick={() => handleFeedback(b.id, 'dispute')}
-                      className="p-1 rounded hover:bg-gray-100 text-[#999999] hover:text-[#666666] transition-colors"
+                      className="p-1 rounded hover:bg-gray-100 text-text-placeholder hover:text-[#666666] transition-colors"
                       title="Dispute"
                     >
                       <ThumbsDown className="w-3.5 h-3.5" />
@@ -409,8 +409,8 @@ function CoreBeliefsSection({
 function StatCell({ label, value, color }: { label: string; value: string | number; color?: string }) {
   return (
     <div className="bg-[#F4F4F4] rounded-lg px-3 py-2">
-      <p className="text-[10px] text-[#999999] mb-0.5">{label}</p>
-      <p className={`text-sm font-semibold ${color === 'green' ? 'text-[#3FAF7A]' : 'text-[#333333]'}`}>
+      <p className="text-[10px] text-text-placeholder mb-0.5">{label}</p>
+      <p className={`text-sm font-semibold ${color === 'green' ? 'text-brand-primary' : 'text-text-body'}`}>
         {value}
       </p>
     </div>
@@ -427,16 +427,16 @@ function ActivityRow({ item }: { item: IntelRecentActivity }) {
         <Icon className={`w-3 h-3 ${icon.color}`} />
       </div>
       <div className="min-w-0 flex-1">
-        <p className="text-[11px] text-[#333333] truncate">{item.summary}</p>
+        <p className="text-[11px] text-text-body truncate">{item.summary}</p>
         <div className="flex items-center gap-2 mt-0.5">
           {item.confidence_delta !== null && item.confidence_delta !== 0 && (
             <span className={`text-[10px] font-medium ${
-              item.confidence_delta > 0 ? 'text-[#3FAF7A]' : 'text-[#999999]'
+              item.confidence_delta > 0 ? 'text-brand-primary' : 'text-text-placeholder'
             }`}>
               {item.confidence_delta > 0 ? '+' : ''}{Math.round(item.confidence_delta * 100)}%
             </span>
           )}
-          <span className="text-[10px] text-[#999999]">
+          <span className="text-[10px] text-text-placeholder">
             {formatTimeAgo(item.timestamp)}
           </span>
         </div>
@@ -450,7 +450,7 @@ function getActivityIcon(type: string) {
     case 'belief_strengthened':
       return { component: TrendingUp, bg: 'bg-[#E8F5E9]', color: 'text-[#25785A]' }
     case 'belief_weakened':
-      return { component: TrendingDown, bg: 'bg-gray-100', color: 'text-[#999999]' }
+      return { component: TrendingDown, bg: 'bg-gray-100', color: 'text-text-placeholder' }
     case 'signal_processed':
       return { component: Upload, bg: 'bg-gray-100', color: 'text-[#666666]' }
     case 'fact_added':
@@ -478,7 +478,7 @@ function FallbackOverview({ data }: { data: MemoryVisualizationResponse | null }
     return (
       <div className="text-center py-12">
         <p className="text-sm text-[#666666]">No intelligence data yet.</p>
-        <p className="text-xs text-[#999999] mt-1">Process signals to build the knowledge graph.</p>
+        <p className="text-xs text-text-placeholder mt-1">Process signals to build the knowledge graph.</p>
       </div>
     )
   }

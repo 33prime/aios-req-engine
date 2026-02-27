@@ -10,7 +10,7 @@ interface PeopleTableProps {
 
 const TYPE_BADGE: Record<string, { bg: string; text: string }> = {
   champion: { bg: 'bg-green-50', text: 'text-green-700' },
-  sponsor: { bg: 'bg-blue-50', text: 'text-blue-700' },
+  sponsor: { bg: 'bg-blue-50', text: 'text-brand-primary-hover' },
   blocker: { bg: 'bg-red-50', text: 'text-red-700' },
   influencer: { bg: 'bg-purple-50', text: 'text-purple-700' },
   end_user: { bg: 'bg-gray-100', text: 'text-gray-600' },
@@ -43,7 +43,7 @@ export function PeopleTable({ stakeholders, onRowClick }: PeopleTableProps) {
       <div className="bg-white rounded-lg border border-gray-200 p-12 text-center">
         <User className="w-10 h-10 text-gray-300 mx-auto mb-3" />
         <p className="text-[14px] font-medium text-[#37352f] mb-1">No stakeholders found</p>
-        <p className="text-[13px] text-[#999999]">
+        <p className="text-[13px] text-text-placeholder">
           Stakeholders are extracted from signals or can be added manually.
         </p>
       </div>
@@ -55,12 +55,12 @@ export function PeopleTable({ stakeholders, onRowClick }: PeopleTableProps) {
       <table className="w-full">
         <thead>
           <tr className="border-b border-gray-100 bg-gray-50/50">
-            <th className="text-left px-4 py-2.5 text-[11px] font-semibold text-[#999999] uppercase tracking-wider">Name</th>
-            <th className="text-left px-4 py-2.5 text-[11px] font-semibold text-[#999999] uppercase tracking-wider">Role</th>
-            <th className="text-left px-4 py-2.5 text-[11px] font-semibold text-[#999999] uppercase tracking-wider">Type</th>
-            <th className="text-left px-4 py-2.5 text-[11px] font-semibold text-[#999999] uppercase tracking-wider">Influence</th>
-            <th className="text-left px-4 py-2.5 text-[11px] font-semibold text-[#999999] uppercase tracking-wider">Project</th>
-            <th className="text-left px-4 py-2.5 text-[11px] font-semibold text-[#999999] uppercase tracking-wider">Updated</th>
+            <th className="text-left px-4 py-2.5 text-[11px] font-semibold text-text-placeholder uppercase tracking-wider">Name</th>
+            <th className="text-left px-4 py-2.5 text-[11px] font-semibold text-text-placeholder uppercase tracking-wider">Role</th>
+            <th className="text-left px-4 py-2.5 text-[11px] font-semibold text-text-placeholder uppercase tracking-wider">Type</th>
+            <th className="text-left px-4 py-2.5 text-[11px] font-semibold text-text-placeholder uppercase tracking-wider">Influence</th>
+            <th className="text-left px-4 py-2.5 text-[11px] font-semibold text-text-placeholder uppercase tracking-wider">Project</th>
+            <th className="text-left px-4 py-2.5 text-[11px] font-semibold text-text-placeholder uppercase tracking-wider">Updated</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-gray-50">
@@ -86,7 +86,7 @@ export function PeopleTable({ stakeholders, onRowClick }: PeopleTableProps) {
                         )}
                       </div>
                       {s.email && (
-                        <div className="flex items-center gap-1 text-[11px] text-[#999999]">
+                        <div className="flex items-center gap-1 text-[11px] text-text-placeholder">
                           <Mail className="w-3 h-3" />
                           <span className="truncate">{s.email}</span>
                         </div>
@@ -114,7 +114,7 @@ export function PeopleTable({ stakeholders, onRowClick }: PeopleTableProps) {
                 <td className="px-4 py-3 text-[13px] text-[#666666]">
                   {s.project_name || '—'}
                 </td>
-                <td className="px-4 py-3 text-[12px] text-[#999999]">
+                <td className="px-4 py-3 text-[12px] text-text-placeholder">
                   {timeAgo(s.updated_at || s.created_at)}
                 </td>
               </tr>

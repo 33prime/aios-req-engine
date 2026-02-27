@@ -81,7 +81,7 @@ export function EvidenceTab({ projectId }: EvidenceTabProps) {
   if (isLoadingEntities) {
     return (
       <div className="flex items-center justify-center py-12">
-        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-[#3FAF7A]" />
+        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-brand-primary" />
       </div>
     )
   }
@@ -90,7 +90,7 @@ export function EvidenceTab({ projectId }: EvidenceTabProps) {
     return (
       <div className="text-center py-12">
         <p className="text-sm text-[#666666]">No entities to explore.</p>
-        <p className="text-xs text-[#999999] mt-1">Create features, personas, or workflows first.</p>
+        <p className="text-xs text-text-placeholder mt-1">Create features, personas, or workflows first.</p>
       </div>
     )
   }
@@ -101,7 +101,7 @@ export function EvidenceTab({ projectId }: EvidenceTabProps) {
       <div className="col-span-1 space-y-4">
         {groups.map((group) => (
           <div key={group.type}>
-            <h5 className="text-[11px] font-semibold text-[#333333] uppercase tracking-wide mb-2">
+            <h5 className="text-[11px] font-semibold text-text-body uppercase tracking-wide mb-2">
               {group.label} ({group.items.length})
             </h5>
             <div className="space-y-1">
@@ -112,7 +112,7 @@ export function EvidenceTab({ projectId }: EvidenceTabProps) {
                   className={`w-full text-left flex items-center gap-2 px-3 py-2 rounded-lg text-[12px] transition-colors ${
                     selectedEntity?.id === item.id
                       ? 'bg-[#E8F5E9] text-[#25785A] font-medium'
-                      : 'text-[#666666] hover:bg-[#F4F4F4] hover:text-[#333333]'
+                      : 'text-[#666666] hover:bg-[#F4F4F4] hover:text-text-body'
                   }`}
                 >
                   <ChevronRight className="w-3 h-3 shrink-0" />
@@ -127,21 +127,21 @@ export function EvidenceTab({ projectId }: EvidenceTabProps) {
       {/* Evidence Trail (right) */}
       <div className="col-span-2">
         {!selectedEntity ? (
-          <div className="flex items-center justify-center h-full text-sm text-[#999999]">
+          <div className="flex items-center justify-center h-full text-sm text-text-placeholder">
             Select an entity to view its evidence trail
           </div>
         ) : isLoadingEvidence ? (
           <div className="flex items-center justify-center h-full">
-            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-[#3FAF7A]" />
+            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-brand-primary" />
           </div>
         ) : evidence ? (
           <div className="space-y-5">
             {/* Entity header */}
             <div>
-              <p className="text-[11px] font-semibold text-[#999999] uppercase tracking-wide">
+              <p className="text-[11px] font-semibold text-text-placeholder uppercase tracking-wide">
                 {evidence.entity_type}
               </p>
-              <h4 className="text-base font-semibold text-[#333333]">
+              <h4 className="text-base font-semibold text-text-body">
                 {evidence.entity_name || selectedEntity.name}
               </h4>
             </div>
@@ -149,7 +149,7 @@ export function EvidenceTab({ projectId }: EvidenceTabProps) {
             {/* Linked Memory */}
             {evidence.linked_memory.length > 0 && (
               <div>
-                <h5 className="text-[11px] font-semibold text-[#333333] uppercase tracking-wide mb-2 flex items-center gap-1.5">
+                <h5 className="text-[11px] font-semibold text-text-body uppercase tracking-wide mb-2 flex items-center gap-1.5">
                   <Brain className="w-3.5 h-3.5" />
                   Linked Memory ({evidence.linked_memory.length})
                 </h5>
@@ -173,12 +173,12 @@ export function EvidenceTab({ projectId }: EvidenceTabProps) {
                           </span>
                         )}
                         {m.node_type !== 'fact' && (
-                          <span className="text-[9px] text-[#999999]">
+                          <span className="text-[9px] text-text-placeholder">
                             {Math.round(m.confidence * 100)}%
                           </span>
                         )}
                       </div>
-                      <p className="text-[11px] text-[#333333]">{m.summary}</p>
+                      <p className="text-[11px] text-text-body">{m.summary}</p>
                     </div>
                   ))}
                 </div>
@@ -188,19 +188,19 @@ export function EvidenceTab({ projectId }: EvidenceTabProps) {
             {/* Revisions */}
             {evidence.revisions.length > 0 && (
               <div>
-                <h5 className="text-[11px] font-semibold text-[#333333] uppercase tracking-wide mb-2 flex items-center gap-1.5">
+                <h5 className="text-[11px] font-semibold text-text-body uppercase tracking-wide mb-2 flex items-center gap-1.5">
                   <History className="w-3.5 h-3.5" />
                   Revisions ({evidence.revisions.length})
                 </h5>
                 <div className="space-y-1.5">
                   {evidence.revisions.map((r, i) => (
                     <div key={r.id} className="flex items-start gap-2">
-                      <div className="w-1.5 h-1.5 rounded-full bg-[#3FAF7A] mt-1.5 shrink-0" />
+                      <div className="w-1.5 h-1.5 rounded-full bg-brand-primary mt-1.5 shrink-0" />
                       <div className="min-w-0">
-                        <p className="text-[11px] text-[#333333]">
+                        <p className="text-[11px] text-text-body">
                           {r.field_name ? `${r.field_name} updated` : `Revision v${evidence.revisions.length - i}`}
                         </p>
-                        <p className="text-[10px] text-[#999999]">
+                        <p className="text-[10px] text-text-placeholder">
                           {new Date(r.created_at).toLocaleDateString()}
                         </p>
                       </div>
@@ -213,17 +213,17 @@ export function EvidenceTab({ projectId }: EvidenceTabProps) {
             {/* Source Signals */}
             {evidence.source_signals.length > 0 && (
               <div>
-                <h5 className="text-[11px] font-semibold text-[#333333] uppercase tracking-wide mb-2 flex items-center gap-1.5">
+                <h5 className="text-[11px] font-semibold text-text-body uppercase tracking-wide mb-2 flex items-center gap-1.5">
                   <Upload className="w-3.5 h-3.5" />
                   Source Signals ({evidence.source_signals.length})
                 </h5>
                 <div className="space-y-1.5">
                   {evidence.source_signals.map((s) => (
                     <div key={s.id} className="bg-[#F4F4F4] rounded-lg px-3 py-2">
-                      <p className="text-[11px] text-[#333333]">
+                      <p className="text-[11px] text-text-body">
                         {s.title || s.signal_type || 'Signal'}
                       </p>
-                      <p className="text-[10px] text-[#999999]">
+                      <p className="text-[10px] text-text-placeholder">
                         {s.signal_type && <span className="mr-2">{s.signal_type}</span>}
                         {new Date(s.created_at).toLocaleDateString()}
                       </p>
@@ -241,7 +241,7 @@ export function EvidenceTab({ projectId }: EvidenceTabProps) {
             )}
           </div>
         ) : (
-          <div className="flex items-center justify-center h-full text-sm text-[#999999]">
+          <div className="flex items-center justify-center h-full text-sm text-text-placeholder">
             Failed to load evidence
           </div>
         )}

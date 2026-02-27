@@ -34,8 +34,8 @@ export function AssigneePicker({ members, selectedUserId, onChange, compact }: A
       <button
         onClick={() => setOpen(!open)}
         className={`
-          flex items-center gap-1.5 rounded-md border border-[#E5E5E5] bg-white
-          hover:border-[#3FAF7A] transition-colors text-[13px]
+          flex items-center gap-1.5 rounded-md border border-border bg-white
+          hover:border-brand-primary transition-colors text-[13px]
           ${compact ? 'px-2 py-1' : 'px-3 py-1.5'}
         `}
       >
@@ -45,7 +45,7 @@ export function AssigneePicker({ members, selectedUserId, onChange, compact }: A
               {selected.photo_url ? (
                 <Image src={selected.photo_url} alt="" width={20} height={20} className="w-full h-full object-cover" />
               ) : (
-                <User className="w-3 h-3 text-[#3FAF7A]" />
+                <User className="w-3 h-3 text-brand-primary" />
               )}
             </div>
             <span className="text-[#333] truncate max-w-[120px]">{displayName(selected)}</span>
@@ -66,7 +66,7 @@ export function AssigneePicker({ members, selectedUserId, onChange, compact }: A
       </button>
 
       {open && (
-        <div className="absolute z-50 top-full mt-1 left-0 w-56 bg-white border border-[#E5E5E5] rounded-lg shadow-lg py-1 max-h-60 overflow-y-auto">
+        <div className="absolute z-50 top-full mt-1 left-0 w-56 bg-white border border-border rounded-lg shadow-lg py-1 max-h-60 overflow-y-auto">
           {members.map((m) => (
             <button
               key={m.user_id}
@@ -80,7 +80,7 @@ export function AssigneePicker({ members, selectedUserId, onChange, compact }: A
                 {m.photo_url ? (
                   <Image src={m.photo_url} alt="" width={24} height={24} className="w-full h-full object-cover" />
                 ) : (
-                  <User className="w-3 h-3 text-[#3FAF7A]" />
+                  <User className="w-3 h-3 text-brand-primary" />
                 )}
               </div>
               <div className="flex-1 min-w-0">

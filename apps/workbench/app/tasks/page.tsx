@@ -78,7 +78,7 @@ export default function TasksPage() {
         onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
       />
       <div
-        className="min-h-screen bg-[#FAFAFA] transition-all duration-300"
+        className="min-h-screen bg-surface-page transition-all duration-300"
         style={{ marginLeft: sidebarWidth }}
       >
         <div className="max-w-[900px] mx-auto px-4 py-4">
@@ -91,7 +91,7 @@ export default function TasksPage() {
 
           {isLoading && !data ? (
             <div className="flex items-center justify-center py-20">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#3FAF7A]" />
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-primary" />
             </div>
           ) : (data?.tasks.length || 0) === 0 ? (
             <div className="text-center py-20">

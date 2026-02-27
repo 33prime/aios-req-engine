@@ -56,7 +56,7 @@ export function CollapsibleCard({
 
   return (
     <div
-      className="group/card bg-white rounded-2xl shadow-md border border-[#E5E5E5] overflow-hidden"
+      className="group/card bg-white rounded-2xl shadow-md border border-border overflow-hidden"
     >
       {/* Header */}
       <div
@@ -65,19 +65,19 @@ export function CollapsibleCard({
       >
         {dragHandle}
         <ChevronRight
-          className={`w-4 h-4 text-[#999999] flex-shrink-0 transition-transform duration-200 ${
+          className={`w-4 h-4 text-text-placeholder flex-shrink-0 transition-transform duration-200 ${
             expanded ? 'rotate-90' : ''
           }`}
         />
         {icon && <span className="flex-shrink-0">{icon}</span>}
-        <span className="text-[14px] font-semibold text-[#333333] truncate">{title}</span>
+        <span className="text-[14px] font-semibold text-text-body truncate">{title}</span>
         {subtitle && (
-          <span className="text-[12px] text-[#999999] shrink-0">({subtitle})</span>
+          <span className="text-[12px] text-text-placeholder shrink-0">({subtitle})</span>
         )}
         {onDetailClick && (
           <button
             onClick={(e) => { e.stopPropagation(); onDetailClick() }}
-            className="p-1 rounded text-[#999999] hover:text-[#3FAF7A] hover:bg-[#E8F5E9] transition-colors opacity-0 group-hover/card:opacity-100 shrink-0"
+            className="p-1 rounded text-text-placeholder hover:text-brand-primary hover:bg-[#E8F5E9] transition-colors opacity-0 group-hover/card:opacity-100 shrink-0"
             title="View details"
           >
             <ArrowRight className="w-3.5 h-3.5" />
@@ -89,7 +89,7 @@ export function CollapsibleCard({
         </span>
         {isStale && (
           <span className="shrink-0">
-            <span className="w-2 h-2 rounded-full bg-[#999999] inline-block" title="Stale — may need refresh" />
+            <span className="w-2 h-2 rounded-full bg-text-placeholder inline-block" title="Stale — may need refresh" />
           </span>
         )}
         {actions && (
@@ -118,7 +118,7 @@ export function CollapsibleCard({
 
             {/* Confirm/Review actions */}
             {(onConfirm || onNeedsReview) && (
-              <div className="mt-4 pt-3 border-t border-[#E5E5E5]">
+              <div className="mt-4 pt-3 border-t border-border">
                 <ConfirmActions
                   status={status}
                   onConfirm={onConfirm || (() => {})}

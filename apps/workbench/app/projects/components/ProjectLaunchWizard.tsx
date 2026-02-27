@@ -242,24 +242,24 @@ export function ProjectLaunchWizard({ isOpen, onClose, onLaunched }: ProjectLaun
                 <div key={s.label} className="flex items-center gap-2">
                   {i > 0 && (
                     <div
-                      className={`w-8 h-[2px] ${isDone ? 'bg-[#3FAF7A]' : 'bg-[#E5E5E5]'}`}
+                      className={`w-8 h-[2px] ${isDone ? 'bg-brand-primary' : 'bg-border'}`}
                     />
                   )}
                   <div className="flex flex-col items-center gap-1">
                     <div
                       className={`w-8 h-8 rounded-full flex items-center justify-center text-[12px] font-semibold transition-all ${
                         isDone
-                          ? 'bg-[#3FAF7A] text-white'
+                          ? 'bg-brand-primary text-white'
                           : isCurrent
-                            ? 'bg-[#3FAF7A]/10 text-[#3FAF7A] border-2 border-[#3FAF7A]'
-                            : 'bg-[#E5E5E5] text-[#999999]'
+                            ? 'bg-brand-primary-light text-brand-primary border-2 border-brand-primary'
+                            : 'bg-border text-text-placeholder'
                       }`}
                     >
                       {isDone ? <Check className="w-4 h-4" /> : <Icon className="w-4 h-4" />}
                     </div>
                     <span
                       className={`text-[11px] font-medium ${
-                        isDone || isCurrent ? 'text-[#333333]' : 'text-[#999999]'
+                        isDone || isCurrent ? 'text-text-body' : 'text-text-placeholder'
                       }`}
                     >
                       {s.label}
@@ -272,7 +272,7 @@ export function ProjectLaunchWizard({ isOpen, onClose, onLaunched }: ProjectLaun
 
           {/* Step content */}
           <div className="flex-1 overflow-y-auto px-6 pb-4">
-            <div className="bg-white rounded-2xl shadow-md border border-[#E5E5E5] p-6">
+            <div className="bg-white rounded-2xl shadow-md border border-border p-6">
               {step === 0 && <StepProject
                 projectName={projectName}
                 setProjectName={setProjectName}
@@ -330,11 +330,11 @@ export function ProjectLaunchWizard({ isOpen, onClose, onLaunched }: ProjectLaun
           </div>
 
           {/* Footer nav */}
-          <div className="px-6 py-4 flex items-center justify-between border-t border-[#E5E5E5] flex-shrink-0 bg-white">
+          <div className="px-6 py-4 flex items-center justify-between border-t border-border flex-shrink-0 bg-white">
             {step > 0 ? (
               <button
                 onClick={() => setStep((s) => s - 1)}
-                className="flex items-center gap-1.5 text-[14px] text-[#666666] hover:text-[#333333] transition-colors"
+                className="flex items-center gap-1.5 text-[14px] text-[#666666] hover:text-text-body transition-colors"
                 disabled={launching}
               >
                 <ChevronLeft className="w-4 h-4" />
@@ -347,7 +347,7 @@ export function ProjectLaunchWizard({ isOpen, onClose, onLaunched }: ProjectLaun
               <button
                 onClick={() => setStep((s) => s + 1)}
                 disabled={!canProceed()}
-                className="flex items-center gap-1.5 bg-[#3FAF7A] text-white rounded-xl px-6 py-2.5 text-[14px] font-semibold hover:bg-[#25785A] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                className="flex items-center gap-1.5 bg-brand-primary text-white rounded-xl px-6 py-2.5 text-[14px] font-semibold hover:bg-[#25785A] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 Next Step
                 <ChevronRight className="w-4 h-4" />
@@ -356,7 +356,7 @@ export function ProjectLaunchWizard({ isOpen, onClose, onLaunched }: ProjectLaun
               <button
                 onClick={handleLaunch}
                 disabled={launching}
-                className="flex items-center gap-2 bg-[#3FAF7A] text-white rounded-xl px-8 py-2.5 text-[16px] font-semibold hover:bg-[#25785A] transition-colors disabled:opacity-60"
+                className="flex items-center gap-2 bg-brand-primary text-white rounded-xl px-8 py-2.5 text-[16px] font-semibold hover:bg-[#25785A] transition-colors disabled:opacity-60"
               >
                 {launching ? (
                   <>
@@ -396,7 +396,7 @@ function StepProject({
   return (
     <div className="space-y-5">
       <div>
-        <label className="block text-[13px] font-medium text-[#333333] mb-1.5">
+        <label className="block text-[13px] font-medium text-text-body mb-1.5">
           Project Name
         </label>
         <input
@@ -404,12 +404,12 @@ function StepProject({
           value={projectName}
           onChange={(e) => setProjectName(e.target.value)}
           placeholder="What are you building?"
-          className="w-full text-[20px] font-semibold text-[#333333] placeholder-[#CCCCCC] bg-[#F4F4F4] border border-[#E5E5E5] rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-[#3FAF7A]/20 focus:border-[#3FAF7A] transition-colors"
+          className="w-full text-[20px] font-semibold text-text-body placeholder-[#CCCCCC] bg-[#F4F4F4] border border-border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary transition-colors"
           autoFocus
         />
       </div>
       <div>
-        <label className="block text-[13px] font-medium text-[#333333] mb-1.5">
+        <label className="block text-[13px] font-medium text-text-body mb-1.5">
           Problem Description
         </label>
         <textarea
@@ -417,9 +417,9 @@ function StepProject({
           onChange={(e) => setProblemDescription(e.target.value)}
           placeholder="Paste meeting notes, project brief, or describe the problem..."
           rows={6}
-          className="w-full text-[14px] text-[#333333] placeholder-[#CCCCCC] bg-[#F4F4F4] border border-[#E5E5E5] rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-[#3FAF7A]/20 focus:border-[#3FAF7A] transition-colors resize-none"
+          className="w-full text-[14px] text-text-body placeholder-[#CCCCCC] bg-[#F4F4F4] border border-border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary transition-colors resize-none"
         />
-        <p className="text-[13px] text-[#999999] mt-1.5">
+        <p className="text-[13px] text-text-placeholder mt-1.5">
           The more context you share, the better the AI extracts features, personas, and value paths.
         </p>
       </div>
@@ -482,12 +482,12 @@ function StepClient({
             }}
             className={`p-4 rounded-xl border-2 text-left transition-all ${
               clientMode === m.value
-                ? 'border-[#3FAF7A] bg-[#E8F5E9]/30'
-                : 'border-[#E5E5E5] hover:border-[#CCCCCC]'
+                ? 'border-brand-primary bg-[#E8F5E9]/30'
+                : 'border-border hover:border-[#CCCCCC]'
             }`}
           >
-            <p className="text-[14px] font-semibold text-[#333333]">{m.label}</p>
-            <p className="text-[12px] text-[#999999] mt-1">{m.desc}</p>
+            <p className="text-[14px] font-semibold text-text-body">{m.label}</p>
+            <p className="text-[12px] text-text-placeholder mt-1">{m.desc}</p>
           </button>
         ))}
       </div>
@@ -495,18 +495,18 @@ function StepClient({
       {clientMode === 'existing' && (
         <div className="space-y-3">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#999999]" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-placeholder" />
             <input
               type="text"
               value={clientSearch}
               onChange={(e) => setClientSearch(e.target.value)}
               placeholder="Search clients by name..."
-              className="w-full text-[14px] text-[#333333] placeholder-[#CCCCCC] bg-[#F4F4F4] border border-[#E5E5E5] rounded-xl pl-10 pr-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#3FAF7A]/20 focus:border-[#3FAF7A]"
+              className="w-full text-[14px] text-text-body placeholder-[#CCCCCC] bg-[#F4F4F4] border border-border rounded-xl pl-10 pr-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary"
               autoFocus
             />
           </div>
           {searchLoading && (
-            <p className="text-[13px] text-[#999999]">Searching...</p>
+            <p className="text-[13px] text-text-placeholder">Searching...</p>
           )}
           {clientResults.length > 0 && (
             <div className="space-y-1 max-h-40 overflow-y-auto">
@@ -520,13 +520,13 @@ function StepClient({
                   }}
                   className={`w-full text-left px-4 py-2.5 rounded-lg transition-colors ${
                     selectedClient?.id === c.id
-                      ? 'bg-[#E8F5E9] border border-[#3FAF7A]/30'
+                      ? 'bg-[#E8F5E9] border border-brand-primary/30'
                       : 'hover:bg-[#F4F4F4]'
                   }`}
                 >
-                  <p className="text-[14px] font-medium text-[#333333]">{c.name}</p>
+                  <p className="text-[14px] font-medium text-text-body">{c.name}</p>
                   {c.industry && (
-                    <p className="text-[12px] text-[#999999]">{c.industry}</p>
+                    <p className="text-[12px] text-text-placeholder">{c.industry}</p>
                   )}
                 </button>
               ))}
@@ -534,12 +534,12 @@ function StepClient({
           )}
           {selectedClient && (
             <div className="flex items-center gap-2 bg-[#E8F5E9] rounded-lg px-3 py-2">
-              <Check className="w-4 h-4 text-[#3FAF7A]" />
+              <Check className="w-4 h-4 text-brand-primary" />
               <span className="text-[13px] font-medium text-[#25785A]">
                 {selectedClient.name}
               </span>
               {selectedClient.website && (
-                <span className="text-[12px] text-[#999999]">{selectedClient.website}</span>
+                <span className="text-[12px] text-text-placeholder">{selectedClient.website}</span>
               )}
             </div>
           )}
@@ -549,7 +549,7 @@ function StepClient({
       {clientMode === 'new' && (
         <div className="space-y-3">
           <div>
-            <label className="block text-[13px] font-medium text-[#333333] mb-1">
+            <label className="block text-[13px] font-medium text-text-body mb-1">
               Client Name *
             </label>
             <input
@@ -557,30 +557,30 @@ function StepClient({
               value={newClientName}
               onChange={(e) => setNewClientName(e.target.value)}
               placeholder="Acme Corp"
-              className="w-full text-[14px] text-[#333333] placeholder-[#CCCCCC] bg-[#F4F4F4] border border-[#E5E5E5] rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#3FAF7A]/20 focus:border-[#3FAF7A]"
+              className="w-full text-[14px] text-text-body placeholder-[#CCCCCC] bg-[#F4F4F4] border border-border rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary"
               autoFocus
             />
           </div>
           <div>
-            <label className="block text-[13px] font-medium text-[#333333] mb-1">
+            <label className="block text-[13px] font-medium text-text-body mb-1">
               Website
             </label>
             <div className="relative">
-              <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#999999]" />
+              <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-placeholder" />
               <input
                 type="text"
                 value={newClientWebsite}
                 onChange={(e) => setNewClientWebsite(e.target.value)}
                 placeholder="https://acme.com"
-                className="w-full text-[14px] text-[#333333] placeholder-[#CCCCCC] bg-[#F4F4F4] border border-[#E5E5E5] rounded-xl pl-10 pr-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#3FAF7A]/20 focus:border-[#3FAF7A]"
+                className="w-full text-[14px] text-text-body placeholder-[#CCCCCC] bg-[#F4F4F4] border border-border rounded-xl pl-10 pr-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary"
               />
             </div>
-            <p className="text-[12px] text-[#999999] mt-1">
+            <p className="text-[12px] text-text-placeholder mt-1">
               Adding a website lets us auto-enrich the company profile — competitors, tech stack, market position.
             </p>
           </div>
           <div>
-            <label className="block text-[13px] font-medium text-[#333333] mb-1">
+            <label className="block text-[13px] font-medium text-text-body mb-1">
               Industry
             </label>
             <input
@@ -588,7 +588,7 @@ function StepClient({
               value={newClientIndustry}
               onChange={(e) => setNewClientIndustry(e.target.value)}
               placeholder="e.g. Financial Services, Healthcare"
-              className="w-full text-[14px] text-[#333333] placeholder-[#CCCCCC] bg-[#F4F4F4] border border-[#E5E5E5] rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#3FAF7A]/20 focus:border-[#3FAF7A]"
+              className="w-full text-[14px] text-text-body placeholder-[#CCCCCC] bg-[#F4F4F4] border border-border rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary"
             />
           </div>
         </div>
@@ -639,7 +639,7 @@ function StepStakeholder({
       {/* Added stakeholders */}
       {stakeholders.length > 0 && (
         <div className="space-y-2">
-          <p className="text-[13px] font-medium text-[#333333]">
+          <p className="text-[13px] font-medium text-text-body">
             Added ({stakeholders.length})
           </p>
           {stakeholders.map((s, i) => (
@@ -648,22 +648,22 @@ function StepStakeholder({
               className="flex items-center justify-between bg-[#F4F4F4] rounded-lg px-3 py-2"
             >
               <div className="flex items-center gap-2">
-                <span className="text-[14px] font-medium text-[#333333]">
+                <span className="text-[14px] font-medium text-text-body">
                   {s.first_name} {s.last_name}
                 </span>
                 {s.role && (
-                  <span className="text-[12px] text-[#999999]">{s.role}</span>
+                  <span className="text-[12px] text-text-placeholder">{s.role}</span>
                 )}
                 <span className="text-[11px] bg-[#E8F5E9] text-[#25785A] px-2 py-0.5 rounded-full">
                   {s.stakeholder_type || 'champion'}
                 </span>
                 {s.linkedin_url && (
-                  <Linkedin className="w-3.5 h-3.5 text-[#999999]" />
+                  <Linkedin className="w-3.5 h-3.5 text-text-placeholder" />
                 )}
               </div>
               <button
                 onClick={() => removeStakeholder(i)}
-                className="text-[#999999] hover:text-red-500 transition-colors p-1"
+                className="text-text-placeholder hover:text-red-500 transition-colors p-1"
               >
                 <Trash2 className="w-3.5 h-3.5" />
               </button>
@@ -676,7 +676,7 @@ function StepStakeholder({
       <div className="space-y-3">
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="block text-[13px] font-medium text-[#333333] mb-1">
+            <label className="block text-[13px] font-medium text-text-body mb-1">
               First Name *
             </label>
             <input
@@ -684,11 +684,11 @@ function StepStakeholder({
               value={sFirstName}
               onChange={(e) => setSFirstName(e.target.value)}
               placeholder="Jane"
-              className="w-full text-[14px] text-[#333333] placeholder-[#CCCCCC] bg-[#F4F4F4] border border-[#E5E5E5] rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#3FAF7A]/20 focus:border-[#3FAF7A]"
+              className="w-full text-[14px] text-text-body placeholder-[#CCCCCC] bg-[#F4F4F4] border border-border rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary"
             />
           </div>
           <div>
-            <label className="block text-[13px] font-medium text-[#333333] mb-1">
+            <label className="block text-[13px] font-medium text-text-body mb-1">
               Last Name *
             </label>
             <input
@@ -696,13 +696,13 @@ function StepStakeholder({
               value={sLastName}
               onChange={(e) => setSLastName(e.target.value)}
               placeholder="Smith"
-              className="w-full text-[14px] text-[#333333] placeholder-[#CCCCCC] bg-[#F4F4F4] border border-[#E5E5E5] rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#3FAF7A]/20 focus:border-[#3FAF7A]"
+              className="w-full text-[14px] text-text-body placeholder-[#CCCCCC] bg-[#F4F4F4] border border-border rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary"
             />
           </div>
         </div>
 
         <div>
-          <label className="block text-[13px] font-medium text-[#333333] mb-1">
+          <label className="block text-[13px] font-medium text-text-body mb-1">
             Email
           </label>
           <input
@@ -710,31 +710,31 @@ function StepStakeholder({
             value={sEmail}
             onChange={(e) => setSEmail(e.target.value)}
             placeholder="jane@acme.com"
-            className="w-full text-[14px] text-[#333333] placeholder-[#CCCCCC] bg-[#F4F4F4] border border-[#E5E5E5] rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#3FAF7A]/20 focus:border-[#3FAF7A]"
+            className="w-full text-[14px] text-text-body placeholder-[#CCCCCC] bg-[#F4F4F4] border border-border rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary"
           />
         </div>
 
         <div>
-          <label className="block text-[13px] font-medium text-[#333333] mb-1">
+          <label className="block text-[13px] font-medium text-text-body mb-1">
             LinkedIn URL
           </label>
           <div className="relative">
-            <Linkedin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#999999]" />
+            <Linkedin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-placeholder" />
             <input
               type="text"
               value={sLinkedin}
               onChange={(e) => setSLinkedin(e.target.value)}
               placeholder="https://linkedin.com/in/janesmith"
-              className="w-full text-[14px] text-[#333333] placeholder-[#CCCCCC] bg-[#F4F4F4] border border-[#E5E5E5] rounded-xl pl-10 pr-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#3FAF7A]/20 focus:border-[#3FAF7A]"
+              className="w-full text-[14px] text-text-body placeholder-[#CCCCCC] bg-[#F4F4F4] border border-border rounded-xl pl-10 pr-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary"
             />
           </div>
-          <p className="text-[12px] text-[#999999] mt-1">
+          <p className="text-[12px] text-text-placeholder mt-1">
             A LinkedIn profile lets us build a rich intelligence profile — decision authority, org influence, professional context.
           </p>
         </div>
 
         <div>
-          <label className="block text-[13px] font-medium text-[#333333] mb-1">
+          <label className="block text-[13px] font-medium text-text-body mb-1">
             Role
           </label>
           <input
@@ -742,12 +742,12 @@ function StepStakeholder({
             value={sRole}
             onChange={(e) => setSRole(e.target.value)}
             placeholder="VP of Operations"
-            className="w-full text-[14px] text-[#333333] placeholder-[#CCCCCC] bg-[#F4F4F4] border border-[#E5E5E5] rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#3FAF7A]/20 focus:border-[#3FAF7A]"
+            className="w-full text-[14px] text-text-body placeholder-[#CCCCCC] bg-[#F4F4F4] border border-border rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary"
           />
         </div>
 
         <div>
-          <label className="block text-[13px] font-medium text-[#333333] mb-1.5">
+          <label className="block text-[13px] font-medium text-text-body mb-1.5">
             Type
           </label>
           <div className="flex flex-wrap gap-2">
@@ -757,8 +757,8 @@ function StepStakeholder({
                 onClick={() => setSType(t.value)}
                 className={`px-3 py-1.5 rounded-full text-[13px] font-medium transition-all ${
                   sType === t.value
-                    ? 'bg-[#3FAF7A] text-white'
-                    : 'bg-[#F0F0F0] text-[#666666] hover:bg-[#E5E5E5]'
+                    ? 'bg-brand-primary text-white'
+                    : 'bg-[#F0F0F0] text-[#666666] hover:bg-border'
                 }`}
               >
                 {t.label}
@@ -770,7 +770,7 @@ function StepStakeholder({
         <button
           onClick={addStakeholder}
           disabled={!sFirstName.trim() || !sLastName.trim()}
-          className="flex items-center gap-1.5 text-[14px] font-medium text-[#3FAF7A] hover:text-[#25785A] disabled:text-[#CCCCCC] disabled:cursor-not-allowed transition-colors mt-2"
+          className="flex items-center gap-1.5 text-[14px] font-medium text-brand-primary hover:text-[#25785A] disabled:text-[#CCCCCC] disabled:cursor-not-allowed transition-colors mt-2"
         >
           <Plus className="w-4 h-4" />
           Add Stakeholder
@@ -778,7 +778,7 @@ function StepStakeholder({
       </div>
 
       {stakeholders.length === 0 && (
-        <p className="text-[13px] text-[#999999] text-center pt-2">
+        <p className="text-[13px] text-text-placeholder text-center pt-2">
           You can skip this step and add stakeholders later from the workspace.
         </p>
       )}
@@ -862,12 +862,12 @@ function StepSummary({
       <div className="grid grid-cols-3 gap-3">
         <div className="bg-[#F4F4F4] rounded-xl p-3">
           <div className="flex items-center gap-2 mb-1.5">
-            <FileText className="w-4 h-4 text-[#3FAF7A]" />
+            <FileText className="w-4 h-4 text-brand-primary" />
             <span className="text-[12px] font-semibold text-[#666666] uppercase">Project</span>
           </div>
-          <p className="text-[14px] font-semibold text-[#333333] truncate">{projectName}</p>
+          <p className="text-[14px] font-semibold text-text-body truncate">{projectName}</p>
           {problemDescription && (
-            <p className="text-[12px] text-[#999999] mt-1 line-clamp-2">
+            <p className="text-[12px] text-text-placeholder mt-1 line-clamp-2">
               {problemDescription.slice(0, 80)}...
             </p>
           )}
@@ -875,57 +875,57 @@ function StepSummary({
 
         <div className="bg-[#F4F4F4] rounded-xl p-3">
           <div className="flex items-center gap-2 mb-1.5">
-            <Building2 className="w-4 h-4 text-[#3FAF7A]" />
+            <Building2 className="w-4 h-4 text-brand-primary" />
             <span className="text-[12px] font-semibold text-[#666666] uppercase">Client</span>
           </div>
           {clientLabel ? (
             <>
-              <p className="text-[14px] font-semibold text-[#333333] truncate">{clientLabel}</p>
+              <p className="text-[14px] font-semibold text-text-body truncate">{clientLabel}</p>
               {(clientWebsite || newClientWebsite) && (
-                <p className="text-[12px] text-[#999999] mt-1 truncate">
+                <p className="text-[12px] text-text-placeholder mt-1 truncate">
                   {clientWebsite || newClientWebsite}
                 </p>
               )}
             </>
           ) : (
-            <p className="text-[13px] text-[#999999]">None — skip</p>
+            <p className="text-[13px] text-text-placeholder">None — skip</p>
           )}
         </div>
 
         <div className="bg-[#F4F4F4] rounded-xl p-3">
           <div className="flex items-center gap-2 mb-1.5">
-            <Users className="w-4 h-4 text-[#3FAF7A]" />
+            <Users className="w-4 h-4 text-brand-primary" />
             <span className="text-[12px] font-semibold text-[#666666] uppercase">Stakeholders</span>
           </div>
           {stakeholders.length > 0 ? (
             <>
-              <p className="text-[14px] font-semibold text-[#333333]">
+              <p className="text-[14px] font-semibold text-text-body">
                 {stakeholders.length} contact{stakeholders.length !== 1 ? 's' : ''}
               </p>
-              <p className="text-[12px] text-[#999999] mt-1 truncate">
+              <p className="text-[12px] text-text-placeholder mt-1 truncate">
                 {stakeholders.map((s) => s.first_name).join(', ')}
               </p>
             </>
           ) : (
-            <p className="text-[13px] text-[#999999]">None — skip</p>
+            <p className="text-[13px] text-text-placeholder">None — skip</p>
           )}
         </div>
       </div>
 
       {/* Pipeline preview */}
       <div>
-        <p className="text-[13px] font-semibold text-[#333333] mb-3">Pipeline Steps</p>
+        <p className="text-[13px] font-semibold text-text-body mb-3">Pipeline Steps</p>
         <div className="space-y-2">
           {pipelineSteps.map((ps) => (
             <div key={ps.label} className="flex items-center gap-3">
               <div
                 className={`w-2 h-2 rounded-full flex-shrink-0 ${
-                  ps.active ? 'bg-[#3FAF7A]' : 'bg-[#E5E5E5]'
+                  ps.active ? 'bg-brand-primary' : 'bg-border'
                 }`}
               />
               <span
                 className={`text-[14px] ${
-                  ps.active ? 'text-[#333333] font-medium' : 'text-[#999999]'
+                  ps.active ? 'text-text-body font-medium' : 'text-text-placeholder'
                 }`}
               >
                 {ps.label}
@@ -934,7 +934,7 @@ function StepSummary({
                 <span className="text-[12px] text-[#CCCCCC]">{ps.inactive}</span>
               )}
               {ps.cost && (
-                <span className="text-[12px] text-[#999999] ml-auto">{ps.cost}</span>
+                <span className="text-[12px] text-text-placeholder ml-auto">{ps.cost}</span>
               )}
             </div>
           ))}
@@ -948,16 +948,16 @@ function StepSummary({
           className="flex-shrink-0 mt-0.5"
         >
           {autoDiscovery ? (
-            <ToggleRight className="w-8 h-5 text-[#3FAF7A]" />
+            <ToggleRight className="w-8 h-5 text-brand-primary" />
           ) : (
             <ToggleLeft className="w-8 h-5 text-[#CCCCCC]" />
           )}
         </button>
         <div>
-          <p className="text-[14px] font-medium text-[#333333]">
+          <p className="text-[14px] font-medium text-text-body">
             Auto-run discovery research
           </p>
-          <p className="text-[12px] text-[#999999] mt-0.5">
+          <p className="text-[12px] text-text-placeholder mt-0.5">
             Runs if readiness score {'>'}= 60. Estimated cost: ~$1.00
           </p>
         </div>

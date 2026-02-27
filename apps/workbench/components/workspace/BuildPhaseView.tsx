@@ -175,23 +175,23 @@ export function BuildPhaseView({
       style={isFullscreen ? { right: collaborationWidth } : undefined}
     >
       {/* Header — adapts to review mode */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-[#E5E5E5] bg-white">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-white">
         <div className="flex items-center gap-4">
           {isReviewActive && session ? (
             <>
-              <h2 className="text-base font-semibold text-[#333333]">
+              <h2 className="text-base font-semibold text-text-body">
                 Session {session.session_number}
               </h2>
-              <span className="text-xs text-[#999999]">Reviewing</span>
+              <span className="text-xs text-text-placeholder">Reviewing</span>
             </>
           ) : (
             <>
-              <h2 className="text-base font-semibold text-[#333333]">Prototype</h2>
+              <h2 className="text-base font-semibold text-text-body">Prototype</h2>
               <div className="flex items-center gap-2">
                 <div className="w-20 h-1.5 bg-gray-200 rounded-full overflow-hidden">
-                  <div className="h-full bg-[#3FAF7A] rounded-full transition-all" style={{ width: `${readinessScore}%` }} />
+                  <div className="h-full bg-brand-primary rounded-full transition-all" style={{ width: `${readinessScore}%` }} />
                 </div>
-                <span className="text-sm font-medium text-[#333333]">{Math.round(readinessScore)}% ready</span>
+                <span className="text-sm font-medium text-text-body">{Math.round(readinessScore)}% ready</span>
               </div>
             </>
           )}
@@ -203,7 +203,7 @@ export function BuildPhaseView({
               {!isReviewActive && (
                 <button
                   onClick={refreshIframe}
-                  className="p-2 text-[#999999] hover:text-[#333333] hover:bg-[#F9F9F9] rounded-lg transition-colors"
+                  className="p-2 text-text-placeholder hover:text-text-body hover:bg-surface-muted rounded-lg transition-colors"
                   title="Refresh preview"
                 >
                   <RefreshCw className="w-4 h-4" />
@@ -211,7 +211,7 @@ export function BuildPhaseView({
               )}
               <button
                 onClick={() => setIsFullscreen(!isFullscreen)}
-                className="p-2 text-[#999999] hover:text-[#333333] hover:bg-[#F9F9F9] rounded-lg transition-colors"
+                className="p-2 text-text-placeholder hover:text-text-body hover:bg-surface-muted rounded-lg transition-colors"
                 title={isFullscreen ? 'Exit fullscreen (Esc)' : 'Fullscreen'}
               >
                 {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
@@ -234,7 +234,7 @@ export function BuildPhaseView({
                       }
                     }}
                     disabled={isEndingReview}
-                    className="flex items-center gap-1.5 px-4 py-1.5 text-sm font-medium text-white bg-[#3FAF7A] hover:bg-[#25785A] rounded-xl transition-colors shadow-sm disabled:opacity-60"
+                    className="flex items-center gap-1.5 px-4 py-1.5 text-sm font-medium text-white bg-brand-primary hover:bg-[#25785A] rounded-xl transition-colors shadow-sm disabled:opacity-60"
                   >
                     {isEndingReview ? (
                       <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -246,7 +246,7 @@ export function BuildPhaseView({
                 ) : (
                   <button
                     disabled
-                    className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-[#999999] bg-[#F0F0F0] rounded-xl cursor-not-allowed"
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-text-placeholder bg-[#F0F0F0] rounded-xl cursor-not-allowed"
                     title={`Review all features before ending (${reviewedCount}/${totalCount})`}
                   >
                     <Square className="w-3.5 h-3.5" />
@@ -256,7 +256,7 @@ export function BuildPhaseView({
               })() : (
                 <button
                   onClick={onStartReview}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-[#3FAF7A] bg-[#3FAF7A]/5 hover:bg-[#3FAF7A]/10 rounded-lg transition-colors"
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-brand-primary bg-brand-primary-light hover:bg-brand-primary-light rounded-lg transition-colors"
                 >
                   <Layers className="w-4 h-4" />
                   Review with Overlays
@@ -269,7 +269,7 @@ export function BuildPhaseView({
 
       {/* Inline URL input — only visible when actively editing (e.g. from empty state "paste URL" button) */}
       {!isReviewActive && isEditing && (
-        <div className="px-4 py-2 bg-[#F9F9F9] border-b border-[#E5E5E5]">
+        <div className="px-4 py-2 bg-surface-muted border-b border-border">
           <div className="flex items-center gap-2">
             <input
               ref={inputRef}
@@ -278,13 +278,13 @@ export function BuildPhaseView({
               onChange={(e) => setUrlValue(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder="https://your-prototype.vercel.app"
-              className="flex-1 px-3 py-1.5 text-sm bg-white border border-[#E5E5E5] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3FAF7A]/20 focus:border-[#3FAF7A]"
+              className="flex-1 px-3 py-1.5 text-sm bg-white border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary"
               disabled={isSaving}
             />
-            <button onClick={handleCancel} className="p-1.5 text-[#999999] hover:text-[#333333] rounded transition-colors" disabled={isSaving}>
+            <button onClick={handleCancel} className="p-1.5 text-text-placeholder hover:text-text-body rounded transition-colors" disabled={isSaving}>
               <X className="w-4 h-4" />
             </button>
-            <button onClick={handleSave} className="p-1.5 text-[#3FAF7A] hover:bg-[#3FAF7A]/10 rounded transition-colors" disabled={isSaving}>
+            <button onClick={handleSave} className="p-1.5 text-brand-primary hover:bg-brand-primary-light rounded transition-colors" disabled={isSaving}>
               <Check className="w-4 h-4" />
             </button>
           </div>
@@ -328,17 +328,17 @@ export function BuildPhaseView({
         ) : (
           <div className="flex items-center justify-center h-full">
             <div className="text-center max-w-md">
-              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-[#3FAF7A]/10 flex items-center justify-center">
-                <Sparkles className="w-8 h-8 text-[#3FAF7A]" />
+              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-brand-primary-light flex items-center justify-center">
+                <Sparkles className="w-8 h-8 text-brand-primary" />
               </div>
-              <h3 className="text-base font-semibold text-[#333333] mb-2">Generate a Prototype</h3>
-              <p className="text-sm text-[#999999] mb-5">
+              <h3 className="text-base font-semibold text-text-body mb-2">Generate a Prototype</h3>
+              <p className="text-sm text-text-placeholder mb-5">
                 Turn your discovery data into a v0.dev prompt with your chosen design direction.
               </p>
               {onGeneratePrototype ? (
                 <button
                   onClick={() => setShowDesignModal(true)}
-                  className="px-5 py-2.5 bg-[#3FAF7A] text-white text-sm font-medium rounded-lg hover:bg-[#25785A] transition-colors inline-flex items-center gap-2"
+                  className="px-5 py-2.5 bg-brand-primary text-white text-sm font-medium rounded-lg hover:bg-[#25785A] transition-colors inline-flex items-center gap-2"
                 >
                   <Sparkles className="w-4 h-4" />
                   Generate Prototype
@@ -346,7 +346,7 @@ export function BuildPhaseView({
               ) : (
                 <button
                   onClick={() => setIsEditing(true)}
-                  className="px-5 py-2.5 bg-[#3FAF7A] text-white text-sm font-medium rounded-lg hover:bg-[#25785A] transition-colors"
+                  className="px-5 py-2.5 bg-brand-primary text-white text-sm font-medium rounded-lg hover:bg-[#25785A] transition-colors"
                 >
                   Add Prototype URL
                 </button>
@@ -354,7 +354,7 @@ export function BuildPhaseView({
               <div className="mt-3">
                 <button
                   onClick={() => setIsEditing(true)}
-                  className="text-sm text-[#999999] hover:text-[#333333] transition-colors underline underline-offset-2"
+                  className="text-sm text-text-placeholder hover:text-text-body transition-colors underline underline-offset-2"
                 >
                   Or paste a prototype URL
                 </button>

@@ -131,8 +131,8 @@ export default function InviteMemberModal({
 
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
               <div className="flex items-start gap-2">
-                <AlertCircle className="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5" />
-                <p className="text-[12px] text-blue-700">
+                <AlertCircle className="w-4 h-4 text-brand-primary flex-shrink-0 mt-0.5" />
+                <p className="text-[12px] text-brand-primary-hover">
                   They&apos;ll receive an email invitation to join <span className="font-medium">{organizationName}</span>.
                   The invitation expires in 7 days.
                 </p>

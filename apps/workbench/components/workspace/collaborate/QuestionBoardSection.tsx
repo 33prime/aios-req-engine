@@ -87,23 +87,23 @@ export function QuestionBoardSection({ projectId, synthesizeTrigger }: QuestionB
   }
 
   return (
-    <div className="bg-white rounded-2xl border border-[#E5E5E5] shadow-[0_1px_2px_rgba(0,0,0,0.04)] overflow-hidden">
+    <div className="bg-white rounded-2xl border border-border shadow-sm overflow-hidden">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full flex items-center justify-between px-5 py-4 hover:bg-[#FAFAFA] transition-colors"
+        className="w-full flex items-center justify-between px-5 py-4 hover:bg-surface-page transition-colors"
       >
         <div className="flex items-center gap-2.5">
-          <Package className="w-4 h-4 text-[#3FAF7A]" />
-          <span className="text-[11px] uppercase tracking-wider text-[#999999] font-semibold">
+          <Package className="w-4 h-4 text-brand-primary" />
+          <span className="text-[11px] uppercase tracking-wider text-text-placeholder font-semibold">
             Portal Pipeline
           </span>
           {totalBadge > 0 && (
-            <span className="px-1.5 py-0.5 bg-[#3FAF7A]/10 text-[#25785A] text-[10px] font-bold rounded-full min-w-[18px] text-center">
+            <span className="px-1.5 py-0.5 bg-brand-primary-light text-[#25785A] text-[10px] font-bold rounded-full min-w-[18px] text-center">
               {totalBadge}
             </span>
           )}
         </div>
-        {isOpen ? <ChevronDown className="w-4 h-4 text-[#999999]" /> : <ChevronRight className="w-4 h-4 text-[#999999]" />}
+        {isOpen ? <ChevronDown className="w-4 h-4 text-text-placeholder" /> : <ChevronRight className="w-4 h-4 text-text-placeholder" />}
       </button>
 
       {isOpen && (
@@ -115,14 +115,14 @@ export function QuestionBoardSection({ projectId, synthesizeTrigger }: QuestionB
           {/* Pending Items Queue */}
           <div>
             <div className="flex items-center justify-between mb-2">
-              <p className="text-[11px] uppercase tracking-wider text-[#999999] font-semibold">
+              <p className="text-[11px] uppercase tracking-wider text-text-placeholder font-semibold">
                 Pending Items ({items.length})
               </p>
               {items.length > 0 && !draftPackage && (
                 <button
                   onClick={handleSynthesize}
                   disabled={isSynthesizing}
-                  className="bg-[#3FAF7A] text-white rounded-lg px-3 py-1.5 text-[12px] font-medium hover:bg-[#25785A] transition-colors disabled:opacity-50 flex items-center gap-1.5"
+                  className="bg-brand-primary text-white rounded-lg px-3 py-1.5 text-[12px] font-medium hover:bg-[#25785A] transition-colors disabled:opacity-50 flex items-center gap-1.5"
                 >
                   {isSynthesizing ? (
                     <>
@@ -140,9 +140,9 @@ export function QuestionBoardSection({ projectId, synthesizeTrigger }: QuestionB
             </div>
 
             {items.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-[#E5E5E5] p-4 text-center">
-                <Package className="w-6 h-6 mx-auto mb-1.5 text-[#E5E5E5]" />
-                <p className="text-[12px] text-[#999999]">No pending items</p>
+              <div className="rounded-xl border border-dashed border-border p-4 text-center">
+                <Package className="w-6 h-6 mx-auto mb-1.5 text-border" />
+                <p className="text-[12px] text-text-placeholder">No pending items</p>
                 <p className="text-[11px] text-[#CCCCCC] mt-0.5">
                   Mark entities for client review from the BRD canvas or chat
                 </p>
@@ -152,17 +152,17 @@ export function QuestionBoardSection({ projectId, synthesizeTrigger }: QuestionB
                 {items.map(item => (
                   <div
                     key={item.id}
-                    className="flex items-center justify-between gap-2 rounded-lg bg-[#F9F9F9] px-3 py-2 group"
+                    className="flex items-center justify-between gap-2 rounded-lg bg-surface-muted px-3 py-2 group"
                   >
                     <div className="flex items-center gap-2.5 min-w-0">
                       <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-[#0A1E2F]/8 text-[#0A1E2F] flex-shrink-0">
                         {typeLabel(item.item_type)}
                       </span>
-                      <span className="text-[13px] text-[#333333] truncate">{item.title}</span>
+                      <span className="text-[13px] text-text-body truncate">{item.title}</span>
                     </div>
                     <button
                       onClick={() => handleRemoveItem(item.id)}
-                      className="text-[#CCCCCC] hover:text-[#999999] opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
+                      className="text-[#CCCCCC] hover:text-text-placeholder opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
                     >
                       <X className="w-3.5 h-3.5" />
                     </button>
@@ -174,25 +174,25 @@ export function QuestionBoardSection({ projectId, synthesizeTrigger }: QuestionB
 
           {/* Draft Package */}
           {draftPackage && (
-            <div className="rounded-xl border border-[#3FAF7A]/30 bg-[#3FAF7A]/5 p-4">
+            <div className="rounded-xl border border-brand-primary/30 bg-brand-primary-light p-4">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
-                  <Sparkles className="w-4 h-4 text-[#3FAF7A]" />
-                  <span className="text-[13px] font-medium text-[#333333]">
+                  <Sparkles className="w-4 h-4 text-brand-primary" />
+                  <span className="text-[13px] font-medium text-text-body">
                     Draft Package — {draftPackage.questions?.length ?? 0} questions
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => setDraftPackage(null)}
-                    className="text-[12px] text-[#666666] hover:text-[#333333] px-2 py-1 rounded-lg hover:bg-white/50 transition-colors"
+                    className="text-[12px] text-[#666666] hover:text-text-body px-2 py-1 rounded-lg hover:bg-white/50 transition-colors"
                   >
                     Discard
                   </button>
                   <button
                     onClick={handleSendPackage}
                     disabled={isSending}
-                    className="bg-[#3FAF7A] text-white rounded-lg px-3 py-1.5 text-[12px] font-medium hover:bg-[#25785A] transition-colors disabled:opacity-50 flex items-center gap-1.5"
+                    className="bg-brand-primary text-white rounded-lg px-3 py-1.5 text-[12px] font-medium hover:bg-[#25785A] transition-colors disabled:opacity-50 flex items-center gap-1.5"
                   >
                     {isSending ? (
                       <Loader2 className="w-3 h-3 animate-spin" />
@@ -208,14 +208,14 @@ export function QuestionBoardSection({ projectId, synthesizeTrigger }: QuestionB
               <div className="space-y-2">
                 {(draftPackage.questions ?? []).slice(0, 5).map((q, i) => (
                   <div key={q.id || i} className="bg-white/60 rounded-lg px-3 py-2">
-                    <p className="text-[13px] text-[#333333]">{q.question_text}</p>
+                    <p className="text-[13px] text-text-body">{q.question_text}</p>
                     {q.why_asking && (
-                      <p className="text-[11px] text-[#999999] mt-1">{q.why_asking}</p>
+                      <p className="text-[11px] text-text-placeholder mt-1">{q.why_asking}</p>
                     )}
                   </div>
                 ))}
                 {(draftPackage.questions?.length ?? 0) > 5 && (
-                  <p className="text-[11px] text-[#999999] text-center">
+                  <p className="text-[11px] text-text-placeholder text-center">
                     +{(draftPackage.questions?.length ?? 0) - 5} more questions
                   </p>
                 )}
@@ -236,7 +236,7 @@ export function QuestionBoardSection({ projectId, synthesizeTrigger }: QuestionB
               )}
               {answeredCount > 0 && (
                 <div className="flex items-center gap-1.5">
-                  <CheckCircle className="w-3.5 h-3.5 text-[#3FAF7A]" />
+                  <CheckCircle className="w-3.5 h-3.5 text-brand-primary" />
                   <span className="text-[12px] text-[#666666]">
                     {answeredCount} answered
                   </span>

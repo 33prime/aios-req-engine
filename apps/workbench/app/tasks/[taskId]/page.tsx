@@ -112,10 +112,10 @@ export default function TaskDetailPage({ params }: { params: { taskId: string } 
           onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
         />
         <div
-          className="min-h-screen bg-[#FAFAFA] flex items-center justify-center transition-all duration-300"
+          className="min-h-screen bg-surface-page flex items-center justify-center transition-all duration-300"
           style={{ marginLeft: sidebarWidth }}
         >
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#3FAF7A]" />
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-primary" />
         </div>
       </>
     )
@@ -128,7 +128,7 @@ export default function TaskDetailPage({ params }: { params: { taskId: string } 
         onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
       />
       <div
-        className="min-h-screen bg-[#FAFAFA] transition-all duration-300"
+        className="min-h-screen bg-surface-page transition-all duration-300"
         style={{ marginLeft: sidebarWidth }}
       >
         <div className="max-w-[800px] mx-auto px-4 py-4">
@@ -158,7 +158,7 @@ export default function TaskDetailPage({ params }: { params: { taskId: string } 
               onChange={(e) => setTitleDraft(e.target.value)}
               onBlur={saveTitle}
               onKeyDown={(e) => { if (e.key === 'Enter') saveTitle(); if (e.key === 'Escape') setEditingTitle(false) }}
-              className="text-[22px] font-semibold text-[#0A1E2F] w-full outline-none border-b-2 border-[#3FAF7A] bg-transparent mb-4 pb-1"
+              className="text-[22px] font-semibold text-[#0A1E2F] w-full outline-none border-b-2 border-brand-primary bg-transparent mb-4 pb-1"
             />
           ) : (
             <h1
@@ -184,7 +184,7 @@ export default function TaskDetailPage({ params }: { params: { taskId: string } 
               onBlur={saveDescription}
               placeholder="Add a description..."
               rows={4}
-              className="w-full text-[13px] text-[#333] placeholder-[#CCC] outline-none border border-[#E5E5E5] rounded-lg p-3 resize-none focus:border-[#3FAF7A] transition-colors"
+              className="w-full text-[13px] text-[#333] placeholder-[#CCC] outline-none border border-border rounded-lg p-3 resize-none focus:border-brand-primary transition-colors"
             />
           </div>
 
@@ -224,14 +224,14 @@ export default function TaskDetailPage({ params }: { params: { taskId: string } 
           {task.task_type === 'action_item' && task.action_verb && (
             <div className="mb-4 flex items-center gap-2">
               <span className="text-[12px] font-medium uppercase tracking-wide text-[#999]">Action</span>
-              <span className="text-[13px] px-2 py-0.5 bg-[#3FAF7A]/10 text-[#25785A] rounded capitalize">
+              <span className="text-[13px] px-2 py-0.5 bg-brand-primary-light text-[#25785A] rounded capitalize">
                 {task.action_verb.replace(/_/g, ' ')}
               </span>
             </div>
           )}
 
           {/* Divider */}
-          <div className="border-t border-[#E5E5E5] mb-4" />
+          <div className="border-t border-border mb-4" />
 
           {/* Comment input */}
           <CommentInput

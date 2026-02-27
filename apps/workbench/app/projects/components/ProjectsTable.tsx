@@ -24,60 +24,60 @@ export function ProjectsTable({
 }: ProjectsTableProps) {
   const SortIcon = ({ field }: { field: string }) => {
     if (sortField !== field) {
-      return <ArrowUpDown className="w-3 h-3 text-[#999999]" />
+      return <ArrowUpDown className="w-3 h-3 text-text-placeholder" />
     }
     return sortOrder === 'asc' ? (
-      <ArrowUp className="w-3 h-3 text-[#3FAF7A]" />
+      <ArrowUp className="w-3 h-3 text-brand-primary" />
     ) : (
-      <ArrowDown className="w-3 h-3 text-[#3FAF7A]" />
+      <ArrowDown className="w-3 h-3 text-brand-primary" />
     )
   }
 
   if (projects.length === 0) {
     return (
-      <div className="bg-white rounded-lg border border-[#E5E5E5] shadow-sm p-8 text-center">
-        <p className="text-xs text-[#999999]">No projects found</p>
+      <div className="bg-white rounded-lg border border-border shadow-sm p-8 text-center">
+        <p className="text-xs text-text-placeholder">No projects found</p>
       </div>
     )
   }
 
   return (
-    <div className="bg-white rounded-lg border border-[#E5E5E5] shadow-sm overflow-hidden">
+    <div className="bg-white rounded-lg border border-border shadow-sm overflow-hidden">
       <div className="overflow-x-auto">
         <table className="w-full">
-          <thead className="bg-[#FAFAFA] border-b border-[#E5E5E5]">
+          <thead className="bg-surface-page border-b border-border">
             <tr>
               <th className="px-3 py-2 text-left">
                 <button
                   onClick={() => onSort('name')}
-                  className="flex items-center gap-1.5 text-xs font-semibold text-[#333333] uppercase tracking-wide hover:text-[#3FAF7A] transition-colors"
+                  className="flex items-center gap-1.5 text-xs font-semibold text-text-body uppercase tracking-wide hover:text-brand-primary transition-colors"
                 >
                   Project
                   <SortIcon field="name" />
                 </button>
               </th>
-              <th className="px-3 py-2 text-left text-xs font-semibold text-[#333333] uppercase tracking-wide">
+              <th className="px-3 py-2 text-left text-xs font-semibold text-text-body uppercase tracking-wide">
                 Stage
               </th>
-              <th className="px-3 py-2 text-left text-xs font-semibold text-[#333333] uppercase tracking-wide">
+              <th className="px-3 py-2 text-left text-xs font-semibold text-text-body uppercase tracking-wide">
                 Client
               </th>
               <th className="px-3 py-2 text-left">
                 <button
                   onClick={() => onSort('readiness_score')}
-                  className="flex items-center gap-1.5 text-xs font-semibold text-[#333333] uppercase tracking-wide hover:text-[#3FAF7A] transition-colors"
+                  className="flex items-center gap-1.5 text-xs font-semibold text-text-body uppercase tracking-wide hover:text-brand-primary transition-colors"
                 >
                   Readiness
                   <SortIcon field="readiness_score" />
                 </button>
               </th>
-              <th className="px-3 py-2 text-left text-xs font-semibold text-[#333333] uppercase tracking-wide">
+              <th className="px-3 py-2 text-left text-xs font-semibold text-text-body uppercase tracking-wide">
                 Owner
               </th>
               <th className="px-3 py-2 text-left">
                 <button
                   onClick={() => onSort('updated_at')}
-                  className="flex items-center gap-1.5 text-xs font-semibold text-[#333333] uppercase tracking-wide hover:text-[#3FAF7A] transition-colors"
+                  className="flex items-center gap-1.5 text-xs font-semibold text-text-body uppercase tracking-wide hover:text-brand-primary transition-colors"
                 >
                   Updated
                   <SortIcon field="updated_at" />
@@ -85,7 +85,7 @@ export function ProjectsTable({
               </th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-[#E5E5E5]">
+          <tbody className="divide-y divide-border">
             {projects.map((project) => (
               <ProjectRow
                 key={project.id}

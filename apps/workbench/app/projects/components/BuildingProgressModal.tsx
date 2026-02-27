@@ -22,10 +22,10 @@ interface StepStatus {
 }
 
 const STEP_ICON = {
-  completed: <Check className="w-4 h-4 text-[#3FAF7A]" />,
-  running: <Loader2 className="w-4 h-4 text-[#3FAF7A] animate-spin" />,
-  pending: <Circle className="w-4 h-4 text-[#E5E5E5]" />,
-  skipped: <Check className="w-4 h-4 text-[#999999]" />,
+  completed: <Check className="w-4 h-4 text-brand-primary" />,
+  running: <Loader2 className="w-4 h-4 text-brand-primary animate-spin" />,
+  pending: <Circle className="w-4 h-4 text-border" />,
+  skipped: <Check className="w-4 h-4 text-text-placeholder" />,
   failed: <AlertCircle className="w-4 h-4 text-red-500" />,
 } as const
 
@@ -78,7 +78,7 @@ function CyclingLabel({ stepKey }: { stepKey: string }) {
 
   return (
     <p
-      className={`text-xs text-[#999999] mt-0.5 transition-opacity duration-200 ${
+      className={`text-xs text-text-placeholder mt-0.5 transition-opacity duration-200 ${
         fade ? 'opacity-100' : 'opacity-0'
       }`}
     >
@@ -149,7 +149,7 @@ export function BuildingProgressModal({
       <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 text-[#999999] hover:text-[#333333]"
+          className="absolute top-4 right-4 text-text-placeholder hover:text-text-body"
         >
           <X className="w-5 h-5" />
         </button>
@@ -158,16 +158,16 @@ export function BuildingProgressModal({
         <div className="mb-1">
           {isDone && !isFailed ? (
             <div className="flex items-center gap-2">
-              <CheckCircle2 className="w-5 h-5 text-[#3FAF7A]" />
-              <h3 className="text-lg font-semibold text-[#333333]">Build Complete</h3>
+              <CheckCircle2 className="w-5 h-5 text-brand-primary" />
+              <h3 className="text-lg font-semibold text-text-body">Build Complete</h3>
             </div>
           ) : isFailed ? (
             <div className="flex items-center gap-2">
               <AlertCircle className="w-5 h-5 text-red-500" />
-              <h3 className="text-lg font-semibold text-[#333333]">Build Failed</h3>
+              <h3 className="text-lg font-semibold text-text-body">Build Failed</h3>
             </div>
           ) : (
-            <h3 className="text-lg font-semibold text-[#333333]">Building Your Project</h3>
+            <h3 className="text-lg font-semibold text-text-body">Building Your Project</h3>
           )}
           {projectName && (
             <p className="text-sm text-[#666666] mt-0.5">{projectName}</p>
@@ -175,10 +175,10 @@ export function BuildingProgressModal({
         </div>
 
         {/* Progress bar */}
-        <div className="w-full h-2 bg-[#E5E5E5] rounded-full overflow-hidden mt-4 mb-5">
+        <div className="w-full h-2 bg-border rounded-full overflow-hidden mt-4 mb-5">
           <div
             className={`h-full rounded-full transition-all duration-500 ${
-              isFailed ? 'bg-red-500' : 'bg-[#3FAF7A]'
+              isFailed ? 'bg-red-500' : 'bg-brand-primary'
             }`}
             style={{ width: `${progressPct}%` }}
           />
@@ -193,10 +193,10 @@ export function BuildingProgressModal({
               </div>
               <div className="flex-1 min-w-0">
                 <p className={`text-sm ${
-                  step.status === 'running' ? 'text-[#333333] font-medium' :
-                  step.status === 'completed' ? 'text-[#333333]' :
+                  step.status === 'running' ? 'text-text-body font-medium' :
+                  step.status === 'completed' ? 'text-text-body' :
                   step.status === 'failed' ? 'text-red-600' :
-                  'text-[#999999]'
+                  'text-text-placeholder'
                 }`}>
                   {step.step_label}
                   {step.status === 'running' && '...'}
@@ -205,7 +205,7 @@ export function BuildingProgressModal({
                   <CyclingLabel stepKey={step.step_key} />
                 )}
                 {step.result_summary && step.status === 'completed' && (
-                  <p className="text-xs text-[#999999] mt-0.5">{step.result_summary}</p>
+                  <p className="text-xs text-text-placeholder mt-0.5">{step.result_summary}</p>
                 )}
                 {step.error_message && (
                   <p className="text-xs text-red-500 mt-0.5">{step.error_message}</p>
@@ -216,13 +216,13 @@ export function BuildingProgressModal({
         </div>
 
         {!isDone && (
-          <p className="text-xs text-[#999999] mt-5 text-center">
+          <p className="text-xs text-text-placeholder mt-5 text-center">
             We&apos;ll notify you when it&apos;s ready.
           </p>
         )}
 
         {isDone && !isFailed && (
-          <p className="text-xs text-[#3FAF7A] mt-5 text-center font-medium">
+          <p className="text-xs text-brand-primary mt-5 text-center font-medium">
             Your project is ready — click in to explore.
           </p>
         )}
@@ -230,7 +230,7 @@ export function BuildingProgressModal({
         <div className="mt-5 flex justify-center">
           <button
             onClick={onClose}
-            className="text-sm text-[#666666] hover:text-[#333333] px-4 py-2"
+            className="text-sm text-[#666666] hover:text-text-body px-4 py-2"
           >
             {isDone ? 'Done' : 'Close'}
           </button>

@@ -161,15 +161,15 @@ export default function VerdictChat({
   const isMaxed = turnCount >= MAX_TURNS
 
   return (
-    <div className="border-t border-[#E5E5E5] bg-[#FAFAFA]">
+    <div className="border-t border-border bg-surface-page">
       {/* Header */}
-      <div className="flex items-center justify-between px-3 py-1.5 border-b border-[#E5E5E5]">
-        <span className="text-[10px] font-medium text-[#999999] uppercase tracking-wide">
+      <div className="flex items-center justify-between px-3 py-1.5 border-b border-border">
+        <span className="text-[10px] font-medium text-text-placeholder uppercase tracking-wide">
           Quick Chat
         </span>
         <button
           onClick={handleDone}
-          className="text-[10px] text-[#999999] hover:text-[#666666] transition-colors"
+          className="text-[10px] text-text-placeholder hover:text-[#666666] transition-colors"
         >
           Done
         </button>
@@ -186,7 +186,7 @@ export default function VerdictChat({
               className={`max-w-[85%] px-3 py-1.5 rounded-xl text-xs leading-relaxed ${
                 msg.role === 'user'
                   ? 'bg-[#0A1E2F] text-white'
-                  : 'bg-white border border-[#E5E5E5] text-[#333333]'
+                  : 'bg-white border border-border text-text-body'
               }`}
             >
               {msg.content}
@@ -195,8 +195,8 @@ export default function VerdictChat({
         ))}
         {loading && (
           <div className="flex justify-start">
-            <div className="px-3 py-1.5 bg-white border border-[#E5E5E5] rounded-xl">
-              <Loader2 className="w-3 h-3 text-[#999999] animate-spin" />
+            <div className="px-3 py-1.5 bg-white border border-border rounded-xl">
+              <Loader2 className="w-3 h-3 text-text-placeholder animate-spin" />
             </div>
           </div>
         )}
@@ -204,16 +204,16 @@ export default function VerdictChat({
 
       {/* Input or done */}
       {isMaxed ? (
-        <div className="px-3 py-2 border-t border-[#E5E5E5]">
+        <div className="px-3 py-2 border-t border-border">
           <button
             onClick={handleDone}
-            className="w-full px-3 py-1.5 text-xs font-medium text-[#3FAF7A] bg-[#E8F5E9] rounded-lg hover:bg-[#d0eed6] transition-colors"
+            className="w-full px-3 py-1.5 text-xs font-medium text-brand-primary bg-[#E8F5E9] rounded-lg hover:bg-[#d0eed6] transition-colors"
           >
             Done &mdash; Save Notes
           </button>
         </div>
       ) : (
-        <div className="flex items-center gap-2 px-3 py-2 border-t border-[#E5E5E5]">
+        <div className="flex items-center gap-2 px-3 py-2 border-t border-border">
           <input
             ref={inputRef}
             value={input}
@@ -221,12 +221,12 @@ export default function VerdictChat({
             onKeyDown={handleKeyDown}
             placeholder="Why this verdict?"
             disabled={loading}
-            className="flex-1 px-3 py-1.5 text-xs border border-[#E5E5E5] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#3FAF7A]/30 focus:border-[#3FAF7A] text-[#333333] placeholder:text-[#999999] disabled:opacity-60"
+            className="flex-1 px-3 py-1.5 text-xs border border-border rounded-lg focus:outline-none focus:ring-1 focus:ring-brand-primary/30 focus:border-brand-primary text-text-body placeholder:text-text-placeholder disabled:opacity-60"
           />
           <button
             onClick={handleSend}
             disabled={loading || !input.trim()}
-            className="p-1.5 rounded-lg text-[#3FAF7A] hover:bg-[#E8F5E9] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            className="p-1.5 rounded-lg text-brand-primary hover:bg-[#E8F5E9] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
           >
             <Send className="w-3.5 h-3.5" />
           </button>

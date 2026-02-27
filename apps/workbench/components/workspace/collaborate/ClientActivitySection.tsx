@@ -16,61 +16,61 @@ export function ClientActivitySection({ projectId }: ClientActivitySectionProps)
 
   const dotColor = (type: string) => {
     switch (type) {
-      case 'answer': return 'bg-[#3FAF7A]'
+      case 'answer': return 'bg-brand-primary'
       case 'upload': return 'bg-[#0A1E2F]'
       case 'package_sent': return 'bg-[#0A1E2F]'
       case 'prototype_view': return 'bg-[#25785A]'
       case 'confirmation': return 'bg-[#25785A]'
-      default: return 'bg-[#E5E5E5]'
+      default: return 'bg-border'
     }
   }
 
   return (
-    <div className="bg-white rounded-2xl border border-[#E5E5E5] shadow-[0_1px_2px_rgba(0,0,0,0.04)] overflow-hidden">
+    <div className="bg-white rounded-2xl border border-border shadow-sm overflow-hidden">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full flex items-center justify-between px-5 py-4 hover:bg-[#FAFAFA] transition-colors"
+        className="w-full flex items-center justify-between px-5 py-4 hover:bg-surface-page transition-colors"
       >
         <div className="flex items-center gap-2.5">
-          <Activity className="w-4 h-4 text-[#3FAF7A]" />
-          <span className="text-[11px] uppercase tracking-wider text-[#999999] font-semibold">
+          <Activity className="w-4 h-4 text-brand-primary" />
+          <span className="text-[11px] uppercase tracking-wider text-text-placeholder font-semibold">
             Client Activity
           </span>
           {items.length > 0 && (
-            <span className="px-1.5 py-0.5 bg-[#3FAF7A]/10 text-[#25785A] text-[10px] font-bold rounded-full min-w-[18px] text-center">
+            <span className="px-1.5 py-0.5 bg-brand-primary-light text-[#25785A] text-[10px] font-bold rounded-full min-w-[18px] text-center">
               {items.length}
             </span>
           )}
         </div>
-        {isOpen ? <ChevronDown className="w-4 h-4 text-[#999999]" /> : <ChevronRight className="w-4 h-4 text-[#999999]" />}
+        {isOpen ? <ChevronDown className="w-4 h-4 text-text-placeholder" /> : <ChevronRight className="w-4 h-4 text-text-placeholder" />}
       </button>
 
       {isOpen && (
         <div className="px-5 pb-4">
           {isLoading ? (
             <div className="flex justify-center py-4">
-              <div className="animate-spin rounded-full h-5 w-5 border-2 border-[#3FAF7A] border-t-transparent" />
+              <div className="animate-spin rounded-full h-5 w-5 border-2 border-brand-primary border-t-transparent" />
             </div>
           ) : items.length === 0 ? (
             <div className="text-center py-4">
-              <Activity className="w-8 h-8 mx-auto mb-2 text-[#E5E5E5]" />
-              <p className="text-[12px] text-[#999999]">No client activity yet</p>
+              <Activity className="w-8 h-8 mx-auto mb-2 text-border" />
+              <p className="text-[12px] text-text-placeholder">No client activity yet</p>
               <p className="text-[11px] text-[#CCCCCC] mt-1">
                 Activity will appear as clients interact with the portal
               </p>
             </div>
           ) : (
-            <div className="relative border-l-2 border-[#E5E5E5] ml-3 pl-4 space-y-4">
+            <div className="relative border-l-2 border-border ml-3 pl-4 space-y-4">
               {items.map(item => (
                 <div key={item.id} className="relative">
                   {/* Timeline dot */}
                   <span className={`w-2.5 h-2.5 rounded-full absolute -left-[21px] top-0.5 ${dotColor(item.type)}`} />
                   <div>
-                    <p className="text-sm text-[#333333]">
+                    <p className="text-sm text-text-body">
                       <span className="font-medium">{item.actor_name}</span>{' '}
                       {item.description}
                     </p>
-                    <p className="text-[11px] text-[#999999] mt-0.5">
+                    <p className="text-[11px] text-text-placeholder mt-0.5">
                       {formatRelativeTime(item.timestamp)}
                     </p>
                   </div>

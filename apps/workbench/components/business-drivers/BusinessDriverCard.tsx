@@ -287,7 +287,7 @@ export default function BusinessDriverCard({
       {/* Header - Always visible */}
       <button
         onClick={() => setExpanded(!expanded)}
-        className="w-full text-left p-4 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-inset rounded-lg"
+        className="w-full text-left p-4 focus:outline-none focus:ring-2 focus:ring-brand-primary-ring focus:ring-inset rounded-lg"
       >
         <div className="flex items-start justify-between gap-3">
           <div className="flex-1 min-w-0">

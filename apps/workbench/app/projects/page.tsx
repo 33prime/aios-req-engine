@@ -205,12 +205,12 @@ export default function ProjectsPage() {
           onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
         />
         <div
-          className="min-h-screen bg-[#FAFAFA] flex items-center justify-center transition-all duration-300"
+          className="min-h-screen bg-surface-page flex items-center justify-center transition-all duration-300"
           style={{ marginLeft: sidebarWidth }}
         >
           <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#3FAF7A] mx-auto mb-4"></div>
-            <p className="text-sm text-[#999999]">Loading projects...</p>
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-primary mx-auto mb-4"></div>
+            <p className="text-sm text-text-placeholder">Loading projects...</p>
           </div>
         </div>
       </>
@@ -224,7 +224,7 @@ export default function ProjectsPage() {
         onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
       />
       <div
-        className="min-h-screen bg-[#FAFAFA] transition-all duration-300"
+        className="min-h-screen bg-surface-page transition-all duration-300"
         style={{ marginLeft: sidebarWidth }}
       >
         <div
