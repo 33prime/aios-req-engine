@@ -333,6 +333,65 @@ Same pages that use `depth=2`. Wired into `build_retrieval_context()` → `retri
 
 ---
 
+## Phase 4: Confidence Overlay (2026-02-27)
+
+### Overview
+Added opt-in confidence overlay to graph neighborhoods so consumers know each entity's certainty level and whether beliefs support or contradict it. When `apply_confidence=True`, each related entity includes `certainty` (from confirmation_status/is_stale), `belief_confidence` (avg from memory_nodes), and `has_contradictions` (any belief with evidence_against). This completes Tier 2.5: one function call returns evidence, weighted entities, multi-hop paths, temporal signals, AND belief confidence.
+
+### Changes
+
+#### `app/db/graph_queries.py` — Constants + helpers + `apply_confidence` param
+
+**New constants**:
+- `_HAS_STALE: set[str]` — tables that have `is_stale` column (features, personas, stakeholders, vp_steps, data_entities, business_drivers). Tables not in this set skip the stale check safely.
+- `_CERTAINTY_MAP: dict[str, str]` — maps confirmation_status to certainty label: confirmed_client/confirmed_consultant → "confirmed", needs_client → "review", ai_generated → "inferred". Stale override: any status + is_stale=True → "stale".
+
+**Updated**: `_resolve_entity_names_batch(sb, entities, apply_confidence=False)`
+- When `True`: extends SELECT to include `confirmation_status` + `is_stale` (only for `_HAS_STALE` tables). Maps to `certainty` field on each entity.
+- When `False` (default): identical behavior to pre-Phase-4.
+
+**New helper**: `_get_belief_summary_batch(sb, entity_ids) -> dict`
+- Single query: `memory_nodes WHERE linked_entity_id IN (...) AND is_active=true AND node_type IN ('belief','fact')`. Limit 200 rows.
+- Returns per-entity: `belief_count`, `avg_belief_confidence` (0-1 or None), `has_contradictions` (any evidence_against_count > 0).
+
+**Updated**: `get_entity_neighborhood(..., apply_confidence=False)`
+- When `True`: calls `_resolve_entity_names_batch(apply_confidence=True)`, `_get_belief_summary_batch()`, extends explicit dependency SELECTs with confirmation_status/is_stale, adds `certainty`/`belief_confidence`/`has_contradictions` to each related entity, adds `confidence_applied: True` to stats.
+- When `False` (default): identical to pre-Phase-4.
+
+#### `app/chains/_graph_context.py` — `apply_confidence` param + formatting
+- New `apply_confidence: bool = False` parameter, passed to `get_entity_neighborhood()`
+- Format with confidence: `feature: Voice Search [moderate, stale, belief=0.45, contradictions detected] (co occurrence, weight=4.0)`
+- Format without confidence: unchanged from Phase 3
+
+#### `app/core/retrieval.py` — `apply_confidence` param
+- `_expand_via_graph()`: new `apply_confidence: bool = False` param, passed to neighborhood calls
+- `retrieve()`: new `apply_confidence: bool = False` param, wired to both `_expand_via_graph()` call sites
+
+#### `app/core/chat_context.py` — Page-context confidence mapping
+```python
+_PAGE_APPLY_CONFIDENCE = {
+    "brd:solution-flow": True,
+    "brd:unlocks": True,
+}
+```
+Same pages as depth=2 and recency. Wired into `build_retrieval_context()` → `retrieve(apply_confidence=...)`.
+
+#### Tests
+- `tests/test_temporal_weighting.py` (+5 tests): `TestCertaintyMap` — confirmed_client, confirmed_consultant, needs_client, ai_generated, unknown status defaults
+- `tests/test_graph_expansion.py` (+2 tests): `test_confidence_off_by_default`, `test_confidence_passes_through`
+
+### Performance
+- `apply_confidence=False` (default): zero change — no new queries, no new columns selected
+- `apply_confidence=True`: entity status columns piggybacked on existing name resolution query (0ms extra), belief summary batch = 1 extra query (~10-20ms). Total stays within 120ms budget.
+- Tables without `is_stale` (workflows, constraints, competitor_references, solution_flow_steps) don't error — they skip the stale check.
+
+### Backward Compatibility
+- All new params default to `False` — existing consumers get identical behavior
+- Only solution-flow and unlocks pages opt in via `_PAGE_APPLY_CONFIDENCE`
+- Stats dict gains `confidence_applied` key — additive, old consumers unaffected
+
+---
+
 ## Known Issues & Future Refactors
 
 ### Needs Test Coverage
@@ -369,6 +428,6 @@ Same pages that use `depth=2`. Wired into `build_retrieval_context()` → `retri
 | Phase 1b: Typed Traversal | **DONE** | `entity_types` through full call chain, per-consumer configs, page-context graph filtering |
 | Phase 2: Multi-Hop | **DONE** | `depth=2`, relationship paths, 50% decay, batched helpers, page-context depth mapping |
 | Phase 3: Temporal | **DONE** | Recency multiplier (3-tier), temporal co-occurrence, freshness dates, opt-in via `apply_recency` |
-| Phase 4: Confidence | Planned | Belief overlay, certainty signals, gap markers → completes Tier 2.5 |
+| Phase 4: Confidence | **DONE** | Belief overlay, certainty signals, entity status piggybacking → completes Tier 2.5 |
 | Phase 5: Intelligence Loop | Planned | 7 sub-phases: structural gaps → clustering → fan-out → briefing |
 | Phase 6: Discovery Protocol | Planned | Inquiry Agent, North Star Categories, Mission Alignment gate |

@@ -1,4 +1,4 @@
-"""Tests for Phase 3 temporal weighting helpers in app.db.graph_queries."""
+"""Tests for Phase 3-4 temporal weighting and confidence helpers in app.db.graph_queries."""
 
 from __future__ import annotations
 
@@ -6,7 +6,11 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from app.db.graph_queries import _classify_strength, _compute_recency_multiplier
+from app.db.graph_queries import (
+    _CERTAINTY_MAP,
+    _classify_strength,
+    _compute_recency_multiplier,
+)
 
 
 # ── _compute_recency_multiplier tests ──
@@ -69,3 +73,28 @@ class TestClassifyStrengthFloat:
         assert _classify_strength(6) == "strong"
         assert _classify_strength(4) == "moderate"
         assert _classify_strength(1) == "weak"
+
+
+# ── Phase 4: Certainty mapping tests ──
+
+
+class TestCertaintyMap:
+    def test_confirmed_client(self):
+        """confirmed_client → confirmed."""
+        assert _CERTAINTY_MAP["confirmed_client"] == "confirmed"
+
+    def test_confirmed_consultant(self):
+        """confirmed_consultant → confirmed."""
+        assert _CERTAINTY_MAP["confirmed_consultant"] == "confirmed"
+
+    def test_needs_client(self):
+        """needs_client → review."""
+        assert _CERTAINTY_MAP["needs_client"] == "review"
+
+    def test_ai_generated(self):
+        """ai_generated → inferred."""
+        assert _CERTAINTY_MAP["ai_generated"] == "inferred"
+
+    def test_unknown_defaults_inferred(self):
+        """Unknown status not in map → .get() returns None, consumer defaults to inferred."""
+        assert _CERTAINTY_MAP.get("some_unknown_status", "inferred") == "inferred"

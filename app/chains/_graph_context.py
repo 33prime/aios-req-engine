@@ -25,6 +25,7 @@ def build_graph_context_block(
     min_weight: int = 0,
     depth: int = 1,
     apply_recency: bool = False,
+    apply_confidence: bool = False,
 ) -> str:
     """Pull graph neighborhood and format as a prompt context block.
 
@@ -39,6 +40,7 @@ def build_graph_context_block(
         min_weight: Minimum co-occurrence weight to include (0 = all)
         depth: Graph traversal depth (1 = direct, 2 = multi-hop)
         apply_recency: When True, use temporal weighting and include freshness dates
+        apply_confidence: When True, include certainty and belief confidence data
 
     Returns:
         Formatted context string ready to inject into a prompt.
@@ -56,6 +58,7 @@ def build_graph_context_block(
             entity_types=entity_types,
             depth=depth,
             apply_recency=apply_recency,
+            apply_confidence=apply_confidence,
         )
     except Exception as e:
         logger.warning(
@@ -100,7 +103,18 @@ def build_graph_context_block(
                 freshness = rel.get("freshness", "")
                 if freshness:
                     fresh_label = f", fresh={freshness}"
-                parts.append(f"  - {etype}: {ename} [{strength}] ({rel_label}, weight={weight}{fresh_label}{via_label})")
+                # Confidence overlay labels
+                conf_label = ""
+                certainty = rel.get("certainty", "")
+                if certainty:
+                    conf_parts = [certainty]
+                    belief_conf = rel.get("belief_confidence")
+                    if belief_conf is not None:
+                        conf_parts.append(f"belief={belief_conf}")
+                    if rel.get("has_contradictions"):
+                        conf_parts.append("contradictions detected")
+                    conf_label = ", " + ", ".join(conf_parts)
+                parts.append(f"  - {etype}: {ename} [{strength}{conf_label}] ({rel_label}, weight={weight}{fresh_label}{via_label})")
 
     block = "\n".join(parts)
 

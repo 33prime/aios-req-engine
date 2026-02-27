@@ -51,6 +51,21 @@ _RECENCY_TIERS = [(7, 1.5), (30, 1.0)]  # 0-7d: 1.5x, 7-30d: 1.0x
 _RECENCY_DEFAULT = 0.5  # 30d+: 0.5x
 
 
+# ── Confidence overlay helpers ──
+
+_HAS_STALE: set[str] = {
+    "features", "personas", "stakeholders",
+    "vp_steps", "data_entities", "business_drivers",
+}
+
+_CERTAINTY_MAP: dict[str, str] = {
+    "confirmed_client": "confirmed",
+    "confirmed_consultant": "confirmed",
+    "needs_client": "review",
+    "ai_generated": "inferred",
+}
+
+
 def _compute_recency_multiplier(created_at: str | datetime) -> float:
     """3-tier recency multiplier: 0-7d → 1.5x, 7-30d → 1.0x, 30d+ → 0.5x.
 
@@ -194,10 +209,12 @@ def _get_cooccurrences_from_chunks(
 def _resolve_entity_names_batch(
     sb: Any,
     entities: list[dict],
+    apply_confidence: bool = False,
 ) -> list[dict]:
     """Batch name resolution — 1 query per entity type instead of N individual queries.
 
     Mutates and returns the input dicts with ``entity_name`` added.
+    When ``apply_confidence=True``, also adds ``certainty`` from confirmation_status/is_stale.
     """
     # Group by type
     by_type: dict[str, list[dict]] = {}
@@ -211,21 +228,90 @@ def _resolve_entity_names_batch(
             continue
         name_col = _NAME_COL.get(table, "name")
         ids = [e["entity_id"] for e in group]
+
+        # Build SELECT columns
+        cols = f"id, {name_col}"
+        if apply_confidence:
+            cols += ", confirmation_status"
+            if table in _HAS_STALE:
+                cols += ", is_stale"
+
         try:
             resp = (
                 sb.table(table)
-                .select(f"id, {name_col}")
+                .select(cols)
                 .in_("id", ids)
                 .execute()
             )
-            name_map = {r["id"]: r.get(name_col, "") for r in (resp.data or [])}
+            row_map = {r["id"]: r for r in (resp.data or [])}
             for ent in group:
-                ent["entity_name"] = name_map.get(ent["entity_id"], "")
+                row = row_map.get(ent["entity_id"])
+                if row:
+                    ent["entity_name"] = row.get(name_col, "")
+                    if apply_confidence:
+                        status = row.get("confirmation_status", "")
+                        is_stale = row.get("is_stale", False) if table in _HAS_STALE else False
+                        if is_stale:
+                            ent["certainty"] = "stale"
+                        else:
+                            ent["certainty"] = _CERTAINTY_MAP.get(status, "inferred")
+                else:
+                    ent["entity_name"] = ""
+                    if apply_confidence:
+                        ent["certainty"] = "inferred"
         except Exception:
             for ent in group:
                 ent.setdefault("entity_name", "")
+                if apply_confidence:
+                    ent["certainty"] = "inferred"
 
     return entities
+
+
+def _get_belief_summary_batch(
+    sb: Any,
+    entity_ids: list[str],
+) -> dict[str, dict]:
+    """Batch belief summary from memory_nodes.
+
+    Returns {entity_id: {belief_count, avg_belief_confidence, has_contradictions}}.
+    """
+    if not entity_ids:
+        return {}
+    try:
+        resp = (
+            sb.table("memory_nodes")
+            .select("linked_entity_id, confidence, evidence_against_count")
+            .in_("linked_entity_id", entity_ids[:50])
+            .eq("is_active", True)
+            .in_("node_type", ["belief", "fact"])
+            .limit(200)
+            .execute()
+        )
+        agg: dict[str, dict] = {}
+        for row in resp.data or []:
+            eid = row["linked_entity_id"]
+            if eid not in agg:
+                agg[eid] = {"count": 0, "conf_sum": 0.0, "contradictions": False}
+            agg[eid]["count"] += 1
+            conf = row.get("confidence")
+            if conf is not None:
+                agg[eid]["conf_sum"] += float(conf)
+            if (row.get("evidence_against_count") or 0) > 0:
+                agg[eid]["contradictions"] = True
+
+        result: dict[str, dict] = {}
+        for eid, a in agg.items():
+            avg_conf = round(a["conf_sum"] / a["count"], 2) if a["count"] > 0 else None
+            result[eid] = {
+                "belief_count": a["count"],
+                "avg_belief_confidence": avg_conf,
+                "has_contradictions": a["contradictions"],
+            }
+        return result
+    except Exception as e:
+        logger.debug(f"Belief summary batch lookup failed: {e}")
+        return {}
 
 
 def get_entity_neighborhood(
@@ -237,11 +323,13 @@ def get_entity_neighborhood(
     entity_types: list[str] | None = None,
     depth: int = 1,
     apply_recency: bool = False,
+    apply_confidence: bool = False,
 ) -> dict[str, Any]:
     """Get an entity and its neighbors via signal co-occurrence + explicit dependencies.
 
     Phase 2: Optional 2-hop traversal with weight decay and path tracking.
     Phase 3: Optional temporal weighting via apply_recency.
+    Phase 4: Optional confidence overlay via apply_confidence.
 
     Args:
         entity_id: Entity UUID
@@ -253,6 +341,9 @@ def get_entity_neighborhood(
         depth: Traversal depth (1 = direct neighbors, 2 = neighbors-of-neighbors)
         apply_recency: When True, weight = sum of recency multipliers (float) and
             freshness date is included. When False (default), identical to pre-Phase-3.
+        apply_confidence: When True, adds certainty, belief_confidence, and
+            has_contradictions to each related entity. When False (default),
+            identical to pre-Phase-4.
 
     Returns:
         {
@@ -268,6 +359,9 @@ def get_entity_neighborhood(
                 "hop": int,              # 1 = direct, 2 = via intermediary
                 "path": list[dict],      # [] for hop-1, [{entity_type, entity_id, entity_name}] for hop-2
                 "freshness": str,        # ISO date of most recent chunk (only when apply_recency=True)
+                "certainty": str,        # "confirmed" | "review" | "inferred" | "stale" (only when apply_confidence=True)
+                "belief_confidence": float | None,  # avg belief confidence 0-1 (only when apply_confidence=True)
+                "has_contradictions": bool,          # (only when apply_confidence=True)
             }],
             "stats": {
                 "total_chunks": int,
@@ -277,6 +371,7 @@ def get_entity_neighborhood(
                 "hop2_candidates": int,  # entities found at hop-2 before dedup
                 "hop2_added": int,       # entities added from hop-2 after dedup
                 "recency_applied": bool, # True when apply_recency was used
+                "confidence_applied": bool, # True when apply_confidence was used
             }
         }
     """
@@ -325,6 +420,7 @@ def get_entity_neighborhood(
         "hop2_candidates": 0,
         "hop2_added": 0,
         "recency_applied": apply_recency,
+        "confidence_applied": apply_confidence,
     }
 
     # Tag hop-1 entities
@@ -443,8 +539,14 @@ def get_entity_neighborhood(
     # Sort by weight descending, take top N
     ranked = sorted(merged.values(), key=lambda x: x["weight"], reverse=True)[:max_related]
 
-    # ── Batch name resolution ──
-    _resolve_entity_names_batch(sb, ranked)
+    # ── Batch name resolution (+ confidence overlay when enabled) ──
+    _resolve_entity_names_batch(sb, ranked, apply_confidence=apply_confidence)
+
+    # ── Belief summary overlay ──
+    belief_map: dict[str, dict] = {}
+    if apply_confidence:
+        ranked_ids = [r["entity_id"] for r in ranked]
+        belief_map = _get_belief_summary_batch(sb, ranked_ids)
 
     # Build final related list with all fields
     related: list[dict] = []
@@ -463,6 +565,11 @@ def get_entity_neighborhood(
         }
         if apply_recency and "freshness" in rel:
             entry["freshness"] = rel["freshness"]
+        if apply_confidence:
+            entry["certainty"] = rel.get("certainty", "inferred")
+            belief = belief_map.get(rel["entity_id"], {})
+            entry["belief_confidence"] = belief.get("avg_belief_confidence")
+            entry["has_contradictions"] = belief.get("has_contradictions", False)
         related.append(entry)
 
     # Also pull explicit dependencies from entity_dependencies
@@ -496,21 +603,26 @@ def get_entity_neighborhood(
                         break
                 continue
 
-            # Load entity name
+            # Load entity name (+ confidence columns when enabled)
             dep_table = _TABLE_MAP.get(ttype)
             if not dep_table:
                 continue
             name_col = _NAME_COL.get(dep_table, "name")
+            dep_cols = f"id, {name_col}"
+            if apply_confidence:
+                dep_cols += ", confirmation_status"
+                if dep_table in _HAS_STALE:
+                    dep_cols += ", is_stale"
             try:
                 dep_entity = (
                     sb.table(dep_table)
-                    .select(f"id, {name_col}")
+                    .select(dep_cols)
                     .eq("id", tid)
                     .single()
                     .execute()
                 )
                 if dep_entity.data:
-                    related.append({
+                    dep_entry = {
                         "relationship": dep["dependency_type"],
                         "entity_type": ttype,
                         "entity_id": tid,
@@ -519,7 +631,15 @@ def get_entity_neighborhood(
                         "strength": "moderate",
                         "hop": 1,
                         "path": [],
-                    })
+                    }
+                    if apply_confidence:
+                        status = dep_entity.data.get("confirmation_status", "")
+                        is_stale = dep_entity.data.get("is_stale", False) if dep_table in _HAS_STALE else False
+                        dep_entry["certainty"] = "stale" if is_stale else _CERTAINTY_MAP.get(status, "inferred")
+                        dep_belief = belief_map.get(tid, {})
+                        dep_entry["belief_confidence"] = dep_belief.get("avg_belief_confidence")
+                        dep_entry["has_contradictions"] = dep_belief.get("has_contradictions", False)
+                    related.append(dep_entry)
             except Exception:
                 pass
 
@@ -546,16 +666,21 @@ def get_entity_neighborhood(
             if not dep_table:
                 continue
             name_col = _NAME_COL.get(dep_table, "name")
+            rev_cols = f"id, {name_col}"
+            if apply_confidence:
+                rev_cols += ", confirmation_status"
+                if dep_table in _HAS_STALE:
+                    rev_cols += ", is_stale"
             try:
                 dep_entity = (
                     sb.table(dep_table)
-                    .select(f"id, {name_col}")
+                    .select(rev_cols)
                     .eq("id", sid)
                     .single()
                     .execute()
                 )
                 if dep_entity.data:
-                    related.append({
+                    rev_entry = {
                         "relationship": f"reverse:{dep['dependency_type']}",
                         "entity_type": stype,
                         "entity_id": sid,
@@ -564,7 +689,15 @@ def get_entity_neighborhood(
                         "strength": "moderate",
                         "hop": 1,
                         "path": [],
-                    })
+                    }
+                    if apply_confidence:
+                        status = dep_entity.data.get("confirmation_status", "")
+                        is_stale = dep_entity.data.get("is_stale", False) if dep_table in _HAS_STALE else False
+                        rev_entry["certainty"] = "stale" if is_stale else _CERTAINTY_MAP.get(status, "inferred")
+                        rev_belief = belief_map.get(sid, {})
+                        rev_entry["belief_confidence"] = rev_belief.get("avg_belief_confidence")
+                        rev_entry["has_contradictions"] = rev_belief.get("has_contradictions", False)
+                    related.append(rev_entry)
             except Exception:
                 pass
 

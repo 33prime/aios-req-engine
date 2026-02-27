@@ -478,3 +478,90 @@ async def test_temporal_recency_passes_through():
     assert len(graph_entities) == 1
     assert graph_entities[0]["weight"] == 3.5
     assert graph_entities[0]["freshness"] == "2026-02-25"
+
+
+# ── Phase 4: Confidence overlay threading tests ──
+
+
+@pytest.mark.asyncio
+async def test_confidence_off_by_default():
+    """apply_confidence=False (default) produces no certainty/belief_confidence/has_contradictions fields."""
+    result = RetrievalResult(
+        entities=[
+            {"entity_id": E1, "entity_type": "feature", "similarity": 0.95},
+        ],
+        chunks=[],
+    )
+
+    def mock_neighborhood(entity_id, entity_type, project_id, max_related=5, **kwargs):
+        # Verify apply_confidence defaults to False
+        assert kwargs.get("apply_confidence", False) is False
+        return {
+            "entity": {"id": str(entity_id)},
+            "evidence_chunks": [],
+            "related": [
+                {
+                    "entity_id": E2,
+                    "entity_type": "workflow",
+                    "entity_name": "Order Processing",
+                    "weight": 4,
+                    "strength": "moderate",
+                    "hop": 1,
+                    "path": [],
+                },
+            ],
+        }
+
+    with patch("app.db.graph_queries.get_entity_neighborhood", mock_neighborhood):
+        from app.core.retrieval import _expand_via_graph
+
+        out = await _expand_via_graph(result, PROJECT)
+
+    graph_entities = [e for e in out.entities if e.get("source") == "graph_expansion"]
+    assert len(graph_entities) == 1
+    assert "certainty" not in graph_entities[0]
+    assert "belief_confidence" not in graph_entities[0]
+    assert "has_contradictions" not in graph_entities[0]
+
+
+@pytest.mark.asyncio
+async def test_confidence_passes_through():
+    """apply_confidence=True threads to neighborhood calls and confidence fields appear."""
+    result = RetrievalResult(
+        entities=[
+            {"entity_id": E1, "entity_type": "feature", "similarity": 0.95},
+        ],
+        chunks=[],
+    )
+
+    def mock_neighborhood(entity_id, entity_type, project_id, max_related=5, **kwargs):
+        assert kwargs.get("apply_confidence") is True
+        return {
+            "entity": {"id": str(entity_id)},
+            "evidence_chunks": [],
+            "related": [
+                {
+                    "entity_id": E2,
+                    "entity_type": "workflow",
+                    "entity_name": "Order Processing",
+                    "weight": 4,
+                    "strength": "moderate",
+                    "hop": 1,
+                    "path": [],
+                    "certainty": "confirmed",
+                    "belief_confidence": 0.85,
+                    "has_contradictions": False,
+                },
+            ],
+        }
+
+    with patch("app.db.graph_queries.get_entity_neighborhood", mock_neighborhood):
+        from app.core.retrieval import _expand_via_graph
+
+        out = await _expand_via_graph(result, PROJECT, apply_confidence=True)
+
+    graph_entities = [e for e in out.entities if e.get("source") == "graph_expansion"]
+    assert len(graph_entities) == 1
+    assert graph_entities[0]["certainty"] == "confirmed"
+    assert graph_entities[0]["belief_confidence"] == 0.85
+    assert graph_entities[0]["has_contradictions"] is False

@@ -41,6 +41,13 @@ _PAGE_APPLY_RECENCY: dict[str, bool] = {
     "brd:unlocks": True,
 }
 
+# Page-context → confidence overlay
+# Same pages that benefit from depth=2 and recency also benefit from certainty data
+_PAGE_APPLY_CONFIDENCE: dict[str, bool] = {
+    "brd:solution-flow": True,
+    "brd:unlocks": True,
+}
+
 
 @dataclass
 class ChatContext:
@@ -85,6 +92,7 @@ async def build_retrieval_context(
         entity_types = _PAGE_ENTITY_TYPES.get(page_context or "")
         graph_depth = _PAGE_GRAPH_DEPTH.get(page_context or "", 1)
         apply_recency = _PAGE_APPLY_RECENCY.get(page_context or "", False)
+        apply_confidence = _PAGE_APPLY_CONFIDENCE.get(page_context or "", False)
         retrieval_result = await retrieve(
             query=message,
             project_id=project_id,
@@ -96,6 +104,7 @@ async def build_retrieval_context(
             entity_types=entity_types,
             graph_depth=graph_depth,
             apply_recency=apply_recency,
+            apply_confidence=apply_confidence,
         )
         return format_retrieval_for_context(
             retrieval_result, style="chat", max_tokens=2000

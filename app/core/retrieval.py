@@ -367,6 +367,7 @@ async def _expand_via_graph(
     entity_types: list[str] | None = None,
     graph_depth: int = 1,
     apply_recency: bool = False,
+    apply_confidence: bool = False,
 ) -> RetrievalResult:
     """Expand retrieval results with graph neighbors from top entities.
 
@@ -380,6 +381,7 @@ async def _expand_via_graph(
         entity_types: Only expand with related entities of these types (None = all)
         graph_depth: Graph traversal depth (1 = direct, 2 = multi-hop)
         apply_recency: When True, use temporal weighting in neighborhood queries
+        apply_confidence: When True, include certainty and belief data on entities
     """
     if not result.entities:
         return result
@@ -409,6 +411,7 @@ async def _expand_via_graph(
                 entity_types=entity_types,
                 depth=graph_depth,
                 apply_recency=apply_recency,
+                apply_confidence=apply_confidence,
             )
 
         neighborhoods = await asyncio.gather(
@@ -559,6 +562,7 @@ async def retrieve(
     include_graph_expansion: bool = True,
     graph_depth: int = 1,
     apply_recency: bool = False,
+    apply_confidence: bool = False,
 ) -> RetrievalResult:
     """THE unified retrieval entry point.
 
@@ -582,6 +586,7 @@ async def retrieve(
         skip_evaluation: Skip sufficiency evaluation loop
         include_graph_expansion: Whether to expand results via entity graph neighbors
         apply_recency: When True, use temporal weighting in graph expansion
+        apply_confidence: When True, include certainty and belief data in graph expansion
     """
     # Stage 1: Decompose query
     if skip_decomposition:
@@ -603,7 +608,7 @@ async def retrieve(
 
     # Stage 2.5: Graph expansion (typed traversal — filters by page entity types)
     if include_graph_expansion and include_entities and result.entities:
-        result = await _expand_via_graph(result, project_id, entity_types=entity_types, graph_depth=graph_depth, apply_recency=apply_recency)
+        result = await _expand_via_graph(result, project_id, entity_types=entity_types, graph_depth=graph_depth, apply_recency=apply_recency, apply_confidence=apply_confidence)
 
     # Stage 3: Rerank (Cohere → Haiku → cosine order)
     if not skip_reranking and len(result.chunks) > top_k:
@@ -657,7 +662,7 @@ async def retrieve(
 
             # Graph expand additional results
             if include_graph_expansion and include_entities and additional.entities:
-                result = await _expand_via_graph(result, project_id, entity_types=entity_types, graph_depth=graph_depth, apply_recency=apply_recency)
+                result = await _expand_via_graph(result, project_id, entity_types=entity_types, graph_depth=graph_depth, apply_recency=apply_recency, apply_confidence=apply_confidence)
 
             # Re-rerank after merge
             if not skip_reranking and len(result.chunks) > top_k:
