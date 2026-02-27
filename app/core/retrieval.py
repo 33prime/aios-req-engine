@@ -455,9 +455,13 @@ async def _expand_via_graph(
                     graph_chunks_added += 1
 
         if graph_entities_added or graph_chunks_added:
+            seed_labels = [
+                f"{s.get('entity_type')}:{s.get('entity_name', '?')[:20]}"
+                for s in seeds
+            ]
             logger.info(
-                f"Graph expansion: +{graph_entities_added} entities, "
-                f"+{graph_chunks_added} chunks"
+                "Graph expansion: seeds=%s, +%d entities, +%d chunks",
+                seed_labels, graph_entities_added, graph_chunks_added,
             )
 
     except Exception as e:

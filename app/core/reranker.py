@@ -175,13 +175,15 @@ async def rerank_results(
     if cohere_result is not None:
         return cohere_result
 
+    logger.info("Cohere not configured or failed, falling back to Haiku rerank")
+
     # Fallback to Haiku
     haiku_result = await rerank_with_haiku(query, result, top_k)
     if haiku_result is not None:
         return haiku_result
 
     # Final fallback: truncate by existing cosine similarity order
-    logger.debug("Both rerankers failed, keeping cosine order")
+    logger.info("Both rerankers failed, keeping cosine order")
     result.chunks = result.chunks[:top_k]
     return result
 

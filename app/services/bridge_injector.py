@@ -478,9 +478,22 @@ IFRAME_HEADERS_SNIPPET = """\
     ];
   },"""
 
+NETLIFY_HEADERS_FILE = """\
+/*
+  X-Frame-Options: ALLOWALL
+  Content-Security-Policy: frame-ancestors *
+"""
+
 
 def _inject_iframe_headers(local_path: str) -> bool:
-    """Add iframe-permissive headers to next.config.mjs so the prototype can be embedded."""
+    """Add iframe-permissive headers so the prototype can be embedded.
+
+    Tries three strategies in order:
+    1. Next.js — inject async headers() into next.config.{mjs,js,ts}
+    2. Netlify — write public/_headers file
+    3. Vite/static — write public/_headers as fallback
+    """
+    # ── Strategy 1: Next.js ──────────────────────────────────────────────
     for config_name in ("next.config.mjs", "next.config.js", "next.config.ts"):
         config_path = Path(local_path) / config_name
         if not config_path.exists():
@@ -488,22 +501,14 @@ def _inject_iframe_headers(local_path: str) -> bool:
 
         content = config_path.read_text(encoding="utf-8")
 
-        # Skip if already has frame-ancestors or headers()
         if "frame-ancestors" in content or "async headers()" in content:
             logger.info(f"iframe headers already present in {config_name}")
             return True
 
-        # Insert headers() before the closing brace of nextConfig object.
-        # Look for the pattern: a closing `}` that sits before `export default`
-        # or before `module.exports`.
         import re
 
-        # Find the last `}` before `export default` or `module.exports`
-        match = re.search(
-            r"(}\s*)\n\s*(export\s+default|module\.exports)", content
-        )
+        match = re.search(r"(}\s*)\n\s*(export\s+default|module\.exports)", content)
         if match:
-            # Insert headers snippet before the closing brace
             closing_brace_start = match.start(1)
             content = (
                 content[:closing_brace_start]
@@ -518,8 +523,33 @@ def _inject_iframe_headers(local_path: str) -> bool:
         logger.warning(f"Could not find insertion point in {config_name}")
         return False
 
-    logger.warning("No next.config.{mjs,js,ts} found — skipping iframe headers")
-    return False
+    # ── Strategy 2: Netlify / Vite / static — public/_headers ────────────
+    # Works for Netlify (native), and any static host that supports _headers.
+    # Also covers Vite projects (Vite copies public/ to dist/ at build time).
+    headers_content = NETLIFY_HEADERS_FILE
+    for headers_path in ("public/_headers", "_headers"):
+        candidate = Path(local_path) / headers_path
+        if candidate.exists():
+            existing = candidate.read_text(encoding="utf-8")
+            if "frame-ancestors" in existing:
+                logger.info(f"iframe headers already present in {headers_path}")
+                return True
+            # Append to existing _headers file
+            candidate.write_text(existing.rstrip() + "\n" + headers_content, encoding="utf-8")
+            logger.info(f"Appended iframe headers to {headers_path}")
+            return True
+
+    # No _headers file yet — create one in public/ (works for Vite + Netlify)
+    public_dir = Path(local_path) / "public"
+    if public_dir.is_dir():
+        (public_dir / "_headers").write_text(headers_content, encoding="utf-8")
+        logger.info("Created public/_headers with iframe headers")
+        return True
+
+    # Last resort — write _headers at repo root
+    (Path(local_path) / "_headers").write_text(headers_content, encoding="utf-8")
+    logger.info("Created _headers at repo root with iframe headers")
+    return True
 
 
 def inject_bridge(git_manager: GitManager, local_path: str) -> None:
@@ -527,7 +557,7 @@ def inject_bridge(git_manager: GitManager, local_path: str) -> None:
 
     1. Writes public/aios-bridge.js
     2. Finds the root HTML/layout file and adds the script tag
-    3. Adds iframe-permissive headers to next.config
+    3. Adds iframe-permissive headers (Next.js config or Netlify _headers)
     4. Commits the changes
     """
     # Write bridge script

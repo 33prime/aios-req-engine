@@ -1,8 +1,69 @@
 """API router for v1 endpoints."""
 
+import os
+
 from fastapi import APIRouter
 
-from app.api import activity, admin, agents, analytics, auth, baseline, business_drivers, chat, chat_signals, client_packages, client_portal, client_pulse, clients, collaboration, communications, competitor_refs, confirmations, consultant_enrichment, creative_brief, discovery, discovery_prep, document_uploads, entity_cascades, eval, evidence, icp, intelligence, jobs, meetings, n8n_research, notifications, open_questions, organizations, outreach, phase0, process_documents, project_creation, project_launch, projects, proposals, prototype_sessions, prototypes, pulse, readiness, research, research_agent, revisions, risks, signals, sources, stakeholders, state, strategic_analytics, super_admin, tasks, workspace, workspace_discovery
+from app.api import (
+    activity,
+    admin,
+    agents,
+    analytics,
+    auth,
+    baseline,
+    business_drivers,
+    chat,
+    chat_signals,
+    client_packages,
+    client_portal,
+    client_pulse,
+    clients,
+    collaboration,
+    communications,
+    competitor_refs,
+    confirmations,
+    consultant_enrichment,
+    creative_brief,
+    discovery,
+    discovery_prep,
+    document_uploads,
+    entity_cascades,
+    eval,
+    evidence,
+    icp,
+    intelligence,
+    jobs,
+    meetings,
+    n8n_research,
+    notifications,
+    open_questions,
+    organizations,
+    outreach,
+    phase0,
+    process_documents,
+    project_creation,
+    project_launch,
+    projects,
+    proposals,
+    prototype_builder,
+    prototype_sessions,
+    prototypes,
+    pulse,
+    readiness,
+    research,
+    research_agent,
+    revisions,
+    risks,
+    signals,
+    sources,
+    stakeholders,
+    state,
+    strategic_analytics,
+    super_admin,
+    tasks,
+    workspace,
+    workspace_discovery,
+)
 
 router = APIRouter()
 
@@ -180,3 +241,12 @@ router.include_router(pulse.router, tags=["pulse"])
 
 # Include Discovery Protocol routes (North Star categorization + mission alignment)
 router.include_router(workspace_discovery.router, tags=["discovery_protocol"])
+
+# Include Prototype Builder routes (payload assembly, plan generation, rendering)
+router.include_router(prototype_builder.router, tags=["prototype_builder"])
+
+# Include Debug Graph routes (dev-only — Tier 2.5 diagnostics)
+if os.environ.get("REQ_ENGINE_ENV", "dev") == "dev":
+    from app.api import debug_graph
+
+    router.include_router(debug_graph.router, tags=["debug"])

@@ -7,14 +7,14 @@ FKs and the signal_impact table — no new DB structures needed.
 
 from __future__ import annotations
 
-import logging
 from datetime import datetime, timezone
 from typing import Any
 from uuid import UUID
 
+from app.core.logging import get_logger
 from app.db.supabase_client import get_supabase
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # Entity type → table name (consistent with patch_applicator)
 _TABLE_MAP = {
@@ -707,6 +707,13 @@ def get_entity_neighborhood(
     # Final sort by weight descending and cap at max_related
     related.sort(key=lambda x: x["weight"], reverse=True)
     related = related[:max_related]
+
+    logger.info(
+        "Neighborhood: %s:%s depth=%d related=%d chunks=%d hop2=%d recency=%s confidence=%s",
+        entity_type, str(entity_id)[:8], depth, len(related),
+        stats["total_chunks"], stats.get("hop2_added", 0),
+        stats.get("recency_applied", False), stats.get("confidence_applied", False),
+    )
 
     return {
         "entity": entity,
