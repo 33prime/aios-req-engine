@@ -51,10 +51,10 @@ async def get_feature_detail(project_id: UUID, feature_id: UUID) -> FeatureDetai
 
         # Round 2: Dependencies + history in parallel
         def _q_deps():
-            """Get all dependencies where this feature is source or target."""
+            """Get linked entities from entity_dependencies + reverse driver lookups."""
             deps = []
+            # --- entity_dependencies (if populated) ---
             try:
-                # As source
                 src_resp = (
                     client.table("entity_dependencies")
                     .select("target_entity_type, target_entity_id, dependency_type, strength")
@@ -73,7 +73,6 @@ async def get_feature_detail(project_id: UUID, feature_id: UUID) -> FeatureDetai
             except Exception:
                 pass
             try:
-                # As target
                 tgt_resp = (
                     client.table("entity_dependencies")
                     .select("source_entity_type, source_entity_id, dependency_type, strength")
@@ -91,6 +90,48 @@ async def get_feature_detail(project_id: UUID, feature_id: UUID) -> FeatureDetai
                     })
             except Exception:
                 pass
+
+            # --- Fallback: reverse lookup from driver linked_feature_ids ---
+            seen_ids = {d["entity_id"] for d in deps}
+            try:
+                dr_resp = (
+                    client.table("business_drivers")
+                    .select("id, driver_type, linked_feature_ids, linked_persona_ids")
+                    .eq("project_id", pid)
+                    .contains("linked_feature_ids", [fid])
+                    .execute()
+                )
+                for dr in (dr_resp.data or []):
+                    if dr["id"] not in seen_ids:
+                        deps.append({
+                            "entity_type": "business_driver",
+                            "entity_id": dr["id"],
+                            "dependency_type": "linked",
+                            "strength": 0.8,
+                        })
+                        seen_ids.add(dr["id"])
+                    # Also pull the personas linked to those drivers
+                    for pid2 in (dr.get("linked_persona_ids") or []):
+                        if pid2 not in seen_ids:
+                            deps.append({
+                                "entity_type": "persona",
+                                "entity_id": pid2,
+                                "dependency_type": "linked",
+                                "strength": 0.6,
+                            })
+                            seen_ids.add(pid2)
+            except Exception:
+                pass
+
+            # --- Fallback: feature's own vp_step_id ---
+            vp_id = feature.get("vp_step_id")
+            if vp_id and vp_id not in seen_ids:
+                deps.append({
+                    "entity_type": "vp_step",
+                    "entity_id": vp_id,
+                    "dependency_type": "placed_in",
+                    "strength": 1.0,
+                })
             return deps
 
         def _q_history():

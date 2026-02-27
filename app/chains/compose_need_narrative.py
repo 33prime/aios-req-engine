@@ -150,15 +150,25 @@ Compose the narrative."""
         # Cache in synthesized_memory_cache
         try:
             db = get_supabase()
-            db.table("synthesized_memory_cache").upsert(
-                {
-                    "project_id": project_id,
-                    "cache_key": "need_narrative",
-                    "cache_value": json.dumps(result),
+            payload = json.dumps({"need_narrative": result})
+            # Update existing row or insert new
+            existing = db.table("synthesized_memory_cache").select("id").eq(
+                "project_id", project_id
+            ).maybe_single().execute()
+            if existing and existing.data:
+                db.table("synthesized_memory_cache").update({
+                    "content": payload,
+                    "is_stale": False,
+                    "synthesized_at": generated_at,
                     "updated_at": generated_at,
-                },
-                on_conflict="project_id,cache_key",
-            ).execute()
+                }).eq("id", existing.data["id"]).execute()
+            else:
+                db.table("synthesized_memory_cache").insert({
+                    "project_id": project_id,
+                    "content": payload,
+                    "is_stale": False,
+                    "synthesized_at": generated_at,
+                }).execute()
         except Exception:
             logger.warning(f"Failed to cache need narrative for project {project_id}")
 
@@ -178,15 +188,16 @@ def get_cached_need_narrative(project_id: str) -> dict | None:
     try:
         db = get_supabase()
         r = db.table("synthesized_memory_cache").select(
-            "cache_value"
-        ).eq("project_id", project_id).eq(
-            "cache_key", "need_narrative"
-        ).maybe_single().execute()
+            "content"
+        ).eq("project_id", project_id).maybe_single().execute()
 
-        if r and r.data and r.data.get("cache_value"):
-            val = r.data["cache_value"]
+        if r and r.data and r.data.get("content"):
+            val = r.data["content"]
             if isinstance(val, str):
-                return json.loads(val)
+                val = json.loads(val)
+            # Content wraps narrative under 'need_narrative' key
+            if isinstance(val, dict) and "need_narrative" in val:
+                return val["need_narrative"]
             return val
     except Exception:
         logger.debug(f"No cached need narrative for project {project_id}")

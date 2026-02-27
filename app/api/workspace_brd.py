@@ -175,7 +175,7 @@ async def get_brd_workspace_data(
         def _q_provenance_entity_ids():
             """Get distinct entity IDs that have signal provenance."""
             try:
-                r = client.table("signal_impacts").select(
+                r = client.table("signal_impact").select(
                     "entity_id"
                 ).eq("project_id", pid).execute()
                 return set(row["entity_id"] for row in (r.data or []) if row.get("entity_id"))
