@@ -1,14 +1,11 @@
-"""Single-call feature overlay analysis with Anthropic prompt caching.
+"""Feature overlay analysis — single-call LLM and batch gap generation.
 
-Replaces the old 3-chain pipeline (analyze_prototype_feature → generate_feature_questions
-→ synthesize_overlay) with one cached call per feature.
-
-Prompt caching layout:
-  SYSTEM [cached]:  Instructions + output JSON schema (~800 tokens)
-  USER block 1 [cached]:  Project context: all features, personas, VP steps (~4000 tokens)
-  USER block 2 [NOT cached]:  This feature's spec + code (~2500 tokens)
-
-Feature 1: cache write (full price). Features 2-14: cache read (90% off ~4800 cached tokens).
+Two modes:
+  1. analyze_feature_overlay() — Original per-feature LLM analysis with Anthropic
+     prompt caching. Kept for single-feature ad-hoc analysis.
+  2. generate_batch_gaps() — Single LLM call for all ambiguous features. Used by the
+     graph-driven prototype analysis pipeline. Includes rich Tier 2.5 graph context
+     so the LLM understands relationships, contradictions, and clusters.
 """
 
 import json
@@ -86,7 +83,10 @@ Output ONLY valid JSON matching this schema:
     "value_path_position": "Step X of Y: label" or null,
     "downstream_risk": "..."
   },
-  "validation_question": {"question": "...", "why_it_matters": "...", "requirement_area": "business_rules|data_handling|user_flow|permissions|integration"},
+  "validation_question": {
+    "question": "...", "why_it_matters": "...",
+    "requirement_area": "business_rules|data_handling|user_flow|permissions|integration"
+  },
   "suggested_verdict": "aligned|needs_adjustment|off_track",
   "status": "understood|partial|unknown",
   "confidence": 0.0-1.0
@@ -115,34 +115,40 @@ def build_cached_blocks(
     # Build compact project context
     feature_summaries = []
     for f in features:
-        feature_summaries.append({
-            "id": f.get("id"),
-            "name": f.get("name"),
-            "overview": f.get("overview", ""),
-            "user_actions": f.get("user_actions", []),
-            "system_behaviors": f.get("system_behaviors", []),
-            "rules": f.get("rules", []),
-        })
+        feature_summaries.append(
+            {
+                "id": f.get("id"),
+                "name": f.get("name"),
+                "overview": f.get("overview", ""),
+                "user_actions": f.get("user_actions", []),
+                "system_behaviors": f.get("system_behaviors", []),
+                "rules": f.get("rules", []),
+            }
+        )
 
     persona_summaries = []
     for p in personas:
-        persona_summaries.append({
-            "name": p.get("name"),
-            "goals": p.get("goals", []),
-            "pain_points": p.get("pain_points", []),
-            "related_features": p.get("related_features", []),
-        })
+        persona_summaries.append(
+            {
+                "name": p.get("name"),
+                "goals": p.get("goals", []),
+                "pain_points": p.get("pain_points", []),
+                "related_features": p.get("related_features", []),
+            }
+        )
 
     vp_summaries = []
     for i, step in enumerate(vp_steps):
-        vp_summaries.append({
-            "step_index": step.get("step_index", i),
-            "label": step.get("label", ""),
-            "features_used": [
-                {"feature_id": fu.get("feature_id"), "role": fu.get("role")}
-                for fu in step.get("features_used", [])
-            ],
-        })
+        vp_summaries.append(
+            {
+                "step_index": step.get("step_index", i),
+                "label": step.get("label", ""),
+                "features_used": [
+                    {"feature_id": fu.get("feature_id"), "role": fu.get("role")}
+                    for fu in step.get("features_used", [])
+                ],
+            }
+        )
 
     context_text = f"""## PROJECT CONTEXT
 
@@ -246,20 +252,25 @@ def analyze_feature_overlay(
 
     # Log usage
     from app.core.llm_usage import log_llm_usage
+
     log_llm_usage(
-        workflow="analyze_feature_overlay", model=response.model, provider="anthropic",
-        tokens_input=usage.input_tokens, tokens_output=usage.output_tokens,
-        tokens_cache_read=cache_read, tokens_cache_create=cache_create,
+        workflow="analyze_feature_overlay",
+        model=response.model,
+        provider="anthropic",
+        tokens_input=usage.input_tokens,
+        tokens_output=usage.output_tokens,
+        tokens_cache_read=cache_read,
+        tokens_cache_create=cache_create,
     )
 
     # Parse response
     response_text = response.content[0].text.strip()
     if response_text.startswith("```json"):
-        response_text = response_text[len("```json"):]
+        response_text = response_text[len("```json") :]
     if response_text.startswith("```"):
-        response_text = response_text[len("```"):]
+        response_text = response_text[len("```") :]
     if response_text.endswith("```"):
-        response_text = response_text[:-len("```")]
+        response_text = response_text[: -len("```")]
     parsed = json.loads(response_text.strip())
 
     # Build OverlayContent from parsed response
@@ -285,11 +296,13 @@ def analyze_feature_overlay(
     # Parse single validation question (new format) or fall back to legacy gaps array
     vq = parsed.get("validation_question")
     if vq and isinstance(vq, dict) and vq.get("question"):
-        gaps = [FeatureGap(
-            question=vq.get("question", ""),
-            why_it_matters=vq.get("why_it_matters", ""),
-            requirement_area=vq.get("requirement_area", "business_rules"),
-        )]
+        gaps = [
+            FeatureGap(
+                question=vq.get("question", ""),
+                why_it_matters=vq.get("why_it_matters", ""),
+                requirement_area=vq.get("requirement_area", "business_rules"),
+            )
+        ]
     elif parsed.get("gaps"):
         # Backward compat: accept legacy gaps array, take first one
         gaps = [
@@ -319,3 +332,194 @@ def analyze_feature_overlay(
         f"gaps={len(overlay.gaps)}, confidence={overlay.confidence:.2f}"
     )
     return overlay
+
+
+# =============================================================================
+# Batch gap generation — single LLM call for graph-driven pipeline
+# =============================================================================
+
+BATCH_GAP_SYSTEM_PROMPT = """\
+You are a senior requirements analyst. You will receive a batch of prototype features \
+that have ambiguous implementation status (partially implemented). For each feature, \
+you are given the AIOS spec, matched code snippets, and rich graph intelligence showing \
+how the feature relates to personas, value path steps, and other features.
+
+For EACH feature, produce ONE validation question for a non-technical business stakeholder.
+
+## Rules
+1. Each question must be max 15 words, answerable with yes/no + optional notes.
+2. Use plain business language — never mention code, components, APIs, or data models.
+3. Focus on "does this match how your team works?" not technical edge cases.
+4. Include why_it_matters (1 sentence) and requirement_area.
+5. Write a 1-2 sentence delta describing what's missing or different between spec and code.
+6. Write a 1-sentence prototype_summary describing what the code actually does.
+7. If graph intelligence shows contradictions in related features, ask about that.
+8. If features form a gap cluster (multiple related features all partial), \
+   frame the question to address the cluster, not just one feature.
+
+Output ONLY valid JSON — an array of objects:
+[
+  {
+    "feature_id": "uuid",
+    "delta": ["concrete gap 1", "concrete gap 2"],
+    "prototype_summary": "What the code actually does...",
+    "question": "Does this match how your team...",
+    "why_it_matters": "This matters because...",
+    "requirement_area": "business_rules|data_handling|user_flow|permissions|integration"
+  }
+]
+
+If a feature has no meaningful gaps to ask about, omit it from the array.
+"""
+
+
+def generate_batch_gaps(
+    features_with_context: list[dict[str, Any]],
+    settings: Any | None = None,
+    model_override: str | None = None,
+) -> dict[str, dict[str, Any]]:
+    """Generate gap questions for multiple ambiguous features in one LLM call.
+
+    Args:
+        features_with_context: List of dicts, each containing:
+            - feature: AIOS feature record
+            - code_content: Matched code (may be empty)
+            - graph_context: Formatted graph intelligence string
+            - confidence: Computed confidence score
+            - implementation_status: "partial" | "placeholder"
+            - gap_cluster: List of related feature names in same gap cluster
+        settings: App settings (auto-loaded if None).
+        model_override: Optional model override.
+
+    Returns:
+        {feature_id: {"delta": [...], "prototype_summary": "...",
+         "question": "...", "why_it_matters": "...", "requirement_area": "..."}}
+    """
+    if not features_with_context:
+        return {}
+
+    if settings is None:
+        from app.core.config import get_settings
+
+        settings = get_settings()
+
+    from anthropic import Anthropic
+
+    model = model_override or settings.PROTOTYPE_ANALYSIS_MODEL
+    client = Anthropic(api_key=settings.ANTHROPIC_API_KEY)
+
+    # Process in chunks of 10 to avoid output truncation
+    chunk_size = 10
+    all_results: dict[str, dict[str, Any]] = {}
+
+    for chunk_start in range(0, len(features_with_context), chunk_size):
+        chunk = features_with_context[chunk_start : chunk_start + chunk_size]
+
+        feature_blocks = []
+        for entry in chunk:
+            feature = entry["feature"]
+            fid = feature.get("id", "")
+            fname = feature.get("name", "Unknown")
+            code = entry.get("code_content", "")
+            graph_ctx = entry.get("graph_context", "")
+            confidence = entry.get("confidence", 0.0)
+            impl_status = entry.get("implementation_status", "partial")
+            gap_cluster = entry.get("gap_cluster", [])
+
+            spec_summary = json.dumps(
+                {
+                    "name": fname,
+                    "overview": feature.get("overview", ""),
+                    "user_actions": feature.get("user_actions", []),
+                    "system_behaviors": feature.get("system_behaviors", []),
+                    "rules": feature.get("rules", []),
+                },
+                indent=2,
+                default=str,
+            )
+
+            block = (
+                f"### Feature: {fname} "
+                f"(confidence: {confidence:.2f}, {impl_status})\n"
+                f"ID: {fid}\n\n"
+                f"**AIOS Spec:**\n{spec_summary}\n\n"
+                f"**Matched Code:**\n```\n"
+                f"{code[:2000] if code else '// No code matched'}\n```\n\n"
+                f"**Graph Intelligence:**\n"
+                f"{graph_ctx or 'No graph data available'}\n"
+            )
+            if gap_cluster:
+                names = ", ".join(gap_cluster)
+                block += f"\n**Gap Cluster:** This feature + {names} are all partial.\n"
+
+            feature_blocks.append(block)
+
+        user_text = (
+            f"## Batch Analysis — {len(feature_blocks)} ambiguous features\n\n"
+            + "\n---\n\n".join(feature_blocks)
+        )
+
+        chunk_label = (
+            f"chunk {chunk_start // chunk_size + 1}"
+            f"/{(len(features_with_context) + chunk_size - 1) // chunk_size}"
+        )
+        logger.info(
+            f"Generating batch gaps {chunk_label}: {len(feature_blocks)} features using {model}"
+        )
+
+        try:
+            response = client.messages.create(
+                model=model,
+                max_tokens=4096,
+                system=[{"type": "text", "text": BATCH_GAP_SYSTEM_PROMPT}],
+                messages=[{"role": "user", "content": user_text}],
+            )
+        except Exception as e:
+            logger.error(f"Batch gap LLM call failed ({chunk_label}): {e}")
+            continue
+
+        # Log usage
+        usage = response.usage
+        from app.core.llm_usage import log_llm_usage
+
+        log_llm_usage(
+            workflow="generate_batch_gaps",
+            model=response.model,
+            provider="anthropic",
+            tokens_input=usage.input_tokens,
+            tokens_output=usage.output_tokens,
+            tokens_cache_read=getattr(usage, "cache_read_input_tokens", 0),
+            tokens_cache_create=getattr(usage, "cache_creation_input_tokens", 0),
+        )
+
+        # Parse response
+        response_text = response.content[0].text.strip()
+        if response_text.startswith("```json"):
+            response_text = response_text[len("```json") :]
+        if response_text.startswith("```"):
+            response_text = response_text[len("```") :]
+        if response_text.endswith("```"):
+            response_text = response_text[: -len("```")]
+
+        try:
+            parsed = json.loads(response_text.strip())
+        except json.JSONDecodeError as e:
+            logger.error(f"Failed to parse batch gaps response ({chunk_label}): {e}")
+            continue
+
+        if isinstance(parsed, list):
+            for item in parsed:
+                fid = item.get("feature_id")
+                if fid:
+                    all_results[fid] = {
+                        "delta": item.get("delta", []),
+                        "prototype_summary": item.get("prototype_summary", ""),
+                        "question": item.get("question", ""),
+                        "why_it_matters": item.get("why_it_matters", ""),
+                        "requirement_area": item.get("requirement_area", "business_rules"),
+                    }
+
+    logger.info(
+        f"Batch gaps generated for {len(all_results)}/{len(features_with_context)} features"
+    )
+    return all_results
