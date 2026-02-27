@@ -1,7 +1,7 @@
 """Search and evidence tool implementations."""
 
 import asyncio
-from typing import Any, Dict
+from typing import Any
 from uuid import UUID
 
 from app.core.logging import get_logger
@@ -10,58 +10,60 @@ from app.db.supabase_client import get_supabase
 logger = get_logger(__name__)
 
 
-async def _search(project_id: UUID, params: Dict[str, Any]) -> Dict[str, Any]:
-    """Semantic search through research using AI embeddings."""
+async def _search(project_id: UUID, params: dict[str, Any]) -> dict[str, Any]:
+    """Semantic search through research using AI embeddings + graph expansion."""
     try:
-        from app.core.embeddings import embed_texts
-        from app.db.phase0 import vector_search_with_priority
+        from app.core.retrieval import retrieve
 
         query = params["query"]
-        chunk_types = params.get("chunk_types", ["all"])
-        min_similarity = params.get("min_similarity", 0.7)
         limit = params.get("limit", 10)
 
         logger.info(f"Semantic search for: {query}")
 
-        # Generate embedding for query
-        query_embedding = embed_texts([query])[0]
-
-        # Search with priority boosting
-        results = vector_search_with_priority(
-            query_embedding=query_embedding,
-            match_count=limit * 2,  # Get more, then filter
-            project_id=project_id,
-            priority_boost=True,
+        result = await retrieve(
+            query=query,
+            project_id=str(project_id),
+            max_rounds=1,
+            skip_decomposition=True,
+            skip_reranking=True,
+            skip_evaluation=True,
+            top_k=limit,
+            graph_depth=1,
+            apply_recency=True,
+            apply_confidence=True,
         )
 
-        # Filter by similarity threshold and chunk type
-        filtered_results = []
-        for result in results:
-            similarity = result.get("similarity", 0)
-            if similarity < min_similarity:
-                continue
-
-            # Filter by chunk type if specified
-            if "all" not in chunk_types:
-                source_type = result.get("metadata", {}).get("source_type", "")
-                if source_type not in chunk_types:
-                    continue
-
-            filtered_results.append({
-                "chunk_id": result.get("id"),
-                "text": result.get("text", "")[:500],
-                "similarity": round(similarity, 3),
-                "source_type": result.get("metadata", {}).get("source_type", "unknown"),
-                "metadata": result.get("metadata", {}),
+        # Format chunks
+        formatted_results = []
+        for chunk in result.chunks[:limit]:
+            formatted_results.append({
+                "chunk_id": chunk.get("id", chunk.get("chunk_id")),
+                "text": (chunk.get("content") or "")[:500],
+                "similarity": round(chunk.get("similarity", 0), 3),
+                "source_type": (chunk.get("metadata") or {}).get("source_type", "unknown"),
+                "source": chunk.get("source", "vector"),
             })
 
-            if len(filtered_results) >= limit:
-                break
+        # Format entities (include graph metadata)
+        entities = []
+        for entity in result.entities[:8]:
+            entry = {
+                "entity_type": entity.get("entity_type", ""),
+                "entity_name": entity.get("entity_name", ""),
+            }
+            if entity.get("strength"):
+                entry["strength"] = entity["strength"]
+            if entity.get("certainty"):
+                entry["certainty"] = entity["certainty"]
+            if entity.get("has_contradictions"):
+                entry["has_contradictions"] = True
+            entities.append(entry)
 
         return {
             "success": True,
-            "results": filtered_results,
-            "count": len(filtered_results),
+            "results": formatted_results,
+            "related_entities": entities,
+            "count": len(formatted_results),
             "query": query,
         }
 
@@ -70,7 +72,7 @@ async def _search(project_id: UUID, params: Dict[str, Any]) -> Dict[str, Any]:
         return {"success": False, "error": str(e)}
 
 
-async def _attach_evidence(project_id: UUID, params: Dict[str, Any]) -> Dict[str, Any]:
+async def _attach_evidence(project_id: UUID, params: dict[str, Any]) -> dict[str, Any]:
     """Attach research evidence to an entity."""
     try:
         supabase = get_supabase()
@@ -137,7 +139,7 @@ async def _attach_evidence(project_id: UUID, params: Dict[str, Any]) -> Dict[str
         return {"success": False, "error": str(e)}
 
 
-async def _query_entity_history(project_id: UUID, params: Dict[str, Any]) -> Dict[str, Any]:
+async def _query_entity_history(project_id: UUID, params: dict[str, Any]) -> dict[str, Any]:
     """Query the evolution history of an entity."""
     supabase = get_supabase()
     entity_type = params.get("entity_type", "feature")
@@ -181,7 +183,7 @@ async def _query_entity_history(project_id: UUID, params: Dict[str, Any]) -> Dic
     if not entity:
         return {"error": f"No {entity_type} found matching '{id_or_name}'"}
 
-    result: Dict[str, Any] = {
+    result: dict[str, Any] = {
         "entity_type": entity_type,
         "entity_id": entity_id,
         "name": entity.get("name") or entity.get("title", ""),
@@ -233,7 +235,7 @@ async def _query_entity_history(project_id: UUID, params: Dict[str, Any]) -> Dic
     return result
 
 
-async def _query_knowledge_graph(project_id: UUID, params: Dict[str, Any]) -> Dict[str, Any]:
+async def _query_knowledge_graph(project_id: UUID, params: dict[str, Any]) -> dict[str, Any]:
     """Search the knowledge graph for facts and beliefs about a topic."""
     supabase = get_supabase()
     topic = params.get("topic", "")

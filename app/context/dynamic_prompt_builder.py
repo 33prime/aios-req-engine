@@ -354,6 +354,10 @@ def build_smart_chat_prompt(
         dynamic_sections.append(
             "# Retrieved Evidence (from signal analysis)\n"
             "Use this evidence to answer questions directly — cite specific quotes when possible.\n"
+            "Entity tags: (strong/moderate/weak) = relationship strength, "
+            "(confirmed/review/inferred/stale) = certainty level, "
+            "(contradicted) = conflicting evidence exists. "
+            "'via X' = indirect relationship through intermediary.\n"
             f"{retrieval_context}"
         )
 
