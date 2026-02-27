@@ -29,7 +29,7 @@ import re
 from datetime import datetime
 from uuid import UUID
 
-from anthropic import Anthropic
+from anthropic import AsyncAnthropic
 
 from app.core.config import get_settings
 from app.core.logging import get_logger
@@ -75,7 +75,7 @@ class MemoryWatcher:
 
     def __init__(self):
         self.settings = get_settings()
-        self.client = Anthropic(api_key=self.settings.ANTHROPIC_API_KEY)
+        self.client = AsyncAnthropic(api_key=self.settings.ANTHROPIC_API_KEY)
 
     async def process_event(
         self,
@@ -120,7 +120,7 @@ class MemoryWatcher:
             prompt = self._build_watcher_prompt(event_type, event_data, recent_beliefs, recent_facts)
 
             # Call Haiku
-            response = self.client.messages.create(
+            response = await self.client.messages.create(
                 model=HAIKU_MODEL,
                 max_tokens=1500,
                 messages=[{"role": "user", "content": prompt}],
@@ -156,13 +156,39 @@ class MemoryWatcher:
 
             importance = result.get("importance", 0.5)
 
+            # Run semantic contradiction detection against existing beliefs
+            contradicted_beliefs = []
+            supported_beliefs = []
+            if stored_facts:
+                try:
+                    from app.core.memory_contradiction import detect_contradictions
+
+                    fact_dicts = [
+                        {"summary": f["summary"], "content": f["summary"]}
+                        for f in stored_facts
+                    ]
+                    relationships = await detect_contradictions(
+                        project_id=project_id,
+                        new_facts=fact_dicts,
+                    )
+                    for rel in relationships:
+                        if rel["relationship"] == "contradicts":
+                            contradicted_beliefs.append(rel["belief_summary"])
+                        elif rel["relationship"] == "supports":
+                            supported_beliefs.append(rel["belief_summary"])
+                except Exception as e:
+                    logger.debug(f"Semantic contradiction detection failed (non-fatal): {e}")
+                    # Fall back to LLM-detected contradictions
+                    contradicted_beliefs = result.get("contradicts_beliefs", [])
+                    supported_beliefs = result.get("confirms_beliefs", [])
+
             return {
                 "facts": stored_facts,
                 "importance": importance,
-                "triggers_synthesis": importance >= IMPORTANCE_THRESHOLD_FOR_SYNTHESIS or len(result.get("contradicts_beliefs", [])) > 0,
+                "triggers_synthesis": importance >= IMPORTANCE_THRESHOLD_FOR_SYNTHESIS or len(contradicted_beliefs) > 0,
                 "triggers_reflection": result.get("is_milestone", False),
-                "contradicted_beliefs": result.get("contradicts_beliefs", []),
-                "supported_beliefs": result.get("confirms_beliefs", []),
+                "contradicted_beliefs": contradicted_beliefs,
+                "supported_beliefs": supported_beliefs,
                 "rationale": result.get("rationale", ""),
             }
 
@@ -285,7 +311,7 @@ class MemorySynthesizer:
 
     def __init__(self):
         self.settings = get_settings()
-        self.client = Anthropic(api_key=self.settings.ANTHROPIC_API_KEY)
+        self.client = AsyncAnthropic(api_key=self.settings.ANTHROPIC_API_KEY)
 
     async def synthesize(
         self,
@@ -334,7 +360,7 @@ class MemorySynthesizer:
             )
 
             # Call Sonnet
-            response = self.client.messages.create(
+            response = await self.client.messages.create(
                 model=SONNET_MODEL,
                 max_tokens=3000,
                 messages=[{"role": "user", "content": prompt}],
@@ -623,7 +649,7 @@ class MemoryReflector:
 
     def __init__(self):
         self.settings = get_settings()
-        self.client = Anthropic(api_key=self.settings.ANTHROPIC_API_KEY)
+        self.client = AsyncAnthropic(api_key=self.settings.ANTHROPIC_API_KEY)
 
     async def reflect(self, project_id: UUID) -> dict:
         """
@@ -665,7 +691,7 @@ class MemoryReflector:
             )
 
             # Call Sonnet
-            response = self.client.messages.create(
+            response = await self.client.messages.create(
                 model=SONNET_MODEL,
                 max_tokens=2500,
                 messages=[{"role": "user", "content": prompt}],
@@ -917,7 +943,59 @@ async def process_signal_for_memory(
         )
         result["synthesis_result"] = synthesis_result
 
+    # Trigger periodic reflection if enough facts accumulated since last reflection
+    if result.get("triggers_reflection") or _should_reflect(project_id):
+        try:
+            reflection_result = await run_periodic_reflection(project_id)
+            result["reflection_result"] = reflection_result
+            logger.info(f"Periodic reflection triggered: {reflection_result.get('insights_created', 0)} insights")
+        except Exception as e:
+            logger.warning(f"Periodic reflection failed (non-fatal): {e}")
+
     return result
+
+
+def _should_reflect(project_id: UUID, fact_threshold: int = 10) -> bool:
+    """Check if enough facts have accumulated since the last reflection to warrant one.
+
+    Returns True if >= fact_threshold facts exist since the last reflector run.
+    """
+    try:
+        from app.db.supabase_client import get_supabase
+
+        sb = get_supabase()
+
+        # Find the most recent reflector synthesis log
+        last_reflection = (
+            sb.table("memory_synthesis_log")
+            .select("completed_at")
+            .eq("project_id", str(project_id))
+            .eq("synthesis_type", "reflector")
+            .not_.is_("completed_at", "null")
+            .order("completed_at", desc=True)
+            .limit(1)
+            .execute()
+        )
+
+        # Count facts since last reflection (or all facts if no reflection yet)
+        query = (
+            sb.table("memory_nodes")
+            .select("id", count="exact")
+            .eq("project_id", str(project_id))
+            .eq("node_type", "fact")
+        )
+
+        if last_reflection.data:
+            query = query.gt("created_at", last_reflection.data[0]["completed_at"])
+
+        result = query.execute()
+        fact_count = result.count if result.count is not None else len(result.data or [])
+
+        return fact_count >= fact_threshold
+
+    except Exception as e:
+        logger.debug(f"Reflection check failed: {e}")
+        return False
 
 
 async def run_periodic_reflection(project_id: UUID) -> dict:

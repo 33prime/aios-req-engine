@@ -512,7 +512,7 @@ def _evaluate_gate_metric(
         return 0.0
 
     if et == "business_driver" and metric in ("pain_count", "goal_count"):
-        driver_type = "pain_point" if metric == "pain_count" else "goal"
+        driver_type = "pain" if metric == "pain_count" else "goal"
         return sum(1 for d in drivers if d.get("driver_type") == driver_type)
 
     # Standard metrics from health_map

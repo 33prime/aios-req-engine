@@ -65,16 +65,19 @@ def build_graph_context_block(
             speaker_str = f" — {speaker}" if speaker else ""
             parts.append(f"  [{i}] \"{content}\"{speaker_str}")
 
-    # Co-occurring entities — discovered via shared signal chunks
+    # Related entities — discovered via co-occurrence and explicit dependencies
     related = neighborhood.get("related", [])
     if related:
-        parts.append("\n**Related Entities (discovered via signal co-occurrence):**")
+        parts.append("\n**Related Entities (by signal co-occurrence & dependencies):**")
         for rel in related[:max_related]:
             etype = rel.get("entity_type", "")
             ename = rel.get("entity_name", "")
-            shared = rel.get("shared_chunks", 0)
+            weight = rel.get("weight", rel.get("shared_chunks", 0))
+            strength = rel.get("strength", "")
+            relationship = rel.get("relationship", "co_occurrence")
             if ename:
-                parts.append(f"  - {etype}: {ename} ({shared} shared signals)")
+                rel_label = relationship.replace("_", " ")
+                parts.append(f"  - {etype}: {ename} [{strength}] ({rel_label}, weight={weight})")
 
     block = "\n".join(parts)
 

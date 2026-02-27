@@ -255,7 +255,7 @@ def compute_convergence(prototype_id: UUID) -> ConvergenceSnapshot:
 
 
 def save_convergence_snapshot(session_id: UUID, snapshot: ConvergenceSnapshot) -> None:
-    """Persist convergence snapshot to session for fast querying."""
+    """Persist convergence snapshot to session and record as memory facts."""
     sb = get_supabase()
     try:
         sb.table("prototype_sessions").update(
@@ -263,6 +263,79 @@ def save_convergence_snapshot(session_id: UUID, snapshot: ConvergenceSnapshot) -
         ).eq("id", str(session_id)).execute()
     except Exception as e:
         logger.warning(f"Failed to save convergence snapshot: {e}")
+
+    # Record significant convergence signals as memory facts
+    _record_convergence_facts(session_id, snapshot)
+
+
+def _record_convergence_facts(session_id: UUID, snapshot: ConvergenceSnapshot) -> None:
+    """Record convergence milestones as fact nodes in the memory graph.
+
+    This feeds convergence data into the belief system so the memory agent
+    can form beliefs about alignment patterns and prototype readiness.
+    """
+    try:
+        # Look up project_id from the session
+        sb = get_supabase()
+        session_resp = (
+            sb.table("prototype_sessions")
+            .select("prototype_id")
+            .eq("id", str(session_id))
+            .single()
+            .execute()
+        )
+        if not session_resp.data:
+            return
+
+        proto_resp = (
+            sb.table("prototypes")
+            .select("project_id")
+            .eq("id", session_resp.data["prototype_id"])
+            .single()
+            .execute()
+        )
+        if not proto_resp.data:
+            return
+
+        project_id = UUID(proto_resp.data["project_id"])
+
+        from app.db.memory_graph import create_node
+
+        # Record alignment rate as a fact
+        if snapshot.features_with_verdicts > 0:
+            alignment_pct = round(snapshot.alignment_rate * 100)
+            create_node(
+                project_id=project_id,
+                node_type="fact",
+                content=(
+                    f"Prototype convergence: {alignment_pct}% alignment rate "
+                    f"across {snapshot.features_with_verdicts} features with verdicts. "
+                    f"Trend: {snapshot.trend}. "
+                    f"Question coverage: {round(snapshot.question_coverage * 100)}%."
+                ),
+                summary=f"Prototype alignment at {alignment_pct}% ({snapshot.trend})",
+                source_type="convergence",
+                source_id=session_id,
+            )
+
+        # Record misaligned features as individual facts
+        for feature in snapshot.per_feature:
+            if feature.get("delta", 0) >= 0.5 and feature.get("consultant_verdict") and feature.get("client_verdict"):
+                create_node(
+                    project_id=project_id,
+                    node_type="fact",
+                    content=(
+                        f"Feature '{feature['feature_name']}' has verdict divergence: "
+                        f"consultant={feature['consultant_verdict']}, "
+                        f"client={feature['client_verdict']}."
+                    ),
+                    summary=f"Verdict gap on '{feature['feature_name']}': {feature['consultant_verdict']} vs {feature['client_verdict']}",
+                    source_type="convergence",
+                    source_id=session_id,
+                )
+
+    except Exception as e:
+        logger.debug(f"Failed to record convergence facts (non-fatal): {e}")
 
 
 def _compute_trend(

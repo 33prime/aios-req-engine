@@ -26,7 +26,6 @@ _TABLE_MAP = {
     "business_driver": "business_drivers",
     "constraint": "constraints",
     "competitor": "competitor_references",
-    "prd_section": "prd_sections",
     "solution_flow_step": "solution_flow_steps",
 }
 
@@ -41,9 +40,22 @@ _NAME_COL = {
     "business_drivers": "description",
     "constraints": "title",
     "competitor_references": "name",
-    "prd_sections": "section_title",
     "solution_flow_steps": "title",
 }
+
+
+def _classify_strength(weight: int) -> str:
+    """Classify relationship strength from shared chunk count.
+
+    - strong: 5+ shared chunks (high co-occurrence)
+    - moderate: 3-4 shared chunks
+    - weak: 1-2 shared chunks
+    """
+    if weight >= 5:
+        return "strong"
+    elif weight >= 3:
+        return "moderate"
+    return "weak"
 
 
 def get_entity_neighborhood(
@@ -51,32 +63,55 @@ def get_entity_neighborhood(
     entity_type: str,
     project_id: UUID,
     max_related: int = 10,
+    min_weight: int = 0,
+    entity_types: list[str] | None = None,
 ) -> dict[str, Any]:
-    """Get an entity and its 1-hop neighbors via signal_impact co-occurrence.
+    """Get an entity and its 1-hop neighbors via signal co-occurrence + explicit dependencies.
 
-    Two entities are related if they share a chunk_id in signal_impact.
+    Phase 1a: Weighted neighborhoods with relationship strength classification.
+
+    Args:
+        entity_id: Entity UUID
+        entity_type: Entity type key (feature, persona, etc.)
+        project_id: Project UUID
+        max_related: Maximum related entities to return
+        min_weight: Minimum shared_chunk_count to include (0 = all)
+        entity_types: Optional filter — only return related entities of these types
 
     Returns:
         {
             "entity": dict,
             "evidence_chunks": list[dict],
-            "related": [{"relationship": str, "entity_type": str, "entity": dict}]
+            "related": [{
+                "relationship": "co_occurrence" | dependency type,
+                "entity_type": str,
+                "entity_id": str,
+                "entity_name": str,
+                "weight": int,           # shared chunk count (co-occurrence strength)
+                "strength": str,          # "strong" | "moderate" | "weak"
+            }],
+            "stats": {
+                "total_chunks": int,
+                "total_co_occurrences": int,
+                "filtered_by_weight": int,
+                "filtered_by_type": int,
+            }
         }
     """
     sb = get_supabase()
     table = _TABLE_MAP.get(entity_type)
     if not table:
-        return {"entity": {}, "evidence_chunks": [], "related": []}
+        return {"entity": {}, "evidence_chunks": [], "related": [], "stats": {}}
 
     # Load the entity itself
     try:
         entity_resp = sb.table(table).select("*").eq("id", str(entity_id)).single().execute()
         entity = entity_resp.data
     except Exception:
-        return {"entity": {}, "evidence_chunks": [], "related": []}
+        return {"entity": {}, "evidence_chunks": [], "related": [], "stats": {}}
 
     if not entity:
-        return {"entity": {}, "evidence_chunks": [], "related": []}
+        return {"entity": {}, "evidence_chunks": [], "related": [], "stats": {}}
 
     # Find chunk_ids that reference this entity
     try:
@@ -108,6 +143,13 @@ def get_entity_neighborhood(
 
     # Find related entities via shared chunks (co-occurrence)
     related: list[dict] = []
+    stats = {
+        "total_chunks": len(chunk_ids),
+        "total_co_occurrences": 0,
+        "filtered_by_weight": 0,
+        "filtered_by_type": 0,
+    }
+
     if chunk_ids:
         try:
             cooccur_resp = (
@@ -115,11 +157,11 @@ def get_entity_neighborhood(
                 .select("entity_id, entity_type")
                 .in_("chunk_id", chunk_ids[:20])
                 .neq("entity_id", str(entity_id))
-                .limit(max_related * 3)  # Over-fetch to dedupe
+                .limit(max_related * 5)  # Over-fetch to dedupe and filter
                 .execute()
             )
 
-            # Deduplicate by entity_id, keep count as strength
+            # Deduplicate by entity_id, count as weight
             seen: dict[str, dict] = {}
             for row in cooccur_resp.data or []:
                 eid = row["entity_id"]
@@ -127,13 +169,27 @@ def get_entity_neighborhood(
                     seen[eid] = {
                         "entity_id": eid,
                         "entity_type": row["entity_type"],
-                        "shared_chunks": 1,
+                        "weight": 1,
                     }
                 else:
-                    seen[eid]["shared_chunks"] += 1
+                    seen[eid]["weight"] += 1
 
-            # Sort by shared_chunks descending, take top N
-            ranked = sorted(seen.values(), key=lambda x: x["shared_chunks"], reverse=True)[:max_related]
+            stats["total_co_occurrences"] = len(seen)
+
+            # Apply min_weight filter
+            if min_weight > 0:
+                before = len(seen)
+                seen = {k: v for k, v in seen.items() if v["weight"] >= min_weight}
+                stats["filtered_by_weight"] = before - len(seen)
+
+            # Apply entity_types filter
+            if entity_types:
+                before = len(seen)
+                seen = {k: v for k, v in seen.items() if v["entity_type"] in entity_types}
+                stats["filtered_by_type"] = before - len(seen)
+
+            # Sort by weight descending, take top N
+            ranked = sorted(seen.values(), key=lambda x: x["weight"], reverse=True)[:max_related]
 
             # Load entity details for related
             for rel in ranked:
@@ -155,7 +211,8 @@ def get_entity_neighborhood(
                             "entity_type": rel["entity_type"],
                             "entity_id": rel["entity_id"],
                             "entity_name": rel_resp.data.get(name_col, ""),
-                            "shared_chunks": rel["shared_chunks"],
+                            "weight": rel["weight"],
+                            "strength": _classify_strength(rel["weight"]),
                         })
                 except Exception:
                     pass
@@ -163,10 +220,117 @@ def get_entity_neighborhood(
         except Exception as e:
             logger.debug(f"Co-occurrence lookup failed: {e}")
 
+    # Also pull explicit dependencies from entity_dependencies
+    try:
+        dep_resp = (
+            sb.table("entity_dependencies")
+            .select("target_id, target_type, dependency_type")
+            .eq("source_id", str(entity_id))
+            .limit(20)
+            .execute()
+        )
+        existing_ids = {r["entity_id"] for r in related}
+
+        for dep in dep_resp.data or []:
+            tid = dep["target_id"]
+            ttype = dep["target_type"]
+
+            # Apply entity_types filter
+            if entity_types and ttype not in entity_types:
+                continue
+
+            # Skip if already in co-occurrence results
+            if tid in existing_ids:
+                # Upgrade existing entry with explicit dependency info
+                for r in related:
+                    if r["entity_id"] == tid:
+                        r["relationship"] = dep["dependency_type"]
+                        # Boost weight for explicit dependencies
+                        r["weight"] = max(r["weight"], 3)
+                        r["strength"] = _classify_strength(r["weight"])
+                        break
+                continue
+
+            # Load entity name
+            dep_table = _TABLE_MAP.get(ttype)
+            if not dep_table:
+                continue
+            name_col = _NAME_COL.get(dep_table, "name")
+            try:
+                dep_entity = (
+                    sb.table(dep_table)
+                    .select(f"id, {name_col}")
+                    .eq("id", tid)
+                    .single()
+                    .execute()
+                )
+                if dep_entity.data:
+                    related.append({
+                        "relationship": dep["dependency_type"],
+                        "entity_type": ttype,
+                        "entity_id": tid,
+                        "entity_name": dep_entity.data.get(name_col, ""),
+                        "weight": 3,  # Explicit dependencies get moderate baseline
+                        "strength": "moderate",
+                    })
+            except Exception:
+                pass
+
+        # Also check reverse dependencies (where this entity is the target)
+        rev_dep_resp = (
+            sb.table("entity_dependencies")
+            .select("source_id, source_type, dependency_type")
+            .eq("target_id", str(entity_id))
+            .limit(20)
+            .execute()
+        )
+
+        existing_ids = {r["entity_id"] for r in related}
+        for dep in rev_dep_resp.data or []:
+            sid = dep["source_id"]
+            stype = dep["source_type"]
+
+            if entity_types and stype not in entity_types:
+                continue
+            if sid in existing_ids:
+                continue
+
+            dep_table = _TABLE_MAP.get(stype)
+            if not dep_table:
+                continue
+            name_col = _NAME_COL.get(dep_table, "name")
+            try:
+                dep_entity = (
+                    sb.table(dep_table)
+                    .select(f"id, {name_col}")
+                    .eq("id", sid)
+                    .single()
+                    .execute()
+                )
+                if dep_entity.data:
+                    related.append({
+                        "relationship": f"reverse:{dep['dependency_type']}",
+                        "entity_type": stype,
+                        "entity_id": sid,
+                        "entity_name": dep_entity.data.get(name_col, ""),
+                        "weight": 3,
+                        "strength": "moderate",
+                    })
+            except Exception:
+                pass
+
+    except Exception as e:
+        logger.debug(f"Entity dependencies lookup failed: {e}")
+
+    # Final sort by weight descending and cap at max_related
+    related.sort(key=lambda x: x["weight"], reverse=True)
+    related = related[:max_related]
+
     return {
         "entity": entity,
         "evidence_chunks": evidence_chunks,
         "related": related,
+        "stats": stats,
     }
 
 
@@ -340,128 +504,6 @@ def _resolve_path_entities(path: list[str], sb: Any) -> list[dict]:
     return result
 
 
-def detect_tensions(project_id: UUID) -> list[dict[str, Any]]:
-    """Detect structural tensions and risks in the project graph.
 
-    Returns list of tension dicts with type, description, severity, entity_ids.
-    """
-    sb = get_supabase()
-    tensions: list[dict] = []
-
-    # 1. Confirmed features with no evidence chunks
-    try:
-        features_resp = (
-            sb.table("features")
-            .select("id, name, confirmation_status")
-            .eq("project_id", str(project_id))
-            .in_("confirmation_status", ["confirmed_consultant", "confirmed_client"])
-            .execute()
-        )
-        for feature in features_resp.data or []:
-            impact_resp = (
-                sb.table("signal_impact")
-                .select("id")
-                .eq("entity_id", feature["id"])
-                .limit(1)
-                .execute()
-            )
-            if not impact_resp.data:
-                tensions.append({
-                    "type": "ungrounded_feature",
-                    "severity": "medium",
-                    "description": f"Confirmed feature '{feature['name']}' has no evidence trail",
-                    "entity_ids": [feature["id"]],
-                })
-    except Exception as e:
-        logger.debug(f"Feature tension check failed: {e}")
-
-    # 2. Stale AI-generated entities (unconfirmed > 7 days)
-    try:
-        for entity_type, table in [
-            ("feature", "features"),
-            ("persona", "personas"),
-            ("stakeholder", "stakeholders"),
-        ]:
-            stale_resp = (
-                sb.table(table)
-                .select("id, name")
-                .eq("project_id", str(project_id))
-                .eq("confirmation_status", "ai_generated")
-                .lt("created_at", "now() - interval '7 days'")
-                .eq("is_stale", False)
-                .limit(10)
-                .execute()
-            )
-            for entity in stale_resp.data or []:
-                tensions.append({
-                    "type": "stale_ai_generated",
-                    "severity": "low",
-                    "description": f"AI-generated {entity_type} '{entity['name']}' unconfirmed for >7 days",
-                    "entity_ids": [entity["id"]],
-                })
-    except Exception as e:
-        logger.debug(f"Stale entity check failed: {e}")
-
-    # 3. Conflicting beliefs in memory graph
-    try:
-        contradictions = (
-            sb.table("memory_edges")
-            .select("from_node_id, to_node_id, rationale")
-            .eq("project_id", str(project_id))
-            .eq("edge_type", "contradicts")
-            .limit(10)
-            .execute()
-        )
-        for edge in contradictions.data or []:
-            tensions.append({
-                "type": "contradicting_beliefs",
-                "severity": "high",
-                "description": edge.get("rationale", "Conflicting beliefs detected"),
-                "entity_ids": [edge["from_node_id"], edge["to_node_id"]],
-            })
-    except Exception as e:
-        logger.debug(f"Contradiction check failed: {e}")
-
-    # 4. Workflows with no addressing features
-    try:
-        workflows_resp = (
-            sb.table("workflows")
-            .select("id, name")
-            .eq("project_id", str(project_id))
-            .eq("workflow_type", "current")
-            .execute()
-        )
-        for wf in workflows_resp.data or []:
-            # Check if any vp_step under this workflow has pain > 3
-            steps_resp = (
-                sb.table("vp_steps")
-                .select("id, label, pain_level")
-                .eq("workflow_id", wf["id"])
-                .gte("pain_level", 4)
-                .execute()
-            )
-            high_pain_steps = steps_resp.data or []
-            if high_pain_steps:
-                # Check if any features reference this workflow
-                feature_resp = (
-                    sb.table("features")
-                    .select("id")
-                    .eq("project_id", str(project_id))
-                    .eq("workflow_id", wf["id"])
-                    .limit(1)
-                    .execute()
-                )
-                if not feature_resp.data:
-                    tensions.append({
-                        "type": "unaddressed_pain",
-                        "severity": "high",
-                        "description": (
-                            f"Workflow '{wf['name']}' has {len(high_pain_steps)} "
-                            f"high-pain steps but no addressing features"
-                        ),
-                        "entity_ids": [wf["id"]] + [s["id"] for s in high_pain_steps[:3]],
-                    })
-    except Exception as e:
-        logger.debug(f"Workflow pain check failed: {e}")
-
-    return tensions
+# NOTE: detect_tensions() was removed — unified into app/core/tension_detector.py
+# which now handles both belief graph tensions AND structural entity tensions.

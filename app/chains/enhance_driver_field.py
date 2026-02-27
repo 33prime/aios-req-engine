@@ -127,17 +127,19 @@ def enhance_driver_field(
         except Exception:
             pass
 
-    # ── Graph-discovered related entities (co-occurrence) ──
+    # ── Graph-discovered related entities (co-occurrence + dependencies) ──
     if graph_context.get("related"):
         related_strs = []
         for rel in graph_context["related"][:8]:
             etype = rel.get("entity_type", "")
             ename = rel.get("entity_name", "")
-            shared = rel.get("shared_chunks", 0)
+            weight = rel.get("weight", rel.get("shared_chunks", 0))
+            strength = rel.get("strength", "")
             if ename:
-                related_strs.append(f"{etype}: {ename} ({shared} shared signals)")
+                strength_label = f" [{strength}]" if strength else ""
+                related_strs.append(f"{etype}: {ename}{strength_label} (weight={weight})")
         if related_strs:
-            context_parts.append(f"\nRelated entities (discovered via signal co-occurrence):")
+            context_parts.append("\nRelated entities (discovered via signal co-occurrence):")
             for r in related_strs:
                 context_parts.append(f"  - {r}")
 
