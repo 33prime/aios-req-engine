@@ -27,25 +27,34 @@ _PAGE_ENTITY_TYPES: dict[str, list[str]] = {
 }
 
 # Page-context → graph traversal depth
-# Solution flow and unlocks benefit from 2-hop to discover indirect relationships
+# Depth=2 discovers indirect relationships (feature→persona→workflow)
 _PAGE_GRAPH_DEPTH: dict[str, int] = {
     "brd:solution-flow": 2,
     "brd:unlocks": 2,
+    "brd:features": 2,
+    "brd:personas": 2,
+    "brd:workflows": 2,
     # All other pages default to 1
 }
 
 # Page-context → temporal recency weighting
-# Same pages that use depth=2 benefit from recency-weighted co-occurrence
+# Prioritizes recently-evidenced relationships over stale ones
 _PAGE_APPLY_RECENCY: dict[str, bool] = {
     "brd:solution-flow": True,
     "brd:unlocks": True,
+    "brd:features": True,
+    "brd:workflows": True,
 }
 
 # Page-context → confidence overlay
-# Same pages that benefit from depth=2 and recency also benefit from certainty data
+# Shows which evidence is confirmed vs inferred vs contradicted
 _PAGE_APPLY_CONFIDENCE: dict[str, bool] = {
     "brd:solution-flow": True,
     "brd:unlocks": True,
+    "brd:features": True,
+    "brd:personas": True,
+    "brd:business-drivers": True,
+    "brd:stakeholders": True,
 }
 
 
@@ -93,6 +102,10 @@ async def build_retrieval_context(
         graph_depth = _PAGE_GRAPH_DEPTH.get(page_context or "", 1)
         apply_recency = _PAGE_APPLY_RECENCY.get(page_context or "", False)
         apply_confidence = _PAGE_APPLY_CONFIDENCE.get(page_context or "", False)
+        logger.info(
+            "Retrieval profile: page=%s depth=%d recency=%s confidence=%s types=%s simple=%s",
+            page_context, graph_depth, apply_recency, apply_confidence, entity_types, is_simple,
+        )
         retrieval_result = await retrieve(
             query=message,
             project_id=project_id,
