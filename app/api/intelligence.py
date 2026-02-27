@@ -123,6 +123,8 @@ async def get_overview(project_id: UUID) -> IntelligenceOverviewResponse:
             what_changed=briefing.what_changed.model_dump() if briefing.what_changed else {},
             pulse=pulse,
             recent_activity=recent_activity,
+            gap_clusters=[c.model_dump() for c in briefing.gap_clusters],
+            gap_stats=briefing.gap_stats,
         )
     except Exception as e:
         logger.error(f"Overview failed for project {project_id}: {e}")

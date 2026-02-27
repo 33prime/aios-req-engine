@@ -18,6 +18,7 @@ from app.core.schemas_actions import TerseAction
 from app.core.schemas_briefing import (
     BriefingSituation,
     ConversationStarter,
+    GapCluster,
     Hypothesis,
     IntelligenceBriefing,
     ProjectHeartbeat,
@@ -99,14 +100,30 @@ async def compute_intelligence_briefing(
     def _run_temporal():
         return compute_temporal_diff(project_id, since_timestamp)
 
+    def _run_intelligence_loop():
+        """Detect gaps + run sub-phases 2-5 (clustering, fan-out, accuracy, sources)."""
+        try:
+            from app.core.gap_detector import detect_gaps as _detect_gaps_sync
+            from app.core.intelligence_loop import run_intelligence_loop
+
+            # detect_gaps is async — run its sync internals
+            import asyncio as _aio
+            gaps = _aio.run(_detect_gaps_sync(project_id))
+            return run_intelligence_loop(gaps, project_id)
+        except Exception as e:
+            logger.warning(f"Intelligence loop failed (non-fatal): {e}")
+            return []
+
     (
         tensions, scanned_hyps, active_hyps, heartbeat, temporal_diff,
+        gap_clusters_raw,
     ) = await asyncio.gather(
         asyncio.to_thread(_run_tensions),
         asyncio.to_thread(_run_scan),
         asyncio.to_thread(_run_active),
         asyncio.to_thread(_run_heartbeat),
         asyncio.to_thread(_run_temporal),
+        asyncio.to_thread(_run_intelligence_loop),
     )
 
     hypotheses = _merge_hypotheses(scanned_hyps, active_hyps)
@@ -222,12 +239,23 @@ async def compute_intelligence_briefing(
             logger.warning(f"Conversation starters failed (non-fatal): {e}")
             return {}
 
+    async def _run_knowledge_classification() -> None:
+        """Haiku: classify knowledge types for gap clusters."""
+        if not gap_clusters_raw:
+            return
+        try:
+            from app.chains.classify_gap_knowledge import classify_gap_knowledge
+            await classify_gap_knowledge(gap_clusters_raw, project_id=str(project_id))
+        except Exception as e:
+            logger.warning(f"Knowledge classification failed (non-fatal): {e}")
+
     # Fire all LLM calls concurrently
-    temporal_summary, narrative_result, hyp_suggestions, cs_result = await asyncio.gather(
+    temporal_summary, narrative_result, hyp_suggestions, cs_result, _ = await asyncio.gather(
         _run_temporal_summary(),
         _run_narrative(),
         _run_hypothesis_suggestions(),
         _run_conversation_starters(),
+        _run_knowledge_classification(),
     )
 
     # ── Phase 4: Process results ──
@@ -282,6 +310,12 @@ async def compute_intelligence_briefing(
     # ── Phase 5: Actions (reuse v3 context frame) ──
     actions = _build_terse_actions(structural_gaps, max_actions)
 
+    # ── Phase 5b: Score and rank gap clusters ──
+    gap_clusters: list[GapCluster] = []
+    gap_stats: dict = {}
+    if gap_clusters_raw:
+        gap_clusters, gap_stats = _finalize_gap_clusters(gap_clusters_raw)
+
     # ── Phase 6: Assembly ──
     # Prefer the 5-sentence narrative; fall back to starter summary only if narrative empty
     final_narrative = situation_narrative or cs_result.get("situation_summary", "")
@@ -304,6 +338,8 @@ async def compute_intelligence_briefing(
         heartbeat=heartbeat,
         actions=actions,
         conversation_starters=conversation_starters,
+        gap_clusters=gap_clusters,
+        gap_stats=gap_stats,
         computed_at=datetime.now(UTC),
         narrative_cached=narrative_cached,
         phase=phase,
@@ -587,6 +623,54 @@ def _merge_hypotheses(scanned: list[Hypothesis], active: list[Hypothesis]) -> li
             merged.append(h)
 
     return merged[:10]
+
+
+def _finalize_gap_clusters(
+    clusters: list[GapCluster],
+    max_clusters: int = 8,
+) -> tuple[list[GapCluster], dict]:
+    """Score, rank, and cap gap clusters. Returns (clusters, stats)."""
+    for c in clusters:
+        gap_density = min(1.0, c.total_gaps / 5)
+        has_sources = 1.0 if c.sources else 0.0
+        has_knowledge = 1.0 if c.knowledge_type else 0.0
+
+        c.priority_score = round(
+            c.fan_out_score * 0.35
+            + c.accuracy_impact * 0.25
+            + gap_density * 0.20
+            + has_sources * 0.10
+            + has_knowledge * 0.10,
+            3,
+        )
+
+    clusters.sort(key=lambda c: c.priority_score, reverse=True)
+    capped = clusters[:max_clusters]
+
+    # Build stats
+    total_gaps = sum(c.total_gaps for c in capped)
+    type_dist: dict[str, int] = {}
+    for c in capped:
+        for g in c.gaps:
+            type_dist[g.gap_type.value] = type_dist.get(g.gap_type.value, 0) + 1
+
+    knowledge_dist: dict[str, int] = {}
+    for c in capped:
+        if c.knowledge_type:
+            kt = c.knowledge_type.value
+            knowledge_dist[kt] = knowledge_dist.get(kt, 0) + 1
+
+    stats = {
+        "total_clusters": len(capped),
+        "total_gaps": total_gaps,
+        "gap_type_distribution": type_dist,
+        "knowledge_type_distribution": knowledge_dist,
+        "avg_priority_score": round(
+            sum(c.priority_score for c in capped) / len(capped), 3
+        ) if capped else 0,
+    }
+
+    return capped, stats
 
 
 def _build_terse_actions(structural_gaps: list, max_actions: int) -> list[TerseAction]:

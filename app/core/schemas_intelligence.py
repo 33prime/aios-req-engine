@@ -73,6 +73,8 @@ class IntelligenceOverviewResponse(BaseModel):
     what_changed: dict = Field(default_factory=dict)
     pulse: PulseStats = Field(default_factory=PulseStats)
     recent_activity: list[RecentActivityItem] = Field(default_factory=list)
+    gap_clusters: list[dict] = Field(default_factory=list)
+    gap_stats: dict = Field(default_factory=dict)
 
 
 # =============================================================================

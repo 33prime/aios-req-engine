@@ -60,6 +60,70 @@ class ConversationStarter(BaseModel):
 # =============================================================================
 
 
+class GapType(str, Enum):
+    """Types of structural intelligence gaps detected across the entity graph."""
+
+    COVERAGE = "coverage"  # Confirmed entity with no signal_impact evidence
+    RELATIONSHIP = "relationship"  # Entity with 0-1 entity_dependencies edges
+    CONFIDENCE = "confidence"  # avg belief confidence < 0.5 or has contradictions
+    DEPENDENCY = "dependency"  # Missing expected structural relationships
+    TEMPORAL = "temporal"  # Most recent signal_impact > 30 days old
+
+
+class KnowledgeType(str, Enum):
+    """How to close a gap cluster — what kind of input is needed."""
+
+    DOCUMENT = "document"  # Client likely has a doc/artifact
+    MEETING = "meeting"  # Needs conversation to resolve
+    PORTAL = "portal"  # Resolvable via client portal input
+    TRIBAL = "tribal"  # Held by specific people
+
+
+class IntelligenceGap(BaseModel):
+    """A single structural gap in the entity graph."""
+
+    gap_id: str  # "{gap_type}:{entity_id[:12]}"
+    gap_type: GapType
+    entity_type: str
+    entity_id: str
+    entity_name: str
+    severity: float = 0.0  # 0-1
+    detail: str = ""  # One-liner
+
+
+class SourceHint(BaseModel):
+    """A person who may be able to close a gap cluster."""
+
+    name: str
+    stakeholder_id: str | None = None
+    mention_count: int = 0
+    role: str | None = None
+
+
+class GapCluster(BaseModel):
+    """A thematic cluster of intelligence gaps with scoring and resolution hints."""
+
+    cluster_id: str
+    theme: str  # "Data model uncertainty"
+    gaps: list[IntelligenceGap] = Field(default_factory=list)
+    entity_type_counts: dict[str, int] = Field(default_factory=dict)
+    total_gaps: int = 0
+    # Sub-phase 3: fan-out
+    fan_out_score: float = 0.0
+    downstream_entity_count: int = 0
+    partial_unlocks: list[str] = Field(default_factory=list)
+    # Sub-phase 4: accuracy
+    accuracy_impact: float = 0.0
+    affected_flow_steps: int = 0
+    # Sub-phase 5: sources
+    sources: list[SourceHint] = Field(default_factory=list)
+    # Sub-phase 6: knowledge type
+    knowledge_type: KnowledgeType | None = None
+    extraction_path: str = ""
+    # Composite
+    priority_score: float = 0.0
+
+
 class ChangeType(str, Enum):
     """Types of temporal changes tracked between sessions."""
 
@@ -190,6 +254,10 @@ class IntelligenceBriefing(BaseModel):
 
     # Conversation starters (signal-informed, up to 3)
     conversation_starters: list[ConversationStarter] = Field(default_factory=list)
+
+    # Intelligence Loop (Phase 5)
+    gap_clusters: list[GapCluster] = Field(default_factory=list)
+    gap_stats: dict = Field(default_factory=dict)
 
     # Metadata
     computed_at: datetime = Field(default_factory=datetime.utcnow)
