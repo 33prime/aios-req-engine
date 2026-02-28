@@ -13,6 +13,8 @@ import type {
   SolutionFlowReadiness,
 } from '@/types/workspace'
 import { getSolutionFlow, getSolutionFlowStep, generateSolutionFlow, checkSolutionFlowReadiness } from '@/lib/api'
+import { ApiError } from '@/lib/api/core'
+import { useToast } from '@/components/ui'
 
 const STEP_CACHE_MAX = 10
 
@@ -39,6 +41,7 @@ export function SolutionFlowModal({
   onNeedsReview,
   entityLookup,
 }: SolutionFlowModalProps) {
+  const toast = useToast()
   const [flow, setFlow] = useState<SolutionFlowOverview | null>(null)
   const [selectedStepId, setSelectedStepId] = useState<string | null>(null)
   const [stepDetail, setStepDetail] = useState<StepDetail | null>(null)
@@ -147,7 +150,22 @@ export function SolutionFlowModal({
       await generateSolutionFlow(projectId, force)
       await loadFlow()
     } catch (err) {
-      console.error('Failed to generate solution flow:', err)
+      if (err instanceof ApiError && err.status === 422) {
+        try {
+          const detail = JSON.parse(err.message)?.detail
+          const missing = detail?.missing as string[] | undefined
+          if (missing?.length) {
+            toast.warning('Not ready to generate', missing.join('. '))
+          } else {
+            toast.warning('Not ready to generate', detail?.message || 'Project requirements not met')
+          }
+        } catch {
+          toast.error('Generation failed', 'Project not ready for solution flow generation')
+        }
+      } else {
+        toast.error('Generation failed', 'Something went wrong. Check the console for details.')
+        console.error('Failed to generate solution flow:', err)
+      }
     } finally {
       setIsGenerating(false)
     }
@@ -183,6 +201,51 @@ export function SolutionFlowModal({
       return { ...prev, steps: updated }
     })
   }, [])
+
+  // ==========================================================================
+  // Confirmation wrappers — optimistic update + server refresh
+  // ==========================================================================
+  const handleConfirmStep = useCallback(async (entityType: string, entityId: string) => {
+    if (entityType === 'solution_flow_step') {
+      setStepDetail(prev => {
+        if (!prev || prev.id !== entityId) return prev
+        const updated = { ...prev, confirmation_status: 'confirmed_consultant' }
+        stepCache.current.set(entityId, updated)
+        patchFlowStep(updated)
+        return updated
+      })
+    }
+    await onConfirm(entityType, entityId)
+    if (entityType === 'solution_flow_step') {
+      try {
+        const fresh = await getSolutionFlowStep(projectId, entityId)
+        setStepDetail(fresh)
+        stepCache.current.set(entityId, fresh)
+        patchFlowStep(fresh)
+      } catch { /* optimistic state is good enough */ }
+    }
+  }, [onConfirm, projectId, patchFlowStep])
+
+  const handleNeedsReviewStep = useCallback(async (entityType: string, entityId: string) => {
+    if (entityType === 'solution_flow_step') {
+      setStepDetail(prev => {
+        if (!prev || prev.id !== entityId) return prev
+        const updated = { ...prev, confirmation_status: 'needs_client' }
+        stepCache.current.set(entityId, updated)
+        patchFlowStep(updated)
+        return updated
+      })
+    }
+    await onNeedsReview(entityType, entityId)
+    if (entityType === 'solution_flow_step') {
+      try {
+        const fresh = await getSolutionFlowStep(projectId, entityId)
+        setStepDetail(fresh)
+        stepCache.current.set(entityId, fresh)
+        patchFlowStep(fresh)
+      } catch { /* optimistic state is good enough */ }
+    }
+  }, [onNeedsReview, projectId, patchFlowStep])
 
   // ==========================================================================
   // Cascade handler — refetch data when chat tools complete
@@ -483,8 +546,8 @@ export function SolutionFlowModal({
                   <FlowStepDetail
                     step={stepDetail}
                     loading={stepLoading}
-                    onConfirm={onConfirm}
-                    onNeedsReview={onNeedsReview}
+                    onConfirm={handleConfirmStep}
+                    onNeedsReview={handleNeedsReviewStep}
                     entityLookup={entityLookup}
                     projectId={projectId}
                     prevStepTitle={prevStepTitle}

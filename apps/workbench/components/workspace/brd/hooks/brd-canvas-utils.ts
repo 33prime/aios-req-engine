@@ -66,6 +66,7 @@ export function applyConfirmationUpdate(
       s.id === entityId ? { ...s, confirmation_status: status } : s
     )
   }
+  // solution_flow_step: managed separately by SolutionFlowModal — no BRD data update needed
 
   return update
 }

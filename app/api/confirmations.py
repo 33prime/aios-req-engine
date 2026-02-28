@@ -262,6 +262,9 @@ ENTITY_TABLE_MAP = {
     "constraint": "constraints",
     "stakeholder": "stakeholders",
     "competitor_reference": "competitor_references",
+    "workflow": "workflows",
+    "data_entity": "data_entities",
+    "solution_flow_step": "solution_flow_steps",
 }
 
 
@@ -324,6 +327,19 @@ async def batch_confirm_entities(request: BatchConfirmRequest) -> BatchConfirmRe
             },
         )
 
+        # Cascade: confirming a solution flow step also confirms its linked entities
+        if (
+            request.entity_type == "solution_flow_step"
+            and updated_count > 0
+            and request.confirmation_status in ("confirmed_consultant", "confirmed_client")
+        ):
+            try:
+                _cascade_step_confirmation(
+                    supabase, request.project_id, request.entity_ids, request.confirmation_status
+                )
+            except Exception as e:
+                logger.warning(f"Step confirmation cascade failed: {e}")
+
         return BatchConfirmResponse(
             updated_count=updated_count,
             entity_type=request.entity_type,
@@ -336,6 +352,56 @@ async def batch_confirm_entities(request: BatchConfirmRequest) -> BatchConfirmRe
         error_msg = f"Failed to batch confirm entities: {str(e)}"
         logger.error(error_msg, extra={"project_id": str(request.project_id)})
         raise HTTPException(status_code=500, detail=error_msg) from e
+
+
+def _cascade_step_confirmation(
+    supabase,
+    project_id: UUID,
+    step_ids: list[str],
+    confirmation_status: str,
+) -> None:
+    """When a solution flow step is confirmed, cascade to its linked BRD entities.
+
+    Each step links to features, workflows, and data entities. Confirming a step
+    means the consultant has validated the entire step narrative, so the linked
+    entities should also be confirmed.
+    """
+    for step_id in step_ids:
+        try:
+            step = (
+                supabase.table("solution_flow_steps")
+                .select("linked_feature_ids, linked_workflow_ids, linked_data_entity_ids")
+                .eq("id", step_id)
+                .single()
+                .execute()
+            )
+            if not step.data:
+                continue
+
+            linked_map = {
+                "features": step.data.get("linked_feature_ids") or [],
+                "workflows": step.data.get("linked_workflow_ids") or [],
+                "data_entities": step.data.get("linked_data_entity_ids") or [],
+            }
+
+            cascaded = 0
+            for table, ids in linked_map.items():
+                for eid in ids:
+                    try:
+                        result = supabase.table(table).update({
+                            "confirmation_status": confirmation_status,
+                        }).eq("id", eid).eq("project_id", str(project_id)).execute()
+                        if result.data:
+                            cascaded += 1
+                    except Exception:
+                        pass  # Best-effort cascade
+
+            if cascaded:
+                logger.info(
+                    f"Step {step_id}: cascaded confirmation to {cascaded} linked entities"
+                )
+        except Exception as e:
+            logger.warning(f"Cascade failed for step {step_id}: {e}")
 
 
 # ============================================================================

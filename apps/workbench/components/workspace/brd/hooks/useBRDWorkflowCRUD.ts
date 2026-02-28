@@ -11,6 +11,8 @@ import {
   deleteDataEntity,
   generateSolutionFlow,
 } from '@/lib/api'
+import { ApiError } from '@/lib/api/core'
+import { useToast } from '@/components/ui'
 import type { BRDWorkspaceData, AutomationLevel } from '@/types/workspace'
 
 interface WorkflowCRUDDeps {
@@ -21,6 +23,7 @@ interface WorkflowCRUDDeps {
 }
 
 export function useBRDWorkflowCRUD({ projectId, data, loadData, showImpactPreview }: WorkflowCRUDDeps) {
+  const toast = useToast()
   const [showCreateDataEntity, setShowCreateDataEntity] = useState(false)
   const [showCreateWorkflow, setShowCreateWorkflow] = useState(false)
   const [showSolutionFlowModal, setShowSolutionFlowModal] = useState(false)
@@ -296,11 +299,26 @@ export function useBRDWorkflowCRUD({ projectId, data, loadData, showImpactPrevie
       await generateSolutionFlow(projectId)
       await loadData()
     } catch (err) {
-      console.error('Failed to generate solution flow:', err)
+      if (err instanceof ApiError && err.status === 422) {
+        try {
+          const detail = JSON.parse(err.message)?.detail
+          const missing = detail?.missing as string[] | undefined
+          if (missing?.length) {
+            toast.warning('Not ready to generate', missing.join('. '))
+          } else {
+            toast.warning('Not ready to generate', detail?.message || 'Project requirements not met')
+          }
+        } catch {
+          toast.error('Generation failed', 'Project not ready for solution flow generation')
+        }
+      } else {
+        toast.error('Generation failed', 'Something went wrong. Check the console for details.')
+        console.error('Failed to generate solution flow:', err)
+      }
     } finally {
       setIsGeneratingSolutionFlow(false)
     }
-  }, [projectId, loadData])
+  }, [projectId, loadData, toast])
 
   return {
     // Modal state
