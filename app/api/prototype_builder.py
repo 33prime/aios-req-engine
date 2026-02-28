@@ -296,7 +296,9 @@ async def get_build_status(project_id: UUID, build_id: UUID):
 
 @router.post("/build/{build_id}/cancel")
 async def cancel_build(project_id: UUID, build_id: UUID):
-    """Cancel a running build."""
+    """Cancel a running build and kill any running agent processes."""
+    import subprocess
+
     from app.db.prototype_builds import get_build, update_build_status
 
     build = get_build(build_id)
@@ -305,6 +307,28 @@ async def cancel_build(project_id: UUID, build_id: UUID):
 
     if build["status"] in ("completed", "failed"):
         raise HTTPException(status_code=400, detail=f"Build already {build['status']}")
+
+    # Kill any agent processes spawned for this build
+    try:
+        result = subprocess.run(
+            ["pgrep", "-f", "claude.*bypassPermissions"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+            check=False,
+        )
+        if result.stdout.strip():
+            pids = result.stdout.strip().split("\n")
+            for pid in pids:
+                subprocess.run(
+                    ["kill", pid.strip()],
+                    capture_output=True,
+                    timeout=5,
+                    check=False,
+                )
+            logger.info(f"Killed {len(pids)} agent processes for build {build_id}")
+    except Exception as e:
+        logger.warning(f"Failed to kill agent processes: {e}")
 
     update_build_status(build_id, "failed", error="Cancelled by user")
     return {"build_id": str(build_id), "status": "failed"}
