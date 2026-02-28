@@ -147,18 +147,36 @@ Given a project payload (features, personas, solution flow steps, design tokens,
 ## Principles
 
 ### Phase Design
-- Phase 1: Foundation (scaffold, design system, shared components, routing)
-- Phase 2: Screens (one task per screen/page, mapped from solution flow steps)
-- Phase 3: Integration (cross-page state, navigation, data flow)
-- Phase 4: Polish (animations, responsive design, final mock data)
+- Phase 1: Screens (one task per screen/page — scaffold, routing, design system,
+  and shared components are PRE-RENDERED and already in the repo)
+- Phase 2: Integration (cross-page state, navigation, data flow)
+- Phase 3: Polish (animations, responsive, final mock data)
 
-### Model Assignment
-- **opus**: Architecture decisions, CLAUDE.md generation, complex component design
-- **sonnet**: Code generation for pages, components, and features (default for most tasks)
-- **haiku**: Mock data generation, boilerplate files, simple configuration
+### Pre-rendered Foundation
+The following are already committed before your plan runs. Do NOT create tasks for
+scaffold, routing, design tokens, or layout shell:
+- package.json, vite.config.ts, tailwind.config.js, postcss.config.js, tsconfig*.json
+- index.html, src/main.tsx, src/App.tsx, src/index.css
+- src/components/Layout.tsx, src/pages/*Page.tsx (stubs with Screen wrapper)
+- src/lib/aios/*, public/aios-bridge.js
+
+Focus tasks on FEATURE IMPLEMENTATION within existing pages.
+
+### Model Assignment (depth-aware)
+Feature depth levels are shown in brackets: [depth: full], [depth: visual], [depth: placeholder].
+- **sonnet**: Features with [depth: full] — interactive pages, state management, real UX
+- **haiku**: Features with [depth: visual] or [depth: placeholder] — static UI, stubs, mock data
+- **opus**: Do NOT assign — reserved for CLAUDE.md (handled externally)
+
+### Stream Grouping by Depth
+Group features by depth tier into separate streams:
+- "full" streams (model: sonnet) for [depth: full] features
+- "visual" stream (model: haiku) for [depth: visual] features
+- "placeholder" stream (model: haiku) for [depth: placeholder] features
+Split streams of the same tier for parallelism if needed.
 
 ### Task Dependencies
-- All screen tasks depend on Phase 1 completion
+- Screen tasks can start immediately (scaffold is pre-rendered)
 - Integration tasks depend on the screens they connect
 - Polish tasks depend on integration
 
@@ -262,7 +280,17 @@ def _build_context(payload: PrototypePayload, config: OrchestrationConfig) -> st
                 sections.append(f"\n### [{pri}]")
                 for f in group:
                     overview = f" — {f.overview[:120]}" if f.overview else ""
-                    sections.append(f"- {f.name} (id: {f.id}){overview}")
+                    depth_tag = f" [depth: {f.build_depth}]" if f.build_depth else ""
+                    sections.append(f"- {f.name} (id: {f.id}){depth_tag}{overview}")
+
+        depth_counts = {"full": 0, "visual": 0, "placeholder": 0}
+        for f in payload.features:
+            depth_counts[getattr(f, "build_depth", "visual")] += 1
+        sections.append("\n## Depth Summary")
+        sections.append(
+            f"Full: {depth_counts['full']} | Visual: {depth_counts['visual']} "
+            f"| Placeholder: {depth_counts['placeholder']}"
+        )
 
     # Solution flow steps
     if payload.solution_flow_steps:

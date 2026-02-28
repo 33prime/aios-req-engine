@@ -71,7 +71,7 @@ def load_prebuild_context(state: PrebuildState) -> PrebuildState:
     from app.db.personas import list_personas
     from app.db.solution_flow import get_or_create_flow, list_flow_steps
     from app.db.supabase_client import get_supabase
-    from app.db.vp_steps import list_vp_steps
+    from app.db.vp import list_vp_steps
 
     pid = state.project_id
 

@@ -72,6 +72,18 @@ async def generate_plan(project_id: UUID, body: PlanRequest | None = None):
         payload = payload_response.payload
         warnings.extend(payload_response.warnings)
 
+    # Bridge Phase 0 depth assignments into payload features
+    prototype = get_prototype_for_project(project_id)
+    if prototype and prototype.get("feature_build_specs"):
+        depth_map = {
+            spec["feature_id"]: spec["depth"]
+            for spec in prototype["feature_build_specs"]
+            if isinstance(spec, dict)
+        }
+        for feature in payload.features:
+            if feature.id in depth_map:
+                feature.build_depth = depth_map[feature.id]
+
     try:
         plan = await generate_project_plan(
             payload=payload,
@@ -338,9 +350,7 @@ async def _run_build_pipeline(
                 )
             except Exception as e:
                 logger.warning(f"Phase 0 failed (non-fatal): {e}")
-                append_build_log(
-                    build_id, {"phase": "phase0", "message": f"Phase 0 skipped: {e}"}
-                )
+                append_build_log(build_id, {"phase": "phase0", "message": f"Phase 0 skipped: {e}"})
 
         # Planning
         update_build_status(build_id, "planning")
@@ -349,11 +359,24 @@ async def _run_build_pipeline(
         payload_response = await assemble_prototype_payload(project_id=project_id)
         payload = payload_response.payload
 
+        # Bridge Phase 0 depth assignments into payload features
+        if not skip_phase0:
+            from app.db.prototypes import get_prototype
+
+            proto = get_prototype(prototype_id)
+            if proto and proto.get("feature_build_specs"):
+                depth_map = {
+                    spec["feature_id"]: spec["depth"]
+                    for spec in proto["feature_build_specs"]
+                    if isinstance(spec, dict)
+                }
+                for feature in payload.features:
+                    if feature.id in depth_map:
+                        feature.build_depth = depth_map[feature.id]
+
         from app.chains.generate_project_plan import generate_project_plan
 
-        plan = await generate_project_plan(
-            payload=payload, config=config, project_id=project_id
-        )
+        plan = await generate_project_plan(payload=payload, config=config, project_id=project_id)
 
         if not plan.tasks:
             update_build_status(build_id, "failed", error="Plan generated with no tasks")
@@ -428,9 +451,7 @@ async def _run_build_pipeline(
         )
 
         if not build_result.success:
-            update_build_status(
-                build_id, "failed", error="; ".join(build_result.errors[:3])
-            )
+            update_build_status(build_id, "failed", error="; ".join(build_result.errors[:3]))
             return
 
         # Deployment
@@ -451,9 +472,7 @@ async def _run_build_pipeline(
                 update_prototype(prototype_id, deploy_url=deploy_url)
             except Exception as e:
                 logger.error(f"Deployment failed: {e}")
-                append_build_log(
-                    build_id, {"phase": "deploying", "message": f"Deploy failed: {e}"}
-                )
+                append_build_log(build_id, {"phase": "deploying", "message": f"Deploy failed: {e}"})
 
         # Fire-and-forget: send build insights to Forge
         try:
@@ -475,10 +494,7 @@ async def _run_build_pipeline(
 
             if _feature_specs:
                 p_name = getattr(payload, "project_name", "")
-                specs = [
-                    s.model_dump() if hasattr(s, "model_dump") else s
-                    for s in _feature_specs
-                ]
+                specs = [s.model_dump() if hasattr(s, "model_dump") else s for s in _feature_specs]
                 _asyncio.ensure_future(
                     send_build_insights_to_forge(
                         project_id=str(project_id),

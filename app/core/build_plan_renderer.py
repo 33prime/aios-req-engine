@@ -109,6 +109,9 @@ def render_build_plan(plan: ProjectPlan, payload: PrototypePayload) -> dict[str,
     files["src/lib/aios/index.ts"] = _AIOS_INDEX_TS
     files["src/lib/aios/registry.ts"] = _render_registry_ts(payload.features)
 
+    # ── Pre-rendered Vite scaffold ────────────────────────────────────────
+    files.update(_render_vite_scaffold(payload))
+
     logger.info(f"Rendered {len(files)} files for plan {plan.plan_id}")
     return files
 
@@ -252,6 +255,326 @@ def _fallback_claude_md(payload: PrototypePayload) -> str:
     lines.append("- `<AiosOverlay />` MUST be in the root layout")
     lines.append("")
     return "\n".join(lines)
+
+
+# =============================================================================
+# Pre-rendered Vite scaffold
+# =============================================================================
+
+SPACING_MAP = {"compact": "0.5rem", "balanced": "1rem", "generous": "1.5rem"}
+CORNERS_MAP = {
+    "sharp": "0",
+    "slightly-rounded": "0.375rem",
+    "rounded": "0.75rem",
+    "pill": "9999px",
+}
+
+
+def _render_vite_scaffold(payload: PrototypePayload) -> dict[str, str]:
+    """Render 12 deterministic Vite scaffold files from payload data.
+
+    Eliminates the need for an agent to run npm create, install deps,
+    and write configs — saving ~$1.20 per build.
+    """
+    files: dict[str, str] = {}
+    slug = _slugify(payload.project_name) if payload.project_name else "prototype"
+
+    # Design token values
+    dc = payload.design_contract
+    primary = dc.tokens.primary_color if dc else "#3b82f6"
+    secondary = dc.tokens.secondary_color if dc else "#6b7280"
+    accent = dc.tokens.accent_color if dc else "#f59e0b"
+    font_heading = dc.tokens.font_heading if dc else "Inter"
+    font_body = dc.tokens.font_body if dc else "Inter"
+    spacing = dc.tokens.spacing if dc else "balanced"
+    corners = dc.tokens.corners if dc else "slightly-rounded"
+
+    spacing_val = SPACING_MAP.get(spacing, "1rem")
+    corners_val = CORNERS_MAP.get(corners, "0.375rem")
+
+    # ── package.json ──────────────────────────────────────────────────────
+    files["package.json"] = json.dumps(
+        {
+            "name": slug,
+            "private": True,
+            "version": "0.1.0",
+            "type": "module",
+            "scripts": {
+                "dev": "vite",
+                "build": "tsc && vite build",
+                "preview": "vite preview",
+            },
+            "dependencies": {
+                "react": "^18.3.1",
+                "react-dom": "^18.3.1",
+                "react-router-dom": "^6.28.0",
+            },
+            "devDependencies": {
+                "@types/react": "^18.3.12",
+                "@types/react-dom": "^18.3.1",
+                "@vitejs/plugin-react": "^4.3.4",
+                "autoprefixer": "^10.4.20",
+                "postcss": "^8.4.49",
+                "tailwindcss": "^3.4.15",
+                "typescript": "^5.6.3",
+                "vite": "^5.4.11",
+            },
+        },
+        indent=2,
+    )
+
+    # ── vite.config.ts ────────────────────────────────────────────────────
+    files["vite.config.ts"] = (
+        "import { defineConfig } from 'vite'\n"
+        "import react from '@vitejs/plugin-react'\n"
+        "\n"
+        "export default defineConfig({\n"
+        "  plugins: [react()],\n"
+        "  resolve: {\n"
+        "    alias: { '@': '/src' },\n"
+        "  },\n"
+        "})\n"
+    )
+
+    # ── tailwind.config.js ────────────────────────────────────────────────
+    files["tailwind.config.js"] = (
+        "/** @type {import('tailwindcss').Config} */\n"
+        "export default {\n"
+        "  content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'],\n"
+        "  theme: {\n"
+        "    extend: {\n"
+        "      colors: {\n"
+        "        primary: 'var(--color-primary)',\n"
+        "        secondary: 'var(--color-secondary)',\n"
+        "        accent: 'var(--color-accent)',\n"
+        "      },\n"
+        "      fontFamily: {\n"
+        "        heading: 'var(--font-heading)',\n"
+        "        body: 'var(--font-body)',\n"
+        "      },\n"
+        "      borderRadius: {\n"
+        "        DEFAULT: 'var(--radius)',\n"
+        "      },\n"
+        "    },\n"
+        "  },\n"
+        "  plugins: [],\n"
+        "}\n"
+    )
+
+    # ── postcss.config.js ─────────────────────────────────────────────────
+    files["postcss.config.js"] = (
+        "export default {\n  plugins: {\n    tailwindcss: {},\n    autoprefixer: {},\n  },\n}\n"
+    )
+
+    # ── tsconfig.json ─────────────────────────────────────────────────────
+    files["tsconfig.json"] = json.dumps(
+        {
+            "compilerOptions": {
+                "target": "ES2020",
+                "useDefineForClassFields": True,
+                "lib": ["ES2020", "DOM", "DOM.Iterable"],
+                "module": "ESNext",
+                "skipLibCheck": True,
+                "moduleResolution": "bundler",
+                "allowImportingTsExtensions": True,
+                "isolatedModules": True,
+                "moduleDetection": "force",
+                "noEmit": True,
+                "jsx": "react-jsx",
+                "strict": True,
+                "noUnusedLocals": True,
+                "noUnusedParameters": True,
+                "noFallthroughCasesInSwitch": True,
+                "paths": {"@/*": ["./src/*"]},
+            },
+            "include": ["src"],
+        },
+        indent=2,
+    )
+
+    # ── tsconfig.node.json ────────────────────────────────────────────────
+    files["tsconfig.node.json"] = json.dumps(
+        {
+            "compilerOptions": {
+                "target": "ES2022",
+                "lib": ["ES2023"],
+                "module": "ESNext",
+                "skipLibCheck": True,
+                "moduleResolution": "bundler",
+                "allowImportingTsExtensions": True,
+                "isolatedModules": True,
+                "moduleDetection": "force",
+                "noEmit": True,
+                "strict": True,
+            },
+            "include": ["vite.config.ts"],
+        },
+        indent=2,
+    )
+
+    # ── index.html ────────────────────────────────────────────────────────
+    # Build Google Fonts link for heading + body fonts
+    font_families = []
+    for font in {font_heading, font_body}:
+        if font and font != "system-ui":
+            font_families.append(font.replace(" ", "+"))
+
+    font_link = ""
+    if font_families:
+        families_param = "&".join(f"family={f}:wght@400;500;600;700" for f in sorted(font_families))
+        font_link = (
+            f'    <link rel="preconnect" href="https://fonts.googleapis.com" />\n'
+            f'    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />\n'
+            f'    <link rel="stylesheet" '
+            f'href="https://fonts.googleapis.com/css2?{families_param}&display=swap" />\n'
+        )
+
+    title = payload.project_name or "Prototype"
+    files["index.html"] = (
+        "<!DOCTYPE html>\n"
+        '<html lang="en">\n'
+        "  <head>\n"
+        '    <meta charset="UTF-8" />\n'
+        '    <meta name="viewport" content="width=device-width, initial-scale=1.0" />\n'
+        f"{font_link}"
+        f"    <title>{title}</title>\n"
+        "  </head>\n"
+        "  <body>\n"
+        '    <div id="root"></div>\n'
+        '    <script type="module" src="/src/main.tsx"></script>\n'
+        "  </body>\n"
+        "</html>\n"
+    )
+
+    # ── src/main.tsx ──────────────────────────────────────────────────────
+    files["src/main.tsx"] = (
+        "import React from 'react'\n"
+        "import ReactDOM from 'react-dom/client'\n"
+        "import { BrowserRouter } from 'react-router-dom'\n"
+        "import App from './App'\n"
+        "import './index.css'\n"
+        "\n"
+        "ReactDOM.createRoot(document.getElementById('root')!).render(\n"
+        "  <React.StrictMode>\n"
+        "    <BrowserRouter>\n"
+        "      <App />\n"
+        "    </BrowserRouter>\n"
+        "  </React.StrictMode>,\n"
+        ")\n"
+    )
+
+    # ── Solution flow → routes + pages ────────────────────────────────────
+    steps = payload.solution_flow_steps or []
+    step_slugs: list[tuple[str, str, str]] = []  # (slug, title, component_name)
+    for step in steps:
+        step_slug = _slugify(step.title)
+        # PascalCase component name — strip non-alpha before capitalizing
+        words = re.sub(r"[^a-zA-Z0-9 ]", " ", step.title).split()[:4]
+        component = "".join(w.capitalize() for w in words) + "Page"
+        step_slugs.append((step_slug, step.title, component))
+
+    # ── src/App.tsx ────────────────────────────────────────────────────────
+    app_imports = ["import { Routes, Route } from 'react-router-dom'"]
+    app_imports.append("import Layout from './components/Layout'")
+    for _, _, component in step_slugs:
+        app_imports.append(f"import {component} from './pages/{component}'")
+
+    app_routes = []
+    for i, (step_slug, _, component) in enumerate(step_slugs):
+        path = "/" if i == 0 else f"/{step_slug}"
+        app_routes.append(f'        <Route path="{path}" element={{<{component} />}} />')
+
+    files["src/App.tsx"] = (
+        "\n".join(app_imports)
+        + "\n"
+        + "import { AiosOverlay } from './lib/aios'\n"
+        + "\n"
+        + "export default function App() {\n"
+        + "  return (\n"
+        + "    <>\n"
+        + "      <Routes>\n"
+        + "        <Route element={<Layout />}>\n"
+        + "\n".join(app_routes)
+        + "\n"
+        + "        </Route>\n"
+        + "      </Routes>\n"
+        + "      <AiosOverlay />\n"
+        + "    </>\n"
+        + "  )\n"
+        + "}\n"
+    )
+
+    # ── src/index.css ─────────────────────────────────────────────────────
+    files["src/index.css"] = (
+        "@tailwind base;\n"
+        "@tailwind components;\n"
+        "@tailwind utilities;\n"
+        "\n"
+        ":root {\n"
+        f"  --color-primary: {primary};\n"
+        f"  --color-secondary: {secondary};\n"
+        f"  --color-accent: {accent};\n"
+        f"  --font-heading: '{font_heading}', system-ui, sans-serif;\n"
+        f"  --font-body: '{font_body}', system-ui, sans-serif;\n"
+        f"  --spacing-base: {spacing_val};\n"
+        f"  --radius: {corners_val};\n"
+        "}\n"
+        "\n"
+        "body {\n"
+        "  font-family: var(--font-body);\n"
+        "  @apply bg-white text-gray-900 antialiased;\n"
+        "}\n"
+        "\n"
+        "h1, h2, h3, h4, h5, h6 {\n"
+        "  font-family: var(--font-heading);\n"
+        "}\n"
+    )
+
+    # ── src/components/Layout.tsx ──────────────────────────────────────────
+    nav_links = []
+    for i, (step_slug, title, _) in enumerate(step_slugs):
+        path = "/" if i == 0 else f"/{step_slug}"
+        link = f'<Link to="{path}" className="hover:text-primary">{title}</Link>'
+        nav_links.append(f"          {link}")
+
+    nav_block = "\n".join(nav_links) if nav_links else "          <span>App</span>"
+
+    files["src/components/Layout.tsx"] = (
+        "import { Link, Outlet } from 'react-router-dom'\n"
+        "\n"
+        "export default function Layout() {\n"
+        "  return (\n"
+        '    <div className="min-h-screen flex flex-col">\n'
+        '      <nav className="border-b px-6 py-3 flex items-center gap-6'
+        ' font-heading text-sm">\n'
+        f"{nav_block}\n"
+        "      </nav>\n"
+        '      <main className="flex-1">\n'
+        "        <Outlet />\n"
+        "      </main>\n"
+        "    </div>\n"
+        "  )\n"
+        "}\n"
+    )
+
+    # ── src/pages/{StepSlug}Page.tsx (one per solution flow step) ──────────
+    for _, title, component in step_slugs:
+        files[f"src/pages/{component}.tsx"] = (
+            "import { Screen } from '../lib/aios'\n"
+            "\n"
+            f"export default function {component}() {{\n"
+            f"  return (\n"
+            f'    <Screen name="{title}">\n'
+            f'      <div className="p-8">\n'
+            f'        <h1 className="text-2xl font-heading font-bold mb-4">{title}</h1>\n'
+            f'        <p className="text-gray-500">Implement this screen.</p>\n'
+            f"      </div>\n"
+            f"    </Screen>\n"
+            f"  )\n"
+            f"}}\n"
+        )
+
+    return files
 
 
 # =============================================================================
