@@ -31,6 +31,10 @@ class PayloadFeature(BaseModel):
     overview: str = ""
     priority: Literal["must_have", "should_have", "could_have", "unset"] = "unset"
     confirmation_status: str = "ai_generated"
+    horizon: Literal["H1", "H2", "H3"] = "H1"
+    open_question_count: int = 0
+    linked_driver: str = ""
+    build_depth: Literal["full", "visual", "placeholder"] = "visual"
 
 
 class PayloadWorkflow(BaseModel):
@@ -218,3 +222,58 @@ class RenderWriteRequest(BaseModel):
     """Request body for writing rendered files to disk."""
 
     output_dir: str = Field(..., description="Absolute path to write files into")
+
+
+# =============================================================================
+# Build pipeline models
+# =============================================================================
+
+
+class FeatureBuildSpec(BaseModel):
+    """Per-feature depth assignment from Phase 0."""
+
+    feature_id: str
+    name: str
+    slug: str = ""
+    depth: Literal["full", "visual", "placeholder"] = "visual"
+    depth_reason: str = ""
+    horizon: Literal["H1", "H2", "H3"] = "H1"
+    epic_index: int | None = None
+    route: str | None = None
+    open_question_count: int = 0
+    linked_driver: str = ""
+    priority: str = "unset"
+
+
+class PrebuildIntelligence(BaseModel):
+    """Output of Phase 0 — pre-build discovery intelligence."""
+
+    epic_plan: dict = Field(default_factory=dict)
+    feature_specs: list[FeatureBuildSpec] = Field(default_factory=list)
+    depth_summary: dict[str, int] = Field(default_factory=dict)
+    journeys: list[dict] = Field(default_factory=list)
+    generated_at: str = ""
+
+
+class BuildStatusResponse(BaseModel):
+    """Status of a running or completed build."""
+
+    build_id: str
+    status: str = "pending"
+    streams_total: int = 0
+    streams_completed: int = 0
+    tasks_total: int = 0
+    tasks_completed: int = 0
+    total_tokens_used: int = 0
+    total_cost_usd: float = 0.0
+    deploy_url: str | None = None
+    github_repo_url: str | None = None
+    errors: list[str] = Field(default_factory=list)
+
+
+class BuildRequest(BaseModel):
+    """Request body for kicking off a full build."""
+
+    config: OrchestrationConfig = Field(default_factory=OrchestrationConfig)
+    skip_phase0: bool = Field(False, description="Skip Phase 0 intelligence if already run")
+    skip_deploy: bool = Field(False, description="Skip GitHub/Netlify deployment")

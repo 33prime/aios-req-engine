@@ -19,9 +19,6 @@ from app.core.schemas_prototypes import (
     PromptAuditResult,
     PrototypeResponse,
     SubmitVerdictRequest,
-    V0MetadataRequest,
-    VpFollowupRequest,
-    VpFollowupResponse,
 )
 from app.db.prototypes import (
     create_prototype,
@@ -139,87 +136,54 @@ async def generate_prototype_endpoint(
 ) -> dict:
     """Generate a prototype from project discovery data.
 
-    Full flow: generate v0 prompt → (send to v0) → create prototype record.
-    Returns immediately with a prototype_id for polling.
+    Uses the builder pipeline: assemble payload → generate plan → create record.
+    Returns immediately with a prototype_id for the new builder pipeline.
     """
     try:
-        from app.chains.generate_v0_prompt import generate_v0_prompt
-        from app.core.config import get_settings
-        from app.db.company_info import get_company_info
-        from app.db.features import list_features
-        from app.db.personas import list_personas
-        from app.db.projects import get_project
-        from app.db.prompt_learnings import get_active_learnings
-        from app.db.vp import list_vp_steps
+        from app.chains.generate_project_plan import generate_project_plan
+        from app.core.prototype_payload import assemble_prototype_payload
 
-        settings = get_settings()
-
-        # Load project context
-        project = get_project(request.project_id)
-        if not project:
-            raise HTTPException(status_code=404, detail="Project not found")
-
-        features = list_features(request.project_id)
-        personas = list_personas(request.project_id)
-        vp_steps = list_vp_steps(request.project_id)
-        company_info = get_company_info(request.project_id)
-        learnings = get_active_learnings()
-
-        # Build design preferences from selection
-        design_preferences = None
-        if request.design_selection:
-            design_preferences = request.design_selection.model_dump()
-
-        # Generate v0 prompt
-        prompt_output = generate_v0_prompt(
-            project=project,
-            features=features,
-            personas=personas,
-            vp_steps=vp_steps,
-            settings=settings,
-            company_info=company_info,
-            design_preferences=design_preferences,
-            learnings=learnings,
+        # Assemble payload
+        payload_response = await assemble_prototype_payload(
+            project_id=request.project_id,
+            design_selection=request.design_selection,
         )
+        payload = payload_response.payload
 
         # Create prototype record
+        design_preferences = request.design_selection.model_dump() if request.design_selection else None
         prototype = create_prototype(
             project_id=request.project_id,
-            prompt_text=prompt_output.prompt,
             design_selection=design_preferences,
         )
         update_prototype(UUID(prototype["id"]), status="generating")
 
-        # Track prompt version (v1) for eval pipeline
-        try:
-            from app.db.prompt_versions import create_prompt_version
+        # Generate project plan
+        from app.core.schemas_prototype_builder import OrchestrationConfig
 
-            create_prompt_version(
-                prototype_id=UUID(prototype["id"]),
-                version_number=1,
-                prompt_text=prompt_output.prompt,
-                generation_model=settings.PROTOTYPE_PROMPT_MODEL,
-                generation_chain="generate_v0_prompt",
-                input_context_snapshot={
-                    "feature_count": len(features),
-                    "persona_count": len(personas),
-                    "vp_step_count": len(vp_steps),
-                    "feature_ids": prompt_output.features_included,
-                },
-            )
-        except Exception as e:
-            logger.warning(f"Failed to create prompt version record: {e}")
+        plan = await generate_project_plan(
+            payload=payload,
+            config=OrchestrationConfig(),
+            project_id=request.project_id,
+        )
+
+        # Persist plan on prototype
+        update_prototype(
+            UUID(prototype["id"]),
+            build_payload=payload.model_dump(),
+            build_plan=plan.model_dump(),
+        )
 
         logger.info(
-            f"Generated prototype prompt for project {request.project_id}, "
-            f"prototype_id={prototype['id']}"
+            f"Generated prototype plan for project {request.project_id}, "
+            f"prototype_id={prototype['id']}, tasks={len(plan.tasks)}"
         )
 
         return {
             "prototype_id": prototype["id"],
-            "prompt_length": len(prompt_output.prompt),
-            "features_included": len(prompt_output.features_included),
-            "flows_included": len(prompt_output.flows_included),
+            "plan_tasks": len(plan.tasks),
+            "plan_streams": len(plan.streams),
+            "features_included": len(payload.features),
         }
 
     except HTTPException:
@@ -414,41 +378,6 @@ async def trigger_analysis_endpoint(prototype_id: UUID) -> dict:
         raise HTTPException(status_code=500, detail="Failed to trigger analysis")
 
 
-@router.post("/{prototype_id}/v0-metadata")
-async def store_v0_metadata_endpoint(
-    prototype_id: UUID,
-    request: V0MetadataRequest,
-) -> dict:
-    """Store v0 submission results on a prototype record."""
-    try:
-        prototype = get_prototype(prototype_id)
-        if not prototype:
-            raise HTTPException(status_code=404, detail="Prototype not found")
-
-        update_fields: dict = {
-            "v0_chat_id": request.v0_chat_id,
-            "v0_demo_url": request.v0_demo_url,
-            "v0_model": request.v0_model,
-        }
-        if request.github_repo_url:
-            update_fields["github_repo_url"] = request.github_repo_url
-
-        update_prototype(prototype_id, **update_fields)
-        logger.info(f"Stored v0 metadata for prototype {prototype_id}: chat={request.v0_chat_id}")
-
-        return {
-            "prototype_id": str(prototype_id),
-            "v0_chat_id": request.v0_chat_id,
-            "v0_demo_url": request.v0_demo_url,
-        }
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.exception(f"Failed to store v0 metadata for prototype {prototype_id}: {e}")
-        raise HTTPException(status_code=500, detail="Failed to store v0 metadata")
-
-
 @router.post("/{prototype_id}/audit-code", response_model=AuditCodeResponse)
 async def audit_code_endpoint(
     prototype_id: UUID,
@@ -485,16 +414,8 @@ async def audit_code_endpoint(
 
         action = should_retry(audit)
 
-        # If retry recommended, generate a refined prompt
+        # Refinement via builder pipeline (v0 refine chain removed)
         refined_prompt = None
-        if action == "retry":
-            from app.chains.refine_v0_prompt import refine_v0_prompt
-
-            refined_prompt = refine_v0_prompt(
-                original_prompt=original_prompt,
-                audit=audit,
-                settings=settings,
-            )
 
         # Store audit results on prototype
         update_prototype(
@@ -521,101 +442,19 @@ async def audit_code_endpoint(
         raise HTTPException(status_code=500, detail="Failed to audit prototype code")
 
 
-@router.post("/{prototype_id}/vp-followup", response_model=VpFollowupResponse)
-async def generate_vp_followup_endpoint(
-    prototype_id: UUID,
-    request: VpFollowupRequest,
-) -> VpFollowupResponse:
-    """Generate a Turn 2 follow-up prompt to solidify value path flows.
-
-    Loads project features and VP steps, builds a structured template,
-    then uses Opus to enhance it into a v0 follow-up message.
-    """
+@router.get("/{prototype_id}/epic-plan")
+async def get_epic_plan_endpoint(prototype_id: UUID) -> dict:
+    """Get the epic overlay plan for a prototype."""
     try:
-        from app.chains.generate_vp_followup import generate_vp_followup
-        from app.core.config import get_settings
-        from app.db.features import list_features
-        from app.db.vp import list_vp_steps
-
-        settings = get_settings()
         prototype = get_prototype(prototype_id)
         if not prototype:
             raise HTTPException(status_code=404, detail="Prototype not found")
-
-        project_id = UUID(prototype["project_id"])
-        features = list_features(project_id)
-        vp_steps = list_vp_steps(project_id)
-
-        if not vp_steps:
-            raise HTTPException(
-                status_code=400,
-                detail="No VP steps found for project — cannot generate flow followup",
-            )
-
-        followup = generate_vp_followup(
-            vp_steps=vp_steps,
-            features=features,
-            settings=settings,
-            turn1_summary=request.turn1_summary,
-        )
-
-        return VpFollowupResponse(
-            followup_prompt=followup,
-            vp_steps_count=len(vp_steps),
-            features_count=len(features),
-        )
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.exception(f"Failed to generate VP followup for prototype {prototype_id}: {e}")
-        raise HTTPException(status_code=500, detail="Failed to generate VP followup prompt")
-
-
-@router.post("/{prototype_id}/retry")
-async def retry_prototype_endpoint(prototype_id: UUID) -> dict:
-    """Regenerate with a refined prompt after a failed audit."""
-    try:
-        from app.chains.refine_v0_prompt import refine_v0_prompt
-        from app.core.config import get_settings
-
-        settings = get_settings()
-        prototype = get_prototype(prototype_id)
-        if not prototype:
-            raise HTTPException(status_code=404, detail="Prototype not found")
-
-        audit_data = prototype.get("prompt_audit")
-        if not audit_data:
-            raise HTTPException(status_code=400, detail="No audit results to refine from")
-
-        audit = PromptAuditResult(**audit_data)
-        original_prompt = prototype.get("prompt_text", "")
-
-        refined = refine_v0_prompt(
-            original_prompt=original_prompt,
-            audit=audit,
-            settings=settings,
-        )
-
-        new_version = (prototype.get("prompt_version") or 1) + 1
-        update_prototype(
-            prototype_id,
-            prompt_text=refined,
-            prompt_version=new_version,
-            status="generating",
-        )
-
-        return {
-            "prototype_id": str(prototype_id),
-            "prompt_version": new_version,
-            "prompt_length": len(refined),
-        }
-
+        return prototype.get("epic_plan") or {}
     except HTTPException:
         raise
     except Exception:
-        logger.exception(f"Failed to retry prototype {prototype_id}")
-        raise HTTPException(status_code=500, detail="Failed to retry prototype generation")
+        logger.exception(f"Failed to get epic plan for prototype {prototype_id}")
+        raise HTTPException(status_code=500, detail="Failed to retrieve epic plan")
 
 
 @router.put("/{prototype_id}/overlays/{overlay_id}/verdict")

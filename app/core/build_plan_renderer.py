@@ -490,6 +490,19 @@ export interface AiosTourStartCommand {
   }>
 }
 
+export interface AiosTourNavigateCommand {
+  type: 'aios:tour-navigate'
+  path?: string | null
+  highlightAfter?: boolean
+  featureId?: string
+  featureName?: string
+  description?: string
+  stepLabel?: string
+  componentName?: string
+  keywords?: string[]
+  features?: RadarFeature[]
+}
+
 export type AiosBridgeCommand =
   | AiosHighlightCommand
   | { type: 'aios:clear-highlights' }
@@ -497,6 +510,7 @@ export type AiosBridgeCommand =
   | { type: 'aios:show-radar'; features: RadarFeature[] }
   | { type: 'aios:clear-radar' }
   | AiosTourStartCommand
+  | AiosTourNavigateCommand
   | { type: 'aios:next-step' }
   | { type: 'aios:prev-step' }
 """
@@ -545,6 +559,7 @@ export type {
   AiosBridgeEvent,
   AiosHighlightCommand,
   AiosTourStartCommand,
+  AiosTourNavigateCommand,
   RadarFeature,
   AiosBridgeCommand,
 } from './types'

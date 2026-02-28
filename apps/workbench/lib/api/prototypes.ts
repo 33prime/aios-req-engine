@@ -11,7 +11,9 @@ import type {
   DesignSelection,
   FeatureVerdict,
   ConvergenceSnapshot,
+  BuildStatus,
 } from '../../types/prototype'
+import type { EpicOverlayPlan, EpicConfirmation, SubmitEpicVerdictRequest } from '../../types/epic-overlay'
 
 // ============================================
 // Prototype Refinement APIs
@@ -55,6 +57,22 @@ export const retryPrototype = (prototypeId: string) =>
     `/prototypes/${prototypeId}/retry`,
     { method: 'POST' }
   )
+
+export const getEpicPlan = (prototypeId: string) =>
+  apiRequest<EpicOverlayPlan>(`/prototypes/${prototypeId}/epic-plan`)
+
+// ============================================
+// Epic Confirmations
+// ============================================
+
+export const submitEpicVerdict = (sessionId: string, data: SubmitEpicVerdictRequest) =>
+  apiRequest<EpicConfirmation>(`/prototype-sessions/${sessionId}/epic-verdict`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  })
+
+export const getEpicVerdicts = (sessionId: string) =>
+  apiRequest<EpicConfirmation[]>(`/prototype-sessions/${sessionId}/epic-verdicts`)
 
 // ============================================
 // Prototype Sessions
@@ -172,6 +190,39 @@ export const submitFeatureVerdict = (
 export const completeClientReview = (sessionId: string, token: string) =>
   apiRequest<{ session_id: string; status: string }>(
     `/prototype-sessions/${sessionId}/complete-client-review?token=${token}`,
+    { method: 'POST' }
+  )
+
+// ============================================
+// Builder Pipeline
+// ============================================
+
+export const runPhase0 = (projectId: string) =>
+  apiRequest<{ epic_plan: Record<string, unknown>; feature_specs: Array<Record<string, unknown>>; depth_summary: Record<string, number> }>(
+    `/projects/${projectId}/prototype-builder/phase0`,
+    { method: 'POST' }
+  )
+
+export const startBuild = (projectId: string, skipPhase0 = false, skipDeploy = false) =>
+  apiRequest<{ build_id: string; status: string }>(
+    `/projects/${projectId}/prototype-builder/build`,
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        skip_phase0: skipPhase0,
+        skip_deploy: skipDeploy,
+      }),
+    }
+  )
+
+export const getBuildStatus = (projectId: string, buildId: string) =>
+  apiRequest<BuildStatus>(
+    `/projects/${projectId}/prototype-builder/build/${buildId}/status`
+  )
+
+export const cancelBuild = (projectId: string, buildId: string) =>
+  apiRequest<{ build_id: string; status: string }>(
+    `/projects/${projectId}/prototype-builder/build/${buildId}/cancel`,
     { method: 'POST' }
   )
 

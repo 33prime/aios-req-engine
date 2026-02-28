@@ -1,12 +1,7 @@
 /**
- * CollaborationPanel - Right sidebar for collaboration features
+ * CollaborationPanel - Right sidebar for chat + activity in non-review mode.
  *
- * Contains:
- * - AI Chat interface (full WorkspaceChat) — switches to FeatureInfoCard + contextual chat during review
- * - Collab hub (phase-aware action panel)
- * - Activity feed (real collaboration events)
- *
- * Three-state width: collapsed (48px) | normal (320px) | wide (400px)
+ * Review mode is now handled by ReviewBubble instead.
  */
 
 'use client'
@@ -26,13 +21,9 @@ import {
   ArrowUpRight,
   CheckCircle,
   Loader2,
-  Layers,
 } from 'lucide-react'
 import { WorkspaceChat, type ChatMessage } from './WorkspaceChat'
 import { getCollaborationHistory } from '@/lib/api'
-import FeatureVerdictCard from '@/components/prototype/FeatureVerdictCard'
-import VerdictChat from '@/components/prototype/VerdictChat'
-import type { FeatureOverlay, FeatureVerdict, TourStep, PrototypeSession, SessionContext } from '@/types/prototype'
 
 // =============================================================================
 // Types
@@ -53,17 +44,6 @@ interface CollaborationPanelProps {
   // Panel state
   panelState: PanelState
   onPanelStateChange: (state: PanelState) => void
-  // Review mode props
-  isReviewActive?: boolean
-  isTourActive?: boolean
-  currentOverlay?: FeatureOverlay | null
-  currentTourStep?: TourStep | null
-  allOverlays?: FeatureOverlay[]
-  visibleFeatureIds?: string[]
-  session?: PrototypeSession | null
-  sessionContext?: SessionContext | null
-  prototypeId?: string | null
-  onVerdictSubmit?: (overlayId: string, verdict: FeatureVerdict) => void
 }
 
 export function CollaborationPanel({
@@ -77,38 +57,18 @@ export function CollaborationPanel({
   onAddLocalMessage,
   panelState,
   onPanelStateChange,
-  isReviewActive = false,
-  isTourActive = false,
-  currentOverlay = null,
-  currentTourStep = null,
-  allOverlays = [],
-  visibleFeatureIds = [],
-  session = null,
-  sessionContext = null,
-  prototypeId = null,
-  onVerdictSubmit,
 }: CollaborationPanelProps) {
   const [activeTab, setActiveTab] = useState<'chat' | 'activity'>('chat')
 
   const isCollapsed = panelState === 'collapsed'
-  const isWide = panelState === 'wide'
-
-  // Review progress counts
-  const reviewedCount = isReviewActive ? allOverlays.filter(o => o.consultant_verdict).length : 0
-  const totalOverlays = isReviewActive ? allOverlays.length : 0
 
   const handleToggleCollapse = useCallback(() => {
     if (isCollapsed) {
-      // Expand to last-known expanded state (default normal)
       onPanelStateChange('normal')
     } else {
       onPanelStateChange('collapsed')
     }
   }, [isCollapsed, onPanelStateChange])
-
-  const handleToggleWide = useCallback(() => {
-    onPanelStateChange(isWide ? 'normal' : 'wide')
-  }, [isWide, onPanelStateChange])
 
   // Collapsed state — icon strip
   if (isCollapsed) {
@@ -128,9 +88,9 @@ export function CollaborationPanel({
             className={`p-2 rounded-lg transition-colors ${
               activeTab === 'chat' ? 'bg-brand-primary-light text-brand-primary' : 'text-text-placeholder hover:bg-surface-muted'
             }`}
-            title={isReviewActive ? 'Review' : 'Chat'}
+            title="Chat"
           >
-            {isReviewActive ? <Layers className="w-5 h-5" /> : <MessageSquare className="w-5 h-5" />}
+            <MessageSquare className="w-5 h-5" />
           </button>
           <button
             onClick={() => { setActiveTab('activity'); handleToggleCollapse() }}
@@ -141,7 +101,7 @@ export function CollaborationPanel({
           >
             <Bell className="w-5 h-5" />
             {pendingCount > 0 && (
-              <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
+              <span className="absolute -top-1 -right-1 w-4 h-4 bg-brand-primary text-white text-xs rounded-full flex items-center justify-center">
                 {pendingCount > 9 ? '9+' : pendingCount}
               </span>
             )}
@@ -151,12 +111,13 @@ export function CollaborationPanel({
     )
   }
 
-  // Expanded state
-  const panelWidth = isWide ? 'w-[400px]' : 'w-80'
+  // Normal mode — Chat | Activity tabs
+  const panelWidth = panelState === 'wide' ? 'w-[400px]' : 'w-80'
+  const isWide = panelState === 'wide'
 
   return (
     <aside className={`fixed right-0 top-0 h-screen ${panelWidth} bg-white border-l border-border flex flex-col z-30 transition-all duration-200`}>
-      {/* Header — aligned with main header height */}
+      {/* Header */}
       <div className="flex items-center gap-2 px-3 py-4 border-b border-border flex-shrink-0">
         <div className="flex items-center gap-1 bg-[#F4F4F4] rounded-xl p-1 border border-border flex-1 min-w-0">
           <button
@@ -167,16 +128,7 @@ export function CollaborationPanel({
                 : 'text-[#666666] hover:text-text-body'
             }`}
           >
-            {isReviewActive ? (
-              <>
-                Review
-                {totalOverlays > 0 && (
-                  <span className="ml-1 text-[10px] font-normal text-text-placeholder">
-                    {reviewedCount}/{totalOverlays}
-                  </span>
-                )}
-              </>
-            ) : 'Chat'}
+            Chat
           </button>
           <button
             onClick={() => setActiveTab('activity')}
@@ -196,7 +148,7 @@ export function CollaborationPanel({
         </div>
         <div className="flex items-center gap-0.5 shrink-0">
           <button
-            onClick={handleToggleWide}
+            onClick={() => onPanelStateChange(isWide ? 'normal' : 'wide')}
             className="p-1.5 rounded-lg text-text-placeholder hover:bg-[#F4F4F4] hover:text-[#666666] transition-colors"
             title={isWide ? 'Normal width' : 'Wide mode'}
           >
@@ -216,28 +168,14 @@ export function CollaborationPanel({
       <div className="flex-1 overflow-hidden relative">
         {activeTab === 'chat' && (
           <div className="h-full">
-            {isReviewActive && session ? (
-              <ReviewPanel
-                overlay={currentOverlay}
-                tourStep={currentTourStep}
-                isTourActive={isTourActive}
-                allOverlays={allOverlays}
-                visibleFeatureIds={visibleFeatureIds}
-                session={session}
-                sessionContext={sessionContext}
-                prototypeId={prototypeId}
-                onVerdictSubmit={onVerdictSubmit}
-              />
-            ) : (
-              <WorkspaceChat
-                projectId={projectId}
-                messages={messages}
-                isLoading={isChatLoading}
-                onSendMessage={onSendMessage}
-                onSendSignal={onSendSignal}
-                onAddLocalMessage={onAddLocalMessage}
-              />
-            )}
+            <WorkspaceChat
+              projectId={projectId}
+              messages={messages}
+              isLoading={isChatLoading}
+              onSendMessage={onSendMessage}
+              onSendSignal={onSendSignal}
+              onAddLocalMessage={onAddLocalMessage}
+            />
           </div>
         )}
 
@@ -246,158 +184,6 @@ export function CollaborationPanel({
         )}
       </div>
     </aside>
-  )
-}
-
-// =============================================================================
-// Review Panel — Feature verdict cards during prototype review
-// =============================================================================
-
-interface ReviewPanelProps {
-  overlay: FeatureOverlay | null
-  tourStep: TourStep | null
-  isTourActive: boolean
-  allOverlays: FeatureOverlay[]
-  visibleFeatureIds: string[]
-  session: PrototypeSession
-  sessionContext: SessionContext | null
-  prototypeId?: string | null
-  onVerdictSubmit?: (overlayId: string, verdict: FeatureVerdict) => void
-}
-
-function ReviewPanel({
-  overlay,
-  tourStep,
-  isTourActive,
-  allOverlays,
-  session,
-  sessionContext,
-  prototypeId,
-  onVerdictSubmit,
-}: ReviewPanelProps) {
-  // Verdict progress
-  const reviewed = allOverlays.filter(o => o.consultant_verdict).length
-  const total = allOverlays.length
-  const verdictCounts = allOverlays.reduce(
-    (acc, o) => {
-      if (o.consultant_verdict === 'aligned') acc.aligned++
-      else if (o.consultant_verdict === 'needs_adjustment') acc.needs_adjustment++
-      else if (o.consultant_verdict === 'off_track') acc.off_track++
-      return acc
-    },
-    { aligned: 0, needs_adjustment: 0, off_track: 0 }
-  )
-
-  return (
-    <div className="flex flex-col h-full">
-      {/* Scrollable content */}
-      <div className="flex-1 min-h-0 overflow-y-auto">
-        {overlay && prototypeId ? (
-          /* Active feature — show verdict card */
-          <div className="p-3">
-            {tourStep?.vpStepLabel && (
-              <div className="flex items-center gap-2 mb-2">
-                <span className="text-[10px] font-medium text-brand-primary">{tourStep.vpStepLabel}</span>
-              </div>
-            )}
-            <FeatureVerdictCard
-              overlay={overlay}
-              prototypeId={prototypeId}
-              source="consultant"
-              onVerdictSubmit={onVerdictSubmit}
-            />
-
-            {/* Verdict Chat — auto-opens when verdict is set */}
-            {overlay.consultant_verdict && session && (
-              <div className="mt-2">
-                <VerdictChat
-                  key={`${overlay.id}-${overlay.consultant_verdict}`}
-                  overlay={overlay}
-                  sessionId={session.id}
-                  sessionContext={sessionContext}
-                  verdict={overlay.consultant_verdict}
-                  onDone={() => { /* notes saved via chat already */ }}
-                />
-              </div>
-            )}
-          </div>
-        ) : (
-          /* No feature selected — show compact scorecard */
-          <div className="p-3">
-            <div className="text-center py-4 mb-3">
-              <Layers className="w-8 h-8 mx-auto mb-2 text-text-placeholder" />
-              <p className="text-xs text-[#666666]">
-                {isTourActive ? 'Navigating to feature...' : 'Start the guided tour or click a feature'}
-              </p>
-            </div>
-
-            {/* Feature list with verdict dots */}
-            <div className="space-y-1">
-              {allOverlays.filter(o => o.overlay_content).map(o => {
-                const v = o.consultant_verdict
-                return (
-                  <div key={o.id} className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-[#F4F4F4] transition-colors">
-                    <span className={`w-2 h-2 rounded-full flex-shrink-0 ${
-                      v === 'aligned' ? 'bg-[#25785A]' :
-                      v === 'needs_adjustment' ? 'bg-amber-500' :
-                      v === 'off_track' ? 'bg-red-500' :
-                      'bg-border'
-                    }`} />
-                    <span className="text-xs text-text-body truncate flex-1">
-                      {o.overlay_content!.feature_name}
-                    </span>
-                    {v && (
-                      <span className={`text-[9px] font-medium px-1.5 py-px rounded-full ${
-                        v === 'aligned' ? 'bg-[#E8F5E9] text-[#25785A]' :
-                        v === 'needs_adjustment' ? 'bg-amber-50 text-amber-700' :
-                        'bg-red-50 text-red-700'
-                      }`}>
-                        {v === 'aligned' ? 'Aligned' : v === 'needs_adjustment' ? 'Adjust' : 'Off Track'}
-                      </span>
-                    )}
-                  </div>
-                )
-              })}
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Progress footer */}
-      {total > 0 && (
-        <div className="flex-shrink-0 border-t border-border px-3 py-2.5 bg-surface-page">
-          <div className="flex items-center justify-between mb-1.5">
-            <span className="text-[11px] font-medium text-text-body">
-              {reviewed}/{total} reviewed
-            </span>
-            <span className="text-[10px] text-text-placeholder">
-              {total - reviewed > 0 ? `${total - reviewed} remaining` : 'All done'}
-            </span>
-          </div>
-          {/* Tri-color progress bar */}
-          <div className="flex h-1.5 rounded-full overflow-hidden bg-border">
-            {verdictCounts.aligned > 0 && (
-              <div
-                className="bg-[#25785A] transition-all"
-                style={{ width: `${(verdictCounts.aligned / total) * 100}%` }}
-              />
-            )}
-            {verdictCounts.needs_adjustment > 0 && (
-              <div
-                className="bg-amber-500 transition-all"
-                style={{ width: `${(verdictCounts.needs_adjustment / total) * 100}%` }}
-              />
-            )}
-            {verdictCounts.off_track > 0 && (
-              <div
-                className="bg-red-500 transition-all"
-                style={{ width: `${(verdictCounts.off_track / total) * 100}%` }}
-              />
-            )}
-          </div>
-        </div>
-      )}
-    </div>
   )
 }
 
@@ -512,15 +298,15 @@ function ActivityIcon({ type, status }: { type: string; status?: string }) {
         </div>
       )
     case 'package':
-      return <div className={`${base} bg-purple-100`}><Package className="w-3 h-3 text-purple-600" /></div>
+      return <div className={`${base} bg-[#E8F5E9]`}><Package className="w-3 h-3 text-[#25785A]" /></div>
     case 'client':
-      return <div className={`${base} bg-teal-100`}><Users className="w-3 h-3 text-teal-600" /></div>
+      return <div className={`${base} bg-[#E8F5E9]`}><Users className="w-3 h-3 text-[#25785A]" /></div>
     case 'phase':
-      return <div className={`${base} bg-amber-100`}><ArrowUpRight className="w-3 h-3 text-amber-600" /></div>
+      return <div className={`${base} bg-[#F4F4F4]`}><ArrowUpRight className="w-3 h-3 text-[#666666]" /></div>
     case 'agent':
-      return <div className={`${base} bg-gray-100`}><FileText className="w-3 h-3 text-gray-600" /></div>
+      return <div className={`${base} bg-[#F4F4F4]`}><FileText className="w-3 h-3 text-[#666666]" /></div>
     default:
-      return <div className={`${base} bg-gray-100`}><Bell className="w-3 h-3 text-gray-500" /></div>
+      return <div className={`${base} bg-[#F4F4F4]`}><Bell className="w-3 h-3 text-[#666666]" /></div>
   }
 }
 

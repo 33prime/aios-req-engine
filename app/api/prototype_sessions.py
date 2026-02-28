@@ -4,7 +4,6 @@ Handles session lifecycle, feedback submission, context-aware chat,
 client review tokens, feedback synthesis, and code updates.
 """
 
-import json
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException
@@ -13,14 +12,15 @@ from app.core.logging import get_logger
 from app.core.schemas_prototypes import (
     ApplySynthesisResponse,
     ChatResponse,
+    CreatedFeature,
     CreateSessionRequest,
     FeedbackResponse,
-    SessionResponse,
-    SubmitFeedbackRequest,
     SessionChatRequest,
-    StatusChange,
-    CreatedFeature,
+    SessionResponse,
     SkippedFeature,
+    StatusChange,
+    SubmitEpicVerdictRequest,
+    SubmitFeedbackRequest,
 )
 from app.db.prototype_sessions import (
     create_feedback,
@@ -29,8 +29,10 @@ from app.db.prototype_sessions import (
     get_feedback_for_session,
     get_session,
     get_session_by_token,
+    list_epic_confirmations,
     list_sessions,
     update_session,
+    upsert_epic_confirmation,
 )
 from app.db.prototypes import get_prototype, list_overlays, update_prototype
 
@@ -44,7 +46,7 @@ async def list_sessions_endpoint(prototype_id: UUID) -> list[SessionResponse]:
     try:
         sessions = list_sessions(prototype_id)
         return [SessionResponse(**s) for s in sessions]
-    except Exception as e:
+    except Exception:
         logger.exception(f"Failed to list sessions for prototype {prototype_id}")
         raise HTTPException(status_code=500, detail="Failed to list sessions")
 
@@ -100,7 +102,7 @@ async def get_session_endpoint(session_id: UUID) -> SessionResponse:
         return SessionResponse(**session)
     except HTTPException:
         raise
-    except Exception as e:
+    except Exception:
         logger.exception(f"Failed to get session {session_id}")
         raise HTTPException(status_code=500, detail="Failed to retrieve session")
 
@@ -271,7 +273,7 @@ RULES:
 
     except HTTPException:
         raise
-    except Exception as e:
+    except Exception:
         logger.exception(f"Failed to chat in session {session_id}")
         raise HTTPException(status_code=500, detail="Failed to process chat message")
 
@@ -298,7 +300,7 @@ async def end_review_endpoint(session_id: UUID) -> dict:
 
     except HTTPException:
         raise
-    except Exception as e:
+    except Exception:
         logger.exception(f"Failed to end review for session {session_id}")
         raise HTTPException(status_code=500, detail="Failed to end review")
 
@@ -354,7 +356,7 @@ async def get_client_data_endpoint(session_id: UUID, token: str) -> dict:
 
     except HTTPException:
         raise
-    except Exception as e:
+    except Exception:
         logger.exception(f"Failed to get client data for session {session_id}")
         raise HTTPException(status_code=500, detail="Failed to retrieve client data")
 
@@ -403,7 +405,7 @@ async def synthesize_endpoint(session_id: UUID) -> dict:
 
     except HTTPException:
         raise
-    except Exception as e:
+    except Exception:
         logger.exception(f"Failed to synthesize feedback for session {session_id}")
         raise HTTPException(status_code=500, detail="Failed to synthesize feedback")
 
@@ -554,7 +556,7 @@ async def apply_synthesis_endpoint(session_id: UUID) -> ApplySynthesisResponse:
 
     except HTTPException:
         raise
-    except Exception as e:
+    except Exception:
         logger.exception(f"Failed to apply synthesis for session {session_id}")
         raise HTTPException(status_code=500, detail="Failed to apply synthesis")
 
@@ -582,7 +584,7 @@ async def complete_client_review_endpoint(session_id: UUID, token: str) -> dict:
 
     except HTTPException:
         raise
-    except Exception as e:
+    except Exception:
         logger.exception(f"Failed to complete client review for session {session_id}")
         raise HTTPException(status_code=500, detail="Failed to complete client review")
 
@@ -664,9 +666,57 @@ async def update_code_endpoint(session_id: UUID) -> dict:
 
     except HTTPException:
         raise
-    except Exception as e:
+    except Exception:
         logger.exception(f"Failed to update code for session {session_id}")
         raise HTTPException(status_code=500, detail="Failed to update code")
+
+
+# =============================================================================
+# Epic Confirmations
+# =============================================================================
+
+
+@router.put("/{session_id}/epic-verdict")
+async def submit_epic_verdict(session_id: UUID, body: SubmitEpicVerdictRequest):
+    """Submit or update a single epic confirmation verdict."""
+    try:
+        session = get_session(session_id)
+        if not session:
+            raise HTTPException(status_code=404, detail="Session not found")
+
+        result = upsert_epic_confirmation(
+            session_id=session_id,
+            card_type=body.card_type,
+            card_index=body.card_index,
+            verdict=body.verdict,
+            notes=body.notes,
+            answer=body.answer,
+            source=body.source,
+        )
+        return result
+
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception(f"Failed to submit epic verdict for session {session_id}")
+        raise HTTPException(status_code=500, detail="Failed to submit epic verdict")
+
+
+@router.get("/{session_id}/epic-verdicts")
+async def get_epic_verdicts(session_id: UUID):
+    """Get all epic confirmations for a session."""
+    try:
+        session = get_session(session_id)
+        if not session:
+            raise HTTPException(status_code=404, detail="Session not found")
+
+        return list_epic_confirmations(session_id)
+
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception(f"Failed to get epic verdicts for session {session_id}")
+        raise HTTPException(status_code=500, detail="Failed to retrieve epic verdicts")
 
 
 # =============================================================================

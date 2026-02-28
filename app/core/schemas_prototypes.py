@@ -273,22 +273,13 @@ class PromptAuditResult(BaseModel):
     recommendations: list[str] = Field(default_factory=list, description="Improvement recommendations")
 
 
-# === v0 integration schemas ===
-
-
-class V0MetadataRequest(BaseModel):
-    """Request body for storing v0 submission results on a prototype."""
-
-    v0_chat_id: str = Field(..., description="v0 chat ID from createChat")
-    v0_demo_url: str = Field(..., description="v0 demo URL for the generated prototype")
-    v0_model: str = Field("v0-1.5-lg", description="v0 model used for generation")
-    github_repo_url: str | None = Field(None, description="GitHub repo URL in our org")
+# === Prototype audit schemas ===
 
 
 class AuditCodeRequest(BaseModel):
-    """Request body for auditing v0-generated code."""
+    """Request body for auditing prototype code."""
 
-    file_tree: list[str] = Field(..., description="File paths from v0 output")
+    file_tree: list[str] = Field(..., description="File paths from prototype output")
     feature_scan: dict[str, list[str]] = Field(
         ..., description="Map of feature_id to list of files containing it"
     )
@@ -591,6 +582,23 @@ class SkippedFeature(BaseModel):
 
     feature_id: str = Field(..., description="Feature UUID")
     reason: str = Field(..., description="Why it was skipped")
+
+
+class SubmitEpicVerdictRequest(BaseModel):
+    """Request body for submitting an epic confirmation verdict."""
+
+    card_type: Literal["vision", "ai_flow", "horizon", "discovery"] = Field(
+        ..., description="Which phase card this applies to"
+    )
+    card_index: int = Field(..., description="Index within the phase")
+    verdict: Literal["confirmed", "refine", "client_review"] | None = Field(
+        None, description="Verdict (null clears it)"
+    )
+    notes: str | None = Field(None, description="Comment text (for refine/client_review)")
+    answer: str | None = Field(None, description="Discovery card answer text")
+    source: Literal["consultant", "client"] = Field(
+        "consultant", description="Who submitted"
+    )
 
 
 class ApplySynthesisResponse(BaseModel):

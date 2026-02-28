@@ -1,20 +1,24 @@
 """API routes for the Prototype Builder system.
 
 Assembles discovery data into a structured payload, generates a project plan
-via Opus, and renders files for Claude Code execution.
+via Opus, renders files for Claude Code execution, and orchestrates automated
+builds via Claude Agent SDK.
 """
 
 from pathlib import Path
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, BackgroundTasks, HTTPException
 
 from app.core.logging import get_logger
 from app.core.schemas_prototype_builder import (
+    BuildRequest,
+    BuildStatusResponse,
     PayloadRequest,
     PayloadResponse,
     PlanRequest,
     PlanResponse,
+    PrebuildIntelligence,
     ProjectPlan,
     RenderResponse,
     RenderWriteRequest,
@@ -182,3 +186,316 @@ async def render_and_write(project_id: UUID, body: RenderWriteRequest):
 
     logger.info(f"Wrote {len(files)} files to {output_dir}")
     return RenderResponse(files=files, total_files=len(files))
+
+
+# =============================================================================
+# Phase 0 endpoint
+# =============================================================================
+
+
+@router.post("/phase0", response_model=PrebuildIntelligence)
+async def run_phase0(project_id: UUID):
+    """Run Phase 0 pre-build intelligence.
+
+    Pre-computes overlay content and depth assignments from entity data.
+    No code or repo required.
+    """
+    from app.graphs.prebuild_intelligence_graph import run_prebuild_intelligence
+
+    try:
+        result = await run_prebuild_intelligence(project_id)
+        if not result:
+            raise HTTPException(status_code=500, detail="Phase 0 returned no results")
+        return result
+    except Exception as e:
+        logger.error(f"Phase 0 failed for {project_id}: {e}")
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+# =============================================================================
+# Build pipeline endpoints
+# =============================================================================
+
+
+@router.post("/build", status_code=202)
+async def start_build(
+    project_id: UUID,
+    body: BuildRequest | None = None,
+    background_tasks: BackgroundTasks = BackgroundTasks(),  # noqa: B008
+):
+    """Kick off the full automated build pipeline.
+
+    Runs as a background task: Phase 0 → plan → render → agent build → deploy.
+    Returns immediately with build_id for status polling.
+    """
+    from app.db.prototype_builds import create_build
+    from app.db.prototypes import create_prototype, get_prototype_for_project
+
+    body = body or BuildRequest()
+
+    # Get or create prototype
+    prototype = get_prototype_for_project(project_id)
+    if not prototype:
+        prototype = create_prototype(project_id)
+
+    prototype_id = UUID(prototype["id"])
+
+    # Create build record
+    build = create_build(prototype_id=prototype_id, project_id=project_id)
+    build_id = UUID(build["id"])
+
+    # Run pipeline in background
+    background_tasks.add_task(
+        _run_build_pipeline,
+        project_id=project_id,
+        prototype_id=prototype_id,
+        build_id=build_id,
+        config=body.config,
+        skip_phase0=body.skip_phase0,
+        skip_deploy=body.skip_deploy,
+    )
+
+    return {"build_id": str(build_id), "status": "pending"}
+
+
+@router.get("/build/{build_id}/status", response_model=BuildStatusResponse)
+async def get_build_status(project_id: UUID, build_id: UUID):
+    """Poll build progress."""
+    from app.db.prototype_builds import get_build
+
+    build = get_build(build_id)
+    if not build:
+        raise HTTPException(status_code=404, detail="Build not found")
+
+    return BuildStatusResponse(
+        build_id=str(build["id"]),
+        status=build["status"],
+        streams_total=build.get("streams_total", 0),
+        streams_completed=build.get("streams_completed", 0),
+        tasks_total=build.get("tasks_total", 0),
+        tasks_completed=build.get("tasks_completed", 0),
+        total_tokens_used=build.get("total_tokens_used", 0),
+        total_cost_usd=float(build.get("total_cost_usd", 0)),
+        deploy_url=build.get("deploy_url"),
+        github_repo_url=build.get("github_repo_url"),
+        errors=build.get("errors", []),
+    )
+
+
+@router.post("/build/{build_id}/cancel")
+async def cancel_build(project_id: UUID, build_id: UUID):
+    """Cancel a running build."""
+    from app.db.prototype_builds import get_build, update_build_status
+
+    build = get_build(build_id)
+    if not build:
+        raise HTTPException(status_code=404, detail="Build not found")
+
+    if build["status"] in ("completed", "failed"):
+        raise HTTPException(status_code=400, detail=f"Build already {build['status']}")
+
+    update_build_status(build_id, "failed", error="Cancelled by user")
+    return {"build_id": str(build_id), "status": "failed"}
+
+
+async def _run_build_pipeline(
+    project_id: UUID,
+    prototype_id: UUID,
+    build_id: UUID,
+    config,
+    skip_phase0: bool = False,
+    skip_deploy: bool = False,
+) -> None:
+    """Background task: full build pipeline."""
+    from app.core.build_plan_renderer import render_build_plan
+    from app.core.config import get_settings
+    from app.core.prototype_payload import assemble_prototype_payload
+    from app.db.prototype_builds import (
+        append_build_log,
+        increment_stream_completed,
+        update_build,
+        update_build_status,
+    )
+    from app.db.prototypes import update_prototype
+    from app.services.build_orchestrator import BuildOrchestrator
+    from app.services.git_manager import GitManager
+
+    settings = get_settings()
+
+    try:
+        # Phase 0: Pre-build intelligence
+        update_build_status(build_id, "phase0")
+        append_build_log(build_id, {"phase": "phase0", "message": "Running Phase 0 intelligence"})
+
+        if not skip_phase0:
+            try:
+                from app.graphs.prebuild_intelligence_graph import run_prebuild_intelligence
+
+                prebuild = await run_prebuild_intelligence(project_id)
+                update_prototype(
+                    prototype_id,
+                    prebuild_intelligence=prebuild.model_dump() if prebuild else None,
+                )
+            except Exception as e:
+                logger.warning(f"Phase 0 failed (non-fatal): {e}")
+                append_build_log(
+                    build_id, {"phase": "phase0", "message": f"Phase 0 skipped: {e}"}
+                )
+
+        # Planning
+        update_build_status(build_id, "planning")
+        append_build_log(build_id, {"phase": "planning", "message": "Generating project plan"})
+
+        payload_response = await assemble_prototype_payload(project_id=project_id)
+        payload = payload_response.payload
+
+        from app.chains.generate_project_plan import generate_project_plan
+
+        plan = await generate_project_plan(
+            payload=payload, config=config, project_id=project_id
+        )
+
+        if not plan.tasks:
+            update_build_status(build_id, "failed", error="Plan generated with no tasks")
+            return
+
+        # Persist plan
+        update_prototype(
+            prototype_id,
+            build_payload=payload.model_dump(),
+            build_plan=plan.model_dump(),
+        )
+        update_build(
+            build_id,
+            streams_total=len(plan.streams),
+            tasks_total=len(plan.tasks),
+        )
+
+        # Rendering
+        update_build_status(build_id, "rendering")
+        append_build_log(build_id, {"phase": "rendering", "message": "Rendering plan files"})
+
+        files = render_build_plan(plan, payload)
+
+        # Write to temp dir
+        local_path = str(Path(settings.PROTOTYPE_TEMP_DIR) / f"build-{build_id}")
+        Path(local_path).mkdir(parents=True, exist_ok=True)
+        for filename, content in files.items():
+            file_path = Path(local_path) / filename
+            file_path.parent.mkdir(parents=True, exist_ok=True)
+            file_path.write_text(content, encoding="utf-8")
+
+        # Building
+        update_build_status(build_id, "building")
+        append_build_log(
+            build_id,
+            {
+                "phase": "building",
+                "message": f"Executing {len(plan.streams)} streams",
+            },
+        )
+
+        def _on_stream_done(sr):
+            try:
+                increment_stream_completed(build_id)
+                append_build_log(
+                    build_id,
+                    {
+                        "phase": "building",
+                        "stream": sr.stream_id,
+                        "success": sr.success,
+                        "files": len(sr.files_changed),
+                    },
+                )
+            except Exception:
+                pass
+
+        orchestrator = BuildOrchestrator(
+            git=GitManager(settings.PROTOTYPE_TEMP_DIR),
+            max_parallel=config.max_parallel_streams,
+        )
+        build_result = await orchestrator.execute(
+            plan=plan,
+            payload=payload,
+            local_path=local_path,
+            build_id=build_id,
+            on_stream_complete=_on_stream_done,
+        )
+
+        update_build(
+            build_id,
+            tasks_completed=build_result.tasks_completed,
+        )
+
+        if not build_result.success:
+            update_build_status(
+                build_id, "failed", error="; ".join(build_result.errors[:3])
+            )
+            return
+
+        # Deployment
+        if not skip_deploy:
+            update_build_status(build_id, "deploying")
+            append_build_log(
+                build_id, {"phase": "deploying", "message": "Deploying to GitHub + Netlify"}
+            )
+            try:
+                deploy_url, github_url = await _deploy_prototype(
+                    project_id, local_path, payload, settings
+                )
+                update_build(
+                    build_id,
+                    deploy_url=deploy_url,
+                    github_repo_url=github_url,
+                )
+                update_prototype(prototype_id, deploy_url=deploy_url)
+            except Exception as e:
+                logger.error(f"Deployment failed: {e}")
+                append_build_log(
+                    build_id, {"phase": "deploying", "message": f"Deploy failed: {e}"}
+                )
+
+        update_build_status(build_id, "completed")
+        append_build_log(build_id, {"phase": "completed", "message": "Build pipeline finished"})
+
+    except Exception as e:
+        logger.error(f"Build pipeline failed: {e}", exc_info=True)
+        update_build_status(build_id, "failed", error=str(e))
+
+
+async def _deploy_prototype(project_id, local_path, payload, settings) -> tuple[str, str]:
+    """Deploy prototype to GitHub + Netlify. Returns (deploy_url, github_url)."""
+    from app.services.git_manager import GitManager
+    from app.services.github_service import GitHubService
+    from app.services.netlify_service import NetlifyService
+
+    if not settings.GITHUB_TOKEN or not settings.NETLIFY_AUTH_TOKEN:
+        raise ValueError("GITHUB_TOKEN and NETLIFY_AUTH_TOKEN required for deployment")
+
+    github = GitHubService(settings.GITHUB_TOKEN, settings.GITHUB_ORG)
+    netlify = NetlifyService(settings.NETLIFY_AUTH_TOKEN)
+
+    # Create repo
+    slug = payload.project_name.lower().replace(" ", "-")[:30] if payload.project_name else "proto"
+    repo_name = f"proto-{slug}-{payload.payload_hash[:6]}"
+    repo = await github.create_repo(repo_name, private=True)
+    repo_url = repo["clone_url"]
+
+    # Push code
+    git = GitManager()
+    git._run(["remote", "add", "origin", repo_url], cwd=local_path, check=False)
+    git.push(local_path, "main")
+
+    # Create Netlify site
+    github_url = repo.get("html_url", f"https://github.com/{settings.GITHUB_ORG}/{repo_name}")
+    site = await netlify.create_site(
+        name=repo_name,
+        repo_url=github_url,
+        build_cmd="npm install && npm run build",
+        publish_dir="dist",
+    )
+
+    deploy = await netlify.wait_for_deploy(site["id"])
+    deploy_url = deploy.get("ssl_url") or deploy.get("url", "")
+
+    return deploy_url, github_url

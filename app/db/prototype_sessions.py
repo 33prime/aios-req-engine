@@ -159,8 +159,9 @@ def create_feedback(
 
     # Fire-and-forget embedding
     try:
-        from app.db.entity_embeddings import embed_entity
         from uuid import UUID as _UUID
+
+        from app.db.entity_embeddings import embed_entity
         embed_entity("prototype_feedback", _UUID(feedback["id"]), feedback)
     except Exception:
         pass
@@ -176,6 +177,58 @@ def get_feedback_for_session(session_id: UUID) -> list[dict[str, Any]]:
         .select("*")
         .eq("session_id", str(session_id))
         .order("created_at")
+        .execute()
+    )
+    return response.data or []
+
+
+# === Epic Confirmations ===
+
+
+def upsert_epic_confirmation(
+    session_id: UUID,
+    card_type: str,
+    card_index: int,
+    verdict: str | None,
+    notes: str | None,
+    answer: str | None,
+    source: str,
+) -> dict[str, Any]:
+    """Upsert a single epic confirmation."""
+    supabase = get_supabase()
+    data = {
+        "session_id": str(session_id),
+        "card_type": card_type,
+        "card_index": card_index,
+        "verdict": verdict,
+        "notes": notes,
+        "answer": answer,
+        "source": source,
+        "updated_at": "now()",
+    }
+    response = (
+        supabase.table("prototype_epic_confirmations")
+        .upsert(data, on_conflict="session_id,card_type,card_index,source")
+        .execute()
+    )
+    if not response.data:
+        raise ValueError("Failed to upsert epic confirmation")
+    logger.info(
+        f"Upserted epic confirmation for session {session_id}: "
+        f"{card_type}[{card_index}] = {verdict} ({source})"
+    )
+    return response.data[0]
+
+
+def list_epic_confirmations(session_id: UUID) -> list[dict[str, Any]]:
+    """List all confirmations for a session."""
+    supabase = get_supabase()
+    response = (
+        supabase.table("prototype_epic_confirmations")
+        .select("*")
+        .eq("session_id", str(session_id))
+        .order("card_type")
+        .order("card_index")
         .execute()
     )
     return response.data or []

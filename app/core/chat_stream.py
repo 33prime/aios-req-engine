@@ -2,12 +2,15 @@
 
 import asyncio
 import json
+from collections.abc import AsyncGenerator
 from dataclasses import dataclass
-from typing import Any, AsyncGenerator, Dict, List
+from typing import Any
 from uuid import UUID
 
 from app.chains.chat_tools import execute_tool, get_tools_for_context
 from app.context.dynamic_prompt_builder import build_smart_chat_prompt
+from app.context.intent_classifier import classify_intent
+from app.context.prompt_compiler import compile_cognitive_frame, compile_prompt
 from app.context.tool_truncator import truncate_tool_result
 from app.core.chat_context import assemble_chat_context
 from app.core.logging import get_logger
@@ -24,9 +27,9 @@ class ChatStreamConfig:
     project_id: UUID
     conversation_id: UUID
     message: str
-    conversation_history: List[Dict[str, str]]
+    conversation_history: list[dict[str, str]]
     page_context: str | None = None
-    focused_entity: Dict[str, Any] | None = None
+    focused_entity: dict[str, Any] | None = None
     conversation_context: str | None = None
     anthropic_api_key: str = ""
     chat_model: str = "claude-3-5-haiku-20241022"
@@ -51,7 +54,8 @@ async def generate_chat_stream(
 
     try:
         # Send conversation ID immediately so client can track
-        yield _sse_event({"type": "conversation_id", "conversation_id": str(config.conversation_id)})
+        cid = str(config.conversation_id)
+        yield _sse_event({"type": "conversation_id", "conversation_id": cid})
 
         # Import here to avoid loading if API key not set
         from anthropic import AsyncAnthropic
@@ -71,10 +75,7 @@ async def generate_chat_stream(
         # (highest attention zone) so the model never loses track of which
         # step the user is on, even after long conversation history.
         user_content = config.message
-        if (
-            config.page_context == "brd:solution-flow"
-            and config.focused_entity
-        ):
+        if config.page_context == "brd:solution-flow" and config.focused_entity:
             fe_data = config.focused_entity.get("data", {})
             step_title = fe_data.get("title", "")
             if step_title:
@@ -101,6 +102,7 @@ async def generate_chat_stream(
                 page_context=config.page_context,
                 focused_entity=config.focused_entity,
                 supabase=supabase,
+                conversation_id=config.conversation_id,
             ),
             _persist_user_msg(),
         )
@@ -111,24 +113,57 @@ async def generate_chat_stream(
             f"gaps={chat_ctx.context_frame.total_gap_count}"
         )
 
-        # Build v3 smart chat prompt from context frame.
-        # Returns content blocks: [static (cached), dynamic (per-request)].
-        system_blocks = build_smart_chat_prompt(
-            context_frame=chat_ctx.context_frame,
-            project_name=chat_ctx.project_name,
-            page_context=config.page_context,
-            focused_entity=config.focused_entity,
-            conversation_context=config.conversation_context,
-            retrieval_context=chat_ctx.retrieval_context,
-            solution_flow_context=chat_ctx.solution_flow_ctx,
-        )
-
-        # Log context stats
-        logger.info(
-            f"Chat prompt: phase={chat_ctx.context_frame.phase.value}, "
-            f"page={config.page_context or 'none'}, "
-            f"history_msgs={len(recent_history)}"
-        )
+        # Build prompt via the dimensional compiler.
+        # Classifies intent → selects cognitive frame → compiles instructions.
+        try:
+            intent = classify_intent(config.message, config.page_context)
+            frame = compile_cognitive_frame(
+                intent_type=intent.type,
+                awareness=chat_ctx.awareness,
+                page_context=config.page_context,
+                focused_entity=config.focused_entity,
+                horizon_state=chat_ctx.horizon_state,
+            )
+            compiled = compile_prompt(
+                frame=frame,
+                awareness=chat_ctx.awareness,
+                page_context=config.page_context,
+                focused_entity=config.focused_entity,
+                retrieval_context=chat_ctx.retrieval_context,
+                solution_flow_ctx=chat_ctx.solution_flow_ctx,
+                confidence_state=chat_ctx.confidence_state,
+                horizon_state=chat_ctx.horizon_state,
+                conversation_context=config.conversation_context,
+                warm_memory=chat_ctx.warm_memory,
+            )
+            system_blocks = [
+                {
+                    "type": "text",
+                    "text": compiled.cached_block,
+                    "cache_control": {"type": "ephemeral"},
+                },
+                {
+                    "type": "text",
+                    "text": compiled.dynamic_block,
+                },
+            ]
+            logger.info(
+                f"Compiler: frame={compiled.active_frame}, "
+                f"intent={intent.type}, page={config.page_context or 'none'}, "
+                f"history_msgs={len(recent_history)}"
+            )
+        except Exception as e:
+            # Fallback to legacy prompt builder if compiler fails
+            logger.warning(f"Compiler failed, falling back to legacy: {e}")
+            system_blocks = build_smart_chat_prompt(
+                context_frame=chat_ctx.context_frame,
+                project_name=chat_ctx.project_name,
+                page_context=config.page_context,
+                focused_entity=config.focused_entity,
+                conversation_context=config.conversation_context,
+                retrieval_context=chat_ctx.retrieval_context,
+                solution_flow_context=chat_ctx.solution_flow_ctx,
+            )
 
         # Token tracking for cost logging
         total_input = 0
@@ -185,7 +220,9 @@ async def generate_chat_stream(
                         )
 
                 # Check if Claude wants to use tools
-                tool_use_blocks = [block for block in final_message.content if block.type == "tool_use"]
+                tool_use_blocks = [
+                    block for block in final_message.content if block.type == "tool_use"
+                ]
 
                 if not tool_use_blocks:
                     # No tool use - conversation is complete
@@ -208,33 +245,47 @@ async def generate_chat_stream(
                     )
 
                     # Track tool call for persistence (use original result)
-                    tool_calls_data.append({
-                        "tool_name": tool_block.name,
-                        "status": "complete",
-                        "result": tool_result,
-                    })
+                    tool_calls_data.append(
+                        {
+                            "tool_name": tool_block.name,
+                            "status": "complete",
+                            "result": tool_result,
+                        }
+                    )
 
                     # Build tool result for next turn (use truncated result)
-                    tool_results.append({
-                        "type": "tool_result",
-                        "tool_use_id": tool_block.id,
-                        "content": json.dumps(truncated_result),
-                    })
+                    tool_results.append(
+                        {
+                            "type": "tool_result",
+                            "tool_use_id": tool_block.id,
+                            "content": json.dumps(truncated_result),
+                        }
+                    )
 
                     # Send tool result notification to frontend (use original)
-                    yield _sse_event({"type": "tool_result", "tool_name": tool_block.name, "result": tool_result})
+                    yield _sse_event(
+                        {
+                            "type": "tool_result",
+                            "tool_name": tool_block.name,
+                            "result": tool_result,
+                        }
+                    )
 
                 # Add assistant message with tool use to conversation
-                messages.append({
-                    "role": "assistant",
-                    "content": final_message.content,
-                })
+                messages.append(
+                    {
+                        "role": "assistant",
+                        "content": final_message.content,
+                    }
+                )
 
                 # Add tool results to conversation
-                messages.append({
-                    "role": "user",
-                    "content": tool_results,
-                })
+                messages.append(
+                    {
+                        "role": "user",
+                        "content": tool_results,
+                    }
+                )
 
                 # Clear assistant_content for next turn
                 assistant_content = ""

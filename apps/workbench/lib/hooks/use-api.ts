@@ -28,6 +28,8 @@ import {
   getTaskById,
   listTaskComments,
   getWorkspaceData,
+  getEpicPlan,
+  getEpicVerdicts,
   getMemoryVisualization,
   getIntelligenceOverview,
   getIntelligenceGraph,
@@ -61,6 +63,7 @@ import type {
 } from '@/lib/api'
 import type { Profile, ProjectDetailWithDashboard, Meeting, ProjectPulse, ClientPulse, ClientActivityItem, PhaseProgressResponse } from '@/types/api'
 import type { CollaborationCurrentResponse } from '@/lib/api/collaboration'
+import type { EpicOverlayPlan, EpicConfirmation } from '@/types/epic-overlay'
 import type {
   BRDWorkspaceData,
   BRDHealthData,
@@ -666,6 +669,38 @@ export function usePendingItems(projectId: string | undefined) {
     {
       dedupingInterval: SHORT_CACHE,
       revalidateOnFocus: true,
+    },
+  )
+}
+
+// --- Epic overlay plan (per-prototype, fetched during review) ---
+export function useEpicPlan(
+  prototypeId: string | null | undefined,
+  config?: SWRConfiguration<EpicOverlayPlan>,
+) {
+  return useSWR<EpicOverlayPlan>(
+    prototypeId ? `epic-plan:${prototypeId}` : null,
+    () => getEpicPlan(prototypeId!),
+    {
+      dedupingInterval: LONG_CACHE,
+      revalidateOnFocus: false,
+      ...config,
+    },
+  )
+}
+
+// --- Epic verdicts (per-session, refreshed after each verdict) ---
+export function useEpicVerdicts(
+  sessionId: string | null | undefined,
+  config?: SWRConfiguration<EpicConfirmation[]>,
+) {
+  return useSWR<EpicConfirmation[]>(
+    sessionId ? `epic-verdicts:${sessionId}` : null,
+    () => getEpicVerdicts(sessionId!),
+    {
+      dedupingInterval: SHORT_CACHE,
+      revalidateOnFocus: false,
+      ...config,
     },
   )
 }

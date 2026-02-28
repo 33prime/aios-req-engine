@@ -107,6 +107,70 @@ async def assemble_prototype_payload(
     def _q_prototype():
         return get_prototype_for_project(project_id)
 
+    def _q_horizons():
+        """Load feature→horizon mapping from project_horizons."""
+        sb = get_supabase()
+        try:
+            resp = (
+                sb.table("project_horizons")
+                .select("feature_id, horizon")
+                .eq("project_id", pid)
+                .execute()
+            )
+            return {r["feature_id"]: r["horizon"] for r in (resp.data or []) if r.get("feature_id")}
+        except Exception:
+            return {}
+
+    def _q_questions():
+        """Load open question count per feature."""
+        sb = get_supabase()
+        try:
+            resp = (
+                sb.table("entity_questions")
+                .select("entity_id")
+                .eq("project_id", pid)
+                .eq("entity_type", "feature")
+                .is_("resolved_at", "null")
+                .execute()
+            )
+            counts: dict[str, int] = {}
+            for r in resp.data or []:
+                eid = r.get("entity_id", "")
+                counts[eid] = counts.get(eid, 0) + 1
+            return counts
+        except Exception:
+            return {}
+
+    def _q_driver_links():
+        """Load feature→driver description mapping."""
+        sb = get_supabase()
+        try:
+            drivers_resp = (
+                sb.table("business_drivers")
+                .select("id, description")
+                .eq("project_id", pid)
+                .execute()
+            )
+            drivers_by_id = {
+                d["id"]: (d.get("description") or "")[:80]
+                for d in (drivers_resp.data or [])
+            }
+            links_resp = (
+                sb.table("entity_links")
+                .select("source_id, target_id")
+                .eq("project_id", pid)
+                .eq("link_type", "drives")
+                .execute()
+            )
+            result: dict[str, str] = {}
+            for link in links_resp.data or []:
+                desc = drivers_by_id.get(link.get("source_id"), "")
+                if desc and link.get("target_id"):
+                    result[link["target_id"]] = desc
+            return result
+        except Exception:
+            return {}
+
     (
         project,
         raw_features,
@@ -118,6 +182,9 @@ async def assemble_prototype_payload(
         raw_competitors,
         company_info,
         existing_prototype,
+        horizon_map,
+        question_counts,
+        driver_link_map,
     ) = await asyncio.gather(
         asyncio.to_thread(_q_project),
         asyncio.to_thread(_q_features),
@@ -129,6 +196,9 @@ async def assemble_prototype_payload(
         asyncio.to_thread(_q_competitors),
         asyncio.to_thread(_q_company),
         asyncio.to_thread(_q_prototype),
+        asyncio.to_thread(_q_horizons),
+        asyncio.to_thread(_q_questions),
+        asyncio.to_thread(_q_driver_links),
     )
 
     # ── Map to payload models (filter to confirmed) ────────────────────────
@@ -139,6 +209,9 @@ async def assemble_prototype_payload(
             overview=f.get("overview", "") or "",
             priority=f.get("priority_group", "unset") or "unset",
             confirmation_status=f.get("confirmation_status", "ai_generated"),
+            horizon=horizon_map.get(f["id"], "H1"),
+            open_question_count=question_counts.get(f["id"], 0),
+            linked_driver=driver_link_map.get(f["id"], ""),
         )
         for f in (raw_features or [])
         if _is_confirmed(f)

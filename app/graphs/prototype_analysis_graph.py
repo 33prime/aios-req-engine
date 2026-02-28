@@ -1,13 +1,14 @@
 """Graph-driven prototype analysis pipeline.
 
-5-node linear pipeline: load_context → graph_enrich → score_features
-→ generate_gaps → save_and_complete.
+12-node linear pipeline:
+  load_context → graph_enrich → score_features → generate_gaps
+  → load_epic_context → assemble_epics → trace_provenance → compose_narratives
+  → build_horizons → build_discovery → save_epic_plan → save_and_complete
 
-Key changes from the original LLM-per-feature approach:
-  - 0-1 Anthropic calls total (down from 34) — only for ambiguous features
-  - Tier 2.5 graph intelligence drives confidence/status/risk scoring
-  - Cohere rerank matches unscanned features to code files
-  - ~20-25s total runtime (down from ~10 min)
+Nodes 1-4: Per-feature confidence scoring + gap generation (unchanged).
+Nodes 5-11: Epic overlay assembly — clusters features into 5-7 narrative
+  epics, traces provenance, composes narratives, builds horizon/discovery cards.
+Node 12: Saves overlays + epic plan + updates prototype status.
 """
 
 from __future__ import annotations
@@ -86,6 +87,14 @@ class PrototypeAnalysisState:
     # Scoring (built in score_features)
     scores: dict[str, dict[str, Any]] = field(default_factory=dict)
     overlays: dict[str, dict[str, Any]] = field(default_factory=dict)
+
+    # Epic overlay context (built in load_epic_context)
+    solution_flow_steps: list[dict[str, Any]] = field(default_factory=list)
+    unlocks: list[dict[str, Any]] = field(default_factory=list)
+    gap_clusters: list[Any] = field(default_factory=list)
+
+    # Epic overlay plan (built across assemble→compose→horizons→discovery)
+    epic_plan: dict[str, Any] = field(default_factory=dict)
 
     # Output
     results: list[dict[str, Any]] = field(default_factory=list)
@@ -843,7 +852,705 @@ def generate_gaps(state: PrototypeAnalysisState) -> dict[str, Any]:
 
 
 # =============================================================================
-# Node 5: save_and_complete
+# Node 5: load_epic_context
+# =============================================================================
+
+
+def load_epic_context(state: PrototypeAnalysisState) -> dict[str, Any]:
+    """Load solution flow steps, unlocks, and gap clusters for epic assembly."""
+    import asyncio
+
+    from app.db.solution_flow import get_or_create_flow, list_flow_steps
+    from app.db.unlocks import list_unlocks
+
+    logger.info("Loading epic context", extra={"run_id": str(state.run_id)})
+
+    # Solution flow steps
+    solution_flow_steps: list[dict[str, Any]] = []
+    try:
+        flow = get_or_create_flow(state.project_id)
+        if flow:
+            solution_flow_steps = list_flow_steps(UUID(flow["id"]))
+    except Exception as e:
+        logger.warning(f"Failed to load solution flow steps: {e}")
+
+    # Unlocks
+    unlocks: list[dict[str, Any]] = []
+    try:
+        unlocks = list_unlocks(state.project_id)
+    except Exception as e:
+        logger.warning(f"Failed to load unlocks: {e}")
+
+    # Gap clusters via intelligence loop
+    gap_clusters: list[Any] = []
+    try:
+        from app.core.gap_detector import detect_gaps
+        from app.core.intelligence_loop import run_intelligence_loop
+
+        gaps = asyncio.get_event_loop().run_until_complete(
+            detect_gaps(state.project_id)
+        )
+        if gaps:
+            gap_clusters = run_intelligence_loop(gaps, state.project_id)
+    except RuntimeError:
+        # No running event loop — try creating one
+        try:
+            from app.core.gap_detector import detect_gaps
+            from app.core.intelligence_loop import run_intelligence_loop
+
+            gaps = asyncio.run(detect_gaps(state.project_id))
+            if gaps:
+                gap_clusters = run_intelligence_loop(gaps, state.project_id)
+        except Exception as e:
+            logger.warning(f"Failed to run intelligence loop: {e}")
+    except Exception as e:
+        logger.warning(f"Failed to detect gaps: {e}")
+
+    logger.info(
+        f"Epic context loaded: {len(solution_flow_steps)} flow steps, "
+        f"{len(unlocks)} unlocks, {len(gap_clusters)} gap clusters",
+        extra={"run_id": str(state.run_id)},
+    )
+
+    return {
+        "solution_flow_steps": solution_flow_steps,
+        "unlocks": unlocks,
+        "gap_clusters": gap_clusters,
+    }
+
+
+# =============================================================================
+# Node 6: assemble_epics
+# =============================================================================
+
+
+def _is_plumbing_feature(
+    feature: dict[str, Any],
+    step_linked_fids: set[str],
+    score: dict[str, Any],
+) -> bool:
+    """Detect plumbing features (sign-in, nav, settings) to filter out."""
+    fid = feature.get("id", "")
+    fname = (feature.get("name", "") or "").lower()
+    plumbing_keywords = {"sign-in", "signin", "login", "logout", "navigation",
+                         "nav", "settings", "password", "auth", "register",
+                         "signup", "sign-up", "404", "not found"}
+    if any(kw in fname for kw in plumbing_keywords):
+        # Only filter if NOT linked to a solution flow step
+        if fid not in step_linked_fids:
+            return True
+    return False
+
+
+def assemble_epics(state: PrototypeAnalysisState) -> dict[str, Any]:
+    """Cluster features into 5-7 epics based on solution flow steps."""
+    logger.info("Assembling epics", extra={"run_id": str(state.run_id)})
+
+    features_by_id = {f["id"]: f for f in state.features if f.get("id")}
+
+    # Build feature→step(s) map from solution flow linked_feature_ids
+    feature_to_steps: dict[str, list[dict[str, Any]]] = {}
+    step_linked_fids: set[str] = set()
+    for step in state.solution_flow_steps:
+        for fid in step.get("linked_feature_ids") or []:
+            feature_to_steps.setdefault(fid, []).append(step)
+            step_linked_fids.add(fid)
+
+    # Build feature→routes map from handoff_parsed
+    feature_routes: dict[str, list[str]] = {}
+    for entry in state.handoff_parsed.get("features", []):
+        fid = entry.get("feature_id") or entry.get("id")
+        if fid:
+            pages_str = entry.get("pages", "")
+            if pages_str:
+                routes = [r.strip().strip("'\"") for r in pages_str.split(",") if r.strip()]
+                feature_routes[fid] = routes
+
+    # Group features by their primary solution flow step
+    step_groups: dict[str, list[str]] = {}  # step_id → [feature_ids]
+    unmapped_features: list[str] = []
+
+    for fid in features_by_id:
+        if _is_plumbing_feature(features_by_id[fid], step_linked_fids, state.scores.get(fid, {})):
+            continue
+        steps = feature_to_steps.get(fid, [])
+        if steps:
+            primary_step_id = steps[0].get("id", "unmapped")
+            step_groups.setdefault(primary_step_id, []).append(fid)
+        else:
+            unmapped_features.append(fid)
+
+    # Merge small groups (< 2 features) into nearest by route proximity
+    merged_groups: list[list[str]] = []
+    small_orphans: list[str] = []
+    for _step_id, fids in step_groups.items():
+        if len(fids) < 2:
+            small_orphans.extend(fids)
+        else:
+            merged_groups.append(fids)
+
+    # Distribute orphans into existing groups by route overlap
+    for orphan_fid in small_orphans:
+        orphan_routes = set(feature_routes.get(orphan_fid, []))
+        best_group_idx = -1
+        best_overlap = 0
+        for i, group in enumerate(merged_groups):
+            group_routes = set()
+            for gfid in group:
+                group_routes.update(feature_routes.get(gfid, []))
+            overlap = len(orphan_routes & group_routes)
+            if overlap > best_overlap:
+                best_overlap = overlap
+                best_group_idx = i
+        if best_group_idx >= 0:
+            merged_groups[best_group_idx].append(orphan_fid)
+        elif merged_groups:
+            # Just add to smallest group
+            smallest = min(range(len(merged_groups)), key=lambda i: len(merged_groups[i]))
+            merged_groups[smallest].append(orphan_fid)
+        else:
+            merged_groups.append([orphan_fid])
+
+    # Also fold unmapped features into route-matched groups or create overflow epic
+    for ufid in unmapped_features:
+        u_routes = set(feature_routes.get(ufid, []))
+        placed = False
+        if u_routes:
+            for i, group in enumerate(merged_groups):
+                group_routes = set()
+                for gfid in group:
+                    group_routes.update(feature_routes.get(gfid, []))
+                if u_routes & group_routes:
+                    merged_groups[i].append(ufid)
+                    placed = True
+                    break
+        if not placed and merged_groups:
+            smallest = min(range(len(merged_groups)), key=lambda i: len(merged_groups[i]))
+            merged_groups[smallest].append(ufid)
+
+    # Split large groups (> 6 features) by route
+    final_groups: list[list[str]] = []
+    for group in merged_groups:
+        if len(group) <= 6:
+            final_groups.append(group)
+        else:
+            # Split by route
+            route_buckets: dict[str, list[str]] = {}
+            no_route: list[str] = []
+            for fid in group:
+                routes = feature_routes.get(fid, [])
+                if routes:
+                    route_buckets.setdefault(routes[0], []).append(fid)
+                else:
+                    no_route.append(fid)
+            for bucket_fids in route_buckets.values():
+                final_groups.append(bucket_fids)
+            if no_route:
+                if final_groups:
+                    final_groups[-1].extend(no_route)
+                else:
+                    final_groups.append(no_route)
+
+    # Cap at 7 epics — rank by discovery value
+    def _epic_rank(fids: list[str]) -> float:
+        score = 0.0
+        for fid in fids:
+            overlay = state.overlays.get(fid, {})
+            gaps = overlay.get("gaps", [])
+            score += len(gaps) * 3
+            # Count unknown fields from solution flow
+            steps = feature_to_steps.get(fid, [])
+            for step in steps:
+                for info_field in step.get("information_fields") or []:
+                    if isinstance(info_field, dict) and info_field.get("confidence") in (
+                        "unknown", "guess"
+                    ):
+                        score += 2
+                if step.get("ai_config"):
+                    score += 3
+        return score
+
+    final_groups.sort(key=_epic_rank, reverse=True)
+    final_groups = final_groups[:7]
+
+    # Build epic skeletons
+    from app.core.schemas_epic_overlay import Epic, EpicFeature
+
+    epics: list[dict[str, Any]] = []
+    total_mapped = 0
+
+    for i, group_fids in enumerate(final_groups):
+        epic_features: list[dict[str, Any]] = []
+        all_routes: list[str] = []
+        step_ids: list[str] = []
+        persona_names: set[str] = set()
+        pain_points: list[str] = []
+        open_questions: list[str] = []
+        confidences: list[float] = []
+
+        for fid in group_fids:
+            feature = features_by_id.get(fid)
+            if not feature:
+                continue
+
+            score = state.scores.get(fid, {})
+            routes = feature_routes.get(fid, [])
+            all_routes.extend(routes)
+
+            ef = EpicFeature(
+                feature_id=fid,
+                name=feature.get("name", "Unknown"),
+                route=routes[0] if routes else None,
+                confidence=score.get("confidence", 0.0),
+                implementation_status=score.get("implementation_status", "partial"),
+                handoff_routes=routes,
+                component_name=None,
+            )
+            epic_features.append(ef.model_dump())
+            confidences.append(score.get("confidence", 0.0))
+
+            # Collect persona names
+            for pname in state.persona_feature_map.get(fid, []):
+                persona_names.add(pname)
+
+            # Collect pain points and questions from solution flow steps
+            for step in feature_to_steps.get(fid, []):
+                sid = step.get("id", "")
+                if sid and sid not in step_ids:
+                    step_ids.append(sid)
+                for pp in step.get("pain_points_addressed") or []:
+                    if isinstance(pp, dict):
+                        pain_points.append(pp.get("text", ""))
+                    elif isinstance(pp, str):
+                        pain_points.append(pp)
+                for q in step.get("open_questions") or []:
+                    if isinstance(q, dict) and q.get("status") != "resolved":
+                        open_questions.append(q.get("question", ""))
+                    elif isinstance(q, str):
+                        open_questions.append(q)
+
+            # Also collect gap questions from overlays
+            overlay = state.overlays.get(fid, {})
+            for gap in overlay.get("gaps", []):
+                if gap.get("question"):
+                    open_questions.append(gap["question"])
+
+        # Determine primary route and phase
+        primary_route = all_routes[0] if all_routes else None
+        phase = "core_experience"
+        if step_ids:
+            for step in state.solution_flow_steps:
+                if step.get("id") in step_ids:
+                    phase = step.get("phase", "core_experience")
+                    break
+
+        # Determine theme from step titles
+        theme_parts: list[str] = []
+        for sid in step_ids[:2]:
+            for step in state.solution_flow_steps:
+                if step.get("id") == sid:
+                    theme_parts.append(step.get("title", ""))
+                    break
+        theme = theme_parts[0] if theme_parts else f"Epic {i + 1}"
+
+        avg_conf = sum(confidences) / len(confidences) if confidences else 0.0
+
+        epic = Epic(
+            epic_index=i + 1,
+            title="",  # Filled by compose_narratives
+            theme=theme,
+            narrative="",  # Filled by compose_narratives
+            features=epic_features,
+            primary_route=primary_route,
+            all_routes=list(set(all_routes)),
+            solution_flow_step_ids=step_ids,
+            phase=phase,
+            open_questions=open_questions[:5],
+            persona_names=list(persona_names),
+            avg_confidence=round(avg_conf, 2),
+            pain_points=pain_points[:5],
+        )
+        epics.append(epic.model_dump())
+        total_mapped += len(group_fids)
+
+    # Build AI flow card skeletons from solution flow steps with ai_config
+    ai_flow_skeletons: list[dict[str, Any]] = []
+    seen_roles: set[str] = set()
+    for step in state.solution_flow_steps:
+        ai_config = step.get("ai_config")
+        if not ai_config or not isinstance(ai_config, dict):
+            continue
+        role = ai_config.get("role", "")
+        if not role or role in seen_roles:
+            continue
+        seen_roles.add(role)
+
+        from app.core.schemas_epic_overlay import AIFlowCard
+
+        card = AIFlowCard(
+            title=step.get("title", "AI Capability"),
+            narrative="",  # Filled by compose_narratives
+            ai_role=role,
+            data_in=[role] if role else [],
+            behaviors=ai_config.get("behaviors", []),
+            guardrails=ai_config.get("guardrails", []),
+            output=(
+                f"{ai_config.get('confidence_display', 'subtle')} confidence; "
+                f"fallback: {ai_config.get('fallback', 'N/A')}"
+            ),
+            route=None,
+            feature_ids=[fid for fid in step.get("linked_feature_ids") or []],
+            solution_flow_step_ids=[step.get("id", "")],
+        )
+        ai_flow_skeletons.append(card.model_dump())
+
+    ai_flow_skeletons = ai_flow_skeletons[:3]  # Cap at 3
+
+    total_unmapped = len(features_by_id) - total_mapped
+
+    logger.info(
+        f"Assembled {len(epics)} epics ({total_mapped} features mapped, "
+        f"{total_unmapped} unmapped), {len(ai_flow_skeletons)} AI flow skeletons",
+        extra={"run_id": str(state.run_id)},
+    )
+
+    return {
+        "epic_plan": {
+            "vision_epics": epics,
+            "ai_flow_cards": ai_flow_skeletons,
+            "total_features_mapped": total_mapped,
+            "total_features_unmapped": total_unmapped,
+        },
+    }
+
+
+# =============================================================================
+# Node 7: trace_provenance
+# =============================================================================
+
+
+def trace_provenance(state: PrototypeAnalysisState) -> dict[str, Any]:
+    """Trace features → graph → evidence_chunks → speakers for story beats."""
+    from app.core.schemas_epic_overlay import EpicStoryBeat
+
+    logger.info("Tracing provenance for epic story beats", extra={"run_id": str(state.run_id)})
+
+    plan = dict(state.epic_plan)
+    epics = plan.get("vision_epics", [])
+
+    for epic in epics:
+        story_beats: list[dict[str, Any]] = []
+        seen_chunks: set[str] = set()
+
+        for ef in epic.get("features", []):
+            fid = ef.get("feature_id", "")
+            profile = state.graph_profiles.get(fid)
+            if not profile or not profile.raw_neighborhood:
+                continue
+
+            evidence_chunks = profile.raw_neighborhood.get("evidence_chunks", [])
+            for chunk in evidence_chunks[:3]:
+                chunk_id = chunk.get("chunk_id", "")
+                if chunk_id in seen_chunks:
+                    continue
+                seen_chunks.add(chunk_id)
+
+                meta = chunk.get("metadata", {}) or {}
+                meta_tags = meta.get("meta_tags", {}) or {}
+                speaker_roles = meta_tags.get("speaker_roles", [])
+                speaker_name = speaker_roles[0] if speaker_roles else None
+
+                source_label = meta.get("source_label", "") or meta_tags.get("source_type", "")
+                content = chunk.get("content", "") or chunk.get("text", "")
+
+                beat = EpicStoryBeat(
+                    content=content[:300] if content else "",
+                    signal_id=meta.get("signal_id"),
+                    chunk_id=chunk_id,
+                    speaker_name=speaker_name,
+                    source_label=source_label,
+                    entity_type="feature",
+                    entity_id=fid,
+                    confidence=chunk.get("score"),
+                )
+                story_beats.append(beat.model_dump())
+
+                if len(story_beats) >= 5:
+                    break
+            if len(story_beats) >= 5:
+                break
+
+        epic["story_beats"] = story_beats
+
+    plan["vision_epics"] = epics
+    return {"epic_plan": plan}
+
+
+# =============================================================================
+# Node 8: compose_narratives
+# =============================================================================
+
+
+def compose_narratives(state: PrototypeAnalysisState) -> dict[str, Any]:
+    """ONE Sonnet call to compose narrative text for all epics + AI flow cards."""
+    from app.chains.compose_epic_narratives import compose_epic_narratives
+
+    logger.info("Composing epic narratives via LLM", extra={"run_id": str(state.run_id)})
+
+    plan = dict(state.epic_plan)
+    epics = plan.get("vision_epics", [])
+    ai_cards = plan.get("ai_flow_cards", [])
+
+    if not epics:
+        return {"epic_plan": plan}
+
+    # Get project name for context
+    project_name = ""
+    try:
+        from app.db.projects import get_project
+
+        project = get_project(state.project_id)
+        if project:
+            project_name = project.get("name", "")
+    except Exception:
+        pass
+
+    try:
+        result = compose_epic_narratives(
+            epics=epics,
+            ai_flow_skeletons=ai_cards,
+            project_name=project_name,
+        )
+
+        # Merge narratives back into epics
+        narrative_map = {
+            n["epic_index"]: n
+            for n in result.get("epic_narratives", [])
+            if isinstance(n, dict)
+        }
+        for epic in epics:
+            idx = epic.get("epic_index")
+            if idx in narrative_map:
+                epic["title"] = narrative_map[idx].get("title", epic.get("theme", ""))
+                epic["narrative"] = narrative_map[idx].get("narrative", "")
+            if not epic.get("title"):
+                epic["title"] = epic.get("theme", f"Epic {idx}")
+
+        # Merge AI flow narratives
+        ai_narratives = result.get("ai_flow_narratives", [])
+        for i, card in enumerate(ai_cards):
+            if i < len(ai_narratives) and isinstance(ai_narratives[i], dict):
+                card["narrative"] = ai_narratives[i].get("narrative", "")
+                if ai_narratives[i].get("title"):
+                    card["title"] = ai_narratives[i]["title"]
+
+    except Exception as e:
+        logger.error(f"Epic narrative composition failed: {e}")
+        # Fallback: use theme as title, leave narrative empty
+        for epic in epics:
+            if not epic.get("title"):
+                epic["title"] = epic.get("theme", f"Epic {epic.get('epic_index', 0)}")
+
+    plan["vision_epics"] = epics
+    plan["ai_flow_cards"] = ai_cards
+    return {"epic_plan": plan}
+
+
+# =============================================================================
+# Node 9: build_horizons
+# =============================================================================
+
+
+_HORIZON_MAP = {
+    "implement_now": 1,
+    "after_feedback": 2,
+    "if_this_works": 3,
+}
+
+_HORIZON_TITLES = {
+    1: "The Engagement",
+    2: "The Expansion",
+    3: "The Platform",
+}
+
+
+def build_horizons(state: PrototypeAnalysisState) -> dict[str, Any]:
+    """Build H1/H2/H3 horizon cards from unlocks (mechanical, no LLM)."""
+    from app.core.schemas_epic_overlay import HorizonCard
+
+    logger.info("Building horizon cards", extra={"run_id": str(state.run_id)})
+
+    plan = dict(state.epic_plan)
+    horizon_buckets: dict[int, list[dict[str, Any]]] = {1: [], 2: [], 3: []}
+
+    for unlock in state.unlocks:
+        tier = unlock.get("tier", "implement_now")
+        horizon = _HORIZON_MAP.get(tier, 1)
+        horizon_buckets[horizon].append(unlock)
+
+    # Collect feature names from H1 for compound decision detection
+    h1_feature_names: set[str] = set()
+    for u in horizon_buckets.get(1, []):
+        h1_feature_names.add((u.get("title") or "").lower())
+
+    horizon_cards: list[dict[str, Any]] = []
+    for h in [1, 2, 3]:
+        bucket = horizon_buckets.get(h, [])
+        if not bucket:
+            continue
+
+        unlock_summaries = [u.get("title", "Untitled") for u in bucket]
+        why_now = [u.get("why_now", "") for u in bucket if u.get("why_now")]
+
+        # Detect compound decisions: H2/H3 unlocks whose why_now references H1 features
+        compound_decisions: list[str] = []
+        if h > 1:
+            for u in bucket:
+                u_why = (u.get("why_now") or "").lower()
+                for h1_name in h1_feature_names:
+                    if h1_name and h1_name in u_why:
+                        compound_decisions.append(
+                            f"{u.get('title', '?')} depends on {h1_name}"
+                        )
+                        break
+
+        card = HorizonCard(
+            horizon=h,
+            title=_HORIZON_TITLES.get(h, f"Horizon {h}"),
+            subtitle=f"{len(bucket)} unlock{'s' if len(bucket) != 1 else ''}",
+            unlock_summaries=unlock_summaries[:10],
+            compound_decisions=compound_decisions[:5],
+            avg_confidence=0.0,
+            why_now=why_now[:5],
+        )
+        horizon_cards.append(card.model_dump())
+
+    plan["horizon_cards"] = horizon_cards
+
+    logger.info(
+        f"Built {len(horizon_cards)} horizon cards",
+        extra={"run_id": str(state.run_id)},
+    )
+
+    return {"epic_plan": plan}
+
+
+# =============================================================================
+# Node 10: build_discovery
+# =============================================================================
+
+
+def build_discovery(state: PrototypeAnalysisState) -> dict[str, Any]:
+    """Build discovery thread cards from gap clusters (mechanical, no LLM)."""
+    from app.core.schemas_epic_overlay import DiscoveryThread
+
+    logger.info("Building discovery threads", extra={"run_id": str(state.run_id)})
+
+    plan = dict(state.epic_plan)
+    epics = plan.get("vision_epics", [])
+
+    # Collect all feature_ids across epics
+    epic_feature_ids: set[str] = set()
+    for epic in epics:
+        for ef in epic.get("features", []):
+            epic_feature_ids.add(ef.get("feature_id", ""))
+
+    discovery_threads: list[dict[str, Any]] = []
+
+    for cluster in state.gap_clusters:
+        # Check if cluster touches any epic features
+        cluster_entity_ids: set[str] = set()
+        for gap in cluster.gaps:
+            cluster_entity_ids.add(gap.entity_id)
+
+        touching_features = cluster_entity_ids & epic_feature_ids
+        if not touching_features:
+            continue
+
+        # Build questions from gap details
+        questions = [gap.detail for gap in cluster.gaps if gap.detail][:5]
+
+        # Build feature name list
+        features_by_id = {f["id"]: f for f in state.features if f.get("id")}
+        feature_names = [
+            features_by_id.get(fid, {}).get("name", "Unknown")
+            for fid in touching_features
+        ]
+
+        # Speaker hints from cluster sources
+        speaker_hints: list[dict] = []
+        if hasattr(cluster, "sources"):
+            for src in cluster.sources[:3]:
+                speaker_hints.append({
+                    "name": src.name,
+                    "role": src.role or "",
+                    "mention_count": src.mention_count,
+                })
+
+        knowledge_type = None
+        if hasattr(cluster, "knowledge_type") and cluster.knowledge_type:
+            kt = cluster.knowledge_type
+            knowledge_type = kt.value if hasattr(kt, "value") else str(kt)
+
+        thread = DiscoveryThread(
+            thread_id=cluster.cluster_id,
+            theme=cluster.theme,
+            features=feature_names,
+            feature_ids=list(touching_features),
+            questions=questions,
+            knowledge_type=knowledge_type,
+            speaker_hints=speaker_hints,
+            severity=cluster.fan_out_score + cluster.accuracy_impact,
+        )
+        discovery_threads.append(thread.model_dump())
+
+    # Sort by severity descending
+    discovery_threads.sort(key=lambda t: t.get("severity", 0), reverse=True)
+
+    plan["discovery_threads"] = discovery_threads
+
+    logger.info(
+        f"Built {len(discovery_threads)} discovery threads",
+        extra={"run_id": str(state.run_id)},
+    )
+
+    return {"epic_plan": plan}
+
+
+# =============================================================================
+# Node 11: save_epic_plan
+# =============================================================================
+
+
+def save_epic_plan(state: PrototypeAnalysisState) -> dict[str, Any]:
+    """Persist the epic overlay plan as JSONB on the prototypes table."""
+    from datetime import datetime
+
+    from app.db.prototypes import update_prototype
+
+    logger.info("Saving epic plan", extra={"run_id": str(state.run_id)})
+
+    plan = dict(state.epic_plan)
+    plan["generated_at"] = datetime.now(UTC).isoformat()
+    plan.setdefault("iteration", 1)
+
+    try:
+        update_prototype(state.prototype_id, epic_plan=plan)
+        logger.info(
+            f"Epic plan saved: {len(plan.get('vision_epics', []))} epics, "
+            f"{len(plan.get('ai_flow_cards', []))} AI cards, "
+            f"{len(plan.get('horizon_cards', []))} horizons, "
+            f"{len(plan.get('discovery_threads', []))} threads",
+            extra={"run_id": str(state.run_id)},
+        )
+    except Exception as e:
+        logger.error(f"Failed to save epic plan: {e}")
+
+    return {"epic_plan": plan}
+
+
+# =============================================================================
+# Node 12: save_and_complete
 # =============================================================================
 
 
@@ -938,21 +1645,47 @@ def save_and_complete(state: PrototypeAnalysisState) -> dict[str, Any]:
 def build_prototype_analysis_graph() -> StateGraph:
     """Construct the LangGraph for prototype feature analysis.
 
-    5-node linear pipeline: load_context → graph_enrich → score_features
-    → generate_gaps → save_and_complete
+    12-node linear pipeline:
+      load_context → graph_enrich → score_features → generate_gaps
+      → load_epic_context → assemble_epics → trace_provenance → compose_narratives
+      → build_horizons → build_discovery → save_epic_plan → save_and_complete
     """
     graph = StateGraph(PrototypeAnalysisState)
 
+    # Existing nodes (1-4)
     graph.add_node("load_context", load_context)
     graph.add_node("graph_enrich", graph_enrich)
     graph.add_node("score_features", score_features)
     graph.add_node("generate_gaps", generate_gaps)
+
+    # Epic overlay nodes (5-11)
+    graph.add_node("load_epic_context", load_epic_context)
+    graph.add_node("assemble_epics", assemble_epics)
+    graph.add_node("trace_provenance", trace_provenance)
+    graph.add_node("compose_narratives", compose_narratives)
+    graph.add_node("build_horizons", build_horizons)
+    graph.add_node("build_discovery", build_discovery)
+    graph.add_node("save_epic_plan", save_epic_plan)
+
+    # Save node (12)
     graph.add_node("save_and_complete", save_and_complete)
 
+    # Edges: existing
     graph.add_edge("load_context", "graph_enrich")
     graph.add_edge("graph_enrich", "score_features")
     graph.add_edge("score_features", "generate_gaps")
-    graph.add_edge("generate_gaps", "save_and_complete")
+
+    # Edges: epic overlay pipeline
+    graph.add_edge("generate_gaps", "load_epic_context")
+    graph.add_edge("load_epic_context", "assemble_epics")
+    graph.add_edge("assemble_epics", "trace_provenance")
+    graph.add_edge("trace_provenance", "compose_narratives")
+    graph.add_edge("compose_narratives", "build_horizons")
+    graph.add_edge("build_horizons", "build_discovery")
+    graph.add_edge("build_discovery", "save_epic_plan")
+
+    # Edge: save
+    graph.add_edge("save_epic_plan", "save_and_complete")
     graph.add_edge("save_and_complete", END)
 
     graph.set_entry_point("load_context")

@@ -32,15 +32,16 @@ import {
   triggerPrototypeCodeUpdate,
   getPrototypeSession,
 } from '@/lib/api'
-import { useBRDData, useContextFrame, useWorkspaceData } from '@/lib/hooks/use-api'
+import { useBRDData, useContextFrame, useWorkspaceData, useEpicPlan, useEpicVerdicts } from '@/lib/hooks/use-api'
 import { useRealtimeBRD } from '@/lib/realtime'
 import type { CanvasData } from '@/types/workspace'
 import type { NextAction } from '@/lib/api'
 import type { VpStep } from '@/types/api'
-import type { DesignSelection, FeatureOverlay, FeatureVerdict, PrototypeSession, TourStep, SessionContext, RouteFeatureMap } from '@/types/prototype'
-import type { PrototypeFrameHandle } from '@/components/prototype/PrototypeFrame'
+import type { DesignSelection, FeatureOverlay, PrototypeSession } from '@/types/prototype'
+import type { EpicTourPhase } from '@/types/epic-overlay'
 import ReviewStartModal from '@/components/prototype/ReviewStartModal'
 import ReviewEndModal from '@/components/prototype/ReviewEndModal'
+import { ReviewBubble, REVIEW_PANEL_WIDTH } from '@/components/prototype/ReviewBubble'
 import { ProjectHealthOverlay } from './ProjectHealthOverlay'
 import { Activity, Settings, Loader2, CheckCircle2, XCircle, Clock, ArrowLeft, Users } from 'lucide-react'
 import { CollaborateView } from './collaborate/CollaborateView'
@@ -171,38 +172,32 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
 
   // Review modal + mode state
   const [showReviewModal, setShowReviewModal] = useState(false)
-  const [reviewTourMode, setReviewTourMode] = useState<'tour' | 'explore'>('tour')
   const [isReviewActive, setIsReviewActive] = useState(false)
   const [reviewSession, setReviewSession] = useState<PrototypeSession | null>(null)
   const [overlays, setOverlays] = useState<FeatureOverlay[]>([])
-  const [vpSteps, setVpSteps] = useState<VpStep[]>([])
-  const [currentTourStep, setCurrentTourStep] = useState<TourStep | null>(null)
   const [prototypeId, setPrototypeId] = useState<string | null>(null)
   const [reviewPhase, setReviewPhase] = useState<'active' | 'awaiting_client' | 'synthesizing'>('active')
   const [clientShareData, setClientShareData] = useState<{ token: string; url: string } | null>(null)
-  const [routeFeatureMap, setRouteFeatureMap] = useState<RouteFeatureMap>(new Map())
-  const [isFrameReady, setIsFrameReady] = useState(false)
-  const [sessionContext, setSessionContext] = useState<SessionContext>({
-    current_page: '/',
-    current_route: '/',
-    active_feature_id: null,
-    active_feature_name: null,
-    active_component: null,
-    visible_features: [],
-    page_history: [],
-    features_reviewed: [],
-  })
-  const frameRef = useRef<PrototypeFrameHandle>(null)
-  const [selectedOverlayId, setSelectedOverlayId] = useState<string | null>(null)
 
-  const isTourActive = currentTourStep !== null
+  // Epic tour state
+  const [epicPhase, setEpicPhase] = useState<EpicTourPhase>('vision_journey')
+  const [epicCardIndex, setEpicCardIndex] = useState<number | null>(null)
+  const [reviewPanelOpen, setReviewPanelOpen] = useState(false)
+  const { data: epicPlan } = useEpicPlan(prototypeId)
+  const { data: epicConfirmations, mutate: mutateEpicVerdicts } = useEpicVerdicts(reviewSession?.id)
 
-  // Derive current overlay: tour step overlay takes priority, then radar-click selection
-  const currentOverlay = currentTourStep
-    ? overlays.find((o) => o.id === currentTourStep.overlayId) ?? null
-    : selectedOverlayId
-      ? overlays.find((o) => o.id === selectedOverlayId || o.feature_id === selectedOverlayId) ?? null
-      : null
+  // Build a set of confirmed card keys for the progress bar: "vision:0", "ai_flow:1", etc.
+  const confirmedSet = useMemo(() => {
+    const set = new Set<string>()
+    if (epicConfirmations) {
+      for (const c of epicConfirmations) {
+        if (c.verdict) {
+          set.add(`${c.card_type}:${c.card_index}`)
+        }
+      }
+    }
+    return set
+  }, [epicConfirmations])
 
   // Revalidate BRD + context frame when chat tools mutate data
   const handleDataMutated = useCallback(() => {
@@ -224,24 +219,21 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
     onDataMutated: handleDataMutated,
   })
 
-  // Check for prototype URL (lightweight, non-blocking)
+  // Resolved prototype URL — survives SWR revalidation (which may return null from projects table).
+  // Prototype deploy_url lives in the prototypes table; projects.prototype_url may be empty.
+  const [resolvedProtoUrl, setResolvedProtoUrl] = useState<string | null>(null)
+  const protoSyncedRef = useRef(false)
   useEffect(() => {
+    if (protoSyncedRef.current) return
+    protoSyncedRef.current = true
     getPrototypeForProject(projectId)
       .then((proto) => {
-        if (proto?.deploy_url && canvasData && !canvasData.prototype_url) {
-          mutateWorkspace((prev) => prev ? { ...prev, prototype_url: proto.deploy_url } : prev, false)
-          setPhase('build')
+        if (proto?.deploy_url) {
+          setResolvedProtoUrl(proto.deploy_url)
         }
       })
       .catch(() => {})
-  }, [projectId, canvasData, mutateWorkspace])
-
-  // Auto-detect phase from workspace data
-  useEffect(() => {
-    if (canvasData?.prototype_url) {
-      setPhase('build')
-    }
-  }, [canvasData?.prototype_url])
+  }, [projectId])
 
   // Revalidate all data
   const loadData = useCallback(async () => {
@@ -258,6 +250,7 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
 
   const handleUpdatePrototypeUrl = async (url: string) => {
     await updatePrototypeUrl(projectId, url)
+    setResolvedProtoUrl(url)
     mutateWorkspace((prev) =>
       prev ? { ...prev, prototype_url: url, prototype_updated_at: new Date().toISOString() } : prev, false
     )
@@ -287,44 +280,30 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
       steps: VpStep[],
       protoId: string,
       deployUrlFromModal: string,
-      mode: 'tour' | 'explore'
+      _mode: 'tour' | 'explore'
     ) => {
       setShowReviewModal(false)
       setOverlays(ovls)
-      setVpSteps(steps)
       setReviewSession(session)
       setIsReviewActive(true)
       setPrototypeId(protoId)
       setReviewPhase('active')
       setClientShareData(null)
-      setRouteFeatureMap(new Map())
-      setIsFrameReady(false)
-      setReviewTourMode(mode)
 
       // Use the prototype's deploy_url as the canonical URL
       if (deployUrlFromModal) {
         mutateWorkspace((prev) => prev ? { ...prev, prototype_url: deployUrlFromModal } : prev, false)
       }
 
-      // Auto-expand collaboration panel
-      if (collaborationState === 'collapsed') {
-        setCollaborationState('normal')
-      }
+      // Open review panel by default
+      setReviewPanelOpen(true)
     },
-    [collaborationState]
+    []
   )
-
-  const handleVerdictSubmit = useCallback((overlayId: string, verdict: FeatureVerdict) => {
-    setOverlays(prev => prev.map(o =>
-      o.id === overlayId ? { ...o, consultant_verdict: verdict } : o
-    ))
-  }, [])
 
   const handleEndReview = useCallback(async () => {
     if (!reviewSession) return
     try {
-      setCurrentTourStep(null)
-      frameRef.current?.sendMessage({ type: 'aios:clear-highlights' })
       const result = await endConsultantReview(reviewSession.id)
       setClientShareData({ token: result.client_review_token, url: result.client_review_url })
       setReviewPhase('awaiting_client')
@@ -334,6 +313,15 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
       setReviewSession(null)
     }
   }, [reviewSession])
+
+  // Advance to next epic card from the ReviewInfoPanel
+  const handleEpicAdvance = useCallback(() => {
+    mutateEpicVerdicts()
+    // The EpicTourController handles navigation; we just trigger a re-render
+    // by bumping the card index. The tour controller's handleNext is internal,
+    // so we simulate it by dispatching a custom event the controller listens to.
+    // For now, the Info panel's onAdvance is a no-op — the user clicks Next in the tour bar.
+  }, [mutateEpicVerdicts])
 
   const handleRunSynthesis = useCallback(async () => {
     if (!reviewSession) return
@@ -359,56 +347,6 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
     setClientShareData(null)
   }, [])
 
-  const handleFeatureClick = useCallback((featureId: string, componentName: string | null) => {
-    setSessionContext((prev) => ({
-      ...prev,
-      active_feature_id: featureId,
-      active_component: componentName,
-      features_reviewed: prev.features_reviewed.includes(featureId)
-        ? prev.features_reviewed
-        : [...prev.features_reviewed, featureId],
-    }))
-    // When radar dot clicked (tour not active), select that overlay in the sidebar
-    setSelectedOverlayId(featureId)
-    // Expand collaboration panel if collapsed
-    if (collaborationState === 'collapsed') {
-      setCollaborationState('normal')
-    }
-  }, [collaborationState])
-
-  const handlePageChange = useCallback((path: string, visibleFeatures: string[]) => {
-    setSessionContext((prev) => ({
-      ...prev,
-      current_page: path,
-      current_route: path,
-      visible_features: visibleFeatures,
-      page_history: [...prev.page_history, { path, timestamp: new Date().toISOString(), features_visible: visibleFeatures }],
-    }))
-    // Build route-feature map
-    setRouteFeatureMap((prev) => new Map(prev).set(path, visibleFeatures))
-  }, [])
-
-  const handleTourStepChange = useCallback((step: TourStep | null) => {
-    setCurrentTourStep(step)
-    if (step) {
-      const ov = overlays.find((o) => o.id === step.overlayId)
-      setSessionContext((prev) => ({
-        ...prev,
-        active_feature_id: step.featureId,
-        active_feature_name: step.featureName,
-        active_component: ov?.component_name ?? null,
-      }))
-    }
-  }, [overlays])
-
-  const handleTourEnd = useCallback(() => {
-    setCurrentTourStep(null)
-  }, [])
-
-  const handleFrameReady = useCallback(() => {
-    setIsFrameReady(true)
-  }, [])
-
   // Poll for client completion when awaiting_client
   useEffect(() => {
     if (reviewPhase !== 'awaiting_client' || !reviewSession) return
@@ -425,32 +363,6 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
     }, 10000)
     return () => clearInterval(interval)
   }, [reviewPhase, reviewSession])
-
-  // Send radar dots when review active, tour idle, frame ready
-  useEffect(() => {
-    if (!isReviewActive || isTourActive || !isFrameReady) return
-    const frame = frameRef.current
-    if (!frame) return
-
-    const features = overlays
-      .filter((o) => o.overlay_content)
-      .map((o) => ({
-        featureId: o.feature_id || o.id,
-        featureName: o.overlay_content!.feature_name,
-        componentName: o.component_name || undefined,
-        keywords: o.overlay_content!.feature_name
-          .toLowerCase()
-          .replace(/[^a-z0-9\s-]/g, '')
-          .split(/[\s-]+/)
-          .filter((w: string) => w.length > 2),
-      }))
-
-    frame.sendMessage({ type: 'aios:show-radar', features })
-
-    return () => {
-      frame.sendMessage({ type: 'aios:clear-radar' })
-    }
-  }, [isReviewActive, isTourActive, isFrameReady, overlays, sessionContext.current_page])
 
   // Cross-view action execution: Overview → switch to BRD → execute
   const handleActionExecuteFromOverview = useCallback((action: NextAction) => {
@@ -474,16 +386,17 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
 
   // Calculate sidebar widths
   const sidebarWidth = sidebarCollapsed ? 64 : 224
-  // BrainBubble in BRD/Canvas views (discovery), overview, and collaborate
-  const useBrainBubble = (phase === 'discovery' || phase === 'overview' || phase === 'collaborate') && (phase === 'collaborate' || discoveryViewMode === 'brd' || discoveryViewMode === 'canvas')
+  // BrainBubble for all phases except build+review (which uses ReviewBubble)
+  const useBrainBubble = phase === 'discovery' || phase === 'overview' || phase === 'collaborate' || (phase === 'build' && !isReviewActive)
 
   // Client pulse for Collaborate button badge
   const { data: pulseData } = useClientPulse(projectId)
-  // When brain panel is open, BRD compresses to make room
+  // When brain panel is open, content compresses to make room
+  // During review, ReviewBubble controls width (0 when closed, REVIEW_PANEL_WIDTH when open)
   const collaborationWidth = useBrainBubble
     ? (brainPanelOpen ? BRAIN_PANEL_WIDTH : 0)
-    : collaborationState === 'collapsed' ? 48
-    : collaborationState === 'wide' ? 400 : 320
+    : isReviewActive ? (reviewPanelOpen ? REVIEW_PANEL_WIDTH : 0)
+    : 0
 
   // Build assistant project data
   const assistantProjectData = canvasData
@@ -756,7 +669,7 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
 
                 <BuildPhaseView
                   projectId={projectId}
-                  prototypeUrl={canvasData.prototype_url}
+                  prototypeUrl={resolvedProtoUrl || canvasData.prototype_url}
                   prototypeUpdatedAt={canvasData.prototype_updated_at}
                   readinessScore={brdData?.completeness?.overall_score ?? canvasData.readiness_score}
                   onUpdatePrototypeUrl={handleUpdatePrototypeUrl}
@@ -765,17 +678,11 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
                   onStartReview={handleStartReview}
                   onEndReview={handleEndReview}
                   session={reviewSession}
-                  overlays={overlays}
-                  vpSteps={vpSteps}
-                  reviewTourMode={reviewTourMode}
-                  onFeatureClick={handleFeatureClick}
-                  onPageChange={handlePageChange}
-                  onTourStepChange={handleTourStepChange}
-                  onTourEnd={handleTourEnd}
-                  onFrameReady={handleFrameReady}
-                  routeFeatureMap={routeFeatureMap}
-                  isFrameReady={isFrameReady}
-                  frameRef={frameRef}
+                  epicPlan={epicPlan}
+                  onEpicPhaseChange={setEpicPhase}
+                  onEpicIndexChange={() => {}}
+                  onEpicCardChange={setEpicCardIndex}
+                  confirmedSet={confirmedSet}
                   collaborationWidth={collaborationWidth}
                 />
               </div>
@@ -836,7 +743,7 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
           onKeepWorking={handleKeepWorking}
         />
 
-        {/* Right Panel — BrainBubble for Discovery/Overview, CollaborationPanel for Build/Review */}
+        {/* Right Panel — BrainBubble for Discovery/Overview, ReviewBubble for Review, CollaborationPanel for Build */}
         {useBrainBubble ? (
           <BrainBubble
             projectId={projectId}
@@ -858,6 +765,22 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
             onNavigateToCollaborate={() => setPhase('collaborate')}
             hideClientPulse={phase === 'collaborate'}
           />
+        ) : isReviewActive && reviewSession && epicPlan ? (
+          <ReviewBubble
+            projectId={projectId}
+            session={reviewSession}
+            epicPlan={epicPlan}
+            epicPhase={epicPhase}
+            epicCardIndex={epicCardIndex}
+            epicConfirmations={epicConfirmations ?? []}
+            onEpicAdvance={handleEpicAdvance}
+            messages={messages}
+            isChatLoading={isChatLoading}
+            onSendMessage={sendMessage}
+            onSendSignal={sendSignal}
+            onAddLocalMessage={addLocalMessage}
+            onOpenChange={setReviewPanelOpen}
+          />
         ) : (
           <CollaborationPanel
             projectId={projectId}
@@ -870,16 +793,6 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
             onAddLocalMessage={addLocalMessage}
             panelState={collaborationState}
             onPanelStateChange={setCollaborationState}
-            isReviewActive={isReviewActive}
-            isTourActive={isTourActive}
-            currentOverlay={currentOverlay}
-            currentTourStep={currentTourStep}
-            allOverlays={overlays}
-            visibleFeatureIds={sessionContext.visible_features}
-            session={reviewSession}
-            sessionContext={sessionContext}
-            prototypeId={prototypeId}
-            onVerdictSubmit={handleVerdictSubmit}
           />
         )}
         {/* Project Health Overlay — unified pulse + health modal */}

@@ -126,6 +126,45 @@ class GitManager:
                     all_files.append(rel_path)
         return sorted(all_files)
 
+    def init_repo(self, local_path: str) -> None:
+        """Initialize a git repo if not already initialized."""
+        git_dir = Path(local_path) / ".git"
+        if git_dir.exists():
+            return
+        Path(local_path).mkdir(parents=True, exist_ok=True)
+        self._run(["init", "-b", "main"], cwd=local_path)
+        logger.info(f"Initialized git repo at {local_path}")
+
+    def add_worktree(
+        self, local_path: str, branch_name: str, stream_id: str
+    ) -> str:
+        """Create a worktree for a stream. Returns worktree path."""
+        worktrees_dir = Path(local_path) / ".worktrees"
+        worktrees_dir.mkdir(exist_ok=True)
+        wt_path = str(worktrees_dir / stream_id)
+        self._run(
+            ["worktree", "add", wt_path, "-b", branch_name],
+            cwd=local_path,
+        )
+        logger.info(f"Created worktree at {wt_path} on branch {branch_name}")
+        return wt_path
+
+    def remove_worktree(self, local_path: str, worktree_path: str) -> None:
+        """Remove a worktree."""
+        self._run(
+            ["worktree", "remove", worktree_path, "--force"],
+            cwd=local_path,
+            check=False,
+        )
+        logger.info(f"Removed worktree at {worktree_path}")
+
+    def merge_branch(self, local_path: str, branch_name: str) -> None:
+        """Merge a branch into the current branch."""
+        self._run(
+            ["merge", branch_name, "--no-edit", "-m", f"Merge {branch_name}"],
+            cwd=local_path,
+        )
+
     def read_file(self, local_path: str, file_path: str) -> str:
         """Read a file from the repo."""
         full_path = Path(local_path) / file_path

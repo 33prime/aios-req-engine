@@ -2,7 +2,12 @@
 
 import { useState, useMemo } from 'react'
 import type { FeatureOverlay, TourStep, FeatureVerdict } from '@/types/prototype'
+import type { EpicOverlayPlan, EpicTourPhase } from '@/types/epic-overlay'
 import FeatureVerdictCard from './FeatureVerdictCard'
+import EpicCard from './EpicCard'
+import AIFlowCardComponent from './AIFlowCardComponent'
+import HorizonCardComponent from './HorizonCardComponent'
+import DiscoveryThreadCard from './DiscoveryThreadCard'
 
 interface ContextualSidebarProps {
   overlays: FeatureOverlay[]
@@ -13,6 +18,10 @@ interface ContextualSidebarProps {
   onAnswerSubmit: (questionId: string, answer: string) => void
   answeredQuestionIds: Set<string>
   onVerdictSubmit?: (overlayId: string, verdict: FeatureVerdict) => void
+  // Epic tour mode props
+  epicPlan?: EpicOverlayPlan | null
+  epicPhase?: EpicTourPhase | null
+  epicCardIndex?: number | null
 }
 
 /**
@@ -28,6 +37,9 @@ export default function ContextualSidebar({
   onAnswerSubmit,
   answeredQuestionIds,
   onVerdictSubmit,
+  epicPlan,
+  epicPhase,
+  epicCardIndex,
 }: ContextualSidebarProps) {
   const [showScorecard, setShowScorecard] = useState(false)
 
@@ -59,10 +71,42 @@ export default function ContextualSidebar({
 
   const reviewedCount = verdictCounts.total - verdictCounts.unreviewed
 
+  // Epic tour mode: if we have an epic plan and a card index, show epic content
+  const isEpicMode = epicPlan && epicCardIndex != null
+
   return (
     <div className="w-[380px] flex-shrink-0 bg-white border-l border-border flex flex-col h-full overflow-hidden">
-      {/* Current step: verdict card */}
-      {currentStep && currentOverlay && (
+      {/* Epic tour mode — focused on current card only */}
+      {isEpicMode && epicPlan && epicPhase && (
+        <div className="flex-1 overflow-y-auto p-3 space-y-3 custom-scrollbar">
+          {epicPhase === 'vision_journey' && (() => {
+            const localIdx = getPhaseLocalIndex(epicPlan, epicPhase, epicCardIndex!)
+            const epic = epicPlan.vision_epics[localIdx]
+            return epic ? <EpicCard epic={epic} isActive /> : null
+          })()}
+
+          {epicPhase === 'ai_deep_dive' && (() => {
+            const localIdx = getPhaseLocalIndex(epicPlan, epicPhase, epicCardIndex!)
+            const card = epicPlan.ai_flow_cards[localIdx]
+            return card ? <AIFlowCardComponent card={card} isActive /> : null
+          })()}
+
+          {epicPhase === 'horizons' && (() => {
+            const localIdx = getPhaseLocalIndex(epicPlan, epicPhase, epicCardIndex!)
+            const card = epicPlan.horizon_cards[localIdx]
+            return card ? <HorizonCardComponent card={card} isActive /> : null
+          })()}
+
+          {epicPhase === 'discovery' && (() => {
+            const localIdx = getPhaseLocalIndex(epicPlan, epicPhase, epicCardIndex!)
+            const thread = epicPlan.discovery_threads.slice(0, 3)[localIdx]
+            return thread ? <DiscoveryThreadCard thread={thread} isActive /> : null
+          })()}
+        </div>
+      )}
+
+      {/* Current step: verdict card (feature mode) */}
+      {!isEpicMode && currentStep && currentOverlay && (
         <div className="flex-1 overflow-y-auto p-3 custom-scrollbar">
           <FeatureVerdictCard
             overlay={currentOverlay}
@@ -114,8 +158,8 @@ export default function ContextualSidebar({
         </div>
       )}
 
-      {/* No step active: show visible features or scorecard */}
-      {!currentStep && (
+      {/* No step active: show visible features or scorecard (feature mode only) */}
+      {!isEpicMode && !currentStep && (
         <>
           <div className="px-4 py-3 border-b border-border">
             <div className="flex items-center justify-between">
@@ -214,4 +258,29 @@ export default function ContextualSidebar({
       </div>
     </div>
   )
+}
+
+/**
+ * Converts a global card index (across all phases) to the local index within
+ * the current phase. Mirrors the logic in ReviewInfoPanel.
+ */
+function getPhaseLocalIndex(
+  plan: EpicOverlayPlan,
+  phase: EpicTourPhase,
+  globalIndex: number
+): number {
+  let offset = 0
+  const phaseSizes: [EpicTourPhase, number][] = [
+    ['vision_journey', plan.vision_epics.length],
+    ['ai_deep_dive', plan.ai_flow_cards.length],
+    ['horizons', plan.horizon_cards.length],
+    ['discovery', Math.min(plan.discovery_threads.length, 3)],
+  ]
+  for (const [p, size] of phaseSizes) {
+    if (p === phase) {
+      return globalIndex - offset
+    }
+    offset += size
+  }
+  return 0
 }

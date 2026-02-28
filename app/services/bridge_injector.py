@@ -453,6 +453,21 @@ BRIDGE_SCRIPT = """\
       case 'aios:clear-radar':
         clearAllRadar();
         break;
+      case 'aios:tour-navigate':
+        clearAllHighlights();
+        clearAllRadar();
+        if (data.path) navigateToRoute(data.path);
+        if (data.highlightAfter) {
+          setTimeout(function() {
+            if (data.features && data.features.length > 1) {
+              showRadarDots(data.features);
+            } else if (data.featureId) {
+              highlightFeature(data.featureId, data.featureName || '', data.description || '',
+                               data.stepLabel || '', data.componentName || '', data.keywords || []);
+            }
+          }, 800);
+        }
+        break;
     }
   });
 })();

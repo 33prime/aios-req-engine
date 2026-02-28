@@ -1,10 +1,11 @@
 """Chat context assembly — parallel context building for chat streaming."""
 
 import asyncio
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 from uuid import UUID
 
+from app.context.project_awareness import ProjectAwareness  # noqa: F401
 from app.core.action_engine import compute_context_frame
 from app.core.logging import get_logger
 
@@ -60,12 +61,17 @@ _PAGE_APPLY_CONFIDENCE: dict[str, bool] = {
 
 @dataclass
 class ChatContext:
-    """Assembled context for a chat turn."""
+    """Assembled context for a chat turn — feeds the prompt compiler."""
 
     context_frame: Any
     solution_flow_ctx: Any | None
     retrieval_context: str
     project_name: str
+    # Intelligence layers
+    awareness: Any = None  # ProjectAwareness
+    confidence_state: dict = field(default_factory=dict)
+    horizon_state: dict = field(default_factory=dict)
+    warm_memory: str = ""  # Cross-conversation context
 
 
 async def build_retrieval_context(
@@ -79,11 +85,9 @@ async def build_retrieval_context(
         from app.core.retrieval import retrieve
         from app.core.retrieval_format import format_retrieval_for_context
 
-        # Solution flow step chat already has rich context —
-        # always use simple (fast) retrieval: skip decomposition,
-        # reranking, and sufficiency loops.
-        is_flow = page_context == "brd:solution-flow"
-        is_simple = is_flow or (len(message.split()) < 8 and "?" not in message)
+        # Only skip decomposition for very short messages.
+        # Always rerank via Cohere for quality, skip sufficiency loop to stay fast.
+        is_very_short = len(message.split()) < 6
 
         # Build context hint from focused entity
         context_hint = None
@@ -93,35 +97,34 @@ async def build_retrieval_context(
             ename = edata.get("title") or edata.get("name") or ""
             egoal = edata.get("goal") or ""
             if ename:
-                parts = [f"User is viewing {fe.get('type', 'entity')}: \"{ename}\"."]
+                parts = [f'User is viewing {fe.get("type", "entity")}: "{ename}".']
                 if egoal:
                     parts.append(f"Goal: {egoal}.")
                 context_hint = " ".join(parts)
 
         entity_types = _PAGE_ENTITY_TYPES.get(page_context or "")
         graph_depth = _PAGE_GRAPH_DEPTH.get(page_context or "", 1)
-        apply_recency = _PAGE_APPLY_RECENCY.get(page_context or "", False)
-        apply_confidence = _PAGE_APPLY_CONFIDENCE.get(page_context or "", False)
         logger.info(
-            "Retrieval profile: page=%s depth=%d recency=%s confidence=%s types=%s simple=%s",
-            page_context, graph_depth, apply_recency, apply_confidence, entity_types, is_simple,
+            "Retrieval profile: page=%s depth=%d types=%s short=%s",
+            page_context,
+            graph_depth,
+            entity_types,
+            is_very_short,
         )
         retrieval_result = await retrieve(
             query=message,
             project_id=project_id,
             max_rounds=1,
-            skip_decomposition=is_simple,
-            skip_reranking=is_simple,
-            evaluation_criteria="Enough context to answer the user's question",
+            skip_decomposition=is_very_short,
+            skip_reranking=False,
+            skip_evaluation=True,
             context_hint=context_hint,
             entity_types=entity_types,
             graph_depth=graph_depth,
-            apply_recency=apply_recency,
-            apply_confidence=apply_confidence,
+            apply_recency=True,
+            apply_confidence=True,
         )
-        return format_retrieval_for_context(
-            retrieval_result, style="chat", max_tokens=2000
-        )
+        return format_retrieval_for_context(retrieval_result, style="chat", max_tokens=2000)
     except Exception as e:
         logger.debug(f"Retrieval pre-fetch failed (non-fatal): {e}")
         return ""
@@ -153,14 +156,54 @@ async def build_solution_flow_ctx(
 
 async def get_project_name(supabase: Any, project_id: str) -> str:
     """Fetch the project name from the database."""
-    project_row = (
-        supabase.table("projects")
-        .select("name")
-        .eq("id", project_id)
-        .single()
-        .execute()
-    )
+    project_row = supabase.table("projects").select("name").eq("id", project_id).single().execute()
     return project_row.data.get("name", "Unknown") if project_row.data else "Unknown"
+
+
+async def _safe_load_awareness(project_id: str, project_name: str) -> Any:
+    """Load project awareness, returning empty on failure."""
+    try:
+        from app.context.project_awareness import load_project_awareness
+
+        return await load_project_awareness(project_id, project_name)
+    except Exception as e:
+        logger.debug(f"Awareness load failed (non-fatal): {e}")
+        from app.context.project_awareness import ProjectAwareness
+
+        return ProjectAwareness(project_name=project_name)
+
+
+async def _safe_load_confidence(project_id: str) -> dict:
+    """Load confidence state, returning empty on failure."""
+    try:
+        from app.context.intelligence_signals import load_confidence_state
+
+        return await load_confidence_state(project_id)
+    except Exception as e:
+        logger.debug(f"Confidence state load failed (non-fatal): {e}")
+        return {}
+
+
+async def _safe_load_horizon(project_id: str) -> dict:
+    """Load horizon state, returning empty on failure."""
+    try:
+        from app.context.intelligence_signals import load_horizon_state
+
+        return await load_horizon_state(project_id)
+    except Exception as e:
+        logger.debug(f"Horizon state load failed (non-fatal): {e}")
+        return {}
+
+
+async def _safe_load_warm_memory(project_id: str, conversation_id: UUID | str | None) -> str:
+    """Load warm memory, returning empty on failure."""
+    try:
+        from app.context.intelligence_signals import load_warm_memory
+
+        return await load_warm_memory(project_id, conversation_id)
+    except Exception as e:
+        logger.debug(f"Warm memory load failed (non-fatal): {e}")
+        return ""
 
 
 async def assemble_chat_context(
@@ -169,20 +212,40 @@ async def assemble_chat_context(
     page_context: str | None,
     focused_entity: dict[str, Any] | None,
     supabase: Any,
+    conversation_id: UUID | str | None = None,
 ) -> ChatContext:
-    """Assemble all chat context in parallel."""
+    """Assemble all chat context in parallel (4 core + 4 intelligence)."""
     pid = str(project_id)
 
-    context_frame, solution_flow_ctx, retrieval_context, project_name = await asyncio.gather(
+    # All 7 tasks run in parallel
+    (
+        context_frame,
+        solution_flow_ctx,
+        retrieval_context,
+        project_name,
+        confidence_state,
+        horizon_state,
+        warm_memory,
+    ) = await asyncio.gather(
         compute_context_frame(project_id, max_actions=5),
         build_solution_flow_ctx(page_context, pid, focused_entity),
         build_retrieval_context(message, pid, page_context, focused_entity),
         get_project_name(supabase, pid),
+        _safe_load_confidence(pid),
+        _safe_load_horizon(pid),
+        _safe_load_warm_memory(pid, conversation_id),
     )
+
+    # Awareness needs project_name, loaded after the gather
+    awareness = await _safe_load_awareness(pid, project_name)
 
     return ChatContext(
         context_frame=context_frame,
         solution_flow_ctx=solution_flow_ctx,
         retrieval_context=retrieval_context,
         project_name=project_name,
+        awareness=awareness,
+        confidence_state=confidence_state,
+        horizon_state=horizon_state,
+        warm_memory=warm_memory,
     )

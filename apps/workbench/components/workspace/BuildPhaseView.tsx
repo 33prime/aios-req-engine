@@ -1,11 +1,13 @@
 /**
- * BuildPhaseView - Prototype embed, build tracking, and review mode
+ * BuildPhaseView - Prototype embed + epic tour
  *
  * Two modes:
  * 1. Normal: prototype iframe with URL controls + "Review with Overlays" button
- * 2. Review: bridge-connected PrototypeFrame with TourController, session management
+ * 2. Review: EpicTourController navigates iframe by changing src URL
  *
- * Review mode is controlled by the parent via reviewMode prop.
+ * Navigation uses iframe src swapping + postMessage for feature highlighting.
+ * When the tour moves to a new epic, the iframe loads that page and highlights
+ * relevant features via the injected AIOS bridge script.
  */
 
 'use client'
@@ -18,24 +20,16 @@ import {
   Minimize2,
   Check,
   X,
-  Square,
-  CheckCircle2,
   Sparkles,
   Loader2,
 } from 'lucide-react'
-import PrototypeFrame from '@/components/prototype/PrototypeFrame'
-import type { PrototypeFrameHandle } from '@/components/prototype/PrototypeFrame'
-import TourController from '@/components/prototype/TourController'
+import EpicTourController from '@/components/prototype/EpicTourController'
 import { DesignSelectionChat } from '@/components/prototype/DesignSelectionChat'
 import type {
-  FeatureOverlay,
   PrototypeSession,
   DesignSelection,
-  SessionContext,
-  TourStep,
-  RouteFeatureMap,
 } from '@/types/prototype'
-import type { VpStep } from '@/types/api'
+import type { EpicOverlayPlan, EpicTourPhase } from '@/types/epic-overlay'
 
 interface BuildPhaseViewProps {
   projectId: string
@@ -49,27 +43,20 @@ interface BuildPhaseViewProps {
   onStartReview: () => void
   onEndReview: () => Promise<void>
   session: PrototypeSession | null
-  overlays: FeatureOverlay[]
-  vpSteps: VpStep[]
-  /** When set to 'tour', auto-starts the guided tour once frame is ready */
-  reviewTourMode?: 'tour' | 'explore'
-  // Bridge callbacks — lifted to parent so it can update shared state
-  onFeatureClick: (featureId: string, componentName: string | null) => void
-  onPageChange: (path: string, visibleFeatures: string[]) => void
-  onTourStepChange: (step: TourStep | null) => void
-  onTourEnd: () => void
-  onFrameReady: () => void
-  routeFeatureMap: RouteFeatureMap
-  isFrameReady: boolean
-  frameRef: React.RefObject<PrototypeFrameHandle | null>
-  // Layout — so fullscreen leaves room for the collaboration panel
+  // Epic overlay plan
+  epicPlan?: EpicOverlayPlan | null
+  onEpicPhaseChange?: (phase: EpicTourPhase) => void
+  onEpicIndexChange?: (epicIndex: number | null) => void
+  onEpicCardChange?: (cardIndex: number | null) => void
+  // Confirmed set for progress dots
+  confirmedSet?: Set<string>
+  // Layout
   collaborationWidth?: number
 }
 
 export function BuildPhaseView({
   projectId,
   prototypeUrl,
-  prototypeUpdatedAt,
   readinessScore,
   onUpdatePrototypeUrl,
   onGeneratePrototype,
@@ -77,18 +64,12 @@ export function BuildPhaseView({
   onStartReview,
   onEndReview,
   session,
-  overlays,
-  vpSteps,
-  reviewTourMode,
-  onFeatureClick,
-  onPageChange,
-  onTourStepChange,
-  onTourEnd,
-  onFrameReady,
-  routeFeatureMap,
-  isFrameReady,
-  frameRef,
-  collaborationWidth = 320,
+  epicPlan,
+  onEpicPhaseChange,
+  onEpicIndexChange,
+  onEpicCardChange,
+  confirmedSet,
+  collaborationWidth = 0,
 }: BuildPhaseViewProps) {
   const [isEditing, setIsEditing] = useState(false)
   const [urlValue, setUrlValue] = useState(prototypeUrl || '')
@@ -98,10 +79,15 @@ export function BuildPhaseView({
   const [showDesignModal, setShowDesignModal] = useState(false)
   const [isGenerating, setIsGenerating] = useState(false)
   const [isEndingReview, setIsEndingReview] = useState(false)
+  // Current iframe URL — base URL + tour route
+  const [activeIframeSrc, setActiveIframeSrc] = useState(prototypeUrl || '')
+  const [activeCardIndex, setActiveCardIndex] = useState<number | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+  const iframeRef = useRef<HTMLIFrameElement>(null)
 
   useEffect(() => {
     setUrlValue(prototypeUrl || '')
+    setActiveIframeSrc(prototypeUrl || '')
   }, [prototypeUrl])
 
   useEffect(() => {
@@ -169,29 +155,122 @@ export function BuildPhaseView({
     }
   }
 
+  // Get features for a given card from epic plan
+  const getCardFeatures = useCallback(
+    (cardIndex: number | null) => {
+      if (cardIndex === null || !epicPlan) return []
+      const allCards = [
+        ...(epicPlan.vision_epics || []).map((e) => ({ ...e, _type: 'vision' as const })),
+        ...(epicPlan.ai_flow_cards || []).map((c) => ({ ...c, _type: 'ai' as const })),
+      ]
+      const card = allCards[cardIndex]
+      if (!card) return []
+      return (card as any).features || []
+    },
+    [epicPlan]
+  )
+
+  // When card changes during tour, highlight features in iframe
+  useEffect(() => {
+    if (!isReviewActive || activeCardIndex === null || !iframeRef.current?.contentWindow) return
+    const features = getCardFeatures(activeCardIndex)
+    if (!features.length) return
+
+    // Delay highlight to allow route change to complete
+    const timer = setTimeout(() => {
+      const win = iframeRef.current?.contentWindow
+      if (!win) return
+
+      if (features.length === 1) {
+        // Single feature — spotlight highlight
+        const f = features[0]
+        win.postMessage(
+          {
+            type: 'aios:highlight-feature',
+            featureId: f.feature_id,
+            featureName: f.name,
+            description: '',
+            stepLabel: '',
+            componentName: f.component_name || '',
+            keywords: (f.name || '').split(/\s+/),
+          },
+          '*'
+        )
+      } else {
+        // Multiple features — radar dots
+        win.postMessage(
+          {
+            type: 'aios:show-radar',
+            features: features.map((f: any) => ({
+              featureId: f.feature_id,
+              featureName: f.name,
+              componentName: f.component_name || '',
+              keywords: (f.name || '').split(/\s+/),
+            })),
+          },
+          '*'
+        )
+      }
+    }, 800)
+
+    return () => clearTimeout(timer)
+  }, [activeCardIndex, isReviewActive, getCardFeatures])
+
+  // Track card changes from tour controller
+  const handleCardChange = useCallback(
+    (cardIndex: number | null) => {
+      setActiveCardIndex(cardIndex)
+      onEpicCardChange?.(cardIndex)
+    },
+    [onEpicCardChange]
+  )
+
+  // Tour route change — navigate iframe by swapping src
+  const handleRouteChange = useCallback(
+    (route: string | null) => {
+      if (!prototypeUrl) return
+      if (!route) {
+        // No route — stay on current page
+        return
+      }
+      // Build full URL: base + route
+      try {
+        const base = new URL(prototypeUrl)
+        base.pathname = route
+        const newSrc = base.toString()
+        if (newSrc !== activeIframeSrc) {
+          setActiveIframeSrc(newSrc)
+        }
+      } catch {
+        // Invalid URL — ignore
+      }
+    },
+    [prototypeUrl, activeIframeSrc]
+  )
+
   return (
     <div
       className={`h-full flex flex-col ${isFullscreen ? 'fixed top-0 left-0 bottom-0 z-[100] bg-white' : ''}`}
       style={isFullscreen ? { right: collaborationWidth } : undefined}
     >
-      {/* Header — adapts to review mode */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-white">
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 py-2 border-b border-border bg-white">
         <div className="flex items-center gap-4">
           {isReviewActive && session ? (
             <>
-              <h2 className="text-base font-semibold text-text-body">
+              <h2 className="text-sm font-semibold text-[#37352f]">
                 Session {session.session_number}
               </h2>
               <span className="text-xs text-text-placeholder">Reviewing</span>
             </>
           ) : (
             <>
-              <h2 className="text-base font-semibold text-text-body">Prototype</h2>
+              <h2 className="text-sm font-semibold text-[#37352f]">Prototype</h2>
               <div className="flex items-center gap-2">
                 <div className="w-20 h-1.5 bg-gray-200 rounded-full overflow-hidden">
                   <div className="h-full bg-brand-primary rounded-full transition-all" style={{ width: `${readinessScore}%` }} />
                 </div>
-                <span className="text-sm font-medium text-text-body">{Math.round(readinessScore)}% ready</span>
+                <span className="text-xs font-medium text-[#37352f]">{Math.round(readinessScore)}% ready</span>
               </div>
             </>
           )}
@@ -200,66 +279,47 @@ export function BuildPhaseView({
         <div className="flex items-center gap-2">
           {prototypeUrl && (
             <>
-              {!isReviewActive && (
-                <button
-                  onClick={refreshIframe}
-                  className="p-2 text-text-placeholder hover:text-text-body hover:bg-surface-muted rounded-lg transition-colors"
-                  title="Refresh preview"
-                >
-                  <RefreshCw className="w-4 h-4" />
-                </button>
-              )}
+              <button
+                onClick={refreshIframe}
+                className="p-1.5 text-text-placeholder hover:text-text-body hover:bg-surface-muted rounded-lg transition-colors"
+                title="Refresh preview"
+              >
+                <RefreshCw className="w-3.5 h-3.5" />
+              </button>
               <button
                 onClick={() => setIsFullscreen(!isFullscreen)}
-                className="p-2 text-text-placeholder hover:text-text-body hover:bg-surface-muted rounded-lg transition-colors"
+                className="p-1.5 text-text-placeholder hover:text-text-body hover:bg-surface-muted rounded-lg transition-colors"
                 title={isFullscreen ? 'Exit fullscreen (Esc)' : 'Fullscreen'}
               >
-                {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+                {isFullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
               </button>
 
-              {/* Review toggle button */}
-              {isReviewActive ? (() => {
-                const reviewedCount = overlays.filter(o => o.consultant_verdict).length
-                const totalCount = overlays.length
-                const allReviewed = totalCount > 0 && reviewedCount === totalCount
-
-                return allReviewed ? (
-                  <button
-                    onClick={async () => {
-                      setIsEndingReview(true)
-                      try {
-                        await onEndReview()
-                      } finally {
-                        setIsEndingReview(false)
-                      }
-                    }}
-                    disabled={isEndingReview}
-                    className="flex items-center gap-1.5 px-4 py-1.5 text-sm font-medium text-white bg-brand-primary hover:bg-[#25785A] rounded-xl transition-colors shadow-sm disabled:opacity-60"
-                  >
-                    {isEndingReview ? (
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    ) : (
-                      <CheckCircle2 className="w-3.5 h-3.5" />
-                    )}
-                    {isEndingReview ? 'Ending...' : 'End Review'}
-                  </button>
-                ) : (
-                  <button
-                    disabled
-                    className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-text-placeholder bg-[#F0F0F0] rounded-xl cursor-not-allowed"
-                    title={`Review all features before ending (${reviewedCount}/${totalCount})`}
-                  >
-                    <Square className="w-3.5 h-3.5" />
-                    End Review ({reviewedCount}/{totalCount})
-                  </button>
-                )
-              })() : (
+              {/* Review toggle */}
+              {isReviewActive ? (
+                <button
+                  onClick={async () => {
+                    setIsEndingReview(true)
+                    try {
+                      await onEndReview()
+                    } finally {
+                      setIsEndingReview(false)
+                    }
+                  }}
+                  disabled={isEndingReview}
+                  className="flex items-center gap-1.5 px-3 py-1 text-xs font-medium text-[#666666] bg-[#F4F4F4] hover:bg-[#EBEBEB] rounded-lg transition-colors disabled:opacity-60"
+                >
+                  {isEndingReview ? (
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                  ) : null}
+                  {isEndingReview ? 'Ending...' : 'Prepare for Client'}
+                </button>
+              ) : (
                 <button
                   onClick={onStartReview}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-brand-primary bg-brand-primary-light hover:bg-brand-primary-light rounded-lg transition-colors"
+                  className="flex items-center gap-1.5 px-3 py-1 text-xs font-medium text-brand-primary bg-brand-primary-light hover:bg-brand-primary-light rounded-lg transition-colors"
                 >
-                  <Layers className="w-4 h-4" />
-                  Review with Overlays
+                  <Layers className="w-3.5 h-3.5" />
+                  Review Epics
                 </button>
               )}
             </>
@@ -267,7 +327,7 @@ export function BuildPhaseView({
         </div>
       </div>
 
-      {/* Inline URL input — only visible when actively editing (e.g. from empty state "paste URL" button) */}
+      {/* Inline URL input */}
       {!isReviewActive && isEditing && (
         <div className="px-4 py-2 bg-surface-muted border-b border-border">
           <div className="flex items-center gap-2">
@@ -277,7 +337,7 @@ export function BuildPhaseView({
               value={urlValue}
               onChange={(e) => setUrlValue(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="https://your-prototype.vercel.app"
+              placeholder="https://your-prototype.netlify.app"
               className="flex-1 px-3 py-1.5 text-sm bg-white border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary"
               disabled={isSaving}
             />
@@ -291,36 +351,26 @@ export function BuildPhaseView({
         </div>
       )}
 
-      {/* Tour controller bar — only during review */}
-      {isReviewActive && session && (
-        <TourController
-          overlays={overlays}
-          vpSteps={vpSteps}
-          routeFeatureMap={routeFeatureMap}
-          frameRef={frameRef}
-          isFrameReady={isFrameReady}
-          onStepChange={onTourStepChange}
-          onTourEnd={onTourEnd}
-          autoStart={reviewTourMode === 'tour'}
+      {/* Epic Tour Controller — only during review */}
+      {isReviewActive && session && epicPlan && epicPlan.vision_epics.length > 0 && (
+        <EpicTourController
+          epicPlan={epicPlan}
+          onPhaseChange={onEpicPhaseChange ?? (() => {})}
+          onEpicChange={onEpicIndexChange ?? (() => {})}
+          onCardChange={handleCardChange}
+          onRouteChange={handleRouteChange}
+          autoStart
+          confirmedSet={confirmedSet}
         />
       )}
 
-      {/* Prototype preview */}
+      {/* Prototype preview — single iframe, src changes when tour navigates */}
       <div className="flex-1 bg-gray-100 relative min-h-0">
-        {isReviewActive && prototypeUrl ? (
-          /* Bridge-connected frame during review */
-          <PrototypeFrame
-            ref={frameRef as React.Ref<PrototypeFrameHandle>}
-            deployUrl={prototypeUrl}
-            onFeatureClick={onFeatureClick}
-            onPageChange={onPageChange}
-            onIframeReady={onFrameReady}
-          />
-        ) : prototypeUrl ? (
-          /* Normal dumb iframe */
+        {prototypeUrl ? (
           <iframe
+            ref={iframeRef}
             key={iframeKey}
-            src={prototypeUrl}
+            src={isReviewActive ? activeIframeSrc : prototypeUrl}
             className="w-full h-full border-0"
             title="Prototype Preview"
             sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
@@ -331,9 +381,9 @@ export function BuildPhaseView({
               <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-brand-primary-light flex items-center justify-center">
                 <Sparkles className="w-8 h-8 text-brand-primary" />
               </div>
-              <h3 className="text-base font-semibold text-text-body mb-2">Generate a Prototype</h3>
+              <h3 className="text-base font-semibold text-[#37352f] mb-2">Add a Prototype</h3>
               <p className="text-sm text-text-placeholder mb-5">
-                Turn your discovery data into a v0.dev prompt with your chosen design direction.
+                Paste your prototype URL to start reviewing epics.
               </p>
               {onGeneratePrototype ? (
                 <button
@@ -362,7 +412,6 @@ export function BuildPhaseView({
             </div>
           </div>
         )}
-
       </div>
 
       {/* Design Selection Chat */}

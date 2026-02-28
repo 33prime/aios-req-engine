@@ -214,8 +214,17 @@ class Settings(BaseSettings):
         default="/tmp/aios-prototypes",
         description="Temp directory for prototype repos"
     )
-    V0_API_KEY: str | None = Field(default=None, description="v0.dev API key")
-    V0_API_URL: str = Field(default="https://api.v0.dev", description="v0.dev API endpoint")
+    # GitHub integration (for prototype repos)
+    GITHUB_TOKEN: str | None = Field(default=None, description="GitHub PAT for repo creation")
+    GITHUB_ORG: str = Field(default="readytogo-ai", description="GitHub org for prototype repos")
+
+    # Netlify integration (for prototype deployment)
+    NETLIFY_AUTH_TOKEN: str | None = Field(
+        default=None, description="Netlify auth token for site creation"
+    )
+    NETLIFY_TEAM_SLUG: str = Field(
+        default="readytogo", description="Netlify team slug"
+    )
 
     # Google OAuth (server-side Calendar API calls)
     GOOGLE_CLIENT_ID: str | None = Field(default=None, description="Google OAuth client ID")

@@ -113,7 +113,7 @@ def load_context(state: EvalPipelineState) -> dict[str, Any]:
             version_number=1,
             prompt_text=prompt_text,
             generation_model=settings.PROTOTYPE_PROMPT_MODEL,
-            generation_chain="generate_v0_prompt",
+            generation_chain="generate_project_plan",
             input_context_snapshot={
                 "feature_count": len(features),
                 "persona_count": len(personas),
@@ -449,27 +449,22 @@ def save_and_notify(state: EvalPipelineState) -> dict[str, Any]:
 
 
 def refine_prompt(state: EvalPipelineState) -> dict[str, Any]:
-    """Generate a refined prompt and create new prompt version."""
-    from app.chains.refine_v0_prompt import refine_v0_prompt_v2
-    from app.db.prompt_learnings import get_active_learnings
+    """Generate a refined prompt and create new prompt version.
+
+    NOTE: v0 prompt refinement chain was removed. This node now logs a
+    notification instead. Use the builder pipeline for new prototypes.
+    """
     from app.db.prompt_versions import create_prompt_version
 
     settings = get_settings()
 
-    active_learnings = get_active_learnings()
-
-    refined_text, usage = refine_v0_prompt_v2(
-        client=state.anthropic_client,
-        system_blocks=state.cached_system_blocks,
-        context_blocks=state.cached_context_blocks,
-        original_prompt=state.prompt_text,
-        deterministic_scores=state.det_scores,
-        llm_scores=state.llm_scores,
-        gaps=state.gaps,
-        version_history=state.version_history,
-        active_learnings=active_learnings,
-        model=settings.EVAL_PIPELINE_MODEL,
+    # v0 refinement chain removed — log and create a version record for tracking
+    logger.warning(
+        f"Prompt refinement skipped for prototype {state.prototype_id}: "
+        "v0 refinement chain removed. Use builder pipeline instead."
     )
+
+    refined_text = state.prompt_text  # Keep original
 
     new_version_number = state.version_number + 1
     pv = create_prompt_version(
@@ -478,20 +473,12 @@ def refine_prompt(state: EvalPipelineState) -> dict[str, Any]:
         prompt_text=refined_text,
         parent_version_id=UUID(state.prompt_version_id),
         generation_model=settings.EVAL_PIPELINE_MODEL,
-        generation_chain="refine_v0_prompt_v2",
+        generation_chain="refine_skipped",
         input_context_snapshot={
             "feature_count": len(state.features),
             "persona_count": len(state.personas),
             "vp_step_count": len(state.vp_steps),
         },
-        learnings_injected=[
-            {"id": l.get("id", ""), "learning": l.get("learning", "")}
-            for l in active_learnings[:10]
-        ],
-        tokens_input=usage.get("input_tokens", 0),
-        tokens_output=usage.get("output_tokens", 0),
-        tokens_cache_read=usage.get("cache_read", 0),
-        tokens_cache_create=usage.get("cache_create", 0),
     )
 
     logger.info(f"Refined prompt v{new_version_number} for prototype {state.prototype_id}")

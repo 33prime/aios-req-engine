@@ -253,6 +253,7 @@ export type AiosBridgeCommand =
   | { type: 'aios:navigate'; path: string }
   | { type: 'aios:show-radar'; features: RadarFeature[] }
   | { type: 'aios:clear-radar' }
+  | { type: 'aios:tour-navigate'; path?: string | null; highlightAfter?: boolean; featureId?: string; featureName?: string; description?: string; stepLabel?: string; componentName?: string; keywords?: string[]; features?: RadarFeature[] }
   | { type: 'aios:start-tour'; steps: Array<{ featureId: string; featureName: string; description: string; stepLabel: string; route: string | null }> }
   | { type: 'aios:next-step' }
   | { type: 'aios:prev-step' }
@@ -332,4 +333,31 @@ export interface ConvergenceSnapshot {
   question_coverage: number
   sessions_completed: number
   per_feature: FeatureConvergence[]
+}
+
+// === Build Pipeline ===
+
+export type BuildPipelineStatus =
+  | 'pending'
+  | 'phase0'
+  | 'planning'
+  | 'rendering'
+  | 'building'
+  | 'merging'
+  | 'deploying'
+  | 'completed'
+  | 'failed'
+
+export interface BuildStatus {
+  build_id: string
+  status: BuildPipelineStatus
+  streams_total: number
+  streams_completed: number
+  tasks_total: number
+  tasks_completed: number
+  total_tokens_used: number
+  total_cost_usd: number
+  deploy_url: string | null
+  github_repo_url: string | null
+  errors: string[]
 }
