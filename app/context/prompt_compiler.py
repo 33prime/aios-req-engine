@@ -360,6 +360,35 @@ def format_horizon_context(horizon_state: dict, frame: CognitiveFrame) -> str | 
     return "# Horizons\n" + "\n".join(parts)
 
 
+# ── Forge Intelligence Formatting ─────────────────────────────────
+
+
+def format_forge_context(forge_state: dict, frame: CognitiveFrame) -> str | None:
+    """Format Forge intelligence for prompt. ~100-200 tokens."""
+    lines = ["# Module Intelligence (RTG Forge)"]
+
+    # In BRD/discovery phase: surface decision slots as discovery probes
+    if frame.mode in (CognitiveMode.DISCOVER, CognitiveMode.SYNTHESIZE):
+        for slot in forge_state.get("decision_slots", [])[:3]:
+            q = slot.get("question", "")
+            mod = slot.get("module", "")
+            lines.append(f"- Decision needed: {q} ({mod})")
+
+    # Module matches — always show top 5
+    for match in forge_state.get("matched_modules", [])[:5]:
+        lines.append(
+            f"- {match.get('feature_name', '')} → {match.get('module_name', '')} "
+            f"[{match.get('category', '')}]"
+        )
+
+    # Horizon suggestions from co-occurrence
+    suggestions = forge_state.get("horizon_suggestions", {})
+    if suggestions:
+        lines.append(f"- Co-occurrence suggests: {len(suggestions)} horizon adjustments")
+
+    return "\n".join(lines) if len(lines) > 1 else None
+
+
 # ── Main Compiler ──────────────────────────────────────────────────
 
 
@@ -374,6 +403,7 @@ def compile_prompt(
     horizon_state: dict,
     conversation_context: str | None = None,
     warm_memory: str = "",
+    forge_state: dict | None = None,
 ) -> CompiledPrompt:
     """Compile a full prompt from cognitive frame + project state.
 
@@ -463,6 +493,12 @@ def compile_prompt(
         horizon_block = format_horizon_context(horizon_state, frame)
         if horizon_block:
             dynamic_sections.append(horizon_block)
+
+    # Forge module intelligence (~0-200t, conditional)
+    if forge_state and forge_state.get("matched_modules"):
+        forge_block = format_forge_context(forge_state, frame)
+        if forge_block:
+            dynamic_sections.append(forge_block)
 
     # Retrieval evidence (fills remaining budget, ~500-1500t)
     if retrieval_context:

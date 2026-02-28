@@ -53,6 +53,9 @@ class PrebuildState:
     # Feature specs
     feature_specs: list[FeatureBuildSpec] = field(default_factory=list)
 
+    # Forge module matches (for feedback loop)
+    forge_matches: list = field(default_factory=list)  # list[ForgeModuleMatch]
+
     # Errors
     errors: list[str] = field(default_factory=list)
 
@@ -190,6 +193,76 @@ def graph_enrich(state: PrebuildState) -> PrebuildState:
     except Exception as e:
         state.errors.append(f"Graph enrichment failed: {e}")
         logger.warning(f"Graph enrichment failed: {e}")
+
+    return state
+
+
+def forge_enrich(state: PrebuildState) -> PrebuildState:
+    """Enrich features with Forge module intelligence for depth assignment."""
+    import asyncio
+
+    from app.services.forge_service import get_forge_service, save_forge_matches
+
+    forge = get_forge_service()
+    if not forge:
+        return state
+
+    try:
+        features_dicts = [
+            {"id": f["id"], "name": f.get("name", ""), "overview": f.get("overview", "")}
+            for f in state.features
+        ]
+
+        loop = asyncio.get_event_loop()
+        matches = loop.run_until_complete(
+            forge.match_features(features_dicts, stage="prototype")
+        )
+
+        if matches:
+            # Get co-occurrence for matched modules
+            matched_slugs = list({m.module_slug for m in matches})
+            co_occ = {}
+            if matched_slugs:
+                try:
+                    co_occ_result = loop.run_until_complete(
+                        forge.get_co_occurrence(matched_slugs)
+                    )
+                    # Index by (module_a, module_b)
+                    for pair in co_occ_result.get("pairs", []):
+                        key = (pair.get("module_a", ""), pair.get("module_b", ""))
+                        co_occ[key] = pair
+                except Exception:
+                    logger.debug("Forge co-occurrence fetch failed", exc_info=True)
+
+            # Annotate matches with co-occurrence and derive horizon suggestions
+            for match in matches:
+                for other_slug in match.companion_modules:
+                    key = tuple(sorted([match.module_slug, other_slug]))
+                    pair_data = co_occ.get(key)
+                    if pair_data:
+                        match.co_occurrence = {
+                            "rate": pair_data.get("co_occurrence_rate", 0),
+                            "median_gap_days": pair_data.get("median_gap_days", 0),
+                            "horizon_signal": pair_data.get("horizon_signal", ""),
+                        }
+                        # Apply horizon suggestion if co-occurrence provides one
+                        h_signal = pair_data.get("horizon_signal")
+                        if h_signal and match.feature_id:
+                            state.horizons.setdefault(match.feature_id, h_signal)
+                        break
+
+            state.forge_matches = matches
+
+            # Persist matches
+            try:
+                save_forge_matches(str(state.project_id), matches)
+            except Exception:
+                logger.debug("Forge match persistence failed", exc_info=True)
+
+            logger.info(f"Forge enrichment: {len(matches)} module matches")
+
+    except Exception:
+        logger.debug("Forge enrichment skipped", exc_info=True)
 
     return state
 
@@ -384,6 +457,14 @@ def assign_depths_and_save(state: PrebuildState) -> PrebuildState:
         for i, f in enumerate(confirmed):
             step_by_feature[f["id"]] = state.solution_flow_steps[i % step_count]
 
+    # Build Forge match lookup: feature_id → module status
+    forge_status_by_feature: dict[str, str] = {}
+    for m in state.forge_matches:
+        fid_match = m.feature_id if hasattr(m, "feature_id") else ""
+        status = m.status if hasattr(m, "status") else ""
+        if fid_match and status:
+            forge_status_by_feature[fid_match] = status
+
     for feature in state.features:
         fid = feature["id"]
         horizon = state.horizons.get(fid, "H1")
@@ -393,7 +474,8 @@ def assign_depths_and_save(state: PrebuildState) -> PrebuildState:
         step = step_by_feature.get(fid)
 
         depth, reason = _assign_feature_depth(
-            feature, step, horizon, priority, question_count
+            feature, step, horizon, priority, question_count,
+            forge_module_status=forge_status_by_feature.get(fid),
         )
 
         # Find epic index
@@ -479,8 +561,9 @@ def _assign_feature_depth(
     horizon: str,
     priority: str,
     open_question_count: int,
+    forge_module_status: str | None = None,
 ) -> tuple[str, str]:
-    """Assign build depth for a feature based on horizon, phase, priority, uncertainty."""
+    """Assign build depth for a feature based on horizon, phase, priority, uncertainty, Forge."""
     # H2/H3 → always placeholder
     if horizon in ("H2", "H3"):
         return "placeholder", f"Future horizon ({horizon})"
@@ -489,6 +572,13 @@ def _assign_feature_depth(
     cs = feature.get("confirmation_status", "ai_generated")
     if cs not in ("confirmed_client", "confirmed_consultant"):
         return "placeholder", "Not confirmed"
+
+    # Forge module status influences depth (before phase logic)
+    if forge_module_status:
+        if forge_module_status == "stub":
+            return "placeholder", "Forge module is stub (not ready)"
+        if forge_module_status == "draft":
+            return "visual", "Forge module is draft (limited maturity)"
 
     # Phase-based default
     phase_map = {
@@ -507,6 +597,11 @@ def _assign_feature_depth(
     else:
         reason = f"Phase: {phase}"
 
+    # Forge stable/beta module match + H1 → full depth if visual
+    if forge_module_status in ("stable", "beta") and base == "visual":
+        base = "full"
+        reason = f"Forge module ({forge_module_status}) boost"
+
     # High uncertainty → visual (discovery moment)
     if open_question_count >= 3 and base == "full":
         base = "visual"
@@ -521,10 +616,11 @@ def _assign_feature_depth(
 
 
 def build_prebuild_graph():
-    """Build the 6-node pre-build intelligence graph."""
+    """Build the 7-node pre-build intelligence graph."""
     graph = StateGraph(PrebuildState)
 
     graph.add_node("load_prebuild_context", load_prebuild_context)
+    graph.add_node("forge_enrich", forge_enrich)
     graph.add_node("graph_enrich", graph_enrich)
     graph.add_node("assemble_epics", assemble_epics)
     graph.add_node("compose_narratives", compose_narratives)
@@ -532,7 +628,8 @@ def build_prebuild_graph():
     graph.add_node("assign_depths_and_save", assign_depths_and_save)
 
     graph.set_entry_point("load_prebuild_context")
-    graph.add_edge("load_prebuild_context", "graph_enrich")
+    graph.add_edge("load_prebuild_context", "forge_enrich")
+    graph.add_edge("forge_enrich", "graph_enrich")
     graph.add_edge("graph_enrich", "assemble_epics")
     graph.add_edge("assemble_epics", "compose_narratives")
     graph.add_edge("compose_narratives", "build_overlay_content")

@@ -135,6 +135,7 @@ async def generate_chat_stream(
                 horizon_state=chat_ctx.horizon_state,
                 conversation_context=config.conversation_context,
                 warm_memory=chat_ctx.warm_memory,
+                forge_state=chat_ctx.forge_state,
             )
             system_blocks = [
                 {

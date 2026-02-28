@@ -455,6 +455,41 @@ async def _run_build_pipeline(
                     build_id, {"phase": "deploying", "message": f"Deploy failed: {e}"}
                 )
 
+        # Fire-and-forget: send build insights to Forge
+        try:
+            import asyncio as _asyncio
+
+            from app.services.forge_feedback import send_build_insights_to_forge
+
+            # Get feature specs from prebuild intelligence
+            _feature_specs = []
+            try:
+                from app.db.prototypes import get_prototype_for_project
+
+                proto = get_prototype_for_project(project_id)
+                if proto and proto.get("prebuild_intelligence"):
+                    pb = proto["prebuild_intelligence"]
+                    _feature_specs = pb.get("feature_specs", [])
+            except Exception:
+                pass
+
+            if _feature_specs:
+                p_name = getattr(payload, "project_name", "")
+                specs = [
+                    s.model_dump() if hasattr(s, "model_dump") else s
+                    for s in _feature_specs
+                ]
+                _asyncio.ensure_future(
+                    send_build_insights_to_forge(
+                        project_id=str(project_id),
+                        project_name=p_name,
+                        feature_specs=specs,
+                        forge_matches=[],
+                    )
+                )
+        except Exception:
+            pass  # Forge feedback is non-critical
+
         update_build_status(build_id, "completed")
         append_build_log(build_id, {"phase": "completed", "message": "Build pipeline finished"})
 

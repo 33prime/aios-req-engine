@@ -223,6 +223,20 @@ async def apply_entity_patches(
         except Exception as e:
             logger.warning(f"Entity co-occurrence linking failed: {e}")
 
+    # Fire-and-forget: match newly extracted features against Forge modules
+    feature_results = [
+        a for a in result.applied if a.get("entity_type") == "feature"
+    ]
+    if feature_results:
+        try:
+            import asyncio
+
+            asyncio.ensure_future(
+                _trigger_forge_matching(str(project_id), feature_results)
+            )
+        except Exception:
+            logger.debug("Forge matching trigger skipped", exc_info=True)
+
     logger.info(
         f"Patch application complete: {result.total_applied} applied, "
         f"{len(result.skipped)} skipped, {result.total_escalated} escalated"
@@ -1028,6 +1042,35 @@ def _link_entities_by_cooccurrence(
                 )
             except Exception as e:
                 logger.debug(f"Co-occurrence link failed {entity_id}->{other_id}: {e}")
+
+
+async def _trigger_forge_matching(
+    project_id: str, feature_results: list[dict]
+) -> None:
+    """Fire-and-forget: match newly extracted features against Forge modules."""
+    try:
+        from app.services.forge_service import get_forge_service, save_forge_matches
+
+        forge = get_forge_service()
+        if not forge:
+            return
+
+        features = [
+            {"id": f["entity_id"], "name": f.get("name", ""), "overview": ""}
+            for f in feature_results
+            if f.get("entity_id")
+        ]
+        if not features:
+            return
+
+        matches = await forge.match_features(features, stage="brd")
+        if matches:
+            save_forge_matches(project_id, matches)
+            logger.info(
+                f"Forge: {len(matches)} module matches for {len(features)} features"
+            )
+    except Exception:
+        logger.debug("Forge matching skipped", exc_info=True)
 
 
 def _record_evidence_links(

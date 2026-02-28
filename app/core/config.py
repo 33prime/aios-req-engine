@@ -298,6 +298,20 @@ class Settings(BaseSettings):
         description="Claude model for verdict chat during prototype review"
     )
 
+    # RTG Forge integration
+    FORGE_API_URL: str = Field(
+        default="", description="RTG Forge HTTP API base URL (empty = disabled)"
+    )
+    FORGE_API_KEY: str = Field(
+        default="", description="RTG Forge API key for authentication"
+    )
+    FORGE_CACHE_TTL: int = Field(
+        default=300, description="Forge module cache TTL in seconds"
+    )
+    FORGE_MATCH_THRESHOLD: float = Field(
+        default=0.40, description="Min Jaccard score for feature-module match"
+    )
+
     # Chat Assistant configuration
     CHAT_MODEL: str = Field(
         default="claude-haiku-4-5-20251001",

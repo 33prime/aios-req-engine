@@ -72,6 +72,7 @@ class ChatContext:
     confidence_state: dict = field(default_factory=dict)
     horizon_state: dict = field(default_factory=dict)
     warm_memory: str = ""  # Cross-conversation context
+    forge_state: dict = field(default_factory=dict)  # Forge module intelligence
 
 
 async def build_retrieval_context(
@@ -195,6 +196,17 @@ async def _safe_load_horizon(project_id: str) -> dict:
         return {}
 
 
+async def _safe_load_forge(project_id: str, page_context: str | None) -> dict:
+    """Load Forge intelligence, returning empty on failure."""
+    try:
+        from app.context.forge_intelligence import load_forge_intelligence
+
+        return await load_forge_intelligence(project_id, page_context or "")
+    except Exception as e:
+        logger.debug(f"Forge intelligence load failed (non-fatal): {e}")
+        return {}
+
+
 async def _safe_load_warm_memory(project_id: str, conversation_id: UUID | str | None) -> str:
     """Load warm memory, returning empty on failure."""
     try:
@@ -214,10 +226,10 @@ async def assemble_chat_context(
     supabase: Any,
     conversation_id: UUID | str | None = None,
 ) -> ChatContext:
-    """Assemble all chat context in parallel (4 core + 4 intelligence)."""
+    """Assemble all chat context in parallel (4 core + 5 intelligence)."""
     pid = str(project_id)
 
-    # All 7 tasks run in parallel
+    # All 8 tasks run in parallel
     (
         context_frame,
         solution_flow_ctx,
@@ -226,6 +238,7 @@ async def assemble_chat_context(
         confidence_state,
         horizon_state,
         warm_memory,
+        forge_state,
     ) = await asyncio.gather(
         compute_context_frame(project_id, max_actions=5),
         build_solution_flow_ctx(page_context, pid, focused_entity),
@@ -234,6 +247,7 @@ async def assemble_chat_context(
         _safe_load_confidence(pid),
         _safe_load_horizon(pid),
         _safe_load_warm_memory(pid, conversation_id),
+        _safe_load_forge(pid, page_context),
     )
 
     # Awareness needs project_name, loaded after the gather
@@ -248,4 +262,5 @@ async def assemble_chat_context(
         confidence_state=confidence_state,
         horizon_state=horizon_state,
         warm_memory=warm_memory,
+        forge_state=forge_state,
     )
