@@ -145,9 +145,9 @@ class NetlifyService:
         async with httpx.AsyncClient(timeout=60) as client:
             # 1. Create headless site (no repo link)
             resp = await client.post(
-                f"{NETLIFY_API}/{self.team_slug}/sites",
+                f"{NETLIFY_API}/sites",
                 headers=self._headers,
-                json={"name": name},
+                json={"name": name, "account_slug": self.team_slug},
             )
             resp.raise_for_status()
             site = resp.json()

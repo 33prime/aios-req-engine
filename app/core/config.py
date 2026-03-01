@@ -219,7 +219,7 @@ class Settings(BaseSettings):
         default=None, description="Netlify auth token for site creation"
     )
     NETLIFY_TEAM_SLUG: str = Field(
-        default="readytogo", description="Netlify team slug"
+        default="steadynamic", description="Netlify account slug"
     )
 
     # Google OAuth (server-side Calendar API calls)
