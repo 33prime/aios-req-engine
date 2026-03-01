@@ -52,6 +52,18 @@ class PayloadSolutionFlowStep(BaseModel):
     phase: Literal["entry", "core_experience", "output", "admin"] = "core_experience"
     success_criteria: list[str] = Field(default_factory=list)
     how_it_works: str = ""
+    # Rich fields for planning agent
+    information_fields: list[dict] = Field(default_factory=list)
+    ai_config: dict | None = None
+    implied_pattern: str | None = None
+    actors: list[str] = Field(default_factory=list)
+    pain_points_addressed: list[dict] = Field(default_factory=list)
+    goals_addressed: list[str] = Field(default_factory=list)
+    linked_feature_ids: list[str] = Field(default_factory=list)
+    open_questions: list[dict] = Field(default_factory=list)
+    image_url: str | None = None
+    feel_description: str | None = None
+    confirmation_status: str = "ai_generated"
 
 
 class PayloadBusinessDriver(BaseModel):

@@ -263,6 +263,17 @@ async def assemble_prototype_payload(
             phase=s.get("phase", "core_experience") or "core_experience",
             success_criteria=s.get("success_criteria", []) or [],
             how_it_works=s.get("mock_data_narrative", "") or "",
+            information_fields=s.get("information_fields", []) or [],
+            ai_config=s.get("ai_config"),
+            implied_pattern=s.get("implied_pattern"),
+            actors=s.get("actors", []) or [],
+            pain_points_addressed=s.get("pain_points_addressed", []) or [],
+            goals_addressed=s.get("goals_addressed", []) or [],
+            linked_feature_ids=[str(fid) for fid in (s.get("linked_feature_ids", []) or [])],
+            open_questions=s.get("open_questions", []) or [],
+            image_url=s.get("image_url"),
+            feel_description=s.get("feel_description"),
+            confirmation_status=s.get("confirmation_status", "ai_generated") or "ai_generated",
         )
         for s in (raw_flow_steps or [])
     ]
