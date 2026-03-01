@@ -144,15 +144,26 @@ class NetlifyService:
 
         async with httpx.AsyncClient(timeout=60) as client:
             # 1. Create headless site (no repo link)
+            # If name is taken (422), retry with random suffix
             resp = await client.post(
                 f"{NETLIFY_API}/sites",
                 headers=self._headers,
                 json={"name": name, "account_slug": self.team_slug},
             )
+            if resp.status_code == 422:
+                import secrets
+
+                fallback = f"{name[:40]}-{secrets.token_hex(3)}"
+                logger.warning(f"Site name '{name}' taken, retrying as '{fallback}'")
+                resp = await client.post(
+                    f"{NETLIFY_API}/sites",
+                    headers=self._headers,
+                    json={"name": fallback, "account_slug": self.team_slug},
+                )
             resp.raise_for_status()
             site = resp.json()
             site_id = site["id"]
-            logger.info(f"Created headless site {name}: {site_id}")
+            logger.info(f"Created headless site {site.get('name', name)}: {site_id}")
 
             # 2. Create deploy with file digests
             resp = await client.post(

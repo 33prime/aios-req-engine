@@ -521,7 +521,7 @@ async def _run_build_pipeline(
             )
             try:
                 deploy_url, github_url = await _deploy_prototype(
-                    project_id, local_path, payload, settings
+                    project_id, local_path, payload, settings, build_id
                 )
                 update_build(
                     build_id,
@@ -573,8 +573,11 @@ async def _run_build_pipeline(
         update_build_status(build_id, "failed", error=str(e))
 
 
-async def _deploy_prototype(project_id, local_path, payload, settings) -> tuple[str, str]:
+async def _deploy_prototype(
+    project_id, local_path, payload, settings, build_id: str = ""
+) -> tuple[str, str]:
     """Deploy prototype dist/ directly to Netlify. Returns (deploy_url, "")."""
+    import re
     from pathlib import Path
 
     from app.services.netlify_service import NetlifyService
@@ -585,7 +588,11 @@ async def _deploy_prototype(project_id, local_path, payload, settings) -> tuple[
     netlify = NetlifyService(settings.NETLIFY_AUTH_TOKEN, settings.NETLIFY_TEAM_SLUG)
 
     slug = payload.project_name.lower().replace(" ", "-")[:30] if payload.project_name else "proto"
-    site_name = f"proto-{slug}-{payload.payload_hash[:6]}"
+    # Sanitize slug to only alphanumeric + hyphens (Netlify requirement)
+    slug = re.sub(r"[^a-z0-9-]", "", slug).strip("-")
+    # Use build_id for uniqueness (each build gets its own site)
+    uid = str(build_id)[:8] if build_id else payload.payload_hash[:6]
+    site_name = f"proto-{slug}-{uid}"
     dist_path = str(Path(local_path) / "dist")
 
     deploy_url, _site_id = await netlify.deploy_from_dist(site_name, dist_path)
