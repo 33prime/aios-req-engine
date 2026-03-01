@@ -308,6 +308,8 @@ def _render_vite_scaffold(payload: PrototypePayload) -> dict[str, str]:
                 "react": "^18.3.1",
                 "react-dom": "^18.3.1",
                 "react-router-dom": "^6.28.0",
+                "qrcode.react": "^4.2.0",
+                "lucide-react": "^0.468.0",
             },
             "devDependencies": {
                 "@types/react": "^18.3.12",
@@ -522,11 +524,28 @@ def _render_vite_scaffold(payload: PrototypePayload) -> dict[str, str]:
         "\n"
         "body {\n"
         "  font-family: var(--font-body);\n"
-        "  @apply bg-white text-gray-900 antialiased;\n"
+        "  @apply bg-gray-50 text-gray-900 antialiased;\n"
         "}\n"
         "\n"
         "h1, h2, h3, h4, h5, h6 {\n"
         "  font-family: var(--font-heading);\n"
+        "}\n"
+        "\n"
+        ".glass-card {\n"
+        "  @apply bg-white/80 backdrop-blur-sm border border-white/60 shadow-lg;\n"
+        "}\n"
+        "\n"
+        ".gradient-hero {\n"
+        f"  background: linear-gradient(135deg, {primary} 0%, {secondary} 100%);\n"
+        "}\n"
+        "\n"
+        ".gradient-accent {\n"
+        f"  background: linear-gradient(135deg, {accent} 0%, {primary} 100%);\n"
+        "}\n"
+        "\n"
+        ".stat-card {\n"
+        "  @apply bg-white rounded-xl shadow-md border border-gray-100 p-6"
+        " hover:shadow-lg transition-shadow;\n"
         "}\n"
     )
 
@@ -534,24 +553,74 @@ def _render_vite_scaffold(payload: PrototypePayload) -> dict[str, str]:
     nav_links = []
     for i, (step_slug, title, _) in enumerate(step_slugs):
         path = "/" if i == 0 else f"/{step_slug}"
-        link = f'<Link to="{path}" className="hover:text-primary">{title}</Link>'
-        nav_links.append(f"          {link}")
+        safe_nav_title = _escape_jsx(title[:24])
+        nav_links.append(
+            f'        <Link to="{path}" className={{'
+            f'pathname === "{path}"'
+            f' ? "bg-primary/10 text-primary font-semibold px-3 py-1.5 rounded-full text-sm"'
+            f' : "text-gray-500 hover:text-primary px-3 py-1.5 text-sm"'
+            f"}}>{safe_nav_title}</Link>"
+        )
 
-    nav_block = "\n".join(nav_links) if nav_links else "          <span>App</span>"
+    nav_active_block = "\n".join(nav_links) if nav_links else "        <span>App</span>"
 
+    project_title = _escape_jsx(payload.project_name or "Prototype")
     files["src/components/Layout.tsx"] = (
-        "import { Link, Outlet } from 'react-router-dom'\n"
+        "import { Link, Outlet, useLocation } from 'react-router-dom'\n"
         "\n"
         "export default function Layout() {\n"
+        "  const { pathname } = useLocation()\n"
         "  return (\n"
-        '    <div className="min-h-screen flex flex-col">\n'
-        '      <nav className="border-b px-6 py-3 flex items-center gap-6'
-        ' font-heading text-sm">\n'
-        f"{nav_block}\n"
+        '    <div className="min-h-screen flex flex-col bg-gray-50">\n'
+        '      <nav className="bg-white/90 backdrop-blur-md border-b'
+        " border-gray-200/60 sticky top-0 z-50"
+        ' px-6 py-3 flex items-center gap-1">\n'
+        f'        <span className="font-heading font-bold text-primary'
+        f' text-lg mr-6">{project_title}</span>\n'
+        f"{nav_active_block}\n"
         "      </nav>\n"
         '      <main className="flex-1">\n'
         "        <Outlet />\n"
         "      </main>\n"
+        '      <footer className="border-t border-gray-200/60 bg-white/60'
+        ' backdrop-blur-sm py-6 px-8 text-center">\n'
+        '        <p className="text-xs text-gray-400">'
+        f"&copy; 2026 {project_title}. All rights reserved.</p>\n"
+        "      </footer>\n"
+        "    </div>\n"
+        "  )\n"
+        "}\n"
+    )
+
+    # ── src/components/ShareCard.tsx ─────────────────────────────────────
+    files["src/components/ShareCard.tsx"] = (
+        "import { QRCodeSVG } from 'qrcode.react'\n"
+        "\n"
+        "interface ShareCardProps {\n"
+        "  title?: string\n"
+        "  description?: string\n"
+        "}\n"
+        "\n"
+        "export function ShareCard({ title, description }: ShareCardProps) {\n"
+        "  const url = typeof window !== 'undefined' ? window.location.href : ''\n"
+        "  return (\n"
+        '    <div className="glass-card rounded-2xl p-8 text-center max-w-sm mx-auto">\n'
+        '      <div className="bg-white rounded-xl p-4 inline-block shadow-sm mb-4">\n'
+        "        <QRCodeSVG\n"
+        "          value={url}\n"
+        "          size={160}\n"
+        f'          fgColor="{primary}"\n'
+        '          level="M"\n'
+        "        />\n"
+        "      </div>\n"
+        "      {title && (\n"
+        '        <h3 className="font-heading font-semibold text-gray-900 mb-1">'
+        "{title}</h3>\n"
+        "      )}\n"
+        "      {description && (\n"
+        '        <p className="text-sm text-gray-500">{description}</p>\n'
+        "      )}\n"
+        '      <p className="text-xs text-gray-400 mt-3 break-all">{url}</p>\n'
         "    </div>\n"
         "  )\n"
         "}\n"
@@ -636,13 +705,29 @@ def _render_rich_page(
         assigned_features=assigned_features,
     )
 
+    # Entry pages get QR + ShareCard import
+    extra_import = ""
+    share_block = ""
+    if phase == "entry":
+        extra_import = "import { ShareCard } from '../components/ShareCard'\n"
+        share_block = (
+            '      <div className="py-12 px-6">\n'
+            "        <ShareCard\n"
+            '          title="Scan to Share"\n'
+            '          description="Share this experience on mobile"\n'
+            "        />\n"
+            "      </div>\n"
+        )
+
     return (
         "import { Screen, Feature } from '../lib/aios'\n"
+        f"{extra_import}"
         "\n"
         f"export default function {component_name}() {{\n"
         f"  return (\n"
         f'    <Screen name="{safe_title}">\n'
         f"{body}"
+        f"{share_block}"
         f"    </Screen>\n"
         f"  )\n"
         f"}}\n"
@@ -659,33 +744,89 @@ def _render_entry_page(
     progress: str,
     **_,
 ) -> str:
-    """Centered hero layout with single CTA — for entry/onboarding pages."""
-    hero_cls = "min-h-[80vh] flex flex-col items-center justify-center text-center px-6"
-    btn_cls = (
-        "bg-primary text-white px-8 py-3 rounded"
-        " font-heading font-semibold hover:opacity-90 transition"
-    )
+    """Centered hero with gradient, CTA, and onboarding form."""
     return (
-        f'      <div className="{hero_cls}">\n'
-        f'        <h1 className="text-4xl font-heading font-bold mb-4">{safe_title}</h1>\n'
+        # Gradient hero section
+        '      <div className="gradient-hero text-white">\n'
+        '        <div className="max-w-4xl mx-auto px-6 py-20 text-center">\n'
         + (
-            f'        <p className="text-lg text-gray-600 max-w-2xl mb-2">{goal}</p>\n'
-            if goal
-            else ""
-        )
-        + (
-            f'        <p className="text-sm text-gray-400 mb-8">{persona_greeting}</p>\n'
+            f'          <p className="text-sm font-medium text-white/70'
+            f' uppercase tracking-wider mb-4">{persona_greeting}</p>\n'
             if persona_greeting
             else ""
         )
+        + f'          <h1 className="text-5xl font-heading font-bold mb-6'
+        f' leading-tight">{safe_title}</h1>\n'
         + (
-            f'        <p className="text-gray-500 max-w-xl mb-8">{how_it_works[:300]}</p>\n'
+            f'          <p className="text-xl text-white/90'
+            f' max-w-2xl mx-auto mb-10 leading-relaxed">{goal}</p>\n'
+            if goal
+            else ""
+        )
+        + '          <div className="flex items-center justify-center gap-4">\n'
+        '            <button className="bg-white text-primary px-8 py-3.5'
+        " rounded-full font-heading font-semibold shadow-lg"
+        ' hover:shadow-xl hover:scale-105 transition-all">Get Started</button>\n'
+        '            <button className="border-2 border-white/40 text-white px-8 py-3.5'
+        " rounded-full font-heading font-medium"
+        ' hover:bg-white/10 transition-all">Learn More</button>\n'
+        "          </div>\n"
+        "        </div>\n"
+        "      </div>\n"
+        # How it works section
+        + (
+            '      <div className="max-w-4xl mx-auto px-6 py-12">\n'
+            '        <div className="glass-card rounded-2xl p-8 -mt-10 relative z-10">\n'
+            '          <h2 className="font-heading font-semibold text-lg'
+            ' text-primary mb-3">How It Works</h2>\n'
+            f'          <p className="text-gray-700 leading-relaxed">'
+            f"{how_it_works[:400]}</p>\n"
+            "        </div>\n"
+            "      </div>\n"
             if how_it_works
             else ""
         )
-        + f'        <button className="{btn_cls}">\n'
-        "          Get Started\n"
-        "        </button>\n" + f"{progress}" + f"{feature_cards}" + "      </div>\n"
+        # Quick survey / onboarding questions
+        + '      <div className="max-w-2xl mx-auto px-6 py-8">\n'
+        '        <h2 className="font-heading font-semibold text-xl text-center'
+        ' mb-6">Tell Us About Your Needs</h2>\n'
+        '        <div className="space-y-4">\n'
+        '          <div className="glass-card rounded-xl p-5">\n'
+        '            <label className="block text-sm font-medium'
+        ' text-gray-700 mb-2">What best describes your role?</label>\n'
+        '            <div className="grid grid-cols-2 gap-2">\n'
+        '              <button className="border-2 border-gray-200'
+        " rounded-lg px-4 py-3 text-sm hover:border-primary"
+        ' hover:bg-primary/5 transition-all text-left">'
+        "Executive / Decision Maker</button>\n"
+        '              <button className="border-2 border-gray-200'
+        " rounded-lg px-4 py-3 text-sm hover:border-primary"
+        ' hover:bg-primary/5 transition-all text-left">'
+        "Operations / Manager</button>\n"
+        '              <button className="border-2 border-gray-200'
+        " rounded-lg px-4 py-3 text-sm hover:border-primary"
+        ' hover:bg-primary/5 transition-all text-left">'
+        "Technical / Developer</button>\n"
+        '              <button className="border-2 border-gray-200'
+        " rounded-lg px-4 py-3 text-sm hover:border-primary"
+        ' hover:bg-primary/5 transition-all text-left">'
+        "End User / Consumer</button>\n"
+        "            </div>\n"
+        "          </div>\n"
+        '          <div className="glass-card rounded-xl p-5">\n'
+        '            <label className="block text-sm font-medium'
+        ' text-gray-700 mb-2">What is your primary goal?</label>\n'
+        '            <textarea className="w-full border-2 border-gray-200'
+        " rounded-lg px-4 py-3 text-sm resize-none focus:border-primary"
+        ' focus:ring-2 focus:ring-primary/20 outline-none transition-all"'
+        ' rows={3} placeholder="Describe what you hope to achieve..." />\n'
+        "          </div>\n"
+        '          <button className="w-full bg-primary text-white py-3.5'
+        " rounded-xl font-heading font-semibold shadow-md"
+        ' hover:shadow-lg hover:brightness-110 transition-all">'
+        "Continue</button>\n"
+        "        </div>\n"
+        "      </div>\n" + f"{progress}" + f"{feature_cards}"
     )
 
 
@@ -698,16 +839,34 @@ def _render_core_experience_page(
     progress: str,
     **_,
 ) -> str:
-    """Full-width card grid layout — for core experience pages."""
+    """Full-width card grid with colored accents — for core experience pages."""
     return (
-        '      <div className="p-8">\n'
+        '      <div className="max-w-6xl mx-auto px-6 py-10">\n'
         f"{progress}"
-        f'        <h1 className="text-3xl font-heading font-bold mb-2">{safe_title}</h1>\n'
-        + (f'        <p className="text-gray-500 mb-6">{goal}</p>\n' if goal else "")
+        # Page header with accent bar
+        '        <div className="flex items-start gap-4 mb-8">\n'
+        '          <div className="w-1.5 h-12 rounded-full bg-primary flex-shrink-0 mt-1">'
+        "</div>\n"
+        "          <div>\n"
+        f'            <h1 className="text-3xl font-heading font-bold'
+        f' text-gray-900">{safe_title}</h1>\n'
+        + (f'            <p className="text-gray-500 mt-1">{goal}</p>\n' if goal else "")
+        + "          </div>\n"
+        "        </div>\n"
+        # Narrative in a colored card
         + (
-            f'        <div className="bg-gray-50 rounded p-6 mb-8">\n'
-            f'          <p className="text-gray-700 leading-relaxed">{how_it_works[:500]}</p>\n'
-            f"        </div>\n"
+            '        <div className="bg-gradient-to-r from-primary/5 to-accent/5'
+            ' rounded-2xl p-8 mb-10 border border-primary/10">\n'
+            '          <div className="flex items-center gap-2 mb-3">\n'
+            '            <span className="w-8 h-8 rounded-full bg-primary/10'
+            ' flex items-center justify-center text-primary text-sm">'
+            "&#9733;</span>\n"
+            '            <h2 className="font-heading font-semibold'
+            ' text-gray-800">Overview</h2>\n'
+            "          </div>\n"
+            f'          <p className="text-gray-700 leading-relaxed">'
+            f"{how_it_works[:500]}</p>\n"
+            "        </div>\n"
             if how_it_works
             else ""
         )
@@ -727,37 +886,63 @@ def _render_output_page(
     success_criteria: list[str],
     **_,
 ) -> str:
-    """Dashboard/results layout — for output pages."""
-    # Build metric summary cards from success criteria
+    """Dashboard/results layout with colored stat cards."""
+    # Build metric summary cards with color variety
     stat_cards = ""
-    sample_values = ["87%", "24", "3.2x", "$12K", "92%", "156", "4.8"]
+    sample_values = ["87%", "24", "3.2x", "$12K", "92%", "156", "4.8", "98%"]
+    card_styles = [
+        ("bg-primary/10", "text-primary"),
+        ("bg-accent/10", "text-accent"),
+        ("bg-secondary/10", "text-secondary"),
+        ("bg-green-50", "text-green-600"),
+    ]
     for i, criterion in enumerate(success_criteria[:4]):
         val = sample_values[i % len(sample_values)]
         safe_crit = _escape_jsx(criterion[:60])
+        bg_cls, txt_cls = card_styles[i % len(card_styles)]
         stat_cards += (
-            f'          <div className="bg-white rounded shadow-sm border p-5">\n'
-            f'            <p className="text-3xl font-heading font-bold text-primary">{val}</p>\n'
+            f'          <div className="stat-card">\n'
+            f'            <div className="w-10 h-10 rounded-xl {bg_cls}'
+            f' flex items-center justify-center mb-3">\n'
+            f'              <span className="{txt_cls} font-bold text-lg">'
+            f"{val[:2]}</span>\n"
+            "            </div>\n"
+            f'            <p className="text-3xl font-heading font-bold'
+            f' {txt_cls}">{val}</p>\n'
             f'            <p className="text-sm text-gray-500 mt-1">{safe_crit}</p>\n'
             f"          </div>\n"
         )
 
     return (
-        '      <div className="p-8">\n'
+        '      <div className="max-w-6xl mx-auto px-6 py-10">\n'
         f"{progress}"
-        f'        <h1 className="text-3xl font-heading font-bold mb-2">{safe_title}</h1>\n'
-        + (f'        <p className="text-gray-500 mb-6">{goal}</p>\n' if goal else "")
+        # Header
+        f'        <h1 className="text-3xl font-heading font-bold'
+        f' text-gray-900 mb-1">{safe_title}</h1>\n'
+        + (f'        <p className="text-gray-500 mb-8">{goal}</p>\n' if goal else "")
+        # Stat cards grid
         + (
-            f'        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">\n'
+            '        <div className="grid grid-cols-2 lg:grid-cols-4 gap-5 mb-10">\n'
             f"{stat_cards}"
-            f"        </div>\n"
+            "        </div>\n"
             if stat_cards
             else ""
         )
+        # Results summary in accent card
         + (
-            f'        <div className="bg-gray-50 rounded p-6 mb-8">\n'
-            f'          <h2 className="font-heading font-semibold mb-3">Results Summary</h2>\n'
-            f'          <p className="text-gray-700 leading-relaxed">{how_it_works[:400]}</p>\n'
-            f"        </div>\n"
+            '        <div className="bg-white rounded-2xl shadow-md border'
+            ' border-gray-100 p-8 mb-10">\n'
+            '          <div className="flex items-center gap-3 mb-4">\n'
+            '            <div className="w-10 h-10 rounded-xl gradient-accent'
+            ' flex items-center justify-center">\n'
+            '              <span className="text-white font-bold">&#9776;</span>\n'
+            "            </div>\n"
+            '            <h2 className="font-heading font-semibold text-lg'
+            '">Results Summary</h2>\n'
+            "          </div>\n"
+            f'          <p className="text-gray-700 leading-relaxed">'
+            f"{how_it_works[:400]}</p>\n"
+            "        </div>\n"
             if how_it_works
             else ""
         )
@@ -775,67 +960,81 @@ def _render_admin_page(
     assigned_features: list,
     **_,
 ) -> str:
-    """Data table / analytics layout — for admin pages."""
+    """Data table / analytics layout with polished styling."""
     # Generate mock table rows from features
     table_rows = ""
     statuses = ["Active", "Pending", "In Review", "Completed", "Draft"]
     dates = ["Mar 1", "Feb 28", "Feb 27", "Feb 25", "Feb 22"]
+    badge_styles = {
+        "Active": "bg-green-100 text-green-700",
+        "Pending": "bg-amber-100 text-amber-700",
+        "In Review": "bg-primary/10 text-primary",
+        "Completed": "bg-blue-100 text-blue-700",
+        "Draft": "bg-gray-100 text-gray-600",
+    }
     for i, feat in enumerate(assigned_features[:6]):
         safe_name = _escape_jsx(feat.name)
         status = statuses[i % len(statuses)]
         date = dates[i % len(dates)]
-        badge_color = (
-            "bg-green-100 text-green-700"
-            if status == "Active"
-            else "bg-yellow-100 text-yellow-700"
-            if status == "Pending"
-            else "bg-blue-100 text-blue-700"
-            if status == "In Review"
-            else "bg-gray-100 text-gray-600"
-        )
+        badge_cls = badge_styles.get(status, "bg-gray-100 text-gray-600")
+        prio_display = feat.priority.replace("_", " ").title()
         table_rows += (
-            f'              <tr className="border-b last:border-0">\n'
-            f'                <td className="py-3 px-4 font-medium">{safe_name}</td>\n'
-            f'                <td className="py-3 px-4"><span className="{badge_color}'
-            f' text-xs px-2 py-1 rounded-full">{status}</span></td>\n'
-            f'                <td className="py-3 px-4 text-gray-500">{date}</td>\n'
-            f'                <td className="py-3 px-4 text-gray-400">{feat.priority}</td>\n'
+            '              <tr className="border-b border-gray-100'
+            ' hover:bg-gray-50/50 transition-colors">\n'
+            f'                <td className="py-4 px-5 font-medium">{safe_name}</td>\n'
+            f'                <td className="py-4 px-5">'
+            f'<span className="{badge_cls}'
+            f' text-xs font-medium px-2.5 py-1 rounded-full">'
+            f"{status}</span></td>\n"
+            f'                <td className="py-4 px-5 text-gray-500">{date}</td>\n'
+            f'                <td className="py-4 px-5 text-gray-500">{prio_display}</td>\n'
             f"              </tr>\n"
         )
 
     if not table_rows:
         table_rows = (
-            '              <tr><td colSpan={4} className="py-8 text-center text-gray-400">'
-            "No data yet</td></tr>\n"
+            '              <tr><td colSpan={4} className="py-12 text-center'
+            ' text-gray-400">No data yet</td></tr>\n'
         )
 
     return (
-        '      <div className="p-8">\n'
+        '      <div className="max-w-6xl mx-auto px-6 py-10">\n'
         f"{progress}"
-        f'        <h1 className="text-3xl font-heading font-bold mb-2">{safe_title}</h1>\n'
-        + (f'        <p className="text-gray-500 mb-6">{goal}</p>\n' if goal else "")
+        f'        <h1 className="text-3xl font-heading font-bold'
+        f' text-gray-900 mb-1">{safe_title}</h1>\n'
+        + (f'        <p className="text-gray-500 mb-8">{goal}</p>\n' if goal else "")
+        # Top action bar
         + '        <div className="flex items-center gap-3 mb-6">\n'
         "          <input"
         ' type="text" placeholder="Search..."'
-        ' className="border rounded px-3 py-2 text-sm flex-1 max-w-xs"'
-        " />\n"
-        '          <select className="border rounded px-3 py-2 text-sm text-gray-600">\n'
+        ' className="border-2 border-gray-200 rounded-xl px-4 py-2.5 text-sm'
+        " flex-1 max-w-xs focus:border-primary focus:ring-2"
+        ' focus:ring-primary/20 outline-none transition-all" />\n'
+        '          <select className="border-2 border-gray-200 rounded-xl'
+        ' px-4 py-2.5 text-sm text-gray-600">\n'
         "            <option>All Statuses</option>\n"
         "            <option>Active</option>\n"
         "            <option>Pending</option>\n"
         "          </select>\n"
-        "          <button"
-        ' className="bg-primary text-white px-4 py-2 rounded text-sm font-medium"'
+        '          <button className="bg-primary text-white px-5 py-2.5'
+        " rounded-xl text-sm font-semibold shadow-md"
+        ' hover:shadow-lg hover:brightness-110 transition-all"'
         ">Export</button>\n"
         "        </div>\n"
-        '        <div className="bg-white rounded shadow-sm border overflow-hidden mb-8">\n'
+        # Table in card
+        '        <div className="bg-white rounded-2xl shadow-md border'
+        ' border-gray-100 overflow-hidden mb-10">\n'
         '          <table className="w-full text-left text-sm">\n'
         "            <thead>\n"
-        '              <tr className="bg-gray-50 border-b">\n'
-        '                <th className="py-3 px-4 font-medium text-gray-600">Name</th>\n'
-        '                <th className="py-3 px-4 font-medium text-gray-600">Status</th>\n'
-        '                <th className="py-3 px-4 font-medium text-gray-600">Date</th>\n'
-        '                <th className="py-3 px-4 font-medium text-gray-600">Priority</th>\n'
+        '              <tr className="bg-gray-50/80 border-b border-gray-100">\n'
+        '                <th className="py-3.5 px-5 font-semibold text-gray-600'
+        ' text-xs uppercase tracking-wider">Name</th>\n'
+        '                <th className="py-3.5 px-5 font-semibold text-gray-600'
+        ' text-xs uppercase tracking-wider">Status</th>\n'
+        '                <th className="py-3.5 px-5 font-semibold text-gray-600'
+        ' text-xs uppercase tracking-wider">Date</th>\n'
+        '                <th className="py-3.5 px-5 font-semibold text-gray-600'
+        ' text-xs uppercase tracking-wider">Priority</th>\n'
         "              </tr>\n"
         "            </thead>\n"
         "            <tbody>\n"
@@ -856,29 +1055,47 @@ _PHASE_RENDERERS = {
 
 
 def _render_feature_cards(features: list) -> str:
-    """Render a grid of Feature-wrapped cards."""
+    """Render a grid of Feature-wrapped cards with colored accents."""
     if not features:
         return ""
+    # Rotating accent colors for visual variety
+    accent_borders = [
+        "border-l-primary",
+        "border-l-accent",
+        "border-l-secondary",
+        "border-l-green-500",
+        "border-l-purple-500",
+        "border-l-rose-500",
+    ]
+    priority_badge = {
+        "must_have": "bg-red-50 text-red-600 ring-1 ring-red-200",
+        "should_have": "bg-amber-50 text-amber-600 ring-1 ring-amber-200",
+        "could_have": "bg-blue-50 text-blue-600 ring-1 ring-blue-200",
+    }
     cards = ""
-    for feat in features[:6]:
+    for i, feat in enumerate(features[:6]):
         slug = _slugify(feat.name)
         safe_name = _escape_jsx(feat.name)
         overview = _escape_jsx(feat.overview[:120]) if feat.overview else ""
-        priority_badge = {
-            "must_have": "bg-red-100 text-red-700",
-            "should_have": "bg-yellow-100 text-yellow-700",
-            "could_have": "bg-blue-100 text-blue-700",
-        }.get(feat.priority, "bg-gray-100 text-gray-600")
+        border_cls = accent_borders[i % len(accent_borders)]
+        badge_cls = priority_badge.get(
+            feat.priority, "bg-gray-50 text-gray-600 ring-1 ring-gray-200"
+        )
+        prio_label = feat.priority.replace("_", " ")
         cards += (
             f'          <Feature id="{slug}">\n'
-            f'            <div className="border rounded p-5 hover:shadow-md transition">\n'
-            f'              <div className="flex items-center justify-between mb-2">\n'
-            f'                <h3 className="font-heading font-semibold">{safe_name}</h3>\n'
-            f'                <span className="{priority_badge}'
-            f' text-xs px-2 py-0.5 rounded-full">{feat.priority.replace("_", " ")}</span>\n'
+            f'            <div className="bg-white rounded-xl border-l-4 {border_cls}'
+            f' shadow-sm hover:shadow-lg transition-all p-5">\n'
+            f'              <div className="flex items-center justify-between mb-3">\n'
+            f'                <h3 className="font-heading font-semibold'
+            f' text-gray-900">{safe_name}</h3>\n'
+            f'                <span className="{badge_cls}'
+            f' text-xs font-medium px-2.5 py-0.5 rounded-full">'
+            f"{prio_label}</span>\n"
             f"              </div>\n"
             + (
-                f'              <p className="text-sm text-gray-500">{overview}</p>\n'
+                f'              <p className="text-sm text-gray-600 leading-relaxed">'
+                f"{overview}</p>\n"
                 if overview
                 else ""
             )
@@ -886,47 +1103,59 @@ def _render_feature_cards(features: list) -> str:
             "          </Feature>\n"
         )
     return (
-        f'        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4 mt-8">\n'
+        '        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5 mt-10">\n'
         f"{cards}"
-        f"        </div>\n"
+        "        </div>\n"
     )
 
 
 def _render_metrics(criteria: list[str]) -> str:
-    """Render success criteria as visual checklist cards."""
+    """Render success criteria as visual checklist cards with colored checks."""
     if not criteria:
         return ""
     items = ""
     for c in criteria[:5]:
         safe = _escape_jsx(c[:100])
         items += (
-            f'          <div className="flex items-start gap-3 p-3 bg-gray-50 rounded">\n'
-            f'            <span className="text-primary mt-0.5">&#10003;</span>\n'
-            f'            <span className="text-sm text-gray-700">{safe}</span>\n'
-            f"          </div>\n"
+            '          <div className="flex items-start gap-3 p-4 bg-white'
+            " rounded-xl border border-gray-100 shadow-sm"
+            ' hover:border-primary/30 transition-colors">\n'
+            '            <span className="w-6 h-6 rounded-full bg-primary/10'
+            " text-primary flex items-center justify-center"
+            ' flex-shrink-0 mt-0.5 text-sm font-bold">&#10003;</span>\n'
+            f'            <span className="text-sm text-gray-700 leading-relaxed">'
+            f"{safe}</span>\n"
+            "          </div>\n"
         )
     return (
-        f'        <div className="mt-8">\n'
-        f'          <h2 className="font-heading font-semibold mb-3">Success Criteria</h2>\n'
-        f'          <div className="space-y-2">\n'
+        '        <div className="mt-10">\n'
+        '          <h2 className="font-heading font-semibold text-lg mb-4">'
+        "Success Criteria</h2>\n"
+        '          <div className="space-y-3">\n'
         f"{items}"
-        f"          </div>\n"
-        f"        </div>\n"
+        "          </div>\n"
+        "        </div>\n"
     )
 
 
 def _render_progress_bar(current: int, total: int) -> str:
-    """Render a step progress indicator."""
+    """Render a step progress indicator with colored dots."""
     if total <= 1:
         return ""
     dots = ""
     for i in range(total):
-        active = "bg-primary" if i == current else "bg-gray-200"
-        dots += f'            <div className="h-2 flex-1 rounded-full {active}"></div>\n'
+        if i < current:
+            cls = "bg-primary"
+        elif i == current:
+            cls = "bg-primary shadow-md shadow-primary/30"
+        else:
+            cls = "bg-gray-200"
+        dots += f'            <div className="h-2 flex-1 rounded-full {cls}"></div>\n'
     return (
-        f'        <div className="mb-6">\n'
-        f'          <p className="text-xs text-gray-400 mb-2">Step {current + 1} of {total}</p>\n'
-        f'          <div className="flex gap-1">\n'
+        '        <div className="mb-8">\n'
+        f'          <p className="text-xs font-medium text-gray-400'
+        f' uppercase tracking-wider mb-2">Step {current + 1} of {total}</p>\n'
+        '          <div className="flex gap-1.5">\n'
         f"{dots}"
         f"          </div>\n"
         f"        </div>\n"
