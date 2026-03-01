@@ -475,9 +475,11 @@ async def plan_prototype(
 
     for turn in range(max_turns):
         try:
-            response = await client.messages.create(
-                model="claude-sonnet-4-5-20250514",
-                max_tokens=16_000,
+            # max_tokens must exceed thinking budget; use streaming for long ops
+            max_tokens = thinking_budget + 16_000
+            async with client.messages.stream(
+                model="claude-sonnet-4-6",
+                max_tokens=max_tokens,
                 temperature=1,  # required for extended thinking
                 thinking={
                     "type": "enabled",
@@ -486,7 +488,8 @@ async def plan_prototype(
                 system=PLANNING_SYSTEM_PROMPT,
                 tools=PLANNING_TOOLS,
                 messages=messages,
-            )
+            ) as stream:
+                response = await stream.get_final_message()
         except Exception as e:
             logger.error(f"Planning Agent API call failed: {e}", exc_info=True)
             raise
