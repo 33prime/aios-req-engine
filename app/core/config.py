@@ -214,10 +214,6 @@ class Settings(BaseSettings):
         default="/tmp/aios-prototypes",
         description="Temp directory for prototype repos"
     )
-    # GitHub integration (for prototype repos)
-    GITHUB_TOKEN: str | None = Field(default=None, description="GitHub PAT for repo creation")
-    GITHUB_ORG: str = Field(default="readytogo-ai", description="GitHub org for prototype repos")
-
     # Netlify integration (for prototype deployment)
     NETLIFY_AUTH_TOKEN: str | None = Field(
         default=None, description="Netlify auth token for site creation"

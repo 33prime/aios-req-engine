@@ -45,9 +45,9 @@ class BuildOrchestrator:
         "opus": 0.30,
     }
     BUDGET_CEILING: dict[str, float] = {
-        "sonnet": 2.00,
-        "haiku": 0.50,
-        "opus": 3.00,
+        "sonnet": 3.00,
+        "haiku": 1.00,
+        "opus": 5.00,
     }
 
     # Per-stream max turns by model tier (generous — loop detection is the real guard)

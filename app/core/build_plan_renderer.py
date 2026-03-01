@@ -557,24 +557,393 @@ def _render_vite_scaffold(payload: PrototypePayload) -> dict[str, str]:
         "}\n"
     )
 
+    # ── Feature-to-page distribution (round-robin by step_order) ────────
+    sorted_features = sorted(
+        payload.features,
+        key=lambda f: {"must_have": 0, "should_have": 1, "could_have": 2}.get(f.priority, 3),
+    )
+    features_per_step: dict[int, list] = {i: [] for i in range(len(steps))}
+    for i, feat in enumerate(sorted_features):
+        if steps:
+            features_per_step[i % len(steps)].append(feat)
+
     # ── src/pages/{StepSlug}Page.tsx (one per solution flow step) ──────────
-    for _, title, component in step_slugs:
-        files[f"src/pages/{component}.tsx"] = (
-            "import { Screen } from '../lib/aios'\n"
-            "\n"
-            f"export default function {component}() {{\n"
-            f"  return (\n"
-            f'    <Screen name="{title}">\n'
-            f'      <div className="p-8">\n'
-            f'        <h1 className="text-2xl font-heading font-bold mb-4">{title}</h1>\n'
-            f'        <p className="text-gray-500">Implement this screen.</p>\n'
-            f"      </div>\n"
-            f"    </Screen>\n"
-            f"  )\n"
-            f"}}\n"
+    for step_idx, (_, title, component) in enumerate(step_slugs):
+        step = steps[step_idx] if step_idx < len(steps) else None
+        assigned_features = features_per_step.get(step_idx, [])
+        files[f"src/pages/{component}.tsx"] = _render_rich_page(
+            step=step,
+            title=title,
+            component_name=component,
+            assigned_features=assigned_features,
+            personas=payload.personas[:3],
+            design_contract=payload.design_contract,
+            step_index=step_idx,
+            total_steps=len(steps),
         )
 
     return files
+
+
+# =============================================================================
+# Rich page rendering — phase-based layout templates
+# =============================================================================
+
+
+def _render_rich_page(
+    step,
+    title: str,
+    component_name: str,
+    assigned_features: list,
+    personas: list,
+    design_contract,
+    step_index: int,
+    total_steps: int,
+) -> str:
+    """Render a complete TSX page with phase-appropriate layout and real content."""
+    phase = step.phase if step else "core_experience"
+    goal = _escape_jsx(step.goal) if step and step.goal else ""
+    how_it_works = _escape_jsx(step.how_it_works) if step and step.how_it_works else ""
+    success_criteria = step.success_criteria if step else []
+    safe_title = _escape_jsx(title)
+
+    # Build feature cards JSX
+    feature_cards = _render_feature_cards(assigned_features)
+
+    # Build success metrics JSX
+    metrics_block = _render_metrics(success_criteria)
+
+    # Build persona greeting (for entry pages)
+    persona_greeting = ""
+    if personas:
+        p = personas[0]
+        persona_greeting = _escape_jsx(f"Welcome, {p.name}. {p.role}.")
+
+    # Progress indicator
+    progress = _render_progress_bar(step_index, total_steps)
+
+    # Select layout by phase
+    renderer = _PHASE_RENDERERS.get(phase, _render_core_experience_page)
+    body = renderer(
+        safe_title=safe_title,
+        goal=goal,
+        how_it_works=how_it_works,
+        feature_cards=feature_cards,
+        metrics_block=metrics_block,
+        persona_greeting=persona_greeting,
+        progress=progress,
+        success_criteria=success_criteria,
+        assigned_features=assigned_features,
+    )
+
+    return (
+        "import { Screen, Feature } from '../lib/aios'\n"
+        "\n"
+        f"export default function {component_name}() {{\n"
+        f"  return (\n"
+        f'    <Screen name="{safe_title}">\n'
+        f"{body}"
+        f"    </Screen>\n"
+        f"  )\n"
+        f"}}\n"
+    )
+
+
+def _render_entry_page(
+    safe_title: str,
+    goal: str,
+    how_it_works: str,
+    feature_cards: str,
+    metrics_block: str,
+    persona_greeting: str,
+    progress: str,
+    **_,
+) -> str:
+    """Centered hero layout with single CTA — for entry/onboarding pages."""
+    hero_cls = "min-h-[80vh] flex flex-col items-center justify-center text-center px-6"
+    btn_cls = (
+        "bg-primary text-white px-8 py-3 rounded"
+        " font-heading font-semibold hover:opacity-90 transition"
+    )
+    return (
+        f'      <div className="{hero_cls}">\n'
+        f'        <h1 className="text-4xl font-heading font-bold mb-4">{safe_title}</h1>\n'
+        + (
+            f'        <p className="text-lg text-gray-600 max-w-2xl mb-2">{goal}</p>\n'
+            if goal
+            else ""
+        )
+        + (
+            f'        <p className="text-sm text-gray-400 mb-8">{persona_greeting}</p>\n'
+            if persona_greeting
+            else ""
+        )
+        + (
+            f'        <p className="text-gray-500 max-w-xl mb-8">{how_it_works[:300]}</p>\n'
+            if how_it_works
+            else ""
+        )
+        + f'        <button className="{btn_cls}">\n'
+        "          Get Started\n"
+        "        </button>\n" + f"{progress}" + f"{feature_cards}" + "      </div>\n"
+    )
+
+
+def _render_core_experience_page(
+    safe_title: str,
+    goal: str,
+    how_it_works: str,
+    feature_cards: str,
+    metrics_block: str,
+    progress: str,
+    **_,
+) -> str:
+    """Full-width card grid layout — for core experience pages."""
+    return (
+        '      <div className="p-8">\n'
+        f"{progress}"
+        f'        <h1 className="text-3xl font-heading font-bold mb-2">{safe_title}</h1>\n'
+        + (f'        <p className="text-gray-500 mb-6">{goal}</p>\n' if goal else "")
+        + (
+            f'        <div className="bg-gray-50 rounded p-6 mb-8">\n'
+            f'          <p className="text-gray-700 leading-relaxed">{how_it_works[:500]}</p>\n'
+            f"        </div>\n"
+            if how_it_works
+            else ""
+        )
+        + f"{feature_cards}"
+        + f"{metrics_block}"
+        + "      </div>\n"
+    )
+
+
+def _render_output_page(
+    safe_title: str,
+    goal: str,
+    how_it_works: str,
+    feature_cards: str,
+    metrics_block: str,
+    progress: str,
+    success_criteria: list[str],
+    **_,
+) -> str:
+    """Dashboard/results layout — for output pages."""
+    # Build metric summary cards from success criteria
+    stat_cards = ""
+    sample_values = ["87%", "24", "3.2x", "$12K", "92%", "156", "4.8"]
+    for i, criterion in enumerate(success_criteria[:4]):
+        val = sample_values[i % len(sample_values)]
+        safe_crit = _escape_jsx(criterion[:60])
+        stat_cards += (
+            f'          <div className="bg-white rounded shadow-sm border p-5">\n'
+            f'            <p className="text-3xl font-heading font-bold text-primary">{val}</p>\n'
+            f'            <p className="text-sm text-gray-500 mt-1">{safe_crit}</p>\n'
+            f"          </div>\n"
+        )
+
+    return (
+        '      <div className="p-8">\n'
+        f"{progress}"
+        f'        <h1 className="text-3xl font-heading font-bold mb-2">{safe_title}</h1>\n'
+        + (f'        <p className="text-gray-500 mb-6">{goal}</p>\n' if goal else "")
+        + (
+            f'        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">\n'
+            f"{stat_cards}"
+            f"        </div>\n"
+            if stat_cards
+            else ""
+        )
+        + (
+            f'        <div className="bg-gray-50 rounded p-6 mb-8">\n'
+            f'          <h2 className="font-heading font-semibold mb-3">Results Summary</h2>\n'
+            f'          <p className="text-gray-700 leading-relaxed">{how_it_works[:400]}</p>\n'
+            f"        </div>\n"
+            if how_it_works
+            else ""
+        )
+        + f"{feature_cards}"
+        + "      </div>\n"
+    )
+
+
+def _render_admin_page(
+    safe_title: str,
+    goal: str,
+    feature_cards: str,
+    metrics_block: str,
+    progress: str,
+    assigned_features: list,
+    **_,
+) -> str:
+    """Data table / analytics layout — for admin pages."""
+    # Generate mock table rows from features
+    table_rows = ""
+    statuses = ["Active", "Pending", "In Review", "Completed", "Draft"]
+    dates = ["Mar 1", "Feb 28", "Feb 27", "Feb 25", "Feb 22"]
+    for i, feat in enumerate(assigned_features[:6]):
+        safe_name = _escape_jsx(feat.name)
+        status = statuses[i % len(statuses)]
+        date = dates[i % len(dates)]
+        badge_color = (
+            "bg-green-100 text-green-700"
+            if status == "Active"
+            else "bg-yellow-100 text-yellow-700"
+            if status == "Pending"
+            else "bg-blue-100 text-blue-700"
+            if status == "In Review"
+            else "bg-gray-100 text-gray-600"
+        )
+        table_rows += (
+            f'              <tr className="border-b last:border-0">\n'
+            f'                <td className="py-3 px-4 font-medium">{safe_name}</td>\n'
+            f'                <td className="py-3 px-4"><span className="{badge_color}'
+            f' text-xs px-2 py-1 rounded-full">{status}</span></td>\n'
+            f'                <td className="py-3 px-4 text-gray-500">{date}</td>\n'
+            f'                <td className="py-3 px-4 text-gray-400">{feat.priority}</td>\n'
+            f"              </tr>\n"
+        )
+
+    if not table_rows:
+        table_rows = (
+            '              <tr><td colSpan={4} className="py-8 text-center text-gray-400">'
+            "No data yet</td></tr>\n"
+        )
+
+    return (
+        '      <div className="p-8">\n'
+        f"{progress}"
+        f'        <h1 className="text-3xl font-heading font-bold mb-2">{safe_title}</h1>\n'
+        + (f'        <p className="text-gray-500 mb-6">{goal}</p>\n' if goal else "")
+        + '        <div className="flex items-center gap-3 mb-6">\n'
+        "          <input"
+        ' type="text" placeholder="Search..."'
+        ' className="border rounded px-3 py-2 text-sm flex-1 max-w-xs"'
+        " />\n"
+        '          <select className="border rounded px-3 py-2 text-sm text-gray-600">\n'
+        "            <option>All Statuses</option>\n"
+        "            <option>Active</option>\n"
+        "            <option>Pending</option>\n"
+        "          </select>\n"
+        "          <button"
+        ' className="bg-primary text-white px-4 py-2 rounded text-sm font-medium"'
+        ">Export</button>\n"
+        "        </div>\n"
+        '        <div className="bg-white rounded shadow-sm border overflow-hidden mb-8">\n'
+        '          <table className="w-full text-left text-sm">\n'
+        "            <thead>\n"
+        '              <tr className="bg-gray-50 border-b">\n'
+        '                <th className="py-3 px-4 font-medium text-gray-600">Name</th>\n'
+        '                <th className="py-3 px-4 font-medium text-gray-600">Status</th>\n'
+        '                <th className="py-3 px-4 font-medium text-gray-600">Date</th>\n'
+        '                <th className="py-3 px-4 font-medium text-gray-600">Priority</th>\n'
+        "              </tr>\n"
+        "            </thead>\n"
+        "            <tbody>\n"
+        f"{table_rows}"
+        "            </tbody>\n"
+        "          </table>\n"
+        "        </div>\n" + f"{feature_cards}" + "      </div>\n"
+    )
+
+
+# Phase → renderer dispatch
+_PHASE_RENDERERS = {
+    "entry": _render_entry_page,
+    "core_experience": _render_core_experience_page,
+    "output": _render_output_page,
+    "admin": _render_admin_page,
+}
+
+
+def _render_feature_cards(features: list) -> str:
+    """Render a grid of Feature-wrapped cards."""
+    if not features:
+        return ""
+    cards = ""
+    for feat in features[:6]:
+        slug = _slugify(feat.name)
+        safe_name = _escape_jsx(feat.name)
+        overview = _escape_jsx(feat.overview[:120]) if feat.overview else ""
+        priority_badge = {
+            "must_have": "bg-red-100 text-red-700",
+            "should_have": "bg-yellow-100 text-yellow-700",
+            "could_have": "bg-blue-100 text-blue-700",
+        }.get(feat.priority, "bg-gray-100 text-gray-600")
+        cards += (
+            f'          <Feature id="{slug}">\n'
+            f'            <div className="border rounded p-5 hover:shadow-md transition">\n'
+            f'              <div className="flex items-center justify-between mb-2">\n'
+            f'                <h3 className="font-heading font-semibold">{safe_name}</h3>\n'
+            f'                <span className="{priority_badge}'
+            f' text-xs px-2 py-0.5 rounded-full">{feat.priority.replace("_", " ")}</span>\n'
+            f"              </div>\n"
+            + (
+                f'              <p className="text-sm text-gray-500">{overview}</p>\n'
+                if overview
+                else ""
+            )
+            + "            </div>\n"
+            "          </Feature>\n"
+        )
+    return (
+        f'        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4 mt-8">\n'
+        f"{cards}"
+        f"        </div>\n"
+    )
+
+
+def _render_metrics(criteria: list[str]) -> str:
+    """Render success criteria as visual checklist cards."""
+    if not criteria:
+        return ""
+    items = ""
+    for c in criteria[:5]:
+        safe = _escape_jsx(c[:100])
+        items += (
+            f'          <div className="flex items-start gap-3 p-3 bg-gray-50 rounded">\n'
+            f'            <span className="text-primary mt-0.5">&#10003;</span>\n'
+            f'            <span className="text-sm text-gray-700">{safe}</span>\n'
+            f"          </div>\n"
+        )
+    return (
+        f'        <div className="mt-8">\n'
+        f'          <h2 className="font-heading font-semibold mb-3">Success Criteria</h2>\n'
+        f'          <div className="space-y-2">\n'
+        f"{items}"
+        f"          </div>\n"
+        f"        </div>\n"
+    )
+
+
+def _render_progress_bar(current: int, total: int) -> str:
+    """Render a step progress indicator."""
+    if total <= 1:
+        return ""
+    dots = ""
+    for i in range(total):
+        active = "bg-primary" if i == current else "bg-gray-200"
+        dots += f'            <div className="h-2 flex-1 rounded-full {active}"></div>\n'
+    return (
+        f'        <div className="mb-6">\n'
+        f'          <p className="text-xs text-gray-400 mb-2">Step {current + 1} of {total}</p>\n'
+        f'          <div className="flex gap-1">\n'
+        f"{dots}"
+        f"          </div>\n"
+        f"        </div>\n"
+    )
+
+
+def _escape_jsx(text: str) -> str:
+    """Escape special characters for safe JSX rendering."""
+    return (
+        text.replace("&", "&amp;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+        .replace("{", "&#123;")
+        .replace("}", "&#125;")
+        .replace('"', "&quot;")
+        .replace("'", "&#39;")
+    )
 
 
 # =============================================================================

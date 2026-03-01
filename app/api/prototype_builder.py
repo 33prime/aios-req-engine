@@ -478,11 +478,46 @@ async def _run_build_pipeline(
             update_build_status(build_id, "failed", error="; ".join(build_result.errors[:3]))
             return
 
+        # Build dist/ locally (npm install + build)
+        if not skip_deploy:
+            import subprocess
+
+            update_build_status(build_id, "bundling")
+            append_build_log(
+                build_id, {"phase": "bundling", "message": "Running npm install + build"}
+            )
+            try:
+                subprocess.run(
+                    ["npm", "install"],
+                    cwd=local_path,
+                    check=True,
+                    timeout=120,
+                    capture_output=True,
+                )
+                subprocess.run(
+                    ["npm", "run", "build"],
+                    cwd=local_path,
+                    check=True,
+                    timeout=60,
+                    capture_output=True,
+                )
+            except subprocess.CalledProcessError as e:
+                error_msg = (e.stderr or b"").decode()[:500]
+                logger.error(f"npm build failed: {error_msg}")
+                append_build_log(
+                    build_id, {"phase": "bundling", "message": f"Build failed: {error_msg}"}
+                )
+                update_build_status(build_id, "failed", error=f"npm build failed: {error_msg}")
+                return
+            except subprocess.TimeoutExpired:
+                update_build_status(build_id, "failed", error="npm build timed out")
+                return
+
         # Deployment
         if not skip_deploy:
             update_build_status(build_id, "deploying")
             append_build_log(
-                build_id, {"phase": "deploying", "message": "Deploying to GitHub + Netlify"}
+                build_id, {"phase": "deploying", "message": "Deploying dist/ to Netlify"}
             )
             try:
                 deploy_url, github_url = await _deploy_prototype(
@@ -539,38 +574,20 @@ async def _run_build_pipeline(
 
 
 async def _deploy_prototype(project_id, local_path, payload, settings) -> tuple[str, str]:
-    """Deploy prototype to GitHub + Netlify. Returns (deploy_url, github_url)."""
-    from app.services.git_manager import GitManager
-    from app.services.github_service import GitHubService
+    """Deploy prototype dist/ directly to Netlify. Returns (deploy_url, "")."""
+    from pathlib import Path
+
     from app.services.netlify_service import NetlifyService
 
-    if not settings.GITHUB_TOKEN or not settings.NETLIFY_AUTH_TOKEN:
-        raise ValueError("GITHUB_TOKEN and NETLIFY_AUTH_TOKEN required for deployment")
+    if not settings.NETLIFY_AUTH_TOKEN:
+        raise ValueError("NETLIFY_AUTH_TOKEN required for deployment")
 
-    github = GitHubService(settings.GITHUB_TOKEN, settings.GITHUB_ORG)
-    netlify = NetlifyService(settings.NETLIFY_AUTH_TOKEN)
+    netlify = NetlifyService(settings.NETLIFY_AUTH_TOKEN, settings.NETLIFY_TEAM_SLUG)
 
-    # Create repo
     slug = payload.project_name.lower().replace(" ", "-")[:30] if payload.project_name else "proto"
-    repo_name = f"proto-{slug}-{payload.payload_hash[:6]}"
-    repo = await github.create_repo(repo_name, private=True)
-    repo_url = repo["clone_url"]
+    site_name = f"proto-{slug}-{payload.payload_hash[:6]}"
+    dist_path = str(Path(local_path) / "dist")
 
-    # Push code
-    git = GitManager()
-    git._run(["remote", "add", "origin", repo_url], cwd=local_path, check=False)
-    git.push(local_path, "main")
+    deploy_url, _site_id = await netlify.deploy_from_dist(site_name, dist_path)
 
-    # Create Netlify site
-    github_url = repo.get("html_url", f"https://github.com/{settings.GITHUB_ORG}/{repo_name}")
-    site = await netlify.create_site(
-        name=repo_name,
-        repo_url=github_url,
-        build_cmd="npm install && npm run build",
-        publish_dir="dist",
-    )
-
-    deploy = await netlify.wait_for_deploy(site["id"])
-    deploy_url = deploy.get("ssl_url") or deploy.get("url", "")
-
-    return deploy_url, github_url
+    return deploy_url, ""

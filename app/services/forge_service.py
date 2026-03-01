@@ -1,7 +1,7 @@
 """RTG Forge integration — module matching, intelligence, and feedback.
 
 AIOS as HTTP client calling Forge's API. All calls are fire-and-forget
-or cached — never on the hot path. Follows the same pattern as github_service.py.
+or cached — never on the hot path. Follows the same pattern as netlify_service.py.
 """
 
 from __future__ import annotations
