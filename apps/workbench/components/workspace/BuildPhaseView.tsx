@@ -280,7 +280,7 @@ export function BuildPhaseView({
     [onEpicCardChange]
   )
 
-  // Tour route change — postMessage if bridge ready, else src swap (only when safe)
+  // Tour route change — postMessage if bridge ready, else try click-based nav
   const handleRouteChange = useCallback(
     (route: string | null) => {
       if (!prototypeUrl || !route) return
@@ -291,22 +291,18 @@ export function BuildPhaseView({
           { type: 'aios:navigate', path: route },
           '*'
         )
-      } else if (routeManifest) {
-        // Src swap when route manifest exists — prototype has _redirects for SPA routing.
-        try {
-          const base = new URL(prototypeUrl)
-          base.pathname = route
-          const newSrc = base.toString()
-          if (newSrc !== activeIframeSrc) {
-            setActiveIframeSrc(newSrc)
-          }
-        } catch {
-          // Invalid URL — ignore
-        }
+      } else if (iframeRef.current?.contentWindow) {
+        // No bridge — try clicking the matching nav link inside the prototype SPA.
+        // This avoids full-page src swaps that cause blank screens during hydration.
+        iframeRef.current.contentWindow.postMessage(
+          { type: 'aios:navigate', path: route },
+          '*'
+        )
       }
-      // No bridge + no route manifest → skip navigation (review panel still works)
+      // If postMessage navigation doesn't work, the iframe stays on the current
+      // page. The review panel content is the primary tour experience.
     },
-    [prototypeUrl, activeIframeSrc, bridgeReady, routeManifest]
+    [prototypeUrl, bridgeReady]
   )
 
   return (
