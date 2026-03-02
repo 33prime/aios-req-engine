@@ -139,7 +139,6 @@ export function BuildPhaseView({
     // and use the first epic's route as fallback for config-only pages like /settings
     const firstRoute = routeManifest.epic_routes!['0'] || epicPlan.vision_epics[0]?.primary_route || '/'
     const routeRemaps: Record<string, string> = {
-      '/command-center': '/dashboard',
       '/settings': firstRoute,
       '/admin': firstRoute,
       '/profile': firstRoute,
