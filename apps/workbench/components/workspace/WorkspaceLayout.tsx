@@ -77,7 +77,7 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
 
   const [collaborationState, setCollaborationState] = useState<PanelState>('normal')
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true)
-  const [activeBottomPanel, setActiveBottomPanel] = useState<'context' | 'evidence' | 'history' | null>(null)
+  const [activeBottomPanel, setActiveBottomPanel] = useState<'context' | 'evidence' | 'history' | 'calls' | null>(null)
   const [discoveryViewMode, setDiscoveryViewMode] = useState<'brd' | 'canvas'>(() => {
     if (typeof window !== 'undefined') {
       return (localStorage.getItem('discovery-view-mode') as 'brd' | 'canvas') || 'brd'

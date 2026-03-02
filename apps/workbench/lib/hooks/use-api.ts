@@ -45,6 +45,7 @@ import {
   getCollaborationCurrent,
   getPhaseProgress,
   listPendingItems,
+  listCallRecordings,
 } from '@/lib/api'
 import type {
   NextAction,
@@ -64,6 +65,7 @@ import type {
 import type { Profile, ProjectDetailWithDashboard, Meeting, ProjectPulse, ClientPulse, ClientActivityItem, PhaseProgressResponse } from '@/types/api'
 import type { CollaborationCurrentResponse } from '@/lib/api/collaboration'
 import type { EpicOverlayPlan, EpicConfirmation } from '@/types/epic-overlay'
+import type { CallRecording } from '@/types/call-intelligence'
 import type {
   BRDWorkspaceData,
   BRDHealthData,
@@ -91,6 +93,7 @@ export const SWR_KEYS = {
     `intel-evolution:${pid}:${filter || 'all'}:${days || 30}`,
   salesIntel: (pid: string) => `sales-intel:${pid}`,
   unifiedMemory: (pid: string) => `unified-memory:${pid}`,
+  callRecordings: (pid: string) => `call-recordings:${pid}`,
 } as const
 
 // --- Cache TTL presets (in milliseconds) ---
@@ -683,6 +686,22 @@ export function useEpicPlan(
     () => getEpicPlan(prototypeId!),
     {
       dedupingInterval: LONG_CACHE,
+      revalidateOnFocus: false,
+      ...config,
+    },
+  )
+}
+
+// --- Call recordings (per-project) ---
+export function useCallRecordings(
+  projectId: string | undefined,
+  config?: SWRConfiguration<CallRecording[]>,
+) {
+  return useSWR<CallRecording[]>(
+    projectId ? SWR_KEYS.callRecordings(projectId) : null,
+    () => listCallRecordings(projectId!),
+    {
+      dedupingInterval: MED_CACHE,
       revalidateOnFocus: false,
       ...config,
     },

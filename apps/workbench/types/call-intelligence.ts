@@ -1,0 +1,126 @@
+/**
+ * Call Intelligence types — mirrors backend schemas_call_intelligence.py
+ */
+
+// Status machine
+export type CallRecordingStatus =
+  | 'pending'
+  | 'bot_scheduled'
+  | 'recording'
+  | 'transcribing'
+  | 'analyzing'
+  | 'complete'
+  | 'skipped'
+  | 'failed'
+
+// Enums
+export type ReactionType = 'excited' | 'interested' | 'neutral' | 'confused' | 'resistant'
+export type CallSignalType = 'pain_point' | 'goal' | 'budget_indicator' | 'timeline' | 'decision_criteria' | 'risk_factor'
+export type NuggetType = 'testimonial' | 'soundbite' | 'statistic' | 'use_case' | 'objection' | 'vision_statement'
+export type SentimentType = 'positive' | 'neutral' | 'negative'
+
+// Core interfaces — match RecordingResponse from backend
+export interface CallRecording {
+  id: string
+  project_id: string
+  meeting_id?: string | null
+  recall_bot_id?: string | null
+  meeting_bot_id?: string | null
+  status: CallRecordingStatus
+  audio_url?: string | null
+  video_url?: string | null
+  recording_url?: string | null
+  duration_seconds?: number | null
+  signal_id?: string | null
+  error_message?: string | null
+  error_step?: string | null
+  created_at: string
+  updated_at: string
+}
+
+// TranscriptResponse from backend
+export interface CallTranscript {
+  id: string
+  recording_id: string
+  full_text: string
+  segments: TranscriptSegment[]
+  speaker_map: Record<string, string>
+  word_count: number
+  language: string
+  provider: string
+  model: string
+}
+
+// AnalysisResponse from backend
+export interface CallAnalysis {
+  id: string
+  recording_id: string
+  engagement_score?: number | null
+  talk_ratio: Record<string, number>
+  engagement_timeline: Array<Record<string, unknown>>
+  executive_summary?: string | null
+  custom_dimensions: Record<string, unknown>
+  dimension_packs_used: string[]
+  model?: string | null
+  tokens_input: number
+  tokens_output: number
+}
+
+// Child record types (returned as dict[] from backend)
+export interface FeatureInsight {
+  id: string
+  recording_id: string
+  feature_name: string
+  reaction: ReactionType
+  quote?: string | null
+  context?: string | null
+  timestamp_seconds?: number | null
+  is_aha_moment: boolean
+}
+
+export interface CallSignal {
+  id: string
+  recording_id: string
+  signal_type: CallSignalType
+  title: string
+  description?: string | null
+  intensity: number
+  quote?: string | null
+}
+
+export interface ContentNugget {
+  id: string
+  recording_id: string
+  nugget_type: NuggetType
+  content: string
+  speaker?: string | null
+  reuse_score: number
+}
+
+export interface CompetitiveMention {
+  id: string
+  recording_id: string
+  competitor_name: string
+  sentiment: SentimentType
+  context?: string | null
+  quote?: string | null
+  feature_comparison?: string | null
+}
+
+export interface TranscriptSegment {
+  speaker: string
+  text: string
+  start: number
+  end: number
+}
+
+// Aggregated detail response — matches CallDetails from backend
+export interface CallDetails {
+  recording: CallRecording
+  transcript?: CallTranscript | null
+  analysis?: CallAnalysis | null
+  feature_insights: FeatureInsight[]
+  call_signals: CallSignal[]
+  content_nuggets: ContentNugget[]
+  competitive_mentions: CompetitiveMention[]
+}

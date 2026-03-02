@@ -7,12 +7,13 @@
 
 'use client'
 
-import { Zap, Database, Brain, X } from 'lucide-react'
+import { Zap, Database, Brain, Phone, X } from 'lucide-react'
 import { UnlocksPanel } from './panels/UnlocksPanel'
 import { EvidencePanel } from './panels/EvidencePanel'
 import { MemoryPanel } from './panels/memory/MemoryPanel'
+import { CallsPanel } from './panels/CallsPanel'
 
-type PanelType = 'context' | 'evidence' | 'history' | null
+type PanelType = 'context' | 'evidence' | 'history' | 'calls' | null
 
 interface BottomDockProps {
   projectId: string
@@ -24,20 +25,22 @@ const DOCK_BUTTONS = [
   { id: 'context' as const, icon: Zap, label: 'Unlocks' },
   { id: 'evidence' as const, icon: Database, label: 'Evidence' },
   { id: 'history' as const, icon: Brain, label: 'Memory' },
+  { id: 'calls' as const, icon: Phone, label: 'Calls' },
 ]
 
 const PANEL_TITLES: Record<string, string> = {
   context: 'Unlocks',
   evidence: 'Evidence & Sources',
   history: 'Intelligence',
+  calls: 'Call Intelligence',
 }
 
 export function BottomDock({ projectId, activePanel, onPanelChange }: BottomDockProps) {
-  const handleToggle = (panel: 'context' | 'evidence' | 'history') => {
+  const handleToggle = (panel: 'context' | 'evidence' | 'history' | 'calls') => {
     onPanelChange(activePanel === panel ? null : panel)
   }
 
-  const isFullScreen = activePanel === 'history' || activePanel === 'context'
+  const isFullScreen = activePanel === 'history' || activePanel === 'context' || activePanel === 'calls'
 
   return (
     <>
@@ -76,6 +79,7 @@ export function BottomDock({ projectId, activePanel, onPanelChange }: BottomDock
               {activePanel === 'context' && <UnlocksPanel projectId={projectId} />}
               {activePanel === 'evidence' && <EvidencePanel projectId={projectId} />}
               {activePanel === 'history' && <MemoryPanel projectId={projectId} />}
+              {activePanel === 'calls' && <CallsPanel projectId={projectId} />}
             </div>
           </div>
         </div>
