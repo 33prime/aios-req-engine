@@ -34,7 +34,9 @@ class Settings(BaseSettings):
     OPENAI_MODEL_MINI: str = Field(default="gpt-4o-mini", description="Fast/cheap OpenAI model")
 
     # Anthropic configuration (optional - for chat assistant)
-    ANTHROPIC_API_KEY: str | None = Field(default=None, description="Anthropic API key for Claude chat")
+    ANTHROPIC_API_KEY: str | None = Field(
+        default=None, description="Anthropic API key for Claude chat"
+    )
 
     # Cohere configuration (optional - for reranking)
     COHERE_API_KEY: str | None = Field(default=None, description="Cohere API key for reranking")
@@ -45,7 +47,7 @@ class Settings(BaseSettings):
     # API Base URL (for webhook callbacks)
     API_BASE_URL: str = Field(
         default="http://localhost:8000",
-        description="Base URL for API callbacks (e.g., https://api.example.com)"
+        description="Base URL for API callbacks (e.g., https://api.example.com)",
     )
 
     # Embedding configuration
@@ -64,7 +66,8 @@ class Settings(BaseSettings):
     FACTS_SCHEMA_VERSION: str = Field(default="facts_v1", description="Schema version for tracking")
     MAX_FACT_CHUNKS: int = Field(default=15, description="Max chunks to send for fact extraction")
     MAX_FACT_CHARS_PER_CHUNK: int = Field(
-        default=1500, description="Max chars per chunk for fact extraction (sentence-boundary aware)"
+        default=1500,
+        description="Max chars per chunk for fact extraction (sentence-boundary aware)",
     )
 
     # Phase 2A: State Builder configuration
@@ -83,14 +86,18 @@ class Settings(BaseSettings):
     )
 
     # Phase 2C: Feature Enrichment configuration
-    FEATURES_ENRICH_MODEL: str = Field(default="gpt-4.1-mini", description="Model for feature enrichment")
+    FEATURES_ENRICH_MODEL: str = Field(
+        default="gpt-4.1-mini", description="Model for feature enrichment"
+    )
     FEATURES_ENRICH_PROMPT_VERSION: str = Field(
         default="feature_enrich_v1", description="Feature enrich prompt version"
     )
     FEATURES_ENRICH_SCHEMA_VERSION: str = Field(
         default="feature_details_v1", description="Feature enrich schema version"
     )
-    MAX_ENRICH_CHUNKS: int = Field(default=24, description="Max chunks to send for feature enrichment")
+    MAX_ENRICH_CHUNKS: int = Field(
+        default=24, description="Max chunks to send for feature enrichment"
+    )
     MAX_ENRICH_CHARS_PER_CHUNK: int = Field(
         default=900, description="Max chars per chunk for feature enrichment"
     )
@@ -115,67 +122,51 @@ class Settings(BaseSettings):
 
     # Strategic Context generation configuration
     STRATEGIC_CONTEXT_MODEL: str = Field(
-        default="gpt-4.1-mini",
-        description="Model for strategic context generation"
+        default="gpt-4.1-mini", description="Model for strategic context generation"
     )
 
     # Perplexity API configuration
     PERPLEXITY_API_KEY: str = Field(..., description="Perplexity API key")
     PERPLEXITY_MODEL: str = Field(
         default="sonar-pro",
-        description="Perplexity model for research (sonar, sonar-pro, sonar-reasoning, sonar-reasoning-pro)"
+        description="Perplexity model for research (sonar, sonar-pro, sonar-reasoning, sonar-reasoning-pro)",
     )
 
     # Research Agent configuration
     RESEARCH_AGENT_SYNTHESIS_MODEL: str = Field(
-        default="gpt-4o",
-        description="Model for synthesizing research findings"
+        default="gpt-4o", description="Model for synthesizing research findings"
     )
     RESEARCH_AGENT_QUERY_GEN_MODEL: str = Field(
-        default="gpt-4o-mini",
-        description="Model for generating research queries"
+        default="gpt-4o-mini", description="Model for generating research queries"
     )
     RESEARCH_AGENT_PROMPT_VERSION: str = Field(
-        default="research_agent_v1",
-        description="Research agent prompt version"
+        default="research_agent_v1", description="Research agent prompt version"
     )
     RESEARCH_AGENT_SCHEMA_VERSION: str = Field(
-        default="research_agent_v1",
-        description="Research agent schema version"
+        default="research_agent_v1", description="Research agent schema version"
     )
-    RESEARCH_AGENT_MAX_QUERIES: int = Field(
-        default=15,
-        description="Max research queries per run"
-    )
+    RESEARCH_AGENT_MAX_QUERIES: int = Field(default=15, description="Max research queries per run")
     RESEARCH_AGENT_QUERY_DELAY_SECONDS: float = Field(
-        default=1.0,
-        description="Delay between Perplexity queries (rate limiting)"
+        default=1.0, description="Delay between Perplexity queries (rate limiting)"
     )
 
     # A-Team Agent configuration
     A_TEAM_CLASSIFICATION_MODEL: str = Field(
-        default="gpt-4.1-mini",
-        description="Model for classifying insights"
+        default="gpt-4.1-mini", description="Model for classifying insights"
     )
     A_TEAM_PATCH_GEN_MODEL: str = Field(
-        default="gpt-4.1-mini",
-        description="Model for generating patches"
+        default="gpt-4.1-mini", description="Model for generating patches"
     )
-    A_TEAM_PROMPT_VERSION: str = Field(
-        default="a_team_v1",
-        description="A-Team prompt version"
-    )
+    A_TEAM_PROMPT_VERSION: str = Field(default="a_team_v1", description="A-Team prompt version")
 
     # Deep Research Agent configuration
     DEEP_RESEARCH_MODEL: str = Field(
-        default="claude-sonnet-4-6",
-        description="Claude model for deep research agent"
+        default="claude-sonnet-4-6", description="Claude model for deep research agent"
     )
 
     # Design Intelligence Agent configuration
     DI_AGENT_MODEL: str = Field(
-        default="claude-sonnet-4-6",
-        description="Claude model for DI Agent (gating and foundation)"
+        default="claude-sonnet-4-6", description="Claude model for DI Agent (gating and foundation)"
     )
 
     # Firecrawl API configuration
@@ -184,48 +175,67 @@ class Settings(BaseSettings):
 
     # Discovery Pipeline API keys
     SERPAPI_API_KEY: str = Field(default="", description="SerpAPI key for Google search")
-    PDL_API_KEY: str = Field(default="", description="People Data Labs API key for company enrichment")
-    BRIGHTDATA_API_KEY: str = Field(default="", description="Bright Data API key for anti-bot scraping")
-    BRIGHTDATA_ZONE: str = Field(default="", description="Bright Data Web Unlocker zone name (create at brightdata.com/cp/start)")
+    PDL_API_KEY: str = Field(
+        default="", description="People Data Labs API key for company enrichment"
+    )
+    BRIGHTDATA_API_KEY: str = Field(
+        default="", description="Bright Data API key for anti-bot scraping"
+    )
+    BRIGHTDATA_ZONE: str = Field(
+        default="",
+        description="Bright Data Web Unlocker zone name (create at brightdata.com/cp/start)",
+    )
 
     # Discovery Pipeline limits
-    DISCOVERY_MAX_COST_USD: float = Field(default=1.25, description="Hard cost cap for discovery pipeline")
+    DISCOVERY_MAX_COST_USD: float = Field(
+        default=1.25, description="Hard cost cap for discovery pipeline"
+    )
     DISCOVERY_MAX_COMPETITORS: int = Field(default=5, description="Max competitors to profile")
-    DISCOVERY_SCRAPE_TIMEOUT: int = Field(default=30, description="Timeout for scrape requests in discovery")
+    DISCOVERY_SCRAPE_TIMEOUT: int = Field(
+        default=30, description="Timeout for scrape requests in discovery"
+    )
 
     # Prototype Refinement configuration
     PROTOTYPE_PROMPT_MODEL: str = Field(
-        default="claude-opus-4-6",
-        description="Model for v0 prompt generation (Opus for quality)"
+        default="claude-opus-4-6", description="Model for v0 prompt generation (Opus for quality)"
     )
     PROTOTYPE_ANALYSIS_MODEL: str = Field(
-        default="claude-sonnet-4-6",
-        description="Model for feature analysis"
+        default="claude-sonnet-4-6", description="Model for feature analysis"
     )
     PROTOTYPE_UPDATER_PLAN_MODEL: str = Field(
-        default="claude-opus-4-6",
-        description="Model for code update planning"
+        default="claude-opus-4-6", description="Model for code update planning"
     )
     PROTOTYPE_UPDATER_EXEC_MODEL: str = Field(
-        default="claude-sonnet-4-6",
-        description="Model for code update execution"
+        default="claude-sonnet-4-6", description="Model for code update execution"
     )
     PROTOTYPE_TEMP_DIR: str = Field(
-        default="/tmp/aios-prototypes",
-        description="Temp directory for prototype repos"
+        default="/tmp/aios-prototypes", description="Temp directory for prototype repos"
     )
     # Netlify integration (for prototype deployment)
     NETLIFY_AUTH_TOKEN: str | None = Field(
         default=None, description="Netlify auth token for site creation"
     )
-    NETLIFY_TEAM_SLUG: str = Field(
-        default="steadynamic", description="Netlify account slug"
-    )
+    NETLIFY_TEAM_SLUG: str = Field(default="steadynamic", description="Netlify account slug")
 
     # Google OAuth (server-side Calendar API calls)
     GOOGLE_CLIENT_ID: str | None = Field(default=None, description="Google OAuth client ID")
-    GOOGLE_CLIENT_SECRET: str | None = Field(
-        default=None, description="Google OAuth client secret"
+    GOOGLE_CLIENT_SECRET: str | None = Field(default=None, description="Google OAuth client secret")
+
+    # Call Intelligence (Deepgram + analysis)
+    DEEPGRAM_API_KEY: str | None = Field(
+        default=None, description="Deepgram API key for call transcription"
+    )
+    DEEPGRAM_MODEL: str = Field(default="nova-2", description="Deepgram transcription model")
+    CALL_ANALYSIS_MODEL: str = Field(
+        default="claude-sonnet-4-6",
+        description="Claude model for call analysis",
+    )
+    CALL_ANALYSIS_MAX_TOKENS: int = Field(
+        default=16384, description="Max output tokens for call analysis"
+    )
+    CALL_ACTIVE_PACKS: str = Field(
+        default="core,research",
+        description="Active dimension packs (comma-separated)",
     )
 
     # Recall.ai (meeting recording)
@@ -243,9 +253,7 @@ class Settings(BaseSettings):
         default="notifications@readytogo.ai",
         description="Resend fallback sender email address",
     )
-    RESEND_FROM_NAME: str = Field(
-        default="AIOS", description="Resend fallback sender display name"
-    )
+    RESEND_FROM_NAME: str = Field(default="AIOS", description="Resend fallback sender display name")
 
     # Privacy and data retention
     EMAIL_BODY_RETENTION_DAYS: int = Field(
@@ -272,38 +280,30 @@ class Settings(BaseSettings):
 
     # Eval Pipeline configuration
     EVAL_PIPELINE_MODEL: str = Field(
-        default="claude-sonnet-4-6",
-        description="Model for LLM-judged eval grading"
+        default="claude-sonnet-4-6", description="Model for LLM-judged eval grading"
     )
     EVAL_ACCEPT_THRESHOLD: float = Field(
-        default=0.80,
-        description="Overall score threshold to auto-accept"
+        default=0.80, description="Overall score threshold to auto-accept"
     )
     EVAL_MAX_ITERATIONS: int = Field(
-        default=2,
-        description="Max refinement iterations before notifying"
+        default=2, description="Max refinement iterations before notifying"
     )
     EVAL_DETERMINISTIC_WEIGHT: float = Field(
-        default=0.40,
-        description="Weight of deterministic scores in overall blend"
+        default=0.40, description="Weight of deterministic scores in overall blend"
     )
 
     # Verdict Chat configuration (Haiku for speed/cost)
     VERDICT_CHAT_MODEL: str = Field(
         default="claude-haiku-4-5-20251001",
-        description="Claude model for verdict chat during prototype review"
+        description="Claude model for verdict chat during prototype review",
     )
 
     # RTG Forge integration
     FORGE_API_URL: str = Field(
         default="", description="RTG Forge HTTP API base URL (empty = disabled)"
     )
-    FORGE_API_KEY: str = Field(
-        default="", description="RTG Forge API key for authentication"
-    )
-    FORGE_CACHE_TTL: int = Field(
-        default=300, description="Forge module cache TTL in seconds"
-    )
+    FORGE_API_KEY: str = Field(default="", description="RTG Forge API key for authentication")
+    FORGE_CACHE_TTL: int = Field(default=300, description="Forge module cache TTL in seconds")
     FORGE_MATCH_THRESHOLD: float = Field(
         default=0.40, description="Min Jaccard score for feature-module match"
     )
@@ -311,27 +311,23 @@ class Settings(BaseSettings):
     # Chat Assistant configuration
     CHAT_MODEL: str = Field(
         default="claude-haiku-4-5-20251001",
-        description="Claude model for chat assistant (Haiku 4.5 — fast + capable)"
+        description="Claude model for chat assistant (Haiku 4.5 — fast + capable)",
     )
     SUMMARIZATION_MODEL: str = Field(
         default="claude-haiku-4-5-20251001",
-        description="Claude model for conversation summarization"
+        description="Claude model for conversation summarization",
     )
     CHAT_TOTAL_TOKEN_BUDGET: int = Field(
-        default=80_000,
-        description="Total token budget for chat context window"
+        default=80_000, description="Total token budget for chat context window"
     )
     CHAT_RESPONSE_BUFFER: int = Field(
-        default=4096,
-        description="Reserved tokens for model response"
+        default=4096, description="Reserved tokens for model response"
     )
     CHAT_RECENT_MESSAGES: int = Field(
-        default=3,
-        description="Number of recent messages to keep verbatim"
+        default=3, description="Number of recent messages to keep verbatim"
     )
     CHAT_MAX_SUMMARY_TOKENS: int = Field(
-        default=2000,
-        description="Max tokens for conversation summary"
+        default=2000, description="Max tokens for conversation summary"
     )
 
 

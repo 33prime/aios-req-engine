@@ -12,6 +12,7 @@ from app.api import (
     auth,
     baseline,
     business_drivers,
+    call_intelligence,
     chat,
     chat_signals,
     client_packages,
@@ -200,6 +201,9 @@ router.include_router(prototype_sessions.router, tags=["prototype_sessions"])
 
 # Include Communication Integration routes (Google OAuth, email, recording)
 router.include_router(communications.router, tags=["communications"])
+
+# Include Call Intelligence routes (recording, transcription, analysis)
+router.include_router(call_intelligence.router, tags=["call_intelligence"])
 
 # Include Client Organizations routes (cross-project client management)
 router.include_router(clients.router, tags=["clients"])

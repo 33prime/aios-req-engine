@@ -9,7 +9,7 @@ import hmac
 import logging
 from uuid import UUID, uuid4
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Request
 
 from app.core.config import get_settings
 from app.core.content_sanitizer import sanitize_transcript
@@ -57,11 +57,14 @@ async def consent_opt_out(request: Request):
 
 
 @router.post("/recall/events")
-async def recall_events(request: Request):
+async def recall_events(request: Request, background_tasks: BackgroundTasks):
     """
     Handle Recall.ai webhook events for bot status changes.
 
     Events: bot.status_change, bot.done, bot.failed
+
+    Routes through call intelligence pipeline when a call_recordings row exists
+    and Deepgram is configured. Falls back to legacy _ingest_transcript() otherwise.
     """
     from app.db import meeting_bots as bot_db
 
@@ -106,9 +109,29 @@ async def recall_events(request: Request):
         if mapped:
             bot_db.update_bot_by_recall_id(recall_bot_id, {"status": mapped})
 
+        # Propagate status to call_recordings if row exists
+        _sync_call_recording_status(recall_bot_id, new_status)
+
     elif event_type in ("bot.done", "bot.transcription_complete"):
-        # Fetch transcript and ingest as signal
-        await _ingest_transcript(bot_record, bot_data)
+        # Check for call intelligence pipeline
+        call_recording = _get_call_recording_for_bot(recall_bot_id)
+        if call_recording and settings.DEEPGRAM_API_KEY:
+            from app.services.call_intelligence import get_call_intelligence_service
+
+            service = get_call_intelligence_service()
+            if service:
+                recording_id = UUID(call_recording["id"])
+                background_tasks.add_task(
+                    _run_call_intelligence, service, recording_id
+                )
+                logger.info(
+                    f"Routing bot {recall_bot_id} through call intelligence pipeline"
+                )
+            else:
+                await _ingest_transcript(bot_record, bot_data)
+        else:
+            # Legacy flow
+            await _ingest_transcript(bot_record, bot_data)
 
     elif event_type == "bot.fatal":
         error = bot_data.get("status", {}).get("message", "Unknown error")
@@ -116,8 +139,56 @@ async def recall_events(request: Request):
             recall_bot_id,
             {"status": "failed", "error_message": error},
         )
+        # Also update call_recording if exists
+        call_recording = _get_call_recording_for_bot(recall_bot_id)
+        if call_recording:
+            from app.db import call_intelligence as ci_db
+
+            ci_db.update_call_recording(
+                UUID(call_recording["id"]),
+                {"status": "failed", "error_message": error, "error_step": "recall_bot"},
+            )
 
     return {"status": "processed"}
+
+
+def _get_call_recording_for_bot(recall_bot_id: str) -> dict | None:
+    """Check if a call_recordings row exists for this bot."""
+    try:
+        from app.db import call_intelligence as ci_db
+
+        return ci_db.get_recording_by_bot(recall_bot_id)
+    except Exception:
+        return None
+
+
+def _sync_call_recording_status(recall_bot_id: str, recall_status: str) -> None:
+    """Propagate Recall.ai status to call_recordings row if it exists."""
+    recording_status_map = {
+        "in_call_recording": "recording",
+    }
+    mapped = recording_status_map.get(recall_status)
+    if not mapped:
+        return
+
+    call_recording = _get_call_recording_for_bot(recall_bot_id)
+    if call_recording:
+        try:
+            from app.db import call_intelligence as ci_db
+
+            ci_db.update_call_recording(
+                UUID(call_recording["id"]), {"status": mapped}
+            )
+        except Exception as e:
+            logger.warning(f"Failed to sync call_recording status: {e}")
+
+
+async def _run_call_intelligence(service, recording_id: UUID) -> None:
+    """Background task wrapper for call intelligence pipeline."""
+    try:
+        await service.process_recording(recording_id)
+    except Exception as e:
+        logger.error(f"Call intelligence background task failed: {e}")
 
 
 async def _ingest_transcript(bot_record: dict, bot_data: dict) -> None:
