@@ -12,7 +12,7 @@
 
 'use client'
 
-import { useState, useRef, useEffect, useCallback } from 'react'
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react'
 import {
   Layers,
   RefreshCw,
@@ -82,6 +82,13 @@ export function BuildPhaseView({
   // Current iframe URL — base URL + tour route
   const [activeIframeSrc, setActiveIframeSrc] = useState(prototypeUrl || '')
   const [activeCardIndex, setActiveCardIndex] = useState<number | null>(null)
+  // Bridge detection — true when prototype has AiosBridge component
+  const [bridgeReady, setBridgeReady] = useState(false)
+  // Route manifest from prototype — maps epic indices to prototype routes
+  const [routeManifest, setRouteManifest] = useState<{
+    epic_routes?: Record<string, string>
+    feature_routes?: Record<string, string>
+  } | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const iframeRef = useRef<HTMLIFrameElement>(null)
 
@@ -96,6 +103,46 @@ export function BuildPhaseView({
       inputRef.current.select()
     }
   }, [isEditing])
+
+  // Bridge detection — listens for first aios:page-change from prototype iframe
+  useEffect(() => {
+    const handler = (e: MessageEvent) => {
+      if (e.data?.type === 'aios:page-change') {
+        setBridgeReady(true)
+      }
+    }
+    window.addEventListener('message', handler)
+    return () => window.removeEventListener('message', handler)
+  }, [])
+
+  // Reset bridge state when prototype URL changes (new deploy)
+  useEffect(() => {
+    setBridgeReady(false)
+    setRouteManifest(null)
+  }, [prototypeUrl])
+
+  // Fetch route manifest from prototype (static JSON file)
+  useEffect(() => {
+    if (!prototypeUrl) return
+    const url = prototypeUrl.replace(/\/$/, '') + '/route-manifest.json'
+    fetch(url)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => { if (data) setRouteManifest(data) })
+      .catch(() => {})
+  }, [prototypeUrl])
+
+  // Map epic plan routes through route manifest so EpicTourController
+  // navigates to the correct prototype routes (not the epic plan's conceptual routes)
+  const mappedEpicPlan = useMemo(() => {
+    if (!epicPlan || !routeManifest?.epic_routes) return epicPlan
+    return {
+      ...epicPlan,
+      vision_epics: epicPlan.vision_epics.map((epic, i) => ({
+        ...epic,
+        primary_route: routeManifest.epic_routes![String(i)] || epic.primary_route,
+      })),
+    }
+  }, [epicPlan, routeManifest])
 
   // Escape key exits fullscreen
   useEffect(() => {
@@ -225,27 +272,35 @@ export function BuildPhaseView({
     [onEpicCardChange]
   )
 
-  // Tour route change — navigate iframe by swapping src
+  // Tour route change — postMessage if bridge ready, else src swap (only when safe)
   const handleRouteChange = useCallback(
     (route: string | null) => {
-      if (!prototypeUrl) return
-      if (!route) {
-        // No route — stay on current page
-        return
-      }
-      // Build full URL: base + route
-      try {
-        const base = new URL(prototypeUrl)
-        base.pathname = route
-        const newSrc = base.toString()
-        if (newSrc !== activeIframeSrc) {
-          setActiveIframeSrc(newSrc)
+      if (!prototypeUrl || !route) return
+
+      if (bridgeReady && iframeRef.current?.contentWindow) {
+        // SPA navigation via bridge — no page reload
+        iframeRef.current.contentWindow.postMessage(
+          { type: 'aios:navigate', path: route },
+          '*'
+        )
+      } else if (routeManifest) {
+        // Src swap only when route manifest exists — this means the prototype
+        // was built with the new pipeline and has _redirects for SPA routing.
+        // Without _redirects, deep URLs 404 on Netlify.
+        try {
+          const base = new URL(prototypeUrl)
+          base.pathname = route
+          const newSrc = base.toString()
+          if (newSrc !== activeIframeSrc) {
+            setActiveIframeSrc(newSrc)
+          }
+        } catch {
+          // Invalid URL — ignore
         }
-      } catch {
-        // Invalid URL — ignore
       }
+      // No bridge + no route manifest → skip navigation (review panel still works)
     },
-    [prototypeUrl, activeIframeSrc]
+    [prototypeUrl, activeIframeSrc, bridgeReady, routeManifest]
   )
 
   return (
@@ -352,9 +407,9 @@ export function BuildPhaseView({
       )}
 
       {/* Epic Tour Controller — only during review */}
-      {isReviewActive && session && epicPlan && epicPlan.vision_epics.length > 0 && (
+      {isReviewActive && session && mappedEpicPlan && mappedEpicPlan.vision_epics.length > 0 && (
         <EpicTourController
-          epicPlan={epicPlan}
+          epicPlan={mappedEpicPlan}
           onPhaseChange={onEpicPhaseChange ?? (() => {})}
           onEpicChange={onEpicIndexChange ?? (() => {})}
           onCardChange={handleCardChange}

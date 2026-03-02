@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from 'react'
 import { Check, RefreshCw, Users, ChevronRight, MessageCircle, HelpCircle } from 'lucide-react'
+import { Markdown } from '@/components/ui/Markdown'
 import { submitEpicVerdict } from '@/lib/api'
 import { useSWRConfig } from 'swr'
 import type {
@@ -108,26 +109,35 @@ export default function ReviewInfoPanel({
     return (
       <div className="p-4 space-y-3">
         <h3 className="text-base font-semibold text-[#37352f]">{epic.title}</h3>
-        <p className="text-[13px] text-[#666666] leading-relaxed">
-          {epic.narrative}
-        </p>
 
-        {/* Feature chips */}
+        {/* Narrative — rendered as markdown, truncated */}
+        {epic.narrative && (
+          <Markdown
+            content={truncateNarrative(epic.narrative)}
+            className="text-[13px] text-[#666666] leading-relaxed"
+          />
+        )}
+
+        {/* Features as bullet list */}
         {epic.features.length > 0 && (
-          <div className="flex flex-wrap gap-1.5">
-            {epic.features.slice(0, 4).map((f) => (
-              <span
-                key={f.feature_id}
-                className="text-[10px] px-2 py-0.5 rounded-full border border-border text-[#666666] bg-[#F8F8F8]"
-              >
-                {f.name}
-              </span>
-            ))}
-            {epic.features.length > 4 && (
-              <span className="text-[10px] text-text-placeholder">
-                +{epic.features.length - 4}
-              </span>
-            )}
+          <div>
+            <div className="text-[11px] font-medium text-[#666666] mb-1">Key Features</div>
+            <ul className="space-y-0.5">
+              {epic.features.slice(0, 5).map((f) => (
+                <li
+                  key={f.feature_id}
+                  className="text-[12px] text-[#37352f] flex items-start gap-1.5"
+                >
+                  <span className="text-[#999] mt-0.5">&bull;</span>
+                  {f.name}
+                </li>
+              ))}
+              {epic.features.length > 5 && (
+                <li className="text-[11px] text-text-placeholder pl-4">
+                  +{epic.features.length - 5} more
+                </li>
+              )}
+            </ul>
           </div>
         )}
 
@@ -164,9 +174,12 @@ export default function ReviewInfoPanel({
     return (
       <div className="p-4 space-y-3">
         <h3 className="text-base font-semibold text-[#37352f]">{card.title}</h3>
-        <p className="text-[13px] text-[#666666] leading-relaxed">
-          {card.narrative}
-        </p>
+        {card.narrative && (
+          <Markdown
+            content={truncateNarrative(card.narrative)}
+            className="text-[13px] text-[#666666] leading-relaxed"
+          />
+        )}
 
         {/* Compact 4-section */}
         <div className="grid grid-cols-2 gap-2">
@@ -478,6 +491,17 @@ function EmptyState() {
       <p className="text-[13px] text-[#666666]">Navigating...</p>
     </div>
   )
+}
+
+/**
+ * Truncate narrative to ~3 sentences for the compact review panel.
+ * Preserves markdown formatting.
+ */
+function truncateNarrative(text: string, maxSentences = 3): string {
+  // Split on sentence boundaries (period/exclamation/question followed by space or end)
+  const sentences = text.match(/[^.!?]+[.!?]+/g) || [text]
+  if (sentences.length <= maxSentences) return text
+  return sentences.slice(0, maxSentences).join(' ').trim()
 }
 
 /**
