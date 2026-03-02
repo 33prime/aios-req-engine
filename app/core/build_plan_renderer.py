@@ -17,14 +17,55 @@ from __future__ import annotations
 import json
 import logging
 import re
+from typing import TYPE_CHECKING
 
 from app.core.schemas_prototype_builder import ProjectPlan, PrototypePayload
+
+if TYPE_CHECKING:
+    from app.core.schemas_screen_map import ScreenMap
 
 logger = logging.getLogger(__name__)
 
 
+def render_from_screen_map(
+    payload: PrototypePayload,
+    screen_map: ScreenMap,
+) -> dict[str, str]:
+    """Render scaffold + ScreenMap-driven pages into a filename→content map.
+
+    Uses the planning agent's ScreenMap for Layout, App.tsx, and pages
+    instead of the old phase-based templates. Config boilerplate (package.json,
+    vite.config, tailwind, etc.) is shared with the legacy path.
+    """
+    from app.core.screen_map_renderer import render_screen_map_files
+
+    files: dict[str, str] = {}
+
+    # ── Config scaffold (package.json, vite, tailwind, etc.) ────────────
+    files.update(_render_vite_config_scaffold(payload))
+
+    # ── Bridge component library ────────────────────────────────────────
+    from app.services.bridge_injector import BRIDGE_SCRIPT
+
+    files["public/aios-bridge.js"] = BRIDGE_SCRIPT
+    files["src/lib/aios/Feature.tsx"] = _AIOS_FEATURE_TSX
+    files["src/lib/aios/Screen.tsx"] = _AIOS_SCREEN_TSX
+    files["src/lib/aios/useFeatureProps.ts"] = _AIOS_USE_FEATURE_PROPS_TS
+    files["src/lib/aios/types.ts"] = _AIOS_TYPES_TS
+    files["src/lib/aios/AiosOverlay.tsx"] = _AIOS_OVERLAY_TSX
+    files["src/lib/aios/index.ts"] = _AIOS_INDEX_TS
+    files["src/lib/aios/registry.ts"] = _render_registry_ts(payload.features)
+
+    # ── ScreenMap-driven Layout, App.tsx, Pages ─────────────────────────
+    project_title = payload.project_name or "Prototype"
+    files.update(render_screen_map_files(screen_map, project_title))
+
+    logger.info(f"Rendered {len(files)} files from ScreenMap ({len(screen_map.screens)} screens)")
+    return files
+
+
 def render_build_plan(plan: ProjectPlan, payload: PrototypePayload) -> dict[str, str]:
-    """Render a plan + payload into a filename→content map."""
+    """Render a plan + payload into a filename→content map (legacy path)."""
     files: dict[str, str] = {}
 
     # ── CLAUDE.md ──────────────────────────────────────────────────────────
@@ -270,16 +311,18 @@ CORNERS_MAP = {
 }
 
 
-def _render_vite_scaffold(payload: PrototypePayload) -> dict[str, str]:
-    """Render 12 deterministic Vite scaffold files from payload data.
+def _render_vite_config_scaffold(
+    payload: PrototypePayload,
+) -> dict[str, str]:
+    """Render Vite config scaffold (no Layout/App/pages).
 
-    Eliminates the need for an agent to run npm create, install deps,
-    and write configs — saving ~$1.20 per build.
+    Shared between legacy render_build_plan and ScreenMap paths.
+    Produces: package.json, vite.config, tailwind, postcss, tsconfig,
+    index.html, main.tsx, index.css, ShareCard.
     """
     files: dict[str, str] = {}
     slug = _slugify(payload.project_name) if payload.project_name else "prototype"
 
-    # Design token values
     dc = payload.design_contract
     primary = dc.tokens.primary_color if dc else "#3b82f6"
     secondary = dc.tokens.secondary_color if dc else "#6b7280"
@@ -453,57 +496,19 @@ def _render_vite_scaffold(payload: PrototypePayload) -> dict[str, str]:
         "import React from 'react'\n"
         "import ReactDOM from 'react-dom/client'\n"
         "import { BrowserRouter } from 'react-router-dom'\n"
+        "import { ToastProvider } from './components/ui/Toast'\n"
         "import App from './App'\n"
         "import './index.css'\n"
         "\n"
         "ReactDOM.createRoot(document.getElementById('root')!).render(\n"
         "  <React.StrictMode>\n"
         "    <BrowserRouter>\n"
-        "      <App />\n"
+        "      <ToastProvider>\n"
+        "        <App />\n"
+        "      </ToastProvider>\n"
         "    </BrowserRouter>\n"
         "  </React.StrictMode>,\n"
         ")\n"
-    )
-
-    # ── Solution flow → routes + pages ────────────────────────────────────
-    steps = payload.solution_flow_steps or []
-    step_slugs: list[tuple[str, str, str]] = []  # (slug, title, component_name)
-    for step in steps:
-        step_slug = _slugify(step.title)
-        # PascalCase component name — strip non-alpha before capitalizing
-        words = re.sub(r"[^a-zA-Z0-9 ]", " ", step.title).split()[:4]
-        component = "".join(w.capitalize() for w in words) + "Page"
-        step_slugs.append((step_slug, step.title, component))
-
-    # ── src/App.tsx ────────────────────────────────────────────────────────
-    app_imports = ["import { Routes, Route } from 'react-router-dom'"]
-    app_imports.append("import Layout from './components/Layout'")
-    for _, _, component in step_slugs:
-        app_imports.append(f"import {component} from './pages/{component}'")
-
-    app_routes = []
-    for i, (step_slug, _, component) in enumerate(step_slugs):
-        path = "/" if i == 0 else f"/{step_slug}"
-        app_routes.append(f'        <Route path="{path}" element={{<{component} />}} />')
-
-    files["src/App.tsx"] = (
-        "\n".join(app_imports)
-        + "\n"
-        + "import { AiosOverlay } from './lib/aios'\n"
-        + "\n"
-        + "export default function App() {\n"
-        + "  return (\n"
-        + "    <>\n"
-        + "      <Routes>\n"
-        + "        <Route element={<Layout />}>\n"
-        + "\n".join(app_routes)
-        + "\n"
-        + "        </Route>\n"
-        + "      </Routes>\n"
-        + "      <AiosOverlay />\n"
-        + "    </>\n"
-        + "  )\n"
-        + "}\n"
     )
 
     # ── src/index.css ─────────────────────────────────────────────────────
@@ -547,49 +552,42 @@ def _render_vite_scaffold(payload: PrototypePayload) -> dict[str, str]:
         "  @apply bg-white rounded-xl shadow-md border border-gray-100 p-6"
         " hover:shadow-lg transition-shadow;\n"
         "}\n"
-    )
-
-    # ── src/components/Layout.tsx ──────────────────────────────────────────
-    nav_links = []
-    for i, (step_slug, title, _) in enumerate(step_slugs):
-        path = "/" if i == 0 else f"/{step_slug}"
-        safe_nav_title = _escape_jsx(title[:24])
-        nav_links.append(
-            f'        <Link to="{path}" className={{'
-            f'pathname === "{path}"'
-            f' ? "bg-primary/10 text-primary font-semibold px-3 py-1.5 rounded-full text-sm"'
-            f' : "text-gray-500 hover:text-primary px-3 py-1.5 text-sm"'
-            f"}}>{safe_nav_title}</Link>"
-        )
-
-    nav_active_block = "\n".join(nav_links) if nav_links else "        <span>App</span>"
-
-    project_title = _escape_jsx(payload.project_name or "Prototype")
-    files["src/components/Layout.tsx"] = (
-        "import { Link, Outlet, useLocation } from 'react-router-dom'\n"
         "\n"
-        "export default function Layout() {\n"
-        "  const { pathname } = useLocation()\n"
-        "  return (\n"
-        '    <div className="min-h-screen flex flex-col bg-gray-50">\n'
-        '      <nav className="bg-white/90 backdrop-blur-md border-b'
-        " border-gray-200/60 sticky top-0 z-50"
-        ' px-6 py-3 flex items-center gap-1">\n'
-        f'        <span className="font-heading font-bold text-primary'
-        f' text-lg mr-6">{project_title}</span>\n'
-        f"{nav_active_block}\n"
-        "      </nav>\n"
-        '      <main className="flex-1">\n'
-        "        <Outlet />\n"
-        "      </main>\n"
-        '      <footer className="border-t border-gray-200/60 bg-white/60'
-        ' backdrop-blur-sm py-6 px-8 text-center">\n'
-        '        <p className="text-xs text-gray-400">'
-        f"&copy; 2026 {project_title}. All rights reserved.</p>\n"
-        "      </footer>\n"
-        "    </div>\n"
-        "  )\n"
+        "@keyframes pageEnter {\n"
+        "  from { opacity: 0; transform: translateY(8px); }\n"
+        "  to { opacity: 1; transform: translateY(0); }\n"
         "}\n"
+        ".animate-page-enter {\n"
+        "  animation: pageEnter 0.35s ease-out both;\n"
+        "}\n"
+        "\n"
+        "@keyframes shimmer {\n"
+        "  0% { background-position: -200% 0; }\n"
+        "  100% { background-position: 200% 0; }\n"
+        "}\n"
+        ".skeleton {\n"
+        "  background: linear-gradient(90deg, #f3f4f6 25%, #e5e7eb 50%, #f3f4f6 75%);\n"
+        "  background-size: 200% 100%;\n"
+        "  animation: shimmer 1.5s ease-in-out infinite;\n"
+        "  border-radius: 0.5rem;\n"
+        "}\n"
+        "\n"
+        "@keyframes slideUp {\n"
+        "  from { opacity: 0; transform: translateY(16px); }\n"
+        "  to { opacity: 1; transform: translateY(0); }\n"
+        "}\n"
+        ".animate-slide-up {\n"
+        "  animation: slideUp 0.25s ease-out both;\n"
+        "}\n"
+        "\n"
+        "/* Custom scrollbar */\n"
+        "::-webkit-scrollbar { width: 6px; height: 6px; }\n"
+        "::-webkit-scrollbar-track { background: transparent; }\n"
+        "::-webkit-scrollbar-thumb {\n"
+        "  background: rgba(0,0,0,0.15);\n"
+        "  border-radius: 3px;\n"
+        "}\n"
+        "::-webkit-scrollbar-thumb:hover { background: rgba(0,0,0,0.25); }\n"
     )
 
     # ── src/components/ShareCard.tsx ─────────────────────────────────────
@@ -624,6 +622,409 @@ def _render_vite_scaffold(payload: PrototypePayload) -> dict[str, str]:
         "    </div>\n"
         "  )\n"
         "}\n"
+    )
+
+    # ── UI Primitives ──────────────────────────────────────────────────
+
+    files["src/components/ui/Card.tsx"] = (
+        "import type { ReactNode } from 'react'\n\n"
+        "interface CardProps {\n"
+        "  children: ReactNode\n"
+        "  className?: string\n"
+        "  header?: ReactNode\n"
+        "  footer?: ReactNode\n"
+        "}\n\n"
+        "export function Card({ children, className = '', header, footer }: CardProps) {\n"
+        "  return (\n"
+        "    <div className={`bg-white rounded-xl shadow-sm border border-gray-100 "
+        "hover:shadow-md transition-shadow ${className}`}>\n"
+        "      {header && (\n"
+        '        <div className="px-6 py-4 border-b border-gray-100">{header}</div>\n'
+        "      )}\n"
+        '      <div className="p-6">{children}</div>\n'
+        "      {footer && (\n"
+        '        <div className="px-6 py-4 border-t border-gray-100">{footer}</div>\n'
+        "      )}\n"
+        "    </div>\n"
+        "  )\n"
+        "}\n"
+    )
+
+    files["src/components/ui/Badge.tsx"] = (
+        "const variants = {\n"
+        "  default: 'bg-gray-100 text-gray-700',\n"
+        "  success: 'bg-green-50 text-green-700',\n"
+        "  warning: 'bg-amber-50 text-amber-700',\n"
+        "  danger: 'bg-red-50 text-red-700',\n"
+        "  accent: 'bg-primary/10 text-primary',\n"
+        "} as const\n\n"
+        "interface BadgeProps {\n"
+        "  children: React.ReactNode\n"
+        "  variant?: keyof typeof variants\n"
+        "  className?: string\n"
+        "}\n\n"
+        "export function Badge({ children, variant = 'default', className = '' }: BadgeProps) {\n"
+        "  return (\n"
+        "    <span className={`text-xs px-2.5 py-0.5 rounded-full font-medium "
+        "${variants[variant]} ${className}`}>\n"
+        "      {children}\n"
+        "    </span>\n"
+        "  )\n"
+        "}\n"
+    )
+
+    files["src/components/ui/Button.tsx"] = (
+        "const variants = {\n"
+        "  primary: 'bg-primary text-white hover:shadow-lg',\n"
+        "  secondary: 'bg-white text-gray-900 border border-gray-200 hover:bg-gray-50',\n"
+        "  ghost: 'text-gray-600 hover:bg-gray-100',\n"
+        "} as const\n\n"
+        "const sizes = {\n"
+        "  sm: 'px-3 py-1.5 text-xs',\n"
+        "  md: 'px-5 py-2.5 text-sm',\n"
+        "  lg: 'px-8 py-3 text-base',\n"
+        "} as const\n\n"
+        "interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {\n"
+        "  variant?: keyof typeof variants\n"
+        "  size?: keyof typeof sizes\n"
+        "}\n\n"
+        "export function Button({\n"
+        "  variant = 'primary', size = 'md', className = '', children, ...props\n"
+        "}: ButtonProps) {\n"
+        "  return (\n"
+        "    <button\n"
+        "      className={`rounded-full font-medium transition-all "
+        "${variants[variant]} ${sizes[size]} ${className}`}\n"
+        "      {...props}\n"
+        "    >\n"
+        "      {children}\n"
+        "    </button>\n"
+        "  )\n"
+        "}\n"
+    )
+
+    files["src/components/ui/TabGroup.tsx"] = (
+        "import { useState } from 'react'\n\n"
+        "interface TabItem {\n"
+        "  label: string\n"
+        "  content: React.ReactNode\n"
+        "}\n\n"
+        "interface TabGroupProps {\n"
+        "  items: TabItem[]\n"
+        "  defaultIndex?: number\n"
+        "}\n\n"
+        "export function TabGroup({ items, defaultIndex = 0 }: TabGroupProps) {\n"
+        "  const [active, setActive] = useState(defaultIndex)\n"
+        "  return (\n"
+        '    <div className="mb-8">\n'
+        '      <div className="flex border-b border-gray-200 mb-6">\n'
+        "        {items.map((tab, i) => (\n"
+        "          <button\n"
+        "            key={tab.label}\n"
+        "            onClick={() => setActive(i)}\n"
+        "            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${\n"
+        "              i === active\n"
+        "                ? 'border-primary text-primary'\n"
+        "                : 'border-transparent text-gray-500 hover:text-gray-700'\n"
+        "            }`}\n"
+        "          >\n"
+        "            {tab.label}\n"
+        "          </button>\n"
+        "        ))}\n"
+        "      </div>\n"
+        '      <div key={active} className="animate-page-enter">\n'
+        "        {items[active]?.content}\n"
+        "      </div>\n"
+        "    </div>\n"
+        "  )\n"
+        "}\n"
+    )
+
+    files["src/components/ui/Avatar.tsx"] = (
+        "const sizeMap = {\n"
+        "  sm: 'w-8 h-8 text-xs',\n"
+        "  md: 'w-10 h-10 text-sm',\n"
+        "  lg: 'w-14 h-14 text-lg',\n"
+        "} as const\n\n"
+        "interface AvatarProps {\n"
+        "  initials: string\n"
+        "  name?: string\n"
+        "  size?: keyof typeof sizeMap\n"
+        "  src?: string\n"
+        "  className?: string\n"
+        "}\n\n"
+        "export function Avatar({\n"
+        "  initials, name, size = 'md', src, className = ''\n"
+        "}: AvatarProps) {\n"
+        "  if (src) {\n"
+        "    return (\n"
+        "      <img src={src} alt={name ?? initials} className={`rounded-full object-cover "
+        "${sizeMap[size]} ${className}`} />\n"
+        "    )\n"
+        "  }\n"
+        "  return (\n"
+        "    <div className={`bg-primary text-white rounded-full flex items-center "
+        "justify-center font-semibold ${sizeMap[size]} ${className}`}\n"
+        "      title={name}>\n"
+        "      {initials}\n"
+        "    </div>\n"
+        "  )\n"
+        "}\n"
+    )
+
+    files["src/components/ui/ProgressBar.tsx"] = (
+        "interface ProgressBarProps {\n"
+        "  value: number\n"
+        "  label?: string\n"
+        "  className?: string\n"
+        "}\n\n"
+        "export function ProgressBar({ value, label, className = '' }: ProgressBarProps) {\n"
+        "  const pct = Math.max(0, Math.min(100, value))\n"
+        "  return (\n"
+        "    <div className={`${className}`}>\n"
+        "      {label && (\n"
+        '        <div className="flex justify-between text-sm mb-1">\n'
+        '          <span className="text-gray-700">{label}</span>\n'
+        '          <span className="text-gray-500">{pct}%</span>\n'
+        "        </div>\n"
+        "      )}\n"
+        '      <div className="h-2 bg-gray-100 rounded-full overflow-hidden">\n'
+        '        <div className="h-full bg-primary rounded-full transition-all duration-700"\n'
+        "          style={{ width: `${pct}%` }} />\n"
+        "      </div>\n"
+        "    </div>\n"
+        "  )\n"
+        "}\n"
+    )
+
+    files["src/components/ui/LucideIcon.tsx"] = (
+        "import * as icons from 'lucide-react'\n"
+        "import type { LucideProps } from 'lucide-react'\n\n"
+        "type IconComponent = React.FC<LucideProps>\n\n"
+        "interface LucideIconProps {\n"
+        "  name: string\n"
+        "  size?: number\n"
+        "  className?: string\n"
+        "}\n\n"
+        "export function LucideIcon({ name, size = 20, className = '' }: LucideIconProps) {\n"
+        "  const Icon = (icons as unknown as Record<string, IconComponent>)[name]\n"
+        "  if (!Icon) return <span className={className}>{name}</span>\n"
+        "  return <Icon size={size} className={className} />\n"
+        "}\n"
+    )
+
+    # ── Toast component ─────────────────────────────────────────────────
+    files["src/components/ui/Toast.tsx"] = (
+        "import { createContext, useContext, useState, useCallback } from 'react'\n\n"
+        "interface Toast {\n"
+        "  id: number\n"
+        "  message: string\n"
+        "  variant: 'success' | 'error' | 'info'\n"
+        "}\n\n"
+        "interface ToastContextType {\n"
+        "  toast: (message: string, variant?: Toast['variant']) => void\n"
+        "}\n\n"
+        "const ToastContext = createContext<ToastContextType>({ toast: () => {} })\n\n"
+        "export function useToast() {\n"
+        "  return useContext(ToastContext)\n"
+        "}\n\n"
+        "let _nextId = 0\n\n"
+        "export function ToastProvider({ children }: { children: React.ReactNode }) {\n"
+        "  const [toasts, setToasts] = useState<Toast[]>([])\n\n"
+        "  const toast = useCallback(\n"
+        "    (message: string, variant: Toast['variant'] = 'success') => {\n"
+        "    const id = ++_nextId\n"
+        "    setToasts(t => [...t, { id, message, variant }])\n"
+        "    setTimeout(() => setToasts(t => t.filter(x => x.id !== id)), 3000)\n"
+        "  }, [])\n\n"
+        "  const colors = {\n"
+        "    success: 'bg-green-500',\n"
+        "    error: 'bg-red-500',\n"
+        "    info: 'bg-blue-500',\n"
+        "  }\n\n"
+        "  return (\n"
+        "    <ToastContext.Provider value={{ toast }}>\n"
+        "      {children}\n"
+        '      <div className="fixed bottom-4 right-4 z-[100] flex flex-col gap-2">\n'
+        "        {toasts.map(t => (\n"
+        "          <div\n"
+        "            key={t.id}\n"
+        "            className={`${colors[t.variant]} text-white px-5 py-3 rounded-xl "
+        "shadow-lg text-sm font-medium animate-slide-up`}\n"
+        "          >\n"
+        "            {t.message}\n"
+        "          </div>\n"
+        "        ))}\n"
+        "      </div>\n"
+        "    </ToastContext.Provider>\n"
+        "  )\n"
+        "}\n"
+    )
+
+    # ── Modal component ──────────────────────────────────────────────────
+    files["src/components/ui/Modal.tsx"] = (
+        "import { useEffect, useRef } from 'react'\n"
+        "import { X } from 'lucide-react'\n\n"
+        "interface ModalProps {\n"
+        "  open: boolean\n"
+        "  onClose: () => void\n"
+        "  title?: string\n"
+        "  children: React.ReactNode\n"
+        "}\n\n"
+        "export function Modal({ open, onClose, title, children }: ModalProps) {\n"
+        "  const ref = useRef<HTMLDivElement>(null)\n\n"
+        "  useEffect(() => {\n"
+        "    if (!open) return\n"
+        "    const handleKey = (e: KeyboardEvent) => {\n"
+        "      if (e.key === 'Escape') onClose()\n"
+        "    }\n"
+        "    document.addEventListener('keydown', handleKey)\n"
+        "    return () => document.removeEventListener('keydown', handleKey)\n"
+        "  }, [open, onClose])\n\n"
+        "  if (!open) return null\n\n"
+        "  return (\n"
+        '    <div className="fixed inset-0 z-[90] flex items-end sm:items-center '
+        'justify-center" onClick={onClose}>\n'
+        '      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />\n'
+        "      <div\n"
+        "        ref={ref}\n"
+        "        onClick={(e) => e.stopPropagation()}\n"
+        '        className="relative bg-white rounded-t-2xl sm:rounded-2xl '
+        "w-full sm:max-w-lg max-h-[85vh] overflow-y-auto shadow-2xl "
+        'animate-slide-up"\n'
+        "      >\n"
+        '        <div className="flex items-center justify-between px-6 py-4 '
+        'border-b border-gray-100">\n'
+        "          {title && (\n"
+        '            <h2 className="font-heading font-semibold text-gray-900">'
+        "{title}</h2>\n"
+        "          )}\n"
+        '          <button onClick={onClose} className="text-gray-400 '
+        'hover:text-gray-600 transition-colors ml-auto">\n'
+        "            <X size={18} />\n"
+        "          </button>\n"
+        "        </div>\n"
+        '        <div className="p-6">{children}</div>\n'
+        "      </div>\n"
+        "    </div>\n"
+        "  )\n"
+        "}\n"
+    )
+
+    files["src/components/ui/index.ts"] = (
+        "export { Card } from './Card'\n"
+        "export { Badge } from './Badge'\n"
+        "export { Button } from './Button'\n"
+        "export { TabGroup } from './TabGroup'\n"
+        "export { Avatar } from './Avatar'\n"
+        "export { ProgressBar } from './ProgressBar'\n"
+        "export { LucideIcon } from './LucideIcon'\n"
+        "export { Modal } from './Modal'\n"
+        "export { ToastProvider, useToast } from './Toast'\n"
+    )
+
+    # ── public/_redirects (Netlify SPA routing) ──────────────────────────
+    files["public/_redirects"] = "/*    /index.html   200\n"
+
+    return files
+
+
+def _render_vite_scaffold(payload: PrototypePayload) -> dict[str, str]:
+    """Render full Vite scaffold with legacy phase-based pages.
+
+    Includes config scaffold + Layout + App.tsx + pages.
+    Used by render_build_plan (legacy path).
+    """
+    files = _render_vite_config_scaffold(payload)
+
+    steps = payload.solution_flow_steps or []
+    step_slugs: list[tuple[str, str, str]] = []
+    for step in steps:
+        step_slug = _slugify(step.title)
+        words = re.sub(r"[^a-zA-Z0-9 ]", " ", step.title).split()[:4]
+        component = "".join(w.capitalize() for w in words) + "Page"
+        step_slugs.append((step_slug, step.title, component))
+
+    # ── src/components/Layout.tsx ──────────────────────────────────────
+    nav_links = []
+    for i, (step_slug, title, _) in enumerate(step_slugs):
+        path = "/" if i == 0 else f"/{step_slug}"
+        safe_nav_title = _escape_jsx(title[:24])
+        nav_links.append(
+            f'        <Link to="{path}" className={{'
+            f'pathname === "{path}"'
+            f' ? "bg-primary/10 text-primary font-semibold '
+            f'px-3 py-1.5 rounded-full text-sm"'
+            f' : "text-gray-500 hover:text-primary '
+            f'px-3 py-1.5 text-sm"'
+            f"}}>{safe_nav_title}</Link>"
+        )
+
+    nav_active_block = "\n".join(nav_links) if nav_links else "        <span>App</span>"
+
+    project_title = _escape_jsx(payload.project_name or "Prototype")
+    files["src/components/Layout.tsx"] = (
+        "import { Link, Outlet, useLocation } "
+        "from 'react-router-dom'\n"
+        "\n"
+        "export default function Layout() {\n"
+        "  const { pathname } = useLocation()\n"
+        "  return (\n"
+        '    <div className="min-h-screen flex '
+        'flex-col bg-gray-50">\n'
+        '      <nav className="bg-white/90 backdrop-blur-md '
+        "border-b border-gray-200/60 sticky top-0 z-50"
+        ' px-6 py-3 flex items-center gap-1">\n'
+        '        <span className="font-heading font-bold '
+        f'text-primary text-lg mr-6">{project_title}</span>\n'
+        f"{nav_active_block}\n"
+        "      </nav>\n"
+        '      <main className="flex-1">\n'
+        "        <Outlet />\n"
+        "      </main>\n"
+        '      <footer className="border-t border-gray-200/60 '
+        "bg-white/60 backdrop-blur-sm py-6 px-8 "
+        'text-center">\n'
+        '        <p className="text-xs text-gray-400">'
+        f"&copy; 2026 {project_title}. "
+        "All rights reserved.</p>\n"
+        "      </footer>\n"
+        "    </div>\n"
+        "  )\n"
+        "}\n"
+    )
+
+    # ── src/App.tsx ────────────────────────────────────────────────────
+    app_imports = [
+        "import { Routes, Route } from 'react-router-dom'",
+    ]
+    app_imports.append("import Layout from './components/Layout'")
+    for _, _, component in step_slugs:
+        app_imports.append(f"import {component} from './pages/{component}'")
+
+    app_routes = []
+    for i, (step_slug, _, component) in enumerate(step_slugs):
+        path = "/" if i == 0 else f"/{step_slug}"
+        app_routes.append(f'        <Route path="{path}" element={{<{component} />}} />')
+
+    files["src/App.tsx"] = (
+        "\n".join(app_imports)
+        + "\n"
+        + "import { AiosOverlay } from './lib/aios'\n"
+        + "\n"
+        + "export default function App() {\n"
+        + "  return (\n"
+        + "    <>\n"
+        + "      <Routes>\n"
+        + "        <Route element={<Layout />}>\n"
+        + "\n".join(app_routes)
+        + "\n"
+        + "        </Route>\n"
+        + "      </Routes>\n"
+        + "      <AiosOverlay />\n"
+        + "    </>\n"
+        + "  )\n"
+        + "}\n"
     )
 
     # ── Feature-to-page distribution (round-robin by step_order) ────────

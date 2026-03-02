@@ -343,7 +343,7 @@ async def _run_build_pipeline(
     skip_deploy: bool = False,
 ) -> None:
     """Background task: full build pipeline."""
-    from app.core.build_plan_renderer import render_build_plan
+    from app.core.build_plan_renderer import render_build_plan, render_from_screen_map
     from app.core.config import get_settings
     from app.core.prototype_payload import assemble_prototype_payload
     from app.db.prototype_builds import (
@@ -363,14 +363,15 @@ async def _run_build_pipeline(
         update_build_status(build_id, "phase0")
         append_build_log(build_id, {"phase": "phase0", "message": "Running Phase 0 intelligence"})
 
+        prebuild_result = None
         if not skip_phase0:
             try:
                 from app.graphs.prebuild_intelligence_graph import run_prebuild_intelligence
 
-                prebuild = await run_prebuild_intelligence(project_id)
+                prebuild_result = await run_prebuild_intelligence(project_id)
                 update_prototype(
                     prototype_id,
-                    prebuild_intelligence=prebuild.model_dump() if prebuild else None,
+                    prebuild_intelligence=prebuild_result.model_dump() if prebuild_result else None,
                 )
             except Exception as e:
                 logger.warning(f"Phase 0 failed (non-fatal): {e}")
@@ -378,13 +379,21 @@ async def _run_build_pipeline(
 
         # Planning
         update_build_status(build_id, "planning")
-        append_build_log(build_id, {"phase": "planning", "message": "Generating project plan"})
+        append_build_log(
+            build_id,
+            {"phase": "planning", "message": "Assembling payload"},
+        )
 
         payload_response = await assemble_prototype_payload(project_id=project_id)
         payload = payload_response.payload
 
         # Bridge Phase 0 depth assignments into payload features
-        if not skip_phase0:
+        if prebuild_result and prebuild_result.feature_specs:
+            depth_map = {spec.feature_id: spec.depth for spec in prebuild_result.feature_specs}
+            for feature in payload.features:
+                if feature.id in depth_map:
+                    feature.build_depth = depth_map[feature.id]
+        elif not skip_phase0:
             from app.db.prototypes import get_prototype
 
             proto = get_prototype(prototype_id)
@@ -398,31 +407,83 @@ async def _run_build_pipeline(
                     if feature.id in depth_map:
                         feature.build_depth = depth_map[feature.id]
 
-        from app.chains.generate_project_plan import generate_project_plan
+        # ── Planning Agent (ScreenMap) — fast path with payload + prebuild ──
+        screen_map = None
+        try:
+            from app.agents.planning_agent import plan_prototype
 
-        plan = await generate_project_plan(payload=payload, config=config, project_id=project_id)
+            append_build_log(
+                build_id,
+                {"phase": "planning", "message": "Running planning agent"},
+            )
+            agent_result = await plan_prototype(
+                project_id,
+                payload=payload,
+                prebuild=prebuild_result,
+                project_name=payload.project_name,
+                feature_count=len(payload.features),
+            )
+            screen_map = agent_result.get("screen_map")
+            if screen_map:
+                append_build_log(
+                    build_id,
+                    {
+                        "phase": "planning",
+                        "message": (
+                            f"Planning agent produced {len(screen_map.screens)} screens "
+                            f"in {agent_result.get('duration_s', 0):.0f}s"
+                        ),
+                    },
+                )
+        except Exception as e:
+            logger.warning(f"Planning agent failed, falling back to legacy: {e}")
+            append_build_log(
+                build_id,
+                {"phase": "planning", "message": f"Planning agent failed: {e}"},
+            )
 
-        if not plan.tasks:
-            update_build_status(build_id, "failed", error="Plan generated with no tasks")
-            return
-
-        # Persist plan
-        update_prototype(
-            prototype_id,
-            build_payload=payload.model_dump(),
-            build_plan=plan.model_dump(),
-        )
-        update_build(
-            build_id,
-            streams_total=len(plan.streams),
-            tasks_total=len(plan.tasks),
-        )
-
-        # Rendering
+        # ── Rendering ──────────────────────────────────────────────
         update_build_status(build_id, "rendering")
-        append_build_log(build_id, {"phase": "rendering", "message": "Rendering plan files"})
 
-        files = render_build_plan(plan, payload)
+        if screen_map:
+            # ScreenMap path — skip legacy Opus planning entirely
+            append_build_log(
+                build_id,
+                {"phase": "rendering", "message": "Rendering from ScreenMap"},
+            )
+            files = render_from_screen_map(payload, screen_map)
+
+            # Persist payload (no legacy plan needed)
+            update_prototype(prototype_id, build_payload=payload.model_dump())
+            update_build(build_id, streams_total=0, tasks_total=0)
+        else:
+            # Legacy path — run Opus planning + old renderer
+            append_build_log(
+                build_id,
+                {"phase": "rendering", "message": "Running legacy Opus planning"},
+            )
+            from app.chains.generate_project_plan import generate_project_plan
+
+            plan = await generate_project_plan(
+                payload=payload, config=config, project_id=project_id
+            )
+
+            if not plan.tasks:
+                update_build_status(build_id, "failed", error="No plan generated")
+                return
+
+            update_prototype(
+                prototype_id,
+                build_payload=payload.model_dump(),
+                build_plan=plan.model_dump(),
+            )
+            update_build(
+                build_id,
+                streams_total=len(plan.streams),
+                tasks_total=len(plan.tasks),
+            )
+
+            files = render_build_plan(plan, payload)
 
         # Write to temp dir
         local_path = str(Path(settings.PROTOTYPE_TEMP_DIR) / f"build-{build_id}")
@@ -432,51 +493,56 @@ async def _run_build_pipeline(
             file_path.parent.mkdir(parents=True, exist_ok=True)
             file_path.write_text(content, encoding="utf-8")
 
-        # Building
-        update_build_status(build_id, "building")
-        append_build_log(
-            build_id,
-            {
-                "phase": "building",
-                "message": f"Executing {len(plan.streams)} streams",
-            },
-        )
+        # Agent enhancement (legacy path only — ScreenMap pages are pre-rendered)
+        if not screen_map:
+            update_build_status(build_id, "building")
+            append_build_log(
+                build_id,
+                {
+                    "phase": "building",
+                    "message": f"Executing {len(plan.streams)} streams",
+                },
+            )
 
-        def _on_stream_done(sr):
-            try:
-                increment_stream_completed(build_id)
-                append_build_log(
+            def _on_stream_done(sr):
+                try:
+                    increment_stream_completed(build_id)
+                    append_build_log(
+                        build_id,
+                        {
+                            "phase": "building",
+                            "stream": sr.stream_id,
+                            "success": sr.success,
+                            "files": len(sr.files_changed),
+                        },
+                    )
+                except Exception:
+                    pass
+
+            orchestrator = BuildOrchestrator(
+                git=GitManager(settings.PROTOTYPE_TEMP_DIR),
+                max_parallel=config.max_parallel_streams,
+            )
+            build_result = await orchestrator.execute(
+                plan=plan,
+                payload=payload,
+                local_path=local_path,
+                build_id=build_id,
+                on_stream_complete=_on_stream_done,
+            )
+
+            update_build(
+                build_id,
+                tasks_completed=build_result.tasks_completed,
+            )
+
+            if not build_result.success:
+                update_build_status(
                     build_id,
-                    {
-                        "phase": "building",
-                        "stream": sr.stream_id,
-                        "success": sr.success,
-                        "files": len(sr.files_changed),
-                    },
+                    "failed",
+                    error="; ".join(build_result.errors[:3]),
                 )
-            except Exception:
-                pass
-
-        orchestrator = BuildOrchestrator(
-            git=GitManager(settings.PROTOTYPE_TEMP_DIR),
-            max_parallel=config.max_parallel_streams,
-        )
-        build_result = await orchestrator.execute(
-            plan=plan,
-            payload=payload,
-            local_path=local_path,
-            build_id=build_id,
-            on_stream_complete=_on_stream_done,
-        )
-
-        update_build(
-            build_id,
-            tasks_completed=build_result.tasks_completed,
-        )
-
-        if not build_result.success:
-            update_build_status(build_id, "failed", error="; ".join(build_result.errors[:3]))
-            return
+                return
 
         # Build dist/ locally (npm install + build)
         if not skip_deploy:
@@ -502,7 +568,9 @@ async def _run_build_pipeline(
                     capture_output=True,
                 )
             except subprocess.CalledProcessError as e:
-                error_msg = (e.stderr or b"").decode()[:500]
+                error_msg = (
+                    (e.stdout or b"").decode()[-500:] + "\n" + (e.stderr or b"").decode()[-500:]
+                ).strip()
                 logger.error(f"npm build failed: {error_msg}")
                 append_build_log(
                     build_id, {"phase": "bundling", "message": f"Build failed: {error_msg}"}
@@ -511,6 +579,32 @@ async def _run_build_pipeline(
                 return
             except subprocess.TimeoutExpired:
                 update_build_status(build_id, "failed", error="npm build timed out")
+                return
+
+            # Post-build validation: verify dist/ output
+            dist_dir = Path(local_path) / "dist"
+            dist_index = dist_dir / "index.html"
+            dist_assets = dist_dir / "assets"
+            if not dist_index.exists():
+                error_msg = "Post-build check failed: dist/index.html not found"
+                logger.error(error_msg)
+                append_build_log(build_id, {"phase": "bundling", "message": error_msg})
+                update_build_status(build_id, "failed", error=error_msg)
+                return
+            has_js = any(dist_assets.glob("*.js")) if dist_assets.exists() else False
+            has_css = any(dist_assets.glob("*.css")) if dist_assets.exists() else False
+            if not has_js or not has_css:
+                missing = []
+                if not has_js:
+                    missing.append(".js")
+                if not has_css:
+                    missing.append(".css")
+                error_msg = (
+                    f"Post-build check failed: dist/assets/ missing {', '.join(missing)} files"
+                )
+                logger.error(error_msg)
+                append_build_log(build_id, {"phase": "bundling", "message": error_msg})
+                update_build_status(build_id, "failed", error=error_msg)
                 return
 
         # Deployment
@@ -587,9 +681,9 @@ async def _deploy_prototype(
 
     netlify = NetlifyService(settings.NETLIFY_AUTH_TOKEN, settings.NETLIFY_TEAM_SLUG)
 
-    slug = payload.project_name.lower().replace(" ", "-")[:30] if payload.project_name else "proto"
+    raw_slug = payload.project_name.lower().replace(" ", "-") if payload.project_name else ""
     # Sanitize slug to only alphanumeric + hyphens (Netlify requirement)
-    slug = re.sub(r"[^a-z0-9-]", "", slug).strip("-")
+    slug = re.sub(r"[^a-z0-9-]", "", raw_slug).strip("-")[:30] or "proto"
     # Use build_id for uniqueness (each build gets its own site)
     uid = str(build_id)[:8] if build_id else payload.payload_hash[:6]
     site_name = f"proto-{slug}-{uid}"
