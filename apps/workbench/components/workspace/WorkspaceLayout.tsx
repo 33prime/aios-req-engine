@@ -12,13 +12,13 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { AppSidebar } from './AppSidebar'
 import { PhaseSwitcher, WorkspacePhase } from './PhaseSwitcher'
-import { CollaborationPanel, type PanelState } from './CollaborationPanel'
+// CollaborationPanel deprecated — unified into ReviewBubble
 import { CanvasView } from './canvas/CanvasView'
 import { BRDCanvas } from './brd/BRDCanvas'
 import { BuildPhaseView } from './BuildPhaseView'
 import { OverviewPanel } from './OverviewPanel'
 import { BottomDock } from './BottomDock'
-import { BrainBubble, BRAIN_PANEL_WIDTH } from './BrainBubble'
+// BrainBubble deprecated — unified into ReviewBubble
 import { useChat } from '@/lib/useChat'
 import { AssistantProvider } from '@/lib/assistant'
 import {
@@ -41,13 +41,59 @@ import type { DesignSelection, FeatureOverlay, PrototypeSession } from '@/types/
 import type { EpicTourPhase } from '@/types/epic-overlay'
 import ReviewStartModal from '@/components/prototype/ReviewStartModal'
 import ReviewEndModal from '@/components/prototype/ReviewEndModal'
-import { ReviewBubble, REVIEW_PANEL_WIDTH } from '@/components/prototype/ReviewBubble'
+import { ReviewBubble, SIDE_PANEL_WIDTH } from '@/components/prototype/ReviewBubble'
 import { ProjectHealthOverlay } from './ProjectHealthOverlay'
 import { Activity, Settings, Loader2, CheckCircle2, XCircle, Clock, ArrowLeft, Users } from 'lucide-react'
 import { CollaborateView } from './collaborate/CollaborateView'
 import { useClientPulse } from '@/lib/hooks/use-api'
 import { getProjectDetails, getLaunchProgress } from '@/lib/api'
 import type { LaunchProgressResponse } from '@/types/workspace'
+
+// =============================================================================
+// Tour narration builder — generates contextual narration per phase + card
+// =============================================================================
+
+/** Truncate to first sentence (or max chars) for concise narration. */
+function firstSentence(text: string, max = 120): string {
+  const match = text.match(/^[^.!?]+[.!?]/)
+  const sentence = match ? match[0] : text
+  return sentence.length > max ? sentence.slice(0, max - 1) + '...' : sentence
+}
+
+function buildTourNarration(
+  phase: EpicTourPhase,
+  cardIndex: number,
+  epicPlan: import('@/types/epic-overlay').EpicOverlayPlan
+): string | null {
+  switch (phase) {
+    case 'vision_journey': {
+      const epic = epicPlan.vision_epics?.[cardIndex]
+      if (!epic) return null
+      const summary = firstSentence(epic.narrative || '')
+      const features = epic.features?.slice(0, 4).map((f) => `- ${f.name}`) || []
+      return `**${epic.title}** — ${summary}${features.length ? '\n' + features.join('\n') : ''}`
+    }
+    case 'ai_deep_dive': {
+      const card = epicPlan.ai_flow_cards?.[cardIndex]
+      if (!card) return null
+      return `**${card.title}** — *${card.ai_role}*\n\n${firstSentence(card.narrative || '')}`
+    }
+    case 'horizons': {
+      const card = epicPlan.horizon_cards?.[cardIndex]
+      if (!card) return null
+      const unlocks = card.unlock_summaries?.slice(0, 3).map((u) => `- ${u}`).join('\n') || ''
+      return `**H${card.horizon}: ${card.title}**\n${card.subtitle}${unlocks ? '\n' + unlocks : ''}`
+    }
+    case 'discovery': {
+      const thread = epicPlan.discovery_threads?.[cardIndex]
+      if (!thread) return null
+      const qs = thread.questions?.slice(0, 3).map((q) => `- ${q}`).join('\n') || ''
+      return `**${thread.theme}**${qs ? '\n' + qs : ''}`
+    }
+    default:
+      return null
+  }
+}
 
 interface WorkspaceLayoutProps {
   projectId: string
@@ -75,7 +121,8 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
     localStorage.setItem(`workspace-phase-${projectId}`, phase)
   }, [phase, projectId])
 
-  const [collaborationState, setCollaborationState] = useState<PanelState>('normal')
+  // Single panel open state — controls content compression
+  const [panelOpen, setPanelOpen] = useState(false)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true)
   const [activeBottomPanel, setActiveBottomPanel] = useState<'context' | 'evidence' | 'history' | 'calls' | null>(null)
   const [discoveryViewMode, setDiscoveryViewMode] = useState<'brd' | 'canvas'>(() => {
@@ -85,8 +132,6 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
     return 'brd'
   })
 
-  // Brain panel open state — controls BRD compression
-  const [brainPanelOpen, setBrainPanelOpen] = useState(false)
 
   // BRD scroll tracking — active section for page_context
   const [activeBrdSection, setActiveBrdSection] = useState<string | null>(null)
@@ -182,7 +227,6 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
   // Epic tour state
   const [epicPhase, setEpicPhase] = useState<EpicTourPhase>('vision_journey')
   const [epicCardIndex, setEpicCardIndex] = useState<number | null>(null)
-  const [reviewPanelOpen, setReviewPanelOpen] = useState(false)
   const { data: epicPlan } = useEpicPlan(prototypeId)
   const { data: epicConfirmations, mutate: mutateEpicVerdicts } = useEpicVerdicts(reviewSession?.id)
 
@@ -218,6 +262,24 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
     },
     onDataMutated: handleDataMutated,
   })
+
+  // Tour narration → inject into chat when epic card changes during review
+  const prevEpicCardRef = useRef<number | null>(null)
+  useEffect(() => {
+    if (!isReviewActive || epicCardIndex === null || !epicPlan) return
+    // Avoid re-firing for the same card
+    if (prevEpicCardRef.current === epicCardIndex) return
+    prevEpicCardRef.current = epicCardIndex
+
+    const narration = buildTourNarration(epicPhase, epicCardIndex, epicPlan)
+    if (narration) {
+      addLocalMessage({
+        role: 'assistant',
+        content: narration,
+        metadata: { type: 'tour_narration', phase: epicPhase, cardIndex: epicCardIndex },
+      })
+    }
+  }, [epicCardIndex, isReviewActive, epicPlan, epicPhase, addLocalMessage])
 
   // Resolved prototype URL — survives SWR revalidation (which may return null from projects table).
   // Prototype deploy_url lives in the prototypes table; projects.prototype_url may be empty.
@@ -295,8 +357,8 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
         mutateWorkspace((prev) => prev ? { ...prev, prototype_url: deployUrlFromModal } : prev, false)
       }
 
-      // Open review panel by default
-      setReviewPanelOpen(true)
+      // Open panel by default when review starts
+      setPanelOpen(true)
     },
     []
   )
@@ -386,17 +448,11 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
 
   // Calculate sidebar widths
   const sidebarWidth = sidebarCollapsed ? 64 : 224
-  // BrainBubble for all phases except build+review (which uses ReviewBubble)
-  const useBrainBubble = phase === 'discovery' || phase === 'overview' || phase === 'collaborate' || (phase === 'build' && !isReviewActive)
 
   // Client pulse for Collaborate button badge
   const { data: pulseData } = useClientPulse(projectId)
-  // When brain panel is open, content compresses to make room
-  // During review, ReviewBubble controls width (0 when closed, REVIEW_PANEL_WIDTH when open)
-  const collaborationWidth = useBrainBubble
-    ? (brainPanelOpen ? BRAIN_PANEL_WIDTH : 0)
-    : isReviewActive ? (reviewPanelOpen ? REVIEW_PANEL_WIDTH : 0)
-    : 0
+  // When panel is open, content compresses to make room
+  const collaborationWidth = panelOpen ? SIDE_PANEL_WIDTH : 0
 
   // Build assistant project data
   const assistantProjectData = canvasData
@@ -743,58 +799,36 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
           onKeepWorking={handleKeepWorking}
         />
 
-        {/* Right Panel — BrainBubble for Discovery/Overview, ReviewBubble for Review, CollaborationPanel for Build */}
-        {useBrainBubble ? (
-          <BrainBubble
-            projectId={projectId}
-            actionCount={contextFrame?.actions?.length ?? 0}
-            messages={messages}
-            isChatLoading={isChatLoading}
-            onSendMessage={sendMessage}
-            onSendSignal={sendSignal}
-            onAddLocalMessage={addLocalMessage}
-            onCascade={() => { mutateBrd(); mutateContextFrame() }}
-            entityDetection={entityDetection}
-            isSavingAsSignal={isSavingAsSignal}
-            onSaveAsSignal={async () => { await saveAsSignal(); mutateBrd(); mutateContextFrame() }}
-            onDismissDetection={dismissDetection}
-            onOpenChange={setBrainPanelOpen}
-            contextActions={contextFrame?.actions}
-            onNewChat={startNewChat}
-            onSetConversationContext={setConversationContext}
-            onNavigateToCollaborate={() => setPhase('collaborate')}
-            hideClientPulse={phase === 'collaborate'}
-          />
-        ) : isReviewActive && reviewSession && epicPlan ? (
-          <ReviewBubble
-            projectId={projectId}
-            session={reviewSession}
-            epicPlan={epicPlan}
-            epicPhase={epicPhase}
-            epicCardIndex={epicCardIndex}
-            epicConfirmations={epicConfirmations ?? []}
-            onEpicAdvance={handleEpicAdvance}
-            messages={messages}
-            isChatLoading={isChatLoading}
-            onSendMessage={sendMessage}
-            onSendSignal={sendSignal}
-            onAddLocalMessage={addLocalMessage}
-            onOpenChange={setReviewPanelOpen}
-          />
-        ) : (
-          <CollaborationPanel
-            projectId={projectId}
-            projectName={canvasData?.project_name || 'Project'}
-            pendingCount={canvasData?.pending_count}
-            messages={messages}
-            isChatLoading={isChatLoading}
-            onSendMessage={sendMessage}
-            onSendSignal={sendSignal}
-            onAddLocalMessage={addLocalMessage}
-            panelState={collaborationState}
-            onPanelStateChange={setCollaborationState}
-          />
-        )}
+        {/* Right Panel — unified ReviewBubble (Briefing|Chat or Review|Chat) */}
+        <ReviewBubble
+          projectId={projectId}
+          messages={messages}
+          isChatLoading={isChatLoading}
+          onSendMessage={sendMessage}
+          onSendSignal={sendSignal}
+          onAddLocalMessage={addLocalMessage}
+          onOpenChange={setPanelOpen}
+          // Briefing props
+          actionCount={contextFrame?.actions?.length ?? 0}
+          onCascade={() => { mutateBrd(); mutateContextFrame() }}
+          contextActions={contextFrame?.actions}
+          onNewChat={startNewChat}
+          onSetConversationContext={setConversationContext}
+          onNavigateToCollaborate={() => setPhase('collaborate')}
+          hideClientPulse={phase === 'collaborate'}
+          // Entity detection
+          entityDetection={entityDetection}
+          isSavingAsSignal={isSavingAsSignal}
+          onSaveAsSignal={async () => { await saveAsSignal(); mutateBrd(); mutateContextFrame() }}
+          onDismissDetection={dismissDetection}
+          // Review props (triggers review mode when present)
+          session={isReviewActive ? reviewSession ?? undefined : undefined}
+          epicPlan={isReviewActive ? epicPlan ?? undefined : undefined}
+          epicPhase={epicPhase}
+          epicCardIndex={epicCardIndex}
+          epicConfirmations={epicConfirmations ?? []}
+          onEpicAdvance={handleEpicAdvance}
+        />
         {/* Project Health Overlay — unified pulse + health modal */}
         {showHealthOverlay && (
           <ProjectHealthOverlay
