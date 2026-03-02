@@ -49,67 +49,6 @@ import { useClientPulse } from '@/lib/hooks/use-api'
 import { getProjectDetails, getLaunchProgress } from '@/lib/api'
 import type { LaunchProgressResponse } from '@/types/workspace'
 
-// =============================================================================
-// Tour narration builder — generates contextual narration per phase + card
-// =============================================================================
-
-/** Truncate to first sentence (or max chars) for concise narration. */
-function firstSentence(text: string, max = 120): string {
-  const match = text.match(/^[^.!?]+[.!?]/)
-  const sentence = match ? match[0] : text
-  return sentence.length > max ? sentence.slice(0, max - 1) + '...' : sentence
-}
-
-function buildTourNarration(
-  phase: EpicTourPhase,
-  globalCardIndex: number,
-  epicPlan: import('@/types/epic-overlay').EpicOverlayPlan
-): string | null {
-  // Convert global card index to phase-local index
-  // EpicTourController flattens: vision → ai → horizons → discovery
-  const offsets: [EpicTourPhase, number][] = [
-    ['vision_journey', epicPlan.vision_epics?.length ?? 0],
-    ['ai_deep_dive', epicPlan.ai_flow_cards?.length ?? 0],
-    ['horizons', epicPlan.horizon_cards?.length ?? 0],
-    ['discovery', Math.min(epicPlan.discovery_threads?.length ?? 0, 3)],
-  ]
-  let offset = 0
-  for (const [p, size] of offsets) {
-    if (p === phase) break
-    offset += size
-  }
-  const idx = globalCardIndex - offset
-
-  switch (phase) {
-    case 'vision_journey': {
-      const epic = epicPlan.vision_epics?.[idx]
-      if (!epic) return null
-      const summary = firstSentence(epic.narrative || '')
-      const features = epic.features?.slice(0, 4).map((f) => `- ${f.name}`) || []
-      return `**${epic.title}** — ${summary}${features.length ? '\n' + features.join('\n') : ''}`
-    }
-    case 'ai_deep_dive': {
-      const card = epicPlan.ai_flow_cards?.[idx]
-      if (!card) return null
-      return `**${card.title}** — *${card.ai_role}*\n\n${firstSentence(card.narrative || '')}`
-    }
-    case 'horizons': {
-      const card = epicPlan.horizon_cards?.[idx]
-      if (!card) return null
-      const unlocks = card.unlock_summaries?.slice(0, 3).map((u) => `- ${u}`).join('\n') || ''
-      return `**H${card.horizon}: ${card.title}**\n${card.subtitle}${unlocks ? '\n' + unlocks : ''}`
-    }
-    case 'discovery': {
-      const thread = epicPlan.discovery_threads?.[idx]
-      if (!thread) return null
-      const qs = thread.questions?.slice(0, 3).map((q) => `- ${q}`).join('\n') || ''
-      return `**${thread.theme}**${qs ? '\n' + qs : ''}`
-    }
-    default:
-      return null
-  }
-}
-
 interface WorkspaceLayoutProps {
   projectId: string
   children?: React.ReactNode
@@ -277,24 +216,6 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
     },
     onDataMutated: handleDataMutated,
   })
-
-  // Tour narration → inject into chat when epic card changes during review
-  const prevEpicCardRef = useRef<number | null>(null)
-  useEffect(() => {
-    if (!isReviewActive || epicCardIndex === null || !epicPlan) return
-    // Avoid re-firing for the same card
-    if (prevEpicCardRef.current === epicCardIndex) return
-    prevEpicCardRef.current = epicCardIndex
-
-    const narration = buildTourNarration(epicPhase, epicCardIndex, epicPlan)
-    if (narration) {
-      addLocalMessage({
-        role: 'assistant',
-        content: narration,
-        metadata: { type: 'tour_narration', phase: epicPhase, cardIndex: epicCardIndex },
-      })
-    }
-  }, [epicCardIndex, isReviewActive, epicPlan, epicPhase, addLocalMessage])
 
   // Resolved prototype URL — survives SWR revalidation (which may return null from projects table).
   // Prototype deploy_url lives in the prototypes table; projects.prototype_url may be empty.

@@ -300,6 +300,17 @@ def assemble_epics(state: PrebuildState) -> PrebuildState:
             step_feats = step_features.get(step["id"], [])
             if not step_feats and i > 5:
                 continue
+
+            # Extract pain points and open questions from the step for narrative context
+            pain_pts = [
+                pp.get("text", str(pp))[:80] if isinstance(pp, dict) else str(pp)[:80]
+                for pp in (step.get("pain_points_addressed") or [])[:3]
+            ]
+            step_qs = [
+                q.get("text", str(q))[:80] if isinstance(q, dict) else str(q)[:80]
+                for q in (step.get("open_questions") or [])[:3]
+            ]
+
             epics.append({
                 "epic_index": i,
                 "title": step.get("title", f"Step {i + 1}"),
@@ -318,7 +329,8 @@ def assemble_epics(state: PrebuildState) -> PrebuildState:
                 "all_routes": [f"/{step.get('title', '').lower().replace(' ', '-')}"],
                 "narrative": "",
                 "story_beats": [],
-                "open_questions": [],
+                "open_questions": step_qs,
+                "pain_points": pain_pts,
                 "persona_names": [p.get("name", "") for p in state.personas[:2]],
             })
 
@@ -420,9 +432,38 @@ def build_overlay_content(state: PrebuildState) -> PrebuildState:
     state.epic_plan["horizon_cards"] = horizon_cards
     state.epic_plan["totals"]["horizon_cards"] = len(horizon_cards)
 
-    # Discovery threads from open questions
+    # AI flow cards — extract from solution flow steps with ai_config
+    ai_flow_cards = []
+    for step in state.solution_flow_steps:
+        ai_cfg = step.get("ai_config")
+        if not ai_cfg or not isinstance(ai_cfg, dict):
+            continue
+        role = ai_cfg.get("role") or ai_cfg.get("ai_role") or ""
+        if not role:
+            continue
+        # Map information_fields to data_in
+        info_fields = step.get("information_fields", []) or []
+        data_in = [
+            f.get("label", f.get("name", ""))
+            for f in info_fields
+            if isinstance(f, dict) and f.get("type") == "captured"
+        ][:4]
+        ai_flow_cards.append({
+            "title": f"AI: {step.get('title', 'Intelligence')}",
+            "narrative": "",  # filled by compose_narratives
+            "ai_role": role,
+            "data_in": data_in or [step.get("goal", "")[:80]],
+            "behaviors": ai_cfg.get("behaviors", [])[:4],
+            "guardrails": ai_cfg.get("guardrails", [])[:3],
+            "output": step.get("goal", "")[:120],
+            "solution_flow_step_ids": [step["id"]],
+        })
+    state.epic_plan["ai_flow_cards"] = ai_flow_cards
+    state.epic_plan["totals"]["ai_flow_cards"] = len(ai_flow_cards)
+
+    # Discovery threads from open questions (lowered threshold to >= 1)
     features_with_questions = [
-        f for f in state.features if state.open_questions.get(f["id"], 0) >= 2
+        f for f in state.features if state.open_questions.get(f["id"], 0) >= 1
     ]
     discovery_threads = []
     for f in features_with_questions[:5]:
@@ -434,6 +475,27 @@ def build_overlay_content(state: PrebuildState) -> PrebuildState:
             "knowledge_type": "exploratory",
             "speaker_hints": [],
         })
+
+    # Also create threads from solution flow steps with open_questions
+    for step in state.solution_flow_steps:
+        step_qs = step.get("open_questions", [])
+        if not isinstance(step_qs, list) or len(step_qs) == 0:
+            continue
+        questions = [
+            q.get("text", str(q))[:120] if isinstance(q, dict) else str(q)[:120]
+            for q in step_qs[:3]
+        ]
+        discovery_threads.append({
+            "thread_id": f"disc-step-{step['id'][:8]}",
+            "theme": step.get("title", ""),
+            "features": [],
+            "questions": questions,
+            "knowledge_type": "exploratory",
+            "speaker_hints": [],
+        })
+
+    # Cap at 5 discovery threads
+    discovery_threads = discovery_threads[:5]
 
     state.epic_plan["discovery_threads"] = discovery_threads
     state.epic_plan["totals"]["discovery_threads"] = len(discovery_threads)
@@ -504,13 +566,13 @@ def assign_depths_and_save(state: PrebuildState) -> PrebuildState:
         if depth == "full":
             full_count += 1
 
-    # Cap full features at 8, demote excess to visual
-    if full_count > 8:
+    # Cap full features at 14, demote excess to visual
+    if full_count > 14:
         full_specs = [s for s in specs if s.depth == "full"]
-        # Sort by priority (must_have first), then keep first 8
+        # Sort by priority (must_have first), then keep first 14
         priority_order = {"must_have": 0, "should_have": 1, "could_have": 2, "unset": 3}
         full_specs.sort(key=lambda s: priority_order.get(s.priority, 3))
-        for s in full_specs[8:]:
+        for s in full_specs[14:]:
             s.depth = "visual"
             s.depth_reason += " (demoted: full cap reached)"
 
