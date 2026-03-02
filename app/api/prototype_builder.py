@@ -343,18 +343,14 @@ async def _run_build_pipeline(
     skip_deploy: bool = False,
 ) -> None:
     """Background task: full build pipeline."""
-    from app.core.build_plan_renderer import render_build_plan, render_from_screen_map
     from app.core.config import get_settings
     from app.core.prototype_payload import assemble_prototype_payload
     from app.db.prototype_builds import (
         append_build_log,
-        increment_stream_completed,
         update_build,
         update_build_status,
     )
     from app.db.prototypes import update_prototype
-    from app.services.build_orchestrator import BuildOrchestrator
-    from app.services.git_manager import GitManager
 
     settings = get_settings()
 
@@ -377,7 +373,7 @@ async def _run_build_pipeline(
                 logger.warning(f"Phase 0 failed (non-fatal): {e}")
                 append_build_log(build_id, {"phase": "phase0", "message": f"Phase 0 skipped: {e}"})
 
-        # Planning
+        # Planning + Building via Pipeline v2
         update_build_status(build_id, "planning")
         append_build_log(
             build_id,
@@ -387,202 +383,75 @@ async def _run_build_pipeline(
         payload_response = await assemble_prototype_payload(project_id=project_id)
         payload = payload_response.payload
 
-        # Bridge Phase 0 depth assignments into payload features
-        if prebuild_result and prebuild_result.feature_specs:
-            depth_map = {spec.feature_id: spec.depth for spec in prebuild_result.feature_specs}
-            for feature in payload.features:
-                if feature.id in depth_map:
-                    feature.build_depth = depth_map[feature.id]
-        elif not skip_phase0:
+        # Ensure we have prebuild intelligence (from Phase 0 or DB)
+        if not prebuild_result and not skip_phase0:
             from app.db.prototypes import get_prototype
 
             proto = get_prototype(prototype_id)
-            if proto and proto.get("feature_build_specs"):
-                depth_map = {
-                    spec["feature_id"]: spec["depth"]
-                    for spec in proto["feature_build_specs"]
-                    if isinstance(spec, dict)
-                }
-                for feature in payload.features:
-                    if feature.id in depth_map:
-                        feature.build_depth = depth_map[feature.id]
+            if proto and proto.get("prebuild_intelligence"):
+                prebuild_result = PrebuildIntelligence(**proto["prebuild_intelligence"])
 
-        # ── Planning Agent (ScreenMap) — fast path with payload + prebuild ──
-        screen_map = None
-        try:
-            from app.agents.planning_agent import plan_prototype
+        if not prebuild_result:
+            update_build_status(build_id, "failed", error="No prebuild intelligence available")
+            return
 
-            append_build_log(
-                build_id,
-                {"phase": "planning", "message": "Running planning agent"},
-            )
-            agent_result = await plan_prototype(
-                project_id,
-                payload=payload,
-                prebuild=prebuild_result,
-                project_name=payload.project_name,
-                feature_count=len(payload.features),
-            )
-            screen_map = agent_result.get("screen_map")
-            if screen_map:
-                append_build_log(
-                    build_id,
-                    {
-                        "phase": "planning",
-                        "message": (
-                            f"Planning agent produced {len(screen_map.screens)} screens "
-                            f"in {agent_result.get('duration_s', 0):.0f}s"
-                        ),
-                    },
-                )
-        except Exception as e:
-            logger.warning(f"Planning agent failed, falling back to legacy: {e}")
-            append_build_log(
-                build_id,
-                {"phase": "planning", "message": f"Planning agent failed: {e}"},
-            )
+        # ── Pipeline v2: coherence → builders → stitch → cleanup → finisher → build ──
+        append_build_log(
+            build_id,
+            {"phase": "planning", "message": "Running pipeline v2 (coherence + parallel builders)"},
+        )
 
-        # ── Rendering ──────────────────────────────────────────────
-        update_build_status(build_id, "rendering")
-
-        if screen_map:
-            # ScreenMap path — skip legacy Opus planning entirely
-            append_build_log(
-                build_id,
-                {"phase": "rendering", "message": "Rendering from ScreenMap"},
-            )
-            files = render_from_screen_map(payload, screen_map)
-
-            # Persist payload (no legacy plan needed)
-            update_prototype(prototype_id, build_payload=payload.model_dump())
-            update_build(build_id, streams_total=0, tasks_total=0)
-        else:
-            # Legacy path — run Opus planning + old renderer
-            append_build_log(
-                build_id,
-                {"phase": "rendering", "message": "Running legacy Opus planning"},
-            )
-            from app.chains.generate_project_plan import generate_project_plan
-
-            plan = await generate_project_plan(
-                payload=payload, config=config, project_id=project_id
-            )
-
-            if not plan.tasks:
-                update_build_status(build_id, "failed", error="No plan generated")
-                return
-
-            update_prototype(
-                prototype_id,
-                build_payload=payload.model_dump(),
-                build_plan=plan.model_dump(),
-            )
-            update_build(
-                build_id,
-                streams_total=len(plan.streams),
-                tasks_total=len(plan.tasks),
-            )
-
-            files = render_build_plan(plan, payload)
-
-        # Write to temp dir
         local_path = str(Path(settings.PROTOTYPE_TEMP_DIR) / f"build-{build_id}")
-        Path(local_path).mkdir(parents=True, exist_ok=True)
-        for filename, content in files.items():
-            file_path = Path(local_path) / filename
-            file_path.parent.mkdir(parents=True, exist_ok=True)
-            file_path.write_text(content, encoding="utf-8")
+        build_path = Path(local_path)
 
-        # Agent enhancement (legacy path only — ScreenMap pages are pre-rendered)
-        if not screen_map:
-            update_build_status(build_id, "building")
+        from app.pipeline import run_prototype_pipeline
+
+        update_build_status(build_id, "building")
+        pipeline_result = await run_prototype_pipeline(
+            payload=payload,
+            prebuild=prebuild_result,
+            build_dir=build_path,
+        )
+
+        stats = pipeline_result.stats
+
+        # Persist payload + project plan on prototype record
+        update_prototype(
+            prototype_id,
+            build_payload=payload.model_dump(),
+        )
+        update_build(build_id, streams_total=0, tasks_total=0)
+
+        # Populate epic plan routes from coherence agent's route_manifest
+        try:
+            _populate_epic_routes(
+                prototype_id, prebuild_result, pipeline_result.project_plan, payload
+            )
+        except Exception as e:
+            logger.warning(f"Route population failed (non-fatal): {e}")
+
+        append_build_log(
+            build_id,
+            {
+                "phase": "building",
+                "message": (
+                    f"Pipeline v2 complete: {stats.screen_count} screens, "
+                    f"{stats.page_count} pages, {stats.file_count} files, "
+                    f"{stats.total_s:.1f}s total"
+                ),
+            },
+        )
+
+        if not pipeline_result.vite_passed:
+            # Pipeline built but vite failed — still try to deploy what we have
             append_build_log(
                 build_id,
-                {
-                    "phase": "building",
-                    "message": f"Executing {len(plan.streams)} streams",
-                },
+                {"phase": "building", "message": "Vite build failed — checking dist output"},
             )
 
-            def _on_stream_done(sr):
-                try:
-                    increment_stream_completed(build_id)
-                    append_build_log(
-                        build_id,
-                        {
-                            "phase": "building",
-                            "stream": sr.stream_id,
-                            "success": sr.success,
-                            "files": len(sr.files_changed),
-                        },
-                    )
-                except Exception:
-                    pass
-
-            orchestrator = BuildOrchestrator(
-                git=GitManager(settings.PROTOTYPE_TEMP_DIR),
-                max_parallel=config.max_parallel_streams,
-            )
-            build_result = await orchestrator.execute(
-                plan=plan,
-                payload=payload,
-                local_path=local_path,
-                build_id=build_id,
-                on_stream_complete=_on_stream_done,
-            )
-
-            update_build(
-                build_id,
-                tasks_completed=build_result.tasks_completed,
-            )
-
-            if not build_result.success:
-                update_build_status(
-                    build_id,
-                    "failed",
-                    error="; ".join(build_result.errors[:3]),
-                )
-                return
-
-        # Build dist/ locally (npm install + build)
+        # Post-build validation: verify dist/ output
         if not skip_deploy:
-            import subprocess
-
-            update_build_status(build_id, "bundling")
-            append_build_log(
-                build_id, {"phase": "bundling", "message": "Running npm install + build"}
-            )
-            try:
-                subprocess.run(
-                    ["npm", "install"],
-                    cwd=local_path,
-                    check=True,
-                    timeout=120,
-                    capture_output=True,
-                )
-                subprocess.run(
-                    ["npm", "run", "build"],
-                    cwd=local_path,
-                    check=True,
-                    timeout=60,
-                    capture_output=True,
-                )
-            except subprocess.CalledProcessError as e:
-                error_msg = (
-                    (e.stdout or b"").decode()[-500:] + "\n" + (e.stderr or b"").decode()[-500:]
-                ).strip()
-                logger.error(f"npm build failed: {error_msg}")
-                append_build_log(
-                    build_id, {"phase": "bundling", "message": f"Build failed: {error_msg}"}
-                )
-                update_build_status(build_id, "failed", error=f"npm build failed: {error_msg}")
-                return
-            except subprocess.TimeoutExpired:
-                update_build_status(build_id, "failed", error="npm build timed out")
-                return
-
-            # Post-build validation: verify dist/ output
-            dist_dir = Path(local_path) / "dist"
+            dist_dir = build_path / "dist"
             dist_index = dist_dir / "index.html"
             dist_assets = dist_dir / "assets"
             if not dist_index.exists():
@@ -665,6 +534,78 @@ async def _run_build_pipeline(
     except Exception as e:
         logger.error(f"Build pipeline failed: {e}", exc_info=True)
         update_build_status(build_id, "failed", error=str(e))
+
+
+def _populate_epic_routes(
+    prototype_id,
+    prebuild,
+    project_plan: dict,
+    payload,
+) -> None:
+    """Merge coherence agent route_manifest into epic plan and save.
+
+    The coherence agent produces a route_manifest mapping epic indices and
+    feature slugs to actual screen routes. This function writes those routes
+    back into the epic_plan on the prototype record so the frontend tour
+    controller can navigate the iframe.
+    """
+    from app.db.prototypes import update_prototype
+
+    route_manifest = project_plan.get("route_manifest", {})
+    epic_routes = route_manifest.get("epic_routes", {})
+    feature_routes = route_manifest.get("feature_routes", {})
+    if not epic_routes and not feature_routes:
+        return
+
+    import copy
+
+    epic_plan = copy.deepcopy(prebuild.epic_plan)
+    if not epic_plan.get("vision_epics"):
+        return
+
+    # Build feature_id → slug lookup from payload features
+    feature_id_to_slug: dict[str, str] = {}
+    for f in payload.features:
+        slug = f.name.lower().replace(" ", "-").replace("(", "").replace(")", "")
+        feature_id_to_slug[str(f.id)] = slug
+
+    # Populate vision epic routes
+    for i, epic in enumerate(epic_plan["vision_epics"]):
+        # Direct epic index → route from coherence
+        if str(i) in epic_routes:
+            epic["primary_route"] = epic_routes[str(i)]
+
+        # Collect all feature routes for this epic
+        all_routes: set[str] = set()
+        for feat in epic.get("features", []):
+            fname = feat.get("name", "")
+            slug = fname.lower().replace(" ", "-").replace("(", "").replace(")", "")
+            if slug in feature_routes:
+                all_routes.add(feature_routes[slug])
+        if all_routes:
+            epic["all_routes"] = list(all_routes)
+            # Fallback: if coherence didn't map this epic, use first feature route
+            if not epic.get("primary_route"):
+                epic["primary_route"] = list(all_routes)[0]
+
+    # Populate AI flow card routes from their features
+    for card in epic_plan.get("ai_flow_cards", []):
+        if card.get("route"):
+            continue
+        for fid in card.get("feature_ids", []):
+            slug = feature_id_to_slug.get(fid, "")
+            if slug and slug in feature_routes:
+                card["route"] = feature_routes[slug]
+                break
+
+    update_prototype(prototype_id, epic_plan=epic_plan)
+    logger.info(
+        f"Populated epic routes: "
+        f"{sum(1 for e in epic_plan['vision_epics'] if e.get('primary_route'))}/"
+        f"{len(epic_plan['vision_epics'])} epics, "
+        f"{sum(1 for c in epic_plan.get('ai_flow_cards', []) if c.get('route'))}/"
+        f"{len(epic_plan.get('ai_flow_cards', []))} AI cards"
+    )
 
 
 async def _deploy_prototype(
