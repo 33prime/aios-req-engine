@@ -113,6 +113,16 @@ export function ReviewBubble({
     [onOpenChange]
   )
 
+  // Auto-open panel when entering review mode
+  const prevReviewMode = useRef(isReviewMode)
+  useEffect(() => {
+    if (isReviewMode && !prevReviewMode.current) {
+      updateOpen(true)
+      setActiveTab('primary')
+    }
+    prevReviewMode.current = isReviewMode
+  }, [isReviewMode, updateOpen])
+
   // Persist tab preference
   useEffect(() => {
     localStorage.setItem('side-panel-tab', activeTab)
