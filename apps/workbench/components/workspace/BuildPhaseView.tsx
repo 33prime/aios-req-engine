@@ -135,13 +135,12 @@ export function BuildPhaseView({
   // navigates to the correct prototype routes (not the epic plan's conceptual routes)
   const mappedEpicPlan = useMemo(() => {
     if (!epicPlan || !routeManifest?.epic_routes) return epicPlan
-    // Detect which routes actually render content — collect all unique routes
-    // and use the first epic's route as fallback for config-only pages like /settings
-    const firstRoute = routeManifest.epic_routes!['0'] || epicPlan.vision_epics[0]?.primary_route || '/'
+    // Remap config-only pages to dashboard to avoid blank iframe screens
+    const fallback = '/dashboard'
     const routeRemaps: Record<string, string> = {
-      '/settings': firstRoute,
-      '/admin': firstRoute,
-      '/profile': firstRoute,
+      '/settings': fallback,
+      '/admin': fallback,
+      '/profile': fallback,
     }
     return {
       ...epicPlan,
