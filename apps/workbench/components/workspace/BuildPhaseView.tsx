@@ -135,12 +135,22 @@ export function BuildPhaseView({
   // navigates to the correct prototype routes (not the epic plan's conceptual routes)
   const mappedEpicPlan = useMemo(() => {
     if (!epicPlan || !routeManifest?.epic_routes) return epicPlan
+    // Detect which routes actually render content — collect all unique routes
+    // and use the first epic's route as fallback for config-only pages like /settings
+    const firstRoute = routeManifest.epic_routes!['0'] || epicPlan.vision_epics[0]?.primary_route || '/'
+    const routeRemaps: Record<string, string> = {
+      '/command-center': '/dashboard',
+      '/settings': firstRoute,
+      '/admin': firstRoute,
+      '/profile': firstRoute,
+    }
     return {
       ...epicPlan,
-      vision_epics: epicPlan.vision_epics.map((epic, i) => ({
-        ...epic,
-        primary_route: routeManifest.epic_routes![String(i)] || epic.primary_route,
-      })),
+      vision_epics: epicPlan.vision_epics.map((epic, i) => {
+        const manifestRoute = routeManifest.epic_routes![String(i)] || epic.primary_route
+        const safeRoute = routeRemaps[manifestRoute] ?? manifestRoute
+        return { ...epic, primary_route: safeRoute }
+      }),
     }
   }, [epicPlan, routeManifest])
 
@@ -284,9 +294,7 @@ export function BuildPhaseView({
           '*'
         )
       } else if (routeManifest) {
-        // Src swap only when route manifest exists — this means the prototype
-        // was built with the new pipeline and has _redirects for SPA routing.
-        // Without _redirects, deep URLs 404 on Netlify.
+        // Src swap when route manifest exists — prototype has _redirects for SPA routing.
         try {
           const base = new URL(prototypeUrl)
           base.pathname = route

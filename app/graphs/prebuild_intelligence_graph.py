@@ -334,14 +334,40 @@ def assemble_epics(state: PrebuildState) -> PrebuildState:
                 "persona_names": [p.get("name", "") for p in state.personas[:2]],
             })
 
+        # Build AI flow card skeletons here so compose_narratives can fill them
+        ai_flow_cards = []
+        for step in state.solution_flow_steps:
+            ai_cfg = step.get("ai_config")
+            if not ai_cfg or not isinstance(ai_cfg, dict):
+                continue
+            role = ai_cfg.get("role") or ai_cfg.get("ai_role") or ""
+            if not role:
+                continue
+            info_fields = step.get("information_fields", []) or []
+            data_in = [
+                f.get("label", f.get("name", ""))
+                for f in info_fields
+                if isinstance(f, dict) and f.get("type") == "captured"
+            ][:4]
+            ai_flow_cards.append({
+                "title": f"AI: {step.get('title', 'Intelligence')}",
+                "narrative": "",
+                "ai_role": role,
+                "data_in": data_in or [step.get("goal", "")[:80]],
+                "behaviors": ai_cfg.get("behaviors", [])[:4],
+                "guardrails": ai_cfg.get("guardrails", [])[:3],
+                "output": step.get("goal", "")[:120],
+                "solution_flow_step_ids": [step["id"]],
+            })
+
         state.epic_plan = {
             "vision_epics": epics,
-            "ai_flow_cards": [],
+            "ai_flow_cards": ai_flow_cards,
             "horizon_cards": [],
             "discovery_threads": [],
             "totals": {
                 "vision_epics": len(epics),
-                "ai_flow_cards": 0,
+                "ai_flow_cards": len(ai_flow_cards),
                 "horizon_cards": 0,
                 "discovery_threads": 0,
             },
@@ -362,8 +388,6 @@ def compose_narratives(state: PrebuildState) -> PrebuildState:
         return state
 
     try:
-        import asyncio
-
         from app.chains.compose_epic_narratives import compose_epic_narratives
 
         project_name = ""
@@ -383,12 +407,10 @@ def compose_narratives(state: PrebuildState) -> PrebuildState:
         except Exception:
             pass
 
-        result = asyncio.get_event_loop().run_until_complete(
-            compose_epic_narratives(
-                epics=state.epic_plan["vision_epics"],
-                ai_flow_skeletons=state.epic_plan.get("ai_flow_cards", []),
-                project_name=project_name,
-            )
+        result = compose_epic_narratives(
+            epics=state.epic_plan["vision_epics"],
+            ai_flow_skeletons=state.epic_plan.get("ai_flow_cards", []),
+            project_name=project_name,
         )
 
         # Merge narratives back
@@ -400,6 +422,14 @@ def compose_narratives(state: PrebuildState) -> PrebuildState:
                 )
                 if narrative.get("title"):
                     state.epic_plan["vision_epics"][idx]["title"] = narrative["title"]
+
+        # Merge AI flow card narratives back (index-based — LLM returns in order)
+        ai_cards = state.epic_plan.get("ai_flow_cards", [])
+        for i, ai_nar in enumerate(result.get("ai_flow_narratives", [])):
+            narrative = ai_nar.get("narrative", "")
+            if not narrative or i >= len(ai_cards):
+                continue
+            ai_cards[i]["narrative"] = narrative
 
     except Exception as e:
         state.errors.append(f"Narrative composition failed: {e}")
@@ -432,34 +462,8 @@ def build_overlay_content(state: PrebuildState) -> PrebuildState:
     state.epic_plan["horizon_cards"] = horizon_cards
     state.epic_plan["totals"]["horizon_cards"] = len(horizon_cards)
 
-    # AI flow cards — extract from solution flow steps with ai_config
-    ai_flow_cards = []
-    for step in state.solution_flow_steps:
-        ai_cfg = step.get("ai_config")
-        if not ai_cfg or not isinstance(ai_cfg, dict):
-            continue
-        role = ai_cfg.get("role") or ai_cfg.get("ai_role") or ""
-        if not role:
-            continue
-        # Map information_fields to data_in
-        info_fields = step.get("information_fields", []) or []
-        data_in = [
-            f.get("label", f.get("name", ""))
-            for f in info_fields
-            if isinstance(f, dict) and f.get("type") == "captured"
-        ][:4]
-        ai_flow_cards.append({
-            "title": f"AI: {step.get('title', 'Intelligence')}",
-            "narrative": "",  # filled by compose_narratives
-            "ai_role": role,
-            "data_in": data_in or [step.get("goal", "")[:80]],
-            "behaviors": ai_cfg.get("behaviors", [])[:4],
-            "guardrails": ai_cfg.get("guardrails", [])[:3],
-            "output": step.get("goal", "")[:120],
-            "solution_flow_step_ids": [step["id"]],
-        })
-    state.epic_plan["ai_flow_cards"] = ai_flow_cards
-    state.epic_plan["totals"]["ai_flow_cards"] = len(ai_flow_cards)
+    # AI flow cards already built in assemble_epics (before compose_narratives)
+    # — no need to rebuild here, just preserve existing cards with their narratives
 
     # Discovery threads from open questions (lowered threshold to >= 1)
     features_with_questions = [
