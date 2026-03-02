@@ -149,13 +149,9 @@ export default function ReviewInfoPanel({
               Key Question
             </div>
             <p className="text-[13px] text-[#37352f] italic">
-              &ldquo;{(() => {
-                const raw = epic.open_questions[0]
-                if (typeof raw !== 'string') return String(raw)
-                // Extract 'context' value from stringified dict
-                const ctxMatch = raw.match(/['"]context['"]\s*:\s*['"](.+?)(?=['"](?:\s*,|\s*\})|$)/)
-                return ctxMatch?.[1] || raw.replace(/^\{.*?['"]context['"]\s*:\s*['"]?/, '').replace(/['"]?\s*[,}].*$/, '')
-              })()}&rdquo;
+              &ldquo;{typeof epic.open_questions[0] === 'string'
+                ? epic.open_questions[0]
+                : String(epic.open_questions[0])}&rdquo;
             </p>
           </div>
         )}

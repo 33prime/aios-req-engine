@@ -208,6 +208,7 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
     messages, isLoading: isChatLoading, sendMessage, sendSignal, addLocalMessage,
     entityDetection, isSavingAsSignal, saveAsSignal, dismissDetection,
     startNewChat, setConversationContext,
+    snapshotConversation, restoreConversation,
   } = useChat({
     projectId,
     pageContext,
@@ -293,10 +294,13 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
         mutateWorkspace((prev) => prev ? { ...prev, prototype_url: deployUrlFromModal } : prev, false)
       }
 
+      // Freeze BRD chat so review mode starts clean
+      snapshotConversation()
+
       // Open panel by default when review starts
       setPanelOpen(true)
     },
-    []
+    [snapshotConversation]
   )
 
   const handleEndReview = useCallback(async () => {
@@ -309,8 +313,10 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
       console.error('Failed to end review:', err)
       setIsReviewActive(false)
       setReviewSession(null)
+    } finally {
+      restoreConversation()
     }
-  }, [reviewSession])
+  }, [reviewSession, restoreConversation])
 
   // Advance to next epic card from the ReviewInfoPanel
   const handleEpicAdvance = useCallback(() => {

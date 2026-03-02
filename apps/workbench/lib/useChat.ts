@@ -73,6 +73,9 @@ interface UseChatReturn {
   dismissDetection: () => void
   // Conversation starter context
   setConversationContext: (context: string) => void
+  // Snapshot/restore for review mode isolation
+  snapshotConversation: () => void
+  restoreConversation: () => void
 }
 
 export function useChat({
@@ -91,6 +94,7 @@ export function useChat({
   onDataMutatedRef.current = onDataMutated
   const [conversationId, setConversationId] = useState<string | null>(initialConversationId ?? null)
   const conversationContextRef = useRef<string | null>(null)
+  const snapshotRef = useRef<{ messages: ChatMessage[]; conversationId: string | null } | null>(null)
 
   const setConversationContext = useCallback((context: string) => {
     conversationContextRef.current = context
@@ -477,6 +481,26 @@ export function useChat({
     setMessages((prev) => [...prev, { ...message, timestamp: message.timestamp || new Date() }])
   }, [])
 
+  // Snapshot/restore — freeze BRD chat during review mode, restore after
+  const snapshotConversation = useCallback(() => {
+    snapshotRef.current = {
+      messages: [...messages],
+      conversationId,
+    }
+    setMessages([])
+    setConversationId(null)
+    setEntityDetection(null)
+  }, [messages, conversationId])
+
+  const restoreConversation = useCallback(() => {
+    if (snapshotRef.current) {
+      setMessages(snapshotRef.current.messages)
+      setConversationId(snapshotRef.current.conversationId)
+      snapshotRef.current = null
+    }
+    setEntityDetection(null)
+  }, [])
+
   // ==========================================================================
   // Chat-as-Signal: Entity Detection
   // ==========================================================================
@@ -576,5 +600,8 @@ export function useChat({
     dismissDetection,
     // Conversation starter context
     setConversationContext,
+    // Snapshot/restore for review mode isolation
+    snapshotConversation,
+    restoreConversation,
   }
 }

@@ -4,7 +4,6 @@ Handles prototype generation, ingestion, audit, and overlay retrieval.
 """
 
 import re
-import uuid
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException
@@ -331,51 +330,6 @@ async def get_audit_endpoint(prototype_id: UUID) -> PromptAuditResult | dict:
     except Exception:
         logger.exception(f"Failed to get audit for prototype {prototype_id}")
         raise HTTPException(status_code=500, detail="Failed to retrieve audit")
-
-
-@router.post("/{prototype_id}/analyze")
-async def trigger_analysis_endpoint(prototype_id: UUID) -> dict:
-    """Trigger the feature analysis pipeline for a prototype."""
-    try:
-        prototype = get_prototype(prototype_id)
-        if not prototype:
-            raise HTTPException(status_code=404, detail="Prototype not found")
-
-        if not prototype.get("local_path"):
-            raise HTTPException(status_code=400, detail="Prototype not ingested yet")
-
-        from app.graphs.prototype_analysis_graph import (
-            PrototypeAnalysisState,
-            build_prototype_analysis_graph,
-        )
-
-        run_id = uuid.uuid4()
-        graph = build_prototype_analysis_graph()
-
-        initial_state = PrototypeAnalysisState(
-            prototype_id=prototype_id,
-            project_id=UUID(prototype["project_id"]),
-            run_id=run_id,
-            local_path=prototype["local_path"],
-        )
-
-        # Run synchronously for now; a production implementation would
-        # dispatch to a background job
-        final_state = graph.invoke(initial_state)
-
-        return {
-            "prototype_id": str(prototype_id),
-            "run_id": str(run_id),
-            "features_analyzed": len(final_state.results),
-            "errors": len(final_state.errors),
-            "status": "analyzed",
-        }
-
-    except HTTPException:
-        raise
-    except Exception:
-        logger.exception(f"Failed to trigger analysis for prototype {prototype_id}")
-        raise HTTPException(status_code=500, detail="Failed to trigger analysis")
 
 
 @router.post("/{prototype_id}/audit-code", response_model=AuditCodeResponse)

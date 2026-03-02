@@ -82,6 +82,8 @@ export function BuildPhaseView({
   // Current iframe URL — base URL + tour route
   const [activeIframeSrc, setActiveIframeSrc] = useState(prototypeUrl || '')
   const [activeCardIndex, setActiveCardIndex] = useState<number | null>(null)
+  // Loading overlay while iframe src-swaps without bridge
+  const [iframeLoading, setIframeLoading] = useState(false)
   // Bridge detection — true when prototype has AiosBridge component
   const [bridgeReady, setBridgeReady] = useState(false)
   // Route manifest from prototype — maps epic indices to prototype routes
@@ -227,7 +229,7 @@ export function BuildPhaseView({
 
   // When card changes during tour, highlight features in iframe
   useEffect(() => {
-    if (!isReviewActive || activeCardIndex === null || !iframeRef.current?.contentWindow) return
+    if (!bridgeReady || !isReviewActive || activeCardIndex === null || !iframeRef.current?.contentWindow) return
     const features = getCardFeatures(activeCardIndex)
     if (!features.length) return
 
@@ -269,7 +271,7 @@ export function BuildPhaseView({
     }, 800)
 
     return () => clearTimeout(timer)
-  }, [activeCardIndex, isReviewActive, getCardFeatures])
+  }, [bridgeReady, activeCardIndex, isReviewActive, getCardFeatures])
 
   // Track card changes from tour controller
   const handleCardChange = useCallback(
@@ -280,7 +282,7 @@ export function BuildPhaseView({
     [onEpicCardChange]
   )
 
-  // Tour route change — postMessage if bridge ready, else try click-based nav
+  // Tour route change — postMessage if bridge ready, else src-swap with loading overlay
   const handleRouteChange = useCallback(
     (route: string | null) => {
       if (!prototypeUrl || !route) return
@@ -291,16 +293,12 @@ export function BuildPhaseView({
           { type: 'aios:navigate', path: route },
           '*'
         )
-      } else if (iframeRef.current?.contentWindow) {
-        // No bridge — try clicking the matching nav link inside the prototype SPA.
-        // This avoids full-page src swaps that cause blank screens during hydration.
-        iframeRef.current.contentWindow.postMessage(
-          { type: 'aios:navigate', path: route },
-          '*'
-        )
+      } else {
+        // No bridge — fall back to src swap with loading overlay
+        const newSrc = prototypeUrl.replace(/\/$/, '') + route
+        setIframeLoading(true)
+        setActiveIframeSrc(newSrc)
       }
-      // If postMessage navigation doesn't work, the iframe stays on the current
-      // page. The review panel content is the primary tour experience.
     },
     [prototypeUrl, bridgeReady]
   )
@@ -424,14 +422,22 @@ export function BuildPhaseView({
       {/* Prototype preview — single iframe, src changes when tour navigates */}
       <div className="flex-1 bg-gray-100 relative min-h-0">
         {prototypeUrl ? (
-          <iframe
-            ref={iframeRef}
-            key={iframeKey}
-            src={isReviewActive ? activeIframeSrc : prototypeUrl}
-            className="w-full h-full border-0"
-            title="Prototype Preview"
-            sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
-          />
+          <>
+            {iframeLoading && (
+              <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/60 backdrop-blur-sm">
+                <Loader2 className="w-6 h-6 text-brand-primary animate-spin" />
+              </div>
+            )}
+            <iframe
+              ref={iframeRef}
+              key={iframeKey}
+              src={isReviewActive ? activeIframeSrc : prototypeUrl}
+              className="w-full h-full border-0"
+              title="Prototype Preview"
+              sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+              onLoad={() => setIframeLoading(false)}
+            />
+          </>
         ) : (
           <div className="flex items-center justify-center h-full">
             <div className="text-center max-w-md">

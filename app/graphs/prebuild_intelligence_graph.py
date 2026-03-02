@@ -306,10 +306,14 @@ def assemble_epics(state: PrebuildState) -> PrebuildState:
                 pp.get("text", str(pp))[:80] if isinstance(pp, dict) else str(pp)[:80]
                 for pp in (step.get("pain_points_addressed") or [])[:3]
             ]
-            step_qs = [
-                q.get("text", str(q))[:80] if isinstance(q, dict) else str(q)[:80]
-                for q in (step.get("open_questions") or [])[:3]
-            ]
+            step_qs = []
+            for q in (step.get("open_questions") or [])[:3]:
+                if isinstance(q, dict):
+                    # OpenQuestion schema: field is "question", with optional "context"
+                    txt = q.get("question") or q.get("text") or q.get("context") or ""
+                    step_qs.append(str(txt)[:80])
+                else:
+                    step_qs.append(str(q)[:80])
 
             epics.append({
                 "epic_index": i,
@@ -485,10 +489,13 @@ def build_overlay_content(state: PrebuildState) -> PrebuildState:
         step_qs = step.get("open_questions", [])
         if not isinstance(step_qs, list) or len(step_qs) == 0:
             continue
-        questions = [
-            q.get("text", str(q))[:120] if isinstance(q, dict) else str(q)[:120]
-            for q in step_qs[:3]
-        ]
+        questions = []
+        for q in step_qs[:3]:
+            if isinstance(q, dict):
+                txt = q.get("question") or q.get("text") or q.get("context") or ""
+                questions.append(str(txt)[:120])
+            else:
+                questions.append(str(q)[:120])
         discovery_threads.append({
             "thread_id": f"disc-step-{step['id'][:8]}",
             "theme": step.get("title", ""),
