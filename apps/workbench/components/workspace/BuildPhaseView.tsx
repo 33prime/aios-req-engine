@@ -321,7 +321,7 @@ export function BuildPhaseView({
     }, 800)
 
     return () => clearTimeout(timer)
-  }, [bridgeReady, activeCardIndex, isReviewActive, getCardFeatures])
+  }, [bridgeReady, activeCardIndex, isReviewActive, getCardFeatures, collaborationWidth])
 
   // Handle feature navigation from side panel → navigate iframe + highlight
   useEffect(() => {

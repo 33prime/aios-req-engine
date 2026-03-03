@@ -140,11 +140,13 @@ function FeatureCard({
         onClick={onToggle}
         className="w-full flex items-center gap-2 px-2.5 py-2 text-left"
       >
-        <span
-          className={`w-2 h-2 rounded-full shrink-0 ${featureStatusColor(
-            feature.implementation_status
-          )}`}
-        />
+        {feature.implementation_status !== 'placeholder' && (
+          <span
+            className={`w-2 h-2 rounded-full shrink-0 ${featureStatusColor(
+              feature.implementation_status
+            )}`}
+          />
+        )}
         <div className="flex-1 min-w-0">
           <p className="text-[12px] text-[#37352f] font-medium truncate">
             {feature.name}
@@ -169,18 +171,20 @@ function FeatureCard({
             </p>
           )}
 
-          {/* Status + Route */}
+          {/* Status + Route (hide status label for placeholders — implementation noise) */}
           <div className="flex items-center gap-3">
-            <div className="flex items-center gap-1.5">
-              <span
-                className={`w-1.5 h-1.5 rounded-full ${featureStatusColor(
-                  feature.implementation_status
-                )}`}
-              />
-              <span className="text-[10px] text-[#666]">
-                {featureStatusLabel(feature.implementation_status)}
-              </span>
-            </div>
+            {feature.implementation_status !== 'placeholder' && (
+              <div className="flex items-center gap-1.5">
+                <span
+                  className={`w-1.5 h-1.5 rounded-full ${featureStatusColor(
+                    feature.implementation_status
+                  )}`}
+                />
+                <span className="text-[10px] text-[#666]">
+                  {featureStatusLabel(feature.implementation_status)}
+                </span>
+              </div>
+            )}
             {feature.route && (
               <span className="text-[10px] text-[#999] flex items-center gap-1">
                 {isOnCurrentPage ? (
@@ -199,7 +203,7 @@ function FeatureCard({
           {painPoints.length > 0 && (
             <div className="flex items-start gap-1.5">
               <span className="mt-1.5 w-1 h-1 rounded-full bg-red-400 shrink-0" />
-              <p className="text-[10px] text-[#666] leading-snug italic">
+              <p className="text-[10px] text-[#666] leading-snug italic break-words">
                 {painPoints[0]}
               </p>
             </div>
