@@ -59,9 +59,12 @@ async def consent_opt_out(request: Request):
 @router.post("/recall/events")
 async def recall_events(request: Request, background_tasks: BackgroundTasks):
     """
-    Handle Recall.ai webhook events for bot status changes.
+    Handle Recall.ai V2 webhook events.
 
-    Events: bot.status_change, bot.done, bot.failed
+    Bot lifecycle events (individual event types, not a single status_change):
+      bot.joining_call, bot.in_call_recording, bot.call_ended → status tracking
+      bot.done, transcript.done                                → trigger pipeline
+      bot.fatal                                                → error handling
 
     Routes through call intelligence pipeline when a call_recordings row exists
     and Deepgram is configured. Falls back to legacy _ingest_transcript() otherwise.
@@ -96,24 +99,39 @@ async def recall_events(request: Request, background_tasks: BackgroundTasks):
         logger.warning(f"Recall webhook: unknown bot {recall_bot_id}")
         return {"status": "ignored", "reason": "unknown_bot"}
 
-    if event_type == "bot.status_change":
+    # V2 individual status events → update bot + call_recording status
+    V2_STATUS_MAP = {
+        "bot.joining_call": "joining",
+        "bot.in_waiting_room": "joining",
+        "bot.in_call_not_recording": "joining",
+        "bot.in_call_recording": "recording",
+        "bot.call_ended": "processing",
+    }
+
+    # V1 fallback: bot.status_change with nested code
+    V1_STATUS_MAP = {
+        "joining_call": "joining",
+        "in_call_recording": "recording",
+        "call_ended": "processing",
+        "done": "done",
+        "fatal": "failed",
+    }
+
+    if event_type in V2_STATUS_MAP:
+        mapped = V2_STATUS_MAP[event_type]
+        bot_db.update_bot_by_recall_id(recall_bot_id, {"status": mapped})
+        _sync_call_recording_status(recall_bot_id, mapped)
+
+    elif event_type == "bot.status_change":
+        # V1 fallback — single event with nested status code
         new_status = bot_data.get("status", {}).get("code", "")
-        status_map = {
-            "joining_call": "joining",
-            "in_call_recording": "recording",
-            "call_ended": "processing",
-            "done": "done",
-            "fatal": "failed",
-        }
-        mapped = status_map.get(new_status, new_status)
+        mapped = V1_STATUS_MAP.get(new_status, new_status)
         if mapped:
             bot_db.update_bot_by_recall_id(recall_bot_id, {"status": mapped})
+        _sync_call_recording_status(recall_bot_id, mapped or new_status)
 
-        # Propagate status to call_recordings if row exists
-        _sync_call_recording_status(recall_bot_id, new_status)
-
-    elif event_type in ("bot.done", "bot.transcription_complete"):
-        # Check for call intelligence pipeline
+    elif event_type in ("bot.done", "transcript.done", "bot.transcription_complete"):
+        # Trigger pipeline — bot.done (V2), transcript.done (V2), bot.transcription_complete (V1)
         call_recording = _get_call_recording_for_bot(recall_bot_id)
         if call_recording and settings.DEEPGRAM_API_KEY:
             from app.services.call_intelligence import get_call_intelligence_service
@@ -134,7 +152,7 @@ async def recall_events(request: Request, background_tasks: BackgroundTasks):
             await _ingest_transcript(bot_record, bot_data)
 
     elif event_type == "bot.fatal":
-        error = bot_data.get("status", {}).get("message", "Unknown error")
+        error = bot_data.get("status", {}).get("message") or bot_data.get("error", "Unknown error")
         bot_db.update_bot_by_recall_id(
             recall_bot_id,
             {"status": "failed", "error_message": error},
@@ -162,13 +180,9 @@ def _get_call_recording_for_bot(recall_bot_id: str) -> dict | None:
         return None
 
 
-def _sync_call_recording_status(recall_bot_id: str, recall_status: str) -> None:
-    """Propagate Recall.ai status to call_recordings row if it exists."""
-    recording_status_map = {
-        "in_call_recording": "recording",
-    }
-    mapped = recording_status_map.get(recall_status)
-    if not mapped:
+def _sync_call_recording_status(recall_bot_id: str, mapped_status: str) -> None:
+    """Propagate already-mapped status to call_recordings row if it exists."""
+    if mapped_status not in ("recording", "processing"):
         return
 
     call_recording = _get_call_recording_for_bot(recall_bot_id)
@@ -177,7 +191,7 @@ def _sync_call_recording_status(recall_bot_id: str, recall_status: str) -> None:
             from app.db import call_intelligence as ci_db
 
             ci_db.update_call_recording(
-                UUID(call_recording["id"]), {"status": mapped}
+                UUID(call_recording["id"]), {"status": mapped_status}
             )
         except Exception as e:
             logger.warning(f"Failed to sync call_recording status: {e}")
