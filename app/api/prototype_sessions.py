@@ -1103,3 +1103,133 @@ async def save_session_convergence(session_id: UUID):
     save_convergence_snapshot(session_id, snapshot)
 
     return {"saved": True, "alignment_rate": snapshot.alignment_rate, "trend": snapshot.trend}
+
+
+# =============================================================================
+# Stakeholder Prototype Review
+# =============================================================================
+
+
+@router.get("/{session_id}/stakeholder-review")
+async def get_stakeholder_review(session_id: UUID, user_id: str | None = None):
+    """Get epic data with stakeholder assignment awareness.
+
+    If user_id is provided, marks each epic with is_assigned_to_me.
+    """
+    session = get_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    prototype = get_prototype(UUID(session["prototype_id"]))
+    if not prototype:
+        raise HTTPException(status_code=404, detail="Prototype not found")
+
+    project_id = prototype.get("project_id")
+    epic_plan = prototype.get("prebuild_intelligence", {}).get("epic_plan", {})
+    vision_epics = epic_plan.get("vision_epics", [])
+    confirmations = list_epic_confirmations(session_id)
+
+    # Build confirmation map
+    conf_map = {}
+    for c in confirmations:
+        key = (c.get("card_type"), c.get("card_index"))
+        conf_map[key] = c
+
+    # Get user's stakeholder assignments if user_id provided
+    my_epic_indices: set[int] = set()
+    if user_id and project_id:
+        try:
+            from app.db.stakeholder_assignments import list_assignments
+            from app.db.supabase_client import get_supabase
+
+            client = get_supabase()
+            sh_result = (
+                client.table("stakeholders")
+                .select("id")
+                .eq("project_id", str(project_id))
+                .eq("user_id", user_id)
+                .maybe_single()
+                .execute()
+            )
+            if sh_result.data:
+                assignments = list_assignments(
+                    project_id=UUID(project_id),
+                    stakeholder_id=UUID(sh_result.data["id"]),
+                    entity_type="prototype_epic",
+                )
+                for a in assignments:
+                    try:
+                        my_epic_indices.add(int(a["entity_id"]))
+                    except (ValueError, TypeError):
+                        pass
+        except Exception as e:
+            logger.warning(f"Stakeholder assignment lookup failed: {e}")
+
+    # Build response
+    epics = []
+    for idx, epic in enumerate(vision_epics):
+        conf = conf_map.get(("vision", idx))
+        epics.append({
+            "index": idx,
+            "title": epic.get("title", f"Epic {idx}"),
+            "theme": epic.get("theme"),
+            "narrative": epic.get("narrative"),
+            "features": epic.get("features", []),
+            "primary_route": epic.get("primary_route"),
+            "verdict": conf.get("verdict") if conf else None,
+            "notes": conf.get("notes") if conf else None,
+            "source": conf.get("source") if conf else None,
+            "stakeholder_id": conf.get("stakeholder_id") if conf else None,
+            "is_assigned_to_me": idx in my_epic_indices,
+        })
+
+    return {
+        "session_id": str(session_id),
+        "prototype_id": str(prototype["id"]),
+        "deploy_url": prototype.get("deploy_url"),
+        "epics": epics,
+        "total_epics": len(vision_epics),
+    }
+
+
+@router.put("/{session_id}/stakeholder-epic-verdict")
+async def submit_stakeholder_epic_verdict(session_id: UUID, body: dict):
+    """Submit an epic verdict with stakeholder/user tracking."""
+    session = get_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    card_type = body.get("card_type", "vision")
+    card_index = body.get("card_index")
+    verdict = body.get("verdict")
+    notes = body.get("notes")
+    stakeholder_id = body.get("stakeholder_id")
+    user_id = body.get("user_id")
+
+    if card_index is None:
+        raise HTTPException(status_code=400, detail="card_index required")
+
+    result = upsert_epic_confirmation(
+        session_id=session_id,
+        card_type=card_type,
+        card_index=card_index,
+        verdict=verdict,
+        notes=notes,
+        source="client",
+    )
+
+    # Update stakeholder_id and user_id on the confirmation row
+    if result and (stakeholder_id or user_id):
+        try:
+            from app.db.supabase_client import get_supabase
+            client = get_supabase()
+            updates = {}
+            if stakeholder_id:
+                updates["stakeholder_id"] = str(stakeholder_id)
+            if user_id:
+                updates["user_id"] = str(user_id)
+            client.table("prototype_epic_confirmations").update(updates).eq("id", result["id"]).execute()
+        except Exception as e:
+            logger.warning(f"Failed to update stakeholder on confirmation: {e}")
+
+    return result

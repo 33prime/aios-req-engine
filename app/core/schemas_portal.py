@@ -2,11 +2,10 @@
 
 from datetime import datetime
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 from uuid import UUID
 
 from pydantic import BaseModel, Field
-
 
 # ============================================================================
 # Enums
@@ -86,17 +85,17 @@ class DocumentCategory(str, Enum):
 class InfoRequestBase(BaseModel):
     """Base info request fields."""
     title: str
-    description: Optional[str] = None
-    context_from_call: Optional[str] = None
+    description: str | None = None
+    context_from_call: str | None = None
     request_type: InfoRequestType
     input_type: InfoRequestInputType
     priority: InfoRequestPriority = InfoRequestPriority.MEDIUM
-    best_answered_by: Optional[str] = None
+    best_answered_by: str | None = None
     can_delegate: bool = False
     auto_populates_to: list[str] = Field(default_factory=list)
-    why_asking: Optional[str] = None
-    example_answer: Optional[str] = None
-    pro_tip: Optional[str] = None
+    why_asking: str | None = None
+    example_answer: str | None = None
+    pro_tip: str | None = None
 
 
 class InfoRequestCreate(InfoRequestBase):
@@ -108,15 +107,15 @@ class InfoRequestCreate(InfoRequestBase):
 
 class InfoRequestUpdate(BaseModel):
     """Schema for updating an info request (consultant)."""
-    title: Optional[str] = None
-    description: Optional[str] = None
-    context_from_call: Optional[str] = None
-    priority: Optional[InfoRequestPriority] = None
-    best_answered_by: Optional[str] = None
-    why_asking: Optional[str] = None
-    example_answer: Optional[str] = None
-    pro_tip: Optional[str] = None
-    display_order: Optional[int] = None
+    title: str | None = None
+    description: str | None = None
+    context_from_call: str | None = None
+    priority: InfoRequestPriority | None = None
+    best_answered_by: str | None = None
+    why_asking: str | None = None
+    example_answer: str | None = None
+    pro_tip: str | None = None
+    display_order: int | None = None
 
 
 class InfoRequestAnswer(BaseModel):
@@ -133,9 +132,9 @@ class InfoRequest(InfoRequestBase):
     created_by: InfoRequestCreator
     display_order: int
     status: InfoRequestStatus
-    answer_data: Optional[dict[str, Any]] = None
-    completed_at: Optional[datetime] = None
-    completed_by: Optional[UUID] = None
+    answer_data: dict[str, Any] | None = None
+    completed_at: datetime | None = None
+    completed_by: UUID | None = None
     created_at: datetime
     updated_at: datetime
 
@@ -153,8 +152,8 @@ class ReadinessDelta(BaseModel):
 
 class InfoRequestWithReadinessDelta(InfoRequest):
     """Info request response with readiness delta after answering."""
-    readiness_delta: Optional[ReadinessDelta] = None
-    signal_id: Optional[UUID] = None
+    readiness_delta: ReadinessDelta | None = None
+    signal_id: UUID | None = None
     confirmations_resolved: int = 0
 
 
@@ -166,57 +165,57 @@ class InfoRequestWithReadinessDelta(InfoRequest):
 class MetricItem(BaseModel):
     """A single metric in the context."""
     metric: str
-    current: Optional[str] = None
-    goal: Optional[str] = None
-    source: Optional[ContextSource] = None
+    current: str | None = None
+    goal: str | None = None
+    source: ContextSource | None = None
     locked: bool = False
 
 
 class KeyUser(BaseModel):
     """A key user in the context."""
     name: str
-    role: Optional[str] = None
+    role: str | None = None
     frustrations: list[str] = Field(default_factory=list)
     helps: list[str] = Field(default_factory=list)
-    source: Optional[ContextSource] = None
+    source: ContextSource | None = None
     locked: bool = False
 
 
 class DesignInspiration(BaseModel):
     """A design inspiration item."""
     name: str
-    url: Optional[str] = None
-    what_like: Optional[str] = None
-    source: Optional[ContextSource] = None
+    url: str | None = None
+    what_like: str | None = None
+    source: ContextSource | None = None
 
 
 class Competitor(BaseModel):
     """A competitor in the context."""
     name: str
-    worked: Optional[str] = None
-    didnt_work: Optional[str] = None
-    why_left: Optional[str] = None
-    source: Optional[ContextSource] = None
+    worked: str | None = None
+    didnt_work: str | None = None
+    why_left: str | None = None
+    source: ContextSource | None = None
     locked: bool = False
 
 
 class ProjectContextBase(BaseModel):
     """Base project context fields."""
     # Problem section
-    problem_main: Optional[str] = None
-    problem_main_source: Optional[ContextSource] = None
+    problem_main: str | None = None
+    problem_main_source: ContextSource | None = None
     problem_main_locked: bool = False
-    problem_why_now: Optional[str] = None
-    problem_why_now_source: Optional[ContextSource] = None
+    problem_why_now: str | None = None
+    problem_why_now_source: ContextSource | None = None
     problem_why_now_locked: bool = False
     metrics: list[MetricItem] = Field(default_factory=list)
 
     # Success section
-    success_future: Optional[str] = None
-    success_future_source: Optional[ContextSource] = None
+    success_future: str | None = None
+    success_future_source: ContextSource | None = None
     success_future_locked: bool = False
-    success_wow: Optional[str] = None
-    success_wow_source: Optional[ContextSource] = None
+    success_wow: str | None = None
+    success_wow_source: ContextSource | None = None
     success_wow_locked: bool = False
 
     # Key users
@@ -224,8 +223,8 @@ class ProjectContextBase(BaseModel):
 
     # Design section
     design_love: list[DesignInspiration] = Field(default_factory=list)
-    design_avoid: Optional[str] = None
-    design_avoid_source: Optional[ContextSource] = None
+    design_avoid: str | None = None
+    design_avoid_source: ContextSource | None = None
     design_avoid_locked: bool = False
 
     # Competitors
@@ -233,7 +232,7 @@ class ProjectContextBase(BaseModel):
 
     # Tribal knowledge
     tribal_knowledge: list[str] = Field(default_factory=list)
-    tribal_source: Optional[ContextSource] = None
+    tribal_source: ContextSource | None = None
     tribal_locked: bool = False
 
 
@@ -245,16 +244,16 @@ class ProjectContextCreate(BaseModel):
 class ProjectContextUpdate(BaseModel):
     """Schema for updating project context."""
     # All fields optional for partial updates
-    problem_main: Optional[str] = None
-    problem_why_now: Optional[str] = None
-    metrics: Optional[list[MetricItem]] = None
-    success_future: Optional[str] = None
-    success_wow: Optional[str] = None
-    key_users: Optional[list[KeyUser]] = None
-    design_love: Optional[list[DesignInspiration]] = None
-    design_avoid: Optional[str] = None
-    competitors: Optional[list[Competitor]] = None
-    tribal_knowledge: Optional[list[str]] = None
+    problem_main: str | None = None
+    problem_why_now: str | None = None
+    metrics: list[MetricItem] | None = None
+    success_future: str | None = None
+    success_wow: str | None = None
+    key_users: list[KeyUser] | None = None
+    design_love: list[DesignInspiration] | None = None
+    design_avoid: str | None = None
+    competitors: list[Competitor] | None = None
+    tribal_knowledge: list[str] | None = None
 
 
 class ProjectContextSectionUpdate(BaseModel):
@@ -299,15 +298,15 @@ class ClientDocumentBase(BaseModel):
     file_name: str
     file_size: int
     file_type: str
-    mime_type: Optional[str] = None
-    description: Optional[str] = None
+    mime_type: str | None = None
+    description: str | None = None
 
 
 class ClientDocumentCreate(ClientDocumentBase):
     """Schema for creating a client document record."""
     file_path: str
     category: DocumentCategory
-    info_request_id: Optional[UUID] = None
+    info_request_id: UUID | None = None
 
 
 class ClientDocument(ClientDocumentBase):
@@ -317,9 +316,9 @@ class ClientDocument(ClientDocumentBase):
     file_path: str
     uploaded_by: UUID
     category: DocumentCategory
-    extracted_text: Optional[str] = None
-    signal_id: Optional[UUID] = None
-    info_request_id: Optional[UUID] = None
+    extracted_text: str | None = None
+    signal_id: UUID | None = None
+    info_request_id: UUID | None = None
     uploaded_at: datetime
 
     class Config:
@@ -342,10 +341,10 @@ class DashboardProgress(BaseModel):
 class DashboardCallInfo(BaseModel):
     """Call information for dashboard header."""
     consultant_name: str
-    scheduled_date: Optional[datetime] = None
-    completed_date: Optional[datetime] = None
+    scheduled_date: datetime | None = None
+    completed_date: datetime | None = None
     duration_minutes: int = 60
-    description: Optional[str] = None
+    description: str | None = None
 
 
 class DashboardResponse(BaseModel):
@@ -353,12 +352,12 @@ class DashboardResponse(BaseModel):
     project_id: UUID
     project_name: str
     phase: PortalPhase
-    call_info: Optional[DashboardCallInfo] = None
+    call_info: DashboardCallInfo | None = None
     progress: DashboardProgress
     info_requests: list[InfoRequest]
-    due_date: Optional[datetime] = None
+    due_date: datetime | None = None
     # Agenda from discovery prep
-    agenda_summary: Optional[str] = None
+    agenda_summary: str | None = None
     agenda_bullets: list[str] = Field(default_factory=list)
 
 
@@ -371,11 +370,11 @@ class PortalProject(BaseModel):
     """Project info as seen in client portal."""
     id: UUID
     name: str
-    client_display_name: Optional[str] = None
+    client_display_name: str | None = None
     portal_phase: PortalPhase
-    discovery_call_date: Optional[datetime] = None
-    call_completed_at: Optional[datetime] = None
-    prototype_expected_date: Optional[datetime] = None
+    discovery_call_date: datetime | None = None
+    call_completed_at: datetime | None = None
+    prototype_expected_date: datetime | None = None
     created_at: datetime
 
     @property
@@ -390,3 +389,98 @@ class PortalProject(BaseModel):
 class PortalProjectList(BaseModel):
     """List of portal projects."""
     projects: list[PortalProject]
+
+
+# ============================================================================
+# Validation Schemas
+# ============================================================================
+
+
+class ValidationItem(BaseModel):
+    """A single entity in the validation queue."""
+    id: str
+    entity_type: str
+    entity_id: str
+    name: str
+    summary: str | None = None
+    details: dict[str, Any] = Field(default_factory=dict)
+    priority: int = 3
+    reason: str | None = None
+    assignment_id: str | None = None
+    existing_verdict: str | None = None
+    existing_notes: str | None = None
+    is_assigned_to_me: bool = False
+
+
+class ValidationQueueResponse(BaseModel):
+    """Validation queue for a project."""
+    total_pending: int = 0
+    by_type: dict[str, int] = Field(default_factory=dict)
+    urgent_count: int = 0
+    items: list[ValidationItem] = Field(default_factory=list)
+
+
+class SubmitVerdictRequest(BaseModel):
+    """Request to submit a validation verdict."""
+    entity_type: str
+    entity_id: str
+    verdict: str  # confirmed, refine, flag
+    notes: str | None = None
+    refinement_details: dict[str, Any] | None = None
+
+
+class BatchVerdictRequest(BaseModel):
+    """Batch confirm multiple entities."""
+    verdicts: list[SubmitVerdictRequest]
+
+
+class VerdictResponse(BaseModel):
+    """Response after submitting a verdict."""
+    verdict_id: UUID
+    entity_type: str
+    entity_id: str
+    verdict: str
+    signal_id: UUID | None = None
+
+
+class PortalDashboardResponse(DashboardResponse):
+    """Extended dashboard with portal-specific data."""
+    portal_role: str = "client_user"
+    validation_summary: ValidationQueueResponse | None = None
+    upcoming_meeting: dict[str, Any] | None = None
+    prototype_status: dict[str, Any] | None = None
+    team_summary: dict[str, Any] | None = None
+    recent_activity: list[dict[str, Any]] = Field(default_factory=list)
+
+
+class TeamMemberResponse(BaseModel):
+    """Team member with assignment progress."""
+    user_id: UUID
+    email: str
+    first_name: str | None = None
+    last_name: str | None = None
+    portal_role: str = "client_user"
+    stakeholder_id: UUID | None = None
+    stakeholder_name: str | None = None
+    total_assignments: int = 0
+    completed_assignments: int = 0
+    pending_assignments: int = 0
+
+
+class TeamInviteRequest(BaseModel):
+    """Request to invite a stakeholder to the portal."""
+    email: str
+    first_name: str | None = None
+    last_name: str | None = None
+    portal_role: str = "client_user"
+    stakeholder_id: UUID | None = None
+
+
+class TeamProgressResponse(BaseModel):
+    """Aggregated team validation progress."""
+    total_assignments: int = 0
+    completed: int = 0
+    pending: int = 0
+    in_progress: int = 0
+    completion_percentage: int = 0
+    members: list[TeamMemberResponse] = Field(default_factory=list)

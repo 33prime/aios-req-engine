@@ -3,7 +3,6 @@
 import logging
 import os
 from datetime import datetime
-from typing import Optional
 from uuid import UUID
 
 from fastapi import Depends, Header, HTTPException, Request, status
@@ -43,8 +42,8 @@ class AuthContext:
         self,
         user: User,
         token: str,
-        platform_role: Optional[PlatformRole] = None,
-        organizations: Optional[list[UUID]] = None,
+        platform_role: PlatformRole | None = None,
+        organizations: list[UUID] | None = None,
     ):
         self.user = user
         self.token = token
@@ -87,9 +86,9 @@ class AuthContext:
 
 async def get_current_user(
     request: Request,
-    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
-    x_api_key: Optional[str] = Header(None, alias="X-API-Key"),
-) -> Optional[AuthContext]:
+    credentials: HTTPAuthorizationCredentials | None = Depends(security),
+    x_api_key: str | None = Header(None, alias="X-API-Key"),
+) -> AuthContext | None:
     """
     Extract and validate the current user from the request.
 
@@ -186,8 +185,8 @@ async def get_current_user(
         organizations = []
 
         try:
-            from app.db.profiles import get_profile_by_user_id
             from app.db.organizations import list_user_organizations
+            from app.db.profiles import get_profile_by_user_id
 
             # Get profile for platform_role
             profile = await get_profile_by_user_id(user.id)
@@ -228,7 +227,7 @@ async def get_current_user(
 
 
 async def require_auth(
-    auth: Optional[AuthContext] = Depends(get_current_user),
+    auth: AuthContext | None = Depends(get_current_user),
 ) -> AuthContext:
     """Require authentication. Raises 401 if not authenticated."""
     if not auth:
@@ -293,7 +292,7 @@ class ProjectAccessChecker:
 
     def __init__(
         self,
-        required_role: Optional[MemberRole] = None,
+        required_role: MemberRole | None = None,
         allow_consultant_override: bool = True,
     ):
         """
@@ -348,7 +347,7 @@ class OrgAccessChecker:
 
     def __init__(
         self,
-        required_role: Optional[OrganizationRole] = None,
+        required_role: OrganizationRole | None = None,
     ):
         """
         Args:
@@ -395,8 +394,8 @@ require_org_owner = OrgAccessChecker(required_role=OrganizationRole.OWNER)
 
 
 async def get_current_org_id(
-    x_organization_id: Optional[str] = Header(None, alias="X-Organization-Id"),
-) -> Optional[UUID]:
+    x_organization_id: str | None = Header(None, alias="X-Organization-Id"),
+) -> UUID | None:
     """Extract organization ID from X-Organization-Id header."""
     if x_organization_id:
         try:
@@ -410,7 +409,59 @@ async def get_current_org_id(
 
 
 async def optional_auth(
-    auth: Optional[AuthContext] = Depends(get_current_user),
-) -> Optional[AuthContext]:
+    auth: AuthContext | None = Depends(get_current_user),
+) -> AuthContext | None:
     """Optional authentication - returns None if not authenticated."""
+    return auth
+
+
+# ============================================================================
+# Portal Access Helpers
+# ============================================================================
+
+_PORTAL_ROLE_MAP = {
+    "decision_maker": "client_admin",
+    "support": "client_user",
+    "client_admin": "client_admin",
+    "client_user": "client_user",
+}
+
+
+async def require_portal_access(
+    project_id: UUID,
+    auth: AuthContext = Depends(require_auth),
+) -> tuple[AuthContext, str]:
+    """Require portal access. Returns (auth, portal_role).
+
+    Consultants get client_admin. Legacy decision_maker/support mapped
+    to client_admin/client_user respectively.
+    """
+    if auth.is_consultant:
+        return auth, "client_admin"
+
+    from app.db.project_members import get_project_member
+
+    member = await get_project_member(project_id, auth.user_id)
+    if not member:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not a member of this project",
+        )
+
+    raw_role = member.client_role.value if member.client_role else "client_user"
+    portal_role = _PORTAL_ROLE_MAP.get(raw_role, "client_user")
+    return auth, portal_role
+
+
+async def require_portal_admin(
+    project_id: UUID,
+    auth: AuthContext = Depends(require_auth),
+) -> AuthContext:
+    """Require portal admin access (client_admin or consultant)."""
+    auth, portal_role = await require_portal_access(project_id, auth)
+    if portal_role != "client_admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin access required",
+        )
     return auth

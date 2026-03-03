@@ -2,7 +2,6 @@
 
 from datetime import datetime
 from enum import Enum
-from typing import Optional
 from uuid import UUID
 
 from pydantic import BaseModel, EmailStr, Field
@@ -23,11 +22,20 @@ class MemberRole(str, Enum):
 class ClientRole(str, Enum):
     """Client-specific role within a project.
 
-    - DECISION_MAKER: Full read/edit/create access on project
-    - SUPPORT: Limited access - can update assigned data, possibly create
+    - DECISION_MAKER: Full read/edit/create access on project (legacy, treated as admin)
+    - SUPPORT: Limited access - can update assigned data, possibly create (legacy)
+    - CLIENT_ADMIN: Portal admin — can invite, manage team, see all assignments
+    - CLIENT_USER: Portal user — can validate assigned items
     """
     DECISION_MAKER = "decision_maker"
     SUPPORT = "support"
+    CLIENT_ADMIN = "client_admin"
+    CLIENT_USER = "client_user"
+
+    @property
+    def is_admin(self) -> bool:
+        """Whether this role has admin-level portal access."""
+        return self in (ClientRole.DECISION_MAKER, ClientRole.CLIENT_ADMIN)
 
 
 # ============================================================================
@@ -39,9 +47,9 @@ class UserBase(BaseModel):
     """Base user fields."""
     email: EmailStr
     user_type: UserType
-    first_name: Optional[str] = None
-    last_name: Optional[str] = None
-    company_name: Optional[str] = None
+    first_name: str | None = None
+    last_name: str | None = None
+    company_name: str | None = None
 
 
 class UserCreate(UserBase):
@@ -51,17 +59,17 @@ class UserCreate(UserBase):
 
 class UserUpdate(BaseModel):
     """Schema for updating a user."""
-    first_name: Optional[str] = None
-    last_name: Optional[str] = None
-    company_name: Optional[str] = None
-    avatar_url: Optional[str] = None
-    has_seen_welcome: Optional[bool] = None
+    first_name: str | None = None
+    last_name: str | None = None
+    company_name: str | None = None
+    avatar_url: str | None = None
+    has_seen_welcome: bool | None = None
 
 
 class User(UserBase):
     """Full user schema with all fields."""
     id: UUID
-    avatar_url: Optional[str] = None
+    avatar_url: str | None = None
     has_seen_welcome: bool = False
     metadata: dict = Field(default_factory=dict)
     created_at: datetime
@@ -75,10 +83,10 @@ class UserPublic(BaseModel):
     """Public user info (safe to expose to other users)."""
     id: UUID
     email: EmailStr
-    first_name: Optional[str] = None
-    last_name: Optional[str] = None
-    company_name: Optional[str] = None
-    avatar_url: Optional[str] = None
+    first_name: str | None = None
+    last_name: str | None = None
+    company_name: str | None = None
+    avatar_url: str | None = None
 
     @property
     def display_name(self) -> str:
@@ -106,16 +114,16 @@ class ProjectMemberCreate(BaseModel):
     """Schema for adding a member to a project."""
     user_id: UUID
     role: MemberRole
-    client_role: Optional[ClientRole] = None  # Only for clients
+    client_role: ClientRole | None = None  # Only for clients
 
 
 class ProjectMember(ProjectMemberBase):
     """Full project member schema."""
     id: UUID
     invited_at: datetime
-    accepted_at: Optional[datetime] = None
-    invited_by: Optional[UUID] = None
-    client_role: Optional[ClientRole] = None  # Only for clients
+    accepted_at: datetime | None = None
+    invited_by: UUID | None = None
+    client_role: ClientRole | None = None  # Only for clients
 
     class Config:
         from_attributes = True
@@ -134,7 +142,7 @@ class ProjectMemberWithUser(ProjectMember):
 class MagicLinkRequest(BaseModel):
     """Request to send a magic link."""
     email: EmailStr
-    redirect_url: Optional[str] = None  # Where to redirect after auth
+    redirect_url: str | None = None  # Where to redirect after auth
 
 
 class MagicLinkResponse(BaseModel):
@@ -146,13 +154,13 @@ class MagicLinkResponse(BaseModel):
 class TokenVerifyRequest(BaseModel):
     """Request to verify a magic link token."""
     token: str
-    token_hash: Optional[str] = None  # Supabase uses token_hash
+    token_hash: str | None = None  # Supabase uses token_hash
 
 
 class TokenVerifyResponse(BaseModel):
     """Response after verifying token."""
     access_token: str
-    refresh_token: Optional[str] = None
+    refresh_token: str | None = None
     user: User
     expires_at: datetime
 
@@ -176,9 +184,9 @@ class RefreshTokenRequest(BaseModel):
 class ClientInviteRequest(BaseModel):
     """Request to invite a client to a project."""
     email: EmailStr
-    first_name: Optional[str] = None
-    last_name: Optional[str] = None
-    company_name: Optional[str] = None
+    first_name: str | None = None
+    last_name: str | None = None
+    company_name: str | None = None
     send_email: bool = True  # Whether to send the magic link email
 
 
@@ -187,7 +195,7 @@ class ClientInviteResponse(BaseModel):
     user: User
     project_member: ProjectMember
     magic_link_sent: bool
-    magic_link_error: Optional[str] = None
+    magic_link_error: str | None = None
 
 
 # ============================================================================
@@ -207,9 +215,9 @@ class ConsultantInviteRequest(BaseModel):
     """Request to invite a new consultant (super_admin only)."""
     email: EmailStr
     platform_role: str  # 'solution_architect' or 'sales_consultant'
-    organization_id: Optional[UUID] = None  # Optional initial org assignment
-    first_name: Optional[str] = None
-    last_name: Optional[str] = None
+    organization_id: UUID | None = None  # Optional initial org assignment
+    first_name: str | None = None
+    last_name: str | None = None
 
 
 class ConsultantInvite(BaseModel):
@@ -217,15 +225,15 @@ class ConsultantInvite(BaseModel):
     id: UUID
     email: EmailStr
     platform_role: str
-    organization_id: Optional[UUID] = None
+    organization_id: UUID | None = None
     invited_by: UUID
     invite_token: str
     status: ConsultantInviteStatus = ConsultantInviteStatus.PENDING
-    first_name: Optional[str] = None
-    last_name: Optional[str] = None
+    first_name: str | None = None
+    last_name: str | None = None
     created_at: datetime
     expires_at: datetime
-    accepted_at: Optional[datetime] = None
+    accepted_at: datetime | None = None
 
     class Config:
         from_attributes = True
@@ -242,8 +250,8 @@ class AcceptConsultantInviteRequest(BaseModel):
     """Request to accept a consultant invite and set password."""
     invite_token: str
     password: str
-    first_name: Optional[str] = None
-    last_name: Optional[str] = None
+    first_name: str | None = None
+    last_name: str | None = None
 
 
 # ============================================================================
@@ -260,6 +268,6 @@ class LoginRequest(BaseModel):
 class LoginResponse(BaseModel):
     """Response after successful login."""
     access_token: str
-    refresh_token: Optional[str] = None
+    refresh_token: str | None = None
     user: User
     expires_at: datetime

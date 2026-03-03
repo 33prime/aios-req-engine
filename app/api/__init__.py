@@ -41,6 +41,8 @@ from app.api import (
     organizations,
     outreach,
     phase0,
+    portal_team,
+    portal_validation,
     process_documents,
     project_creation,
     project_launch,
@@ -158,6 +160,12 @@ router.include_router(organizations.router, tags=["organizations"])
 
 # Include Client Portal routes
 router.include_router(client_portal.router, tags=["portal"])
+
+# Include Portal Validation routes (confirm/refine/flag queue)
+router.include_router(portal_validation.router, tags=["portal_validation"])
+
+# Include Portal Team Management routes (admin invite, progress)
+router.include_router(portal_team.router, tags=["portal_team"])
 
 # Include Discovery Prep routes (pre-call question/document generation)
 router.include_router(discovery_prep.router, tags=["discovery_prep"])

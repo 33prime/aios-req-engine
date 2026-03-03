@@ -19,12 +19,14 @@ from app.core.schemas_portal import (
     InfoRequestPhase,
     InfoRequestStatus,
     InfoRequestWithReadinessDelta,
+    PortalDashboardResponse,
     PortalPhase,
     PortalProject,
     PortalProjectList,
     ProjectContext,
     ProjectContextSectionUpdate,
     ReadinessDelta,
+    ValidationQueueResponse,
 )
 from app.db.client_documents import (
     can_user_delete_document,
@@ -181,6 +183,141 @@ async def get_dashboard(
         due_date=project.get("prototype_expected_date"),
         agenda_summary=agenda_summary,
         agenda_bullets=agenda_bullets,
+    )
+
+
+@router.get("/projects/{project_id}/dashboard/v2", response_model=PortalDashboardResponse)
+async def get_portal_dashboard_v2(
+    project_id: UUID,
+    auth: AuthContext = Depends(require_auth),
+):
+    """Extended dashboard with portal role, validation summary, meetings, prototype status."""
+    from app.core.auth_middleware import require_portal_access
+    auth, portal_role = await require_portal_access(project_id, auth)
+
+    # Get base dashboard data
+    client = get_client()
+    project_result = (
+        client.table("projects")
+        .select("*")
+        .eq("id", str(project_id))
+        .execute()
+    )
+    if not project_result.data:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    project = project_result.data[0]
+    phase = PortalPhase(project.get("portal_phase", "pre_call"))
+
+    info_phase = InfoRequestPhase.PRE_CALL if phase == PortalPhase.PRE_CALL else InfoRequestPhase.POST_CALL
+    info_requests = await list_info_requests(project_id, phase=info_phase)
+    progress_data = await get_info_request_progress(project_id, info_phase)
+    progress = DashboardProgress(**progress_data)
+
+    call_info = None
+    if project.get("discovery_call_date"):
+        call_info = {
+            "consultant_name": "Matt Edmund",
+            "scheduled_date": project.get("discovery_call_date"),
+            "completed_date": project.get("call_completed_at"),
+            "duration_minutes": 60,
+        }
+
+    from app.db.discovery_prep import get_bundle
+    bundle = await get_bundle(project_id)
+    agenda_summary = bundle.agenda_summary if bundle else None
+    agenda_bullets = (bundle.agenda_bullets or []) if bundle else []
+
+    # Validation summary
+    validation_summary = None
+    try:
+        from app.db.stakeholder_assignments import count_assignments_by_status
+        counts = count_assignments_by_status(project_id)
+        by_type = {}
+        for et, sc in counts.get("by_type", {}).items():
+            by_type[et] = sc.get("pending", 0)
+        validation_summary = ValidationQueueResponse(
+            total_pending=counts["by_status"].get("pending", 0),
+            by_type=by_type,
+            urgent_count=0,
+            items=[],
+        )
+    except Exception as e:
+        logger.warning(f"Validation summary failed: {e}")
+
+    # Upcoming meeting
+    upcoming_meeting = None
+    try:
+        from app.db.meetings import list_meetings
+        meetings = list_meetings(project_id, upcoming_only=True)
+        if meetings:
+            m = meetings[0]
+            upcoming_meeting = {
+                "id": m.get("id"),
+                "title": m.get("title"),
+                "scheduled_at": m.get("scheduled_at"),
+                "meeting_type": m.get("meeting_type"),
+            }
+    except Exception as e:
+        logger.warning(f"Meeting load failed: {e}")
+
+    # Prototype status
+    prototype_status = None
+    try:
+        proto_result = (
+            client.table("prototypes")
+            .select("id, status, deploy_url, created_at")
+            .eq("project_id", str(project_id))
+            .order("created_at", desc=True)
+            .limit(1)
+            .execute()
+        )
+        if proto_result.data:
+            prototype_status = proto_result.data[0]
+    except Exception as e:
+        logger.warning(f"Prototype load failed: {e}")
+
+    # Team summary (admin only)
+    team_summary = None
+    if portal_role == "client_admin":
+        try:
+            from app.db.stakeholder_assignments import get_stakeholder_progress
+            progress_list = get_stakeholder_progress(project_id)
+            total = sum(p["total"] for p in progress_list)
+            completed = sum(p["completed"] for p in progress_list)
+            team_summary = {
+                "member_count": len(progress_list),
+                "total_assignments": total,
+                "completed_assignments": completed,
+                "completion_pct": round(completed / total * 100) if total else 0,
+            }
+        except Exception as e:
+            logger.warning(f"Team summary failed: {e}")
+
+    # Recent activity
+    recent_activity = []
+    try:
+        from app.db.stakeholder_assignments import get_recent_activity
+        recent_activity = get_recent_activity(project_id, limit=10)
+    except Exception as e:
+        logger.warning(f"Activity feed failed: {e}")
+
+    return PortalDashboardResponse(
+        project_id=project_id,
+        project_name=project.get("client_display_name") or project["name"],
+        phase=phase,
+        call_info=call_info,
+        progress=progress,
+        info_requests=info_requests,
+        due_date=project.get("prototype_expected_date"),
+        agenda_summary=agenda_summary,
+        agenda_bullets=agenda_bullets,
+        portal_role=portal_role,
+        validation_summary=validation_summary,
+        upcoming_meeting=upcoming_meeting,
+        prototype_status=prototype_status,
+        team_summary=team_summary,
+        recent_activity=recent_activity,
     )
 
 
