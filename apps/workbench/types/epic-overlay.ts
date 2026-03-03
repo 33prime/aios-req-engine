@@ -31,11 +31,18 @@ export interface EpicFeature {
   component_name?: string | null
 }
 
+export interface ProvenanceQuote {
+  speaker_name: string
+  quote_text: string
+  source_label?: string | null
+}
+
 export interface Epic {
   epic_index: number
   title: string
   theme: string
   narrative: string
+  provenance_quotes?: ProvenanceQuote[]
   story_beats: EpicStoryBeat[]
   features: EpicFeature[]
   primary_route?: string | null
@@ -83,7 +90,7 @@ export interface DiscoveryThread {
   severity: number
 }
 
-export type EpicVerdict = 'confirmed' | 'refine' | 'client_review'
+export type EpicVerdict = 'confirmed' | 'refine' | 'flag_for_client'
 export type EpicCardType = 'vision' | 'ai_flow' | 'horizon' | 'discovery'
 
 export interface EpicConfirmation {
@@ -115,4 +122,31 @@ export interface EpicOverlayPlan {
   total_features_unmapped: number
   generated_at?: string | null
   iteration: number
+}
+
+// Review state machine
+export type ReviewState =
+  | 'not_started'
+  | 'in_progress'
+  | 'complete'
+  | 'updating'
+  | 're_review'
+  | 'ready_for_client'
+
+export interface ReviewSummaryItem {
+  card_index: number
+  verdict: EpicVerdict
+  notes?: string | null
+}
+
+export interface ReviewSummary {
+  total_epics: number
+  touched: number
+  all_touched: boolean
+  tallies: {
+    confirmed: number
+    refine: number
+    flag_for_client: number
+  }
+  items: ReviewSummaryItem[]
 }

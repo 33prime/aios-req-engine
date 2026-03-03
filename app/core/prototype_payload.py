@@ -37,6 +37,19 @@ def _is_confirmed(entity: dict) -> bool:
     return entity.get("confirmation_status") in _CONFIRMED
 
 
+def _normalize_dicts(items: list) -> list[dict]:
+    """Coerce list items to dicts — handles str or dict entries."""
+    result = []
+    for item in items:
+        if isinstance(item, dict):
+            result.append(item)
+        elif isinstance(item, str):
+            result.append({"text": item})
+        else:
+            result.append({"text": str(item)})
+    return result
+
+
 async def assemble_prototype_payload(
     project_id: UUID,
     design_selection: DesignSelection | None = None,
@@ -267,10 +280,10 @@ async def assemble_prototype_payload(
             ai_config=s.get("ai_config"),
             implied_pattern=s.get("implied_pattern"),
             actors=s.get("actors", []) or [],
-            pain_points_addressed=s.get("pain_points_addressed", []) or [],
+            pain_points_addressed=_normalize_dicts(s.get("pain_points_addressed", []) or []),
             goals_addressed=s.get("goals_addressed", []) or [],
             linked_feature_ids=[str(fid) for fid in (s.get("linked_feature_ids", []) or [])],
-            open_questions=s.get("open_questions", []) or [],
+            open_questions=_normalize_dicts(s.get("open_questions", []) or []),
             image_url=s.get("image_url"),
             feel_description=s.get("feel_description"),
             confirmation_status=s.get("confirmation_status", "ai_generated") or "ai_generated",

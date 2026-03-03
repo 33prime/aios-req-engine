@@ -16,8 +16,10 @@ import { WorkspaceChat, type ChatMessage } from '@/components/workspace/Workspac
 import { IntelligenceBriefingPanel } from '@/components/workspace/brd/components/briefing/IntelligenceBriefingPanel'
 import { ClientPulseStrip } from '@/components/workspace/ClientPulseStrip'
 import ReviewInfoPanel from './ReviewInfoPanel'
+import EpicOverviewPanel from './EpicOverviewPanel'
+import EpicDiscussPanel from './EpicDiscussPanel'
 import type { PrototypeSession } from '@/types/prototype'
-import type { EpicOverlayPlan, EpicTourPhase, EpicConfirmation } from '@/types/epic-overlay'
+import type { EpicOverlayPlan, EpicTourPhase, EpicConfirmation, EpicVerdict } from '@/types/epic-overlay'
 import type { ChatEntityDetectionResult, TerseAction } from '@/lib/api'
 import type { ConversationStarter } from '@/types/workspace'
 
@@ -62,6 +64,7 @@ interface ReviewBubbleProps {
   epicCardIndex?: number | null
   epicConfirmations?: EpicConfirmation[]
   onEpicAdvance?: () => void
+  onSubmitVerdict?: (verdict: EpicVerdict, notes?: string) => Promise<void>
 }
 
 export function ReviewBubble({
@@ -92,6 +95,7 @@ export function ReviewBubble({
   epicCardIndex,
   epicConfirmations = [],
   onEpicAdvance,
+  onSubmitVerdict,
 }: ReviewBubbleProps) {
   const isReviewMode = !!(session && epicPlan && epicCardIndex != null)
 
@@ -127,6 +131,15 @@ export function ReviewBubble({
   useEffect(() => {
     localStorage.setItem('side-panel-tab', activeTab)
   }, [activeTab])
+
+  // Auto-switch to Overview when navigating to a new epic in review mode
+  const prevCardIndex = useRef(epicCardIndex)
+  useEffect(() => {
+    if (isReviewMode && epicCardIndex !== prevCardIndex.current && epicCardIndex != null) {
+      setActiveTab('primary')
+    }
+    prevCardIndex.current = epicCardIndex
+  }, [isReviewMode, epicCardIndex])
 
   // Keyboard: Escape to close, Cmd+J to toggle
   useEffect(() => {
@@ -239,7 +252,7 @@ export function ReviewBubble({
                 {isReviewMode ? (
                   <>
                     <Info className="w-3.5 h-3.5" />
-                    Review
+                    Overview
                   </>
                 ) : (
                   <>
@@ -262,7 +275,7 @@ export function ReviewBubble({
                 }`}
               >
                 <MessageSquare className="w-3.5 h-3.5" />
-                Chat
+                {isReviewMode ? 'Discuss' : 'Chat'}
               </button>
             </div>
 
@@ -297,21 +310,22 @@ export function ReviewBubble({
         <div className="flex-1 overflow-hidden relative">
           {activeTab === 'primary' ? (
             isReviewMode ? (
-              epicCardIndex != null ? (
-                <div className="h-full overflow-y-auto">
-                  <ReviewInfoPanel
-                    epicPlan={epicPlan!}
-                    epicPhase={epicPhase}
-                    epicCardIndex={epicCardIndex}
-                    sessionId={session!.id}
-                    confirmations={epicConfirmations}
-                    onAdvance={onEpicAdvance ?? (() => {})}
-                  />
-                </div>
+              epicCardIndex != null && epicPlan!.vision_epics[epicCardIndex] ? (
+                <EpicOverviewPanel
+                  epic={epicPlan!.vision_epics[epicCardIndex]}
+                  epicIndex={epicCardIndex}
+                  sessionId={session!.id}
+                  confirmation={
+                    epicConfirmations.find(
+                      (c) => c.card_type === 'vision' && c.card_index === epicCardIndex
+                    ) ?? null
+                  }
+                  onSubmitVerdict={onSubmitVerdict ?? (async () => {})}
+                />
               ) : (
                 <div className="p-6 text-center">
                   <p className="text-[13px] text-[#666666]">
-                    Start the tour to review epics
+                    Start the review to explore epics
                   </p>
                 </div>
               )
@@ -324,6 +338,12 @@ export function ReviewBubble({
                 onUploadDocument={handleUploadDocument}
               />
             )
+          ) : isReviewMode && epicCardIndex != null && epicPlan!.vision_epics[epicCardIndex] ? (
+            <EpicDiscussPanel
+              epic={epicPlan!.vision_epics[epicCardIndex]}
+              epicIndex={epicCardIndex}
+              sessionId={session!.id}
+            />
           ) : (
             <WorkspaceChat
               projectId={projectId}

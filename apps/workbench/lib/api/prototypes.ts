@@ -13,7 +13,7 @@ import type {
   ConvergenceSnapshot,
   BuildStatus,
 } from '../../types/prototype'
-import type { EpicOverlayPlan, EpicConfirmation, SubmitEpicVerdictRequest } from '../../types/epic-overlay'
+import type { EpicOverlayPlan, EpicConfirmation, SubmitEpicVerdictRequest, ReviewState, ReviewSummary } from '../../types/epic-overlay'
 
 // ============================================
 // Prototype Refinement APIs
@@ -73,6 +73,35 @@ export const submitEpicVerdict = (sessionId: string, data: SubmitEpicVerdictRequ
 
 export const getEpicVerdicts = (sessionId: string) =>
   apiRequest<EpicConfirmation[]>(`/prototype-sessions/${sessionId}/epic-verdicts`)
+
+// ============================================
+// Review State Machine
+// ============================================
+
+export const getReviewSummary = (sessionId: string) =>
+  apiRequest<ReviewSummary>(`/prototype-sessions/${sessionId}/review-summary`)
+
+export const updateReviewState = (sessionId: string, state: ReviewState) =>
+  apiRequest<{ session_id: string; review_state: ReviewState }>(
+    `/prototype-sessions/${sessionId}/review-state`,
+    { method: 'PATCH', body: JSON.stringify({ review_state: state }) }
+  )
+
+export const triggerEpicUpdate = (sessionId: string) =>
+  apiRequest<{ session_id: string; build_id: string; status: string }>(
+    `/prototype-sessions/${sessionId}/trigger-update`,
+    { method: 'POST' }
+  )
+
+export const sendEpicDiscussMessage = (
+  sessionId: string,
+  epicIndex: number,
+  message: string,
+) =>
+  apiRequest<{ response: string; epic_index: number }>(
+    `/prototype-sessions/${sessionId}/epic-discuss`,
+    { method: 'POST', body: JSON.stringify({ epic_index: epicIndex, message }) }
+  )
 
 // ============================================
 // Prototype Sessions

@@ -22,6 +22,7 @@ from app.core.schemas_prototype_builder import (
     ProjectPlan,
     RenderResponse,
     RenderWriteRequest,
+    UpdateRequest,
 )
 
 logger = get_logger(__name__)
@@ -334,6 +335,148 @@ async def cancel_build(project_id: UUID, build_id: UUID):
     return {"build_id": str(build_id), "status": "failed"}
 
 
+@router.post("/refine", status_code=202)
+async def start_refine(
+    project_id: UUID,
+    body: UpdateRequest,
+    background_tasks: BackgroundTasks,
+):
+    """Trigger a surgical update of the prototype based on review feedback.
+
+    Returns immediately with build_id; runs the update pipeline in background.
+    """
+    from app.db.prototype_builds import create_build
+    from app.db.prototypes import get_prototype_for_project
+
+    proto = get_prototype_for_project(project_id)
+    if not proto:
+        raise HTTPException(status_code=404, detail="No prototype found")
+
+    prototype_id = proto["id"]
+
+    if not proto.get("coherence_plan"):
+        raise HTTPException(
+            status_code=400,
+            detail="No coherence plan stored — run a full build first",
+        )
+
+    # Find the build_dir from the latest build
+    from app.db.prototype_builds import get_latest_build
+
+    latest_build = get_latest_build(prototype_id)
+    build_dir = latest_build.get("build_dir") if latest_build else None
+    if not build_dir or not Path(build_dir).exists():
+        raise HTTPException(
+            status_code=400,
+            detail="Build directory not found on disk — run a full build first",
+        )
+
+    build = create_build(prototype_id, project_id)
+    build_id = build["id"]
+
+    background_tasks.add_task(
+        _run_refine_pipeline,
+        project_id=project_id,
+        prototype_id=UUID(prototype_id),
+        build_id=UUID(build_id),
+        build_dir=Path(build_dir),
+        refine_notes=body.refine_notes,
+        entity_diff=body.entity_diff,
+        session_feedback=body.session_feedback,
+    )
+
+    return {"build_id": build_id, "status": "pending", "type": "refine"}
+
+
+async def _run_refine_pipeline(
+    project_id: UUID,
+    prototype_id: UUID,
+    build_id: UUID,
+    build_dir: Path,
+    refine_notes: list,
+    entity_diff,
+    session_feedback: list,
+) -> None:
+    """Background task: surgical update pipeline."""
+    from app.core.config import get_settings
+    from app.core.prototype_payload import assemble_prototype_payload
+    from app.db.prototype_builds import append_build_log, update_build, update_build_status
+    from app.db.prototypes import get_prototype, update_prototype
+    from app.pipeline.updater import run_update_pipeline
+
+    settings = get_settings()
+
+    try:
+        update_build_status(build_id, "building")
+        append_build_log(build_id, {"phase": "refine", "message": "Starting update pipeline"})
+
+        # Load existing state
+        proto = get_prototype(prototype_id)
+        coherence_plan = proto.get("coherence_plan", {})
+        prebuild_data = proto.get("prebuild_intelligence", {})
+
+        prebuild = PrebuildIntelligence(**prebuild_data) if prebuild_data else None
+        if not prebuild:
+            update_build_status(build_id, "failed", error="No prebuild intelligence")
+            return
+
+        # Assemble fresh payload (entities may have changed)
+        payload_response = await assemble_prototype_payload(project_id=project_id)
+        payload = payload_response.payload
+
+        # Run update pipeline
+        result = await run_update_pipeline(
+            build_dir=build_dir,
+            project_plan=coherence_plan,
+            payload=payload,
+            prebuild=prebuild,
+            refine_notes=refine_notes,
+            entity_diff=(
+                entity_diff.model_dump() if hasattr(entity_diff, "model_dump") else entity_diff
+            ),
+            session_feedback=session_feedback,
+        )
+
+        # Persist updated coherence plan
+        update_prototype(prototype_id, coherence_plan=result.updated_project_plan)
+
+        append_build_log(
+            build_id,
+            {
+                "phase": "refine",
+                "message": (
+                    f"Update pipeline complete: {result.screens_rebuilt} screens rebuilt, "
+                    f"{result.total_s:.1f}s"
+                ),
+            },
+        )
+
+        # Redeploy to existing Netlify site
+        netlify_site_id = proto.get("netlify_site_id")
+        if netlify_site_id:
+            update_build_status(build_id, "deploying")
+            append_build_log(build_id, {"phase": "deploying", "message": "Redeploying to Netlify"})
+
+            from app.services.netlify_service import NetlifyService
+
+            netlify = NetlifyService(settings.NETLIFY_AUTH_TOKEN, settings.NETLIFY_TEAM_SLUG)
+            dist_path = str(build_dir / "dist")
+            deploy_url = await netlify.deploy_to_existing_site(netlify_site_id, dist_path)
+
+            update_build(build_id, deploy_url=deploy_url)
+            update_prototype(prototype_id, deploy_url=deploy_url)
+        else:
+            logger.warning("No netlify_site_id — skipping redeploy")
+
+        update_build_status(build_id, "completed")
+        update_build(build_id, build_dir=str(build_dir))
+        append_build_log(build_id, {"phase": "completed", "message": "Refine pipeline finished"})
+
+    except Exception as e:
+        logger.error(f"Refine pipeline failed: {e}", exc_info=True)
+        update_build_status(build_id, "failed", error=str(e))
+
+
 async def _run_build_pipeline(
     project_id: UUID,
     prototype_id: UUID,
@@ -415,12 +558,13 @@ async def _run_build_pipeline(
 
         stats = pipeline_result.stats
 
-        # Persist payload + project plan on prototype record
+        # Persist payload + project plan + coherence plan on prototype record
         update_prototype(
             prototype_id,
             build_payload=payload.model_dump(),
+            coherence_plan=pipeline_result.project_plan,
         )
-        update_build(build_id, streams_total=0, tasks_total=0)
+        update_build(build_id, streams_total=0, tasks_total=0, build_dir=str(build_path))
 
         # Populate epic plan routes from coherence agent's route_manifest
         try:
@@ -483,15 +627,19 @@ async def _run_build_pipeline(
                 build_id, {"phase": "deploying", "message": "Deploying dist/ to Netlify"}
             )
             try:
-                deploy_url, github_url = await _deploy_prototype(
+                deploy_url, site_id = await _deploy_prototype(
                     project_id, local_path, payload, settings, build_id
                 )
                 update_build(
                     build_id,
                     deploy_url=deploy_url,
-                    github_repo_url=github_url,
+                    github_repo_url="",
                 )
-                update_prototype(prototype_id, deploy_url=deploy_url)
+                update_prototype(
+                    prototype_id,
+                    deploy_url=deploy_url,
+                    netlify_site_id=site_id,
+                )
             except Exception as e:
                 logger.error(f"Deployment failed: {e}")
                 append_build_log(build_id, {"phase": "deploying", "message": f"Deploy failed: {e}"})
@@ -630,6 +778,6 @@ async def _deploy_prototype(
     site_name = f"proto-{slug}-{uid}"
     dist_path = str(Path(local_path) / "dist")
 
-    deploy_url, _site_id = await netlify.deploy_from_dist(site_name, dist_path)
+    deploy_url, site_id = await netlify.deploy_from_dist(site_name, dist_path)
 
-    return deploy_url, ""
+    return deploy_url, site_id

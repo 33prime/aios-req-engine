@@ -289,3 +289,64 @@ class BuildRequest(BaseModel):
     config: OrchestrationConfig = Field(default_factory=OrchestrationConfig)
     skip_phase0: bool = Field(False, description="Skip Phase 0 intelligence if already run")
     skip_deploy: bool = Field(False, description="Skip GitHub/Netlify deployment")
+
+
+# =============================================================================
+# Update pipeline models — surgical prototype updates
+# =============================================================================
+
+
+class RefineNote(BaseModel):
+    """A consultant's refinement note for an epic."""
+
+    epic_index: int
+    text: str
+    affected_routes: list[str] = Field(default_factory=list)
+
+
+class EntityDiff(BaseModel):
+    """Diff of entities between pre-update and post-update state."""
+
+    created_features: list[dict] = Field(default_factory=list)
+    updated_features: list[dict] = Field(default_factory=list)
+    deleted_feature_ids: list[str] = Field(default_factory=list)
+    created_personas: list[dict] = Field(default_factory=list)
+    updated_personas: list[dict] = Field(default_factory=list)
+
+
+class ScreenUpdateSpec(BaseModel):
+    """Specification for a single screen update."""
+
+    route: str
+    reason: str
+    updated_screen: dict = Field(default_factory=dict)
+    is_new_screen: bool = False
+
+
+class UpdatePlan(BaseModel):
+    """Output of the Update Agent — what to change in the prototype."""
+
+    screens_to_rebuild: list[ScreenUpdateSpec] = Field(default_factory=list)
+    updated_shared_data: dict | None = None
+    updated_route_manifest: dict | None = None
+    narrative_updates: list[dict] = Field(default_factory=list)
+    reasoning: str = ""
+
+
+class UpdateRequest(BaseModel):
+    """Request body for the /refine endpoint."""
+
+    refine_notes: list[RefineNote] = Field(default_factory=list)
+    session_feedback: list[dict] = Field(default_factory=list)
+    entity_diff: EntityDiff = Field(default_factory=EntityDiff)
+
+
+class UpdatePipelineResult(BaseModel):
+    """Result of the update pipeline."""
+
+    updated_project_plan: dict = Field(default_factory=dict)
+    updated_files: dict[str, str] = Field(default_factory=dict)
+    screens_rebuilt: int = 0
+    tsc_passed: bool = False
+    vite_passed: bool = False
+    total_s: float = 0.0

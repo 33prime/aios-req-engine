@@ -219,6 +219,86 @@ class NetlifyService:
 
             raise TimeoutError(f"Deploy {deploy_id} did not become ready within 150s")
 
+    async def deploy_to_existing_site(self, site_id: str, dist_path: str) -> str:
+        """Deploy updated dist/ to an existing Netlify site via file digest API.
+
+        Only uploads changed files (Netlify deduplicates by SHA1).
+        Returns the deploy URL.
+        """
+        dist = Path(dist_path)
+        if not dist.is_dir():
+            raise FileNotFoundError(f"dist directory not found: {dist_path}")
+
+        # Collect all files and compute SHA1 digests
+        file_digests: dict[str, str] = {}
+        file_paths: dict[str, Path] = {}
+        for file_path in dist.rglob("*"):
+            if file_path.is_file():
+                rel = "/" + str(file_path.relative_to(dist))
+                sha1 = hashlib.sha1(file_path.read_bytes()).hexdigest()  # noqa: S324
+                file_digests[rel] = sha1
+                file_paths[rel] = file_path
+
+        if not file_digests:
+            raise ValueError("No files found in dist directory")
+
+        logger.info(f"Redeploying {len(file_digests)} files to existing site {site_id}")
+
+        async with httpx.AsyncClient(timeout=60) as client:
+            # Create deploy with file digests on existing site
+            resp = await client.post(
+                f"{NETLIFY_API}/sites/{site_id}/deploys",
+                headers=self._headers,
+                json={"files": file_digests},
+            )
+            resp.raise_for_status()
+            deploy = resp.json()
+            deploy_id = deploy["id"]
+            required = deploy.get("required", [])
+            logger.info(
+                f"Redeploy {deploy_id}: {len(required)} files need upload "
+                f"(of {len(file_digests)} total)"
+            )
+
+            # Upload required files (only changed ones)
+            upload_headers = {
+                "Authorization": f"Bearer {self.auth_token}",
+                "Content-Type": "application/octet-stream",
+            }
+            digest_to_paths = {v: k for k, v in file_digests.items()}
+            for sha in required:
+                rel_path = digest_to_paths.get(sha)
+                if not rel_path:
+                    continue
+                local = file_paths[rel_path]
+                resp = await client.put(
+                    f"{NETLIFY_API}/deploys/{deploy_id}/files{rel_path}",
+                    headers=upload_headers,
+                    content=local.read_bytes(),
+                )
+                resp.raise_for_status()
+
+            # Wait for deploy to be ready
+            for _ in range(30):
+                resp = await client.get(
+                    f"{NETLIFY_API}/deploys/{deploy_id}",
+                    headers=self._headers,
+                )
+                resp.raise_for_status()
+                deploy_data = resp.json()
+                state = deploy_data.get("state", "")
+                if state == "ready":
+                    deploy_url = deploy_data.get("ssl_url") or deploy_data.get("url", "")
+                    logger.info(f"Redeploy ready: {deploy_url}")
+                    return deploy_url
+                if state == "error":
+                    raise RuntimeError(
+                        f"Redeploy failed: {deploy_data.get('error_message', 'unknown error')}"
+                    )
+                await asyncio.sleep(5)
+
+            raise TimeoutError(f"Redeploy {deploy_id} did not become ready within 150s")
+
     async def delete_site(self, site_id: str) -> bool:
         """Delete a Netlify site."""
         async with httpx.AsyncClient(timeout=15) as client:

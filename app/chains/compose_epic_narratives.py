@@ -52,6 +52,31 @@ EPIC_NARRATIVE_TOOL = {
                             ),
                         },
                     },
+                        "provenance_quotes": {
+                            "type": "array",
+                            "description": (
+                                "1-3 direct quotes from real people or signals "
+                                "that led to this epic"
+                            ),
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "speaker_name": {
+                                        "type": "string",
+                                        "description": "Name of the person quoted",
+                                    },
+                                    "quote_text": {
+                                        "type": "string",
+                                        "description": "The actual quote (paraphrased OK)",
+                                    },
+                                    "source_label": {
+                                        "type": "string",
+                                        "description": "Source context, e.g. 'Kickoff meeting'",
+                                    },
+                                },
+                                "required": ["speaker_name", "quote_text"],
+                            },
+                        },
                     "required": ["epic_index", "title", "narrative"],
                 },
             },
@@ -99,7 +124,9 @@ SYSTEM_PROMPT = (
     "- Use specific names from the project "
     "(personas, stakeholders, feature names)\n"
     "- The tone is warm, confident, and forward-looking — "
-    "you're showing the client their vision coming to life\n\n"
+    "you're showing the client their vision coming to life\n"
+    "- For each epic, extract 1-3 provenance quotes from the evidence trail — "
+    "real things real people said that inspired this epic\n\n"
     "## AI Flow Cards\n"
     "For AI flow card narratives, explain what the intelligence does "
     "in business terms:\n"

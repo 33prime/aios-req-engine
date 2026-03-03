@@ -14,6 +14,10 @@ interface EpicTourControllerProps {
   autoStart?: boolean
   /** Per-card confirmation status for progress dots */
   confirmedSet?: Set<string>
+  /** Callback when all epics have been touched and user clicks "Review Complete" */
+  onReviewComplete?: () => void
+  /** In re-review mode, only show unreviewed epics */
+  reviewState?: string
 }
 
 // --- Flattened card for navigation ---
@@ -31,6 +35,7 @@ interface TourCard {
 
 function buildCardList(plan: EpicOverlayPlan): TourCard[] {
   const cards: TourCard[] = []
+  // Vision epics only — simplified single-flow tour
   for (const epic of plan.vision_epics) {
     cards.push({
       phase: 'vision_journey',
@@ -39,33 +44,6 @@ function buildCardList(plan: EpicOverlayPlan): TourCard[] {
       route: epic.primary_route,
       allRoutes: epic.all_routes,
       confirmKey: `vision:${epic.epic_index}`,
-    })
-  }
-  for (let i = 0; i < plan.ai_flow_cards.length; i++) {
-    cards.push({
-      phase: 'ai_deep_dive',
-      index: i,
-      label: plan.ai_flow_cards[i].title,
-      route: plan.ai_flow_cards[i].route,
-      confirmKey: `ai_flow:${i}`,
-    })
-  }
-  for (const hc of plan.horizon_cards) {
-    cards.push({
-      phase: 'horizons',
-      index: hc.horizon,
-      label: hc.title,
-      confirmKey: `horizon:${hc.horizon}`,
-    })
-  }
-  // Cap discovery at 3
-  const discoverySlice = plan.discovery_threads.slice(0, 3)
-  for (let i = 0; i < discoverySlice.length; i++) {
-    cards.push({
-      phase: 'discovery',
-      index: i,
-      label: discoverySlice[i].theme,
-      confirmKey: `discovery:${i}`,
     })
   }
   return cards
@@ -132,6 +110,8 @@ export default function EpicTourController({
   onRouteChange,
   autoStart = false,
   confirmedSet,
+  onReviewComplete,
+  reviewState,
 }: EpicTourControllerProps) {
   const [state, dispatch] = useReducer(epicTourReducer, {
     status: 'idle',
@@ -207,18 +187,29 @@ export default function EpicTourController({
 
   if (cards.length === 0) return null
 
+  // Check if all epics have been touched
+  const allTouched = cards.length > 0 && cards.every((c) => confirmedSet?.has(c.confirmKey))
+
+  // In re-review mode, filter to only unreviewed epics
+  const visibleCards = useMemo(() => {
+    if (reviewState === 're_review') {
+      return cards.filter((c) => !confirmedSet?.has(c.confirmKey))
+    }
+    return cards
+  }, [cards, reviewState, confirmedSet])
+
   // Idle state — minimal single line
   if (state.status === 'idle') {
     return (
       <div className="bg-white border-b border-border px-4 py-1.5 flex items-center justify-between">
         <span className="text-xs text-[#666666]">
-          {epicPlan.vision_epics.length} epics · {epicPlan.ai_flow_cards.length} AI · {Math.min(epicPlan.discovery_threads.length, 3)} threads
+          {epicPlan.vision_epics.length} epics to review
         </span>
         <button
           onClick={handleStart}
           className="px-3 py-1 bg-brand-primary text-white text-xs font-medium rounded-lg hover:bg-[#25785A] transition-all"
         >
-          Start Tour
+          Start Review
         </button>
       </div>
     )
@@ -228,42 +219,10 @@ export default function EpicTourController({
   const isLast = state.currentIndex >= cards.length - 1
   const isFirst = state.currentIndex <= 0
 
-  const phaseSegments = (['vision_journey', 'ai_deep_dive', 'horizons', 'discovery'] as EpicTourPhase[])
-    .map((phase) => ({
-      phase,
-      count: cards.filter((c) => c.phase === phase).length,
-    }))
-    .filter((s) => s.count > 0)
-
-  // Phase-local counter: "Epic 2 of 7" not "2/16"
-  const phaseCards = cards.filter((c) => c.phase === currentCard?.phase)
-  const phaseLocalIndex = currentCard ? phaseCards.indexOf(currentCard) + 1 : 0
-  const phaseTotal = phaseCards.length
-
   return (
     <div className="bg-white border-b border-border">
-      {/* Single compact bar: pills | nav | close */}
+      {/* Single compact bar: nav + review complete */}
       <div className="px-3 py-1 flex items-center gap-2">
-        {/* Phase pills — compact */}
-        <div className="flex items-center gap-0.5 bg-[#F4F4F4] rounded-lg p-0.5">
-          {phaseSegments.map(({ phase }) => {
-            const isActivePhase = currentCard?.phase === phase
-            return (
-              <button
-                key={phase}
-                onClick={() => jumpToPhase(phase)}
-                className={`px-2 py-1 text-[11px] font-medium rounded-md transition-colors ${
-                  isActivePhase
-                    ? 'bg-white text-[#0A1E2F] shadow-sm'
-                    : 'text-[#666666] hover:text-text-body'
-                }`}
-              >
-                {PHASE_LABELS[phase]}
-              </button>
-            )
-          })}
-        </div>
-
         {/* Nav arrows + label */}
         <div className="flex items-center gap-1 flex-1 min-w-0 justify-center">
           <button
@@ -274,7 +233,7 @@ export default function EpicTourController({
             <ChevronLeft className="w-3.5 h-3.5" />
           </button>
           <span className="text-[11px] font-medium text-[#37352f] truncate max-w-[200px]">
-            {phaseLocalIndex}/{phaseTotal} · {currentCard?.label}
+            {state.currentIndex + 1}/{cards.length} · {currentCard?.label}
           </span>
           <button
             onClick={handleNext}
@@ -285,6 +244,16 @@ export default function EpicTourController({
           </button>
         </div>
 
+        {/* Review Complete button — only shows when all epics touched */}
+        {allTouched && onReviewComplete && (
+          <button
+            onClick={onReviewComplete}
+            className="px-3 py-1 bg-brand-primary text-white text-[11px] font-medium rounded-lg hover:bg-[#25785A] transition-all"
+          >
+            Review Complete
+          </button>
+        )}
+
         {/* Close */}
         <button
           onClick={handleStop}
@@ -294,14 +263,14 @@ export default function EpicTourController({
         </button>
       </div>
 
-      {/* Thin progress bar */}
+      {/* Thin progress bar — single color */}
       <div className="flex h-1 mx-3 mb-0.5 gap-px">
         {cards.map((card, i) => {
           const isCurrent = i === state.currentIndex
           const isConfirmed = confirmedSet?.has(card.confirmKey)
           const isPast = i < state.currentIndex
           const color = isCurrent
-            ? PHASE_COLORS[card.phase]
+            ? 'bg-brand-primary'
             : isConfirmed
               ? 'bg-[#25785A]'
               : isPast

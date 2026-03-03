@@ -399,7 +399,7 @@ function VerdictButtons({
               Flagged for Refinement
             </span>
           )}
-          {existing.verdict === 'client_review' && (
+          {existing.verdict === 'flag_for_client' && (
             <span className="flex items-center gap-1.5 text-[13px] font-medium text-[#0A1E2F]">
               <Users className="w-4 h-4" />
               Client Review
@@ -437,7 +437,7 @@ function VerdictButtons({
           Refine
         </button>
         <button
-          onClick={() => onSubmit('client_review')}
+          onClick={() => onSubmit('flag_for_client')}
           disabled={isSubmitting}
           className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 border border-border text-[#666666] text-[13px] font-medium rounded-xl hover:bg-[#F4F4F4] transition-colors disabled:opacity-50"
         >

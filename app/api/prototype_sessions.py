@@ -4,6 +4,7 @@ Handles session lifecycle, feedback submission, context-aware chat,
 client review tokens, feedback synthesis, and code updates.
 """
 
+from pathlib import Path
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException
@@ -80,9 +81,7 @@ async def create_session_endpoint(
             started_at="now()",
         )
 
-        logger.info(
-            f"Created session #{session_number} for prototype {request.prototype_id}"
-        )
+        logger.info(f"Created session #{session_number} for prototype {request.prototype_id}")
         return SessionResponse(**session)
 
     except HTTPException:
@@ -127,7 +126,9 @@ async def submit_feedback_endpoint(
             feature_id=UUID(request.feature_id) if request.feature_id else None,
             page_path=request.page_path,
             component_name=request.component_name,
-            answers_question_id=UUID(request.answers_question_id) if request.answers_question_id else None,
+            answers_question_id=UUID(request.answers_question_id)
+            if request.answers_question_id
+            else None,
             priority=request.priority,
         )
 
@@ -214,7 +215,11 @@ async def session_chat_endpoint(
                 "that look correct but might break under real-world conditions. Be brief."
             )
         elif consultant_verdict == "needs_adjustment":
-            gap_text = "; ".join(g.get("question", "") for g in gaps[:2]) if gaps else "gaps found in analysis"
+            gap_text = (
+                "; ".join(g.get("question", "") for g in gaps[:2])
+                if gaps
+                else "gaps found in analysis"
+            )
             verdict_guidance = (
                 f"The consultant says this NEEDS ADJUSTMENT. "
                 f"Our analysis found these gaps: {gap_text}. "
@@ -330,20 +335,26 @@ async def get_client_data_endpoint(session_id: UUID, token: str) -> dict:
         for o in overlays:
             content = o.get("overlay_content") or {}
             gaps = content.get("gaps", [])
-            feature_reviews.append({
-                "feature_name": content.get("feature_name", o.get("handoff_feature_name", "Unknown")),
-                "overlay_id": o["id"],
-                "consultant_verdict": o.get("consultant_verdict"),
-                "consultant_notes": o.get("consultant_notes"),
-                "suggested_verdict": content.get("suggested_verdict"),
-                "validation_question": gaps[0].get("question") if gaps else None,
-                "validation_why": gaps[0].get("why_it_matters") if gaps else None,
-                "validation_area": gaps[0].get("requirement_area") if gaps else None,
-                "spec_summary": (content.get("overview") or {}).get("spec_summary"),
-                "implementation_status": (content.get("overview") or {}).get("implementation_status"),
-                "confidence": content.get("confidence", 0),
-                "status": content.get("status", "unknown"),
-            })
+            feature_reviews.append(
+                {
+                    "feature_name": content.get(
+                        "feature_name", o.get("handoff_feature_name", "Unknown")
+                    ),
+                    "overlay_id": o["id"],
+                    "consultant_verdict": o.get("consultant_verdict"),
+                    "consultant_notes": o.get("consultant_notes"),
+                    "suggested_verdict": content.get("suggested_verdict"),
+                    "validation_question": gaps[0].get("question") if gaps else None,
+                    "validation_why": gaps[0].get("why_it_matters") if gaps else None,
+                    "validation_area": gaps[0].get("requirement_area") if gaps else None,
+                    "spec_summary": (content.get("overview") or {}).get("spec_summary"),
+                    "implementation_status": (content.get("overview") or {}).get(
+                        "implementation_status"
+                    ),
+                    "confidence": content.get("confidence", 0),
+                    "status": content.get("status", "unknown"),
+                }
+            )
 
         return {
             "prototype_id": str(session["prototype_id"]),
@@ -455,29 +466,35 @@ async def apply_synthesis_endpoint(session_id: UUID) -> ApplySynthesisResponse:
         for feature_id, synth in by_feature.items():
             recommended = synth.get("recommended_status")
             if not recommended or recommended not in valid_statuses:
-                skipped.append(SkippedFeature(
-                    feature_id=feature_id,
-                    reason=f"Invalid recommended_status: {recommended}",
-                ))
+                skipped.append(
+                    SkippedFeature(
+                        feature_id=feature_id,
+                        reason=f"Invalid recommended_status: {recommended}",
+                    )
+                )
                 continue
 
             try:
                 feature = get_feature(UUID(feature_id))
             except (ValueError, Exception):
-                skipped.append(SkippedFeature(
-                    feature_id=feature_id,
-                    reason="Feature not found in database",
-                ))
+                skipped.append(
+                    SkippedFeature(
+                        feature_id=feature_id,
+                        reason="Feature not found in database",
+                    )
+                )
                 continue
 
             old_status = feature.get("confirmation_status", "ai_generated")
 
             # Skip if status unchanged
             if old_status == recommended:
-                skipped.append(SkippedFeature(
-                    feature_id=feature_id,
-                    reason=f"Status already {old_status}",
-                ))
+                skipped.append(
+                    SkippedFeature(
+                        feature_id=feature_id,
+                        reason=f"Status already {old_status}",
+                    )
+                )
                 continue
 
             # Apply status change
@@ -498,12 +515,14 @@ async def apply_synthesis_endpoint(session_id: UUID) -> ApplySynthesisResponse:
                 trigger_event="prototype_synthesis",
             )
 
-            status_changes.append(StatusChange(
-                feature_id=feature_id,
-                feature_name=feature.get("name", "Unknown"),
-                old_status=old_status,
-                new_status=recommended,
-            ))
+            status_changes.append(
+                StatusChange(
+                    feature_id=feature_id,
+                    feature_name=feature.get("name", "Unknown"),
+                    old_status=old_status,
+                    new_status=recommended,
+                )
+            )
 
         # Create new features discovered during session
         features_created: list[CreatedFeature] = []
@@ -533,10 +552,12 @@ async def apply_synthesis_endpoint(session_id: UUID) -> ApplySynthesisResponse:
                 }
                 try:
                     supabase.table("features").insert(row).execute()
-                    features_created.append(CreatedFeature(
-                        name=name,
-                        description=nf.get("description", ""),
-                    ))
+                    features_created.append(
+                        CreatedFeature(
+                            name=name,
+                            description=nf.get("description", ""),
+                        )
+                    )
                 except Exception as e:
                     logger.warning(f"Failed to create new feature '{name}': {e}")
 
@@ -574,6 +595,7 @@ async def complete_client_review_endpoint(session_id: UUID, token: str) -> dict:
         # Auto-compute and save convergence snapshot
         try:
             from app.core.convergence_tracker import compute_convergence, save_convergence_snapshot
+
             prototype_id = UUID(session["prototype_id"])
             snapshot = compute_convergence(prototype_id)
             save_convergence_snapshot(session_id, snapshot)
@@ -604,7 +626,9 @@ async def update_code_endpoint(session_id: UUID) -> dict:
 
         synthesis_data = session.get("synthesis")
         if not synthesis_data:
-            raise HTTPException(status_code=400, detail="No synthesis available — run synthesize first")
+            raise HTTPException(
+                status_code=400, detail="No synthesis available — run synthesize first"
+            )
 
         prototype = get_prototype(UUID(session["prototype_id"]))
         if not prototype or not prototype.get("local_path"):
@@ -644,6 +668,7 @@ async def update_code_endpoint(session_id: UUID) -> dict:
         # Auto-compute and save convergence snapshot
         try:
             from app.core.convergence_tracker import compute_convergence, save_convergence_snapshot
+
             prototype_id_uuid = UUID(prototype["id"])
             snapshot = compute_convergence(prototype_id_uuid)
             save_convergence_snapshot(session_id, snapshot)
@@ -717,6 +742,330 @@ async def get_epic_verdicts(session_id: UUID):
     except Exception:
         logger.exception(f"Failed to get epic verdicts for session {session_id}")
         raise HTTPException(status_code=500, detail="Failed to retrieve epic verdicts")
+
+
+# =============================================================================
+# Review State Machine
+# =============================================================================
+
+
+@router.get("/{session_id}/review-summary")
+async def get_review_summary(session_id: UUID):
+    """Compute verdict tallies and touched gate for the review."""
+    session = get_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    prototype = get_prototype(UUID(session["prototype_id"]))
+    if not prototype:
+        raise HTTPException(status_code=404, detail="Prototype not found")
+
+    confirmations = list_epic_confirmations(session_id)
+    epic_plan = prototype.get("prebuild_intelligence", {}).get("epic_plan", {})
+    total_epics = len(epic_plan.get("vision_epics", []))
+
+    tallies = {"confirmed": 0, "refine": 0, "flag_for_client": 0}
+    items = []
+    touched_indices = set()
+
+    for c in confirmations:
+        if c.get("card_type") == "vision" and c.get("verdict"):
+            verdict = c["verdict"]
+            tallies[verdict] = tallies.get(verdict, 0) + 1
+            touched_indices.add(c["card_index"])
+            items.append(
+                {
+                    "card_index": c["card_index"],
+                    "verdict": verdict,
+                    "notes": c.get("notes"),
+                }
+            )
+
+    all_touched = len(touched_indices) >= total_epics
+
+    return {
+        "total_epics": total_epics,
+        "touched": len(touched_indices),
+        "all_touched": all_touched,
+        "tallies": tallies,
+        "items": items,
+    }
+
+
+@router.patch("/{session_id}/review-state")
+async def update_review_state(session_id: UUID, body: dict):
+    """Update the review state machine state on the session."""
+    session = get_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    state = body.get("review_state")
+    valid_states = {
+        "not_started",
+        "in_progress",
+        "complete",
+        "updating",
+        "re_review",
+        "ready_for_client",
+    }
+    if state not in valid_states:
+        raise HTTPException(status_code=400, detail=f"Invalid review_state: {state}")
+
+    update_session(session_id, review_state=state)
+    return {"session_id": str(session_id), "review_state": state}
+
+
+@router.post("/{session_id}/trigger-update")
+async def trigger_update(session_id: UUID):
+    """Orchestrate the update pipeline from review feedback.
+
+    1. Collects refine notes from epic confirmations
+    2. Collects discuss feedback
+    3. Calls /refine on the builder
+    4. Resets refine verdicts for re-review
+    """
+    from app.core.schemas_prototype_builder import EntityDiff, RefineNote
+
+    session = get_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    prototype = get_prototype(UUID(session["prototype_id"]))
+    if not prototype:
+        raise HTTPException(status_code=404, detail="Prototype not found")
+
+    project_id = prototype["project_id"]
+
+    # Set state to updating
+    update_session(session_id, review_state="updating")
+
+    # 1. Collect refine notes from epic confirmations
+    confirmations = list_epic_confirmations(session_id)
+    refine_notes = []
+    epic_plan = prototype.get("prebuild_intelligence", {}).get("epic_plan", {})
+    vision_epics = epic_plan.get("vision_epics", [])
+
+    for c in confirmations:
+        if c.get("card_type") == "vision" and c.get("verdict") == "refine" and c.get("notes"):
+            epic_idx = c["card_index"]
+            affected_routes = []
+            if epic_idx < len(vision_epics):
+                epic = vision_epics[epic_idx]
+                if epic.get("primary_route"):
+                    affected_routes.append(epic["primary_route"])
+                affected_routes.extend(epic.get("all_routes", []))
+
+            refine_notes.append(
+                RefineNote(
+                    epic_index=epic_idx,
+                    text=c["notes"],
+                    affected_routes=list(set(affected_routes)),
+                )
+            )
+
+    # 2. Collect discuss feedback
+    feedback_items = get_feedback_for_session(session_id)
+    session_feedback = [
+        {"content": f.get("content", ""), "feature_id": f.get("feature_id")}
+        for f in feedback_items
+        if f.get("feedback_type") == "discuss"
+    ]
+
+    # 3. Build entity diff (compare current entities to what was in the build)
+    entity_diff = EntityDiff()
+
+    # 4. Call the refine endpoint logic directly (avoid HTTP roundtrip)
+    from app.db.prototype_builds import create_build, get_latest_build
+
+    latest_build = get_latest_build(prototype["id"])
+    build_dir = latest_build.get("build_dir") if latest_build else None
+
+    if not build_dir or not Path(build_dir).exists():
+        update_session(session_id, review_state="complete")
+        raise HTTPException(status_code=400, detail="Build directory not found — cannot update")
+
+    from pathlib import Path as _Path
+
+    build = create_build(prototype["id"], project_id)
+    build_id = build["id"]
+
+    # Run refine pipeline in background
+
+    import asyncio
+
+    async def _run_and_transition():
+        """Run refine pipeline then transition review state."""
+        from app.core.config import get_settings
+        from app.core.prototype_payload import assemble_prototype_payload
+        from app.core.schemas_prototype_builder import PrebuildIntelligence
+        from app.db.prototype_builds import append_build_log, update_build, update_build_status
+        from app.pipeline.updater import run_update_pipeline
+
+        settings = get_settings()
+
+        try:
+            update_build_status(UUID(build_id), "building")
+            append_build_log(
+                UUID(build_id),
+                {"phase": "refine", "message": "Starting update pipeline"},
+            )
+
+            coherence_plan = prototype.get("coherence_plan", {})
+            prebuild_data = prototype.get("prebuild_intelligence", {})
+            prebuild = PrebuildIntelligence(**prebuild_data) if prebuild_data else None
+
+            if not prebuild:
+                update_build_status(UUID(build_id), "failed", error="No prebuild intelligence")
+                update_session(session_id, review_state="complete")
+                return
+
+            payload_response = await assemble_prototype_payload(project_id=UUID(project_id))
+            payload = payload_response.payload
+
+            result = await run_update_pipeline(
+                build_dir=_Path(build_dir),
+                project_plan=coherence_plan,
+                payload=payload,
+                prebuild=prebuild,
+                refine_notes=refine_notes,
+                entity_diff=entity_diff.model_dump(),
+                session_feedback=session_feedback,
+            )
+
+            update_prototype(UUID(prototype["id"]), coherence_plan=result.updated_project_plan)
+
+            # Redeploy
+            netlify_site_id = prototype.get("netlify_site_id")
+            if netlify_site_id:
+                update_build_status(UUID(build_id), "deploying")
+                from app.services.netlify_service import NetlifyService
+
+                netlify = NetlifyService(settings.NETLIFY_AUTH_TOKEN, settings.NETLIFY_TEAM_SLUG)
+                dist_path = str(_Path(build_dir) / "dist")
+                deploy_url = await netlify.deploy_to_existing_site(netlify_site_id, dist_path)
+                update_build(UUID(build_id), deploy_url=deploy_url)
+                update_prototype(UUID(prototype["id"]), deploy_url=deploy_url)
+
+            update_build_status(UUID(build_id), "completed")
+
+            # Reset refine verdicts for re-review
+            for c in confirmations:
+                if c.get("card_type") == "vision" and c.get("verdict") == "refine":
+                    upsert_epic_confirmation(
+                        session_id=session_id,
+                        card_type="vision",
+                        card_index=c["card_index"],
+                        verdict=None,
+                        notes=None,
+                        source="consultant",
+                    )
+
+            # Check if anything was flagged or refined
+            remaining_confirmations = list_epic_confirmations(session_id)
+            has_unresolved = any(
+                c.get("card_type") == "vision" and not c.get("verdict")
+                for c in remaining_confirmations
+            )
+
+            if has_unresolved:
+                update_session(session_id, review_state="re_review")
+            else:
+                update_session(session_id, review_state="ready_for_client")
+
+        except Exception as e:
+            logger.error(f"Trigger-update pipeline failed: {e}", exc_info=True)
+            update_build_status(UUID(build_id), "failed", error=str(e))
+            update_session(session_id, review_state="complete")
+
+    # Fire and forget
+    asyncio.ensure_future(_run_and_transition())
+
+    return {
+        "session_id": str(session_id),
+        "build_id": build_id,
+        "refine_notes_count": len(refine_notes),
+        "status": "updating",
+    }
+
+
+@router.post("/{session_id}/epic-discuss")
+async def epic_discuss(session_id: UUID, body: dict):
+    """Entity-aware chat scoped to a specific epic. Saves as prototype_feedback."""
+    session = get_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    message = body.get("message", "").strip()
+    epic_index = body.get("epic_index")
+    if not message:
+        raise HTTPException(status_code=400, detail="Message required")
+
+    prototype = get_prototype(UUID(session["prototype_id"]))
+    if not prototype:
+        raise HTTPException(status_code=404, detail="Prototype not found")
+
+    # Get epic context
+    epic_plan = prototype.get("prebuild_intelligence", {}).get("epic_plan", {})
+    vision_epics = epic_plan.get("vision_epics", [])
+
+    epic_context = ""
+    epic_title = "this epic"
+    if epic_index is not None and epic_index < len(vision_epics):
+        epic = vision_epics[epic_index]
+        epic_title = epic.get("title", f"Epic {epic_index}")
+        features = ", ".join(f.get("name", "?") for f in epic.get("features", []))
+        epic_context = (
+            f"Epic: {epic_title}\n"
+            f"Theme: {epic.get('theme', '')}\n"
+            f"Features: {features}\n"
+            f"Narrative: {epic.get('narrative', '')[:300]}"
+        )
+
+    # Build system prompt scoped to this epic
+    system_prompt = (
+        f"You are a concise discovery consultant helping "
+        f'review "{epic_title}" in a prototype.\n\n'
+        f"{epic_context}\n\n"
+        "RULES:\n"
+        "- Be concise: 2-3 sentences max, then ask ONE follow-up question\n"
+        "- Focus on requirements and business value, not code\n"
+        "- If the consultant reveals a new requirement or refinement, acknowledge it\n"
+        "- Use the epic context above to give relevant answers"
+    )
+
+    try:
+        from anthropic import Anthropic
+
+        from app.core.config import get_settings
+
+        settings = get_settings()
+        client = Anthropic(api_key=settings.ANTHROPIC_API_KEY)
+
+        response = client.messages.create(
+            model=settings.VERDICT_CHAT_MODEL,
+            max_tokens=512,
+            system=system_prompt,
+            messages=[{"role": "user", "content": message}],
+        )
+
+        response_text = response.content[0].text
+
+        # Save as prototype_feedback
+        create_feedback(
+            session_id=session_id,
+            source="consultant",
+            content=message,
+            feedback_type="discuss",
+            context={"epic_index": epic_index, "epic_title": epic_title},
+        )
+
+        return {"response": response_text, "epic_index": epic_index}
+
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception(f"Failed epic discuss for session {session_id}")
+        raise HTTPException(status_code=500, detail="Failed to process discussion") from None
 
 
 # =============================================================================

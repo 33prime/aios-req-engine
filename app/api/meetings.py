@@ -2,7 +2,7 @@
 
 import logging
 from datetime import date, datetime, time, timedelta
-from typing import Literal, Optional
+from typing import Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -25,33 +25,33 @@ class MeetingCreate(BaseModel):
     """Create a new meeting."""
     project_id: UUID
     title: str = Field(..., min_length=1, max_length=200)
-    description: Optional[str] = None
+    description: str | None = None
     meeting_type: Literal["discovery", "validation", "review", "other"] = "other"
     meeting_date: date
     meeting_time: time
     duration_minutes: int = Field(60, ge=15, le=480)
     timezone: str = "UTC"
-    stakeholder_ids: Optional[list[UUID]] = None
-    agenda: Optional[dict] = None
+    stakeholder_ids: list[UUID] | None = None
+    agenda: dict | None = None
     # Google Calendar integration
     create_calendar_event: bool = False
-    attendee_emails: Optional[list[str]] = None
+    attendee_emails: list[str] | None = None
 
 
 class MeetingUpdate(BaseModel):
     """Update a meeting."""
-    title: Optional[str] = Field(None, min_length=1, max_length=200)
-    description: Optional[str] = None
-    meeting_type: Optional[Literal["discovery", "validation", "review", "other"]] = None
-    status: Optional[Literal["scheduled", "completed", "cancelled"]] = None
-    meeting_date: Optional[date] = None
-    meeting_time: Optional[time] = None
-    duration_minutes: Optional[int] = Field(None, ge=15, le=480)
-    timezone: Optional[str] = None
-    stakeholder_ids: Optional[list[UUID]] = None
-    agenda: Optional[dict] = None
-    summary: Optional[str] = None
-    highlights: Optional[dict] = None
+    title: str | None = Field(None, min_length=1, max_length=200)
+    description: str | None = None
+    meeting_type: Literal["discovery", "validation", "review", "other"] | None = None
+    status: Literal["scheduled", "completed", "cancelled"] | None = None
+    meeting_date: date | None = None
+    meeting_time: time | None = None
+    duration_minutes: int | None = Field(None, ge=15, le=480)
+    timezone: str | None = None
+    stakeholder_ids: list[UUID] | None = None
+    agenda: dict | None = None
+    summary: str | None = None
+    highlights: dict | None = None
 
 
 class MeetingResponse(BaseModel):
@@ -59,7 +59,7 @@ class MeetingResponse(BaseModel):
     id: UUID
     project_id: UUID
     title: str
-    description: Optional[str] = None
+    description: str | None = None
     meeting_type: str
     status: str
     meeting_date: date
@@ -67,16 +67,16 @@ class MeetingResponse(BaseModel):
     duration_minutes: int
     timezone: str
     stakeholder_ids: list[UUID] = []
-    agenda: Optional[dict] = None
-    summary: Optional[str] = None
-    highlights: Optional[dict] = None
-    google_calendar_event_id: Optional[str] = None
-    google_meet_link: Optional[str] = None
-    created_by: Optional[UUID] = None
+    agenda: dict | None = None
+    summary: str | None = None
+    highlights: dict | None = None
+    google_calendar_event_id: str | None = None
+    google_meet_link: str | None = None
+    created_by: UUID | None = None
     created_at: str
     updated_at: str
     # Joined fields
-    project_name: Optional[str] = None
+    project_name: str | None = None
 
     class Config:
         from_attributes = True
@@ -89,8 +89,8 @@ class MeetingResponse(BaseModel):
 
 @router.get("", response_model=list[MeetingResponse])
 async def list_meetings(
-    project_id: Optional[UUID] = Query(None, description="Filter by project"),
-    status: Optional[str] = Query(None, description="Filter by status"),
+    project_id: UUID | None = Query(None, description="Filter by project"),
+    status: str | None = Query(None, description="Filter by status"),
     upcoming_only: bool = Query(False, description="Only return upcoming meetings"),
     limit: int = Query(50, ge=1, le=100),
 ):

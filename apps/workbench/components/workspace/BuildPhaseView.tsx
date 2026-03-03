@@ -29,7 +29,8 @@ import type {
   PrototypeSession,
   DesignSelection,
 } from '@/types/prototype'
-import type { EpicOverlayPlan, EpicTourPhase } from '@/types/epic-overlay'
+import type { EpicOverlayPlan, EpicTourPhase, ReviewSummary } from '@/types/epic-overlay'
+import ReviewSummaryOverlay from '@/components/prototype/ReviewSummaryOverlay'
 
 interface BuildPhaseViewProps {
   projectId: string
@@ -52,6 +53,13 @@ interface BuildPhaseViewProps {
   confirmedSet?: Set<string>
   // Layout
   collaborationWidth?: number
+  // Review state machine
+  reviewState?: string
+  reviewSummary?: ReviewSummary | null
+  isUpdating?: boolean
+  onReviewComplete?: () => void
+  onConfirmAndUpdate?: () => void
+  onBackToReview?: () => void
 }
 
 export function BuildPhaseView({
@@ -70,6 +78,12 @@ export function BuildPhaseView({
   onEpicCardChange,
   confirmedSet,
   collaborationWidth = 0,
+  reviewState,
+  reviewSummary,
+  isUpdating = false,
+  onReviewComplete,
+  onConfirmAndUpdate,
+  onBackToReview,
 }: BuildPhaseViewProps) {
   const [isEditing, setIsEditing] = useState(false)
   const [urlValue, setUrlValue] = useState(prototypeUrl || '')
@@ -147,7 +161,7 @@ export function BuildPhaseView({
     return {
       ...epicPlan,
       vision_epics: epicPlan.vision_epics.map((epic, i) => {
-        const manifestRoute = routeManifest.epic_routes![String(i)] || epic.primary_route
+        const manifestRoute = routeManifest.epic_routes![String(i)] || epic.primary_route || '/dashboard'
         const safeRoute = routeRemaps[manifestRoute] ?? manifestRoute
         return { ...epic, primary_route: safeRoute }
       }),
@@ -350,25 +364,7 @@ export function BuildPhaseView({
               </button>
 
               {/* Review toggle */}
-              {isReviewActive ? (
-                <button
-                  onClick={async () => {
-                    setIsEndingReview(true)
-                    try {
-                      await onEndReview()
-                    } finally {
-                      setIsEndingReview(false)
-                    }
-                  }}
-                  disabled={isEndingReview}
-                  className="flex items-center gap-1.5 px-3 py-1 text-xs font-medium text-[#666666] bg-[#F4F4F4] hover:bg-[#EBEBEB] rounded-lg transition-colors disabled:opacity-60"
-                >
-                  {isEndingReview ? (
-                    <Loader2 className="w-3 h-3 animate-spin" />
-                  ) : null}
-                  {isEndingReview ? 'Ending...' : 'Prepare for Client'}
-                </button>
-              ) : (
+              {!isReviewActive && (
                 <button
                   onClick={onStartReview}
                   className="flex items-center gap-1.5 px-3 py-1 text-xs font-medium text-brand-primary bg-brand-primary-light hover:bg-brand-primary-light rounded-lg transition-colors"
@@ -416,11 +412,22 @@ export function BuildPhaseView({
           onRouteChange={handleRouteChange}
           autoStart
           confirmedSet={confirmedSet}
+          onReviewComplete={onReviewComplete}
+          reviewState={reviewState}
         />
       )}
 
       {/* Prototype preview — single iframe, src changes when tour navigates */}
       <div className="flex-1 bg-gray-100 relative min-h-0">
+        {/* Review Summary Overlay */}
+        {reviewState === 'complete' && reviewSummary && (
+          <ReviewSummaryOverlay
+            summary={reviewSummary}
+            isUpdating={isUpdating}
+            onConfirmAndUpdate={onConfirmAndUpdate ?? (() => {})}
+            onBackToReview={onBackToReview ?? (() => {})}
+          />
+        )}
         {prototypeUrl ? (
           <>
             {iframeLoading && (

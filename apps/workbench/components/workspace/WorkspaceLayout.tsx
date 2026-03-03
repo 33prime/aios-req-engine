@@ -31,6 +31,10 @@ import {
   synthesizePrototypeFeedback,
   triggerPrototypeCodeUpdate,
   getPrototypeSession,
+  submitEpicVerdict,
+  getReviewSummary,
+  updateReviewState,
+  triggerEpicUpdate,
 } from '@/lib/api'
 import { useBRDData, useContextFrame, useWorkspaceData, useEpicPlan, useEpicVerdicts } from '@/lib/hooks/use-api'
 import { useRealtimeBRD } from '@/lib/realtime'
@@ -38,7 +42,7 @@ import type { CanvasData } from '@/types/workspace'
 import type { NextAction } from '@/lib/api'
 import type { VpStep } from '@/types/api'
 import type { DesignSelection, FeatureOverlay, PrototypeSession } from '@/types/prototype'
-import type { EpicTourPhase } from '@/types/epic-overlay'
+import type { EpicTourPhase, EpicVerdict, ReviewSummary, ReviewState } from '@/types/epic-overlay'
 import ReviewStartModal from '@/components/prototype/ReviewStartModal'
 import ReviewEndModal from '@/components/prototype/ReviewEndModal'
 import { ReviewBubble, SIDE_PANEL_WIDTH } from '@/components/prototype/ReviewBubble'
@@ -184,6 +188,11 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
   const { data: epicPlan } = useEpicPlan(prototypeId)
   const { data: epicConfirmations, mutate: mutateEpicVerdicts } = useEpicVerdicts(reviewSession?.id)
 
+  // Review state machine
+  const [reviewState, setReviewState] = useState<ReviewState>('not_started')
+  const [reviewSummary, setReviewSummary] = useState<ReviewSummary | null>(null)
+  const [isUpdating, setIsUpdating] = useState(false)
+
   // Build a set of confirmed card keys for the progress bar: "vision:0", "ai_flow:1", etc.
   const confirmedSet = useMemo(() => {
     const set = new Set<string>()
@@ -299,6 +308,10 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
 
       // Open panel by default when review starts
       setPanelOpen(true)
+
+      // Set review state machine to in_progress
+      setReviewState('in_progress')
+      updateReviewState(session.id, 'in_progress').catch(() => {})
     },
     [snapshotConversation]
   )
@@ -350,6 +363,78 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
     setReviewPhase('active')
     setClientShareData(null)
   }, [])
+
+  // Review state machine handlers
+  const handleReviewComplete = useCallback(async () => {
+    if (!reviewSession) return
+    try {
+      const summary = await getReviewSummary(reviewSession.id)
+      setReviewSummary(summary)
+      setReviewState('complete')
+      await updateReviewState(reviewSession.id, 'complete')
+    } catch (err) {
+      console.error('Failed to compute review summary:', err)
+    }
+  }, [reviewSession])
+
+  const handleConfirmAndUpdate = useCallback(async () => {
+    if (!reviewSession) return
+    const hasRefines = reviewSummary?.tallies.refine ?? 0
+    if (!hasRefines) {
+      // No refinements — go straight to ready_for_client
+      setReviewState('ready_for_client')
+      await updateReviewState(reviewSession.id, 'ready_for_client')
+      return
+    }
+    setIsUpdating(true)
+    try {
+      await triggerEpicUpdate(reviewSession.id)
+      // Poll for completion
+      const pollInterval = setInterval(async () => {
+        try {
+          const session = await getPrototypeSession(reviewSession.id)
+          const state = (session as any).review_state
+          if (state === 're_review' || state === 'ready_for_client') {
+            clearInterval(pollInterval)
+            setReviewState(state)
+            setReviewSummary(null)
+            setIsUpdating(false)
+            await mutateEpicVerdicts()
+          }
+        } catch {
+          // Non-fatal
+        }
+      }, 3000)
+    } catch (err) {
+      console.error('Update trigger failed:', err)
+      setIsUpdating(false)
+      setReviewState('complete')
+    }
+  }, [reviewSession, reviewSummary, mutateEpicVerdicts])
+
+  const handleBackToReview = useCallback(async () => {
+    if (!reviewSession) return
+    setReviewState('in_progress')
+    setReviewSummary(null)
+    await updateReviewState(reviewSession.id, 'in_progress')
+  }, [reviewSession])
+
+  // Submit epic verdict handler for ReviewBubble → EpicOverviewPanel
+  const handleSubmitVerdict = useCallback(
+    async (verdict: EpicVerdict, notes?: string) => {
+      if (!reviewSession || epicCardIndex === null) return
+      await submitEpicVerdict(reviewSession.id, {
+        card_type: 'vision',
+        card_index: epicCardIndex,
+        verdict,
+        notes: notes || null,
+        source: 'consultant',
+      })
+      await mutateEpicVerdicts()
+    },
+    [reviewSession, epicCardIndex, mutateEpicVerdicts]
+  )
+
 
   // Poll for client completion when awaiting_client
   useEffect(() => {
@@ -682,6 +767,12 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
                   onEpicCardChange={setEpicCardIndex}
                   confirmedSet={confirmedSet}
                   collaborationWidth={collaborationWidth}
+                  reviewState={reviewState}
+                  reviewSummary={reviewSummary}
+                  isUpdating={isUpdating}
+                  onReviewComplete={handleReviewComplete}
+                  onConfirmAndUpdate={handleConfirmAndUpdate}
+                  onBackToReview={handleBackToReview}
                 />
               </div>
             )}
@@ -770,6 +861,7 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
           epicCardIndex={epicCardIndex}
           epicConfirmations={epicConfirmations ?? []}
           onEpicAdvance={handleEpicAdvance}
+          onSubmitVerdict={handleSubmitVerdict}
         />
         {/* Project Health Overlay — unified pulse + health modal */}
         {showHealthOverlay && (
