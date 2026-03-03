@@ -375,7 +375,7 @@ export function Feature({ id, children }: FeatureProps) {
 # =============================================================================
 
 _AIOS_BRIDGE_TSX = """\
-import { useEffect, useCallback } from 'react'
+import { useEffect, useCallback, useRef } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 
 /**
@@ -395,6 +395,10 @@ import { useNavigate, useLocation } from 'react-router-dom'
 export function AiosBridge() {
   const navigate = useNavigate()
   const location = useLocation()
+  const radarDotsRef = useRef<Array<{
+    featureId: string; element: Element; dotEl: HTMLElement
+  }>>([])
+  const scrollHandlerRef = useRef<(() => void) | null>(null)
 
   // Report page changes to parent
   useEffect(() => {
@@ -426,43 +430,110 @@ export function AiosBridge() {
     return () => document.removeEventListener('click', handler)
   }, [])
 
-  // Highlight a single feature
-  const highlightFeature = useCallback((featureId: string) => {
-    // Clear existing highlights first
+  // Position a radar dot element over its target feature
+  const positionRadarDot = useCallback(
+    (dotEl: HTMLElement, targetEl: Element) => {
+      const rect = targetEl.getBoundingClientRect()
+      const scrollX = window.scrollX || window.pageXOffset
+      const scrollY = window.scrollY || window.pageYOffset
+      dotEl.style.top = `${rect.top + scrollY + 4}px`
+      dotEl.style.left = `${rect.right + scrollX - 28}px`
+    }, []
+  )
+
+  // Remove all radar dot DOM elements
+  const clearAllRadar = useCallback(() => {
+    for (const dot of radarDotsRef.current) {
+      dot.dotEl?.parentNode?.removeChild(dot.dotEl)
+    }
+    radarDotsRef.current = []
+    if (scrollHandlerRef.current) {
+      window.removeEventListener('scroll', scrollHandlerRef.current, true)
+      scrollHandlerRef.current = null
+    }
+  }, [])
+
+  // Clear highlight outlines
+  const clearHighlights = useCallback(() => {
     document.querySelectorAll('.aios-highlight').forEach((el) => {
       el.classList.remove('aios-highlight')
     })
+  }, [])
 
+  // Highlight a single feature
+  const highlightFeature = useCallback((featureId: string) => {
+    clearHighlights()
+    clearAllRadar()
     const el = document.querySelector(`[data-aios-feature="${featureId}"]`)
     if (el) {
       el.classList.add('aios-highlight')
       el.scrollIntoView({ behavior: 'smooth', block: 'center' })
     }
-  }, [])
+  }, [clearHighlights, clearAllRadar])
 
-  // Show radar dots on multiple features
-  const showRadar = useCallback((features: Array<{ featureId: string }>) => {
-    // Clear existing highlights
-    document.querySelectorAll('.aios-highlight').forEach((el) => {
-      el.classList.remove('aios-highlight')
-    })
+  // Show radar dots on multiple features — creates actual DOM elements
+  const showRadar = useCallback(
+    (features: Array<{ featureId: string }>) => {
+      clearAllRadar()
+      clearHighlights()
 
-    for (const f of features) {
-      const el = document.querySelector(`[data-aios-feature="${f.featureId}"]`)
-      if (el) {
+      for (const f of features) {
+        const el = document.querySelector(
+          `[data-aios-feature="${f.featureId}"]`
+        )
+        if (!el) continue
+
+        // Outline highlight on the feature container
         el.classList.add('aios-highlight')
-      }
-    }
 
-    // Scroll to first match
-    const first = features[0]
-    if (first) {
-      const el = document.querySelector(`[data-aios-feature="${first.featureId}"]`)
-      if (el) {
-        el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        // Create radar dot element
+        const dot = document.createElement('div')
+        dot.className = 'aios-radar'
+        dot.setAttribute('data-radar-feature', f.featureId)
+        dot.innerHTML =
+          '<div class="aios-radar-core"></div>' +
+          '<div class="aios-radar-ring"></div>' +
+          '<div class="aios-radar-ring aios-radar-ring-2"></div>'
+
+        // Click sends feature-click to parent
+        const fId = f.featureId
+        dot.addEventListener('click', (e) => {
+          e.stopPropagation()
+          window.parent.postMessage(
+            { type: 'aios:feature-click', featureId: fId },
+            '*'
+          )
+        })
+
+        document.body.appendChild(dot)
+        positionRadarDot(dot, el)
+        radarDotsRef.current.push({
+          featureId: f.featureId, element: el, dotEl: dot,
+        })
       }
-    }
-  }, [])
+
+      // Reposition dots on scroll
+      if (radarDotsRef.current.length > 0) {
+        const handler = () => {
+          for (const d of radarDotsRef.current) {
+            if (d.element && d.dotEl) positionRadarDot(d.dotEl, d.element)
+          }
+        }
+        window.addEventListener('scroll', handler, true)
+        scrollHandlerRef.current = handler
+      }
+
+      // Scroll to first match
+      const first = features[0]
+      if (first) {
+        const el = document.querySelector(
+          `[data-aios-feature="${first.featureId}"]`
+        )
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      }
+    },
+    [clearAllRadar, clearHighlights, positionRadarDot]
+  )
 
   // Listen for inbound postMessage commands from parent
   useEffect(() => {
@@ -482,20 +553,22 @@ export function AiosBridge() {
           }
           break
         case 'aios:clear-highlights':
-          document.querySelectorAll('.aios-highlight').forEach((el) => {
-            el.classList.remove('aios-highlight')
-          })
+          clearHighlights()
+          clearAllRadar()
           break
         case 'aios:show-radar':
           if (Array.isArray(data.features)) {
             showRadar(data.features)
           }
           break
+        case 'aios:clear-radar':
+          clearAllRadar()
+          break
       }
     }
     window.addEventListener('message', handler)
     return () => window.removeEventListener('message', handler)
-  }, [navigate, highlightFeature, showRadar])
+  }, [navigate, highlightFeature, showRadar, clearHighlights, clearAllRadar])
 
   return null
 }

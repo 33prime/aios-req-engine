@@ -65,6 +65,9 @@ interface ReviewBubbleProps {
   epicConfirmations?: EpicConfirmation[]
   onEpicAdvance?: () => void
   onSubmitVerdict?: (verdict: EpicVerdict, notes?: string) => Promise<void>
+  highlightedFeatureSlug?: string | null
+  currentIframeRoute?: string | null
+  onFeatureNavigate?: (featureSlug: string, route: string) => void
 }
 
 export function ReviewBubble({
@@ -96,6 +99,9 @@ export function ReviewBubble({
   epicConfirmations = [],
   onEpicAdvance,
   onSubmitVerdict,
+  highlightedFeatureSlug,
+  currentIframeRoute,
+  onFeatureNavigate,
 }: ReviewBubbleProps) {
   const isReviewMode = !!(session && epicPlan && epicCardIndex != null)
 
@@ -126,6 +132,14 @@ export function ReviewBubble({
     }
     prevReviewMode.current = isReviewMode
   }, [isReviewMode, updateOpen])
+
+  // Auto-open panel when a radar dot is clicked (feature highlighted)
+  useEffect(() => {
+    if (highlightedFeatureSlug && isReviewMode && !isOpen) {
+      updateOpen(true)
+      setActiveTab('primary')
+    }
+  }, [highlightedFeatureSlug, isReviewMode, isOpen, updateOpen])
 
   // Persist tab preference
   useEffect(() => {
@@ -321,6 +335,12 @@ export function ReviewBubble({
                     ) ?? null
                   }
                   onSubmitVerdict={onSubmitVerdict ?? (async () => {})}
+                  highlightedFeatureSlug={highlightedFeatureSlug}
+                  currentRoute={currentIframeRoute}
+                  onFeatureNavigate={(f) => {
+                    const slug = (f as any).slug || f.feature_id
+                    onFeatureNavigate?.(slug, f.route || '')
+                  }}
                 />
               ) : (
                 <div className="p-6 text-center">

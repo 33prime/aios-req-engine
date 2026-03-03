@@ -49,6 +49,11 @@ interface BuildPhaseViewProps {
   onEpicPhaseChange?: (phase: EpicTourPhase) => void
   onEpicIndexChange?: (epicIndex: number | null) => void
   onEpicCardChange?: (cardIndex: number | null) => void
+  onFeatureClick?: (featureSlug: string) => void
+  onIframeRouteChange?: (route: string) => void
+  /** Feature navigation requested from side panel */
+  pendingFeatureNav?: { slug: string; route: string } | null
+  onFeatureNavConsumed?: () => void
   // Confirmed set for progress dots
   confirmedSet?: Set<string>
   // Layout
@@ -76,6 +81,10 @@ export function BuildPhaseView({
   onEpicPhaseChange,
   onEpicIndexChange,
   onEpicCardChange,
+  onFeatureClick,
+  onIframeRouteChange,
+  pendingFeatureNav,
+  onFeatureNavConsumed,
   confirmedSet,
   collaborationWidth = 0,
   reviewState,
@@ -120,16 +129,21 @@ export function BuildPhaseView({
     }
   }, [isEditing])
 
-  // Bridge detection — listens for first aios:page-change from prototype iframe
+  // Bridge detection + feature click + route tracking
   useEffect(() => {
     const handler = (e: MessageEvent) => {
-      if (e.data?.type === 'aios:page-change') {
+      if (!e.data?.type) return
+      if (e.data.type === 'aios:page-change') {
         setBridgeReady(true)
+        if (e.data.path) onIframeRouteChange?.(e.data.path)
+      }
+      if (e.data.type === 'aios:feature-click' && e.data.featureId) {
+        onFeatureClick?.(e.data.featureId)
       }
     }
     window.addEventListener('message', handler)
     return () => window.removeEventListener('message', handler)
-  }, [])
+  }, [onFeatureClick, onIframeRouteChange])
 
   // Reset bridge state when prototype URL changes (new deploy)
   useEffect(() => {
@@ -149,20 +163,39 @@ export function BuildPhaseView({
 
   // Map epic plan routes through route manifest so EpicTourController
   // navigates to the correct prototype routes (not the epic plan's conceptual routes)
+  // Smart routing: pick the page where most of the epic's features live.
   const mappedEpicPlan = useMemo(() => {
-    if (!epicPlan || !routeManifest?.epic_routes) return epicPlan
-    // Remap config-only pages to dashboard to avoid blank iframe screens
+    if (!epicPlan) return epicPlan
+    const featureRoutes = routeManifest?.feature_routes || {}
     const fallback = '/dashboard'
     const routeRemaps: Record<string, string> = {
-      '/settings': fallback,
       '/admin': fallback,
       '/profile': fallback,
     }
     return {
       ...epicPlan,
       vision_epics: epicPlan.vision_epics.map((epic, i) => {
-        const manifestRoute = routeManifest.epic_routes![String(i)] || epic.primary_route || '/dashboard'
-        const safeRoute = routeRemaps[manifestRoute] ?? manifestRoute
+        // Count features per route to find the best page
+        const routeCounts: Record<string, number> = {}
+        for (const f of epic.features) {
+          const slug = (f as any).slug || f.feature_id
+          const route = featureRoutes[slug] || f.route || fallback
+          routeCounts[route] = (routeCounts[route] || 0) + 1
+        }
+        // Pick route with most features, fallback to manifest or epic plan
+        let bestRoute = epic.primary_route || fallback
+        let bestCount = 0
+        for (const [route, count] of Object.entries(routeCounts)) {
+          if (count > bestCount) {
+            bestCount = count
+            bestRoute = route
+          }
+        }
+        // If no features resolved, use manifest route
+        if (bestCount === 0 && routeManifest?.epic_routes) {
+          bestRoute = routeManifest.epic_routes[String(i)] || bestRoute
+        }
+        const safeRoute = routeRemaps[bestRoute] ?? bestRoute
         return { ...epic, primary_route: safeRoute }
       }),
     }
@@ -254,11 +287,13 @@ export function BuildPhaseView({
 
       if (features.length === 1) {
         // Single feature — spotlight highlight
+        // Use slug (kebab-case) as the bridge ID — matches data-aios-feature in DOM
         const f = features[0]
+        const bridgeId = f.slug || f.feature_id
         win.postMessage(
           {
             type: 'aios:highlight-feature',
-            featureId: f.feature_id,
+            featureId: bridgeId,
             featureName: f.name,
             description: '',
             stepLabel: '',
@@ -269,11 +304,12 @@ export function BuildPhaseView({
         )
       } else {
         // Multiple features — radar dots
+        // Use slug (kebab-case) as the bridge ID — matches data-aios-feature in DOM
         win.postMessage(
           {
             type: 'aios:show-radar',
             features: features.map((f: any) => ({
-              featureId: f.feature_id,
+              featureId: f.slug || f.feature_id,
               featureName: f.name,
               componentName: f.component_name || '',
               keywords: (f.name || '').split(/\s+/),
@@ -286,6 +322,29 @@ export function BuildPhaseView({
 
     return () => clearTimeout(timer)
   }, [bridgeReady, activeCardIndex, isReviewActive, getCardFeatures])
+
+  // Handle feature navigation from side panel → navigate iframe + highlight
+  useEffect(() => {
+    if (!pendingFeatureNav || !bridgeReady || !iframeRef.current?.contentWindow) return
+    const win = iframeRef.current.contentWindow
+    const { slug, route } = pendingFeatureNav
+
+    // Navigate to the feature's route if different from current
+    if (route) {
+      win.postMessage({ type: 'aios:navigate', path: route }, '*')
+    }
+
+    // After navigation settles, highlight the specific feature
+    const timer = setTimeout(() => {
+      win.postMessage({
+        type: 'aios:highlight-feature',
+        featureId: slug,
+      }, '*')
+    }, route ? 600 : 100)
+
+    onFeatureNavConsumed?.()
+    return () => clearTimeout(timer)
+  }, [pendingFeatureNav, bridgeReady, onFeatureNavConsumed])
 
   // Track card changes from tour controller
   const handleCardChange = useCallback(

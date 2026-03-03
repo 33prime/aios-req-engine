@@ -185,6 +185,13 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
   // Epic tour state
   const [epicPhase, setEpicPhase] = useState<EpicTourPhase>('vision_journey')
   const [epicCardIndex, setEpicCardIndex] = useState<number | null>(null)
+  const [highlightedFeatureSlug, setHighlightedFeatureSlug] = useState<string | null>(null)
+  const [currentIframeRoute, setCurrentIframeRoute] = useState<string | null>(null)
+  // Feature navigation request from panel → BuildPhaseView
+  const [pendingFeatureNav, setPendingFeatureNav] = useState<{
+    slug: string
+    route: string
+  } | null>(null)
   const { data: epicPlan } = useEpicPlan(prototypeId)
   const { data: epicConfirmations, mutate: mutateEpicVerdicts } = useEpicVerdicts(reviewSession?.id)
 
@@ -764,7 +771,14 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
                   epicPlan={epicPlan}
                   onEpicPhaseChange={setEpicPhase}
                   onEpicIndexChange={() => {}}
-                  onEpicCardChange={setEpicCardIndex}
+                  onEpicCardChange={(idx) => {
+                    setEpicCardIndex(idx)
+                    setHighlightedFeatureSlug(null) // Clear on card change
+                  }}
+                  onFeatureClick={setHighlightedFeatureSlug}
+                  onIframeRouteChange={setCurrentIframeRoute}
+                  pendingFeatureNav={pendingFeatureNav}
+                  onFeatureNavConsumed={() => setPendingFeatureNav(null)}
                   confirmedSet={confirmedSet}
                   collaborationWidth={collaborationWidth}
                   reviewState={reviewState}
@@ -862,6 +876,12 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
           epicConfirmations={epicConfirmations ?? []}
           onEpicAdvance={handleEpicAdvance}
           onSubmitVerdict={handleSubmitVerdict}
+          highlightedFeatureSlug={highlightedFeatureSlug}
+          currentIframeRoute={currentIframeRoute}
+          onFeatureNavigate={(slug, route) => {
+            setPendingFeatureNav({ slug, route })
+            setHighlightedFeatureSlug(slug)
+          }}
         />
         {/* Project Health Overlay — unified pulse + health modal */}
         {showHealthOverlay && (

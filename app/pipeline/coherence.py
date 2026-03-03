@@ -9,9 +9,11 @@ Output is a structured JSON plan that Haiku builders execute.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 import time
+from pathlib import Path
 from typing import Any
 
 from app.core.config import get_settings
@@ -466,66 +468,31 @@ def _format_context(
         lines.append(f"- [{f.horizon}] **{f.name}** ({f.priority}): {f.overview[:150]}")
     lines.append("")
 
-    # Solution flow
+    # Solution flow — concise to reduce token count
     lines.append(f"## Solution Flow ({len(payload.solution_flow_steps)} steps)")
     for s in payload.solution_flow_steps:
-        info_summary = ""
-        if s.information_fields:
-            captured = [
-                f
-                for f in s.information_fields
-                if isinstance(f, dict) and f.get("type") == "captured"
-            ]
-            displayed = [
-                f
-                for f in s.information_fields
-                if isinstance(f, dict) and f.get("type") == "displayed"
-            ]
-            computed = [
-                f
-                for f in s.information_fields
-                if isinstance(f, dict) and f.get("type") == "computed"
-            ]
-            info_summary = (
-                f" [captured:{len(captured)}, displayed:{len(displayed)}, computed:{len(computed)}]"
-            )
-
-        ai_note = ""
+        annotations = []
         if s.ai_config:
             role = s.ai_config.get("role", "AI") if isinstance(s.ai_config, dict) else "AI"
-            ai_note = f" [AI: {role}]"
-
-        pattern_note = ""
+            annotations.append(f"AI:{role}")
         if s.implied_pattern:
-            pattern_note = f" [pattern: {s.implied_pattern}]"
-
-        lines.append(
-            f"- [{s.phase}] **{s.title}** (order {s.step_order}): "
-            f"{s.goal[:120]}{info_summary}{ai_note}{pattern_note}"
-        )
-        if s.pain_points_addressed:
-            pps = [
-                pp.get("text", str(pp))[:60] if isinstance(pp, dict) else str(pp)[:60]
-                for pp in s.pain_points_addressed[:2]
-            ]
-            lines.append(f"  Pain addressed: {'; '.join(pps)}")
+            annotations.append(s.implied_pattern)
         if s.linked_feature_ids:
-            lines.append(f"  Linked features: {len(s.linked_feature_ids)} features")
+            annotations.append(f"{len(s.linked_feature_ids)}F")
+
+        ann_str = f" [{', '.join(annotations)}]" if annotations else ""
+        lines.append(f"- [{s.phase}] **{s.title}**: {s.goal[:100]}{ann_str}")
     lines.append("")
 
-    # Epic plan
+    # Epic plan — concise
     epics = prebuild.epic_plan.get("vision_epics", []) if prebuild.epic_plan else []
     lines.append(f"## Epic Plan ({len(epics)} epics)")
     for e in epics:
-        feats = e.get("features", [])
-        feat_names = [f.get("name", "") for f in feats][:5]
+        feat_names = [f.get("name", "") for f in e.get("features", [])][:4]
         lines.append(
             f"- Epic {e.get('epic_index', '?')}: **{e.get('title', '')}** "
-            f"(theme: {e.get('theme', '')}, route: {e.get('primary_route', '')})"
+            f"→ {e.get('primary_route', '/???')} | {', '.join(feat_names)}"
         )
-        lines.append(f"  Narrative: {e.get('narrative', '')[:200]}")
-        lines.append(f"  Features: {', '.join(feat_names)}")
-        lines.append(f"  Steps: {len(e.get('solution_flow_step_ids', []))}")
     lines.append("")
 
     # Feature specs (depth assignments)
@@ -588,11 +555,24 @@ def _fix_string_encoded_fields(plan: dict) -> dict:
 # =============================================================================
 
 
+_CACHE_DIR = Path("/tmp/pipeline_v2_coherence_cache")
+
+
+def _get_cache_key(context: str) -> str:
+    """Hash the context to create a stable cache key."""
+    return hashlib.sha256(context.encode()).hexdigest()[:16]
+
+
 async def run_coherence_agent(
     payload: PrototypePayload,
     prebuild: PrebuildIntelligence,
+    *,
+    cache_dir: Path | None = None,
 ) -> dict[str, Any]:
     """Run the Sonnet coherence agent to produce a structured project plan.
+
+    Caches plans by context hash — if the same payload produces the same
+    context string, the cached plan is returned instantly.
 
     Returns the project plan dict from the tool call output.
     """
@@ -602,6 +582,20 @@ async def run_coherence_agent(
     client = AsyncAnthropic(api_key=settings.ANTHROPIC_API_KEY)
 
     context = _format_context(payload, prebuild)
+
+    # Check cache
+    cache_root = cache_dir or _CACHE_DIR
+    cache_root.mkdir(parents=True, exist_ok=True)
+    cache_key = _get_cache_key(context)
+    cache_file = cache_root / f"{cache_key}.json"
+
+    if cache_file.exists():
+        try:
+            cached_plan = json.loads(cache_file.read_text())
+            logger.info(f"Coherence cache HIT ({cache_key}) — skipping Sonnet call")
+            return cached_plan
+        except (json.JSONDecodeError, OSError):
+            logger.warning("Coherence cache file corrupt — regenerating")
 
     user_message = (
         f"Design the prototype for this project. Study all the data carefully, "
@@ -615,7 +609,7 @@ async def run_coherence_agent(
         model="claude-sonnet-4-6",
         max_tokens=20000,
         temperature=1,
-        thinking={"type": "enabled", "budget_tokens": 6000},
+        thinking={"type": "enabled", "budget_tokens": 4000},
         system=SYSTEM_PROMPT,
         tools=[COHERENCE_TOOL],
         messages=[{"role": "user", "content": user_message}],
@@ -648,6 +642,14 @@ async def run_coherence_agent(
                 f"{len(sections)} sections, "
                 f"{screen_count} screens, {duration:.1f}s"
             )
+
+            # Cache for future runs with same payload
+            try:
+                cache_file.write_text(json.dumps(plan, indent=2))
+                logger.info(f"Coherence plan cached ({cache_key})")
+            except OSError as cache_err:
+                logger.warning(f"Failed to cache plan: {cache_err}")
+
             return plan
 
     # If no tool use, try to parse from text

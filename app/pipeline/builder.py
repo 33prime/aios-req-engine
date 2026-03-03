@@ -92,6 +92,10 @@ import {{ Feature }} from '@/lib/aios/Feature'
 **Badge** — Status indicator. Variants: default, success, warning, danger, accent
 ```tsx
 <Badge variant="success">Active</Badge>
+// IMPORTANT: Badge variant is a union type. When mapping data to variants,
+// use a typed constant or inline ternary — NEVER Record<string, string>.
+// GOOD: const v = s === 'active' ? 'success' : 'default'
+// BAD:  const m: Record<string, string> = {{...}}; m[s]
 ```
 
 **Button** — Action button. Variants: primary, secondary, ghost. Sizes: sm, md, lg
@@ -192,6 +196,12 @@ export default function PageNamePage() {{
 10. **Domain-specific mock data** — realistic names, values, dates for the industry.
 11. **Every button does something** — navigates, opens modal, triggers toast, toggles state.
 12. **Feature wrapping** — every distinct feature area gets a `<Feature id="slug">` wrapper.
+13. **Type-safe variant maps** — when mapping data strings to Badge/Button variants, \
+use inline ternaries or a `const` object with `as const` — NEVER `Record<string, string>`. \
+Example: `const v = s === 'active' ? 'success' : 'default' as const`
+14. **No onClick on Card** — Card has no onClick prop. Wrap clickable cards in a `<button>` \
+or `<div onClick={{...}} className="cursor-pointer">`.
+15. **Escape apostrophes** — in JSX text, write `don&apos;t` or `{"don't"}`, NEVER raw `don't`.
 
 ## Tailwind Utilities
 
@@ -246,6 +256,9 @@ interface BadgeProps {{
   className?: string
 }}
 // Usage: <Badge variant="success">Active</Badge>
+// VARIANT TYPE: "default" | "success" | "warning" | "danger" | "accent"
+// When mapping strings to variants, use ternaries or 'as const' objects.
+// NEVER use Record<string, string> — it loses the union type.
 ```
 
 ## Button
@@ -491,7 +504,7 @@ async def _build_single_page(
     try:
         response = await client.messages.create(
             model="claude-haiku-4-5-20251001",
-            max_tokens=8192,
+            max_tokens=12000,
             temperature=1,
             system=[
                 {
