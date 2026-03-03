@@ -26,6 +26,7 @@ export interface CallRecording {
   meeting_id?: string | null
   recall_bot_id?: string | null
   meeting_bot_id?: string | null
+  title?: string | null
   status: CallRecordingStatus
   audio_url?: string | null
   video_url?: string | null
@@ -114,6 +115,99 @@ export interface TranscriptSegment {
   end: number
 }
 
+// Strategy Brief types
+export interface StakeholderIntel {
+  name: string
+  role?: string
+  influence: string
+  stakeholder_type: string
+  key_concerns: string[]
+  approach_notes: string
+}
+
+export interface MissionCriticalQuestion {
+  question: string
+  why_important: string
+  target_stakeholder: string
+  gap_ids: string[]
+}
+
+export interface CallGoal {
+  goal: string
+  success_criteria: string
+  linked_gap_ids: string[]
+}
+
+export interface DealReadinessSnapshot {
+  score: number
+  components: { name: string; score: number; max: number; details: string }[]
+  gaps_and_risks: { title: string; severity: string; description: string }[]
+}
+
+export interface AmbiguitySnapshot {
+  score: number
+  factors: Record<string, { confidence_gap: number; contradiction_rate: number; coverage_sparsity: number; gap_density: number }>
+  top_ambiguous_beliefs: { summary: string; confidence: number; domain: string }[]
+}
+
+export interface FocusArea {
+  area: string
+  priority: 'high' | 'medium' | 'low'
+  context: string
+}
+
+export interface ProjectAwarenessSnapshot {
+  phase: string
+  flow_summary: string
+  whats_next: string[]
+  whats_working?: string[]
+  whats_discovered?: string[]
+}
+
+export interface GoalResult {
+  goal: string
+  achieved: 'yes' | 'partial' | 'no' | 'unknown'
+  evidence: string
+  gaps_remaining: string[]
+}
+
+export interface ReadinessDelta {
+  before_score: number
+  after_score: number
+  component_deltas: { name: string; before: number; after: number }[]
+}
+
+export interface CallStrategyBrief {
+  id: string
+  project_id: string
+  meeting_id?: string | null
+  recording_id?: string | null
+  stakeholder_intel: StakeholderIntel[]
+  mission_critical_questions: MissionCriticalQuestion[]
+  call_goals: CallGoal[]
+  deal_readiness_snapshot: DealReadinessSnapshot
+  ambiguity_snapshot: AmbiguitySnapshot
+  focus_areas: FocusArea[]
+  project_awareness_snapshot: ProjectAwarenessSnapshot
+  goal_results?: GoalResult[] | null
+  readiness_delta?: ReadinessDelta | null
+  generated_by?: string
+  model?: string | null
+  created_at: string
+  updated_at?: string
+}
+
+// Consultant performance types
+export interface ConsultantPerformance {
+  question_quality: { score: number; open_vs_closed_ratio: number; best_question: string; missed_opportunities: string[] }
+  active_listening: { score: number; paraphrase_count: number; follow_up_depth: number; examples: string[] }
+  discovery_depth: { score: number; surface_questions: number; deep_questions: number; reframe_moments: string[] }
+  objection_handling: { score: number; objections_surfaced: number; objections_addressed: number; technique_notes: string[] }
+  next_steps_clarity: { score: number; commitments_made: string[]; follow_ups_assigned: string[]; ambiguous_items: string[] }
+  consultant_talk_ratio: { consultant_share: number; ideal_range: string; assessment: string }
+  consultant_summary: string
+}
+
 // Aggregated detail response — matches CallDetails from backend
 export interface CallDetails {
   recording: CallRecording
@@ -123,4 +217,6 @@ export interface CallDetails {
   call_signals: CallSignal[]
   content_nuggets: ContentNugget[]
   competitive_mentions: CompetitiveMention[]
+  consultant_performance?: ConsultantPerformance | null
+  strategy_brief?: CallStrategyBrief | null
 }

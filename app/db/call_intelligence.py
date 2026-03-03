@@ -22,6 +22,8 @@ def create_call_recording(
     meeting_bot_id: UUID | None = None,
     deployed_by: UUID | None = None,
     status: str = "pending",
+    audio_url: str | None = None,
+    title: str | None = None,
 ) -> dict[str, Any]:
     """Create a call recording record."""
     supabase = get_supabase()
@@ -38,6 +40,10 @@ def create_call_recording(
         data["meeting_bot_id"] = str(meeting_bot_id)
     if deployed_by:
         data["deployed_by"] = str(deployed_by)
+    if audio_url:
+        data["audio_url"] = audio_url
+    if title:
+        data["title"] = title
 
     result = supabase.table("call_recordings").insert(data).execute()
     return result.data[0] if result.data else {}

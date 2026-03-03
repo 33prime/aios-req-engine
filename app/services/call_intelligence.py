@@ -159,6 +159,18 @@ class CallIntelligenceService:
                 final_updates["signal_id"] = signal_id
             ci_db.update_call_recording(recording_id, final_updates)
 
+            # Post-call learning loop
+            try:
+                from app.db.call_strategy import get_brief_for_recording
+                from app.services.call_goal_diff import compute_goal_diff, compute_readiness_delta
+
+                brief = get_brief_for_recording(recording_id)
+                if brief:
+                    await compute_goal_diff(recording_id)
+                    await compute_readiness_delta(recording_id)
+            except Exception as e:
+                logger.warning(f"Post-call learning loop failed: {e}")
+
             logger.info(
                 f"Call intelligence pipeline complete: recording={recording_id}, signal={signal_id}"
             )
@@ -180,6 +192,161 @@ class CallIntelligenceService:
                 current = status.get("status", "")
                 if current == "pending" or current == "bot_scheduled":
                     error_step = "fetch_bot"
+                elif current == "transcribing":
+                    error_step = "transcription"
+                elif current == "analyzing":
+                    error_step = "analysis"
+
+            ci_db.update_call_recording(
+                recording_id,
+                {
+                    "status": "failed",
+                    "error_message": str(e)[:500],
+                    "error_step": error_step,
+                },
+            )
+            raise
+
+    async def process_from_url(self, recording_id: UUID, audio_url: str) -> dict:
+        """
+        Pipeline from a direct audio URL — skips Recall.ai fetch.
+
+        Steps:
+        1. Load call_recording
+        2. Transcribe via Deepgram
+        3. Analyze via Claude
+        4. Save analysis + child records
+        5. Create AIOS signal + trigger V2 pipeline
+        6. Post-call learning loop (if strategy brief exists)
+        7. Status → complete
+        """
+        from app.chains.analyze_call import analyze_call_transcript, resolve_dimensions
+        from app.db import call_intelligence as ci_db
+        from app.services.deepgram_client import transcribe_audio
+
+        settings = get_settings()
+        recording = ci_db.get_call_recording(recording_id)
+        if not recording:
+            raise ValueError(f"Recording {recording_id} not found")
+
+        project_id = recording["project_id"]
+
+        try:
+            # Step 2: Transcribe
+            ci_db.update_call_recording(recording_id, {"status": "transcribing"})
+
+            transcript_result = await transcribe_audio(audio_url)
+
+            ci_db.save_transcript(
+                recording_id=recording_id,
+                full_text=transcript_result.full_text,
+                segments=[s.model_dump() for s in transcript_result.segments],
+                speaker_map=transcript_result.speaker_map,
+                word_count=transcript_result.word_count,
+                language=transcript_result.language,
+                provider=transcript_result.provider,
+                model=transcript_result.model,
+            )
+
+            # Step 3-4: Analyze
+            ci_db.update_call_recording(recording_id, {"status": "analyzing"})
+
+            context_blocks = self._build_context_blocks(project_id)
+            dimensions = resolve_dimensions(settings.CALL_ACTIVE_PACKS)
+
+            analysis = analyze_call_transcript(
+                transcript_text=transcript_result.full_text,
+                dimensions=dimensions,
+                context_blocks=context_blocks,
+                settings=settings,
+                project_id=project_id,
+            )
+
+            ci_db.save_analysis(
+                recording_id=recording_id,
+                engagement_score=analysis.engagement_score,
+                talk_ratio=analysis.talk_ratio,
+                engagement_timeline=analysis.engagement_timeline,
+                executive_summary=analysis.executive_summary,
+                custom_dimensions=analysis.custom_dimensions,
+                dimension_packs_used=analysis.dimension_packs_used,
+                model=analysis.model,
+                tokens_input=analysis.tokens_input,
+                tokens_output=analysis.tokens_output,
+            )
+
+            if analysis.feature_insights:
+                ci_db.save_feature_insights(
+                    recording_id,
+                    [fi.model_dump() for fi in analysis.feature_insights],
+                )
+            if analysis.call_signals:
+                ci_db.save_call_signals(
+                    recording_id,
+                    [cs.model_dump() for cs in analysis.call_signals],
+                )
+            if analysis.content_nuggets:
+                ci_db.save_content_nuggets(
+                    recording_id,
+                    [cn.model_dump() for cn in analysis.content_nuggets],
+                )
+            if analysis.competitive_mentions:
+                ci_db.save_competitive_mentions(
+                    recording_id,
+                    [cm.model_dump() for cm in analysis.competitive_mentions],
+                )
+
+            # Step 5: Create AIOS signal and trigger V2 pipeline
+            signal_id = await self._create_aios_signal(
+                recording_id=recording_id,
+                project_id=UUID(project_id),
+                meeting_id=recording.get("meeting_id"),
+                transcript_text=transcript_result.full_text,
+                executive_summary=analysis.executive_summary,
+            )
+
+            # Step 6: Complete
+            final_updates = {"status": "complete"}
+            if signal_id:
+                final_updates["signal_id"] = signal_id
+            ci_db.update_call_recording(recording_id, final_updates)
+
+            # Step 7: Post-call learning loop
+            try:
+                from app.db.call_strategy import get_brief_for_recording
+                from app.services.call_goal_diff import compute_goal_diff, compute_readiness_delta
+
+                brief = get_brief_for_recording(recording_id)
+                if brief:
+                    await compute_goal_diff(recording_id)
+                    await compute_readiness_delta(recording_id)
+            except Exception as e:
+                logger.warning(f"Post-call learning loop failed: {e}")
+
+            logger.info(
+                f"Call intelligence pipeline (URL) complete: "
+                f"recording={recording_id}, signal={signal_id}"
+            )
+
+            return {
+                "status": "complete",
+                "recording_id": str(recording_id),
+                "signal_id": signal_id,
+                "word_count": transcript_result.word_count,
+                "engagement_score": analysis.engagement_score,
+            }
+
+        except Exception as e:
+            logger.error(
+                f"Call intelligence pipeline (URL) failed: "
+                f"recording={recording_id}, error={e}"
+            )
+            status = ci_db.get_call_recording(recording_id)
+            error_step = "unknown"
+            if status:
+                current = status.get("status", "")
+                if current == "pending":
+                    error_step = "transcription"
                 elif current == "transcribing":
                     error_step = "transcription"
                 elif current == "analyzing":

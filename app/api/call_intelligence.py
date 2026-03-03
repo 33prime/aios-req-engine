@@ -7,11 +7,13 @@ import logging
 from uuid import UUID
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
+from pydantic import BaseModel
 
 from app.core.auth_middleware import AuthContext, require_auth
 from app.core.schemas_call_intelligence import (
     AnalyzeRequest,
     CallDetails,
+    ConsultantPerformance,
     CreateSignalRequest,
     RecordingResponse,
     ScheduleRecordingRequest,
@@ -36,6 +38,7 @@ def _to_recording_response(rec: dict) -> RecordingResponse:
         meeting_id=rec.get("meeting_id"),
         recall_bot_id=rec.get("recall_bot_id"),
         meeting_bot_id=rec.get("meeting_bot_id"),
+        title=rec.get("title"),
         status=rec.get("status", "pending"),
         audio_url=rec.get("audio_url"),
         video_url=rec.get("video_url"),
@@ -47,6 +50,45 @@ def _to_recording_response(rec: dict) -> RecordingResponse:
         created_at=rec["created_at"],
         updated_at=rec["updated_at"],
     )
+
+
+# ============================================================================
+# Seed endpoint — test without live calls
+# ============================================================================
+
+
+@router.post("/recordings/seed", status_code=201)
+async def seed_recording(
+    project_id: UUID = Query(..., description="Project ID"),
+    audio_url: str = Query(..., description="Public URL to audio file"),
+    title: str = Query("Seed Recording", description="Recording title"),
+    background_tasks: BackgroundTasks = None,
+    auth: AuthContext = Depends(require_auth),
+):
+    """Seed a recording from a public audio URL — bypasses Recall.ai."""
+    from app.services.call_intelligence import get_call_intelligence_service
+
+    service = get_call_intelligence_service()
+    if not service:
+        raise HTTPException(
+            status_code=503,
+            detail="Call intelligence not configured (DEEPGRAM_API_KEY missing)",
+        )
+
+    # Create recording row
+    recording = ci_db.create_call_recording(
+        project_id=project_id,
+        status="pending",
+        audio_url=audio_url,
+        title=title,
+    )
+
+    recording_id = UUID(recording["id"])
+
+    # Run pipeline in background
+    background_tasks.add_task(_run_seed_pipeline, service, recording_id, audio_url)
+
+    return {"recording_id": str(recording_id), "status": "queued"}
 
 
 # ============================================================================
@@ -118,6 +160,26 @@ async def get_recording_details(
     if not details:
         raise HTTPException(status_code=404, detail="Recording not found")
 
+    # Extract consultant performance from custom_dimensions
+    consultant_perf = None
+    analysis = details.get("analysis")
+    if analysis and analysis.get("custom_dimensions"):
+        cd = analysis["custom_dimensions"]
+        consultant_keys = {
+            "question_quality", "active_listening", "discovery_depth",
+            "objection_handling", "next_steps_clarity", "consultant_talk_ratio",
+            "consultant_summary",
+        }
+        if any(k in cd for k in consultant_keys):
+            consultant_perf = ConsultantPerformance(
+                **{k: cd[k] for k in consultant_keys if k in cd}
+            )
+
+    # Load linked strategy brief
+    from app.db.call_strategy import get_brief_for_recording
+
+    strategy_brief = get_brief_for_recording(recording_id)
+
     return CallDetails(
         recording=_to_recording_response(details["recording"]),
         transcript=details.get("transcript"),
@@ -126,6 +188,8 @@ async def get_recording_details(
         call_signals=details.get("call_signals", []),
         content_nuggets=details.get("content_nuggets", []),
         competitive_mentions=details.get("competitive_mentions", []),
+        consultant_performance=consultant_perf,
+        strategy_brief=strategy_brief,
     )
 
 
@@ -226,6 +290,72 @@ async def record_meeting(
 
 
 # ============================================================================
+# Strategy brief endpoints
+# ============================================================================
+
+
+class StrategyBriefRequest(BaseModel):
+    """Request to generate a strategy brief."""
+
+    project_id: UUID
+    meeting_id: UUID | None = None
+    stakeholder_ids: list[UUID] | None = None
+
+
+@router.post("/strategy-brief/generate", status_code=201)
+async def generate_strategy_brief(
+    data: StrategyBriefRequest,
+    background_tasks: BackgroundTasks,
+    auth: AuthContext = Depends(require_auth),
+):
+    """Generate a pre-call strategy brief."""
+    background_tasks.add_task(
+        _run_strategy_brief, data.project_id, data.meeting_id, data.stakeholder_ids
+    )
+    return {"status": "generating", "project_id": str(data.project_id)}
+
+
+@router.get("/strategy-brief/{brief_id}")
+async def get_strategy_brief(
+    brief_id: UUID,
+    auth: AuthContext = Depends(require_auth),
+):
+    """Get a strategy brief by ID."""
+    from app.db.call_strategy import get_strategy_brief as db_get_brief
+
+    brief = db_get_brief(brief_id)
+    if not brief:
+        raise HTTPException(status_code=404, detail="Strategy brief not found")
+    return brief
+
+
+@router.get("/strategy-brief/recording/{recording_id}")
+async def get_brief_for_recording(
+    recording_id: UUID,
+    auth: AuthContext = Depends(require_auth),
+):
+    """Get the strategy brief linked to a recording (for goal-vs-got diff)."""
+    from app.db.call_strategy import get_brief_for_recording as db_get_brief
+
+    brief = db_get_brief(recording_id)
+    if not brief:
+        raise HTTPException(status_code=404, detail="No strategy brief for this recording")
+    return brief
+
+
+@router.get("/strategy-briefs")
+async def list_strategy_briefs(
+    project_id: UUID = Query(..., description="Project ID"),
+    limit: int = Query(20, ge=1, le=100),
+    auth: AuthContext = Depends(require_auth),
+):
+    """List strategy briefs for a project."""
+    from app.db.call_strategy import list_briefs
+
+    return list_briefs(project_id, limit)
+
+
+# ============================================================================
 # Background task helpers
 # ============================================================================
 
@@ -236,3 +366,25 @@ async def _run_analysis(service, recording_id: UUID, dimension_packs: str | None
         await service.trigger_analysis(recording_id, dimension_packs)
     except Exception as e:
         logger.error(f"Background analysis failed for {recording_id}: {e}")
+
+
+async def _run_seed_pipeline(service, recording_id: UUID, audio_url: str) -> None:
+    """Background wrapper for seed recording pipeline."""
+    try:
+        await service.process_from_url(recording_id, audio_url)
+    except Exception as e:
+        logger.error(f"Seed pipeline failed for {recording_id}: {e}")
+
+
+async def _run_strategy_brief(project_id: UUID, meeting_id, stakeholder_ids) -> None:
+    """Background wrapper for strategy brief generation."""
+    try:
+        from app.services.call_strategy import generate_strategy_brief
+
+        await generate_strategy_brief(
+            project_id=project_id,
+            meeting_id=meeting_id,
+            stakeholder_ids=stakeholder_ids,
+        )
+    except Exception as e:
+        logger.error(f"Strategy brief generation failed for project {project_id}: {e}")

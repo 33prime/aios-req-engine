@@ -1,5 +1,5 @@
 import { apiRequest } from './core'
-import type { CallRecording, CallDetails } from '@/types/call-intelligence'
+import type { CallRecording, CallDetails, CallStrategyBrief } from '@/types/call-intelligence'
 
 // List recordings for a project
 export const listCallRecordings = (projectId: string, status?: string) =>
@@ -30,4 +30,35 @@ export const scheduleCallRecording = (meetingId: string, projectId: string) =>
   apiRequest<{ recording_id: string; recall_bot_id: string }>(
     `/call-intelligence/meetings/${meetingId}/record?project_id=${projectId}`,
     { method: 'POST' }
+  )
+
+// Seed a recording from a public audio URL
+export const seedRecording = (projectId: string, audioUrl: string, title?: string) =>
+  apiRequest<{ recording_id: string; status: string }>(
+    `/call-intelligence/recordings/seed?project_id=${projectId}&audio_url=${encodeURIComponent(audioUrl)}${title ? `&title=${encodeURIComponent(title)}` : ''}`,
+    { method: 'POST' }
+  )
+
+// Generate a pre-call strategy brief
+export const generateStrategyBrief = (projectId: string, meetingId?: string) =>
+  apiRequest<{ status: string; project_id: string }>(
+    '/call-intelligence/strategy-brief/generate',
+    {
+      method: 'POST',
+      body: JSON.stringify({ project_id: projectId, meeting_id: meetingId ?? null }),
+    }
+  )
+
+// Get a strategy brief by ID
+export const getStrategyBrief = (briefId: string) =>
+  apiRequest<CallStrategyBrief>(`/call-intelligence/strategy-brief/${briefId}`)
+
+// Get strategy brief linked to a recording
+export const getBriefForRecording = (recordingId: string) =>
+  apiRequest<CallStrategyBrief>(`/call-intelligence/strategy-brief/recording/${recordingId}`)
+
+// List strategy briefs for a project
+export const listStrategyBriefs = (projectId: string, limit = 20) =>
+  apiRequest<CallStrategyBrief[]>(
+    `/call-intelligence/strategy-briefs?project_id=${projectId}&limit=${limit}`
   )

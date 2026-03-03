@@ -33,6 +33,15 @@ DIMENSION_PACKS: dict[str, list[str]] = {
         "content_nuggets",
         "competitive_mentions",
     ],
+    "consultant": [
+        "question_quality",
+        "active_listening",
+        "discovery_depth",
+        "objection_handling",
+        "next_steps_clarity",
+        "consultant_talk_ratio",
+        "consultant_summary",
+    ],
 }
 
 SYSTEM_PROMPT = """\
@@ -56,6 +65,15 @@ Analyze the transcript and return a JSON object with ONLY the requested dimensio
 - **call_signals** (array of objects): Each has "signal_type" (one of: "pain_point", "goal", "budget_indicator", "timeline", "decision_criteria", "risk_factor"), "title" (string), "description" (string), "intensity" (float 0-1), "quote" (string).
 - **content_nuggets** (array of objects): Each has "nugget_type" (one of: "testimonial", "soundbite", "statistic", "use_case", "objection", "vision_statement"), "content" (string), "speaker" (string), "reuse_score" (float 0-1).
 - **competitive_mentions** (array of objects): Each has "competitor_name" (string), "sentiment" (one of: "positive", "neutral", "negative"), "context" (string), "quote" (string), "feature_comparison" (string or null).
+
+### Consultant Performance dimensions
+- **question_quality** (object): { "score": float 0-1, "open_vs_closed_ratio": float 0-1, "best_question": string, "missed_opportunities": [string] }
+- **active_listening** (object): { "score": float 0-1, "paraphrase_count": int, "follow_up_depth": float 0-1, "examples": [string] }
+- **discovery_depth** (object): { "score": float 0-1, "surface_questions": int, "deep_questions": int, "reframe_moments": [string] }
+- **objection_handling** (object): { "score": float 0-1, "objections_surfaced": int, "objections_addressed": int, "technique_notes": [string] }
+- **next_steps_clarity** (object): { "score": float 0-1, "commitments_made": [string], "follow_ups_assigned": [string], "ambiguous_items": [string] }
+- **consultant_talk_ratio** (object): { "consultant_share": float 0-1, "ideal_range": "30-40%", "assessment": string }
+- **consultant_summary** (string): 2-3 sentence coaching summary with specific improvement suggestions.
 
 ## Rules
 1. Only include dimensions explicitly requested in the user message.

@@ -234,7 +234,7 @@ class Settings(BaseSettings):
         default=16384, description="Max output tokens for call analysis"
     )
     CALL_ACTIVE_PACKS: str = Field(
-        default="core,research",
+        default="core,research,consultant",
         description="Active dimension packs (comma-separated)",
     )
 

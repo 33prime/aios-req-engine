@@ -121,6 +121,18 @@ class CompetitiveMention(BaseModel):
     feature_comparison: str | None = None
 
 
+class ConsultantPerformance(BaseModel):
+    """Consultant performance dimensions from call analysis."""
+
+    question_quality: dict = Field(default_factory=dict)
+    active_listening: dict = Field(default_factory=dict)
+    discovery_depth: dict = Field(default_factory=dict)
+    objection_handling: dict = Field(default_factory=dict)
+    next_steps_clarity: dict = Field(default_factory=dict)
+    consultant_talk_ratio: dict = Field(default_factory=dict)
+    consultant_summary: str | None = None
+
+
 class AnalysisResult(BaseModel):
     """Full result from Claude call analysis."""
 
@@ -174,6 +186,7 @@ class RecordingResponse(BaseModel):
     meeting_id: UUID | None = None
     recall_bot_id: str | None = None
     meeting_bot_id: UUID | None = None
+    title: str | None = None
     status: CallRecordingStatus = "pending"
     audio_url: str | None = None
     video_url: str | None = None
@@ -226,3 +239,5 @@ class CallDetails(BaseModel):
     call_signals: list[dict] = Field(default_factory=list)
     content_nuggets: list[dict] = Field(default_factory=list)
     competitive_mentions: list[dict] = Field(default_factory=list)
+    consultant_performance: ConsultantPerformance | None = None
+    strategy_brief: dict | None = None
