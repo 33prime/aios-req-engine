@@ -4,6 +4,7 @@ import { useState, useCallback, useRef, useEffect } from 'react'
 import { Send, Loader2 } from 'lucide-react'
 import type { Epic } from '@/types/epic-overlay'
 import { sendEpicDiscussMessage } from '@/lib/api/prototypes'
+import { Markdown } from '@/components/ui/Markdown'
 
 interface DiscussMessage {
   role: 'user' | 'assistant'
@@ -90,7 +91,11 @@ export default function EpicDiscussPanel({
                 : 'text-[#37352f] pr-6'
             }`}
           >
-            {msg.content}
+            {msg.role === 'assistant' ? (
+              <Markdown content={msg.content} className="text-[12px] leading-relaxed" />
+            ) : (
+              msg.content
+            )}
           </div>
         ))}
         {isLoading && (
@@ -110,8 +115,8 @@ export default function EpicDiscussPanel({
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder={`Discuss ${epic.title}...`}
-            className="flex-1 text-xs border border-border rounded-lg px-3 py-2 resize-none focus:outline-none focus:ring-1 focus:ring-brand-primary max-h-20"
-            rows={1}
+            className="flex-1 text-xs border border-border rounded-lg px-3 py-2 resize-none focus:outline-none focus:ring-1 focus:ring-brand-primary max-h-32"
+            rows={3}
             disabled={isLoading}
           />
           <button

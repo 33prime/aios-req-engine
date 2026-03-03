@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { X, Loader2, Compass, Bot, Layers, MessageCircle, RotateCcw } from 'lucide-react'
+import { X, Loader2, Compass, RotateCcw } from 'lucide-react'
 import {
   getPrototypeForProject,
   getPrototypeOverlays,
@@ -27,12 +27,6 @@ interface ReviewStartModalProps {
     deployUrl: string,
     mode: 'tour' | 'explore'
   ) => void
-}
-
-interface PhaseCardData {
-  label: string
-  count: number
-  icon: React.ReactNode
 }
 
 export default function ReviewStartModal({
@@ -128,17 +122,9 @@ export default function ReviewStartModal({
 
   if (!isOpen) return null
 
-  // Phase cards from epic plan
-  const phases: PhaseCardData[] = epicPlan
-    ? [
-        { label: 'Vision', count: epicPlan.vision_epics.length, icon: <Compass className="w-5 h-5 text-brand-primary" /> },
-        { label: 'AI', count: epicPlan.ai_flow_cards.length, icon: <Bot className="w-5 h-5 text-[#0A1E2F]" /> },
-        { label: 'Horizons', count: epicPlan.horizon_cards.length, icon: <Layers className="w-5 h-5 text-[#37352f]" /> },
-        { label: 'Discovery', count: Math.min(epicPlan.discovery_threads.length, 3), icon: <MessageCircle className="w-5 h-5 text-[#666666]" /> },
-      ]
-    : []
-
-  const totalCards = phases.reduce((sum, p) => sum + p.count, 0)
+  // Phase card from epic plan — Vision only
+  const epicCount = epicPlan?.vision_epics.length ?? 0
+  const totalCards = epicCount
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
@@ -171,19 +157,16 @@ export default function ReviewStartModal({
               Walk through your prototype&apos;s value story.
             </p>
 
-            {/* Phase cards */}
-            {phases.length > 0 && (
-              <div className="grid grid-cols-4 gap-2 mb-6">
-                {phases.map((p) => (
-                  <div
-                    key={p.label}
-                    className="rounded-xl border border-border bg-[#F8FAF8] p-3 text-center"
-                  >
-                    <div className="flex justify-center mb-1.5">{p.icon}</div>
-                    <div className="text-lg font-semibold text-[#37352f]">{p.count}</div>
-                    <div className="text-[11px] text-[#666666]">{p.label}</div>
+            {/* Phase card — Vision epics */}
+            {epicCount > 0 && (
+              <div className="flex justify-center mb-6">
+                <div className="rounded-xl border border-border bg-[#F8FAF8] p-4 text-center min-w-[120px]">
+                  <div className="flex justify-center mb-1.5">
+                    <Compass className="w-5 h-5 text-brand-primary" />
                   </div>
-                ))}
+                  <div className="text-lg font-semibold text-[#37352f]">{epicCount}</div>
+                  <div className="text-[11px] text-[#666666]">Epics</div>
+                </div>
               </div>
             )}
 

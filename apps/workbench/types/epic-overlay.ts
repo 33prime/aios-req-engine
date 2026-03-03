@@ -24,6 +24,8 @@ export interface EpicStoryBeat {
 export interface EpicFeature {
   feature_id: string
   name: string
+  description?: string | null
+  slug?: string | null
   route?: string | null
   confidence: number
   implementation_status: 'functional' | 'partial' | 'placeholder'

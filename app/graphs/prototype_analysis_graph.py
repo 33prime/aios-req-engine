@@ -1100,6 +1100,7 @@ def assemble_epics(state: PrototypeAnalysisState) -> dict[str, Any]:
             ef = EpicFeature(
                 feature_id=fid,
                 name=feature.get("name", "Unknown"),
+                description=feature.get("overview") or None,
                 route=routes[0] if routes else None,
                 confidence=score.get("confidence", 0.0),
                 implementation_status=score.get("implementation_status", "partial"),

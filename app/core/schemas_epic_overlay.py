@@ -32,6 +32,7 @@ class EpicFeature(BaseModel):
 
     feature_id: str
     name: str
+    description: str | None = None
     route: str | None = None
     confidence: float = 0.0
     implementation_status: Literal["functional", "partial", "placeholder"] = "partial"
