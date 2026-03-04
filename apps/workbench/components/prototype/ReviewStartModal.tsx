@@ -47,7 +47,7 @@ export default function ReviewStartModal({
   const [epicPlan, setEpicPlan] = useState<EpicOverlayPlan | null>(null)
   const [resumeConfirmed, setResumeConfirmed] = useState(0)
 
-  const resumableSession = sessions.find(
+  const resumableSession = [...sessions].reverse().find(
     (s) => s.status === 'consultant_review'
   )
 
@@ -78,7 +78,7 @@ export default function ReviewStartModal({
         setEpicPlan(plan)
 
         // Check resume progress
-        const activeSession = sess.find((s: PrototypeSession) => s.status === 'consultant_review')
+        const activeSession = [...sess].reverse().find((s: PrototypeSession) => s.status === 'consultant_review')
         if (activeSession) {
           try {
             const verdicts = await getEpicVerdicts(activeSession.id)

@@ -260,7 +260,7 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
     sessionRestoredRef.current = true
     listPrototypeSessions(prototypeId)
       .then((sessions) => {
-        const active = sessions.find((s) => s.status === 'consultant_review')
+        const active = [...sessions].reverse().find((s) => s.status === 'consultant_review')
         if (active) {
           setReviewSession(active)
           setIsReviewActive(true)
