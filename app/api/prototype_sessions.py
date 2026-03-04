@@ -881,8 +881,26 @@ async def trigger_update(session_id: UUID):
     build_dir = latest_build.get("build_dir") if latest_build else None
 
     if not build_dir or not Path(build_dir).exists():
-        update_session(session_id, review_state="complete")
-        raise HTTPException(status_code=400, detail="Build directory not found — cannot update")
+        archive_path = latest_build.get("storage_archive_path") if latest_build else None
+        if not archive_path:
+            update_session(session_id, review_state="complete")
+            raise HTTPException(
+                status_code=400,
+                detail="No build directory or archive — run a full build",
+            )
+
+        from app.core.config import get_settings
+        from app.services.prototype_storage import restore_build_source
+
+        settings = get_settings()
+        restore_dir = Path(settings.PROTOTYPE_TEMP_DIR) / f"build-{latest_build['id']}"
+        restored = restore_build_source(
+            UUID(latest_build["id"]), archive_path, restore_dir
+        )
+        build_dir = str(restored)
+        from app.db.prototype_builds import update_build
+
+        update_build(UUID(latest_build["id"]), build_dir=build_dir)
 
     from pathlib import Path as _Path
 

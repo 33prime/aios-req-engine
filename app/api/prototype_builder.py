@@ -764,6 +764,16 @@ async def _run_build_pipeline(
         except Exception:
             pass  # Forge feedback is non-critical
 
+        # Archive source to Supabase Storage (non-blocking, non-fatal)
+        try:
+            from app.services.prototype_storage import archive_build_source
+
+            archive_path = archive_build_source(build_id, build_path)
+            if archive_path:
+                update_build(build_id, storage_archive_path=archive_path)
+        except Exception as e:
+            logger.warning(f"Source archival failed (non-fatal): {e}")
+
         update_build_status(build_id, "completed")
         append_build_log(build_id, {"phase": "completed", "message": "Build pipeline finished"})
 
