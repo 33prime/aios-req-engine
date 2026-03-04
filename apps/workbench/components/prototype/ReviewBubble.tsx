@@ -338,7 +338,7 @@ export function ReviewBubble({
                   highlightedFeatureSlug={highlightedFeatureSlug}
                   currentRoute={currentIframeRoute}
                   onFeatureNavigate={(f) => {
-                    const slug = (f as any).slug || f.feature_id
+                    const slug = f.slug || f.feature_id
                     onFeatureNavigate?.(slug, f.route || '')
                   }}
                 />

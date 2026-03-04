@@ -403,7 +403,7 @@ export default function EpicOverviewPanel({
           </div>
           <div className="space-y-1.5">
             {epic.features.map((f) => {
-              const slug = (f as any).slug || f.feature_id
+              const slug = f.slug || f.feature_id
               const isOnCurrentPage =
                 f.route === currentRoute || !currentRoute
 

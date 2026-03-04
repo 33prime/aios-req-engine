@@ -18,6 +18,7 @@ from typing import Any
 
 from app.core.config import get_settings
 from app.core.schemas_prototype_builder import PrebuildIntelligence, PrototypePayload
+from app.core.slug import canonical_slug
 
 logger = logging.getLogger(__name__)
 
@@ -297,7 +298,9 @@ COHERENCE_TOOL = {
                 "type": "object",
                 "description": (
                     "Mapping of epic indices and feature slugs to screen routes. "
-                    "Used by the AIOS bridge for guided tour navigation."
+                    "Used by the AIOS bridge for guided tour navigation. "
+                    "Use the exact [slug: ...] provided in the features list for "
+                    "feature_slug in components and feature_routes keys."
                 ),
                 "properties": {
                     "epic_routes": {
@@ -465,7 +468,10 @@ def _format_context(
     h3 = [f for f in buildable if f.horizon == "H3"]
     lines.append(f"## Features ({len(buildable)}: {len(h1)} H1, {len(h2)} H2, {len(h3)} H3)")
     for f in buildable:
-        lines.append(f"- [{f.horizon}] **{f.name}** ({f.priority}): {f.overview[:150]}")
+        lines.append(
+            f"- [{f.horizon}] **{f.name}** [slug: {canonical_slug(f.name)}] "
+            f"({f.priority}): {f.overview[:150]}"
+        )
     lines.append("")
 
     # Solution flow — concise to reduce token count

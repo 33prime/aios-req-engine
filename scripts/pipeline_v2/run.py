@@ -13,8 +13,10 @@ Pipeline:
   2. Coherence Agent (Sonnet) → structured project plan
   3. Haiku Builders (×3 parallel) → TSX page files
   4. Deterministic Stitch → complete file tree
-  5. Sonnet Finisher → validation patches
-  6. npm install + tsc + vite build
+  5. npm install
+  6. Sonnet Finisher → validation patches
+  7. tsc + vite build
+  8. Post-Build QA → route/description/status enrichment
 """
 
 from __future__ import annotations
@@ -69,7 +71,7 @@ async def main(
     print("=" * 60)
 
     # ── Phase 1: Load data ────────────────────────────────────────
-    _print_phase(1, 7, "Loading project data")
+    _print_phase(1, 8, "Loading project data")
 
     from app.core.prototype_payload import assemble_prototype_payload
     from app.core.schemas_prototype_builder import PrebuildIntelligence
@@ -110,7 +112,7 @@ async def main(
     plan_path = output_dir / "project_plan.json"
 
     if skip_coherence and plan_path.exists():
-        _print_phase(2, 7, "Coherence Agent (SKIPPED — using cached plan)")
+        _print_phase(2, 8, "Coherence Agent (SKIPPED — using cached plan)")
         project_plan = json.loads(plan_path.read_text())
 
         # Fix string-encoded fields if loading from a previous run
@@ -118,7 +120,7 @@ async def main(
 
         project_plan = _fix_string_encoded_fields(project_plan)
     else:
-        _print_phase(2, 7, "Coherence Agent (Sonnet)")
+        _print_phase(2, 8, "Coherence Agent (Sonnet)")
 
         from app.pipeline.coherence import run_coherence_agent
 
@@ -332,6 +334,47 @@ async def main(
             )
 
     print(f"  Done in {time.monotonic() - t6:.1f}s")
+
+    # ── Phase 8: Post-Build QA ────────────────────────────────────
+    _print_phase(8, 8, "Post-Build QA")
+
+    from app.pipeline.postbuild_qa import run_postbuild_qa
+
+    t7 = time.monotonic()
+    dist_path = build_dir / "dist" if (build_dir / "dist").exists() else None
+    corrected_epic_plan, qa_report = run_postbuild_qa(
+        epic_plan=prebuild.epic_plan,
+        project_plan=project_plan,
+        feature_specs=prebuild.feature_specs,
+        payload=payload,
+        dist_dir=dist_path,
+    )
+
+    print(f"  Features:     {qa_report.total_features}")
+    print(
+        f"  Routes:       {qa_report.routes_mapped} mapped, "
+        f"{qa_report.routes_fallback} fallback, {qa_report.routes_missing} missing"
+    )
+    print(f"  Descriptions: {qa_report.descriptions_present}/{qa_report.total_features}")
+    print(f"  Status set:   {qa_report.implementation_status_set}")
+    print(f"  Route coverage:       {qa_report.route_coverage_pct:.0f}%")
+    print(f"  Description coverage: {qa_report.description_coverage_pct:.0f}%")
+
+    if qa_report.fallbacks:
+        print("  Fallbacks:")
+        for fb in qa_report.fallbacks:
+            print(f"    {fb}")
+    if qa_report.unmapped:
+        print("  Unmapped:")
+        for um in qa_report.unmapped:
+            print(f"    {um}")
+
+    # Save corrected epic plan for inspection
+    (output_dir / "corrected_epic_plan.json").write_text(
+        json.dumps(corrected_epic_plan, indent=2, ensure_ascii=False)
+    )
+    print(f"  Saved → {output_dir / 'corrected_epic_plan.json'}")
+    print(f"  Done in {time.monotonic() - t7:.3f}s")
 
     # ── Summary ───────────────────────────────────────────────────
     total = time.monotonic() - t_start

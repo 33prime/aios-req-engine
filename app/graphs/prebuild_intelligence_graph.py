@@ -19,6 +19,7 @@ from langgraph.graph import END, StateGraph
 
 from app.core.logging import get_logger
 from app.core.schemas_prototype_builder import FeatureBuildSpec, PrebuildIntelligence
+from app.core.slug import canonical_slug
 from app.graphs.prototype_analysis_graph import GraphProfile
 
 logger = get_logger(__name__)
@@ -323,14 +324,17 @@ def assemble_epics(state: PrebuildState) -> PrebuildState:
                     {
                         "feature_id": f["id"],
                         "name": f.get("name", ""),
+                        "description": (f.get("overview") or "")[:200],
+                        "slug": canonical_slug(f.get("name", "")),
                         "component_name": f.get("name", "").replace(" ", ""),
-                        "route": f"/{f.get('name', '').lower().replace(' ', '-')}",
+                        "route": f"/{canonical_slug(f.get('name', ''))}",
+                        "implementation_status": "placeholder",
                     }
                     for f in step_feats
                 ],
                 "solution_flow_step_ids": [step["id"]],
-                "primary_route": f"/{step.get('title', '').lower().replace(' ', '-')}",
-                "all_routes": [f"/{step.get('title', '').lower().replace(' ', '-')}"],
+                "primary_route": f"/{canonical_slug(step.get('title', ''))}",
+                "all_routes": [f"/{canonical_slug(step.get('title', ''))}"],
                 "narrative": "",
                 "story_beats": [],
                 "open_questions": step_qs,
@@ -564,7 +568,7 @@ def assign_depths_and_save(state: PrebuildState) -> PrebuildState:
                 epic_idx = epic.get("epic_index")
                 break
 
-        slug = feature.get("name", "").lower().replace(" ", "-").replace("_", "-")
+        slug = canonical_slug(feature.get("name", ""))
 
         spec = FeatureBuildSpec(
             feature_id=fid,

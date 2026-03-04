@@ -178,7 +178,7 @@ export function BuildPhaseView({
         // Count features per route to find the best page
         const routeCounts: Record<string, number> = {}
         for (const f of epic.features) {
-          const slug = (f as any).slug || f.feature_id
+          const slug = f.slug || f.feature_id
           const route = featureRoutes[slug] || f.route || fallback
           routeCounts[route] = (routeCounts[route] || 0) + 1
         }

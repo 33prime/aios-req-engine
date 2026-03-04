@@ -566,13 +566,27 @@ async def _run_build_pipeline(
         )
         update_build(build_id, streams_total=0, tasks_total=0, build_dir=str(build_path))
 
-        # Populate epic plan routes from coherence agent's route_manifest
+        # Post-build QA: fix routes, descriptions, implementation_status
         try:
-            _populate_epic_routes(
-                prototype_id, prebuild_result, pipeline_result.project_plan, payload
+            from app.pipeline.postbuild_qa import run_postbuild_qa
+
+            corrected_epic_plan, qa_report = run_postbuild_qa(
+                epic_plan=prebuild_result.epic_plan,
+                project_plan=pipeline_result.project_plan,
+                feature_specs=prebuild_result.feature_specs,
+                payload=payload,
+                dist_dir=build_path / "dist" if not skip_deploy else None,
             )
+            update_prototype(prototype_id, epic_plan=corrected_epic_plan)
+            append_build_log(build_id, {
+                "phase": "qa",
+                "message": (
+                    f"QA: {qa_report.route_coverage_pct:.0f}% routes, "
+                    f"{qa_report.description_coverage_pct:.0f}% descriptions"
+                ),
+            })
         except Exception as e:
-            logger.warning(f"Route population failed (non-fatal): {e}")
+            logger.warning(f"Post-build QA failed (non-fatal): {e}")
 
         append_build_log(
             build_id,
@@ -683,77 +697,6 @@ async def _run_build_pipeline(
         logger.error(f"Build pipeline failed: {e}", exc_info=True)
         update_build_status(build_id, "failed", error=str(e))
 
-
-def _populate_epic_routes(
-    prototype_id,
-    prebuild,
-    project_plan: dict,
-    payload,
-) -> None:
-    """Merge coherence agent route_manifest into epic plan and save.
-
-    The coherence agent produces a route_manifest mapping epic indices and
-    feature slugs to actual screen routes. This function writes those routes
-    back into the epic_plan on the prototype record so the frontend tour
-    controller can navigate the iframe.
-    """
-    from app.db.prototypes import update_prototype
-
-    route_manifest = project_plan.get("route_manifest", {})
-    epic_routes = route_manifest.get("epic_routes", {})
-    feature_routes = route_manifest.get("feature_routes", {})
-    if not epic_routes and not feature_routes:
-        return
-
-    import copy
-
-    epic_plan = copy.deepcopy(prebuild.epic_plan)
-    if not epic_plan.get("vision_epics"):
-        return
-
-    # Build feature_id → slug lookup from payload features
-    feature_id_to_slug: dict[str, str] = {}
-    for f in payload.features:
-        slug = f.name.lower().replace(" ", "-").replace("(", "").replace(")", "")
-        feature_id_to_slug[str(f.id)] = slug
-
-    # Populate vision epic routes
-    for i, epic in enumerate(epic_plan["vision_epics"]):
-        # Direct epic index → route from coherence
-        if str(i) in epic_routes:
-            epic["primary_route"] = epic_routes[str(i)]
-
-        # Collect all feature routes for this epic
-        all_routes: set[str] = set()
-        for feat in epic.get("features", []):
-            fname = feat.get("name", "")
-            slug = fname.lower().replace(" ", "-").replace("(", "").replace(")", "")
-            if slug in feature_routes:
-                all_routes.add(feature_routes[slug])
-        if all_routes:
-            epic["all_routes"] = list(all_routes)
-            # Fallback: if coherence didn't map this epic, use first feature route
-            if not epic.get("primary_route"):
-                epic["primary_route"] = list(all_routes)[0]
-
-    # Populate AI flow card routes from their features
-    for card in epic_plan.get("ai_flow_cards", []):
-        if card.get("route"):
-            continue
-        for fid in card.get("feature_ids", []):
-            slug = feature_id_to_slug.get(fid, "")
-            if slug and slug in feature_routes:
-                card["route"] = feature_routes[slug]
-                break
-
-    update_prototype(prototype_id, epic_plan=epic_plan)
-    logger.info(
-        f"Populated epic routes: "
-        f"{sum(1 for e in epic_plan['vision_epics'] if e.get('primary_route'))}/"
-        f"{len(epic_plan['vision_epics'])} epics, "
-        f"{sum(1 for c in epic_plan.get('ai_flow_cards', []) if c.get('route'))}/"
-        f"{len(epic_plan.get('ai_flow_cards', []))} AI cards"
-    )
 
 
 async def _deploy_prototype(
