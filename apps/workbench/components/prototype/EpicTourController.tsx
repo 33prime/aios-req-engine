@@ -12,8 +12,8 @@ interface EpicTourControllerProps {
   /** Emitted when the tour wants to navigate the iframe to a route */
   onRouteChange?: (route: string | null) => void
   autoStart?: boolean
-  /** Per-card confirmation status for progress dots */
-  confirmedSet?: Set<string>
+  /** Per-card verdict for progress dots: "vision:0" → "confirmed" | "refine" | "flag_for_client" */
+  verdictMap?: Map<string, string>
   /** Callback when all epics have been touched and user clicks "Review Complete" */
   onReviewComplete?: () => void
   /** In re-review mode, only show unreviewed epics */
@@ -109,7 +109,7 @@ export default function EpicTourController({
   onCardChange,
   onRouteChange,
   autoStart = false,
-  confirmedSet,
+  verdictMap,
   onReviewComplete,
   reviewState,
 }: EpicTourControllerProps) {
@@ -188,15 +188,15 @@ export default function EpicTourController({
   if (cards.length === 0) return null
 
   // Check if all epics have been touched
-  const allTouched = cards.length > 0 && cards.every((c) => confirmedSet?.has(c.confirmKey))
+  const allTouched = cards.length > 0 && cards.every((c) => verdictMap?.has(c.confirmKey))
 
   // In re-review mode, filter to only unreviewed epics
   const visibleCards = useMemo(() => {
     if (reviewState === 're_review') {
-      return cards.filter((c) => !confirmedSet?.has(c.confirmKey))
+      return cards.filter((c) => !verdictMap?.has(c.confirmKey))
     }
     return cards
-  }, [cards, reviewState, confirmedSet])
+  }, [cards, reviewState, verdictMap])
 
   // Idle state — minimal single line
   if (state.status === 'idle') {
@@ -222,25 +222,25 @@ export default function EpicTourController({
   return (
     <div className="bg-white border-b border-border">
       {/* Single compact bar: nav + review complete */}
-      <div className="px-3 py-1 flex items-center gap-2">
+      <div className="px-3 py-1.5 flex items-center gap-2">
         {/* Nav arrows + label */}
-        <div className="flex items-center gap-1 flex-1 min-w-0 justify-center">
+        <div className="flex items-center gap-1.5 flex-1 min-w-0 justify-center">
           <button
             onClick={handlePrev}
             disabled={isFirst}
-            className="p-1 rounded hover:bg-[#F4F4F4] disabled:opacity-30 text-[#37352f]"
+            className="p-1.5 rounded-lg hover:bg-[#F4F4F4] disabled:opacity-25 text-[#37352f] transition-colors"
           >
-            <ChevronLeft className="w-3.5 h-3.5" />
+            <ChevronLeft className="w-[18px] h-[18px]" />
           </button>
-          <span className="text-[11px] font-medium text-[#37352f] truncate max-w-[200px]">
+          <span className="text-[11px] font-medium text-[#37352f] truncate max-w-[220px]">
             {state.currentIndex + 1}/{cards.length} · {currentCard?.label}
           </span>
           <button
             onClick={handleNext}
             disabled={isLast}
-            className="p-1 rounded hover:bg-[#F4F4F4] disabled:opacity-30 text-[#37352f]"
+            className="p-1.5 rounded-lg hover:bg-[#F4F4F4] disabled:opacity-25 text-[#37352f] transition-colors"
           >
-            <ChevronRight className="w-3.5 h-3.5" />
+            <ChevronRight className="w-[18px] h-[18px]" />
           </button>
         </div>
 
@@ -263,19 +263,26 @@ export default function EpicTourController({
         </button>
       </div>
 
-      {/* Thin progress bar — single color */}
-      <div className="flex h-1 mx-3 mb-0.5 gap-px">
+      {/* Progress bar — verdict-colored dashes */}
+      <div className="flex h-2 mx-3 mb-1 gap-1">
         {cards.map((card, i) => {
           const isCurrent = i === state.currentIndex
-          const isConfirmed = confirmedSet?.has(card.confirmKey)
+          const verdict = verdictMap?.get(card.confirmKey)
           const isPast = i < state.currentIndex
-          const color = isCurrent
-            ? 'bg-brand-primary'
-            : isConfirmed
-              ? 'bg-[#25785A]'
-              : isPast
-                ? 'bg-[#25785A]/40'
-                : 'bg-gray-200'
+          let color: string
+          if (isCurrent) {
+            color = 'bg-brand-primary'
+          } else if (verdict === 'confirmed') {
+            color = 'bg-[#25785A]'
+          } else if (verdict === 'refine') {
+            color = 'bg-amber-400'
+          } else if (verdict === 'flag_for_client') {
+            color = 'bg-[#6B7280]'
+          } else if (isPast) {
+            color = 'bg-[#25785A]/40'
+          } else {
+            color = 'bg-gray-200'
+          }
           return (
             <button
               key={i}

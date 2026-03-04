@@ -75,8 +75,8 @@ function splitNarrative(
 // ---------------------------------------------------------------------------
 function featureStatusColor(status: EpicFeature['implementation_status']) {
   if (status === 'functional') return 'bg-brand-primary'
-  if (status === 'partial') return 'bg-yellow-500'
-  return 'bg-gray-300'
+  if (status === 'partial') return 'bg-[#25785A]'
+  return 'bg-[#25785A]/30'
 }
 
 function featureStatusLabel(status: EpicFeature['implementation_status']) {
@@ -191,7 +191,7 @@ function FeatureCard({
           {/* Pain point context (first one that fits) */}
           {painPoints.length > 0 && (
             <div className="flex items-start gap-1.5">
-              <span className="mt-1.5 w-1 h-1 rounded-full bg-red-400 shrink-0" />
+              <span className="mt-1.5 w-1 h-1 rounded-full bg-[#044159]/50 shrink-0" />
               <p className="text-[10px] text-[#666] leading-snug italic break-words">
                 {painPoints[0]}
               </p>
@@ -358,7 +358,7 @@ export default function EpicOverviewPanel({
           <div className="space-y-1">
             {epic.pain_points.map((point, i) => (
               <div key={i} className="flex items-start gap-1.5">
-                <span className="mt-1.5 w-1 h-1 rounded-full bg-red-400 shrink-0" />
+                <span className="mt-1.5 w-1 h-1 rounded-full bg-[#044159]/50 shrink-0" />
                 <p className="text-[11px] text-[#666] leading-snug">{point}</p>
               </div>
             ))}

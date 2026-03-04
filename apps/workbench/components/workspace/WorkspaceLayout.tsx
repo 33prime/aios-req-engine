@@ -200,17 +200,17 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
   const [reviewSummary, setReviewSummary] = useState<ReviewSummary | null>(null)
   const [isUpdating, setIsUpdating] = useState(false)
 
-  // Build a set of confirmed card keys for the progress bar: "vision:0", "ai_flow:1", etc.
-  const confirmedSet = useMemo(() => {
-    const set = new Set<string>()
+  // Build a map of card keys → verdict for the progress bar: "vision:0" → "confirmed", etc.
+  const verdictMap = useMemo(() => {
+    const map = new Map<string, string>()
     if (epicConfirmations) {
       for (const c of epicConfirmations) {
         if (c.verdict) {
-          set.add(`${c.card_type}:${c.card_index}`)
+          map.set(`${c.card_type}:${c.card_index}`, c.verdict)
         }
       }
     }
-    return set
+    return map
   }, [epicConfirmations])
 
   // Revalidate BRD + context frame when chat tools mutate data
@@ -779,7 +779,7 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
                   onIframeRouteChange={setCurrentIframeRoute}
                   pendingFeatureNav={pendingFeatureNav}
                   onFeatureNavConsumed={() => setPendingFeatureNav(null)}
-                  confirmedSet={confirmedSet}
+                  verdictMap={verdictMap}
                   collaborationWidth={collaborationWidth}
                   reviewState={reviewState}
                   reviewSummary={reviewSummary}

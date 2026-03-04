@@ -225,6 +225,61 @@ async def run_phase0(project_id: UUID):
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
+@router.post("/fix-epics")
+async def fix_epic_routes(project_id: UUID):
+    """Run post-build QA on existing data to fix epic routes/descriptions/status.
+
+    No rebuild needed — reads stored coherence_plan, build_payload, and
+    feature_build_specs from the prototype record, runs deterministic QA,
+    and saves the corrected epic_plan back.
+    """
+    from app.core.schemas_prototype_builder import PrototypePayload
+    from app.db.prototypes import get_prototype_for_project, update_prototype
+    from app.pipeline.postbuild_qa import run_postbuild_qa
+
+    proto = get_prototype_for_project(project_id)
+    if not proto:
+        raise HTTPException(status_code=404, detail="No prototype found")
+
+    prebuild = proto.get("prebuild_intelligence", {})
+    epic_plan = prebuild.get("epic_plan") or proto.get("epic_plan")
+    coherence_plan = proto.get("coherence_plan", {})
+    feature_specs = prebuild.get("feature_specs", [])
+    build_payload = proto.get("build_payload")
+
+    if not epic_plan:
+        raise HTTPException(status_code=400, detail="No epic plan found — run Phase 0 first")
+    if not coherence_plan:
+        raise HTTPException(status_code=400, detail="No coherence plan — run a build first")
+
+    # Reconstruct payload
+    payload = PrototypePayload(**build_payload) if build_payload else None
+    if not payload:
+        raise HTTPException(status_code=400, detail="No build payload — run a build first")
+
+    corrected_epic_plan, qa_report = run_postbuild_qa(
+        epic_plan=epic_plan,
+        project_plan=coherence_plan,
+        feature_specs=feature_specs,
+        payload=payload,
+    )
+
+    update_prototype(UUID(proto["id"]), epic_plan=corrected_epic_plan)
+
+    return {
+        "status": "ok",
+        "total_features": qa_report.total_features,
+        "route_coverage_pct": round(qa_report.route_coverage_pct, 1),
+        "description_coverage_pct": round(qa_report.description_coverage_pct, 1),
+        "routes_mapped": qa_report.routes_mapped,
+        "routes_fallback": qa_report.routes_fallback,
+        "routes_missing": qa_report.routes_missing,
+        "mapped": qa_report.mapped,
+        "fallbacks": qa_report.fallbacks,
+        "unmapped": qa_report.unmapped,
+    }
+
+
 # =============================================================================
 # Build pipeline endpoints
 # =============================================================================

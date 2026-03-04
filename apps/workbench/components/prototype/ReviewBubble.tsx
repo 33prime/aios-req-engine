@@ -251,8 +251,8 @@ export function ReviewBubble({
         }`}
         style={{ width: SIDE_PANEL_WIDTH }}
       >
-        {/* Tab header */}
-        <div className="px-3 py-2.5 border-b border-border flex-shrink-0">
+        {/* Tab header — extra top padding in review mode to align border with EpicTourController */}
+        <div className={`px-3 border-b border-border flex-shrink-0 ${isReviewMode ? 'pt-[42px] pb-2.5' : 'py-2.5'}`}>
           <div className="flex items-center gap-2">
             <div className="flex-1 flex items-center bg-[#F4F4F4] rounded-xl p-1">
               <button

@@ -54,8 +54,8 @@ interface BuildPhaseViewProps {
   /** Feature navigation requested from side panel */
   pendingFeatureNav?: { slug: string; route: string } | null
   onFeatureNavConsumed?: () => void
-  // Confirmed set for progress dots
-  confirmedSet?: Set<string>
+  // Verdict map for progress dots: "vision:0" → "confirmed" | "refine" | "flag_for_client"
+  verdictMap?: Map<string, string>
   // Layout
   collaborationWidth?: number
   // Review state machine
@@ -85,7 +85,7 @@ export function BuildPhaseView({
   onIframeRouteChange,
   pendingFeatureNav,
   onFeatureNavConsumed,
-  confirmedSet,
+  verdictMap,
   collaborationWidth = 0,
   reviewState,
   reviewSummary,
@@ -172,6 +172,14 @@ export function BuildPhaseView({
       '/admin': fallback,
       '/profile': fallback,
     }
+
+    // Build set of known valid routes from the route manifest
+    const validRoutes = new Set<string>()
+    if (routeManifest) {
+      for (const r of Object.values(routeManifest.epic_routes || {})) validRoutes.add(r as string)
+      for (const r of Object.values(routeManifest.feature_routes || {})) validRoutes.add(r as string)
+    }
+
     return {
       ...epicPlan,
       vision_epics: epicPlan.vision_epics.map((epic, i) => {
@@ -195,7 +203,11 @@ export function BuildPhaseView({
         if (bestCount === 0 && routeManifest?.epic_routes) {
           bestRoute = routeManifest.epic_routes[String(i)] || bestRoute
         }
-        const safeRoute = routeRemaps[bestRoute] ?? bestRoute
+        let safeRoute = routeRemaps[bestRoute] ?? bestRoute
+        // Validate route exists in prototype — fall back to /dashboard if not
+        if (validRoutes.size > 0 && !validRoutes.has(safeRoute)) {
+          safeRoute = fallback
+        }
         return { ...epic, primary_route: safeRoute }
       }),
     }
@@ -329,9 +341,17 @@ export function BuildPhaseView({
     const win = iframeRef.current.contentWindow
     const { slug, route } = pendingFeatureNav
 
+    // Validate route exists in prototype — fall back to current page if not
+    const knownRoutes = new Set<string>()
+    if (routeManifest) {
+      for (const r of Object.values(routeManifest.epic_routes || {})) knownRoutes.add(r as string)
+      for (const r of Object.values(routeManifest.feature_routes || {})) knownRoutes.add(r as string)
+    }
+    const safeRoute = route && (knownRoutes.size === 0 || knownRoutes.has(route)) ? route : null
+
     // Navigate to the feature's route if different from current
-    if (route) {
-      win.postMessage({ type: 'aios:navigate', path: route }, '*')
+    if (safeRoute) {
+      win.postMessage({ type: 'aios:navigate', path: safeRoute }, '*')
     }
 
     // After navigation settles, highlight the specific feature
@@ -340,11 +360,11 @@ export function BuildPhaseView({
         type: 'aios:highlight-feature',
         featureId: slug,
       }, '*')
-    }, route ? 600 : 100)
+    }, safeRoute ? 600 : 100)
 
     onFeatureNavConsumed?.()
     return () => clearTimeout(timer)
-  }, [pendingFeatureNav, bridgeReady, onFeatureNavConsumed])
+  }, [pendingFeatureNav, bridgeReady, onFeatureNavConsumed, routeManifest])
 
   // Track card changes from tour controller
   const handleCardChange = useCallback(
@@ -387,7 +407,7 @@ export function BuildPhaseView({
           {isReviewActive && session ? (
             <>
               <h2 className="text-sm font-semibold text-[#37352f]">
-                Session {session.session_number}
+                Internal Review
               </h2>
               <span className="text-xs text-text-placeholder">Reviewing</span>
             </>
@@ -470,7 +490,7 @@ export function BuildPhaseView({
           onCardChange={handleCardChange}
           onRouteChange={handleRouteChange}
           autoStart
-          confirmedSet={confirmedSet}
+          verdictMap={verdictMap}
           onReviewComplete={onReviewComplete}
           reviewState={reviewState}
         />
