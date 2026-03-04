@@ -229,10 +229,13 @@ async def run_phase0(project_id: UUID):
 async def fix_epic_routes(project_id: UUID):
     """Run post-build QA on existing data to fix epic routes/descriptions/status.
 
-    No rebuild needed — reads stored coherence_plan, build_payload, and
-    feature_build_specs from the prototype record, runs deterministic QA,
-    and saves the corrected epic_plan back.
+    No rebuild needed. Uses coherence_plan if available; otherwise fetches the
+    deployed route-manifest.json as fallback. Runs deterministic QA and saves
+    the corrected epic_plan back.
     """
+    import json
+    import urllib.request
+
     from app.core.schemas_prototype_builder import PrototypePayload
     from app.db.prototypes import get_prototype_for_project, update_prototype
     from app.pipeline.postbuild_qa import run_postbuild_qa
@@ -243,14 +246,30 @@ async def fix_epic_routes(project_id: UUID):
 
     prebuild = proto.get("prebuild_intelligence", {})
     epic_plan = prebuild.get("epic_plan") or proto.get("epic_plan")
-    coherence_plan = proto.get("coherence_plan", {})
+    coherence_plan = proto.get("coherence_plan") or {}
     feature_specs = prebuild.get("feature_specs", [])
     build_payload = proto.get("build_payload")
 
     if not epic_plan:
         raise HTTPException(status_code=400, detail="No epic plan found — run Phase 0 first")
+
+    # If no coherence plan, build a synthetic one from the deployed route manifest
     if not coherence_plan:
-        raise HTTPException(status_code=400, detail="No coherence plan — run a build first")
+        deploy_url = proto.get("deploy_url") or ""
+        if deploy_url:
+            try:
+                manifest_url = f"{deploy_url.rstrip('/')}/route-manifest.json"
+                with urllib.request.urlopen(manifest_url, timeout=10) as resp:
+                    route_manifest = json.loads(resp.read())
+                coherence_plan = {"route_manifest": route_manifest, "nav_sections": []}
+                logger.info("fix-epics: built synthetic coherence from route-manifest")
+            except Exception as e:
+                logger.warning(f"fix-epics: could not fetch route manifest: {e}")
+        if not coherence_plan:
+            raise HTTPException(
+                status_code=400,
+                detail="No coherence plan and no deploy URL — run a build first",
+            )
 
     # Reconstruct payload
     payload = PrototypePayload(**build_payload) if build_payload else None
