@@ -40,6 +40,14 @@ class EpicFeature(BaseModel):
     component_name: str | None = None
 
 
+class ResolvedDecision(BaseModel):
+    """A decision confirmed during discovery."""
+
+    decision: str
+    rationale: str | None = None
+    source_reference: str | None = None
+
+
 class Epic(BaseModel):
     """A value-delivery moment — the primary unit."""
 
@@ -58,6 +66,7 @@ class Epic(BaseModel):
     persona_names: list[str] = []
     avg_confidence: float = 0.0
     pain_points: list[str] = []
+    resolved_decisions: list[ResolvedDecision] = []
 
 
 class AIFlowCard(BaseModel):

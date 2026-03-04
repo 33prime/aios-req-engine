@@ -1334,6 +1334,7 @@ def compose_narratives(state: PrototypeAnalysisState) -> dict[str, Any]:
             if idx in narrative_map:
                 epic["title"] = narrative_map[idx].get("title", epic.get("theme", ""))
                 epic["narrative"] = narrative_map[idx].get("narrative", "")
+                epic["resolved_decisions"] = narrative_map[idx].get("resolved_decisions", [])
             if not epic.get("title"):
                 epic["title"] = epic.get("theme", f"Epic {idx}")
 

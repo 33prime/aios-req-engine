@@ -51,7 +51,6 @@ EPIC_NARRATIVE_TOOL = {
                                 "Never mention code."
                             ),
                         },
-                    },
                         "provenance_quotes": {
                             "type": "array",
                             "description": (
@@ -77,6 +76,33 @@ EPIC_NARRATIVE_TOOL = {
                                 "required": ["speaker_name", "quote_text"],
                             },
                         },
+                        "resolved_decisions": {
+                            "type": "array",
+                            "description": (
+                                "0-2 key decisions confirmed during discovery for this epic. "
+                                "Only include ACTUAL resolved decisions, NOT open questions. "
+                                "If no decisions were confirmed, return an empty array."
+                            ),
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "decision": {
+                                        "type": "string",
+                                        "description": "What was decided (1-2 sentences)",
+                                    },
+                                    "rationale": {
+                                        "type": "string",
+                                        "description": "Why this was decided (1 sentence)",
+                                    },
+                                    "source_reference": {
+                                        "type": "string",
+                                        "description": "Who or what led to this (e.g. 'Sarah in kickoff meeting')",
+                                    },
+                                },
+                                "required": ["decision"],
+                            },
+                        },
+                    },
                     "required": ["epic_index", "title", "narrative"],
                 },
             },
@@ -126,7 +152,11 @@ SYSTEM_PROMPT = (
     "- The tone is warm, confident, and forward-looking — "
     "you're showing the client their vision coming to life\n"
     "- For each epic, extract 1-3 provenance quotes from the evidence trail — "
-    "real things real people said that inspired this epic\n\n"
+    "real things real people said that inspired this epic\n"
+    "- For each epic, identify 0-2 key decisions that were CONFIRMED during discovery\n"
+    "- Only include decisions where the team AGREED on a direction — "
+    "not open questions or things still in discussion\n"
+    "- Include who confirmed it and why when possible\n\n"
     "## AI Flow Cards\n"
     "For AI flow card narratives, explain what the intelligence does "
     "in business terms:\n"

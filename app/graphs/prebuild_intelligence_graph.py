@@ -429,6 +429,9 @@ def compose_narratives(state: PrebuildState) -> PrebuildState:
                 state.epic_plan["vision_epics"][idx]["provenance_quotes"] = (
                     narrative.get("provenance_quotes", [])
                 )
+                state.epic_plan["vision_epics"][idx]["resolved_decisions"] = (
+                    narrative.get("resolved_decisions", [])
+                )
 
         # Merge AI flow card narratives back (index-based — LLM returns in order)
         ai_cards = state.epic_plan.get("ai_flow_cards", [])

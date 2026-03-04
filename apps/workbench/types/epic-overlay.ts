@@ -39,12 +39,19 @@ export interface ProvenanceQuote {
   source_label?: string | null
 }
 
+export interface ResolvedDecision {
+  decision: string
+  rationale?: string | null
+  source_reference?: string | null
+}
+
 export interface Epic {
   epic_index: number
   title: string
   theme: string
   narrative: string
   provenance_quotes?: ProvenanceQuote[]
+  resolved_decisions?: ResolvedDecision[]
   story_beats: EpicStoryBeat[]
   features: EpicFeature[]
   primary_route?: string | null

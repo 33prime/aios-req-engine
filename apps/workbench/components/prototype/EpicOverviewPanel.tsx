@@ -25,7 +25,6 @@ interface NarrativeSections {
   blockquote: string
   speaker: string
   body: string
-  decision: string
 }
 
 function splitNarrative(
@@ -37,7 +36,6 @@ function splitNarrative(
 
   let blockquote = ''
   let speaker = ''
-  let decision = ''
   const body: string[] = []
 
   for (const s of sentences) {
@@ -62,14 +60,6 @@ function splitNarrative(
       }
     }
 
-    if (
-      !decision &&
-      /resolved|confirmed|decided|agreed|confirming that/i.test(s)
-    ) {
-      decision = s
-      continue
-    }
-
     body.push(s)
   }
 
@@ -77,7 +67,6 @@ function splitNarrative(
     blockquote,
     speaker,
     body: body.slice(0, 2).join(' '),
-    decision,
   }
 }
 
@@ -377,20 +366,27 @@ export default function EpicOverviewPanel({
         </div>
       )}
 
-      {/* ── Resolved Decision ── */}
-      {sections.decision && (
-        <div className="px-4 pt-2.5">
-          <div className="flex items-start gap-2 bg-emerald-50 rounded-lg px-3 py-2 border border-emerald-100">
-            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 mt-0.5 shrink-0" />
-            <div>
-              <p className="text-[10px] font-semibold text-emerald-700 uppercase tracking-wider">
-                Resolved
-              </p>
-              <p className="text-[11px] text-emerald-800 leading-snug mt-0.5">
-                {sections.decision}
-              </p>
+      {/* ── Resolved Decisions (structured) ── */}
+      {epic.resolved_decisions && epic.resolved_decisions.length > 0 && (
+        <div className="px-4 pt-2.5 space-y-2">
+          {epic.resolved_decisions.map((d, i) => (
+            <div key={i} className="flex items-start gap-2 bg-emerald-50 rounded-lg px-3 py-2 border border-emerald-100">
+              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 mt-0.5 shrink-0" />
+              <div>
+                <p className="text-[10px] font-semibold text-emerald-700 uppercase tracking-wider">
+                  Resolved
+                </p>
+                <p className="text-[11px] text-emerald-800 leading-snug mt-0.5">
+                  {d.decision}
+                </p>
+                {d.source_reference && (
+                  <p className="text-[10px] text-emerald-600 mt-0.5">
+                    — {d.source_reference}
+                  </p>
+                )}
+              </div>
             </div>
-          </div>
+          ))}
         </div>
       )}
 
