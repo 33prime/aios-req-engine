@@ -442,14 +442,14 @@ export function BuildPhaseView({
                 {isFullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
               </button>
 
-              {/* Review toggle */}
+              {/* Review toggle — Start or Resume */}
               {!isReviewActive && (
                 <button
                   onClick={onStartReview}
                   className="flex items-center gap-1.5 px-3 py-1 text-xs font-medium text-brand-primary bg-brand-primary-light hover:bg-brand-primary-light rounded-lg transition-colors"
                 >
                   <Layers className="w-3.5 h-3.5" />
-                  Review Epics
+                  {verdictMap && verdictMap.size > 0 ? 'Resume Review' : 'Start Review'}
                 </button>
               )}
             </>
@@ -493,6 +493,13 @@ export function BuildPhaseView({
           verdictMap={verdictMap}
           onReviewComplete={onReviewComplete}
           reviewState={reviewState}
+          initialIndex={
+            verdictMap && verdictMap.size > 0
+              ? Math.max(0, mappedEpicPlan.vision_epics.findIndex(
+                  (_, i) => !verdictMap.has(`vision:${i}`)
+                ))
+              : undefined
+          }
         />
       )}
 

@@ -35,6 +35,8 @@ import {
   getReviewSummary,
   updateReviewState,
   triggerEpicUpdate,
+  listPrototypeSessions,
+  getEpicVerdicts,
 } from '@/lib/api'
 import { useBRDData, useContextFrame, useWorkspaceData, useEpicPlan, useEpicVerdicts } from '@/lib/hooks/use-api'
 import { useRealtimeBRD } from '@/lib/realtime'
@@ -245,10 +247,30 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
       .then((proto) => {
         if (proto?.deploy_url) {
           setResolvedProtoUrl(proto.deploy_url)
+          setPrototypeId(proto.id)
         }
       })
       .catch(() => {})
   }, [projectId])
+
+  // Auto-restore active review session on mount (survives navigation & refresh)
+  const sessionRestoredRef = useRef(false)
+  useEffect(() => {
+    if (sessionRestoredRef.current || !prototypeId || isReviewActive) return
+    sessionRestoredRef.current = true
+    listPrototypeSessions(prototypeId)
+      .then((sessions) => {
+        const active = sessions.find((s) => s.status === 'consultant_review')
+        if (active) {
+          setReviewSession(active)
+          setIsReviewActive(true)
+          setReviewPhase('active')
+          setReviewState('in_progress')
+          setPanelOpen(true)
+        }
+      })
+      .catch(() => {})
+  }, [prototypeId, isReviewActive])
 
   // Revalidate all data
   const loadData = useCallback(async () => {

@@ -18,6 +18,8 @@ interface EpicTourControllerProps {
   onReviewComplete?: () => void
   /** In re-review mode, only show unreviewed epics */
   reviewState?: string
+  /** Start at a specific card index (e.g., first unreviewed epic on resume) */
+  initialIndex?: number
 }
 
 // --- Flattened card for navigation ---
@@ -60,7 +62,7 @@ interface EpicTourState {
 }
 
 type EpicTourAction =
-  | { type: 'START' }
+  | { type: 'START'; index?: number }
   | { type: 'STOP' }
   | { type: 'NEXT'; total: number }
   | { type: 'PREV' }
@@ -70,7 +72,7 @@ type EpicTourAction =
 function epicTourReducer(state: EpicTourState, action: EpicTourAction): EpicTourState {
   switch (action.type) {
     case 'START':
-      return { status: 'active', currentIndex: 0, activePhase: 'vision_journey' }
+      return { status: 'active', currentIndex: action.index ?? 0, activePhase: 'vision_journey' }
     case 'STOP':
       return { status: 'idle', currentIndex: 0, activePhase: 'vision_journey' }
     case 'NEXT':
@@ -112,6 +114,7 @@ export default function EpicTourController({
   verdictMap,
   onReviewComplete,
   reviewState,
+  initialIndex,
 }: EpicTourControllerProps) {
   const [state, dispatch] = useReducer(epicTourReducer, {
     status: 'idle',
@@ -148,17 +151,24 @@ export default function EpicTourController({
     onRouteChange?.(targetRoute)
   }, [currentCard, state.status, onRouteChange])
 
-  // Auto-start
+  // Auto-start (with optional resume index)
   useEffect(() => {
     if (autoStart && state.status === 'idle' && cards.length > 0 && !autoStartRef.current) {
       autoStartRef.current = true
-      dispatch({ type: 'START' })
+      const startIdx = initialIndex != null && initialIndex < cards.length ? initialIndex : 0
+      dispatch({ type: 'START', index: startIdx })
     }
-  }, [autoStart, state.status, cards.length])
+  }, [autoStart, state.status, cards.length, initialIndex])
 
   const handleStart = useCallback(() => {
-    dispatch({ type: 'START' })
-  }, [])
+    // Resume at first unreviewed epic if verdicts exist
+    let startIdx = 0
+    if (verdictMap && verdictMap.size > 0) {
+      const firstUnreviewed = cards.findIndex((c) => !verdictMap.has(c.confirmKey))
+      if (firstUnreviewed >= 0) startIdx = firstUnreviewed
+    }
+    dispatch({ type: 'START', index: startIdx })
+  }, [verdictMap, cards])
 
   const handleStop = useCallback(() => {
     onRouteChange?.(null)
@@ -198,18 +208,24 @@ export default function EpicTourController({
     return cards
   }, [cards, reviewState, verdictMap])
 
+  // Check if there's existing progress (verdicts saved)
+  const hasProgress = verdictMap ? verdictMap.size > 0 : false
+  const reviewedCount = verdictMap?.size ?? 0
+
   // Idle state — minimal single line
   if (state.status === 'idle') {
     return (
       <div className="bg-white border-b border-border px-4 py-1.5 flex items-center justify-between">
         <span className="text-xs text-[#666666]">
-          {epicPlan.vision_epics.length} epics to review
+          {hasProgress
+            ? `${reviewedCount}/${epicPlan.vision_epics.length} epics reviewed`
+            : `${epicPlan.vision_epics.length} epics to review`}
         </span>
         <button
           onClick={handleStart}
           className="px-3 py-1 bg-brand-primary text-white text-xs font-medium rounded-lg hover:bg-[#25785A] transition-all"
         >
-          Start Review
+          {hasProgress ? 'Resume Review' : 'Start Review'}
         </button>
       </div>
     )
