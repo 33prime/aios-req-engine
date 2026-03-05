@@ -9,18 +9,17 @@ import { AppSidebar } from '@/components/workspace/AppSidebar'
 import { getMeeting, updateMeeting, deleteMeeting, getBotStatus, deployBot, listProjectStakeholders, generateStrategyBrief, getBriefForMeeting } from '@/lib/api'
 import type { Meeting, MeetingStatus, MeetingBot } from '@/types/api'
 import type { StakeholderDetail } from '@/types/workspace'
-import type { CallStrategyBrief } from '@/types/call-intelligence'
+import type { CallStrategyBrief, StakeholderIntel } from '@/types/call-intelligence'
 import { MeetingHeader } from './components/MeetingHeader'
 import { AddParticipantPopover } from './components/AddParticipantPopover'
-import { MeetingRecordingControl } from './components/MeetingRecordingControl'
 import { MeetingIntelligencePanel } from './components/MeetingIntelligencePanel'
 import { EmailAgendaModal } from './components/EmailAgendaModal'
+import { MissionThemesSection } from './components/MissionThemesSection'
 import { CallGoalsSection } from './components/CallGoalsSection'
 import { MissionCriticalQuestionsSection } from './components/MissionCriticalQuestionsSection'
 import { CriticalRequirementsSection } from './components/CriticalRequirementsSection'
 import { StakeholderIntelSection } from './components/StakeholderIntelSection'
 import { FocusAreasCompact } from './components/FocusAreasCompact'
-import { ReadinessBar } from './components/ReadinessBar'
 import { GenerateStrategyPrompt } from './components/GenerateStrategyPrompt'
 
 export default function MeetingDetailPage() {
@@ -181,6 +180,27 @@ export default function MeetingDetailPage() {
   }
 
   const sidebarWidth = sidebarCollapsed ? 64 : 224
+
+  // Map live participant data → StakeholderIntel for the briefing section
+  const liveStakeholderIntel: StakeholderIntel[] = participants.map(p => ({
+    name: p.name,
+    role: p.role ?? undefined,
+    influence: p.influence_level ?? 'unknown',
+    stakeholder_type: p.stakeholder_type ?? 'end_user',
+    key_concerns: p.key_concerns ?? p.concerns ?? [],
+    approach_notes: p.engagement_strategy ?? '',
+    priorities: p.priorities ?? undefined,
+    domain_expertise: p.domain_expertise ?? undefined,
+    engagement_level: p.engagement_level,
+    decision_authority: p.decision_authority,
+    approval_required_for: p.approval_required_for ?? undefined,
+    veto_power_over: p.veto_power_over ?? undefined,
+    win_conditions: p.win_conditions ?? undefined,
+    risk_if_disengaged: p.risk_if_disengaged,
+    preferred_channel: p.preferred_channel,
+    profile_completeness: p.profile_completeness ?? undefined,
+    topic_mentions: p.topic_mentions ?? undefined,
+  }))
 
   if (loading) {
     return (
@@ -454,24 +474,26 @@ export default function MeetingDetailPage() {
                 {/* Strategy Playbook */}
                 {brief ? (
                   <>
-                    <CallGoalsSection goals={brief.call_goals} results={brief.goal_results} />
-                    <MissionCriticalQuestionsSection questions={brief.mission_critical_questions} />
-                    <CriticalRequirementsSection requirements={brief.critical_requirements || []} />
-                    <StakeholderIntelSection intel={brief.stakeholder_intel} />
+                    {brief.mission_themes && brief.mission_themes.length > 0 ? (
+                      <MissionThemesSection themes={(brief.mission_themes || []).map(t => ({
+                        ...t,
+                        explores: t.explores || (t as any).validates || '',
+                      }))} />
+                    ) : (
+                      <>
+                        <CallGoalsSection goals={brief.call_goals} results={brief.goal_results} />
+                        <MissionCriticalQuestionsSection questions={brief.mission_critical_questions} />
+                        <CriticalRequirementsSection requirements={brief.critical_requirements || []} />
+                      </>
+                    )}
                     <FocusAreasCompact areas={brief.focus_areas} />
-                    <ReadinessBar readiness={brief.deal_readiness_snapshot} ambiguity={brief.ambiguity_snapshot} />
                   </>
                 ) : (
                   <GenerateStrategyPrompt onGenerate={handleGenerateBrief} generating={generatingBrief} />
                 )}
 
-                {/* Recording Control */}
-                <MeetingRecordingControl
-                  bot={bot}
-                  isUpcoming={isUpcoming}
-                  hasGoogleMeet={!!meeting.google_meet_link}
-                  onDeployBot={handleDeployBot}
-                />
+                {/* Stakeholder Briefing — always live from DB, not brief snapshot */}
+                <StakeholderIntelSection intel={liveStakeholderIntel} />
 
                 {/* Bottom padding */}
                 <div className="h-8" />

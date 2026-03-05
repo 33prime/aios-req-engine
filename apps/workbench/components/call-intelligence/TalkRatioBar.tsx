@@ -14,8 +14,8 @@ export function TalkRatioBar({ data }: { data: ConsultantPerformance['consultant
         <div className="bg-brand-primary flex items-center justify-center" style={{ width: `${consultantPct}%` }}>
           <span className="text-[10px] font-bold text-white">{consultantPct}%</span>
         </div>
-        <div className="bg-blue-200 flex items-center justify-center" style={{ width: `${clientPct}%` }}>
-          <span className="text-[10px] font-bold text-blue-800">{clientPct}%</span>
+        <div className="bg-[#E0EFF3] flex items-center justify-center" style={{ width: `${clientPct}%` }}>
+          <span className="text-[10px] font-bold text-[#044159]">{clientPct}%</span>
         </div>
       </div>
       <div className="flex justify-between text-xs text-text-muted">
@@ -23,7 +23,7 @@ export function TalkRatioBar({ data }: { data: ConsultantPerformance['consultant
         <span>Client</span>
       </div>
       <div className="relative h-1 bg-gray-100 rounded-full">
-        <div className="absolute h-full bg-green-300 rounded-full" style={{ left: '30%', width: '10%' }} />
+        <div className="absolute h-full bg-[#3FAF7A]/30 rounded-full" style={{ left: '30%', width: '10%' }} />
         <div className="absolute w-0.5 h-3 bg-brand-primary rounded-full -top-1" style={{ left: `${consultantPct}%` }} />
       </div>
       <p className="text-xs text-text-muted">Ideal: {data.ideal_range || '30-40%'} consultant share</p>

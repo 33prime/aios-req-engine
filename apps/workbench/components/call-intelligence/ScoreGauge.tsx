@@ -2,9 +2,10 @@
 
 export function ScoreGauge({ score, label, size = 'normal' }: { score: number; label: string; size?: 'normal' | 'small' }) {
   const pct = Math.round(score * 100)
-  const color = pct < 40 ? 'text-red-500' : pct < 70 ? 'text-amber-500' : 'text-green-500'
-  const trackColor = pct < 40 ? 'stroke-red-100' : pct < 70 ? 'stroke-amber-100' : 'stroke-green-100'
-  const fillColor = pct < 40 ? 'stroke-red-500' : pct < 70 ? 'stroke-amber-500' : 'stroke-green-500'
+  // BRD palette: low = navy, mid = teal, high = green
+  const color = pct < 40 ? 'text-[#044159]' : pct < 70 ? 'text-[#044159]' : 'text-[#25785A]'
+  const trackColor = 'stroke-[#F0F0F0]'
+  const fillColor = pct < 40 ? 'stroke-[#044159]' : pct < 70 ? 'stroke-[#88BABF]' : 'stroke-[#3FAF7A]'
 
   const sz = size === 'small' ? 56 : 96
   const r = size === 'small' ? 22 : 40

@@ -4,16 +4,16 @@ import { AlertTriangle } from 'lucide-react'
 import type { CriticalRequirement } from '@/types/call-intelligence'
 
 const TYPE_BADGES: Record<string, { bg: string; text: string }> = {
-  feature: { bg: 'bg-purple-50', text: 'text-purple-700' },
-  vp_step: { bg: 'bg-blue-50', text: 'text-blue-700' },
-  persona: { bg: 'bg-emerald-50', text: 'text-emerald-700' },
+  feature: { bg: 'bg-[#E0EFF3]', text: 'text-[#044159]' },
+  vp_step: { bg: 'bg-[#F0F0F0]', text: 'text-[#666]' },
+  persona: { bg: 'bg-[#E8F5E9]', text: 'text-[#25785A]' },
 }
 
 const STATUS_LABELS: Record<string, { bg: string; text: string; label: string }> = {
-  ai_generated: { bg: 'bg-amber-50', text: 'text-amber-700', label: 'Unconfirmed' },
-  needs_confirmation: { bg: 'bg-amber-50', text: 'text-amber-700', label: 'Needs Confirmation' },
-  confirmed_consultant: { bg: 'bg-blue-50', text: 'text-blue-700', label: 'Consultant Confirmed' },
-  confirmed_client: { bg: 'bg-green-50', text: 'text-green-700', label: 'Client Confirmed' },
+  ai_generated: { bg: 'bg-[#F0F0F0]', text: 'text-[#666]', label: 'Unconfirmed' },
+  needs_confirmation: { bg: 'bg-[#E0EFF3]', text: 'text-[#044159]', label: 'Needs Confirmation' },
+  confirmed_consultant: { bg: 'bg-[#044159]', text: 'text-white', label: 'Consultant Confirmed' },
+  confirmed_client: { bg: 'bg-[#E8F5E9]', text: 'text-[#25785A]', label: 'Client Confirmed' },
 }
 
 export function CriticalRequirementsSection({

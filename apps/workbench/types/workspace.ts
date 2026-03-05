@@ -574,6 +574,7 @@ export interface StakeholderDetail extends StakeholderBRDSummary {
   enrichment_status?: string | null
   extracted_from_signal_id?: string | null
   mentioned_in_signals?: string[] | null
+  profile_completeness?: number | null
 
   // Resolved references (from ?detail=true)
   reports_to?: ResolvedStakeholderRef | null

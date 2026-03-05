@@ -106,7 +106,7 @@ export function StrategyView({
             <span className="text-sm font-semibold text-text-body">
               Readiness moved from {readiness_delta.before_score} &rarr; {readiness_delta.after_score}
               {' '}
-              <span className={readiness_delta.after_score > readiness_delta.before_score ? 'text-green-600' : 'text-red-600'}>
+              <span className={readiness_delta.after_score > readiness_delta.before_score ? 'text-[#25785A]' : 'text-[#044159]'}>
                 ({readiness_delta.after_score > readiness_delta.before_score ? '+' : ''}{Math.round(readiness_delta.after_score - readiness_delta.before_score)})
               </span>
             </span>
@@ -177,9 +177,9 @@ export function StrategyView({
               {focus_areas.map((fa: FocusArea, i: number) => (
                 <div key={i} className="flex items-start gap-3 p-3 bg-white rounded-lg border border-border">
                   <span className={`shrink-0 px-2 py-0.5 text-xs font-semibold rounded-full ${
-                    fa.priority === 'high' ? 'bg-red-100 text-red-700' :
-                    fa.priority === 'medium' ? 'bg-amber-100 text-amber-700' :
-                    'bg-gray-100 text-gray-600'
+                    fa.priority === 'high' ? 'bg-[#044159] text-white' :
+                    fa.priority === 'medium' ? 'bg-[#E0EFF3] text-[#044159]' :
+                    'bg-[#F0F0F0] text-[#666]'
                   }`}>
                     {fa.priority}
                   </span>
@@ -229,9 +229,9 @@ export function StrategyView({
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-medium text-text-body">{s.name}</span>
                     <span className={`px-1.5 py-0.5 text-[10px] font-semibold rounded-full ${
-                      s.influence === 'high' ? 'bg-red-100 text-red-700' :
-                      s.influence === 'medium' ? 'bg-amber-100 text-amber-700' :
-                      'bg-gray-100 text-gray-600'
+                      s.influence === 'high' ? 'bg-[#044159] text-white' :
+                      s.influence === 'medium' ? 'bg-[#E0EFF3] text-[#044159]' :
+                      'bg-[#F0F0F0] text-[#666]'
                     }`}>
                       {s.influence}
                     </span>
@@ -240,7 +240,7 @@ export function StrategyView({
                   {s.key_concerns.length > 0 && (
                     <div className="flex flex-wrap gap-1">
                       {s.key_concerns.map((c, j) => (
-                        <span key={j} className="px-1.5 py-0.5 text-[10px] bg-amber-50 text-amber-700 rounded">
+                        <span key={j} className="px-1.5 py-0.5 text-[10px] bg-[#E0EFF3] text-[#044159] rounded">
                           {c.length > 40 ? c.slice(0, 40) + '...' : c}
                         </span>
                       ))}

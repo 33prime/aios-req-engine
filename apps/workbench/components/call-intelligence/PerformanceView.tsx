@@ -71,8 +71,8 @@ export function PerformanceView({
         <CollapsibleSection title="Question Quality" count={1} defaultOpen={false}>
           <div className="space-y-3">
             {perf.question_quality.best_question && (
-              <div className="p-3 bg-green-50 rounded-lg border border-green-200">
-                <span className="text-xs font-semibold text-green-700">Best Question</span>
+              <div className="p-3 bg-[#E8F5E9] rounded-lg border border-[#C8E6C9]">
+                <span className="text-xs font-semibold text-[#25785A]">Best Question</span>
                 <p className="text-sm text-text-body mt-1">&ldquo;{perf.question_quality.best_question}&rdquo;</p>
               </div>
             )}
@@ -91,7 +91,7 @@ export function PerformanceView({
                 <ul className="mt-1 space-y-1">
                   {perf.question_quality.missed_opportunities.map((m, i) => (
                     <li key={i} className="text-xs text-text-muted flex items-start gap-1.5">
-                      <AlertTriangle className="w-3 h-3 text-amber-500 shrink-0 mt-0.5" />
+                      <AlertTriangle className="w-3 h-3 text-[#88BABF] shrink-0 mt-0.5" />
                       {m}
                     </li>
                   ))}
@@ -139,24 +139,24 @@ export function PerformanceView({
               <span className="text-xs text-text-muted">Surface vs Deep</span>
               <div className="flex-1 h-5 rounded-full overflow-hidden flex">
                 {(perf.discovery_depth.surface_questions || 0) > 0 && (
-                  <div className="bg-amber-300 flex items-center justify-center" style={{
+                  <div className="bg-[#E0EFF3] flex items-center justify-center" style={{
                     width: `${((perf.discovery_depth.surface_questions || 0) / ((perf.discovery_depth.surface_questions || 0) + (perf.discovery_depth.deep_questions || 0))) * 100}%`
                   }}>
-                    <span className="text-[10px] font-bold text-amber-900">{perf.discovery_depth.surface_questions}</span>
+                    <span className="text-[10px] font-bold text-[#044159]">{perf.discovery_depth.surface_questions}</span>
                   </div>
                 )}
                 {(perf.discovery_depth.deep_questions || 0) > 0 && (
-                  <div className="bg-green-400 flex items-center justify-center" style={{
+                  <div className="bg-[#3FAF7A] flex items-center justify-center" style={{
                     width: `${((perf.discovery_depth.deep_questions || 0) / ((perf.discovery_depth.surface_questions || 0) + (perf.discovery_depth.deep_questions || 0))) * 100}%`
                   }}>
-                    <span className="text-[10px] font-bold text-green-900">{perf.discovery_depth.deep_questions}</span>
+                    <span className="text-[10px] font-bold text-white">{perf.discovery_depth.deep_questions}</span>
                   </div>
                 )}
               </div>
             </div>
             <div className="flex gap-3 text-xs text-text-muted">
-              <span className="flex items-center gap-1"><span className="w-2 h-2 bg-amber-300 rounded-full" /> Surface</span>
-              <span className="flex items-center gap-1"><span className="w-2 h-2 bg-green-400 rounded-full" /> Deep</span>
+              <span className="flex items-center gap-1"><span className="w-2 h-2 bg-[#E0EFF3] rounded-full border border-[#88BABF]" /> Surface</span>
+              <span className="flex items-center gap-1"><span className="w-2 h-2 bg-[#3FAF7A] rounded-full" /> Deep</span>
             </div>
             {perf.discovery_depth.reframe_moments?.length > 0 && (
               <div>
@@ -185,7 +185,7 @@ export function PerformanceView({
                 <p className="text-xs text-text-muted">Surfaced</p>
               </div>
               <div className="text-center">
-                <span className="text-2xl font-bold text-green-600">{perf.objection_handling.objections_addressed || 0}</span>
+                <span className="text-2xl font-bold text-[#25785A]">{perf.objection_handling.objections_addressed || 0}</span>
                 <p className="text-xs text-text-muted">Addressed</p>
               </div>
             </div>
@@ -206,11 +206,11 @@ export function PerformanceView({
           <div className="space-y-3">
             {perf.next_steps_clarity.commitments_made?.length > 0 && (
               <div>
-                <span className="text-xs font-semibold text-green-700">Commitments</span>
+                <span className="text-xs font-semibold text-[#25785A]">Commitments</span>
                 <ul className="mt-1 space-y-1">
                   {perf.next_steps_clarity.commitments_made.map((c, i) => (
                     <li key={i} className="text-xs text-text-body flex items-start gap-1.5">
-                      <Check className="w-3 h-3 text-green-600 shrink-0 mt-0.5" />
+                      <Check className="w-3 h-3 text-[#3FAF7A] shrink-0 mt-0.5" />
                       {c}
                     </li>
                   ))}
@@ -219,11 +219,11 @@ export function PerformanceView({
             )}
             {perf.next_steps_clarity.follow_ups_assigned?.length > 0 && (
               <div>
-                <span className="text-xs font-semibold text-blue-700">Follow-ups</span>
+                <span className="text-xs font-semibold text-[#044159]">Follow-ups</span>
                 <ul className="mt-1 space-y-1">
                   {perf.next_steps_clarity.follow_ups_assigned.map((f, i) => (
                     <li key={i} className="text-xs text-text-body flex items-start gap-1.5">
-                      <ArrowRight className="w-3 h-3 text-blue-600 shrink-0 mt-0.5" />
+                      <ArrowRight className="w-3 h-3 text-[#044159] shrink-0 mt-0.5" />
                       {f}
                     </li>
                   ))}
@@ -232,11 +232,11 @@ export function PerformanceView({
             )}
             {perf.next_steps_clarity.ambiguous_items?.length > 0 && (
               <div>
-                <span className="text-xs font-semibold text-amber-700">Ambiguous Items</span>
+                <span className="text-xs font-semibold text-[#666]">Ambiguous Items</span>
                 <ul className="mt-1 space-y-1">
                   {perf.next_steps_clarity.ambiguous_items.map((a, i) => (
                     <li key={i} className="text-xs text-text-muted flex items-start gap-1.5">
-                      <AlertTriangle className="w-3 h-3 text-amber-500 shrink-0 mt-0.5" />
+                      <AlertTriangle className="w-3 h-3 text-[#88BABF] shrink-0 mt-0.5" />
                       {a}
                     </li>
                   ))}

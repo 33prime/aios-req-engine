@@ -229,9 +229,9 @@ export function MeetingIntelligencePanel({
         {/* Signals tab */}
         {activeTab === 'signals' && recording?.signal_id && (
           <div className="p-6">
-            <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
-              <p className="text-sm text-blue-800">
-                This meeting generated signal <code className="text-xs bg-white px-1.5 py-0.5 rounded border border-blue-200">{recording.signal_id}</code> — entities extracted through the signal pipeline are visible in the workspace.
+            <div className="p-4 bg-[#F0F7FA] rounded-lg border border-[#D4E8EF]">
+              <p className="text-sm text-[#044159]">
+                This meeting generated signal <code className="text-xs bg-white px-1.5 py-0.5 rounded border border-[#D4E8EF]">{recording.signal_id}</code> — entities extracted through the signal pipeline are visible in the workspace.
               </p>
             </div>
           </div>

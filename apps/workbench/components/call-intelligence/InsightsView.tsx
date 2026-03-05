@@ -15,7 +15,6 @@ import { formatDuration } from './constants'
 import { StatusBadge } from './StatusBadge'
 import { ScoreGauge } from './ScoreGauge'
 import { EngagementHeatmap } from './EngagementHeatmap'
-import { SyncedTranscript } from './SyncedTranscript'
 import {
   AhaMomentHero,
   FeatureReactionsSection,
@@ -35,7 +34,6 @@ export function InsightsView({
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [reanalyzing, setReanalyzing] = useState(false)
-  const [activeTimestamp, setActiveTimestamp] = useState<number | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -72,14 +70,14 @@ export function InsightsView({
   if (error || !details) {
     return (
       <div className="flex flex-col items-center justify-center h-64 text-text-muted gap-2">
-        <AlertTriangle className="w-8 h-8 text-red-400" />
+        <AlertTriangle className="w-8 h-8 text-[#044159]" />
         <p className="text-sm">{error || 'Recording not found'}</p>
         {onBack && <button onClick={onBack} className="text-xs text-brand-primary hover:underline">Back to recordings</button>}
       </div>
     )
   }
 
-  const { recording, analysis, transcript, feature_insights, call_signals, content_nuggets, competitive_mentions } = details
+  const { recording, analysis, feature_insights, call_signals, content_nuggets, competitive_mentions } = details
 
   return (
     <div className="overflow-y-auto h-full p-6 space-y-6">
@@ -131,7 +129,7 @@ export function InsightsView({
         <EngagementHeatmap
           timeline={analysis.engagement_timeline}
           durationSeconds={recording.duration_seconds}
-          onSeek={setActiveTimestamp}
+          onSeek={() => {}}
         />
       )}
 
@@ -140,9 +138,9 @@ export function InsightsView({
 
       {/* Signal Pipeline Recap */}
       {recording.signal_id && (
-        <div className="p-3 bg-blue-50 rounded-lg border border-blue-200 flex items-center gap-3">
-          <BarChart3 className="w-4 h-4 text-blue-600 shrink-0" />
-          <span className="text-xs text-blue-800">
+        <div className="p-3 bg-[#F0F7FA] rounded-lg border border-[#D4E8EF] flex items-center gap-3">
+          <BarChart3 className="w-4 h-4 text-[#044159] shrink-0" />
+          <span className="text-xs text-[#044159]">
             This call generated a signal ({feature_insights.length} feature reactions, {call_signals.length} market signals)
           </span>
         </div>
@@ -154,15 +152,7 @@ export function InsightsView({
       <ContentNuggetsSection nuggets={content_nuggets} />
       <CompetitiveMentionsSection mentions={competitive_mentions} />
 
-      {/* Synced Transcript */}
-      {transcript && (
-        <SyncedTranscript
-          segments={transcript.segments}
-          timeline={analysis?.engagement_timeline}
-          activeTimestamp={activeTimestamp}
-          onSegmentClick={setActiveTimestamp}
-        />
-      )}
+      {/* Transcript removed — available in Recording tab */}
 
       {/* Empty analysis state */}
       {!analysis && feature_insights.length === 0 && call_signals.length === 0 && (

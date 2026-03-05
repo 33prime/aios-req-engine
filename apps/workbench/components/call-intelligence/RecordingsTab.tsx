@@ -29,7 +29,7 @@ export function RecordingsTab({
   if (error) {
     return (
       <div className="flex flex-col items-center justify-center h-64 text-text-muted gap-2">
-        <AlertTriangle className="w-8 h-8 text-red-400" />
+        <AlertTriangle className="w-8 h-8 text-[#044159]" />
         <p className="text-sm">Failed to load recordings</p>
       </div>
     )

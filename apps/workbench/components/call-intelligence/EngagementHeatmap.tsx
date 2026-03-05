@@ -17,13 +17,14 @@ export function EngagementHeatmap({
   return (
     <div className="space-y-1">
       <span className="text-xs font-medium text-text-muted">Engagement Timeline</span>
-      <div className="h-6 bg-gray-100 rounded-full overflow-hidden flex cursor-pointer" title="Click to navigate">
+      <div className="h-6 bg-[#F0F0F0] rounded-full overflow-hidden flex cursor-pointer" title="Click to navigate">
         {timeline.map((entry, i) => {
           const ts = Number(entry.timestamp_seconds || 0)
           const nextTs = i < timeline.length - 1 ? Number(timeline[i + 1]?.timestamp_seconds || duration) : duration
           const widthPct = ((nextTs - ts) / duration) * 100
           const engagement = Number(entry.engagement_level || 0.5)
-          const bg = engagement < 0.4 ? 'bg-red-400' : engagement < 0.7 ? 'bg-amber-400' : 'bg-green-400'
+          // BRD: low = navy, mid = teal, high = green
+          const bg = engagement < 0.4 ? 'bg-[#044159]' : engagement < 0.7 ? 'bg-[#88BABF]' : 'bg-[#3FAF7A]'
 
           return (
             <div

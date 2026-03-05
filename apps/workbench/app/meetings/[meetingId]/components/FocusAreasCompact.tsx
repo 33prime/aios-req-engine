@@ -19,9 +19,9 @@ export function FocusAreasCompact({
         {areas.map((fa, i) => (
           <div key={i} className="flex items-start gap-2.5 px-3 py-2 bg-white rounded-lg border border-border">
             <span className={`shrink-0 px-2 py-0.5 text-[10px] font-semibold rounded-full mt-0.5 ${
-              fa.priority === 'high' ? 'bg-red-100 text-red-700' :
-              fa.priority === 'medium' ? 'bg-amber-100 text-amber-700' :
-              'bg-gray-100 text-gray-600'
+              fa.priority === 'high' ? 'bg-[#044159] text-white' :
+              fa.priority === 'medium' ? 'bg-[#E0EFF3] text-[#044159]' :
+              'bg-[#F0F0F0] text-[#666]'
             }`}>
               {fa.priority}
             </span>

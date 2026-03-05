@@ -20,14 +20,14 @@ import type {
 } from '@/types/call-intelligence'
 
 export const STATUS_STYLES: Record<CallRecordingStatus, string> = {
-  complete: 'bg-brand-primary-light text-brand-primary',
-  analyzing: 'bg-amber-100 text-amber-700 animate-pulse',
-  transcribing: 'bg-amber-100 text-amber-700 animate-pulse',
-  bot_scheduled: 'bg-blue-100 text-blue-700',
-  recording: 'bg-blue-100 text-blue-700 animate-pulse',
-  pending: 'bg-blue-100 text-blue-700',
-  failed: 'bg-red-100 text-red-700',
-  skipped: 'bg-gray-100 text-gray-500',
+  complete: 'bg-[#E8F5E9] text-[#25785A]',
+  analyzing: 'bg-[#E0EFF3] text-[#044159] animate-pulse',
+  transcribing: 'bg-[#E0EFF3] text-[#044159] animate-pulse',
+  bot_scheduled: 'bg-[#E0EFF3] text-[#044159]',
+  recording: 'bg-[#E0EFF3] text-[#044159] animate-pulse',
+  pending: 'bg-[#F0F0F0] text-[#666]',
+  failed: 'bg-[#044159] text-white',
+  skipped: 'bg-[#F0F0F0] text-[#999]',
 }
 
 export const STATUS_LABELS: Record<CallRecordingStatus, string> = {
@@ -42,20 +42,20 @@ export const STATUS_LABELS: Record<CallRecordingStatus, string> = {
 }
 
 export const REACTION_CONFIG: Record<ReactionType, { icon: typeof Star; color: string; label: string }> = {
-  excited: { icon: Star, color: 'text-green-600 bg-green-50', label: 'Excited' },
-  interested: { icon: ThumbsUp, color: 'text-blue-600 bg-blue-50', label: 'Interested' },
-  neutral: { icon: MinusCircle, color: 'text-gray-500 bg-gray-50', label: 'Neutral' },
-  confused: { icon: HelpCircle, color: 'text-amber-600 bg-amber-50', label: 'Confused' },
-  resistant: { icon: XCircle, color: 'text-red-600 bg-red-50', label: 'Resistant' },
+  excited: { icon: Star, color: 'text-[#25785A] bg-[#E8F5E9]', label: 'Excited' },
+  interested: { icon: ThumbsUp, color: 'text-[#044159] bg-[#E0EFF3]', label: 'Interested' },
+  neutral: { icon: MinusCircle, color: 'text-[#666] bg-[#F0F0F0]', label: 'Neutral' },
+  confused: { icon: HelpCircle, color: 'text-[#044159] bg-[#E0EFF3]', label: 'Confused' },
+  resistant: { icon: XCircle, color: 'text-white bg-[#044159]', label: 'Resistant' },
 }
 
 export const SIGNAL_TYPE_STYLES: Record<CallSignalType, string> = {
-  pain_point: 'bg-red-100 text-red-700',
-  goal: 'bg-green-100 text-green-700',
-  budget_indicator: 'bg-amber-100 text-amber-700',
-  timeline: 'bg-blue-100 text-blue-700',
-  decision_criteria: 'bg-purple-100 text-purple-700',
-  risk_factor: 'bg-orange-100 text-orange-700',
+  pain_point: 'bg-[#044159] text-white',
+  goal: 'bg-[#E8F5E9] text-[#25785A]',
+  budget_indicator: 'bg-[#E0EFF3] text-[#044159]',
+  timeline: 'bg-[#E0EFF3] text-[#044159]',
+  decision_criteria: 'bg-[#E8F5E9] text-[#25785A]',
+  risk_factor: 'bg-[#044159] text-white',
 }
 
 export const SIGNAL_TYPE_ICONS: Record<CallSignalType, typeof AlertTriangle> = {
@@ -77,12 +77,12 @@ export const SIGNAL_TYPE_LABELS: Record<CallSignalType, string> = {
 }
 
 export const NUGGET_TYPE_STYLES: Record<NuggetType, string> = {
-  testimonial: 'bg-green-100 text-green-700',
-  soundbite: 'bg-blue-100 text-blue-700',
-  statistic: 'bg-purple-100 text-purple-700',
-  use_case: 'bg-amber-100 text-amber-700',
-  objection: 'bg-red-100 text-red-700',
-  vision_statement: 'bg-indigo-100 text-indigo-700',
+  testimonial: 'bg-[#E8F5E9] text-[#25785A]',
+  soundbite: 'bg-[#E0EFF3] text-[#044159]',
+  statistic: 'bg-[#E0EFF3] text-[#044159]',
+  use_case: 'bg-[#E8F5E9] text-[#25785A]',
+  objection: 'bg-[#044159] text-white',
+  vision_statement: 'bg-[#E8F5E9] text-[#25785A]',
 }
 
 export const NUGGET_TYPE_LABELS: Record<NuggetType, string> = {
@@ -95,9 +95,9 @@ export const NUGGET_TYPE_LABELS: Record<NuggetType, string> = {
 }
 
 export const SENTIMENT_STYLES: Record<SentimentType, string> = {
-  positive: 'bg-green-100 text-green-700',
-  neutral: 'bg-gray-100 text-gray-600',
-  negative: 'bg-red-100 text-red-700',
+  positive: 'bg-[#E8F5E9] text-[#25785A]',
+  neutral: 'bg-[#F0F0F0] text-[#666]',
+  negative: 'bg-[#044159] text-white',
 }
 
 export function formatDuration(seconds: number | null | undefined): string {

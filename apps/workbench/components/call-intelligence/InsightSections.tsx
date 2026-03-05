@@ -20,11 +20,11 @@ export function AhaMomentHero({ insights }: { insights: FeatureInsight[] }) {
   return (
     <div className="space-y-3">
       {ahas.map((fi, i) => (
-        <div key={fi.id || i} className="p-4 bg-gradient-to-r from-amber-50 to-yellow-50 border border-amber-200 rounded-xl">
+        <div key={fi.id || i} className="p-4 bg-[#F0F7FA] border border-[#D4E8EF] rounded-xl">
           <div className="flex items-center gap-2 mb-2">
-            <Sparkles className="w-4 h-4 text-amber-500" />
-            <span className="text-xs font-semibold text-amber-700 uppercase tracking-wide">Aha Moment</span>
-            <span className="px-2 py-0.5 text-xs font-medium bg-white rounded-full text-text-body border border-amber-200">
+            <Sparkles className="w-4 h-4 text-[#3FAF7A]" />
+            <span className="text-xs font-semibold text-[#044159] uppercase tracking-wide">Aha Moment</span>
+            <span className="px-2 py-0.5 text-xs font-medium bg-white rounded-full text-text-body border border-[#D4E8EF]">
               {fi.feature_name}
             </span>
           </div>

@@ -115,7 +115,24 @@ export interface TranscriptSegment {
   end: number
 }
 
-// Strategy Brief types
+// Discovery Themes (v3 — workflow-first, replaces call_goals + questions + focus_areas)
+export interface MissionTheme {
+  theme: string
+  context: string
+  question: string
+  explores: string
+  evidence: string[]
+  confidence: number
+  priority: 'critical' | 'high' | 'medium'
+}
+
+export interface MeetingFrame {
+  phase: string
+  question_goal: string
+  categories: string[]
+}
+
+// Strategy Brief types — enriched stakeholder intelligence
 export interface StakeholderIntel {
   name: string
   role?: string
@@ -123,6 +140,19 @@ export interface StakeholderIntel {
   stakeholder_type: string
   key_concerns: string[]
   approach_notes: string
+  // Enrichment fields (optional — populated when SI agent has run)
+  priorities?: string[]
+  domain_expertise?: string[]
+  engagement_level?: string | null
+  decision_authority?: string | null
+  approval_required_for?: string[]
+  veto_power_over?: string[]
+  win_conditions?: string[]
+  risk_if_disengaged?: string | null
+  preferred_channel?: string | null
+  profile_completeness?: number
+  topic_mentions?: Record<string, number>
+  owns_entities?: string[]
 }
 
 export interface MissionCriticalQuestion {
@@ -197,6 +227,9 @@ export interface CallStrategyBrief {
   focus_areas: FocusArea[]
   project_awareness_snapshot: ProjectAwarenessSnapshot
   critical_requirements?: CriticalRequirement[]
+  mission_themes?: MissionTheme[]
+  meeting_frame?: MeetingFrame | null
+  retrieval_metadata?: Record<string, unknown> | null
   goal_results?: GoalResult[] | null
   readiness_delta?: ReadinessDelta | null
   generated_by?: string

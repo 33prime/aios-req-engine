@@ -31,16 +31,16 @@ export function SyncedTranscript({
   if (segments.length === 0) return null
 
   return (
-    <div className="border border-border rounded-lg overflow-hidden">
+    <div className="border border-border rounded-lg overflow-hidden flex flex-col h-full">
       <div className="px-4 py-3 bg-surface-muted border-b border-border">
         <span className="text-sm font-semibold text-text-body">
           Transcript <span className="text-text-muted font-normal">({segments.length} segments)</span>
         </span>
       </div>
-      <div ref={scrollRef} className="max-h-80 overflow-y-auto p-4 space-y-2">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-2">
         {segments.map((seg, i) => {
           const engagement = getSegmentEngagement(seg)
-          const engColor = engagement < 0.4 ? 'border-l-red-400' : engagement < 0.7 ? 'border-l-amber-400' : 'border-l-green-400'
+          const engColor = engagement < 0.4 ? 'border-l-[#044159]' : engagement < 0.7 ? 'border-l-[#88BABF]' : 'border-l-[#3FAF7A]'
           const isActive = activeTimestamp != null && seg.start <= activeTimestamp && seg.end >= activeTimestamp
 
           return (
