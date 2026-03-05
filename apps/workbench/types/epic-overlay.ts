@@ -146,6 +146,7 @@ export interface ReviewSummaryItem {
   card_index: number
   verdict: EpicVerdict
   notes?: string | null
+  title?: string
 }
 
 export interface ReviewSummary {
@@ -158,4 +159,5 @@ export interface ReviewSummary {
     flag_for_client: number
   }
   items: ReviewSummaryItem[]
+  changes_brief?: string | null
 }

@@ -749,6 +749,45 @@ async def get_epic_verdicts(session_id: UUID):
 # =============================================================================
 
 
+def _generate_changes_brief(refine_items: list[dict]) -> str | None:
+    """Summarize refinement feedback into a 2-4 sentence changes brief via Haiku."""
+    try:
+        from anthropic import Anthropic
+
+        from app.core.config import get_settings
+
+        settings = get_settings()
+        if not settings.ANTHROPIC_API_KEY:
+            return None
+
+        bullets = "\n".join(
+            f"- {item.get('title', 'Epic')}: {item.get('notes', 'no notes')}"
+            for item in refine_items
+        )
+
+        client = Anthropic(api_key=settings.ANTHROPIC_API_KEY)
+        response = client.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=200,
+            messages=[
+                {
+                    "role": "user",
+                    "content": (
+                        "Summarize the following refinement feedback into 2-4 concise "
+                        "sentences describing what will change in the prototype. "
+                        "Write from the perspective of what the update will do. "
+                        "Be specific but brief.\n\n"
+                        f"{bullets}"
+                    ),
+                }
+            ],
+        )
+        return response.content[0].text.strip()
+    except Exception:
+        logger.warning("Failed to generate changes brief", exc_info=True)
+        return None
+
+
 @router.get("/{session_id}/review-summary")
 async def get_review_summary(session_id: UUID):
     """Compute verdict tallies and touched gate for the review."""
@@ -783,12 +822,28 @@ async def get_review_summary(session_id: UUID):
 
     all_touched = len(touched_indices) >= total_epics
 
+    # Enrich items with epic titles
+    vision_epics = epic_plan.get("vision_epics", [])
+    for item in items:
+        idx = item["card_index"]
+        if idx < len(vision_epics):
+            item["title"] = vision_epics[idx].get("title", f"Epic {idx + 1}")
+        else:
+            item["title"] = f"Epic {idx + 1}"
+
+    # Generate changes brief if there are refines
+    changes_brief = None
+    if tallies.get("refine", 0) > 0:
+        refine_items = [i for i in items if i["verdict"] == "refine"]
+        changes_brief = _generate_changes_brief(refine_items)
+
     return {
         "total_epics": total_epics,
         "touched": len(touched_indices),
         "all_touched": all_touched,
         "tallies": tallies,
         "items": items,
+        "changes_brief": changes_brief,
     }
 
 

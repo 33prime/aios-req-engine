@@ -68,13 +68,21 @@ export default function ReviewSummaryOverlay({
               {item.verdict === 'confirmed' && <Check className="w-3 h-3 text-[#25785A] shrink-0" />}
               {item.verdict === 'refine' && <PenLine className="w-3 h-3 text-amber-600 shrink-0" />}
               {item.verdict === 'flag_for_client' && <Flag className="w-3 h-3 text-[#666666] shrink-0" />}
-              <span className="text-xs text-[#37352f] flex-1">Epic {item.card_index + 1}</span>
+              <span className="text-xs text-[#37352f] flex-1 truncate">{item.title || `Epic ${item.card_index + 1}`}</span>
               {item.notes && (
                 <span className="text-[10px] text-[#999] truncate max-w-[160px]">{item.notes}</span>
               )}
             </div>
           ))}
         </div>
+
+        {/* Changes brief */}
+        {summary.changes_brief && (
+          <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2.5 mb-4">
+            <p className="text-xs text-amber-900 leading-relaxed">{summary.changes_brief}</p>
+            <p className="text-[9px] text-amber-500 mt-1.5">AI-generated summary</p>
+          </div>
+        )}
 
         {/* Explanation */}
         {hasRefines && (
