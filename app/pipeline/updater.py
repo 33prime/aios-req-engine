@@ -167,12 +167,12 @@ async def run_update_agent(
 
     Analyzes the current plan + changes and determines which screens need rebuilding.
     """
-    from anthropic import Anthropic
+    from anthropic import AsyncAnthropic
 
     from app.core.config import Settings
 
     settings = Settings()
-    client = Anthropic(api_key=settings.ANTHROPIC_API_KEY)
+    client = AsyncAnthropic(api_key=settings.ANTHROPIC_API_KEY)
 
     # Build context for the agent
     parts = []
@@ -228,15 +228,15 @@ async def run_update_agent(
     user_prompt = "\n".join(parts)
 
     t0 = time.monotonic()
-    response = client.messages.create(
+    response = await client.messages.create(
         model=_UPDATE_MODEL,
-        max_tokens=16000,
+        max_tokens=8000,
         system=UPDATE_SYSTEM_PROMPT,
         messages=[{"role": "user", "content": user_prompt}],
         temperature=1,
         thinking={"type": "enabled", "budget_tokens": 5000},
         tools=[UPDATE_PLAN_TOOL],
-        tool_choice={"type": "tool", "name": "submit_update_plan"},
+        tool_choice={"type": "auto"},
     )
     elapsed = time.monotonic() - t0
 
@@ -414,12 +414,12 @@ async def run_update_pipeline(
     updated_plan = apply_update_plan(project_plan, update_plan)
 
     # ── 3. Haiku builders (parallel, affected screens only) ──
-    from anthropic import Anthropic
+    from anthropic import AsyncAnthropic
 
     from app.core.config import Settings
 
     settings = Settings()
-    client = Anthropic(api_key=settings.ANTHROPIC_API_KEY)
+    client = AsyncAnthropic(api_key=settings.ANTHROPIC_API_KEY)
 
     plan_context = _format_plan_context(updated_plan, payload)
 

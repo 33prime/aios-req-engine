@@ -61,6 +61,24 @@ def get_latest_build(prototype_id: UUID) -> dict[str, Any] | None:
     return response.data[0]
 
 
+def get_latest_successful_build(prototype_id: UUID) -> dict[str, Any] | None:
+    """Get the most recent completed build with source (archive or build_dir)."""
+    supabase = get_supabase()
+    response = (
+        supabase.table("prototype_builds")
+        .select("*")
+        .eq("prototype_id", str(prototype_id))
+        .eq("status", "completed")
+        .order("created_at", desc=True)
+        .limit(10)
+        .execute()
+    )
+    for build in response.data or []:
+        if build.get("storage_archive_path") or build.get("build_dir"):
+            return build
+    return None
+
+
 def update_build(build_id: UUID, **fields: Any) -> dict[str, Any]:
     """Update build fields."""
     supabase = get_supabase()

@@ -7,7 +7,7 @@ client review tokens, feedback synthesis, and code updates.
 from pathlib import Path
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, BackgroundTasks, HTTPException
 
 from app.core.logging import get_logger
 from app.core.schemas_prototypes import (
@@ -871,7 +871,7 @@ async def update_review_state(session_id: UUID, body: dict):
 
 
 @router.post("/{session_id}/trigger-update")
-async def trigger_update(session_id: UUID):
+async def trigger_update(session_id: UUID, background_tasks: BackgroundTasks):
     """Orchestrate the update pipeline from review feedback.
 
     1. Collects refine notes from epic confirmations
@@ -930,9 +930,9 @@ async def trigger_update(session_id: UUID):
     entity_diff = EntityDiff()
 
     # 4. Call the refine endpoint logic directly (avoid HTTP roundtrip)
-    from app.db.prototype_builds import create_build, get_latest_build
+    from app.db.prototype_builds import create_build, get_latest_successful_build
 
-    latest_build = get_latest_build(prototype["id"])
+    latest_build = get_latest_successful_build(prototype["id"])
     build_dir = latest_build.get("build_dir") if latest_build else None
 
     if not build_dir or not Path(build_dir).exists():
@@ -963,9 +963,6 @@ async def trigger_update(session_id: UUID):
     build_id = build["id"]
 
     # Run refine pipeline in background
-
-    import asyncio
-
     async def _run_and_transition():
         """Run refine pipeline then transition review state."""
         from app.core.config import get_settings
@@ -1030,6 +1027,7 @@ async def trigger_update(session_id: UUID):
                         card_index=c["card_index"],
                         verdict=None,
                         notes=None,
+                        answer=None,
                         source="consultant",
                     )
 
@@ -1050,8 +1048,7 @@ async def trigger_update(session_id: UUID):
             update_build_status(UUID(build_id), "failed", error=str(e))
             update_session(session_id, review_state="complete")
 
-    # Fire and forget
-    asyncio.ensure_future(_run_and_transition())
+    background_tasks.add_task(_run_and_transition)
 
     return {
         "session_id": str(session_id),
