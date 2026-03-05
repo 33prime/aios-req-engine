@@ -14,7 +14,8 @@ import { MeetingParticipants } from './components/MeetingParticipants'
 import { AddParticipantPopover } from './components/AddParticipantPopover'
 import { MeetingAgenda } from './components/MeetingAgenda'
 import { MeetingNotes } from './components/MeetingNotes'
-import { MeetingSidePanel } from './components/MeetingSidePanel'
+import { MeetingRecordingControl } from './components/MeetingRecordingControl'
+import { MeetingIntelligencePanel } from './components/MeetingIntelligencePanel'
 import { EmailAgendaModal } from './components/EmailAgendaModal'
 
 export default function MeetingDetailPage() {
@@ -30,7 +31,6 @@ export default function MeetingDetailPage() {
   const [editing, setEditing] = useState(false)
   const [editTitle, setEditTitle] = useState('')
   const [editDescription, setEditDescription] = useState('')
-  const [sidePanelOpen, setSidePanelOpen] = useState(true)
   const [participants, setParticipants] = useState<StakeholderDetail[]>([])
   const [showEmailModal, setShowEmailModal] = useState(false)
 
@@ -128,7 +128,6 @@ export default function MeetingDetailPage() {
   }
 
   const handleParticipantAdded = () => {
-    // Reload the meeting to get updated stakeholder_ids, which triggers participant reload
     loadMeeting()
   }
 
@@ -270,30 +269,14 @@ export default function MeetingDetailPage() {
                   </>
                 )}
               </div>
-
-              {/* Panel toggle icon */}
-              <button
-                onClick={() => setSidePanelOpen(!sidePanelOpen)}
-                title="Toggle side panel"
-                className={`w-8 h-8 rounded-md border flex items-center justify-center transition-all ${
-                  sidePanelOpen
-                    ? 'bg-[#E0EFF3] text-accent border-accent'
-                    : 'bg-white text-text-muted border-border hover:bg-[#F0F0F0] hover:border-[#D0D0D0]'
-                }`}
-              >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                  <rect x="3" y="3" width="18" height="18" rx="2" />
-                  <line x1="15" y1="3" x2="15" y2="21" />
-                </svg>
-              </button>
             </div>
           </div>
 
-          {/* Content row */}
+          {/* Two-panel layout */}
           <div className="flex flex-1 overflow-hidden">
-            {/* Main panel */}
-            <div className="flex-1 overflow-y-auto">
-              <div className="px-8 py-6 max-w-full">
+            {/* Left panel — Meeting Context (35%) */}
+            <div className="w-[35%] min-w-[320px] max-w-[480px] border-r border-border overflow-y-auto">
+              <div className="px-6 py-6">
                 {/* Edit mode */}
                 {editing ? (
                   <div className="space-y-3 mb-6">
@@ -415,20 +398,28 @@ export default function MeetingDetailPage() {
                   isUpcoming={isUpcoming}
                 />
 
+                {/* Recording Control */}
+                <MeetingRecordingControl
+                  bot={bot}
+                  isUpcoming={isUpcoming}
+                  hasGoogleMeet={!!meeting.google_meet_link}
+                  onDeployBot={handleDeployBot}
+                />
+
                 {/* Bottom padding */}
-                <div className="h-12" />
+                <div className="h-8" />
               </div>
             </div>
 
-            {/* Side Panel */}
-            {sidePanelOpen && (
-              <MeetingSidePanel
+            {/* Right panel — Intelligence Hub (65%) */}
+            <div className="flex-1 overflow-hidden">
+              <MeetingIntelligencePanel
                 meeting={meeting}
                 bot={bot}
-                participants={participants}
+                projectId={meeting.project_id}
                 onDeployBot={handleDeployBot}
               />
-            )}
+            </div>
           </div>
         </div>
       </div>

@@ -62,6 +62,7 @@ async def seed_recording(
     project_id: UUID = Query(..., description="Project ID"),
     audio_url: str = Query(..., description="Public URL to audio file"),
     title: str = Query("Seed Recording", description="Recording title"),
+    meeting_id: UUID | None = Query(None, description="Optional meeting ID to link"),
     background_tasks: BackgroundTasks = None,
     auth: AuthContext = Depends(require_auth),
 ):
@@ -78,6 +79,7 @@ async def seed_recording(
     # Create recording row
     recording = ci_db.create_call_recording(
         project_id=project_id,
+        meeting_id=meeting_id,
         status="pending",
         audio_url=audio_url,
         title=title,

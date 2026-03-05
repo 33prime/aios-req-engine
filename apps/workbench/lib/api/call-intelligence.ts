@@ -32,10 +32,14 @@ export const scheduleCallRecording = (meetingId: string, projectId: string) =>
     { method: 'POST' }
   )
 
+// Get the recording linked to a meeting
+export const getRecordingForMeeting = (meetingId: string) =>
+  apiRequest<CallRecording>(`/call-intelligence/meetings/${meetingId}/recording`)
+
 // Seed a recording from a public audio URL
-export const seedRecording = (projectId: string, audioUrl: string, title?: string) =>
+export const seedRecording = (projectId: string, audioUrl: string, title?: string, meetingId?: string) =>
   apiRequest<{ recording_id: string; status: string }>(
-    `/call-intelligence/recordings/seed?project_id=${projectId}&audio_url=${encodeURIComponent(audioUrl)}${title ? `&title=${encodeURIComponent(title)}` : ''}`,
+    `/call-intelligence/recordings/seed?project_id=${projectId}&audio_url=${encodeURIComponent(audioUrl)}${title ? `&title=${encodeURIComponent(title)}` : ''}${meetingId ? `&meeting_id=${meetingId}` : ''}`,
     { method: 'POST' }
   )
 
