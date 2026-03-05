@@ -33,6 +33,7 @@ export default function MeetingDetailPage() {
   const [editDescription, setEditDescription] = useState('')
   const [participants, setParticipants] = useState<StakeholderDetail[]>([])
   const [showEmailModal, setShowEmailModal] = useState(false)
+  const [sidePanelOpen, setSidePanelOpen] = useState(true)
 
   const loadMeeting = useCallback(async () => {
     try {
@@ -269,13 +270,29 @@ export default function MeetingDetailPage() {
                   </>
                 )}
               </div>
+
+              {/* Panel toggle icon */}
+              <button
+                onClick={() => setSidePanelOpen(!sidePanelOpen)}
+                title={sidePanelOpen ? 'Hide intelligence panel' : 'Show intelligence panel'}
+                className={`w-8 h-8 rounded-md border flex items-center justify-center transition-all ${
+                  sidePanelOpen
+                    ? 'bg-[#E0EFF3] text-accent border-accent'
+                    : 'bg-white text-text-muted border-border hover:bg-[#F0F0F0] hover:border-[#D0D0D0]'
+                }`}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                  <rect x="3" y="3" width="18" height="18" rx="2" />
+                  <line x1="15" y1="3" x2="15" y2="21" />
+                </svg>
+              </button>
             </div>
           </div>
 
           {/* Two-panel layout */}
           <div className="flex flex-1 overflow-hidden">
-            {/* Left panel — Meeting Context (55%) */}
-            <div className="w-[55%] min-w-[400px] border-r border-border overflow-y-auto">
+            {/* Left panel — Meeting Context */}
+            <div className={`${sidePanelOpen ? 'w-[55%] min-w-[400px] border-r border-border' : 'flex-1'} overflow-y-auto`}>
               <div className="px-6 py-6">
                 {/* Edit mode */}
                 {editing ? (
@@ -412,14 +429,16 @@ export default function MeetingDetailPage() {
             </div>
 
             {/* Right panel — Intelligence Hub (45%) */}
-            <div className="w-[45%] min-w-[380px] overflow-hidden">
-              <MeetingIntelligencePanel
-                meeting={meeting}
-                bot={bot}
-                projectId={meeting.project_id}
-                onDeployBot={handleDeployBot}
-              />
-            </div>
+            {sidePanelOpen && (
+              <div className="w-[45%] min-w-[380px] overflow-hidden">
+                <MeetingIntelligencePanel
+                  meeting={meeting}
+                  bot={bot}
+                  projectId={meeting.project_id}
+                  onDeployBot={handleDeployBot}
+                />
+              </div>
+            )}
           </div>
         </div>
       </div>

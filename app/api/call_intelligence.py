@@ -317,6 +317,20 @@ async def generate_strategy_brief(
     return {"status": "generating", "project_id": str(data.project_id)}
 
 
+@router.get("/strategy-brief/meeting/{meeting_id}")
+async def get_brief_for_meeting(
+    meeting_id: UUID,
+    auth: AuthContext = Depends(require_auth),
+):
+    """Get the most recent strategy brief for a meeting."""
+    from app.db.call_strategy import get_brief_for_meeting as db_get_brief
+
+    brief = db_get_brief(meeting_id)
+    if not brief:
+        raise HTTPException(status_code=404, detail="No strategy brief for this meeting")
+    return brief
+
+
 @router.get("/strategy-brief/{brief_id}")
 async def get_strategy_brief(
     brief_id: UUID,

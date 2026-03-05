@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import {
   FileText,
   BarChart3,
@@ -13,11 +13,12 @@ import {
   Sparkles,
 } from 'lucide-react'
 import type { Meeting, MeetingBot } from '@/types/api'
-import type { CallRecording, CallDetails } from '@/types/call-intelligence'
+import type { CallRecording, CallDetails, CallStrategyBrief } from '@/types/call-intelligence'
 import {
   getRecordingForMeeting,
   getCallDetails,
   generateStrategyBrief,
+  getBriefForMeeting,
 } from '@/lib/api'
 import {
   StrategyView,
@@ -46,9 +47,12 @@ export function MeetingIntelligencePanel({
   const [activeTab, setActiveTab] = useState<IntelTab>('strategy')
   const [recording, setRecording] = useState<CallRecording | null>(null)
   const [details, setDetails] = useState<CallDetails | null>(null)
+  const [meetingBrief, setMeetingBrief] = useState<CallStrategyBrief | null>(null)
   const [loadingRecording, setLoadingRecording] = useState(true)
+  const [loadingBrief, setLoadingBrief] = useState(true)
   const [showSeedDialog, setShowSeedDialog] = useState(false)
   const [generatingBrief, setGeneratingBrief] = useState(false)
+  const briefPollRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   // Load recording linked to this meeting
   const loadRecording = useCallback(async () => {
@@ -62,9 +66,24 @@ export function MeetingIntelligencePanel({
     }
   }, [meeting.id])
 
+  // Load strategy brief by meeting_id (independent of recording)
+  const loadBrief = useCallback(async () => {
+    try {
+      const brief = await getBriefForMeeting(meeting.id)
+      setMeetingBrief(brief)
+      return brief
+    } catch {
+      setMeetingBrief(null)
+      return null
+    } finally {
+      setLoadingBrief(false)
+    }
+  }, [meeting.id])
+
   useEffect(() => {
     loadRecording()
-  }, [loadRecording])
+    loadBrief()
+  }, [loadRecording, loadBrief])
 
   // If recording exists and is complete, fetch details
   useEffect(() => {
@@ -96,22 +115,42 @@ export function MeetingIntelligencePanel({
     setGeneratingBrief(true)
     try {
       await generateStrategyBrief(projectId, meeting.id)
+      // Brief generates in background — poll until it appears
+      let attempts = 0
+      briefPollRef.current = setInterval(async () => {
+        attempts++
+        const brief = await loadBrief()
+        if (brief || attempts >= 30) {
+          if (briefPollRef.current) clearInterval(briefPollRef.current)
+          briefPollRef.current = null
+          setGeneratingBrief(false)
+        }
+      }, 3_000)
     } catch (e) {
       console.error('Failed to generate brief:', e)
-    } finally {
       setGeneratingBrief(false)
     }
   }
 
+  // Cleanup poll on unmount
+  useEffect(() => {
+    return () => {
+      if (briefPollRef.current) clearInterval(briefPollRef.current)
+    }
+  }, [])
+
   const handleSeedClose = () => {
     setShowSeedDialog(false)
-    // Reload recording after seeding
     setLoadingRecording(true)
     loadRecording()
   }
 
   const isComplete = recording?.status === 'complete'
   const isProcessing = recording && !TERMINAL_STATUSES.has(recording.status)
+
+  // Use brief from details (post-call with goal diff) or from meeting-level fetch
+  const activeBrief = details?.strategy_brief || meetingBrief
+  const hasBrief = !!activeBrief
 
   const tabs: { key: IntelTab; label: string; icon: typeof FileText; disabled: boolean }[] = [
     { key: 'strategy', label: 'Strategy', icon: FileText, disabled: false },
@@ -121,7 +160,7 @@ export function MeetingIntelligencePanel({
     { key: 'signals', label: 'Signals', icon: BarChart3, disabled: !recording?.signal_id },
   ]
 
-  if (loadingRecording) {
+  if (loadingRecording && loadingBrief) {
     return (
       <div className="flex items-center justify-center h-full">
         <Loader2 className="w-6 h-6 animate-spin text-text-muted" />
@@ -159,7 +198,7 @@ export function MeetingIntelligencePanel({
 
       {/* Content */}
       <div className="flex-1 overflow-hidden">
-        {/* No recording — empty state */}
+        {/* No recording — empty state (for non-strategy, non-recording tabs) */}
         {!recording && !isProcessing && activeTab !== 'strategy' && activeTab !== 'recording' && (
           <div className="flex flex-col items-center justify-center h-full text-text-muted gap-4 p-8">
             <Mic className="w-12 h-12 text-[#D0D0D0]" />
@@ -203,7 +242,7 @@ export function MeetingIntelligencePanel({
         {/* Strategy tab — always available */}
         {activeTab === 'strategy' && (
           <div className="h-full">
-            {!recording && !details?.strategy_brief ? (
+            {!hasBrief && !generatingBrief ? (
               <div className="flex flex-col items-center justify-center h-full text-text-muted gap-4 p-8">
                 <FileText className="w-12 h-12 text-[#D0D0D0]" />
                 <p className="text-sm font-medium">Prepare for this meeting</p>
@@ -213,10 +252,9 @@ export function MeetingIntelligencePanel({
                 <div className="flex items-center gap-3">
                   <button
                     onClick={handleGenerateBrief}
-                    disabled={generatingBrief}
                     className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-brand-primary rounded-lg hover:bg-brand-primary-hover disabled:opacity-50"
                   >
-                    {generatingBrief ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+                    <Sparkles className="w-4 h-4" />
                     Generate Strategy Brief
                   </button>
                   {!recording && (
@@ -230,10 +268,18 @@ export function MeetingIntelligencePanel({
                   )}
                 </div>
               </div>
+            ) : generatingBrief && !hasBrief ? (
+              <div className="flex flex-col items-center justify-center h-full text-text-muted gap-3 p-8">
+                <Loader2 className="w-8 h-8 animate-spin text-brand-primary" />
+                <p className="text-sm font-medium">Generating strategy brief...</p>
+                <p className="text-xs text-center max-w-xs">
+                  Analyzing project awareness, stakeholder intel, deal readiness, and ambiguity to produce your pre-call brief.
+                </p>
+              </div>
             ) : (
               <StrategyView
                 recordingId={recording?.id}
-                brief={details?.strategy_brief}
+                brief={activeBrief}
                 projectId={projectId}
               />
             )}

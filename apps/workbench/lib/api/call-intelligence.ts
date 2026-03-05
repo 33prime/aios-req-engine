@@ -57,6 +57,10 @@ export const generateStrategyBrief = (projectId: string, meetingId?: string) =>
 export const getStrategyBrief = (briefId: string) =>
   apiRequest<CallStrategyBrief>(`/call-intelligence/strategy-brief/${briefId}`)
 
+// Get strategy brief linked to a meeting
+export const getBriefForMeeting = (meetingId: string) =>
+  apiRequest<CallStrategyBrief>(`/call-intelligence/strategy-brief/meeting/${meetingId}`)
+
 // Get strategy brief linked to a recording
 export const getBriefForRecording = (recordingId: string) =>
   apiRequest<CallStrategyBrief>(`/call-intelligence/strategy-brief/recording/${recordingId}`)
