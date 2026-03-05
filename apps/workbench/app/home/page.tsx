@@ -141,7 +141,7 @@ function ProjectCard({
     <div
       onClick={() => router.push(`/projects/${project.id}`)}
       className={`bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-border hover:shadow-[0_4px_12px_rgba(0,0,0,0.08)] cursor-pointer transition-shadow relative overflow-hidden ${
-        isBuilding ? 'border-brand-primary/30' : ''
+        isBuilding ? 'border-brand-primary/30 min-h-[220px]' : ''
       }`}
       style={{ padding: '20px' }}
     >
@@ -149,11 +149,12 @@ function ProjectCard({
         <BuildingCardOverlay
           projectId={project.id}
           launchId={project.active_launch_id}
+          showBadge
         />
       )}
 
       {/* Header: name + client + stage + readiness + arrow */}
-      <div className={`flex items-start justify-between gap-3 ${isBuilding ? 'opacity-30 blur-sm' : ''}`}>
+      <div className={`flex items-start justify-between gap-3 ${isBuilding ? 'invisible' : ''}`}>
         <div className="flex-1 min-w-0">
           <p className="text-[16px] font-bold text-text-primary truncate">{project.name}</p>
           {project.client_name && (

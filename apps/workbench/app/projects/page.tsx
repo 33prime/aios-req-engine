@@ -11,8 +11,8 @@
 
 'use client'
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react'
-import { useRouter } from 'next/navigation'
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import type { NextAction, TaskStatsResponse } from '@/lib/api'
 import { useProfile, useProjects, useUpcomingMeetings, useBatchDashboardData } from '@/lib/hooks/use-api'
 import { ProjectsTopNav } from './components/ProjectsTopNav'
@@ -33,6 +33,7 @@ interface ActiveBuild {
 
 export default function ProjectsPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [viewMode, setViewMode] = useState<ViewMode>('cards')
   const [searchQuery, setSearchQuery] = useState('')
@@ -44,6 +45,20 @@ export default function ProjectsPage() {
   // Build modal state
   const [activeBuild, setActiveBuild] = useState<ActiveBuild | null>(null)
   const [showBuildModal, setShowBuildModal] = useState(false)
+  const handledLaunchParam = useRef(false)
+
+  // Auto-open BuildingProgressModal when arriving from a new launch
+  useEffect(() => {
+    if (handledLaunchParam.current) return
+    const buildingParam = searchParams.get('building')
+    const launchParam = searchParams.get('launch')
+    if (buildingParam && launchParam) {
+      handledLaunchParam.current = true
+      setActiveBuild({ projectId: buildingParam, launchId: launchParam })
+      setShowBuildModal(true)
+      router.replace('/projects')
+    }
+  }, [searchParams, router])
 
   // SWR hooks — cached, deduplicated, auto-revalidating
   const { data: profileData } = useProfile()

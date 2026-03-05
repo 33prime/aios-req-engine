@@ -25,9 +25,11 @@ interface BuildingCardOverlayProps {
   launchId: string | null | undefined
   /** Compact mode for table rows — single line */
   compact?: boolean
+  /** Show "Building" badge in the overlay */
+  showBadge?: boolean
 }
 
-export function BuildingCardOverlay({ projectId, launchId, compact }: BuildingCardOverlayProps) {
+export function BuildingCardOverlay({ projectId, launchId, compact, showBadge }: BuildingCardOverlayProps) {
   const [steps, setSteps] = useState<LaunchStepStatus[]>([])
   const [progressPct, setProgressPct] = useState(0)
   const pollRef = useRef<NodeJS.Timeout | null>(null)
@@ -79,7 +81,15 @@ export function BuildingCardOverlay({ projectId, launchId, compact }: BuildingCa
   }
 
   return (
-    <div className="absolute inset-0 z-10 bg-white/85 backdrop-blur-[2px] flex flex-col items-center justify-center gap-2.5 rounded-2xl px-5">
+    <div className="absolute inset-0 z-10 bg-white/90 backdrop-blur-[2px] flex flex-col items-center justify-center gap-2.5 rounded-2xl px-5">
+      {/* Building badge */}
+      {showBadge && (
+        <span className="absolute top-4 right-4 text-[10px] px-2 py-0.5 rounded-full bg-[#E8F5E9] text-[#25785A] font-medium flex items-center gap-1">
+          <Loader2 className="w-2.5 h-2.5 animate-spin" />
+          Building
+        </span>
+      )}
+
       {/* Animated spinner */}
       <Loader2 className="w-7 h-7 text-brand-primary animate-spin" />
 

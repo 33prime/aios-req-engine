@@ -13,7 +13,6 @@ import { ProjectAvatar } from './ProjectAvatar'
 import { UserAvatar } from './UserAvatar'
 import { ReadinessCell } from './ReadinessCell'
 import { StageAdvancePopover } from './StageAdvancePopover'
-import { BuildingGearBadge } from './BuildingGearBadge'
 import { BuildingCardOverlay } from './BuildingCardOverlay'
 
 interface ProjectsCardsProps {
@@ -106,18 +105,11 @@ export function ProjectsCards({
           >
             {/* Building overlay */}
             {isBuilding && (
-              <BuildingCardOverlay projectId={project.id} launchId={project.active_launch_id} />
-            )}
-
-            {/* Gear badge for building cards */}
-            {isBuilding && project.active_launch_id && onBuildingCardClick && (
-              <BuildingGearBadge
-                onClick={() => onBuildingCardClick(project.id, project.active_launch_id!)}
-              />
+              <BuildingCardOverlay projectId={project.id} launchId={project.active_launch_id} showBadge />
             )}
 
             {/* Top: Avatar + name + client + stage badge */}
-            <div className={`flex items-start gap-3 ${isBuilding ? 'opacity-30 blur-sm' : ''}`}>
+            <div className={`flex items-start gap-3 ${isBuilding ? 'invisible' : ''}`}>
               <ProjectAvatar name={project.name} clientName={project.client_name} />
               <div className="flex-1 min-w-0">
                 <p className="text-[13px] font-semibold text-[#333] truncate">
@@ -133,7 +125,7 @@ export function ProjectsCards({
             </div>
 
             {/* Readiness */}
-            <div className={`mt-3 ${isBuilding ? 'opacity-30 blur-sm' : ''}`}>
+            <div className={`mt-3 ${isBuilding ? 'invisible' : ''}`}>
               <ReadinessCell project={project} />
             </div>
 
@@ -152,7 +144,7 @@ export function ProjectsCards({
 
             {/* Description */}
             {project.description && (
-              <p className={`text-[11px] text-[#666] leading-relaxed mt-2.5 line-clamp-2 ${isBuilding ? 'opacity-30 blur-sm' : ''}`}>
+              <p className={`text-[11px] text-[#666] leading-relaxed mt-2.5 line-clamp-2 ${isBuilding ? 'invisible' : ''}`}>
                 {project.description}
               </p>
             )}
@@ -207,7 +199,7 @@ export function ProjectsCards({
             <div className="flex-1" />
 
             {/* Footer: owner + time + stage advance */}
-            <div className={`flex items-center justify-between mt-3 pt-3 border-t border-border ${isBuilding ? 'opacity-30 blur-sm' : ''}`}>
+            <div className={`flex items-center justify-between mt-3 pt-3 border-t border-border ${isBuilding ? 'invisible' : ''}`}>
               <UserAvatar name={ownerName} photoUrl={ownerPhotoUrl} size="small" />
               <div className="flex items-center gap-1.5">
                 {project.stage_eligible === true && !isBuilding && (

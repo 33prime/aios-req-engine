@@ -299,7 +299,7 @@ export function HybridOnboardingModal({
         auto_discovery: false,
       })
 
-      // Skip building phase in modal — go straight to project workspace
+      // Close modal — projects list will show BuildingProgressModal
       onLaunched({ project_id: response.project_id, launch_id: response.launch_id })
       handleClose()
     } catch (err) {
