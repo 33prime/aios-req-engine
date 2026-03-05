@@ -43,7 +43,15 @@ async def generate_strategy_brief(
     ambiguity_snapshot = _compute_ambiguity_snapshot(project_id)
 
     # 5. Mission-Critical Questions
-    mission_critical_questions = await _generate_questions(project_id)
+    mission_critical_questions = await _generate_questions(
+        project_id, stakeholder_ids=stakeholder_ids
+    )
+
+    # 5.5. Critical Requirements (2.5 retrieval)
+    critical_requirements = await _retrieve_critical_requirements(
+        project_id, stakeholder_intel, mission_critical_questions,
+        project_awareness_snapshot,
+    )
 
     # 6. Call Goals (LLM synthesis)
     call_goals = await _generate_call_goals(
@@ -67,6 +75,7 @@ async def generate_strategy_brief(
         ambiguity_snapshot=ambiguity_snapshot,
         focus_areas=focus_areas,
         project_awareness_snapshot=project_awareness_snapshot,
+        critical_requirements=critical_requirements,
         generated_by="system",
     )
 
@@ -111,6 +120,23 @@ def _load_stakeholder_intel(
 ) -> list[dict]:
     """Load stakeholder intelligence."""
     try:
+        # If meeting_id provided but no explicit stakeholder_ids, look up participants
+        if meeting_id and not stakeholder_ids:
+            try:
+                meeting = (
+                    sb.table("meetings")
+                    .select("stakeholder_ids")
+                    .eq("id", str(meeting_id))
+                    .single()
+                    .execute()
+                )
+                if meeting.data and meeting.data.get("stakeholder_ids"):
+                    stakeholder_ids = [
+                        UUID(sid) for sid in meeting.data["stakeholder_ids"]
+                    ]
+            except Exception:
+                pass
+
         query = (
             sb.table("stakeholders")
             .select("id, name, role, influence_level, stakeholder_type")
@@ -326,12 +352,75 @@ def _compute_ambiguity_snapshot(project_id: UUID) -> dict:
         return {"score": 0, "factors": {}, "top_ambiguous_beliefs": []}
 
 
-async def _generate_questions(project_id: UUID) -> list[dict]:
+async def _retrieve_critical_requirements(
+    project_id: UUID,
+    stakeholder_intel: list[dict],
+    questions: list[dict],
+    awareness: dict,
+) -> list[dict]:
+    """Retrieve top 3 critical unresolved requirements via 2.5 retrieval."""
+    try:
+        from app.core.retrieval import retrieve
+
+        # Build query from context
+        parts = []
+        for s in stakeholder_intel[:3]:
+            parts.append(s.get("name", ""))
+        for q in questions[:3]:
+            parts.append(q.get("question", "")[:60])
+        flow = awareness.get("flow_summary", "")
+        if flow:
+            parts.append(flow)
+
+        query = "Critical unresolved requirements: " + "; ".join(
+            p for p in parts if p
+        )
+
+        result = await retrieve(
+            project_id=project_id,
+            query=query,
+            entity_types=["feature", "vp_step", "persona"],
+            max_rounds=1,
+            skip_evaluation=True,
+        )
+
+        # Collect entities, boost unconfirmed
+        scored = []
+        for ent in result.entities:
+            score = ent.get("similarity", 0.5)
+            status = ent.get("confirmation_status", "ai_generated")
+            if status in ("ai_generated", "needs_confirmation"):
+                score += 0.2
+            scored.append((score, ent))
+
+        scored.sort(key=lambda x: x[0], reverse=True)
+
+        return [
+            {
+                "name": ent.get("name", "Unknown"),
+                "entity_type": ent.get("entity_type", "feature"),
+                "status": ent.get("confirmation_status", "unknown"),
+                "context": (
+                    ent.get("overview") or ent.get("description") or ""
+                )[:120],
+            }
+            for _, ent in scored[:3]
+        ]
+    except Exception as e:
+        logger.warning(f"Failed to retrieve critical requirements: {e}")
+        return []
+
+
+async def _generate_questions(
+    project_id: UUID, stakeholder_ids: list[UUID] | None = None
+) -> list[dict]:
     """Generate mission-critical questions via the question agent."""
     try:
         from app.agents.discovery_prep.question_agent import generate_prep_questions
 
-        output = await generate_prep_questions(project_id)
+        output = await generate_prep_questions(
+            project_id, participant_ids=stakeholder_ids
+        )
         return [
             {
                 "question": q.question,

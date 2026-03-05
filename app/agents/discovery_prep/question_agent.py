@@ -63,6 +63,25 @@ Generate exactly 3 HIGH-QUALITY questions that will extract MAXIMUM useful data.
 - "What's your budget and timeline?" (GTM, not requirements)
 - "Can you tell me about your users, their workflows, and what success looks like?" (bundled multiple questions)
 
+## CRITICAL: Be Specific, Not Generic
+
+Reference specific people and features/workflows BY NAME from the Specific Context below.
+
+### Directive-Style Examples:
+- "Get Valerie to walk through the ideal before-and-after for order intake — what does success look like?"
+- "Ask Marcus about the Inventory Sync workflow — what happens today when stock levels don't match?"
+- "Have Sarah describe the approval bottleneck step by step — if we automated routing, what can't break?"
+
+### Rules:
+1. Address TO a specific participant by name
+2. Reference a specific feature, workflow, or pain point by name
+3. Frame around before/after, success criteria, or concrete outcomes
+4. Each question should be answerable ONLY by the named person
+5. NEVER generic questions like "What are your requirements?"
+
+## Specific Context (Named Entities)
+{specific_context}
+
 ## Question Format
 Each question MUST include:
 - question: A clear, conversational question ending with ?
@@ -95,6 +114,7 @@ Output valid JSON only:
 async def generate_prep_questions(
     project_id: UUID,
     phase: CollaborationPhase = CollaborationPhase.PRE_DISCOVERY,
+    participant_ids: list[UUID] | None = None,
 ) -> QuestionAgentOutput:
     """
     Generate 3 optimized prep questions for a project.
@@ -102,6 +122,7 @@ async def generate_prep_questions(
     Args:
         project_id: The project UUID
         phase: The collaboration phase (affects question focus)
+        participant_ids: Optional list of stakeholder UUIDs to target questions to
 
     Returns:
         QuestionAgentOutput with questions and reasoning
@@ -114,8 +135,11 @@ async def generate_prep_questions(
     # Get state snapshot
     snapshot = get_state_snapshot(project_id, force_refresh=True)
 
-    # Get stakeholders for targeting
-    stakeholders = await _get_stakeholders(project_id)
+    # Get stakeholders for targeting (filtered to participants if provided)
+    stakeholders = await _get_stakeholders(project_id, participant_ids=participant_ids)
+
+    # Get specific named context for directive-style questions
+    specific_context = await _get_specific_context(project_id)
 
     # Get confirmation gaps (including business drivers)
     gaps = await _get_confirmation_gaps(project_id)
@@ -147,6 +171,7 @@ async def generate_prep_questions(
                 snapshot=snapshot,
                 stakeholders=stakeholders,
                 gaps=gaps,
+                specific_context=specific_context,
             ),
         },
         {
@@ -191,19 +216,23 @@ async def generate_prep_questions(
         return _get_fallback_questions()
 
 
-async def _get_stakeholders(project_id: UUID) -> str:
-    """Get stakeholders for question targeting."""
+async def _get_stakeholders(
+    project_id: UUID, participant_ids: list[UUID] | None = None
+) -> str:
+    """Get stakeholders for question targeting, optionally filtered to participants."""
     supabase = get_supabase()
     stakeholder_lines = []
 
     try:
-        stakeholders = (
+        query = (
             supabase.table("stakeholders")
             .select("name, role, stakeholder_type, is_economic_buyer")
             .eq("project_id", str(project_id))
-            .limit(6)
-            .execute()
-        ).data or []
+        )
+        if participant_ids:
+            query = query.in_("id", [str(pid) for pid in participant_ids])
+
+        stakeholders = query.limit(6).execute().data or []
 
         if stakeholders:
             for s in stakeholders:
@@ -227,6 +256,71 @@ async def _get_stakeholders(project_id: UUID) -> str:
         stakeholder_lines.append("Use generic roles: Product Owner, Technical Lead, Business Sponsor")
 
     return "\n".join(stakeholder_lines)
+
+
+async def _get_specific_context(project_id: UUID) -> str:
+    """Load named entities (features, workflows, personas) for directive-style questions."""
+    supabase = get_supabase()
+    sections = []
+
+    # Top 5 features
+    try:
+        features = (
+            supabase.table("features")
+            .select("name, overview, confirmation_status")
+            .eq("project_id", str(project_id))
+            .order("updated_at", desc=True)
+            .limit(5)
+            .execute()
+        ).data or []
+        if features:
+            lines = []
+            for f in features:
+                status = f.get("confirmation_status", "unknown")
+                overview = (f.get("overview") or "")[:80]
+                lines.append(f"- {f['name']} ({status}): {overview}")
+            sections.append("### Key Features\n" + "\n".join(lines))
+    except Exception:
+        pass
+
+    # Top 3 vp_steps/workflows
+    try:
+        vp_steps = (
+            supabase.table("vp_steps")
+            .select("name, description")
+            .eq("project_id", str(project_id))
+            .order("step_order")
+            .limit(3)
+            .execute()
+        ).data or []
+        if vp_steps:
+            lines = []
+            for v in vp_steps:
+                desc = (v.get("description") or "")[:80]
+                lines.append(f"- {v['name']}: {desc}")
+            sections.append("### Key Workflows\n" + "\n".join(lines))
+    except Exception:
+        pass
+
+    # Top 3 personas
+    try:
+        personas = (
+            supabase.table("personas")
+            .select("name, role")
+            .eq("project_id", str(project_id))
+            .limit(3)
+            .execute()
+        ).data or []
+        if personas:
+            lines = []
+            for p in personas:
+                role = p.get("role") or "unknown role"
+                lines.append(f"- {p['name']}: {role}")
+            sections.append("### User Personas\n" + "\n".join(lines))
+    except Exception:
+        pass
+
+    return "\n".join(sections) if sections else "No specific entities identified yet."
 
 
 async def _get_confirmation_gaps(project_id: UUID) -> str:

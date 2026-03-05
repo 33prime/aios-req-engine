@@ -164,6 +164,13 @@ export interface ProjectAwarenessSnapshot {
   whats_discovered?: string[]
 }
 
+export interface CriticalRequirement {
+  name: string
+  entity_type: string
+  status: string
+  context: string
+}
+
 export interface GoalResult {
   goal: string
   achieved: 'yes' | 'partial' | 'no' | 'unknown'
@@ -189,6 +196,7 @@ export interface CallStrategyBrief {
   ambiguity_snapshot: AmbiguitySnapshot
   focus_areas: FocusArea[]
   project_awareness_snapshot: ProjectAwarenessSnapshot
+  critical_requirements?: CriticalRequirement[]
   goal_results?: GoalResult[] | null
   readiness_delta?: ReadinessDelta | null
   generated_by?: string

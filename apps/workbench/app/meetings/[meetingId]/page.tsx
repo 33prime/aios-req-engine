@@ -1,22 +1,27 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import {
   Calendar, Pencil, MoreHorizontal, Trash2, X, Check, Mail,
 } from 'lucide-react'
 import { AppSidebar } from '@/components/workspace/AppSidebar'
-import { getMeeting, updateMeeting, deleteMeeting, getBotStatus, deployBot, listProjectStakeholders } from '@/lib/api'
+import { getMeeting, updateMeeting, deleteMeeting, getBotStatus, deployBot, listProjectStakeholders, generateStrategyBrief, getBriefForMeeting } from '@/lib/api'
 import type { Meeting, MeetingStatus, MeetingBot } from '@/types/api'
 import type { StakeholderDetail } from '@/types/workspace'
+import type { CallStrategyBrief } from '@/types/call-intelligence'
 import { MeetingHeader } from './components/MeetingHeader'
-import { MeetingParticipants } from './components/MeetingParticipants'
 import { AddParticipantPopover } from './components/AddParticipantPopover'
-import { MeetingAgenda } from './components/MeetingAgenda'
-import { MeetingNotes } from './components/MeetingNotes'
 import { MeetingRecordingControl } from './components/MeetingRecordingControl'
 import { MeetingIntelligencePanel } from './components/MeetingIntelligencePanel'
 import { EmailAgendaModal } from './components/EmailAgendaModal'
+import { CallGoalsSection } from './components/CallGoalsSection'
+import { MissionCriticalQuestionsSection } from './components/MissionCriticalQuestionsSection'
+import { CriticalRequirementsSection } from './components/CriticalRequirementsSection'
+import { StakeholderIntelSection } from './components/StakeholderIntelSection'
+import { FocusAreasCompact } from './components/FocusAreasCompact'
+import { ReadinessBar } from './components/ReadinessBar'
+import { GenerateStrategyPrompt } from './components/GenerateStrategyPrompt'
 
 export default function MeetingDetailPage() {
   const router = useRouter()
@@ -34,6 +39,41 @@ export default function MeetingDetailPage() {
   const [participants, setParticipants] = useState<StakeholderDetail[]>([])
   const [showEmailModal, setShowEmailModal] = useState(false)
   const [sidePanelOpen, setSidePanelOpen] = useState(true)
+  const [brief, setBrief] = useState<CallStrategyBrief | null>(null)
+  const [generatingBrief, setGeneratingBrief] = useState(false)
+  const briefPollRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  const loadBrief = useCallback(async () => {
+    try {
+      const b = await getBriefForMeeting(meetingId)
+      setBrief(b)
+      return b
+    } catch {
+      setBrief(null)
+      return null
+    }
+  }, [meetingId])
+
+  const handleGenerateBrief = async () => {
+    if (!meeting) return
+    setGeneratingBrief(true)
+    try {
+      await generateStrategyBrief(meeting.project_id, meeting.id)
+      let attempts = 0
+      briefPollRef.current = setInterval(async () => {
+        attempts++
+        const b = await loadBrief()
+        if (b || attempts >= 30) {
+          if (briefPollRef.current) clearInterval(briefPollRef.current)
+          briefPollRef.current = null
+          setGeneratingBrief(false)
+        }
+      }, 3_000)
+    } catch (e) {
+      console.error('Failed to generate brief:', e)
+      setGeneratingBrief(false)
+    }
+  }
 
   const loadMeeting = useCallback(async () => {
     try {
@@ -75,7 +115,15 @@ export default function MeetingDetailPage() {
   useEffect(() => {
     loadMeeting()
     loadBot()
-  }, [loadMeeting, loadBot])
+    loadBrief()
+  }, [loadMeeting, loadBot, loadBrief])
+
+  // Cleanup brief poll on unmount
+  useEffect(() => {
+    return () => {
+      if (briefPollRef.current) clearInterval(briefPollRef.current)
+    }
+  }, [])
 
   useEffect(() => {
     if (meeting) {
@@ -403,17 +451,19 @@ export default function MeetingDetailPage() {
                   </div>
                 </div>
 
-                {/* Agenda */}
-                <MeetingAgenda
-                  agenda={meeting.agenda || null}
-                  isUpcoming={isUpcoming}
-                />
-
-                {/* Notes */}
-                <MeetingNotes
-                  summary={meeting.summary || null}
-                  isUpcoming={isUpcoming}
-                />
+                {/* Strategy Playbook */}
+                {brief ? (
+                  <>
+                    <CallGoalsSection goals={brief.call_goals} results={brief.goal_results} />
+                    <MissionCriticalQuestionsSection questions={brief.mission_critical_questions} />
+                    <CriticalRequirementsSection requirements={brief.critical_requirements || []} />
+                    <StakeholderIntelSection intel={brief.stakeholder_intel} />
+                    <FocusAreasCompact areas={brief.focus_areas} />
+                    <ReadinessBar readiness={brief.deal_readiness_snapshot} ambiguity={brief.ambiguity_snapshot} />
+                  </>
+                ) : (
+                  <GenerateStrategyPrompt onGenerate={handleGenerateBrief} generating={generatingBrief} />
+                )}
 
                 {/* Recording Control */}
                 <MeetingRecordingControl
@@ -436,6 +486,7 @@ export default function MeetingDetailPage() {
                   bot={bot}
                   projectId={meeting.project_id}
                   onDeployBot={handleDeployBot}
+                  brief={brief}
                 />
               </div>
             )}

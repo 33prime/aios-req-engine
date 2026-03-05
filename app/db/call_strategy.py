@@ -33,6 +33,7 @@ def create_strategy_brief(
         "ambiguity_snapshot",
         "focus_areas",
         "project_awareness_snapshot",
+        "critical_requirements",
         "goal_results",
         "readiness_delta",
         "generated_by",

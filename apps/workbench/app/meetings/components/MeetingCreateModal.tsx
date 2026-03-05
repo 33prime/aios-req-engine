@@ -1,8 +1,10 @@
 'use client'
 
-import { useState } from 'react'
-import { X, Calendar, Video, AlertCircle } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { X, Calendar, Video, AlertCircle, Search, Users } from 'lucide-react'
 import type { MeetingType } from '@/types/api'
+import type { StakeholderDetail } from '@/types/workspace'
+import { listProjectStakeholders } from '@/lib/api'
 
 interface MeetingCreateModalProps {
   open: boolean
@@ -20,6 +22,7 @@ interface MeetingCreateModalProps {
     description?: string
     create_calendar_event?: boolean
     attendee_emails?: string[]
+    stakeholder_ids?: string[]
   }) => Promise<void>
 }
 
@@ -59,6 +62,29 @@ export function MeetingCreateModal({ open, projects, googleConnected, onClose, o
   const [createCalendarEvent, setCreateCalendarEvent] = useState(googleConnected)
   const [autoRecord, setAutoRecord] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [selectedStakeholders, setSelectedStakeholders] = useState<StakeholderDetail[]>([])
+  const [allStakeholders, setAllStakeholders] = useState<StakeholderDetail[]>([])
+  const [stakeholderSearch, setStakeholderSearch] = useState('')
+  const [showStakeholderDropdown, setShowStakeholderDropdown] = useState(false)
+
+  // Load stakeholders when project changes
+  useEffect(() => {
+    if (!projectId) {
+      setAllStakeholders([])
+      setSelectedStakeholders([])
+      return
+    }
+    listProjectStakeholders(projectId)
+      .then(({ stakeholders }) => setAllStakeholders(stakeholders))
+      .catch(() => setAllStakeholders([]))
+  }, [projectId])
+
+  const filteredStakeholders = allStakeholders.filter(
+    (s) =>
+      !selectedStakeholders.some((sel) => sel.id === s.id) &&
+      (s.name.toLowerCase().includes(stakeholderSearch.toLowerCase()) ||
+        (s.role || '').toLowerCase().includes(stakeholderSearch.toLowerCase()))
+  )
 
   if (!open) return null
 
@@ -76,6 +102,9 @@ export function MeetingCreateModal({ open, projects, googleConnected, onClose, o
         timezone,
         description: description.trim() || undefined,
         create_calendar_event: createCalendarEvent && googleConnected,
+        stakeholder_ids: selectedStakeholders.length > 0
+          ? selectedStakeholders.map((s) => s.id)
+          : undefined,
       })
       // Reset
       setTitle('')
@@ -84,6 +113,7 @@ export function MeetingCreateModal({ open, projects, googleConnected, onClose, o
       setTime('10:00')
       setMeetingType('discovery')
       setDuration(60)
+      setSelectedStakeholders([])
     } finally {
       setSaving(false)
     }
@@ -215,6 +245,77 @@ export function MeetingCreateModal({ open, projects, googleConnected, onClose, o
               className={`${inputCls} resize-none`}
             />
           </div>
+
+          {/* Participants */}
+          {projectId && allStakeholders.length > 0 && (
+            <div>
+              <label className={labelCls}>
+                <span className="flex items-center gap-1.5">
+                  <Users className="w-3 h-3" />
+                  Participants
+                </span>
+              </label>
+              {/* Selected chips */}
+              {selectedStakeholders.length > 0 && (
+                <div className="flex gap-1.5 flex-wrap mb-2">
+                  {selectedStakeholders.map((s) => (
+                    <span
+                      key={s.id}
+                      className="inline-flex items-center gap-1 px-2 py-0.5 text-[12px] font-medium bg-[#E8F5E9] text-[#25785A] rounded-full"
+                    >
+                      {s.name}
+                      <button
+                        type="button"
+                        onClick={() => setSelectedStakeholders(selectedStakeholders.filter((sel) => sel.id !== s.id))}
+                        className="hover:text-red-500 transition-colors"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
+              {/* Search dropdown */}
+              <div className="relative">
+                <div className="relative">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
+                  <input
+                    type="text"
+                    value={stakeholderSearch}
+                    onChange={(e) => {
+                      setStakeholderSearch(e.target.value)
+                      setShowStakeholderDropdown(true)
+                    }}
+                    onFocus={() => setShowStakeholderDropdown(true)}
+                    placeholder="Search stakeholders..."
+                    className={`${inputCls} pl-8`}
+                  />
+                </div>
+                {showStakeholderDropdown && filteredStakeholders.length > 0 && (
+                  <>
+                    <div className="fixed inset-0 z-10" onClick={() => setShowStakeholderDropdown(false)} />
+                    <div className="absolute z-20 top-full mt-1 w-full bg-white rounded-lg shadow-lg border border-gray-200 max-h-[160px] overflow-y-auto py-1">
+                      {filteredStakeholders.slice(0, 8).map((s) => (
+                        <button
+                          key={s.id}
+                          type="button"
+                          onClick={() => {
+                            setSelectedStakeholders([...selectedStakeholders, s])
+                            setStakeholderSearch('')
+                            setShowStakeholderDropdown(false)
+                          }}
+                          className="w-full px-3 py-1.5 text-left hover:bg-gray-50 flex items-center gap-2"
+                        >
+                          <span className="text-[13px] font-medium text-[#37352f]">{s.name}</span>
+                          {s.role && <span className="text-[11px] text-[#999]">{s.role}</span>}
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Toggles */}
           <div className="border-t border-gray-100 pt-3 space-y-2.5">
