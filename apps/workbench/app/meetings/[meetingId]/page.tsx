@@ -274,8 +274,8 @@ export default function MeetingDetailPage() {
 
           {/* Two-panel layout */}
           <div className="flex flex-1 overflow-hidden">
-            {/* Left panel — Meeting Context (35%) */}
-            <div className="w-[35%] min-w-[320px] max-w-[480px] border-r border-border overflow-y-auto">
+            {/* Left panel — Meeting Context (55%) */}
+            <div className="w-[55%] min-w-[400px] border-r border-border overflow-y-auto">
               <div className="px-6 py-6">
                 {/* Edit mode */}
                 {editing ? (
@@ -411,8 +411,8 @@ export default function MeetingDetailPage() {
               </div>
             </div>
 
-            {/* Right panel — Intelligence Hub (65%) */}
-            <div className="flex-1 overflow-hidden">
+            {/* Right panel — Intelligence Hub (45%) */}
+            <div className="w-[45%] min-w-[380px] overflow-hidden">
               <MeetingIntelligencePanel
                 meeting={meeting}
                 bot={bot}

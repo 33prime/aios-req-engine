@@ -7,6 +7,7 @@ import {
   Award,
   Mic,
   Video,
+  Play,
   Plus,
   Loader2,
   Sparkles,
@@ -22,11 +23,12 @@ import {
   StrategyView,
   InsightsView,
   PerformanceView,
+  RecordingPlayerView,
   SeedDialog,
   StatusBadge,
 } from '@/components/call-intelligence'
 
-type IntelTab = 'strategy' | 'insights' | 'performance' | 'signals'
+type IntelTab = 'strategy' | 'recording' | 'insights' | 'performance' | 'signals'
 
 const TERMINAL_STATUSES = new Set(['complete', 'failed', 'skipped'])
 
@@ -113,6 +115,7 @@ export function MeetingIntelligencePanel({
 
   const tabs: { key: IntelTab; label: string; icon: typeof FileText; disabled: boolean }[] = [
     { key: 'strategy', label: 'Strategy', icon: FileText, disabled: false },
+    { key: 'recording', label: 'Recording', icon: Play, disabled: !isComplete },
     { key: 'insights', label: 'Insights', icon: BarChart3, disabled: !isComplete },
     { key: 'performance', label: 'Performance', icon: Award, disabled: !isComplete },
     { key: 'signals', label: 'Signals', icon: BarChart3, disabled: !recording?.signal_id },
@@ -157,7 +160,7 @@ export function MeetingIntelligencePanel({
       {/* Content */}
       <div className="flex-1 overflow-hidden">
         {/* No recording — empty state */}
-        {!recording && !isProcessing && activeTab !== 'strategy' && (
+        {!recording && !isProcessing && activeTab !== 'strategy' && activeTab !== 'recording' && (
           <div className="flex flex-col items-center justify-center h-full text-text-muted gap-4 p-8">
             <Mic className="w-12 h-12 text-[#D0D0D0]" />
             <p className="text-sm font-medium">Record this meeting to unlock intelligence</p>
@@ -186,7 +189,7 @@ export function MeetingIntelligencePanel({
         )}
 
         {/* Recording in progress */}
-        {isProcessing && activeTab !== 'strategy' && (
+        {isProcessing && activeTab !== 'strategy' && activeTab !== 'recording' && (
           <div className="flex flex-col items-center justify-center h-full text-text-muted gap-3 p-8">
             <Loader2 className="w-8 h-8 animate-spin text-brand-primary" />
             <p className="text-sm font-medium">Processing recording...</p>
@@ -234,6 +237,18 @@ export function MeetingIntelligencePanel({
                 projectId={projectId}
               />
             )}
+          </div>
+        )}
+
+        {/* Recording tab — video/audio player + transcript */}
+        {activeTab === 'recording' && isComplete && (
+          <RecordingPlayerView details={details} />
+        )}
+        {activeTab === 'recording' && !isComplete && (
+          <div className="flex flex-col items-center justify-center h-full text-text-muted gap-2 p-8">
+            <Mic className="w-10 h-10 text-[#D0D0D0]" />
+            <p className="text-sm">No completed recording yet</p>
+            <p className="text-xs">Record or seed a call to watch it here with synced transcript.</p>
           </div>
         )}
 
