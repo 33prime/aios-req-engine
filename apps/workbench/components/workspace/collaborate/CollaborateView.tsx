@@ -8,6 +8,7 @@ import { QuestionBoardSection } from './QuestionBoardSection'
 import { AgendaCenterSection } from './AgendaCenterSection'
 import { PrototypeEngagementSection } from './PrototypeEngagementSection'
 import { ClientActivitySection } from './ClientActivitySection'
+import { ClientStagingSection } from './ClientStagingSection'
 import type { WorkspacePhase } from '../PhaseSwitcher'
 
 interface CollaborateViewProps {
@@ -67,6 +68,9 @@ export function CollaborateView({ projectId, onNavigateToPhase }: CollaborateVie
         </div>
         <div id="collab-prototype" className="rounded-2xl transition-all duration-500">
           <PrototypeEngagementSection projectId={projectId} />
+        </div>
+        <div id="collab-client-exploration" className="rounded-2xl transition-all duration-500">
+          <ClientStagingSection projectId={projectId} />
         </div>
         <div id="collab-activity" className="rounded-2xl transition-all duration-500">
           <ClientActivitySection projectId={projectId} />

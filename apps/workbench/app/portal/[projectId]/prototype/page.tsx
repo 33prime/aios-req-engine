@@ -1,12 +1,25 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { useParams, useSearchParams } from 'next/navigation'
 import PrototypeFrame from '@/components/prototype/PrototypeFrame'
 import { getPrototypeClientData, submitFeatureVerdict, completeClientReview } from '@/lib/api'
-import { getStakeholderReview, submitStakeholderEpicVerdict } from '@/lib/api/portal'
+import {
+  getStakeholderReview,
+  submitStakeholderEpicVerdict,
+  getClientExploration,
+  submitAssumptionResponse,
+  submitInspiration,
+  submitExplorationEvent,
+  completeExploration,
+} from '@/lib/api/portal'
+import { ExplorationWelcome } from '@/components/portal/ExplorationWelcome'
+import { EpicExplorationCard } from '@/components/portal/EpicExplorationCard'
+import { InspirationCapture } from '@/components/portal/InspirationCapture'
+import { ExplorationSummary } from '@/components/portal/ExplorationSummary'
+import { ExplorationNav } from '@/components/portal/ExplorationNav'
 import type { FeatureVerdict } from '@/types/prototype'
-import type { StakeholderReviewData, VerdictType } from '@/types/portal'
+import type { StakeholderReviewData, VerdictType, ClientExplorationData } from '@/types/portal'
 
 interface FeatureReview {
   feature_name: string
@@ -62,9 +75,10 @@ const EPIC_VERDICT_STYLES: Record<VerdictType, { button: string; active: string 
 /**
  * Client prototype review page.
  *
- * Two modes:
+ * Three modes:
  * 1. Token-based (legacy) — feature-level verdicts via magic link
  * 2. Stakeholder-aware — epic-level verdicts from portal nav, with assignment highlighting
+ * 3. Exploration mode — assumption-based pre-call exploration (Portal v2)
  */
 export default function PortalPrototypePage() {
   const params = useParams()
@@ -72,6 +86,7 @@ export default function PortalPrototypePage() {
   const projectId = params.projectId as string
   const token = searchParams.get('token') || ''
   const sessionId = searchParams.get('session') || ''
+  const mode = searchParams.get('mode') || ''
 
   // Legacy feature mode
   const [deployUrl, setDeployUrl] = useState<string | null>(null)
@@ -85,12 +100,22 @@ export default function PortalPrototypePage() {
   const [epicVerdicts, setEpicVerdicts] = useState<Record<number, VerdictType>>({})
   const [epicNotes, setEpicNotes] = useState<Record<number, string>>({})
 
+  // Exploration mode (Portal v2)
+  const [explorationData, setExplorationData] = useState<ClientExplorationData | null>(null)
+  const [explorationPhase, setExplorationPhase] = useState<'welcome' | 'tour' | 'summary' | 'done'>('welcome')
+  const [currentEpicIndex, setCurrentEpicIndex] = useState(0)
+  const [assumptionResponses, setAssumptionResponses] = useState<Record<string, 'agree' | 'disagree'>>({})
+  const [inspirationCount, setInspirationCount] = useState(0)
+  const [showInspirationPanel, setShowInspirationPanel] = useState(false)
+  const explorationStarted = useRef(false)
+
   const [submitted, setSubmitted] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   const isTokenMode = !!token && !!sessionId
+  const isExplorationMode = mode === 'explore' || (!!explorationData && !isTokenMode && !stakeholderData)
 
   useEffect(() => {
     async function load() {
@@ -101,19 +126,33 @@ export default function PortalPrototypePage() {
           setPrototypeId(data.prototype_id)
           setDeployUrl(data.deploy_url)
           setFeatureReviews(data.feature_reviews || [])
-        } else if (sessionId) {
-          // Stakeholder epic review from portal
-          const data = await getStakeholderReview(sessionId)
-          setStakeholderData(data)
+        } else if (sessionId && mode === 'explore') {
+          // Exploration mode — assumption-based
+          const data = await getClientExploration(sessionId)
+          setExplorationData(data)
           setDeployUrl(data.deploy_url || null)
-          // Pre-fill existing verdicts
-          const existing: Record<number, VerdictType> = {}
-          for (const e of data.epics) {
-            if (e.verdict) existing[e.index] = e.verdict as VerdictType
+        } else if (sessionId) {
+          // Try exploration first, fall back to stakeholder review
+          try {
+            const data = await getClientExploration(sessionId)
+            if (data.epics?.length > 0) {
+              setExplorationData(data)
+              setDeployUrl(data.deploy_url || null)
+            } else {
+              throw new Error('No exploration epics')
+            }
+          } catch {
+            // Fall back to stakeholder epic review
+            const data = await getStakeholderReview(sessionId)
+            setStakeholderData(data)
+            setDeployUrl(data.deploy_url || null)
+            const existing: Record<number, VerdictType> = {}
+            for (const e of data.epics) {
+              if (e.verdict) existing[e.index] = e.verdict as VerdictType
+            }
+            setEpicVerdicts(existing)
           }
-          setEpicVerdicts(existing)
         } else {
-          // No session — try to find latest session for project
           setError('No prototype session available. Check back when your consultant shares one.')
         }
       } catch {
@@ -123,7 +162,7 @@ export default function PortalPrototypePage() {
       }
     }
     load()
-  }, [sessionId, token, isTokenMode])
+  }, [sessionId, token, isTokenMode, mode])
 
   // Legacy feature handlers
   const handleVerdictClick = useCallback(async (overlayId: string, verdict: FeatureVerdict) => {
@@ -179,6 +218,90 @@ export default function PortalPrototypePage() {
     }
   }, [sessionId, epicVerdicts, epicNotes])
 
+  // Exploration mode handlers
+  const handleExplorationStart = useCallback(() => {
+    setExplorationPhase('tour')
+    setCurrentEpicIndex(0)
+    if (sessionId && !explorationStarted.current) {
+      explorationStarted.current = true
+      submitExplorationEvent(sessionId, { event_type: 'session_start' }).catch(console.error)
+    }
+  }, [sessionId])
+
+  const handleAssumptionResponse = useCallback(async (assumptionIndex: number, response: 'agree' | 'disagree') => {
+    if (!explorationData) return
+    const epic = explorationData.epics[currentEpicIndex]
+    if (!epic) return
+
+    const key = `${epic.index}-${assumptionIndex}`
+    setAssumptionResponses(prev => ({ ...prev, [key]: response }))
+
+    if (sessionId) {
+      submitAssumptionResponse(sessionId, {
+        epic_index: epic.index,
+        assumption_index: assumptionIndex,
+        response,
+      }).catch(console.error)
+    }
+  }, [explorationData, currentEpicIndex, sessionId])
+
+  const handleInspirationSubmit = useCallback(async (text: string) => {
+    if (!explorationData || !sessionId) return
+    const epic = explorationData.epics[currentEpicIndex]
+    submitInspiration(sessionId, {
+      epic_index: epic?.index ?? null,
+      text,
+    }).catch(console.error)
+    setInspirationCount(prev => prev + 1)
+  }, [explorationData, currentEpicIndex, sessionId])
+
+  const handleEpicNavigate = useCallback((newIndex: number) => {
+    if (!explorationData || !sessionId) return
+    const oldEpic = explorationData.epics[currentEpicIndex]
+    const newEpic = explorationData.epics[newIndex]
+    if (oldEpic) {
+      submitExplorationEvent(sessionId, { event_type: 'epic_leave', epic_index: oldEpic.index }).catch(console.error)
+    }
+    setCurrentEpicIndex(newIndex)
+    if (newEpic) {
+      submitExplorationEvent(sessionId, { event_type: 'epic_view', epic_index: newEpic.index }).catch(console.error)
+    }
+  }, [explorationData, currentEpicIndex, sessionId])
+
+  const handleExplorationNext = useCallback(() => {
+    if (!explorationData) return
+    if (currentEpicIndex < explorationData.epics.length - 1) {
+      handleEpicNavigate(currentEpicIndex + 1)
+    } else {
+      // Last epic — go to summary
+      const oldEpic = explorationData.epics[currentEpicIndex]
+      if (oldEpic && sessionId) {
+        submitExplorationEvent(sessionId, { event_type: 'epic_leave', epic_index: oldEpic.index }).catch(console.error)
+      }
+      setExplorationPhase('summary')
+    }
+  }, [explorationData, currentEpicIndex, handleEpicNavigate, sessionId])
+
+  const handleExplorationPrev = useCallback(() => {
+    if (currentEpicIndex > 0) {
+      handleEpicNavigate(currentEpicIndex - 1)
+    }
+  }, [currentEpicIndex, handleEpicNavigate])
+
+  const handleExplorationComplete = useCallback(async () => {
+    if (!sessionId) return
+    setSubmitting(true)
+    try {
+      await completeExploration(sessionId)
+      setExplorationPhase('done')
+      setSubmitted(true)
+    } catch (err) {
+      console.error('Failed to complete exploration:', err)
+    } finally {
+      setSubmitting(false)
+    }
+  }, [sessionId])
+
   const handleCompleteReview = async () => {
     setSubmitting(true)
     try {
@@ -223,6 +346,144 @@ export default function PortalPrototypePage() {
             Your review has been submitted. The team will incorporate your feedback.
           </p>
         </div>
+      </div>
+    )
+  }
+
+  // ── Exploration Mode (Portal v2) ──────────────────────────────────
+  if (isExplorationMode && explorationData) {
+    const epics = explorationData.epics
+    const currentEpic = epics[currentEpicIndex]
+    const currentIframeUrl = currentEpic?.primary_route && deployUrl
+      ? `${deployUrl}${currentEpic.primary_route}`
+      : deployUrl
+
+    // Compute assumption counts for summary
+    let totalAssumptions = 0
+    let agreedCount = 0
+    let disagreedCount = 0
+    for (const epic of epics) {
+      for (let i = 0; i < epic.assumptions.length; i++) {
+        totalAssumptions++
+        const key = `${epic.index}-${i}`
+        if (assumptionResponses[key] === 'agree') agreedCount++
+        else if (assumptionResponses[key] === 'disagree') disagreedCount++
+      }
+    }
+
+    if (explorationPhase === 'welcome') {
+      return (
+        <ExplorationWelcome
+          projectName={explorationData.project_name}
+          consultantName={explorationData.consultant_name}
+          epicCount={epics.length}
+          onStart={handleExplorationStart}
+        />
+      )
+    }
+
+    if (explorationPhase === 'summary' || explorationPhase === 'done') {
+      if (submitted) {
+        return (
+          <div className="flex items-center justify-center min-h-[calc(100vh-80px)] bg-gradient-to-b from-[#0A1E2F] to-[#15314A]">
+            <div className="text-center max-w-md px-6">
+              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-[#3FAF7A]/20 flex items-center justify-center">
+                <span className="text-2xl text-[#3FAF7A]">{'\u2713'}</span>
+              </div>
+              <h2 className="text-xl font-semibold text-white mb-2">Thank You!</h2>
+              <p className="text-sm text-white/60">
+                Your exploration is complete. Your consultant will review your feedback before the call.
+              </p>
+            </div>
+          </div>
+        )
+      }
+
+      return (
+        <ExplorationSummary
+          totalAssumptions={totalAssumptions}
+          agreedCount={agreedCount}
+          disagreedCount={disagreedCount}
+          inspirationCount={inspirationCount}
+          onComplete={handleExplorationComplete}
+          isSubmitting={submitting}
+        />
+      )
+    }
+
+    // Tour phase — epic by epic
+    const currentResponses: Record<number, 'agree' | 'disagree'> = {}
+    if (currentEpic) {
+      for (let i = 0; i < currentEpic.assumptions.length; i++) {
+        const key = `${currentEpic.index}-${i}`
+        if (assumptionResponses[key]) {
+          currentResponses[i] = assumptionResponses[key]
+        }
+      }
+    }
+
+    return (
+      <div className="flex flex-col h-screen bg-[#F8F9FA]">
+        {/* Nav bar */}
+        <div className="bg-[#0A1E2F] px-4 py-2">
+          <ExplorationNav
+            currentIndex={currentEpicIndex}
+            totalEpics={epics.length}
+            epicTitles={epics.map(e => e.title)}
+            onPrevious={handleExplorationPrev}
+            onNext={handleExplorationNext}
+            onNavigate={handleEpicNavigate}
+          />
+        </div>
+
+        {/* Prototype iframe — top 60% */}
+        <div className="flex-[60] min-h-0">
+          {currentIframeUrl ? (
+            <PrototypeFrame
+              deployUrl={currentIframeUrl}
+              onFeatureClick={() => {}}
+              onPageChange={() => {}}
+            />
+          ) : (
+            <div className="flex items-center justify-center h-full text-gray-400">
+              Prototype preview unavailable
+            </div>
+          )}
+        </div>
+
+        {/* Bottom panel — 40% */}
+        <div className="flex-[40] border-t border-gray-200 bg-white overflow-y-auto">
+          <div className="max-w-2xl mx-auto px-6 py-5">
+            {currentEpic && (
+              <EpicExplorationCard
+                epic={currentEpic}
+                responses={currentResponses}
+                onAssumptionResponse={handleAssumptionResponse}
+                onNewIdea={() => setShowInspirationPanel(true)}
+              />
+            )}
+
+            {/* Next / finish button */}
+            <div className="mt-4">
+              <button
+                onClick={handleExplorationNext}
+                className="w-full px-6 py-3 bg-[#3FAF7A] text-white font-medium rounded-xl hover:bg-[#35A06D] transition-all"
+              >
+                {currentEpicIndex < epics.length - 1 ? 'Next Area' : 'Review Summary'}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Inspiration slide-up */}
+        {showInspirationPanel && currentEpic && (
+          <InspirationCapture
+            epicIndex={currentEpic.index}
+            epicTitle={currentEpic.title}
+            onSubmit={handleInspirationSubmit}
+            onClose={() => setShowInspirationPanel(false)}
+          />
+        )}
       </div>
     )
   }

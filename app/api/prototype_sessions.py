@@ -862,6 +862,9 @@ async def update_review_state(session_id: UUID, body: dict):
         "updating",
         "re_review",
         "ready_for_client",
+        "staging",
+        "client_exploring",
+        "client_complete",
     }
     if state not in valid_states:
         raise HTTPException(status_code=400, detail=f"Invalid review_state: {state}")
@@ -1303,3 +1306,408 @@ async def submit_stakeholder_epic_verdict(session_id: UUID, body: dict):
             logger.warning(f"Failed to update stakeholder on confirmation: {e}")
 
     return result
+
+
+# =============================================================================
+# Client Exploration (Portal v2)
+# =============================================================================
+
+
+@router.post("/{session_id}/prepare-for-client")
+async def prepare_for_client(session_id: UUID):
+    """Generate assumptions via Haiku, create epic_configs, set review_state='staging'."""
+    from app.chains.generate_epic_assumptions import generate_assumptions_for_epic
+    from app.db.client_exploration import save_epic_configs
+
+    session = get_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    prototype = get_prototype(UUID(session["prototype_id"]))
+    if not prototype:
+        raise HTTPException(status_code=404, detail="Prototype not found")
+
+    epic_plan = prototype.get("prebuild_intelligence", {}).get("epic_plan", {})
+    vision_epics = epic_plan.get("vision_epics", [])
+    if not vision_epics:
+        raise HTTPException(status_code=400, detail="No epics found in prototype")
+
+    # Generate assumptions for each epic
+    configs = []
+    for idx, epic in enumerate(vision_epics):
+        assumptions = generate_assumptions_for_epic(epic)
+        configs.append({
+            "epic_index": idx,
+            "enabled": True,
+            "display_order": idx,
+            "consultant_note": None,
+            "narrative_override": None,
+            "assumptions": assumptions,
+        })
+
+    save_epic_configs(session_id, configs)
+    update_session(session_id, review_state="staging")
+
+    logger.info(f"Prepared session {session_id} for client: {len(configs)} epics configured")
+    return {
+        "session_id": str(session_id),
+        "epics_configured": len(configs),
+        "review_state": "staging",
+    }
+
+
+@router.get("/{session_id}/epic-configs")
+async def get_epic_configs_endpoint(session_id: UUID):
+    """Get staging epic configs for consultant editing."""
+    from app.db.client_exploration import get_epic_configs
+
+    session = get_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    configs = get_epic_configs(session_id)
+
+    # Enrich with epic titles from prototype
+    prototype = get_prototype(UUID(session["prototype_id"]))
+    epic_plan = prototype.get("prebuild_intelligence", {}).get("epic_plan", {}) if prototype else {}
+    vision_epics = epic_plan.get("vision_epics", [])
+
+    for config in configs:
+        idx = config.get("epic_index", 0)
+        if idx < len(vision_epics):
+            config["title"] = vision_epics[idx].get("title", f"Epic {idx + 1}")
+            config["narrative"] = config.get("narrative_override") or vision_epics[idx].get(
+                "narrative", ""
+            )
+        else:
+            config["title"] = f"Epic {idx + 1}"
+            config["narrative"] = config.get("narrative_override", "")
+
+    return {"session_id": str(session_id), "configs": configs}
+
+
+@router.put("/{session_id}/epic-configs")
+async def update_epic_configs_endpoint(session_id: UUID, body: dict):
+    """Update epic configs (toggle, reorder, edit notes/narrative/assumptions)."""
+    from app.db.client_exploration import save_epic_configs
+
+    session = get_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    configs = body.get("configs", [])
+    save_epic_configs(session_id, configs)
+
+    return {"session_id": str(session_id), "updated": len(configs)}
+
+
+@router.post("/{session_id}/share-with-client")
+async def share_with_client(session_id: UUID):
+    """Set review_state='client_exploring', making the portal accessible."""
+    session = get_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    update_session(session_id, review_state="client_exploring")
+    logger.info(f"Session {session_id} shared with client — now exploring")
+    return {"session_id": str(session_id), "review_state": "client_exploring"}
+
+
+@router.get("/{session_id}/client-exploration")
+async def get_client_exploration(session_id: UUID):
+    """Get exploration data for the client portal (enabled epics + assumptions)."""
+    from app.db.client_exploration import get_epic_configs
+
+    session = get_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    prototype = get_prototype(UUID(session["prototype_id"]))
+    if not prototype:
+        raise HTTPException(status_code=404, detail="Prototype not found")
+
+    configs = get_epic_configs(session_id)
+    epic_plan = prototype.get("prebuild_intelligence", {}).get("epic_plan", {})
+    vision_epics = epic_plan.get("vision_epics", [])
+
+    # Get project name
+    project_name = "Your Project"
+    try:
+        from app.db.supabase_client import get_supabase
+
+        supabase = get_supabase()
+        proj = (
+            supabase.table("projects")
+            .select("name")
+            .eq("id", str(prototype["project_id"]))
+            .maybe_single()
+            .execute()
+        )
+        if proj.data:
+            project_name = proj.data.get("name", project_name)
+    except Exception:
+        pass
+
+    # Build enabled epics with their data
+    enabled_epics = []
+    for config in sorted(configs, key=lambda c: c.get("display_order", 0)):
+        if not config.get("enabled", True):
+            continue
+        idx = config.get("epic_index", 0)
+        epic_data = vision_epics[idx] if idx < len(vision_epics) else {}
+
+        features = []
+        for f in epic_data.get("features", []):
+            features.append({
+                "name": f.get("name", ""),
+                "description": f.get("description", ""),
+            })
+
+        enabled_epics.append({
+            "index": idx,
+            "title": epic_data.get("title", f"Epic {idx + 1}"),
+            "narrative": config.get("narrative_override") or epic_data.get("narrative", ""),
+            "consultant_note": config.get("consultant_note"),
+            "assumptions": config.get("assumptions", []),
+            "primary_route": epic_data.get("primary_route"),
+            "features": features,
+        })
+
+    return {
+        "session_id": str(session_id),
+        "deploy_url": prototype.get("deploy_url"),
+        "project_name": project_name,
+        "consultant_name": None,
+        "epics": enabled_epics,
+        "welcome_message": None,
+    }
+
+
+@router.post("/{session_id}/assumption-response")
+async def submit_assumption_response(session_id: UUID, body: dict):
+    """Save client's thumbs-up/down on a single assumption."""
+    from app.core.schemas_client_portal import AssumptionResponse
+    from app.db.client_exploration import save_assumption_response
+
+    session = get_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    data = AssumptionResponse(**body)
+    result = save_assumption_response(
+        session_id=session_id,
+        epic_index=data.epic_index,
+        assumption_index=data.assumption_index,
+        response=data.response,
+    )
+    return result
+
+
+@router.post("/{session_id}/inspiration")
+async def submit_inspiration(session_id: UUID, body: dict):
+    """Save a client inspiration (new idea)."""
+    from app.core.schemas_client_portal import InspirationSubmit
+    from app.db.client_exploration import save_inspiration
+
+    session = get_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    data = InspirationSubmit(**body)
+    result = save_inspiration(
+        session_id=session_id,
+        epic_index=data.epic_index,
+        text=data.text,
+    )
+    return result
+
+
+@router.post("/{session_id}/exploration-event")
+async def submit_exploration_event(session_id: UUID, body: dict):
+    """Log a passive exploration analytics event."""
+    from app.core.schemas_client_portal import ExplorationEvent
+    from app.db.client_exploration import save_exploration_event
+
+    session = get_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    data = ExplorationEvent(**body)
+    save_exploration_event(
+        session_id=session_id,
+        event_type=data.event_type,
+        epic_index=data.epic_index,
+        metadata=data.metadata,
+    )
+    return {"ok": True}
+
+
+@router.post("/{session_id}/complete-exploration")
+async def complete_exploration(session_id: UUID):
+    """Client finishes exploration — set review_state='client_complete'."""
+    from app.db.client_exploration import save_exploration_event
+
+    session = get_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    save_exploration_event(session_id=session_id, event_type="session_end")
+    update_session(session_id, review_state="client_complete")
+    logger.info(f"Client exploration complete for session {session_id}")
+    return {"session_id": str(session_id), "review_state": "client_complete"}
+
+
+@router.get("/{session_id}/exploration-results")
+async def get_exploration_results(session_id: UUID):
+    """Get aggregated results: assumption responses + inspirations + time analytics."""
+    from app.db.client_exploration import (
+        get_assumption_responses,
+        get_epic_configs,
+        get_exploration_events,
+        get_inspirations,
+    )
+
+    session = get_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    prototype = get_prototype(UUID(session["prototype_id"]))
+    epic_plan = prototype.get("prebuild_intelligence", {}).get("epic_plan", {}) if prototype else {}
+    vision_epics = epic_plan.get("vision_epics", [])
+
+    configs = get_epic_configs(session_id)
+    responses = get_assumption_responses(session_id)
+    inspirations = get_inspirations(session_id)
+    events = get_exploration_events(session_id)
+
+    # Build response map: (epic_index, assumption_index) -> response
+    resp_map: dict[tuple[int, int], str] = {}
+    for r in responses:
+        resp_map[(r["epic_index"], r["assumption_index"])] = r["response"]
+
+    # Compute time per epic from events
+    epic_times: dict[int, int] = {}
+    epic_enter: dict[int, str] = {}
+    for evt in events:
+        etype = evt.get("event_type")
+        eidx = evt.get("epic_index")
+        ts = evt.get("created_at", "")
+        if etype == "epic_view" and eidx is not None:
+            epic_enter[eidx] = ts
+        elif etype == "epic_leave" and eidx is not None and eidx in epic_enter:
+            try:
+                from datetime import datetime
+
+                enter_dt = datetime.fromisoformat(epic_enter[eidx].replace("Z", "+00:00"))
+                leave_dt = datetime.fromisoformat(ts.replace("Z", "+00:00"))
+                secs = int((leave_dt - enter_dt).total_seconds())
+                epic_times[eidx] = epic_times.get(eidx, 0) + secs
+            except Exception:
+                pass
+
+    # Compute total time from session_start to session_end
+    total_time = None
+    start_ts = None
+    end_ts = None
+    for evt in events:
+        if evt.get("event_type") == "session_start":
+            start_ts = evt.get("created_at")
+        if evt.get("event_type") == "session_end":
+            end_ts = evt.get("created_at")
+    if start_ts and end_ts:
+        try:
+            from datetime import datetime
+
+            start_dt = datetime.fromisoformat(start_ts.replace("Z", "+00:00"))
+            end_dt = datetime.fromisoformat(end_ts.replace("Z", "+00:00"))
+            total_time = int((end_dt - start_dt).total_seconds())
+        except Exception:
+            pass
+
+    # Build per-epic results
+    epic_results = []
+    for config in sorted(configs, key=lambda c: c.get("display_order", 0)):
+        if not config.get("enabled", True):
+            continue
+        idx = config.get("epic_index", 0)
+        epic_data = vision_epics[idx] if idx < len(vision_epics) else {}
+        assumptions = config.get("assumptions", [])
+
+        assumption_results = []
+        for ai, a in enumerate(assumptions):
+            assumption_results.append({
+                "text": a.get("text", ""),
+                "source_type": a.get("source_type", "inferred"),
+                "response": resp_map.get((idx, ai)),
+            })
+
+        epic_results.append({
+            "epic_index": idx,
+            "title": epic_data.get("title", f"Epic {idx + 1}"),
+            "assumptions": assumption_results,
+            "time_spent_seconds": epic_times.get(idx),
+        })
+
+    return {
+        "session_id": str(session_id),
+        "epics": epic_results,
+        "inspirations": [
+            {
+                "id": i.get("id"),
+                "epic_index": i.get("epic_index"),
+                "text": i.get("text"),
+                "created_at": i.get("created_at"),
+            }
+            for i in inspirations
+        ],
+        "total_time_seconds": total_time,
+        "completed_at": end_ts,
+    }
+
+
+@router.post("/{session_id}/feed-inspirations")
+async def feed_inspirations(session_id: UUID):
+    """Convert client inspirations into discovery signals via insert_signal()."""
+    from app.db.client_exploration import get_inspirations
+    from app.db.phase0 import insert_signal
+
+    session = get_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    prototype = get_prototype(UUID(session["prototype_id"]))
+    if not prototype:
+        raise HTTPException(status_code=404, detail="Prototype not found")
+
+    project_id = prototype["project_id"]
+    inspirations = get_inspirations(session_id)
+
+    if not inspirations:
+        return {"session_id": str(session_id), "signals_created": 0}
+
+    signals_created = 0
+    for insp in inspirations:
+        try:
+            text = insp.get("text", "").strip()
+            if not text:
+                continue
+            epic_idx = insp.get("epic_index")
+            epic_ctx = f" (from epic {epic_idx})" if epic_idx is not None else ""
+            insert_signal(
+                project_id=UUID(project_id),
+                signal_type="client_feedback",
+                source="client",
+                raw_text=f"Client inspiration{epic_ctx}: {text}",
+                metadata={
+                    "source": "client_exploration",
+                    "session_id": str(session_id),
+                    "epic_index": insp.get("epic_index"),
+                    "inspiration_id": insp.get("id"),
+                },
+            )
+            signals_created += 1
+        except Exception as e:
+            logger.warning(f"Failed to create signal from inspiration: {e}")
+
+    logger.info(f"Fed {signals_created} inspirations into discovery for session {session_id}")
+    return {"session_id": str(session_id), "signals_created": signals_created}

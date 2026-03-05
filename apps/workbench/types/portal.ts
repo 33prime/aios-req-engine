@@ -172,3 +172,68 @@ export interface StakeholderReviewData {
   epics: StakeholderEpic[]
   total_epics: number
 }
+
+// ============================================================================
+// Client Exploration (Portal v2)
+// ============================================================================
+
+export interface EpicAssumption {
+  text: string
+  source_type: string // 'resolved_decision' | 'pain_point' | 'open_question' | 'inferred'
+}
+
+export interface EpicConfig {
+  epic_index: number
+  enabled: boolean
+  display_order: number
+  consultant_note?: string | null
+  narrative_override?: string | null
+  assumptions: EpicAssumption[]
+  title?: string
+  narrative?: string
+}
+
+export interface ClientEpic {
+  index: number
+  title: string
+  narrative: string
+  consultant_note?: string | null
+  assumptions: EpicAssumption[]
+  primary_route?: string | null
+  features: Array<{ name: string; description?: string }>
+}
+
+export interface ClientExplorationData {
+  session_id: string
+  deploy_url?: string | null
+  project_name: string
+  consultant_name?: string | null
+  epics: ClientEpic[]
+  welcome_message?: string | null
+}
+
+export interface AssumptionResult {
+  text: string
+  source_type: string
+  response?: string | null // 'agree' | 'disagree' | null
+}
+
+export interface EpicResult {
+  epic_index: number
+  title: string
+  assumptions: AssumptionResult[]
+  time_spent_seconds?: number | null
+}
+
+export interface ClientExplorationResults {
+  session_id: string
+  epics: EpicResult[]
+  inspirations: Array<{
+    id: string
+    epic_index?: number | null
+    text: string
+    created_at: string
+  }>
+  total_time_seconds?: number | null
+  completed_at?: string | null
+}

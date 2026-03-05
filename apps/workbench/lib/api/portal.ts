@@ -9,6 +9,9 @@ import type {
   TeamInviteRequest,
   TeamProgress,
   StakeholderReviewData,
+  EpicConfig,
+  ClientExplorationData,
+  ClientExplorationResults,
 } from '@/types/portal'
 
 // ============================================================================
@@ -121,4 +124,103 @@ export const submitStakeholderEpicVerdict = (
       method: 'PUT',
       body: JSON.stringify(data),
     }
+  )
+
+// ============================================================================
+// Client Exploration (Portal v2)
+// ============================================================================
+
+// Consultant: generate assumptions and create epic configs
+export const prepareForClient = (sessionId: string) =>
+  apiRequest<{ session_id: string; epics_configured: number; review_state: string }>(
+    `/prototype-sessions/${sessionId}/prepare-for-client`,
+    { method: 'POST' }
+  )
+
+// Consultant: get staging configs
+export const getEpicConfigs = (sessionId: string) =>
+  apiRequest<{ session_id: string; configs: EpicConfig[] }>(
+    `/prototype-sessions/${sessionId}/epic-configs`
+  )
+
+// Consultant: update staging configs
+export const updateEpicConfigs = (sessionId: string, configs: EpicConfig[]) =>
+  apiRequest<{ session_id: string; updated: number }>(
+    `/prototype-sessions/${sessionId}/epic-configs`,
+    {
+      method: 'PUT',
+      body: JSON.stringify({ configs }),
+    }
+  )
+
+// Consultant: share with client
+export const shareWithClient = (sessionId: string) =>
+  apiRequest<{ session_id: string; review_state: string }>(
+    `/prototype-sessions/${sessionId}/share-with-client`,
+    { method: 'POST' }
+  )
+
+// Client: get exploration data
+export const getClientExploration = (sessionId: string) =>
+  apiRequest<ClientExplorationData>(
+    `/prototype-sessions/${sessionId}/client-exploration`
+  )
+
+// Client: submit assumption response
+export const submitAssumptionResponse = (
+  sessionId: string,
+  data: { epic_index: number; assumption_index: number; response: 'agree' | 'disagree' }
+) =>
+  apiRequest<Record<string, unknown>>(
+    `/prototype-sessions/${sessionId}/assumption-response`,
+    {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }
+  )
+
+// Client: submit inspiration
+export const submitInspiration = (
+  sessionId: string,
+  data: { epic_index?: number | null; text: string }
+) =>
+  apiRequest<Record<string, unknown>>(
+    `/prototype-sessions/${sessionId}/inspiration`,
+    {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }
+  )
+
+// Client: log exploration event
+export const submitExplorationEvent = (
+  sessionId: string,
+  data: { event_type: string; epic_index?: number | null; metadata?: Record<string, unknown> }
+) =>
+  apiRequest<{ ok: boolean }>(
+    `/prototype-sessions/${sessionId}/exploration-event`,
+    {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }
+  )
+
+// Client: complete exploration
+export const completeExploration = (sessionId: string) =>
+  apiRequest<{ session_id: string; review_state: string }>(
+    `/prototype-sessions/${sessionId}/complete-exploration`,
+    { method: 'POST' }
+  )
+
+// Consultant: get results
+export const getExplorationResults = (sessionId: string) =>
+  apiRequest<ClientExplorationResults>(
+    `/prototype-sessions/${sessionId}/exploration-results`
+  )
+
+// Consultant: feed inspirations into discovery
+export const feedInspirations = (sessionId: string) =>
+  apiRequest<{ session_id: string; signals_created: number }>(
+    `/prototype-sessions/${sessionId}/feed-inspirations`,
+    { method: 'POST' }
   )

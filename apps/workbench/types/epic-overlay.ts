@@ -141,6 +141,9 @@ export type ReviewState =
   | 'updating'
   | 're_review'
   | 'ready_for_client'
+  | 'staging'
+  | 'client_exploring'
+  | 'client_complete'
 
 export interface ReviewSummaryItem {
   card_index: number
