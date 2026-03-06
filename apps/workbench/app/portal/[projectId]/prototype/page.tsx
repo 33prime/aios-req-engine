@@ -21,7 +21,6 @@ import { ExplorationNav } from '@/components/portal/ExplorationNav'
 import { StakeholderInviteModal } from '@/components/portal/StakeholderInviteModal'
 import { X, CheckCircle, Pencil, HelpCircle, Share2 } from 'lucide-react'
 import type { FeatureVerdict } from '@/types/prototype'
-import type { PrototypeFrameHandle } from '@/components/prototype/PrototypeFrame'
 import type { StakeholderReviewData, VerdictType, ClientExplorationData, AssumptionResponseType } from '@/types/portal'
 
 interface FeatureReview {
@@ -113,8 +112,11 @@ export default function PortalPrototypePage() {
   const [activeTab, setActiveTab] = useState<'overview' | 'discuss'>('overview')
   const [contextCard, setContextCard] = useState<{ type: 'refine' | 'question'; assumptionText: string } | null>(null)
   const [showShareModal, setShowShareModal] = useState(false)
-  const protoFrameRef = useRef<PrototypeFrameHandle>(null)
+  // Exploration iframe — direct ref like BuildPhaseView (not PrototypeFrame)
+  const explorationIframeRef = useRef<HTMLIFrameElement>(null)
   const [bridgeReady, setBridgeReady] = useState(false)
+  const [activeIframeSrc, setActiveIframeSrc] = useState<string | null>(null)
+  const [iframeLoading, setIframeLoading] = useState(false)
   const explorationStarted = useRef(false)
 
   const [submitted, setSubmitted] = useState(false)
@@ -127,7 +129,24 @@ export default function PortalPrototypePage() {
   // Resolve session ID: URL param or from loaded exploration data
   const resolvedSessionId = sessionId || explorationData?.session_id || ''
 
-  // No longer hiding sidebar — it stays visible and is user-collapsible
+  // Bridge detection — listen for aios:page-change from prototype iframe (same as BuildPhaseView)
+  useEffect(() => {
+    const handler = (e: MessageEvent) => {
+      if (!e.data?.type) return
+      if (e.data.type === 'aios:page-change') {
+        setBridgeReady(true)
+      }
+    }
+    window.addEventListener('message', handler)
+    return () => window.removeEventListener('message', handler)
+  }, [])
+
+  // Set initial iframe src when deployUrl is loaded
+  useEffect(() => {
+    if (deployUrl && !activeIframeSrc) {
+      setActiveIframeSrc(deployUrl)
+    }
+  }, [deployUrl, activeIframeSrc])
 
   // Register prototype-aware chat config — knows which epic is active
   const currentEpic = explorationData?.epics?.[currentEpicIndex]
@@ -352,16 +371,24 @@ export default function PortalPrototypePage() {
     }
   }, [currentEpicIndex, handleEpicNavigate])
 
-  // Navigate prototype SPA via postMessage when epic changes (same pattern as BuildPhaseView)
+  // Navigate prototype SPA when epic changes (same pattern as BuildPhaseView)
   useEffect(() => {
     if (!explorationData || !deployUrl) return
     const epic = explorationData.epics[currentEpicIndex]
     const route = epic?.primary_route
     if (!route) return
 
-    if (bridgeReady && protoFrameRef.current) {
+    if (bridgeReady && explorationIframeRef.current?.contentWindow) {
       // SPA navigation via bridge — no page reload
-      protoFrameRef.current.sendMessage({ type: 'aios:navigate', path: route })
+      explorationIframeRef.current.contentWindow.postMessage(
+        { type: 'aios:navigate', path: route },
+        '*'
+      )
+    } else {
+      // No bridge — fall back to src swap with loading overlay
+      const newSrc = deployUrl.replace(/\/$/, '') + route
+      setIframeLoading(true)
+      setActiveIframeSrc(newSrc)
     }
   }, [currentEpicIndex, explorationData, deployUrl, bridgeReady])
 
@@ -513,14 +540,22 @@ export default function PortalPrototypePage() {
         <div className="flex flex-1 min-h-0">
           {/* Iframe — fills remaining space */}
           <div className="flex-1 min-h-0 h-full relative">
-            {deployUrl ? (
-              <PrototypeFrame
-                ref={protoFrameRef}
-                deployUrl={deployUrl}
-                onFeatureClick={() => {}}
-                onPageChange={() => {}}
-                onIframeReady={() => setBridgeReady(true)}
-              />
+            {activeIframeSrc ? (
+              <>
+                {iframeLoading && (
+                  <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/60 backdrop-blur-sm">
+                    <Spinner />
+                  </div>
+                )}
+                <iframe
+                  ref={explorationIframeRef}
+                  src={activeIframeSrc}
+                  className="w-full h-full border-0"
+                  title="Prototype Preview"
+                  sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+                  onLoad={() => setIframeLoading(false)}
+                />
+              </>
             ) : (
               <div className="flex items-center justify-center h-full text-text-placeholder">
                 Prototype preview unavailable
