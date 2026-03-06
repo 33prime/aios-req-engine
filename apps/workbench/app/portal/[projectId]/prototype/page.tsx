@@ -21,6 +21,7 @@ import { ExplorationNav } from '@/components/portal/ExplorationNav'
 import { StakeholderInviteModal } from '@/components/portal/StakeholderInviteModal'
 import { X, CheckCircle, Pencil, HelpCircle, Share2 } from 'lucide-react'
 import type { FeatureVerdict } from '@/types/prototype'
+import type { PrototypeFrameHandle } from '@/components/prototype/PrototypeFrame'
 import type { StakeholderReviewData, VerdictType, ClientExplorationData, AssumptionResponseType } from '@/types/portal'
 
 interface FeatureReview {
@@ -112,6 +113,8 @@ export default function PortalPrototypePage() {
   const [activeTab, setActiveTab] = useState<'overview' | 'discuss'>('overview')
   const [contextCard, setContextCard] = useState<{ type: 'refine' | 'question'; assumptionText: string } | null>(null)
   const [showShareModal, setShowShareModal] = useState(false)
+  const protoFrameRef = useRef<PrototypeFrameHandle>(null)
+  const [bridgeReady, setBridgeReady] = useState(false)
   const explorationStarted = useRef(false)
 
   const [submitted, setSubmitted] = useState(false)
@@ -349,6 +352,19 @@ export default function PortalPrototypePage() {
     }
   }, [currentEpicIndex, handleEpicNavigate])
 
+  // Navigate prototype SPA via postMessage when epic changes (same pattern as BuildPhaseView)
+  useEffect(() => {
+    if (!explorationData || !deployUrl) return
+    const epic = explorationData.epics[currentEpicIndex]
+    const route = epic?.primary_route
+    if (!route) return
+
+    if (bridgeReady && protoFrameRef.current) {
+      // SPA navigation via bridge — no page reload
+      protoFrameRef.current.sendMessage({ type: 'aios:navigate', path: route })
+    }
+  }, [currentEpicIndex, explorationData, deployUrl, bridgeReady])
+
   const handleExplorationComplete = useCallback(async () => {
     if (!resolvedSessionId) return
     setSubmitting(true)
@@ -415,13 +431,6 @@ export default function PortalPrototypePage() {
   if (isExplorationMode && explorationData) {
     const epics = explorationData.epics
     const currentEpic = epics[currentEpicIndex]
-    // Navigate iframe to epic's primary route when available
-    const epicRoute = currentEpic?.primary_route
-    const currentIframeUrl = deployUrl
-      ? epicRoute
-        ? deployUrl.replace(/\/$/, '') + epicRoute
-        : deployUrl
-      : null
 
     // Compute assumption counts for summary
     let totalAssumptions = 0
@@ -504,11 +513,13 @@ export default function PortalPrototypePage() {
         <div className="flex flex-1 min-h-0">
           {/* Iframe — fills remaining space */}
           <div className="flex-1 min-h-0 h-full relative">
-            {currentIframeUrl ? (
+            {deployUrl ? (
               <PrototypeFrame
-                deployUrl={currentIframeUrl}
+                ref={protoFrameRef}
+                deployUrl={deployUrl}
                 onFeatureClick={() => {}}
                 onPageChange={() => {}}
+                onIframeReady={() => setBridgeReady(true)}
               />
             ) : (
               <div className="flex items-center justify-center h-full text-text-placeholder">
