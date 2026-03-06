@@ -42,6 +42,8 @@ interface PortalContextValue {
   refreshWorkflows: () => Promise<void>
   sidebarHidden: boolean
   setSidebarHidden: (hidden: boolean) => void
+  sidebarCollapsed: boolean
+  setSidebarCollapsed: (collapsed: boolean) => void
   infoRequests: InfoRequest[]
   refreshInfoRequests: () => Promise<void>
   validationQueue: ValidationQueueResponse | null
@@ -74,6 +76,7 @@ export default function PortalShell({ projectId, children }: PortalShellProps) {
   const [dashboard, setDashboard] = useState<PortalDashboard | null>(null)
   const [loaded, setLoaded] = useState(false)
   const [sidebarHidden, setSidebarHidden] = useState(false)
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [workflowPairs, setWorkflowPairs] = useState<WorkflowPair[]>([])
   const [infoRequests, setInfoRequests] = useState<InfoRequest[]>([])
   const [validationQueue, setValidationQueue] = useState<ValidationQueueResponse | null>(null)
@@ -162,6 +165,8 @@ export default function PortalShell({ projectId, children }: PortalShellProps) {
     refreshWorkflows: fetchWorkflows,
     sidebarHidden,
     setSidebarHidden,
+    sidebarCollapsed,
+    setSidebarCollapsed,
     infoRequests,
     refreshInfoRequests: fetchInfoRequests,
     validationQueue,
@@ -181,11 +186,15 @@ export default function PortalShell({ projectId, children }: PortalShellProps) {
           projectName={projectName}
           portalRole={portalRole}
           pendingWorkflows={pendingWorkflows}
+          collapsed={sidebarCollapsed}
+          onToggleCollapse={() => setSidebarCollapsed(c => !c)}
         />
       )}
 
       {/* Main content */}
-      <main className={`min-h-screen transition-[margin] ${sidebarHidden ? '' : 'ml-[220px]'}`}>
+      <main className={`min-h-screen transition-[margin] duration-200 ${
+        sidebarHidden ? '' : sidebarCollapsed ? 'ml-[64px]' : 'ml-[220px]'
+      }`}>
         <div className={sidebarHidden ? '' : 'px-8 py-8'}>
           {children}
         </div>

@@ -87,7 +87,7 @@ const EPIC_VERDICT_STYLES: Record<VerdictType, { button: string; active: string 
 export default function PortalPrototypePage() {
   const params = useParams()
   const searchParams = useSearchParams()
-  const { setSidebarHidden, setChatConfig } = usePortal()
+  const { setChatConfig } = usePortal()
   const projectId = params.projectId as string
   const token = searchParams.get('token') || ''
   const sessionId = searchParams.get('session') || ''
@@ -122,16 +122,7 @@ export default function PortalPrototypePage() {
   const isTokenMode = !!token && !!sessionId
   const isExplorationMode = mode === 'explore' || (!!explorationData && !isTokenMode && !stakeholderData)
 
-  // Hide sidebar in immersive modes (exploration tour, stakeholder review, legacy review)
-  const isImmersive = !loading && !error && !submitted && (
-    (isExplorationMode && explorationData && explorationPhase === 'tour') ||
-    (stakeholderData && !isTokenMode) ||
-    (isTokenMode && featureReviews.length > 0)
-  )
-  useEffect(() => {
-    setSidebarHidden(!!isImmersive)
-    return () => setSidebarHidden(false)
-  }, [isImmersive, setSidebarHidden])
+  // No longer hiding sidebar — it stays visible and is user-collapsible
 
   // Register prototype-aware chat config — knows which epic is active
   const currentEpic = explorationData?.epics?.[currentEpicIndex]
@@ -477,7 +468,7 @@ export default function PortalPrototypePage() {
     }
 
     return (
-      <div className="fixed inset-0 flex flex-col bg-surface-page z-20">
+      <div className="flex flex-col bg-surface-page -mx-8 -my-8" style={{ height: '100vh' }}>
         {/* Nav bar */}
         <div className="bg-accent px-4 py-2 flex-shrink-0">
           <ExplorationNav
