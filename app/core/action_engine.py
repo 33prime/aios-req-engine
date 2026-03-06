@@ -1164,7 +1164,7 @@ def _build_structural_gaps(
                     StructuralGap(
                         gap_id=_skeleton_id("step_no_actor", step_id),
                         gap_type="step_no_actor",
-                        sentence=f"Who performs '{step_label}' in {wf_name}?",
+                        sentence=f"Who's responsible for '{step_label}' in {wf_name}? Let's assign a persona.",
                         entity_type="vp_step",
                         entity_id=step_id,
                         entity_name=step_label,
@@ -1179,7 +1179,7 @@ def _build_structural_gaps(
                     StructuralGap(
                         gap_id=_skeleton_id("step_no_pain", step_id),
                         gap_type="step_no_pain",
-                        sentence=f"What's the pain point at '{step_label}' in {wf_name}?",
+                        sentence=f"What frustration do people feel at '{step_label}' in {wf_name}?",
                         entity_type="vp_step",
                         entity_id=step_id,
                         entity_name=step_label,
@@ -1194,7 +1194,7 @@ def _build_structural_gaps(
                     StructuralGap(
                         gap_id=_skeleton_id("step_no_time", step_id),
                         gap_type="step_no_time",
-                        sentence=f"How long does '{step_label}' take in {wf_name}?",
+                        sentence=f"Roughly how long does '{step_label}' take in {wf_name}?",
                         entity_type="vp_step",
                         entity_id=step_id,
                         entity_name=step_label,
@@ -1213,7 +1213,7 @@ def _build_structural_gaps(
                     StructuralGap(
                         gap_id=_skeleton_id("step_no_benefit", step_id),
                         gap_type="step_no_benefit",
-                        sentence=f"What improves at '{step_label}' in {wf_name}?",
+                        sentence=f"How will '{step_label}' be better in the new {wf_name}?",
                         entity_type="vp_step",
                         entity_id=step_id,
                         entity_name=step_label,
@@ -1230,7 +1230,10 @@ def _build_structural_gaps(
                 StructuralGap(
                     gap_id=_skeleton_id("wf_no_future", wf_id),
                     gap_type="workflow_no_future_state",
-                    sentence=f"'{wf_name}' has {len(steps_with_pains)} pain points but no future state — what does the improved process look like?",
+                    sentence=(
+                        f"We've captured {len(steps_with_pains)} pain points"
+                        f" in {wf_name} — let's map out the improved process"
+                    ),
                     entity_type="workflow",
                     entity_id=wf_id,
                     entity_name=wf_name,

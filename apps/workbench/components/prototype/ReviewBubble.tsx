@@ -220,8 +220,8 @@ export function ReviewBubble({
       }).length
     : 0
 
-  // Bubble badge count and icon
-  const badgeCount = isReviewMode ? phaseConfirmed : actionCount
+  // Bubble badge count and icon — only show badge in review mode
+  const badgeCount = isReviewMode ? phaseConfirmed : 0
   const BubbleIcon = isReviewMode ? Info : MessageSquare
 
   return (
@@ -272,11 +272,6 @@ export function ReviewBubble({
                   <>
                     <Zap className="w-3.5 h-3.5" />
                     Briefing
-                    {actionCount > 0 && (
-                      <span className="ml-1 min-w-[16px] h-[16px] px-1 flex items-center justify-center rounded-full bg-brand-primary text-white text-[9px] font-bold">
-                        {actionCount}
-                      </span>
-                    )}
                   </>
                 )}
               </button>

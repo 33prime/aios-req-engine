@@ -331,10 +331,12 @@ async def compute_intelligence_briefing(
             narrative=narrative_result.get("what_you_should_know_narrative", ""),
             bullets=narrative_result.get("what_you_should_know_bullets", []),
         )
-        _cache_briefing_sections(project_id, {
-            "situation_narrative": situation_narrative,
-            "what_you_should_know": what_you_should_know.model_dump(),
-        })
+        # Only cache if we actually got a non-empty narrative
+        if situation_narrative:
+            _cache_briefing_sections(project_id, {
+                "situation_narrative": situation_narrative,
+                "what_you_should_know": what_you_should_know.model_dump(),
+            })
     elif not cache_stale and cached_sections:
         narrative_cached = True
         situation_narrative = cached_sections.get("situation_narrative", "")
@@ -428,8 +430,19 @@ async def compute_intelligence_briefing(
         ))
 
     # ── Phase 6: Assembly ──
-    # Prefer the 5-sentence narrative; fall back to starter summary only if narrative empty
+    # Prefer the 5-sentence narrative; fall back to starter summary; last resort: entity summary
     final_narrative = situation_narrative or cs_result.get("situation_summary", "")
+    if not final_narrative and entity_counts:
+        # Build a minimal fallback from entity counts so the UI doesn't show empty state
+        parts = []
+        for etype, count in entity_counts.items():
+            if count > 0:
+                parts.append(f"{count} {etype.replace('_', ' ')}{'s' if count != 1 else ''}")
+        if parts:
+            final_narrative = (
+                f"**{project_name}** is in early {phase.value} with {', '.join(parts)} captured. "
+                "Upload more documents or start a conversation to deepen the analysis."
+            )
 
     situation = BriefingSituation(
         narrative=final_narrative,

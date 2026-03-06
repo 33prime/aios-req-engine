@@ -192,29 +192,52 @@ function HealthClusters({ health }: { health: PulseSnapshot['health'] }) {
   )
 }
 
+const ACTION_BADGE_STYLES: Record<string, { label: string; bg: string; text: string }> = {
+  interview: { label: 'Interview', bg: 'rgba(4,65,89,0.06)', text: '#044159' },
+  research: { label: 'Research', bg: '#D1FAE5', text: '#047857' },
+  review: { label: 'Review', bg: 'rgba(4,65,89,0.08)', text: '#044159' },
+  signal: { label: 'Signal', bg: 'rgba(63,175,122,0.08)', text: '#2a8f5f' },
+}
+
+function actionBadgeFor(action: PulseSnapshot['actions'][number]) {
+  if (action.unblocks_gate) return ACTION_BADGE_STYLES.review
+  // Map from entity type heuristics
+  const s = action.sentence.toLowerCase()
+  if (s.includes('interview') || s.includes('stakeholder') || s.includes('call'))
+    return ACTION_BADGE_STYLES.interview
+  if (s.includes('upload') || s.includes('compet') || s.includes('research'))
+    return ACTION_BADGE_STYLES.research
+  return ACTION_BADGE_STYLES.signal
+}
+
 function NextActions({ actions }: { actions: PulseSnapshot['actions'] }) {
   const items = actions.slice(0, 3)
   if (items.length === 0) {
-    return <p className="text-[11px] text-[#3FAF7A]">No urgent actions needed</p>
+    return <p className="text-[12px] text-[#3FAF7A]">No urgent actions right now</p>
   }
 
   return (
-    <div className="space-y-2">
+    <div className="grid grid-cols-3 gap-3">
       {items.map((action, i) => {
-        const badge = action.unblocks_gate
-          ? { label: 'Review', bg: '#E8F5E9', text: '#3FAF7A' }
-          : { label: 'Research', bg: '#F5F5F5', text: '#7B7B7B' }
-
+        const badge = actionBadgeFor(action)
         return (
-          <div key={i} className="flex items-start gap-2.5 p-2.5 bg-[#F8F8F8] rounded-lg">
-            <span
-              className="text-[9px] uppercase font-semibold px-1.5 py-0.5 rounded flex-shrink-0 mt-0.5"
-              style={{ backgroundColor: badge.bg, color: badge.text }}
-            >
-              {badge.label}
-            </span>
-            <p className="text-[11px] text-text-body leading-snug flex-1">{action.sentence}</p>
-            <ArrowRight className="w-3 h-3 text-[#D4D4D4] flex-shrink-0 mt-0.5" />
+          <div
+            key={i}
+            className="flex flex-col gap-2 p-3 bg-[#F5F5F5] rounded-lg border border-transparent hover:border-[#3FAF7A] hover:bg-white cursor-pointer transition-all"
+          >
+            <div className="flex items-center gap-2">
+              <span className="w-[20px] h-[20px] rounded-full bg-[#3FAF7A] text-white text-[10px] font-bold flex items-center justify-center flex-shrink-0">
+                {i + 1}
+              </span>
+              <span
+                className="text-[9px] uppercase font-bold tracking-wide px-1.5 py-0.5 rounded"
+                style={{ backgroundColor: badge.bg, color: badge.text }}
+              >
+                {badge.label}
+              </span>
+            </div>
+            <p className="text-[12px] text-[#4B4B4B] leading-snug flex-1">{action.sentence}</p>
+            <span className="text-[#D4D4D4] text-sm self-end hover:text-[#3FAF7A] transition-colors">→</span>
           </div>
         )
       })}
@@ -245,15 +268,19 @@ export function ProjectHealthOverlay({ projectId, onDismiss }: ProjectHealthOver
   const gateProgress = pulse ? `${pulse.gates_met}/${pulse.gates_total}` : '0/0'
   const briefingNarrative = briefing?.situation?.narrative ?? ''
 
-  // Build a fallback narrative from entity counts when briefing has none
-  const narrative = briefingNarrative || (() => {
+  // Use the first paragraph of the briefing narrative, or a warm fallback
+  const narrative = (() => {
+    if (briefingNarrative) {
+      // Take just the first paragraph (split on double newline or period-space after 80+ chars)
+      const firstPara = briefingNarrative.split(/\n\n/)[0]
+      return firstPara.length > 600 ? firstPara.slice(0, 597) + '...' : firstPara
+    }
     if (!pulse) return ''
-    const counts = Object.entries(pulse.health)
-      .filter(([, h]) => h.count > 0)
-      .map(([t, h]) => `${h.count} ${ENTITY_LABELS[t]?.toLowerCase() || t}`)
-    if (counts.length === 0) return ''
     const stageLabel = STAGE_STEPS.find((s) => s.key === stage)?.label || stage
-    return `Project is in **${stageLabel}** with ${counts.join(', ')} captured so far. Open the briefing panel for a full intelligence summary.`
+    return (
+      `Your project is moving through **${stageLabel}**. `
+      + 'Open the briefing panel for a full intelligence summary.'
+    )
   })()
 
   // Sub-metrics from forecast
@@ -291,70 +318,65 @@ export function ProjectHealthOverlay({ projectId, onDismiss }: ProjectHealthOver
             {/* 2-column layout */}
             <div className="flex">
               {/* Left column — ~55% */}
-              <div className="flex-[55] p-8 pr-6 border-r border-border">
-                {/* Score ring + narrative */}
-                <div className="flex items-start gap-6 mb-6">
+              <div className="flex-[55] p-8 pr-6 border-r border-border flex flex-col">
+                {/* Score header — ring left, meta right */}
+                <div className="flex items-start gap-5 mb-5">
                   <ScoreRing score={avgHealth} stage={stage} gateProgress={gateProgress} />
-                  <div className="flex-1 min-w-0 pt-1">
-                    {narrative ? (
-                      <p className="text-[13px] text-text-body leading-[1.6]">
-                        <InlineMarkdown text={narrative} />
-                      </p>
-                    ) : (
-                      <p className="text-[13px] text-text-placeholder leading-[1.6]">
-                        Process signals to generate a project narrative.
-                      </p>
+                  <div className="flex-1 pt-1">
+                    <StageJourney currentStage={stage} />
+                    {subMetrics.length > 0 && (
+                      <div className="flex flex-wrap gap-2 mt-3">
+                        {subMetrics.map((m) => (
+                          <span
+                            key={m.label}
+                            className="bg-[#F5F5F5] text-[#7B7B7B] text-[10px] px-2 py-0.5 rounded-full"
+                          >
+                            {m.label} {m.value}%
+                          </span>
+                        ))}
+                      </div>
                     )}
                   </div>
                 </div>
 
-                {/* Stage journey */}
-                <div className="mb-5">
-                  <StageJourney currentStage={stage} />
+                {/* Narrative text — fills remaining space */}
+                <div className="flex-1">
+                  {narrative ? (
+                    <p className="text-[13px] text-text-body leading-[1.7]">
+                      <InlineMarkdown text={narrative} />
+                    </p>
+                  ) : (
+                    <p className="text-[13px] text-text-placeholder leading-[1.7]">
+                      Process signals to generate a project narrative.
+                    </p>
+                  )}
                 </div>
-
-                {/* Sub-metrics pills */}
-                {subMetrics.length > 0 && (
-                  <div className="flex flex-wrap gap-2">
-                    {subMetrics.map((m) => (
-                      <span
-                        key={m.label}
-                        className="bg-[#F5F5F5] text-[#7B7B7B] text-[10px] px-2 py-0.5 rounded-full"
-                      >
-                        {m.label} {m.value}%
-                      </span>
-                    ))}
-                  </div>
-                )}
               </div>
 
               {/* Right column — ~45% */}
-              <div className="flex-[45] p-8 pl-6 flex flex-col gap-6">
-                {/* Health clusters */}
-                <div>
-                  <h3 className="text-[11px] font-semibold text-text-placeholder uppercase tracking-wide mb-3">
-                    Entity Health
-                  </h3>
-                  <HealthClusters health={pulse.health} />
-                </div>
-
-                {/* Next actions */}
-                <div>
-                  <h3 className="text-[11px] font-semibold text-text-placeholder uppercase tracking-wide mb-2">
-                    Focus Areas
-                  </h3>
-                  <NextActions actions={pulse.actions || []} />
-                </div>
+              <div className="flex-[45] p-8 pl-6">
+                <h3 className="text-[11px] font-semibold text-text-placeholder uppercase tracking-wide mb-3">
+                  Entity Health
+                </h3>
+                <HealthClusters health={pulse.health} />
               </div>
             </div>
 
+            {/* Next Actions — full-width 3-column row */}
+            <div className="px-8 pb-2">
+              <h3 className="text-[11px] font-semibold text-text-placeholder uppercase tracking-wide mb-2">
+                Next Actions
+              </h3>
+              <NextActions actions={pulse.actions || []} />
+            </div>
+
             {/* Footer */}
-            <div className="px-8 pb-6">
+            <div className="px-8 pb-5 flex justify-end">
               <button
                 onClick={onDismiss}
-                className="w-full flex items-center justify-center gap-2 bg-[#3FAF7A] text-white font-medium py-3 rounded-xl hover:bg-[#25785A] transition-colors"
+                className="flex items-center gap-1.5 bg-[#3FAF7A] text-white text-[12px] font-semibold px-4 py-2 rounded-lg hover:bg-[#25785A] transition-colors"
               >
-                Got it <ArrowRight className="w-4 h-4" />
+                Got it <ArrowRight className="w-3 h-3" />
               </button>
             </div>
           </>

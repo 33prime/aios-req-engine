@@ -4,7 +4,7 @@
  * Compact design with:
  * - Smaller logo, icons, text
  * - Tighter spacing
- * - Green "+" button and notification bell (visible in collapsed state too)
+ * - Green "+" button (visible in collapsed state too)
  * - Launches HybridOnboardingModal from "+" button
  */
 
@@ -31,7 +31,6 @@ import {
 import { useAuth } from '@/components/auth/AuthProvider'
 import { useProfile } from '@/lib/hooks/use-api'
 import { HybridOnboardingModal } from '@/app/projects/components/HybridOnboardingModal'
-import { NotificationBell } from './NotificationBell'
 
 // =============================================================================
 // NavItem
@@ -154,9 +153,6 @@ export function AppSidebar({ isCollapsed: controlledCollapsed, onToggleCollapse 
 
           {/* Action buttons — always visible */}
           <div className={`flex items-center ${isCollapsed ? 'flex-col gap-1.5' : 'gap-1'}`}>
-            {/* Notification bell */}
-            <NotificationBell />
-
             {/* Green "+" button */}
             <button
               onClick={() => setShowCreateProject(true)}

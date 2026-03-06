@@ -125,11 +125,26 @@ def get_default_config() -> PulseConfig:
             "single_source": 15.0,
         },
         action_templates={
-            "grow": "Add more {label} — only {count} identified (target: {target})",
-            "confirm": "Confirm {label} — {unconfirmed} of {count} still unconfirmed",
-            "enrich": "Enrich {label} — quality score is {quality:.0%}",
-            "merge_only": "{label} are saturated ({count}/{target}) — merge only, no new creates",
-            "stale": "Review stale {label} — {stale} entities need refresh",
+            "grow": (
+                "Let's identify some more {label}"
+                " — we have {count} so far and could use around {target}"
+            ),
+            "confirm": (
+                "Review and confirm your {label}"
+                " — {unconfirmed} of {count} still need a thumbs-up"
+            ),
+            "enrich": (
+                "Flesh out your {label} a bit more"
+                " — they could use some extra detail"
+            ),
+            "merge_only": (
+                "Your {label} are looking solid ({count}/{target})"
+                " — focus on quality over quantity"
+            ),
+            "stale": (
+                "Some {label} haven't been touched in a while"
+                " — worth a quick review"
+            ),
             "gate_blocker": "Unblock: {gate_label}",
         },
         coverage_thresholds={
