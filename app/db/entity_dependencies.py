@@ -10,8 +10,8 @@ logger = get_logger(__name__)
 
 
 # Valid entity types
-SOURCE_ENTITY_TYPES = {"persona", "feature", "vp_step", "strategic_context", "stakeholder", "data_entity", "business_driver", "unlock"}
-TARGET_ENTITY_TYPES = {"persona", "feature", "vp_step", "signal", "research_chunk", "data_entity", "business_driver", "unlock"}
+SOURCE_ENTITY_TYPES = {"persona", "feature", "vp_step", "strategic_context", "stakeholder", "data_entity", "business_driver", "unlock", "workflow", "constraint", "competitor"}
+TARGET_ENTITY_TYPES = {"persona", "feature", "vp_step", "signal", "research_chunk", "data_entity", "business_driver", "unlock", "workflow", "constraint", "competitor"}
 DEPENDENCY_TYPES = {"uses", "targets", "derived_from", "informed_by", "actor_of", "spawns", "enables", "constrains", "co_occurrence", "addresses"}
 
 
@@ -554,6 +554,22 @@ def rebuild_dependencies_for_vp_step(project_id: UUID, step_id: UUID) -> dict:
         except Exception as e:
             logger.warning(f"Failed to register actor persona dependency: {e}")
 
+    # Register dependency on workflow
+    workflow_id = step.get("workflow_id")
+    if workflow_id:
+        try:
+            register_dependency(
+                project_id=project_id,
+                source_type="vp_step",
+                source_id=step_id,
+                target_type="workflow",
+                target_id=UUID(workflow_id) if isinstance(workflow_id, str) else workflow_id,
+                dependency_type="uses",
+            )
+            created += 1
+        except Exception as e:
+            logger.warning(f"Failed to register workflow dependency: {e}")
+
     # Register dependencies on features used
     features_used = step.get("features_used") or []
     for feature in features_used:
@@ -634,6 +650,104 @@ def rebuild_dependencies_for_data_entity(project_id: UUID, entity_id: UUID) -> d
     return {"created": created, "entity_id": str(entity_id)}
 
 
+def rebuild_dependencies_for_workflow(project_id: UUID, workflow_id: UUID) -> dict:
+    """
+    Rebuild structural FK dependencies for a workflow.
+
+    Handles:
+    - owner → persona name resolution → actor_of dependency
+    - paired_workflow_id → enables dependency
+
+    Only clears source="structural" deps for this workflow, preserving
+    co-occurrence and semantic links.
+
+    Args:
+        project_id: Project UUID
+        workflow_id: Workflow UUID
+
+    Returns:
+        Dict with counts of dependencies created
+    """
+    from app.db.workflows import get_workflow
+
+    workflow = get_workflow(workflow_id)
+    if not workflow:
+        raise ValueError(f"Workflow not found: {workflow_id}")
+
+    supabase = get_supabase()
+
+    # Clear only structural deps for this workflow (preserve co-occurrence/semantic)
+    try:
+        supabase.table("entity_dependencies").delete().eq(
+            "project_id", str(project_id)
+        ).eq("source_entity_type", "workflow").eq(
+            "source_entity_id", str(workflow_id)
+        ).eq("source", "structural").execute()
+    except Exception as e:
+        logger.warning(f"Failed to clear structural deps for workflow {workflow_id}: {e}")
+
+    created = 0
+
+    # owner → persona (name resolution)
+    owner_name = workflow.get("owner")
+    if owner_name:
+        try:
+            # Query all personas for this project
+            resp = (
+                supabase.table("personas")
+                .select("id, name")
+                .eq("project_id", str(project_id))
+                .execute()
+            )
+            candidates = [
+                {"id": row["id"], "name_lower": row["name"].lower().strip()}
+                for row in (resp.data or [])
+                if row.get("name")
+            ]
+            if candidates:
+                from app.db.patch_applicator import _fuzzy_resolve_entity
+
+                target_id = _fuzzy_resolve_entity(
+                    owner_name.lower().strip(), candidates, threshold=0.7
+                )
+                if target_id:
+                    register_dependency(
+                        project_id=project_id,
+                        source_type="workflow",
+                        source_id=workflow_id,
+                        target_type="persona",
+                        target_id=UUID(target_id) if isinstance(target_id, str) else target_id,
+                        dependency_type="actor_of",
+                        strength=1.0,
+                        confidence=1.0,
+                        source="structural",
+                    )
+                    created += 1
+        except Exception as e:
+            logger.warning(f"Failed to resolve workflow owner '{owner_name}': {e}")
+
+    # paired_workflow_id → enables
+    paired_id = workflow.get("paired_workflow_id")
+    if paired_id:
+        try:
+            register_dependency(
+                project_id=project_id,
+                source_type="workflow",
+                source_id=workflow_id,
+                target_type="workflow",
+                target_id=UUID(paired_id) if isinstance(paired_id, str) else paired_id,
+                dependency_type="enables",
+                strength=1.0,
+                confidence=1.0,
+                source="structural",
+            )
+            created += 1
+        except Exception as e:
+            logger.warning(f"Failed to register paired workflow dep: {e}")
+
+    return {"created": created, "workflow_id": str(workflow_id)}
+
+
 def rebuild_dependencies_for_project(project_id: UUID) -> dict:
     """
     Rebuild the entire dependency graph for a project.
@@ -648,11 +762,13 @@ def rebuild_dependencies_for_project(project_id: UUID) -> dict:
     """
     from app.db.features import list_features
     from app.db.vp import list_vp_steps
+    from app.db.workflows import list_workflows
 
     stats = {
         "features_processed": 0,
         "vp_steps_processed": 0,
         "data_entities_processed": 0,
+        "workflows_processed": 0,
         "dependencies_created": 0,
         "errors": [],
     }
@@ -696,10 +812,24 @@ def rebuild_dependencies_for_project(project_id: UUID) -> dict:
     except Exception as e:
         stats["errors"].append(f"Data entities query: {str(e)}")
 
+    # Rebuild workflow dependencies (owner → persona, paired_workflow_id)
+    try:
+        workflows = list_workflows(project_id)
+        for wf in workflows:
+            try:
+                result = rebuild_dependencies_for_workflow(project_id, UUID(wf["id"]))
+                stats["workflows_processed"] += 1
+                stats["dependencies_created"] += result["created"]
+            except Exception as e:
+                stats["errors"].append(f"Workflow {wf['id']}: {str(e)}")
+    except Exception as e:
+        stats["errors"].append(f"Workflows query: {str(e)}")
+
     logger.info(
         f"Rebuilt dependency graph: {stats['features_processed']} features, "
         f"{stats['vp_steps_processed']} VP steps, "
         f"{stats['data_entities_processed']} data entities, "
+        f"{stats['workflows_processed']} workflows, "
         f"{stats['dependencies_created']} dependencies",
         extra={"project_id": str(project_id)},
     )

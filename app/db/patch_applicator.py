@@ -230,6 +230,13 @@ async def apply_entity_patches(
         except Exception as e:
             logger.warning(f"Semantic link creation failed: {e}")
 
+    # Register structural FK dependencies from entity payloads
+    if result.applied:
+        try:
+            _register_fk_dependencies(project_id, result.applied)
+        except Exception as e:
+            logger.warning(f"Structural FK dependency registration failed: {e}")
+
     # Fire-and-forget: match newly extracted features against Forge modules
     feature_results = [
         a for a in result.applied if a.get("entity_type") == "feature"
@@ -1287,3 +1294,250 @@ def _record_evidence_links(
             )
         except Exception as e:
             logger.warning(f"Evidence link failed for {entity_id}: {e}")
+
+
+# =============================================================================
+# Structural FK dependency registration
+# =============================================================================
+
+# Declarative map: source_type → list of FK relationships
+# resolution: "uuid" (single UUID), "uuid_array" (JSONB list), "name" (fuzzy match)
+# id_key: for uuid_array of dicts, the key holding the UUID
+FK_DEPENDENCY_MAP: list[dict[str, str]] = [
+    # workflow.owner → persona (name match)
+    {
+        "source_type": "workflow", "field": "owner",
+        "target_type": "persona", "dep_type": "actor_of",
+        "resolution": "name",
+    },
+    # workflow.paired_workflow_id → workflow
+    {
+        "source_type": "workflow", "field": "paired_workflow_id",
+        "target_type": "workflow", "dep_type": "enables",
+        "resolution": "uuid",
+    },
+    # vp_step.actor_persona_id → persona
+    {
+        "source_type": "vp_step", "field": "actor_persona_id",
+        "target_type": "persona", "dep_type": "actor_of",
+        "resolution": "uuid",
+    },
+    # vp_step.workflow_id → workflow
+    {
+        "source_type": "vp_step", "field": "workflow_id",
+        "target_type": "workflow", "dep_type": "uses",
+        "resolution": "uuid",
+    },
+    # vp_step.features_used → feature[]
+    {
+        "source_type": "vp_step", "field": "features_used",
+        "target_type": "feature", "dep_type": "uses",
+        "resolution": "uuid_array", "id_key": "feature_id",
+    },
+    # feature.target_personas → persona[]
+    {
+        "source_type": "feature", "field": "target_personas",
+        "target_type": "persona", "dep_type": "targets",
+        "resolution": "uuid_array", "id_key": "persona_id",
+    },
+    # business_driver.stakeholder_id → stakeholder
+    {
+        "source_type": "business_driver", "field": "stakeholder_id",
+        "target_type": "stakeholder", "dep_type": "informed_by",
+        "resolution": "uuid",
+    },
+    # persona.related_features → feature[]
+    {
+        "source_type": "persona", "field": "related_features",
+        "target_type": "feature", "dep_type": "uses",
+        "resolution": "uuid_array",
+    },
+    # persona.related_vp_steps → vp_step[]
+    {
+        "source_type": "persona", "field": "related_vp_steps",
+        "target_type": "vp_step", "dep_type": "uses",
+        "resolution": "uuid_array",
+    },
+]
+
+
+def _name_column_for_type(entity_type: str) -> str:
+    """Return the name/label column for an entity type."""
+    if entity_type == "vp_step":
+        return "label"
+    if entity_type == "constraint":
+        return "title"
+    return "name"
+
+
+def _resolve_fk_targets(value: Any, resolution: str, id_key: str | None = None) -> list[str]:
+    """Extract target UUID strings from a field value based on resolution mode.
+
+    Returns list of UUID strings (may be empty).
+    """
+    if value is None:
+        return []
+
+    if resolution == "uuid":
+        # Single UUID string
+        val = str(value).strip()
+        if len(val) >= 32:  # Rough UUID check
+            return [val]
+        return []
+
+    if resolution == "uuid_array":
+        if not isinstance(value, list):
+            return []
+        result = []
+        for item in value:
+            if isinstance(item, dict):
+                # Dict with id_key (e.g. {"persona_id": "...", "name": "..."})
+                uid = item.get(id_key) if id_key else item.get("id")
+                if uid and str(uid).strip():
+                    result.append(str(uid).strip())
+            elif isinstance(item, str) and len(item.strip()) >= 32:
+                result.append(item.strip())
+        return result
+
+    # "name" resolution handled separately in caller
+    return []
+
+
+def _register_fk_dependencies(
+    project_id: UUID,
+    applied_results: list[dict],
+) -> None:
+    """Register structural FK dependencies for all applied patches.
+
+    Runs after ALL patches in a batch so same-batch entities can reference each other.
+    Only processes create/merge/update operations.
+    """
+    from app.db.entity_dependencies import register_dependency
+
+    # Filter to actionable operations
+    actionable = [
+        a for a in applied_results
+        if a.get("operation") in ("create", "merge", "update")
+    ]
+    if not actionable:
+        return
+
+    # Group by entity_type for batch fetching
+    by_type: dict[str, list[str]] = {}
+    for a in actionable:
+        etype = a.get("entity_type", "")
+        # Normalize workflow_step → vp_step
+        if etype == "workflow_step":
+            etype = "vp_step"
+        eid = a.get("entity_id", "")
+        if etype and eid:
+            by_type.setdefault(etype, []).append(eid)
+
+    # Batch-fetch full payloads from DB
+    supabase = get_supabase()
+    payloads: dict[str, dict] = {}  # "type:id" → row
+
+    for etype, ids in by_type.items():
+        table = ENTITY_TABLE_MAP.get(etype)
+        if not table:
+            continue
+        try:
+            resp = supabase.table(table).select("*").in_("id", ids).execute()
+            for row in resp.data or []:
+                payloads[f"{etype}:{row['id']}"] = row
+        except Exception as e:
+            logger.debug(f"FK dep fetch for {etype} failed: {e}")
+
+    # Build name index for name-based resolution (personas for workflow.owner)
+    name_types_needed = {
+        entry["target_type"]
+        for entry in FK_DEPENDENCY_MAP
+        if entry["resolution"] == "name"
+    }
+    name_index: dict[str, list[dict]] = {}  # target_type → [{id, name_lower}]
+
+    for ntype in name_types_needed:
+        table = ENTITY_TABLE_MAP.get(ntype)
+        if not table:
+            continue
+        name_col = _name_column_for_type(ntype)
+        try:
+            resp = (
+                supabase.table(table)
+                .select(f"id, {name_col}")
+                .eq("project_id", str(project_id))
+                .execute()
+            )
+            candidates = []
+            for row in resp.data or []:
+                raw_name = row.get(name_col, "")
+                if raw_name:
+                    candidates.append({"id": row["id"], "name_lower": raw_name.lower().strip()})
+            name_index[ntype] = candidates
+        except Exception as e:
+            logger.debug(f"FK name index for {ntype} failed: {e}")
+
+    # Also include same-batch entities in name index for same-run resolution
+    for key, row in payloads.items():
+        etype = key.split(":")[0]
+        if etype in name_types_needed:
+            name_col = _name_column_for_type(etype)
+            raw_name = row.get(name_col, "")
+            if raw_name:
+                existing_ids = {c["id"] for c in name_index.get(etype, [])}
+                if row["id"] not in existing_ids:
+                    name_index.setdefault(etype, []).append(
+                        {"id": row["id"], "name_lower": raw_name.lower().strip()}
+                    )
+
+    # Process each entity against FK_DEPENDENCY_MAP
+    links_created = 0
+    for key, row in payloads.items():
+        etype = key.split(":")[0]
+        entity_id = row["id"]
+
+        for entry in FK_DEPENDENCY_MAP:
+            if entry["source_type"] != etype:
+                continue
+
+            field_value = row.get(entry["field"])
+            if not field_value:
+                continue
+
+            resolution = entry["resolution"]
+            dep_type = entry["dep_type"]
+            target_type = entry["target_type"]
+
+            if resolution == "name":
+                # Fuzzy-match name against candidates
+                query_name = str(field_value).lower().strip()
+                candidates = name_index.get(target_type, [])
+                target_id = _fuzzy_resolve_entity(query_name, candidates, threshold=0.7)
+                target_ids = [target_id] if target_id else []
+            else:
+                target_ids = _resolve_fk_targets(
+                    field_value, resolution, entry.get("id_key")
+                )
+
+            for tid in target_ids:
+                # Skip self-references
+                if str(tid) == str(entity_id):
+                    continue
+                try:
+                    register_dependency(
+                        project_id=project_id,
+                        source_type=etype,
+                        source_id=UUID(str(entity_id)),
+                        target_type=target_type,
+                        target_id=UUID(str(tid)),
+                        dependency_type=dep_type,
+                        strength=1.0,
+                        confidence=1.0,
+                        source="structural",
+                    )
+                    links_created += 1
+                except Exception as e:
+                    logger.debug(f"FK dep {etype}:{entity_id} -> {target_type}:{tid} failed: {e}")
+
+    if links_created:
+        logger.info(f"Registered {links_created} structural FK dependencies")
