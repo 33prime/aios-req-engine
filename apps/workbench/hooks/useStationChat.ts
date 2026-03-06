@@ -8,6 +8,9 @@ interface UseStationChatOptions {
   projectId: string
   station: StationSlug
   onToolResult?: (toolName: string, result: Record<string, unknown>) => void
+  epicTitle?: string
+  epicNarrative?: string
+  assumptionText?: string
 }
 
 interface UseStationChatReturn {
@@ -24,6 +27,9 @@ export function useStationChat({
   projectId,
   station,
   onToolResult,
+  epicTitle,
+  epicNarrative,
+  assumptionText,
 }: UseStationChatOptions): UseStationChatReturn {
   const [messages, setMessages] = useState<StationChatMessage[]>([])
   const [isLoading, setIsLoading] = useState(false)
@@ -78,6 +84,9 @@ export function useStationChat({
               conversation_id: conversationId || undefined,
               conversation_history: history,
               station,
+              epic_title: epicTitle || undefined,
+              epic_narrative: epicNarrative || undefined,
+              assumption_text: assumptionText || undefined,
             }),
             signal: abortRef.current.signal,
           }
@@ -161,7 +170,7 @@ export function useStationChat({
         abortRef.current = null
       }
     },
-    [projectId, station, conversationId, messages, isLoading]
+    [projectId, station, conversationId, messages, isLoading, epicTitle, epicNarrative, assumptionText]
   )
 
   return { messages, isLoading, sendMessage, conversationId, error }

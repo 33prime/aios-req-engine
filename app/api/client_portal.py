@@ -152,8 +152,9 @@ async def get_dashboard(
     # Build call info
     call_info = None
     if project.get("discovery_call_date"):
+        consultant = get_project_consultant(project_id)
         call_info = {
-            "consultant_name": "Matt Edmund",  # TODO: Get from project consultant
+            "consultant_name": consultant["name"] if consultant else "Your Consultant",
             "scheduled_date": project.get("discovery_call_date"),
             "completed_date": project.get("call_completed_at"),
             "duration_minutes": 60,
@@ -211,8 +212,9 @@ async def get_portal_dashboard_v2(
 
     call_info = None
     if project.get("discovery_call_date"):
+        consultant = get_project_consultant(project_id)
         call_info = {
-            "consultant_name": "Matt Edmund",
+            "consultant_name": consultant["name"] if consultant else "Your Consultant",
             "scheduled_date": project.get("discovery_call_date"),
             "completed_date": project.get("call_completed_at"),
             "duration_minutes": 60,
@@ -615,6 +617,9 @@ class PortalChatRequest(PydanticBaseModel):
     conversation_id: UUID | None = None
     conversation_history: list[dict] = []
     station: str | None = None
+    epic_title: str | None = None
+    epic_narrative: str | None = None
+    assumption_text: str | None = None
 
 
 @router.post("/projects/{project_id}/chat")
@@ -676,6 +681,24 @@ async def portal_chat(
     )
     client_name = user_result.data.get("first_name") if user_result.data else None
 
+    # Get consultant name for escalation protocol
+    consultant_name = None
+    try:
+        consultant_result = (
+            client.table("project_members")
+            .select("user_id, users(first_name, last_name)")
+            .eq("project_id", str(project_id))
+            .eq("role", "consultant")
+            .limit(1)
+            .execute()
+        )
+        if consultant_result.data:
+            user_data = consultant_result.data[0].get("users")
+            if user_data:
+                consultant_name = user_data.get("first_name") or "your consultant"
+    except Exception:
+        pass
+
     # Get or create conversation
     conversation_id = request.conversation_id
     if conversation_id:
@@ -736,7 +759,20 @@ async def portal_chat(
             messages.append({"role": "user", "content": request.message})
 
             # Build system prompt
-            system_prompt = build_client_system_prompt(project_name, client_name, station=request.station)
+            epic_context = None
+            if request.epic_title:
+                epic_context = {
+                    "title": request.epic_title,
+                    "narrative": request.epic_narrative,
+                }
+            system_prompt = build_client_system_prompt(
+                project_name,
+                client_name,
+                station=request.station,
+                epic_context=epic_context,
+                assumption_context=request.assumption_text,
+                consultant_name=consultant_name,
+            )
 
             # Tool use loop
             max_turns = 5
@@ -831,6 +867,39 @@ async def portal_chat(
 # ============================================================================
 # Helper Functions
 # ============================================================================
+
+
+def get_project_consultant(project_id: UUID) -> dict | None:
+    """
+    Look up the project's consultant from project_members + users.
+
+    Returns:
+        Dict with name, first_name, last_name, meeting_link, or None.
+    """
+    client = get_client()
+    try:
+        result = (
+            client.table("project_members")
+            .select("user_id, users(first_name, last_name, meeting_link)")
+            .eq("project_id", str(project_id))
+            .eq("role", "consultant")
+            .limit(1)
+            .execute()
+        )
+        if result.data:
+            user_data = result.data[0].get("users")
+            if user_data:
+                first = user_data.get("first_name", "")
+                last = user_data.get("last_name", "")
+                return {
+                    "first_name": first,
+                    "last_name": last,
+                    "name": f"{first} {last}".strip() or "Your Consultant",
+                    "meeting_link": user_data.get("meeting_link"),
+                }
+    except Exception as e:
+        logger.warning(f"Failed to lookup consultant for project {project_id}: {e}")
+    return None
 
 
 async def _create_portal_response_signal(info_request: InfoRequest, user_id: UUID) -> UUID | None:

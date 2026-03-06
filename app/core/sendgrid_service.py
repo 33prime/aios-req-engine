@@ -364,3 +364,72 @@ async def send_package_notification(
     result = await _send_mail(client_emails, subject, html_body, text_body)
     logger.info(f"Package notification sent to {len(client_emails)} client(s) for project {project_id}")
     return {"sent_count": len(client_emails), **result}
+
+
+async def send_stakeholder_exploration_invite(
+    to_email: str,
+    inviter_name: str,
+    project_name: str,
+    focus_question: str | None,
+    explore_url: str,
+) -> dict[str, Any]:
+    """
+    Send an email inviting a stakeholder to explore a prototype.
+
+    Args:
+        to_email: Stakeholder's email
+        inviter_name: Name of the person who shared the session
+        project_name: Project name for context
+        focus_question: Optional focus area the inviter wants feedback on
+        explore_url: Relative URL path to the explore page
+    """
+    settings = get_settings()
+    portal_base = settings.FRONTEND_URL if hasattr(settings, "FRONTEND_URL") else "https://app.readytogo.ai"
+    full_url = f"{portal_base}{explore_url}"
+
+    subject = f"{inviter_name} invited you to explore {project_name}"
+
+    focus_html = ""
+    focus_text = ""
+    if focus_question:
+        focus_html = f"""
+                <div style="background: #F0F4FF; border-left: 3px solid #3B82F6; padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 16px 0;">
+                    <p style="color: #1E40AF; font-size: 13px; font-weight: 500; margin: 0 0 4px;">They'd like your perspective on:</p>
+                    <p style="color: #1E3A5F; font-size: 14px; margin: 0;">&ldquo;{focus_question}&rdquo;</p>
+                </div>"""
+        focus_text = f'\nThey\'d like your perspective on: "{focus_question}"\n'
+
+    html_body = f"""
+    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 520px; margin: 0 auto; padding: 32px 0;">
+        <div style="background: #FFFFFF; border: 1px solid #E5E5E5; border-radius: 16px; overflow: hidden;">
+            <div style="background: #0A1E2F; padding: 24px 32px;">
+                <h1 style="color: #FFFFFF; font-size: 18px; font-weight: 600; margin: 0;">
+                    {project_name}
+                </h1>
+            </div>
+            <div style="padding: 32px;">
+                <p style="color: #333333; font-size: 15px; line-height: 1.6; margin: 0 0 16px;">
+                    {inviter_name} has invited you to explore a prototype for <strong>{project_name}</strong>.
+                </p>
+                {focus_html}
+                <p style="color: #666666; font-size: 14px; line-height: 1.5; margin: 0 0 24px;">
+                    It takes about 5-10 minutes. You&rsquo;ll see the vision, share your reactions, and help shape the final product.
+                </p>
+                <div style="text-align: center;">
+                    <a href="{full_url}" style="display: inline-block; background: #3FAF7A; color: #FFFFFF; padding: 14px 32px; border-radius: 12px; text-decoration: none; font-size: 15px; font-weight: 600;">
+                        Explore the Prototype
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    """
+
+    text_body = (
+        f"{inviter_name} invited you to explore {project_name}\n\n"
+        f"They've shared a prototype for you to review.{focus_text}\n"
+        f"Visit: {full_url}\n\n"
+        f"It takes about 5-10 minutes."
+    )
+
+    return await _send_mail([to_email], subject, html_body, text_body)

@@ -64,7 +64,7 @@ class AssumptionResponse(BaseModel):
 
     epic_index: int
     assumption_index: int
-    response: Literal["agree", "disagree"]
+    response: Literal["agree", "disagree", "great", "refine", "question"]
 
 
 class InspirationSubmit(BaseModel):
@@ -90,7 +90,7 @@ class AssumptionResult(BaseModel):
 
     text: str
     source_type: str
-    response: str | None = None  # 'agree', 'disagree', or None (unanswered)
+    response: str | None = None  # 'agree'|'disagree'|'great'|'refine'|'question' or None
 
 
 class EpicResult(BaseModel):

@@ -1539,13 +1539,65 @@ async def get_client_exploration(session_id: UUID):
             "features": features,
         })
 
+    # Look up consultant info
+    consultant_name = None
+    booking_url = None
+    try:
+        from app.db.supabase_client import get_supabase as _get_sb
+
+        _sb = _get_sb()
+        consultant_result = (
+            _sb.table("project_members")
+            .select("user_id, users(first_name, last_name, meeting_link)")
+            .eq("project_id", str(prototype["project_id"]))
+            .eq("role", "consultant")
+            .limit(1)
+            .execute()
+        )
+        if consultant_result.data:
+            user_data = consultant_result.data[0].get("users")
+            if user_data:
+                first = user_data.get("first_name", "")
+                last = user_data.get("last_name", "")
+                consultant_name = f"{first} {last}".strip() or None
+                booking_url = user_data.get("meeting_link")
+    except Exception:
+        pass
+
+    # Stakeholder session: customize welcome message
+    welcome_message = None
+    if session.get("parent_session_id"):
+        try:
+            inviter_id = session.get("invited_by_user_id")
+            inviter_name = "A colleague"
+            if inviter_id:
+                inv_result = (
+                    _sb.table("users")
+                    .select("first_name, last_name")
+                    .eq("id", str(inviter_id))
+                    .maybe_single()
+                    .execute()
+                )
+                if inv_result.data:
+                    inviter_name = (
+                        f"{inv_result.data.get('first_name', '')} {inv_result.data.get('last_name', '')}".strip()
+                        or "A colleague"
+                    )
+            focus = session.get("focus_context")
+            welcome_message = f"You've been invited by {inviter_name} to review {project_name}."
+            if focus:
+                welcome_message += f' They\'d like you to focus on: "{focus}"'
+        except Exception:
+            pass
+
     return {
         "session_id": str(session_id),
         "deploy_url": prototype.get("deploy_url"),
         "project_name": project_name,
-        "consultant_name": None,
+        "consultant_name": consultant_name,
+        "booking_url": booking_url,
         "epics": enabled_epics,
-        "welcome_message": None,
+        "welcome_message": welcome_message,
     }
 
 
@@ -1872,3 +1924,141 @@ def _update_links_from_feedback(
             logger.info(f"Created signal from new idea feedback for feature {feature_id}")
         except Exception as e:
             logger.debug(f"Failed to create signal from feedback: {e}")
+
+
+# =============================================================================
+# Stakeholder Sharing
+# =============================================================================
+
+
+@router.post("/{session_id}/share-with-stakeholder")
+async def share_with_stakeholder(session_id: UUID, body: dict):
+    """
+    Share an exploration session with a stakeholder.
+
+    Creates a new child session linked to the parent, optionally inviting
+    a new or existing user. Sends an email invite with a link to explore.
+    """
+    from uuid import uuid4
+
+    from app.db.client_exploration import get_epic_configs
+    from app.db.supabase_client import get_supabase
+
+    parent_session = get_session(session_id)
+    if not parent_session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    if parent_session.get("review_state") != "client_exploring":
+        raise HTTPException(status_code=400, detail="Session is not in exploring state")
+
+    prototype = get_prototype(UUID(parent_session["prototype_id"]))
+    if not prototype:
+        raise HTTPException(status_code=404, detail="Prototype not found")
+
+    project_id = prototype["project_id"]
+    email = body.get("email")
+    first_name = body.get("first_name")
+    last_name = body.get("last_name")
+    focus_question = body.get("focus_question")
+    existing_user_id = body.get("existing_user_id")
+
+    if not email and not existing_user_id:
+        raise HTTPException(status_code=400, detail="Either email or existing_user_id is required")
+
+    supabase = get_supabase()
+
+    # Find or create user
+    user_id = existing_user_id
+    if not user_id and email:
+        # Check if user exists
+        user_result = supabase.table("users").select("id").eq("email", email).maybe_single().execute()
+        if user_result.data:
+            user_id = user_result.data["id"]
+        else:
+            # Create user
+            new_user_id = str(uuid4())
+            supabase.table("users").insert({
+                "id": new_user_id,
+                "email": email,
+                "first_name": first_name or "",
+                "last_name": last_name or "",
+            }).execute()
+            user_id = new_user_id
+
+    # Ensure project member exists
+    member_check = (
+        supabase.table("project_members")
+        .select("id")
+        .eq("project_id", str(project_id))
+        .eq("user_id", str(user_id))
+        .maybe_single()
+        .execute()
+    )
+    if not member_check.data:
+        supabase.table("project_members").insert({
+            "project_id": str(project_id),
+            "user_id": str(user_id),
+            "role": "client_user",
+        }).execute()
+
+    # Clone epic configs from parent
+    parent_configs = get_epic_configs(session_id)
+
+    # Create child session
+    child_session_id = str(uuid4())
+    supabase.table("prototype_sessions").insert({
+        "id": child_session_id,
+        "prototype_id": parent_session["prototype_id"],
+        "review_state": "client_exploring",
+        "parent_session_id": str(session_id),
+        "invited_by_user_id": str(parent_session.get("user_id", user_id)),
+        "focus_context": focus_question,
+    }).execute()
+
+    # Copy epic configs to child session
+    if parent_configs:
+        from app.db.client_exploration import save_epic_configs
+
+        save_epic_configs(UUID(child_session_id), parent_configs)
+
+    # Send invite email
+    explore_url = f"/portal/{project_id}/prototype?session={child_session_id}&mode=explore"
+    try:
+        from app.core.sendgrid_service import send_stakeholder_exploration_invite
+
+        # Get inviter name
+        inviter_name = "A team member"
+        inviter_user_id = parent_session.get("user_id")
+        if inviter_user_id:
+            inviter_result = (
+                supabase.table("users")
+                .select("first_name, last_name")
+                .eq("id", str(inviter_user_id))
+                .maybe_single()
+                .execute()
+            )
+            if inviter_result.data:
+                inviter_name = (
+                    f"{inviter_result.data.get('first_name', '')} {inviter_result.data.get('last_name', '')}".strip()
+                    or "A team member"
+                )
+
+        # Get project name
+        proj_result = supabase.table("projects").select("name").eq("id", str(project_id)).maybe_single().execute()
+        project_name = proj_result.data.get("name", "the project") if proj_result.data else "the project"
+
+        if email:
+            await send_stakeholder_exploration_invite(
+                to_email=email,
+                inviter_name=inviter_name,
+                project_name=project_name,
+                focus_question=focus_question,
+                explore_url=explore_url,
+            )
+    except Exception as e:
+        logger.warning(f"Failed to send stakeholder invite email: {e}")
+
+    logger.info(f"Shared session {session_id} with stakeholder, child session: {child_session_id}")
+    return {
+        "session_id": child_session_id,
+        "explore_url": explore_url,
+    }

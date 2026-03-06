@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from 'react'
 import { Send, CheckCircle, Loader2 } from 'lucide-react'
 import { Markdown } from '@/components/ui/Markdown'
 import { useStationChat } from '@/hooks/useStationChat'
+import { ChatQuickActions, isEscalationMessage } from '@/components/portal/ChatQuickActions'
 import type { StationSlug, StationChatMessage } from '@/types/portal'
 
 interface StationChatProps {
@@ -11,13 +12,20 @@ interface StationChatProps {
   station: StationSlug
   greeting?: string
   onToolResult?: (toolName: string, result: Record<string, unknown>) => void
+  epicTitle?: string
+  epicNarrative?: string
+  assumptionText?: string
+  consultantName?: string
 }
 
-export function StationChat({ projectId, station, greeting, onToolResult }: StationChatProps) {
+export function StationChat({ projectId, station, greeting, onToolResult, epicTitle, epicNarrative, assumptionText, consultantName }: StationChatProps) {
   const { messages, isLoading, sendMessage, error } = useStationChat({
     projectId,
     station,
     onToolResult,
+    epicTitle,
+    epicNarrative,
+    assumptionText,
   })
   const [input, setInput] = useState('')
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -67,6 +75,26 @@ export function StationChat({ projectId, station, greeting, onToolResult }: Stat
           </div>
         )}
       </div>
+
+      {/* Quick actions after escalation */}
+      {messages.length > 0 &&
+        !isLoading &&
+        messages[messages.length - 1]?.role === 'assistant' &&
+        isEscalationMessage(messages[messages.length - 1]?.content || '') && (
+          <ChatQuickActions
+            consultantName={consultantName}
+            onClearedUp={() => {
+              // Client resolved their concern — could update assumption to 'great'
+              sendMessage("Actually, that clears things up. I'm good with this!")
+            }}
+            onAlmost={() => {
+              sendMessage("I'm almost there, but I'd still like to discuss this on the call.")
+            }}
+            onTalkTo={() => {
+              sendMessage("Yes, let's save this for the call.")
+            }}
+          />
+        )}
 
       {/* Error */}
       {error && (

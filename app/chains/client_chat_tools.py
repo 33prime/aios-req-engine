@@ -932,6 +932,9 @@ def build_client_system_prompt(
     project_name: str,
     client_name: str | None = None,
     station: str | None = None,
+    epic_context: dict | None = None,
+    assumption_context: str | None = None,
+    consultant_name: str | None = None,
 ) -> str:
     """
     Build the system prompt for client chat.
@@ -940,6 +943,9 @@ def build_client_system_prompt(
         project_name: Name of the project
         client_name: Optional client name for personalization
         station: Optional station slug to constrain conversation topic
+        epic_context: Optional dict with title/narrative of the current epic
+        assumption_context: Optional assumption text being discussed
+        consultant_name: Optional consultant name for escalation
 
     Returns:
         System prompt string
@@ -987,5 +993,22 @@ Remember: You're helping them prepare for their discovery call or fill in detail
 
     if station and station in STATION_PROMPTS:
         base += "\n" + STATION_PROMPTS[station]
+
+    # Add epic/assumption context when reviewing prototype
+    if epic_context:
+        title = epic_context.get("title", "")
+        base += f"\n## Current Context\nThe client is looking at the '{title}' area of the prototype.\n"
+        if assumption_context:
+            base += f'The assumption being discussed: "{assumption_context}"\n'
+            base += "Help the client articulate their thoughts about this specific assumption. Be concise and focused.\n"
+
+    # Escalation protocol for epic discussions
+    if station == "epic" and consultant_name:
+        base += f"""
+## Escalation Protocol
+After 2 exchanges on the same topic where the client seems uncertain or the question is strategic/complex, say:
+"This is a great question for {consultant_name} to address directly. I've saved it for your discovery call."
+This lets the client know their concern is heard without you trying to answer something outside your scope.
+"""
 
     return base

@@ -233,7 +233,7 @@ export const getClientExploration = (sessionId: string) =>
 // Client: submit assumption response
 export const submitAssumptionResponse = (
   sessionId: string,
-  data: { epic_index: number; assumption_index: number; response: 'agree' | 'disagree' }
+  data: { epic_index: number; assumption_index: number; response: string }
 ) =>
   apiRequest<Record<string, unknown>>(
     `/prototype-sessions/${sessionId}/assumption-response`,
@@ -287,6 +287,28 @@ export const feedInspirations = (sessionId: string) =>
   apiRequest<{ session_id: string; signals_created: number }>(
     `/prototype-sessions/${sessionId}/feed-inspirations`,
     { method: 'POST' }
+  )
+
+// ============================================================================
+// Stakeholder Sharing
+// ============================================================================
+
+export const shareWithStakeholder = (
+  sessionId: string,
+  data: {
+    email?: string
+    first_name?: string
+    last_name?: string
+    focus_question?: string
+    existing_user_id?: string
+  }
+) =>
+  apiRequest<{ session_id: string; explore_url: string }>(
+    `/prototype-sessions/${sessionId}/share-with-stakeholder`,
+    {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }
   )
 
 // ============================================================================

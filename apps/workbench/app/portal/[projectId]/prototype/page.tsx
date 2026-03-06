@@ -11,17 +11,17 @@ import {
   submitStakeholderEpicVerdict,
   getClientExploration,
   submitAssumptionResponse,
-  submitInspiration,
   submitExplorationEvent,
   completeExploration,
 } from '@/lib/api/portal'
 import { ExplorationWelcome } from '@/components/portal/ExplorationWelcome'
-import { EpicExplorationCard } from '@/components/portal/EpicExplorationCard'
-import { InspirationCapture } from '@/components/portal/InspirationCapture'
 import { ExplorationSummary } from '@/components/portal/ExplorationSummary'
+import { StationChat } from '@/components/portal/StationChat'
 import { ExplorationNav } from '@/components/portal/ExplorationNav'
+import { StakeholderInviteModal } from '@/components/portal/StakeholderInviteModal'
+import { X, CheckCircle, Pencil, HelpCircle, Share2 } from 'lucide-react'
 import type { FeatureVerdict } from '@/types/prototype'
-import type { StakeholderReviewData, VerdictType, ClientExplorationData } from '@/types/portal'
+import type { StakeholderReviewData, VerdictType, ClientExplorationData, AssumptionResponseType } from '@/types/portal'
 
 interface FeatureReview {
   feature_name: string
@@ -85,7 +85,7 @@ const EPIC_VERDICT_STYLES: Record<VerdictType, { button: string; active: string 
 export default function PortalPrototypePage() {
   const params = useParams()
   const searchParams = useSearchParams()
-  const { setChatConfig } = usePortal()
+  const { setChatConfig, chatOpen, setChatOpen } = usePortal()
   const projectId = params.projectId as string
   const token = searchParams.get('token') || ''
   const sessionId = searchParams.get('session') || ''
@@ -107,9 +107,11 @@ export default function PortalPrototypePage() {
   const [explorationData, setExplorationData] = useState<ClientExplorationData | null>(null)
   const [explorationPhase, setExplorationPhase] = useState<'welcome' | 'tour' | 'summary' | 'done'>('welcome')
   const [currentEpicIndex, setCurrentEpicIndex] = useState(0)
-  const [assumptionResponses, setAssumptionResponses] = useState<Record<string, 'agree' | 'disagree'>>({})
+  const [assumptionResponses, setAssumptionResponses] = useState<Record<string, AssumptionResponseType>>({})
   const [inspirationCount, setInspirationCount] = useState(0)
-  const [showInspirationPanel, setShowInspirationPanel] = useState(false)
+  const [activeTab, setActiveTab] = useState<'overview' | 'discuss'>('overview')
+  const [contextCard, setContextCard] = useState<{ type: 'refine' | 'question'; assumptionText: string } | null>(null)
+  const [showShareModal, setShowShareModal] = useState(false)
   const explorationStarted = useRef(false)
 
   const [submitted, setSubmitted] = useState(false)
@@ -119,6 +121,8 @@ export default function PortalPrototypePage() {
 
   const isTokenMode = !!token && !!sessionId
   const isExplorationMode = mode === 'explore' || (!!explorationData && !isTokenMode && !stakeholderData)
+  // Resolve session ID: URL param or from loaded exploration data
+  const resolvedSessionId = sessionId || explorationData?.session_id || ''
 
   // No longer hiding sidebar — it stays visible and is user-collapsible
 
@@ -131,6 +135,7 @@ export default function PortalPrototypePage() {
       greeting: currentEpic?.title
         ? `Let's talk about the "${currentEpic.title}" experience. What do you think of what you see? Anything surprising or missing?`
         : "I can help you explore your prototype. Click through the app and let me know what you think!",
+      customPanel: true,
     })
     return () => setChatConfig(null)
   }, [setChatConfig, currentEpic?.title])
@@ -139,20 +144,23 @@ export default function PortalPrototypePage() {
     async function load() {
       try {
         if (isTokenMode) {
-          // Legacy feature-level review via token
+          console.log('[proto-debug] Loading: token mode', { sessionId })
           const data = await getPrototypeClientData(sessionId, token)
+          console.log('[proto-debug] Token mode response:', { deploy_url: data.deploy_url, features: data.feature_reviews?.length })
           setPrototypeId(data.prototype_id)
           setDeployUrl(data.deploy_url)
           setFeatureReviews(data.feature_reviews || [])
         } else if (sessionId && mode === 'explore') {
-          // Exploration mode — assumption-based
+          console.log('[proto-debug] Loading: explore mode', { sessionId })
           const data = await getClientExploration(sessionId)
+          console.log('[proto-debug] Explore response:', { deploy_url: data.deploy_url, epics: data.epics?.length })
           setExplorationData(data)
           setDeployUrl(data.deploy_url || null)
         } else if (sessionId) {
-          // Try exploration first, fall back to stakeholder review
+          console.log('[proto-debug] Loading: session mode (try explore, fallback stakeholder)', { sessionId })
           try {
             const data = await getClientExploration(sessionId)
+            console.log('[proto-debug] Exploration response:', { deploy_url: data.deploy_url, epics: data.epics?.length })
             if (data.epics?.length > 0) {
               setExplorationData(data)
               setDeployUrl(data.deploy_url || null)
@@ -160,8 +168,9 @@ export default function PortalPrototypePage() {
               throw new Error('No exploration epics')
             }
           } catch {
-            // Fall back to stakeholder epic review
+            console.log('[proto-debug] Falling back to stakeholder review')
             const data = await getStakeholderReview(sessionId)
+            console.log('[proto-debug] Stakeholder response:', { deploy_url: data.deploy_url, epics: data.epics?.length })
             setStakeholderData(data)
             setDeployUrl(data.deploy_url || null)
             const existing: Record<number, VerdictType> = {}
@@ -171,17 +180,21 @@ export default function PortalPrototypePage() {
             setEpicVerdicts(existing)
           }
         } else {
-          // Auto-discover: find latest session with client_exploring or client_complete
+          console.log('[proto-debug] Loading: auto-discover mode', { projectId })
           try {
             const proto = await getPrototypeForProject(projectId)
+            console.log('[proto-debug] Prototype lookup:', { id: proto?.id })
             if (proto?.id) {
               const sessions = await listPrototypeSessions(proto.id)
+              console.log('[proto-debug] Sessions:', sessions?.map((s: { id: string; review_state: string | null }) => ({ id: s.id, state: s.review_state })))
               const exploring = sessions?.find(
                 (s: { review_state: string | null }) =>
                   s.review_state === 'client_exploring' || s.review_state === 'client_complete'
               )
               if (exploring) {
+                console.log('[proto-debug] Found session:', exploring.id)
                 const data = await getClientExploration(exploring.id)
+                console.log('[proto-debug] Exploration response:', { deploy_url: data.deploy_url, epics: data.epics?.length })
                 if (data.epics?.length > 0) {
                   setExplorationData(data)
                   setDeployUrl(data.deploy_url || null)
@@ -189,16 +202,20 @@ export default function PortalPrototypePage() {
                   setError('No prototype session available. Check back when your consultant shares one.')
                 }
               } else {
+                console.log('[proto-debug] No exploring/complete session found')
                 setError('No prototype session available. Check back when your consultant shares one.')
               }
             } else {
+              console.log('[proto-debug] No prototype found for project')
               setError('No prototype session available. Check back when your consultant shares one.')
             }
-          } catch {
+          } catch (err) {
+            console.log('[proto-debug] Auto-discover error:', err)
             setError('No prototype session available. Check back when your consultant shares one.')
           }
         }
-      } catch {
+      } catch (err) {
+        console.log('[proto-debug] Top-level load error:', err)
         setError('Unable to load prototype review.')
       } finally {
         setLoading(false)
@@ -265,13 +282,13 @@ export default function PortalPrototypePage() {
   const handleExplorationStart = useCallback(() => {
     setExplorationPhase('tour')
     setCurrentEpicIndex(0)
-    if (sessionId && !explorationStarted.current) {
+    if (resolvedSessionId && !explorationStarted.current) {
       explorationStarted.current = true
-      submitExplorationEvent(sessionId, { event_type: 'session_start' }).catch(console.error)
+      submitExplorationEvent(resolvedSessionId, { event_type: 'session_start' }).catch(console.error)
     }
-  }, [sessionId])
+  }, [resolvedSessionId])
 
-  const handleAssumptionResponse = useCallback(async (assumptionIndex: number, response: 'agree' | 'disagree') => {
+  const handleAssumptionResponse = useCallback(async (assumptionIndex: number, response: AssumptionResponseType) => {
     if (!explorationData) return
     const epic = explorationData.epics[currentEpicIndex]
     if (!epic) return
@@ -279,37 +296,38 @@ export default function PortalPrototypePage() {
     const key = `${epic.index}-${assumptionIndex}`
     setAssumptionResponses(prev => ({ ...prev, [key]: response }))
 
-    if (sessionId) {
-      submitAssumptionResponse(sessionId, {
+    if (resolvedSessionId) {
+      submitAssumptionResponse(resolvedSessionId, {
         epic_index: epic.index,
         assumption_index: assumptionIndex,
         response,
       }).catch(console.error)
     }
-  }, [explorationData, currentEpicIndex, sessionId])
 
-  const handleInspirationSubmit = useCallback(async (text: string) => {
-    if (!explorationData || !sessionId) return
-    const epic = explorationData.epics[currentEpicIndex]
-    submitInspiration(sessionId, {
-      epic_index: epic?.index ?? null,
-      text,
-    }).catch(console.error)
-    setInspirationCount(prev => prev + 1)
-  }, [explorationData, currentEpicIndex, sessionId])
+    // Open chat panel with context for refine/question
+    if (response === 'refine' || response === 'question') {
+      const assumption = epic.assumptions[assumptionIndex]
+      if (assumption) {
+        setContextCard({ type: response, assumptionText: assumption.text })
+        setActiveTab('discuss')
+        setChatOpen(true)
+      }
+    }
+  }, [explorationData, currentEpicIndex, resolvedSessionId, setChatOpen])
 
   const handleEpicNavigate = useCallback((newIndex: number) => {
-    if (!explorationData || !sessionId) return
+    if (!explorationData) return
     const oldEpic = explorationData.epics[currentEpicIndex]
     const newEpic = explorationData.epics[newIndex]
-    if (oldEpic) {
-      submitExplorationEvent(sessionId, { event_type: 'epic_leave', epic_index: oldEpic.index }).catch(console.error)
+    if (oldEpic && resolvedSessionId) {
+      submitExplorationEvent(resolvedSessionId, { event_type: 'epic_leave', epic_index: oldEpic.index }).catch(console.error)
     }
     setCurrentEpicIndex(newIndex)
-    if (newEpic) {
-      submitExplorationEvent(sessionId, { event_type: 'epic_view', epic_index: newEpic.index }).catch(console.error)
+    setContextCard(null)
+    if (newEpic && resolvedSessionId) {
+      submitExplorationEvent(resolvedSessionId, { event_type: 'epic_view', epic_index: newEpic.index }).catch(console.error)
     }
-  }, [explorationData, currentEpicIndex, sessionId])
+  }, [explorationData, currentEpicIndex, resolvedSessionId])
 
   const handleExplorationNext = useCallback(() => {
     if (!explorationData) return
@@ -318,12 +336,12 @@ export default function PortalPrototypePage() {
     } else {
       // Last epic — go to summary
       const oldEpic = explorationData.epics[currentEpicIndex]
-      if (oldEpic && sessionId) {
-        submitExplorationEvent(sessionId, { event_type: 'epic_leave', epic_index: oldEpic.index }).catch(console.error)
+      if (oldEpic && resolvedSessionId) {
+        submitExplorationEvent(resolvedSessionId, { event_type: 'epic_leave', epic_index: oldEpic.index }).catch(console.error)
       }
       setExplorationPhase('summary')
     }
-  }, [explorationData, currentEpicIndex, handleEpicNavigate, sessionId])
+  }, [explorationData, currentEpicIndex, handleEpicNavigate, resolvedSessionId])
 
   const handleExplorationPrev = useCallback(() => {
     if (currentEpicIndex > 0) {
@@ -332,10 +350,10 @@ export default function PortalPrototypePage() {
   }, [currentEpicIndex, handleEpicNavigate])
 
   const handleExplorationComplete = useCallback(async () => {
-    if (!sessionId) return
+    if (!resolvedSessionId) return
     setSubmitting(true)
     try {
-      await completeExploration(sessionId)
+      await completeExploration(resolvedSessionId)
       setExplorationPhase('done')
       setSubmitted(true)
     } catch (err) {
@@ -343,7 +361,7 @@ export default function PortalPrototypePage() {
     } finally {
       setSubmitting(false)
     }
-  }, [sessionId])
+  }, [resolvedSessionId])
 
   const handleCompleteReview = async () => {
     setSubmitting(true)
@@ -397,32 +415,28 @@ export default function PortalPrototypePage() {
   if (isExplorationMode && explorationData) {
     const epics = explorationData.epics
     const currentEpic = epics[currentEpicIndex]
-    const currentIframeUrl = currentEpic?.primary_route && deployUrl
-      ? `${deployUrl}${currentEpic.primary_route}`
-      : deployUrl
+    // Navigate iframe to epic's primary route when available
+    const epicRoute = currentEpic?.primary_route
+    const currentIframeUrl = deployUrl
+      ? epicRoute
+        ? deployUrl.replace(/\/$/, '') + epicRoute
+        : deployUrl
+      : null
 
     // Compute assumption counts for summary
     let totalAssumptions = 0
-    let agreedCount = 0
-    let disagreedCount = 0
+    let greatCount = 0
+    let refineCount = 0
+    let questionCount = 0
     for (const epic of epics) {
       for (let i = 0; i < epic.assumptions.length; i++) {
         totalAssumptions++
         const key = `${epic.index}-${i}`
-        if (assumptionResponses[key] === 'agree') agreedCount++
-        else if (assumptionResponses[key] === 'disagree') disagreedCount++
+        const r = assumptionResponses[key]
+        if (r === 'great' || r === 'agree') greatCount++
+        else if (r === 'refine') refineCount++
+        else if (r === 'question' || r === 'disagree') questionCount++
       }
-    }
-
-    if (explorationPhase === 'welcome') {
-      return (
-        <ExplorationWelcome
-          projectName={explorationData.project_name}
-          consultantName={explorationData.consultant_name}
-          epicCount={epics.length}
-          onStart={handleExplorationStart}
-        />
-      )
     }
 
     if (explorationPhase === 'summary' || explorationPhase === 'done') {
@@ -444,10 +458,16 @@ export default function PortalPrototypePage() {
 
       return (
         <ExplorationSummary
-          totalAssumptions={totalAssumptions}
-          agreedCount={agreedCount}
-          disagreedCount={disagreedCount}
-          inspirationCount={inspirationCount}
+          epics={epics.map(epic => ({
+            index: epic.index,
+            title: epic.title,
+            assumptions: epic.assumptions.map((a, i) => ({
+              text: a.text,
+              response: assumptionResponses[`${epic.index}-${i}`] || null,
+            })),
+          }))}
+          consultantName={explorationData.consultant_name || undefined}
+          bookingUrl={explorationData.booking_url || undefined}
           onComplete={handleExplorationComplete}
           isSubmitting={submitting}
         />
@@ -455,7 +475,7 @@ export default function PortalPrototypePage() {
     }
 
     // Tour phase — epic by epic
-    const currentResponses: Record<number, 'agree' | 'disagree'> = {}
+    const currentResponses: Record<number, AssumptionResponseType> = {}
     if (currentEpic) {
       for (let i = 0; i < currentEpic.assumptions.length; i++) {
         const key = `${currentEpic.index}-${i}`
@@ -466,8 +486,8 @@ export default function PortalPrototypePage() {
     }
 
     return (
-      <div className="flex flex-col h-full bg-surface-page relative">
-        {/* Nav bar */}
+      <div className="flex flex-col h-full bg-surface-page">
+        {/* Nav bar — full width */}
         <div className="bg-accent px-4 py-2 flex-shrink-0">
           <ExplorationNav
             currentIndex={currentEpicIndex}
@@ -476,97 +496,194 @@ export default function PortalPrototypePage() {
             onPrevious={handleExplorationPrev}
             onNext={handleExplorationNext}
             onNavigate={handleEpicNavigate}
+            onShare={() => setShowShareModal(true)}
           />
         </div>
 
-        {/* Prototype iframe — full area */}
-        <div className="flex-1 min-h-0">
-          {currentIframeUrl ? (
-            <PrototypeFrame
-              deployUrl={currentIframeUrl}
-              onFeatureClick={() => {}}
-              onPageChange={() => {}}
-            />
-          ) : (
-            <div className="flex items-center justify-center h-full text-text-placeholder">
-              Prototype preview unavailable
+        {/* Content — iframe + optional panel */}
+        <div className="flex flex-1 min-h-0">
+          {/* Iframe — fills remaining space */}
+          <div className="flex-1 min-h-0 h-full relative">
+            {currentIframeUrl ? (
+              <PrototypeFrame
+                deployUrl={currentIframeUrl}
+                onFeatureClick={() => {}}
+                onPageChange={() => {}}
+              />
+            ) : (
+              <div className="flex items-center justify-center h-full text-text-placeholder">
+                Prototype preview unavailable
+              </div>
+            )}
+          </div>
+
+          {/* Right panel — toggled by chat bubble */}
+          {chatOpen && (
+            <div className="w-[400px] flex-shrink-0 border-l border-border flex flex-col bg-white">
+              {/* Panel header with close */}
+              <div className="flex items-center justify-between px-4 py-2 border-b border-border">
+                <span className="text-sm font-medium text-text-primary">
+                  {currentEpic?.title || 'Prototype Review'}
+                </span>
+                <button
+                  onClick={() => setChatOpen(false)}
+                  className="p-1 rounded hover:bg-surface-subtle transition-colors text-text-muted hover:text-text-primary"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Tab bar */}
+              <div className="flex border-b border-border">
+                <button
+                  onClick={() => setActiveTab('overview')}
+                  className={`flex-1 px-4 py-2.5 text-sm font-medium transition-colors ${
+                    activeTab === 'overview'
+                      ? 'text-brand-primary border-b-2 border-brand-primary'
+                      : 'text-text-muted hover:text-text-primary'
+                  }`}
+                >
+                  Overview
+                </button>
+                <button
+                  onClick={() => setActiveTab('discuss')}
+                  className={`flex-1 px-4 py-2.5 text-sm font-medium transition-colors ${
+                    activeTab === 'discuss'
+                      ? 'text-brand-primary border-b-2 border-brand-primary'
+                      : 'text-text-muted hover:text-text-primary'
+                  }`}
+                >
+                  Discuss
+                </button>
+              </div>
+
+              {/* Tab content */}
+              {activeTab === 'overview' ? (
+                <>
+                  {/* Overview — scrollable */}
+                  <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
+                    {currentEpic && (
+                      <>
+                        <h3 className="text-base font-semibold text-text-primary">{currentEpic.title}</h3>
+
+                        {currentEpic.consultant_note && (
+                          <div className="bg-brand-primary-light rounded-lg px-3 py-2 border border-brand-primary/20">
+                            <p className="text-[10px] uppercase tracking-wide text-brand-primary font-medium mb-0.5">From your consultant</p>
+                            <p className="text-xs text-text-body">{currentEpic.consultant_note}</p>
+                          </div>
+                        )}
+
+                        {currentEpic.features.length > 0 && (
+                          <div className="flex flex-wrap gap-1.5">
+                            {currentEpic.features.map((f, i) => (
+                              <span key={i} className="text-[11px] bg-surface-subtle text-text-muted px-2.5 py-1 rounded-full">{f.name}</span>
+                            ))}
+                          </div>
+                        )}
+
+                        {currentEpic.assumptions.length > 0 && (
+                          <div className="space-y-2.5 pt-1">
+                            <p className="text-[10px] uppercase tracking-wide text-text-placeholder font-medium">Assumptions</p>
+                            {currentEpic.assumptions.map((a, i) => {
+                              const response = currentResponses[i]
+                              return (
+                                <div key={i} className="space-y-1.5">
+                                  <p className="text-xs text-text-secondary leading-relaxed">{a.text}</p>
+                                  <div className="flex gap-1.5">
+                                    <button
+                                      onClick={() => handleAssumptionResponse(i, 'great')}
+                                      className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all border ${
+                                        response === 'great' || response === 'agree'
+                                          ? 'bg-brand-primary-light text-brand-primary border-brand-primary/30'
+                                          : 'text-text-muted border-border hover:bg-brand-primary-light hover:text-brand-primary hover:border-brand-primary/20'
+                                      }`}
+                                    >
+                                      <CheckCircle className="w-3 h-3" />
+                                      Great
+                                    </button>
+                                    <button
+                                      onClick={() => handleAssumptionResponse(i, 'refine')}
+                                      className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all border ${
+                                        response === 'refine'
+                                          ? 'bg-surface-subtle text-text-primary border-text-muted/30'
+                                          : 'text-text-muted border-border hover:bg-surface-subtle hover:text-text-primary hover:border-text-muted/20'
+                                      }`}
+                                    >
+                                      <Pencil className="w-3 h-3" />
+                                      Refine
+                                    </button>
+                                    <button
+                                      onClick={() => handleAssumptionResponse(i, 'question')}
+                                      className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all border ${
+                                        response === 'question' || response === 'disagree'
+                                          ? 'bg-accent/10 text-accent border-accent/30'
+                                          : 'text-text-muted border-border hover:bg-accent/5 hover:text-accent hover:border-accent/20'
+                                      }`}
+                                    >
+                                      <HelpCircle className="w-3 h-3" />
+                                      Question
+                                    </button>
+                                  </div>
+                                </div>
+                              )
+                            })}
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+
+                  {/* Next button — pinned bottom */}
+                  <div className="flex-shrink-0 px-4 py-3 border-t border-border bg-white">
+                    <button
+                      onClick={handleExplorationNext}
+                      className="w-full px-4 py-2.5 bg-brand-primary text-white text-sm font-medium rounded-xl hover:bg-brand-primary-hover transition-all"
+                    >
+                      {currentEpicIndex < epics.length - 1 ? 'Next Area' : 'Review Summary'}
+                    </button>
+                  </div>
+                </>
+              ) : (
+                /* Discuss tab — StationChat fills remaining space */
+                <StationChat
+                  projectId={projectId}
+                  station="epic"
+                  greeting={
+                    contextCard
+                      ? contextCard.type === 'refine'
+                        ? `You\u2019d like to refine: \u201C${contextCard.assumptionText}\u201D \u2014 what would you adjust?`
+                        : `You have a question about: \u201C${contextCard.assumptionText}\u201D \u2014 ask away!`
+                      : currentEpic?.title
+                        ? `Let\u2019s talk about the \u201C${currentEpic.title}\u201D experience. What do you think of what you see?`
+                        : 'What do you think of the prototype so far?'
+                  }
+                  epicTitle={currentEpic?.title}
+                  epicNarrative={currentEpic?.narrative}
+                  assumptionText={contextCard?.assumptionText}
+                  consultantName={explorationData.consultant_name || undefined}
+                />
+              )}
             </div>
           )}
         </div>
 
-        {/* Floating epic card — overlaid on bottom-right of iframe */}
-        {currentEpic && (
-          <div className="absolute bottom-4 right-4 w-[380px] max-h-[60%] bg-white rounded-2xl shadow-2xl border border-border flex flex-col overflow-hidden z-10">
-            <div className="overflow-y-auto px-4 py-4 space-y-3">
-              <h3 className="text-sm font-semibold text-text-primary">{currentEpic.title}</h3>
-
-              {currentEpic.consultant_note && (
-                <div className="bg-blue-50 rounded-lg px-3 py-2 border border-blue-100">
-                  <p className="text-[10px] uppercase tracking-wide text-blue-500 font-medium mb-0.5">From your consultant</p>
-                  <p className="text-xs text-blue-800">{currentEpic.consultant_note}</p>
-                </div>
-              )}
-
-              {currentEpic.features.length > 0 && (
-                <div className="flex flex-wrap gap-1">
-                  {currentEpic.features.map((f, i) => (
-                    <span key={i} className="text-[10px] bg-surface-subtle text-text-muted px-2 py-0.5 rounded-full">{f.name}</span>
-                  ))}
-                </div>
-              )}
-
-              {currentEpic.assumptions.length > 0 && (
-                <div className="space-y-2">
-                  <p className="text-[10px] uppercase tracking-wide text-text-placeholder font-medium">Assumptions</p>
-                  {currentEpic.assumptions.map((a, i) => {
-                    const response = currentResponses[i]
-                    return (
-                      <div key={i} className="flex items-start gap-2">
-                        <p className="text-xs text-text-secondary flex-1 pt-0.5">{a.text}</p>
-                        <div className="flex gap-1 flex-shrink-0">
-                          <button
-                            onClick={() => handleAssumptionResponse(i, 'agree')}
-                            className={`p-1 rounded transition-colors ${
-                              response === 'agree' ? 'bg-green-100 text-green-700' : 'text-text-placeholder hover:bg-green-50 hover:text-green-600'
-                            }`}
-                          >
-                            <span className="text-xs">&#10003;</span>
-                          </button>
-                          <button
-                            onClick={() => handleAssumptionResponse(i, 'disagree')}
-                            className={`p-1 rounded transition-colors ${
-                              response === 'disagree' ? 'bg-red-100 text-red-700' : 'text-text-placeholder hover:bg-red-50 hover:text-red-600'
-                            }`}
-                          >
-                            <span className="text-xs">&#10007;</span>
-                          </button>
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
-            </div>
-
-            {/* Next / finish button — pinned at bottom */}
-            <div className="flex-shrink-0 px-4 py-3 border-t border-border bg-white">
-              <button
-                onClick={handleExplorationNext}
-                className="w-full px-4 py-2.5 bg-brand-primary text-white text-sm font-medium rounded-xl hover:bg-brand-primary-hover transition-all"
-              >
-                {currentEpicIndex < epics.length - 1 ? 'Next Area' : 'Review Summary'}
-              </button>
-            </div>
-          </div>
+        {/* Welcome modal overlay — prototype loads behind */}
+        {explorationPhase === 'welcome' && (
+          <ExplorationWelcome
+            isModal
+            projectName={explorationData.project_name}
+            consultantName={explorationData.consultant_name}
+            epicCount={epics.length}
+            onStart={handleExplorationStart}
+          />
         )}
 
-        {/* Inspiration slide-up */}
-        {showInspirationPanel && currentEpic && (
-          <InspirationCapture
-            epicIndex={currentEpic.index}
-            epicTitle={currentEpic.title}
-            onSubmit={handleInspirationSubmit}
-            onClose={() => setShowInspirationPanel(false)}
+        {/* Stakeholder invite modal */}
+        {showShareModal && (
+          <StakeholderInviteModal
+            projectId={projectId}
+            sessionId={explorationData.session_id}
+            onClose={() => setShowShareModal(false)}
           />
         )}
       </div>

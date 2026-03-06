@@ -182,6 +182,8 @@ export interface StakeholderReviewData {
 // Client Exploration (Portal v2)
 // ============================================================================
 
+export type AssumptionResponseType = 'agree' | 'disagree' | 'great' | 'refine' | 'question'
+
 export interface EpicAssumption {
   text: string
   source_type: string // 'resolved_decision' | 'pain_point' | 'open_question' | 'inferred'
@@ -213,6 +215,7 @@ export interface ClientExplorationData {
   deploy_url?: string | null
   project_name: string
   consultant_name?: string | null
+  booking_url?: string | null
   epics: ClientEpic[]
   welcome_message?: string | null
 }
@@ -220,7 +223,7 @@ export interface ClientExplorationData {
 export interface AssumptionResult {
   text: string
   source_type: string
-  response?: string | null // 'agree' | 'disagree' | null
+  response?: AssumptionResponseType | null
 }
 
 export interface EpicResult {
