@@ -210,7 +210,7 @@ class TestEpicDiscuss:
 
     @pytest.mark.asyncio
     async def test_system_prompt_rules(self):
-        """System prompt should contain conciseness rules."""
+        """System prompt should contain conciseness rules but NOT force questions."""
         from app.api.prototype_sessions import epic_discuss
 
         mock_resp = _mock_anthropic_response("ok")
@@ -228,8 +228,57 @@ class TestEpicDiscuss:
             call_kwargs = mock_client.messages.create.call_args
             system_prompt = call_kwargs.kwargs.get("system") or call_kwargs[1].get("system", "")
             assert "2-3 sentences" in system_prompt
-            assert "follow-up question" in system_prompt
             assert "requirements" in system_prompt.lower()
+            # Should NOT force a follow-up question every time
+            assert "ask ONE follow-up question" not in system_prompt
+            assert "only ask when genuinely needed" in system_prompt.lower()
+
+    @pytest.mark.asyncio
+    async def test_first_review_stays_high_level(self):
+        """First review (session_number=1) uses high-level, confirmatory tone."""
+        from app.api.prototype_sessions import epic_discuss
+
+        first_review_session = {**FAKE_SESSION, "session_number": 1, "review_state": "in_progress"}
+        mock_resp = _mock_anthropic_response("ok")
+        mock_client = MagicMock()
+        mock_client.messages.create.return_value = mock_resp
+
+        with (
+            patch("app.api.prototype_sessions.get_session", return_value=first_review_session),
+            patch("app.api.prototype_sessions.get_prototype", return_value=FAKE_PROTOTYPE),
+            patch("anthropic.Anthropic", return_value=mock_client),
+            patch("app.api.prototype_sessions.create_feedback"),
+        ):
+            await epic_discuss(FAKE_SESSION_ID, {"message": "test", "epic_index": 0})
+
+            call_kwargs = mock_client.messages.create.call_args
+            system_prompt = call_kwargs.kwargs.get("system") or call_kwargs[1].get("system", "")
+            assert "FIRST look" in system_prompt or "First review" in system_prompt
+            assert "high-level" in system_prompt.lower()
+            assert "Do NOT drill" in system_prompt
+
+    @pytest.mark.asyncio
+    async def test_re_review_allows_deeper(self):
+        """Re-review (session_number>1) allows deeper exploration."""
+        from app.api.prototype_sessions import epic_discuss
+
+        re_review_session = {**FAKE_SESSION, "session_number": 2, "review_state": "re_review"}
+        mock_resp = _mock_anthropic_response("ok")
+        mock_client = MagicMock()
+        mock_client.messages.create.return_value = mock_resp
+
+        with (
+            patch("app.api.prototype_sessions.get_session", return_value=re_review_session),
+            patch("app.api.prototype_sessions.get_prototype", return_value=FAKE_PROTOTYPE),
+            patch("anthropic.Anthropic", return_value=mock_client),
+            patch("app.api.prototype_sessions.create_feedback"),
+        ):
+            await epic_discuss(FAKE_SESSION_ID, {"message": "test", "epic_index": 0})
+
+            call_kwargs = mock_client.messages.create.call_args
+            system_prompt = call_kwargs.kwargs.get("system") or call_kwargs[1].get("system", "")
+            assert "follow-up review" in system_prompt.lower()
+            assert "deeper" in system_prompt.lower()
 
 
 # ══════════════════════════════════════════════════════════════════
@@ -272,7 +321,7 @@ class TestSessionChat:
 
     @pytest.mark.asyncio
     async def test_verdict_aware_prompt_aligned(self):
-        """When verdict is aligned, prompt asks about edge cases."""
+        """When verdict is aligned, prompt affirms assessment."""
         from app.api.prototype_sessions import session_chat_endpoint
 
         overlay = {**FAKE_OVERLAY, "consultant_verdict": "aligned"}
@@ -293,11 +342,11 @@ class TestSessionChat:
             call_kwargs = mock_client.messages.create.call_args
             system_prompt = call_kwargs.kwargs.get("system") or call_kwargs[1].get("system", "")
             assert "ALIGNED" in system_prompt
-            assert "edge cases" in system_prompt
+            assert "Affirm" in system_prompt
 
     @pytest.mark.asyncio
     async def test_verdict_aware_prompt_off_track(self):
-        """When verdict is off_track, prompt asks about core misunderstanding."""
+        """When verdict is off_track, prompt helps articulate the problem."""
         from app.api.prototype_sessions import session_chat_endpoint
 
         overlay = {**FAKE_OVERLAY, "consultant_verdict": "off_track"}
@@ -318,7 +367,7 @@ class TestSessionChat:
             call_kwargs = mock_client.messages.create.call_args
             system_prompt = call_kwargs.kwargs.get("system") or call_kwargs[1].get("system", "")
             assert "OFF TRACK" in system_prompt
-            assert "core misunderstanding" in system_prompt
+            assert "core problem" in system_prompt
 
     @pytest.mark.asyncio
     async def test_no_verdict_fallback(self):
@@ -346,7 +395,7 @@ class TestSessionChat:
 
     @pytest.mark.asyncio
     async def test_disagreement_noted_in_prompt(self):
-        """When consultant disagrees with AI suggestion, prompt explores why."""
+        """When consultant disagrees with AI suggestion, prompt notes it."""
         from app.api.prototype_sessions import session_chat_endpoint
 
         # AI suggested aligned, consultant says needs_adjustment
@@ -366,7 +415,7 @@ class TestSessionChat:
 
             call_kwargs = mock_client.messages.create.call_args
             system_prompt = call_kwargs.kwargs.get("system") or call_kwargs[1].get("system", "")
-            assert "disagreement" in system_prompt.lower()
+            assert "AI suggested" in system_prompt
             assert "aligned" in system_prompt  # AI suggestion
             assert "needs_adjustment" in system_prompt  # consultant choice
 
@@ -457,6 +506,57 @@ class TestSessionChat:
             with pytest.raises(HTTPException) as exc_info:
                 await session_chat_endpoint(FAKE_SESSION_ID, request)
             assert exc_info.value.status_code == 404
+
+    @pytest.mark.asyncio
+    async def test_first_review_no_forced_questions(self):
+        """First review prompt does NOT force follow-up questions."""
+        from app.api.prototype_sessions import session_chat_endpoint
+
+        first_session = {**FAKE_SESSION, "session_number": 1, "review_state": "in_progress"}
+        mock_resp = _mock_anthropic_response("ok")
+        mock_client = MagicMock()
+        mock_client.messages.create.return_value = mock_resp
+
+        request = SessionChatRequest(message="Looks good", feature_id="f1")
+
+        with (
+            patch("app.api.prototype_sessions.get_session", return_value=first_session),
+            patch("app.api.prototype_sessions.get_prototype", return_value=FAKE_PROTOTYPE),
+            patch("app.api.prototype_sessions.list_overlays", return_value=[FAKE_OVERLAY]),
+            patch("anthropic.Anthropic", return_value=mock_client),
+        ):
+            await session_chat_endpoint(FAKE_SESSION_ID, request)
+
+            call_kwargs = mock_client.messages.create.call_args
+            system_prompt = call_kwargs.kwargs.get("system") or call_kwargs[1].get("system", "")
+            assert "ask ONE follow-up question" not in system_prompt
+            assert "First review" in system_prompt
+            assert "high-level" in system_prompt.lower()
+
+    @pytest.mark.asyncio
+    async def test_re_review_allows_specifics(self):
+        """Re-review prompt allows addressing specific concerns."""
+        from app.api.prototype_sessions import session_chat_endpoint
+
+        re_session = {**FAKE_SESSION, "session_number": 2, "review_state": "re_review"}
+        mock_resp = _mock_anthropic_response("ok")
+        mock_client = MagicMock()
+        mock_client.messages.create.return_value = mock_resp
+
+        request = SessionChatRequest(message="What changed?", feature_id="f1")
+
+        with (
+            patch("app.api.prototype_sessions.get_session", return_value=re_session),
+            patch("app.api.prototype_sessions.get_prototype", return_value=FAKE_PROTOTYPE),
+            patch("app.api.prototype_sessions.list_overlays", return_value=[FAKE_OVERLAY]),
+            patch("anthropic.Anthropic", return_value=mock_client),
+        ):
+            await session_chat_endpoint(FAKE_SESSION_ID, request)
+
+            call_kwargs = mock_client.messages.create.call_args
+            system_prompt = call_kwargs.kwargs.get("system") or call_kwargs[1].get("system", "")
+            assert "Follow-up review" in system_prompt
+            assert "specific concern" in system_prompt.lower()
 
 
 # ══════════════════════════════════════════════════════════════════

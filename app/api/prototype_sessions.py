@@ -220,14 +220,24 @@ async def session_chat_endpoint(
         confidence = overlay_content.get("confidence", 0)
         impl_status = overview.get("implementation_status", "unknown")
 
+        # Stage-aware tone
+        session_number = session.get("session_number", 1)
+        review_state = session.get("review_state", "not_started")
+        is_first_review = session_number <= 1 and review_state in ("not_started", "in_progress")
+
         # Verdict-specific guidance
         verdict_guidance = ""
         if consultant_verdict == "aligned":
-            verdict_guidance = (
-                "The consultant marked this feature as ALIGNED. "
-                "Ask if there are edge cases, missing validation rules, or data handling nuances "
-                "that look correct but might break under real-world conditions. Be brief."
-            )
+            if is_first_review:
+                verdict_guidance = (
+                    "The consultant marked this feature as ALIGNED. "
+                    "Affirm their assessment. Only mention a gap if it's significant."
+                )
+            else:
+                verdict_guidance = (
+                    "The consultant marked this feature as ALIGNED. "
+                    "If they're asking about it, help with the specific question they raised."
+                )
         elif consultant_verdict == "needs_adjustment":
             gap_text = (
                 "; ".join(g.get("question", "") for g in gaps[:2])
@@ -238,13 +248,12 @@ async def session_chat_endpoint(
                 f"The consultant says this NEEDS ADJUSTMENT. "
                 f"Our analysis found these gaps: {gap_text}. "
                 f"Deltas: {'; '.join(delta[:3])}. "
-                "Ask what specifically needs to change — is it the spec, the implementation, or both?"
+                "Help clarify what needs to change based on what the consultant says."
             )
         elif consultant_verdict == "off_track":
             verdict_guidance = (
                 "The consultant says this is OFF TRACK — a fundamental disconnect. "
-                "Ask about the core misunderstanding: is the feature solving the wrong problem, "
-                "targeting the wrong persona, or missing the business intent entirely?"
+                "Help them articulate what the core problem is so refinement notes are clear."
             )
         else:
             verdict_guidance = "No verdict set yet. Help the consultant understand the feature."
@@ -254,7 +263,23 @@ async def session_chat_endpoint(
         if consultant_verdict and suggested_verdict and consultant_verdict != suggested_verdict:
             disagreement = (
                 f"\nNote: AI suggested '{suggested_verdict}' but the consultant chose '{consultant_verdict}'. "
-                "This disagreement is interesting — gently explore why they see it differently."
+                "If they bring it up, explore why they see it differently."
+            )
+
+        # Stage-aware rules
+        if is_first_review:
+            stage_rules = (
+                "STAGE: First review — the consultant is seeing this prototype for the first time.\n"
+                "- Stay high-level: does this feature capture the right intent?\n"
+                "- Respond to what they say — don't interrogate\n"
+                "- Only ask a question if something seems genuinely off or missing\n"
+                "- It's fine to simply confirm and let them move on"
+            )
+        else:
+            stage_rules = (
+                "STAGE: Follow-up review — the consultant has seen this before.\n"
+                "- Address their specific concern directly\n"
+                "- If they seem satisfied, affirm and wrap up"
             )
 
         system_prompt = f"""You are a concise requirements assistant helping a consultant review "{feature_name}" in a prototype.
@@ -266,11 +291,14 @@ Prototype: {proto_summary[:200]}
 
 {verdict_guidance}{disagreement}
 
+{stage_rules}
+
 RULES:
-- Be concise: 2-3 sentences max, then ask ONE follow-up question
+- Be concise: 2-3 sentences max
 - Focus on requirements implications, not code quality
 - If the consultant's observation reveals a new requirement, acknowledge it
-- Never repeat information the consultant already knows"""
+- Never repeat information the consultant already knows
+- Do NOT end every response with a question — only ask when genuinely needed"""
 
         # Use verdict chat model (Haiku) by default, allow override
         model = request.model_override or settings.VERDICT_CHAT_MODEL
@@ -1108,16 +1136,40 @@ async def epic_discuss(session_id: UUID, body: dict):
             f"Narrative: {epic.get('narrative', '')[:300]}"
         )
 
+    # Stage-aware tone: first review is high-level, re-reviews go deeper
+    session_number = session.get("session_number", 1)
+    review_state = session.get("review_state", "not_started")
+    is_first_review = session_number <= 1 and review_state in ("not_started", "in_progress")
+
+    if is_first_review:
+        stage_guidance = (
+            "STAGE: This is the consultant's FIRST look at the prototype.\n"
+            "- Stay high-level: focus on whether the epic captures the right vision\n"
+            "- Respond to what they say — acknowledge, affirm, or gently flag gaps\n"
+            "- Do NOT drill into specifics, edge cases, or implementation details\n"
+            "- Only ask a question if something seems genuinely missing or contradictory\n"
+            "- It's fine to simply affirm and move on — not every message needs a question"
+        )
+    else:
+        stage_guidance = (
+            "STAGE: This is a follow-up review — the consultant has seen this before.\n"
+            "- You can go deeper into specifics when the consultant raises them\n"
+            "- Ask targeted questions about changes, not open-ended exploration\n"
+            "- If the consultant seems satisfied, affirm and wrap up — don't keep probing"
+        )
+
     # Build system prompt scoped to this epic
     system_prompt = (
         f"You are a concise discovery consultant helping "
         f'review "{epic_title}" in a prototype.\n\n'
         f"{epic_context}\n\n"
+        f"{stage_guidance}\n\n"
         "RULES:\n"
-        "- Be concise: 2-3 sentences max, then ask ONE follow-up question\n"
+        "- Be concise: 2-3 sentences max\n"
         "- Focus on requirements and business value, not code\n"
         "- If the consultant reveals a new requirement or refinement, acknowledge it\n"
-        "- Use the epic context above to give relevant answers"
+        "- Use the epic context above to give relevant answers\n"
+        "- Do NOT end every response with a question — only ask when genuinely needed"
     )
 
     try:
