@@ -60,8 +60,8 @@ export function ClientStagingSection({ projectId }: ClientStagingSectionProps) {
         setSessionId(latest.id)
 
         // Get fresh session data for review_state
-        const session = await getPrototypeSession(latest.id) as unknown as Record<string, unknown>
-        const reviewState = (session.review_state as string) || 'not_started'
+        const session = await getPrototypeSession(latest.id)
+        const reviewState = session.review_state || 'not_started'
 
         if (reviewState === 'client_complete') {
           const res = await getExplorationResults(latest.id)

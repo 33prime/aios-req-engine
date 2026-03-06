@@ -427,6 +427,7 @@ class SessionResponse(BaseModel):
     prototype_id: UUID = Field(..., description="Prototype UUID")
     session_number: int = Field(..., description="Session number (1-indexed)")
     status: str = Field(..., description="Session status")
+    review_state: str | None = Field(None, description="Review lifecycle state (not_started, pending, complete, staging, client_exploring, client_complete)")
     readiness_before: float | None = Field(None, description="Readiness score at session start")
     readiness_after: float | None = Field(None, description="Readiness score at session end")
     synthesis: dict[str, Any] | None = Field(None, description="Feedback synthesis result")

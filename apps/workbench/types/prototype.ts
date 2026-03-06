@@ -166,6 +166,7 @@ export interface PrototypeSession {
   prototype_id: string
   session_number: number
   status: string
+  review_state: string | null
   readiness_before: number | null
   readiness_after: number | null
   synthesis: Record<string, unknown> | null
