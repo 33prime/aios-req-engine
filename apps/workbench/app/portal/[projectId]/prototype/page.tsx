@@ -20,8 +20,6 @@ import { EpicExplorationCard } from '@/components/portal/EpicExplorationCard'
 import { InspirationCapture } from '@/components/portal/InspirationCapture'
 import { ExplorationSummary } from '@/components/portal/ExplorationSummary'
 import { ExplorationNav } from '@/components/portal/ExplorationNav'
-import { PrototypeEpicStation } from '@/components/portal/stations/PrototypeEpicStation'
-import { StationChat } from '@/components/portal/StationChat'
 import type { FeatureVerdict } from '@/types/prototype'
 import type { StakeholderReviewData, VerdictType, ClientExplorationData } from '@/types/portal'
 
@@ -468,7 +466,7 @@ export default function PortalPrototypePage() {
     }
 
     return (
-      <div className="flex flex-col h-full bg-surface-page">
+      <div className="flex flex-col h-full bg-surface-page relative">
         {/* Nav bar */}
         <div className="bg-accent px-4 py-2 flex-shrink-0">
           <ExplorationNav
@@ -481,62 +479,86 @@ export default function PortalPrototypePage() {
           />
         </div>
 
-        {/* iframe left + right panel */}
-        <div className="flex-1 flex min-h-0 overflow-hidden">
-          {/* Prototype iframe — fills remaining width */}
-          <div className="flex-1 min-w-0 h-full">
-            {currentIframeUrl ? (
-              <PrototypeFrame
-                deployUrl={currentIframeUrl}
-                onFeatureClick={() => {}}
-                onPageChange={() => {}}
-              />
-            ) : (
-              <div className="flex items-center justify-center h-full text-text-placeholder">
-                Prototype preview unavailable
-              </div>
-            )}
-          </div>
-
-          {/* Right panel — epic review + chat */}
-          {currentEpic && (
-            <div className="w-[420px] flex-shrink-0 border-l border-border bg-white flex flex-col h-full">
-              {/* Epic content — scrollable upper portion */}
-              <div className="overflow-y-auto flex-shrink-0" style={{ maxHeight: '45%' }}>
-                <div className="px-4 py-4">
-                  <PrototypeEpicStation
-                    epic={currentEpic}
-                    onAssumptionResponse={handleAssumptionResponse}
-                    assumptionResponses={currentResponses}
-                  />
-
-                  {/* Next / finish button */}
-                  <div className="mt-3">
-                    <button
-                      onClick={handleExplorationNext}
-                      className="w-full px-4 py-2.5 bg-brand-primary text-white text-sm font-medium rounded-xl hover:bg-brand-primary-hover transition-all"
-                    >
-                      {currentEpicIndex < epics.length - 1 ? 'Next Area' : 'Review Summary'}
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              {/* Divider */}
-              <div className="border-t border-border flex-shrink-0" />
-
-              {/* Chat zone — fills remaining space */}
-              <div className="flex-1 min-h-0 flex flex-col">
-                <StationChat
-                  projectId={projectId}
-                  station="epic"
-                  greeting={`Let's discuss "${currentEpic.title}". What do you think of what you see?`}
-                  onToolResult={() => {}}
-                />
-              </div>
+        {/* Prototype iframe — full area */}
+        <div className="flex-1 min-h-0">
+          {currentIframeUrl ? (
+            <PrototypeFrame
+              deployUrl={currentIframeUrl}
+              onFeatureClick={() => {}}
+              onPageChange={() => {}}
+            />
+          ) : (
+            <div className="flex items-center justify-center h-full text-text-placeholder">
+              Prototype preview unavailable
             </div>
           )}
         </div>
+
+        {/* Floating epic card — overlaid on bottom-right of iframe */}
+        {currentEpic && (
+          <div className="absolute bottom-4 right-4 w-[380px] max-h-[60%] bg-white rounded-2xl shadow-2xl border border-border flex flex-col overflow-hidden z-10">
+            <div className="overflow-y-auto px-4 py-4 space-y-3">
+              <h3 className="text-sm font-semibold text-text-primary">{currentEpic.title}</h3>
+
+              {currentEpic.consultant_note && (
+                <div className="bg-blue-50 rounded-lg px-3 py-2 border border-blue-100">
+                  <p className="text-[10px] uppercase tracking-wide text-blue-500 font-medium mb-0.5">From your consultant</p>
+                  <p className="text-xs text-blue-800">{currentEpic.consultant_note}</p>
+                </div>
+              )}
+
+              {currentEpic.features.length > 0 && (
+                <div className="flex flex-wrap gap-1">
+                  {currentEpic.features.map((f, i) => (
+                    <span key={i} className="text-[10px] bg-surface-subtle text-text-muted px-2 py-0.5 rounded-full">{f.name}</span>
+                  ))}
+                </div>
+              )}
+
+              {currentEpic.assumptions.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-[10px] uppercase tracking-wide text-text-placeholder font-medium">Assumptions</p>
+                  {currentEpic.assumptions.map((a, i) => {
+                    const response = currentResponses[i]
+                    return (
+                      <div key={i} className="flex items-start gap-2">
+                        <p className="text-xs text-text-secondary flex-1 pt-0.5">{a.text}</p>
+                        <div className="flex gap-1 flex-shrink-0">
+                          <button
+                            onClick={() => handleAssumptionResponse(i, 'agree')}
+                            className={`p-1 rounded transition-colors ${
+                              response === 'agree' ? 'bg-green-100 text-green-700' : 'text-text-placeholder hover:bg-green-50 hover:text-green-600'
+                            }`}
+                          >
+                            <span className="text-xs">&#10003;</span>
+                          </button>
+                          <button
+                            onClick={() => handleAssumptionResponse(i, 'disagree')}
+                            className={`p-1 rounded transition-colors ${
+                              response === 'disagree' ? 'bg-red-100 text-red-700' : 'text-text-placeholder hover:bg-red-50 hover:text-red-600'
+                            }`}
+                          >
+                            <span className="text-xs">&#10007;</span>
+                          </button>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Next / finish button — pinned at bottom */}
+            <div className="flex-shrink-0 px-4 py-3 border-t border-border bg-white">
+              <button
+                onClick={handleExplorationNext}
+                className="w-full px-4 py-2.5 bg-brand-primary text-white text-sm font-medium rounded-xl hover:bg-brand-primary-hover transition-all"
+              >
+                {currentEpicIndex < epics.length - 1 ? 'Next Area' : 'Review Summary'}
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Inspiration slide-up */}
         {showInspirationPanel && currentEpic && (
