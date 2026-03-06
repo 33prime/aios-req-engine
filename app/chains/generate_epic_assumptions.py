@@ -1,7 +1,7 @@
 """Generate testable assumptions for epics using Haiku 4.5.
 
 Takes an epic's structured data (resolved decisions, pain points, open questions,
-features) and produces 3-5 client-friendly assumption statements that clients
+features) and produces 1-2 high-signal assumption statements that clients
 can quickly validate with thumbs-up/thumbs-down.
 """
 
@@ -19,11 +19,13 @@ logger = get_logger(__name__)
 SYSTEM_PROMPT = """You generate testable assumptions for a software product epic.
 
 Given an epic's context (title, narrative, decisions made, pain points, open questions, features),
-produce 3-5 SHORT, client-friendly assumption statements.
+produce 1-2 SHORT, high-signal assumption statements. Prefer 1 if it captures the core belief.
 
 Rules:
 - Each assumption: one sentence, a belief the client can agree/disagree with
 - Use "you" language — speak directly to the client about their needs
+- Pick the SINGLE most important assumption first — the one that, if wrong, changes everything
+- Only add a second if there's a genuinely distinct belief worth validating
 - Draw from resolved_decisions, pain_points, and open_questions first; infer only if needed
 - Focus on VALUE and NEED, not implementation details
 - No jargon, no technical terms — plain business language
@@ -34,7 +36,7 @@ Return JSON array:
 
 
 def generate_assumptions_for_epic(epic: dict) -> list[dict]:
-    """Generate 3-5 testable assumptions for a single epic.
+    """Generate 1-2 testable assumptions for a single epic.
 
     Args:
         epic: Dict with keys: title, narrative, resolved_decisions, pain_points,
@@ -103,7 +105,7 @@ def generate_assumptions_for_epic(epic: dict) -> list[dict]:
 
         # Validate structure
         validated = []
-        for a in assumptions[:5]:
+        for a in assumptions[:2]:
             if isinstance(a, dict) and "text" in a:
                 validated.append(
                     {

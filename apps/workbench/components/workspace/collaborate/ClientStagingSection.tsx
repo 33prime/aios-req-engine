@@ -15,6 +15,9 @@ import {
   Clock,
   Loader2,
   ArrowRight,
+  Trash2,
+  Plus,
+  Pencil,
 } from 'lucide-react'
 import {
   prepareForClient,
@@ -119,6 +122,40 @@ export function ClientStagingSection({ projectId }: ClientStagingSectionProps) {
       await updateEpicConfigs(sessionId, updated).catch(console.error)
     }
   }, [configs, sessionId])
+
+  const handleUpdateAssumption = useCallback(async (epicIndex: number, assumptionIndex: number, text: string) => {
+    const updated = configs.map(c => {
+      if (c.epic_index !== epicIndex) return c
+      const assumptions = [...(c.assumptions || [])]
+      assumptions[assumptionIndex] = { ...assumptions[assumptionIndex], text }
+      return { ...c, assumptions }
+    })
+    setConfigs(updated)
+    if (sessionId) {
+      await updateEpicConfigs(sessionId, updated).catch(console.error)
+    }
+  }, [configs, sessionId])
+
+  const handleDeleteAssumption = useCallback(async (epicIndex: number, assumptionIndex: number) => {
+    const updated = configs.map(c => {
+      if (c.epic_index !== epicIndex) return c
+      const assumptions = (c.assumptions || []).filter((_, i) => i !== assumptionIndex)
+      return { ...c, assumptions }
+    })
+    setConfigs(updated)
+    if (sessionId) {
+      await updateEpicConfigs(sessionId, updated).catch(console.error)
+    }
+  }, [configs, sessionId])
+
+  const handleAddAssumption = useCallback(async (epicIndex: number) => {
+    const updated = configs.map(c => {
+      if (c.epic_index !== epicIndex) return c
+      const assumptions = [...(c.assumptions || []), { text: '', source_type: 'inferred' }]
+      return { ...c, assumptions }
+    })
+    setConfigs(updated)
+  }, [configs])
 
   const handleShare = useCallback(async () => {
     if (!sessionId) return
@@ -268,20 +305,45 @@ export function ClientStagingSection({ projectId }: ClientStagingSectionProps) {
                           </button>
                         </div>
 
-                        {/* Assumptions preview */}
-                        {config.assumptions?.length > 0 && (
-                          <div className="flex flex-wrap gap-1 mt-2">
-                            {config.assumptions.map((a, i) => (
-                              <span
-                                key={i}
-                                className="text-[10px] px-2 py-0.5 bg-gray-100 text-gray-600 rounded-full"
-                                title={a.text}
+                        {/* Assumptions — editable */}
+                        <div className="mt-2 space-y-1.5">
+                          {(config.assumptions || []).map((a, i) => (
+                            <div key={i} className="flex items-center gap-1.5 group">
+                              <Pencil className="w-3 h-3 text-text-placeholder shrink-0" />
+                              <input
+                                type="text"
+                                value={a.text}
+                                onChange={(e) => {
+                                  const updated = configs.map(c => {
+                                    if (c.epic_index !== config.epic_index) return c
+                                    const assumptions = [...(c.assumptions || [])]
+                                    assumptions[i] = { ...assumptions[i], text: e.target.value }
+                                    return { ...c, assumptions }
+                                  })
+                                  setConfigs(updated)
+                                }}
+                                onBlur={() => handleUpdateAssumption(config.epic_index, i, a.text)}
+                                placeholder="Type an assumption..."
+                                className="flex-1 text-[11px] px-2 py-1 border border-border/50 rounded-lg focus:ring-1 focus:ring-brand-primary/20 focus:border-brand-primary placeholder:text-text-placeholder"
+                              />
+                              <button
+                                onClick={() => handleDeleteAssumption(config.epic_index, i)}
+                                className="opacity-0 group-hover:opacity-100 transition-opacity"
+                                title="Remove assumption"
                               >
-                                {a.text.length > 50 ? a.text.slice(0, 50) + '...' : a.text}
-                              </span>
-                            ))}
-                          </div>
-                        )}
+                                <Trash2 className="w-3.5 h-3.5 text-text-placeholder hover:text-red-500" />
+                              </button>
+                            </div>
+                          ))}
+                          {(config.assumptions?.length || 0) < 3 && (
+                            <button
+                              onClick={() => handleAddAssumption(config.epic_index)}
+                              className="flex items-center gap-1 text-[10px] text-text-placeholder hover:text-brand-primary transition-colors"
+                            >
+                              <Plus className="w-3 h-3" /> Add assumption
+                            </button>
+                          )}
+                        </div>
 
                         {/* Consultant note */}
                         <input
