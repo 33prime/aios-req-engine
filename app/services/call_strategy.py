@@ -56,6 +56,7 @@ async def generate_strategy_brief(
         horizon_state,
         workflow_pairs,
         flow_overview,
+        flagged_steps,
     ) = await asyncio.gather(
         _load_state_snapshot(project_id),
         _load_awareness(project_id),
@@ -66,6 +67,7 @@ async def generate_strategy_brief(
         _load_horizon_state(project_id),
         asyncio.to_thread(_load_workflow_pairs_safe, project_id),
         asyncio.to_thread(_load_flow_overview_safe, project_id),
+        asyncio.to_thread(_load_flagged_steps_safe, project_id),
     )
 
     # =========================================================================
@@ -114,6 +116,7 @@ async def generate_strategy_brief(
         prep_config=prep_config,
         workflow_pairs=workflow_pairs,
         flow_overview=flow_overview,
+        flagged_steps=flagged_steps,
     )
 
     # =========================================================================
@@ -365,6 +368,17 @@ def _load_flow_overview_safe(project_id: UUID) -> dict | None:
     except Exception as e:
         logger.warning(f"Failed to load flow overview: {e}")
         return None
+
+
+def _load_flagged_steps_safe(project_id: UUID) -> list[dict]:
+    """Load solution flow steps flagged for client review."""
+    try:
+        from app.db.solution_flow import get_flagged_steps
+
+        return get_flagged_steps(project_id)
+    except Exception as e:
+        logger.warning(f"Failed to load flagged steps: {e}")
+        return []
 
 
 def _stakeholder_approach(s: dict) -> str:
@@ -727,6 +741,7 @@ async def _synthesize_mission_themes(
     prep_config,
     workflow_pairs: list | None = None,
     flow_overview: dict | None = None,
+    flagged_steps: list[dict] | None = None,
 ) -> list[dict]:
     """Synthesize discovery-first mission themes via a single Sonnet call."""
     try:
@@ -758,6 +773,9 @@ async def _synthesize_mission_themes(
 
 ### Solution Flow Overview
 {_format_solution_flow(flow_overview)}
+
+### Flagged for Client Review
+{_format_flagged_steps(flagged_steps or [])}
 
 ## SUPPORTING INTELLIGENCE
 ### Knowledge Gaps
@@ -915,7 +933,7 @@ def _fallback_themes(
 
             themes.append({
                 "theme": f"Uncover: {summary}",
-                "context": f"Tension detected that needs deeper understanding.",
+                "context": "Tension detected that needs deeper understanding.",
                 "question": f"How does {default_name}'s team handle {summary}?",
                 "explores": entity_names[0] if entity_names else summary,
                 "evidence": entity_names[:3],
@@ -1017,6 +1035,26 @@ def _format_solution_flow(flow: dict | None) -> str:
         lines.append(line)
         if goal:
             lines.append(f"     Goal: {goal}")
+    return "\n".join(lines)
+
+
+def _format_flagged_steps(steps: list[dict]) -> str:
+    """Format steps flagged for client review as meeting goals."""
+    if not steps:
+        return "No steps flagged for client review."
+    lines = ["These solution flow steps need explicit validation in this meeting:"]
+    for s in steps:
+        idx = s.get("step_index", "?")
+        title = s.get("title", "Step")
+        reason = s.get("review_reason") or "Needs validation"
+        actors = s.get("actors") or []
+        target = s.get("review_target_stakeholder_name")
+        line = f"  {idx}. **{title}** — {reason}"
+        if target:
+            line += f" (confirm with {target})"
+        elif actors:
+            line += f" (actors: {', '.join(actors[:2])})"
+        lines.append(line)
     return "\n".join(lines)
 
 

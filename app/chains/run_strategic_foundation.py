@@ -189,10 +189,10 @@ def extract_strategic_entities_from_signals(project_id: UUID) -> dict[str, Any]:
         - errors: list of error messages
     """
     from app.chains.extract_facts import extract_facts_from_chunks
-    from app.db.signals import list_project_signals, list_signal_chunks
     from app.db.business_drivers import smart_upsert_business_driver
     from app.db.competitor_refs import smart_upsert_competitor_ref
     from app.db.projects import get_project
+    from app.db.signals import list_project_signals, list_signal_chunks
 
     settings = get_settings()
 
@@ -395,8 +395,8 @@ def get_strategic_foundation_summary(project_id: UUID) -> dict[str, Any]:
     """
     from app.db.business_drivers import list_business_drivers
     from app.db.competitor_refs import list_competitor_refs
-    from app.db.stakeholders import list_stakeholders
     from app.db.constraints import list_constraints
+    from app.db.stakeholders import list_stakeholders
 
     company_info = get_company_info(project_id)
     drivers = list_business_drivers(project_id)

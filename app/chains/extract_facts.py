@@ -3,8 +3,8 @@
 import json
 from typing import Any
 
-from openai import OpenAI
 from anthropic import Anthropic
+from openai import OpenAI
 from pydantic import ValidationError
 
 from app.core.config import Settings

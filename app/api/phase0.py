@@ -5,7 +5,7 @@ import uuid
 from typing import Any
 from uuid import UUID
 
-from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 
 from app.core.auth_middleware import AuthContext, require_auth
 from app.core.chunking import chunk_text

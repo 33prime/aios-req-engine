@@ -4,7 +4,6 @@ from pydantic import BaseModel
 
 from app.core.schemas_brd import EvidenceItem
 
-
 # ============================================================================
 # Shared Helper Functions
 # ============================================================================

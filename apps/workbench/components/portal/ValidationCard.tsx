@@ -20,9 +20,9 @@ const ENTITY_LABELS: Record<string, string> = {
 const PRIORITY_STYLES: Record<number, string> = {
   1: 'bg-red-100 text-red-700',
   2: 'bg-amber-100 text-amber-700',
-  3: 'bg-gray-100 text-gray-600',
-  4: 'bg-gray-50 text-gray-400',
-  5: 'bg-gray-50 text-gray-400',
+  3: 'bg-surface-subtle text-text-secondary',
+  4: 'bg-surface-subtle text-text-placeholder',
+  5: 'bg-surface-subtle text-text-placeholder',
 }
 
 export default function ValidationCard({ item, onVerdict }: ValidationCardProps) {
@@ -65,29 +65,29 @@ export default function ValidationCard({ item, onVerdict }: ValidationCardProps)
 
   return (
     <div className={`
-      bg-white rounded-xl border p-5 transition-all
+      bg-surface-card rounded-lg border p-5 transition-all shadow-sm
       ${isConfirmed ? 'border-green-200 bg-green-50/30' :
         isFlag ? 'border-red-200 bg-red-50/30' :
         isRefine ? 'border-amber-200 bg-amber-50/30' :
-        item.is_assigned_to_me ? 'border-[#009b87]/30' : 'border-gray-200'}
+        item.is_assigned_to_me ? 'border-brand-primary/30' : 'border-border'}
     `}>
       {/* Header row */}
       <div className="flex items-start justify-between gap-3 mb-3">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1">
-            <span className="text-xs font-medium text-gray-400 uppercase">
+            <span className="text-xs font-medium text-text-placeholder uppercase">
               {ENTITY_LABELS[item.entity_type] || item.entity_type}
             </span>
             <span className={`text-xs px-1.5 py-0.5 rounded ${PRIORITY_STYLES[item.priority] || PRIORITY_STYLES[3]}`}>
               P{item.priority}
             </span>
             {item.is_assigned_to_me && !localVerdict && (
-              <span className="text-xs bg-[#009b87]/10 text-[#009b87] px-2 py-0.5 rounded-full font-medium">
+              <span className="text-xs bg-brand-primary-light text-brand-primary px-2 py-0.5 rounded-full font-medium">
                 Your review
               </span>
             )}
           </div>
-          <h3 className="text-base font-semibold text-gray-900">{item.name}</h3>
+          <h3 className="text-base font-semibold text-text-primary">{item.name}</h3>
         </div>
 
         {/* Verdict badge (after submission) */}
@@ -105,7 +105,7 @@ export default function ValidationCard({ item, onVerdict }: ValidationCardProps)
 
       {/* Summary */}
       {item.summary && (
-        <p className="text-sm text-gray-600 mb-3">{item.summary}</p>
+        <p className="text-sm text-text-secondary mb-3">{item.summary}</p>
       )}
 
       {/* Type-specific details */}
@@ -122,7 +122,7 @@ export default function ValidationCard({ item, onVerdict }: ValidationCardProps)
             </span>
           ) : null}
           {item.details.enrichment_status ? (
-            <span className="text-xs bg-gray-50 text-gray-600 px-2 py-1 rounded">
+            <span className="text-xs bg-surface-subtle text-text-secondary px-2 py-1 rounded">
               {String(item.details.enrichment_status)}
             </span>
           ) : null}
@@ -131,14 +131,14 @@ export default function ValidationCard({ item, onVerdict }: ValidationCardProps)
 
       {/* Reason */}
       {item.reason && (
-        <p className="text-xs text-gray-400 mb-3">
+        <p className="text-xs text-text-placeholder mb-3">
           Assigned because: {item.reason}
         </p>
       )}
 
       {/* Existing notes */}
       {item.existing_notes && !expanded && (
-        <div className="text-sm text-gray-500 bg-gray-50 rounded p-2 mb-3">
+        <div className="text-sm text-text-muted bg-surface-subtle rounded p-2 mb-3">
           Previous notes: {item.existing_notes}
         </div>
       )}
@@ -182,7 +182,7 @@ export default function ValidationCard({ item, onVerdict }: ValidationCardProps)
                 : 'Why are you flagging this? What concerns do you have?'
             }
             rows={3}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#009b87] focus:border-transparent resize-none"
+            className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:ring-2 focus:ring-brand-primary-ring focus:border-brand-primary resize-none"
             autoFocus
           />
           <div className="flex items-center justify-end gap-2">
@@ -192,7 +192,7 @@ export default function ValidationCard({ item, onVerdict }: ValidationCardProps)
                 setLocalVerdict(null)
                 setNotes('')
               }}
-              className="px-3 py-1.5 text-sm text-gray-500 hover:text-gray-700"
+              className="px-3 py-1.5 text-sm text-text-muted hover:text-text-body"
             >
               Cancel
             </button>

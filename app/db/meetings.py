@@ -1,7 +1,6 @@
 """Database operations for meetings."""
 
-from datetime import date, time, datetime
-from typing import Optional
+from datetime import date, time
 from uuid import UUID
 
 from app.core.logging import get_logger
@@ -11,8 +10,8 @@ logger = get_logger(__name__)
 
 
 def list_meetings(
-    project_id: Optional[UUID] = None,
-    status: Optional[str] = None,
+    project_id: UUID | None = None,
+    status: str | None = None,
     upcoming_only: bool = False,
     limit: int = 50,
 ) -> list[dict]:
@@ -72,7 +71,7 @@ def list_upcoming_meetings(limit: int = 10) -> list[dict]:
     return result.data or []
 
 
-def get_meeting(meeting_id: UUID) -> Optional[dict]:
+def get_meeting(meeting_id: UUID) -> dict | None:
     """Get a single meeting by ID."""
     supabase = get_supabase()
     result = (
@@ -91,12 +90,12 @@ def create_meeting(
     meeting_date: date,
     meeting_time: time,
     meeting_type: str = "other",
-    description: Optional[str] = None,
+    description: str | None = None,
     duration_minutes: int = 60,
     timezone: str = "UTC",
-    stakeholder_ids: Optional[list[UUID]] = None,
-    agenda: Optional[dict] = None,
-    created_by: Optional[UUID] = None,
+    stakeholder_ids: list[UUID] | None = None,
+    agenda: dict | None = None,
+    created_by: UUID | None = None,
 ) -> dict:
     """Create a new meeting."""
     supabase = get_supabase()
@@ -125,7 +124,7 @@ def create_meeting(
     return result.data[0] if result.data else {}
 
 
-def update_meeting(meeting_id: UUID, updates: dict) -> Optional[dict]:
+def update_meeting(meeting_id: UUID, updates: dict) -> dict | None:
     """Update a meeting."""
     supabase = get_supabase()
 
@@ -162,7 +161,7 @@ def delete_meeting(meeting_id: UUID) -> bool:
     return len(result.data) > 0 if result.data else False
 
 
-def get_project_meeting_count(project_id: UUID, status: Optional[str] = None) -> int:
+def get_project_meeting_count(project_id: UUID, status: str | None = None) -> int:
     """Get count of meetings for a project."""
     supabase = get_supabase()
     query = (

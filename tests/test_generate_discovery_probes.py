@@ -10,9 +10,7 @@ from uuid import uuid4
 
 import pytest
 
-from app.core.schemas_briefing import GapCluster, GapType, IntelligenceGap
 from app.core.schemas_discovery import AmbiguityScore, NorthStarCategory
-
 
 # =============================================================================
 # Helpers

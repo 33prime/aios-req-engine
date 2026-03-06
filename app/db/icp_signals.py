@@ -1,6 +1,6 @@
 """Database operations for ICP signals."""
 
-from typing import Any, Optional
+from typing import Any
 from uuid import UUID
 
 from app.db.supabase_client import get_supabase as get_client
@@ -55,7 +55,7 @@ async def update_signal_routing(
     routing_status: str,
     matched_profile_id: UUID | None = None,
     confidence_score: float = 0,
-) -> Optional[dict[str, Any]]:
+) -> dict[str, Any] | None:
     """Update routing status of a signal."""
     client = get_client()
     data: dict[str, Any] = {

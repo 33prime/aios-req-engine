@@ -12,7 +12,7 @@ logger = get_logger(__name__)
 # Valid entity types
 SOURCE_ENTITY_TYPES = {"persona", "feature", "vp_step", "strategic_context", "stakeholder", "data_entity", "business_driver", "unlock"}
 TARGET_ENTITY_TYPES = {"persona", "feature", "vp_step", "signal", "research_chunk", "data_entity", "business_driver", "unlock"}
-DEPENDENCY_TYPES = {"uses", "targets", "derived_from", "informed_by", "actor_of", "spawns", "enables", "constrains", "co_occurrence"}
+DEPENDENCY_TYPES = {"uses", "targets", "derived_from", "informed_by", "actor_of", "spawns", "enables", "constrains", "co_occurrence", "addresses"}
 
 
 def register_dependency(
@@ -23,6 +23,8 @@ def register_dependency(
     target_id: UUID,
     dependency_type: str,
     strength: float = 1.0,
+    confidence: float | None = None,
+    source: str | None = None,
 ) -> dict:
     """
     Register a dependency between two entities.
@@ -35,6 +37,8 @@ def register_dependency(
         target_id: UUID of target entity
         dependency_type: Nature of dependency (uses, targets, derived_from, etc.)
         strength: Dependency strength 0-1 (default 1.0)
+        confidence: Link confidence 0-1 (0.5=co_occurrence, 0.7=semantic, 1.0=consultant)
+        source: Link source (co_occurrence, semantic_extraction, consultant, rebuild)
 
     Returns:
         Created or updated dependency dict
@@ -50,6 +54,33 @@ def register_dependency(
 
     supabase = get_supabase()
 
+    # Check if disputed — don't recreate disputed links
+    try:
+        existing = (
+            supabase.table("entity_dependencies")
+            .select("id, disputed, confidence")
+            .eq("project_id", str(project_id))
+            .eq("source_entity_type", source_type)
+            .eq("source_entity_id", str(source_id))
+            .eq("target_entity_type", target_type)
+            .eq("target_entity_id", str(target_id))
+            .eq("dependency_type", dependency_type)
+            .maybe_single()
+            .execute()
+        )
+        if existing and existing.data:
+            if existing.data.get("disputed"):
+                logger.debug(
+                    f"Skipping disputed link: {source_type}:{source_id} -> {target_type}:{target_id}"
+                )
+                return existing.data
+            # Only upgrade confidence, never downgrade
+            existing_conf = existing.data.get("confidence", 0.0)
+            if confidence is not None and confidence <= existing_conf:
+                confidence = existing_conf
+    except Exception:
+        pass  # Proceed with upsert on query failure
+
     # Use upsert to handle both create and update
     data = {
         "project_id": str(project_id),
@@ -61,6 +92,10 @@ def register_dependency(
         "strength": strength,
         "updated_at": datetime.now(UTC).isoformat(),
     }
+    if confidence is not None:
+        data["confidence"] = confidence
+    if source is not None:
+        data["source"] = source
 
     response = (
         supabase.table("entity_dependencies")
@@ -77,6 +112,142 @@ def register_dependency(
     )
 
     return response.data[0] if response.data else data
+
+
+def dispute_dependency(dep_id: str) -> dict | None:
+    """Mark a dependency as disputed (soft-delete).
+
+    Disputed links are excluded from density calculations and
+    will not be recreated by co-occurrence or semantic extraction.
+    """
+    supabase = get_supabase()
+    result = (
+        supabase.table("entity_dependencies")
+        .update({
+            "disputed": True,
+            "disputed_at": datetime.now(UTC).isoformat(),
+        })
+        .eq("id", dep_id)
+        .execute()
+    )
+    if result.data:
+        logger.info(f"Disputed dependency: {dep_id}")
+        return result.data[0]
+    return None
+
+
+def batch_link_density(
+    project_id: UUID,
+    entity_ids_by_type: dict[str, list[str]],
+    expected_links: dict[str, int],
+) -> dict[str, float]:
+    """Compute weighted link density for multiple entities.
+
+    Returns: {entity_id: weighted_density} where density accounts
+    for link confidence (co_occurrence=0.5, semantic=0.7, consultant=1.0).
+    Disputed links excluded.
+    """
+    supabase = get_supabase()
+
+    # Collect all entity IDs
+    all_ids = []
+    id_to_type: dict[str, str] = {}
+    for etype, ids in entity_ids_by_type.items():
+        for eid in ids:
+            all_ids.append(eid)
+            id_to_type[eid] = etype
+
+    if not all_ids:
+        return {}
+
+    # Query all non-disputed links for these entities (as source)
+    try:
+        result = (
+            supabase.table("entity_dependencies")
+            .select("source_entity_id, confidence")
+            .eq("project_id", str(project_id))
+            .eq("disputed", False)
+            .in_("source_entity_id", all_ids)
+            .execute()
+        )
+    except Exception as e:
+        logger.warning(f"batch_link_density query failed: {e}")
+        return {}
+
+    # Sum confidence weights per entity
+    confidence_sums: dict[str, float] = {}
+    for row in (result.data or []):
+        eid = row.get("source_entity_id", "")
+        conf = row.get("confidence", 0.5)
+        confidence_sums[eid] = confidence_sums.get(eid, 0.0) + conf
+
+    # Also count as target (links are directional but density should be bidirectional)
+    try:
+        target_result = (
+            supabase.table("entity_dependencies")
+            .select("target_entity_id, confidence")
+            .eq("project_id", str(project_id))
+            .eq("disputed", False)
+            .in_("target_entity_id", all_ids)
+            .execute()
+        )
+        for row in (target_result.data or []):
+            eid = row.get("target_entity_id", "")
+            conf = row.get("confidence", 0.5)
+            confidence_sums[eid] = confidence_sums.get(eid, 0.0) + conf
+    except Exception:
+        pass
+
+    # Compute density: weighted_links / expected_links
+    densities: dict[str, float] = {}
+    for eid in all_ids:
+        etype = id_to_type.get(eid, "")
+        expected = expected_links.get(etype, 1)
+        if expected <= 0:
+            expected = 1
+        weighted = confidence_sums.get(eid, 0.0)
+        densities[eid] = min(1.0, round(weighted / expected, 3))
+
+    return densities
+
+
+def adjust_link_confidence(
+    dep_id: str,
+    delta: float,
+    min_conf: float = 0.1,
+    max_conf: float = 1.0,
+) -> dict | None:
+    """Adjust link confidence by a delta. Cap at [min_conf, max_conf]."""
+    supabase = get_supabase()
+
+    # Get current confidence
+    try:
+        result = (
+            supabase.table("entity_dependencies")
+            .select("id, confidence")
+            .eq("id", dep_id)
+            .maybe_single()
+            .execute()
+        )
+        if not result or not result.data:
+            return None
+
+        current = result.data.get("confidence", 0.5)
+        new_conf = max(min_conf, min(max_conf, current + delta))
+
+        updated = (
+            supabase.table("entity_dependencies")
+            .update({
+                "confidence": round(new_conf, 2),
+                "updated_at": datetime.now(UTC).isoformat(),
+            })
+            .eq("id", dep_id)
+            .execute()
+        )
+        return updated.data[0] if updated.data else None
+    except Exception as e:
+        logger.warning(f"Failed to adjust link confidence for {dep_id}: {e}")
+        return None
 
 
 def remove_dependency(

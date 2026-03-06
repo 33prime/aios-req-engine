@@ -1,21 +1,18 @@
 """Database operations for project members."""
 
 from datetime import datetime
-from typing import Optional
 from uuid import UUID
 
 from app.core.schemas_auth import (
     MemberRole,
     ProjectMember,
-    ProjectMemberCreate,
     ProjectMemberWithUser,
-    User,
     UserPublic,
 )
 from app.db.supabase_client import get_supabase as get_client
 
 
-async def get_project_member(project_id: UUID, user_id: UUID) -> Optional[ProjectMember]:
+async def get_project_member(project_id: UUID, user_id: UUID) -> ProjectMember | None:
     """Get a specific project member."""
     client = get_client()
     result = (
@@ -34,7 +31,7 @@ async def add_project_member(
     project_id: UUID,
     user_id: UUID,
     role: MemberRole,
-    invited_by: Optional[UUID] = None,
+    invited_by: UUID | None = None,
 ) -> ProjectMember:
     """Add a member to a project."""
     client = get_client()
@@ -61,7 +58,7 @@ async def remove_project_member(project_id: UUID, user_id: UUID) -> bool:
     return len(result.data) > 0
 
 
-async def accept_project_invitation(project_id: UUID, user_id: UUID) -> Optional[ProjectMember]:
+async def accept_project_invitation(project_id: UUID, user_id: UUID) -> ProjectMember | None:
     """Mark a project invitation as accepted."""
     client = get_client()
     result = (
@@ -78,7 +75,7 @@ async def accept_project_invitation(project_id: UUID, user_id: UUID) -> Optional
 
 async def list_project_members(
     project_id: UUID,
-    role: Optional[MemberRole] = None,
+    role: MemberRole | None = None,
 ) -> list[ProjectMember]:
     """List all members of a project."""
     client = get_client()
@@ -93,7 +90,7 @@ async def list_project_members(
 
 async def list_project_members_with_users(
     project_id: UUID,
-    role: Optional[MemberRole] = None,
+    role: MemberRole | None = None,
 ) -> list[ProjectMemberWithUser]:
     """List project members with user details."""
     client = get_client()
@@ -127,7 +124,7 @@ async def list_project_members_with_users(
 
 async def list_user_projects(
     user_id: UUID,
-    role: Optional[MemberRole] = None,
+    role: MemberRole | None = None,
 ) -> list[UUID]:
     """List all project IDs a user is a member of."""
     client = get_client()
@@ -143,7 +140,7 @@ async def list_user_projects(
 async def is_project_member(
     project_id: UUID,
     user_id: UUID,
-    required_role: Optional[MemberRole] = None,
+    required_role: MemberRole | None = None,
 ) -> bool:
     """Check if a user is a member of a project."""
     member = await get_project_member(project_id, user_id)
@@ -154,13 +151,13 @@ async def is_project_member(
     return True
 
 
-async def get_project_client(project_id: UUID) -> Optional[ProjectMember]:
+async def get_project_client(project_id: UUID) -> ProjectMember | None:
     """Get the client member of a project (assumes one client per project)."""
     members = await list_project_members(project_id, role=MemberRole.CLIENT)
     return members[0] if members else None
 
 
-async def get_project_consultant(project_id: UUID) -> Optional[ProjectMember]:
+async def get_project_consultant(project_id: UUID) -> ProjectMember | None:
     """Get the consultant member of a project."""
     members = await list_project_members(project_id, role=MemberRole.CONSULTANT)
     return members[0] if members else None

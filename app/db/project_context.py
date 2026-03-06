@@ -1,7 +1,6 @@
 """Database operations for project context."""
 
-from datetime import datetime
-from typing import Any, Optional
+from typing import Any
 from uuid import UUID
 
 from app.core.schemas_portal import (
@@ -16,7 +15,7 @@ from app.core.schemas_portal import (
 from app.db.supabase_client import get_supabase as get_client
 
 
-async def get_project_context(project_id: UUID) -> Optional[ProjectContext]:
+async def get_project_context(project_id: UUID) -> ProjectContext | None:
     """Get project context by project ID."""
     client = get_client()
     result = (
@@ -52,7 +51,7 @@ async def update_project_context(
     project_id: UUID,
     data: ProjectContextUpdate,
     source: ContextSource = ContextSource.MANUAL,
-) -> Optional[ProjectContext]:
+) -> ProjectContext | None:
     """Update project context with partial data."""
     client = get_client()
 
@@ -119,7 +118,7 @@ async def update_context_section(
     section: str,
     data: dict[str, Any],
     source: ContextSource = ContextSource.MANUAL,
-) -> Optional[ProjectContext]:
+) -> ProjectContext | None:
     """Update a specific section of project context."""
     client = get_client()
 
@@ -183,8 +182,8 @@ async def update_context_section(
 async def lock_context_section(
     project_id: UUID,
     section: str,
-    field: Optional[str] = None,
-) -> Optional[ProjectContext]:
+    field: str | None = None,
+) -> ProjectContext | None:
     """Lock a context section/field to prevent auto-updates."""
     client = get_client()
 
@@ -226,7 +225,7 @@ async def lock_context_section(
 async def add_key_user(
     project_id: UUID,
     user: KeyUser,
-) -> Optional[ProjectContext]:
+) -> ProjectContext | None:
     """Add a key user to the context."""
     current = await get_or_create_project_context(project_id)
     users = current.key_users.copy()
@@ -242,7 +241,7 @@ async def add_key_user(
 async def add_competitor(
     project_id: UUID,
     competitor: Competitor,
-) -> Optional[ProjectContext]:
+) -> ProjectContext | None:
     """Add a competitor to the context."""
     current = await get_or_create_project_context(project_id)
     competitors = current.competitors.copy()
@@ -259,7 +258,7 @@ async def add_tribal_knowledge(
     project_id: UUID,
     knowledge: str,
     source: ContextSource = ContextSource.MANUAL,
-) -> Optional[ProjectContext]:
+) -> ProjectContext | None:
     """Add a tribal knowledge item."""
     current = await get_or_create_project_context(project_id)
 
@@ -280,7 +279,7 @@ async def update_completion_scores(
     project_id: UUID,
     scores: dict[str, int],
     overall: int,
-) -> Optional[ProjectContext]:
+) -> ProjectContext | None:
     """Update the completion scores for a project context."""
     client = get_client()
     result = (

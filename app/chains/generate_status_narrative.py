@@ -6,7 +6,6 @@ based on the current project state snapshot.
 
 import json
 from datetime import datetime
-from typing import Optional
 from uuid import UUID
 
 from app.core.llm import get_llm

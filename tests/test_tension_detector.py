@@ -1,10 +1,9 @@
 """Tests for the tension detector — pure graph walking, no LLM."""
 
-import pytest
 from unittest.mock import MagicMock, patch
 from uuid import uuid4
 
-from app.core.tension_detector import detect_tensions, _build_tension_summary
+from app.core.tension_detector import _build_tension_summary, detect_tensions
 
 
 class TestBuildTensionSummary:

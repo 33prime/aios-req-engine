@@ -1,6 +1,6 @@
 """Database operations for Phase 0: signal ingestion and vector search."""
 
-from typing import Any, Optional
+from typing import Any
 from uuid import UUID
 
 from app.core.logging import get_logger
@@ -189,7 +189,7 @@ def vector_search_with_priority(
     query_embedding: list[float],
     match_count: int,
     project_id: UUID | None = None,
-    filter_metadata: Optional[dict[str, Any]] = None,
+    filter_metadata: dict[str, Any] | None = None,
     priority_boost: bool = True,
 ) -> list[dict[str, Any]]:
     """

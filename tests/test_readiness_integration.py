@@ -8,27 +8,24 @@ Tests the complete readiness scoring pipeline including:
 - Recommendations and blocking gates
 """
 
-from datetime import datetime
 from unittest.mock import MagicMock, patch
 from uuid import uuid4
 
 import pytest
 
-from app.core.readiness.types import GateAssessment, ReadinessPhase
 from app.core.readiness import compute_readiness
-from app.core.readiness.types import ReadinessScore
+from app.core.readiness.types import GateAssessment, ReadinessPhase
 from app.core.schemas_foundation import (
-    BusinessCase,
+    KPI,
     BudgetConstraints,
+    BusinessCase,
     ConfirmedScope,
     CorePain,
     DesignPreferences,
-    KPI,
     PrimaryPersona,
     ProjectFoundation,
     WowMoment,
 )
-
 
 # =============================================================================
 # Fixtures

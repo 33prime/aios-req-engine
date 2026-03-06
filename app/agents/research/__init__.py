@@ -7,12 +7,12 @@ Two implementations:
 
 from app.agents.research.pipeline import run_research_pipeline
 from app.agents.research.schemas import (
+    CompetitorIntelligence,
     DeepResearchRequest,
     DeepResearchResponse,
-    CompetitorIntelligence,
     FeatureIntelligence,
-    UserVoice,
     MarketGap,
+    UserVoice,
 )
 
 __all__ = [

@@ -84,8 +84,8 @@ def gather_memory_context(project_id: UUID) -> dict[str, Any]:
 
     Returns a dict with all the data needed to synthesize memory.
     """
+    from app.db.project_memory import get_learnings, get_project_memory, get_recent_decisions
     from app.db.supabase_client import get_supabase
-    from app.db.project_memory import get_project_memory, get_recent_decisions, get_learnings
 
     supabase = get_supabase()
     context: dict[str, Any] = {}
@@ -296,7 +296,7 @@ def update_memory_with_llm(project_id: UUID) -> dict:
 
     Returns the updated memory record.
     """
-    from app.db.project_memory import update_project_memory, get_or_create_project_memory
+    from app.db.project_memory import get_or_create_project_memory, update_project_memory
 
     # Ensure memory exists
     get_or_create_project_memory(project_id)

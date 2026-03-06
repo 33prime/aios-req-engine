@@ -5,12 +5,10 @@ These tests mock external services but test the integration between components.
 """
 
 import json
-from datetime import datetime
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 from uuid import uuid4
 
 import pytest
-
 
 # =============================================================================
 # Fixtures
@@ -154,7 +152,9 @@ class TestSignalToMemoryFlow:
                                                 mock_client.messages.create = mock_anthropic_create
                                                 mock_anthropic.return_value = mock_client
 
-                                                from app.agents.memory_agent import process_signal_for_memory
+                                                from app.agents.memory_agent import (
+                                                    process_signal_for_memory,
+                                                )
 
                                                 result = await process_signal_for_memory(
                                                     project_id=project_id,
@@ -305,7 +305,9 @@ class TestContradictionHandling:
                                                     mock_client.messages.create = mock_create
                                                     mock_anthropic.return_value = mock_client
 
-                                                    from app.agents.memory_agent import process_signal_for_memory
+                                                    from app.agents.memory_agent import (
+                                                        process_signal_for_memory,
+                                                    )
 
                                                     result = await process_signal_for_memory(
                                                         project_id=project_id,
@@ -352,7 +354,9 @@ class TestReflectionFlow:
                                                     mock_client.messages.create.return_value = mock_anthropic_reflector
                                                     mock_anthropic.return_value = mock_client
 
-                                                    from app.agents.memory_agent import run_periodic_reflection
+                                                    from app.agents.memory_agent import (
+                                                        run_periodic_reflection,
+                                                    )
 
                                                     result = await run_periodic_reflection(project_id)
 

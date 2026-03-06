@@ -8,9 +8,6 @@ These tools enable the agent to:
 5. Generate synthesis artifacts
 """
 
-import json
-import re
-from datetime import datetime
 from typing import Any
 from uuid import UUID, uuid4
 
@@ -20,8 +17,8 @@ from pydantic import BaseModel, Field
 
 from app.core.config import get_settings
 from app.core.logging import get_logger
-from app.db.supabase_client import get_supabase
 from app.db.competitor_refs import create_competitor_ref, update_competitor_ref
+from app.db.supabase_client import get_supabase
 
 logger = get_logger(__name__)
 

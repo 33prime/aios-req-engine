@@ -1,11 +1,10 @@
 """Database operations for tasks."""
 
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any
 from uuid import UUID
 
 from app.core.schemas_tasks import (
-    AnchoredEntityType,
     MyTasksResponse,
     Task,
     TaskActivity,
@@ -25,7 +24,6 @@ from app.core.schemas_tasks import (
 )
 from app.db.supabase_client import get_supabase as get_client
 
-
 # ============================================================================
 # Priority Calculation
 # ============================================================================
@@ -33,7 +31,7 @@ from app.db.supabase_client import get_supabase as get_client
 def calculate_task_priority(
     task_type: TaskType,
     requires_client_input: bool = False,
-    base_priority: Optional[float] = None,
+    base_priority: float | None = None,
 ) -> float:
     """
     Calculate task priority score.
@@ -78,7 +76,7 @@ def calculate_task_priority(
 async def create_task(
     project_id: UUID,
     data: TaskCreate,
-    created_by: Optional[UUID] = None,
+    created_by: UUID | None = None,
 ) -> Task:
     """Create a new task."""
     client = get_client()
@@ -151,7 +149,7 @@ async def create_task(
     return task
 
 
-async def get_task(task_id: UUID) -> Optional[Task]:
+async def get_task(task_id: UUID) -> Task | None:
     """Get a task by ID."""
     client = get_client()
     result = client.table("tasks").select("*").eq("id", str(task_id)).execute()
@@ -164,7 +162,7 @@ async def get_task_by_source(
     project_id: UUID,
     source_type: TaskSourceType,
     source_id: UUID,
-) -> Optional[Task]:
+) -> Task | None:
     """Get a task by its source (e.g., find task for a specific proposal)."""
     client = get_client()
     result = (
@@ -182,7 +180,7 @@ async def get_task_by_source(
 
 async def list_tasks(
     project_id: UUID,
-    filters: Optional[TaskFilter] = None,
+    filters: TaskFilter | None = None,
 ) -> tuple[list[TaskSummary], int]:
     """
     List tasks for a project with filters.
@@ -236,8 +234,8 @@ async def list_tasks(
 async def update_task(
     task_id: UUID,
     data: TaskUpdate,
-    updated_by: Optional[UUID] = None,
-) -> Optional[Task]:
+    updated_by: UUID | None = None,
+) -> Task | None:
     """Update a task."""
     client = get_client()
 
@@ -314,9 +312,9 @@ async def update_task(
 async def complete_task(
     task_id: UUID,
     completion_method: TaskCompletionMethod = TaskCompletionMethod.TASK_BOARD,
-    completion_notes: Optional[str] = None,
-    completed_by: Optional[UUID] = None,
-) -> Optional[Task]:
+    completion_notes: str | None = None,
+    completed_by: UUID | None = None,
+) -> Task | None:
     """Mark a task as completed."""
     client = get_client()
 
@@ -371,9 +369,9 @@ async def complete_task(
 
 async def dismiss_task(
     task_id: UUID,
-    reason: Optional[str] = None,
-    dismissed_by: Optional[UUID] = None,
-) -> Optional[Task]:
+    reason: str | None = None,
+    dismissed_by: UUID | None = None,
+) -> Task | None:
     """Dismiss a task."""
     client = get_client()
 
@@ -432,8 +430,8 @@ async def delete_task(task_id: UUID) -> bool:
 
 async def reopen_task(
     task_id: UUID,
-    reopened_by: Optional[UUID] = None,
-) -> Optional[Task]:
+    reopened_by: UUID | None = None,
+) -> Task | None:
     """Reopen a completed or dismissed task."""
     client = get_client()
 
@@ -489,7 +487,7 @@ async def reopen_task(
 async def bulk_complete_tasks(
     task_ids: list[UUID],
     completion_method: TaskCompletionMethod = TaskCompletionMethod.CHAT_APPROVAL,
-    completed_by: Optional[UUID] = None,
+    completed_by: UUID | None = None,
 ) -> list[Task]:
     """Complete multiple tasks at once (e.g., "Approve All" in chat)."""
     completed_tasks = []
@@ -506,8 +504,8 @@ async def bulk_complete_tasks(
 
 async def bulk_dismiss_tasks(
     task_ids: list[UUID],
-    reason: Optional[str] = None,
-    dismissed_by: Optional[UUID] = None,
+    reason: str | None = None,
+    dismissed_by: UUID | None = None,
 ) -> list[Task]:
     """Dismiss multiple tasks at once."""
     dismissed_tasks = []
@@ -666,7 +664,7 @@ async def get_pending_tasks_count(project_id: UUID) -> int:
 
 async def get_client_relevant_tasks(
     project_id: UUID,
-    status: Optional[TaskStatus] = None,
+    status: TaskStatus | None = None,
 ) -> list[TaskSummary]:
     """Get tasks that require client input (for Collaboration tab)."""
     filters = TaskFilter(
@@ -681,7 +679,7 @@ async def get_client_relevant_tasks(
 
 async def recalculate_task_priorities(
     project_id: UUID,
-    task_ids: Optional[list[UUID]] = None,
+    task_ids: list[UUID] | None = None,
 ) -> dict[str, Any]:
     """
     Recalculate priorities for pending tasks in a project.
@@ -789,8 +787,8 @@ _REVIEW_TRANSITIONS: dict[str | None, set[str]] = {
 async def update_review_status(
     task_id: UUID,
     new_status: str,
-    updated_by: Optional[UUID] = None,
-) -> Optional[Task]:
+    updated_by: UUID | None = None,
+) -> Task | None:
     """Update the review_status on a review_request task with transition validation."""
     client = get_client()
 
@@ -841,7 +839,7 @@ async def update_review_status(
 async def list_my_tasks(
     user_id: UUID,
     view: str = "all",
-    status: Optional[str] = None,
+    status: str | None = None,
     limit: int = 100,
     offset: int = 0,
 ) -> MyTasksResponse:
@@ -973,7 +971,7 @@ async def list_my_tasks(
     return MyTasksResponse(tasks=tasks, total=total, counts=counts)
 
 
-async def get_task_with_project(task_id: UUID) -> Optional[TaskWithProject]:
+async def get_task_with_project(task_id: UUID) -> TaskWithProject | None:
     """Get a single task with project name and assignee info."""
     client = get_client()
 

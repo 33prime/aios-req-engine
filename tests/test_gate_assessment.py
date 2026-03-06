@@ -12,24 +12,23 @@ from uuid import uuid4
 
 import pytest
 
-from app.core.readiness.types import GateAssessment, ReadinessPhase
 from app.core.readiness.gates import (
     assess_build_gates,
     assess_prototype_gates,
     calculate_gate_score,
 )
+from app.core.readiness.types import GateAssessment, ReadinessPhase
 from app.core.schemas_foundation import (
-    BusinessCase,
+    KPI,
     BudgetConstraints,
+    BusinessCase,
     ConfirmedScope,
     CorePain,
     DesignPreferences,
-    KPI,
     PrimaryPersona,
     ProjectFoundation,
     WowMoment,
 )
-
 
 # =============================================================================
 # Fixtures

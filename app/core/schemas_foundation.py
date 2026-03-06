@@ -5,11 +5,10 @@ for building prototypes vs final products. These models map to the JSONB
 columns in the project_foundation table.
 """
 
-from typing import Literal, Optional
+from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel, Field, field_validator
-
 
 # =============================================================================
 # Supporting Models
@@ -49,7 +48,7 @@ class CorePain(BaseModel):
     confidence: float = Field(
         ..., ge=0.0, le=1.0, description="Confidence in this assessment (0.0-1.0)"
     )
-    confirmed_by: Optional[Literal["client", "consultant"]] = Field(
+    confirmed_by: Literal["client", "consultant"] | None = Field(
         None, description="Who confirmed this pain"
     )
     evidence: list[str] = Field(
@@ -93,7 +92,7 @@ class PrimaryPersona(BaseModel):
     )
     context: str = Field(..., description="Their daily reality with this problem")
     confidence: float = Field(..., ge=0.0, le=1.0, description="Confidence (0.0-1.0)")
-    confirmed_by: Optional[Literal["client", "consultant"]] = Field(
+    confirmed_by: Literal["client", "consultant"] | None = Field(
         None, description="Who confirmed this persona"
     )
 
@@ -133,10 +132,10 @@ class WowMoment(BaseModel):
         ..., description="What they'll SEE in the prototype"
     )
     level_1: str = Field(..., description="Core pain solved (required)")
-    level_2: Optional[str] = Field(
+    level_2: str | None = Field(
         None, description="Adjacent pains addressed (optional but better)"
     )
-    level_3: Optional[str] = Field(
+    level_3: str | None = Field(
         None, description="Unstated needs met (optional, 'holy shit' factor)"
     )
     confidence: float = Field(..., ge=0.0, le=1.0, description="Confidence (0.0-1.0)")
@@ -161,7 +160,7 @@ class DesignPreferences(BaseModel):
     visually and reduces iteration cycles.
     """
 
-    visual_style: Optional[str] = Field(
+    visual_style: str | None = Field(
         None, description="Style preference (e.g., 'clean/minimal', 'playful', 'enterprise')"
     )
     references: list[str] = Field(
@@ -209,7 +208,7 @@ class BusinessCase(BaseModel):
         ..., description="Why invest in this vs other things"
     )
     confidence: float = Field(..., ge=0.0, le=1.0, description="Confidence (0.0-1.0)")
-    confirmed_by: Optional[Literal["client", "consultant"]] = Field(
+    confirmed_by: Literal["client", "consultant"] | None = Field(
         None, description="Who confirmed this business case"
     )
 
@@ -240,8 +239,8 @@ class BudgetConstraints(BaseModel):
         ..., description="How flexible is the budget"
     )
     timeline: str = Field(..., description="When they need it")
-    hard_deadline: Optional[str] = Field(None, description="Immovable date if exists")
-    deadline_driver: Optional[str] = Field(
+    hard_deadline: str | None = Field(None, description="Immovable date if exists")
+    deadline_driver: str | None = Field(
         None, description="What's driving the deadline"
     )
     technical_constraints: list[str] = Field(
@@ -253,7 +252,7 @@ class BudgetConstraints(BaseModel):
         description="Org limits (e.g., 'Board approval required', 'Low change tolerance')",
     )
     confidence: float = Field(..., ge=0.0, le=1.0, description="Confidence (0.0-1.0)")
-    confirmed_by: Optional[Literal["client", "consultant"]] = Field(
+    confirmed_by: Literal["client", "consultant"] | None = Field(
         None, description="Who confirmed these constraints"
     )
 
@@ -285,7 +284,7 @@ class ConfirmedScope(BaseModel):
     )
     v1_agreed: bool = Field(False, description="Client agreed to V1 scope")
     specs_signed_off: bool = Field(False, description="Specifications approved")
-    confirmed_by: Optional[Literal["client", "consultant"]] = Field(
+    confirmed_by: Literal["client", "consultant"] | None = Field(
         None, description="Who confirmed this scope"
     )
 
@@ -317,21 +316,21 @@ class ProjectFoundation(BaseModel):
     project_id: UUID = Field(..., description="Project UUID")
 
     # Phase 1: Prototype Gates
-    core_pain: Optional[CorePain] = Field(None, description="THE core pain")
-    primary_persona: Optional[PrimaryPersona] = Field(
+    core_pain: CorePain | None = Field(None, description="THE core pain")
+    primary_persona: PrimaryPersona | None = Field(
         None, description="Primary persona"
     )
-    wow_moment: Optional[WowMoment] = Field(None, description="Wow moment hypothesis")
-    design_preferences: Optional[DesignPreferences] = Field(
+    wow_moment: WowMoment | None = Field(None, description="Wow moment hypothesis")
+    design_preferences: DesignPreferences | None = Field(
         None, description="Design preferences"
     )
 
     # Phase 2: Build Gates
-    business_case: Optional[BusinessCase] = Field(None, description="Business case")
-    budget_constraints: Optional[BudgetConstraints] = Field(
+    business_case: BusinessCase | None = Field(None, description="Business case")
+    budget_constraints: BudgetConstraints | None = Field(
         None, description="Budget and constraints"
     )
-    confirmed_scope: Optional[ConfirmedScope] = Field(
+    confirmed_scope: ConfirmedScope | None = Field(
         None, description="Confirmed scope"
     )
 
@@ -350,10 +349,10 @@ class FoundationUpdateRequest(BaseModel):
     Only include fields you want to update. Null fields are ignored.
     """
 
-    core_pain: Optional[CorePain] = None
-    primary_persona: Optional[PrimaryPersona] = None
-    wow_moment: Optional[WowMoment] = None
-    design_preferences: Optional[DesignPreferences] = None
-    business_case: Optional[BusinessCase] = None
-    budget_constraints: Optional[BudgetConstraints] = None
-    confirmed_scope: Optional[ConfirmedScope] = None
+    core_pain: CorePain | None = None
+    primary_persona: PrimaryPersona | None = None
+    wow_moment: WowMoment | None = None
+    design_preferences: DesignPreferences | None = None
+    business_case: BusinessCase | None = None
+    budget_constraints: BudgetConstraints | None = None
+    confirmed_scope: ConfirmedScope | None = None

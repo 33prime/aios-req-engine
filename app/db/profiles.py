@@ -1,6 +1,5 @@
 """Database operations for user profiles."""
 
-from typing import Optional
 from uuid import UUID
 
 from app.core.schemas_organizations import (
@@ -13,7 +12,7 @@ from app.core.schemas_organizations import (
 from app.db.supabase_client import get_supabase as get_client
 
 
-async def get_profile_by_user_id(user_id: UUID) -> Optional[Profile]:
+async def get_profile_by_user_id(user_id: UUID) -> Profile | None:
     """Get a profile by user ID."""
     client = get_client()
     result = (
@@ -27,7 +26,7 @@ async def get_profile_by_user_id(user_id: UUID) -> Optional[Profile]:
     return None
 
 
-async def get_profile_by_id(profile_id: UUID) -> Optional[Profile]:
+async def get_profile_by_id(profile_id: UUID) -> Profile | None:
     """Get a profile by its own ID."""
     client = get_client()
     result = (
@@ -41,7 +40,7 @@ async def get_profile_by_id(profile_id: UUID) -> Optional[Profile]:
     return None
 
 
-async def get_profile_by_email(email: str) -> Optional[Profile]:
+async def get_profile_by_email(email: str) -> Profile | None:
     """Get a profile by email."""
     client = get_client()
     result = (
@@ -87,7 +86,7 @@ async def create_profile(data: ProfileCreate) -> Profile:
 async def update_profile(
     user_id: UUID,
     data: ProfileUpdate,
-) -> Optional[Profile]:
+) -> Profile | None:
     """Update a profile."""
     client = get_client()
     update_data = {}
@@ -129,8 +128,8 @@ async def delete_profile(user_id: UUID) -> bool:
 async def get_or_create_profile(
     user_id: UUID,
     email: str,
-    first_name: Optional[str] = None,
-    last_name: Optional[str] = None,
+    first_name: str | None = None,
+    last_name: str | None = None,
 ) -> tuple[Profile, bool]:
     """Get existing profile or create new one. Returns (profile, created)."""
     existing = await get_profile_by_user_id(user_id)
@@ -219,7 +218,7 @@ async def list_profiles_by_platform_role(
 async def update_availability(
     user_id: UUID,
     status: AvailabilityStatus,
-) -> Optional[Profile]:
+) -> Profile | None:
     """Quick update for availability status."""
     client = get_client()
     result = (
@@ -236,7 +235,7 @@ async def update_availability(
 async def update_profile_enrichment(
     user_id: UUID,
     data: dict,
-) -> Optional[Profile]:
+) -> Profile | None:
     """Update enrichment-specific columns on a profile."""
     client = get_client()
     result = (
@@ -250,7 +249,7 @@ async def update_profile_enrichment(
     return None
 
 
-async def get_consultant_context(user_id: UUID) -> Optional[dict]:
+async def get_consultant_context(user_id: UUID) -> dict | None:
     """Get a slim consultant context dict for prompt injection.
 
     Returns None if profile not found or not enriched.

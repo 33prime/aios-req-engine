@@ -1,6 +1,6 @@
 """Tests for structured research ingestion endpoint with mocked dependencies."""
 
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 from uuid import uuid4
 
 import pytest

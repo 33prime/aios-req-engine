@@ -2,11 +2,10 @@
 
 from datetime import datetime
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 from uuid import UUID
 
 from pydantic import BaseModel, Field
-
 
 # ============================================================================
 # Enums
@@ -99,7 +98,7 @@ class TouchpointBase(BaseModel):
     """Base touchpoint fields."""
     type: TouchpointType
     title: str
-    description: Optional[str] = None
+    description: str | None = None
     status: TouchpointStatus = TouchpointStatus.PREPARING
     sequence_number: int = 1
 
@@ -107,32 +106,32 @@ class TouchpointBase(BaseModel):
 class TouchpointCreate(TouchpointBase):
     """Schema for creating a touchpoint."""
     project_id: UUID
-    meeting_id: Optional[UUID] = None
-    discovery_prep_bundle_id: Optional[UUID] = None
+    meeting_id: UUID | None = None
+    discovery_prep_bundle_id: UUID | None = None
 
 
 class TouchpointUpdate(BaseModel):
     """Schema for updating a touchpoint."""
-    title: Optional[str] = None
-    description: Optional[str] = None
-    status: Optional[TouchpointStatus] = None
-    meeting_id: Optional[UUID] = None
-    outcomes: Optional[TouchpointOutcomes] = None
+    title: str | None = None
+    description: str | None = None
+    status: TouchpointStatus | None = None
+    meeting_id: UUID | None = None
+    outcomes: TouchpointOutcomes | None = None
 
 
 class Touchpoint(TouchpointBase):
     """Full touchpoint schema."""
     id: UUID
     project_id: UUID
-    meeting_id: Optional[UUID] = None
-    discovery_prep_bundle_id: Optional[UUID] = None
+    meeting_id: UUID | None = None
+    discovery_prep_bundle_id: UUID | None = None
     outcomes: TouchpointOutcomes = Field(default_factory=TouchpointOutcomes)
     portal_items_count: int = 0
     portal_items_completed: int = 0
-    prepared_at: Optional[datetime] = None
-    sent_at: Optional[datetime] = None
-    started_at: Optional[datetime] = None
-    completed_at: Optional[datetime] = None
+    prepared_at: datetime | None = None
+    sent_at: datetime | None = None
+    started_at: datetime | None = None
+    completed_at: datetime | None = None
     created_at: datetime
     updated_at: datetime
 
@@ -148,7 +147,7 @@ class TouchpointSummary(BaseModel):
     status: TouchpointStatus
     sequence_number: int
     outcomes_summary: str  # Human-readable: "5 questions answered, 12 features extracted"
-    completed_at: Optional[datetime] = None
+    completed_at: datetime | None = None
     created_at: datetime
 
 
@@ -172,7 +171,7 @@ class PortalSyncStatus(BaseModel):
     questions: PortalItemSync = Field(default_factory=PortalItemSync)
     documents: PortalItemSync = Field(default_factory=PortalItemSync)
     confirmations: PortalItemSync = Field(default_factory=PortalItemSync)
-    last_client_activity: Optional[datetime] = None
+    last_client_activity: datetime | None = None
     clients_invited: int = 0
     clients_active: int = 0
 
@@ -188,7 +187,7 @@ class PendingValidationItem(BaseModel):
     entity_type: str  # 'feature', 'persona', etc.
     entity_id: UUID
     title: str
-    description: Optional[str] = None
+    description: str | None = None
     created_at: datetime
 
 
@@ -210,7 +209,7 @@ class PendingProposalSummary(BaseModel):
 
 class DiscoveryPrepStatus(BaseModel):
     """Status of discovery prep bundle."""
-    bundle_id: Optional[UUID] = None
+    bundle_id: UUID | None = None
     status: str = "not_generated"  # 'not_generated', 'draft', 'confirmed', 'sent'
     questions_total: int = 0
     questions_confirmed: int = 0
@@ -233,7 +232,7 @@ class ValidationStatus(BaseModel):
 class PrototypeFeedbackStatus(BaseModel):
     """Status of prototype feedback (placeholder for future)."""
     prototype_shared: bool = False
-    prototype_url: Optional[str] = None
+    prototype_url: str | None = None
     screens_count: int = 0
     feedback_requests_sent: int = 0
     feedback_received: int = 0
@@ -245,9 +244,9 @@ class CurrentFocus(BaseModel):
     primary_action: str  # Human-readable action: "Generate discovery prep questions"
 
     # Phase-specific status (only one populated based on phase)
-    discovery_prep: Optional[DiscoveryPrepStatus] = None
-    validation: Optional[ValidationStatus] = None
-    prototype_feedback: Optional[PrototypeFeedbackStatus] = None
+    discovery_prep: DiscoveryPrepStatus | None = None
+    validation: ValidationStatus | None = None
+    prototype_feedback: PrototypeFeedbackStatus | None = None
 
 
 # ============================================================================
@@ -264,7 +263,7 @@ class CollaborationCurrentResponse(BaseModel):
     current_focus: CurrentFocus
 
     # Active touchpoint (if any)
-    active_touchpoint: Optional[Touchpoint] = None
+    active_touchpoint: Touchpoint | None = None
 
     # Portal sync status
     portal_sync: PortalSyncStatus
@@ -276,7 +275,7 @@ class CollaborationCurrentResponse(BaseModel):
 
     # Quick stats
     total_touchpoints_completed: int = 0
-    last_client_interaction: Optional[datetime] = None
+    last_client_interaction: datetime | None = None
 
 
 class CollaborationHistoryResponse(BaseModel):
@@ -301,15 +300,15 @@ class TouchpointDetailResponse(BaseModel):
     touchpoint: Touchpoint
 
     # Related prep data (for discovery_call type)
-    prep_questions: Optional[list[dict]] = None
-    prep_documents: Optional[list[dict]] = None
+    prep_questions: list[dict] | None = None
+    prep_documents: list[dict] | None = None
 
     # Client responses
-    client_answers: Optional[list[dict]] = None
+    client_answers: list[dict] | None = None
 
     # Extracted entities (outcomes detail)
-    extracted_features: Optional[list[dict]] = None
-    extracted_personas: Optional[list[dict]] = None
+    extracted_features: list[dict] | None = None
+    extracted_personas: list[dict] | None = None
 
 
 # ============================================================================
@@ -322,8 +321,8 @@ class PhaseStep(BaseModel):
     id: str                          # e.g., 'generate', 'confirm', 'invite'
     label: str                       # Human-readable: "Generate Prep"
     status: PhaseStepStatus = PhaseStepStatus.LOCKED
-    progress: Optional[dict] = None  # e.g., {"current": 2, "total": 6}
-    unlock_message: Optional[str] = None  # "Confirm at least 1 item"
+    progress: dict | None = None  # e.g., {"current": 2, "total": 6}
+    unlock_message: str | None = None  # "Confirm at least 1 item"
 
 
 class PhaseGate(BaseModel):
@@ -332,7 +331,7 @@ class PhaseGate(BaseModel):
     label: str                       # "At least 1 item confirmed"
     condition: str                   # Machine-readable: "confirmed_items >= 1"
     met: bool = False
-    current_value: Optional[Any] = None  # For display: "2/6"
+    current_value: Any | None = None  # For display: "2/6"
     required_for_completion: bool = False
 
 
@@ -354,13 +353,13 @@ class PendingItem(BaseModel):
     id: UUID
     item_type: PendingItemType
     source: PendingItemSource
-    entity_id: Optional[UUID] = None  # ID of the feature/persona/etc.
+    entity_id: UUID | None = None  # ID of the feature/persona/etc.
     title: str
-    description: Optional[str] = None
-    why_needed: Optional[str] = None  # "Helps us understand workflow"
+    description: str | None = None
+    why_needed: str | None = None  # "Helps us understand workflow"
     priority: str = "medium"          # high, medium, low
     created_at: datetime              # When added to queue
-    added_by: Optional[str] = None    # "AI", "Consultant", "Phase workflow"
+    added_by: str | None = None    # "AI", "Consultant", "Phase workflow"
 
     class Config:
         from_attributes = True
@@ -382,12 +381,12 @@ class SynthesizedQuestion(BaseModel):
     """A question synthesized by AI from multiple pending items."""
     id: UUID
     question_text: str
-    hint: Optional[str] = None           # "Think about tools, handoffs, pain points"
-    suggested_answerer: Optional[str] = None  # "Product Owner, Requirements Lead"
-    why_asking: Optional[str] = None     # "This helps us understand your workflow"
-    example_answer: Optional[str] = None
+    hint: str | None = None           # "Think about tools, handoffs, pain points"
+    suggested_answerer: str | None = None  # "Product Owner, Requirements Lead"
+    why_asking: str | None = None     # "This helps us understand your workflow"
+    example_answer: str | None = None
     covers_items: list[UUID] = Field(default_factory=list)  # IDs of pending items this covers
-    covers_summary: Optional[str] = None  # "Covers: 2 features, 1 persona, process question"
+    covers_summary: str | None = None  # "Covers: 2 features, 1 persona, process question"
     sequence_order: int = 0
 
 
@@ -395,10 +394,10 @@ class ActionItem(BaseModel):
     """An action item for the client (document upload, task, etc.)."""
     id: UUID
     title: str
-    description: Optional[str] = None
+    description: str | None = None
     item_type: str = "document"          # 'document', 'task', 'approval'
-    hint: Optional[str] = None           # "Screenshots work great"
-    why_needed: Optional[str] = None     # "Helps us model your data structure"
+    hint: str | None = None           # "Screenshots work great"
+    why_needed: str | None = None     # "Helps us model your data structure"
     covers_items: list[UUID] = Field(default_factory=list)
     sequence_order: int = 0
 
@@ -437,7 +436,7 @@ class ClientPackage(BaseModel):
 
     # Timestamps
     created_at: datetime
-    sent_at: Optional[datetime] = None
+    sent_at: datetime | None = None
     updated_at: datetime
 
     class Config:
@@ -452,9 +451,9 @@ class ClientPackageCreate(BaseModel):
 
 class ClientPackageUpdate(BaseModel):
     """Schema for updating a client package (editing before send)."""
-    questions: Optional[list[SynthesizedQuestion]] = None
-    action_items: Optional[list[ActionItem]] = None
-    suggested_assets: Optional[list[AssetSuggestion]] = None
+    questions: list[SynthesizedQuestion] | None = None
+    action_items: list[ActionItem] | None = None
+    suggested_assets: list[AssetSuggestion] | None = None
 
 
 # ============================================================================
@@ -466,8 +465,8 @@ class QuestionResponse(BaseModel):
     """Client's response to a synthesized question."""
     question_id: UUID
     answer_text: str
-    answered_by: Optional[UUID] = None
-    answered_by_name: Optional[str] = None
+    answered_by: UUID | None = None
+    answered_by_name: str | None = None
     answered_at: datetime
 
 
@@ -476,8 +475,8 @@ class ActionItemResponse(BaseModel):
     action_item_id: UUID
     status: str = "complete"             # 'complete', 'skipped', 'partial'
     files: list[dict] = Field(default_factory=list)  # Uploaded files
-    notes: Optional[str] = None
-    completed_by: Optional[UUID] = None
+    notes: str | None = None
+    completed_by: UUID | None = None
     completed_at: datetime
 
 
@@ -517,14 +516,14 @@ class PhaseProgressResponse(BaseModel):
     pending_queue: PendingItemsQueue
 
     # Active package (if any)
-    draft_package: Optional[ClientPackage] = None
-    sent_package: Optional[ClientPackage] = None
-    package_responses: Optional[ClientPackageResponses] = None
+    draft_package: ClientPackage | None = None
+    sent_package: ClientPackage | None = None
+    package_responses: ClientPackageResponses | None = None
 
     # Portal status (compact)
     portal_enabled: bool = False
     clients_count: int = 0
-    last_client_activity: Optional[datetime] = None
+    last_client_activity: datetime | None = None
 
 
 # ============================================================================
@@ -542,4 +541,4 @@ class GeneratePackageRequest(BaseModel):
 class GeneratePackageResponse(BaseModel):
     """Response with generated client package."""
     package: ClientPackage
-    synthesis_notes: Optional[str] = None  # AI explanation of synthesis choices
+    synthesis_notes: str | None = None  # AI explanation of synthesis choices

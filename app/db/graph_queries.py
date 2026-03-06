@@ -7,7 +7,7 @@ FKs and the signal_impact table — no new DB structures needed.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
 
@@ -77,8 +77,8 @@ def _compute_recency_multiplier(created_at: str | datetime) -> float:
         else:
             dt = created_at
         if dt.tzinfo is None:
-            dt = dt.replace(tzinfo=timezone.utc)
-        age_days = (datetime.now(timezone.utc) - dt).days
+            dt = dt.replace(tzinfo=UTC)
+        age_days = (datetime.now(UTC) - dt).days
         for threshold, multiplier in _RECENCY_TIERS:
             if age_days <= threshold:
                 return multiplier

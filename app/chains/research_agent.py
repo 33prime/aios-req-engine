@@ -1,7 +1,6 @@
 """Research agent LLM chain using Perplexity AI."""
 
 import json
-import time
 from typing import Any
 
 from openai import OpenAI  # Perplexity uses OpenAI-compatible API

@@ -6,7 +6,7 @@ and will be removed in Phase 6.
 """
 
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
 
@@ -23,11 +23,11 @@ from app.core.state_inputs import (
     retrieve_project_chunks,
 )
 from app.db.features import bulk_replace_features
+from app.db.personas import upsert_persona
 from app.db.project_state import update_project_state
 from app.db.revisions import insert_state_revision
-from app.db.vp import upsert_vp_step
-from app.db.personas import upsert_persona
 from app.db.supabase_client import get_supabase
+from app.db.vp import upsert_vp_step
 
 logger = get_logger(__name__)
 
@@ -461,7 +461,7 @@ def persist(state: BuildStateState) -> dict[str, Any]:
 
     # Update project state checkpoint
     checkpoint_patch = {
-        "last_reconciled_at": datetime.now(timezone.utc).isoformat(),
+        "last_reconciled_at": datetime.now(UTC).isoformat(),
     }
 
     update_project_state(state.project_id, checkpoint_patch)

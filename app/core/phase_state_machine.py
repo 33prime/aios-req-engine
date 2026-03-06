@@ -9,8 +9,7 @@ Linear phase flow:
 """
 
 from dataclasses import dataclass
-from datetime import datetime
-from typing import Any, Optional
+from typing import Any
 from uuid import UUID
 
 from app.core.schemas_collaboration import (
@@ -20,7 +19,6 @@ from app.core.schemas_collaboration import (
     PhaseStep,
     PhaseStepStatus,
 )
-
 
 # ============================================================================
 # Phase Definitions
@@ -277,7 +275,7 @@ def get_step_status(step_def: dict, gates: list[PhaseGate], state: dict) -> Phas
     return PhaseStepStatus.LOCKED
 
 
-def get_unlock_message(step_def: dict, gates: list[PhaseGate]) -> Optional[str]:
+def get_unlock_message(step_def: dict, gates: list[PhaseGate]) -> str | None:
     """Get unlock message for a locked step."""
     unlock_gate = step_def.get("unlock_gate")
     if not unlock_gate:
@@ -363,7 +361,7 @@ def can_advance_phase(current_phase: CollaborationPhase, state: dict) -> bool:
     return all(g.met for g in required_gates)
 
 
-def get_next_phase(current_phase: CollaborationPhase) -> Optional[CollaborationPhase]:
+def get_next_phase(current_phase: CollaborationPhase) -> CollaborationPhase | None:
     """Get the next phase in the linear progression."""
     try:
         current_index = PHASE_ORDER.index(current_phase)
@@ -374,7 +372,7 @@ def get_next_phase(current_phase: CollaborationPhase) -> Optional[CollaborationP
     return None
 
 
-def get_previous_phase(current_phase: CollaborationPhase) -> Optional[CollaborationPhase]:
+def get_previous_phase(current_phase: CollaborationPhase) -> CollaborationPhase | None:
     """Get the previous phase (for loops like validation rounds)."""
     try:
         current_index = PHASE_ORDER.index(current_phase)

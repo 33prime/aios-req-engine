@@ -193,6 +193,14 @@ def create_flow_step(
     if data.get("ai_config") is not None:
         row["ai_config"] = data["ai_config"]
 
+    # Client review flags (migration 0181)
+    if data.get("needs_client_review") is not None:
+        row["needs_client_review"] = data["needs_client_review"]
+    if data.get("review_reason") is not None:
+        row["review_reason"] = data["review_reason"]
+    if data.get("review_target_stakeholder_id") is not None:
+        row["review_target_stakeholder_id"] = str(data["review_target_stakeholder_id"])
+
     result = supabase.table("solution_flow_steps").insert(row).execute()
     if not result.data:
         raise ValueError("No data returned from step insert")
@@ -400,6 +408,62 @@ def cascade_staleness_to_steps(
     return affected
 
 
+def get_flagged_steps(project_id: UUID) -> list[dict[str, Any]]:
+    """Get all solution flow steps flagged for client review (unresolved).
+
+    Returns steps where needs_client_review=true AND review_resolved_at IS NULL,
+    enriched with stakeholder name if review_target_stakeholder_id is set.
+    """
+    supabase = get_supabase()
+    pid = str(project_id)
+
+    flow = _maybe_single(
+        supabase.table("solution_flows")
+        .select("id")
+        .eq("project_id", pid)
+    )
+    if not flow:
+        return []
+
+    result = (
+        supabase.table("solution_flow_steps")
+        .select("id, step_index, title, goal, actors, review_reason, review_target_stakeholder_id")
+        .eq("flow_id", flow["id"])
+        .eq("needs_client_review", True)
+        .is_("review_resolved_at", "null")
+        .order("step_index")
+        .execute()
+    )
+    steps = result.data or []
+
+    # Batch-resolve stakeholder names
+    stakeholder_ids = [
+        s["review_target_stakeholder_id"]
+        for s in steps
+        if s.get("review_target_stakeholder_id")
+    ]
+    stakeholder_names: dict[str, str] = {}
+    if stakeholder_ids:
+        try:
+            sh_result = (
+                supabase.table("stakeholders")
+                .select("id, name")
+                .in_("id", stakeholder_ids)
+                .execute()
+            )
+            stakeholder_names = {
+                s["id"]: s["name"] for s in (sh_result.data or [])
+            }
+        except Exception:
+            pass
+
+    for step in steps:
+        sh_id = step.get("review_target_stakeholder_id")
+        step["review_target_stakeholder_name"] = stakeholder_names.get(sh_id) if sh_id else None
+
+    return steps
+
+
 def _step_to_summary(step: dict[str, Any]) -> dict[str, Any]:
     """Convert a raw step row to a summary dict."""
     info_fields = step.get("information_fields") or []
@@ -431,5 +495,11 @@ def _step_to_summary(step: dict[str, Any]) -> dict[str, Any]:
     # v2 fields
     if step.get("confidence_impact") is not None:
         summary["confidence_impact"] = step["confidence_impact"]
+
+    # Client review flags (migration 0181)
+    if step.get("needs_client_review"):
+        summary["needs_client_review"] = True
+        summary["review_reason"] = step.get("review_reason")
+        summary["review_resolved_at"] = step.get("review_resolved_at")
 
     return summary

@@ -1,6 +1,5 @@
 """API endpoints for job status and management."""
 
-from typing import List
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Query
@@ -38,7 +37,7 @@ async def get_job_status(job_id: UUID) -> dict:
 
     except HTTPException:
         raise
-    except Exception as e:
+    except Exception:
         logger.exception(f"Failed to get job {job_id}")
         raise HTTPException(status_code=500, detail="Failed to retrieve job status")
 
@@ -70,6 +69,6 @@ async def list_project_jobs(
             "count": len(jobs),
         }
 
-    except Exception as e:
+    except Exception:
         logger.exception(f"Failed to list jobs for project {project_id}")
         raise HTTPException(status_code=500, detail="Failed to retrieve jobs")

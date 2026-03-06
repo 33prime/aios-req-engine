@@ -223,6 +223,13 @@ async def apply_entity_patches(
         except Exception as e:
             logger.warning(f"Entity co-occurrence linking failed: {e}")
 
+    # Resolve and create semantic links from extraction
+    if result.applied:
+        try:
+            _resolve_and_create_semantic_links(project_id, result.applied, patches)
+        except Exception as e:
+            logger.warning(f"Semantic link creation failed: {e}")
+
     # Fire-and-forget: match newly extracted features against Forge modules
     feature_results = [
         a for a in result.applied if a.get("entity_type") == "feature"
@@ -1039,9 +1046,173 @@ def _link_entities_by_cooccurrence(
                     target_id=UUID(other_id),
                     dependency_type="co_occurrence",
                     strength=strength,
+                    confidence=0.5,
+                    source="co_occurrence",
                 )
             except Exception as e:
                 logger.debug(f"Co-occurrence link failed {entity_id}->{other_id}: {e}")
+
+
+def _resolve_and_create_semantic_links(
+    project_id: UUID,
+    applied_results: list[dict],
+    patches: list[EntityPatch],
+) -> None:
+    """Resolve semantic links from extraction and create entity_dependencies.
+
+    For each patch with `links`, resolves target_name → target_id via fuzzy name
+    match against entity inventory. Creates dependencies with confidence=0.7,
+    source="semantic_extraction". Skips unresolvable links.
+    """
+    from app.db.entity_dependencies import register_dependency
+
+    sb = get_supabase()
+
+    # Build applied ID map: match patches to results
+    applied_by_key: dict[str, str] = {}
+    for applied in applied_results:
+        eid = applied.get("entity_id", "")
+        etype = applied.get("entity_type", "")
+        name = applied.get("name", "")
+        if eid and etype:
+            applied_by_key[f"{etype}:{name.lower().strip()}"] = eid
+
+    # Collect all patches that have links
+    patches_with_links = [p for p in patches if p.links]
+    if not patches_with_links:
+        return
+
+    # Build entity name index for fuzzy resolution (one query per type)
+    name_index: dict[str, list[dict]] = {}  # type → [{id, name_lower}]
+    target_types_needed = set()
+    for patch in patches_with_links:
+        for link in patch.links:
+            target_types_needed.add(link.target_type)
+
+    for etype in target_types_needed:
+        table = ENTITY_TABLE_MAP.get(etype)
+        if not table:
+            continue
+        name_col = "label" if etype == "workflow_step" else ("title" if etype in ("business_driver", "constraint") else "name")
+        try:
+            result = (
+                sb.table(table)
+                .select(f"id, {name_col}")
+                .eq("project_id", str(project_id))
+                .limit(200)
+                .execute()
+            )
+            name_index[etype] = [
+                {"id": r["id"], "name_lower": (r.get(name_col) or "").lower().strip()}
+                for r in (result.data or [])
+            ]
+        except Exception:
+            name_index[etype] = []
+
+    links_created = 0
+    for patch in patches_with_links:
+        # Resolve source entity ID
+        source_name = (
+            patch.payload.get("name")
+            or patch.payload.get("label")
+            or patch.payload.get("title")
+            or ""
+        )
+        source_key = f"{patch.entity_type}:{source_name.lower().strip()}"
+        source_id = patch.target_entity_id or applied_by_key.get(source_key)
+        if not source_id:
+            continue
+
+        for link in patch.links:
+            # Resolve target
+            target_id = link.target_id
+            if not target_id and link.target_name:
+                target_id = _fuzzy_resolve_entity(
+                    link.target_name.lower().strip(),
+                    name_index.get(link.target_type, []),
+                )
+
+            if not target_id:
+                logger.debug(
+                    f"Could not resolve semantic link target: {link.target_type}:{link.target_name}"
+                )
+                continue
+
+            # Validate link_type
+            link_type = link.link_type
+            from app.db.entity_dependencies import DEPENDENCY_TYPES
+            if link_type not in DEPENDENCY_TYPES:
+                link_type = "enables"  # safe fallback
+
+            try:
+                register_dependency(
+                    project_id=project_id,
+                    source_type=patch.entity_type,
+                    source_id=UUID(source_id),
+                    target_type=link.target_type,
+                    target_id=UUID(target_id),
+                    dependency_type=link_type,
+                    strength=0.8,
+                    confidence=0.7,
+                    source="semantic_extraction",
+                )
+                links_created += 1
+            except Exception as e:
+                logger.debug(f"Semantic link creation failed: {e}")
+
+    if links_created:
+        logger.info(f"Created {links_created} semantic links from extraction")
+
+
+def _fuzzy_resolve_entity(
+    query_name: str,
+    candidates: list[dict],
+    threshold: float = 0.8,
+) -> str | None:
+    """Fuzzy-match a name against a list of candidates.
+
+    Uses simple substring/ratio matching — no external lib needed.
+    Returns entity ID if similarity > threshold, else None.
+    """
+    if not candidates or not query_name:
+        return None
+
+    best_id = None
+    best_score = 0.0
+
+    for c in candidates:
+        cname = c.get("name_lower", "")
+        if not cname:
+            continue
+
+        # Exact match
+        if cname == query_name:
+            return c["id"]
+
+        # Containment check
+        if query_name in cname or cname in query_name:
+            longer = max(len(cname), len(query_name))
+            shorter = min(len(cname), len(query_name))
+            score = shorter / longer if longer > 0 else 0
+            if score > best_score:
+                best_score = score
+                best_id = c["id"]
+            continue
+
+        # Word overlap ratio
+        words_q = set(query_name.split())
+        words_c = set(cname.split())
+        if words_q and words_c:
+            overlap = len(words_q & words_c)
+            total = max(len(words_q), len(words_c))
+            score = overlap / total
+            if score > best_score:
+                best_score = score
+                best_id = c["id"]
+
+    if best_score >= threshold:
+        return best_id
+    return None
 
 
 async def _trigger_forge_matching(

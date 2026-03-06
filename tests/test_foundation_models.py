@@ -6,18 +6,17 @@ import pytest
 from pydantic import ValidationError
 
 from app.core.schemas_foundation import (
-    BusinessCase,
+    KPI,
     BudgetConstraints,
+    BusinessCase,
     ConfirmedScope,
     CorePain,
     DesignPreferences,
     FoundationUpdateRequest,
-    KPI,
     PrimaryPersona,
     ProjectFoundation,
     WowMoment,
 )
-
 
 # =============================================================================
 # CorePain Tests

@@ -11,37 +11,36 @@ from datetime import datetime
 from uuid import UUID
 
 from app.core.logging import get_logger
-from app.core.readiness.types import (
-    DIMENSION_WEIGHTS,
-    READINESS_THRESHOLD,
-    CapApplied,
-    DimensionScore,
-    ReadinessScore,
-    Recommendation,
-)
-
-# Dimension scorers
-from app.core.readiness.dimensions.value_path import score_value_path
-from app.core.readiness.dimensions.problem import score_problem_understanding
-from app.core.readiness.dimensions.solution import score_solution_clarity
-from app.core.readiness.dimensions.engagement import score_engagement
 
 # Caps and recommendations
 from app.core.readiness.caps import apply_caps
-from app.core.readiness.recommendations import select_top_recommendations
+from app.core.readiness.dimensions.engagement import score_engagement
+from app.core.readiness.dimensions.problem import score_problem_understanding
+from app.core.readiness.dimensions.solution import score_solution_clarity
+
+# Dimension scorers
+from app.core.readiness.dimensions.value_path import score_value_path
 
 # Gate assessment
 from app.core.readiness.gates import assess_all_gates
-from app.core.readiness.types import ReadinessPhase
+from app.core.readiness.recommendations import select_top_recommendations
+from app.core.readiness.types import (
+    READINESS_THRESHOLD,
+    CapApplied,
+    DimensionScore,
+    ReadinessPhase,
+    ReadinessScore,
+    Recommendation,
+)
+from app.db.features import list_features
+from app.db.foundation import get_project_foundation
+from app.db.meetings import list_meetings
+from app.db.personas import list_personas
+from app.db.signals import list_project_signals
+from app.db.strategic_context import get_strategic_context
 
 # Data access
 from app.db.vp import list_vp_steps
-from app.db.features import list_features
-from app.db.personas import list_personas
-from app.db.strategic_context import get_strategic_context
-from app.db.signals import list_project_signals
-from app.db.meetings import list_meetings
-from app.db.foundation import get_project_foundation
 
 logger = get_logger(__name__)
 

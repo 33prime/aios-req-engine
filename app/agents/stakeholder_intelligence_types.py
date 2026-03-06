@@ -1,6 +1,6 @@
 """Pydantic schemas for Stakeholder Intelligence Agent operations."""
 
-from typing import Literal, Optional
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -10,9 +10,9 @@ class SIToolCall(BaseModel):
 
     tool_name: str
     tool_args: dict = Field(default_factory=dict)
-    result: Optional[dict] = None
+    result: dict | None = None
     success: bool = True
-    error: Optional[str] = None
+    error: str | None = None
 
 
 class SIGuidance(BaseModel):
@@ -34,14 +34,14 @@ class StakeholderIntelligenceResponse(BaseModel):
 
     # Action
     action_type: Literal["tool_call", "guidance", "stop"]
-    tools_called: Optional[list[SIToolCall]] = None
-    guidance: Optional[SIGuidance] = None
-    stop_reason: Optional[str] = None
+    tools_called: list[SIToolCall] | None = None
+    guidance: SIGuidance | None = None
+    stop_reason: str | None = None
 
     # Results
     recommended_next: str = Field(default="", description="Recommended next step")
-    profile_completeness_before: Optional[int] = None
-    profile_completeness_after: Optional[int] = None
+    profile_completeness_before: int | None = None
+    profile_completeness_after: int | None = None
     fields_affected: list[str] = Field(default_factory=list)
 
 
@@ -51,6 +51,6 @@ class StakeholderAnalysisRequest(BaseModel):
     trigger: Literal[
         "signal_processed", "user_request", "periodic", "ci_agent_completed",
     ] = "user_request"
-    context: Optional[str] = None
-    specific_request: Optional[str] = None
-    focus_areas: Optional[list[str]] = None
+    context: str | None = None
+    specific_request: str | None = None
+    focus_areas: list[str] | None = None

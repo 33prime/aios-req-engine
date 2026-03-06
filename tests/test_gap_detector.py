@@ -4,14 +4,13 @@ Tests all 5 gap types: coverage, relationship, confidence, dependency, temporal.
 Uses mocked Supabase responses to verify detection logic.
 """
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from unittest.mock import MagicMock, patch
-from uuid import UUID, uuid4
+from uuid import uuid4
 
 import pytest
 
 from app.core.schemas_briefing import GapType, IntelligenceGap
-
 
 # =============================================================================
 # Helpers
@@ -319,7 +318,7 @@ class TestTemporalGaps:
         from app.core.gap_detector import _detect_temporal_gaps
 
         entity_id = str(uuid4())
-        old_date = (datetime.now(timezone.utc) - timedelta(days=60)).isoformat()
+        old_date = (datetime.now(UTC) - timedelta(days=60)).isoformat()
 
         sb = MagicMock()
         mock_sb.return_value = sb

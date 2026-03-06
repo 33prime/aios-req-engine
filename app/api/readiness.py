@@ -1,13 +1,12 @@
 """API endpoint for project readiness scoring."""
 
+from datetime import UTC, datetime
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from app.core.auth_middleware import AuthContext, require_auth
 from app.core.logging import get_logger
-from datetime import UTC, datetime
-
 from app.core.readiness import ReadinessScore, compute_readiness
 from app.core.readiness.gate_impact import get_entity_gate_impact_summary
 from app.db.supabase_client import get_supabase

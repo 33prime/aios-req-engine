@@ -25,8 +25,11 @@ import {
   Package,
   ChevronDown,
   ChevronUp,
+  User,
 } from 'lucide-react'
 import * as api from '@/lib/api'
+import { listAllStakeholders } from '@/lib/api/workspace'
+import type { StakeholderDetail } from '@/types/workspace'
 
 interface ClientPortalModalProps {
   projectId: string
@@ -51,6 +54,9 @@ export function ClientPortalModal({
   const [copied, setCopied] = useState(false)
   const [showInviteForm, setShowInviteForm] = useState(false)
 
+  // Stakeholders for quick-pick
+  const [stakeholders, setStakeholders] = useState<StakeholderDetail[]>([])
+
   // Invite form state
   const [email, setEmail] = useState('')
   const [firstName, setFirstName] = useState('')
@@ -71,6 +77,14 @@ export function ClientPortalModal({
         setMembers(membersData.members.filter((m) => m.role === 'client'))
       } catch {
         setMembers([])
+      }
+
+      // Load project stakeholders for quick-pick invite
+      try {
+        const stakeholderData = await listAllStakeholders({ project_id: projectId, limit: 50 })
+        setStakeholders(stakeholderData.stakeholders || [])
+      } catch {
+        setStakeholders([])
       }
     } catch (err) {
       console.error('Failed to load portal data:', err)
@@ -173,6 +187,19 @@ export function ClientPortalModal({
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
   }
+
+  const handlePickStakeholder = (s: StakeholderDetail) => {
+    setFirstName(s.first_name || s.name?.split(' ')[0] || '')
+    setLastName(s.last_name || s.name?.split(' ').slice(1).join(' ') || '')
+    setEmail(s.email || '')
+    setShowInviteForm(true)
+  }
+
+  // Filter stakeholders not already invited
+  const invitedEmails = new Set(members.map((m) => m.user?.email?.toLowerCase()).filter(Boolean))
+  const availableStakeholders = stakeholders.filter(
+    (s) => !s.email || !invitedEmails.has(s.email.toLowerCase())
+  )
 
   if (!isOpen) return null
 
@@ -304,6 +331,28 @@ export function ClientPortalModal({
                         {showInviteForm ? 'Cancel' : 'Invite'}
                       </button>
                     </div>
+
+                    {/* Stakeholder Quick-Pick */}
+                    {availableStakeholders.length > 0 && !showInviteForm && (
+                      <div className="mb-4 p-4 bg-gray-50 border border-gray-200 rounded-lg">
+                        <p className="text-xs font-medium text-gray-500 mb-2">Quick invite from stakeholders</p>
+                        <div className="flex flex-wrap gap-2">
+                          {availableStakeholders.map((s) => (
+                            <button
+                              key={s.id}
+                              onClick={() => handlePickStakeholder(s)}
+                              className="flex items-center gap-2 px-3 py-1.5 bg-white border border-gray-200 rounded-full text-sm text-gray-700 hover:border-[#009b87] hover:text-[#009b87] transition-colors"
+                            >
+                              <User className="w-3.5 h-3.5" />
+                              {s.name}
+                              {s.role && (
+                                <span className="text-xs text-gray-400">{s.role}</span>
+                              )}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
 
                     {/* Invite Form */}
                     {showInviteForm && (

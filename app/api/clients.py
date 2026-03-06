@@ -2,12 +2,12 @@
 
 import json as _json
 import uuid as _uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Literal
 from uuid import UUID
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Query
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 from app.core.logging import get_logger
 from app.core.schemas_clients import (
@@ -372,7 +372,7 @@ def add_knowledge_item(client_id: UUID, kb_category: str, body: KnowledgeItemCre
         "source_signal_id": body.source_signal_id,
         "stakeholder_name": body.stakeholder_name,
         "confidence": body.confidence,
-        "captured_at": datetime.now(timezone.utc).isoformat(),
+        "captured_at": datetime.now(UTC).isoformat(),
         "related_entity_ids": body.related_entity_ids or [],
     }
 

@@ -9,7 +9,7 @@ from uuid import UUID
 from app.chains.route_icp_signals import route_signal
 from app.core.logging import get_logger
 from app.db.icp_profiles import list_icp_profiles
-from app.db.icp_signals import insert_icp_signals_batch, update_signal_routing
+from app.db.icp_signals import insert_icp_signals_batch
 
 logger = get_logger(__name__)
 

@@ -9,7 +9,7 @@ Adds signal-velocity-aware behavior to the pulse engine:
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import UUID
 
@@ -43,7 +43,7 @@ def compute_signal_velocity(
     from app.db.supabase_client import get_supabase
 
     sb = get_supabase()
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     window_start = now - timedelta(days=window_days)
     midpoint = now - timedelta(days=window_days / 2)
 

@@ -269,40 +269,174 @@ def forge_enrich(state: PrebuildState) -> PrebuildState:
 
 
 def assemble_epics(state: PrebuildState) -> PrebuildState:
-    """Cluster features into 5-7 journey epics via Sonnet tool_use."""
+    """Cluster features into 5-7 journey epics by value chain (workflow → features).
+
+    Instead of round-robin distribution, features are grouped by their linked
+    workflow via entity_dependencies. Each workflow becomes an epic, with its
+    actor (persona) and pain point (business_driver) pulled from the chain.
+    """
     try:
 
-        # Build epic skeletons by grouping features by solution flow step
-        step_features: dict[str, list[dict]] = {}
-        feature_step_map: dict[str, dict] = {}
-
-        for step in state.solution_flow_steps:
-            step_id = step["id"]
-            step_features[step_id] = []
-
-        # Map features to steps via entity_links or name matching
+        # Build epic skeletons by grouping features by workflow chain
         confirmed_features = [
             f for f in state.features
             if f.get("confirmation_status") in ("confirmed_client", "confirmed_consultant")
         ]
 
-        # Simple assignment: distribute features across steps
-        if state.solution_flow_steps and confirmed_features:
+        # Load entity links for chain-based grouping
+        workflow_features: dict[str, list[dict]] = {}  # workflow_id → features
+        feature_assigned: set[str] = set()
+        workflow_meta: dict[str, dict] = {}  # workflow_id → {name, persona, pain}
+
+        try:
+            from app.db.supabase_client import get_supabase
+            sb = get_supabase()
+            pid = state.features[0].get("project_id", "") if state.features else ""
+
+            if pid:
+                # Get all non-disputed links for this project
+                links_result = (
+                    sb.table("entity_dependencies")
+                    .select("source_entity_type, source_entity_id, target_entity_type, target_entity_id, dependency_type, confidence")
+                    .eq("project_id", pid)
+                    .eq("disputed", False)
+                    .execute()
+                )
+                links = links_result.data or []
+
+                # Build feature → workflow mapping from links
+                feature_to_workflows: dict[str, list[str]] = {}
+                workflow_to_personas: dict[str, list[str]] = {}
+                workflow_to_drivers: dict[str, list[str]] = {}
+
+                for link in links:
+                    src_type = link.get("source_entity_type", "")
+                    src_id = link.get("source_entity_id", "")
+                    tgt_type = link.get("target_entity_type", "")
+                    tgt_id = link.get("target_entity_id", "")
+
+                    # Feature → Workflow links
+                    if src_type == "feature" and tgt_type == "workflow":
+                        feature_to_workflows.setdefault(src_id, []).append(tgt_id)
+                    elif src_type == "workflow" and tgt_type == "feature":
+                        feature_to_workflows.setdefault(tgt_id, []).append(src_id)
+                    # Persona → Workflow (actor_of)
+                    elif src_type == "persona" and tgt_type == "workflow":
+                        workflow_to_personas.setdefault(tgt_id, []).append(src_id)
+                    elif src_type == "workflow" and tgt_type == "persona":
+                        workflow_to_personas.setdefault(src_id, []).append(tgt_id)
+                    # Feature/Workflow → Business Driver (addresses)
+                    elif src_type == "feature" and tgt_type == "business_driver":
+                        # Associate driver with feature's workflow
+                        for wid in feature_to_workflows.get(src_id, []):
+                            workflow_to_drivers.setdefault(wid, []).append(tgt_id)
+                    elif src_type == "workflow" and tgt_type == "business_driver":
+                        workflow_to_drivers.setdefault(src_id, []).append(tgt_id)
+
+                # Group features by their primary workflow
+                for f in confirmed_features:
+                    fid = f["id"]
+                    wids = feature_to_workflows.get(fid, [])
+                    if wids:
+                        primary_wid = wids[0]
+                        workflow_features.setdefault(primary_wid, []).append(f)
+                        feature_assigned.add(fid)
+
+                # Build workflow metadata (name, persona, pain)
+                workflow_names = {w.get("id", ""): w.get("name", "") for w in (state.solution_flow_steps or [])}
+                # Also load actual workflow names
+                try:
+                    wf_result = sb.table("workflows").select("id, name").eq("project_id", pid).execute()
+                    for w in (wf_result.data or []):
+                        workflow_names[w["id"]] = w.get("name", "")
+                except Exception:
+                    pass
+
+                persona_names = {p.get("id", ""): p.get("name", "") for p in state.personas}
+                driver_titles = {}
+                try:
+                    bd_result = sb.table("business_drivers").select("id, title, driver_type").eq("project_id", pid).execute()
+                    for d in (bd_result.data or []):
+                        driver_titles[d["id"]] = {"title": d.get("title", ""), "type": d.get("driver_type", "")}
+                except Exception:
+                    pass
+
+                for wid in workflow_features:
+                    persona_ids = workflow_to_personas.get(wid, [])
+                    driver_ids = workflow_to_drivers.get(wid, [])
+                    workflow_meta[wid] = {
+                        "name": workflow_names.get(wid, ""),
+                        "persona": persona_names.get(persona_ids[0], "") if persona_ids else "",
+                        "pain": driver_titles.get(driver_ids[0], {}).get("title", "") if driver_ids else "",
+                    }
+        except Exception as e:
+            logger.debug(f"Chain-based epic grouping failed, falling back: {e}")
+
+        # Fallback: assign unassigned features to solution flow steps
+        unassigned = [f for f in confirmed_features if f["id"] not in feature_assigned]
+        step_features: dict[str, list[dict]] = {}
+        for step in state.solution_flow_steps:
+            step_features[step["id"]] = []
+
+        if state.solution_flow_steps and unassigned:
             step_count = len(state.solution_flow_steps)
-            for i, f in enumerate(confirmed_features):
+            for i, f in enumerate(unassigned):
                 step_idx = i % step_count
                 step = state.solution_flow_steps[step_idx]
                 step_features[step["id"]].append(f)
-                feature_step_map[f["id"]] = step
 
-        # Build epic plan structure
+        # Build epics: workflow-based first, then step-based for unassigned
         epics = []
+        epic_idx = 0
+
+        # Workflow-chain epics
+        for wid, feats in workflow_features.items():
+            meta = workflow_meta.get(wid, {})
+            wname = meta.get("name", f"Workflow {epic_idx + 1}")
+            persona = meta.get("persona", "")
+            pain = meta.get("pain", "")
+
+            # Build narrative from chain
+            theme = f"{persona}'s journey" if persona else wname
+            if pain:
+                theme += f": from '{pain}' to better"
+
+            epics.append({
+                "epic_index": epic_idx,
+                "title": wname,
+                "theme": theme,
+                "features": [
+                    {
+                        "feature_id": f["id"],
+                        "name": f.get("name", ""),
+                        "description": (f.get("overview") or "")[:200],
+                        "slug": canonical_slug(f.get("name", "")),
+                        "component_name": f.get("name", "").replace(" ", ""),
+                        "route": f"/{canonical_slug(f.get('name', ''))}",
+                        "implementation_status": "placeholder",
+                    }
+                    for f in feats
+                ],
+                "solution_flow_step_ids": [],
+                "workflow_id": wid,
+                "primary_route": f"/{canonical_slug(wname)}",
+                "all_routes": [f"/{canonical_slug(wname)}"],
+                "narrative": "",
+                "story_beats": [],
+                "open_questions": [],
+                "pain_points": [pain] if pain else [],
+                "persona_names": [persona] if persona else [p.get("name", "") for p in state.personas[:1]],
+            })
+            epic_idx += 1
+
+        # Step-based epics for unassigned features
         for i, step in enumerate(state.solution_flow_steps):
             step_feats = step_features.get(step["id"], [])
-            if not step_feats and i > 5:
+            if not step_feats and epic_idx > 5:
                 continue
+            if not step_feats and workflow_features:
+                continue  # Skip empty steps if we have chain-based epics
 
-            # Extract pain points and open questions from the step for narrative context
             pain_pts = [
                 pp.get("text", str(pp))[:80] if isinstance(pp, dict) else str(pp)[:80]
                 for pp in (step.get("pain_points_addressed") or [])[:3]
@@ -310,14 +444,13 @@ def assemble_epics(state: PrebuildState) -> PrebuildState:
             step_qs = []
             for q in (step.get("open_questions") or [])[:3]:
                 if isinstance(q, dict):
-                    # OpenQuestion schema: field is "question", with optional "context"
                     txt = q.get("question") or q.get("text") or q.get("context") or ""
                     step_qs.append(str(txt)[:80])
                 else:
                     step_qs.append(str(q)[:80])
 
             epics.append({
-                "epic_index": i,
+                "epic_index": epic_idx,
                 "title": step.get("title", f"Step {i + 1}"),
                 "theme": step.get("goal", ""),
                 "features": [
@@ -341,6 +474,7 @@ def assemble_epics(state: PrebuildState) -> PrebuildState:
                 "pain_points": pain_pts,
                 "persona_names": [p.get("name", "") for p in state.personas[:2]],
             })
+            epic_idx += 1
 
         # Build AI flow card skeletons here so compose_narratives can fill them
         ai_flow_cards = []

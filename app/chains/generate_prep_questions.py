@@ -168,7 +168,7 @@ async def _gather_project_context(project_id: UUID) -> str:
         for s in signals:
             text = s.get("raw_text", "")[:200]
             signal_summaries.append(f"- [{s['signal_type']}]: {text}...")
-        context_parts.append(f"\nRecent Signals:\n" + "\n".join(signal_summaries))
+        context_parts.append("\nRecent Signals:\n" + "\n".join(signal_summaries))
 
     return "\n".join(context_parts)
 

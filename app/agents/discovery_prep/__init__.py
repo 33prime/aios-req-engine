@@ -6,8 +6,8 @@ This module contains agents for generating pre-call preparation content:
 - Agenda Agent: Creates cohesive call agenda incorporating questions
 """
 
-from app.agents.discovery_prep.question_agent import generate_prep_questions
-from app.agents.discovery_prep.document_agent import recommend_documents
 from app.agents.discovery_prep.agenda_agent import generate_agenda
+from app.agents.discovery_prep.document_agent import recommend_documents
+from app.agents.discovery_prep.question_agent import generate_prep_questions
 
 __all__ = ["generate_prep_questions", "recommend_documents", "generate_agenda"]

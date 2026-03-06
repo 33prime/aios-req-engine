@@ -1,5 +1,6 @@
 """Database operations for personas table."""
 
+from datetime import UTC
 from uuid import UUID
 
 from app.core.logging import get_logger
@@ -401,12 +402,12 @@ def update_confirmation_status(
     """
     supabase = get_supabase()
 
-    from datetime import datetime, timezone
+    from datetime import datetime
 
     updates = {
         "confirmation_status": status,
         "confirmed_by": str(confirmed_by) if confirmed_by else None,
-        "confirmed_at": datetime.now(timezone.utc).isoformat(),
+        "confirmed_at": datetime.now(UTC).isoformat(),
     }
 
     response = (
@@ -544,7 +545,7 @@ def calculate_persona_health(persona_id: UUID) -> float:
     supabase = get_supabase()
 
     try:
-        from datetime import datetime, timezone
+        from datetime import datetime
 
         # Get persona
         persona = get_persona(persona_id)
@@ -570,10 +571,10 @@ def calculate_persona_health(persona_id: UUID) -> float:
 
         # Ensure timezone aware
         if updated_at.tzinfo is None:
-            updated_at = updated_at.replace(tzinfo=timezone.utc)
+            updated_at = updated_at.replace(tzinfo=UTC)
 
         # Calculate days since update
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         days_since_update = (now - updated_at).days
 
         # Apply health formula

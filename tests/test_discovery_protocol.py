@@ -6,11 +6,8 @@ Tests sub-phases 1, 2, and 5 with mocked Supabase responses.
 from unittest.mock import MagicMock, patch
 from uuid import uuid4
 
-import pytest
-
 from app.core.schemas_briefing import GapCluster, GapType, IntelligenceGap
-from app.core.schemas_discovery import AmbiguityScore, NorthStarCategory
-
+from app.core.schemas_discovery import NorthStarCategory
 
 # =============================================================================
 # Helpers

@@ -8,7 +8,7 @@ Reference: https://www.anthropic.com/news/contextual-retrieval
 """
 
 from dataclasses import dataclass, field
-from typing import Any, Optional
+from typing import Any
 
 
 @dataclass
@@ -31,13 +31,13 @@ class ChunkWithContext:
     section_type: str
     """Type of section: 'paragraph', 'table', 'heading', etc."""
 
-    section_title: Optional[str] = None
+    section_title: str | None = None
     """Section heading/title if available."""
 
-    page_number: Optional[int] = None
+    page_number: int | None = None
     """Page/slide/sheet number (1-indexed)."""
 
-    section_path: Optional[str] = None
+    section_path: str | None = None
     """Hierarchical path like 'Requirements > Authentication'."""
 
     word_count: int = 0

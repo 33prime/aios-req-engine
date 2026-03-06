@@ -160,7 +160,7 @@ def score_value_path(
     elif weighted_factor_score >= 50:
         summary = f"Value Path exists but needs refinement ({len(vp_steps)} steps)"
     else:
-        summary = f"Value Path is weak - needs significant work"
+        summary = "Value Path is weak - needs significant work"
 
     return DimensionScore(
         score=round(weighted_factor_score, 1),

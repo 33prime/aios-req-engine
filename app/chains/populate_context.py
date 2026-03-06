@@ -2,7 +2,7 @@
 
 import json
 import logging
-from typing import Any, Optional
+from typing import Any
 from uuid import UUID
 
 from app.core.llm import get_llm
@@ -191,7 +191,7 @@ async def populate_context_from_call(
     return updated_context or context
 
 
-async def _extract_from_notes(call_notes: str) -> Optional[dict[str, Any]]:
+async def _extract_from_notes(call_notes: str) -> dict[str, Any] | None:
     """Extract structured data from call notes using LLM."""
     llm = get_llm()
 

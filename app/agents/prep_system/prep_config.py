@@ -10,7 +10,6 @@ This configuration drives the stage-aware prep generation system.
 """
 
 from dataclasses import dataclass, field
-from typing import Optional
 
 from app.core.schemas_collaboration import CollaborationPhase
 

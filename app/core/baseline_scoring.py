@@ -18,8 +18,8 @@ from uuid import UUID
 
 from app.core.logging import get_logger
 from app.db.features import list_features
-from app.db.vp import list_vp_steps
 from app.db.personas import list_personas
+from app.db.vp import list_vp_steps
 
 logger = get_logger(__name__)
 

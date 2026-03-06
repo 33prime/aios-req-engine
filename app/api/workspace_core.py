@@ -533,3 +533,37 @@ async def update_feature_priority_endpoint(
     except Exception as e:
         logger.exception(f"Failed to update feature {feature_id} priority")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/briefing")
+async def get_project_briefing(project_id: UUID, force: bool = False) -> dict:
+    """Get the current project briefing (cached or regenerated from pulse)."""
+    try:
+        from app.services.briefing_engine import generate_briefing
+
+        briefing = await generate_briefing(project_id, force=force)
+        return briefing
+    except Exception as e:
+        logger.exception(f"Failed to generate briefing for project {project_id}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.delete("/entity-dependencies/{dep_id}")
+async def dispute_entity_dependency(project_id: UUID, dep_id: str) -> dict:
+    """Dispute an entity dependency (soft-delete).
+
+    Disputed links are excluded from density calculations and
+    won't be recreated by automated linking.
+    """
+    try:
+        from app.db.entity_dependencies import dispute_dependency
+
+        result = dispute_dependency(dep_id)
+        if not result:
+            raise HTTPException(status_code=404, detail="Dependency not found")
+        return {"success": True, "disputed": True, "id": dep_id}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"Failed to dispute dependency {dep_id}")
+        raise HTTPException(status_code=500, detail=str(e))

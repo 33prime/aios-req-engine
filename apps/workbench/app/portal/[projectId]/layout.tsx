@@ -16,28 +16,16 @@ export default function PortalLayout({
   params: { projectId: string }
 }) {
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white border-b border-gray-200">
-        <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-[#009b87] rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-sm">A</span>
-            </div>
-            <span className="font-semibold text-gray-900">AIOS Client Portal</span>
-          </div>
-        </div>
-      </header>
-
-      {/* Nav + Content — client component handles role-based nav */}
+    <div className="min-h-screen bg-surface-page font-[var(--font-body)]">
+      {/* Nav + Content — client component handles header + role-based nav */}
       <PortalShell projectId={params.projectId}>
         {children}
       </PortalShell>
 
       {/* Footer */}
-      <footer className="border-t border-gray-200 mt-12">
-        <div className="max-w-5xl mx-auto px-4 py-6 text-center text-sm text-gray-500">
-          Powered by AIOS Requirements Engine
+      <footer className="border-t border-border mt-12">
+        <div className="max-w-5xl mx-auto px-4 py-6 text-center text-xs text-text-placeholder">
+          &copy; {new Date().getFullYear()} All rights reserved.
         </div>
       </footer>
     </div>

@@ -8,7 +8,7 @@ from openai import OpenAI
 from pydantic import ValidationError
 
 from app.core.config import Settings
-from app.core.feature_enrich_inputs import build_feature_enrich_prompt, get_feature_enrich_context
+from app.core.feature_enrich_inputs import build_feature_enrich_prompt
 from app.core.logging import get_logger
 from app.core.schemas_feature_enrich import EnrichFeaturesOutput
 

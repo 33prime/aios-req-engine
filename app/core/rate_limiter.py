@@ -2,7 +2,6 @@
 
 import time
 from collections import defaultdict
-from typing import Dict, Tuple
 from uuid import UUID
 
 from fastapi import HTTPException
@@ -33,10 +32,10 @@ class RateLimiter:
         self.refill_rate = requests_per_minute / 60.0  # tokens per second
 
         # Storage: key -> (tokens, last_refill_time)
-        self._buckets: Dict[str, Tuple[float, float]] = defaultdict(lambda: (burst_size, time.time()))
+        self._buckets: dict[str, tuple[float, float]] = defaultdict(lambda: (burst_size, time.time()))
 
         # Track request counts for metrics
-        self._request_counts: Dict[str, int] = defaultdict(int)
+        self._request_counts: dict[str, int] = defaultdict(int)
 
     def _refill_bucket(self, key: str) -> None:
         """
@@ -98,7 +97,7 @@ class RateLimiter:
                 headers={"Retry-After": str(retry_after)},
             )
 
-    def get_stats(self, key: str) -> Dict[str, any]:
+    def get_stats(self, key: str) -> dict[str, any]:
         """
         Get rate limit stats for a key.
 
@@ -154,7 +153,7 @@ def check_chat_rate_limit(project_id: UUID) -> None:
     chat_rate_limiter.check_limit(key)
 
 
-def get_chat_rate_limit_stats(project_id: UUID) -> Dict[str, any]:
+def get_chat_rate_limit_stats(project_id: UUID) -> dict[str, any]:
     """
     Get rate limit stats for chat endpoint.
 

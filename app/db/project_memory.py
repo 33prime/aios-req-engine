@@ -7,7 +7,7 @@ Provides persistent memory for the Design Intelligence Agent:
 """
 
 from datetime import datetime
-from typing import Any, Literal, Optional
+from typing import Any, Literal
 from uuid import UUID
 
 from app.core.logging import get_logger

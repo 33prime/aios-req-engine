@@ -6,18 +6,18 @@ Covers:
 - Mutating tools cache invalidation
 """
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 from uuid import UUID, uuid4
 
 import pytest
 
 from app.chains.chat_tools import (
+    _MUTATING_TOOLS,
     COMMUNICATION_TOOLS,
     CORE_TOOLS,
     DOCUMENT_TOOLS,
     FALLBACK_EXTRAS,
     PAGE_TOOLS,
-    _MUTATING_TOOLS,
     execute_tool,
     get_tool_definitions,
     get_tools_for_context,

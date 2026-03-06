@@ -471,6 +471,70 @@ async def _expand_via_graph(
 
 
 # =============================================================================
+# Stage 2.6: Pulse-Weighted Entity Ranking
+# =============================================================================
+
+
+async def _apply_pulse_weights(
+    result: RetrievalResult,
+    project_id: str,
+) -> RetrievalResult:
+    """Weight entities by pulse health signals (link density, directives).
+
+    Boosts well-connected entities and suppresses saturated ones based on
+    the current pulse state. Runs after graph expansion.
+    """
+    try:
+        from app.db.pulse import get_latest_pulse_snapshot
+
+        snapshot = get_latest_pulse_snapshot(UUID(project_id))
+        if not snapshot:
+            return result
+
+        pulse_data = snapshot.get("pulse_data") or snapshot.get("data", {})
+        health_map = pulse_data.get("health", {})
+
+        if not health_map:
+            return result
+
+        for entity in result.entities:
+            etype = entity.get("entity_type", "")
+            health = health_map.get(etype, {})
+            if not health:
+                continue
+
+            base_weight = entity.get("weight", entity.get("similarity", 1.0))
+
+            # Link density boost: well-connected entities rank higher
+            density = health.get("link_density", 0.5)
+            density_mult = 0.7 + (density * 0.6)  # range: 0.7x to 1.3x
+
+            # Directive boost: prioritize what the project needs
+            directive = health.get("directive", "stable")
+            directive_mult = {
+                "grow": 1.5,
+                "confirm": 1.2,
+                "enrich": 1.0,
+                "stable": 0.7,
+                "merge_only": 0.3,
+            }.get(directive, 1.0)
+
+            entity["weight"] = round(base_weight * density_mult * directive_mult, 4)
+            entity["pulse_boosted"] = True
+
+        # Re-sort entities by adjusted weight
+        result.entities.sort(
+            key=lambda e: e.get("weight", e.get("similarity", 0)),
+            reverse=True,
+        )
+
+    except Exception as e:
+        logger.debug(f"Pulse weighting failed, continuing without: {e}")
+
+    return result
+
+
+# =============================================================================
 # Stage 4: Sufficiency Evaluation
 # =============================================================================
 
@@ -613,6 +677,10 @@ async def retrieve(
     # Stage 2.5: Graph expansion (typed traversal — filters by page entity types)
     if include_graph_expansion and include_entities and result.entities:
         result = await _expand_via_graph(result, project_id, entity_types=entity_types, graph_depth=graph_depth, apply_recency=apply_recency, apply_confidence=apply_confidence)
+
+    # Stage 2.6: Pulse-weighted entity ranking
+    if include_entities and result.entities:
+        result = await _apply_pulse_weights(result, project_id)
 
     # Stage 3: Rerank (Cohere → Haiku → cosine order)
     if not skip_reranking and len(result.chunks) > top_k:

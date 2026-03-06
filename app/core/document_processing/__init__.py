@@ -18,40 +18,38 @@ Usage:
     )
 """
 
+# Import extractors to register them
+from app.core.document_processing import (
+    docx_extractor,  # noqa: F401
+    image_extractor,  # noqa: F401
+    pdf_extractor,  # noqa: F401
+    pptx_extractor,  # noqa: F401
+)
 from app.core.document_processing.base import (
+    BaseExtractor,
     DocumentType,
     ExtractedSection,
-    ExtractionResult,
     ExtractionError,
-    BaseExtractor,
+    ExtractionResult,
     ExtractorRegistry,
-    get_extractor,
     detect_document_type,
+    get_extractor,
     validate_file,
 )
-
-from app.core.document_processing.contextual import (
-    build_contextual_prefix,
-    ChunkWithContext,
-    create_chunk_with_context,
-)
-
-from app.core.document_processing.classifier import (
-    ClassificationResult,
-    classify_document,
-    get_priority_for_class,
-    estimate_processing_complexity,
-)
-
 from app.core.document_processing.chunker import (
     chunk_document,
 )
-
-# Import extractors to register them
-from app.core.document_processing import pdf_extractor  # noqa: F401
-from app.core.document_processing import docx_extractor  # noqa: F401
-from app.core.document_processing import image_extractor  # noqa: F401
-from app.core.document_processing import pptx_extractor  # noqa: F401
+from app.core.document_processing.classifier import (
+    ClassificationResult,
+    classify_document,
+    estimate_processing_complexity,
+    get_priority_for_class,
+)
+from app.core.document_processing.contextual import (
+    ChunkWithContext,
+    build_contextual_prefix,
+    create_chunk_with_context,
+)
 
 __all__ = [
     # Base types

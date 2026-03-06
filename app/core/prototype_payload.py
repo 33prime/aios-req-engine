@@ -214,6 +214,56 @@ async def assemble_prototype_payload(
         asyncio.to_thread(_q_driver_links),
     )
 
+    # ── Load chain context for features ─────────────────────────────────────
+    chain_context: dict[str, dict] = {}  # feature_id → {workflow, persona, pain, density}
+    try:
+        from app.db.entity_dependencies import batch_link_density
+        sb_chain = get_supabase()
+        chain_links = (
+            sb_chain.table("entity_dependencies")
+            .select("source_entity_type, source_entity_id, target_entity_type, target_entity_id, dependency_type")
+            .eq("project_id", pid)
+            .eq("disputed", False)
+            .in_("source_entity_type", ["feature"])
+            .execute()
+        ).data or []
+
+        # Build name lookups
+        workflow_names = {}
+        persona_names = {}
+        driver_titles = {}
+        try:
+            for w in (sb_chain.table("workflows").select("id, name").eq("project_id", pid).execute().data or []):
+                workflow_names[w["id"]] = w.get("name", "")
+            for p in (raw_personas or []):
+                persona_names[p.get("id", "")] = p.get("name", "")
+            for d in (raw_drivers or []):
+                driver_titles[d.get("id", "")] = d.get("title", d.get("description", ""))[:60]
+        except Exception:
+            pass
+
+        for link in chain_links:
+            fid = link.get("source_entity_id", "")
+            tgt_type = link.get("target_entity_type", "")
+            tgt_id = link.get("target_entity_id", "")
+            ctx = chain_context.setdefault(fid, {})
+            if tgt_type == "workflow" and not ctx.get("workflow"):
+                ctx["workflow"] = workflow_names.get(tgt_id, "")
+            elif tgt_type == "persona" and not ctx.get("persona"):
+                ctx["persona"] = persona_names.get(tgt_id, "")
+            elif tgt_type == "business_driver" and not ctx.get("pain"):
+                ctx["pain"] = driver_titles.get(tgt_id, "")
+
+        # Compute link densities
+        feature_ids = [f["id"] for f in (raw_features or []) if f.get("id")]
+        densities = batch_link_density(
+            UUID(pid), {"feature": feature_ids}, {"feature": 2}
+        )
+        for fid, d in densities.items():
+            chain_context.setdefault(fid, {})["density"] = d
+    except Exception:
+        pass
+
     # ── Map to payload models (filter to confirmed) ────────────────────────
     features = [
         PayloadFeature(
@@ -225,6 +275,10 @@ async def assemble_prototype_payload(
             horizon=horizon_map.get(f["id"], "H1"),
             open_question_count=question_counts.get(f["id"], 0),
             linked_driver=driver_link_map.get(f["id"], ""),
+            linked_workflow=chain_context.get(f["id"], {}).get("workflow", ""),
+            linked_persona=chain_context.get(f["id"], {}).get("persona", ""),
+            linked_pain=chain_context.get(f["id"], {}).get("pain", ""),
+            link_density=chain_context.get(f["id"], {}).get("density", 0.0),
         )
         for f in (raw_features or [])
         if _is_confirmed(f)

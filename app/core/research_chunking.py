@@ -1,13 +1,14 @@
 """Section-based chunking for research documents."""
 
-from typing import List, Dict, Any
+from typing import Any
+
 from app.core.schemas_research import ResearchDocument
 
 
 def chunk_research_document(
     doc: ResearchDocument,
     include_context: bool = True
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """
     Chunk research document by semantic sections.
 
@@ -22,7 +23,7 @@ def chunk_research_document(
     chunk_index = 0
 
     # Helper to create chunk
-    def make_chunk(section_type: str, content: str, metadata: Dict = None):
+    def make_chunk(section_type: str, content: str, metadata: dict = None):
         nonlocal chunk_index
         base_metadata = {
             "section_type": section_type,

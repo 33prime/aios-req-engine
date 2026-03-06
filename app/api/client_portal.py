@@ -1,7 +1,7 @@
 """Client Portal API endpoints."""
 
 import logging
-from typing import Any, Optional
+from typing import Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
@@ -24,7 +24,6 @@ from app.core.schemas_portal import (
     PortalProject,
     PortalProjectList,
     ProjectContext,
-    ProjectContextSectionUpdate,
     ReadinessDelta,
     ValidationQueueResponse,
 )
@@ -43,14 +42,10 @@ from app.db.info_requests import (
     update_info_request_status,
 )
 from app.db.project_context import (
-    add_competitor,
-    add_key_user,
     add_tribal_knowledge,
     get_or_create_project_context,
-    get_project_context,
     lock_context_section,
     update_context_section,
-    update_project_context,
 )
 from app.db.project_members import list_user_projects
 from app.db.supabase_client import get_supabase as get_client
@@ -329,7 +324,7 @@ async def get_portal_dashboard_v2(
 @router.get("/projects/{project_id}/info-requests", response_model=list[InfoRequest])
 async def list_portal_info_requests(
     project_id: UUID,
-    phase: Optional[InfoRequestPhase] = None,
+    phase: InfoRequestPhase | None = None,
     auth: AuthContext = Depends(require_project_access),
 ):
     """List info requests for the client."""
@@ -497,7 +492,7 @@ async def update_portal_context_section(
 async def lock_portal_context_section(
     project_id: UUID,
     section: str,
-    field: Optional[str] = None,
+    field: str | None = None,
     auth: AuthContext = Depends(require_project_access),
 ):
     """Lock a context section to prevent auto-updates."""
@@ -513,7 +508,7 @@ async def lock_portal_context_section(
 @router.get("/projects/{project_id}/files", response_model=list[ClientDocument])
 async def list_portal_files(
     project_id: UUID,
-    category: Optional[DocumentCategory] = None,
+    category: DocumentCategory | None = None,
     auth: AuthContext = Depends(require_project_access),
 ):
     """List all files for a project."""
@@ -524,8 +519,8 @@ async def list_portal_files(
 async def upload_portal_file(
     project_id: UUID,
     file: UploadFile = File(...),
-    description: Optional[str] = None,
-    info_request_id: Optional[UUID] = None,
+    description: str | None = None,
+    info_request_id: UUID | None = None,
     auth: AuthContext = Depends(require_project_access),
 ):
     """Upload a file to the project."""
@@ -617,7 +612,7 @@ class PortalChatRequest(PydanticBaseModel):
     """Request body for portal chat."""
 
     message: str
-    conversation_id: Optional[UUID] = None
+    conversation_id: UUID | None = None
     conversation_history: list[dict] = []
 
 
@@ -638,7 +633,7 @@ async def portal_chat(
     Returns a streaming response with Server-Sent Events.
     """
     import json
-    from typing import AsyncGenerator
+    from collections.abc import AsyncGenerator
 
     from anthropic import AsyncAnthropic
     from fastapi.responses import StreamingResponse
@@ -837,7 +832,7 @@ async def portal_chat(
 # ============================================================================
 
 
-async def _create_portal_response_signal(info_request: InfoRequest, user_id: UUID) -> Optional[UUID]:
+async def _create_portal_response_signal(info_request: InfoRequest, user_id: UUID) -> UUID | None:
     """
     Create an authoritative signal from a client portal response.
 

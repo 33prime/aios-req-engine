@@ -10,7 +10,6 @@ Consultants review and confirm items before sending to client portal.
 
 from datetime import datetime
 from enum import Enum
-from typing import Literal, Optional
 from uuid import UUID, uuid4
 
 from pydantic import BaseModel, Field
@@ -52,16 +51,16 @@ class PrepQuestion(PrepQuestionBase):
     """Full prep question with tracking fields."""
     id: UUID = Field(default_factory=uuid4)
     confirmed: bool = False
-    client_answer: Optional[str] = None
-    answered_at: Optional[datetime] = None
+    client_answer: str | None = None
+    answered_at: datetime | None = None
 
 
 class PrepQuestionUpdate(BaseModel):
     """Schema for updating a prep question."""
-    question: Optional[str] = None
-    best_answered_by: Optional[str] = None
-    why_important: Optional[str] = None
-    confirmed: Optional[bool] = None
+    question: str | None = None
+    best_answered_by: str | None = None
+    why_important: str | None = None
+    confirmed: bool | None = None
 
 
 # =============================================================================
@@ -85,17 +84,17 @@ class DocRecommendation(DocRecommendationBase):
     """Full document recommendation with tracking fields."""
     id: UUID = Field(default_factory=uuid4)
     confirmed: bool = False
-    uploaded_file_id: Optional[UUID] = None
-    uploaded_at: Optional[datetime] = None
+    uploaded_file_id: UUID | None = None
+    uploaded_at: datetime | None = None
     example_formats: list[str] = Field(default_factory=list, description="Example file formats to help clients")
 
 
 class DocRecommendationUpdate(BaseModel):
     """Schema for updating a document recommendation."""
-    document_name: Optional[str] = None
-    priority: Optional[DocPriority] = None
-    why_important: Optional[str] = None
-    confirmed: Optional[bool] = None
+    document_name: str | None = None
+    priority: DocPriority | None = None
+    why_important: str | None = None
+    confirmed: bool | None = None
 
 
 # =============================================================================
@@ -105,7 +104,7 @@ class DocRecommendationUpdate(BaseModel):
 
 class DiscoveryPrepBundleBase(BaseModel):
     """Base schema for discovery prep bundle."""
-    agenda_summary: Optional[str] = Field(None, description="General agenda summary")
+    agenda_summary: str | None = Field(None, description="General agenda summary")
     agenda_bullets: list[str] = Field(default_factory=list, description="4 personalized agenda bullets")
 
 
@@ -123,7 +122,7 @@ class DiscoveryPrepBundle(DiscoveryPrepBundleBase):
     questions: list[PrepQuestion] = Field(default_factory=list)
     documents: list[DocRecommendation] = Field(default_factory=list)
     status: PrepStatus = PrepStatus.DRAFT
-    sent_to_portal_at: Optional[datetime] = None
+    sent_to_portal_at: datetime | None = None
     generated_at: datetime
     updated_at: datetime
 
@@ -133,9 +132,9 @@ class DiscoveryPrepBundle(DiscoveryPrepBundleBase):
 
 class DiscoveryPrepBundleUpdate(BaseModel):
     """Schema for updating a bundle."""
-    agenda_summary: Optional[str] = None
-    agenda_bullets: Optional[list[str]] = None
-    status: Optional[PrepStatus] = None
+    agenda_summary: str | None = None
+    agenda_bullets: list[str] | None = None
+    status: PrepStatus | None = None
 
 
 # =============================================================================
@@ -161,7 +160,7 @@ class ConfirmItemRequest(BaseModel):
 
 class SendToPotalRequest(BaseModel):
     """Request to send prep to client portal."""
-    invite_emails: Optional[list[str]] = Field(None, description="Email addresses to invite")
+    invite_emails: list[str] | None = Field(None, description="Email addresses to invite")
 
 
 class SendToPortalResponse(BaseModel):

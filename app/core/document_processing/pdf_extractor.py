@@ -8,14 +8,14 @@ import io
 from typing import Any
 
 from app.core.document_processing.base import (
+    PAGE_LIMITS,
+    SIZE_LIMITS,
     BaseExtractor,
     DocumentType,
     ExtractedSection,
     ExtractionError,
     ExtractionResult,
     ExtractorRegistry,
-    SIZE_LIMITS,
-    PAGE_LIMITS,
 )
 from app.core.logging import get_logger
 

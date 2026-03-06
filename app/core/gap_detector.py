@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from uuid import UUID
 
 from app.core.schemas_briefing import GapType, IntelligenceGap
@@ -389,7 +389,7 @@ def _detect_temporal_gaps(
             elif created > latest[eid]["max_date"]:
                 latest[eid]["max_date"] = created
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         # Load entity names for gap entities
         stale_entities: list[dict] = []
@@ -397,7 +397,7 @@ def _detect_temporal_gaps(
             try:
                 dt = datetime.fromisoformat(info["max_date"].replace("Z", "+00:00"))
                 if dt.tzinfo is None:
-                    dt = dt.replace(tzinfo=timezone.utc)
+                    dt = dt.replace(tzinfo=UTC)
                 days_since = (now - dt).days
             except (ValueError, TypeError):
                 days_since = 90  # Assume stale on parse failure
@@ -413,7 +413,7 @@ def _detect_temporal_gaps(
 
         # Resolve names
         if stale_entities:
-            from app.db.graph_queries import _TABLE_MAP, _NAME_COL
+            from app.db.graph_queries import _NAME_COL, _TABLE_MAP
 
             by_type: dict[str, list[dict]] = {}
             for ent in stale_entities:

@@ -4,7 +4,7 @@ These tools are a limited subset of the full consultant tools,
 focused on context gathering and information updates.
 """
 
-from typing import Any, Dict, List
+from typing import Any
 from uuid import UUID
 
 from app.core.logging import get_logger
@@ -13,7 +13,7 @@ from app.db.supabase_client import get_supabase
 logger = get_logger(__name__)
 
 
-def get_client_tool_definitions() -> List[Dict[str, Any]]:
+def get_client_tool_definitions() -> list[dict[str, Any]]:
     """
     Get tool definitions for client chat.
 
@@ -214,8 +214,8 @@ async def execute_client_tool(
     project_id: UUID,
     user_id: UUID,
     tool_name: str,
-    tool_input: Dict[str, Any],
-) -> Dict[str, Any]:
+    tool_input: dict[str, Any],
+) -> dict[str, Any]:
     """
     Execute a client tool and return results.
 
@@ -262,8 +262,8 @@ async def execute_client_tool(
 async def _update_context_section(
     project_id: UUID,
     user_id: UUID,
-    params: Dict[str, Any],
-) -> Dict[str, Any]:
+    params: dict[str, Any],
+) -> dict[str, Any]:
     """Update a text section of project context."""
     supabase = get_supabase()
 
@@ -322,8 +322,8 @@ async def _update_context_section(
 async def _add_metric(
     project_id: UUID,
     user_id: UUID,
-    params: Dict[str, Any],
-) -> Dict[str, Any]:
+    params: dict[str, Any],
+) -> dict[str, Any]:
     """Add a metric to project context."""
     supabase = get_supabase()
 
@@ -374,8 +374,8 @@ async def _add_metric(
 async def _add_user(
     project_id: UUID,
     user_id: UUID,
-    params: Dict[str, Any],
-) -> Dict[str, Any]:
+    params: dict[str, Any],
+) -> dict[str, Any]:
     """Add a key user to project context."""
     supabase = get_supabase()
 
@@ -424,8 +424,8 @@ async def _add_user(
 async def _add_competitor(
     project_id: UUID,
     user_id: UUID,
-    params: Dict[str, Any],
-) -> Dict[str, Any]:
+    params: dict[str, Any],
+) -> dict[str, Any]:
     """Add a competitor to project context."""
     supabase = get_supabase()
 
@@ -474,8 +474,8 @@ async def _add_competitor(
 async def _add_design_inspiration(
     project_id: UUID,
     user_id: UUID,
-    params: Dict[str, Any],
-) -> Dict[str, Any]:
+    params: dict[str, Any],
+) -> dict[str, Any]:
     """Add design inspiration to project context."""
     supabase = get_supabase()
 
@@ -522,8 +522,8 @@ async def _add_design_inspiration(
 async def _add_tribal_knowledge(
     project_id: UUID,
     user_id: UUID,
-    params: Dict[str, Any],
-) -> Dict[str, Any]:
+    params: dict[str, Any],
+) -> dict[str, Any]:
     """Add tribal knowledge to project context."""
     supabase = get_supabase()
 
@@ -564,8 +564,8 @@ async def _add_tribal_knowledge(
 async def _complete_info_request(
     project_id: UUID,
     user_id: UUID,
-    params: Dict[str, Any],
-) -> Dict[str, Any]:
+    params: dict[str, Any],
+) -> dict[str, Any]:
     """Mark an info request as complete."""
     supabase = get_supabase()
 
@@ -620,8 +620,8 @@ async def _complete_info_request(
 
 async def _get_pending_questions(
     project_id: UUID,
-    params: Dict[str, Any],
-) -> Dict[str, Any]:
+    params: dict[str, Any],
+) -> dict[str, Any]:
     """Get pending info requests."""
     supabase = get_supabase()
 
@@ -655,8 +655,8 @@ async def _get_pending_questions(
 
 async def _get_context_summary(
     project_id: UUID,
-    params: Dict[str, Any],
-) -> Dict[str, Any]:
+    params: dict[str, Any],
+) -> dict[str, Any]:
     """Get project context completion summary."""
     supabase = get_supabase()
 
@@ -762,8 +762,8 @@ async def _get_context_summary(
 
 async def _suggest_next_action(
     project_id: UUID,
-    params: Dict[str, Any],
-) -> Dict[str, Any]:
+    params: dict[str, Any],
+) -> dict[str, Any]:
     """Suggest what the client should do next."""
     # Get context summary
     summary = await _get_context_summary(project_id, {})

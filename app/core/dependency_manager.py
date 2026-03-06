@@ -38,7 +38,7 @@ Usage:
 """
 
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
 from uuid import UUID
@@ -448,7 +448,7 @@ class DependencyManager:
             self.supabase.table(table_name).update({
                 "is_stale": True,
                 "stale_reason": f"Upstream {source_type} {source_id} changed",
-                "stale_at": datetime.now(timezone.utc).isoformat(),
+                "stale_at": datetime.now(UTC).isoformat(),
             }).eq("id", entity_id).execute()
 
             return True

@@ -1,13 +1,10 @@
 """Database operations for organization members."""
 
-from typing import Optional
 from uuid import UUID
 
 from app.core.schemas_organizations import (
     OrganizationMember,
-    OrganizationMemberCreate,
     OrganizationMemberPublic,
-    OrganizationMemberWithUser,
     OrganizationRole,
 )
 from app.db.supabase_client import get_supabase as get_client
@@ -16,7 +13,7 @@ from app.db.supabase_client import get_supabase as get_client
 async def get_member(
     organization_id: UUID,
     user_id: UUID,
-) -> Optional[OrganizationMember]:
+) -> OrganizationMember | None:
     """Get a specific organization member."""
     client = get_client()
     result = (
@@ -31,7 +28,7 @@ async def get_member(
     return None
 
 
-async def get_member_by_id(member_id: UUID) -> Optional[OrganizationMember]:
+async def get_member_by_id(member_id: UUID) -> OrganizationMember | None:
     """Get a member by their membership ID."""
     client = get_client()
     result = (
@@ -49,7 +46,7 @@ async def add_member(
     organization_id: UUID,
     user_id: UUID,
     role: OrganizationRole,
-    invited_by_user_id: Optional[UUID] = None,
+    invited_by_user_id: UUID | None = None,
 ) -> OrganizationMember:
     """Add a member to an organization."""
     client = get_client()
@@ -69,7 +66,7 @@ async def update_member_role(
     organization_id: UUID,
     user_id: UUID,
     new_role: OrganizationRole,
-) -> Optional[OrganizationMember]:
+) -> OrganizationMember | None:
     """Update a member's role."""
     client = get_client()
     result = (
@@ -153,7 +150,7 @@ async def list_members_with_users(
 async def is_org_member(
     organization_id: UUID,
     user_id: UUID,
-    required_role: Optional[OrganizationRole] = None,
+    required_role: OrganizationRole | None = None,
 ) -> bool:
     """Check if user is a member of the organization with optional role check."""
     member = await get_member(organization_id, user_id)
@@ -170,7 +167,7 @@ async def is_org_member(
 async def get_user_role(
     organization_id: UUID,
     user_id: UUID,
-) -> Optional[OrganizationRole]:
+) -> OrganizationRole | None:
     """Get user's role in an organization."""
     member = await get_member(organization_id, user_id)
     if member:
@@ -207,7 +204,7 @@ async def transfer_ownership(
     organization_id: UUID,
     current_owner_id: UUID,
     new_owner_id: UUID,
-) -> tuple[Optional[OrganizationMember], Optional[OrganizationMember]]:
+) -> tuple[OrganizationMember | None, OrganizationMember | None]:
     """Transfer ownership from one user to another."""
     # Demote current owner to admin
     old_owner = await update_member_role(

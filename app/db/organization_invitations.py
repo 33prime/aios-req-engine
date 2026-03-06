@@ -1,7 +1,6 @@
 """Database operations for organization invitations."""
 
 from datetime import datetime, timedelta
-from typing import Optional
 from uuid import UUID
 
 from app.core.schemas_organizations import (
@@ -9,12 +8,11 @@ from app.core.schemas_organizations import (
     InvitationCreate,
     InvitationStatus,
     InvitationWithOrg,
-    OrganizationRole,
 )
 from app.db.supabase_client import get_supabase as get_client
 
 
-async def get_invitation_by_id(invitation_id: UUID) -> Optional[Invitation]:
+async def get_invitation_by_id(invitation_id: UUID) -> Invitation | None:
     """Get an invitation by ID."""
     client = get_client()
     result = (
@@ -28,7 +26,7 @@ async def get_invitation_by_id(invitation_id: UUID) -> Optional[Invitation]:
     return None
 
 
-async def get_invitation_by_token(token: str) -> Optional[Invitation]:
+async def get_invitation_by_token(token: str) -> Invitation | None:
     """Get an invitation by its invite token."""
     client = get_client()
     result = (
@@ -42,7 +40,7 @@ async def get_invitation_by_token(token: str) -> Optional[Invitation]:
     return None
 
 
-async def get_invitation_with_org(token: str) -> Optional[InvitationWithOrg]:
+async def get_invitation_with_org(token: str) -> InvitationWithOrg | None:
     """Get an invitation with organization details."""
     client = get_client()
     result = (
@@ -97,7 +95,7 @@ async def create_invitation(
     return Invitation(**result.data[0])
 
 
-async def cancel_invitation(invitation_id: UUID) -> Optional[Invitation]:
+async def cancel_invitation(invitation_id: UUID) -> Invitation | None:
     """Cancel a pending invitation."""
     client = get_client()
     result = (
@@ -112,7 +110,7 @@ async def cancel_invitation(invitation_id: UUID) -> Optional[Invitation]:
     return None
 
 
-async def accept_invitation(invitation_id: UUID) -> Optional[Invitation]:
+async def accept_invitation(invitation_id: UUID) -> Invitation | None:
     """Mark an invitation as accepted."""
     client = get_client()
     result = (
@@ -130,7 +128,7 @@ async def accept_invitation(invitation_id: UUID) -> Optional[Invitation]:
     return None
 
 
-async def expire_invitation(invitation_id: UUID) -> Optional[Invitation]:
+async def expire_invitation(invitation_id: UUID) -> Invitation | None:
     """Mark an invitation as expired."""
     client = get_client()
     result = (
@@ -182,7 +180,7 @@ async def list_all_invitations(
 async def get_pending_invitation_for_email(
     organization_id: UUID,
     email: str,
-) -> Optional[Invitation]:
+) -> Invitation | None:
     """Get pending invitation for a specific email in an organization."""
     client = get_client()
     result = (

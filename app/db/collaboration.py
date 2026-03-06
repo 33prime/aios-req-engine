@@ -1,7 +1,6 @@
 """Database operations for collaboration touchpoints."""
 
 from datetime import datetime
-from typing import Optional
 from uuid import UUID
 
 from dateutil import parser as dateutil_parser
@@ -22,7 +21,7 @@ from app.db.supabase_client import get_supabase
 logger = get_logger(__name__)
 
 
-def _parse_datetime(value: Optional[str]) -> Optional[datetime]:
+def _parse_datetime(value: str | None) -> datetime | None:
     """Parse datetime string handling various ISO formats."""
     if not value:
         return None
@@ -94,7 +93,7 @@ def _generate_outcomes_summary(outcomes: TouchpointOutcomes, tp_type: Touchpoint
 # ============================================================================
 
 
-async def get_touchpoint(touchpoint_id: UUID) -> Optional[Touchpoint]:
+async def get_touchpoint(touchpoint_id: UUID) -> Touchpoint | None:
     """Get a touchpoint by ID."""
     supabase = get_supabase()
 
@@ -112,7 +111,7 @@ async def get_touchpoint(touchpoint_id: UUID) -> Optional[Touchpoint]:
     return _parse_touchpoint(result.data[0])
 
 
-async def get_active_touchpoint(project_id: UUID) -> Optional[Touchpoint]:
+async def get_active_touchpoint(project_id: UUID) -> Touchpoint | None:
     """Get the current active (non-completed) touchpoint for a project."""
     supabase = get_supabase()
 
@@ -134,8 +133,8 @@ async def get_active_touchpoint(project_id: UUID) -> Optional[Touchpoint]:
 
 async def list_touchpoints(
     project_id: UUID,
-    status_filter: Optional[list[TouchpointStatus]] = None,
-    type_filter: Optional[TouchpointType] = None,
+    status_filter: list[TouchpointStatus] | None = None,
+    type_filter: TouchpointType | None = None,
 ) -> list[Touchpoint]:
     """List touchpoints for a project."""
     supabase = get_supabase()
@@ -228,7 +227,7 @@ async def create_touchpoint(data: TouchpointCreate) -> Touchpoint:
     return _parse_touchpoint(result.data[0])
 
 
-async def update_touchpoint(touchpoint_id: UUID, data: TouchpointUpdate) -> Optional[Touchpoint]:
+async def update_touchpoint(touchpoint_id: UUID, data: TouchpointUpdate) -> Touchpoint | None:
     """Update a touchpoint."""
     supabase = get_supabase()
 
@@ -274,7 +273,7 @@ async def update_touchpoint_portal_sync(
     touchpoint_id: UUID,
     items_count: int,
     items_completed: int,
-) -> Optional[Touchpoint]:
+) -> Touchpoint | None:
     """Update portal sync counts for a touchpoint."""
     supabase = get_supabase()
 
@@ -297,7 +296,7 @@ async def update_touchpoint_portal_sync(
 async def complete_touchpoint(
     touchpoint_id: UUID,
     outcomes: TouchpointOutcomes,
-) -> Optional[Touchpoint]:
+) -> Touchpoint | None:
     """Mark a touchpoint as completed with outcomes."""
     supabase = get_supabase()
 

@@ -8,7 +8,7 @@ Validates VP steps for prototype readiness:
 - User benefit clarity
 """
 
-from typing import List, Dict, Any, Tuple
+from typing import Any
 
 
 class VPGap:
@@ -32,7 +32,7 @@ class VPGap:
         return f"VP Step {self.step_index} ({self.step_label}): {self.severity.upper()} - {self.gap_type} - {self.description}"
 
 
-def validate_vp_step_completeness(vp_step: Dict[str, Any]) -> List[VPGap]:
+def validate_vp_step_completeness(vp_step: dict[str, Any]) -> list[VPGap]:
     """
     Validate a single VP step for completeness.
 
@@ -166,7 +166,7 @@ def validate_vp_step_completeness(vp_step: Dict[str, Any]) -> List[VPGap]:
     return gaps
 
 
-def validate_vp_completeness(vp_steps: List[Dict[str, Any]]) -> Tuple[List[VPGap], Dict[str, Any]]:
+def validate_vp_completeness(vp_steps: list[dict[str, Any]]) -> tuple[list[VPGap], dict[str, Any]]:
     """
     Validate all VP steps for completeness.
 
@@ -212,7 +212,7 @@ def validate_vp_completeness(vp_steps: List[Dict[str, Any]]) -> Tuple[List[VPGap
         "total_steps": total_steps,
         "complete_steps": complete_steps,
         "steps_with_gaps": steps_with_gaps,
-        "completeness_percent": int((complete_steps / total_steps * 100)) if total_steps > 0 else 0,
+        "completeness_percent": int(complete_steps / total_steps * 100) if total_steps > 0 else 0,
         "total_gaps": len(all_gaps),
         "critical_count": len(critical_gaps),
         "important_count": len(important_gaps),
@@ -224,7 +224,7 @@ def validate_vp_completeness(vp_steps: List[Dict[str, Any]]) -> Tuple[List[VPGap
     return all_gaps, summary
 
 
-def format_vp_gaps_for_prompt(gaps: List[VPGap]) -> str:
+def format_vp_gaps_for_prompt(gaps: list[VPGap]) -> str:
     """
     Format VP gaps for inclusion in LLM prompt.
 

@@ -1,6 +1,6 @@
 """Pydantic schemas for Client Intelligence Agent operations."""
 
-from typing import Literal, Optional
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -10,9 +10,9 @@ class CIToolCall(BaseModel):
 
     tool_name: str
     tool_args: dict = Field(default_factory=dict)
-    result: Optional[dict] = None
+    result: dict | None = None
     success: bool = True
-    error: Optional[str] = None
+    error: str | None = None
 
 
 class CIGuidance(BaseModel):
@@ -34,14 +34,14 @@ class ClientIntelligenceResponse(BaseModel):
 
     # Action
     action_type: Literal["tool_call", "guidance", "stop"]
-    tools_called: Optional[list[CIToolCall]] = None
-    guidance: Optional[CIGuidance] = None
-    stop_reason: Optional[str] = None
+    tools_called: list[CIToolCall] | None = None
+    guidance: CIGuidance | None = None
+    stop_reason: str | None = None
 
     # Results
     recommended_next: str = Field(default="", description="Recommended next step")
-    profile_completeness_before: Optional[int] = None
-    profile_completeness_after: Optional[int] = None
+    profile_completeness_before: int | None = None
+    profile_completeness_after: int | None = None
     sections_affected: list[str] = Field(default_factory=list)
 
 
@@ -52,6 +52,6 @@ class ClientAnalysisRequest(BaseModel):
         "new_client", "stakeholder_added", "project_milestone",
         "user_request", "scheduled", "enrichment_complete", "signal_confirmed",
     ] = "user_request"
-    context: Optional[str] = None
-    specific_request: Optional[str] = None
-    focus_sections: Optional[list[str]] = None
+    context: str | None = None
+    specific_request: str | None = None
+    focus_sections: list[str] | None = None

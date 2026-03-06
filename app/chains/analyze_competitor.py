@@ -6,7 +6,7 @@ features/positioning/pains against the project, stores output and creates a sign
 
 import json
 import re
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any, Literal
 from uuid import UUID, uuid4
 
@@ -154,7 +154,7 @@ async def analyze_competitor(
                 scraped_pages.append({
                     "url": competitor_url,
                     "title": homepage.get("metadata", {}).get("title", "Homepage"),
-                    "scraped_at": datetime.now(timezone.utc).isoformat(),
+                    "scraped_at": datetime.now(UTC).isoformat(),
                 })
                 all_markdown += f"\n\n## Homepage\n{homepage['markdown']}"
 
@@ -166,7 +166,7 @@ async def analyze_competitor(
                         scraped_pages.append({
                             "url": sub_url,
                             "title": sub_result.get("metadata", {}).get("title", sub_url),
-                            "scraped_at": datetime.now(timezone.utc).isoformat(),
+                            "scraped_at": datetime.now(UTC).isoformat(),
                         })
                         all_markdown += f"\n\n## {sub_result.get('metadata', {}).get('title', sub_url)}\n{sub_result['markdown']}"
 
@@ -252,7 +252,7 @@ Return ONLY valid JSON, no markdown fences."""
         supabase.table("competitor_references").update({
             "deep_analysis": analysis.model_dump(),
             "deep_analysis_status": "completed",
-            "deep_analysis_at": datetime.now(timezone.utc).isoformat(),
+            "deep_analysis_at": datetime.now(UTC).isoformat(),
             "scraped_pages": scraped_pages,
         }).eq("id", str(ref_id)).execute()
 

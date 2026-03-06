@@ -1,7 +1,6 @@
 """Pydantic schemas for consultant-friendly feature and persona enrichment (v2)."""
 
 from typing import Literal
-from uuid import UUID
 
 from pydantic import BaseModel, Field
 

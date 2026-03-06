@@ -26,8 +26,8 @@ async def _send_via_gmail(
     text_body: str | None = None,
 ) -> dict[str, Any]:
     """Send email via Gmail API on behalf of the authenticated user."""
-    from app.db.communication_integrations import get_integration
     from app.core.google_auth_helper import exchange_refresh_for_access, send_gmail
+    from app.db.communication_integrations import get_integration
     from app.db.supabase_client import get_supabase
 
     integration = get_integration(user_id)

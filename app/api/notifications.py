@@ -1,15 +1,21 @@
 """Notification API — in-app notification management."""
 
-from fastapi import APIRouter, Depends
 from uuid import UUID
+
+from fastapi import APIRouter, Depends
 
 from app.core.auth_middleware import get_current_user
 from app.core.schemas_notifications import NotificationResponse, UnreadCountResponse
 from app.db.notifications import (
-    create_notification as db_create_notification,
     get_unread_count as db_get_unread_count,
+)
+from app.db.notifications import (
     list_notifications as db_list_notifications,
+)
+from app.db.notifications import (
     mark_all_read as db_mark_all_read,
+)
+from app.db.notifications import (
     mark_notification_read as db_mark_notification_read,
 )
 

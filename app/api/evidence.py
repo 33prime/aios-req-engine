@@ -5,8 +5,8 @@ from uuid import UUID
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
-from app.chains.analyze_gaps import analyze_gaps
 from app.agents.stakeholder_suggester import suggest_stakeholders
+from app.chains.analyze_gaps import analyze_gaps
 from app.core.logging import get_logger
 from app.db.evidence import get_evidence_quality
 from app.db.stakeholders import list_stakeholders

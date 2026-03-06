@@ -1,6 +1,5 @@
 """API endpoints for meeting agenda generation."""
 
-import uuid
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException
@@ -91,7 +90,7 @@ async def generate_meeting_agenda_api(request: GenerateMeetingAgendaRequest) -> 
         )
 
         logger.info(
-            f"Successfully generated meeting agenda",
+            "Successfully generated meeting agenda",
             extra={
                 "project_id": str(request.project_id),
                 "duration": agenda_output.suggested_duration_minutes,

@@ -118,6 +118,32 @@ EXTRACTION_TOOL = {
                             },
                         },
                         "answers_question": {"type": "string"},
+                        "links": {
+                            "type": "array",
+                            "description": "Semantic relationships to other entities extracted from context",
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "target_type": {
+                                        "type": "string",
+                                        "description": "Entity type of the related entity",
+                                    },
+                                    "target_name": {
+                                        "type": "string",
+                                        "description": "Name of the related entity for fuzzy resolution",
+                                    },
+                                    "link_type": {
+                                        "type": "string",
+                                        "enum": ["targets", "actor_of", "enables", "addresses", "constrains"],
+                                    },
+                                    "evidence_quote": {
+                                        "type": "string",
+                                        "description": "The text that implies this relationship",
+                                    },
+                                },
+                                "required": ["target_type", "target_name", "link_type"],
+                            },
+                        },
                     },
                     "required": ["operation", "entity_type", "payload", "confidence"],
                 },
@@ -199,6 +225,25 @@ update: {{statement}} — single vision statement for the project
 - update: Change specific fields on existing entity (use target_entity_id)
 - stale: New signal contradicts existing entity
 - delete: Signal explicitly removes/cancels something
+
+## RELATIONSHIP EXTRACTION
+For each entity, identify RELATIONSHIPS to other entities.
+Output in the `links` array. Use target_name when you
+don't have the exact UUID.
+Link types: targets, actor_of, enables, addresses, constrains.
+Examples:
+- "Sarah manages vendor evaluation" →
+  link: {target_type: "workflow", target_name: "Vendor Evaluation",
+  link_type: "actor_of"}
+- "Automated scoring eliminates the 3-day delay" →
+  link: {target_type: "business_driver",
+  target_name: "3-day delay", link_type: "addresses"}
+- "Dashboard enables real-time monitoring" →
+  link: {target_type: "workflow",
+  target_name: "Real-time Monitoring", link_type: "enables"}
+- "Budget approval targets finance team" →
+  link: {target_type: "persona",
+  target_name: "Finance Team", link_type: "targets"}
 
 ## KEY EXTRACTION RULES
 - Business requirements (BRs) = BOTH a feature AND a workflow_step

@@ -3,12 +3,11 @@
 import logging
 import os
 from datetime import datetime
-from typing import Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from app.core.auth_middleware import AuthContext, optional_auth, require_auth
+from app.core.auth_middleware import AuthContext, require_auth
 from app.core.schemas_auth import (
     AcceptConsultantInviteRequest,
     ConsultantInvite,
@@ -29,12 +28,11 @@ from app.core.schemas_organizations import PlatformRole
 from app.db.project_members import list_user_projects
 from app.db.supabase_client import get_supabase as get_client
 from app.db.users import (
+    UserCreate,
     create_user,
     get_user_by_email,
-    get_user_by_id,
     mark_welcome_seen,
     update_user,
-    UserCreate,
 )
 
 logger = logging.getLogger(__name__)
@@ -492,8 +490,8 @@ async def accept_consultant_invite(request: AcceptConsultantInviteRequest):
         )
 
         # Create profile record
-        from app.db.profiles import create_profile
         from app.core.schemas_organizations import ProfileCreate
+        from app.db.profiles import create_profile
 
         await create_profile(
             ProfileCreate(
@@ -507,8 +505,8 @@ async def accept_consultant_invite(request: AcceptConsultantInviteRequest):
 
         # If organization_id was set, add user as member
         if invite.get("organization_id"):
-            from app.db.organization_members import add_member
             from app.core.schemas_organizations import OrganizationRole
+            from app.db.organization_members import add_member
 
             await add_member(
                 organization_id=UUID(invite["organization_id"]),

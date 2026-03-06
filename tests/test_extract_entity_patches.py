@@ -11,7 +11,7 @@ from app.chains.extract_entity_patches import (
     _validate_patches,
     extract_entity_patches,
 )
-from app.core.schemas_entity_patch import EntityPatch, EntityPatchList
+from app.core.schemas_entity_patch import EntityPatchList
 
 
 class TestValidatePatches:

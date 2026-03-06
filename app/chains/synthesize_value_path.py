@@ -5,7 +5,6 @@ and produces a synthesized "golden path" — the critical sequence of steps
 the prototype must implement to demonstrate maximum value.
 """
 
-import json
 from uuid import UUID
 
 from app.core.config import get_settings
@@ -143,7 +142,7 @@ def _build_synthesis_prompt(
                 f"  Goals: {'; '.join(goals[:5]) if goals else 'None specified'}\n"
                 f"  Pain points: {'; '.join(pains[:5]) if pains else 'None specified'}"
             )
-        sections.append(f"## Actors (Personas)\n" + "\n".join(actor_lines))
+        sections.append("## Actors (Personas)\n" + "\n".join(actor_lines))
 
     # Workflows
     if workflow_pairs:
@@ -195,7 +194,7 @@ def _build_synthesis_prompt(
             feat_lines.append(
                 f"- {f['name']} [id={f['id']}]: {desc_short}"
             )
-        sections.append(f"## Must-Have Features\n" + "\n".join(feat_lines))
+        sections.append("## Must-Have Features\n" + "\n".join(feat_lines))
 
     # Business drivers
     if business_drivers:
@@ -204,14 +203,14 @@ def _build_synthesis_prompt(
             dtype = d.get("driver_type", "")
             desc = d.get("description", "")[:120]
             driver_lines.append(f"- [{dtype}] {desc}")
-        sections.append(f"## Business Drivers\n" + "\n".join(driver_lines))
+        sections.append("## Business Drivers\n" + "\n".join(driver_lines))
 
     # Data entities
     if data_entities:
         de_lines = []
         for de in data_entities:
             de_lines.append(f"- {de['name']} ({de.get('entity_category', 'domain')})")
-        sections.append(f"## Data Entities\n" + "\n".join(de_lines))
+        sections.append("## Data Entities\n" + "\n".join(de_lines))
 
     # Non-MVP features (for unlock suggestions)
     if non_mvp_features:
@@ -222,8 +221,8 @@ def _build_synthesis_prompt(
             desc_short = desc[:100] + "..." if len(desc) > 100 else desc
             nmvp_lines.append(f"- {f['name']} [{pg}]: {desc_short}")
         sections.append(
-            f"## Non-MVP Features (for unlock suggestions)\n"
-            f"These are NOT in scope for the golden path, but consider them for unlock ideas.\n"
+            "## Non-MVP Features (for unlock suggestions)\n"
+            "These are NOT in scope for the golden path, but consider them for unlock ideas.\n"
             + "\n".join(nmvp_lines)
         )
 
@@ -268,7 +267,7 @@ async def synthesize_value_path(project_id: UUID) -> dict:
         from app.db.workflows import get_workflow_pairs
         workflow_pairs = get_workflow_pairs(project_id)
     except Exception:
-        logger.debug(f"Could not load workflow pairs for synthesis")
+        logger.debug("Could not load workflow pairs for synthesis")
 
     # 3. Load must-have features
     features_result = client.table("features").select(

@@ -1,6 +1,6 @@
 """Database operations for strategic_context table."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from uuid import UUID
 
 from app.core.logging import get_logger
@@ -138,7 +138,7 @@ def upsert_strategic_context(
         "confirmation_status": confirmation_status,
         "generation_model": generation_model,
         "enrichment_status": "enriched",
-        "enriched_at": datetime.now(timezone.utc).isoformat(),
+        "enriched_at": datetime.now(UTC).isoformat(),
     }
 
     response = (
@@ -172,7 +172,7 @@ def update_strategic_context(
     supabase = get_supabase()
 
     # Add updated_at timestamp
-    updates["updated_at"] = datetime.now(timezone.utc).isoformat()
+    updates["updated_at"] = datetime.now(UTC).isoformat()
 
     response = (
         supabase.table("strategic_context")
@@ -230,7 +230,7 @@ def update_strategic_context_status(
     updates = {
         "confirmation_status": status,
         "confirmed_by": str(confirmed_by) if confirmed_by else None,
-        "confirmed_at": datetime.now(timezone.utc).isoformat(),
+        "confirmed_at": datetime.now(UTC).isoformat(),
     }
 
     return update_strategic_context(project_id, updates)

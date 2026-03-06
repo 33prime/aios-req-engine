@@ -1,7 +1,7 @@
 """Database access layer for project open questions."""
 
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from uuid import UUID
 
 from app.db.supabase_client import get_supabase
@@ -121,7 +121,7 @@ def answer_question(
             "status": "answered",
             "answer": answer,
             "answered_by": answered_by,
-            "answered_at": datetime.now(timezone.utc).isoformat(),
+            "answered_at": datetime.now(UTC).isoformat(),
         })
         .eq("id", str(question_id))
         .execute()

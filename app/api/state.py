@@ -16,16 +16,21 @@ from app.core.schemas_strategic_context import (
     RiskCreate,
     StakeholderCreate,
     StakeholderOut,
+    StakeholdersGrouped,
     StakeholderStatusUpdate,
     StakeholderUpdate,
-    StakeholdersGrouped,
     StrategicContextOut,
     StrategicContextStatusUpdate,
     StrategicContextUpdate,
     SuccessMetricCreate,
 )
+from app.db.business_drivers import list_business_drivers
+from app.db.company_info import get_company_info, upsert_company_info
+from app.db.competitor_refs import list_competitor_refs
+from app.db.constraints import list_constraints
 from app.db.features import list_features, update_feature_status
-from app.db.personas import list_personas, update_confirmation_status as update_persona_status
+from app.db.personas import list_personas
+from app.db.personas import update_confirmation_status as update_persona_status
 from app.db.stakeholders import (
     create_stakeholder,
     delete_stakeholder,
@@ -34,10 +39,6 @@ from app.db.stakeholders import (
     update_stakeholder,
     update_stakeholder_status,
 )
-from app.db.business_drivers import list_business_drivers
-from app.db.company_info import get_company_info, upsert_company_info
-from app.db.competitor_refs import list_competitor_refs
-from app.db.constraints import list_constraints
 from app.db.strategic_context import (
     add_risk,
     add_success_metric,
@@ -45,7 +46,6 @@ from app.db.strategic_context import (
     update_project_type,
     update_strategic_context,
     update_strategic_context_status,
-    upsert_strategic_context,
 )
 from app.db.vp import list_vp_steps, update_vp_step_status
 

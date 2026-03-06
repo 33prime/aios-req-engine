@@ -1,6 +1,6 @@
 """Signal and document tool implementations."""
 
-from typing import Any, Dict
+from typing import Any
 from uuid import UUID
 
 from app.core.logging import get_logger
@@ -9,7 +9,7 @@ from app.db.supabase_client import get_supabase
 logger = get_logger(__name__)
 
 
-async def _add_signal(project_id: UUID, params: Dict[str, Any]) -> Dict[str, Any]:
+async def _add_signal(project_id: UUID, params: dict[str, Any]) -> dict[str, Any]:
     """Add a signal and process it through the full pipeline."""
     import uuid as uuid_module
 
@@ -133,8 +133,8 @@ async def _add_signal(project_id: UUID, params: Dict[str, Any]) -> Dict[str, Any
 
 
 async def _get_recent_documents(
-    project_id: UUID, params: Dict[str, Any]
-) -> Dict[str, Any]:
+    project_id: UUID, params: dict[str, Any]
+) -> dict[str, Any]:
     """Get recently uploaded documents with processing status."""
     try:
         supabase = get_supabase()
@@ -153,7 +153,7 @@ async def _get_recent_documents(
 
         # Batch-fetch all related signals in one query
         signal_ids = [d["signal_id"] for d in docs if d.get("processing_status") == "completed" and d.get("signal_id")]
-        signal_map: Dict[str, Any] = {}
+        signal_map: dict[str, Any] = {}
         if signal_ids:
             try:
                 sig_resp = supabase.table("signals").select("id, processing_status, patch_summary").in_("id", signal_ids).execute()
@@ -163,7 +163,7 @@ async def _get_recent_documents(
 
         results = []
         for doc in docs:
-            doc_info: Dict[str, Any] = {
+            doc_info: dict[str, Any] = {
                 "filename": doc.get("original_filename", "unknown"),
                 "uploaded_at": doc.get("created_at", ""),
                 "document_type": doc.get("document_class") or "pending classification",
@@ -209,8 +209,8 @@ async def _get_recent_documents(
 
 
 async def _check_document_clarifications(
-    project_id: UUID, params: Dict[str, Any]
-) -> Dict[str, Any]:
+    project_id: UUID, params: dict[str, Any]
+) -> dict[str, Any]:
     """Check for documents that need clarification about their type."""
     try:
         supabase = get_supabase()
@@ -239,8 +239,8 @@ async def _check_document_clarifications(
 
 
 async def _respond_to_document_clarification(
-    project_id: UUID, params: Dict[str, Any]
-) -> Dict[str, Any]:
+    project_id: UUID, params: dict[str, Any]
+) -> dict[str, Any]:
     """Respond to a document clarification with the correct document class."""
     document_id = params.get("document_id")
     document_class = params.get("document_class")

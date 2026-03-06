@@ -4,8 +4,8 @@ import asyncio
 import hashlib
 
 from app.core.logging import get_logger
-from app.db.supabase_client import get_supabase
 from app.db.notifications import create_notification
+from app.db.supabase_client import get_supabase
 
 logger = get_logger(__name__)
 

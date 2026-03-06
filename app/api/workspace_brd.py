@@ -771,7 +771,7 @@ async def get_brd_health(project_id: UUID) -> BRDHealthResponse:
             return (c.table("features").select("id, priority_group").eq("project_id", pid_str).execute()).data or []
 
         def _q_workflow_complexity():
-            from app.db.workflows import list_workflows, list_workflow_steps
+            from app.db.workflows import list_workflow_steps, list_workflows
             alerts = []
             try:
                 workflows = list_workflows(project_id)

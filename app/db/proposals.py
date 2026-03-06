@@ -1,5 +1,6 @@
 """Batch proposals database operations."""
 
+from datetime import UTC
 from typing import Any
 from uuid import UUID
 
@@ -211,13 +212,13 @@ def mark_previewed(proposal_id: UUID) -> dict[str, Any] | None:
     supabase = get_supabase()
 
     try:
-        from datetime import datetime, timezone
+        from datetime import datetime
 
         response = (
             supabase.table("batch_proposals")
             .update({
                 "status": "previewed",
-                "previewed_at": datetime.now(timezone.utc).isoformat(),
+                "previewed_at": datetime.now(UTC).isoformat(),
             })
             .eq("id", str(proposal_id))
             .execute()
@@ -380,10 +381,10 @@ def apply_proposal(proposal_id: UUID, applied_by: str | None = None) -> dict[str
         _source_signal_id = UUID(_signal_id_str) if _signal_id_str else None
 
         # Import database functions
-        from app.db.features import bulk_replace_features, list_features
-        from app.db.vp import upsert_vp_step
-        from app.db.personas import upsert_persona
         from app.core.similarity import find_matching_feature
+        from app.db.features import list_features
+        from app.db.personas import upsert_persona
+        from app.db.vp import upsert_vp_step
 
         # Valid columns for features table (must match database schema)
         # Includes all enrichment columns from migrations 0008, 0015, 0016, 0031
@@ -439,7 +440,7 @@ def apply_proposal(proposal_id: UUID, applied_by: str | None = None) -> dict[str
                     # Validate required field
                     feature_name = feature_data.get("name", "")
                     if not feature_name:
-                        logger.warning(f"Skipping feature create: missing 'name' field")
+                        logger.warning("Skipping feature create: missing 'name' field")
                         errors.append("Feature missing required 'name' field")
                         continue
 
@@ -780,7 +781,11 @@ def apply_proposal(proposal_id: UUID, applied_by: str | None = None) -> dict[str
 
             # Apply stakeholder changes
             if "stakeholder" in changes_by_type:
-                from app.db.stakeholders import smart_upsert_stakeholder, is_likely_organization, parse_first_last_name
+                from app.db.stakeholders import (
+                    is_likely_organization,
+                    parse_first_last_name,
+                    smart_upsert_stakeholder,
+                )
 
                 stakeholder_changes = changes_by_type["stakeholder"]
 
@@ -887,13 +892,13 @@ def apply_proposal(proposal_id: UUID, applied_by: str | None = None) -> dict[str
             )
 
             # Mark as error
-            from datetime import datetime, timezone
+            from datetime import datetime
 
             error_response = (
                 supabase.table("batch_proposals")
                 .update({
                     "error_message": error_msg,
-                    "applied_at": datetime.now(timezone.utc).isoformat(),
+                    "applied_at": datetime.now(UTC).isoformat(),
                 })
                 .eq("id", str(proposal_id))
                 .execute()
@@ -912,11 +917,11 @@ def apply_proposal(proposal_id: UUID, applied_by: str | None = None) -> dict[str
             raise ValueError(error_msg)
 
         # Mark as applied
-        from datetime import datetime, timezone
+        from datetime import datetime
 
         update_data = {
             "status": "applied",
-            "applied_at": datetime.now(timezone.utc).isoformat(),
+            "applied_at": datetime.now(UTC).isoformat(),
             # Note: applied_count is tracked in-memory but not stored in DB
             # (column doesn't exist in batch_proposals table)
         }
@@ -1212,9 +1217,9 @@ def archive_stale_proposals(project_id: UUID, max_age_hours: int = 24) -> list[d
     archived = []
 
     try:
-        from datetime import datetime, timezone, timedelta
+        from datetime import datetime, timedelta
 
-        cutoff_time = (datetime.now(timezone.utc) - timedelta(hours=max_age_hours)).isoformat()
+        cutoff_time = (datetime.now(UTC) - timedelta(hours=max_age_hours)).isoformat()
 
         # Get proposals to archive (stale or expired)
         response = (

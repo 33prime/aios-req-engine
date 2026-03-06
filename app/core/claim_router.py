@@ -6,7 +6,6 @@ Phase 1: Surgical Updates for Features
 """
 
 from collections import defaultdict
-from typing import Any
 from uuid import UUID
 
 from app.core.logging import get_logger

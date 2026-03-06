@@ -6,15 +6,15 @@ from uuid import UUID
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 
-from app.core.logging import get_logger
-from app.db import proposals as proposals_db
-from app.db import personas as personas_db
 from app.chains.cascade_handler import (
-    get_pending_cascades,
+    CascadeType,
     apply_cascade_by_id,
     dismiss_cascade,
-    CascadeType,
+    get_pending_cascades,
 )
+from app.core.logging import get_logger
+from app.db import personas as personas_db
+from app.db import proposals as proposals_db
 
 logger = get_logger(__name__)
 

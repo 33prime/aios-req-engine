@@ -268,7 +268,7 @@ def _build_business_calculations(
     if goal:
         success = goal
     elif roi_impact == "high":
-        success = f"Step completes with measurable impact on core workflow"
+        success = "Step completes with measurable impact on core workflow"
     else:
         success = f"Step completes successfully for {actors[0].persona_name}" if actors else "Step completes"
 

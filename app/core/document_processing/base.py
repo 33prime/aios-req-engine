@@ -7,7 +7,7 @@ plus a registry for automatic extractor selection based on file type.
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 
 class DocumentType(Enum):
@@ -88,13 +88,13 @@ class ExtractedSection:
     content: str
     """The actual text content of the section."""
 
-    section_title: Optional[str] = None
+    section_title: str | None = None
     """Title or heading for this section, if applicable."""
 
-    page_number: Optional[int] = None
+    page_number: int | None = None
     """Page/slide/sheet number (1-indexed), if applicable."""
 
-    section_path: Optional[str] = None
+    section_path: str | None = None
     """Hierarchical path like 'Chapter 1 > Requirements > Authentication'."""
 
     word_count: int = 0
@@ -270,7 +270,7 @@ class ExtractorRegistry:
         cls,
         mime_type: str = None,
         file_extension: str = None,
-    ) -> Optional[BaseExtractor]:
+    ) -> BaseExtractor | None:
         """Get appropriate extractor for file type.
 
         Args:
@@ -306,7 +306,7 @@ class ExtractorRegistry:
 def get_extractor(
     mime_type: str = None,
     file_extension: str = None,
-) -> Optional[BaseExtractor]:
+) -> BaseExtractor | None:
     """Convenience function to get extractor from registry.
 
     Args:
@@ -322,7 +322,7 @@ def get_extractor(
 def detect_document_type(
     mime_type: str = None,
     file_extension: str = None,
-) -> Optional[DocumentType]:
+) -> DocumentType | None:
     """Detect document type from MIME type or extension.
 
     Args:
@@ -363,7 +363,7 @@ def validate_file(
     file_bytes: bytes,
     mime_type: str = None,
     file_extension: str = None,
-) -> tuple[bool, str, Optional[DocumentType]]:
+) -> tuple[bool, str, DocumentType | None]:
     """Validate file type and size.
 
     Args:

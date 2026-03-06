@@ -102,7 +102,6 @@ def delete_existing_process_document(doc_id: UUID):
 def generate_from_kb_item(body: GenerateProcessDocRequest):
     """Generate a process document from a KB item seed."""
     from app.chains.generate_process_document import generate_process_document as gen_doc
-    from app.db.clients import get_client_projects
 
     # Check if one already exists for this KB item
     existing = get_process_document_by_kb_item(body.source_kb_item_id)
@@ -168,8 +167,9 @@ def _find_kb_item_text(
     if not client_id:
         return None
 
-    from app.db.supabase_client import get_supabase
     import json
+
+    from app.db.supabase_client import get_supabase
 
     supabase = get_supabase()
 

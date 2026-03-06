@@ -1,6 +1,6 @@
 """Solution flow tool implementations."""
 
-from typing import Any, Dict
+from typing import Any
 from uuid import UUID
 
 from app.core.logging import get_logger
@@ -9,7 +9,7 @@ from app.db.supabase_client import get_supabase
 logger = get_logger(__name__)
 
 
-def _match_question(questions: list, params: Dict[str, Any]) -> tuple[int | None, dict | None]:
+def _match_question(questions: list, params: dict[str, Any]) -> tuple[int | None, dict | None]:
     """Match a question by index (preferred), exact text, or fuzzy text.
 
     Returns (index, question_dict) or (None, None) if not found.
@@ -42,7 +42,7 @@ def _match_question(questions: list, params: Dict[str, Any]) -> tuple[int | None
     return None, None
 
 
-_FIELD_DISPLAY_NAMES: Dict[str, str] = {
+_FIELD_DISPLAY_NAMES: dict[str, str] = {
     "ai_config": "AI flow",
     "goal": "goal",
     "title": "title",
@@ -62,7 +62,7 @@ _FIELD_DISPLAY_NAMES: Dict[str, str] = {
 }
 
 
-def _friendly_diff_summary(params: Dict[str, Any], changes: Dict[str, Any]) -> str:
+def _friendly_diff_summary(params: dict[str, Any], changes: dict[str, Any]) -> str:
     """Build a human-readable diff summary from updated params and changes."""
     field_names = [_FIELD_DISPLAY_NAMES.get(k, k.replace("_", " ")) for k in params]
 
@@ -91,7 +91,7 @@ def _friendly_diff_summary(params: Dict[str, Any], changes: Dict[str, Any]) -> s
     return f"Updated {', '.join(field_names[:-1])}, and {field_names[-1]}"
 
 
-async def _update_solution_flow_step(project_id: UUID, params: Dict[str, Any]) -> Dict[str, Any]:
+async def _update_solution_flow_step(project_id: UUID, params: dict[str, Any]) -> dict[str, Any]:
     """Update fields on a solution flow step."""
     from app.db.solution_flow import get_flow_step, update_flow_step
 
@@ -154,7 +154,7 @@ async def _update_solution_flow_step(project_id: UUID, params: Dict[str, Any]) -
         return {"error": str(e)}
 
 
-async def _add_solution_flow_step(project_id: UUID, params: Dict[str, Any]) -> Dict[str, Any]:
+async def _add_solution_flow_step(project_id: UUID, params: dict[str, Any]) -> dict[str, Any]:
     """Add a new step to the solution flow."""
     from app.db.solution_flow import create_flow_step, get_or_create_flow
 
@@ -171,7 +171,7 @@ async def _add_solution_flow_step(project_id: UUID, params: Dict[str, Any]) -> D
         return {"error": str(e)}
 
 
-async def _remove_solution_flow_step(project_id: UUID, params: Dict[str, Any]) -> Dict[str, Any]:
+async def _remove_solution_flow_step(project_id: UUID, params: dict[str, Any]) -> dict[str, Any]:
     """Remove a step from the solution flow."""
     from app.db.solution_flow import delete_flow_step, get_flow_step
 
@@ -190,7 +190,7 @@ async def _remove_solution_flow_step(project_id: UUID, params: Dict[str, Any]) -
         return {"error": str(e)}
 
 
-async def _reorder_solution_flow_steps(project_id: UUID, params: Dict[str, Any]) -> Dict[str, Any]:
+async def _reorder_solution_flow_steps(project_id: UUID, params: dict[str, Any]) -> dict[str, Any]:
     """Reorder steps in the solution flow."""
     from app.db.solution_flow import get_or_create_flow, reorder_flow_steps
 
@@ -208,7 +208,7 @@ async def _reorder_solution_flow_steps(project_id: UUID, params: Dict[str, Any])
         return {"error": str(e)}
 
 
-async def _resolve_solution_flow_question(project_id: UUID, params: Dict[str, Any]) -> Dict[str, Any]:
+async def _resolve_solution_flow_question(project_id: UUID, params: dict[str, Any]) -> dict[str, Any]:
     """Resolve an open question on a solution flow step."""
     from app.db.solution_flow import get_flow_step, update_flow_step
 
@@ -264,7 +264,7 @@ async def _resolve_solution_flow_question(project_id: UUID, params: Dict[str, An
         return {"error": str(e)}
 
 
-async def _escalate_to_client(project_id: UUID, params: Dict[str, Any]) -> Dict[str, Any]:
+async def _escalate_to_client(project_id: UUID, params: dict[str, Any]) -> dict[str, Any]:
     """Escalate an open question to the client by creating a pending item."""
     from app.db.solution_flow import get_flow_step, update_flow_step
 
@@ -337,7 +337,7 @@ async def _escalate_to_client(project_id: UUID, params: Dict[str, Any]) -> Dict[
         return {"error": str(e)}
 
 
-async def _refine_solution_flow_step(project_id: UUID, params: Dict[str, Any]) -> Dict[str, Any]:
+async def _refine_solution_flow_step(project_id: UUID, params: dict[str, Any]) -> dict[str, Any]:
     """Refine a solution flow step using AI."""
     from app.chains.refine_solution_flow_step import refine_solution_flow_step
 

@@ -4,7 +4,6 @@ Tasks support 8 consulting workflow types: signal_review, action_item,
 meeting_prep, reminder, review_request, book_meeting, deliverable, custom.
 """
 
-from typing import Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -47,19 +46,19 @@ my_tasks_router = APIRouter(prefix="/tasks", tags=["my-tasks"])
 class TaskCompleteRequest(BaseModel):
     """Request body for completing a task."""
     completion_method: TaskCompletionMethod = TaskCompletionMethod.TASK_BOARD
-    completion_notes: Optional[str] = None
+    completion_notes: str | None = None
 
 
 class TaskDismissRequest(BaseModel):
     """Request body for dismissing a task."""
-    reason: Optional[str] = None
+    reason: str | None = None
 
 
 class BulkTaskIdsRequest(BaseModel):
     """Request body for bulk operations."""
     task_ids: list[UUID]
-    completion_method: Optional[TaskCompletionMethod] = TaskCompletionMethod.CHAT_APPROVAL
-    reason: Optional[str] = None
+    completion_method: TaskCompletionMethod | None = TaskCompletionMethod.CHAT_APPROVAL
+    reason: str | None = None
 
 
 class BulkTaskResponse(BaseModel):
@@ -81,11 +80,11 @@ class ReviewStatusRequest(BaseModel):
 @router.get("/{project_id}/tasks", response_model=TaskListResponse)
 async def list_tasks(
     project_id: UUID,
-    status: Optional[TaskStatus] = Query(None, description="Filter by status"),
-    task_type: Optional[TaskType] = Query(None, description="Filter by task type"),
-    requires_client_input: Optional[bool] = Query(None, description="Filter client-relevant tasks"),
-    anchored_entity_type: Optional[AnchoredEntityType] = Query(None, description="Filter by entity type"),
-    source_type: Optional[TaskSourceType] = Query(None, description="Filter by source"),
+    status: TaskStatus | None = Query(None, description="Filter by status"),
+    task_type: TaskType | None = Query(None, description="Filter by task type"),
+    requires_client_input: bool | None = Query(None, description="Filter client-relevant tasks"),
+    anchored_entity_type: AnchoredEntityType | None = Query(None, description="Filter by entity type"),
+    source_type: TaskSourceType | None = Query(None, description="Filter by source"),
     limit: int = Query(50, ge=1, le=100, description="Max results"),
     offset: int = Query(0, ge=0, description="Offset for pagination"),
     sort_by: str = Query("priority_score", description="Sort field"),
@@ -527,7 +526,7 @@ async def recalculate_for_entity(
 @my_tasks_router.get("/my", response_model=MyTasksResponse)
 async def list_my_tasks(
     view: str = Query("all", pattern="^(assigned_to_me|created_by_me|all)$"),
-    status: Optional[str] = Query(None),
+    status: str | None = Query(None),
     limit: int = Query(100, ge=1, le=200),
     offset: int = Query(0, ge=0),
     auth: AuthContext = Depends(require_auth),

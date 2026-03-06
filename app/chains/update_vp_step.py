@@ -12,9 +12,7 @@ from openai import OpenAI
 
 from app.core.config import get_settings
 from app.core.logging import get_logger
-from app.core.schemas_vp_v2 import SurgicalUpdateOutput, VPChangeEvent, VPStepUpdate
-from app.db.features import list_features
-from app.db.personas import list_personas
+from app.core.schemas_vp_v2 import VPChangeEvent, VPStepUpdate
 from app.db.supabase_client import get_supabase
 
 logger = get_logger(__name__)

@@ -1,17 +1,16 @@
 """DOCX document extractor using python-docx."""
 
-from dataclasses import field
 from io import BytesIO
 from typing import Any
 
 from app.core.document_processing.base import (
+    SIZE_LIMITS,
     BaseExtractor,
     DocumentType,
+    ExtractedSection,
     ExtractionError,
     ExtractionResult,
-    ExtractedSection,
     ExtractorRegistry,
-    SIZE_LIMITS,
 )
 from app.core.logging import get_logger
 

@@ -1,8 +1,6 @@
 """Database operations for Discovery Prep bundles."""
 
-import json
 from datetime import datetime
-from typing import Optional
 from uuid import UUID, uuid4
 
 from dateutil import parser as dateutil_parser
@@ -10,7 +8,6 @@ from dateutil import parser as dateutil_parser
 from app.core.logging import get_logger
 from app.core.schemas_discovery_prep import (
     DiscoveryPrepBundle,
-    DiscoveryPrepBundleCreate,
     DocRecommendation,
     PrepQuestion,
     PrepStatus,
@@ -20,7 +17,7 @@ from app.db.supabase_client import get_supabase
 logger = get_logger(__name__)
 
 
-def _parse_datetime(value: Optional[str]) -> Optional[datetime]:
+def _parse_datetime(value: str | None) -> datetime | None:
     """Parse datetime string handling various ISO formats including timezone-aware strings."""
     if not value:
         return None
@@ -30,7 +27,7 @@ def _parse_datetime(value: Optional[str]) -> Optional[datetime]:
         return None
 
 
-async def get_bundle(project_id: UUID) -> Optional[DiscoveryPrepBundle]:
+async def get_bundle(project_id: UUID) -> DiscoveryPrepBundle | None:
     """Get the discovery prep bundle for a project."""
     supabase = get_supabase()
 
@@ -110,11 +107,11 @@ async def create_or_update_bundle(
 async def update_question(
     project_id: UUID,
     question_id: UUID,
-    confirmed: Optional[bool] = None,
-    question: Optional[str] = None,
-    best_answered_by: Optional[str] = None,
-    why_important: Optional[str] = None,
-) -> Optional[DiscoveryPrepBundle]:
+    confirmed: bool | None = None,
+    question: str | None = None,
+    best_answered_by: str | None = None,
+    why_important: str | None = None,
+) -> DiscoveryPrepBundle | None:
     """Update a specific question in the bundle."""
     bundle = await get_bundle(project_id)
     if not bundle:
@@ -151,11 +148,11 @@ async def update_question(
 async def update_document(
     project_id: UUID,
     document_id: UUID,
-    confirmed: Optional[bool] = None,
-    document_name: Optional[str] = None,
-    priority: Optional[str] = None,
-    why_important: Optional[str] = None,
-) -> Optional[DiscoveryPrepBundle]:
+    confirmed: bool | None = None,
+    document_name: str | None = None,
+    priority: str | None = None,
+    why_important: str | None = None,
+) -> DiscoveryPrepBundle | None:
     """Update a specific document recommendation in the bundle."""
     bundle = await get_bundle(project_id)
     if not bundle:
@@ -193,8 +190,8 @@ async def update_document(
 async def update_bundle_status(
     project_id: UUID,
     status: PrepStatus,
-    sent_at: Optional[datetime] = None,
-) -> Optional[DiscoveryPrepBundle]:
+    sent_at: datetime | None = None,
+) -> DiscoveryPrepBundle | None:
     """Update the bundle status."""
     supabase = get_supabase()
 

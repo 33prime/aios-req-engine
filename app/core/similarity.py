@@ -36,7 +36,6 @@ Usage:
 import re
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Callable
 
 import numpy as np
 

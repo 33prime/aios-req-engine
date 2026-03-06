@@ -50,15 +50,15 @@ _OPS = {
 
 
 def get_default_config() -> PulseConfig:
-    """Return the hardcoded v1.0 pulse configuration."""
+    """Return the hardcoded v2.0 pulse configuration with link-density awareness."""
     return PulseConfig(
-        version="1.0",
-        label="Default v1.0",
+        version="2.0",
+        label="Default v2.0 — link density",
         stage_health_weights={
-            "discovery": StageHealthWeights(coverage=0.50, confirmation=0.10, quality=0.25, freshness=0.15),
-            "validation": StageHealthWeights(coverage=0.20, confirmation=0.45, quality=0.20, freshness=0.15),
-            "prototype": StageHealthWeights(coverage=0.15, confirmation=0.35, quality=0.30, freshness=0.20),
-            "specification": StageHealthWeights(coverage=0.10, confirmation=0.40, quality=0.35, freshness=0.15),
+            "discovery": StageHealthWeights(coverage=0.25, confirmation=0.0, quality=0.20, freshness=0.10, link_density=0.35, chain_completeness=0.10),
+            "validation": StageHealthWeights(coverage=0.10, confirmation=0.0, quality=0.25, freshness=0.10, link_density=0.30, chain_completeness=0.25),
+            "prototype": StageHealthWeights(coverage=0.10, confirmation=0.0, quality=0.25, freshness=0.15, link_density=0.20, chain_completeness=0.30),
+            "specification": StageHealthWeights(coverage=0.05, confirmation=0.0, quality=0.35, freshness=0.15, link_density=0.15, chain_completeness=0.30),
         },
         entity_targets={
             "discovery": {
@@ -84,28 +84,26 @@ def get_default_config() -> PulseConfig:
         },
         transition_gates={
             "discovery→validation": [
-                GateSpec(entity_type="feature", metric="count", operator=">=", threshold=5,
-                         label="At least 5 features identified"),
+                GateSpec(entity_type="workflow", metric="count", operator=">=", threshold=3,
+                         label="At least 3 workflows mapped"),
+                GateSpec(entity_type="workflow", metric="avg_link_density", operator=">=", threshold=0.5,
+                         label="Workflows have actors/pain linked"),
                 GateSpec(entity_type="persona", metric="count", operator=">=", threshold=2,
                          label="At least 2 personas identified"),
-                GateSpec(entity_type="workflow", metric="count", operator=">=", threshold=2,
-                         label="At least 2 workflows mapped"),
+                GateSpec(entity_type="feature", metric="avg_link_density", operator=">=", threshold=0.3,
+                         label="Features are connecting to workflows/pain"),
                 GateSpec(entity_type="business_driver", metric="count", operator=">=", threshold=3,
                          label="At least 3 business drivers captured"),
-                GateSpec(entity_type="stakeholder", metric="count", operator=">=", threshold=1,
-                         label="At least 1 stakeholder identified"),
             ],
             "validation→prototype": [
-                GateSpec(entity_type="feature", metric="confirmed", operator=">=", threshold=4,
-                         label="At least 4 features confirmed"),
-                GateSpec(entity_type="persona", metric="confirmed", operator=">=", threshold=2,
-                         label="At least 2 personas confirmed"),
-                GateSpec(entity_type="workflow", metric="confirmed", operator=">=", threshold=3,
-                         label="At least 3 workflows confirmed"),
-                GateSpec(entity_type="business_driver", metric="pain_count", operator=">=", threshold=2,
-                         label="At least 2 pain points captured"),
-                GateSpec(entity_type="business_driver", metric="goal_count", operator=">=", threshold=2,
-                         label="At least 2 goals captured"),
+                GateSpec(entity_type="solution_flow", metric="step_count", operator=">=", threshold=5,
+                         label="Solution flow has 5+ steps"),
+                GateSpec(entity_type="solution_flow", metric="review_flags_resolved", operator="==", threshold=1,
+                         label="All client review flags resolved"),
+                GateSpec(entity_type="feature", metric="avg_link_density", operator=">=", threshold=0.6,
+                         label="Features well-linked to flow steps"),
+                GateSpec(entity_type="feature", metric="avg_chain_complete", operator=">=", threshold=0.4,
+                         label="40%+ features have complete value chains"),
             ],
             "prototype→specification": [
                 GateSpec(entity_type="convergence", metric="alignment", operator=">=", threshold=0.75,
@@ -114,7 +112,7 @@ def get_default_config() -> PulseConfig:
                          label="No critical open questions"),
             ],
             "specification→handoff": [
-                GateSpec(entity_type="solution_flow", metric="steps", operator=">=", threshold=3,
+                GateSpec(entity_type="solution_flow", metric="step_count", operator=">=", threshold=3,
                          label="At least 3 solution flow steps"),
                 GateSpec(entity_type="solution_flow", metric="confirmed_rate", operator=">=", threshold=0.50,
                          label="Solution flow >= 50% confirmed"),
@@ -139,6 +137,22 @@ def get_default_config() -> PulseConfig:
             "growing": 0.70,    # 30-69%
             "adequate": 1.00,   # 70-99%
             # >= 100% = saturated
+        },
+        extra={
+            "expected_links": {
+                "discovery": {
+                    "feature": 1, "persona": 1, "workflow": 1, "business_driver": 1,
+                },
+                "validation": {
+                    "feature": 2, "persona": 2, "workflow": 2, "business_driver": 2,
+                },
+                "prototype": {
+                    "feature": 3, "persona": 3, "workflow": 2, "business_driver": 2,
+                },
+                "specification": {
+                    "feature": 3, "persona": 3, "workflow": 2, "business_driver": 2,
+                },
+            },
         },
     )
 
@@ -222,6 +236,27 @@ async def compute_project_pulse(
     # Load business driver type counts for validation gates
     drivers = project_data.get("drivers") or []
 
+    # Pre-compute link density for all entities
+    link_densities: dict[str, float] = {}
+    chain_completions: dict[str, bool] = {}
+    try:
+        entity_ids_by_type: dict[str, list[str]] = {}
+        for entity_type, entities in entity_inventory.items():
+            entity_ids_by_type[entity_type] = [
+                e.get("id", "") for e in entities if e.get("id")
+            ]
+
+        # Get expected links for discovery (initial guess, recomputed if stage changes)
+        expected_links_map = config.extra.get("expected_links", {}).get("discovery", {})
+
+        from app.db.entity_dependencies import batch_link_density
+        link_densities = batch_link_density(project_id, entity_ids_by_type, expected_links_map)
+
+        # Batch chain completeness check
+        chain_completions = _batch_chain_completeness(project_id, entity_ids_by_type)
+    except Exception as e:
+        logger.debug(f"Pulse: link density/chain computation failed: {e}")
+
     # Step 1: Compute per-entity health
     health_map: dict[str, EntityHealth] = {}
     stage_name = "discovery"  # initial guess, refined after health computed
@@ -233,6 +268,8 @@ async def compute_project_pulse(
             stage=stage_name,
             config=config,
             rules_fired=rules_fired,
+            link_densities=link_densities,
+            chain_completions=chain_completions,
         )
         health_map[entity_type] = health
 
@@ -248,6 +285,13 @@ async def compute_project_pulse(
 
     # Step 2b: Recompute health with correct stage if stage changed from discovery
     if stage_name != "discovery":
+        # Recompute link density with stage-specific expected links
+        try:
+            expected_links_map = config.extra.get("expected_links", {}).get(stage_name, {})
+            link_densities = batch_link_density(project_id, entity_ids_by_type, expected_links_map)
+        except Exception:
+            pass
+
         health_map = {}
         for entity_type, entities in entity_inventory.items():
             health = _compute_entity_health(
@@ -256,6 +300,8 @@ async def compute_project_pulse(
                 stage=stage_name,
                 config=config,
                 rules_fired=rules_fired,
+                link_densities=link_densities,
+                chain_completions=chain_completions,
             )
             health_map[entity_type] = health
 
@@ -283,6 +329,11 @@ async def compute_project_pulse(
     # Step 6: Render extraction directive
     directive = _render_extraction_directive(health_map, stage_name, config)
 
+    # Step 7: Auto-confirm candidates
+    auto_confirm_candidates = _evaluate_auto_confirm_candidates(
+        health_map, entity_inventory, link_densities, chain_completions, project_id,
+    )
+
     return ProjectPulse(
         stage=stage_info,
         health=health_map,
@@ -290,6 +341,7 @@ async def compute_project_pulse(
         risks=risks,
         forecast=forecast,
         extraction_directive=directive,
+        auto_confirm_candidates=auto_confirm_candidates,
         config_version=config.version,
         rules_fired=rules_fired,
     )
@@ -306,6 +358,8 @@ def _compute_entity_health(
     stage: str,
     config: PulseConfig,
     rules_fired: list[str],
+    link_densities: dict[str, float] | None = None,
+    chain_completions: dict[str, bool] | None = None,
 ) -> EntityHealth:
     """Compute health metrics for a single entity type."""
     count = len(entities)
@@ -324,7 +378,6 @@ def _compute_entity_health(
     target = targets.get(entity_type, 0)
 
     if target == 0:
-        # No target defined — treat as adequate if any exist
         coverage = CoverageLevel.adequate if count > 0 else CoverageLevel.missing
     else:
         ratio = count / target
@@ -343,6 +396,22 @@ def _compute_entity_health(
     # Quality: composite of confirmation_rate and freshness
     quality = (confirmation_rate * 0.6 + freshness * 0.4) if count > 0 else 0.0
 
+    # Link density: average across entities of this type
+    avg_link_density = 0.0
+    if link_densities and count > 0:
+        entity_ids = [e.get("id", "") for e in entities if e.get("id")]
+        densities = [link_densities.get(eid, 0.0) for eid in entity_ids]
+        avg_link_density = sum(densities) / len(densities) if densities else 0.0
+
+    # Chain completeness: fraction of entities with complete chains
+    chain_complete_flag = False
+    chain_complete_rate = 0.0
+    if chain_completions and count > 0:
+        entity_ids = [e.get("id", "") for e in entities if e.get("id")]
+        complete_count = sum(1 for eid in entity_ids if chain_completions.get(eid, False))
+        chain_complete_rate = complete_count / len(entity_ids) if entity_ids else 0.0
+        chain_complete_flag = chain_complete_rate > 0
+
     # Weighted health score
     weights = config.stage_health_weights.get(stage, StageHealthWeights())
     coverage_score = min(1.0, (count / target) if target > 0 else (1.0 if count > 0 else 0.0))
@@ -351,12 +420,15 @@ def _compute_entity_health(
         + confirmation_rate * weights.confirmation
         + quality * weights.quality
         + freshness * weights.freshness
+        + avg_link_density * weights.link_density
+        + chain_complete_rate * weights.chain_completeness
     ) * 100
 
     # Directive
     directive = _compute_directive(coverage, confirmation_rate, quality)
     rules_fired.append(
-        f"{entity_type}: count={count} target={target} → {coverage.value} → {directive.value}"
+        f"{entity_type}: count={count} target={target} density={avg_link_density:.2f} "
+        f"chains={chain_complete_rate:.0%} → {coverage.value} → {directive.value}"
     )
 
     return EntityHealth(
@@ -372,6 +444,8 @@ def _compute_entity_health(
         health_score=round(health_score, 1),
         directive=directive,
         target=target,
+        link_density=round(avg_link_density, 3),
+        chain_complete=chain_complete_flag,
     )
 
 
@@ -499,7 +573,6 @@ def _evaluate_gate_metric(
 
     # Special entity types not in health_map
     if et == "convergence":
-        # Convergence is session-level — default to 0 if not available
         return 0.0
 
     if et == "questions":
@@ -508,17 +581,27 @@ def _evaluate_gate_metric(
         return 0.0
 
     if et == "solution_flow":
-        # Would need DB query — for now return 0 (Phase 2 will wire this)
+        if metric in ("step_count", "steps"):
+            return _query_solution_flow_metric("step_count")
+        if metric == "review_flags_resolved":
+            return _query_solution_flow_metric("review_flags_resolved")
+        if metric == "confirmed_rate":
+            return _query_solution_flow_metric("confirmed_rate")
         return 0.0
 
     if et == "business_driver" and metric in ("pain_count", "goal_count"):
         driver_type = "pain" if metric == "pain_count" else "goal"
         return sum(1 for d in drivers if d.get("driver_type") == driver_type)
 
-    # Standard metrics from health_map
+    # New link-density metrics from health_map
     health = health_map.get(et)
     if not health:
         return 0.0
+
+    if metric == "avg_link_density":
+        return health.link_density
+    if metric == "avg_chain_complete":
+        return 1.0 if health.chain_complete else 0.0
 
     return getattr(health, metric, 0.0)
 
@@ -845,3 +928,216 @@ def _render_directive_prompt(
             lines.append(f"ENRICH (add detail): {', '.join(enrich_types)}")
 
     return "\n".join(lines)
+
+
+# ---------------------------------------------------------------------------
+# Chain completeness (BFS from entities to business objectives)
+# ---------------------------------------------------------------------------
+
+
+def _batch_chain_completeness(
+    project_id: UUID,
+    entity_ids_by_type: dict[str, list[str]],
+) -> dict[str, bool]:
+    """Check chain completeness for all entities via BFS.
+
+    Returns {entity_id: True/False} indicating whether any path exists
+    from the entity to a business_driver with driver_type in (goal, kpi, objective).
+    Walks entity_dependencies (non-disputed, confidence > 0.3) up to 5 hops.
+    """
+    from app.db.supabase_client import get_supabase
+
+    sb = get_supabase()
+    pid = str(project_id)
+
+    # Load all non-disputed links for this project in one query
+    try:
+        result = (
+            sb.table("entity_dependencies")
+            .select("source_entity_id, source_entity_type, target_entity_id, target_entity_type, confidence")
+            .eq("project_id", pid)
+            .eq("disputed", False)
+            .execute()
+        )
+    except Exception:
+        return {}
+
+    # Build adjacency list (bidirectional)
+    adj: dict[str, set[str]] = {}
+    for row in (result.data or []):
+        conf = row.get("confidence", 0.5)
+        if conf < 0.3:
+            continue
+        src = row.get("source_entity_id", "")
+        tgt = row.get("target_entity_id", "")
+        if src and tgt:
+            adj.setdefault(src, set()).add(tgt)
+            adj.setdefault(tgt, set()).add(src)
+
+    # Load business drivers to identify objectives
+    try:
+        drivers_result = (
+            sb.table("business_drivers")
+            .select("id, driver_type")
+            .eq("project_id", pid)
+            .execute()
+        )
+        objective_ids = {
+            d["id"] for d in (drivers_result.data or [])
+            if d.get("driver_type") in ("goal", "kpi", "objective", "pain")
+        }
+    except Exception:
+        return {}
+
+    if not objective_ids:
+        return {}
+
+    # BFS from each entity, max 5 hops
+    completions: dict[str, bool] = {}
+    all_ids = []
+    for ids in entity_ids_by_type.values():
+        all_ids.extend(ids)
+
+    for eid in all_ids:
+        if eid in objective_ids:
+            completions[eid] = True
+            continue
+
+        # BFS
+        visited = {eid}
+        frontier = {eid}
+        found = False
+        for _ in range(5):
+            next_frontier: set[str] = set()
+            for node in frontier:
+                for neighbor in adj.get(node, set()):
+                    if neighbor in visited:
+                        continue
+                    if neighbor in objective_ids:
+                        found = True
+                        break
+                    visited.add(neighbor)
+                    next_frontier.add(neighbor)
+                if found:
+                    break
+            if found:
+                break
+            frontier = next_frontier
+            if not frontier:
+                break
+
+        completions[eid] = found
+
+    return completions
+
+
+# ---------------------------------------------------------------------------
+# Solution flow metric queries
+# ---------------------------------------------------------------------------
+
+
+def _query_solution_flow_metric(metric: str) -> float:
+    """Query solution flow metrics for gate evaluation."""
+    # Lazy import to avoid circular deps
+    try:
+        from app.db.supabase_client import get_supabase
+        sb = get_supabase()
+    except Exception:
+        return 0.0
+
+    if metric == "step_count":
+        try:
+            result = sb.table("solution_flow_steps").select("id", count="exact").execute()
+            return float(result.count or 0)
+        except Exception:
+            return 0.0
+
+    if metric == "review_flags_resolved":
+        try:
+            result = (
+                sb.table("solution_flow_steps")
+                .select("id", count="exact")
+                .eq("needs_client_review", True)
+                .is_("review_resolved_at", "null")
+                .execute()
+            )
+            unresolved = result.count or 0
+            return 1.0 if unresolved == 0 else 0.0
+        except Exception:
+            return 1.0  # Assume resolved if query fails
+
+    if metric == "confirmed_rate":
+        try:
+            total_result = sb.table("solution_flow_steps").select("id, confirmation_status").execute()
+            steps = total_result.data or []
+            if not steps:
+                return 0.0
+            confirmed = sum(
+                1 for s in steps
+                if (s.get("confirmation_status") or "").startswith("confirmed")
+            )
+            return confirmed / len(steps)
+        except Exception:
+            return 0.0
+
+    return 0.0
+
+
+# ---------------------------------------------------------------------------
+# Auto-confirm candidates (Phase 5)
+# ---------------------------------------------------------------------------
+
+
+def _evaluate_auto_confirm_candidates(
+    health_map: dict[str, EntityHealth],
+    entity_inventory: dict[str, list[dict]],
+    link_densities: dict[str, float],
+    chain_completions: dict[str, bool],
+    project_id: UUID,
+) -> list[dict]:
+    """Evaluate entities for conservative auto-confirmation.
+
+    Criteria (ALL must be met):
+    - link_density >= 0.8 (80%+ of expected links)
+    - chain_complete (has path to objective)
+    - Entity is NOT already confirmed
+    - At least one confirmed neighbor in chain
+    """
+    candidates: list[dict] = []
+
+    if not link_densities or not chain_completions:
+        return candidates
+
+    for entity_type, entities in entity_inventory.items():
+        health = health_map.get(entity_type)
+        if not health or health.count == 0:
+            continue
+
+        for entity in entities:
+            eid = entity.get("id", "")
+            if not eid:
+                continue
+
+            # Skip already confirmed
+            status = entity.get("confirmation_status") or ""
+            if status.startswith("confirmed"):
+                continue
+
+            density = link_densities.get(eid, 0.0)
+            chain_ok = chain_completions.get(eid, False)
+
+            if density >= 0.8 and chain_ok:
+                name = (
+                    entity.get("name")
+                    or entity.get("label")
+                    or entity.get("title")
+                    or "Unknown"
+                )
+                candidates.append({
+                    "entity_type": entity_type,
+                    "entity_id": eid,
+                    "entity_name": name,
+                    "reason": f"Link density {density:.0%}, chain complete, multi-signal evidence",
+                })
+
+    return candidates

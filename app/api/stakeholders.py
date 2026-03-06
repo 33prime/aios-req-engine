@@ -348,7 +348,9 @@ async def create_stakeholder(
         stakeholder_id = UUID(stakeholder["id"])
 
         async def run_enrichment():
-            from app.agents.stakeholder_intelligence_agent import invoke_stakeholder_intelligence_agent
+            from app.agents.stakeholder_intelligence_agent import (
+                invoke_stakeholder_intelligence_agent,
+            )
 
             MAX_ITERATIONS = 6
             prev_score: int | None = None
@@ -647,7 +649,9 @@ async def update_stakeholder(
         changed_fields = set(updates.keys()) & enrichment_relevant_fields
         if changed_fields:
             async def run_re_enrichment():
-                from app.agents.stakeholder_intelligence_agent import invoke_stakeholder_intelligence_agent
+                from app.agents.stakeholder_intelligence_agent import (
+                    invoke_stakeholder_intelligence_agent,
+                )
 
                 MAX_ITERATIONS = 4
                 prev_score: int | None = None
@@ -842,7 +846,9 @@ async def analyze_stakeholder(
             raise HTTPException(status_code=404, detail="Stakeholder not found in this project")
 
         async def run_analysis():
-            from app.agents.stakeholder_intelligence_agent import invoke_stakeholder_intelligence_agent
+            from app.agents.stakeholder_intelligence_agent import (
+                invoke_stakeholder_intelligence_agent,
+            )
 
             MAX_ITERATIONS = 6
             prev_score: int | None = None
@@ -918,8 +924,8 @@ async def get_stakeholder_intelligence(
             raise HTTPException(status_code=404, detail="Stakeholder not found in this project")
 
         # Compute live completeness
+
         from app.agents.stakeholder_intelligence_tools import _execute_update_profile_completeness
-        import asyncio
         completeness_result = await _execute_update_profile_completeness(stakeholder_id, project_id)
         completeness = completeness_result.get("data", {})
 
@@ -1045,8 +1051,8 @@ async def list_all_stakeholders(
     offset: int = Query(0, ge=0),
 ) -> PeopleListResponse:
     """List all stakeholders across projects with optional filters."""
-    from supabase import create_client
     from app.core.config import get_settings
+    from supabase import create_client
 
     try:
         # Use a fresh service-role client to bypass RLS for cross-project queries.

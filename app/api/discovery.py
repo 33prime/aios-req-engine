@@ -9,10 +9,10 @@ from typing import Any
 from uuid import UUID
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 from app.core.logging import get_logger
-from app.core.schemas_discovery import DiscoveryProgress, DiscoveryReadinessReport, DiscoveryRequest
+from app.core.schemas_discovery import DiscoveryReadinessReport, DiscoveryRequest
 from app.db.jobs import create_job, get_job, start_job
 from app.db.supabase_client import get_supabase
 

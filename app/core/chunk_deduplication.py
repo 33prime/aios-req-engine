@@ -7,17 +7,18 @@ Provides post-retrieval cleaning of vector search results:
 3. Diversity reranking (MMR algorithm)
 """
 
-from typing import List, Dict, Any, Optional
+from typing import Any
+
 import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
 
 
 def deduplicate_chunks(
-    chunks: List[Dict[str, Any]],
+    chunks: list[dict[str, Any]],
     similarity_threshold: float = 0.85,
     max_per_section: int = 3,
     embedding_key: str = "embedding"
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """
     Deduplicate retrieved chunks using semantic similarity.
 
@@ -111,11 +112,11 @@ def deduplicate_chunks(
 
 
 def rerank_for_diversity(
-    chunks: List[Dict[str, Any]],
+    chunks: list[dict[str, Any]],
     alpha: float = 0.7,
     embedding_key: str = "embedding",
     score_key: str = "similarity"
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """
     Rerank chunks using Maximal Marginal Relevance (MMR).
 
@@ -201,7 +202,7 @@ def rerank_for_diversity(
     return reranked
 
 
-def deduplicate_by_id(chunks: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+def deduplicate_by_id(chunks: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """
     Simple deduplication by chunk ID.
 
@@ -225,7 +226,7 @@ def deduplicate_by_id(chunks: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     return unique
 
 
-def get_section_distribution(chunks: List[Dict[str, Any]]) -> Dict[str, int]:
+def get_section_distribution(chunks: list[dict[str, Any]]) -> dict[str, int]:
     """
     Get distribution of chunks by section type.
 

@@ -4,7 +4,7 @@ Computes a consultant's ICP score from their behavioral signals with time decay.
 """
 
 import math
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from app.core.logging import get_logger
@@ -37,7 +37,7 @@ def compute_consultant_score(
     default_weight = scoring_criteria.get("default_weight", 1.0)
     max_score = scoring_criteria.get("max_score", 100.0)
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     raw_score = 0.0
     breakdown: dict[str, dict[str, Any]] = {}
 
@@ -79,7 +79,7 @@ def _compute_decay(created_at_str: str, now: datetime) -> float:
             created_at = created_at_str
 
         if created_at.tzinfo is None:
-            created_at = created_at.replace(tzinfo=timezone.utc)
+            created_at = created_at.replace(tzinfo=UTC)
 
         age_days = (now - created_at).total_seconds() / 86400
         return math.exp(-math.log(2) * age_days / DECAY_HALF_LIFE_DAYS)

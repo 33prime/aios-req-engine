@@ -16,14 +16,12 @@ Supports stage-aware generation for different collaboration phases:
 """
 
 import json
-from typing import Optional
 from uuid import UUID
 
 from app.core.llm import get_llm
 from app.core.logging import get_logger
 from app.core.schemas_collaboration import CollaborationPhase
 from app.core.schemas_discovery_prep import (
-    PrepQuestion,
     PrepQuestionCreate,
     QuestionAgentOutput,
 )

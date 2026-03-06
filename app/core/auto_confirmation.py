@@ -24,6 +24,7 @@ Usage:
 """
 
 from dataclasses import dataclass
+from datetime import UTC
 from typing import Literal
 from uuid import UUID
 
@@ -135,7 +136,7 @@ class AutoConfirmation:
         Returns:
             ConfirmationResult with operation details
         """
-        from datetime import datetime, timezone
+        from datetime import datetime
 
         entity_id_str = str(entity_id)
         table_name = _get_table_name(entity_type)
@@ -166,7 +167,7 @@ class AutoConfirmation:
         # Update status
         update_data = {
             "confirmation_status": status,
-            "confirmed_at": datetime.now(timezone.utc).isoformat(),
+            "confirmed_at": datetime.now(UTC).isoformat(),
         }
         if confirmed_by:
             update_data["confirmed_by"] = str(confirmed_by)

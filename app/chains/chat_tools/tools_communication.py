@@ -1,6 +1,6 @@
 """Client communication tool implementations."""
 
-from typing import Any, Dict
+from typing import Any
 from uuid import UUID
 
 from app.core.logging import get_logger
@@ -9,7 +9,7 @@ from app.db.supabase_client import get_supabase
 logger = get_logger(__name__)
 
 
-async def _create_confirmation(project_id: UUID, params: Dict[str, Any]) -> Dict[str, Any]:
+async def _create_confirmation(project_id: UUID, params: dict[str, Any]) -> dict[str, Any]:
     """Create a confirmation item for the client."""
     supabase = get_supabase()
 
@@ -64,7 +64,7 @@ async def _create_confirmation(project_id: UUID, params: Dict[str, Any]) -> Dict
         return {"success": False, "error": error_msg}
 
 
-async def _schedule_meeting(project_id: UUID, params: Dict[str, Any]) -> Dict[str, Any]:
+async def _schedule_meeting(project_id: UUID, params: dict[str, Any]) -> dict[str, Any]:
     """Schedule a new meeting for the project, optionally creating a Google Calendar event."""
     try:
         from datetime import datetime, timedelta
@@ -156,7 +156,7 @@ async def _schedule_meeting(project_id: UUID, params: Dict[str, Any]) -> Dict[st
         return {"success": False, "error": str(e)}
 
 
-async def _list_pending_confirmations(project_id: UUID, params: Dict[str, Any]) -> Dict[str, Any]:
+async def _list_pending_confirmations(project_id: UUID, params: dict[str, Any]) -> dict[str, Any]:
     """List pending confirmation items that need client input."""
     try:
         from app.db.confirmations import list_confirmation_items

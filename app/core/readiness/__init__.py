@@ -15,13 +15,13 @@ Usage:
 
 from app.core.readiness.score import compute_readiness
 from app.core.readiness.types import (
+    DIMENSION_WEIGHTS,
+    READINESS_THRESHOLD,
     CapApplied,
     DimensionScore,
     FactorScore,
     ReadinessScore,
     Recommendation,
-    DIMENSION_WEIGHTS,
-    READINESS_THRESHOLD,
 )
 
 __all__ = [

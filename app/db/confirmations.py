@@ -1,5 +1,6 @@
 """Confirmation items database operations."""
 
+from datetime import UTC
 from typing import Any
 from uuid import UUID
 
@@ -131,9 +132,9 @@ def set_confirmation_status(
         if status == "resolved" and resolution_evidence:
             update_payload["resolution_evidence"] = resolution_evidence
             # resolved_at will be set by trigger or we can set it explicitly
-            from datetime import datetime, timezone
+            from datetime import datetime
 
-            update_payload["resolved_at"] = datetime.now(timezone.utc).isoformat()
+            update_payload["resolved_at"] = datetime.now(UTC).isoformat()
 
         response = (
             supabase.table("confirmation_items")

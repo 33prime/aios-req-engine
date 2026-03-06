@@ -12,7 +12,6 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
-
 # ---------------------------------------------------------------------------
 # Enums
 # ---------------------------------------------------------------------------
@@ -62,6 +61,8 @@ class EntityHealth(BaseModel):
     health_score: float = 0.0        # 0-100 weighted composite
     directive: EntityDirective = EntityDirective.grow
     target: int = 0                  # coverage target for current stage
+    link_density: float = 0.0        # actual_weighted_links / expected_links (0-1)
+    chain_complete: bool = False     # has at least one complete path to business objective
 
 
 class StageInfo(BaseModel):
@@ -122,6 +123,8 @@ class ProjectPulse(BaseModel):
     risks: RiskSummary = Field(default_factory=RiskSummary)
     forecast: Forecast = Field(default_factory=Forecast)
     extraction_directive: ExtractionDirective = Field(default_factory=ExtractionDirective)
+    # [{entity_type, entity_id, entity_name, reason}]
+    auto_confirm_candidates: list[dict] = Field(default_factory=list)
     config_version: str = "1.0"
     rules_fired: list[str] = Field(default_factory=list)
 
@@ -138,6 +141,8 @@ class StageHealthWeights(BaseModel):
     confirmation: float = 0.25
     quality: float = 0.25
     freshness: float = 0.25
+    link_density: float = 0.0          # weight for link density in health score
+    chain_completeness: float = 0.0    # weight for chain complete boolean
 
 
 class GateSpec(BaseModel):

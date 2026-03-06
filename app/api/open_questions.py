@@ -16,14 +16,20 @@ from app.core.schemas_open_questions import (
 )
 from app.db.open_questions import (
     answer_question as db_answer,
+)
+from app.db.open_questions import (
     backfill_from_extracted_facts,
-    convert_question as db_convert,
     create_open_question,
-    dismiss_question as db_dismiss,
     get_open_question,
     get_question_counts,
     list_open_questions,
     update_open_question,
+)
+from app.db.open_questions import (
+    convert_question as db_convert,
+)
+from app.db.open_questions import (
+    dismiss_question as db_dismiss,
 )
 
 logger = logging.getLogger(__name__)

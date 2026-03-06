@@ -8,16 +8,14 @@ Includes:
 import asyncio
 import uuid
 from datetime import datetime
-from typing import Any
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, BackgroundTasks
-from fastapi.responses import StreamingResponse
+from fastapi import APIRouter, BackgroundTasks, HTTPException
 from pydantic import BaseModel, Field
 
 from app.core.logging import get_logger
 from app.core.schemas_research_agent import ResearchAgentRequest, ResearchAgentResponse
-from app.db.jobs import create_job, start_job, complete_job, fail_job
+from app.db.jobs import complete_job, create_job, fail_job, start_job
 from app.graphs.research_agent_graph import run_research_agent_graph
 
 logger = get_logger(__name__)
@@ -151,8 +149,8 @@ async def trigger_research_pipeline(request: TriggerPipelineRequest) -> TriggerP
     run_id = uuid.uuid4()
 
     try:
-        from app.core.baseline_scoring import calculate_baseline_completeness
         from app.api.phase0 import _auto_trigger_research
+        from app.core.baseline_scoring import calculate_baseline_completeness
 
         # Check baseline completeness
         completeness = calculate_baseline_completeness(request.project_id)

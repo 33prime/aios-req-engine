@@ -62,12 +62,12 @@ async def run_extraction(
     print(f"  Source authority: {source_authority}")
 
     # Step 2: Load chunks
-    print(f"\nLoading chunks...")
+    print("\nLoading chunks...")
     chunks = list_signal_chunks(uuid.UUID(signal_id))
     print(f"  Found {len(chunks)} chunks")
 
     # Step 3: Build context
-    print(f"\nBuilding context snapshot...")
+    print("\nBuilding context snapshot...")
     context_snapshot = await build_context_snapshot(project_uuid)
     inventory = getattr(context_snapshot, "entity_inventory", {})
     entity_count = sum(len(v) for v in inventory.values())
@@ -76,20 +76,20 @@ async def run_extraction(
     # Print pulse state if available
     pulse = getattr(context_snapshot, "pulse", None)
     if pulse:
-        print(f"\n--- Project Pulse ---")
+        print("\n--- Project Pulse ---")
         print(f"  Stage: {pulse.stage.current.value} (progress: {pulse.stage.progress:.0%})")
         if pulse.stage.next_stage:
             print(f"  Next stage: {pulse.stage.next_stage.value}")
         print(f"  Gates ({pulse.stage.gates_met}/{pulse.stage.gates_total}):")
         for gate in pulse.stage.gates:
             print(f"    {gate}")
-        print(f"\n  Entity Health:")
+        print("\n  Entity Health:")
         for et, h in sorted(pulse.health.items(), key=lambda x: -x[1].count):
             print(f"    {et}: {h.count}/{h.target} ({h.coverage.value}) "
                   f"conf={h.confirmation_rate:.0%} → {h.directive.value} [score={h.health_score:.0f}]")
         print(f"\n  Risk score: {pulse.risks.risk_score:.0f}")
         if pulse.actions:
-            print(f"\n  Top Actions:")
+            print("\n  Top Actions:")
             for a in pulse.actions[:5]:
                 gate_tag = " [GATE]" if a.unblocks_gate else ""
                 print(f"    [{a.impact_score:.0f}] {a.sentence}{gate_tag}")
@@ -99,15 +99,15 @@ async def run_extraction(
         print(f"\n  Rules fired ({len(pulse.rules_fired)}):")
         for rule in pulse.rules_fired:
             print(f"    {rule}")
-        print(f"--- End Pulse ---")
+        print("--- End Pulse ---")
 
     briefing = getattr(context_snapshot, "extraction_briefing_prompt", "")
     if briefing:
-        print(f"\n--- Extraction Directive ---")
+        print("\n--- Extraction Directive ---")
         print(briefing)
-        print(f"--- End Directive ---")
+        print("--- End Directive ---")
     else:
-        print(f"  (No extraction directive generated)")
+        print("  (No extraction directive generated)")
 
     # Step 4: Create extraction log
     run_id = str(uuid.uuid4())
@@ -115,7 +115,7 @@ async def run_extraction(
     extraction_log.log_context(context_snapshot)
 
     # Step 5: Extract
-    print(f"\nExtracting patches...")
+    print("\nExtracting patches...")
     if len(chunks) >= 2:
         from app.chains.extract_entity_patches import extract_patches_parallel
 
@@ -149,7 +149,7 @@ async def run_extraction(
     print(f"  Duration: {patch_list.extraction_duration_ms}ms")
 
     # Step 6: Dedup
-    print(f"\nDeduplicating patches...")
+    print("\nDeduplicating patches...")
     create_count = sum(1 for p in patch_list.patches if p.operation == "create")
     print(f"  Create patches to dedup: {create_count}")
 
@@ -164,7 +164,7 @@ async def run_extraction(
     print(f"  After dedup: {len(deduped)} patches ({deduped_create_count} creates, {deduped_merge_count} merges)")
 
     # Step 7: Score
-    print(f"\nScoring patches...")
+    print("\nScoring patches...")
     try:
         from app.chains.score_entity_patches import score_entity_patches
 
@@ -180,11 +180,11 @@ async def run_extraction(
         extraction_log.log_scoring(scored)
 
     # Step 8: Skip apply (no side effects)
-    print(f"\n  SKIPPING patch application (rerun mode)")
+    print("\n  SKIPPING patch application (rerun mode)")
 
     # Summary
     print(f"\n{'='*60}")
-    print(f"EXTRACTION SUMMARY")
+    print("EXTRACTION SUMMARY")
     print(f"{'='*60}")
     print(f"  Run ID: {run_id}")
     print(f"  Chunks processed: {len(extraction_log.chunk_results)}")
@@ -193,7 +193,7 @@ async def run_extraction(
     print(f"  After chunk merge: {extraction_log.post_chunk_merge.get('after_count', 'N/A')}")
     merge_decisions = extraction_log.post_chunk_merge.get("merge_decisions", [])
     if merge_decisions:
-        print(f"  Chunk merges:")
+        print("  Chunk merges:")
         for md in merge_decisions:
             print(f"    - '{md['name']}' ({md['entity_type']}): {md['duplicates_merged']} → 1")
     # Consolidation (semantic dedup)
@@ -232,16 +232,16 @@ async def run_extraction(
 
     # Write back to signal
     if not dry_run:
-        print(f"\nWriting extraction_log to signal...")
+        print("\nWriting extraction_log to signal...")
         from app.db.supabase_client import get_supabase
 
         sb = get_supabase()
         sb.table("signals").update(
             {"extraction_log": extraction_log.to_dict()}
         ).eq("id", signal_id).execute()
-        print(f"  Done.")
+        print("  Done.")
     else:
-        print(f"\n  DRY RUN — not writing to signal")
+        print("\n  DRY RUN — not writing to signal")
 
     print(f"\n{'='*60}")
 

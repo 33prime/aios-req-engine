@@ -1,6 +1,5 @@
 """Tests for the relationship-aware action engine v2."""
 
-import pytest
 
 from app.core.action_engine import (
     _build_all_skeletons,
@@ -22,7 +21,6 @@ from app.core.schemas_actions import (
     GapDomain,
     UnifiedAction,
 )
-
 
 # ============================================================================
 # Scoring helpers

@@ -1,12 +1,12 @@
 """Database operations for project foundation (gates)."""
 
-from typing import Any, Literal, Optional
+from typing import Any, Literal
 from uuid import UUID
 
 from app.core.logging import get_logger
 from app.core.schemas_foundation import (
-    BusinessCase,
     BudgetConstraints,
+    BusinessCase,
     ConfirmedScope,
     CorePain,
     DesignPreferences,
@@ -30,7 +30,7 @@ FoundationElement = Literal[
 ]
 
 
-def get_project_foundation(project_id: UUID) -> Optional[ProjectFoundation]:
+def get_project_foundation(project_id: UUID) -> ProjectFoundation | None:
     """
     Get project foundation data (all gates).
 
@@ -281,7 +281,7 @@ def _invalidate_caches_on_foundation_change(
 def get_foundation_element(
     project_id: UUID,
     element_type: FoundationElement,
-) -> Optional[dict]:
+) -> dict | None:
     """
     Get a single foundation element.
 

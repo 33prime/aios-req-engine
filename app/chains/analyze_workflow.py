@@ -236,7 +236,7 @@ async def enrich_workflow(
 
     # Build step_ids list for the output schema reference
     future_step_ids = [{"step_id": s["id"], "label": s.get("label", "")} for s in future_steps]
-    prompt_parts.append(f"\n--- FUTURE STEP IDS (include all in step_enrichments) ---")
+    prompt_parts.append("\n--- FUTURE STEP IDS (include all in step_enrichments) ---")
     prompt_parts.append(json.dumps(future_step_ids, indent=2))
 
     system_msg = SystemMessage(content=(
@@ -335,7 +335,7 @@ async def enrich_workflow(
             "unlock_count": unlock_count,
         }
 
-    except Exception as e:
+    except Exception:
         logger.exception(f"Failed to enrich workflow {workflow_id}")
         # Mark workflow as failed
         for wid in wf_ids:

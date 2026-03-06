@@ -1,11 +1,9 @@
 """Pydantic schemas for the Intelligence Module API."""
 
-from datetime import datetime
 from enum import Enum
 from typing import Any
 
 from pydantic import BaseModel, Field
-
 
 # =============================================================================
 # Enums

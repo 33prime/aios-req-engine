@@ -72,7 +72,7 @@ def update_changelog(week_summary: str):
     changelog_path = DOCS_DIR / "changelog.md"
     
     # Read existing changelog
-    with open(changelog_path, 'r') as f:
+    with open(changelog_path) as f:
         content = f.read()
     
     # Generate new entry

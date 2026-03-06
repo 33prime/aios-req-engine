@@ -6,7 +6,7 @@ This module provides functions to create tasks from:
 3. Validation needs (custom tasks requiring client input)
 """
 
-from typing import Any, Optional
+from typing import Any
 from uuid import UUID
 
 from app.core.logging import get_logger
@@ -29,11 +29,11 @@ logger = get_logger(__name__)
 async def create_signal_review_task(
     project_id: UUID,
     title: str,
-    description: Optional[str] = None,
-    signal_id: Optional[UUID] = None,
-    patches_snapshot: Optional[dict] = None,
+    description: str | None = None,
+    signal_id: UUID | None = None,
+    patches_snapshot: dict | None = None,
     priority_score: float = 70.0,
-    source_context: Optional[dict] = None,
+    source_context: dict | None = None,
 ) -> UUID:
     """
     Create a signal review task for newly extracted entities.
@@ -160,7 +160,7 @@ async def create_validation_task(
     entity_id: UUID,
     entity_name: str,
     validation_reason: str,
-    created_by: Optional[UUID] = None,
+    created_by: UUID | None = None,
 ) -> UUID:
     """
     Create a custom task that requires client confirmation.
@@ -218,8 +218,8 @@ async def handle_proposal_decision(
     project_id: UUID,
     proposal_id: UUID,
     decision: str,  # "approved", "rejected", "dismissed"
-    decided_by: Optional[UUID] = None,
-) -> Optional[UUID]:
+    decided_by: UUID | None = None,
+) -> UUID | None:
     """
     Handle a proposal decision by updating the linked task.
 
@@ -270,7 +270,7 @@ async def handle_proposal_decision(
 # ============================================================================
 
 
-def _map_entity_type(entity_type: Optional[str]) -> Optional[AnchoredEntityType]:
+def _map_entity_type(entity_type: str | None) -> AnchoredEntityType | None:
     """Map entity type string to AnchoredEntityType enum."""
     if not entity_type:
         return None
@@ -297,7 +297,7 @@ def _map_entity_type(entity_type: Optional[str]) -> Optional[AnchoredEntityType]
     return mapping.get(entity_type.lower())
 
 
-def _safe_uuid(value: Optional[str | UUID]) -> Optional[UUID]:
+def _safe_uuid(value: str | UUID | None) -> UUID | None:
     """Safely convert a value to UUID."""
     if value is None:
         return None

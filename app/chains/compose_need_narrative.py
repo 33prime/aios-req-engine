@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 import logging
 import time
+from datetime import UTC
 
 from app.db.supabase_client import get_supabase
 
@@ -137,9 +138,9 @@ Compose the narrative."""
             for a in anchors[:3]
         ]
 
-        from datetime import datetime, timezone
+        from datetime import datetime
 
-        generated_at = datetime.now(timezone.utc).isoformat()
+        generated_at = datetime.now(UTC).isoformat()
 
         result = {
             "text": narrative,

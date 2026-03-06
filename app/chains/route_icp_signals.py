@@ -5,7 +5,6 @@ Thresholds: >=0.85 auto_routed, 0.65-0.85 review, <0.65 outlier
 """
 
 from typing import Any
-from uuid import UUID
 
 from app.core.logging import get_logger
 

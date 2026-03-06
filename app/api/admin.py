@@ -2,7 +2,6 @@
 
 import logging
 import os
-from typing import Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -13,7 +12,6 @@ from app.core.schemas_auth import (
     ClientInviteRequest,
     ClientInviteResponse,
     MemberRole,
-    ProjectMember,
     ProjectMemberWithUser,
     User,
     UserCreate,
@@ -39,7 +37,6 @@ from app.db.info_requests import (
 from app.db.project_context import create_project_context, get_project_context
 from app.db.project_members import (
     add_project_member,
-    get_project_client,
     get_project_member,
     list_project_members_with_users,
     remove_project_member,
@@ -67,7 +64,7 @@ router = APIRouter(prefix="/admin", tags=["admin"])
 
 @router.get("/clients", response_model=list[User])
 async def list_clients(
-    search: Optional[str] = None,
+    search: str | None = None,
     limit: int = 100,
     offset: int = 0,
     auth: AuthContext = Depends(require_consultant),
@@ -316,11 +313,11 @@ async def remove_client_from_project(
 
 class PortalConfigUpdate(BaseModel):
     """Request body for updating portal configuration."""
-    portal_enabled: Optional[bool] = None
-    portal_phase: Optional[PortalPhase] = None
-    client_display_name: Optional[str] = None
-    discovery_call_date: Optional[str] = None
-    prototype_expected_date: Optional[str] = None
+    portal_enabled: bool | None = None
+    portal_phase: PortalPhase | None = None
+    client_display_name: str | None = None
+    discovery_call_date: str | None = None
+    prototype_expected_date: str | None = None
 
 
 @router.patch("/projects/{project_id}/portal")
@@ -380,7 +377,7 @@ async def configure_portal(
 @router.get("/projects/{project_id}/info-requests", response_model=list[InfoRequest])
 async def list_project_info_requests(
     project_id: UUID,
-    phase: Optional[InfoRequestPhase] = None,
+    phase: InfoRequestPhase | None = None,
     auth: AuthContext = Depends(require_consultant),
 ):
     """List all info requests for a project."""
@@ -473,7 +470,7 @@ async def generate_prep_questions(
 @router.post("/projects/{project_id}/complete-call")
 async def complete_discovery_call(
     project_id: UUID,
-    call_notes: Optional[str] = None,
+    call_notes: str | None = None,
     auth: AuthContext = Depends(require_consultant),
 ):
     """

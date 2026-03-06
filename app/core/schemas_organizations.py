@@ -2,11 +2,10 @@
 
 from datetime import datetime
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 from uuid import UUID
 
 from pydantic import BaseModel, EmailStr, Field
-
 
 # ============================================================================
 # Enums
@@ -97,31 +96,31 @@ class OrganizationBase(BaseModel):
 
 class OrganizationCreate(OrganizationBase):
     """Schema for creating an organization."""
-    slug: Optional[str] = None  # Auto-generated if not provided
-    logo_url: Optional[str] = None
+    slug: str | None = None  # Auto-generated if not provided
+    logo_url: str | None = None
     settings: dict[str, Any] = Field(default_factory=dict)
 
 
 class OrganizationUpdate(BaseModel):
     """Schema for updating an organization."""
-    name: Optional[str] = None
-    slug: Optional[str] = None
-    logo_url: Optional[str] = None
-    settings: Optional[dict[str, Any]] = None
+    name: str | None = None
+    slug: str | None = None
+    logo_url: str | None = None
+    settings: dict[str, Any] | None = None
 
 
 class Organization(OrganizationBase):
     """Full organization schema."""
     id: UUID
-    slug: Optional[str] = None
-    created_by_user_id: Optional[UUID] = None
-    logo_url: Optional[str] = None
+    slug: str | None = None
+    created_by_user_id: UUID | None = None
+    logo_url: str | None = None
     settings: dict[str, Any] = Field(default_factory=dict)
     created_at: datetime
     updated_at: datetime
-    archived_at: Optional[datetime] = None
-    deleted_at: Optional[datetime] = None
-    deleted_by_user_id: Optional[UUID] = None
+    archived_at: datetime | None = None
+    deleted_at: datetime | None = None
+    deleted_by_user_id: UUID | None = None
 
     class Config:
         from_attributes = True
@@ -131,8 +130,8 @@ class OrganizationSummary(BaseModel):
     """Summary organization info for lists."""
     id: UUID
     name: str
-    slug: Optional[str] = None
-    logo_url: Optional[str] = None
+    slug: str | None = None
+    logo_url: str | None = None
     member_count: int = 0
     project_count: int = 0
     created_at: datetime
@@ -167,7 +166,7 @@ class OrganizationMemberCreate(BaseModel):
 class OrganizationMember(OrganizationMemberBase):
     """Full organization member schema."""
     id: UUID
-    invited_by_user_id: Optional[UUID] = None
+    invited_by_user_id: UUID | None = None
     joined_at: datetime
     created_at: datetime
 
@@ -180,9 +179,9 @@ class OrganizationMemberPublic(BaseModel):
     id: UUID
     user_id: UUID
     email: EmailStr
-    first_name: Optional[str] = None
-    last_name: Optional[str] = None
-    photo_url: Optional[str] = None
+    first_name: str | None = None
+    last_name: str | None = None
+    photo_url: str | None = None
     organization_role: OrganizationRole
     joined_at: datetime
 
@@ -211,9 +210,9 @@ class OrganizationMemberPublic(BaseModel):
 class OrganizationMemberWithUser(OrganizationMember):
     """Organization member with full user details."""
     email: EmailStr
-    first_name: Optional[str] = None
-    last_name: Optional[str] = None
-    photo_url: Optional[str] = None
+    first_name: str | None = None
+    last_name: str | None = None
+    photo_url: str | None = None
 
     @property
     def display_name(self) -> str:
@@ -264,7 +263,7 @@ class Invitation(InvitationBase):
     status: InvitationStatus = InvitationStatus.PENDING
     created_at: datetime
     expires_at: datetime
-    accepted_at: Optional[datetime] = None
+    accepted_at: datetime | None = None
 
     class Config:
         from_attributes = True
@@ -278,8 +277,8 @@ class Invitation(InvitationBase):
 class InvitationWithOrg(Invitation):
     """Invitation with organization details (for accept flow)."""
     organization_name: str
-    organization_logo_url: Optional[str] = None
-    invited_by_name: Optional[str] = None
+    organization_logo_url: str | None = None
+    invited_by_name: str | None = None
 
 
 class AcceptInvitationRequest(BaseModel):
@@ -301,18 +300,18 @@ class AcceptInvitationResponse(BaseModel):
 
 class ProfileBase(BaseModel):
     """Base profile fields."""
-    first_name: Optional[str] = None
-    last_name: Optional[str] = None
+    first_name: str | None = None
+    last_name: str | None = None
     email: EmailStr
-    photo_url: Optional[str] = None
-    linkedin: Optional[str] = None
-    meeting_link: Optional[str] = None
-    phone_number: Optional[str] = None
-    city: Optional[str] = None
-    state: Optional[str] = None
-    country: Optional[str] = None
-    bio: Optional[str] = None
-    timezone: Optional[str] = None
+    photo_url: str | None = None
+    linkedin: str | None = None
+    meeting_link: str | None = None
+    phone_number: str | None = None
+    city: str | None = None
+    state: str | None = None
+    country: str | None = None
+    bio: str | None = None
+    timezone: str | None = None
 
 
 class ProfileCreate(ProfileBase):
@@ -328,22 +327,22 @@ class ProfileCreate(ProfileBase):
 
 class ProfileUpdate(BaseModel):
     """Schema for updating a profile."""
-    first_name: Optional[str] = None
-    last_name: Optional[str] = None
-    photo_url: Optional[str] = None
-    linkedin: Optional[str] = None
-    meeting_link: Optional[str] = None
-    phone_number: Optional[str] = None
-    city: Optional[str] = None
-    state: Optional[str] = None
-    country: Optional[str] = None
-    bio: Optional[str] = None
-    timezone: Optional[str] = None
-    expertise_areas: Optional[list[str]] = None
-    certifications: Optional[list[str]] = None
-    availability_status: Optional[AvailabilityStatus] = None
-    capacity: Optional[int] = None
-    preferences: Optional[dict[str, Any]] = None
+    first_name: str | None = None
+    last_name: str | None = None
+    photo_url: str | None = None
+    linkedin: str | None = None
+    meeting_link: str | None = None
+    phone_number: str | None = None
+    city: str | None = None
+    state: str | None = None
+    country: str | None = None
+    bio: str | None = None
+    timezone: str | None = None
+    expertise_areas: list[str] | None = None
+    certifications: list[str] | None = None
+    availability_status: AvailabilityStatus | None = None
+    capacity: int | None = None
+    preferences: dict[str, Any] | None = None
 
 
 class Profile(ProfileBase):
@@ -361,16 +360,16 @@ class Profile(ProfileBase):
 
     # Consultant enrichment fields
     enrichment_status: str = "pending"
-    linkedin_raw_text: Optional[str] = None
-    website_raw_text: Optional[str] = None
+    linkedin_raw_text: str | None = None
+    website_raw_text: str | None = None
     enriched_profile: dict[str, Any] = Field(default_factory=dict)
     industry_expertise: list[str] = Field(default_factory=list)
     methodology_expertise: list[str] = Field(default_factory=list)
     consulting_style: dict[str, Any] = Field(default_factory=dict)
-    consultant_summary: Optional[str] = None
+    consultant_summary: str | None = None
     profile_completeness: int = 0
-    enriched_at: Optional[datetime] = None
-    enrichment_source: Optional[str] = None
+    enriched_at: datetime | None = None
+    enrichment_source: str | None = None
 
     class Config:
         from_attributes = True
@@ -394,7 +393,7 @@ class Profile(ProfileBase):
         return self.email[0].upper()
 
     @property
-    def location(self) -> Optional[str]:
+    def location(self) -> str | None:
         """Get formatted location string."""
         parts = [p for p in [self.city, self.state, self.country] if p]
         return ", ".join(parts) if parts else None

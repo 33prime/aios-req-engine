@@ -35,6 +35,11 @@ class PayloadFeature(BaseModel):
     open_question_count: int = 0
     linked_driver: str = ""
     build_depth: Literal["full", "visual", "placeholder"] = "visual"
+    # Chain context from value chain analysis
+    linked_workflow: str = ""      # workflow name this feature belongs to
+    linked_persona: str = ""       # actor persona name
+    linked_pain: str = ""          # pain point this addresses
+    link_density: float = 0.0      # structural link density (0-1)
 
 
 class PayloadWorkflow(BaseModel):

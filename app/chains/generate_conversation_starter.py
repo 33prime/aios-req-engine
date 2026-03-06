@@ -7,7 +7,7 @@ Phase-aware: EMPTY returns hardcoded fallback (no LLM call).
 import hashlib
 import json
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from app.core.config import get_settings
 from app.core.llm_usage import log_llm_usage
@@ -310,7 +310,7 @@ async def generate_conversation_starters(
             chat_context=chat_context,
             topic_domain=topic_domain,
             is_fallback=False,
-            generated_at=datetime.now(timezone.utc),
+            generated_at=datetime.now(UTC),
         ))
 
     return {

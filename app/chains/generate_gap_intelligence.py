@@ -15,8 +15,8 @@ from app.core.config import get_settings
 from app.core.llm_usage import log_llm_usage
 from app.core.logging import get_logger
 from app.core.schemas_actions import (
-    CTAType,
     ContextPhase,
+    CTAType,
     KnowledgeGap,
     SignalGap,
 )

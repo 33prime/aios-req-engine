@@ -13,23 +13,21 @@ Tests the complete flow:
 import pytest
 
 pytestmark = pytest.mark.integration
-from uuid import uuid4, UUID
-from unittest.mock import patch, MagicMock, AsyncMock
+from unittest.mock import MagicMock, patch
+from uuid import UUID, uuid4
 
+from app.api.strategic_analytics import get_strategic_analytics
+from app.chains.enrich_competitor import enrich_competitor
+from app.chains.enrich_kpi import enrich_kpi
+from app.chains.enrich_risk import enrich_risk
+from app.chains.enrich_stakeholder import enrich_stakeholder
+from app.core.readiness.gate_impact import get_entity_gate_impact_summary
 from app.db import (
     business_drivers,
     competitor_refs,
-    stakeholders,
     risks,
+    stakeholders,
 )
-from app.chains.enrich_kpi import enrich_kpi
-from app.chains.enrich_pain_point import enrich_pain_point
-from app.chains.enrich_goal import enrich_goal
-from app.chains.enrich_competitor import enrich_competitor
-from app.chains.enrich_stakeholder import enrich_stakeholder
-from app.chains.enrich_risk import enrich_risk
-from app.api.strategic_analytics import get_strategic_analytics
-from app.core.readiness.gate_impact import get_entity_gate_impact_summary
 
 
 @pytest.fixture

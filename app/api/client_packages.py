@@ -2,13 +2,18 @@
 
 import logging
 from datetime import datetime
-from typing import Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
 from app.core.auth_middleware import AuthContext, require_consultant
+from app.core.phase_state_machine import (
+    CollaborationPhase,
+    build_phase_config,
+    build_phase_state,
+    get_all_phases_status,
+)
 from app.core.schemas_collaboration import (
     ClientPackage,
     GeneratePackageRequest,
@@ -16,12 +21,6 @@ from app.core.schemas_collaboration import (
     PendingItem,
     PendingItemsQueue,
     PhaseProgressResponse,
-)
-from app.core.phase_state_machine import (
-    build_phase_config,
-    build_phase_state,
-    get_all_phases_status,
-    CollaborationPhase,
 )
 from app.db.supabase_client import get_supabase as get_client
 
@@ -114,7 +113,7 @@ async def get_phase_progress(
 @router.get("/projects/{project_id}/pending-items")
 async def list_pending_items(
     project_id: UUID,
-    item_type: Optional[str] = None,
+    item_type: str | None = None,
     status: str = "pending",
     auth: AuthContext = Depends(require_consultant),
 ):
@@ -252,8 +251,8 @@ async def generate_package(
 
 class UpdatePackageRequest(BaseModel):
     """Request to update a package before sending."""
-    questions: Optional[list[dict]] = None
-    action_items: Optional[list[dict]] = None
+    questions: list[dict] | None = None
+    action_items: list[dict] | None = None
 
 
 @router.patch("/packages/{package_id}")
@@ -437,7 +436,7 @@ async def get_pending_items_queue(project_id: UUID) -> PendingItemsQueue:
     )
 
 
-async def get_package_by_status(project_id: UUID, status: str) -> Optional[ClientPackage]:
+async def get_package_by_status(project_id: UUID, status: str) -> ClientPackage | None:
     """Get a package by status."""
     client = get_client()
 
@@ -559,7 +558,7 @@ class MarkNeedsReviewRequest(BaseModel):
     """Request to mark an entity as needing client review."""
     entity_type: str = Field(..., description="Type: feature, persona, vp_step, goal, kpi, pain_point, competitor, stakeholder, workflow, data_entity, constraint, solution_flow_step")
     entity_id: UUID = Field(..., description="ID of the entity")
-    reason: Optional[str] = Field(None, description="Why this needs review")
+    reason: str | None = Field(None, description="Why this needs review")
 
 
 @router.post("/projects/{project_id}/mark-needs-review")
@@ -640,7 +639,7 @@ async def mark_entity_needs_review(
         "entity_id": str(request.entity_id),
         "title": entity_name,
         "description": entity_desc[:200] if entity_desc else None,
-        "why_needed": request.reason or f"Marked for client review",
+        "why_needed": request.reason or "Marked for client review",
         "priority": "medium",
         "added_by": str(auth.user_id) if auth.user_id else "consultant",
         "status": "pending",
@@ -658,13 +657,13 @@ async def mark_entity_needs_review(
 class QuestionAnswerRequest(BaseModel):
     """Request to answer a package question."""
     answer_text: str = Field(..., description="The client's answer")
-    confidence: Optional[str] = Field(None, description="How confident the client is")
+    confidence: str | None = Field(None, description="How confident the client is")
 
 
 class ActionItemResponseRequest(BaseModel):
     """Request to respond to an action item."""
-    notes: Optional[str] = Field(None, description="Notes about the response")
-    file_ids: Optional[list[str]] = Field(None, description="Uploaded file IDs")
+    notes: str | None = Field(None, description="Notes about the response")
+    file_ids: list[str] | None = Field(None, description="Uploaded file IDs")
 
 
 @router.get("/portal/projects/{project_id}/active-package")
@@ -839,7 +838,7 @@ async def respond_to_action_item(
 @router.post("/portal/packages/{package_id}/upload")
 async def upload_package_file(
     package_id: UUID,
-    action_item_id: Optional[UUID] = None,
+    action_item_id: UUID | None = None,
     file_name: str = "",
     file_path: str = "",
     file_size: int = 0,

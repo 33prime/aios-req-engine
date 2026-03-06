@@ -9,10 +9,10 @@ from app.core.schemas_entity_patch import EntityPatch, EntityPatchList, PatchApp
 from app.graphs.unified_processor import (
     V2ProcessingResult,
     V2ProcessorState,
-    process_signal_v2,
-    v2_load_signal,
     _apply_state_updates,
     _make_v2_result,
+    process_signal_v2,
+    v2_load_signal,
 )
 
 

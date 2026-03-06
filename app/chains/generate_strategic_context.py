@@ -21,14 +21,14 @@ from pydantic import ValidationError
 from app.core.config import get_settings
 from app.core.logging import get_logger
 from app.core.schemas_strategic_context import GeneratedStrategicContext
+from app.db.business_drivers import create_business_driver, find_similar_driver
+from app.db.constraints import create_constraint
+from app.db.features import list_features
+from app.db.personas import list_personas
 from app.db.signals import list_project_signals
 from app.db.stakeholders import upsert_stakeholder
 from app.db.strategic_context import get_strategic_context, upsert_strategic_context
-from app.db.personas import list_personas
-from app.db.features import list_features
 from app.db.vp import list_vp_steps
-from app.db.business_drivers import create_business_driver, find_similar_driver
-from app.db.constraints import create_constraint, list_constraints
 
 logger = get_logger(__name__)
 

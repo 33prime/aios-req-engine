@@ -18,8 +18,8 @@ export function ExplorationWelcome({
   return (
     <div className="flex items-center justify-center min-h-[calc(100vh-80px)] bg-gradient-to-b from-[#0A1E2F] to-[#15314A]">
       <div className="max-w-md mx-auto text-center px-6">
-        <div className="w-16 h-16 mx-auto mb-6 rounded-2xl bg-[#3FAF7A]/20 flex items-center justify-center">
-          <Sparkles className="w-8 h-8 text-[#3FAF7A]" />
+        <div className="w-16 h-16 mx-auto mb-6 rounded-2xl bg-brand-primary/20 flex items-center justify-center">
+          <Sparkles className="w-8 h-8 text-brand-primary" />
         </div>
 
         <h1 className="text-2xl font-semibold text-white mb-3">
@@ -40,7 +40,7 @@ export function ExplorationWelcome({
 
         <button
           onClick={onStart}
-          className="px-8 py-3.5 bg-[#3FAF7A] text-white text-base font-medium rounded-xl hover:bg-[#35A06D] transition-all shadow-lg shadow-[#3FAF7A]/25"
+          className="px-8 py-3.5 bg-brand-primary text-white text-base font-medium rounded-xl hover:bg-brand-primary-hover transition-all shadow-lg shadow-brand-primary/25"
         >
           Explore Your Vision
         </button>

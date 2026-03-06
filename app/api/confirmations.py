@@ -8,20 +8,20 @@ from fastapi import APIRouter, HTTPException, Path, Query
 from openai import OpenAI
 from pydantic import BaseModel, Field
 
-from app.core.logging import get_logger
 from app.core.config import get_settings
+from app.core.logging import get_logger
 from app.core.schemas_confirmations import (
     ConfirmationItemOut,
     ConfirmationStatusUpdate,
     ListConfirmationsResponse,
 )
+from app.core.topic_extraction import get_confirmation_gap_topics
+from app.db import stakeholders as stakeholders_db
 from app.db.confirmations import (
     get_confirmation_item,
     list_confirmation_items,
     set_confirmation_status,
 )
-from app.db import stakeholders as stakeholders_db
-from app.core.topic_extraction import extract_topics_from_entity, get_confirmation_gap_topics
 
 logger = get_logger(__name__)
 

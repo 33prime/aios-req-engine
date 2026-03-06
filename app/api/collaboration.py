@@ -1,7 +1,6 @@
 """API routes for collaboration management."""
 
 from datetime import datetime
-from typing import Optional
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException
@@ -117,8 +116,8 @@ async def get_collaboration_history(project_id: UUID):
 @router.get("/touchpoints", response_model=list[Touchpoint])
 async def list_touchpoints(
     project_id: UUID,
-    status: Optional[TouchpointStatus] = None,
-    type: Optional[TouchpointType] = None,
+    status: TouchpointStatus | None = None,
+    type: TouchpointType | None = None,
 ):
     """List touchpoints for a project."""
     status_filter = [status] if status else None
@@ -462,7 +461,7 @@ async def _get_prototype_status(project_id: UUID) -> PrototypeFeedbackStatus:
     )
 
 
-async def _get_discovery_prep_data(bundle_id: UUID) -> Optional[dict]:
+async def _get_discovery_prep_data(bundle_id: UUID) -> dict | None:
     """Get discovery prep bundle data."""
     supabase = get_supabase()
 
@@ -526,7 +525,7 @@ async def _get_pending_review_count(project_id: UUID) -> int:
     return result.count or 0
 
 
-async def _get_last_client_interaction(project_id: UUID) -> Optional[datetime]:
+async def _get_last_client_interaction(project_id: UUID) -> datetime | None:
     """Get timestamp of last client interaction."""
     supabase = get_supabase()
 

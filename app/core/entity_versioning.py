@@ -27,8 +27,8 @@ Usage:
     version_id = versioning.create_snapshot("feature", feature_id, entity_data)
 """
 
-from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from dataclasses import dataclass
+from datetime import datetime
 from typing import Any
 from uuid import UUID
 

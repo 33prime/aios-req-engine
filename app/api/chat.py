@@ -1,6 +1,6 @@
 """Chat assistant API endpoints."""
 
-from typing import Any, Dict, List
+from typing import Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -32,10 +32,10 @@ class ChatRequest(BaseModel):
 
     message: str
     conversation_id: str | None = None
-    conversation_history: List[ChatMessage] = []
-    context: Dict[str, Any] | None = None
+    conversation_history: list[ChatMessage] = []
+    context: dict[str, Any] | None = None
     page_context: str | None = None  # e.g., "brd:workflows", "canvas", "prototype"
-    focused_entity: Dict[str, Any] | None = None  # {type, data: {title/name}}
+    focused_entity: dict[str, Any] | None = None  # {type, data: {title/name}}
     conversation_context: str | None = None  # From conversation starter
 
 
@@ -139,7 +139,7 @@ async def list_conversations(
     limit: int = Query(20, description="Maximum number of conversations to return"),
     include_archived: bool = Query(False, description="Include archived conversations"),
     auth: AuthContext = Depends(require_auth),
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     List conversations for a project.
 
@@ -174,7 +174,7 @@ async def list_conversations(
 async def get_rate_limit_status(
     project_id: UUID = Query(..., description="Project UUID"),
     auth: AuthContext = Depends(require_auth),
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Get rate limit status for chat endpoint.
 
@@ -198,7 +198,7 @@ async def get_conversation_messages(
     conversation_id: UUID,
     limit: int = Query(100, description="Maximum number of messages to return"),
     auth: AuthContext = Depends(require_auth),
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Get messages for a conversation.
 
@@ -232,9 +232,9 @@ async def get_conversation_messages(
 
 @router.post("/chat/tools")
 async def execute_chat_tool(
-    request: Dict[str, Any],
+    request: dict[str, Any],
     auth: AuthContext = Depends(require_auth),
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Execute a chat tool directly without going through the full chat flow.
 

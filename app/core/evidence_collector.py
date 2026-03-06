@@ -6,17 +6,16 @@ sources to support Red Team and A-Team findings.
 """
 
 from datetime import datetime
-from typing import List, Dict, Any, Optional
-from uuid import UUID
+from typing import Any
 
 from app.core.schemas_evidence import Evidence, SourceType
 from app.db.supabase_client import get_supabase
 
 
 def collect_signal_evidence(
-    signal_ids: List[str],
-    relevant_excerpts: List[str]
-) -> List[Evidence]:
+    signal_ids: list[str],
+    relevant_excerpts: list[str]
+) -> list[Evidence]:
     """
     Collect evidence from specific signals.
 
@@ -61,9 +60,9 @@ def collect_signal_evidence(
 
 
 def collect_research_evidence(
-    chunk_ids: List[str],
-    relevant_excerpts: List[str]
-) -> List[Evidence]:
+    chunk_ids: list[str],
+    relevant_excerpts: list[str]
+) -> list[Evidence]:
     """
     Collect evidence from research chunks.
 
@@ -111,8 +110,8 @@ def collect_research_evidence(
 
 
 def collect_persona_evidence(
-    persona_ids: List[str]
-) -> List[Evidence]:
+    persona_ids: list[str]
+) -> list[Evidence]:
     """
     Collect evidence from personas.
 
@@ -162,8 +161,8 @@ def collect_persona_evidence(
 
 
 def collect_feature_evidence(
-    feature_ids: List[str]
-) -> List[Evidence]:
+    feature_ids: list[str]
+) -> list[Evidence]:
     """
     Collect evidence from existing features.
 
@@ -209,8 +208,8 @@ def collect_feature_evidence(
 
 def _find_relevant_excerpt(
     source_id: str,
-    excerpts: List[str]
-) -> Optional[str]:
+    excerpts: list[str]
+) -> str | None:
     """Find the most relevant excerpt for a source."""
     # Simple implementation - in production could use embedding similarity
     if excerpts:
@@ -218,7 +217,7 @@ def _find_relevant_excerpt(
     return None
 
 
-def _format_signal_name(signal_data: Dict[str, Any]) -> str:
+def _format_signal_name(signal_data: dict[str, Any]) -> str:
     """Format a human-readable name for a signal."""
     source = signal_data.get('source', 'Unknown Source')
     created_at = signal_data.get('created_at', datetime.utcnow())
@@ -235,7 +234,7 @@ def _format_signal_name(signal_data: Dict[str, Any]) -> str:
     return f"{source} - {date_str}"
 
 
-def _format_research_name(chunk_data: Dict[str, Any]) -> str:
+def _format_research_name(chunk_data: dict[str, Any]) -> str:
     """Format a human-readable name for research."""
     metadata = chunk_data.get('metadata', {})
     created_at = chunk_data.get('created_at', datetime.utcnow())
@@ -252,10 +251,10 @@ def _format_research_name(chunk_data: Dict[str, Any]) -> str:
 
 
 def enrich_evidence_with_relevance(
-    evidence_list: List[Evidence],
+    evidence_list: list[Evidence],
     finding: str,
-    llm_generated_relevance: Optional[List[str]] = None
-) -> List[Evidence]:
+    llm_generated_relevance: list[str] | None = None
+) -> list[Evidence]:
     """
     Enrich evidence with relevance explanations.
     

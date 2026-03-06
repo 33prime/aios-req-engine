@@ -4,10 +4,9 @@ from typing import Any
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Query
-
-from app.core.logging import get_logger
 from pydantic import BaseModel
 
+from app.core.logging import get_logger
 from app.db.signals import (
     get_project_source_usage,
     get_signal,
@@ -66,7 +65,7 @@ async def get_signal_status(signal_id: UUID) -> SignalStatusResponse:
 
     except HTTPException:
         raise
-    except Exception as e:
+    except Exception:
         logger.exception(f"Failed to get status for signal {signal_id}")
         raise HTTPException(status_code=500, detail="Failed to retrieve signal status")
 
@@ -190,7 +189,7 @@ async def get_signal_detail(signal_id: UUID) -> dict:
 
     except HTTPException:
         raise
-    except Exception as e:
+    except Exception:
         logger.exception(f"Failed to get signal {signal_id}")
         raise HTTPException(status_code=500, detail="Failed to retrieve signal")
 
@@ -218,7 +217,7 @@ async def get_signal_chunks(signal_id: UUID) -> dict:
             "count": len(chunks),
         }
 
-    except Exception as e:
+    except Exception:
         logger.exception(f"Failed to get chunks for signal {signal_id}")
         raise HTTPException(status_code=500, detail="Failed to retrieve signal chunks")
 

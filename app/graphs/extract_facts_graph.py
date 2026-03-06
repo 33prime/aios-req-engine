@@ -128,8 +128,9 @@ def call_llm(state: ExtractFactsState) -> dict[str, Any]:
     consultant_context = None
     if state.consultant_user_id:
         try:
-            from app.db.profiles import get_consultant_context
             import asyncio
+
+            from app.db.profiles import get_consultant_context
             consultant_context = asyncio.get_event_loop().run_until_complete(
                 get_consultant_context(state.consultant_user_id)
             )

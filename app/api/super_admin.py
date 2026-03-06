@@ -1,6 +1,6 @@
 """Super admin endpoints for platform management."""
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -110,7 +110,7 @@ class RoleUpdateRequest(BaseModel):
 async def get_dashboard(auth: AuthContext = Depends(require_super_admin)):
     """Get aggregate platform stats for admin dashboard."""
     client = get_supabase()
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     seven_days_ago = (now - timedelta(days=7)).isoformat()
 
     profiles_resp = client.table("profiles").select(
@@ -414,7 +414,7 @@ async def get_user_detail(
         m = r.get("model", "unknown")
         model_costs[m] = model_costs.get(m, 0) + r.get("estimated_cost_usd", 0)
 
-    thirty_days_ago = (datetime.now(timezone.utc) - timedelta(days=30)).isoformat()
+    thirty_days_ago = (datetime.now(UTC) - timedelta(days=30)).isoformat()
     cost_30d = sum(r.get("estimated_cost_usd", 0) for r in cost_data if (r.get("created_at") or "") >= thirty_days_ago)
 
     # Recent LLM calls (last 20)
@@ -640,7 +640,7 @@ async def get_cost_analytics(
         item["email"] = info.get("email", "")
 
     # Daily cost (last 30 days)
-    thirty_days_ago = datetime.now(timezone.utc) - timedelta(days=30)
+    thirty_days_ago = datetime.now(UTC) - timedelta(days=30)
     daily_agg: dict[str, dict] = {}
     for r in data:
         created = r.get("created_at", "")

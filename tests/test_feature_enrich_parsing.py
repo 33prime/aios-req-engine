@@ -1,7 +1,8 @@
 """Tests for feature enrichment schema parsing and validation."""
 
-import pytest
 from uuid import uuid4
+
+import pytest
 
 from app.core.schemas_evidence import EvidenceRef
 from app.core.schemas_feature_enrich import (

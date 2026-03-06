@@ -20,8 +20,8 @@ export function EpicExplorationCard({
     <div className="space-y-3">
       {/* Epic header */}
       <div>
-        <h2 className="text-lg font-semibold text-[#0A1E2F]">{epic.title}</h2>
-        <p className="text-sm text-gray-600 mt-1 leading-relaxed">{epic.narrative}</p>
+        <h2 className="text-lg font-semibold text-accent">{epic.title}</h2>
+        <p className="text-sm text-text-secondary mt-1 leading-relaxed">{epic.narrative}</p>
       </div>
 
       {/* Consultant note */}
@@ -38,7 +38,7 @@ export function EpicExplorationCard({
           {epic.features.map((f, i) => (
             <span
               key={i}
-              className="text-[10px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full"
+              className="text-[10px] bg-surface-subtle text-text-muted px-2 py-0.5 rounded-full"
             >
               {f.name}
             </span>
@@ -49,7 +49,7 @@ export function EpicExplorationCard({
       {/* Assumptions */}
       {epic.assumptions.length > 0 && (
         <div className="space-y-2">
-          <p className="text-xs font-medium text-gray-400 uppercase tracking-wide">
+          <p className="text-xs font-medium text-text-placeholder uppercase tracking-wide">
             We assumed that...
           </p>
           {epic.assumptions.map((assumption: EpicAssumption, i: number) => {
@@ -59,20 +59,20 @@ export function EpicExplorationCard({
                 key={i}
                 className={`rounded-xl border px-4 py-3 transition-all ${
                   resp === 'agree'
-                    ? 'border-[#3FAF7A]/30 bg-[#3FAF7A]/5'
+                    ? 'border-brand-primary/30 bg-brand-primary/5'
                     : resp === 'disagree'
                     ? 'border-amber-300/30 bg-amber-50'
-                    : 'border-gray-200 bg-white'
+                    : 'border-border bg-surface-card'
                 }`}
               >
-                <p className="text-sm text-gray-800 mb-2">{assumption.text}</p>
+                <p className="text-sm text-text-body mb-2">{assumption.text}</p>
                 <div className="flex gap-2">
                   <button
                     onClick={() => onAssumptionResponse(i, 'agree')}
                     className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
                       resp === 'agree'
-                        ? 'bg-[#3FAF7A] text-white'
-                        : 'bg-gray-100 text-gray-500 hover:bg-[#3FAF7A]/10 hover:text-[#3FAF7A]'
+                        ? 'bg-brand-primary text-white'
+                        : 'bg-surface-subtle text-text-muted hover:bg-brand-primary/10 hover:text-brand-primary'
                     }`}
                   >
                     <ThumbsUp className="w-3.5 h-3.5" />
@@ -83,7 +83,7 @@ export function EpicExplorationCard({
                     className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
                       resp === 'disagree'
                         ? 'bg-amber-500 text-white'
-                        : 'bg-gray-100 text-gray-500 hover:bg-amber-50 hover:text-amber-600'
+                        : 'bg-surface-subtle text-text-muted hover:bg-amber-50 hover:text-amber-600'
                     }`}
                   >
                     <ThumbsDown className="w-3.5 h-3.5" />
@@ -99,7 +99,7 @@ export function EpicExplorationCard({
       {/* New idea button */}
       <button
         onClick={onNewIdea}
-        className="w-full flex items-center justify-center gap-2 px-4 py-2.5 border border-dashed border-gray-300 rounded-xl text-sm text-gray-500 hover:border-[#3FAF7A] hover:text-[#3FAF7A] transition-all"
+        className="w-full flex items-center justify-center gap-2 px-4 py-2.5 border border-dashed border-border-strong rounded-xl text-sm text-text-muted hover:border-brand-primary hover:text-brand-primary transition-all"
       >
         <Lightbulb className="w-4 h-4" />
         Something came to mind?

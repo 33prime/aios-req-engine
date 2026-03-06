@@ -4,8 +4,9 @@ Provides endpoints for viewing recent activity, items needing action,
 and managing activity item states.
 """
 
-from fastapi import APIRouter, Query
 from uuid import UUID
+
+from fastapi import APIRouter, Query
 
 from app.core.logging import get_logger
 
@@ -195,7 +196,7 @@ async def get_activity_summary(
     Returns:
         Summary with counts by type and pending actions
     """
-    from app.chains.activity_feed import get_recent_activity, get_pending_action_count
+    from app.chains.activity_feed import get_pending_action_count, get_recent_activity
 
     # Get aggregated activity
     activities = get_recent_activity(project_id, hours, limit=100, aggregate=True)

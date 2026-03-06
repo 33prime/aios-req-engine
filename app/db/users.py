@@ -1,14 +1,12 @@
 """Database operations for users."""
 
-from datetime import datetime
-from typing import Optional
 from uuid import UUID
 
 from app.core.schemas_auth import User, UserCreate, UserType, UserUpdate
 from app.db.supabase_client import get_supabase as get_client
 
 
-async def get_user_by_id(user_id: UUID) -> Optional[User]:
+async def get_user_by_id(user_id: UUID) -> User | None:
     """Get a user by ID."""
     client = get_client()
     result = client.table("users").select("*").eq("id", str(user_id)).execute()
@@ -17,7 +15,7 @@ async def get_user_by_id(user_id: UUID) -> Optional[User]:
     return None
 
 
-async def get_user_by_email(email: str) -> Optional[User]:
+async def get_user_by_email(email: str) -> User | None:
     """Get a user by email."""
     client = get_client()
     result = client.table("users").select("*").eq("email", email.lower()).execute()
@@ -26,7 +24,7 @@ async def get_user_by_email(email: str) -> Optional[User]:
     return None
 
 
-async def create_user(data: UserCreate, user_id: Optional[UUID] = None) -> User:
+async def create_user(data: UserCreate, user_id: UUID | None = None) -> User:
     """Create a new user. Optionally specify the ID (e.g., to match auth.users)."""
     client = get_client()
     user_data = {
@@ -42,7 +40,7 @@ async def create_user(data: UserCreate, user_id: Optional[UUID] = None) -> User:
     return User(**result.data[0])
 
 
-async def update_user(user_id: UUID, data: UserUpdate) -> Optional[User]:
+async def update_user(user_id: UUID, data: UserUpdate) -> User | None:
     """Update a user."""
     client = get_client()
     update_data = {k: v for k, v in data.model_dump().items() if v is not None}
@@ -63,7 +61,7 @@ async def delete_user(user_id: UUID) -> bool:
 
 
 async def list_users(
-    user_type: Optional[UserType] = None,
+    user_type: UserType | None = None,
     limit: int = 100,
     offset: int = 0,
 ) -> list[User]:
@@ -83,9 +81,9 @@ async def list_users(
 async def get_or_create_user(
     email: str,
     user_type: UserType,
-    first_name: Optional[str] = None,
-    last_name: Optional[str] = None,
-    company_name: Optional[str] = None,
+    first_name: str | None = None,
+    last_name: str | None = None,
+    company_name: str | None = None,
 ) -> tuple[User, bool]:
     """Get existing user or create new one. Returns (user, created)."""
     existing = await get_user_by_email(email)
@@ -104,14 +102,14 @@ async def get_or_create_user(
     return user, True
 
 
-async def mark_welcome_seen(user_id: UUID) -> Optional[User]:
+async def mark_welcome_seen(user_id: UUID) -> User | None:
     """Mark that user has seen the welcome screen."""
     return await update_user(user_id, UserUpdate(has_seen_welcome=True))
 
 
 async def search_users(
     query: str,
-    user_type: Optional[UserType] = None,
+    user_type: UserType | None = None,
     limit: int = 20,
 ) -> list[User]:
     """Search users by email or name."""

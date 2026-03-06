@@ -14,7 +14,7 @@ from pydantic import BaseModel, Field
 
 from app.core.config import get_settings
 from app.core.logging import get_logger
-from app.db.jobs import create_job, start_job, complete_job, fail_job
+from app.db.jobs import complete_job, create_job, fail_job, start_job
 from app.db.supabase_client import get_supabase
 
 logger = get_logger(__name__)
@@ -571,7 +571,7 @@ def _append_research_to_memory(project_id: UUID, research_content: str) -> None:
                 learning_type="insight",
                 domain="market_research",
             )
-            logger.info(f"Added research fallback to project memory")
+            logger.info("Added research fallback to project memory")
 
 
 def _trigger_foundation(project_id: UUID) -> UUID | None:
@@ -582,6 +582,7 @@ def _trigger_foundation(project_id: UUID) -> UUID | None:
     and competitors from the newly added research signal.
     """
     import threading
+
     from app.db.jobs import create_job, start_job
 
     # Create job for foundation extraction

@@ -2,10 +2,9 @@
 
 from datetime import datetime
 from enum import Enum
-from typing import Any, Literal, Optional
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
-
 
 # =============================================================================
 # Gate Types (moved from di_agent_types.py)
@@ -37,7 +36,7 @@ class GateAssessment(BaseModel):
     how_to_acquire: list[str] = Field(
         default_factory=list, description="How to get the missing information"
     )
-    unlock_hint: Optional[str] = Field(
+    unlock_hint: str | None = Field(
         None, description="What often unlocks this gate (for build gates)"
     )
 

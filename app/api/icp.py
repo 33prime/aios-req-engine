@@ -4,12 +4,10 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
 
-from app.chains.route_icp_signals import route_signal
 from app.chains.score_icp_consultant import compute_consultant_score
 from app.core.auth_middleware import AuthContext, require_consultant
 from app.core.logging import get_logger
 from app.core.schemas_icp import (
-    ICPConsultantScore,
     ICPMetrics,
     ICPProfile,
     ICPProfileCreate,
@@ -20,7 +18,6 @@ from app.core.schemas_icp import (
 )
 from app.db.icp_profiles import (
     create_icp_profile,
-    get_icp_profile,
     list_icp_profiles,
     update_icp_profile,
 )
@@ -28,7 +25,6 @@ from app.db.icp_scores import get_user_scores, upsert_consultant_score
 from app.db.icp_signals import (
     get_review_queue,
     get_signal_metrics,
-    get_user_signals,
     update_signal_routing,
 )
 from app.services.posthog_ingest import process_posthog_webhook

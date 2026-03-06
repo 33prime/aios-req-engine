@@ -1,6 +1,5 @@
 """Tests for research report rendering logic."""
 
-import json
 
 from app.core.research_render import (
     parse_json_maybe,

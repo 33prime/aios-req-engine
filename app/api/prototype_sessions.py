@@ -143,6 +143,20 @@ async def submit_feedback_endpoint(
                 answered_by="consultant",
             )
 
+        # Update link graph based on feedback type
+        if request.feature_id:
+            try:
+                project_id = UUID(session["project_id"])
+                _update_links_from_feedback(
+                    project_id=project_id,
+                    feature_id=UUID(request.feature_id),
+                    feedback_type=request.feedback_type,
+                    content=request.content,
+                    source=request.context.model_dump() if request.context else None,
+                )
+            except Exception as link_err:
+                logger.debug(f"Link update from feedback failed (non-fatal): {link_err}")
+
         return FeedbackResponse(**feedback)
 
     except HTTPException:
@@ -1668,6 +1682,8 @@ async def get_exploration_results(session_id: UUID):
 @router.post("/{session_id}/feed-inspirations")
 async def feed_inspirations(session_id: UUID):
     """Convert client inspirations into discovery signals via insert_signal()."""
+    import uuid as _uuid
+
     from app.db.client_exploration import get_inspirations
     from app.db.phase0 import insert_signal
 
@@ -1685,6 +1701,7 @@ async def feed_inspirations(session_id: UUID):
     if not inspirations:
         return {"session_id": str(session_id), "signals_created": 0}
 
+    run_id = _uuid.uuid4()
     signals_created = 0
     for insp in inspirations:
         try:
@@ -1704,6 +1721,7 @@ async def feed_inspirations(session_id: UUID):
                     "epic_index": insp.get("epic_index"),
                     "inspiration_id": insp.get("id"),
                 },
+                run_id=run_id,
             )
             signals_created += 1
         except Exception as e:
@@ -1711,3 +1729,94 @@ async def feed_inspirations(session_id: UUID):
 
     logger.info(f"Fed {signals_created} inspirations into discovery for session {session_id}")
     return {"session_id": str(session_id), "signals_created": signals_created}
+
+
+# =============================================================================
+# Feedback → Link Graph Updates
+# =============================================================================
+
+
+def _update_links_from_feedback(
+    project_id: UUID,
+    feature_id: UUID,
+    feedback_type: str,
+    content: str,
+    source: dict | None = None,
+) -> None:
+    """Update entity link confidence based on prototype feedback.
+
+    - Positive feedback ("love", "praise"): boost confidence of feature's chain by 0.1
+    - Confusion feedback ("confusion", "issue"): flag chain, reduce confidence by 0.1
+    - New idea ("idea", "suggestion"): create signal from content for extraction
+    """
+    from app.db.entity_dependencies import get_dependencies
+    from app.db.supabase_client import get_supabase
+
+    sb = get_supabase()
+
+    # Get feature's links
+    deps = get_dependencies(project_id, "feature", feature_id)
+
+    # Determine adjustment
+    positive_types = {"love", "praise", "positive", "confirm", "aligned"}
+    confusion_types = {"confusion", "issue", "bug", "concern", "off_track"}
+
+    feedback_lower = (feedback_type or "").lower()
+    content_lower = (content or "").lower()
+
+    # Check for positive signals in content
+    is_positive = (
+        feedback_lower in positive_types
+        or any(w in content_lower for w in ["love", "perfect", "exactly", "great"])
+    )
+    is_confusion = (
+        feedback_lower in confusion_types
+        or any(w in content_lower for w in ["confused", "why", "doesn't make sense"])
+    )
+    is_new_idea = feedback_lower in {"idea", "suggestion", "new_requirement"}
+
+    if is_positive and deps:
+        # Boost confidence of all links in feature's chain by 0.1
+        for dep in deps:
+            current_conf = dep.get("confidence", 0.5)
+            new_conf = min(1.0, current_conf + 0.1)
+            try:
+                sb.table("entity_dependencies").update({
+                    "confidence": new_conf,
+                }).eq("id", dep["id"]).execute()
+            except Exception:
+                pass
+        logger.info(f"Boosted {len(deps)} link confidences for feature {feature_id}")
+
+    elif is_confusion and deps:
+        # Reduce confidence and flag for investigation
+        for dep in deps:
+            current_conf = dep.get("confidence", 0.5)
+            new_conf = max(0.1, current_conf - 0.1)
+            try:
+                sb.table("entity_dependencies").update({
+                    "confidence": new_conf,
+                }).eq("id", dep["id"]).execute()
+            except Exception:
+                pass
+        logger.info(f"Reduced {len(deps)} link confidences for feature {feature_id} (confusion)")
+
+    elif is_new_idea and content:
+        # Create signal from the new idea for extraction
+        try:
+            from app.db.signals import create_signal
+
+            create_signal(
+                project_id=project_id,
+                content=content,
+                signal_type="client_feedback",
+                source="prototype_review",
+                metadata={
+                    "feature_id": str(feature_id),
+                    "feedback_type": feedback_type,
+                    "origin": "prototype_reaction",
+                },
+            )
+            logger.info(f"Created signal from new idea feedback for feature {feature_id}")
+        except Exception as e:
+            logger.debug(f"Failed to create signal from feedback: {e}")

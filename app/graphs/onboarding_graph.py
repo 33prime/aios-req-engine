@@ -5,10 +5,9 @@ Used when a project is created with a description to automatically
 analyze the description and build initial project state.
 """
 
-import asyncio
 import logging
-from uuid import UUID
 from typing import TypedDict
+from uuid import UUID
 
 logger = logging.getLogger(__name__)
 
@@ -123,9 +122,9 @@ def run_onboarding(
         - features: number of features created
         - personas: number of personas created
     """
-    from app.graphs.extract_facts_graph import run_extract_facts
+    from app.db.project_memory import add_decision, get_or_create_project_memory
     from app.graphs.build_state_graph import run_build_state_agent
-    from app.db.project_memory import get_or_create_project_memory, add_decision
+    from app.graphs.extract_facts_graph import run_extract_facts
 
     logger.info(
         f"Starting onboarding for project {project_id}",

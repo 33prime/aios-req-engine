@@ -6,7 +6,8 @@ Provides a conversational interface for creating new projects using Claude Haiku
 import json
 import re
 import uuid
-from typing import Any, AsyncGenerator
+from collections.abc import AsyncGenerator
+from typing import Any
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse

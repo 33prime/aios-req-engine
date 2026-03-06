@@ -5,12 +5,11 @@ Zero-cost: all LLM/enrichment calls are mocked. The real orchestrator logic
 via a threading.Thread mock.
 """
 
-import asyncio
+
+from unittest.mock import AsyncMock, MagicMock, patch
+from uuid import uuid4
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock, call, patch
-from uuid import UUID, uuid4
-
 from fastapi.testclient import TestClient
 
 from app.main import app

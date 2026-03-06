@@ -8,14 +8,12 @@ Three-phase approach:
 
 import json
 from typing import Any
-from uuid import UUID
 
 from anthropic import Anthropic
 
 from app.agents.prototype_updater_prompts import (
     EXECUTION_SYSTEM_PROMPT,
     PLANNING_SYSTEM_PROMPT,
-    VALIDATION_SYSTEM_PROMPT,
 )
 from app.agents.prototype_updater_tools import build_tools, execute_tool
 from app.agents.prototype_updater_types import UpdatePlan, UpdateResult

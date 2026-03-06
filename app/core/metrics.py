@@ -5,7 +5,6 @@ Utilities for tracking and logging operation performance.
 
 import time
 from contextlib import contextmanager
-from typing import Optional
 
 from app.core.logging import get_logger
 
@@ -13,7 +12,7 @@ logger = get_logger(__name__)
 
 
 @contextmanager
-def timer(operation_name: str, project_id: Optional[str] = None, log_level: str = "info"):
+def timer(operation_name: str, project_id: str | None = None, log_level: str = "info"):
     """
     Context manager for timing operations.
 
@@ -61,7 +60,7 @@ class PerformanceTracker:
     Accumulates metrics like DB calls, cache hits/misses, and duration.
     """
 
-    def __init__(self, operation: str, project_id: Optional[str] = None):
+    def __init__(self, operation: str, project_id: str | None = None):
         """
         Initialize performance tracker.
 
@@ -71,7 +70,7 @@ class PerformanceTracker:
         """
         self.operation = operation
         self.project_id = project_id
-        self.start_time: Optional[float] = None
+        self.start_time: float | None = None
         self.db_calls = 0
         self.cache_hits = 0
         self.cache_misses = 0
@@ -135,7 +134,7 @@ class PerformanceTracker:
 
 
 @contextmanager
-def track_performance(operation: str, project_id: Optional[str] = None):
+def track_performance(operation: str, project_id: str | None = None):
     """
     Context manager for tracking operation performance with detailed metrics.
 

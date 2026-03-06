@@ -15,7 +15,6 @@ from app.core.schemas_entity_patch import (
     PatchApplicationResult,
 )
 from app.graphs.unified_processor import (
-    V2ProcessingResult,
     _build_entity_counts,
     process_signal_v2,
 )

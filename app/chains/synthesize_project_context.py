@@ -5,7 +5,6 @@ data entities, stakeholders, competitors) and produces a structured project
 context document — the single source of truth for the dev agent.
 """
 
-import json
 from uuid import UUID
 
 from app.core.config import get_settings
@@ -205,7 +204,7 @@ async def synthesize_project_context(project_id: UUID) -> dict:
     Returns:
         Dict matching ProjectContext schema.
     """
-    from app.db.canvas_synthesis import get_canvas_synthesis, upsert_canvas_synthesis
+    from app.db.canvas_synthesis import upsert_canvas_synthesis
     from app.db.supabase_client import get_supabase
 
     settings = get_settings()

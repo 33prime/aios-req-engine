@@ -11,9 +11,9 @@ from enum import Enum
 from typing import Any
 from uuid import UUID
 
+from app.chains.activity_feed import log_cascade_triggered, log_needs_review
 from app.core.logging import get_logger
 from app.db.supabase_client import get_supabase
-from app.chains.activity_feed import log_cascade_triggered, log_needs_review
 
 logger = get_logger(__name__)
 

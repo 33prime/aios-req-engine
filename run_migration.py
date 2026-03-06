@@ -9,7 +9,7 @@ if len(sys.argv) < 2:
     sys.exit(1)
 
 migration_file = sys.argv[1]
-with open(migration_file, 'r') as f:
+with open(migration_file) as f:
     sql = f.read()
 
 print(f"📄 Migration file: {migration_file}")
@@ -24,17 +24,17 @@ try:
         print("❌ DATABASE_URL environment variable not set")
         sys.exit(1)
 
-    print(f"🔌 Connecting to database...")
+    print("🔌 Connecting to database...")
     conn = psycopg2.connect(database_url)
     cursor = conn.cursor()
 
-    print(f"✅ Connected!\n")
-    print(f"🚀 Executing migration...\n")
+    print("✅ Connected!\n")
+    print("🚀 Executing migration...\n")
 
     cursor.execute(sql)
     conn.commit()
 
-    print(f"✅ Migration complete!")
+    print("✅ Migration complete!")
 
     cursor.close()
     conn.close()

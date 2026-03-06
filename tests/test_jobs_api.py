@@ -1,6 +1,6 @@
 """Tests for jobs API endpoints."""
 
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 from uuid import uuid4
 
 from app.db.jobs import create_job, get_job, list_jobs

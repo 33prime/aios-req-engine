@@ -7,7 +7,8 @@ Provides additional validation beyond Pydantic schema validation:
 - Warning detection
 """
 
-from typing import List, Dict, Any, Tuple
+from typing import Any
+
 from app.core.schemas_research import ResearchReport
 
 
@@ -23,7 +24,7 @@ class ValidationWarning:
         return f"{self.severity.upper()}: {self.field} - {self.message}"
 
 
-def validate_research_report(report: ResearchReport) -> Tuple[bool, List[ValidationWarning]]:
+def validate_research_report(report: ResearchReport) -> tuple[bool, list[ValidationWarning]]:
     """
     Validate research report for data quality and completeness.
 
@@ -157,7 +158,7 @@ def validate_research_report(report: ResearchReport) -> Tuple[bool, List[Validat
     return is_valid, warnings
 
 
-def get_completeness_score(report: ResearchReport) -> Dict[str, Any]:
+def get_completeness_score(report: ResearchReport) -> dict[str, Any]:
     """
     Calculate completeness score for research report.
 
@@ -226,7 +227,7 @@ def get_completeness_score(report: ResearchReport) -> Dict[str, Any]:
     }
 
 
-def get_content_statistics(report: ResearchReport) -> Dict[str, Any]:
+def get_content_statistics(report: ResearchReport) -> dict[str, Any]:
     """
     Get content statistics for research report.
 

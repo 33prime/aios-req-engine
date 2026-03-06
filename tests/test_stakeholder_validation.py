@@ -1,7 +1,6 @@
 """Tests for stakeholder validation (people-only filter)."""
 
-import pytest
-from app.core.stakeholder_validation import is_likely_person, filter_people_only
+from app.core.stakeholder_validation import filter_people_only, is_likely_person
 
 
 class TestIsLikelyPerson:

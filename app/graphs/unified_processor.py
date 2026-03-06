@@ -20,6 +20,7 @@ Usage:
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from datetime import UTC
 from typing import Any
 from uuid import UUID
 
@@ -123,7 +124,7 @@ def _create_document_review_task(state: V2ProcessorState) -> None:
     Non-critical — failures are logged, never fatal.
     """
     try:
-        from datetime import datetime, timezone
+        from datetime import datetime
 
         r = state.application_result
         if not r or r.total_applied == 0:
@@ -164,7 +165,7 @@ def _create_document_review_task(state: V2ProcessorState) -> None:
             "source_type": "signal_processing",
             "priority": "high",
             "priority_score": 90,
-            "due_date": datetime.now(timezone.utc).isoformat(),
+            "due_date": datetime.now(UTC).isoformat(),
             "signal_id": str(state.signal_id),
             "patches_snapshot": patches_snapshot,
         }
@@ -467,11 +468,12 @@ async def v2_apply_patches(state: V2ProcessorState) -> dict[str, Any]:
             extra={"signal_id": str(state.signal_id)},
         )
 
-        # Record pulse snapshot after successful patch application (fire-and-forget)
+        # Record pulse snapshot after successful patch application (debounced)
         try:
-            from app.core.pulse_observer import record_pulse_snapshot
             import asyncio
-            asyncio.create_task(record_pulse_snapshot(state.project_id, trigger="signal_processed"))
+
+            from app.core.pulse_observer import record_pulse_snapshot_debounced
+            asyncio.create_task(record_pulse_snapshot_debounced(state.project_id, trigger="signal_processed"))
         except Exception as e:
             logger.debug(f"Pulse observer failed (non-fatal): {e}")
 

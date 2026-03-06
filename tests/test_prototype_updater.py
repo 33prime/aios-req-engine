@@ -1,7 +1,6 @@
 """Tests for the prototype code updater agent."""
 
 import json
-import os
 from unittest.mock import MagicMock, patch
 from uuid import uuid4
 

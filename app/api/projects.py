@@ -33,7 +33,6 @@ from app.core.stage_progression import (
     validate_stage_transition,
 )
 from app.db.company_info import batch_get_company_names
-
 from app.db.project_gates import get_or_create_project_gate, upsert_project_gate
 from app.db.projects import (
     archive_project as db_archive_project,

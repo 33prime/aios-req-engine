@@ -8,9 +8,9 @@ See docs/context/retrieval-rules.md for context tier rules.
 from typing import Any, Literal
 from uuid import UUID
 
+from langchain_anthropic import ChatAnthropic
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_core.output_parsers import PydanticOutputParser
-from langchain_anthropic import ChatAnthropic
 from pydantic import BaseModel, Field
 
 from app.core.config import get_settings

@@ -1,8 +1,6 @@
 """Tests for project gates auto-creation functionality."""
 
 from unittest.mock import patch
-
-import pytest
 from uuid import uuid4
 
 from app.db.project_gates import get_or_create_project_gate

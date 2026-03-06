@@ -4,9 +4,8 @@ Covers all 7 chat endpoints via FastAPI TestClient with mocked Supabase + Anthro
 """
 
 import json
-from typing import List
 from unittest.mock import AsyncMock, MagicMock, patch
-from uuid import UUID, uuid4
+from uuid import uuid4
 
 import pytest
 from fastapi.testclient import TestClient
@@ -40,7 +39,7 @@ CONV_ID = str(uuid4())
 # ──────────────────────────────────────────────────────────────────────
 
 
-def parse_sse_events(text: str) -> List[dict]:
+def parse_sse_events(text: str) -> list[dict]:
     """Parse SSE response body into a list of event dicts."""
     events = []
     for line in text.strip().split("\n"):

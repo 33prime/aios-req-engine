@@ -13,7 +13,7 @@ import asyncio
 import time
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
 
@@ -22,11 +22,11 @@ from langgraph.graph import END, StateGraph
 
 from app.core.config import get_settings
 from app.core.document_processing import (
-    ClassificationResult,
     ChunkWithContext,
+    ClassificationResult,
     ExtractionResult,
-    classify_document,
     chunk_document,
+    classify_document,
     get_extractor,
 )
 from app.core.logging import get_logger
@@ -53,7 +53,6 @@ def _run_async(coro):
         # Try to get existing loop
         loop = asyncio.get_running_loop()
         # If we're in an async context, run in thread pool
-        import concurrent.futures
         future = _executor.submit(asyncio.run, coro)
         return future.result(timeout=300)  # 5 min timeout
     except RuntimeError:
@@ -118,7 +117,7 @@ def _check_max_steps(state: DocumentProcessingState) -> DocumentProcessingState:
 def load_document(state: DocumentProcessingState) -> dict[str, Any]:
     """Load document info from database."""
     state = _check_max_steps(state)
-    state.started_at = datetime.now(timezone.utc).isoformat()
+    state.started_at = datetime.now(UTC).isoformat()
     state.start_time_ms = int(time.time() * 1000)
 
     logger.info(f"Loading document {state.document_id}")
@@ -655,6 +654,7 @@ def _trigger_signal_pipeline(
     def run_pipeline():
         try:
             import asyncio
+
             from app.graphs.unified_processor import process_signal_v2
 
             run_id = uuid4()

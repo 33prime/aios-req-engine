@@ -716,6 +716,10 @@ export interface SolutionFlowStepSummary {
   info_field_count: number
   confidence_breakdown: Record<string, number>
   confidence_impact?: number | null
+  // Client review flags (migration 0181)
+  needs_client_review?: boolean
+  review_reason?: string | null
+  review_resolved_at?: string | null
 }
 
 export interface SolutionFlowStepDetail extends SolutionFlowStepSummary {

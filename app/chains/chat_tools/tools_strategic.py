@@ -1,6 +1,6 @@
 """Strategic context tool implementations."""
 
-from typing import Any, Dict
+from typing import Any
 from uuid import UUID
 
 from app.core.logging import get_logger
@@ -9,7 +9,7 @@ from app.db.supabase_client import get_supabase
 logger = get_logger(__name__)
 
 
-async def _generate_strategic_context(project_id: UUID, params: Dict[str, Any]) -> Dict[str, Any]:
+async def _generate_strategic_context(project_id: UUID, params: dict[str, Any]) -> dict[str, Any]:
     """
     Generate or regenerate strategic context.
 
@@ -19,10 +19,10 @@ async def _generate_strategic_context(project_id: UUID, params: Dict[str, Any]) 
     - Runs company enrichment (Firecrawl + AI)
     """
     try:
-        from app.chains.generate_strategic_context import generate_and_save_strategic_context
         from app.chains.enrich_company import enrich_company
-        from app.db.company_info import get_company_info
+        from app.chains.generate_strategic_context import generate_and_save_strategic_context
         from app.db.business_drivers import list_business_drivers
+        from app.db.company_info import get_company_info
         from app.db.constraints import list_constraints
 
         regenerate = params.get("regenerate", False)
@@ -69,10 +69,10 @@ async def _generate_strategic_context(project_id: UUID, params: Dict[str, Any]) 
         return {"success": False, "error": str(e)}
 
 
-async def _update_project_type(project_id: UUID, params: Dict[str, Any]) -> Dict[str, Any]:
+async def _update_project_type(project_id: UUID, params: dict[str, Any]) -> dict[str, Any]:
     """Update project type."""
     try:
-        from app.db.strategic_context import update_project_type, get_strategic_context
+        from app.db.strategic_context import get_strategic_context, update_project_type
 
         project_type = params.get("project_type")
         if not project_type:
@@ -96,7 +96,7 @@ async def _update_project_type(project_id: UUID, params: Dict[str, Any]) -> Dict
         return {"success": False, "error": str(e)}
 
 
-async def _identify_stakeholders(project_id: UUID, params: Dict[str, Any]) -> Dict[str, Any]:
+async def _identify_stakeholders(project_id: UUID, params: dict[str, Any]) -> dict[str, Any]:
     """Identify stakeholders from signals."""
     try:
         from app.chains.generate_strategic_context import identify_stakeholders
@@ -121,7 +121,7 @@ async def _identify_stakeholders(project_id: UUID, params: Dict[str, Any]) -> Di
         return {"success": False, "error": str(e)}
 
 
-async def _update_strategic_context(project_id: UUID, params: Dict[str, Any]) -> Dict[str, Any]:
+async def _update_strategic_context(project_id: UUID, params: dict[str, Any]) -> dict[str, Any]:
     """Update strategic context by adding a risk, success metric, or updating a field."""
     try:
         from app.db.strategic_context import add_risk, add_success_metric, get_strategic_context

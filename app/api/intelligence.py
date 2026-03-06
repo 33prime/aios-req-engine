@@ -4,6 +4,7 @@ Prefix: /projects/{project_id}/intelligence
 """
 
 import logging
+from datetime import UTC
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException
@@ -14,9 +15,9 @@ from app.core.schemas_intelligence import (
     ConsultantFeedbackRequest,
     CreateBeliefRequest,
     DealReadinessComponent,
+    EvidenceResponse,
     EvolutionEvent,
     EvolutionResponse,
-    EvidenceResponse,
     GapOrRisk,
     GraphEdgeResponse,
     GraphNodeResponse,
@@ -403,12 +404,12 @@ async def get_evolution(
     limit: int = 50,
 ) -> EvolutionResponse:
     """Unified timeline: beliefs, signals, entities, facts."""
-    from datetime import datetime, timedelta, timezone
+    from datetime import datetime, timedelta
 
     from app.db.supabase_client import get_supabase
 
     sb = get_supabase()
-    cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+    cutoff = (datetime.now(UTC) - timedelta(days=days)).isoformat()
     events: list[EvolutionEvent] = []
 
     # Belief history events

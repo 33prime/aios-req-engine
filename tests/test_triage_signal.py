@@ -1,6 +1,5 @@
 """Tests for signal triage layer."""
 
-import pytest
 
 from app.chains.triage_signal import (
     SOURCE_STRATEGY_MAP,

@@ -6,7 +6,6 @@ weighted by confirmation status of linked entities.
 
 from typing import Any
 
-
 _CONFIRMED_STATUSES = {"confirmed_consultant", "confirmed_client"}
 
 

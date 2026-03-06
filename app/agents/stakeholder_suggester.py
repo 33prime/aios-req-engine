@@ -9,7 +9,6 @@ Uses:
 - AI-assisted matching when explicit mappings aren't available
 """
 
-from typing import Optional
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -23,8 +22,8 @@ logger = get_logger(__name__)
 class StakeholderSuggestion(BaseModel):
     """A suggested stakeholder for a topic."""
 
-    stakeholder_id: Optional[UUID] = None
-    name: Optional[str] = None
+    stakeholder_id: UUID | None = None
+    name: str | None = None
     role: str
     topic: str
     reason: str
@@ -219,7 +218,7 @@ async def suggest_stakeholder_for_question(
 async def suggest_stakeholder_for_document(
     project_id: UUID,
     document_name: str,
-    document_description: Optional[str] = None,
+    document_description: str | None = None,
 ) -> list[StakeholderSuggestion]:
     """
     Suggest who can provide a specific document.

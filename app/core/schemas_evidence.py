@@ -2,7 +2,6 @@
 
 from datetime import datetime
 from enum import Enum
-from typing import Optional, List
 from uuid import UUID
 
 from pydantic import BaseModel, Field, field_validator
@@ -55,12 +54,12 @@ class Evidence(BaseModel):
     relevance: str = Field(..., description="Why this evidence matters for this finding")
 
     created_at: datetime = Field(default_factory=datetime.utcnow)
-    url: Optional[str] = Field(None, description="External URL if applicable")
-    view_url: Optional[str] = Field(None, description="Internal frontend URL to view source")
+    url: str | None = Field(None, description="External URL if applicable")
+    view_url: str | None = Field(None, description="Internal frontend URL to view source")
 
     # Optional metadata
-    confidence: Optional[float] = Field(None, ge=0.0, le=1.0)
-    tags: List[str] = Field(default_factory=list)
+    confidence: float | None = Field(None, ge=0.0, le=1.0)
+    tags: list[str] = Field(default_factory=list)
 
 
 class ResearchTrigger(str, Enum):
@@ -78,17 +77,17 @@ class ResearchRecommendation(BaseModel):
     Recommendation to run research based on signal analysis.
     """
     should_run: bool
-    triggers: List[dict] = Field(
+    triggers: list[dict] = Field(
         default_factory=list,
         description="List of {trigger, description, priority} dicts"
     )
-    suggested_queries: List[str] = Field(default_factory=list)
-    estimated_duration: Optional[str] = Field(None, description="e.g., '2-3 minutes'")
+    suggested_queries: list[str] = Field(default_factory=list)
+    estimated_duration: str | None = Field(None, description="e.g., '2-3 minutes'")
 
     # Context for decision
-    new_domains: List[str] = Field(default_factory=list)
-    missing_topics: List[str] = Field(default_factory=list)
-    stale_topics: List[str] = Field(default_factory=list)
+    new_domains: list[str] = Field(default_factory=list)
+    missing_topics: list[str] = Field(default_factory=list)
+    stale_topics: list[str] = Field(default_factory=list)
 
 
 class Alternative(BaseModel):
@@ -97,10 +96,10 @@ class Alternative(BaseModel):
     """
     option: str
     description: str
-    pros: List[str] = Field(default_factory=list)
-    cons: List[str] = Field(default_factory=list)
+    pros: list[str] = Field(default_factory=list)
+    cons: list[str] = Field(default_factory=list)
     confidence: float = Field(..., ge=0.0, le=1.0)
-    evidence: List[Evidence] = Field(default_factory=list)
+    evidence: list[Evidence] = Field(default_factory=list)
 
     @field_validator('pros', 'cons', mode='before')
     @classmethod

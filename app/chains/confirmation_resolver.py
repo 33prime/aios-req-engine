@@ -18,15 +18,15 @@ from uuid import UUID
 
 from openai import OpenAI
 
-from app.core.logging import get_logger
 from app.core.config import get_settings
+from app.core.logging import get_logger
 from app.db.confirmations import (
     list_confirmation_items,
     set_confirmation_status,
 )
 from app.db.features import update_feature
-from app.db.vp import update_vp_step
 from app.db.personas import update_persona
+from app.db.vp import update_vp_step
 
 logger = get_logger(__name__)
 

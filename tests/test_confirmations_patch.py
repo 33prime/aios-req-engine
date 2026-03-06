@@ -1,6 +1,5 @@
 """Tests for confirmations PATCH endpoint."""
 
-import pytest
 from unittest.mock import patch
 from uuid import uuid4
 

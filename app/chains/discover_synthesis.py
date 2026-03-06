@@ -4,13 +4,10 @@ Renders the full research report, stores as signal, persists entities,
 resolves name→UUID for entity linking, computes relatability scores.
 """
 
-import logging
-import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
 
-from app.core.config import get_settings
 from app.core.logging import get_logger
 from app.core.relatability import compute_relatability_score
 
@@ -30,7 +27,7 @@ def render_report_markdown(
 ) -> str:
     """Render the discovery findings as a markdown report."""
     parts = [f"# Discovery Intelligence Report: {company_name}"]
-    parts.append(f"*Generated: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}*\n")
+    parts.append(f"*Generated: {datetime.now(UTC).strftime('%Y-%m-%d %H:%M UTC')}*\n")
 
     # Company Profile
     parts.append("## Company Profile")

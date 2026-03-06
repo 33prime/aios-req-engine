@@ -16,7 +16,6 @@ from app.db.clients import (
     get_client,
     get_client_projects,
     update_client,
-    update_client_enrichment,
 )
 
 logger = get_logger(__name__)

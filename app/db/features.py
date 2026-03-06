@@ -204,7 +204,7 @@ def bulk_replace_features(
 
         if not rows:
             logger.info(
-                f"No new features to insert after filtering duplicates",
+                "No new features to insert after filtering duplicates",
                 extra={"project_id": str(project_id)},
             )
             return (0, confirmed_features)

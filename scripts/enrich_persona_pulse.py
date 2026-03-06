@@ -12,7 +12,6 @@ Usage:
 """
 
 import asyncio
-import sys
 import traceback
 from uuid import UUID
 

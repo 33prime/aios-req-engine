@@ -4,18 +4,16 @@ Tests MemoryWatcher, MemorySynthesizer, and MemoryReflector.
 """
 
 import json
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 from uuid import uuid4
 
 import pytest
 
 from app.agents.memory_agent import (
-    MemoryWatcher,
-    MemorySynthesizer,
     MemoryReflector,
-    IMPORTANCE_THRESHOLD_FOR_SYNTHESIS,
+    MemorySynthesizer,
+    MemoryWatcher,
 )
-
 
 # =============================================================================
 # Fixtures

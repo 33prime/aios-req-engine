@@ -1,6 +1,6 @@
 """Tests for EntityPatch applicator."""
 
-from unittest.mock import MagicMock, patch, AsyncMock
+from unittest.mock import MagicMock, patch
 from uuid import UUID, uuid4
 
 import pytest
@@ -10,13 +10,10 @@ from app.db.patch_applicator import (
     AUTHORITY_TO_STATUS,
     CONFIRMATION_HIERARCHY,
     ENTITY_TABLE_MAP,
-    TABLES_WITH_SLUG,
-    TABLES_WITH_SIGNAL_IDS,
-    TABLE_FIELD_RENAMES,
-    apply_entity_patches,
     _normalize_payload,
     _resolve_target_entity_id,
     _summarize_patch,
+    apply_entity_patches,
 )
 
 

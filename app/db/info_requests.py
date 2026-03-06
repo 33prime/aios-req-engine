@@ -1,7 +1,7 @@
 """Database operations for info requests."""
 
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any
 from uuid import UUID
 
 from app.core.schemas_portal import (
@@ -14,7 +14,7 @@ from app.core.schemas_portal import (
 from app.db.supabase_client import get_supabase as get_client
 
 
-async def get_info_request(request_id: UUID) -> Optional[InfoRequest]:
+async def get_info_request(request_id: UUID) -> InfoRequest | None:
     """Get an info request by ID."""
     client = get_client()
     result = client.table("info_requests").select("*").eq("id", str(request_id)).execute()
@@ -51,7 +51,7 @@ async def create_info_request(project_id: UUID, data: InfoRequestCreate) -> Info
 async def update_info_request(
     request_id: UUID,
     data: InfoRequestUpdate,
-) -> Optional[InfoRequest]:
+) -> InfoRequest | None:
     """Update an info request (consultant editing)."""
     client = get_client()
     update_data = {}
@@ -83,7 +83,7 @@ async def submit_info_request_answer(
     user_id: UUID,
     answer_data: dict[str, Any],
     status: InfoRequestStatus = InfoRequestStatus.COMPLETE,
-) -> Optional[InfoRequest]:
+) -> InfoRequest | None:
     """Submit an answer to an info request (client answering)."""
     client = get_client()
     update_data = {
@@ -109,7 +109,7 @@ async def submit_info_request_answer(
 async def update_info_request_status(
     request_id: UUID,
     status: InfoRequestStatus,
-) -> Optional[InfoRequest]:
+) -> InfoRequest | None:
     """Update just the status of an info request."""
     client = get_client()
     update_data = {"status": status.value}
@@ -137,8 +137,8 @@ async def delete_info_request(request_id: UUID) -> bool:
 
 async def list_info_requests(
     project_id: UUID,
-    phase: Optional[InfoRequestPhase] = None,
-    status: Optional[InfoRequestStatus] = None,
+    phase: InfoRequestPhase | None = None,
+    status: InfoRequestStatus | None = None,
 ) -> list[InfoRequest]:
     """List info requests for a project."""
     client = get_client()

@@ -184,12 +184,12 @@ async def generate_test_suggestions(
     if not to_suggest:
         return []
 
+    import json
+
     from anthropic import AsyncAnthropic
 
     from app.core.config import get_settings
     from app.core.llm_usage import log_llm_usage
-
-    import json
 
     HAIKU_MODEL = "claude-haiku-4-5-20251001"
 
@@ -208,7 +208,7 @@ async def generate_test_suggestions(
         system="You suggest how a consultant could test/validate project beliefs. "
                "For each hypothesis, suggest ONE concrete action (ask a stakeholder, review a doc, run a test). "
                "Be specific. Return JSON array of {id, suggestion}. No markdown fences.",
-        messages=[{"role": "user", "content": f"Hypotheses to test:\n" + "\n".join(lines)}],
+        messages=[{"role": "user", "content": "Hypotheses to test:\n" + "\n".join(lines)}],
     )
     duration_ms = int((time.time() - start) * 1000)
 

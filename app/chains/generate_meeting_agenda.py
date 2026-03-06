@@ -160,7 +160,7 @@ def generate_meeting_agenda(
             raise
 
         logger.info(
-            f"Successfully generated meeting agenda",
+            "Successfully generated meeting agenda",
             extra={
                 "project_id": str(project_id),
                 "duration": agenda_output.suggested_duration_minutes,

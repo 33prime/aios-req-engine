@@ -1,7 +1,7 @@
 """Status and entity listing tool implementations."""
 
 import asyncio
-from typing import Any, Dict
+from typing import Any
 from uuid import UUID
 
 from app.core.logging import get_logger
@@ -10,7 +10,7 @@ from app.db.supabase_client import get_supabase
 logger = get_logger(__name__)
 
 
-async def _get_project_status(project_id: UUID, params: Dict[str, Any]) -> Dict[str, Any]:
+async def _get_project_status(project_id: UUID, params: dict[str, Any]) -> dict[str, Any]:
     """Get project status summary."""
     supabase = get_supabase()
     include_details = params.get("include_details", False)
@@ -108,7 +108,7 @@ async def _get_project_status(project_id: UUID, params: Dict[str, Any]) -> Dict[
     return status
 
 
-async def _list_entities(project_id: UUID, params: Dict[str, Any]) -> Dict[str, Any]:
+async def _list_entities(project_id: UUID, params: dict[str, Any]) -> dict[str, Any]:
     """List entities of a given type with key fields for chat reasoning."""
     entity_type = params.get("entity_type")
     filter_mode = params.get("filter", "all")
@@ -278,7 +278,7 @@ async def _list_entities(project_id: UUID, params: Dict[str, Any]) -> Dict[str, 
         return {"error": str(e)}
 
 
-def _summarize_change(change: Dict[str, Any]) -> str:
+def _summarize_change(change: dict[str, Any]) -> str:
     """Create a one-line summary of a change."""
     operation = change.get("operation", "unknown")
     entity_type = change.get("entity_type", "unknown")

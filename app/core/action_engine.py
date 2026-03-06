@@ -11,7 +11,7 @@ import asyncio
 import hashlib
 import logging
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from uuid import UUID
 
 from app.core.schemas_actions import (
@@ -633,7 +633,7 @@ def _walk_cross_refs(
                     created = datetime.fromisoformat(
                         created.replace("Z", "+00:00")
                     )
-                days_old = (datetime.now(timezone.utc) - created).days
+                days_old = (datetime.now(UTC) - created).days
             except (ValueError, TypeError):
                 pass
 

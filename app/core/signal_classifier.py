@@ -14,7 +14,6 @@ Heavyweight signals trigger the bulk processing pipeline.
 import re
 from dataclasses import dataclass
 from enum import Enum
-from typing import Literal
 
 from app.core.logging import get_logger
 

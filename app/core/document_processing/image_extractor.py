@@ -11,13 +11,13 @@ from anthropic import Anthropic
 
 from app.core.config import get_settings
 from app.core.document_processing.base import (
+    SIZE_LIMITS,
     BaseExtractor,
     DocumentType,
     ExtractedSection,
     ExtractionError,
     ExtractionResult,
     ExtractorRegistry,
-    SIZE_LIMITS,
 )
 from app.core.logging import get_logger
 

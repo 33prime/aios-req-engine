@@ -13,7 +13,6 @@ from app.core.logging import get_logger
 from app.db.document_uploads import (
     claim_document_for_processing,
     get_pending_documents,
-    update_document_processing,
 )
 from app.graphs.document_processing_graph import process_document
 

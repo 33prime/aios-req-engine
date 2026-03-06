@@ -159,7 +159,7 @@ async def check_confirmation_resolves_questions(
             answer_question(
                 question_id=UUID(resolution["question_id"]),
                 answer=resolution["extracted_answer"],
-                answered_by=f"auto:confirmation",
+                answered_by="auto:confirmation",
             )
             result["resolved"] += 1
             result["resolutions"].append(resolution)

@@ -3,7 +3,8 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { useParams, useSearchParams } from 'next/navigation'
 import PrototypeFrame from '@/components/prototype/PrototypeFrame'
-import { getPrototypeClientData, submitFeatureVerdict, completeClientReview } from '@/lib/api'
+import { Spinner } from '@/components/ui/Spinner'
+import { getPrototypeClientData, submitFeatureVerdict, completeClientReview, getPrototypeForProject, listPrototypeSessions } from '@/lib/api'
 import {
   getStakeholderReview,
   submitStakeholderEpicVerdict,
@@ -59,15 +60,15 @@ const VERDICT_STYLES: Record<FeatureVerdict, { button: string; active: string }>
 
 const EPIC_VERDICT_STYLES: Record<VerdictType, { button: string; active: string }> = {
   confirmed: {
-    button: 'border-gray-200 hover:border-green-400 hover:bg-green-50',
+    button: 'border-border hover:border-green-400 hover:bg-green-50',
     active: 'border-green-400 bg-green-50 text-green-800',
   },
   refine: {
-    button: 'border-gray-200 hover:border-amber-400 hover:bg-amber-50',
+    button: 'border-border hover:border-amber-400 hover:bg-amber-50',
     active: 'border-amber-400 bg-amber-50 text-amber-800',
   },
   flag: {
-    button: 'border-gray-200 hover:border-red-400 hover:bg-red-50',
+    button: 'border-border hover:border-red-400 hover:bg-red-50',
     active: 'border-red-400 bg-red-50 text-red-800',
   },
 }
@@ -153,7 +154,32 @@ export default function PortalPrototypePage() {
             setEpicVerdicts(existing)
           }
         } else {
-          setError('No prototype session available. Check back when your consultant shares one.')
+          // Auto-discover: find latest session with client_exploring or client_complete
+          try {
+            const proto = await getPrototypeForProject(projectId)
+            if (proto?.id) {
+              const sessions = await listPrototypeSessions(proto.id)
+              const exploring = sessions?.find(
+                (s: { review_state: string | null }) =>
+                  s.review_state === 'client_exploring' || s.review_state === 'client_complete'
+              )
+              if (exploring) {
+                const data = await getClientExploration(exploring.id)
+                if (data.epics?.length > 0) {
+                  setExplorationData(data)
+                  setDeployUrl(data.deploy_url || null)
+                } else {
+                  setError('No prototype session available. Check back when your consultant shares one.')
+                }
+              } else {
+                setError('No prototype session available. Check back when your consultant shares one.')
+              }
+            } else {
+              setError('No prototype session available. Check back when your consultant shares one.')
+            }
+          } catch {
+            setError('No prototype session available. Check back when your consultant shares one.')
+          }
         }
       } catch {
         setError('Unable to load prototype review.')
@@ -318,7 +344,7 @@ export default function PortalPrototypePage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <p className="text-gray-500">Loading prototype review...</p>
+        <Spinner size="lg" label="Loading prototype review..." />
       </div>
     )
   }
@@ -327,8 +353,8 @@ export default function PortalPrototypePage() {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center max-w-md">
-          <h2 className="text-lg font-semibold text-gray-900 mb-2">Review Unavailable</h2>
-          <p className="text-sm text-gray-500">{error}</p>
+          <h2 className="text-lg font-semibold text-text-primary mb-2">Review Unavailable</h2>
+          <p className="text-sm text-text-muted">{error}</p>
         </div>
       </div>
     )
@@ -341,8 +367,8 @@ export default function PortalPrototypePage() {
           <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-green-50 flex items-center justify-center">
             <span className="text-2xl text-green-600">{'\u2713'}</span>
           </div>
-          <h2 className="text-lg font-semibold text-gray-900 mb-2">Thank You!</h2>
-          <p className="text-sm text-gray-500">
+          <h2 className="text-lg font-semibold text-text-primary mb-2">Thank You!</h2>
+          <p className="text-sm text-text-muted">
             Your review has been submitted. The team will incorporate your feedback.
           </p>
         </div>
@@ -387,8 +413,8 @@ export default function PortalPrototypePage() {
         return (
           <div className="flex items-center justify-center min-h-[calc(100vh-80px)] bg-gradient-to-b from-[#0A1E2F] to-[#15314A]">
             <div className="text-center max-w-md px-6">
-              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-[#3FAF7A]/20 flex items-center justify-center">
-                <span className="text-2xl text-[#3FAF7A]">{'\u2713'}</span>
+              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-brand-primary/20 flex items-center justify-center">
+                <span className="text-2xl text-brand-primary">{'\u2713'}</span>
               </div>
               <h2 className="text-xl font-semibold text-white mb-2">Thank You!</h2>
               <p className="text-sm text-white/60">
@@ -423,9 +449,9 @@ export default function PortalPrototypePage() {
     }
 
     return (
-      <div className="flex flex-col h-screen bg-[#F8F9FA]">
+      <div className="flex flex-col h-screen bg-surface-page">
         {/* Nav bar */}
-        <div className="bg-[#0A1E2F] px-4 py-2">
+        <div className="bg-accent px-4 py-2">
           <ExplorationNav
             currentIndex={currentEpicIndex}
             totalEpics={epics.length}
@@ -445,14 +471,14 @@ export default function PortalPrototypePage() {
               onPageChange={() => {}}
             />
           ) : (
-            <div className="flex items-center justify-center h-full text-gray-400">
+            <div className="flex items-center justify-center h-full text-text-placeholder">
               Prototype preview unavailable
             </div>
           )}
         </div>
 
         {/* Bottom panel — 40% */}
-        <div className="flex-[40] border-t border-gray-200 bg-white overflow-y-auto">
+        <div className="flex-[40] border-t border-border bg-surface-card overflow-y-auto">
           <div className="max-w-2xl mx-auto px-6 py-5">
             {currentEpic && (
               <EpicExplorationCard
@@ -467,7 +493,7 @@ export default function PortalPrototypePage() {
             <div className="mt-4">
               <button
                 onClick={handleExplorationNext}
-                className="w-full px-6 py-3 bg-[#3FAF7A] text-white font-medium rounded-xl hover:bg-[#35A06D] transition-all"
+                className="w-full px-6 py-3 bg-brand-primary text-white font-medium rounded-xl hover:bg-brand-primary-hover transition-all"
               >
                 {currentEpicIndex < epics.length - 1 ? 'Next Area' : 'Review Summary'}
               </button>
@@ -501,17 +527,17 @@ export default function PortalPrototypePage() {
               onPageChange={() => {}}
             />
           ) : (
-            <div className="flex items-center justify-center h-full text-gray-400">
+            <div className="flex items-center justify-center h-full text-text-placeholder">
               Prototype preview unavailable
             </div>
           )}
         </div>
 
         {/* Epic review cards — bottom 45% */}
-        <div className="flex-[45] border-t border-gray-200 bg-gray-50 overflow-y-auto">
+        <div className="flex-[45] border-t border-border bg-surface-page overflow-y-auto">
           <div className="max-w-3xl mx-auto p-6 space-y-4">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-sm text-gray-500">
+              <span className="text-sm text-text-muted">
                 {Object.keys(epicVerdicts).length}/{stakeholderData.total_epics} epics reviewed
               </span>
             </div>
@@ -524,23 +550,23 @@ export default function PortalPrototypePage() {
                 <div
                   key={epic.index}
                   className={`
-                    rounded-xl border bg-white shadow-sm
+                    rounded-lg border bg-surface-card shadow-sm
                     ${epic.is_assigned_to_me && !selectedVerdict
-                      ? 'border-[#009b87]/40 ring-1 ring-[#009b87]/20'
-                      : 'border-gray-200'}
+                      ? 'border-brand-primary/40 ring-1 ring-brand-primary/20'
+                      : 'border-border'}
                   `}
                 >
                   {/* Epic header */}
-                  <div className="px-5 py-4 border-b border-gray-100">
+                  <div className="px-5 py-4 border-b border-border/50">
                     <div className="flex items-start justify-between">
                       <div>
-                        <h3 className="text-sm font-semibold text-gray-900">{epic.title}</h3>
+                        <h3 className="text-sm font-semibold text-text-primary">{epic.title}</h3>
                         {epic.theme && (
-                          <p className="text-xs text-gray-500 mt-0.5">{epic.theme}</p>
+                          <p className="text-xs text-text-muted mt-0.5">{epic.theme}</p>
                         )}
                       </div>
                       {epic.is_assigned_to_me && !selectedVerdict && (
-                        <span className="text-[10px] bg-[#009b87]/10 text-[#009b87] px-2 py-0.5 rounded-full font-medium">
+                        <span className="text-[10px] bg-brand-primary-light text-brand-primary px-2 py-0.5 rounded-full font-medium">
                           Your review
                         </span>
                       )}
@@ -548,7 +574,7 @@ export default function PortalPrototypePage() {
                     {epic.features.length > 0 && (
                       <div className="flex flex-wrap gap-1 mt-2">
                         {epic.features.map((f, i) => (
-                          <span key={i} className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded">
+                          <span key={i} className="text-[10px] bg-surface-subtle text-text-muted px-1.5 py-0.5 rounded">
                             {f.name}
                           </span>
                         ))}
@@ -558,15 +584,15 @@ export default function PortalPrototypePage() {
 
                   {/* Narrative */}
                   {epic.narrative && (
-                    <div className="px-5 py-3 border-b border-gray-100">
-                      <p className="text-xs text-gray-600 leading-relaxed line-clamp-3">
+                    <div className="px-5 py-3 border-b border-border/50">
+                      <p className="text-xs text-text-secondary leading-relaxed line-clamp-3">
                         {epic.narrative}
                       </p>
                     </div>
                   )}
 
                   {/* Verdict buttons */}
-                  <div className="px-5 py-3 border-b border-gray-100">
+                  <div className="px-5 py-3 border-b border-border/50">
                     <div className="flex gap-2">
                       {(['confirmed', 'refine', 'flag'] as VerdictType[]).map(v => {
                         const isActive = selectedVerdict === v
@@ -597,7 +623,7 @@ export default function PortalPrototypePage() {
                       onBlur={() => handleEpicNotesBlur(epic.index)}
                       rows={2}
                       placeholder="Feedback (optional)..."
-                      className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#009b87]/20 focus:border-[#009b87] resize-none"
+                      className="w-full px-3 py-2 text-sm border border-border rounded-lg focus:ring-2 focus:ring-brand-primary-ring focus:border-brand-primary resize-none"
                     />
                   </div>
                 </div>
@@ -608,7 +634,7 @@ export default function PortalPrototypePage() {
               <button
                 onClick={handleCompleteReview}
                 disabled={submitting}
-                className="w-full px-6 py-3 bg-[#009b87] text-white font-medium rounded-xl hover:bg-[#008775] transition-all shadow-md disabled:opacity-50"
+                className="w-full px-6 py-3 bg-brand-primary text-white font-medium rounded-xl hover:bg-brand-primary-hover transition-all shadow-md disabled:opacity-50"
               >
                 {submitting ? 'Submitting...' : 'Complete Review'}
               </button>
@@ -630,8 +656,8 @@ export default function PortalPrototypePage() {
   const reviewedCount = Object.keys(clientVerdicts).length
 
   return (
-    <div className="flex flex-col h-screen bg-[#F4F4F4]">
-      <div className="bg-[#0A1E2F] px-6 py-4">
+    <div className="flex flex-col h-screen bg-surface-page">
+      <div className="bg-accent px-6 py-4">
         <h1 className="text-lg font-semibold text-white">Prototype Review</h1>
         <p className="text-sm text-white/60 mt-0.5">
           Review each feature below and share your verdict.
@@ -646,16 +672,16 @@ export default function PortalPrototypePage() {
             onPageChange={() => {}}
           />
         ) : (
-          <div className="flex items-center justify-center h-full text-gray-400">
+          <div className="flex items-center justify-center h-full text-text-placeholder">
             Prototype preview unavailable
           </div>
         )}
       </div>
 
-      <div className="flex-[45] border-t border-gray-200 bg-[#F4F4F4] overflow-y-auto">
+      <div className="flex-[45] border-t border-border bg-surface-page overflow-y-auto">
         <div className="max-w-3xl mx-auto p-6 space-y-4">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-sm text-gray-500">
+            <span className="text-sm text-text-muted">
               {reviewedCount}/{featureReviews.length} features reviewed
             </span>
           </div>
@@ -665,20 +691,20 @@ export default function PortalPrototypePage() {
             const notes = clientNotes[review.overlay_id] || ''
 
             return (
-              <div key={review.overlay_id} className="rounded-2xl border border-gray-200 bg-white shadow-md">
-                <div className="px-5 py-4 border-b border-gray-100">
+              <div key={review.overlay_id} className="rounded-lg border border-border bg-surface-card shadow-sm">
+                <div className="px-5 py-4 border-b border-border/50">
                   <div className="flex items-start justify-between">
-                    <h3 className="text-sm font-semibold text-gray-900">{review.feature_name}</h3>
-                    <span className="text-[10px] text-gray-400">
+                    <h3 className="text-sm font-semibold text-text-primary">{review.feature_name}</h3>
+                    <span className="text-[10px] text-text-placeholder">
                       {Math.round(review.confidence * 100)}% confidence
                     </span>
                   </div>
                 </div>
 
                 {review.consultant_verdict && (
-                  <div className="px-5 py-3 border-b border-gray-100 bg-gray-50">
+                  <div className="px-5 py-3 border-b border-border/50 bg-surface-subtle">
                     <div className="flex items-center gap-2 mb-1">
-                      <span className="text-[11px] font-medium text-gray-500 uppercase tracking-wide">
+                      <span className="text-[11px] font-medium text-text-muted uppercase tracking-wide">
                         Consultant says:
                       </span>
                       <span className={`text-[11px] font-semibold ${
@@ -692,25 +718,25 @@ export default function PortalPrototypePage() {
                       </span>
                     </div>
                     {review.consultant_notes && (
-                      <p className="text-xs text-gray-500">&ldquo;{review.consultant_notes}&rdquo;</p>
+                      <p className="text-xs text-text-muted">&ldquo;{review.consultant_notes}&rdquo;</p>
                     )}
                   </div>
                 )}
 
                 {review.validation_question && (
-                  <div className="px-5 py-3 border-b border-gray-100">
-                    <p className="text-[11px] font-medium text-gray-500 uppercase tracking-wide mb-1">Key Question</p>
-                    <p className="text-sm text-gray-900">&ldquo;{review.validation_question}&rdquo;</p>
+                  <div className="px-5 py-3 border-b border-border/50">
+                    <p className="text-[11px] font-medium text-text-muted uppercase tracking-wide mb-1">Key Question</p>
+                    <p className="text-sm text-text-primary">&ldquo;{review.validation_question}&rdquo;</p>
                     {review.validation_area && (
-                      <span className="text-[10px] mt-1 inline-block px-1.5 py-0.5 rounded bg-gray-100 text-gray-500">
+                      <span className="text-[10px] mt-1 inline-block px-1.5 py-0.5 rounded bg-surface-subtle text-text-muted">
                         {review.validation_area.replace('_', ' ')}
                       </span>
                     )}
                   </div>
                 )}
 
-                <div className="px-5 py-3 border-b border-gray-100">
-                  <p className="text-[11px] font-medium text-gray-500 uppercase tracking-wide mb-2">Your Verdict</p>
+                <div className="px-5 py-3 border-b border-border/50">
+                  <p className="text-[11px] font-medium text-text-muted uppercase tracking-wide mb-2">Your Verdict</p>
                   <div className="flex gap-2">
                     {VERDICT_OPTIONS.map(({ value, label, icon }) => {
                       const isActive = selectedVerdict === value
@@ -719,7 +745,7 @@ export default function PortalPrototypePage() {
                         <button
                           key={value}
                           onClick={() => handleVerdictClick(review.overlay_id, value)}
-                          className={`flex-1 px-3 py-2 rounded-xl border text-xs font-medium transition-all ${
+                          className={`flex-1 px-3 py-2 rounded-lg border text-xs font-medium transition-all ${
                             isActive ? styles.active : styles.button
                           }`}
                         >
@@ -738,7 +764,7 @@ export default function PortalPrototypePage() {
                     onBlur={() => handleNotesBlur(review.overlay_id)}
                     rows={2}
                     placeholder="Your feedback (optional)..."
-                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#009b87]/20 focus:border-[#009b87] resize-none"
+                    className="w-full px-3 py-2 text-sm border border-border rounded-lg focus:ring-2 focus:ring-brand-primary-ring focus:border-brand-primary resize-none"
                   />
                 </div>
               </div>
@@ -749,7 +775,7 @@ export default function PortalPrototypePage() {
             <button
               onClick={handleCompleteReview}
               disabled={submitting}
-              className="w-full px-6 py-3 bg-[#009b87] text-white font-medium rounded-xl hover:bg-[#008775] transition-all shadow-md disabled:opacity-50"
+              className="w-full px-6 py-3 bg-brand-primary text-white font-medium rounded-xl hover:bg-brand-primary-hover transition-all shadow-md disabled:opacity-50"
             >
               {submitting ? 'Submitting...' : 'Complete Review'}
             </button>

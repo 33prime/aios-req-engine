@@ -4,7 +4,7 @@ import asyncio
 import threading
 import time
 import uuid
-from typing import Any, Optional
+from typing import Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -740,7 +740,7 @@ def _run_launch_pipeline(launch_id: UUID, context: dict) -> None:
 @router.post("/projects/launch", response_model=ProjectLaunchResponse)
 async def launch_project(
     request: ProjectLaunchRequest,
-    auth: Optional[AuthContext] = Depends(get_current_user),
+    auth: AuthContext | None = Depends(get_current_user),
 ) -> ProjectLaunchResponse:
     """
     Create a project and launch the automated setup pipeline.

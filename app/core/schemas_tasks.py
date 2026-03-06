@@ -2,11 +2,10 @@
 
 from datetime import datetime
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 from uuid import UUID
 
 from pydantic import BaseModel, Field
-
 
 # ============================================================================
 # Enums
@@ -135,59 +134,59 @@ class TaskActorType(str, Enum):
 class TaskBase(BaseModel):
     """Base task fields."""
     title: str
-    description: Optional[str] = None
+    description: str | None = None
     task_type: TaskType = TaskType.CUSTOM
-    anchored_entity_type: Optional[AnchoredEntityType] = None
-    anchored_entity_id: Optional[UUID] = None
+    anchored_entity_type: AnchoredEntityType | None = None
+    anchored_entity_id: UUID | None = None
     requires_client_input: bool = False
     metadata: dict[str, Any] = Field(default_factory=dict)
-    review_status: Optional[str] = None
-    remind_at: Optional[datetime] = None
-    meeting_type: Optional[str] = None
-    meeting_date: Optional[datetime] = None
-    signal_id: Optional[UUID] = None
-    action_verb: Optional[str] = None
+    review_status: str | None = None
+    remind_at: datetime | None = None
+    meeting_type: str | None = None
+    meeting_date: datetime | None = None
+    signal_id: UUID | None = None
+    action_verb: str | None = None
 
 
 class TaskCreate(TaskBase):
     """Schema for creating a task."""
     source_type: TaskSourceType = TaskSourceType.MANUAL
-    source_id: Optional[UUID] = None
+    source_id: UUID | None = None
     source_context: dict[str, Any] = Field(default_factory=dict)
-    priority_score: Optional[float] = None  # If not provided, will be calculated
-    assigned_to: Optional[UUID] = None
-    due_date: Optional[datetime] = None
-    priority: Optional[str] = None  # none/low/medium/high
-    patches_snapshot: Optional[dict] = None
+    priority_score: float | None = None  # If not provided, will be calculated
+    assigned_to: UUID | None = None
+    due_date: datetime | None = None
+    priority: str | None = None  # none/low/medium/high
+    patches_snapshot: dict | None = None
 
 
 class TaskUpdate(BaseModel):
     """Schema for updating a task."""
-    title: Optional[str] = None
-    description: Optional[str] = None
-    status: Optional[TaskStatus] = None
-    requires_client_input: Optional[bool] = None
-    priority_score: Optional[float] = None
-    metadata: Optional[dict[str, Any]] = None
-    assigned_to: Optional[UUID] = None
-    due_date: Optional[datetime] = None
-    priority: Optional[str] = None  # none/low/medium/high
-    review_status: Optional[str] = None
-    remind_at: Optional[datetime] = None
-    meeting_type: Optional[str] = None
-    meeting_date: Optional[datetime] = None
-    action_verb: Optional[str] = None
+    title: str | None = None
+    description: str | None = None
+    status: TaskStatus | None = None
+    requires_client_input: bool | None = None
+    priority_score: float | None = None
+    metadata: dict[str, Any] | None = None
+    assigned_to: UUID | None = None
+    due_date: datetime | None = None
+    priority: str | None = None  # none/low/medium/high
+    review_status: str | None = None
+    remind_at: datetime | None = None
+    meeting_type: str | None = None
+    meeting_date: datetime | None = None
+    action_verb: str | None = None
 
 
 class TaskComplete(BaseModel):
     """Schema for completing a task."""
     completion_method: TaskCompletionMethod = TaskCompletionMethod.TASK_BOARD
-    completion_notes: Optional[str] = None
+    completion_notes: str | None = None
 
 
 class TaskDismiss(BaseModel):
     """Schema for dismissing a task."""
-    reason: Optional[str] = None
+    reason: str | None = None
 
 
 class Task(TaskBase):
@@ -197,18 +196,18 @@ class Task(TaskBase):
     status: TaskStatus
     priority_score: float
     source_type: TaskSourceType
-    source_id: Optional[UUID] = None
+    source_id: UUID | None = None
     source_context: dict[str, Any] = Field(default_factory=dict)
-    completed_at: Optional[datetime] = None
-    completed_by: Optional[UUID] = None
-    completion_method: Optional[TaskCompletionMethod] = None
-    completion_notes: Optional[str] = None
-    info_request_id: Optional[UUID] = None
-    assigned_to: Optional[UUID] = None
-    due_date: Optional[datetime] = None
-    created_by: Optional[UUID] = None
-    priority: Optional[str] = "none"
-    patches_snapshot: Optional[dict] = None
+    completed_at: datetime | None = None
+    completed_by: UUID | None = None
+    completion_method: TaskCompletionMethod | None = None
+    completion_notes: str | None = None
+    info_request_id: UUID | None = None
+    assigned_to: UUID | None = None
+    due_date: datetime | None = None
+    created_by: UUID | None = None
+    priority: str | None = "none"
+    patches_snapshot: dict | None = None
     created_at: datetime
     updated_at: datetime
 
@@ -225,18 +224,18 @@ class TaskSummary(BaseModel):
     status: TaskStatus
     priority_score: float
     requires_client_input: bool
-    anchored_entity_type: Optional[AnchoredEntityType] = None
-    source_type: Optional[TaskSourceType] = None
-    source_id: Optional[UUID] = None
-    assigned_to: Optional[UUID] = None
-    due_date: Optional[datetime] = None
-    created_by: Optional[UUID] = None
-    priority: Optional[str] = "none"
-    review_status: Optional[str] = None
-    remind_at: Optional[datetime] = None
-    meeting_type: Optional[str] = None
-    meeting_date: Optional[datetime] = None
-    action_verb: Optional[str] = None
+    anchored_entity_type: AnchoredEntityType | None = None
+    source_type: TaskSourceType | None = None
+    source_id: UUID | None = None
+    assigned_to: UUID | None = None
+    due_date: datetime | None = None
+    created_by: UUID | None = None
+    priority: str | None = "none"
+    review_status: str | None = None
+    remind_at: datetime | None = None
+    meeting_type: str | None = None
+    meeting_date: datetime | None = None
+    action_verb: str | None = None
     created_at: datetime
 
     class Config:
@@ -252,11 +251,11 @@ class TaskActivityCreate(BaseModel):
     """Schema for creating a task activity log entry."""
     action: TaskActivityAction
     actor_type: TaskActorType
-    actor_id: Optional[UUID] = None
-    previous_status: Optional[TaskStatus] = None
-    new_status: Optional[TaskStatus] = None
-    previous_priority: Optional[float] = None
-    new_priority: Optional[float] = None
+    actor_id: UUID | None = None
+    previous_status: TaskStatus | None = None
+    new_status: TaskStatus | None = None
+    previous_priority: float | None = None
+    new_priority: float | None = None
     details: dict[str, Any] = Field(default_factory=dict)
 
 
@@ -305,14 +304,14 @@ class TaskStatsResponse(BaseModel):
 
 class TaskFilter(BaseModel):
     """Filters for listing tasks."""
-    status: Optional[TaskStatus] = None
-    statuses: Optional[list[TaskStatus]] = None  # Multiple statuses
-    task_type: Optional[TaskType] = None
-    task_types: Optional[list[TaskType]] = None  # Multiple types
-    requires_client_input: Optional[bool] = None
-    anchored_entity_type: Optional[AnchoredEntityType] = None
-    anchored_entity_id: Optional[UUID] = None
-    source_type: Optional[TaskSourceType] = None
+    status: TaskStatus | None = None
+    statuses: list[TaskStatus] | None = None  # Multiple statuses
+    task_type: TaskType | None = None
+    task_types: list[TaskType] | None = None  # Multiple types
+    requires_client_input: bool | None = None
+    anchored_entity_type: AnchoredEntityType | None = None
+    anchored_entity_id: UUID | None = None
+    source_type: TaskSourceType | None = None
     limit: int = 50
     offset: int = 0
     sort_by: str = "priority_score"
@@ -336,8 +335,8 @@ class TaskComment(BaseModel):
     project_id: UUID
     author_id: UUID
     body: str
-    author_name: Optional[str] = None
-    author_photo_url: Optional[str] = None
+    author_name: str | None = None
+    author_photo_url: str | None = None
     created_at: datetime
     updated_at: datetime
 
@@ -362,25 +361,25 @@ class TaskWithProject(BaseModel):
     project_id: UUID
     project_name: str
     title: str
-    description: Optional[str] = None
+    description: str | None = None
     task_type: TaskType
     status: TaskStatus
     priority_score: float
-    priority: Optional[str] = "none"
+    priority: str | None = "none"
     requires_client_input: bool
-    anchored_entity_type: Optional[AnchoredEntityType] = None
-    assigned_to: Optional[UUID] = None
-    assigned_to_name: Optional[str] = None
-    assigned_to_photo_url: Optional[str] = None
-    due_date: Optional[datetime] = None
-    created_by: Optional[UUID] = None
-    review_status: Optional[str] = None
-    remind_at: Optional[datetime] = None
-    meeting_type: Optional[str] = None
-    meeting_date: Optional[datetime] = None
-    action_verb: Optional[str] = None
-    patches_snapshot: Optional[dict] = None
-    signal_id: Optional[UUID] = None
+    anchored_entity_type: AnchoredEntityType | None = None
+    assigned_to: UUID | None = None
+    assigned_to_name: str | None = None
+    assigned_to_photo_url: str | None = None
+    due_date: datetime | None = None
+    created_by: UUID | None = None
+    review_status: str | None = None
+    remind_at: datetime | None = None
+    meeting_type: str | None = None
+    meeting_date: datetime | None = None
+    action_verb: str | None = None
+    patches_snapshot: dict | None = None
+    signal_id: UUID | None = None
     created_at: datetime
     updated_at: datetime
 

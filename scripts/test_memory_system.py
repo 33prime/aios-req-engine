@@ -22,7 +22,6 @@ Usage:
 
 import argparse
 import asyncio
-import json
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -218,8 +217,6 @@ async def run_test(
 
 async def run_test_mode(project_id: UUID, results: dict, verbose: bool):
     """Run test with mock responses (no API calls)."""
-    from unittest.mock import MagicMock, patch
-    import json
 
     print("\n[TEST MODE] Using mock LLM responses\n")
 
@@ -261,27 +258,27 @@ async def run_test_mode(project_id: UUID, results: dict, verbose: bool):
         results['signals_processed'] += 1
 
     # Run reflection
-    print(f"\n--- Running Reflection ---")
+    print("\n--- Running Reflection ---")
     reflect_response = MOCK_REFLECTOR_RESPONSE
     for insight in reflect_response['insights']:
         print(f"  - Insight ({insight['type']}): {insight['summary']}")
         results['insights_created'] += 1
 
     # Show final markdown (mock)
-    print(f"\n--- Rendered Memory Document ---\n")
+    print("\n--- Rendered Memory Document ---\n")
     print(generate_mock_markdown(created_beliefs, reflect_response['insights']))
 
 
 async def run_live_mode(project_id: UUID, results: dict, verbose: bool):
     """Run test with real API calls."""
     from app.agents.memory_agent import (
-        MemoryWatcher,
-        MemorySynthesizer,
         MemoryReflector,
+        MemorySynthesizer,
+        MemoryWatcher,
         process_signal_for_memory,
     )
     from app.core.memory_renderer import render_memory_markdown
-    from app.db.memory_graph import get_active_beliefs, get_insights, get_graph_stats
+    from app.db.memory_graph import get_graph_stats
 
     print("\n[LIVE MODE] Using real API calls\n")
 
@@ -309,7 +306,7 @@ async def run_live_mode(project_id: UUID, results: dict, verbose: bool):
                 results['facts_created'] += 1
 
             if result.get('triggers_synthesis'):
-                print(f"[Synthesizer] Triggered")
+                print("[Synthesizer] Triggered")
                 if 'synthesis_result' in result:
                     sr = result['synthesis_result']
                     results['beliefs_created'] += sr.get('beliefs_created', 0)
@@ -327,7 +324,7 @@ async def run_live_mode(project_id: UUID, results: dict, verbose: bool):
         await asyncio.sleep(0.5)
 
     # Run reflection
-    print(f"\n--- Running Reflection ---")
+    print("\n--- Running Reflection ---")
     try:
         reflect_result = await reflector.reflect(project_id)
         results['insights_created'] += reflect_result.get('insights_created', 0)
@@ -339,7 +336,7 @@ async def run_live_mode(project_id: UUID, results: dict, verbose: bool):
         results['errors'].append(f"Reflection: {str(e)}")
 
     # Show graph stats
-    print(f"\n--- Graph Statistics ---")
+    print("\n--- Graph Statistics ---")
     try:
         stats = get_graph_stats(project_id)
         print(f"  Facts: {stats.get('facts_count', 0)}")
@@ -351,7 +348,7 @@ async def run_live_mode(project_id: UUID, results: dict, verbose: bool):
         print(f"  [Could not retrieve stats: {e}]")
 
     # Render final markdown
-    print(f"\n--- Rendered Memory Document ---\n")
+    print("\n--- Rendered Memory Document ---\n")
     try:
         markdown = await render_memory_markdown(project_id)
         print(markdown)

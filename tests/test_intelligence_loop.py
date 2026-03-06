@@ -14,9 +14,7 @@ from app.core.schemas_briefing import (
     GapType,
     IntelligenceGap,
     KnowledgeType,
-    SourceHint,
 )
-
 
 # =============================================================================
 # Helpers

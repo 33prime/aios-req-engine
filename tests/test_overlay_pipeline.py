@@ -1,12 +1,10 @@
 """Tests for the prototype analysis pipeline graph."""
 
-from dataclasses import dataclass
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 from uuid import uuid4
 
 import pytest
 
-from app.core.schemas_prototypes import FeatureAnalysis, GeneratedQuestion, OverlayContent
 from app.graphs.prototype_analysis_graph import (
     PrototypeAnalysisState,
     check_more,

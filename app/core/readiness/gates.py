@@ -16,14 +16,13 @@ Gate System:
   - confirmed_scope: 10 points (required)
 """
 
-from typing import Optional
 from uuid import UUID
 
-from app.core.readiness.types import GateAssessment, ReadinessPhase
 from app.core.logging import get_logger
+from app.core.readiness.types import GateAssessment, ReadinessPhase
 from app.core.schemas_foundation import (
-    BusinessCase,
     BudgetConstraints,
+    BusinessCase,
     ConfirmedScope,
     CorePain,
     DesignPreferences,
@@ -90,7 +89,7 @@ def assess_prototype_gates(project_id: UUID) -> dict[str, GateAssessment]:
     return gates
 
 
-def _assess_core_pain(core_pain: Optional[CorePain]) -> GateAssessment:
+def _assess_core_pain(core_pain: CorePain | None) -> GateAssessment:
     """Assess the Core Pain gate."""
     if not core_pain:
         return GateAssessment(
@@ -156,7 +155,7 @@ def _assess_core_pain(core_pain: Optional[CorePain]) -> GateAssessment:
     )
 
 
-def _assess_primary_persona(persona: Optional[PrimaryPersona]) -> GateAssessment:
+def _assess_primary_persona(persona: PrimaryPersona | None) -> GateAssessment:
     """Assess the Primary Persona gate."""
     if not persona:
         return GateAssessment(
@@ -221,7 +220,7 @@ def _assess_primary_persona(persona: Optional[PrimaryPersona]) -> GateAssessment
     )
 
 
-def _assess_wow_moment(wow: Optional[WowMoment]) -> GateAssessment:
+def _assess_wow_moment(wow: WowMoment | None) -> GateAssessment:
     """Assess the Wow Moment gate."""
     if not wow:
         return GateAssessment(
@@ -291,7 +290,7 @@ def _assess_wow_moment(wow: Optional[WowMoment]) -> GateAssessment:
     )
 
 
-def _assess_design_preferences(prefs: Optional[DesignPreferences]) -> GateAssessment:
+def _assess_design_preferences(prefs: DesignPreferences | None) -> GateAssessment:
     """Assess the Design Preferences gate (optional)."""
     if not prefs:
         return GateAssessment(
@@ -371,7 +370,7 @@ def assess_build_gates(project_id: UUID) -> dict[str, GateAssessment]:
     return gates
 
 
-def _assess_business_case(case: Optional[BusinessCase]) -> GateAssessment:
+def _assess_business_case(case: BusinessCase | None) -> GateAssessment:
     """Assess the Business Case gate."""
     if not case:
         return GateAssessment(
@@ -439,7 +438,7 @@ def _assess_business_case(case: Optional[BusinessCase]) -> GateAssessment:
 
 
 def _assess_budget_constraints(
-    constraints: Optional[BudgetConstraints],
+    constraints: BudgetConstraints | None,
 ) -> GateAssessment:
     """Assess the Budget Constraints gate."""
     if not constraints:
@@ -615,7 +614,7 @@ def _assess_full_requirements(project_id: UUID) -> GateAssessment:
         )
 
 
-def _assess_confirmed_scope(scope: Optional[ConfirmedScope]) -> GateAssessment:
+def _assess_confirmed_scope(scope: ConfirmedScope | None) -> GateAssessment:
     """Assess the Confirmed Scope gate."""
     if not scope:
         return GateAssessment(

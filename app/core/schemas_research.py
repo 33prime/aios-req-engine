@@ -1,9 +1,9 @@
 """Research document schemas for external research ingestion."""
 
-from pydantic import BaseModel, Field
-from typing import List, Optional, Dict, Any
+from typing import Any
 from uuid import UUID
-from datetime import datetime
+
+from pydantic import BaseModel, Field
 
 
 class ResearchMacroPressure(BaseModel):
@@ -19,14 +19,14 @@ class ResearchCompanyFriction(BaseModel):
 class MarketPainPoints(BaseModel):
     """Market pain points analysis"""
     title: str
-    macro_pressures: List[str]
-    company_specific: List[str]
+    macro_pressures: list[str]
+    company_specific: list[str]
 
 
 class FeatureCategory(BaseModel):
     """Feature categorization"""
-    must_have: List[str]
-    unique_advanced: List[str]
+    must_have: list[str]
+    unique_advanced: list[str]
 
 
 class USP(BaseModel):
@@ -62,8 +62,8 @@ class MarketData(BaseModel):
 class GoalsAndBenefits(BaseModel):
     """Organizational goals and stakeholder benefits"""
     title: str
-    organizational_goals: List[str]
-    stakeholder_benefits: List[str]
+    organizational_goals: list[str]
+    stakeholder_benefits: list[str]
 
 
 class IdeaAnalysis(BaseModel):
@@ -87,17 +87,17 @@ class ResearchDocument(BaseModel):
     market_pain_points: MarketPainPoints
     feature_matrix: FeatureCategory
     goals_and_benefits: GoalsAndBenefits
-    unique_selling_propositions: List[USP]
-    user_personas: List[UserPersona]
-    risks_and_mitigations: List[RiskMitigation]
+    unique_selling_propositions: list[USP]
+    user_personas: list[UserPersona]
+    risks_and_mitigations: list[RiskMitigation]
     market_data: MarketData
-    additional_insights: List[Any]  # Flexible
+    additional_insights: list[Any]  # Flexible
 
     # Metadata
-    deal_id: Optional[str] = None
-    created_by_user_id: Optional[str] = None
-    version: Optional[int] = None
-    organization_id: Optional[str] = None
+    deal_id: str | None = None
+    created_by_user_id: str | None = None
+    version: int | None = None
+    organization_id: str | None = None
 
 
 class ResearchReport(BaseModel):
@@ -112,18 +112,18 @@ class ResearchReport(BaseModel):
     market_pain_points: MarketPainPoints
     feature_matrix: FeatureCategory
     goals_and_benefits: GoalsAndBenefits
-    unique_selling_propositions: List[USP]
-    user_personas: List[UserPersona]
-    risks_and_mitigations: List[RiskMitigation]
+    unique_selling_propositions: list[USP]
+    user_personas: list[UserPersona]
+    risks_and_mitigations: list[RiskMitigation]
     market_data: MarketData
-    additional_insights: List[Any]  # Flexible
-    next_steps: Optional[str] = None
+    additional_insights: list[Any]  # Flexible
+    next_steps: str | None = None
     
     # Metadata
-    deal_id: Optional[str] = None
-    created_by_user_id: Optional[str] = None
-    version: Optional[int] = None
-    organization_id: Optional[str] = None
+    deal_id: str | None = None
+    created_by_user_id: str | None = None
+    version: int | None = None
+    organization_id: str | None = None
 
 
 class IngestedReport(BaseModel):
@@ -137,7 +137,7 @@ class IngestedReport(BaseModel):
 class ResearchIngestRequest(BaseModel):
     """Request to ingest research reports"""
     project_id: UUID = Field(..., description="Project UUID")
-    reports: List[ResearchReport] = Field(..., description="Research reports to ingest")
+    reports: list[ResearchReport] = Field(..., description="Research reports to ingest")
     source: str = Field(default="n8n_research", description="Source identifier")
 
 
@@ -145,4 +145,4 @@ class ResearchIngestResponse(BaseModel):
     """Response from research ingestion"""
     run_id: UUID = Field(..., description="Run tracking UUID")
     job_id: UUID = Field(..., description="Job tracking UUID")
-    ingested: List[IngestedReport] = Field(..., description="Ingested report details")
+    ingested: list[IngestedReport] = Field(..., description="Ingested report details")

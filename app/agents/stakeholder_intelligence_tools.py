@@ -12,7 +12,7 @@ from anthropic import AsyncAnthropic
 
 from app.core.config import get_settings
 from app.core.logging import get_logger
-from app.db.stakeholders import get_stakeholder, update_stakeholder, find_similar_stakeholder
+from app.db.stakeholders import find_similar_stakeholder, get_stakeholder, update_stakeholder
 
 logger = get_logger(__name__)
 
@@ -140,6 +140,7 @@ def _load_stakeholder_context(stakeholder: dict, project_id: UUID) -> str:
     if name:
         try:
             import asyncio
+
             from app.core.retrieval import retrieve
             from app.core.retrieval_format import format_retrieval_for_context
 

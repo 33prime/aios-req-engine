@@ -4,7 +4,7 @@ Provides a non-overwhelming view of recent changes with smart aggregation.
 Groups similar events to prevent notification fatigue.
 """
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 from app.core.logging import get_logger
@@ -46,7 +46,7 @@ def log_activity(
     supabase = get_supabase()
 
     # Generate aggregation key for grouping similar events
-    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    today = datetime.now(UTC).strftime("%Y-%m-%d")
     aggregation_key = f"{activity_type}:{entity_type or 'general'}:{today}"
 
     data = {
@@ -73,7 +73,7 @@ def log_activity(
             )
             return response.data[0]
         else:
-            logger.warning(f"Activity logged but no data returned")
+            logger.warning("Activity logged but no data returned")
             return data
 
     except Exception as e:
@@ -104,7 +104,7 @@ def get_recent_activity(
         List of activity items (aggregated or raw)
     """
     supabase = get_supabase()
-    cutoff = datetime.now(timezone.utc) - timedelta(hours=hours)
+    cutoff = datetime.now(UTC) - timedelta(hours=hours)
 
     try:
         if aggregate:
@@ -315,7 +315,7 @@ def mark_action_taken(activity_id: UUID) -> dict:
     try:
         response = (
             supabase.table("activity_feed")
-            .update({"action_taken_at": datetime.now(timezone.utc).isoformat()})
+            .update({"action_taken_at": datetime.now(UTC).isoformat()})
             .eq("id", str(activity_id))
             .execute()
         )
@@ -375,7 +375,7 @@ def dismiss_activity(activity_id: UUID) -> dict:
         response = (
             supabase.table("activity_feed")
             .update({
-                "action_taken_at": datetime.now(timezone.utc).isoformat(),
+                "action_taken_at": datetime.now(UTC).isoformat(),
                 "change_details": {"dismissed": True},
             })
             .eq("id", str(activity_id))

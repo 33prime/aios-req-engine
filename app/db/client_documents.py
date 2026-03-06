@@ -1,6 +1,5 @@
 """Database operations for client documents."""
 
-from typing import Optional
 from uuid import UUID
 
 from app.core.schemas_portal import (
@@ -11,7 +10,7 @@ from app.core.schemas_portal import (
 from app.db.supabase_client import get_supabase as get_client
 
 
-async def get_client_document(document_id: UUID) -> Optional[ClientDocument]:
+async def get_client_document(document_id: UUID) -> ClientDocument | None:
     """Get a client document by ID."""
     client = get_client()
     result = (
@@ -50,10 +49,10 @@ async def create_client_document(
 
 async def update_client_document(
     document_id: UUID,
-    extracted_text: Optional[str] = None,
-    signal_id: Optional[UUID] = None,
-    description: Optional[str] = None,
-) -> Optional[ClientDocument]:
+    extracted_text: str | None = None,
+    signal_id: UUID | None = None,
+    description: str | None = None,
+) -> ClientDocument | None:
     """Update a client document."""
     client = get_client()
     update_data = {}
@@ -93,8 +92,8 @@ async def delete_client_document(document_id: UUID) -> bool:
 
 async def list_client_documents(
     project_id: UUID,
-    category: Optional[DocumentCategory] = None,
-    uploaded_by: Optional[UUID] = None,
+    category: DocumentCategory | None = None,
+    uploaded_by: UUID | None = None,
 ) -> list[ClientDocument]:
     """List client documents for a project."""
     client = get_client()

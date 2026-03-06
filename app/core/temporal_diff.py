@@ -5,7 +5,7 @@ to build a list of changes. Optionally summarizes via Haiku.
 """
 
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from uuid import UUID
 
 from app.core.logging import get_logger
@@ -166,9 +166,9 @@ def compute_temporal_diff(
         logger.warning(f"Enrichment revisions query failed: {e}")
 
     # Build since_label
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     if since.tzinfo is None:
-        since = since.replace(tzinfo=timezone.utc)
+        since = since.replace(tzinfo=UTC)
     delta = now - since
     if delta.days == 0:
         since_label = "earlier today"

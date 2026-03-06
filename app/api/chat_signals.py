@@ -1,6 +1,6 @@
 """Chat-as-signal endpoints: entity detection and signal extraction."""
 
-from typing import Any, Dict, List
+from typing import Any
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Query
@@ -24,20 +24,20 @@ class ChatMessage(BaseModel):
 class DetectEntitiesRequest(BaseModel):
     """Request to detect entity-rich content in chat messages."""
 
-    messages: List[ChatMessage]
+    messages: list[ChatMessage]
 
 
 class SaveAsSignalRequest(BaseModel):
     """Request to save chat messages as a signal for entity extraction."""
 
-    messages: List[ChatMessage]
+    messages: list[ChatMessage]
 
 
 @router.post("/detect-entities")
 async def detect_entities_in_chat(
     request: DetectEntitiesRequest,
     project_id: UUID = Query(..., description="Project UUID"),
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Lightweight Haiku check: do recent chat messages contain extractable requirements?
 
@@ -58,7 +58,7 @@ async def detect_entities_in_chat(
 async def save_chat_as_signal(
     request: SaveAsSignalRequest,
     project_id: UUID = Query(..., description="Project UUID"),
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Convert chat messages into a signal and run through V2 pipeline.
 

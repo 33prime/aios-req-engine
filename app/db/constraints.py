@@ -4,7 +4,7 @@ Stores constraints, requirements, risks, KPIs, and assumptions extracted from si
 Separated from features table for cleaner entity architecture.
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
 
@@ -210,7 +210,7 @@ def update_constraint(
     if "linked_vp_step_ids" in updates:
         updates["linked_vp_step_ids"] = [str(vid) for vid in updates["linked_vp_step_ids"]]
 
-    updates["updated_at"] = datetime.now(timezone.utc).isoformat()
+    updates["updated_at"] = datetime.now(UTC).isoformat()
 
     response = (
         supabase.table("constraints")

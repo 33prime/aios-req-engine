@@ -1,6 +1,5 @@
 """Tests for the hypothesis engine — scanning, promotion, evidence tracking."""
 
-import pytest
 from unittest.mock import MagicMock, patch
 from uuid import uuid4
 

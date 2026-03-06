@@ -1,15 +1,13 @@
 """API endpoints for document uploads."""
 
-from typing import Annotated
+from datetime import UTC
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Path, Query, UploadFile
 from pydantic import BaseModel
 
 from app.core.auth_middleware import get_current_user
-
 from app.core.document_processing import (
-    detect_document_type,
     validate_file,
 )
 from app.core.logging import get_logger
@@ -21,6 +19,8 @@ from app.db.document_uploads import (
     get_documents_with_usage,
     get_project_document_stats,
     list_project_documents,
+)
+from app.db.document_uploads import (
     withdraw_document as db_withdraw_document,
 )
 from app.db.supabase_client import get_supabase
@@ -248,7 +248,7 @@ async def list_documents(
             total=result["total"],
         )
 
-    except Exception as e:
+    except Exception:
         logger.exception(f"Failed to list documents for project {project_id}")
         raise HTTPException(status_code=500, detail="Failed to list documents")
 
@@ -420,7 +420,7 @@ async def get_documents_stats(project_id: UUID) -> DocumentStatsResponse:
             by_class=stats["by_class"],
         )
 
-    except Exception as e:
+    except Exception:
         logger.exception(f"Failed to get document stats for project {project_id}")
         raise HTTPException(status_code=500, detail="Failed to get document stats")
 
@@ -474,7 +474,7 @@ async def get_documents_summary(project_id: UUID) -> DocumentSummaryResponse:
             total=len(items),
         )
 
-    except Exception as e:
+    except Exception:
         logger.exception(f"Failed to get document summary for project {project_id}")
         raise HTTPException(status_code=500, detail="Failed to get document summary")
 
@@ -601,7 +601,6 @@ async def reset_document(document_id: UUID) -> dict:
         )
 
     # Reset to pending
-    from app.db.document_uploads import update_document_processing
 
     try:
         supabase = get_supabase()
@@ -620,7 +619,7 @@ async def reset_document(document_id: UUID) -> dict:
             "processing_status": "pending",
         }
 
-    except Exception as e:
+    except Exception:
         logger.exception(f"Failed to reset document {document_id}")
         raise HTTPException(status_code=500, detail="Failed to reset document")
 
@@ -646,7 +645,7 @@ async def delete_document(
         HTTPException 400: If document is processed (use withdraw instead)
         HTTPException 404: If document not found
     """
-    from datetime import datetime, timezone
+    from datetime import datetime
 
     doc = get_document_upload(document_id)
 
@@ -662,7 +661,7 @@ async def delete_document(
         if started_at:
             try:
                 start_time = datetime.fromisoformat(started_at.replace("Z", "+00:00"))
-                elapsed = (datetime.now(timezone.utc) - start_time).total_seconds()
+                elapsed = (datetime.now(UTC) - start_time).total_seconds()
                 is_stuck = elapsed > 300  # 5 minutes
             except Exception:
                 is_stuck = True  # If we can't parse, assume stuck
@@ -706,7 +705,7 @@ async def delete_document(
 
         return {"success": True, "message": "Document deleted"}
 
-    except Exception as e:
+    except Exception:
         logger.exception(f"Failed to delete document {document_id}")
         raise HTTPException(status_code=500, detail="Failed to delete document")
 
@@ -752,7 +751,7 @@ async def get_document_download_url(
             "mime_type": doc.get("mime_type", "application/octet-stream"),
         }
 
-    except Exception as e:
+    except Exception:
         logger.exception(f"Failed to generate download URL for document {document_id}")
         raise HTTPException(status_code=500, detail="Failed to generate download URL")
 

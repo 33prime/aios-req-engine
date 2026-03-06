@@ -1,6 +1,6 @@
 """Chat tools for client portal pipeline — mark for review, draft questions, synthesize, push."""
 
-from typing import Any, Dict
+from typing import Any
 from uuid import UUID
 
 from app.core.logging import get_logger
@@ -25,7 +25,7 @@ _REVIEWABLE_ENTITY_CONFIGS = {
 }
 
 
-async def _mark_for_client_review(project_id: UUID, params: Dict[str, Any]) -> Dict[str, Any]:
+async def _mark_for_client_review(project_id: UUID, params: dict[str, Any]) -> dict[str, Any]:
     """Mark an entity for client review — creates a pending item in the portal queue."""
     entity_type = params.get("entity_type")
     entity_id = params.get("entity_id")
@@ -108,7 +108,7 @@ async def _mark_for_client_review(project_id: UUID, params: Dict[str, Any]) -> D
         return {"success": False, "error": str(e)}
 
 
-async def _draft_client_question(project_id: UUID, params: Dict[str, Any]) -> Dict[str, Any]:
+async def _draft_client_question(project_id: UUID, params: dict[str, Any]) -> dict[str, Any]:
     """Add a freeform question to the pending queue for the next client package."""
     question = params.get("question")
     context = params.get("context", "")
@@ -152,7 +152,7 @@ async def _draft_client_question(project_id: UUID, params: Dict[str, Any]) -> Di
         return {"success": False, "error": str(e)}
 
 
-async def _synthesize_and_preview(project_id: UUID, params: Dict[str, Any]) -> Dict[str, Any]:
+async def _synthesize_and_preview(project_id: UUID, params: dict[str, Any]) -> dict[str, Any]:
     """Generate a client package preview without sending it."""
     try:
         supabase = get_supabase()
@@ -225,7 +225,7 @@ async def _synthesize_and_preview(project_id: UUID, params: Dict[str, Any]) -> D
         return {"success": False, "error": str(e)}
 
 
-async def _push_to_portal(project_id: UUID, params: Dict[str, Any]) -> Dict[str, Any]:
+async def _push_to_portal(project_id: UUID, params: dict[str, Any]) -> dict[str, Any]:
     """Generate and send a client package to the portal."""
     try:
         supabase = get_supabase()
@@ -282,8 +282,8 @@ async def _push_to_portal(project_id: UUID, params: Dict[str, Any]) -> Dict[str,
             }
             phase = project_result.data.get("collaboration_phase", "pre_discovery") if project_result.data else "pre_discovery"
 
-            from app.chains.synthesize_client_package import generate_client_package
             from app.api.client_packages import save_package
+            from app.chains.synthesize_client_package import generate_client_package
 
             package_data = await generate_client_package(
                 project_id=UUID(pid),

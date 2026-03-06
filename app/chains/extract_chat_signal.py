@@ -19,7 +19,6 @@ from __future__ import annotations
 import json
 import logging
 import re
-from typing import Any
 
 from pydantic import ValidationError
 
@@ -131,6 +130,7 @@ async def extract_chat_signal(
 async def _call_chat_extraction_llm(message_text: str) -> str:
     """Call Haiku for micro-extraction from chat."""
     from anthropic import AsyncAnthropic
+
     from app.core.config import Settings
 
     settings = Settings()

@@ -8,7 +8,6 @@ Supports stage-aware prep generation for different collaboration phases:
 
 import asyncio
 from datetime import datetime
-from typing import Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -59,8 +58,8 @@ async def get_discovery_prep(
 @router.post("/{project_id}/generate", response_model=GeneratePrepResponse)
 async def generate_discovery_prep(
     project_id: UUID,
-    request: Optional[GeneratePrepRequest] = None,
-    phase: Optional[CollaborationPhase] = Query(
+    request: GeneratePrepRequest | None = None,
+    phase: CollaborationPhase | None = Query(
         default=None,
         description="Collaboration phase for stage-aware generation. Defaults to PRE_DISCOVERY.",
     ),
@@ -78,7 +77,11 @@ async def generate_discovery_prep(
     - PROTOTYPE: Get feedback on designs
     - etc.
     """
-    from app.agents.discovery_prep import generate_prep_questions, recommend_documents, generate_agenda
+    from app.agents.discovery_prep import (
+        generate_agenda,
+        generate_prep_questions,
+        recommend_documents,
+    )
 
     # Default to pre_discovery if not specified
     target_phase = phase or CollaborationPhase.PRE_DISCOVERY
@@ -168,7 +171,7 @@ async def generate_discovery_prep(
 async def confirm_question(
     project_id: UUID,
     question_id: UUID,
-    request: Optional[ConfirmItemRequest] = None,
+    request: ConfirmItemRequest | None = None,
     auth: AuthContext = Depends(require_consultant),
 ):
     """Confirm (or unconfirm) a prep question."""
@@ -187,7 +190,7 @@ async def confirm_question(
 async def confirm_document(
     project_id: UUID,
     document_id: UUID,
-    request: Optional[ConfirmItemRequest] = None,
+    request: ConfirmItemRequest | None = None,
     auth: AuthContext = Depends(require_consultant),
 ):
     """Confirm (or unconfirm) a document recommendation."""
@@ -205,7 +208,7 @@ async def confirm_document(
 @router.post("/{project_id}/send", response_model=SendToPortalResponse)
 async def send_to_portal(
     project_id: UUID,
-    request: Optional[SendToPotalRequest] = None,
+    request: SendToPotalRequest | None = None,
     auth: AuthContext = Depends(require_consultant),
 ):
     """
@@ -448,10 +451,10 @@ async def delete_discovery_prep(
 
 async def _send_invitations(project_id: UUID, emails: list[str], auth: AuthContext) -> int:
     """Send portal invitations to stakeholders."""
-    from app.core.schemas_auth import ClientInviteRequest, MemberRole, UserCreate, UserType
+    from app.core.schemas_auth import MemberRole, UserCreate, UserType
     from app.db.project_members import add_project_member
-    from app.db.users import create_user, get_user_by_email
     from app.db.supabase_client import get_supabase
+    from app.db.users import create_user, get_user_by_email
 
     invitations_sent = 0
     client = get_supabase()

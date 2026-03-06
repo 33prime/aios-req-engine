@@ -6,7 +6,6 @@ existing project context, and research freshness.
 """
 
 from datetime import datetime, timedelta
-from typing import List, Optional
 from uuid import UUID
 
 from app.core.schemas_evidence import ResearchRecommendation, ResearchTrigger
@@ -103,7 +102,7 @@ async def should_run_research(
 
 # Helper functions
 
-async def _detect_domains(content: str) -> List[str]:
+async def _detect_domains(content: str) -> list[str]:
     """Extract domain/industry mentions from signal content."""
     # Keywords that indicate domains
     domain_keywords = {
@@ -125,7 +124,7 @@ async def _detect_domains(content: str) -> List[str]:
     return detected
 
 
-async def _get_project_domains(project_id: UUID) -> List[str]:
+async def _get_project_domains(project_id: UUID) -> list[str]:
     """Get domains already covered in project research."""
     supabase = get_supabase()
     try:
@@ -146,7 +145,7 @@ async def _get_project_domains(project_id: UUID) -> List[str]:
         return []
 
 
-async def _extract_topics(content: str) -> List[str]:
+async def _extract_topics(content: str) -> list[str]:
     """Extract key topics from signal content."""
     # Simple topic extraction based on keywords
     # In production, could use NLP/LLM for better extraction
@@ -231,8 +230,8 @@ async def _has_competitive_research(project_id: UUID) -> bool:
 
 async def _get_stale_topics(
     project_id: UUID,
-    topics: List[str]
-) -> List[str]:
+    topics: list[str]
+) -> list[str]:
     """Get topics with research older than 30 days."""
     stale = []
     cutoff = datetime.utcnow() - timedelta(days=30)
@@ -273,11 +272,11 @@ async def _get_stale_topics(
 
 
 async def _generate_research_queries(
-    new_domains: List[str],
-    missing_topics: List[str],
-    stale_topics: List[str],
+    new_domains: list[str],
+    missing_topics: list[str],
+    stale_topics: list[str],
     signal_content: str
-) -> List[str]:
+) -> list[str]:
     """Generate suggested research queries."""
     queries = []
 

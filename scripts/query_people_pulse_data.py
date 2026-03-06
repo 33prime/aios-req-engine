@@ -290,7 +290,7 @@ def main():
         print(f"  Linked to project signals: {linked_to_signals}/{len(mem_nodes)}")
 
         # Show a few samples
-        print(f"\n  Sample memory nodes (up to 5):")
+        print("\n  Sample memory nodes (up to 5):")
         for mn in mem_nodes[:5]:
             print(f"\n    [{mn['node_type']}] {mn['summary'][:100]}")
             print(f"      confidence={mn['confidence']}, source_type={mn.get('source_type')}")

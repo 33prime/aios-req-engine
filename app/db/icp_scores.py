@@ -1,6 +1,6 @@
 """Database operations for ICP consultant scores."""
 
-from typing import Any, Optional
+from typing import Any
 from uuid import UUID
 
 from app.db.supabase_client import get_supabase as get_client

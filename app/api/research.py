@@ -4,6 +4,7 @@ import uuid
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel
 
 # Baseline gate removed - no longer needed
 from app.core.chunking import chunk_text
@@ -11,9 +12,9 @@ from app.core.embeddings import embed_texts
 from app.core.logging import get_logger
 from app.core.research_render import render_research_report
 from app.core.research_validation import (
-    validate_research_report,
     get_completeness_score,
     get_content_statistics,
+    validate_research_report,
 )
 from app.core.schemas_research import (
     IngestedReport,
@@ -21,7 +22,6 @@ from app.core.schemas_research import (
     ResearchIngestResponse,
     ResearchReport,
 )
-from pydantic import BaseModel
 from app.db.jobs import complete_job, create_job, fail_job, start_job
 from app.db.phase0 import insert_signal, insert_signal_chunks
 
@@ -183,7 +183,7 @@ async def upload_simple_research(request: SimpleResearchUploadRequest) -> Simple
                     f"V2 processing failed for research signal {signal_id}: {pipeline_result.error}",
                     extra={"run_id": str(run_id), "signal_id": str(signal_id)},
                 )
-        except Exception as processing_error:
+        except Exception:
             logger.exception(
                 f"V2 processing failed for research signal {signal_id}",
                 extra={"run_id": str(run_id), "signal_id": str(signal_id)},
@@ -262,7 +262,7 @@ def _ingest_research_report(
     stats = get_content_statistics(report)
 
     logger.info(
-        f"Research report quality metrics",
+        "Research report quality metrics",
         extra={
             "run_id": str(run_id),
             "report_id": report.id,

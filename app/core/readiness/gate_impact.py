@@ -8,7 +8,7 @@ from typing import Literal
 from uuid import UUID
 
 from app.core.logging import get_logger
-from app.db.business_drivers import get_business_driver, list_business_drivers
+from app.db.business_drivers import list_business_drivers
 from app.db.competitor_refs import list_competitor_refs
 from app.db.risks import get_critical_risks
 from app.db.stakeholders import list_stakeholders

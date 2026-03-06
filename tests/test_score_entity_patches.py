@@ -10,8 +10,7 @@ from app.chains.score_entity_patches import (
     _bump_confidence,
     score_entity_patches,
 )
-from app.core.schemas_entity_patch import BeliefImpact, EntityPatch
-
+from app.core.schemas_entity_patch import EntityPatch
 
 # =============================================================================
 # Helpers

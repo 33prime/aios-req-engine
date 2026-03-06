@@ -1,7 +1,6 @@
 """Database operations for organizations."""
 
 from datetime import datetime
-from typing import Optional
 from uuid import UUID
 
 from app.core.schemas_organizations import (
@@ -10,12 +9,11 @@ from app.core.schemas_organizations import (
     OrganizationSummary,
     OrganizationUpdate,
     OrganizationWithRole,
-    OrganizationRole,
 )
 from app.db.supabase_client import get_supabase as get_client
 
 
-async def get_organization_by_id(org_id: UUID) -> Optional[Organization]:
+async def get_organization_by_id(org_id: UUID) -> Organization | None:
     """Get an organization by ID."""
     client = get_client()
     result = (
@@ -30,7 +28,7 @@ async def get_organization_by_id(org_id: UUID) -> Optional[Organization]:
     return None
 
 
-async def get_organization_by_slug(slug: str) -> Optional[Organization]:
+async def get_organization_by_slug(slug: str) -> Organization | None:
     """Get an organization by slug."""
     client = get_client()
     result = (
@@ -68,7 +66,7 @@ async def create_organization(
 async def update_organization(
     org_id: UUID,
     data: OrganizationUpdate,
-) -> Optional[Organization]:
+) -> Organization | None:
     """Update an organization."""
     client = get_client()
     update_data = {k: v for k, v in data.model_dump().items() if v is not None}
@@ -86,7 +84,7 @@ async def update_organization(
     return None
 
 
-async def archive_organization(org_id: UUID) -> Optional[Organization]:
+async def archive_organization(org_id: UUID) -> Organization | None:
     """Archive an organization (soft delete)."""
     client = get_client()
     result = (
@@ -103,7 +101,7 @@ async def archive_organization(org_id: UUID) -> Optional[Organization]:
 async def delete_organization(
     org_id: UUID,
     deleted_by_user_id: UUID,
-) -> Optional[Organization]:
+) -> Organization | None:
     """Soft delete an organization."""
     client = get_client()
     result = (
@@ -164,7 +162,7 @@ async def list_organizations(
     return [Organization(**row) for row in result.data]
 
 
-async def get_organization_summary(org_id: UUID) -> Optional[OrganizationSummary]:
+async def get_organization_summary(org_id: UUID) -> OrganizationSummary | None:
     """Get organization summary with member and project counts."""
     client = get_client()
 

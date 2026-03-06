@@ -4,8 +4,8 @@ from typing import Any
 from uuid import UUID
 
 from app.core.logging import get_logger
-from app.db.supabase_client import get_supabase
 from app.db.confirmations import upsert_confirmation_item
+from app.db.supabase_client import get_supabase
 
 logger = get_logger(__name__)
 

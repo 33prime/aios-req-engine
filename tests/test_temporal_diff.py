@@ -1,12 +1,10 @@
 """Tests for the temporal diff engine."""
 
-import pytest
-from datetime import datetime, timezone, timedelta
+from datetime import UTC, datetime, timedelta
 from unittest.mock import MagicMock, patch
 from uuid import uuid4
 
 from app.core.temporal_diff import compute_temporal_diff
-from app.core.schemas_briefing import ChangeType
 
 
 class TestComputeTemporalDiff:
@@ -32,7 +30,7 @@ class TestComputeTemporalDiff:
         table.select.return_value.eq.return_value.gt.return_value.order.return_value.limit.return_value.execute.return_value = mock_response
         table.select.return_value.eq.return_value.in_.return_value.eq.return_value.gt.return_value.order.return_value.limit.return_value.execute.return_value = mock_response
 
-        since = datetime.now(timezone.utc) - timedelta(days=2)
+        since = datetime.now(UTC) - timedelta(days=2)
         result = compute_temporal_diff(uuid4(), since)
 
         assert result.since_label == "2 days ago"
@@ -53,7 +51,7 @@ class TestComputeTemporalDiff:
                 "change_reason": "New evidence supports this",
                 "previous_confidence": 0.6,
                 "new_confidence": 0.8,
-                "created_at": datetime.now(timezone.utc).isoformat(),
+                "created_at": datetime.now(UTC).isoformat(),
             }
         ]
 
@@ -77,7 +75,7 @@ class TestComputeTemporalDiff:
 
         table.select = mock_select
 
-        since = datetime.now(timezone.utc) - timedelta(hours=6)
+        since = datetime.now(UTC) - timedelta(hours=6)
         result = compute_temporal_diff(uuid4(), since)
 
         assert result.since_label == "earlier today"
@@ -104,7 +102,7 @@ class TestComputeTemporalDiff:
                 "change_reason": f"Change {i}",
                 "previous_confidence": 0.5,
                 "new_confidence": 0.6,
-                "created_at": datetime.now(timezone.utc).isoformat(),
+                "created_at": datetime.now(UTC).isoformat(),
             }
             for i in range(25)
         ]
@@ -127,7 +125,7 @@ class TestComputeTemporalDiff:
 
         table.select = mock_select
 
-        since = datetime.now(timezone.utc) - timedelta(days=3)
+        since = datetime.now(UTC) - timedelta(days=3)
         result = compute_temporal_diff(uuid4(), since)
 
         # belief_history returns up to 20 (query limit), then cap to 20 total

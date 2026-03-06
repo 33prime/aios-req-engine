@@ -1,8 +1,7 @@
 """Tests for the intelligence briefing engine orchestrator."""
 
-import pytest
-from datetime import datetime, timezone
-from unittest.mock import AsyncMock, MagicMock, patch
+from datetime import UTC, datetime
+from unittest.mock import MagicMock, patch
 from uuid import uuid4
 
 from app.core.briefing_engine import (
@@ -13,8 +12,7 @@ from app.core.briefing_engine import (
     _merge_hypotheses,
     _parse_timestamp,
 )
-from app.core.schemas_briefing import Hypothesis, HypothesisStatus, IntelligenceBriefing
-
+from app.core.schemas_briefing import Hypothesis, HypothesisStatus
 
 # ============================================================================
 # Timestamp parsing
@@ -34,7 +32,7 @@ class TestParseTimestamp:
         assert result is not None
 
     def test_datetime_object(self):
-        dt = datetime(2026, 2, 19, 10, 0, tzinfo=timezone.utc)
+        dt = datetime(2026, 2, 19, 10, 0, tzinfo=UTC)
         result = _parse_timestamp(dt)
         assert result == dt
 
@@ -42,7 +40,7 @@ class TestParseTimestamp:
         dt = datetime(2026, 2, 19, 10, 0)
         result = _parse_timestamp(dt)
         assert result is not None
-        assert result.tzinfo == timezone.utc
+        assert result.tzinfo == UTC
 
     def test_none_returns_none(self):
         assert _parse_timestamp(None) is None
@@ -234,7 +232,7 @@ class TestBuildHeartbeat:
 
         # Signals query
         mock_signal = MagicMock()
-        mock_signal.data = [{"created_at": datetime.now(timezone.utc).isoformat()}]
+        mock_signal.data = [{"created_at": datetime.now(UTC).isoformat()}]
         mock_sb.table.return_value.select.return_value.eq.return_value.order.return_value.limit.return_value.execute.return_value = mock_signal
 
         # Stale count queries

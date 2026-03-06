@@ -9,7 +9,6 @@ Used by the "Who Would Know" confirmation suggestion feature.
 import re
 from typing import Any
 
-
 # Common stop words to filter out
 STOP_WORDS = {
     "a", "an", "the", "is", "are", "was", "were", "be", "been", "being",
@@ -17,14 +16,13 @@ STOP_WORDS = {
     "should", "may", "might", "must", "shall", "can", "need", "dare",
     "and", "or", "but", "if", "then", "else", "when", "where", "why",
     "how", "what", "which", "who", "whom", "this", "that", "these",
-    "those", "am", "is", "are", "was", "were", "be", "been", "being",
-    "to", "of", "in", "for", "on", "with", "at", "by", "from", "as",
+    "those", "am", "to", "of", "in", "for", "on", "with", "at", "by", "from", "as",
     "into", "through", "during", "before", "after", "above", "below",
     "between", "under", "again", "further", "once", "here", "there",
     "all", "each", "few", "more", "most", "other", "some", "such",
     "no", "not", "only", "own", "same", "so", "than", "too", "very",
     "just", "also", "now", "user", "users", "system", "feature",
-    "ability", "able", "want", "needs", "should", "must", "allow",
+    "ability", "able", "want", "needs", "allow",
     "allows", "enable", "enables", "provide", "provides", "support",
     "supports", "include", "includes", "using", "used", "use",
 }

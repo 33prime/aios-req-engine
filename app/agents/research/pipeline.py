@@ -19,22 +19,20 @@ Total: ~$0.20
 
 import json
 from datetime import datetime
-from typing import Any
-from uuid import UUID, uuid4
+from uuid import uuid4
 
 from anthropic import Anthropic
 from openai import OpenAI
 
-from app.core.config import get_settings
-from app.core.logging import get_logger
-from app.core.state_snapshot import get_state_snapshot
-from app.db.supabase_client import get_supabase
-from app.db.competitor_refs import create_competitor_ref
 from app.agents.research.schemas import (
     DeepResearchRequest,
     DeepResearchResponse,
-    CompetitorIntelligence,
 )
+from app.core.config import get_settings
+from app.core.logging import get_logger
+from app.core.state_snapshot import get_state_snapshot
+from app.db.competitor_refs import create_competitor_ref
+from app.db.supabase_client import get_supabase
 
 logger = get_logger(__name__)
 

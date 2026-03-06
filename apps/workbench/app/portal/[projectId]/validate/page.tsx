@@ -9,6 +9,8 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { useParams } from 'next/navigation'
+import { CheckCircle } from 'lucide-react'
+import { Spinner } from '@/components/ui/Spinner'
 import { getValidationQueue, submitVerdict } from '@/lib/api'
 import ValidationCard from '@/components/portal/ValidationCard'
 import type { ValidationQueueResponse, VerdictType, ValidationItem } from '@/types/portal'
@@ -62,10 +64,7 @@ export default function ValidatePage() {
   if (loading && !queue) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-center">
-          <div className="w-8 h-8 border-2 border-[#009b87] border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-          <p className="text-gray-500">Loading validation queue...</p>
-        </div>
+        <Spinner size="lg" label="Loading validation queue..." />
       </div>
     )
   }
@@ -75,7 +74,7 @@ export default function ValidatePage() {
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center">
           <p className="text-red-600 mb-2">{error}</p>
-          <button onClick={loadQueue} className="text-sm text-[#009b87] hover:underline">
+          <button onClick={loadQueue} className="text-sm text-brand-primary hover:underline">
             Retry
           </button>
         </div>
@@ -101,8 +100,8 @@ export default function ValidatePage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Validation Queue</h1>
-          <p className="text-gray-500 mt-1">
+          <h1 className="text-2xl font-bold text-text-primary">Validation Queue</h1>
+          <p className="text-text-muted mt-1">
             {queue?.total_pending || 0} items pending review
           </p>
         </div>
@@ -112,7 +111,7 @@ export default function ValidatePage() {
           <select
             value={filter}
             onChange={e => setFilter(e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#009b87] focus:border-transparent"
+            className="px-3 py-2 border border-border rounded-lg text-sm focus:ring-2 focus:ring-brand-primary-ring focus:border-brand-primary"
           >
             <option value="all">All types</option>
             {availableTypes.map(type => (
@@ -128,19 +127,19 @@ export default function ValidatePage() {
       {Object.keys(grouped).length === 0 ? (
         <div className="text-center py-12">
           <div className="w-16 h-16 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-4">
-            <span className="text-2xl">&#10003;</span>
+            <CheckCircle className="w-7 h-7 text-green-600" />
           </div>
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">All Caught Up</h2>
-          <p className="text-gray-500 max-w-md mx-auto">
+          <h2 className="text-xl font-semibold text-text-primary mb-2">All Caught Up</h2>
+          <p className="text-text-muted max-w-md mx-auto">
             No items awaiting your validation. Check back later as your consultant adds more.
           </p>
         </div>
       ) : (
         Object.entries(grouped).map(([entityType, items]) => (
           <div key={entityType} className="space-y-3">
-            <h2 className="text-sm font-medium text-gray-500 uppercase tracking-wide">
+            <h2 className="text-sm font-medium text-text-muted uppercase tracking-wide">
               {ENTITY_TYPE_LABELS[entityType] || entityType}
-              <span className="ml-2 text-gray-400">({items.length})</span>
+              <span className="ml-2 text-text-placeholder">({items.length})</span>
             </h2>
             {items.map(item => (
               <ValidationCard

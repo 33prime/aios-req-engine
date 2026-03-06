@@ -13,7 +13,6 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-
 # =============================================================================
 # Entity types & operations
 # =============================================================================
@@ -52,6 +51,16 @@ class EvidenceRef(BaseModel):
     page_or_section: str | None = None
 
 
+class EntityLink(BaseModel):
+    """A semantic relationship extracted alongside an entity patch."""
+
+    target_type: str                    # entity type
+    target_id: str | None = None        # if known (full UUID)
+    target_name: str | None = None      # for fuzzy resolution when ID unknown
+    link_type: str                      # targets, actor_of, enables, addresses, constrains
+    evidence_quote: str | None = None   # the text implying this relationship
+
+
 class BeliefImpact(BaseModel):
     """How this patch relates to an existing memory belief."""
 
@@ -81,6 +90,9 @@ class EntityPatch(BaseModel):
 
     confidence: ConfidenceTier = "medium"
     confidence_reasoning: str = ""
+
+    # Semantic links to other entities
+    links: list[EntityLink] = Field(default_factory=list)
 
     # Memory integration
     belief_impact: list[BeliefImpact] = Field(default_factory=list)

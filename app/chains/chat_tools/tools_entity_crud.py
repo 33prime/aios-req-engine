@@ -1,6 +1,6 @@
 """Entity CRUD, task, belief, and reference tool implementations."""
 
-from typing import Any, Dict
+from typing import Any
 from uuid import UUID
 
 from app.core.logging import get_logger
@@ -14,7 +14,7 @@ logger = get_logger(__name__)
 # =============================================================================
 
 
-async def _create_entity(project_id: UUID, params: Dict[str, Any]) -> Dict[str, Any]:
+async def _create_entity(project_id: UUID, params: dict[str, Any]) -> dict[str, Any]:
     """
     Create any entity type from a unified interface.
 
@@ -53,7 +53,7 @@ async def _create_entity(project_id: UUID, params: Dict[str, Any]) -> Dict[str, 
         return {"success": False, "error": str(e)}
 
 
-async def _update_entity(project_id: UUID, params: Dict[str, Any]) -> Dict[str, Any]:
+async def _update_entity(project_id: UUID, params: dict[str, Any]) -> dict[str, Any]:
     """
     Update any entity type from a unified interface.
 
@@ -103,7 +103,7 @@ async def _update_entity(project_id: UUID, params: Dict[str, Any]) -> Dict[str, 
         return {"success": False, "error": str(e)}
 
 
-async def _delete_entity(project_id: UUID, params: Dict[str, Any]) -> Dict[str, Any]:
+async def _delete_entity(project_id: UUID, params: dict[str, Any]) -> dict[str, Any]:
     """
     Delete any entity type by ID.
 
@@ -148,7 +148,7 @@ async def _delete_entity(project_id: UUID, params: Dict[str, Any]) -> Dict[str, 
             }
 
         elif entity_type == "business_driver":
-            from app.db.business_drivers import get_business_driver, delete_business_driver
+            from app.db.business_drivers import delete_business_driver, get_business_driver
 
             driver = get_business_driver(eid)
             if not driver:
@@ -210,7 +210,7 @@ async def _delete_entity(project_id: UUID, params: Dict[str, Any]) -> Dict[str, 
 
 # --- Feature ---
 
-async def _create_feature_entity(project_id: UUID, name: str, fields: dict) -> Dict[str, Any]:
+async def _create_feature_entity(project_id: UUID, name: str, fields: dict) -> dict[str, Any]:
     """Create a single feature via direct insert."""
     supabase = get_supabase()
 
@@ -243,7 +243,7 @@ async def _create_feature_entity(project_id: UUID, name: str, fields: dict) -> D
     }
 
 
-async def _update_feature_entity(entity_id: UUID, fields: dict) -> Dict[str, Any]:
+async def _update_feature_entity(entity_id: UUID, fields: dict) -> dict[str, Any]:
     """Update a feature."""
     supabase = get_supabase()
 
@@ -269,7 +269,7 @@ async def _update_feature_entity(entity_id: UUID, fields: dict) -> Dict[str, Any
 
 # --- Persona ---
 
-async def _create_persona_entity(project_id: UUID, name: str, fields: dict) -> Dict[str, Any]:
+async def _create_persona_entity(project_id: UUID, name: str, fields: dict) -> dict[str, Any]:
     """Create a persona."""
     from app.db.personas import create_persona
 
@@ -295,7 +295,7 @@ async def _create_persona_entity(project_id: UUID, name: str, fields: dict) -> D
     }
 
 
-async def _update_persona_entity(entity_id: UUID, fields: dict) -> Dict[str, Any]:
+async def _update_persona_entity(entity_id: UUID, fields: dict) -> dict[str, Any]:
     """Update a persona."""
     from app.db.personas import update_persona
 
@@ -317,7 +317,7 @@ async def _update_persona_entity(entity_id: UUID, fields: dict) -> Dict[str, Any
 
 # --- VP Step (workflow step) ---
 
-async def _create_vp_step_entity(project_id: UUID, name: str, fields: dict) -> Dict[str, Any]:
+async def _create_vp_step_entity(project_id: UUID, name: str, fields: dict) -> dict[str, Any]:
     """Create a workflow step."""
     from app.db.workflows import create_workflow_step
 
@@ -353,7 +353,7 @@ async def _create_vp_step_entity(project_id: UUID, name: str, fields: dict) -> D
     }
 
 
-async def _update_vp_step_entity(entity_id: UUID, fields: dict) -> Dict[str, Any]:
+async def _update_vp_step_entity(entity_id: UUID, fields: dict) -> dict[str, Any]:
     """Update a workflow step."""
     from app.db.workflows import update_workflow_step
 
@@ -378,7 +378,7 @@ async def _update_vp_step_entity(entity_id: UUID, fields: dict) -> Dict[str, Any
 
 # --- Stakeholder ---
 
-async def _create_stakeholder_entity(project_id: UUID, name: str, fields: dict) -> Dict[str, Any]:
+async def _create_stakeholder_entity(project_id: UUID, name: str, fields: dict) -> dict[str, Any]:
     """Create a stakeholder."""
     from app.db.stakeholders import create_stakeholder
 
@@ -406,7 +406,7 @@ async def _create_stakeholder_entity(project_id: UUID, name: str, fields: dict) 
     }
 
 
-async def _update_stakeholder_entity(entity_id: UUID, fields: dict) -> Dict[str, Any]:
+async def _update_stakeholder_entity(entity_id: UUID, fields: dict) -> dict[str, Any]:
     """Update a stakeholder."""
     from app.db.stakeholders import update_stakeholder
 
@@ -431,7 +431,7 @@ async def _update_stakeholder_entity(entity_id: UUID, fields: dict) -> Dict[str,
 
 # --- Data Entity ---
 
-async def _create_data_entity_entity(project_id: UUID, name: str, fields: dict) -> Dict[str, Any]:
+async def _create_data_entity_entity(project_id: UUID, name: str, fields: dict) -> dict[str, Any]:
     """Create a data entity."""
     from app.db.data_entities import create_data_entity
 
@@ -453,7 +453,7 @@ async def _create_data_entity_entity(project_id: UUID, name: str, fields: dict) 
     }
 
 
-async def _update_data_entity_entity(entity_id: UUID, fields: dict) -> Dict[str, Any]:
+async def _update_data_entity_entity(entity_id: UUID, fields: dict) -> dict[str, Any]:
     """Update a data entity."""
     from app.db.data_entities import update_data_entity
 
@@ -475,7 +475,7 @@ async def _update_data_entity_entity(entity_id: UUID, fields: dict) -> Dict[str,
 
 # --- Workflow ---
 
-async def _create_workflow_entity(project_id: UUID, name: str, fields: dict) -> Dict[str, Any]:
+async def _create_workflow_entity(project_id: UUID, name: str, fields: dict) -> dict[str, Any]:
     """Create a workflow."""
     from app.db.workflows import create_workflow
 
@@ -496,7 +496,7 @@ async def _create_workflow_entity(project_id: UUID, name: str, fields: dict) -> 
     }
 
 
-async def _update_workflow_entity(entity_id: UUID, fields: dict) -> Dict[str, Any]:
+async def _update_workflow_entity(entity_id: UUID, fields: dict) -> dict[str, Any]:
     """Update a workflow."""
     from app.db.workflows import update_workflow
 
@@ -519,7 +519,7 @@ async def _update_workflow_entity(entity_id: UUID, fields: dict) -> Dict[str, An
 # --- Business Driver ---
 
 
-async def _create_business_driver_entity(project_id: UUID, description: str, fields: dict) -> Dict[str, Any]:
+async def _create_business_driver_entity(project_id: UUID, description: str, fields: dict) -> dict[str, Any]:
     """Create a business driver (goal, pain point, or KPI)."""
     from app.db.business_drivers import create_business_driver
 
@@ -545,9 +545,9 @@ async def _create_business_driver_entity(project_id: UUID, description: str, fie
     }
 
 
-async def _update_business_driver_entity(entity_id: UUID, project_id: UUID, fields: dict) -> Dict[str, Any]:
+async def _update_business_driver_entity(entity_id: UUID, project_id: UUID, fields: dict) -> dict[str, Any]:
     """Update a business driver (goal, pain point, or KPI)."""
-    from app.db.business_drivers import update_business_driver, get_business_driver
+    from app.db.business_drivers import update_business_driver
 
     ALLOWED = {"description", "measurement", "timeframe", "priority", "driver_type",
                "severity", "frequency", "affected_users", "business_impact", "current_workaround",
@@ -577,11 +577,11 @@ async def _update_business_driver_entity(entity_id: UUID, project_id: UUID, fiel
 # =============================================================================
 
 
-async def _create_task(project_id: UUID, params: Dict[str, Any]) -> Dict[str, Any]:
+async def _create_task(project_id: UUID, params: dict[str, Any]) -> dict[str, Any]:
     """Create a project task from the chat assistant."""
     from datetime import datetime as dt
 
-    from app.core.schemas_tasks import TaskCreate, TaskSourceType, TaskType, AnchoredEntityType
+    from app.core.schemas_tasks import AnchoredEntityType, TaskCreate, TaskSourceType, TaskType
     from app.db.tasks import create_task
 
     title = params.get("title", "").strip()
@@ -661,7 +661,7 @@ async def _create_task(project_id: UUID, params: Dict[str, Any]) -> Dict[str, An
 # =============================================================================
 
 
-async def _add_belief(project_id: UUID, params: Dict[str, Any]) -> Dict[str, Any]:
+async def _add_belief(project_id: UUID, params: dict[str, Any]) -> dict[str, Any]:
     """Record a belief/knowledge in the project knowledge graph."""
     from app.db.memory_graph import create_node
 
@@ -697,7 +697,7 @@ async def _add_belief(project_id: UUID, params: Dict[str, Any]) -> Dict[str, Any
         return {"error": f"Failed to record belief: {str(e)}"}
 
 
-async def _add_company_reference(project_id: UUID, params: Dict[str, Any]) -> Dict[str, Any]:
+async def _add_company_reference(project_id: UUID, params: dict[str, Any]) -> dict[str, Any]:
     """Add a competitor or design/feature inspiration."""
     from app.db.competitor_refs import create_competitor_ref
 

@@ -1,18 +1,17 @@
 """Tests for research chunking functionality."""
 
-import pytest
-from app.core.schemas_research import (
-    ResearchDocument,
-    FeatureCategory,
-    MarketPainPoints,
-    IdeaAnalysis,
-    GoalsAndBenefits,
-    USP,
-    UserPersona,
-    RiskMitigation,
-    MarketData
-)
 from app.core.research_chunking import chunk_research_document
+from app.core.schemas_research import (
+    USP,
+    FeatureCategory,
+    GoalsAndBenefits,
+    IdeaAnalysis,
+    MarketData,
+    MarketPainPoints,
+    ResearchDocument,
+    RiskMitigation,
+    UserPersona,
+)
 
 
 def test_section_based_chunking():

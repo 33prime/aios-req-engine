@@ -10,7 +10,6 @@ Example:
         https://v0-seton-communio-platform.vercel.app
 """
 
-import json
 import sys
 from pathlib import Path
 from uuid import UUID

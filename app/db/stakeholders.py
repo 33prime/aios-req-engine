@@ -1,7 +1,7 @@
 """Database operations for stakeholders table."""
 
 import re
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from uuid import UUID
 
 from app.core.logging import get_logger
@@ -258,7 +258,7 @@ def update_stakeholder(
         updates["linked_persona_id"] = str(updates["linked_persona_id"])
 
     # Add updated_at timestamp
-    updates["updated_at"] = datetime.now(timezone.utc).isoformat()
+    updates["updated_at"] = datetime.now(UTC).isoformat()
 
     response = (
         supabase.table("stakeholders")
@@ -297,7 +297,7 @@ def update_stakeholder_status(
     updates = {
         "confirmation_status": status,
         "confirmed_by": str(confirmed_by) if confirmed_by else None,
-        "confirmed_at": datetime.now(timezone.utc).isoformat(),
+        "confirmed_at": datetime.now(UTC).isoformat(),
     }
 
     return update_stakeholder(stakeholder_id, updates)
@@ -491,7 +491,7 @@ def unlink_stakeholder_from_persona(stakeholder_id: UUID) -> dict:
         supabase.table("stakeholders")
         .update({
             "linked_persona_id": None,
-            "updated_at": datetime.now(timezone.utc).isoformat(),
+            "updated_at": datetime.now(UTC).isoformat(),
         })
         .eq("id", str(stakeholder_id))
         .execute()
@@ -584,7 +584,7 @@ def set_primary_contact(
         supabase.table("stakeholders")
         .update({
             "is_primary_contact": True,
-            "updated_at": datetime.now(timezone.utc).isoformat(),
+            "updated_at": datetime.now(UTC).isoformat(),
         })
         .eq("id", str(stakeholder_id))
         .execute()
@@ -825,7 +825,7 @@ def create_stakeholder_from_signal(
     if existing.data:
         # Update existing stakeholder
         updates = {
-            "updated_at": datetime.now(timezone.utc).isoformat(),
+            "updated_at": datetime.now(UTC).isoformat(),
         }
         if role:
             updates["role"] = role
@@ -1093,7 +1093,6 @@ def find_similar_stakeholder(
         Most similar stakeholder or None
     """
     from app.core.similarity import SimilarityMatcher, ThresholdConfig
-    from app.core.state_snapshot import invalidate_snapshot
 
     # First try email match (exact)
     if email:

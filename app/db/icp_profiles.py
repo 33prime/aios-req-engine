@@ -1,6 +1,6 @@
 """Database operations for ICP profiles."""
 
-from typing import Any, Optional
+from typing import Any
 from uuid import UUID
 
 from app.db.supabase_client import get_supabase as get_client
@@ -16,7 +16,7 @@ async def list_icp_profiles(active_only: bool = True) -> list[dict[str, Any]]:
     return result.data or []
 
 
-async def get_icp_profile(profile_id: UUID) -> Optional[dict[str, Any]]:
+async def get_icp_profile(profile_id: UUID) -> dict[str, Any] | None:
     """Get a single ICP profile by ID."""
     client = get_client()
     result = (
@@ -35,7 +35,7 @@ async def create_icp_profile(data: dict[str, Any]) -> dict[str, Any]:
     return result.data[0]
 
 
-async def update_icp_profile(profile_id: UUID, data: dict[str, Any]) -> Optional[dict[str, Any]]:
+async def update_icp_profile(profile_id: UUID, data: dict[str, Any]) -> dict[str, Any] | None:
     """Update an ICP profile."""
     client = get_client()
     data["updated_at"] = "now()"

@@ -1,12 +1,11 @@
 """Process strategic entity fact types into database entities."""
 
-import asyncio
 from uuid import UUID
 
 from app.core.logging import get_logger
-from app.db.facts import list_latest_extracted_facts
-from app.db.business_drivers import smart_upsert_business_driver, auto_enrich_driver_if_eligible
+from app.db.business_drivers import auto_enrich_driver_if_eligible, smart_upsert_business_driver
 from app.db.competitor_refs import smart_upsert_competitor_ref
+from app.db.facts import list_latest_extracted_facts
 from app.db.stakeholders import smart_upsert_stakeholder
 
 logger = get_logger(__name__)
@@ -177,7 +176,9 @@ async def process_strategic_facts_for_signal(
                 # Update foundation design preferences if this is a design inspiration
                 if fact_type in ("design_inspiration", "feature_inspiration"):
                     try:
-                        from app.core.process_design_preferences import update_foundation_design_preferences
+                        from app.core.process_design_preferences import (
+                            update_foundation_design_preferences,
+                        )
                         update_foundation_design_preferences(project_id)
                     except Exception as e:
                         logger.warning(f"Failed to update design preferences: {e}")

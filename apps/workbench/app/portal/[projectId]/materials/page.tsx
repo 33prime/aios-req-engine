@@ -8,6 +8,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { useParams } from 'next/navigation'
+import { Spinner } from '@/components/ui/Spinner'
 import { apiRequest } from '@/lib/api/core'
 
 interface ClientDocument {
@@ -92,7 +93,7 @@ export default function MaterialsPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <div className="w-8 h-8 border-2 border-[#009b87] border-t-transparent rounded-full animate-spin" />
+        <Spinner size="lg" label="Loading materials..." />
       </div>
     )
   }
@@ -105,10 +106,10 @@ export default function MaterialsPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Materials</h1>
-          <p className="text-gray-500 mt-1">Project documents and files.</p>
+          <h1 className="text-2xl font-bold text-text-primary">Materials</h1>
+          <p className="text-text-muted mt-1">Project documents and files.</p>
         </div>
-        <label className="px-4 py-2 bg-[#009b87] text-white text-sm font-medium rounded-lg hover:bg-[#008775] transition-colors cursor-pointer">
+        <label className="px-4 py-2 bg-brand-primary text-white text-sm font-medium rounded-lg hover:bg-brand-primary-hover transition-colors cursor-pointer">
           {uploading ? 'Uploading...' : 'Upload File'}
           <input
             type="file"
@@ -125,26 +126,26 @@ export default function MaterialsPage() {
 
       {/* Your Uploads */}
       <div className="space-y-3">
-        <h2 className="text-sm font-medium text-gray-500 uppercase tracking-wide">
+        <h2 className="text-sm font-medium text-text-muted uppercase tracking-wide">
           Your Uploads ({myUploads.length})
         </h2>
 
         {myUploads.length === 0 ? (
-          <div className="bg-white rounded-xl border border-gray-200 p-8 text-center">
-            <p className="text-gray-400">No files uploaded yet.</p>
+          <div className="bg-surface-card rounded-lg border border-border p-8 text-center">
+            <p className="text-text-placeholder">No files uploaded yet.</p>
           </div>
         ) : (
           myUploads.map(doc => (
-            <div key={doc.id} className="bg-white rounded-xl border border-gray-200 p-4 flex items-center justify-between">
+            <div key={doc.id} className="bg-surface-card rounded-lg border border-border p-4 flex items-center justify-between shadow-sm">
               <div className="flex items-center gap-3 min-w-0">
-                <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                  <span className="text-xs font-medium text-gray-500 uppercase">
+                <div className="w-10 h-10 bg-surface-subtle rounded-lg flex items-center justify-center flex-shrink-0">
+                  <span className="text-xs font-medium text-text-muted uppercase">
                     {doc.file_type?.split('/').pop()?.slice(0, 4) || 'FILE'}
                   </span>
                 </div>
                 <div className="min-w-0">
-                  <p className="text-sm font-medium text-gray-900 truncate">{doc.file_name}</p>
-                  <p className="text-xs text-gray-400">
+                  <p className="text-sm font-medium text-text-primary truncate">{doc.file_name}</p>
+                  <p className="text-xs text-text-placeholder">
                     {formatSize(doc.file_size)} &middot; {new Date(doc.uploaded_at).toLocaleDateString()}
                   </p>
                 </div>
@@ -162,29 +163,29 @@ export default function MaterialsPage() {
 
       {/* Shared by Consultant */}
       <div className="space-y-3">
-        <h2 className="text-sm font-medium text-gray-500 uppercase tracking-wide">
+        <h2 className="text-sm font-medium text-text-muted uppercase tracking-wide">
           Shared by Consultant ({shared.length})
         </h2>
 
         {shared.length === 0 ? (
-          <div className="bg-white rounded-xl border border-gray-200 p-8 text-center">
-            <p className="text-gray-400">No shared materials yet.</p>
+          <div className="bg-surface-card rounded-lg border border-border p-8 text-center">
+            <p className="text-text-placeholder">No shared materials yet.</p>
           </div>
         ) : (
           shared.map(doc => (
-            <div key={doc.id} className="bg-white rounded-xl border border-gray-200 p-4 flex items-center gap-3">
+            <div key={doc.id} className="bg-surface-card rounded-lg border border-border p-4 flex items-center gap-3 shadow-sm">
               <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center flex-shrink-0">
                 <span className="text-xs font-medium text-blue-600 uppercase">
                   {doc.file_type?.split('/').pop()?.slice(0, 4) || 'FILE'}
                 </span>
               </div>
               <div className="min-w-0">
-                <p className="text-sm font-medium text-gray-900 truncate">{doc.file_name}</p>
-                <p className="text-xs text-gray-400">
+                <p className="text-sm font-medium text-text-primary truncate">{doc.file_name}</p>
+                <p className="text-xs text-text-placeholder">
                   {formatSize(doc.file_size)} &middot; {new Date(doc.uploaded_at).toLocaleDateString()}
                 </p>
                 {doc.description && (
-                  <p className="text-xs text-gray-500 mt-0.5">{doc.description}</p>
+                  <p className="text-xs text-text-muted mt-0.5">{doc.description}</p>
                 )}
               </div>
             </div>

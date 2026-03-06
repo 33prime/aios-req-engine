@@ -10,7 +10,7 @@ from pydantic import ValidationError
 from app.core.config import Settings
 from app.core.logging import get_logger
 from app.core.schemas_vp_enrich import EnrichVPStepOutput
-from app.core.vp_enrich_inputs import build_vp_enrich_prompt, get_vp_enrich_context
+from app.core.vp_enrich_inputs import build_vp_enrich_prompt
 
 logger = get_logger(__name__)
 

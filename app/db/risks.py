@@ -1,6 +1,6 @@
 """CRUD operations for risks entity."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any, Literal
 from uuid import UUID
 
@@ -263,7 +263,7 @@ def update_risk_confirmation_status(
 
     updates = {
         "confirmation_status": status,
-        "confirmed_at": datetime.now(timezone.utc).isoformat(),
+        "confirmed_at": datetime.now(UTC).isoformat(),
     }
     if confirmed_by:
         updates["confirmed_by"] = str(confirmed_by)

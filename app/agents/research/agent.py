@@ -10,23 +10,21 @@ This agent uses Claude to autonomously:
 The agent runs in an agentic loop, making tool calls until each phase is complete.
 """
 
-import asyncio
 import json
 from datetime import datetime
-from typing import Any
-from uuid import UUID, uuid4
+from uuid import uuid4
 
 from anthropic import Anthropic
 
-from app.core.config import get_settings
-from app.core.logging import get_logger
-from app.core.state_snapshot import get_state_snapshot
-from app.db.supabase_client import get_supabase
-from app.agents.research.tools import TOOL_DEFINITIONS, ToolContext, execute_tool
 from app.agents.research.schemas import (
     DeepResearchRequest,
     DeepResearchResponse,
 )
+from app.agents.research.tools import TOOL_DEFINITIONS, ToolContext, execute_tool
+from app.core.config import get_settings
+from app.core.logging import get_logger
+from app.core.state_snapshot import get_state_snapshot
+from app.db.supabase_client import get_supabase
 
 logger = get_logger(__name__)
 

@@ -5,7 +5,6 @@ market landscape view with feature heatmap and positioning recommendations.
 """
 
 import json
-from typing import Any
 from uuid import UUID, uuid4
 
 from pydantic import BaseModel, Field

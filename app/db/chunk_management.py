@@ -7,7 +7,7 @@ this module propagates that status to all linked chunks (via evidence references
 This enables status-aware vector search to prioritize confirmed chunks over draft chunks.
 """
 
-from typing import List, Dict, Any
+from typing import Any
 from uuid import UUID
 
 from app.core.logging import get_logger
@@ -17,7 +17,7 @@ logger = get_logger(__name__)
 
 
 def update_chunk_status(
-    chunk_ids: List[str],
+    chunk_ids: list[str],
     new_status: str,
 ) -> int:
     """
@@ -182,7 +182,7 @@ def propagate_status_to_chunks(
         raise
 
 
-def extract_chunk_ids_from_evidence(evidence: List[Dict[str, Any]]) -> List[str]:
+def extract_chunk_ids_from_evidence(evidence: list[dict[str, Any]]) -> list[str]:
     """
     Extract chunk IDs from evidence references.
 

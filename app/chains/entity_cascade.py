@@ -1,6 +1,6 @@
 """Entity cascade processing - queue changes and propagate staleness."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from uuid import UUID
 
 from app.core.logging import get_logger
@@ -116,7 +116,7 @@ def mark_change_processed(change_id: UUID) -> dict:
         supabase.table("vp_change_queue")
         .update({
             "processed": True,
-            "processed_at": datetime.now(timezone.utc).isoformat(),
+            "processed_at": datetime.now(UTC).isoformat(),
         })
         .eq("id", str(change_id))
         .execute()
@@ -160,7 +160,7 @@ def mark_entity_stale(
         supabase.table(table).update({
             "is_stale": True,
             "stale_reason": reason,
-            "stale_since": datetime.now(timezone.utc).isoformat(),
+            "stale_since": datetime.now(UTC).isoformat(),
         }).eq("id", str(entity_id)).execute()
 
         logger.info(f"Marked {entity_type}:{entity_id} as stale: {reason}")
