@@ -362,7 +362,7 @@ export default function PortalPrototypePage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
+      <div className="flex items-center justify-center h-full">
         <Spinner size="lg" label="Loading prototype review..." />
       </div>
     )
@@ -370,7 +370,7 @@ export default function PortalPrototypePage() {
 
   if (error) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
+      <div className="flex items-center justify-center h-full">
         <div className="text-center max-w-md">
           <h2 className="text-lg font-semibold text-text-primary mb-2">Review Unavailable</h2>
           <p className="text-sm text-text-muted">{error}</p>
@@ -381,7 +381,7 @@ export default function PortalPrototypePage() {
 
   if (submitted) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
+      <div className="flex items-center justify-center h-full">
         <div className="text-center max-w-md">
           <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-green-50 flex items-center justify-center">
             <span className="text-2xl text-green-600">{'\u2713'}</span>
@@ -468,7 +468,7 @@ export default function PortalPrototypePage() {
     }
 
     return (
-      <div className="flex flex-col bg-surface-page -mx-8 -my-8" style={{ height: '100vh' }}>
+      <div className="flex flex-col h-full bg-surface-page">
         {/* Nav bar */}
         <div className="bg-accent px-4 py-2 flex-shrink-0">
           <ExplorationNav
@@ -554,7 +554,7 @@ export default function PortalPrototypePage() {
   // ── Stakeholder Epic Review Mode ─────────────────────────────────
   if (stakeholderData && !isTokenMode) {
     return (
-      <div className="flex flex-col h-screen">
+      <div className="flex flex-col h-full">
         {/* Prototype iframe — top 55% */}
         <div className="flex-[55] min-h-0">
           {deployUrl ? (
@@ -693,7 +693,7 @@ export default function PortalPrototypePage() {
   const reviewedCount = Object.keys(clientVerdicts).length
 
   return (
-    <div className="flex flex-col h-screen bg-surface-page">
+    <div className="flex flex-col h-full bg-surface-page">
       <div className="bg-accent px-6 py-4">
         <h1 className="text-lg font-semibold text-white">Prototype Review</h1>
         <p className="text-sm text-white/60 mt-0.5">

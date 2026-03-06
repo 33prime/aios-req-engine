@@ -192,12 +192,10 @@ export default function PortalShell({ projectId, children }: PortalShellProps) {
       )}
 
       {/* Main content */}
-      <main className={`min-h-screen transition-[margin] duration-200 ${
+      <main className={`h-screen overflow-hidden transition-[margin] duration-200 ${
         sidebarHidden ? '' : sidebarCollapsed ? 'ml-[64px]' : 'ml-[220px]'
       }`}>
-        <div className={sidebarHidden ? '' : 'px-8 py-8'}>
-          {children}
-        </div>
+        {children}
       </main>
 
       {/* Page-aware chat side panel */}

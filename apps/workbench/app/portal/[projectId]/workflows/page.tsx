@@ -341,7 +341,7 @@ export default function WorkflowsPage() {
   // Loading state (pairs come from context, but might not be loaded yet)
   if (!workflowPairs) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
+      <div className="flex items-center justify-center h-full">
         <Spinner size="lg" label="Loading workflows..." />
       </div>
     )
@@ -350,7 +350,7 @@ export default function WorkflowsPage() {
   // Empty state
   if (total === 0) {
     return (
-      <div className="max-w-2xl space-y-6">
+      <div className="h-full overflow-y-auto px-8 py-8"><div className="max-w-2xl space-y-6">
         <div>
           <h1 className="text-2xl font-bold text-text-primary">Your Workflows</h1>
           <p className="text-text-muted mt-1">
@@ -365,14 +365,14 @@ export default function WorkflowsPage() {
             No workflows to review yet. Check back after your discovery call.
           </p>
         </div>
-      </div>
+      </div></div>
     )
   }
 
   // All reviewed state
   if (allReviewed) {
     return (
-      <div className="max-w-2xl space-y-6">
+      <div className="h-full overflow-y-auto px-8 py-8"><div className="max-w-2xl space-y-6">
         <div>
           <h1 className="text-2xl font-bold text-text-primary">Your Workflows</h1>
           <p className="text-text-muted mt-1">
@@ -390,7 +390,7 @@ export default function WorkflowsPage() {
             Thank you for taking the time to validate your workflows. Your feedback helps us build exactly what your team needs.
           </p>
         </div>
-      </div>
+      </div></div>
     )
   }
 
@@ -400,6 +400,7 @@ export default function WorkflowsPage() {
   const showNotes = selectedVerdict === 'refine' || selectedVerdict === 'flag'
 
   return (
+    <div className="h-full overflow-y-auto px-8 py-8">
     <div className="max-w-3xl space-y-6">
       {/* Header + progress */}
       <div>
@@ -595,6 +596,7 @@ export default function WorkflowsPage() {
           <ChevronRight className="w-4 h-4" />
         </button>
       </div>
+    </div>
     </div>
   )
 }

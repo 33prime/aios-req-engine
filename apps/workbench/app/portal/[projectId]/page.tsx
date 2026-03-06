@@ -344,7 +344,7 @@ export default function PortalHubPage() {
 
   if (!loaded) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
+      <div className="flex items-center justify-center h-full">
         <Spinner size="lg" label="Loading dashboard..." />
       </div>
     )
@@ -352,7 +352,7 @@ export default function PortalHubPage() {
 
   if (!dashboard) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
+      <div className="flex items-center justify-center h-full">
         <div className="text-center">
           <p className="text-red-600 mb-2">Failed to load dashboard</p>
           <button
@@ -380,7 +380,7 @@ export default function PortalHubPage() {
   const { prototype_status, recent_activity } = dashboard
 
   return (
-    <div className="space-y-6">
+    <div className="h-full overflow-y-auto px-8 py-8 space-y-6">
       {/* Consultant Banner — always visible */}
       <ConsultantBanner dashboard={dashboard} projectContext={projectContext} />
 
