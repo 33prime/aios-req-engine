@@ -46,6 +46,7 @@ import {
   getPhaseProgress,
   listPendingItems,
   listCallRecordings,
+  listAllStakeholders,
 } from '@/lib/api'
 import type {
   NextAction,
@@ -77,6 +78,7 @@ import type {
   IntelGraphResponse,
   IntelEvolutionResponse,
   IntelSalesResponse,
+  StakeholderDetail,
 } from '@/types/workspace'
 
 // --- SWR key constants (shared with realtime invalidation) ---
@@ -718,6 +720,22 @@ export function useEpicVerdicts(
     () => getEpicVerdicts(sessionId!),
     {
       dedupingInterval: SHORT_CACHE,
+      revalidateOnFocus: false,
+      ...config,
+    },
+  )
+}
+
+// --- Project stakeholders (enriched detail, for Collaborate view) ---
+export function useProjectStakeholders(
+  projectId: string | undefined,
+  config?: SWRConfiguration<{ stakeholders: StakeholderDetail[]; total: number }>,
+) {
+  return useSWR<{ stakeholders: StakeholderDetail[]; total: number }>(
+    projectId ? `project-stakeholders:${projectId}` : null,
+    () => listAllStakeholders({ project_id: projectId!, limit: 50 }),
+    {
+      dedupingInterval: MED_CACHE,
       revalidateOnFocus: false,
       ...config,
     },

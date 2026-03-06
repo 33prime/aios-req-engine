@@ -1,8 +1,9 @@
 'use client'
 
 import { useCallback, useState } from 'react'
-import { Users } from 'lucide-react'
-import { ClientHeaderBar } from './ClientHeaderBar'
+import { ClientIdentityCard } from './ClientIdentityCard'
+import { PainValueCenter } from './PainValueCenter'
+import { StakeholderMapSection } from './StakeholderMapSection'
 import { ActionQueueSection } from './ActionQueueSection'
 import { QuestionBoardSection } from './QuestionBoardSection'
 import { AgendaCenterSection } from './AgendaCenterSection'
@@ -33,47 +34,43 @@ export function CollaborateView({ projectId, onNavigateToPhase }: CollaborateVie
   }, [])
 
   return (
-    <div className="max-w-5xl mx-auto">
-      {/* Page Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-brand-primary-light flex items-center justify-center">
-            <Users className="w-5 h-5 text-brand-primary" />
-          </div>
-          <div>
-            <h1 className="text-xl font-semibold text-text-body">Collaborate</h1>
-            <p className="text-[12px] text-text-placeholder">Manage client engagement & portal</p>
-          </div>
+    <div className="max-w-7xl mx-auto">
+      {/* Client Identity Card — full width */}
+      <ClientIdentityCard projectId={projectId} />
+
+      {/* Two-column layout */}
+      <div className="mt-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
+        {/* Left: Strategic — Pain, Value, Stakeholders */}
+        <div className="lg:col-span-7 space-y-4">
+          <PainValueCenter projectId={projectId} />
+          <StakeholderMapSection projectId={projectId} />
         </div>
-      </div>
 
-      {/* Client Header Bar */}
-      <ClientHeaderBar projectId={projectId} />
-
-      {/* Accordion Sections */}
-      <div className="space-y-4 mt-6">
-        <ActionQueueSection
-          projectId={projectId}
-          onScrollToSection={scrollToSection}
-          onTriggerSynthesize={handleTriggerSynthesize}
-        />
-        <div id="collab-questions" className="rounded-2xl transition-all duration-500">
-          <QuestionBoardSection
+        {/* Right: Operational — Existing sections (unchanged) */}
+        <div className="lg:col-span-5 space-y-4">
+          <ActionQueueSection
             projectId={projectId}
-            synthesizeTrigger={synthesizeTrigger}
+            onScrollToSection={scrollToSection}
+            onTriggerSynthesize={handleTriggerSynthesize}
           />
-        </div>
-        <div id="collab-agenda" className="rounded-2xl transition-all duration-500">
-          <AgendaCenterSection projectId={projectId} />
-        </div>
-        <div id="collab-prototype" className="rounded-2xl transition-all duration-500">
-          <PrototypeEngagementSection projectId={projectId} />
-        </div>
-        <div id="collab-client-exploration" className="rounded-2xl transition-all duration-500">
-          <ClientStagingSection projectId={projectId} />
-        </div>
-        <div id="collab-activity" className="rounded-2xl transition-all duration-500">
-          <ClientActivitySection projectId={projectId} />
+          <div id="collab-questions" className="rounded-2xl transition-all duration-500">
+            <QuestionBoardSection
+              projectId={projectId}
+              synthesizeTrigger={synthesizeTrigger}
+            />
+          </div>
+          <div id="collab-client-exploration" className="rounded-2xl transition-all duration-500">
+            <ClientStagingSection projectId={projectId} />
+          </div>
+          <div id="collab-prototype" className="rounded-2xl transition-all duration-500">
+            <PrototypeEngagementSection projectId={projectId} />
+          </div>
+          <div id="collab-agenda" className="rounded-2xl transition-all duration-500">
+            <AgendaCenterSection projectId={projectId} />
+          </div>
+          <div id="collab-activity" className="rounded-2xl transition-all duration-500">
+            <ClientActivitySection projectId={projectId} />
+          </div>
         </div>
       </div>
     </div>
