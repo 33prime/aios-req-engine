@@ -394,6 +394,13 @@ function SectionBar({
 // Context Frame Actions (top 3)
 // ---------------------------------------------------------------------------
 
+const ACTION_TYPE_MAP: Record<string, { label: string; bg: string; text: string }> = {
+  structural: { label: 'Review', bg: '#E8F5E9', text: '#3FAF7A' },
+  signal: { label: 'Signal', bg: '#E8F0F5', text: '#044159' },
+  knowledge: { label: 'Interview', bg: '#F5F5F5', text: '#333333' },
+}
+const ACTION_TYPE_DEFAULT = { label: 'Research', bg: '#F5F5F5', text: '#7B7B7B' }
+
 function ContextActionsCard({
   actions,
   isLoading,
@@ -427,6 +434,7 @@ function ContextActionsCard({
           {actions.map((action, idx) => {
             const sourceColor = GAP_SOURCE_COLORS[action.gap_source] || '#999999'
             const Icon = GAP_SOURCE_ICONS[action.gap_type] || GAP_SOURCE_ICONS[action.gap_source] || Sparkles
+            const badge = ACTION_TYPE_MAP[action.gap_source] || ACTION_TYPE_DEFAULT
             return (
               <button
                 key={action.action_id}
@@ -444,13 +452,13 @@ function ContextActionsCard({
                 </span>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1.5 mb-0.5">
-                    <Icon className="w-3 h-3 flex-shrink-0" style={{ color: sourceColor }} />
                     <span
-                      className="text-[10px] font-medium uppercase tracking-wide"
-                      style={{ color: sourceColor }}
+                      className="text-[9px] uppercase font-semibold px-1.5 py-0.5 rounded"
+                      style={{ backgroundColor: badge.bg, color: badge.text }}
                     >
-                      {action.gap_source}
+                      {badge.label}
                     </span>
+                    <Icon className="w-3 h-3 flex-shrink-0" style={{ color: sourceColor }} />
                   </div>
                   <p className="text-[12px] text-text-body leading-relaxed">{action.sentence}</p>
                 </div>

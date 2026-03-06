@@ -87,7 +87,7 @@ const EPIC_VERDICT_STYLES: Record<VerdictType, { button: string; active: string 
 export default function PortalPrototypePage() {
   const params = useParams()
   const searchParams = useSearchParams()
-  const { setSidebarHidden } = usePortal()
+  const { setSidebarHidden, setChatConfig } = usePortal()
   const projectId = params.projectId as string
   const token = searchParams.get('token') || ''
   const sessionId = searchParams.get('session') || ''
@@ -132,6 +132,19 @@ export default function PortalPrototypePage() {
     setSidebarHidden(!!isImmersive)
     return () => setSidebarHidden(false)
   }, [isImmersive, setSidebarHidden])
+
+  // Register prototype-aware chat config — knows which epic is active
+  const currentEpic = explorationData?.epics?.[currentEpicIndex]
+  useEffect(() => {
+    setChatConfig({
+      station: 'epic',
+      title: currentEpic?.title ? `Discussing: ${currentEpic.title}` : 'Prototype Review',
+      greeting: currentEpic?.title
+        ? `Let's talk about the "${currentEpic.title}" experience. What do you think of what you see? Anything surprising or missing?`
+        : "I can help you explore your prototype. Click through the app and let me know what you think!",
+    })
+    return () => setChatConfig(null)
+  }, [setChatConfig, currentEpic?.title])
 
   useEffect(() => {
     async function load() {
@@ -464,9 +477,9 @@ export default function PortalPrototypePage() {
     }
 
     return (
-      <div className="flex flex-col h-screen bg-surface-page">
+      <div className="fixed inset-0 flex flex-col bg-surface-page z-20">
         {/* Nav bar */}
-        <div className="bg-accent px-4 py-2">
+        <div className="bg-accent px-4 py-2 flex-shrink-0">
           <ExplorationNav
             currentIndex={currentEpicIndex}
             totalEpics={epics.length}
@@ -477,10 +490,10 @@ export default function PortalPrototypePage() {
           />
         </div>
 
-        {/* iframe left + StationPanel right */}
-        <div className="flex-1 flex min-h-0">
-          {/* Prototype iframe — left, full height */}
-          <div className="flex-1 min-w-0">
+        {/* iframe left + right panel */}
+        <div className="flex-1 flex min-h-0 overflow-hidden">
+          {/* Prototype iframe — fills remaining width */}
+          <div className="flex-1 min-w-0 h-full">
             {currentIframeUrl ? (
               <PrototypeFrame
                 deployUrl={currentIframeUrl}
@@ -494,30 +507,35 @@ export default function PortalPrototypePage() {
             )}
           </div>
 
-          {/* Right panel — epic review with station chat */}
+          {/* Right panel — epic review + chat */}
           {currentEpic && (
-            <div className="w-[420px] flex-shrink-0 border-l border-border bg-white flex flex-col">
+            <div className="w-[420px] flex-shrink-0 border-l border-border bg-white flex flex-col h-full">
               {/* Epic content — scrollable upper portion */}
-              <div className="overflow-y-auto max-h-[45%] px-4 py-4 border-b border-border">
-                <PrototypeEpicStation
-                  epic={currentEpic}
-                  onAssumptionResponse={handleAssumptionResponse}
-                  assumptionResponses={currentResponses}
-                />
+              <div className="overflow-y-auto flex-shrink-0" style={{ maxHeight: '45%' }}>
+                <div className="px-4 py-4">
+                  <PrototypeEpicStation
+                    epic={currentEpic}
+                    onAssumptionResponse={handleAssumptionResponse}
+                    assumptionResponses={currentResponses}
+                  />
 
-                {/* Next / finish button */}
-                <div className="mt-3">
-                  <button
-                    onClick={handleExplorationNext}
-                    className="w-full px-4 py-2.5 bg-brand-primary text-white text-sm font-medium rounded-xl hover:bg-brand-primary-hover transition-all"
-                  >
-                    {currentEpicIndex < epics.length - 1 ? 'Next Area' : 'Review Summary'}
-                  </button>
+                  {/* Next / finish button */}
+                  <div className="mt-3">
+                    <button
+                      onClick={handleExplorationNext}
+                      className="w-full px-4 py-2.5 bg-brand-primary text-white text-sm font-medium rounded-xl hover:bg-brand-primary-hover transition-all"
+                    >
+                      {currentEpicIndex < epics.length - 1 ? 'Next Area' : 'Review Summary'}
+                    </button>
+                  </div>
                 </div>
               </div>
 
+              {/* Divider */}
+              <div className="border-t border-border flex-shrink-0" />
+
               {/* Chat zone — fills remaining space */}
-              <div className="flex-1 min-h-0">
+              <div className="flex-1 min-h-0 flex flex-col">
                 <StationChat
                   projectId={projectId}
                   station="epic"

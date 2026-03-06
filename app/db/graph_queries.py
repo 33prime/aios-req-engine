@@ -576,16 +576,17 @@ def get_entity_neighborhood(
     try:
         dep_resp = (
             sb.table("entity_dependencies")
-            .select("target_id, target_type, dependency_type")
-            .eq("source_id", seed_id)
+            .select("target_entity_id, target_entity_type, dependency_type, confidence")
+            .eq("source_entity_id", seed_id)
+            .eq("disputed", False)
             .limit(20)
             .execute()
         )
         existing_ids = {r["entity_id"] for r in related}
 
         for dep in dep_resp.data or []:
-            tid = dep["target_id"]
-            ttype = dep["target_type"]
+            tid = dep["target_entity_id"]
+            ttype = dep["target_entity_type"]
 
             # Apply entity_types filter
             if entity_types and ttype not in entity_types:
@@ -646,16 +647,17 @@ def get_entity_neighborhood(
         # Also check reverse dependencies (where this entity is the target)
         rev_dep_resp = (
             sb.table("entity_dependencies")
-            .select("source_id, source_type, dependency_type")
-            .eq("target_id", seed_id)
+            .select("source_entity_id, source_entity_type, dependency_type, confidence")
+            .eq("target_entity_id", seed_id)
+            .eq("disputed", False)
             .limit(20)
             .execute()
         )
 
         existing_ids = {r["entity_id"] for r in related}
         for dep in rev_dep_resp.data or []:
-            sid = dep["source_id"]
-            stype = dep["source_type"]
+            sid = dep["source_entity_id"]
+            stype = dep["source_entity_type"]
 
             if entity_types and stype not in entity_types:
                 continue

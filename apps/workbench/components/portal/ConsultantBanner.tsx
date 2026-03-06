@@ -44,9 +44,9 @@ export function ConsultantBanner({ dashboard, projectContext }: ConsultantBanner
     <div className="bg-[#0A1E2F] rounded-xl p-5 text-white">
       <div className="flex items-start justify-between gap-4">
         <div className="flex-1 min-w-0">
-          {consultantName && (
-            <p className="text-xs text-white/50 mb-1">Working with {consultantName}</p>
-          )}
+          <p className="text-xs text-white/50 mb-1">
+            {consultantName ? `Your consultant: ${consultantName}` : 'Your project hub'}
+          </p>
           <h1 className="text-lg font-semibold truncate">{dashboard.project_name}</h1>
 
           {/* Phase progress */}

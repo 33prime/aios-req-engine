@@ -52,15 +52,15 @@ async def _render_from_pulse(project_id: UUID) -> dict:
     from app.core.pulse_engine import compute_project_pulse
     from app.db.pulse import get_latest_pulse_snapshot
 
-    # Try cached pulse first, fall back to compute
+    # Always compute live pulse for full structured data (fast, no LLM).
+    # Briefing is cached for 5 min so this runs infrequently.
+    pulse_id = None
     snapshot = get_latest_pulse_snapshot(project_id)
     if snapshot:
-        pulse_data = snapshot.get("pulse_data") or snapshot.get("data", {})
         pulse_id = snapshot.get("id")
-    else:
-        pulse = await compute_project_pulse(project_id)
-        pulse_data = pulse.model_dump(mode="json")
-        pulse_id = None
+
+    pulse = await compute_project_pulse(project_id)
+    pulse_data = pulse.model_dump(mode="json")
 
     stage_info = pulse_data.get("stage", {})
     health_map = pulse_data.get("health", {})
@@ -68,7 +68,6 @@ async def _render_from_pulse(project_id: UUID) -> dict:
     risks = pulse_data.get("risks", {})
     auto_candidates = pulse_data.get("auto_confirm_candidates", [])
 
-    # Progress summary
     stage = stage_info.get("current", "discovery")
     progress_pct = stage_info.get("progress", 0)
     gates_met = stage_info.get("gates_met", 0)

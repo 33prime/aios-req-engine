@@ -1,13 +1,12 @@
 'use client'
 
-import { useCallback, useRef } from 'react'
-import { Loader2, Paperclip, Sparkles, Clock, Lightbulb, Compass } from 'lucide-react'
+import { useState, useCallback, useRef } from 'react'
+import { Loader2, Paperclip, Sparkles, RefreshCw } from 'lucide-react'
 import { useIntelligenceBriefing } from '@/lib/hooks/use-api'
 import { getIntelligenceBriefing } from '@/lib/api'
-import { PHASE_DESCRIPTIONS, CHANGE_TYPE_COLORS } from '@/lib/action-constants'
-import type { ConversationStarter, TemporalDiff, WhatYouShouldKnow } from '@/types/workspace'
+import { PHASE_LABELS } from '@/lib/action-constants'
+import type { ConversationStarter } from '@/types/workspace'
 
-import { BriefingHeader } from './BriefingHeader'
 import { ConversationStarterCard } from './ConversationStarterCard'
 
 interface IntelligenceBriefingPanelProps {
@@ -18,9 +17,7 @@ interface IntelligenceBriefingPanelProps {
   onUploadDocument?: () => void
 }
 
-/**
- * Render inline markdown: **bold** and *italic*
- */
+/** Render inline markdown: **bold** and *italic* */
 function InlineMarkdown({ text }: { text: string }) {
   const parts: Array<{ content: string; style: 'normal' | 'bold' | 'italic' }> = []
   let remaining = text
@@ -28,7 +25,6 @@ function InlineMarkdown({ text }: { text: string }) {
   while (remaining.length > 0) {
     const boldMatch = remaining.match(/\*\*(.+?)\*\*/)
     const italicMatch = remaining.match(/(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)/)
-
     const boldIdx = boldMatch?.index ?? Infinity
     const italicIdx = italicMatch?.index ?? Infinity
 
@@ -74,9 +70,9 @@ export function IntelligenceBriefingPanel({
   } = useIntelligenceBriefing(projectId)
 
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const [showAllStarters, setShowAllStarters] = useState(false)
 
   const handleRefresh = useCallback(() => {
-    // Force-bust backend cache so Sonnet regenerates the narrative
     revalidate(getIntelligenceBriefing(projectId, 5, true), { revalidate: false })
   }, [revalidate, projectId])
 
@@ -88,11 +84,16 @@ export function IntelligenceBriefingPanel({
     }
   }, [onUploadDocument])
 
+  const phase = briefing?.phase ?? 'empty'
+  const phaseLabel = PHASE_LABELS[phase] || phase
+  const progress = briefing?.situation?.phase_progress ?? 0
+  const progressPct = Math.round(progress * 100)
+
   // Loading state
   if (loading && briefing === undefined) {
     return (
-      <div className="flex flex-col h-full">
-        <BriefingHeader phase={null} progress={0} />
+      <div className="flex flex-col h-full bg-white border-r border-border">
+        <MicroHeader phaseLabel="..." progressPct={0} loading />
         <div className="flex-1 flex items-center justify-center p-6">
           <div className="flex items-center gap-2 text-[12px] text-text-placeholder">
             <Loader2 className="w-4 h-4 animate-spin" />
@@ -106,8 +107,8 @@ export function IntelligenceBriefingPanel({
   // Error state
   if (swrError) {
     return (
-      <div className="flex flex-col h-full">
-        <BriefingHeader phase={null} progress={0} />
+      <div className="flex flex-col h-full bg-white border-r border-border">
+        <MicroHeader phaseLabel="..." progressPct={0} />
         <div className="flex-1 flex items-center justify-center p-6">
           <div className="text-center">
             <p className="text-[12px] text-text-placeholder">Failed to load briefing</p>
@@ -123,21 +124,53 @@ export function IntelligenceBriefingPanel({
     )
   }
 
-  const phase = briefing?.phase ?? 'empty'
-  const progress = briefing?.situation?.phase_progress ?? 0
-  const starters = briefing?.conversation_starters ?? []
   const narrative = briefing?.situation?.narrative ?? ''
   const whatChanged = briefing?.what_changed
   const whatYouShouldKnow = briefing?.what_you_should_know
+  const starters = briefing?.conversation_starters ?? []
   const discoveryProbes = briefing?.discovery_probes ?? []
   const hasContent = narrative || starters.length > 0
 
+  // Compute change delta count
+  const changeDelta = whatChanged
+    ? (whatChanged.counts.new_signals || 0) +
+      (whatChanged.counts.beliefs_changed || 0) +
+      (whatChanged.counts.entities_updated || 0) +
+      (whatChanged.counts.new_facts || 0) +
+      (whatChanged.counts.new_insights || 0)
+    : 0
+
+  // Merge probes into starters when fewer than 3 starters
+  const mergedStarters: ConversationStarter[] = [...starters]
+  if (mergedStarters.length < 3 && discoveryProbes.length > 0 && onStartConversation) {
+    const probesAsStarters: ConversationStarter[] = discoveryProbes
+      .slice(0, 3 - mergedStarters.length)
+      .map((probe) => ({
+        starter_id: probe.probe_id,
+        hook: probe.context,
+        question: probe.question,
+        action_type: 'deep_dive' as const,
+        anchors: [],
+        chat_context: `Discovery probe: ${probe.why}`,
+        topic_domain: probe.category,
+        is_fallback: false,
+        generated_at: null,
+      }))
+    mergedStarters.push(...probesAsStarters)
+  }
+
+  const maxVisible = 5
+  const visibleStarters = showAllStarters ? mergedStarters : mergedStarters.slice(0, maxVisible)
+  const hasMoreStarters = mergedStarters.length > maxVisible
+
   return (
     <div className="flex flex-col h-full bg-white border-r border-border">
-      <BriefingHeader
-        phase={phase}
-        progress={progress}
-        narrativeCached={briefing?.narrative_cached}
+      {/* MicroHeader */}
+      <MicroHeader
+        phaseLabel={phaseLabel}
+        progressPct={progressPct}
+        changeDelta={changeDelta > 0 ? changeDelta : undefined}
+        sinceLabel={whatChanged?.since_label}
         onRefresh={handleRefresh}
         loading={loading}
       />
@@ -148,41 +181,65 @@ export function IntelligenceBriefingPanel({
           <PhaseEmptyState phase={phase} onUpload={handleUploadClick} />
         ) : (
           <>
-            {/* Situation narrative (4-5 sentences) */}
-            {narrative && (
-              <p className="text-[13px] text-text-body leading-[1.6] px-4 pt-4 pb-1">
-                <InlineMarkdown text={narrative} />
-              </p>
-            )}
+            {/* Condensed narrative */}
+            <div className="px-4 pt-4 pb-2">
+              {/* Change summary prefix if exists */}
+              {whatChanged?.change_summary && (
+                <p className="text-[12px] text-[#666666] leading-relaxed mb-2">
+                  {whatChanged.change_summary}
+                </p>
+              )}
 
-            {/* What changed — compact activity feed */}
-            {whatChanged && whatChanged.changes.length > 0 && (
-              <WhatChangedSection diff={whatChanged} />
-            )}
+              {/* Main narrative */}
+              {narrative && (
+                <p className="text-[13px] text-text-body leading-[1.6]">
+                  <InlineMarkdown text={narrative} />
+                </p>
+              )}
 
-            {/* What you should know — insight card */}
-            {whatYouShouldKnow && (whatYouShouldKnow.narrative || whatYouShouldKnow.bullets.length > 0) && (
-              <WhatYouShouldKnowSection data={whatYouShouldKnow} />
-            )}
+              {/* WYSK as indented insight block */}
+              {whatYouShouldKnow && (whatYouShouldKnow.narrative || whatYouShouldKnow.bullets.length > 0) && (
+                <div className="mt-3 pl-3 border-l-2 border-[#3FAF7A]">
+                  {whatYouShouldKnow.narrative && (
+                    <p className="text-[12px] text-text-body leading-relaxed">
+                      <InlineMarkdown text={whatYouShouldKnow.narrative} />
+                    </p>
+                  )}
+                  {whatYouShouldKnow.bullets.length > 0 && (
+                    <div className="mt-1.5 space-y-1">
+                      {whatYouShouldKnow.bullets.map((bullet, i) => (
+                        <p key={i} className="text-[12px] text-[#444444] leading-snug">
+                          <InlineMarkdown text={bullet} />
+                        </p>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
 
-            {/* Discovery Probes — between insights and conversation starters */}
-            {discoveryProbes.length > 0 && onStartConversation && (
-              <DiscoveryProbesSection
-                probes={discoveryProbes}
-                onStartConversation={onStartConversation}
-              />
-            )}
-
-            {/* Conversation starter cards */}
-            {starters.length > 0 && onStartConversation && (
-              <div className="mt-1 mx-4 mb-3 rounded-xl border border-border overflow-hidden bg-white">
-                {starters.map((starter) => (
+            {/* Conversation starters + merged probes */}
+            {visibleStarters.length > 0 && onStartConversation && (
+              <div className="mt-1 mx-4 mb-2 rounded-xl border border-border overflow-hidden bg-white">
+                {visibleStarters.map((starter) => (
                   <ConversationStarterCard
                     key={starter.starter_id}
                     starter={starter}
                     onStartConversation={onStartConversation}
                   />
                 ))}
+              </div>
+            )}
+
+            {/* Show more toggle */}
+            {hasMoreStarters && onStartConversation && (
+              <div className="px-4 mb-2">
+                <button
+                  onClick={() => setShowAllStarters(!showAllStarters)}
+                  className="text-[11px] font-medium text-brand-primary hover:underline"
+                >
+                  {showAllStarters ? 'Show less' : `Show ${mergedStarters.length - maxVisible} more`}
+                </button>
               </div>
             )}
 
@@ -212,180 +269,68 @@ export function IntelligenceBriefingPanel({
   )
 }
 
-/** Compact "what changed" section — activity-feed style */
-function WhatChangedSection({ diff }: { diff: TemporalDiff }) {
-  const { counts, change_summary, since_label } = diff
-
-  // Build compact count pills from the counts dict
-  const pills: Array<{ label: string; count: number; color: string }> = []
-  if (counts.new_signals) pills.push({ label: 'signals', count: counts.new_signals, color: CHANGE_TYPE_COLORS.signal_processed })
-  if (counts.beliefs_changed) pills.push({ label: 'beliefs', count: counts.beliefs_changed, color: CHANGE_TYPE_COLORS.belief_strengthened })
-  if (counts.entities_updated) pills.push({ label: 'enriched', count: counts.entities_updated, color: CHANGE_TYPE_COLORS.entity_updated })
-  if (counts.new_facts) pills.push({ label: 'facts', count: counts.new_facts, color: CHANGE_TYPE_COLORS.fact_added })
-  if (counts.new_insights) pills.push({ label: 'insights', count: counts.new_insights, color: CHANGE_TYPE_COLORS.insight_added })
-
-  if (pills.length === 0 && !change_summary) return null
-
-  return (
-    <div className="mx-4 mt-3 mb-1">
-      {/* Section header */}
-      <div className="flex items-center gap-1.5 mb-2">
-        <Clock className="w-3 h-3 text-text-placeholder" />
-        <span className="text-[11px] font-medium text-text-placeholder uppercase tracking-wide">
-          Since {since_label}
-        </span>
-      </div>
-
-      {/* Change summary (Haiku-generated) */}
-      {change_summary && (
-        <p className="text-[12px] text-[#666666] leading-relaxed mb-2">
-          {change_summary}
-        </p>
-      )}
-
-      {/* Count pills — compact colored badges */}
-      {pills.length > 0 && (
-        <div className="flex flex-wrap gap-1.5">
-          {pills.map((pill) => (
-            <span
-              key={pill.label}
-              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium"
-              style={{
-                backgroundColor: `${pill.color}10`,
-                color: pill.color,
-              }}
-            >
-              <span
-                className="w-1.5 h-1.5 rounded-full"
-                style={{ backgroundColor: pill.color }}
-              />
-              {pill.count} {pill.label}
-            </span>
-          ))}
-        </div>
-      )}
-    </div>
-  )
-}
-
-/** "What you should know" insight card */
-function WhatYouShouldKnowSection({ data }: { data: WhatYouShouldKnow }) {
-  const { narrative, bullets } = data
-
-  if (!narrative && bullets.length === 0) return null
-
-  return (
-    <div className="mx-4 mt-3 mb-2 rounded-lg bg-[#F8FAF8] border border-[#E5EDE5] p-3">
-      {/* Section header */}
-      <div className="flex items-center gap-1.5 mb-2">
-        <Lightbulb className="w-3 h-3 text-brand-primary" />
-        <span className="text-[11px] font-semibold text-[#25785A] uppercase tracking-wide">
-          Worth knowing
-        </span>
-      </div>
-
-      {/* Narrative */}
-      {narrative && (
-        <p className="text-[12px] text-text-body leading-relaxed mb-2">
-          <InlineMarkdown text={narrative} />
-        </p>
-      )}
-
-      {/* Bullets with green accent dots */}
-      {bullets.length > 0 && (
-        <div className="space-y-1.5">
-          {bullets.map((bullet, i) => (
-            <div key={i} className="flex items-start gap-2">
-              <span className="w-1.5 h-1.5 rounded-full bg-brand-primary mt-[5px] flex-shrink-0" />
-              <span className="text-[12px] text-[#444444] leading-snug">
-                <InlineMarkdown text={bullet} />
-              </span>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  )
-}
-
-const PROBE_CATEGORY_STYLES: Record<string, { bg: string; text: string; label: string }> = {
-  organizational_impact: { bg: '#DBEAFE', text: '#1D4ED8', label: 'Org Impact' },
-  human_behavioral_goal: { bg: '#E8F5E9', text: '#25785A', label: 'Behavior' },
-  success_metrics: { bg: '#FEF3C7', text: '#B45309', label: 'Metrics' },
-  cultural_constraints: { bg: '#F3E8FF', text: '#7C3AED', label: 'Culture' },
-}
-
-interface DiscoveryProbe {
-  probe_id: string
-  category: string
-  context: string
-  question: string
-  why: string
-  priority: number
-}
-
-function DiscoveryProbesSection({
-  probes,
-  onStartConversation,
+/** Compact micro header — single line, replaces BriefingHeader */
+function MicroHeader({
+  phaseLabel,
+  progressPct,
+  changeDelta,
+  sinceLabel,
+  onRefresh,
+  loading,
 }: {
-  probes: DiscoveryProbe[]
-  onStartConversation: (starter: ConversationStarter) => void
+  phaseLabel: string
+  progressPct: number
+  changeDelta?: number
+  sinceLabel?: string
+  onRefresh?: () => void
+  loading?: boolean
 }) {
-  if (probes.length === 0) return null
-
   return (
-    <div className="mx-4 mt-3 mb-2">
-      <div className="flex items-center gap-1.5 mb-2">
-        <Compass className="w-3 h-3 text-brand-primary" />
-        <span className="text-[11px] font-semibold text-[#25785A] uppercase tracking-wide">
-          Discovery Probes
+    <div className="flex items-center gap-2 px-4 py-2.5 border-b border-border flex-shrink-0">
+      {/* Phase badge */}
+      <span className="text-[10px] uppercase font-semibold text-[#3FAF7A] tracking-wide">
+        {phaseLabel}
+      </span>
+
+      <div className="flex-1" />
+
+      {/* Score pill */}
+      <span className="text-[10px] font-medium text-text-body bg-[#F5F5F5] px-2 py-0.5 rounded-full">
+        {progressPct}%
+      </span>
+
+      {/* Delta count */}
+      {changeDelta !== undefined && changeDelta > 0 && (
+        <span className="text-[10px] text-[#3FAF7A] font-medium">
+          +{changeDelta}{sinceLabel ? ` since ${sinceLabel}` : ''}
         </span>
-      </div>
-      <div className="space-y-2">
-        {probes.slice(0, 5).map((probe) => {
-          const style = PROBE_CATEGORY_STYLES[probe.category] || PROBE_CATEGORY_STYLES.organizational_impact
-          return (
-            <button
-              key={probe.probe_id}
-              onClick={() =>
-                onStartConversation({
-                  starter_id: probe.probe_id,
-                  hook: probe.context,
-                  question: probe.question,
-                  action_type: 'deep_dive',
-                  anchors: [],
-                  chat_context: `Discovery probe: ${probe.why}`,
-                  topic_domain: probe.category,
-                  is_fallback: false,
-                  generated_at: null,
-                })
-              }
-              className="w-full text-left rounded-lg border border-[#E5EDE5] bg-[#F8FAF8] p-3 hover:border-brand-primary transition-colors group"
-            >
-              <div className="flex items-center gap-1.5 mb-1">
-                <span
-                  className="text-[9px] rounded-full px-1.5 py-0.5 font-medium"
-                  style={{ backgroundColor: style.bg, color: style.text }}
-                >
-                  {style.label}
-                </span>
-              </div>
-              <p className="text-[12px] font-medium text-[#333] leading-snug group-hover:text-brand-primary transition-colors">
-                {probe.question}
-              </p>
-              {probe.why && (
-                <p className="text-[10px] italic text-[#999] mt-0.5">{probe.why}</p>
-              )}
-            </button>
-          )
-        })}
-      </div>
+      )}
+
+      {/* Refresh */}
+      {onRefresh && (
+        <button
+          onClick={onRefresh}
+          disabled={loading}
+          className="p-1 rounded-md hover:bg-[#F5F5F5] transition-colors disabled:opacity-40"
+          title="Refresh briefing"
+        >
+          <RefreshCw
+            className={`w-3.5 h-3.5 text-text-placeholder ${loading ? 'animate-spin' : ''}`}
+          />
+        </button>
+      )}
     </div>
   )
 }
 
 function PhaseEmptyState({ phase, onUpload }: { phase: string; onUpload: () => void }) {
-  const description = PHASE_DESCRIPTIONS[phase] || 'No intelligence available yet'
+  const descriptions: Record<string, string> = {
+    empty: 'Tell us about the project to get started',
+    seeding: 'Upload documents or describe the current process',
+    building: 'Fill in the details to strengthen the BRD',
+    refining: 'Almost there — confirm and polish',
+  }
+  const description = descriptions[phase] || 'No intelligence available yet'
 
   return (
     <div className="p-6 text-center">

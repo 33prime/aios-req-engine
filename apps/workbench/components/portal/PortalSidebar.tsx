@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Home, Workflow, Monitor, FileText, Users, LogOut } from 'lucide-react'
+import { Home, Workflow, Monitor, LogOut } from 'lucide-react'
 import type { PortalRole } from '@/types/portal'
 
 interface NavItem {
@@ -10,21 +10,18 @@ interface NavItem {
   href: string
   icon: React.ComponentType<{ className?: string }>
   badge?: number | string | null
-  adminOnly?: boolean
 }
 
 interface PortalSidebarProps {
   projectName: string
   portalRole: PortalRole
   pendingWorkflows: number
-  teamCompletionPct?: number | null
 }
 
 export default function PortalSidebar({
   projectName,
   portalRole,
   pendingWorkflows,
-  teamCompletionPct,
 }: PortalSidebarProps) {
   const pathname = usePathname()
   const segments = pathname.split('/')
@@ -35,11 +32,8 @@ export default function PortalSidebar({
     { label: 'Home', href: '', icon: Home },
     { label: 'Workflows', href: '/workflows', icon: Workflow, badge: pendingWorkflows || null },
     { label: 'Prototype', href: '/prototype', icon: Monitor },
-    { label: 'Materials', href: '/materials', icon: FileText },
-    { label: 'Team', href: '/team', icon: Users, adminOnly: true, badge: teamCompletionPct != null ? `${teamCompletionPct}%` : null },
   ]
 
-  const visibleItems = navItems.filter(item => !item.adminOnly || portalRole === 'client_admin')
   const initial = projectName ? projectName.charAt(0).toUpperCase() : '?'
 
   return (
@@ -58,7 +52,7 @@ export default function PortalSidebar({
 
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto py-4">
-        {visibleItems.map(item => {
+        {navItems.map(item => {
           const fullPath = `${basePath}${item.href}`
           const isActive = item.href === ''
             ? pathname === basePath || pathname === `${basePath}/`

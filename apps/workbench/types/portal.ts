@@ -294,6 +294,7 @@ export type StationSlug =
   | 'documents'
   | 'ai_wishlist'
   | 'tribal'
+  | 'workflow'
   | 'epic'
 
 export interface ProjectContextData {
