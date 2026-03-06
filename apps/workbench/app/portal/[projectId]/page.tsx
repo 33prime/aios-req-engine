@@ -1,40 +1,99 @@
 /**
- * Client Portal Hub — Dashboard
+ * Client Portal Hub — Mission Control Dashboard
  *
- * Replaces the Q&A-only page with a full dashboard:
- * - Meeting card (next meeting + agenda)
- * - Prototype card (status + link)
- * - Validation queue summary → /validate
- * - Recent activity feed
+ * Two-column layout:
+ * Left: inline action cards (questions, validations)
+ * Right: contribution station grid, prototype card, activity timeline
  */
 
 'use client'
 
-import React, { useState, useEffect } from 'react'
-import { useParams, useRouter } from 'next/navigation'
-import { Zap } from 'lucide-react'
+import { useState, useCallback } from 'react'
+import { useRouter } from 'next/navigation'
+import { Monitor, Zap, ChevronDown, ChevronUp, Swords, Palette, ShieldAlert, FileText, Sparkles, BookOpen } from 'lucide-react'
 import { Spinner } from '@/components/ui/Spinner'
-import { getPortalDashboard } from '@/lib/api'
-import type { PortalDashboard } from '@/types/portal'
+import { usePortal } from './PortalShell'
+import { ConsultantBanner } from '@/components/portal/ConsultantBanner'
+import { InlineActionCard } from '@/components/portal/InlineActionCard'
+import { ContributionGrid } from '@/components/portal/ContributionGrid'
+import { ActivityTimeline } from '@/components/portal/ActivityTimeline'
+import { StationPanel } from '@/components/portal/StationPanel'
+import type { StationSlug } from '@/types/portal'
+
+// Station metadata for StationPanel
+const STATION_META: Record<StationSlug, {
+  icon: React.ComponentType<{ className?: string }>
+  title: string
+  entityLabel: string
+  greeting: string
+}> = {
+  competitors: {
+    icon: Swords,
+    title: 'Competitors & Past Tools',
+    entityLabel: 'Competitive Landscape',
+    greeting: "Let's talk about the tools you've used before and what else is out there. What have you tried?",
+  },
+  design: {
+    icon: Palette,
+    title: 'Design Inspiration',
+    entityLabel: 'Design Preferences',
+    greeting: "I'd love to hear about apps and tools you enjoy using. What stands out to you?",
+  },
+  constraints: {
+    icon: ShieldAlert,
+    title: 'Constraints & Requirements',
+    entityLabel: 'Business Constraints',
+    greeting: "Let's document any hard constraints — compliance, budget, technical limitations, or non-negotiables.",
+  },
+  documents: {
+    icon: FileText,
+    title: 'Supporting Documents',
+    entityLabel: 'Materials',
+    greeting: 'Do you have any existing documentation, screenshots, or data that would help? You can upload files above.',
+  },
+  ai_wishlist: {
+    icon: Sparkles,
+    title: 'AI & Automation Wishlist',
+    entityLabel: 'AI Features',
+    greeting: "What tasks would you love to automate? What would AI magic look like for your workflow?",
+  },
+  tribal: {
+    icon: BookOpen,
+    title: 'Tribal Knowledge',
+    entityLabel: 'Edge Cases & Gotchas',
+    greeting: "Let's capture the things only experienced people know — gotchas, edge cases, and undocumented rules.",
+  },
+  epic: {
+    icon: Monitor,
+    title: 'Epic Review',
+    entityLabel: 'Prototype',
+    greeting: "Let's discuss what you see in the prototype. What stands out?",
+  },
+}
 
 export default function PortalHubPage() {
-  const params = useParams()
   const router = useRouter()
-  const projectId = params.projectId as string
+  const {
+    projectId,
+    dashboard,
+    loaded,
+    infoRequests,
+    refreshInfoRequests,
+    validationQueue,
+    refreshValidation,
+    projectContext,
+    refreshContext,
+  } = usePortal()
 
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [dashboard, setDashboard] = useState<PortalDashboard | null>(null)
+  const [activeStation, setActiveStation] = useState<StationSlug | null>(null)
+  const [showCompleted, setShowCompleted] = useState(false)
 
-  useEffect(() => {
-    setLoading(true)
-    getPortalDashboard(projectId)
-      .then(setDashboard)
-      .catch(err => setError(err.message || 'Failed to load'))
-      .finally(() => setLoading(false))
-  }, [projectId])
+  const handleDataChanged = useCallback(() => {
+    refreshContext()
+    refreshInfoRequests()
+  }, [refreshContext, refreshInfoRequests])
 
-  if (loading) {
+  if (!loaded) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <Spinner size="lg" label="Loading dashboard..." />
@@ -42,11 +101,11 @@ export default function PortalHubPage() {
     )
   }
 
-  if (error || !dashboard) {
+  if (!dashboard) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center">
-          <p className="text-red-600 mb-2">{error || 'Failed to load dashboard'}</p>
+          <p className="text-red-600 mb-2">Failed to load dashboard</p>
           <button
             onClick={() => window.location.reload()}
             className="text-sm text-brand-primary hover:underline"
@@ -58,196 +117,171 @@ export default function PortalHubPage() {
     )
   }
 
-  const { validation_summary, upcoming_meeting, prototype_status, team_summary, recent_activity } = dashboard
+  // Split info requests
+  const pendingQuestions = infoRequests.filter(
+    (q) => q.status !== 'complete' && q.status !== 'skipped'
+  )
+  const completedQuestions = infoRequests.filter(
+    (q) => q.status === 'complete' || q.status === 'skipped'
+  )
+
+  // Pending validations
+  const pendingValidations = validationQueue?.items ?? []
+
+  const { prototype_status, recent_activity } = dashboard
+  const hasActions = pendingQuestions.length > 0 || pendingValidations.length > 0
 
   return (
     <div className="space-y-6">
-      {/* Welcome header */}
-      <div>
-        <h1 className="text-2xl font-bold text-text-primary">{dashboard.project_name}</h1>
-        <p className="text-text-muted mt-1">
-          {dashboard.portal_role === 'client_admin'
-            ? 'Welcome back \u2014 here\u2019s your project overview.'
-            : 'Welcome \u2014 here are your assigned items.'}
-        </p>
-      </div>
+      {/* Consultant Banner */}
+      <ConsultantBanner dashboard={dashboard} projectContext={projectContext} />
 
-      {/* Cards grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* Validation Queue Card */}
-        {validation_summary && validation_summary.total_pending > 0 && (
-          <button
-            onClick={() => router.push(`/portal/${projectId}/validate`)}
-            className="bg-surface-card rounded-lg border border-border p-5 text-left hover:border-brand-primary hover:shadow-md transition-all"
-          >
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-sm font-medium text-text-muted uppercase tracking-wide">Validation Queue</span>
-              {validation_summary.urgent_count > 0 && (
-                <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full">
-                  {validation_summary.urgent_count} urgent
-                </span>
-              )}
-            </div>
-            <p className="text-3xl font-bold text-text-primary">{validation_summary.total_pending}</p>
-            <p className="text-sm text-text-muted mt-1">items awaiting your review</p>
-            <div className="flex flex-wrap gap-2 mt-3">
-              {Object.entries(validation_summary.by_type).map(([type, count]) =>
-                count > 0 ? (
-                  <span key={type} className="text-xs bg-surface-subtle text-text-secondary px-2 py-1 rounded">
-                    {type.replace('_', ' ')}: {count}
-                  </span>
-                ) : null
-              )}
-            </div>
-          </button>
-        )}
-
-        {/* Meeting Card */}
-        {upcoming_meeting && (
-          <div className="bg-surface-card rounded-lg border border-border p-5 shadow-sm">
-            <span className="text-sm font-medium text-text-muted uppercase tracking-wide">
-              Upcoming Meeting
-            </span>
-            <p className="text-lg font-semibold text-text-primary mt-2">
-              {upcoming_meeting.title || 'Discovery Call'}
-            </p>
-            <p className="text-sm text-text-muted mt-1">
-              {new Date(upcoming_meeting.scheduled_at).toLocaleDateString('en-US', {
-                weekday: 'long',
-                month: 'long',
-                day: 'numeric',
-                hour: 'numeric',
-                minute: '2-digit',
-              })}
-            </p>
-            {upcoming_meeting.meeting_type && (
-              <span className="inline-block mt-3 text-xs bg-blue-50 text-blue-700 px-2 py-1 rounded">
-                {upcoming_meeting.meeting_type}
-              </span>
-            )}
-          </div>
-        )}
-
-        {/* Prototype Card */}
-        {prototype_status && (
-          <button
-            onClick={() => router.push(`/portal/${projectId}/prototype`)}
-            className="bg-surface-card rounded-lg border border-border p-5 text-left hover:border-brand-primary hover:shadow-md transition-all"
-          >
-            <span className="text-sm font-medium text-text-muted uppercase tracking-wide">
-              Prototype
-            </span>
-            <p className="text-lg font-semibold text-text-primary mt-2">
-              {prototype_status.status === 'deployed' ? 'Ready for review' : prototype_status.status}
-            </p>
-            {prototype_status.deploy_url && (
-              <p className="text-sm text-brand-primary mt-1">Click to review the prototype</p>
-            )}
-          </button>
-        )}
-
-        {/* Team Summary (admin only) */}
-        {team_summary && dashboard.portal_role === 'client_admin' && (
-          <button
-            onClick={() => router.push(`/portal/${projectId}/team`)}
-            className="bg-surface-card rounded-lg border border-border p-5 text-left hover:border-brand-primary hover:shadow-md transition-all"
-          >
-            <span className="text-sm font-medium text-text-muted uppercase tracking-wide">
-              Team Progress
-            </span>
-            <div className="mt-2">
-              <div className="flex items-end gap-2">
-                <span className="text-3xl font-bold text-text-primary">{team_summary.completion_pct}%</span>
-                <span className="text-sm text-text-muted mb-1">validated</span>
-              </div>
-              <div className="w-full h-2 bg-surface-subtle rounded-full mt-2 overflow-hidden">
-                <div
-                  className="h-full bg-brand-primary rounded-full transition-all"
-                  style={{ width: `${team_summary.completion_pct}%` }}
+      {/* Two-column layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+        {/* Left: Actions */}
+        <div className="lg:col-span-3 space-y-3">
+          {/* Pending questions */}
+          {pendingQuestions.length > 0 && (
+            <div className="space-y-3">
+              <h2 className="text-xs font-medium text-text-muted uppercase tracking-wide">
+                Questions ({pendingQuestions.length})
+              </h2>
+              {pendingQuestions.slice(0, 5).map((q) => (
+                <InlineActionCard
+                  key={q.id}
+                  type="question"
+                  item={q}
+                  onCompleted={() => {
+                    refreshInfoRequests()
+                    refreshContext()
+                  }}
                 />
-              </div>
-              <p className="text-sm text-text-muted mt-2">
-                {team_summary.member_count} team members &middot; {team_summary.completed_assignments}/{team_summary.total_assignments} items
+              ))}
+              {pendingQuestions.length > 5 && (
+                <p className="text-xs text-text-muted text-center">
+                  +{pendingQuestions.length - 5} more questions
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* Pending validations */}
+          {pendingValidations.length > 0 && (
+            <div className="space-y-3">
+              <h2 className="text-xs font-medium text-text-muted uppercase tracking-wide">
+                Validations ({pendingValidations.length})
+              </h2>
+              {pendingValidations.slice(0, 5).map((v) => (
+                <InlineActionCard
+                  key={v.id}
+                  type="validation"
+                  item={v}
+                  projectId={projectId}
+                  onCompleted={refreshValidation}
+                />
+              ))}
+              {pendingValidations.length > 5 && (
+                <p className="text-xs text-text-muted text-center">
+                  +{pendingValidations.length - 5} more validations
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* Completed items (collapsed) */}
+          {completedQuestions.length > 0 && (
+            <div>
+              <button
+                onClick={() => setShowCompleted(!showCompleted)}
+                className="flex items-center gap-1 text-xs text-text-muted hover:text-text-body transition-colors"
+              >
+                {showCompleted ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                {completedQuestions.length} completed
+              </button>
+              {showCompleted && (
+                <div className="mt-2 space-y-1">
+                  {completedQuestions.map((q) => (
+                    <div key={q.id} className="text-xs text-text-muted flex items-center gap-1.5 py-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-green-400 flex-shrink-0" />
+                      {q.title}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Empty state for actions */}
+          {!hasActions && completedQuestions.length === 0 && (
+            <div className="text-center py-8">
+              <Zap className="w-8 h-8 text-text-placeholder mx-auto mb-2" />
+              <p className="text-sm text-text-muted">
+                No pending items. Contribute context using the stations on the right.
               </p>
             </div>
-          </button>
-        )}
-      </div>
+          )}
+        </div>
 
-      {/* Info Requests Progress (legacy support) */}
-      {dashboard.progress.total_items > 0 && (
-        <div className="bg-surface-card rounded-lg border border-border p-5 shadow-sm">
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-sm font-medium text-text-muted uppercase tracking-wide">
-              Information Requests
-            </span>
-            <span className="text-lg font-bold text-brand-primary">{dashboard.progress.percentage}%</span>
-          </div>
-          <div className="w-full h-2 bg-surface-subtle rounded-full overflow-hidden">
-            <div
-              className="h-full bg-brand-primary rounded-full transition-all"
-              style={{ width: `${dashboard.progress.percentage}%` }}
+        {/* Right: Contribute + Status */}
+        <div className="lg:col-span-2 space-y-4">
+          {/* Contribution Grid */}
+          <div>
+            <h2 className="text-xs font-medium text-text-muted uppercase tracking-wide mb-3">
+              Contribute
+            </h2>
+            <ContributionGrid
+              projectContext={projectContext}
+              dashboard={dashboard}
+              onStationOpen={setActiveStation}
             />
           </div>
-          <p className="text-sm text-text-muted mt-2">
-            {dashboard.progress.completed_items} of {dashboard.progress.total_items} completed
-          </p>
-        </div>
-      )}
 
-      {/* Recent Activity */}
-      {recent_activity.length > 0 && (
-        <div className="bg-surface-card rounded-lg border border-border p-5 shadow-sm">
-          <h2 className="text-sm font-medium text-text-muted uppercase tracking-wide mb-4">
-            Recent Activity
-          </h2>
-          <div className="space-y-3">
-            {recent_activity.slice(0, 8).map(activity => (
-              <div key={activity.id} className="flex items-start gap-3 text-sm">
-                <span className={`
-                  mt-0.5 w-2 h-2 rounded-full flex-shrink-0
-                  ${activity.verdict === 'confirmed' ? 'bg-green-500' :
-                    activity.verdict === 'refine' ? 'bg-amber-500' :
-                    activity.verdict === 'flag' ? 'bg-red-500' : 'bg-gray-300'}
-                `} />
-                <div className="flex-1 min-w-0">
-                  <p className="text-text-primary">
-                    <span className="font-medium">
-                      {activity.stakeholders?.name || 'Stakeholder'}
-                    </span>
-                    {' '}{activity.verdict}{' '}
-                    <span className="text-text-muted">{activity.entity_type.replace('_', ' ')}</span>
-                  </p>
-                  {activity.notes && (
-                    <p className="text-text-muted truncate">{activity.notes}</p>
-                  )}
+          {/* Prototype Card */}
+          {prototype_status && (
+            <button
+              onClick={() => router.push(`/portal/${projectId}/prototype`)}
+              className="w-full bg-surface-card border border-border rounded-lg p-4 text-left hover:border-brand-primary hover:shadow-sm transition-all"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-[#0A1E2F] flex items-center justify-center flex-shrink-0">
+                  <Monitor className="w-5 h-5 text-white" />
                 </div>
-                <span className="text-xs text-text-placeholder flex-shrink-0">
-                  {new Date(activity.created_at).toLocaleDateString('en-US', {
-                    month: 'short',
-                    day: 'numeric',
-                  })}
-                </span>
+                <div>
+                  <p className="text-sm font-medium text-text-primary">
+                    {prototype_status.status === 'deployed' ? 'Prototype Ready' : 'Prototype'}
+                  </p>
+                  <p className="text-xs text-brand-primary">
+                    {prototype_status.deploy_url ? 'Click to review' : prototype_status.status}
+                  </p>
+                </div>
               </div>
-            ))}
-          </div>
-        </div>
-      )}
+            </button>
+          )}
 
-      {/* Empty state */}
-      {!validation_summary?.total_pending &&
-       !upcoming_meeting &&
-       !prototype_status &&
-       dashboard.progress.total_items === 0 && (
-        <div className="text-center py-12">
-          <div className="w-16 h-16 bg-surface-subtle rounded-full flex items-center justify-center mx-auto mb-4">
-            <Zap className="w-7 h-7 text-text-muted" />
-          </div>
-          <h2 className="text-xl font-semibold text-text-primary mb-2">Getting Started</h2>
-          <p className="text-text-muted max-w-md mx-auto">
-            Your consultant is preparing your project. Check back soon for items that need your review.
-          </p>
+          {/* Activity Timeline */}
+          <ActivityTimeline activities={recent_activity} />
         </div>
+      </div>
+
+      {/* Station Panel */}
+      {activeStation && STATION_META[activeStation] && (
+        <StationPanel
+          onClose={() => setActiveStation(null)}
+          icon={STATION_META[activeStation].icon}
+          title={STATION_META[activeStation].title}
+          entityLabel={STATION_META[activeStation].entityLabel}
+          progress={
+            projectContext?.completion_scores?.[
+              activeStation === 'ai_wishlist' || activeStation === 'constraints' || activeStation === 'epic'
+                ? 'tribal'
+                : (activeStation as keyof typeof projectContext.completion_scores)
+            ] ?? 0
+          }
+          station={activeStation}
+          projectId={projectId}
+          chatGreeting={STATION_META[activeStation].greeting}
+          onDataChanged={handleDataChanged}
+        />
       )}
     </div>
   )

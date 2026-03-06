@@ -5,6 +5,7 @@ import type {
   ValidationItem,
   SubmitVerdictRequest,
   VerdictResponse,
+  PortalWorkflowVerdict,
   TeamMember,
   TeamInviteRequest,
   TeamProgress,
@@ -12,7 +13,13 @@ import type {
   EpicConfig,
   ClientExplorationData,
   ClientExplorationResults,
+  InfoRequest,
+  InfoRequestWithDelta,
+  InfoRequestStatus,
+  InfoRequestPhase,
+  ProjectContextData,
 } from '@/types/portal'
+import type { WorkflowPair } from '@/types/workspace'
 
 // ============================================================================
 // Dashboard
@@ -60,6 +67,28 @@ export const submitBatchVerdicts = (projectId: string, verdicts: SubmitVerdictRe
   )
 
 // ============================================================================
+// Workflow Validation
+// ============================================================================
+
+export const getPortalWorkflowPairs = (projectId: string) =>
+  apiRequest<WorkflowPair[]>(
+    `/portal/projects/${projectId}/workflows/pairs`
+  )
+
+export const submitWorkflowVerdict = (
+  projectId: string,
+  workflowId: string,
+  data: { verdict: string; notes?: string; step_feedback?: Array<{ step_id: string; text: string }> }
+) =>
+  apiRequest<PortalWorkflowVerdict>(
+    `/portal/projects/${projectId}/workflows/${workflowId}/verdict`,
+    {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }
+  )
+
+// ============================================================================
 // Team Management
 // ============================================================================
 
@@ -92,6 +121,41 @@ export const updatePortalMemberRole = (projectId: string, userId: string, role: 
 export const getTeamProgress = (projectId: string) =>
   apiRequest<TeamProgress>(
     `/portal/projects/${projectId}/team/progress`
+  )
+
+// ============================================================================
+// Info Requests (Questions)
+// ============================================================================
+
+export const listInfoRequests = (projectId: string, phase?: InfoRequestPhase) => {
+  const qp = new URLSearchParams()
+  if (phase) qp.set('phase', phase)
+  const query = qp.toString()
+  return apiRequest<InfoRequest[]>(
+    `/portal/projects/${projectId}/info-requests${query ? `?${query}` : ''}`
+  )
+}
+
+export const answerInfoRequest = (
+  requestId: string,
+  answer_data: Record<string, unknown>,
+  status: InfoRequestStatus = 'complete'
+) =>
+  apiRequest<InfoRequestWithDelta>(
+    `/portal/info-requests/${requestId}`,
+    {
+      method: 'PATCH',
+      body: JSON.stringify({ answer_data, status }),
+    }
+  )
+
+export const updateInfoRequestStatus = (requestId: string, status: InfoRequestStatus) =>
+  apiRequest<InfoRequest>(
+    `/portal/info-requests/${requestId}/status`,
+    {
+      method: 'PATCH',
+      body: JSON.stringify({ status }),
+    }
   )
 
 // ============================================================================
@@ -223,4 +287,13 @@ export const feedInspirations = (sessionId: string) =>
   apiRequest<{ session_id: string; signals_created: number }>(
     `/prototype-sessions/${sessionId}/feed-inspirations`,
     { method: 'POST' }
+  )
+
+// ============================================================================
+// Project Context
+// ============================================================================
+
+export const getPortalProjectContext = (projectId: string) =>
+  apiRequest<ProjectContextData>(
+    `/portal/projects/${projectId}/context`
   )

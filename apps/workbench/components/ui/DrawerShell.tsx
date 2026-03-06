@@ -34,6 +34,8 @@ interface DrawerShellProps {
   onTabChange?: (tabId: string) => void
   /** Drawer width (default: 560px) */
   width?: number
+  /** Custom class for the body container (default: "flex-1 overflow-y-auto px-6 py-5") */
+  bodyClassName?: string
   /** Drawer body content */
   children: React.ReactNode
 }
@@ -50,6 +52,7 @@ export function DrawerShell({
   activeTab,
   onTabChange,
   width = 560,
+  bodyClassName,
   children,
 }: DrawerShellProps) {
   return (
@@ -120,7 +123,7 @@ export function DrawerShell({
         </div>
 
         {/* Body */}
-        <div className="flex-1 overflow-y-auto px-6 py-5">
+        <div className={bodyClassName ?? "flex-1 overflow-y-auto px-6 py-5"}>
           {children}
         </div>
       </div>

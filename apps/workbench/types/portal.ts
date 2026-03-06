@@ -7,6 +7,11 @@
 export type PortalRole = 'client_admin' | 'client_user'
 export type VerdictType = 'confirmed' | 'refine' | 'flag'
 export type AssignmentStatus = 'pending' | 'in_progress' | 'completed' | 'skipped'
+export type InfoRequestType = 'question' | 'document' | 'tribal_knowledge'
+export type InfoRequestInputType = 'text' | 'file' | 'multi_text' | 'text_and_file'
+export type InfoRequestPhase = 'pre_call' | 'post_call'
+export type InfoRequestPriority = 'high' | 'medium' | 'low' | 'none'
+export type InfoRequestStatus = 'not_started' | 'in_progress' | 'complete' | 'skipped'
 
 export type ValidationEntityType =
   | 'workflow'
@@ -236,4 +241,113 @@ export interface ClientExplorationResults {
   }>
   total_time_seconds?: number | null
   completed_at?: string | null
+}
+
+// ============================================================================
+// Workflow Validation
+// ============================================================================
+
+export interface PortalWorkflowVerdict {
+  workflow_id: string
+  verdict: string
+  signal_id?: string | null
+}
+
+// ============================================================================
+// Info Requests (Questions)
+// ============================================================================
+
+export interface InfoRequest {
+  id: string
+  project_id: string
+  title: string
+  description: string | null
+  request_type: InfoRequestType
+  input_type: InfoRequestInputType
+  phase: InfoRequestPhase
+  priority: InfoRequestPriority | null
+  best_answered_by: string | null
+  status: InfoRequestStatus
+  answer_data: Record<string, unknown> | null
+  why_asking: string | null
+  example_answer: string | null
+  pro_tip: string | null
+  display_order: number
+  created_by: 'ai' | 'consultant'
+  created_at: string
+}
+
+export interface InfoRequestWithDelta extends InfoRequest {
+  readiness_delta?: { before: number; after: number; change: number; gates_affected: string[] }
+  signal_id?: string | null
+  confirmations_resolved: number
+}
+
+// ============================================================================
+// Station Panel Types
+// ============================================================================
+
+export type StationSlug =
+  | 'competitors'
+  | 'design'
+  | 'constraints'
+  | 'documents'
+  | 'ai_wishlist'
+  | 'tribal'
+  | 'epic'
+
+export interface ProjectContextData {
+  id: string
+  project_id: string
+  problem_main: string | null
+  problem_why_now: string | null
+  success_future: string | null
+  success_wow: string | null
+  key_users: Array<{
+    name: string
+    role?: string | null
+    frustrations?: string[]
+    helps?: string[]
+  }>
+  design_love: Array<{
+    name: string
+    url?: string | null
+    what_like?: string | null
+  }>
+  design_avoid: string | null
+  competitors: Array<{
+    name: string
+    worked?: string | null
+    didnt_work?: string | null
+    why_left?: string | null
+  }>
+  tribal_knowledge: string[]
+  metrics: Array<{
+    metric: string
+    current?: string
+    goal?: string
+  }>
+  completion_scores: {
+    problem: number
+    success: number
+    users: number
+    design: number
+    competitors: number
+    tribal: number
+    files: number
+    overall: number
+  }
+  overall_completion: number
+}
+
+export interface StationChatMessage {
+  role: 'user' | 'assistant'
+  content: string
+  timestamp: Date
+  isStreaming?: boolean
+  toolCalls?: Array<{
+    tool_name: string
+    status: 'complete' | 'error'
+    result?: Record<string, unknown>
+  }>
 }

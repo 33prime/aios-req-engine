@@ -614,6 +614,7 @@ class PortalChatRequest(PydanticBaseModel):
     message: str
     conversation_id: UUID | None = None
     conversation_history: list[dict] = []
+    station: str | None = None
 
 
 @router.post("/projects/{project_id}/chat")
@@ -735,7 +736,7 @@ async def portal_chat(
             messages.append({"role": "user", "content": request.message})
 
             # Build system prompt
-            system_prompt = build_client_system_prompt(project_name, client_name)
+            system_prompt = build_client_system_prompt(project_name, client_name, station=request.station)
 
             # Tool use loop
             max_turns = 5
@@ -952,6 +953,163 @@ async def _create_portal_response_signal(info_request: InfoRequest, user_id: UUI
         logger.error(f"Failed to create portal_response signal: {e}")
         # Don't fail the request if signal creation fails
         return None
+
+
+# ============================================================================
+# Workflow Validation
+# ============================================================================
+
+
+@router.get("/projects/{project_id}/workflows/pairs")
+async def get_portal_workflow_pairs(
+    project_id: UUID,
+    auth: AuthContext = Depends(require_project_access),
+) -> list[dict]:
+    """Get workflow pairs for client validation.
+
+    Filters to consultant-confirmed or client-relevant workflows only
+    (skips raw ai_generated drafts).
+    """
+    import asyncio
+
+    from app.db.workflows import get_workflow_pairs
+
+    pairs = await asyncio.to_thread(get_workflow_pairs, project_id)
+
+    # Filter to workflows ready for client review
+    allowed_statuses = {
+        "confirmed_consultant",
+        "confirmed_client",
+        "needs_client",
+        "needs_confirmation",
+    }
+    return [
+        p
+        for p in pairs
+        if p.get("confirmation_status") in allowed_statuses
+        or p.get("confirmation_status") is None
+    ]
+
+
+class WorkflowVerdictRequest(PydanticBaseModel):
+    """Request body for workflow verdict submission."""
+
+    verdict: str  # 'confirmed' | 'refine' | 'flag'
+    notes: str | None = None
+    step_feedback: list[dict] | None = None
+
+
+class WorkflowVerdictResponse(PydanticBaseModel):
+    """Response from submitting a workflow verdict."""
+
+    workflow_id: str
+    verdict: str
+    signal_id: str | None = None
+
+
+@router.post(
+    "/projects/{project_id}/workflows/{workflow_id}/verdict",
+    response_model=WorkflowVerdictResponse,
+)
+async def submit_workflow_verdict(
+    project_id: UUID,
+    workflow_id: UUID,
+    data: WorkflowVerdictRequest,
+    auth: AuthContext = Depends(require_project_access),
+):
+    """Submit a client verdict on a workflow pair."""
+    from datetime import datetime
+    from uuid import uuid4
+
+    client = get_client()
+
+    # Verify workflow exists and belongs to project
+    wf_result = (
+        client.table("workflows")
+        .select("id, name")
+        .eq("id", str(workflow_id))
+        .eq("project_id", str(project_id))
+        .execute()
+    )
+    if not wf_result.data:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Workflow not found",
+        )
+
+    wf_name = wf_result.data[0].get("name", "Workflow")
+
+    # Map verdict to confirmation_status
+    status_map = {
+        "confirmed": "confirmed_client",
+        "refine": "needs_client",
+        "flag": "needs_client",
+    }
+    new_status = status_map.get(data.verdict, "needs_client")
+
+    # Update confirmation_status on the workflow
+    client.table("workflows").update(
+        {"confirmation_status": new_status}
+    ).eq("id", str(workflow_id)).execute()
+
+    # Build signal content from verdict + notes + step feedback
+    signal_parts = [f"Workflow Verdict: {wf_name}", f"Verdict: {data.verdict}"]
+    if data.notes:
+        signal_parts.append(f"Notes: {data.notes}")
+    if data.step_feedback:
+        for sf in data.step_feedback:
+            step_id = sf.get("step_id", "unknown")
+            text = sf.get("text", "")
+            if text:
+                signal_parts.append(f"Step {step_id} feedback: {text}")
+
+    signal_content = "\n\n".join(signal_parts)
+
+    # Create portal_response signal
+    signal_id = None
+    try:
+        signal_uuid = uuid4()
+        signal_response = (
+            client.table("signals")
+            .insert(
+                {
+                    "id": str(signal_uuid),
+                    "project_id": str(project_id),
+                    "signal_type": "portal_response",
+                    "source": "client_portal",
+                    "source_type": "portal_response",
+                    "source_label": f"Workflow Verdict: {wf_name[:50]}",
+                    "source_timestamp": datetime.utcnow().isoformat(),
+                    "raw_text": signal_content,
+                    "metadata": {
+                        "workflow_id": str(workflow_id),
+                        "verdict": data.verdict,
+                        "authority": "client",
+                        "answered_by": str(auth.user_id),
+                    },
+                    "run_id": str(uuid4()),
+                }
+            )
+            .execute()
+        )
+        if signal_response.data:
+            signal_id = str(signal_uuid)
+            logger.info(
+                f"Created workflow verdict signal {signal_id} for workflow {workflow_id}"
+            )
+    except Exception as e:
+        logger.error(f"Failed to create workflow verdict signal: {e}")
+
+    return WorkflowVerdictResponse(
+        workflow_id=str(workflow_id),
+        verdict=data.verdict,
+        signal_id=signal_id,
+    )
+
+
+# ============================================================================
+# Helper Functions
+# ============================================================================
 
 
 async def _flow_answer_to_context(info_request: InfoRequest) -> None:

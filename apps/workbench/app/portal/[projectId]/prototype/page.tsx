@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { useParams, useSearchParams } from 'next/navigation'
+import { usePortal } from '../PortalShell'
 import PrototypeFrame from '@/components/prototype/PrototypeFrame'
 import { Spinner } from '@/components/ui/Spinner'
 import { getPrototypeClientData, submitFeatureVerdict, completeClientReview, getPrototypeForProject, listPrototypeSessions } from '@/lib/api'
@@ -19,6 +20,8 @@ import { EpicExplorationCard } from '@/components/portal/EpicExplorationCard'
 import { InspirationCapture } from '@/components/portal/InspirationCapture'
 import { ExplorationSummary } from '@/components/portal/ExplorationSummary'
 import { ExplorationNav } from '@/components/portal/ExplorationNav'
+import { PrototypeEpicStation } from '@/components/portal/stations/PrototypeEpicStation'
+import { StationChat } from '@/components/portal/StationChat'
 import type { FeatureVerdict } from '@/types/prototype'
 import type { StakeholderReviewData, VerdictType, ClientExplorationData } from '@/types/portal'
 
@@ -84,6 +87,7 @@ const EPIC_VERDICT_STYLES: Record<VerdictType, { button: string; active: string 
 export default function PortalPrototypePage() {
   const params = useParams()
   const searchParams = useSearchParams()
+  const { setSidebarHidden } = usePortal()
   const projectId = params.projectId as string
   const token = searchParams.get('token') || ''
   const sessionId = searchParams.get('session') || ''
@@ -117,6 +121,17 @@ export default function PortalPrototypePage() {
 
   const isTokenMode = !!token && !!sessionId
   const isExplorationMode = mode === 'explore' || (!!explorationData && !isTokenMode && !stakeholderData)
+
+  // Hide sidebar in immersive modes (exploration tour, stakeholder review, legacy review)
+  const isImmersive = !loading && !error && !submitted && (
+    (isExplorationMode && explorationData && explorationPhase === 'tour') ||
+    (stakeholderData && !isTokenMode) ||
+    (isTokenMode && featureReviews.length > 0)
+  )
+  useEffect(() => {
+    setSidebarHidden(!!isImmersive)
+    return () => setSidebarHidden(false)
+  }, [isImmersive, setSidebarHidden])
 
   useEffect(() => {
     async function load() {
@@ -462,43 +477,56 @@ export default function PortalPrototypePage() {
           />
         </div>
 
-        {/* Prototype iframe — top 60% */}
-        <div className="flex-[60] min-h-0">
-          {currentIframeUrl ? (
-            <PrototypeFrame
-              deployUrl={currentIframeUrl}
-              onFeatureClick={() => {}}
-              onPageChange={() => {}}
-            />
-          ) : (
-            <div className="flex items-center justify-center h-full text-text-placeholder">
-              Prototype preview unavailable
+        {/* iframe left + StationPanel right */}
+        <div className="flex-1 flex min-h-0">
+          {/* Prototype iframe — left, full height */}
+          <div className="flex-1 min-w-0">
+            {currentIframeUrl ? (
+              <PrototypeFrame
+                deployUrl={currentIframeUrl}
+                onFeatureClick={() => {}}
+                onPageChange={() => {}}
+              />
+            ) : (
+              <div className="flex items-center justify-center h-full text-text-placeholder">
+                Prototype preview unavailable
+              </div>
+            )}
+          </div>
+
+          {/* Right panel — epic review with station chat */}
+          {currentEpic && (
+            <div className="w-[420px] flex-shrink-0 border-l border-border bg-white flex flex-col">
+              {/* Epic content — scrollable upper portion */}
+              <div className="overflow-y-auto max-h-[45%] px-4 py-4 border-b border-border">
+                <PrototypeEpicStation
+                  epic={currentEpic}
+                  onAssumptionResponse={handleAssumptionResponse}
+                  assumptionResponses={currentResponses}
+                />
+
+                {/* Next / finish button */}
+                <div className="mt-3">
+                  <button
+                    onClick={handleExplorationNext}
+                    className="w-full px-4 py-2.5 bg-brand-primary text-white text-sm font-medium rounded-xl hover:bg-brand-primary-hover transition-all"
+                  >
+                    {currentEpicIndex < epics.length - 1 ? 'Next Area' : 'Review Summary'}
+                  </button>
+                </div>
+              </div>
+
+              {/* Chat zone — fills remaining space */}
+              <div className="flex-1 min-h-0">
+                <StationChat
+                  projectId={projectId}
+                  station="epic"
+                  greeting={`Let's discuss "${currentEpic.title}". What do you think of what you see?`}
+                  onToolResult={() => {}}
+                />
+              </div>
             </div>
           )}
-        </div>
-
-        {/* Bottom panel — 40% */}
-        <div className="flex-[40] border-t border-border bg-surface-card overflow-y-auto">
-          <div className="max-w-2xl mx-auto px-6 py-5">
-            {currentEpic && (
-              <EpicExplorationCard
-                epic={currentEpic}
-                responses={currentResponses}
-                onAssumptionResponse={handleAssumptionResponse}
-                onNewIdea={() => setShowInspirationPanel(true)}
-              />
-            )}
-
-            {/* Next / finish button */}
-            <div className="mt-4">
-              <button
-                onClick={handleExplorationNext}
-                className="w-full px-6 py-3 bg-brand-primary text-white font-medium rounded-xl hover:bg-brand-primary-hover transition-all"
-              >
-                {currentEpicIndex < epics.length - 1 ? 'Next Area' : 'Review Summary'}
-              </button>
-            </div>
-          </div>
         </div>
 
         {/* Inspiration slide-up */}
@@ -517,7 +545,7 @@ export default function PortalPrototypePage() {
   // ── Stakeholder Epic Review Mode ─────────────────────────────────
   if (stakeholderData && !isTokenMode) {
     return (
-      <div className="flex flex-col" style={{ height: 'calc(100vh - 160px)' }}>
+      <div className="flex flex-col h-screen">
         {/* Prototype iframe — top 55% */}
         <div className="flex-[55] min-h-0">
           {deployUrl ? (
