@@ -1,0 +1,1038 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI Agents — Meet Your Team</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --green: #3FAF7A;
+  --green-hover: #33a06d;
+  --green-dark: #2A8F5F;
+  --green-pale: rgba(63,175,122,0.08);
+  --accent: #044159;
+  --accent-pale: rgba(4,65,89,0.06);
+  --navy: #0A1E2F;
+  --navy-pale: rgba(10,30,47,0.04);
+  --t1: #1D1D1F; --t2: #333; --t3: #4B4B4B; --t4: #7B7B7B; --t5: #999;
+  --border: #E5E5E5; --border-s: #D4D4D4;
+  --bg: #FAFAFA; --card: #FFF; --subtle: #F5F5F5;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;background:var(--bg);color:var(--t2);overflow:hidden;height:100vh}
+::-webkit-scrollbar{height:6px;width:6px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border-s);border-radius:3px}
+
+#app{display:flex;flex-direction:column;height:100vh}
+
+/* ── Header ─────────────────────────────────────────── */
+header{background:var(--navy);padding:16px 32px 14px;flex-shrink:0}
+.header-row{display:flex;align-items:flex-start;gap:24px;margin-bottom:12px}
+.thesis{font-size:15px;font-weight:400;color:rgba(255,255,255,0.82);line-height:1.55;flex:1;max-width:720px}
+.thesis em{color:var(--green);font-style:normal;font-weight:500}
+.value-pills{display:flex;gap:12px;flex-shrink:0}
+.vpill{display:flex;flex-direction:column;align-items:center;padding:5px 14px;border-radius:8px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.07)}
+.vpill-num{font-size:17px;font-weight:700;color:var(--green);line-height:1.2}
+.vpill-lbl{font-size:9px;color:rgba(255,255,255,0.35);text-transform:uppercase;letter-spacing:0.04em;font-weight:500}
+.controls{display:flex;align-items:center;gap:10px}
+.persona-pills{display:flex;gap:5px;flex:1}
+.ppill{display:flex;align-items:center;gap:5px;padding:3px 10px 3px 3px;border-radius:18px;border:1px solid rgba(255,255,255,0.1);cursor:pointer;transition:all .2s;background:0;color:rgba(255,255,255,0.55);font-size:11px;font-weight:500;font-family:inherit}
+.ppill:hover{border-color:rgba(255,255,255,0.22);color:rgba(255,255,255,0.85)}
+.ppill.active{background:rgba(255,255,255,0.08);border-color:var(--pc);color:#fff}
+.pavatar{width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:#fff;flex-shrink:0}
+
+/* Tab switcher */
+.tab-bar{display:flex;gap:2px;margin-right:auto}
+.tab-btn{padding:5px 16px;border-radius:7px;border:1px solid transparent;background:0;color:rgba(255,255,255,0.4);font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .2s}
+.tab-btn:hover{color:rgba(255,255,255,0.7)}
+.tab-btn.active{background:rgba(63,175,122,0.12);border-color:rgba(63,175,122,0.3);color:var(--green)}
+
+/* ── Main ───────────────────────────────────────────── */
+.main-area{flex:1;display:flex;overflow:hidden}
+.canvas{flex:1;overflow:auto;position:relative}
+.canvas-inner{position:relative;min-height:520px;padding:20px 0}
+.ai-bg{position:absolute;inset:0;background:linear-gradient(135deg,var(--bg) 0%,rgba(4,65,89,0.015) 30%,rgba(63,175,122,0.02) 60%,rgba(4,65,89,0.025) 100%);pointer-events:none;z-index:0}
+.svg-layer{position:absolute;inset:0;pointer-events:none;z-index:1;overflow:visible}
+
+/* ── Agent Cards ───────────────────────────────────── */
+.agent{position:absolute;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px 18px;cursor:pointer;transition:all .35s cubic-bezier(.4,0,.2,1);z-index:2;display:flex;flex-direction:column;gap:6px}
+.agent:hover{border-color:var(--green);box-shadow:0 6px 20px rgba(63,175,122,0.12);transform:translateY(-3px)}
+.agent.dimmed{opacity:.25;filter:grayscale(.4);pointer-events:none;transition:all .25s}
+.agent.connected{opacity:1;filter:none;border-color:rgba(63,175,122,0.3);box-shadow:0 2px 8px rgba(63,175,122,0.08)}
+.agent.selected{border-color:var(--green);box-shadow:0 0 0 2px rgba(63,175,122,0.25)}
+
+/* Sizes */
+.agent.size-hero{border-width:2px;border-color:rgba(63,175,122,0.25);box-shadow:0 2px 10px rgba(63,175,122,0.08)}
+.agent.size-hero .agent-name{font-size:16px}
+.agent.size-hero .agent-role{font-size:12px;-webkit-line-clamp:3}
+
+/* Agent head */
+.agent-head{display:flex;align-items:center;gap:8px}
+.agent-icon{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0}
+.agent-icon.classifier{background:var(--green-pale);color:var(--green-dark)}
+.agent-icon.matcher{background:var(--accent-pale);color:var(--accent)}
+.agent-icon.predictor{background:rgba(10,30,47,0.05);color:var(--navy)}
+.agent-icon.watcher{background:var(--accent-pale);color:var(--accent)}
+.agent-icon.generator{background:var(--green-pale);color:var(--green-dark)}
+.agent-icon.processor{background:var(--navy-pale);color:var(--navy)}
+.agent-maturity{font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:2px 6px;border-radius:4px;margin-left:auto}
+.mat-learning{background:rgba(4,65,89,0.08);color:var(--accent)}
+.mat-reliable{background:var(--green-pale);color:var(--green-dark)}
+.mat-expert{background:rgba(63,175,122,0.15);color:var(--green-dark)}
+
+.agent-name{font-size:14px;font-weight:600;color:var(--t1);line-height:1.3}
+.agent-role{font-size:11px;color:var(--t4);line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+
+/* Data diet mini */
+.agent-data{display:flex;gap:4px;flex-wrap:wrap;margin-top:2px}
+.data-pill{font-size:9px;font-weight:500;padding:2px 7px;border-radius:4px;background:var(--subtle);color:var(--t3)}
+
+/* Automation bar */
+.auto-bar{margin-top:4px}
+.auto-label{font-size:9px;color:var(--t5);margin-bottom:3px;display:flex;justify-content:space-between}
+.auto-track{height:3px;background:var(--subtle);border-radius:2px;overflow:hidden}
+.auto-fill{height:100%;background:var(--green);border-radius:2px;transition:width .6s ease}
+
+/* Footer */
+.agent-foot{display:flex;align-items:center;justify-content:space-between;margin-top:4px;padding-top:6px;border-top:1px solid var(--subtle)}
+.agent-personas{display:flex}
+.pdot{width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:7px;font-weight:700;color:#fff;border:2px solid var(--card);margin-left:-4px}
+.pdot:first-child{margin-left:0}
+.agent-feeds{font-size:9px;color:var(--t5);font-weight:500}
+
+/* ── Dependency lines ──────────────────────────────── */
+.dep-line{transition:all .3s}
+
+/* ── Agent Modal ───────────────────────────────────── */
+.modal-overlay{display:none;position:fixed;inset:0;z-index:200;background:rgba(10,30,47,0.45);justify-content:center;align-items:center;padding:32px}
+.modal-overlay.open{display:flex}
+.agent-modal{background:var(--card);border-radius:14px;width:960px;max-width:95vw;max-height:85vh;display:flex;box-shadow:0 24px 64px rgba(10,30,47,0.25);animation:modalIn .3s ease;overflow:hidden;position:relative}
+@keyframes modalIn{from{opacity:0;transform:translateY(16px) scale(.98)}to{opacity:1;transform:translateY(0) scale(1)}}
+
+.modal-close{position:absolute;top:16px;right:16px;width:28px;height:28px;border-radius:50%;border:1px solid var(--border);background:var(--subtle);color:var(--t3);font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-family:inherit;z-index:5;transition:all .15s}
+.modal-close:hover{background:var(--border);color:var(--t1)}
+
+/* Modal left: Agent Profile */
+.modal-profile{flex:1;min-width:0;overflow-y:auto;padding:28px 32px}
+.modal-profile::-webkit-scrollbar{width:4px}
+.modal-profile::-webkit-scrollbar-thumb{background:var(--border-s);border-radius:2px}
+
+.profile-head{display:flex;align-items:center;gap:14px;margin-bottom:8px}
+.profile-icon{width:44px;height:44px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0}
+.profile-meta{flex:1}
+.profile-name{font-size:22px;font-weight:700;color:var(--t1);letter-spacing:-.01em}
+.profile-role{font-size:13px;color:var(--t4);margin-top:2px}
+.profile-badges{display:flex;gap:6px;margin-bottom:20px}
+.profile-badge{padding:3px 9px;border-radius:5px;font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.04em}
+
+.section-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--t4);margin-bottom:8px;margin-top:22px;display:flex;align-items:center;gap:6px}
+.section-label:first-of-type{margin-top:0}
+.section-label .sl-icon{font-size:12px}
+
+/* Daily work */
+.daily-work{font-size:13px;line-height:1.65;color:var(--t2);padding:14px 16px;background:var(--subtle);border-radius:9px;border-left:3px solid var(--green)}
+
+/* Data diet */
+.data-diet{display:flex;flex-direction:column;gap:6px}
+.diet-item{display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--subtle);border-radius:7px}
+.diet-icon{font-size:14px;flex-shrink:0;width:20px;text-align:center}
+.diet-info{flex:1}
+.diet-source{font-size:12px;font-weight:500;color:var(--t2)}
+.diet-amount{font-size:10px;color:var(--t4);margin-top:1px}
+.diet-quality{font-size:8px;font-weight:700;text-transform:uppercase;padding:2px 5px;border-radius:3px;letter-spacing:.03em;flex-shrink:0}
+.diet-quality.excellent{background:rgba(63,175,122,0.12);color:var(--green-dark)}
+.diet-quality.good{background:var(--green-pale);color:var(--green-dark)}
+.diet-quality.moderate{background:var(--accent-pale);color:var(--accent)}
+.diet-quality.dependent{background:var(--navy-pale);color:var(--t4)}
+
+/* Produces */
+.produces-list{display:flex;gap:5px;flex-wrap:wrap}
+.produce-pill{padding:4px 10px;border-radius:5px;font-size:11px;font-weight:500;background:var(--green-pale);color:var(--green-dark);border:1px solid rgba(63,175,122,0.1)}
+
+/* Transform metric */
+.transform-card{display:grid;grid-template-columns:1fr auto 1fr;gap:0;border:1px solid var(--border);border-radius:9px;overflow:hidden}
+.transform-side{padding:10px 14px}
+.transform-side.before{background:rgba(4,65,89,0.02)}
+.transform-side.after{background:rgba(63,175,122,0.025)}
+.transform-lbl{font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px}
+.transform-side.before .transform-lbl{color:var(--accent)}
+.transform-side.after .transform-lbl{color:var(--green-dark)}
+.transform-val{font-size:12px;font-weight:500;color:var(--t2);line-height:1.4}
+.transform-arrow{display:flex;align-items:center;justify-content:center;font-size:16px;color:var(--green);background:var(--subtle);padding:0 8px}
+
+/* Growth */
+.growth-text{font-size:12px;line-height:1.6;color:var(--t2);padding:12px 14px;background:rgba(4,65,89,0.02);border-radius:7px;border-left:3px solid var(--accent)}
+
+/* Human partners */
+.partner-cards{display:flex;flex-direction:column;gap:6px}
+.partner-card{display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--subtle);border-radius:7px}
+.partner-avatar{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;flex-shrink:0}
+.partner-name{font-size:12px;font-weight:600;color:var(--t1)}
+.partner-role{font-size:10px;color:var(--t4)}
+
+/* Feeds */
+.feeds-list{display:flex;flex-direction:column;gap:5px}
+.feed-item{display:flex;align-items:center;gap:8px;padding:7px 11px;background:var(--subtle);border-radius:6px}
+.feed-arrow{color:var(--green);font-size:12px;flex-shrink:0}
+.feed-name{font-size:11px;font-weight:600;color:var(--t2)}
+.feed-what{font-size:10px;color:var(--t4);margin-left:auto}
+
+/* Insight */
+.insight-card{padding:12px 14px;border-radius:9px;background:linear-gradient(135deg, rgba(4,65,89,0.03), rgba(63,175,122,0.03));border:1px solid rgba(4,65,89,0.08)}
+.insight-text{font-size:12px;line-height:1.55;color:var(--t2);font-style:italic}
+
+/* ── Modal Chat (right side) ───────────────────────── */
+.modal-chat{width:320px;flex-shrink:0;border-left:1px solid var(--border);display:flex;flex-direction:column;background:var(--subtle)}
+.chat-header{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;background:var(--card)}
+.chat-header svg{width:14px;height:14px;fill:var(--green);flex-shrink:0}
+.chat-header-text{font-size:12px;font-weight:600;color:var(--t1);flex:1}
+.chat-header-mode{font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;padding:2px 7px;border-radius:4px;background:var(--green-pale);color:var(--green-dark)}
+.chat-body{flex:1;overflow-y:auto;padding:14px 16px}
+.chat-context{font-size:11px;color:var(--t4);line-height:1.5;margin-bottom:12px;padding:9px 11px;background:var(--card);border-radius:7px;border-left:2px solid var(--green)}
+.chat-suggestions{display:flex;flex-direction:column;gap:5px}
+.chat-suggest{padding:7px 11px;border-radius:7px;border:1px solid var(--border);background:var(--card);font-size:11px;color:var(--t2);cursor:pointer;transition:all .15s;font-family:inherit;text-align:left;line-height:1.4}
+.chat-suggest:hover{border-color:var(--green);background:var(--green-pale);color:var(--t1)}
+.chat-suggest .si{color:var(--green);margin-right:4px;font-weight:600}
+.chat-divider{font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--t5);margin:10px 0 6px;padding-top:10px;border-top:1px solid var(--border)}
+.chat-input-area{padding:10px 14px;border-top:1px solid var(--border);background:var(--card)}
+.chat-input{width:100%;padding:9px 12px;border-radius:8px;border:1px solid var(--border);font-size:12px;font-family:inherit;color:var(--t2);outline:none;transition:border .2s;background:#fff}
+.chat-input:focus{border-color:var(--green)}
+.chat-input::placeholder{color:var(--t5)}
+
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+.agent{animation:fadeIn .45s ease backwards}
+
+/* ── Present Mode ───────────────────────────────────── */
+.present-overlay{display:none;position:fixed;inset:0;z-index:1000;background:var(--navy);flex-direction:column}
+.present-overlay.active{display:flex}
+.p-header{padding:18px 48px;display:flex;align-items:center;justify-content:space-between}
+.p-counter{font-size:12px;color:rgba(255,255,255,0.35);font-weight:500}
+.p-close{padding:5px 14px;border-radius:7px;border:1px solid rgba(255,255,255,0.12);background:0;color:rgba(255,255,255,0.45);font-size:11px;cursor:pointer;font-family:inherit}
+.p-close:hover{background:rgba(255,255,255,0.04);color:#fff}
+.p-content{flex:1;display:flex;align-items:center;justify-content:center;padding:0 80px 36px;overflow-y:auto}
+.p-card{max-width:820px;width:100%;animation:pFadeIn .45s ease}
+@keyframes pFadeIn{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+
+/* Title slide */
+.p-title{text-align:center}
+.p-title h1{font-size:42px;font-weight:700;color:#fff;margin-bottom:10px;letter-spacing:-.02em}
+.p-title .p-subtitle{font-size:18px;color:rgba(255,255,255,0.5);line-height:1.6;max-width:600px;margin:0 auto 36px}
+.p-title .p-stats{display:flex;justify-content:center;gap:28px;margin-bottom:36px}
+.p-title .p-stat{text-align:center}
+.p-title .p-stat-val{font-size:28px;font-weight:700;color:var(--green)}
+.p-title .p-stat-lbl{font-size:11px;color:rgba(255,255,255,0.35);text-transform:uppercase;letter-spacing:.04em;margin-top:2px}
+.p-title .p-hint{font-size:13px;color:rgba(255,255,255,0.2)}
+
+/* Agent slide */
+.p-agent-head{display:flex;align-items:center;gap:16px;margin-bottom:8px}
+.p-agent-icon{width:52px;height:52px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:26px;background:rgba(63,175,122,0.1);border:1px solid rgba(63,175,122,0.15)}
+.p-agent-meta{flex:1}
+.p-agent-type{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--green);margin-bottom:4px}
+.p-agent-name{font-size:34px;font-weight:700;color:#fff;line-height:1.2;letter-spacing:-.02em}
+.p-agent-role{font-size:15px;color:rgba(255,255,255,0.45);line-height:1.5;margin-bottom:20px}
+
+.p-daily{font-size:15px;line-height:1.7;color:rgba(255,255,255,0.78);padding:18px 22px;background:rgba(255,255,255,0.035);border-radius:10px;border-left:3px solid var(--green);margin-bottom:20px}
+
+.p-transform{display:grid;grid-template-columns:1fr auto 1fr;gap:0;border-radius:9px;overflow:hidden;margin-bottom:20px;border:1px solid rgba(255,255,255,0.06)}
+.p-t-side{padding:14px 18px}
+.p-t-side.before{background:rgba(4,65,89,0.15)}
+.p-t-side.after{background:rgba(63,175,122,0.08)}
+.p-t-lbl{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
+.p-t-side.before .p-t-lbl{color:rgba(255,255,255,0.35)}
+.p-t-side.after .p-t-lbl{color:var(--green)}
+.p-t-val{font-size:14px;font-weight:500;color:rgba(255,255,255,0.75)}
+.p-t-arrow{display:flex;align-items:center;justify-content:center;font-size:18px;color:var(--green);background:rgba(255,255,255,0.02);padding:0 10px}
+
+.p-data-grid{display:flex;flex-direction:column;gap:6px;margin-bottom:20px}
+.p-data-item{display:flex;align-items:center;gap:10px;padding:8px 14px;background:rgba(255,255,255,0.03);border-radius:7px;border:1px solid rgba(255,255,255,0.04)}
+.p-data-icon{font-size:16px;flex-shrink:0}
+.p-data-source{font-size:13px;color:rgba(255,255,255,0.7);flex:1}
+.p-data-amount{font-size:12px;color:var(--green);font-weight:500}
+
+.p-partners{display:flex;gap:8px;margin-bottom:20px}
+.p-partner{display:flex;align-items:center;gap:8px;padding:6px 12px 6px 6px;border-radius:20px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.06)}
+.p-partner-avatar{width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#fff}
+.p-partner-name{font-size:12px;color:rgba(255,255,255,0.6);font-weight:500}
+
+.p-growth{font-size:14px;line-height:1.65;color:rgba(255,255,255,0.65);padding:14px 18px;background:rgba(4,65,89,0.12);border-radius:9px;border-left:3px solid rgba(4,65,89,0.4);margin-bottom:16px}
+.p-insight{font-size:13px;line-height:1.55;color:rgba(255,255,255,0.55);font-style:italic;padding:12px 16px;background:rgba(255,255,255,0.02);border-radius:8px;border:1px solid rgba(255,255,255,0.04)}
+
+.p-auto{display:flex;align-items:center;gap:12px;margin-bottom:20px}
+.p-auto-lbl{font-size:10px;color:rgba(255,255,255,0.3);text-transform:uppercase;letter-spacing:.04em;white-space:nowrap}
+.p-auto-track{flex:1;height:4px;background:rgba(255,255,255,0.06);border-radius:2px;overflow:hidden}
+.p-auto-fill{height:100%;background:var(--green);border-radius:2px;transition:width .6s ease}
+.p-auto-pct{font-size:14px;color:var(--green);font-weight:600}
+
+/* Summary slide */
+.p-summary{text-align:center}
+.p-summary h2{font-size:32px;font-weight:700;color:#fff;margin-bottom:28px;letter-spacing:-.01em}
+.p-team-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:32px;text-align:left}
+.p-team-card{padding:16px;border-radius:9px;background:rgba(255,255,255,0.035);border:1px solid rgba(255,255,255,0.05)}
+.p-team-icon{font-size:20px;margin-bottom:6px}
+.p-team-name{font-size:14px;font-weight:600;color:#fff;margin-bottom:3px}
+.p-team-stat{font-size:12px;color:var(--green);font-weight:500;margin-bottom:2px}
+.p-team-role{font-size:11px;color:rgba(255,255,255,0.35);line-height:1.4}
+.p-pipeline{display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:28px;flex-wrap:wrap}
+.p-pipe-node{padding:5px 12px;border-radius:6px;background:rgba(63,175,122,0.1);border:1px solid rgba(63,175,122,0.15);font-size:11px;color:var(--green);font-weight:600}
+.p-pipe-arrow{color:rgba(255,255,255,0.2);font-size:14px}
+.p-summary-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.p-sum-stat{padding:18px 14px;border-radius:9px;background:rgba(255,255,255,0.035);border:1px solid rgba(255,255,255,0.05);text-align:center}
+.p-sum-val{font-size:26px;font-weight:700;color:var(--green);margin-bottom:3px}
+.p-sum-lbl{font-size:11px;color:rgba(255,255,255,0.35)}
+
+/* Nav */
+.p-nav{display:flex;justify-content:center;align-items:center;gap:14px;padding-bottom:24px}
+.p-nav-btn{padding:7px 22px;border-radius:7px;border:1px solid rgba(255,255,255,0.1);background:0;color:rgba(255,255,255,0.45);font-size:12px;font-weight:500;cursor:pointer;font-family:inherit;transition:all .2s}
+.p-nav-btn:hover{background:rgba(255,255,255,0.04);color:#fff}
+.p-nav-btn:disabled{opacity:.25;cursor:default}
+.p-dots{display:flex;align-items:center;gap:4px}
+.p-dot{width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,0.1);transition:all .3s}
+.p-dot.active{background:var(--green);width:18px;border-radius:3px}
+
+.present-btn{padding:5px 16px;border-radius:8px;border:1px solid rgba(63,175,122,0.35);background:rgba(63,175,122,0.08);color:var(--green);font-size:11px;font-weight:600;cursor:pointer;transition:all .2s;font-family:inherit}
+.present-btn:hover{background:rgba(63,175,122,0.18);border-color:var(--green)}
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <div class="header-row">
+      <div class="thesis">Your <em>AI Team</em>: 6 specialized agents that transform manual inventory management into an intelligent pipeline &mdash; automating <em>87% of daily operations</em>, learning and improving from every interaction with your team.</div>
+      <div class="value-pills">
+        <div class="vpill"><span class="vpill-num">6</span><span class="vpill-lbl">Agents</span></div>
+        <div class="vpill"><span class="vpill-num">87%</span><span class="vpill-lbl">Automated</span></div>
+        <div class="vpill"><span class="vpill-num">~12 hrs</span><span class="vpill-lbl">Saved / Day</span></div>
+      </div>
+    </div>
+    <div class="controls">
+      <div class="tab-bar">
+        <button class="tab-btn" onclick="window.location='playground-solution-flow-v2.html'">Flow</button>
+        <button class="tab-btn active">AI</button>
+      </div>
+      <div class="persona-pills" id="personaPills"></div>
+      <button class="present-btn" onclick="enterPresent()">Present</button>
+    </div>
+  </header>
+
+  <div class="main-area">
+    <div class="canvas" id="canvas">
+      <div class="canvas-inner" id="canvasInner">
+        <div class="ai-bg"></div>
+        <svg class="svg-layer" id="svgLayer"></svg>
+        <div id="agentsContainer"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Present Mode Overlay -->
+<div class="present-overlay" id="presentOverlay">
+  <div class="p-header">
+    <div class="p-counter" id="pCounter"></div>
+    <button class="p-close" onclick="exitPresent()">ESC &middot; Exit</button>
+  </div>
+  <div class="p-content" id="pContent"></div>
+  <div class="p-nav">
+    <button class="p-nav-btn" id="pPrev" onclick="pNav(-1)">&larr; Previous</button>
+    <div class="p-dots" id="pDots"></div>
+    <button class="p-nav-btn" id="pNext" onclick="pNav(1)">Next &rarr;</button>
+  </div>
+</div>
+
+<!-- Agent Modal Overlay -->
+<div class="modal-overlay" id="agentModal" onclick="if(event.target===this)closeModal()">
+  <div class="agent-modal">
+    <button class="modal-close" onclick="closeModal()">&times;</button>
+    <div class="modal-profile" id="modalProfile"></div>
+    <div class="modal-chat" id="modalChat"></div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+// DATA
+// ═══════════════════════════════════════════════════════════════
+
+const personas = [
+  { name: "Sarah Chen", role: "Operations Manager", color: "#3FAF7A", initial: "SC" },
+  { name: "Tom Rivera", role: "Procurement Lead", color: "#044159", initial: "TR" },
+  { name: "Alex Kim", role: "Warehouse Supervisor", color: "#2D6B4A", initial: "AK" },
+  { name: "Lisa Park", role: "CFO", color: "#0A1E2F", initial: "LP" },
+];
+
+const agents = [
+  {
+    name: "Data Importer",
+    role: "Maps, cleans, and ingests historical data to build the foundation every other agent relies on",
+    type: "processor", icon: "⬡",
+    dataNeeds: [
+      { source: "Spreadsheets & CSVs", amount: "47,000 records", quality: "good", icon: "📄" },
+      { source: "Warehouse databases", amount: "3 systems", quality: "moderate", icon: "🗄" },
+    ],
+    produces: ["Clean inventory records", "Baseline metrics", "Training dataset"],
+    humanPartners: ["Sarah Chen"],
+    feeds: [1],
+    dependsOn: [],
+    maturity: "reliable",
+    automationRate: 85,
+    transform: { before: "3 days manual mapping", after: "8 min auto-mapping" },
+    dailyWork: "Watches for new data uploads. When Sarah drops a spreadsheet, this agent auto-maps columns to the inventory schema, flags anomalies (duplicate SKUs, missing fields), and produces clean, structured records. It learns the format of each source — after the third import from a warehouse system, it maps 95% of fields automatically.",
+    growth: "Gets better at column mapping with each import. After 10 imports, auto-maps 95% of fields. New data sources take ~2 imports to learn. The cleaner your historical data, the stronger every downstream agent becomes.",
+    insight: "This is the foundation. The quality of everything downstream — classification accuracy, vendor matching, demand prediction — depends on clean, well-structured data. Invest in data quality here and it compounds across the entire pipeline.",
+  },
+  {
+    name: "Inventory Classifier",
+    role: "Sorts incoming items into your categories using patterns learned from your team's historical decisions",
+    type: "classifier", icon: "◈",
+    dataNeeds: [
+      { source: "Item descriptions", amount: "~250 per day", quality: "good", icon: "📦" },
+      { source: "Historical classifications", amount: "47,000 records", quality: "excellent", icon: "📊" },
+      { source: "Category taxonomy", amount: "317 categories", quality: "good", icon: "🏷" },
+    ],
+    produces: ["Classified items", "Confidence scores", "Exception queue"],
+    humanPartners: ["Sarah Chen", "Alex Kim"],
+    feeds: [2, 4],
+    dependsOn: [0],
+    maturity: "expert",
+    automationRate: 89,
+    transform: { before: "3 hours per 250 items", after: "4 minutes per 250 items" },
+    dailyWork: "Every morning, ~250 new items arrive from receiving. This agent reads each item description, compares it against patterns in 47,000 historical classifications, and sorts items into the right category. For 89% of items, it's confident and classifies automatically. The remaining 27 items go to Sarah's exception queue — the unusual items, new product types, or edge cases where the agent wants a human call. When Sarah corrects a classification, this agent learns immediately.",
+    growth: "Month 1: ~87% accuracy. Month 3: ~92%. Month 6: ~96%. Each correction Sarah and Alex make directly improves the pattern matching. After ~800 corrections, it handles most edge cases on its own. The more diverse the items it sees, the broader its expertise becomes.",
+    insight: "This is the workhorse of your AI team. It touches every item and its output quality cascades through the entire pipeline. Investing in Sarah's corrections early — spending 15 minutes a day reviewing exceptions — pays massive dividends by month 3. Quality compounds.",
+  },
+  {
+    name: "Vendor Matcher",
+    role: "Connects classified items to the best vendors based on performance history, pricing, and lead times",
+    type: "matcher", icon: "⬢",
+    dataNeeds: [
+      { source: "Classified items", amount: "from Classifier", quality: "dependent", icon: "📦" },
+      { source: "Vendor performance data", amount: "24 vendors", quality: "good", icon: "🤝" },
+      { source: "Pricing history", amount: "18 months", quality: "moderate", icon: "💲" },
+    ],
+    produces: ["Vendor recommendations", "Performance rankings", "Cost comparisons"],
+    humanPartners: ["Tom Rivera"],
+    feeds: [3],
+    dependsOn: [1],
+    maturity: "reliable",
+    automationRate: 85,
+    transform: { before: "45 min per batch", after: "8 min per batch" },
+    dailyWork: "Takes newly classified items and matches them to the best vendor. Ranks options by quality score, historical lead time, and cost. For standard items, it picks the preferred vendor automatically. For new categories like 'Custom Fabrication', it presents Tom with 3 ranked options. Tom reviews, selects, and the agent remembers his preference for next time.",
+    growth: "Learns Tom's vendor preferences over time. After 3 months, its top recommendation matches Tom's choice 92% of the time. When a vendor's performance drops, this agent adjusts rankings before Tom even notices.",
+    insight: "This agent's accuracy depends directly on the Classifier's output quality. If an item is misclassified, it'll match to the wrong vendor category. That's why the Classifier is the foundation — get classification right, and vendor matching almost takes care of itself.",
+  },
+  {
+    name: "Demand Forecaster",
+    role: "Predicts optimal reorder points and quantities by analyzing consumption patterns and seasonal trends",
+    type: "predictor", icon: "◇",
+    dataNeeds: [
+      { source: "Consumption history", amount: "24 months", quality: "good", icon: "📈" },
+      { source: "Seasonal patterns", amount: "2 year baseline", quality: "moderate", icon: "🗓" },
+      { source: "Vendor lead times", amount: "from Matcher", quality: "dependent", icon: "⏱" },
+    ],
+    produces: ["Reorder alerts", "Quantity recommendations", "Seasonal predictions"],
+    humanPartners: ["Tom Rivera", "Sarah Chen"],
+    feeds: [5],
+    dependsOn: [2],
+    maturity: "learning",
+    automationRate: 72,
+    transform: { before: "Gut feel + spreadsheets", after: "Data-driven predictions" },
+    dailyWork: "Monitors consumption patterns across 317 categories. Flags items approaching reorder points — 'Stainless Steel Fasteners: 12 days until stockout at current consumption.' Detects seasonal spikes: 'Q4 surge predicted — recommend +20% for 34 items based on last year.' Tom reviews and approves with one click. POs generate automatically.",
+    growth: "Needs 6+ months of clean data to detect seasonal patterns reliably. Currently in learning phase — the first quarter is about building baselines, not making predictions. By Q2, seasonal models are useful. By year 2, this agent anticipates needs Tom hasn't thought of yet.",
+    insight: "This agent benefits most from patience. The longer it runs, the more seasonal cycles it observes, the better its predictions become. Early on, treat its suggestions as 'interesting signals' rather than instructions. By month 8, treat them as reliable.",
+  },
+  {
+    name: "Health Monitor",
+    role: "Watches inventory metrics in real-time and alerts your team when something needs attention",
+    type: "watcher", icon: "◉",
+    dataNeeds: [
+      { source: "Classification accuracy", amount: "real-time feed", quality: "good", icon: "📊" },
+      { source: "Vendor fill rates", amount: "daily updates", quality: "good", icon: "📦" },
+      { source: "Inventory turnover", amount: "weekly rollup", quality: "good", icon: "🔄" },
+    ],
+    produces: ["Health dashboards", "Anomaly alerts", "Trend reports"],
+    humanPartners: ["Sarah Chen", "Lisa Park"],
+    feeds: [5],
+    dependsOn: [1],
+    maturity: "reliable",
+    automationRate: 95,
+    transform: { before: "Weekly manual check", after: "Real-time monitoring" },
+    dailyWork: "Continuously tracks KPIs across the entire inventory pipeline. When Lisa opens her executive dashboard, she sees: classification accuracy (96.2%), vendor fill rate (91%), days-on-hand trending from 45→32. When something drifts — 'Supplier B lead time increased 40%' — it alerts instantly and suggests action: 'Shift 12 items to Supplier A.'",
+    growth: "Learns what 'normal' looks like for each metric within 2 months. Early on, it may over-alert. After calibration, it catches real issues and ignores noise. Alert accuracy improves from 70% (month 1) to 94% (month 4) as it learns your baseline.",
+    insight: "This is the lowest-effort, highest-value agent. It requires almost no human input — it just watches and alerts. The entire point is that Lisa and Sarah don't have to check dashboards manually anymore. The agent brings the insights to them.",
+  },
+  {
+    name: "Report Generator",
+    role: "Assembles audit-ready compliance reports and analytics exports from live data across all agents",
+    type: "generator", icon: "◆",
+    dataNeeds: [
+      { source: "All agent outputs", amount: "aggregated", quality: "good", icon: "🔗" },
+      { source: "Compliance requirements", amount: "4 standards", quality: "known", icon: "📋" },
+      { source: "Historical baselines", amount: "from Importer", quality: "good", icon: "📊" },
+    ],
+    produces: ["Compliance PDFs", "Analytics exports", "Executive summaries"],
+    humanPartners: ["Lisa Park", "Sarah Chen"],
+    feeds: [],
+    dependsOn: [3, 4],
+    maturity: "reliable",
+    automationRate: 98,
+    transform: { before: "2 days to compile", after: "12 seconds" },
+    dailyWork: "On demand — Lisa clicks 'Generate Q3 Report.' This agent pulls live data from every other agent in the pipeline. Classification accuracy, vendor performance, inventory turns, compliance metrics — all assembled into a branded PDF. Every single number links back to its source. 'AI-assisted classification reduced errors from 12% to 2%, saving $340K.' Generated in 12 seconds.",
+    growth: "Learns report preferences over time — which sections Lisa cares about most, which metrics to highlight, the level of detail she prefers. After 5 reports, it knows the drill and pre-selects the right template.",
+    insight: "This agent is the capstone — it proves the value of every other agent by making their work visible and auditable. When Lisa shows the board a report generated in 12 seconds that used to take 2 days, the ROI of the entire AI team becomes undeniable.",
+  },
+];
+
+const agentTypeLabels = {
+  processor: "Processor", classifier: "Classifier", matcher: "Matcher",
+  predictor: "Predictor", watcher: "Watcher", generator: "Generator",
+};
+
+const graphLayout = [
+  { col: 0, row: 0 },
+  { col: 1, row: 0 },
+  { col: 2, row: 0 }, { col: 2, row: 1 },
+  { col: 3, row: 0 }, { col: 3, row: 1 },
+];
+
+// ═══════════════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════════════
+
+const state = { activeAgent: null, activePersona: null, hoveredAgent: null };
+
+// ═══════════════════════════════════════════════════════════════
+// LAYOUT ENGINE
+// ═══════════════════════════════════════════════════════════════
+
+function calcWeight(a) {
+  return a.dataNeeds.length * 8 + a.produces.length * 6 + a.humanPartners.length * 10
+    + a.feeds.length * 12 + (a.transform ? 10 : 0) + Math.round(a.automationRate * 0.3);
+}
+
+function cardSize(w, hero) {
+  if (hero) return { w: 290, h: 210 };
+  if (w >= 60) return { w: 250, h: 190 };
+  if (w >= 45) return { w: 225, h: 175 };
+  return { w: 200, h: 160 };
+}
+
+function sizeClass(w, hero) {
+  if (hero) return "size-hero";
+  if (w >= 60) return "size-lg";
+  if (w >= 45) return "size-md";
+  return "size-sm";
+}
+
+function computePositions() {
+  const weights = agents.map(calcWeight);
+  const heroIdx = weights.indexOf(Math.max(...weights));
+  const sizes = agents.map((_, i) => cardSize(weights[i], i === heroIdx));
+
+  const cols = {};
+  graphLayout.forEach((l, i) => { if (!cols[l.col]) cols[l.col] = []; cols[l.col].push(i); });
+  const colKeys = Object.keys(cols).map(Number).sort((a, b) => a - b);
+  const colWidths = {};
+  colKeys.forEach(c => { colWidths[c] = Math.max(...cols[c].map(i => sizes[i].w)); });
+
+  const gap = 90, padL = 60;
+  const colX = {};
+  let x = padL;
+  colKeys.forEach(c => { colX[c] = x; x += colWidths[c] + gap; });
+
+  const riverY = 220, vGap = 24;
+  const positions = [];
+  colKeys.forEach(c => {
+    const cards = cols[c].sort((a, b) => graphLayout[a].row - graphLayout[b].row);
+    if (cards.length === 1) {
+      const i = cards[0];
+      positions[i] = { x: colX[c] + (colWidths[c] - sizes[i].w) / 2, y: riverY - sizes[i].h / 2, w: sizes[i].w, h: sizes[i].h };
+    } else {
+      const totalH = cards.reduce((s, i) => s + sizes[i].h, 0) + vGap * (cards.length - 1);
+      let y = riverY - totalH / 2;
+      cards.forEach(i => {
+        positions[i] = { x: colX[c] + (colWidths[c] - sizes[i].w) / 2, y, w: sizes[i].w, h: sizes[i].h };
+        y += sizes[i].h + vGap;
+      });
+    }
+  });
+
+  return { positions, sizes, weights, heroIdx, totalWidth: x + 40 };
+}
+
+// ═══════════════════════════════════════════════════════════════
+// RENDER
+// ═══════════════════════════════════════════════════════════════
+
+let cardPositions = null;
+let cardWeights = null;
+let heroIndex = null;
+
+function renderAll() {
+  const { positions, weights, heroIdx, totalWidth } = computePositions();
+  cardPositions = positions;
+  cardWeights = weights;
+  heroIndex = heroIdx;
+
+  document.getElementById("canvasInner").style.minWidth = totalWidth + "px";
+  renderPersonaPills();
+  renderAgents(positions, weights, heroIdx);
+  renderDependencyLines(positions);
+}
+
+function renderPersonaPills() {
+  document.getElementById("personaPills").innerHTML = personas.map((p, i) =>
+    `<button class="ppill" data-p="${i}" style="--pc:${p.color}" onclick="togglePersona(${i})">
+      <div class="pavatar" style="background:${p.color}">${p.initial}</div>${p.name.split(" ")[0]}
+    </button>`
+  ).join("");
+}
+
+function renderAgents(positions, weights, heroIdx) {
+  document.getElementById("agentsContainer").innerHTML = agents.map((a, i) => {
+    const pos = positions[i];
+    const w = weights[i];
+    const isHero = i === heroIdx;
+
+    const dots = a.humanPartners.map(name => {
+      const p = personas.find(pp => pp.name === name);
+      return p ? `<div class="pdot" style="background:${p.color}" title="${p.name}">${p.initial}</div>` : "";
+    }).join("");
+
+    const dataPills = a.dataNeeds.slice(0, 2).map(d =>
+      `<span class="data-pill">${d.amount}</span>`
+    ).join("");
+
+    const feedsLabel = a.feeds.length
+      ? `Feeds ${a.feeds.length} agent${a.feeds.length > 1 ? 's' : ''}`
+      : "End of pipeline";
+
+    const matClass = `mat-${a.maturity}`;
+
+    return `<div class="agent ${sizeClass(w, isHero)}"
+      data-agent="${i}"
+      style="left:${pos.x}px;top:${pos.y}px;width:${pos.w}px;height:${pos.h}px;animation-delay:${i * 0.07}s"
+      onclick="openAgentModal(${i})"
+      onmouseenter="hoverAgent(${i})"
+      onmouseleave="unhoverAgent()">
+      <div class="agent-head">
+        <div class="agent-icon ${a.type}">${a.icon}</div>
+        <span class="agent-maturity ${matClass}">${a.maturity}</span>
+      </div>
+      <div class="agent-name">${a.name}</div>
+      <div class="agent-role">${a.role}</div>
+      <div class="agent-data">${dataPills}</div>
+      <div class="auto-bar">
+        <div class="auto-label"><span>${a.automationRate}% automated</span></div>
+        <div class="auto-track"><div class="auto-fill" style="width:${a.automationRate}%"></div></div>
+      </div>
+      <div class="agent-foot">
+        <div class="agent-personas">${dots}</div>
+        <span class="agent-feeds">${feedsLabel}</span>
+      </div>
+    </div>`;
+  }).join("");
+}
+
+function renderDependencyLines(positions) {
+  const svg = document.getElementById("svgLayer");
+  let paths = `<defs>
+    <marker id="depArrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+      <path d="M 0 1 L 6 4 L 0 7 z" fill="rgba(63,175,122,0.35)"/>
+    </marker>
+  </defs>`;
+
+  agents.forEach((a, i) => {
+    a.feeds.forEach(targetIdx => {
+      const from = positions[i];
+      const to = positions[targetIdx];
+      const x1 = from.x + from.w;
+      const y1 = from.y + from.h / 2;
+      const x2 = to.x;
+      const y2 = to.y + to.h / 2;
+      const dx = x2 - x1;
+      const cx1 = x1 + dx * 0.4;
+      const cx2 = x2 - dx * 0.4;
+      paths += `<path d="M${x1},${y1} C${cx1},${y1} ${cx2},${y2} ${x2},${y2}"
+        fill="none" stroke="rgba(63,175,122,0.2)" stroke-width="1.5"
+        stroke-dasharray="6,4" marker-end="url(#depArrow)"
+        class="dep-line" data-from="${i}" data-to="${targetIdx}"/>`;
+    });
+  });
+
+  svg.innerHTML = paths;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// HOVER — show dependency chain
+// ═══════════════════════════════════════════════════════════════
+
+function getConnected(index) {
+  const connected = new Set([index]);
+  agents[index].feeds.forEach(f => connected.add(f));
+  agents[index].dependsOn.forEach(d => connected.add(d));
+  return connected;
+}
+
+function hoverAgent(index) {
+  state.hoveredAgent = index;
+  const connected = getConnected(index);
+
+  document.querySelectorAll(".agent").forEach((el, i) => {
+    if (connected.has(i)) {
+      el.classList.add("connected");
+      el.classList.remove("dimmed");
+    } else {
+      el.classList.add("dimmed");
+      el.classList.remove("connected");
+    }
+  });
+
+  document.querySelectorAll(".dep-line").forEach(p => {
+    const from = parseInt(p.dataset.from);
+    const to = parseInt(p.dataset.to);
+    const isActive = from === index || to === index;
+    p.setAttribute("stroke", isActive ? "rgba(63,175,122,0.5)" : "rgba(63,175,122,0.06)");
+    p.setAttribute("stroke-width", isActive ? "2" : "1");
+  });
+}
+
+function unhoverAgent() {
+  state.hoveredAgent = null;
+  document.querySelectorAll(".agent").forEach(el => {
+    el.classList.remove("dimmed", "connected");
+  });
+  document.querySelectorAll(".dep-line").forEach(p => {
+    p.setAttribute("stroke", "rgba(63,175,122,0.2)");
+    p.setAttribute("stroke-width", "1.5");
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════
+// PERSONA FILTER
+// ═══════════════════════════════════════════════════════════════
+
+function togglePersona(index) {
+  if (state.activePersona === index) {
+    state.activePersona = null;
+    document.querySelectorAll(".ppill").forEach(p => p.classList.remove("active"));
+    document.querySelectorAll(".agent").forEach(s => s.classList.remove("dimmed"));
+    return;
+  }
+  state.activePersona = index;
+  const persona = personas[index];
+  document.querySelectorAll(".ppill").forEach((p, i) => p.classList.toggle("active", i === index));
+  document.querySelectorAll(".agent").forEach((s, i) => {
+    s.classList.toggle("dimmed", !agents[i].humanPartners.includes(persona.name));
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════
+// AGENT MODAL
+// ═══════════════════════════════════════════════════════════════
+
+function openAgentModal(index) {
+  state.activeAgent = index;
+  const a = agents[index];
+
+  document.querySelectorAll(".agent").forEach((el, i) => {
+    el.classList.toggle("selected", i === index);
+  });
+
+  // ── Build Profile ────────────────────────────────────
+  const matClass = `mat-${a.maturity}`;
+  const partnerCards = a.humanPartners.map(name => {
+    const p = personas.find(pp => pp.name === name);
+    if (!p) return "";
+    return `<div class="partner-card">
+      <div class="partner-avatar" style="background:${p.color}">${p.initial}</div>
+      <div><div class="partner-name">${p.name}</div><div class="partner-role">${p.role}</div></div>
+    </div>`;
+  }).join("");
+
+  const feedItems = a.feeds.map(fi => {
+    const target = agents[fi];
+    return `<div class="feed-item">
+      <span class="feed-arrow">→</span>
+      <span class="feed-name">${target.name}</span>
+      <span class="feed-what">${target.produces[0]}</span>
+    </div>`;
+  }).join("") || '<div style="font-size:11px;color:var(--t5)">End of pipeline — this agent produces final outputs</div>';
+
+  const dependsItems = a.dependsOn.length
+    ? a.dependsOn.map(di => `<div class="feed-item"><span class="feed-arrow" style="color:var(--accent)">←</span><span class="feed-name">${agents[di].name}</span><span class="feed-what">${agents[di].produces[0]}</span></div>`).join("")
+    : '<div style="font-size:11px;color:var(--t5)">No dependencies — this agent works independently</div>';
+
+  let profileHtml = `
+    <div class="profile-head">
+      <div class="profile-icon agent-icon ${a.type}" style="width:44px;height:44px;font-size:22px">${a.icon}</div>
+      <div class="profile-meta">
+        <div class="profile-name">${a.name}</div>
+        <div class="profile-role">${a.role}</div>
+      </div>
+    </div>
+    <div class="profile-badges">
+      <span class="profile-badge agent-maturity ${matClass}">${a.maturity}</span>
+      <span class="profile-badge" style="background:var(--subtle);color:var(--t3)">${agentTypeLabels[a.type]}</span>
+      <span class="profile-badge" style="background:var(--green-pale);color:var(--green-dark)">${a.automationRate}% automated</span>
+    </div>
+
+    <div class="section-label"><span class="sl-icon">📋</span> What I Do Every Day</div>
+    <div class="daily-work">${a.dailyWork}</div>
+
+    <div class="section-label"><span class="sl-icon">⚡</span> The Transformation</div>
+    <div class="transform-card">
+      <div class="transform-side before"><div class="transform-lbl">Before</div><div class="transform-val">${a.transform.before}</div></div>
+      <div class="transform-arrow">→</div>
+      <div class="transform-side after"><div class="transform-lbl">After</div><div class="transform-val">${a.transform.after}</div></div>
+    </div>
+
+    <div class="section-label"><span class="sl-icon">🍽</span> My Data Diet</div>
+    <div class="data-diet">
+      ${a.dataNeeds.map(d => `<div class="diet-item">
+        <span class="diet-icon">${d.icon}</span>
+        <div class="diet-info"><div class="diet-source">${d.source}</div><div class="diet-amount">${d.amount}</div></div>
+        <span class="diet-quality ${d.quality}">${d.quality}</span>
+      </div>`).join("")}
+    </div>
+
+    <div class="section-label"><span class="sl-icon">📤</span> What I Produce</div>
+    <div class="produces-list">${a.produces.map(p => `<span class="produce-pill">${p}</span>`).join("")}</div>
+
+    <div class="section-label"><span class="sl-icon">👥</span> My Human Partners</div>
+    <div class="partner-cards">${partnerCards}</div>
+
+    <div class="section-label"><span class="sl-icon">📈</span> How I Grow</div>
+    <div class="growth-text">${a.growth}</div>
+
+    <div class="section-label"><span class="sl-icon">→</span> Who I Feed</div>
+    <div class="feeds-list">${feedItems}</div>
+
+    <div class="section-label"><span class="sl-icon">←</span> Who I Depend On</div>
+    <div class="feeds-list">${dependsItems}</div>
+
+    <div class="section-label" style="margin-top:24px"><span class="sl-icon">💡</span> Consultant's Insight</div>
+    <div class="insight-card"><div class="insight-text">${a.insight}</div></div>
+  `;
+
+  document.getElementById("modalProfile").innerHTML = profileHtml;
+
+  // ── Build Chat ──────────────────────────────────────
+  let chatHtml = `
+    <div class="chat-header">
+      <svg viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z"/></svg>
+      <span class="chat-header-text">Learn About This Agent</span>
+      <span class="chat-header-mode">Agent</span>
+    </div>
+    <div class="chat-body">
+      <div class="chat-context">
+        <strong>${a.name}</strong> is ${a.maturity === 'learning' ? 'still learning — it needs more data and time to become reliable' : a.maturity === 'expert' ? 'highly trained — it handles most cases autonomously' : 'working reliably — it performs well and continues to improve'}.
+        ${a.dependsOn.length ? `It depends on ${a.dependsOn.map(d => agents[d].name).join(' and ')}.` : ''}
+      </div>
+      <div class="chat-suggestions">
+        <button class="chat-suggest" onclick="chatAction('data')"><span class="si">?</span> What data makes this agent better?</button>
+        <button class="chat-suggest" onclick="chatAction('timeline')"><span class="si">?</span> How long until it's fully reliable?</button>
+        <button class="chat-suggest" onclick="chatAction('wrong')"><span class="si">?</span> What happens when it makes a mistake?</button>
+        <button class="chat-suggest" onclick="chatAction('less-data')"><span class="si">?</span> Can it work with less data?</button>
+        <button class="chat-suggest" onclick="chatAction('human')"><span class="si">?</span> What does ${a.humanPartners[0].split(' ')[0]}'s day look like with this?</button>`;
+
+  if (a.feeds.length) {
+    chatHtml += `
+        <div class="chat-divider">Impact Questions</div>
+        <button class="chat-suggest" onclick="chatAction('downstream')"><span class="si">↓</span> What breaks if this agent is inaccurate?</button>`;
+  }
+  if (a.dependsOn.length) {
+    chatHtml += `
+        <button class="chat-suggest" onclick="chatAction('upstream')"><span class="si">↑</span> How does ${agents[a.dependsOn[0]].name} affect this?</button>`;
+  }
+
+  chatHtml += `
+        <div class="chat-divider">Team Design</div>
+        <button class="chat-suggest" onclick="chatAction('add-agent')"><span class="si">+</span> What if we added another agent here?</button>
+        <button class="chat-suggest" onclick="chatAction('remove')"><span class="si">×</span> What if we skipped this agent entirely?</button>
+      </div>
+    </div>
+    <div class="chat-input-area">
+      <input class="chat-input" placeholder="Ask about ${a.name}..." onkeydown="if(event.key==='Enter')chatAction('custom',this.value)">
+    </div>`;
+
+  document.getElementById("modalChat").innerHTML = chatHtml;
+
+  // Show modal
+  document.getElementById("agentModal").classList.add("open");
+}
+
+function closeModal() {
+  document.getElementById("agentModal").classList.remove("open");
+  state.activeAgent = null;
+  document.querySelectorAll(".agent").forEach(el => el.classList.remove("selected"));
+}
+
+function chatAction(type, value) {
+  const action = type === 'custom' ? (value || '') : type;
+  if (!action) return;
+  const body = document.querySelector("#modalChat .chat-body");
+  if (body) {
+    const msg = document.createElement('div');
+    msg.style.cssText = 'padding:8px 12px;background:var(--green-pale);border-radius:7px;font-size:11px;color:var(--t2);margin-bottom:10px;border-left:2px solid var(--green)';
+    msg.textContent = type === 'custom' ? action : `Exploring: ${type}`;
+    body.insertBefore(msg, body.querySelector('.chat-suggestions'));
+    setTimeout(() => msg.remove(), 3000);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// PRESENT MODE
+// ═══════════════════════════════════════════════════════════════
+
+const totalSlides = agents.length + 2; // title + agents + summary
+let presentStep = 0;
+
+function enterPresent() {
+  presentStep = 0;
+  document.getElementById("presentOverlay").classList.add("active");
+  renderPresentSlide();
+  renderPresentDots();
+}
+
+function exitPresent() {
+  document.getElementById("presentOverlay").classList.remove("active");
+}
+
+function pNav(dir) {
+  presentStep = Math.max(0, Math.min(totalSlides - 1, presentStep + dir));
+  renderPresentSlide();
+  renderPresentDots();
+}
+
+function renderPresentSlide() {
+  const idx = presentStep;
+  const el = document.getElementById("pContent");
+  document.getElementById("pCounter").textContent =
+    idx === 0 ? "Meet Your AI Team" : idx === totalSlides - 1 ? "Team Summary" : `Agent ${idx} of ${agents.length}`;
+  document.getElementById("pPrev").disabled = idx === 0;
+  document.getElementById("pNext").disabled = idx === totalSlides - 1;
+
+  // ── Title Slide ─────────────────────────────
+  if (idx === 0) {
+    el.innerHTML = `<div class="p-card"><div class="p-title">
+      <h1>Meet Your AI Team</h1>
+      <div class="p-subtitle">6 specialized agents that transform manual inventory management into an intelligent pipeline — learning and improving from every interaction.</div>
+      <div class="p-stats">
+        <div class="p-stat"><div class="p-stat-val">6</div><div class="p-stat-lbl">Agents</div></div>
+        <div class="p-stat"><div class="p-stat-val">87%</div><div class="p-stat-lbl">Automated</div></div>
+        <div class="p-stat"><div class="p-stat-val">~12 hrs</div><div class="p-stat-lbl">Saved / Day</div></div>
+        <div class="p-stat"><div class="p-stat-val">4</div><div class="p-stat-lbl">Team Members Assisted</div></div>
+      </div>
+      <div class="p-hint">Press &rarr; to meet the team</div>
+    </div></div>`;
+    return;
+  }
+
+  // ── Summary Slide ───────────────────────────
+  if (idx === totalSlides - 1) {
+    const pipelineHtml = agents.filter(a => a.feeds.length || a.dependsOn.length)
+      .map((a, i, arr) => `<span class="p-pipe-node">${a.icon} ${a.name}</span>${i < arr.length - 1 ? '<span class="p-pipe-arrow">&rarr;</span>' : ''}`)
+      .join("");
+
+    el.innerHTML = `<div class="p-card"><div class="p-summary">
+      <h2>Your Complete AI Team</h2>
+      <div class="p-team-grid">
+        ${agents.map(a => `<div class="p-team-card">
+          <div class="p-team-icon">${a.icon}</div>
+          <div class="p-team-name">${a.name}</div>
+          <div class="p-team-stat">${a.automationRate}% automated</div>
+          <div class="p-team-role">${a.transform.before} &rarr; ${a.transform.after}</div>
+        </div>`).join("")}
+      </div>
+      <div class="p-pipeline">${pipelineHtml}</div>
+      <div class="p-summary-stats">
+        <div class="p-sum-stat"><div class="p-sum-val">87%</div><div class="p-sum-lbl">Average Automation</div></div>
+        <div class="p-sum-stat"><div class="p-sum-val">~12 hrs</div><div class="p-sum-lbl">Saved Daily</div></div>
+        <div class="p-sum-stat"><div class="p-sum-val">$340K</div><div class="p-sum-lbl">Annual Savings</div></div>
+      </div>
+    </div></div>`;
+    return;
+  }
+
+  // ── Agent Slides ────────────────────────────
+  const ai = idx - 1;
+  const a = agents[ai];
+
+  const partners = a.humanPartners.map(name => {
+    const p = personas.find(pp => pp.name === name);
+    return p ? `<div class="p-partner"><div class="p-partner-avatar" style="background:${p.color}">${p.initial}</div><span class="p-partner-name">${p.name}</span></div>` : "";
+  }).join("");
+
+  const dataItems = a.dataNeeds.map(d =>
+    `<div class="p-data-item"><span class="p-data-icon">${d.icon}</span><span class="p-data-source">${d.source}</span><span class="p-data-amount">${d.amount}</span></div>`
+  ).join("");
+
+  const feedsHtml = a.feeds.length
+    ? `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:12px">${a.feeds.map(fi => `<span class="p-pipe-node" style="font-size:10px">&rarr; Feeds ${agents[fi].name}</span>`).join("")}</div>`
+    : "";
+
+  el.innerHTML = `<div class="p-card">
+    <div class="p-agent-head">
+      <div class="p-agent-icon agent-icon ${a.type}">${a.icon}</div>
+      <div class="p-agent-meta">
+        <div class="p-agent-type">${agentTypeLabels[a.type]} &middot; ${a.maturity}</div>
+        <div class="p-agent-name">${a.name}</div>
+      </div>
+    </div>
+    <div class="p-agent-role">${a.role}</div>
+
+    <div class="p-auto">
+      <span class="p-auto-lbl">Automation</span>
+      <div class="p-auto-track"><div class="p-auto-fill" style="width:${a.automationRate}%"></div></div>
+      <span class="p-auto-pct">${a.automationRate}%</span>
+    </div>
+
+    <div class="p-daily">${a.dailyWork}</div>
+
+    <div class="p-transform">
+      <div class="p-t-side before"><div class="p-t-lbl">Before</div><div class="p-t-val">${a.transform.before}</div></div>
+      <div class="p-t-arrow">&rarr;</div>
+      <div class="p-t-side after"><div class="p-t-lbl">After</div><div class="p-t-val">${a.transform.after}</div></div>
+    </div>
+
+    <div class="p-data-grid">${dataItems}</div>
+
+    <div class="p-partners">${partners}</div>
+
+    <div class="p-growth">${a.growth}</div>
+
+    <div class="p-insight">${a.insight}</div>
+    ${feedsHtml}
+  </div>`;
+}
+
+function renderPresentDots() {
+  document.getElementById("pDots").innerHTML = Array.from({ length: totalSlides }, (_, i) =>
+    `<div class="p-dot ${i === presentStep ? "active" : ""}"></div>`
+  ).join("");
+}
+
+// ═══════════════════════════════════════════════════════════════
+// KEYBOARD
+// ═══════════════════════════════════════════════════════════════
+
+document.addEventListener("keydown", e => {
+  if (document.getElementById("presentOverlay").classList.contains("active")) {
+    if (e.key === "ArrowRight" || e.key === " ") { e.preventDefault(); pNav(1); }
+    if (e.key === "ArrowLeft") pNav(-1);
+    if (e.key === "Escape") exitPresent();
+  } else {
+    if (e.key === "Escape") closeModal();
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════════
+
+renderAll();
+</script>
+</body>
+</html>

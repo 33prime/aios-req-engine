@@ -1,0 +1,922 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Solution Flow — Living Blueprint v2</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --green: #3FAF7A;
+  --green-hover: #33a06d;
+  --green-dark: #2A8F5F;
+  --green-pale: rgba(63,175,122,0.08);
+  --accent: #044159;
+  --accent-pale: rgba(4,65,89,0.06);
+  --navy: #0A1E2F;
+  --navy-pale: rgba(10,30,47,0.04);
+  --t1: #1D1D1F; --t2: #333; --t3: #4B4B4B; --t4: #7B7B7B; --t5: #999;
+  --border: #E5E5E5; --border-s: #D4D4D4;
+  --bg: #FAFAFA; --card: #FFF; --subtle: #F5F5F5;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;background:var(--bg);color:var(--t2);overflow:hidden;height:100vh}
+::-webkit-scrollbar{height:6px;width:6px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border-s);border-radius:3px}
+
+#app{display:flex;flex-direction:column;height:100vh}
+
+/* ── Header ─────────────────────────────────────────── */
+header{background:var(--navy);padding:16px 32px 14px;flex-shrink:0}
+.header-row{display:flex;align-items:flex-start;gap:24px;margin-bottom:12px}
+.thesis{font-size:15px;font-weight:400;color:rgba(255,255,255,0.82);line-height:1.55;flex:1;max-width:680px}
+.thesis em{color:var(--green);font-style:normal;font-weight:500}
+.value-pills{display:flex;gap:12px;flex-shrink:0}
+.vpill{display:flex;flex-direction:column;align-items:center;padding:5px 14px;border-radius:8px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.07)}
+.vpill-num{font-size:17px;font-weight:700;color:var(--green);line-height:1.2}
+.vpill-lbl{font-size:9px;color:rgba(255,255,255,0.35);text-transform:uppercase;letter-spacing:0.04em;font-weight:500}
+.controls{display:flex;align-items:center;gap:10px}
+.persona-pills{display:flex;gap:5px;flex:1}
+.ppill{display:flex;align-items:center;gap:5px;padding:3px 10px 3px 3px;border-radius:18px;border:1px solid rgba(255,255,255,0.1);cursor:pointer;transition:all .2s;background:0;color:rgba(255,255,255,0.55);font-size:11px;font-weight:500;font-family:inherit}
+.ppill:hover{border-color:rgba(255,255,255,0.22);color:rgba(255,255,255,0.85)}
+.ppill.active{background:rgba(255,255,255,0.08);border-color:var(--pc);color:#fff}
+.pavatar{width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:#fff;flex-shrink:0}
+.present-btn{padding:5px 16px;border-radius:8px;border:1px solid rgba(63,175,122,0.35);background:rgba(63,175,122,0.08);color:var(--green);font-size:11px;font-weight:600;cursor:pointer;transition:all .2s;font-family:inherit}
+.present-btn:hover{background:rgba(63,175,122,0.18);border-color:var(--green)}
+
+/* ── Main ───────────────────────────────────────────── */
+.main-area{flex:1;display:flex;overflow:hidden}
+.canvas{flex:1;overflow:auto;position:relative}
+.canvas-inner{position:relative;min-height:520px;padding:20px 0}
+.waterline-bg{position:absolute;inset:0;background:linear-gradient(to right,var(--bg) 0%,rgba(63,175,122,0.012) 25%,rgba(63,175,122,0.028) 50%,rgba(63,175,122,0.048) 75%,rgba(63,175,122,0.065) 100%);pointer-events:none;z-index:0}
+.svg-layer{position:absolute;inset:0;pointer-events:none;z-index:1;overflow:visible}
+
+/* (backdrop removed — modal has its own overlay) */
+
+/* ── Stations (Cards) ───────────────────────────────── */
+.station{position:absolute;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px 16px;cursor:pointer;transition:all .35s cubic-bezier(.4,0,.2,1);z-index:2;display:flex;flex-direction:column}
+.station:hover{border-color:var(--green);box-shadow:0 4px 14px rgba(63,175,122,0.12);transform:translateY(-2px)}
+.station.dimmed{opacity:.3;filter:grayscale(.3);pointer-events:none}
+.station.size-hero{border-width:2px;border-color:rgba(63,175,122,0.25);box-shadow:0 2px 10px rgba(63,175,122,0.08)}
+.station.conf-high{border-left:3px solid var(--green)}
+.station.conf-medium{border-left:3px solid var(--accent)}
+.station.conf-low{border-left:3px solid var(--border-s)}
+
+/* Selected station highlight */
+.station.selected{border-color:var(--green);box-shadow:0 0 0 2px rgba(63,175,122,0.25)}
+
+.st-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:7px}
+.phase-b{font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;padding:2px 7px;border-radius:4px}
+.phase-entry{background:var(--accent-pale);color:var(--accent)}
+.phase-core_experience{background:var(--green-pale);color:var(--green-dark)}
+.phase-output{background:var(--navy-pale);color:var(--navy)}
+.phase-admin{background:var(--subtle);color:var(--t4)}
+.vbadges{display:flex;gap:3px}
+.vbadge{width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;background:var(--green-pale);color:var(--green-dark);border:1px solid rgba(63,175,122,0.12)}
+.st-title{font-size:13px;font-weight:600;color:var(--t1);line-height:1.35;margin-bottom:5px}
+.station.size-hero .st-title{font-size:15px}
+.st-goal{font-size:11px;color:var(--t4);line-height:1.4;flex:1;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.station.size-hero .st-goal{-webkit-line-clamp:3;font-size:12px}
+.st-foot{display:flex;align-items:center;justify-content:space-between;margin-top:7px;padding-top:7px;border-top:1px solid var(--subtle)}
+.st-personas{display:flex}
+.pdot{width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:7px;font-weight:700;color:#fff;border:2px solid var(--card);margin-left:-4px}
+.pdot:first-child{margin-left:0}
+.st-num{font-size:9px;color:var(--t5);font-weight:500}
+
+/* ── Step Modal ─────────────────────────────────────── */
+.step-modal-overlay{display:none;position:fixed;inset:0;z-index:200;background:rgba(10,30,47,0.45);justify-content:center;align-items:center;padding:32px}
+.step-modal-overlay.open{display:flex}
+.step-modal{background:var(--card);border-radius:14px;width:940px;max-width:95vw;max-height:85vh;display:flex;box-shadow:0 24px 64px rgba(10,30,47,0.25);animation:modalIn .3s ease;overflow:hidden}
+@keyframes modalIn{from{opacity:0;transform:translateY(16px) scale(.98)}to{opacity:1;transform:translateY(0) scale(1)}}
+.modal-detail{flex:1;min-width:0;overflow-y:auto;padding:28px 32px}
+.modal-detail::-webkit-scrollbar{width:4px}
+.modal-detail::-webkit-scrollbar-thumb{background:var(--border-s);border-radius:2px}
+.modal-head{display:flex;align-items:center;gap:10px;margin-bottom:6px}
+.modal-step-num{font-size:10px;color:var(--t5);font-weight:500}
+.modal-close{position:absolute;top:16px;right:16px;width:28px;height:28px;border-radius:50%;border:1px solid var(--border);background:var(--subtle);color:var(--t3);font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-family:inherit;z-index:5;transition:all .15s}
+.modal-close:hover{background:var(--border);color:var(--t1)}
+.modal-title{font-size:20px;font-weight:700;color:var(--t1);line-height:1.25;margin-bottom:6px;letter-spacing:-.01em}
+.modal-goal{font-size:13px;color:var(--t4);line-height:1.5;margin-bottom:18px}
+.modal-actors{display:flex;gap:6px;margin-bottom:18px}
+.modal-actor{display:flex;align-items:center;gap:5px;padding:3px 10px 3px 3px;border-radius:14px;background:var(--subtle);font-size:10px;color:var(--t2);font-weight:500}
+.modal-actor .pdot{width:20px;height:20px;margin-left:0}
+.modal-badges{display:flex;gap:5px;margin-bottom:18px}
+.modal-vbadge{padding:3px 9px;border-radius:5px;font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;background:var(--green-pale);color:var(--green-dark);border:1px solid rgba(63,175,122,0.12)}
+
+/* ── Modal Chat (right side) ───────────────────────── */
+.modal-chat{width:320px;flex-shrink:0;border-left:1px solid var(--border);display:flex;flex-direction:column;background:var(--subtle)}
+
+/* ── Detail content inside expanded cards ────────────── */
+.d-label{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--t4);margin-bottom:6px;margin-top:12px}
+.d-label:first-child{margin-top:0}
+.d-narrative{font-size:12px;line-height:1.6;color:var(--t2);padding:10px 12px;background:var(--subtle);border-radius:7px;border-left:3px solid var(--green)}
+.d-pattern{font-size:10px;color:var(--t4);margin-top:6px}
+
+.ba-card{border:1px solid var(--border);border-radius:7px;overflow:hidden;margin-bottom:8px}
+.ba-side{padding:8px 10px}
+.ba-side.today{background:rgba(4,65,89,0.025)}
+.ba-side.tomorrow{background:rgba(63,175,122,0.03);border-top:1px solid var(--border)}
+.ba-lbl{font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px}
+.ba-side.today .ba-lbl{color:var(--accent)}
+.ba-side.tomorrow .ba-lbl{color:var(--green-dark)}
+.ba-item{font-size:10px;color:var(--t3);padding:1px 0;line-height:1.4}
+.ba-side.today .ba-item::before{content:"- ";color:var(--accent);font-weight:600}
+.ba-side.tomorrow .ba-item::before{content:"+ ";color:var(--green);font-weight:600}
+
+.intel-card{padding:8px 10px;border-radius:7px;margin-bottom:6px}
+.intel-card.unlock{background:var(--accent-pale);border:1px solid rgba(4,65,89,0.1)}
+.intel-card.tension{background:rgba(10,30,47,0.025);border:1px solid rgba(10,30,47,0.08)}
+.intel-card.ai-role{background:var(--green-pale);border:1px solid rgba(63,175,122,0.12)}
+.intel-card.insight{background:var(--accent-pale);border:1px solid rgba(4,65,89,0.1)}
+.ic-title{font-size:10px;font-weight:600;margin-bottom:3px}
+.intel-card.unlock .ic-title{color:var(--accent)}
+.intel-card.tension .ic-title{color:var(--navy)}
+.intel-card.ai-role .ic-title{color:var(--green-dark)}
+.intel-card.insight .ic-title{color:var(--accent)}
+.ic-text{font-size:10px;color:var(--t3);line-height:1.4}
+.ic-evidence{font-size:9px;color:var(--t4);margin-top:4px;font-style:italic}
+.ic-value{font-size:9px;color:var(--green-dark);font-weight:500;margin-top:4px}
+.tension-sides{display:flex;flex-direction:column;gap:2px;margin:4px 0}
+.tension-side{font-size:10px;color:var(--t3);padding:4px 7px;background:rgba(255,255,255,0.5);border-radius:3px;line-height:1.35}
+.tension-res{font-size:10px;color:var(--green-dark);font-weight:500;padding-top:5px;border-top:1px solid rgba(10,30,47,0.06)}
+
+.field-grid{display:flex;flex-direction:column;gap:3px}
+.field-item{display:flex;align-items:center;gap:6px;padding:4px 7px;background:var(--subtle);border-radius:4px}
+.fdot{width:5px;height:5px;border-radius:50%;flex-shrink:0}
+.fdot.computed{background:var(--green)}.fdot.captured{background:var(--accent)}.fdot.displayed{background:var(--t4)}
+.fname{font-size:10px;font-weight:500;color:var(--t2);flex:1}
+.fval{font-size:9px;color:var(--t4);text-align:right;max-width:120px}
+.fconf{font-size:8px;font-weight:600;text-transform:uppercase;padding:1px 4px;border-radius:3px;letter-spacing:.03em;flex-shrink:0}
+.fconf.known{background:var(--green-pale);color:var(--green-dark)}
+.fconf.inferred{background:var(--accent-pale);color:var(--accent)}
+.fconf.guess{background:var(--subtle);color:var(--t4)}
+
+.q-item{display:flex;gap:6px;padding:5px 7px;background:rgba(4,65,89,0.025);border-radius:4px;border-left:2px solid var(--accent);margin-bottom:3px}
+.q-icon{color:var(--accent);font-weight:700;font-size:11px;flex-shrink:0}
+.q-text{font-size:10px;font-weight:500;color:var(--t2);line-height:1.4}
+.q-ctx{font-size:9px;color:var(--t4);margin-top:2px;line-height:1.4}
+
+/* ── Horizons Button ────────────────────────────────── */
+.horizon-btn{padding:5px 14px;border-radius:8px;border:1px dashed rgba(255,255,255,0.2);background:rgba(4,65,89,0.15);color:rgba(255,255,255,0.6);font-size:11px;font-weight:600;cursor:pointer;transition:all .2s;font-family:inherit;display:flex;align-items:center;gap:6px}
+.horizon-btn:hover{background:rgba(4,65,89,0.25);border-color:rgba(255,255,255,0.3);color:rgba(255,255,255,0.85)}
+.horizon-btn .h-count{background:rgba(255,255,255,0.1);padding:1px 6px;border-radius:4px;font-size:10px}
+
+/* ── Horizons Panel (slides down) ──────────────────── */
+.horizons-panel{max-height:0;overflow:hidden;transition:max-height .35s cubic-bezier(.4,0,.2,1);background:linear-gradient(180deg, rgba(4,65,89,0.06), transparent);border-bottom:1px solid transparent}
+.horizons-panel.open{max-height:320px;border-bottom-color:var(--border)}
+.horizons-inner{padding:20px 32px 24px;display:flex;gap:16px;flex-wrap:wrap}
+.h-card{flex:1;min-width:260px;padding:18px 20px;border-radius:11px;border:1.5px dashed;transition:all .3s;background:var(--card)}
+.h-card:hover{transform:translateY(-2px);box-shadow:0 6px 18px rgba(0,0,0,0.05)}
+.h-card.h2{border-color:rgba(4,65,89,0.25);background:linear-gradient(135deg, var(--card), rgba(4,65,89,0.02))}
+.h-card.h3{border-color:rgba(10,30,47,0.18);background:linear-gradient(135deg, var(--card), rgba(10,30,47,0.02))}
+.h-head{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.hbadge{font-size:9px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;padding:2px 6px;border-radius:4px}
+.h2 .hbadge,.h-card.h2 .hbadge{background:rgba(4,65,89,0.1);color:var(--accent)}
+.h3 .hbadge,.h-card.h3 .hbadge{background:rgba(10,30,47,0.07);color:var(--navy)}
+.h-title{font-size:14px;font-weight:600;color:var(--t1)}
+.h-desc{font-size:12px;color:var(--t3);line-height:1.5;margin-bottom:10px}
+.h-meta{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.h-value{font-size:11px;font-weight:600;color:var(--green-dark)}
+.h-unlock{font-size:10px;color:var(--t5)}
+.h-unlock-steps{display:flex;gap:4px;margin-top:8px;flex-wrap:wrap}
+.h-unlock-pill{font-size:9px;padding:2px 7px;border-radius:4px;background:var(--subtle);color:var(--t3);font-weight:500}
+
+/* ── Chat inside modal ──────────────────────────────── */
+.chat-header{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;background:var(--card)}
+.chat-header svg{width:14px;height:14px;fill:var(--green);flex-shrink:0}
+.chat-header-text{font-size:12px;font-weight:600;color:var(--t1);flex:1}
+.chat-header-mode{font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;padding:2px 7px;border-radius:4px}
+.chat-header-mode.step{background:var(--green-pale);color:var(--green-dark)}
+.chat-body{flex:1;overflow-y:auto;padding:14px 16px}
+.chat-context{font-size:11px;color:var(--t4);line-height:1.5;margin-bottom:12px;padding:9px 11px;background:var(--card);border-radius:7px;border-left:2px solid var(--green)}
+.chat-suggestions{display:flex;flex-direction:column;gap:5px}
+.chat-suggest{padding:7px 11px;border-radius:7px;border:1px solid var(--border);background:var(--card);font-size:11px;color:var(--t2);cursor:pointer;transition:all .15s;font-family:inherit;text-align:left;line-height:1.4}
+.chat-suggest:hover{border-color:var(--green);background:var(--green-pale);color:var(--t1)}
+.chat-suggest .suggest-icon{color:var(--green);margin-right:4px;font-weight:600}
+.chat-divider{font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--t5);margin:10px 0 6px;padding-top:10px;border-top:1px solid var(--border)}
+.chat-input-area{padding:10px 14px;border-top:1px solid var(--border);background:var(--card)}
+.chat-input{width:100%;padding:9px 12px;border-radius:8px;border:1px solid var(--border);font-size:12px;font-family:inherit;color:var(--t2);outline:none;transition:border .2s;background:#fff}
+.chat-input:focus{border-color:var(--green)}
+.chat-input::placeholder{color:var(--t5)}
+
+/* ── Present Mode ───────────────────────────────────── */
+.present-overlay{display:none;position:fixed;inset:0;z-index:1000;background:var(--navy);flex-direction:column}
+.present-overlay.active{display:flex}
+.p-header{padding:18px 48px;display:flex;align-items:center;justify-content:space-between}
+.p-counter{font-size:12px;color:rgba(255,255,255,0.35);font-weight:500}
+.p-close{padding:5px 14px;border-radius:7px;border:1px solid rgba(255,255,255,0.12);background:0;color:rgba(255,255,255,0.45);font-size:11px;cursor:pointer;font-family:inherit}
+.p-close:hover{background:rgba(255,255,255,0.04);color:#fff}
+.p-content{flex:1;display:flex;align-items:center;justify-content:center;padding:0 80px 36px;overflow-y:auto}
+.p-card{max-width:800px;width:100%;animation:pFadeIn .45s ease}
+@keyframes pFadeIn{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+
+.p-title-slide{text-align:center}
+.p-title-slide h1{font-size:40px;font-weight:700;color:#fff;margin-bottom:20px;letter-spacing:-.02em}
+.p-title-slide .p-thesis{font-size:17px;color:rgba(255,255,255,0.55);line-height:1.6;max-width:580px;margin:0 auto 36px}
+.p-title-slide .p-hint{font-size:13px;color:rgba(255,255,255,0.25)}
+.p-title-slide .p-meta{display:flex;justify-content:center;gap:24px;margin-bottom:32px}
+.p-title-slide .p-meta-item{font-size:13px;color:rgba(255,255,255,0.4)}
+.p-title-slide .p-meta-item strong{color:var(--green);font-weight:600}
+
+.p-phase{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--green);margin-bottom:10px}
+.p-step-title{font-size:34px;font-weight:700;color:#fff;line-height:1.2;margin-bottom:10px;letter-spacing:-.02em}
+.p-goal{font-size:16px;color:rgba(255,255,255,0.45);line-height:1.5;margin-bottom:24px}
+.p-narrative{font-size:15px;line-height:1.7;color:rgba(255,255,255,0.78);padding:18px 22px;background:rgba(255,255,255,0.035);border-radius:10px;border-left:3px solid var(--green);margin-bottom:20px}
+.p-ba{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px}
+.p-ba-side{padding:14px 16px;border-radius:9px}
+.p-ba-side.today{background:rgba(4,65,89,0.12);border:1px solid rgba(4,65,89,0.15)}
+.p-ba-side.tomorrow{background:rgba(63,175,122,0.08);border:1px solid rgba(63,175,122,0.15)}
+.p-ba-lbl{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px}
+.p-ba-side.today .p-ba-lbl{color:rgba(255,255,255,0.35)}
+.p-ba-side.tomorrow .p-ba-lbl{color:var(--green)}
+.p-ba-item{font-size:13px;color:rgba(255,255,255,0.65);padding:3px 0;line-height:1.4}
+.p-badges{display:flex;gap:7px;margin-top:16px}
+.p-badge{padding:4px 11px;border-radius:5px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;background:rgba(63,175,122,0.1);color:var(--green);border:1px solid rgba(63,175,122,0.18)}
+.p-momentum{margin-top:16px;padding:10px 14px;background:rgba(255,255,255,0.025);border-radius:7px;display:flex;align-items:center;gap:10px}
+.p-mom-lbl{font-size:9px;color:rgba(255,255,255,0.25);text-transform:uppercase;letter-spacing:.04em;white-space:nowrap}
+.p-mom-track{flex:1;height:3px;background:rgba(255,255,255,0.05);border-radius:2px;overflow:hidden}
+.p-mom-fill{height:100%;background:var(--green);border-radius:2px;transition:width .5s ease}
+.p-mom-pct{font-size:12px;color:var(--green);font-weight:600}
+
+.p-summary{text-align:center}
+.p-summary h2{font-size:30px;font-weight:700;color:#fff;margin-bottom:28px;letter-spacing:-.01em}
+.sum-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:36px}
+.sum-stat{padding:18px 14px;border-radius:9px;background:rgba(255,255,255,0.035);border:1px solid rgba(255,255,255,0.05)}
+.sum-stat-val{font-size:26px;font-weight:700;color:var(--green);margin-bottom:3px}
+.sum-stat-lbl{font-size:11px;color:rgba(255,255,255,0.35)}
+.sum-horizons{text-align:left;max-width:480px;margin:0 auto}
+.sum-horizons h3{font-size:12px;color:rgba(255,255,255,0.35);text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px}
+.sum-h-item{display:flex;align-items:center;gap:9px;padding:9px 12px;background:rgba(255,255,255,0.025);border-radius:7px;margin-bottom:5px}
+.sum-h-badge{font-size:9px;font-weight:700;padding:2px 5px;border-radius:3px;background:rgba(4,65,89,0.15);color:rgba(255,255,255,0.5)}
+.sum-h-name{font-size:13px;color:rgba(255,255,255,0.65);font-weight:500}
+.sum-h-val{font-size:11px;color:var(--green);margin-left:auto}
+
+.p-nav{display:flex;justify-content:center;align-items:center;gap:14px;padding-bottom:24px}
+.p-nav-btn{padding:7px 22px;border-radius:7px;border:1px solid rgba(255,255,255,0.1);background:0;color:rgba(255,255,255,0.45);font-size:12px;font-weight:500;cursor:pointer;font-family:inherit;transition:all .2s}
+.p-nav-btn:hover{background:rgba(255,255,255,0.04);color:#fff}
+.p-nav-btn:disabled{opacity:.25;cursor:default}
+.p-dots{display:flex;align-items:center;gap:4px}
+.p-dot{width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,0.1);transition:all .3s}
+.p-dot.active{background:var(--green);width:18px;border-radius:3px}
+
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+.station{animation:fadeIn .45s ease backwards}
+
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <div class="header-row">
+      <div class="thesis">This solution transforms <em>manual inventory classification</em> into an AI-assisted pipeline &mdash; what takes <em>2 weeks of spreadsheet work</em> becomes same-day intelligent processing, freeing the team to focus on vendor strategy.</div>
+      <div class="value-pills">
+        <div class="vpill"><span class="vpill-num">6</span><span class="vpill-lbl">Pains Resolved</span></div>
+        <div class="vpill"><span class="vpill-num">8.5 hrs</span><span class="vpill-lbl">Saved / Cycle</span></div>
+        <div class="vpill"><span class="vpill-num">$340K</span><span class="vpill-lbl">Annual Savings</span></div>
+      </div>
+    </div>
+    <div class="controls">
+      <div class="persona-pills" id="personaPills"></div>
+      <button class="horizon-btn" onclick="toggleHorizons()">
+        <span>Horizons</span>
+        <span class="h-count" id="horizonCount">3</span>
+      </button>
+      <button class="present-btn" onclick="enterPresent()">Present</button>
+    </div>
+  </header>
+
+  <!-- Horizons Panel (slides down below header) -->
+  <div class="horizons-panel" id="horizonsPanel">
+    <div class="horizons-inner" id="horizonsInner"></div>
+  </div>
+
+  <div class="main-area">
+    <div class="canvas" id="canvas">
+      <div class="canvas-inner" id="canvasInner">
+        <div class="waterline-bg"></div>
+        <svg class="svg-layer" id="svgLayer"></svg>
+        <div id="stationsContainer"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Step Modal Overlay -->
+<div class="step-modal-overlay" id="stepModal" onclick="if(event.target===this)closeModal()">
+  <div class="step-modal" style="position:relative">
+    <button class="modal-close" onclick="closeModal()">&times;</button>
+    <div class="modal-detail" id="modalDetail"></div>
+    <div class="modal-chat" id="modalChat"></div>
+  </div>
+</div>
+
+<!-- Present Mode Overlay -->
+<div class="present-overlay" id="presentOverlay">
+  <div class="p-header">
+    <div class="p-counter" id="pCounter"></div>
+    <button class="p-close" onclick="exitPresent()">ESC &middot; Exit</button>
+  </div>
+  <div class="p-content" id="pContent"></div>
+  <div class="p-nav">
+    <button class="p-nav-btn" id="pPrev" onclick="pNav(-1)">&larr; Previous</button>
+    <div class="p-dots" id="pDots"></div>
+    <button class="p-nav-btn" id="pNext" onclick="pNav(1)">Next &rarr;</button>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+// DATA
+// ═══════════════════════════════════════════════════════════════
+
+const personas = [
+  { name: "Sarah Chen", role: "Operations Manager", color: "#3FAF7A", initial: "SC" },
+  { name: "Tom Rivera", role: "Procurement Lead", color: "#044159", initial: "TR" },
+  { name: "Alex Kim", role: "Warehouse Supervisor", color: "#2D6B4A", initial: "AK" },
+  { name: "Lisa Park", role: "CFO", color: "#0A1E2F", initial: "LP" },
+];
+
+const steps = [
+  {
+    title: "Onboard & Configure Categories",
+    goal: "Set up inventory taxonomy and import existing category structures so the system understands the classification framework",
+    phase: "entry", actors: ["Sarah Chen", "Alex Kim"], valueBadges: ["transform"], confidence: "high",
+    dataIn: [], dataOut: ["Category Taxonomy"],
+    narrative: "Sarah and Alex sit down with the category configuration wizard. They import their existing 340-item taxonomy from the master spreadsheet. The system highlights 23 categories with fewer than 5 items \u2014 candidates for consolidation. Alex confirms 4 merges, and the taxonomy shrinks to 317 focused categories. Total setup: 25 minutes.",
+    beforeAfter: {
+      before: ["Manual taxonomy in spreadsheets", "No standardization across warehouses", "3 days to update categories"],
+      after: ["AI-suggested taxonomy", "Standardized across all locations", "25-minute guided setup"]
+    },
+    fields: [
+      { name: "Category count", type: "computed", value: "317 active", confidence: "known" },
+      { name: "Import source", type: "captured", value: "Excel", confidence: "known" },
+      { name: "Consolidation suggestions", type: "computed", value: "23 flagged, 4 merged", confidence: "inferred" },
+    ],
+    questions: [],
+  },
+  {
+    title: "Import Historical Inventory Data",
+    goal: "Bring in 2 years of historical data to train the AI classifier and establish baseline metrics",
+    phase: "entry", actors: ["Sarah Chen"], valueBadges: ["connect"], confidence: "medium",
+    dataIn: [], dataOut: ["Inventory Record", "Historical Baseline"],
+    narrative: "Sarah uploads 24 months of inventory transactions \u2014 47,000 records across 3 warehouses. The system maps columns automatically, flagging 12 fields that need manual mapping. After 8 minutes, the AI reports: 94% auto-classified, 2,800 items need manual review.",
+    insight: { title: "Hidden Connection", text: "Data Migration and Setup share 3 data entities \u2014 they\u2019re actually one process split across two teams.", evidence: "5 entity dependency links" },
+    fields: [
+      { name: "Records imported", type: "computed", value: "47,000", confidence: "known" },
+      { name: "Auto-mapped fields", type: "computed", value: "18/30", confidence: "inferred" },
+      { name: "AI training quality", type: "computed", value: "87%", confidence: "inferred" },
+    ],
+    questions: [{ q: "Import all 3 warehouses simultaneously or phase by location?", ctx: "Phased approach reduces risk but delays AI training" }],
+  },
+  {
+    title: "Classify Incoming Inventory with AI",
+    goal: "Automatically classify new arrivals using trained AI, with human review for low-confidence items",
+    phase: "core_experience", actors: ["Sarah Chen", "Alex Kim"], valueBadges: ["transform", "amplify"], confidence: "high",
+    dataIn: ["Inventory Record", "Category Taxonomy"], dataOut: ["Classification Result"],
+    narrative: "Sarah opens her morning dashboard and sees 247 new items for classification. The AI has pre-classified 89% with confidence above 90%. She filters to the 27 exceptions \u2014 mostly custom parts. She creates a new category \u2018Custom Fabrication\u2019, and the AI reclassifies 12 items. Alex reviews the remaining 15, correcting 3. The AI notes corrections for future training. Total: 4 minutes. Yesterday\u2019s equivalent: 3 hours.",
+    beforeAfter: {
+      before: ["Manual spreadsheet classification", "3 hours per 250 items", "12% error rate", "\u201CI dread Monday mornings\u201D"],
+      after: ["AI pre-classification (89% auto)", "4 minutes for 247 items", "2% error rate", "Focus on exceptions only"]
+    },
+    aiConfig: { role: "Pre-classify items based on trained model", behaviors: ["Auto-classify above 90% confidence", "Flag exceptions for review", "Learn from corrections"] },
+    tension: { desc: "Automation Level Disagreement", sideA: "\u201CFully automated\u201D \u2014 CTO", sideB: "\u201CEvery item reviewed\u201D \u2014 Ops Director", resolution: "Current: AI + human review for exceptions. 90% threshold needs agreement." },
+    unlocks: ["Predictive Demand Forecasting"],
+    fields: [
+      { name: "Items pending", type: "displayed", value: "247 new", confidence: "known" },
+      { name: "Auto-classified", type: "computed", value: "220 (89%)", confidence: "known" },
+      { name: "Exception queue", type: "computed", value: "27 for review", confidence: "known" },
+      { name: "AI confidence", type: "computed", value: "94.2% avg", confidence: "inferred" },
+    ],
+    questions: [],
+  },
+  {
+    title: "Match Vendors to Classified Inventory",
+    goal: "Link classified items to preferred vendors based on category, history, and performance scores",
+    phase: "core_experience", actors: ["Tom Rivera"], valueBadges: ["connect", "transform"], confidence: "medium",
+    dataIn: ["Classification Result"], dataOut: ["Vendor Match"],
+    narrative: "Tom sees 220 newly classified items ready for vendor matching. The system pre-matched 85% based on category history and performance scores. For \u2018Custom Fabrication\u2019, 3 vendors ranked by quality, lead time, and cost. Tom selects the top vendor. Total: 8 minutes.",
+    beforeAfter: { before: ["Manual vendor lookup", "45 min per batch", "Relies on memory"], after: ["AI-matched suggestions", "8 min per batch", "Performance-ranked"] },
+    unlocks: ["Automated Vendor Negotiation"],
+    fields: [
+      { name: "Items ready", type: "displayed", value: "220 classified", confidence: "known" },
+      { name: "Auto-matched", type: "computed", value: "187 (85%)", confidence: "inferred" },
+    ],
+    questions: [{ q: "Consider warehouse proximity for vendor matching?", ctx: "Could reduce shipping costs 15-20%" }],
+  },
+  {
+    title: "Monitor Inventory Health Dashboard",
+    goal: "Real-time view of inventory status, classification accuracy, and trend alerts",
+    phase: "core_experience", actors: ["Sarah Chen", "Lisa Park"], valueBadges: ["amplify"], confidence: "high",
+    dataIn: ["Classification Result", "Vendor Match"], dataOut: ["Health Metrics"],
+    narrative: "Lisa opens her executive dashboard. Inventory health: 94% \u2014 up from 78% last quarter. KPI cards: classification accuracy (96.2%), vendor fill rate (91%), days-on-hand trending from 45 to 32. An alert flags \u2018Supplier B lead time increased 40%\u2019 \u2014 the AI recommends shifting 12 items to Supplier A. She forwards it to Tom.",
+    fields: [
+      { name: "Health score", type: "computed", value: "94% (was 78%)", confidence: "inferred" },
+      { name: "Classification accuracy", type: "computed", value: "96.2%", confidence: "known" },
+      { name: "Days on hand", type: "computed", value: "32 (was 45)", confidence: "known" },
+    ],
+    questions: [],
+  },
+  {
+    title: "Generate Smart Reorder Recommendations",
+    goal: "Predict optimal reorder points using AI analysis of consumption, lead times, and seasonal trends",
+    phase: "core_experience", actors: ["Tom Rivera", "Sarah Chen"], valueBadges: ["amplify", "unlock"], confidence: "medium",
+    dataIn: ["Health Metrics", "Vendor Match"], dataOut: ["Reorder Signal"],
+    narrative: "Tom reviews reorder recommendations. The AI flagged 34 items approaching reorder points. \u2018Stainless Steel Fasteners\u2019 shows a seasonal spike \u2014 AI recommends +20% based on last year\u2019s Q4 surge. Tom approves 28 with one click, adjusts 4, flags 2 for Sarah. POs generated automatically.",
+    aiConfig: { role: "Predict reorder points and quantities", behaviors: ["Analyze 24-month consumption", "Detect seasonal patterns", "Auto-generate PO drafts"] },
+    unlocks: ["Predictive Demand Forecasting"],
+    fields: [
+      { name: "Items flagged", type: "computed", value: "34 approaching reorder", confidence: "inferred" },
+      { name: "Seasonal prediction", type: "computed", value: "Q4 surge: +20%", confidence: "guess" },
+      { name: "Estimated savings", type: "computed", value: "$47K vs. manual", confidence: "guess" },
+    ],
+    questions: [{ q: "Risk tolerance for AI-recommended quantities?", ctx: "Higher = more automation, risk of over/under-ordering" }],
+  },
+  {
+    title: "Export Compliance & Analytics Reports",
+    goal: "Generate audit-ready compliance reports and analytics exports for regulatory and leadership",
+    phase: "output", actors: ["Lisa Park", "Sarah Chen"], valueBadges: ["transform"], confidence: "high",
+    dataIn: ["Health Metrics", "Reorder Signal"], dataOut: [],
+    narrative: "Lisa clicks \u2018Generate Q3 Report\u2019. Classification accuracy, vendor performance, inventory turns, and compliance metrics flow into a branded PDF. Every data point links to its source. \u2018AI-assisted classification reduced errors from 12% to 2%, saving $340K.\u2019 Generated in 12 seconds.",
+    beforeAfter: { before: ["2 days to compile report", "Data from 4 systems", "No audit trail"], after: ["12-second generation", "Single source of truth", "Full data provenance"] },
+    fields: [
+      { name: "Report types", type: "displayed", value: "Compliance PDF, Analytics", confidence: "known" },
+      { name: "Generation time", type: "computed", value: "12 seconds", confidence: "inferred" },
+    ],
+    questions: [],
+  },
+  {
+    title: "Configure AI Classification Rules",
+    goal: "Fine-tune AI behavior, set confidence thresholds, and manage classification overrides",
+    phase: "admin", actors: ["Sarah Chen"], valueBadges: ["amplify"], confidence: "high",
+    dataIn: ["Classification Result"], dataOut: ["Category Taxonomy"],
+    narrative: "Sarah adjusts the confidence threshold from 90% to 85%. She adds a rule: \u2018Items from Supplier X always classify as Industrial Grade.\u2019 She reviews the learning log \u2014 847 corrections improved accuracy from 87% to 96%.",
+    fields: [
+      { name: "Confidence threshold", type: "captured", value: "85% (from 90%)", confidence: "known" },
+      { name: "Custom rules", type: "captured", value: "14 active", confidence: "known" },
+      { name: "AI learning", type: "computed", value: "847 corrections, 87\u219296%", confidence: "known" },
+    ],
+    questions: [],
+  },
+];
+
+const horizons = [
+  { title: "Predictive Demand Forecasting", horizon: "H2", value: "$2.4M savings potential", desc: "Once classification is reliable, predict demand 30 days out", unlockedBy: [2, 5] },
+  { title: "Automated Vendor Negotiation", horizon: "H2", value: "15% cost reduction", desc: "AI drafts negotiation strategies from performance data", unlockedBy: [3] },
+  { title: "Supply Chain Digital Twin", horizon: "H3", value: "Full predictive model", desc: "Complete data foundation enables a digital twin", unlockedBy: [2, 3, 5] },
+];
+
+const graphLayout = [
+  { col: 0, row: 0 }, { col: 0, row: 1 },
+  { col: 1, row: 0 }, { col: 2, row: 0 },
+  { col: 2, row: 1 }, { col: 3, row: 0 },
+  { col: 4, row: 0 }, { col: 4, row: 1 },
+];
+
+const valueBadgeConfig = {
+  transform: { icon: "\u21C4", label: "Transform" },
+  unlock:    { icon: "\u25B3", label: "Unlock" },
+  connect:   { icon: "\u2B21", label: "Connect" },
+  amplify:   { icon: "\u26A1", label: "Amplify" },
+};
+
+// ═══════════════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════════════
+
+const state = { activeStation: null, activePersona: null, presentMode: false, presentStep: 0 };
+
+// ═══════════════════════════════════════════════════════════════
+// LAYOUT ENGINE
+// ═══════════════════════════════════════════════════════════════
+
+function calcWeight(s) {
+  return s.actors.length * 10 + s.fields.length * 6 + s.valueBadges.length * 8
+    + (s.beforeAfter ? 15 : 0) + (s.aiConfig ? 12 : 0) + (s.unlocks ? 10 : 0)
+    + (s.tension ? 10 : 0) + (s.insight ? 5 : 0);
+}
+
+function cardSize(w, hero) {
+  if (hero) return { w: 310, h: 195 };
+  if (w >= 45) return { w: 255, h: 170 };
+  if (w >= 30) return { w: 225, h: 155 };
+  return { w: 195, h: 140 };
+}
+
+function sizeClass(w, hero) {
+  if (hero) return "size-hero";
+  if (w >= 45) return "size-lg";
+  if (w >= 30) return "size-md";
+  return "size-sm";
+}
+
+function computePositions() {
+  const weights = steps.map(calcWeight);
+  const heroIdx = weights.indexOf(Math.max(...weights));
+  const sizes = steps.map((_, i) => cardSize(weights[i], i === heroIdx));
+
+  const cols = {};
+  graphLayout.forEach((l, i) => { if (!cols[l.col]) cols[l.col] = []; cols[l.col].push(i); });
+  const colKeys = Object.keys(cols).map(Number).sort((a, b) => a - b);
+  const colWidths = {};
+  colKeys.forEach(c => { colWidths[c] = Math.max(...cols[c].map(i => sizes[i].w)); });
+
+  const gap = 80, padL = 60;
+  const colX = {};
+  let x = padL;
+  colKeys.forEach(c => { colX[c] = x; x += colWidths[c] + gap; });
+
+  const riverY = 220, vGap = 20;
+  const positions = [];
+  colKeys.forEach(c => {
+    const cards = cols[c].sort((a, b) => graphLayout[a].row - graphLayout[b].row);
+    if (cards.length === 1) {
+      const i = cards[0];
+      positions[i] = { x: colX[c] + (colWidths[c] - sizes[i].w) / 2, y: riverY - sizes[i].h / 2, w: sizes[i].w, h: sizes[i].h };
+    } else {
+      const totalH = cards.reduce((s, i) => s + sizes[i].h, 0) + vGap * (cards.length - 1);
+      let y = riverY - totalH / 2;
+      cards.forEach(i => {
+        positions[i] = { x: colX[c] + (colWidths[c] - sizes[i].w) / 2, y, w: sizes[i].w, h: sizes[i].h };
+        y += sizes[i].h + vGap;
+      });
+    }
+  });
+
+  return { positions, sizes, weights, heroIdx, totalWidth: x + 40, riverY };
+}
+
+// ═══════════════════════════════════════════════════════════════
+// RENDER
+// ═══════════════════════════════════════════════════════════════
+
+let cardPositions = null;
+let cardWeights = null;
+let heroIndex = null;
+
+function renderAll() {
+  const { positions, weights, heroIdx, totalWidth, riverY } = computePositions();
+  cardPositions = positions;
+  cardWeights = weights;
+  heroIndex = heroIdx;
+
+  document.getElementById("canvasInner").style.minWidth = totalWidth + "px";
+  renderPersonaPills();
+  renderStations(positions, weights, heroIdx);
+  renderHorizons();
+  renderSVG(positions, riverY);
+}
+
+function renderPersonaPills() {
+  document.getElementById("personaPills").innerHTML = personas.map((p, i) =>
+    `<button class="ppill" data-p="${i}" style="--pc:${p.color}" onclick="togglePersona(${i})">
+      <div class="pavatar" style="background:${p.color}">${p.initial}</div>${p.name.split(" ")[0]}
+    </button>`
+  ).join("");
+}
+
+function renderStations(positions, weights, heroIdx) {
+  document.getElementById("stationsContainer").innerHTML = steps.map((s, i) => {
+    const pos = positions[i];
+    const w = weights[i];
+    const isHero = i === heroIdx;
+    const dots = s.actors.map(name => {
+      const p = personas.find(pp => pp.name === name);
+      return p ? `<div class="pdot" style="background:${p.color}" title="${p.name}">${p.initial}</div>` : "";
+    }).join("");
+    const badges = s.valueBadges.map(b =>
+      `<div class="vbadge" title="${valueBadgeConfig[b].label}">${valueBadgeConfig[b].icon}</div>`
+    ).join("");
+
+    return `<div class="station ${sizeClass(w, isHero)} conf-${s.confidence}"
+      data-step="${i}" data-weight="${w}" data-hero="${isHero}"
+      style="left:${pos.x}px;top:${pos.y}px;width:${pos.w}px;height:${pos.h}px;animation-delay:${i * 0.06}s"
+      onclick="openStepModal(${i})">
+      <div class="st-head">
+        <span class="phase-b phase-${s.phase}">${s.phase.replace("_", " ")}</span>
+        <div class="vbadges">${badges}</div>
+      </div>
+      <div class="st-title">${s.title}</div>
+      <div class="st-goal">${s.goal}</div>
+      <div class="st-foot">
+        <div class="st-personas">${dots}</div>
+        <span class="st-num">Step ${i + 1}</span>
+      </div>
+    </div>`;
+  }).join("");
+}
+
+function buildDetailHtml(s) {
+  let html = `<div class="d-label">The Story</div>
+    <div class="d-narrative">${s.narrative}</div>`;
+
+  if (s.beforeAfter) {
+    html += `<div class="d-label">Transformation</div>
+      <div class="ba-card">
+        <div class="ba-side today"><div class="ba-lbl">Today</div>${s.beforeAfter.before.map(b => `<div class="ba-item">${b}</div>`).join("")}</div>
+        <div class="ba-side tomorrow"><div class="ba-lbl">Tomorrow</div>${s.beforeAfter.after.map(a => `<div class="ba-item">${a}</div>`).join("")}</div>
+      </div>`;
+  }
+
+  if (s.unlocks) {
+    const target = horizons.find(h => s.unlocks.includes(h.title));
+    if (target) {
+      html += `<div class="d-label">This Step Unlocks</div>
+        <div class="intel-card unlock"><div class="ic-title">${target.title} (${target.horizon})</div>
+        <div class="ic-text">${target.desc}</div><div class="ic-value">${target.value}</div></div>`;
+    }
+  }
+
+  if (s.tension) {
+    html += `<div class="d-label">Tension to Resolve</div>
+      <div class="intel-card tension"><div class="ic-title">${s.tension.desc}</div>
+      <div class="tension-sides"><div class="tension-side">${s.tension.sideA}</div><div class="tension-side">${s.tension.sideB}</div></div>
+      <div class="tension-res">${s.tension.resolution}</div></div>`;
+  }
+
+  if (s.insight) {
+    html += `<div class="d-label">Intelligence Insight</div>
+      <div class="intel-card insight"><div class="ic-title">${s.insight.title}</div>
+      <div class="ic-text">${s.insight.text}</div><div class="ic-evidence">${s.insight.evidence}</div></div>`;
+  }
+
+  if (s.aiConfig) {
+    html += `<div class="d-label">AI Role</div>
+      <div class="intel-card ai-role"><div class="ic-title">${s.aiConfig.role}</div>
+      ${s.aiConfig.behaviors.map(b => `<div class="ic-text">\u2022 ${b}</div>`).join("")}</div>`;
+  }
+
+  html += `<div class="d-label">Information Fields</div><div class="field-grid">
+    ${s.fields.map(f => `<div class="field-item"><div class="fdot ${f.type}"></div>
+      <div class="fname">${f.name}</div><div class="fval">${f.value}</div>
+      <span class="fconf ${f.confidence}">${f.confidence}</span></div>`).join("")}</div>`;
+
+  if (s.questions.length) {
+    html += `<div class="d-label">Open Questions</div>
+      ${s.questions.map(q => `<div class="q-item"><span class="q-icon">?</span><div>
+        <div class="q-text">${q.q}</div>${q.ctx ? `<div class="q-ctx">${q.ctx}</div>` : ""}
+      </div></div>`).join("")}`;
+  }
+
+  return html;
+}
+
+function renderHorizons() {
+  document.getElementById("horizonCount").textContent = horizons.length;
+  document.getElementById("horizonsInner").innerHTML = horizons.map((h, hi) => {
+    const unlockStepNames = h.unlockedBy.map(i => steps[i].title);
+    return `<div class="h-card ${h.horizon.toLowerCase()}">
+      <div class="h-head">
+        <span class="hbadge">${h.horizon}</span>
+        <div class="h-title">${h.title}</div>
+      </div>
+      <div class="h-desc">${h.desc}</div>
+      <div class="h-meta">
+        <span class="h-value">${h.value}</span>
+      </div>
+      <div class="h-unlock-steps">
+        ${unlockStepNames.map(n => `<span class="h-unlock-pill">${n}</span>`).join("")}
+      </div>
+    </div>`;
+  }).join("");
+}
+
+function toggleHorizons() {
+  document.getElementById("horizonsPanel").classList.toggle("open");
+}
+
+function renderSVG(positions, riverY) {
+  // Canvas is clean — no edge lines, no horizon links
+  // The waterline gradient provides the visual flow
+  document.getElementById("svgLayer").innerHTML = "";
+}
+
+// ═══════════════════════════════════════════════════════════════
+// IN-PLACE EXPANSION
+// ═══════════════════════════════════════════════════════════════
+
+function openStepModal(index) {
+  state.activeStation = index;
+  const s = steps[index];
+
+  // Highlight selected station
+  document.querySelectorAll(".station").forEach((el, i) => {
+    el.classList.toggle("selected", i === index);
+  });
+
+  // Build modal detail
+  const actors = s.actors.map(name => {
+    const p = personas.find(pp => pp.name === name);
+    return p ? `<div class="modal-actor"><div class="pdot" style="background:${p.color}">${p.initial}</div>${p.name}</div>` : "";
+  }).join("");
+
+  const badges = s.valueBadges.map(b =>
+    `<span class="modal-vbadge">${valueBadgeConfig[b].icon} ${valueBadgeConfig[b].label}</span>`
+  ).join("");
+
+  let detailHtml = `
+    <div class="modal-head">
+      <span class="phase-b phase-${s.phase}">${s.phase.replace("_", " ")}</span>
+      <span class="modal-step-num">Step ${index + 1} of ${steps.length}</span>
+    </div>
+    <div class="modal-title">${s.title}</div>
+    <div class="modal-goal">${s.goal}</div>
+    <div class="modal-actors">${actors}</div>
+    <div class="modal-badges">${badges}</div>`;
+
+  detailHtml += buildDetailHtml(s);
+
+  document.getElementById("modalDetail").innerHTML = detailHtml;
+
+  // Build chat side
+  let chatHtml = `
+    <div class="chat-header">
+      <svg viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z"/></svg>
+      <span class="chat-header-text">Step Assistant</span>
+      <span class="chat-header-mode step">Step</span>
+    </div>
+    <div class="chat-body">
+      <div class="chat-context"><strong>Step ${index + 1}:</strong> ${s.goal}${s.questions.length ? `<br><span style="color:var(--accent)">${s.questions.length} open question${s.questions.length > 1 ? 's' : ''}</span>` : ''}</div>
+      <div class="chat-suggestions">
+        <button class="chat-suggest" onclick="chatAction('narrative')"><span class="suggest-icon">&para;</span> Refine the story narrative</button>`;
+
+  if (s.tension) {
+    chatHtml += `<button class="chat-suggest" onclick="chatAction('tension')"><span class="suggest-icon">!</span> Help resolve: ${s.tension.desc}</button>`;
+  }
+  if (s.questions.length) {
+    chatHtml += `<button class="chat-suggest" onclick="chatAction('question')"><span class="suggest-icon">?</span> ${s.questions[0].q}</button>`;
+  }
+
+  chatHtml += `
+        <button class="chat-suggest" onclick="chatAction('fields')"><span class="suggest-icon">&equiv;</span> Add or update fields</button>
+        <button class="chat-suggest" onclick="chatAction('actors')"><span class="suggest-icon">+</span> Change who's involved</button>
+        <div class="chat-divider">Cascade Operations</div>
+        <button class="chat-suggest" onclick="chatAction('split')"><span class="suggest-icon">&harr;</span> Split into two steps</button>
+        <button class="chat-suggest" onclick="chatAction('remove')"><span class="suggest-icon">&times;</span> What if we removed this?</button>
+      </div>
+    </div>
+    <div class="chat-input-area">
+      <input class="chat-input" placeholder="Ask about &quot;${s.title}&quot;..." onkeydown="if(event.key==='Enter')chatAction('custom',this.value)">
+    </div>`;
+
+  document.getElementById("modalChat").innerHTML = chatHtml;
+
+  // Show modal
+  document.getElementById("stepModal").classList.add("open");
+}
+
+function closeModal() {
+  document.getElementById("stepModal").classList.remove("open");
+  state.activeStation = null;
+  document.querySelectorAll(".station").forEach(el => el.classList.remove("selected"));
+}
+
+function togglePersona(index) {
+  if (state.activePersona === index) {
+    state.activePersona = null;
+    document.querySelectorAll(".ppill").forEach(p => p.classList.remove("active"));
+    document.querySelectorAll(".station").forEach(s => s.classList.remove("dimmed"));
+    return;
+  }
+  state.activePersona = index;
+  const persona = personas[index];
+  document.querySelectorAll(".ppill").forEach((p, i) => p.classList.toggle("active", i === index));
+  document.querySelectorAll(".station").forEach((s, i) => {
+    s.classList.toggle("dimmed", !steps[i].actors.includes(persona.name));
+  });
+}
+
+function chatAction(type, value) {
+  // Placeholder — in real app this sends to the assistant
+  const action = type === 'custom' ? (value || '') : type;
+  if (!action) return;
+  // Visual feedback in the modal chat body
+  const body = document.querySelector("#modalChat .chat-body");
+  if (body) {
+    const msg = document.createElement('div');
+    msg.style.cssText = 'padding:8px 12px;background:var(--green-pale);border-radius:7px;font-size:11px;color:var(--t2);margin-bottom:10px;border-left:2px solid var(--green)';
+    msg.textContent = type === 'custom' ? action : `Action: ${type}`;
+    body.insertBefore(msg, body.querySelector('.chat-suggestions'));
+    setTimeout(() => msg.remove(), 3000);
+  }
+}
+
+// ESC to close
+document.addEventListener("keydown", e => {
+  if (state.presentMode) {
+    if (e.key === "ArrowRight" || e.key === " ") { e.preventDefault(); pNav(1); }
+    if (e.key === "ArrowLeft") pNav(-1);
+    if (e.key === "Escape") exitPresent();
+  } else {
+    if (e.key === "Escape") closeModal();
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════
+// PRESENT MODE
+// ═══════════════════════════════════════════════════════════════
+
+const totalSlides = steps.length + 2;
+
+function enterPresent() {
+  state.presentMode = true;
+  state.presentStep = 0;
+  document.getElementById("presentOverlay").classList.add("active");
+  renderPresentSlide();
+  renderPresentDots();
+}
+
+function exitPresent() {
+  state.presentMode = false;
+  document.getElementById("presentOverlay").classList.remove("active");
+}
+
+function pNav(dir) {
+  state.presentStep = Math.max(0, Math.min(totalSlides - 1, state.presentStep + dir));
+  renderPresentSlide();
+  renderPresentDots();
+}
+
+function renderPresentSlide() {
+  const idx = state.presentStep;
+  const el = document.getElementById("pContent");
+  document.getElementById("pCounter").textContent =
+    idx === 0 ? "Introduction" : idx === totalSlides - 1 ? "Summary" : `Step ${idx} of ${steps.length}`;
+  document.getElementById("pPrev").disabled = idx === 0;
+  document.getElementById("pNext").disabled = idx === totalSlides - 1;
+
+  if (idx === 0) {
+    el.innerHTML = `<div class="p-card"><div class="p-title-slide">
+      <h1>Solution Blueprint</h1>
+      <div class="p-thesis">This solution transforms <em style="color:var(--green);font-style:normal">manual inventory classification</em> into an AI-assisted pipeline &mdash; same-day intelligent processing that frees the team to focus on vendor strategy.</div>
+      <div class="p-meta">
+        <div class="p-meta-item"><strong>${steps.length}</strong> steps</div>
+        <div class="p-meta-item"><strong>${personas.length}</strong> personas</div>
+        <div class="p-meta-item"><strong>${horizons.length}</strong> future capabilities</div>
+      </div>
+      <div class="p-hint">Press \u2192 to begin</div>
+    </div></div>`;
+    return;
+  }
+
+  if (idx === totalSlides - 1) {
+    el.innerHTML = `<div class="p-card"><div class="p-summary">
+      <h2>Complete Transformation</h2>
+      <div class="sum-stats">
+        <div class="sum-stat"><div class="sum-stat-val">6</div><div class="sum-stat-lbl">Pains Resolved</div></div>
+        <div class="sum-stat"><div class="sum-stat-val">8.5 hrs</div><div class="sum-stat-lbl">Saved / Cycle</div></div>
+        <div class="sum-stat"><div class="sum-stat-val">$340K</div><div class="sum-stat-lbl">Annual Savings</div></div>
+        <div class="sum-stat"><div class="sum-stat-val">96%</div><div class="sum-stat-lbl">AI Accuracy</div></div>
+      </div>
+      <div class="sum-horizons"><h3>Future Capabilities Unlocked</h3>
+        ${horizons.map(h => `<div class="sum-h-item"><span class="sum-h-badge">${h.horizon}</span>
+          <span class="sum-h-name">${h.title}</span><span class="sum-h-val">${h.value}</span></div>`).join("")}
+      </div>
+    </div></div>`;
+    return;
+  }
+
+  const si = idx - 1, s = steps[si];
+  const valMap = { transform: 25, unlock: 20, connect: 15, amplify: 12 };
+  let cum = 0;
+  steps.slice(0, si + 1).forEach(st => st.valueBadges.forEach(b => { cum += valMap[b] || 0; }));
+  let total = 0;
+  steps.forEach(st => st.valueBadges.forEach(b => { total += valMap[b] || 0; }));
+  const pct = Math.round((cum / total) * 100);
+
+  const badges = s.valueBadges.map(b => `<span class="p-badge">${valueBadgeConfig[b].icon} ${valueBadgeConfig[b].label}</span>`).join("");
+  let baHtml = "";
+  if (s.beforeAfter) {
+    baHtml = `<div class="p-ba">
+      <div class="p-ba-side today"><div class="p-ba-lbl">Today</div>${s.beforeAfter.before.map(b => `<div class="p-ba-item">${b}</div>`).join("")}</div>
+      <div class="p-ba-side tomorrow"><div class="p-ba-lbl">Tomorrow</div>${s.beforeAfter.after.map(a => `<div class="p-ba-item">${a}</div>`).join("")}</div>
+    </div>`;
+  }
+
+  el.innerHTML = `<div class="p-card">
+    <div class="p-phase">${s.phase.replace("_", " ")}</div>
+    <div class="p-step-title">${s.title}</div>
+    <div class="p-goal">${s.goal}</div>
+    <div class="p-narrative">${s.narrative}</div>
+    ${baHtml}
+    <div class="p-badges">${badges}</div>
+    <div class="p-momentum"><span class="p-mom-lbl">Value Momentum</span>
+      <div class="p-mom-track"><div class="p-mom-fill" style="width:${pct}%"></div></div>
+      <span class="p-mom-pct">${pct}%</span></div>
+  </div>`;
+}
+
+function renderPresentDots() {
+  document.getElementById("pDots").innerHTML = Array.from({ length: totalSlides }, (_, i) =>
+    `<div class="p-dot ${i === state.presentStep ? "active" : ""}"></div>`
+  ).join("");
+}
+
+// ═══════════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════════
+
+renderAll();
+</script>
+</body>
+</html>
