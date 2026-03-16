@@ -240,6 +240,19 @@ export function WorkspaceLayout({ projectId, children }: WorkspaceLayoutProps) {
     onDataMutated: handleDataMutated,
   })
 
+  // Reset chat when switching phases — each screen gets a clean conversation context.
+  // Without this, prototype review chat bleeds into BRD, or BRD context leaks into prototype.
+  // Conversations are persisted to DB, so nothing is lost — user just gets a fresh start.
+  const prevPhaseRef = useRef(phase)
+  useEffect(() => {
+    if (prevPhaseRef.current !== phase) {
+      // If leaving review mode, restore the snapshot first
+      restoreConversation()
+      startNewChat()
+      prevPhaseRef.current = phase
+    }
+  }, [phase, startNewChat, restoreConversation])
+
   // Resolved prototype URL — survives SWR revalidation (which may return null from projects table).
   // Prototype deploy_url lives in the prototypes table; projects.prototype_url may be empty.
   const [resolvedProtoUrl, setResolvedProtoUrl] = useState<string | null>(null)
